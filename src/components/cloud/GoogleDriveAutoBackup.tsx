@@ -20,6 +20,9 @@ import {
   getGoogleDriveClientId,
   isGoogleDriveBackupEnabled,
 } from "@/lib/google-drive/config";
+import { runExclusiveDriveBackup } from "@/lib/google-drive/operation";
+
+const AUTO_BACKUP_RETRY_MS = 30_000;
 
 export function GoogleDriveAutoBackup() {
   const { data, ready } = useAppStore();
@@ -34,6 +37,8 @@ export function GoogleDriveAutoBackup() {
   const runningRef = useRef(false);
   const restoreAttemptedRef = useRef(false);
   const scheduledSignatureRef = useRef<string | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [retryRevision, setRetryRevision] = useState(0);
   const [tokenRevision, refreshTokenState] = useState(0);
 
   useEffect(() => {
@@ -55,6 +60,13 @@ export function GoogleDriveAutoBackup() {
       window.removeEventListener("storage", syncSettingsFromStorage);
     };
   }, []);
+
+  useEffect(
+    () => () => {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (!ready || !hydrated || !driveConfigured || !driveAccountReady) return;
@@ -93,7 +105,10 @@ export function GoogleDriveAutoBackup() {
 
     const timer = window.setTimeout(async () => {
       const currentSettings = loadDriveBackupSettings();
-      const currentDecision = shouldRunAutomaticDriveBackup(currentSettings, data);
+      const currentDecision = shouldRunAutomaticDriveBackup(
+        currentSettings,
+        data,
+      );
 
       if (!currentDecision.due || !hasUsableDriveToken()) {
         scheduledSignatureRef.current = null;
@@ -101,14 +116,29 @@ export function GoogleDriveAutoBackup() {
       }
 
       runningRef.current = true;
-      const result = await uploadAppBackupToGoogleDrive(data, {
-        clientId,
-        prompt: "",
-      });
+      const execution = await runExclusiveDriveBackup(() =>
+        uploadAppBackupToGoogleDrive(data, {
+          clientId,
+          prompt: "",
+        }),
+      );
       runningRef.current = false;
       scheduledSignatureRef.current = null;
 
-      if (!result.ok) return;
+      if (!execution.started || !execution.value.ok) {
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = setTimeout(() => {
+          retryTimerRef.current = null;
+          setRetryRevision((value) => value + 1);
+        }, AUTO_BACKUP_RETRY_MS);
+        return;
+      }
+
+      const result = execution.value;
+      if (retryTimerRef.current) {
+        clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
 
       const signature =
         currentDecision.signature ||
@@ -142,6 +172,7 @@ export function GoogleDriveAutoBackup() {
     settings,
     clientId,
     tokenRevision,
+    retryRevision,
   ]);
 
   return null;

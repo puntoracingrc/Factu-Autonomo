@@ -17,6 +17,7 @@ import {
   shouldRunAutomaticDriveBackup,
   uploadAppBackupToGoogleDriveWithAccessToken,
 } from "./backup";
+import { createBackupPayload } from "@/lib/backup";
 import { DEFAULT_PROFILE, type AppData } from "@/lib/types";
 
 const NOW = new Date("2026-06-29T12:00:00.000Z");
@@ -72,7 +73,9 @@ function dataWithDocument(updatedAt: string): AppData {
   };
 }
 
-function expense(createdAt = "2026-06-29T10:00:00.000Z"): AppData["expenses"][number] {
+function expense(
+  createdAt = "2026-06-29T10:00:00.000Z",
+): AppData["expenses"][number] {
   return {
     id: "expense-drive-test",
     date: "2026-06-29",
@@ -159,8 +162,7 @@ describe("Google Drive backup", () => {
     ).toMatchObject({
       enabled: true,
       frequency: "daily",
-      lastFolderWebViewLink:
-        "https://drive.google.com/drive/folders/folder-id",
+      lastFolderWebViewLink: "https://drive.google.com/drive/folders/folder-id",
     });
   });
 
@@ -366,8 +368,7 @@ describe("Google Drive backup", () => {
       expenses: [],
     };
     expect(
-      shouldRunAutomaticDriveBackup(importantSettings(added), deleted, NOW)
-        .due,
+      shouldRunAutomaticDriveBackup(importantSettings(added), deleted, NOW).due,
     ).toBe(true);
   });
 
@@ -535,12 +536,18 @@ describe("Google Drive backup", () => {
       meta: { lastModified: "2026-06-29T11:00:00.000Z" },
     };
 
-    expect(buildDriveBackupSignature(onlyMetaChanged, "every_change", NOW)).toBe(
-      buildDriveBackupSignature(initial, "every_change", NOW),
-    );
+    expect(
+      buildDriveBackupSignature(onlyMetaChanged, "every_change", NOW),
+    ).toBe(buildDriveBackupSignature(initial, "every_change", NOW));
   });
 
   it("crea carpeta y sube un JSON de copia usando el permiso de Drive", async () => {
+    const sourceData = dataWithDocument("2026-06-29T10:00:00.000Z");
+    const expectedJson = JSON.stringify(
+      createBackupPayload(sourceData, NOW.toISOString()),
+      null,
+      2,
+    );
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -556,8 +563,8 @@ describe("Google Drive backup", () => {
             webViewLink: "https://drive.google.com/drive/folders/folder-id",
           }),
           {
-          status: 200,
-          headers: { "Content-Type": "application/json" },
+            status: 200,
+            headers: { "Content-Type": "application/json" },
           },
         ),
       )
@@ -571,6 +578,7 @@ describe("Google Drive backup", () => {
           { status: 200, headers: { "Content-Type": "application/json" } },
         ),
       )
+      .mockResolvedValueOnce(new Response(expectedJson, { status: 200 }))
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -588,7 +596,7 @@ describe("Google Drive backup", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await uploadAppBackupToGoogleDriveWithAccessToken(
-      dataWithDocument("2026-06-29T10:00:00.000Z"),
+      sourceData,
       "access-token",
       { now: () => NOW },
     );
@@ -608,7 +616,7 @@ describe("Google Drive backup", () => {
       cleanupWarning: undefined,
     });
 
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
       "https://www.googleapis.com/drive/v3/files",
     );
@@ -619,6 +627,9 @@ describe("Google Drive backup", () => {
       "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
     );
     expect(String(fetchMock.mock.calls[3]?.[0])).toContain(
+      "/drive/v3/files/file-id?alt=media",
+    );
+    expect(String(fetchMock.mock.calls[4]?.[0])).toContain(
       "name+contains+%27factu-autonomo-drive-backup-",
     );
 
@@ -636,6 +647,12 @@ describe("Google Drive backup", () => {
   });
 
   it("retira de Drive las copias antiguas y conserva solo las diez últimas", async () => {
+    const sourceData = dataWithDocument("2026-06-29T10:00:00.000Z");
+    const expectedJson = JSON.stringify(
+      createBackupPayload(sourceData, NOW.toISOString()),
+      null,
+      2,
+    );
     const oldFiles = Array.from({ length: 12 }, (_, index) => {
       const day = String(index + 1).padStart(2, "0");
       return {
@@ -671,6 +688,7 @@ describe("Google Drive backup", () => {
           { status: 200, headers: { "Content-Type": "application/json" } },
         ),
       )
+      .mockResolvedValueOnce(new Response(expectedJson, { status: 200 }))
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -698,7 +716,7 @@ describe("Google Drive backup", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await uploadAppBackupToGoogleDriveWithAccessToken(
-      dataWithDocument("2026-06-29T10:00:00.000Z"),
+      sourceData,
       "access-token",
       { now: () => NOW },
     );
@@ -711,10 +729,10 @@ describe("Google Drive backup", () => {
         removed: 3,
       },
     });
-    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(fetchMock).toHaveBeenCalledTimes(7);
 
     const trashedIds = fetchMock.mock.calls
-      .slice(3)
+      .slice(4)
       .map(([url]) => String(url));
     expect(trashedIds).toEqual([
       "https://www.googleapis.com/drive/v3/files/backup-3?fields=id,trashed",
@@ -722,9 +740,48 @@ describe("Google Drive backup", () => {
       "https://www.googleapis.com/drive/v3/files/backup-1?fields=id,trashed",
     ]);
 
-    const trashBody = fetchMock.mock.calls[3]?.[1] as RequestInit;
+    const trashBody = fetchMock.mock.calls[4]?.[1] as RequestInit;
     expect(trashBody.method).toBe("PATCH");
     expect(trashBody.body).toBe(JSON.stringify({ trashed: true }));
+  });
+
+  it("no confirma una copia si Drive no devuelve exactamente los bytes subidos", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            files: [{ id: "folder-id", name: "Factu - copias de seguridad" }],
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            id: "file-id",
+            name: "factu-autonomo-drive-backup-2026-06-29-1200.json",
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response('{"contenido":"distinto"}', { status: 200 }),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      uploadAppBackupToGoogleDriveWithAccessToken(
+        dataWithDocument("2026-06-29T10:00:00.000Z"),
+        "access-token",
+        { now: () => NOW },
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      error:
+        "Drive recibió el archivo, pero no devolvió una copia idéntica. No se ha marcado como copia válida.",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   it("olvida el permiso temporal cuando Google responde no autorizado", async () => {
@@ -750,8 +807,7 @@ describe("Google Drive backup", () => {
 
     expect(result).toEqual({
       ok: false,
-      error:
-        "El permiso de Google Drive ha caducado. Vuelve a conectar Drive.",
+      error: "El permiso de Google Drive ha caducado. Vuelve a conectar Drive.",
     });
     expect(hasUsableDriveToken()).toBe(false);
   });

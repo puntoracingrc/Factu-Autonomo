@@ -16,6 +16,7 @@ import {
   saveDriveBackupSettings,
   uploadAppBackupToGoogleDriveWithAccessToken,
 } from "@/lib/google-drive/backup";
+import { runExclusiveDriveBackup } from "@/lib/google-drive/operation";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 
 type CallbackStatus =
@@ -124,11 +125,16 @@ export default function GoogleDriveCallbackPage() {
         const token = await exchangeCodeForAccessToken({ code, redirectUri });
         cacheDriveAccessToken(token.accessToken, token.expiresIn);
 
-        const result = await uploadAppBackupToGoogleDriveWithAccessToken(
-          data,
-          token.accessToken,
+        const execution = await runExclusiveDriveBackup(() =>
+          uploadAppBackupToGoogleDriveWithAccessToken(data, token.accessToken),
         );
+        if (!execution.started) {
+          throw new Error(
+            "Ya hay una copia de Drive en curso. Vuelve a intentarlo desde Cuenta.",
+          );
+        }
 
+        const result = execution.value;
         if (!result.ok) {
           throw new Error(result.error);
         }

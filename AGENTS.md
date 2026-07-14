@@ -5,6 +5,21 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+## Lectura obligatoria antes de editar
+
+Antes de inspeccionar con intención de editar cualquier parte del repositorio,
+todo task debe leer
+[`docs/architecture/PROTECTED-SYSTEM-INVARIANTS.md`](docs/architecture/PROTECTED-SYSTEM-INVARIANTS.md).
+Ese registro identifica los sistemas blindados, sus decisiones versionadas y
+las regresiones mínimas que deben ejecutarse. Sus garantías no se pueden
+debilitar, reinterpretar ni eliminar sin autorización expresa del propietario
+del producto y actualización versionada del ADR correspondiente.
+
+Una corrección compatible que mantenga o aumente esas garantías puede
+continuar sin pedir permiso adicional, pero debe revisar el ADR aplicable,
+respetar `CODEOWNERS` y ejecutar sus pruebas de contrato. El test
+`protected-system-invariants-contract.test.ts` protege esta lectura obligatoria.
+
 ## Integridad de documentos históricos importados
 
 La decisión obligatoria y versionada está en
@@ -139,3 +154,34 @@ La decisión obligatoria y versionada está en
   `expense-inbox-copy.test.ts` y `expense-inbox-download.test.ts`. Una auditoría
   o refactor no puede relajar estos invariantes ni convertir un fallo parcial
   en 200.
+
+## Fiabilidad de la nube y Google Drive
+
+La decisión obligatoria y versionada está en
+[`docs/architecture/ADR-0005-cloud-and-drive-sync-reliability.md`](docs/architecture/ADR-0005-cloud-and-drive-sync-reliability.md).
+
+- La nube de Factu es la sincronización operativa entre dispositivos; Google
+  Drive es únicamente una copia JSON adicional. Drive nunca sustituye, mezcla
+  ni confirma el estado vivo de la cuenta.
+- Subida, descarga, mezcla, descarga completa y reparación comparten una única
+  exclusión mutua por cliente. El bloqueo siempre se libera con `finally`; un
+  fallo o excepción previa no puede dejar inservibles ni el reintento
+  automático ni «Sincronizar ahora».
+- Una cola local solo se limpia después de confirmar la escritura y aplicar el
+  estado sincronizado. Offline, timeout, preflight, CAS o conflicto conservan
+  los cambios locales y dejan un error observable y reintentable.
+- Descargar o reemplazar desde la nube es una acción explícita: nunca se hace
+  silenciosamente sobre datos locales pendientes. Identidad de usuario,
+  aislamiento por tenant, integridad fiscal y overlays monotónicos siguen
+  siendo fail-closed.
+- Drive usa solo `drive.file`, callback propio con `state`, token temporal en
+  sesión y destinos oficiales de Google. Una copia solo se marca válida tras
+  releer el archivo recién creado y comparar exactamente el JSON exportado.
+- La copia manual y la automática no pueden ejecutarse a la vez. Un fallo
+  automático conserva la firma pendiente y programa reintento; la retención se
+  aplica después de verificar la copia nueva y nunca borra archivos ajenos.
+- Cualquier cambio en `CloudSyncContext`, `src/lib/cloud/**`, Google Drive,
+  almacenamiento, AppStore, Supabase o restauraciones debe ejecutar
+  `cloud-drive-sync-reliability-contract.test.ts`, `sync-operation.test.ts`,
+  `sync-queue.test.ts`, `repository.test.ts`, `google-drive/operation.test.ts`
+  y `google-drive/backup.test.ts`.
