@@ -75,6 +75,26 @@ describe("multipage fiscal notification segmenter v1", () => {
     }
   });
 
+  it("segments the implemented assessment titles as main administrative acts", async () => {
+    const titles = [
+      "notificacion del tramite de alegaciones y propuesta de liquidacion provisional",
+      "notificacion de resolucion con liquidacion provisional",
+      "resolucion con liquidacion provisional",
+    ];
+    for (const title of titles) {
+      const result = await segmentFiscalNotificationDocumentV1(input(
+        page(1, title, "agencia tributaria"),
+      ));
+      expect(result.segments).toEqual([
+        expect.objectContaining({
+          segmentType: "MAIN_ADMINISTRATIVE_ACT",
+          detectedTitle: title,
+          canGenerateAdministrativeFacts: true,
+        }),
+      ]);
+    }
+  });
+
   it("classifies the closed deferral debt-schedule annex as a debt list, not a generic annex", async () => {
     const result = await segmentFiscalNotificationDocumentV1(input(
       page(1, "concesion del aplazamiento o fraccionamiento de pago sin garantia"),
