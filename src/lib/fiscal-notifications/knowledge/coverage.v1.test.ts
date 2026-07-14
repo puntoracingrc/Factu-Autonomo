@@ -101,9 +101,12 @@ describe("fiscal notification knowledge coverage v1", () => {
       "utf8",
     );
     expect(manual).toContain(
-      "puede mostrar durante la revisión importes, valores exactos de referencias y fechas",
+      "muestra el nombre o razón social, el NIF y la condición de **obligado al pago**",
     );
-    expect(manual).toContain("todo ello es efímero y no se guarda");
+    expect(manual).toContain(
+      "también puede mostrar importes, valores exactos de referencias y fechas bajo etiquetas cerradas",
+    );
+    expect(manual).toContain("Todo ello es efímero y no se guarda");
     expect(manual).toContain(
       "Una fecha impresa no se interpreta como fecha de notificación ni como vencimiento",
     );
@@ -112,6 +115,7 @@ describe("fiscal notification knowledge coverage v1", () => {
     );
     expect(manual).not.toContain("El analizador no extrae ni guarda importes");
     expect(manual).not.toContain("Todavía no extrae fechas");
+    expect(manual).not.toContain("El sistema no determina obligado");
   });
 
   it("contains no runtime network, AI, persistence, clocks or materialization", () => {

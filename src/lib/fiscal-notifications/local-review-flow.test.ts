@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { DISABLED_FISCAL_NOTIFICATION_OCR_PORT } from "./disabled-ocr-port";
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
+import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import type { BoundedDocumentInput } from "./input-contract";
 import {
@@ -70,6 +71,9 @@ function intake(
     enforcementExplicitFields: enforcementCandidate
       ? extractAeatEnforcementExplicitFieldsV2(boundedInput)
       : null,
+    enforcementPartyFacts: enforcementCandidate
+      ? extractAeatEnforcementPartyFactsV1(boundedInput)
+      : null,
   });
   const reviewContext = {
     ownerScope: boundedInput.ownerScope,
@@ -86,8 +90,8 @@ function intake(
     });
   }
   return Object.freeze({
-    schemaVersion: 4,
-    adapterVersion: "4.0.0",
+    schemaVersion: 5,
+    adapterVersion: "5.0.0",
     status: analysis.textLayerStatus,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     fileIntegrity: Object.freeze({
@@ -257,6 +261,9 @@ describe("fiscal notification local review flow", () => {
       "Recargo ordinario (20 %): 20,00 EUR",
       "Ingreso a cuenta: 0,00 EUR",
       "Importe total: 120,00 EUR",
+      "IDENTIFICACION DEL OBLIGADO AL PAGO",
+      "NOMBRE / RAZON SOCIAL: PERSONA SINTETICA",
+      "NIF: 12345678Z",
       "PLAZOS DE PAGO",
       `Clave de liquidación: ${PRIVATE_TEXT}`,
       "Fecha de emisión: 05/07/2026",
@@ -265,8 +272,8 @@ describe("fiscal notification local review flow", () => {
     const analysis = await analyzeEphemeralForTest({}, dependencies(text));
 
     expect(analysis).toMatchObject({
-      schemaVersion: 3,
-      analysisVersion: "3.0.0",
+      schemaVersion: 4,
+      analysisVersion: "4.0.0",
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       requiresHumanReview: true,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -311,6 +318,16 @@ describe("fiscal notification local review flow", () => {
         referenceValuePolicy: "EPHEMERAL_UI_ONLY",
         persistencePolicy: "DO_NOT_PERSIST",
       },
+      ephemeralEnforcementPartyFacts: {
+        engineId: "aeat-enforcement-party-facts",
+        outcome: "FACTS_AVAILABLE",
+        identifiedSubject: {
+          role: "PAYMENT_OBLIGOR",
+          printedName: "PERSONA SINTETICA",
+          printedTaxId: "12345678Z",
+        },
+        persistencePolicy: "DO_NOT_PERSIST",
+      },
     });
     const serialized = JSON.stringify(analysis);
     expect(serialized).toContain(PRIVATE_TEXT);
@@ -321,6 +338,7 @@ describe("fiscal notification local review flow", () => {
     expect(Object.isFrozen(analysis.ephemeralEnforcementExplicitFields)).toBe(
       true,
     );
+    expect(Object.isFrozen(analysis.ephemeralEnforcementPartyFacts)).toBe(true);
     expect(Object.isFrozen(analysis.technicalReview)).toBe(true);
   });
 
@@ -382,6 +400,7 @@ describe("fiscal notification local review flow", () => {
     );
     expect(analysis.ephemeralEnforcementMoneyFacts).toBeNull();
     expect(analysis.ephemeralEnforcementExplicitFields).toBeNull();
+    expect(analysis.ephemeralEnforcementPartyFacts).toBeNull();
     expect(analysis.technicalReview).toMatchObject({
       reason: "NO_SUPPORTED_FAMILY_SIGNAL",
       status: "INFORMATION_PENDING",
@@ -433,14 +452,15 @@ describe("fiscal notification local review flow", () => {
     const analysis = await analyzeEphemeralForTest({}, dependencies(""));
 
     expect(analysis).toMatchObject({
-      schemaVersion: 3,
-      analysisVersion: "3.0.0",
+      schemaVersion: 4,
+      analysisVersion: "4.0.0",
       technicalReview: {
         status: "INFORMATION_PENDING",
         reason: "OCR_DISABLED",
       },
       ephemeralEnforcementMoneyFacts: null,
       ephemeralEnforcementExplicitFields: null,
+      ephemeralEnforcementPartyFacts: null,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       requiresHumanReview: true,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",

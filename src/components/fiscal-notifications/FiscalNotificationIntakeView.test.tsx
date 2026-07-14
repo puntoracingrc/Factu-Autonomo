@@ -32,13 +32,19 @@ const explicitFieldsPanelSource = readSource(
 const explicitFieldsViewModelSource = readSource(
   "../../lib/fiscal-notifications/explicit-fields-review-view-model.v2.ts",
 );
+const partyFactsPanelSource = readSource(
+  "./FiscalNotificationPartyFactsReview.tsx",
+);
+const partyFactsViewModelSource = readSource(
+  "../../lib/fiscal-notifications/party-facts-review-view-model.v1.ts",
+);
 const manualSource = readSource(
   "../../lib/manual/sections/consultor-fiscal.ts",
 );
 const browserRepositorySource = readSource(
   "../../lib/fiscal-notifications/browser-local-review-repository.ts",
 );
-const surfaceSource = `${componentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}`;
+const surfaceSource = `${componentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}\n${partyFactsPanelSource}\n${partyFactsViewModelSource}`;
 
 describe("contrato de interfaz de Notificaciones y expedientes", () => {
   it("obtiene el ámbito exclusivamente de la cuenta canónica confirmada", () => {
@@ -232,10 +238,16 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "nextAnalysis.ephemeralEnforcementExplicitFields",
     );
     expect(analysisSuccess).toContain(
+      "nextAnalysis.ephemeralEnforcementPartyFacts",
+    );
+    expect(analysisSuccess).toContain(
       "projectExplicitFieldsReviewViewModelV2(",
     );
     expect(analysisSuccess).toContain(
       "setExplicitFieldsReview(nextExplicitFieldsReview)",
+    );
+    expect(analysisSuccess).toContain(
+      "setPartyFactsReview(nextPartyFactsReview)",
     );
     expect(analysisSuccess).toContain("result: nextResult");
     expect(analysisSuccess).not.toContain(".append(");
@@ -342,7 +354,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(componentSource).not.toContain("Sin familia reconocida");
     expect(compact(componentSource)).toContain(
-      "Para volver a ver importes, referencias o fechas impresas, selecciona otra vez el PDF original: esos datos no se conservan.",
+      "Para volver a ver el nombre, NIF, importes, referencias o fechas impresas, selecciona otra vez el PDF original: esos datos no se conservan.",
     );
     expect(componentSource).toContain(
       "const recognizedCandidate = recognizedCandidateFrom(review.result)",
@@ -461,7 +473,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "Reconoce la familia documental de providencia de apremio, concesión de aplazamiento o fraccionamiento, diligencia de embargo de bienes inmuebles, requerimiento formal de presentación y acuerdo de alta en el ROI. No confirma por sí sola el organismo emisor ni la autenticidad.",
       "Un acuerdo de alta en el ROI describe el documento analizado: no demuestra que el alta siga vigente ni valida el estado en VIES.",
       "La ficha técnica local no contiene importes, fechas jurídicas, obligado, expediente, cuotas u obligaciones.",
-      "Los importes, los valores exactos de referencia y las fechas impresas se muestran solo durante la revisión actual; desaparecen al salir y nunca se guardan en la ficha técnica.",
+      "El nombre, el NIF, los importes, los valores exactos de referencia y las fechas impresas se muestran solo durante la revisión actual; desaparecen al salir y nunca se guardan en la ficha técnica.",
       "No consulta automáticamente sedes oficiales, no ejecuta OCR remoto y no utiliza IA.",
       "Esta herramienta no sustituye la revisión de un asesor ni confirma la validez jurídica del documento.",
     ]) {
@@ -610,10 +622,54 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       'persistencePolicy: "DO_NOT_PERSIST"',
     );
     expect(compact(manualSource)).toContain(
-      "valores exactos de referencias y fechas que figuran bajo etiquetas cerradas",
+      "también puede mostrar importes, valores exactos de referencias y fechas bajo etiquetas cerradas",
     );
     expect(compact(manualSource)).toContain(
       "Una fecha impresa no se interpreta como fecha de notificación ni como vencimiento",
+    );
+  });
+
+  it("muestra nombre, NIF y rol documental exactos sin añadirlos al guardado", () => {
+    expect(componentSource).toContain(
+      "useState<PartyFactsReviewViewModelV1 | null>(null)",
+    );
+    expect(componentSource).toContain("projectPartyFactsReviewViewModelV1(");
+    expect(componentSource).toContain(
+      "nextAnalysis.ephemeralEnforcementPartyFacts",
+    );
+    expect(componentSource).toContain(
+      "setPartyFactsReview(nextPartyFactsReview)",
+    );
+    expect(componentSource.match(/setPartyFactsReview\(null\)/g)).toHaveLength(3);
+    expect(componentSource).toContain("<FiscalNotificationPartyFactsReview");
+    expect(componentSource).toContain("viewModel={partyFactsReview}");
+
+    const pendingContract = componentSource.slice(
+      componentSource.indexOf("interface PendingSafeReview"),
+      componentSource.indexOf("type ReviewPersistenceState"),
+    );
+    expect(pendingContract).not.toMatch(/party|subject|printedName|printedTaxId/i);
+    const appendStart = componentSource.indexOf(".repository.append({");
+    const appendEnd = componentSource.indexOf("});", appendStart);
+    expect(componentSource.slice(appendStart, appendEnd)).not.toMatch(
+      /party|subject|printedName|printedTaxId|nif/i,
+    );
+    expect(partyFactsViewModelSource).toContain("Obligado al pago");
+    expect(partyFactsPanelSource).not.toMatch(/posible|podr[ií]a ser/iu);
+    expect(partyFactsPanelSource).not.toMatch(
+      /dangerouslySetInnerHTML|<(?:a|button|input|form)\b/,
+    );
+    expect(partyFactsViewModelSource).toContain(
+      'persistencePolicy: "DO_NOT_PERSIST"',
+    );
+    expect(partyFactsViewModelSource).toContain(
+      'materializationPolicy: "PROHIBITED_UNTIL_REVIEW"',
+    );
+    expect(compact(manualSource)).toContain(
+      "muestra el nombre o razón social, el NIF y la condición de **obligado al pago** cuando aparecen juntos bajo la sección impresa **Identificación del obligado al pago**",
+    );
+    expect(compact(manualSource)).toContain(
+      "La condición impresa describe el documento: no compara el NIF con la cuenta, no verifica la autenticidad y nunca crea deudas, plazos, pagos, gastos o asientos.",
     );
   });
 

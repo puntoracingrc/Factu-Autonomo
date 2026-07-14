@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
+import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import {
@@ -21,6 +22,9 @@ const ENFORCEMENT_TEXT = [
   "Recargo ordinario (20 %): 20,00 EUR",
   "Ingreso a cuenta: 0,00 EUR",
   "Importe total: 120,00 EUR",
+  "IDENTIFICACION DEL OBLIGADO AL PAGO",
+  "NOMBRE / RAZON SOCIAL: PERSONA SINTETICA",
+  "NIF: 12345678Z",
   "PLAZOS DE PAGO",
   `Clave de liquidación: ${PRINTED_LIQUIDATION_KEY}`,
   "Fecha de emisión: 10/07/2026",
@@ -49,6 +53,7 @@ function enforcementAnalysis() {
     enforcementMoneyFacts: extractAeatEnforcementMoneyFacts(input),
     enforcementExplicitFields:
       extractAeatEnforcementExplicitFieldsV2(input),
+    enforcementPartyFacts: extractAeatEnforcementPartyFactsV1(input),
   });
 }
 
@@ -68,6 +73,7 @@ function deferralAnalysis() {
     familyAnalysis: extractFiscalNotificationCandidates(input),
     enforcementMoneyFacts: null,
     enforcementExplicitFields: null,
+    enforcementPartyFacts: null,
   });
 }
 
@@ -79,6 +85,7 @@ function reviewOnlyFamilyAnalysis(text: string) {
     familyAnalysis: extractFiscalNotificationCandidates(input),
     enforcementMoneyFacts: null,
     enforcementExplicitFields: null,
+    enforcementPartyFacts: null,
   });
 }
 
@@ -102,6 +109,7 @@ function conflictingAnalysis(conflict: string) {
     familyAnalysis: extractFiscalNotificationCandidates(input),
     enforcementMoneyFacts: null,
     enforcementExplicitFields: null,
+    enforcementPartyFacts: null,
   });
 }
 
@@ -143,12 +151,12 @@ function completeExplicitFields(): MutableExplicitFields {
 }
 
 describe("fiscal notification PDF Worker safe analysis contract", () => {
-  it("projects only closed family metadata and ephemeral money facts", () => {
+  it("projects only closed family metadata and bounded ephemeral facts", () => {
     const analysis = enforcementAnalysis();
 
     expect(analysis).toMatchObject({
-      schemaVersion: 3,
-      analysisVersion: "3.0.0",
+      schemaVersion: 4,
+      analysisVersion: "4.0.0",
       textLayerStatus: "TEXT_LAYER_AVAILABLE",
       pageCount: 1,
       familyAnalysis: {
@@ -194,6 +202,21 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
         persistencePolicy: "DO_NOT_PERSIST",
         networkPolicy: "NO_NETWORK",
       },
+      enforcementPartyFacts: {
+        engineId: "aeat-enforcement-party-facts",
+        engineVersion: "1.0.0",
+        outcome: "FACTS_AVAILABLE",
+        identifiedSubject: {
+          role: "PAYMENT_OBLIGOR",
+          roleSource: "EXPLICIT_SECTION_HEADING",
+          printedName: "PERSONA SINTETICA",
+          printedTaxId: "12345678Z",
+          valueDisclosure: "EPHEMERAL_UI_ONLY",
+        },
+        persistencePolicy: "DO_NOT_PERSIST",
+        networkPolicy: "NO_NETWORK",
+        materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+      },
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       retainedSourceContent: "NONE",
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -213,6 +236,10 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       Object.isFrozen(analysis.enforcementMoneyFacts?.facts[0]?.evidence[0]),
     ).toBe(true);
     expect(Object.isFrozen(analysis.enforcementExplicitFields)).toBe(true);
+    expect(Object.isFrozen(analysis.enforcementPartyFacts)).toBe(true);
+    expect(Object.isFrozen(analysis.enforcementPartyFacts?.identifiedSubject)).toBe(
+      true,
+    );
     expect(
       Object.isFrozen(
         analysis.enforcementExplicitFields?.referenceFacts,
@@ -238,6 +265,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       familyAnalysis: extractFiscalNotificationCandidates(input),
       enforcementMoneyFacts: extractAeatEnforcementMoneyFacts(input),
       enforcementExplicitFields: extractAeatEnforcementExplicitFieldsV2(input),
+      enforcementPartyFacts: extractAeatEnforcementPartyFactsV1(input),
     });
 
     expect(analysis).toMatchObject({
@@ -282,6 +310,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       },
       enforcementMoneyFacts: null,
       enforcementExplicitFields: null,
+      enforcementPartyFacts: null,
     });
   });
 
@@ -317,6 +346,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       familyAnalysis: null,
       enforcementMoneyFacts: null,
       enforcementExplicitFields: null,
+      enforcementPartyFacts: null,
     });
     expect(analysis).toMatchObject({
       textLayerStatus: "NO_EXTRACTABLE_TEXT",
@@ -519,6 +549,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       familyAnalysis: extractFiscalNotificationCandidates(input),
       enforcementMoneyFacts: null,
       enforcementExplicitFields: null,
+      enforcementPartyFacts: null,
     });
     expect(analysis.familyAnalysis?.reason).toBe(reason);
     expect(analysis.enforcementMoneyFacts).toBeNull();
@@ -629,15 +660,15 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     }
   });
 
-  it("requires the closed v3 envelope and rejects a v2 downgrade", () => {
-    const versionTwo = mutableAnalysis();
-    versionTwo.schemaVersion = 2;
-    versionTwo.analysisVersion = "2.0.0";
+  it("requires the closed v4 envelope and rejects a v3 downgrade", () => {
+    const versionThree = mutableAnalysis();
+    versionThree.schemaVersion = 3;
+    versionThree.analysisVersion = "3.0.0";
 
     const missingField: Record<string | symbol, unknown> = mutableAnalysis();
     delete missingField.enforcementExplicitFields;
 
-    for (const value of [versionTwo, missingField]) {
+    for (const value of [versionThree, missingField]) {
       expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
         FiscalNotificationPdfWorkerAnalysisError,
       );
@@ -652,6 +683,24 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     deferralWithFields.enforcementExplicitFields = completeExplicitFields();
 
     for (const value of [enforcementWithoutFields, deferralWithFields]) {
+      expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
+        FiscalNotificationPdfWorkerAnalysisError,
+      );
+    }
+  });
+
+  it("binds identified-subject facts to the same complete enforcement gate", () => {
+    const enforcementWithoutParty = mutableAnalysis();
+    enforcementWithoutParty.enforcementPartyFacts = null;
+
+    const deferralWithParty = mutableAnalysis(deferralAnalysis());
+    deferralWithParty.enforcementPartyFacts = mutableAnalysis().enforcementPartyFacts;
+
+    const forgedParty = mutableAnalysis();
+    (forgedParty.enforcementPartyFacts!.identifiedSubject as Record<string, unknown>)
+      .confidence = 1;
+
+    for (const value of [enforcementWithoutParty, deferralWithParty, forgedParty]) {
       expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
         FiscalNotificationPdfWorkerAnalysisError,
       );
@@ -924,6 +973,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       enforcementMoneyFacts: extractAeatEnforcementMoneyFacts(input),
       enforcementExplicitFields:
         extractAeatEnforcementExplicitFieldsV2(input),
+      enforcementPartyFacts: extractAeatEnforcementPartyFactsV1(input),
     });
 
     expect(analysis.enforcementMoneyFacts).toMatchObject({
@@ -1027,6 +1077,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       familyAnalysis: extractFiscalNotificationCandidates(input),
       enforcementMoneyFacts: null,
       enforcementExplicitFields: null,
+      enforcementPartyFacts: null,
     });
     expect(analysis.familyAnalysis).toMatchObject({
       engineVersion: "1.3.0",
@@ -1151,6 +1202,7 @@ interface MutableAnalysis extends Record<string | symbol, unknown> {
   familyAnalysis: MutableFamilyAnalysis | null;
   enforcementMoneyFacts: MutableMoneyFacts | null;
   enforcementExplicitFields: MutableExplicitFields | null;
+  enforcementPartyFacts: MutablePartyFacts | null;
 }
 
 interface MutableFamilyAnalysis extends Record<string, unknown> {
@@ -1210,4 +1262,18 @@ interface MutableExplicitFields extends Record<string, unknown> {
       pageNumbers: number[];
     }
   >;
+}
+
+interface MutablePartyFacts extends Record<string, unknown> {
+  status: string;
+  outcome: string;
+  identifiedSubject:
+    | (Record<string, unknown> & {
+        role: string;
+        roleSource: string;
+        printedName: string;
+        printedTaxId: string;
+      })
+    | null;
+  issues: Array<Record<string, unknown>>;
 }

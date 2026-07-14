@@ -21,6 +21,7 @@ import {
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { FiscalNotificationExplicitFieldsReview } from "@/components/fiscal-notifications/FiscalNotificationExplicitFieldsReview";
+import { FiscalNotificationPartyFactsReview } from "@/components/fiscal-notifications/FiscalNotificationPartyFactsReview";
 import { FiscalNotificationReviewSteps } from "@/components/fiscal-notifications/FiscalNotificationReviewSteps";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import {
@@ -36,6 +37,10 @@ import {
   projectExplicitFieldsReviewViewModelV2,
   type ExplicitFieldsReviewViewModelV2,
 } from "@/lib/fiscal-notifications/explicit-fields-review-view-model.v2";
+import {
+  projectPartyFactsReviewViewModelV1,
+  type PartyFactsReviewViewModelV1,
+} from "@/lib/fiscal-notifications/party-facts-review-view-model.v1";
 import {
   createBrowserFiscalNotificationLocalReviewStore,
   type FiscalNotificationBrowserLocalReviewStore,
@@ -305,8 +310,8 @@ export function FiscalNotificationIntakeView() {
             obligado, expediente, cuotas u obligaciones.
           </li>
           <li>
-            Los importes, los valores exactos de referencia y las fechas
-            impresas se muestran solo durante la revisión actual;
+            El nombre, el NIF, los importes, los valores exactos de referencia
+            y las fechas impresas se muestran solo durante la revisión actual;
             desaparecen al salir y nunca se guardan en la ficha técnica.
           </li>
           <li>
@@ -344,6 +349,8 @@ function FiscalNotificationReviewWorkspace({
     useState<AeatEnforcementMoneyFactsResult | null>(null);
   const [explicitFieldsReview, setExplicitFieldsReview] =
     useState<ExplicitFieldsReviewViewModelV2 | null>(null);
+  const [partyFactsReview, setPartyFactsReview] =
+    useState<PartyFactsReviewViewModelV1 | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingReview, setPendingReview] =
     useState<PendingSafeReview | null>(null);
@@ -399,6 +406,7 @@ function FiscalNotificationReviewWorkspace({
     setResult(null);
     setEphemeralMoneyFacts(null);
     setExplicitFieldsReview(null);
+    setPartyFactsReview(null);
     setPendingReview(null);
     setPersistenceState("idle");
     setError(null);
@@ -416,6 +424,7 @@ function FiscalNotificationReviewWorkspace({
     setError(null);
     setEphemeralMoneyFacts(null);
     setExplicitFieldsReview(null);
+    setPartyFactsReview(null);
     clearFileSelection();
   }
 
@@ -442,6 +451,7 @@ function FiscalNotificationReviewWorkspace({
     setResult(null);
     setEphemeralMoneyFacts(null);
     setExplicitFieldsReview(null);
+    setPartyFactsReview(null);
     setPendingReview(null);
     setPersistenceState("idle");
     setError(null);
@@ -466,9 +476,16 @@ function FiscalNotificationReviewWorkspace({
           : projectExplicitFieldsReviewViewModelV2(
               nextAnalysis.ephemeralEnforcementExplicitFields,
             );
+      const nextPartyFactsReview =
+        nextAnalysis.ephemeralEnforcementPartyFacts === null
+          ? null
+          : projectPartyFactsReviewViewModelV1(
+              nextAnalysis.ephemeralEnforcementPartyFacts,
+            );
       setResult(nextResult);
       setEphemeralMoneyFacts(nextAnalysis.ephemeralEnforcementMoneyFacts);
       setExplicitFieldsReview(nextExplicitFieldsReview);
+      setPartyFactsReview(nextPartyFactsReview);
       setPendingReview({
         reviewId: `review:${reviewUuid}`,
         createdAt: new Date().toISOString(),
@@ -667,6 +684,7 @@ function FiscalNotificationReviewWorkspace({
           result={result}
           ephemeralMoneyFacts={ephemeralMoneyFacts}
           explicitFieldsReview={explicitFieldsReview}
+          partyFactsReview={partyFactsReview}
         />
       ) : null}
       {reviewGuidance ? (
@@ -809,8 +827,9 @@ function ReviewHistory({ state }: { state: ReviewHistoryState }) {
             Solo existe en este navegador y está separado por cuenta.
           </p>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-            Para volver a ver importes, referencias o fechas impresas,
-            selecciona otra vez el PDF original: esos datos no se conservan.
+            Para volver a ver el nombre, NIF, importes, referencias o fechas
+            impresas, selecciona otra vez el PDF original: esos datos no se
+            conservan.
           </p>
         </div>
         <span className="text-xs font-semibold text-slate-500">
@@ -914,10 +933,12 @@ function ReviewResult({
   result,
   ephemeralMoneyFacts,
   explicitFieldsReview,
+  partyFactsReview,
 }: {
   result: FiscalNotificationLocalReviewResult;
   ephemeralMoneyFacts: AeatEnforcementMoneyFactsResult | null;
   explicitFieldsReview: ExplicitFieldsReviewViewModelV2 | null;
+  partyFactsReview: PartyFactsReviewViewModelV1 | null;
 }) {
   const recognizedCandidate = recognizedCandidateFrom(result);
   const copy =
@@ -1049,6 +1070,10 @@ function ReviewResult({
 
         {ephemeralMoneyFacts ? (
           <EphemeralMoneyFactsPanel result={ephemeralMoneyFacts} />
+        ) : null}
+
+        {partyFactsReview ? (
+          <FiscalNotificationPartyFactsReview viewModel={partyFactsReview} />
         ) : null}
 
         {explicitFieldsReview ? (
