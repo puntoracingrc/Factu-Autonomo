@@ -121,7 +121,7 @@ export default function NuevoClientePage() {
     }
 
     maybeCelebrateFirstCustomer(data.customers.length);
-    addCustomer({
+    const result = addCustomer({
       ...customerPayloadFromInput({
         firstName: validation.firstName ?? form.firstName,
         lastName: validation.lastName ?? form.lastName,
@@ -139,6 +139,10 @@ export default function NuevoClientePage() {
       postalCode: form.postalCode.trim() || undefined,
       notes: form.notes.trim() || undefined,
     });
+    if (!result.ok) {
+      setFormError(result.error);
+      return;
+    }
 
     router.push(returnPath);
   }

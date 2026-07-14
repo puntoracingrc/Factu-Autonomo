@@ -30,7 +30,12 @@ import {
   type RecurringExpenseChangeApplyResult,
   type RecurringExpenseDraft,
 } from "@/lib/recurring-expenses";
-import { ensureCustomerForDocument, type ClientInput } from "@/lib/customers";
+import {
+  createCustomerInCollection,
+  updateCustomerInCollection,
+  upsertCustomerForDocumentInCollection,
+  type ClientInput,
+} from "@/lib/customers";
 import type { Client } from "@/lib/types";
 import { EMPTY_DATA } from "@/lib/types";
 import { normalizeBusinessFiscalProfile } from "@/lib/fiscal-profile";
@@ -351,8 +356,10 @@ interface AppStoreValue {
   ) => void;
   addCustomer: (
     customer: Omit<Customer, "id" | "createdAt" | "updatedAt">,
-  ) => Customer;
-  updateCustomer: (customer: Customer) => void;
+  ) => { ok: true; customer: Customer } | { ok: false; error: string };
+  updateCustomer: (
+    customer: Customer,
+  ) => { ok: true; customer: Customer } | { ok: false; error: string };
   deleteCustomer: (id: string) => void;
   upsertCustomerForDocument: (
     input: ClientInput,
@@ -1986,33 +1993,57 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addCustomer = useCallback(
-    (customer: Omit<Customer, "id" | "createdAt" | "updatedAt">): Customer => {
+    (
+      customer: Omit<Customer, "id" | "createdAt" | "updatedAt">,
+    ): { ok: true; customer: Customer } | { ok: false; error: string } => {
       const now = new Date().toISOString();
-      const created: Customer = {
-        ...customer,
-        id: newId(),
-        createdAt: now,
-        updatedAt: now,
+      const id = newId();
+      let result:
+        | { ok: true; customer: Customer }
+        | { ok: false; error: string } = {
+        ok: false,
+        error: "No se pudo guardar el cliente",
       };
-      setAppData((prev) => ({
-        ...prev,
-        customers: [...prev.customers, created],
-      }));
-      return created;
+      setAppData((prev) => {
+        const write = createCustomerInCollection(
+          prev.customers,
+          customer,
+          id,
+          now,
+        );
+        if (!write.ok) {
+          result = write;
+          return prev;
+        }
+        result = { ok: true, customer: write.customer };
+        return { ...prev, customers: write.customers };
+      });
+      return result;
     },
     [setAppData],
   );
 
   const updateCustomer = useCallback(
-    (customer: Customer) => {
-      setAppData((prev) => ({
-        ...prev,
-        customers: prev.customers.map((c) =>
-          c.id === customer.id
-            ? { ...customer, updatedAt: new Date().toISOString() }
-            : c,
-        ),
-      }));
+    (
+      customer: Customer,
+    ): { ok: true; customer: Customer } | { ok: false; error: string } => {
+      const now = new Date().toISOString();
+      let result:
+        | { ok: true; customer: Customer }
+        | { ok: false; error: string } = {
+        ok: false,
+        error: "No se pudo guardar el cliente",
+      };
+      setAppData((prev) => {
+        const write = updateCustomerInCollection(prev.customers, customer, now);
+        if (!write.ok) {
+          result = write;
+          return prev;
+        }
+        result = { ok: true, customer: write.customer };
+        return { ...prev, customers: write.customers };
+      });
+      return result;
     },
     [setAppData],
   );
@@ -2063,42 +2094,36 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     ):
       | { ok: true; customerId: string; client: Client }
       | { ok: false; error: string } => {
-      const result = ensureCustomerForDocument(
-        data.customers,
-        input,
-        selectedCustomerId,
-      );
-      if (!result.ok) return result;
-
-      if (result.created) {
-        const created = addCustomer({
-          customerType: result.customer.customerType,
-          firstName: result.customer.firstName,
-          lastName: result.customer.lastName,
-          name: result.customer.name,
-          contactName: result.customer.contactName,
-          nif: result.customer.nif,
-          email: result.customer.email,
-          phone: result.customer.phone,
-          streetType: result.customer.streetType,
-          residenceType: result.customer.residenceType,
-          address: result.customer.address,
-          addressExtra: result.customer.addressExtra,
-          city: result.customer.city,
-          postalCode: result.customer.postalCode,
-          notes: result.customer.notes,
-        });
-        return { ok: true, customerId: created.id, client: result.client };
-      }
-
-      updateCustomer(result.customer);
-      return {
-        ok: true,
-        customerId: result.customer.id,
-        client: result.client,
+      const id = newId();
+      const now = new Date().toISOString();
+      let result:
+        | { ok: true; customerId: string; client: Client }
+        | { ok: false; error: string } = {
+        ok: false,
+        error: "No se pudo guardar el cliente",
       };
+      setAppData((prev) => {
+        const write = upsertCustomerForDocumentInCollection(
+          prev.customers,
+          input,
+          selectedCustomerId,
+          id,
+          now,
+        );
+        if (!write.ok) {
+          result = write;
+          return prev;
+        }
+        result = {
+          ok: true,
+          customerId: write.customerId,
+          client: write.client,
+        };
+        return { ...prev, customers: write.customers };
+      });
+      return result;
     },
-    [data.customers, addCustomer, updateCustomer],
+    [setAppData],
   );
 
   const getDocumentsByType = useCallback(

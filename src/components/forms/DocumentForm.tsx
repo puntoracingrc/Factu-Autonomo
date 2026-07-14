@@ -1404,6 +1404,26 @@ export function DocumentForm({
       return;
     }
 
+    if (resolvedStatus !== "borrador") {
+      const preliminaryEmissionCheck = validateDocumentEmission(
+        {
+          type,
+          client: clientInputToSnapshot(clientForm),
+          items: normalizeLineItemUnits(safeItems, unitsSettings),
+          status: resolvedStatus,
+          rectification: existing?.rectification,
+        },
+        effectiveDocumentProfile,
+        type,
+      );
+      if (!preliminaryEmissionCheck.ok) {
+        setFormError(
+          preliminaryEmissionCheck.message ?? "Revisa los datos del documento.",
+        );
+        return;
+      }
+    }
+
     setSaveAction(download ? "save-pdf" : "save");
 
     if (!existing) {

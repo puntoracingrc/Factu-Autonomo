@@ -39,6 +39,7 @@ import {
 import {
   CUSTOMER_TYPE_LABELS,
   customerFullName,
+  customerListWindow,
   buildCustomerInvoicedTotals,
   countDocumentsForCustomer,
   customerPayloadFromInput,
@@ -50,6 +51,7 @@ import {
   migrateCustomer,
   normalizeCustomerType,
   sortCustomers,
+  filterCustomers,
   validateCustomerInput,
   type CustomerSortDirection,
   type CustomerSortField,
@@ -235,32 +237,15 @@ export default function ClientesPage() {
     return match ? [match] : customers;
   }, [customers, listFilterId]);
 
-  const visibleCustomers = useMemo(
-    () => displayedCustomers.slice(0, visibleCustomerCount),
+  const customerWindow = useMemo(
+    () => customerListWindow(displayedCustomers, visibleCustomerCount),
     [displayedCustomers, visibleCustomerCount],
   );
-
-  const hiddenCustomerCount = Math.max(
-    displayedCustomers.length - visibleCustomers.length,
-    0,
-  );
+  const visibleCustomers = customerWindow.visible;
+  const hiddenCustomerCount = customerWindow.hiddenCount;
 
   const mergeVisibleCustomers = useMemo(() => {
-    const term = mergeSearch.trim().toLowerCase();
-    if (!term) return customers;
-    return customers.filter((customer) =>
-      [
-        getCustomerDisplayName(customer),
-        customer.nif,
-        customer.email,
-        customer.phone,
-        customer.city,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase()
-        .includes(term),
-    );
+    return mergeSearch.trim() ? filterCustomers(customers, mergeSearch) : customers;
   }, [customers, mergeSearch]);
 
   const duplicateGroups = useMemo(
@@ -459,7 +444,11 @@ export default function ClientesPage() {
       ? data.customers.find((c) => c.id === editingId)
       : null;
     if (existing) {
-      updateCustomer({ ...existing, ...payload });
+      const result = updateCustomer({ ...existing, ...payload });
+      if (!result.ok) {
+        setFormError(result.error);
+        return;
+      }
     } else {
       const gate = checkCanAddCustomer(data.customers.length);
       if (!gate.allowed) {
@@ -468,7 +457,11 @@ export default function ClientesPage() {
         return;
       }
       maybeCelebrateFirstCustomer(data.customers.length);
-      addCustomer(payload);
+      const result = addCustomer(payload);
+      if (!result.ok) {
+        setFormError(result.error);
+        return;
+      }
     }
 
     closeForm();

@@ -15,6 +15,7 @@ const protectedAdrs = [
   "ADR-0003-explicit-test-document-retirement.md",
   "ADR-0004-expense-inbox-email-reliability.md",
   "ADR-0005-cloud-and-drive-sync-reliability.md",
+  "ADR-0006-customer-master-reliability.md",
 ] as const;
 
 describe("mandatory protected-system registry", () => {
@@ -38,6 +39,8 @@ describe("mandatory protected-system registry", () => {
     expect(registry).toContain("legacy_imported + user_attested");
     expect(registry).toContain("expense-inbox-reliability-contract.test.ts");
     expect(registry).toContain("cloud-drive-sync-reliability-contract.test.ts");
+    expect(registry).toContain("customer-master-reliability-contract.test.ts");
+    expect(registry).toContain("no añade fricción");
   });
 
   it("protege las instrucciones y el registro con CODEOWNERS", () => {
