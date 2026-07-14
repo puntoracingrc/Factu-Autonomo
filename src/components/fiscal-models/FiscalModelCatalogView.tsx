@@ -25,8 +25,12 @@ const focusRing =
 const practicalCatalogLabels: Readonly<
   Partial<Record<string, readonly string[]>>
 > = {
+  "111": ["Frecuente si pagas retenciones", "Trimestral o mensual", "IRPF"],
+  "115": ["Si alquilas un local", "Trimestral o mensual", "Retenciones"],
   "130": ["Frecuente para autónomos", "IRPF", "Trimestral", "Estimación directa"],
   "131": ["Solo módulos", "IRPF", "Trimestral", "Revisión anual"],
+  "180": ["Anual", "Relacionado con 115", "Declaración informativa"],
+  "190": ["Anual", "Relacionado con 111", "Declaración informativa"],
   "303": ["Frecuente para autónomos", "IVA", "Trimestral o mensual"],
   "390": ["Anual", "IVA", "Puede estar exonerado"],
 };

@@ -44,8 +44,12 @@ export async function generateMetadata({
         "04": "Modelo 04 AEAT: IVA del 4 % para vehículos y movilidad reducida",
         "05": "Modelo 05 AEAT: beneficios en el impuesto de matriculación",
         "06": "Modelo 06 AEAT: exenciones del impuesto de matriculación",
+        "111": "Modelo 111 AEAT: retenciones de nóminas y profesionales",
+        "115": "Modelo 115 AEAT: retención del alquiler de un local",
         "130": "Modelo 130 AEAT: pago trimestral del IRPF",
         "131": "Modelo 131 AEAT: pago trimestral por módulos",
+        "180": "Modelo 180 AEAT: resumen anual de alquileres",
+        "190": "Modelo 190 AEAT: resumen anual de retenciones",
         "303": "Modelo 303 AEAT: declaración trimestral del IVA",
         "390": "Modelo 390 AEAT: resumen anual del IVA",
       }[codigo]
@@ -54,8 +58,12 @@ export async function generateMetadata({
     dedicatedSeoTitle ?? "Modelo " + result.data.code + " · Modelos AEAT";
   const dedicatedSeoDescription = isOfficialInformation
     ? {
+        "111": "Guía sencilla del Modelo 111: quién debe presentarlo, retenciones de empleados y facturas profesionales, tipos, plazos, pago y corrección de errores.",
+        "115": "Guía sencilla del Modelo 115: quién debe presentarlo, alquileres sujetos, excepciones, base, tipo del 19 %, plazos y pago.",
         "130": "Guía sencilla del Modelo 130: quién debe presentarlo, regla del 70 %, cálculo acumulado, gastos, retenciones, plazos y presentación.",
         "131": "Guía sencilla del Modelo 131: quién puede tributar por módulos, cálculo, límites de 2026, porcentajes, plazos y presentación.",
+        "180": "Guía sencilla del Modelo 180: arrendadores, referencias catastrales, relación con el Modelo 115, certificados, correcciones y presentación.",
+        "190": "Guía sencilla del Modelo 190: trabajadores, profesionales, claves, relación con el Modelo 111, certificados, correcciones y presentación.",
         "303": "Guía sencilla del Modelo 303: quién debe presentarlo, IVA repercutido y deducible, resultados, plazos, Pre303 y corrección de errores.",
         "390": "Guía sencilla del Modelo 390: quién debe presentarlo, exoneraciones, relación con el Modelo 303, plazo, comprobaciones y trámite oficial.",
       }[codigo]

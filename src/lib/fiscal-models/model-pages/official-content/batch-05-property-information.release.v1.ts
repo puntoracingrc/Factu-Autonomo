@@ -473,7 +473,7 @@ const MODEL_180_CONTENT = {
   canonicalName:
     "Declaración informativa. Retenciones e ingresos a cuenta sobre determinadas rentas o rendimientos procedentes del arrendamiento o subarrendamiento de inmuebles urbanos.",
   summary:
-    "Declaración informativa que la AEAT identifica con retenciones e ingresos a cuenta sobre determinadas rentas o rendimientos procedentes del arrendamiento o subarrendamiento de inmuebles urbanos.",
+    "Resumen anual de las retenciones por alquileres declaradas mediante el Modelo 115.",
   searchTerms: [
     "modelo 180",
     "declaración informativa",
@@ -483,6 +483,10 @@ const MODEL_180_CONTENT = {
     "alquiler de local",
     "resumen anual",
     "modelo 115",
+    "arrendadores",
+    "referencia catastral",
+    "modelo 347",
+    "alquileres locales",
     "formulario web",
     "presentación mediante fichero",
     "carga de fichero",
