@@ -107,7 +107,9 @@ export function assertAllowedResendDownloadUrl(rawUrl: string): URL {
   const hasUnexpectedPort = Boolean(url.port && url.port !== "443");
   const hostname = url.hostname.toLowerCase();
   const isResendControlledHost =
-    hostname === "resend.com" || hostname.endsWith(".resend.com");
+    hostname === "cdn.resend.app" ||
+    hostname === "resend.com" ||
+    hostname.endsWith(".resend.com");
   if (
     url.protocol !== "https:" ||
     !isResendControlledHost ||
