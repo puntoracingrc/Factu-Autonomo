@@ -42,6 +42,9 @@ describe("family to reusable extractor registry v1", () => {
   });
 
   it("marks only executable review-only adapters complete, never by taxonomy alone", () => {
+    expect(resolveFamilyExtractorBindingV1("notification.delivery_attempt")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(resolveFamilyExtractorBindingV1("notification.publication_or_appearance")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(resolveFamilyExtractorBindingV1("notification.dehu_envelope")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     expect(resolveFamilyExtractorBindingV1("collection.enforcement_order")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     expect(resolveFamilyExtractorBindingV1("collection.deferral_grant")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     expect(resolveFamilyExtractorBindingV1("collection.offset_requested")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
