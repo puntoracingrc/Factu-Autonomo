@@ -1,6 +1,8 @@
 export const MAX_CENSUS_DOCUMENT_BYTES = 4 * 1024 * 1024;
 const MAX_CENSUS_DOCUMENT_PAGES = 80;
 const MAX_CENSUS_DOCUMENT_TEXT_CHARS = 250_000;
+const MAX_CENSUS_DOCUMENT_OCR_PAGES = 12;
+const MAX_CENSUS_DOCUMENT_CANVAS_EDGE = 2_200;
 
 type PdfjsWorkerGlobal = typeof globalThis & {
   pdfjsWorker?: unknown;
@@ -23,6 +25,25 @@ export class CensusDocumentFileError extends Error {
   }
 }
 
+export interface CensusDocumentPageText {
+  page: number;
+  text: string;
+}
+
+export interface CensusDocumentTextResult {
+  text: string;
+  totalPages: number;
+  pages: readonly CensusDocumentPageText[];
+  extractionMethod: "PDF_NATIVE_TEXT" | "OCR_LOCAL";
+}
+
+export interface CensusDocumentReadProgress {
+  fileIndex: number;
+  fileCount: number;
+  progress: number;
+  status: string;
+}
+
 function isPdf(file: File): boolean {
   return (
     file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
@@ -34,7 +55,10 @@ async function hasPdfMagicBytes(file: File): Promise<boolean> {
   return String.fromCharCode(...prefix) === "%PDF-";
 }
 
-export async function readCensusDocumentText(file: File): Promise<string> {
+export async function readCensusDocumentPages(
+  file: File,
+  onProgress?: (progress: CensusDocumentReadProgress) => void,
+): Promise<CensusDocumentTextResult> {
   if (!isPdf(file)) {
     throw new CensusDocumentFileError(
       "UNSUPPORTED_FILE",
@@ -79,10 +103,36 @@ export async function readCensusDocumentText(file: File): Promise<string> {
       );
     }
     const parts: string[] = [];
+    const pages: CensusDocumentPageText[] = [];
     let characters = 0;
     for (let pageNumber = 1; pageNumber <= document.numPages; pageNumber += 1) {
       const page = await document.getPage(pageNumber);
+      const annotations = await page.getAnnotations({ intent: "display" });
       const content = await page.getTextContent();
+      const pageParts: string[] = [];
+      for (const annotation of annotations) {
+        const fieldName =
+          typeof annotation.fieldName === "string"
+            ? annotation.fieldName.trim()
+            : "";
+        const rawValue = annotation.fieldValue;
+        const fieldValue = Array.isArray(rawValue)
+          ? rawValue.filter((value) => typeof value === "string").join(", ")
+          : typeof rawValue === "string" || typeof rawValue === "number"
+            ? String(rawValue)
+            : "";
+        if (!fieldName || !fieldValue.trim()) continue;
+        const fieldText = `${fieldName}: ${fieldValue.trim()}`;
+        characters += fieldText.length + 1;
+        if (characters > MAX_CENSUS_DOCUMENT_TEXT_CHARS) {
+          throw new CensusDocumentFileError(
+            "INVALID_PDF",
+            "El PDF contiene demasiado texto para procesarlo con seguridad.",
+          );
+        }
+        parts.push(fieldText);
+        pageParts.push(fieldText);
+      }
       for (const item of content.items) {
         if (!("str" in item) || !item.str.trim()) continue;
         characters += item.str.length + 1;
@@ -93,17 +143,138 @@ export async function readCensusDocumentText(file: File): Promise<string> {
           );
         }
         parts.push(item.str);
+        pageParts.push(item.str);
       }
+      pages.push({ page: pageNumber, text: pageParts.join("\n").trim() });
     }
     const text = parts.join("\n").trim();
-    if (!text) {
+    if (text) {
+      return {
+        text,
+        totalPages: document.numPages,
+        pages,
+        extractionMethod: "PDF_NATIVE_TEXT",
+      };
+    }
+
+    if (
+      typeof window === "undefined" ||
+      typeof window.document === "undefined" ||
+      document.numPages > MAX_CENSUS_DOCUMENT_OCR_PAGES
+    ) {
       throw new CensusDocumentFileError(
         "NO_READABLE_TEXT",
-        "El PDF parece escaneado y no contiene texto seleccionable. Puedes completar los datos manualmente.",
+        document.numPages > MAX_CENSUS_DOCUMENT_OCR_PAGES
+          ? `El PDF escaneado supera el límite de ${MAX_CENSUS_DOCUMENT_OCR_PAGES} páginas para OCR local. Añade capturas de las páginas relevantes.`
+          : "El PDF parece escaneado y no contiene texto seleccionable. Puedes añadir capturas de sus páginas.",
       );
     }
-    return text;
+
+    let worker: Awaited<
+      ReturnType<(typeof import("tesseract.js"))["createWorker"]>
+    > | null = null;
+    try {
+      const { createWorker, OEM, PSM } = await import("tesseract.js");
+      let activePage = 0;
+      worker = await createWorker("spa", OEM.LSTM_ONLY, {
+        workerPath: "/ocr/tesseract-worker.min.js",
+        corePath: "/ocr/tesseract-core-lstm.wasm.js",
+        langPath: "/ocr/lang",
+        logger: (message) =>
+          onProgress?.({
+            fileIndex: activePage,
+            fileCount: document.numPages,
+            progress: Math.max(0, Math.min(1, message.progress || 0)),
+            status:
+              message.status === "recognizing text"
+                ? "Leyendo una página escaneada"
+                : "Preparando el lector local",
+          }),
+      });
+      await worker.setParameters({
+        tessedit_pageseg_mode: PSM.AUTO,
+        preserve_interword_spaces: "1",
+        user_defined_dpi: "180",
+      });
+
+      const ocrPages: CensusDocumentPageText[] = [];
+      let ocrCharacters = 0;
+      for (
+        let pageNumber = 1;
+        pageNumber <= document.numPages;
+        pageNumber += 1
+      ) {
+        activePage = pageNumber - 1;
+        const page = await document.getPage(pageNumber);
+        const unitViewport = page.getViewport({ scale: 1 });
+        const scale = Math.min(
+          2,
+          MAX_CENSUS_DOCUMENT_CANVAS_EDGE /
+            Math.max(unitViewport.width, unitViewport.height),
+        );
+        const viewport = page.getViewport({ scale });
+        const canvas = window.document.createElement("canvas");
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const context = canvas.getContext("2d", {
+          alpha: false,
+          willReadFrequently: true,
+        });
+        if (!context) {
+          throw new CensusDocumentFileError(
+            "NO_READABLE_TEXT",
+            "Este navegador no puede preparar las páginas del PDF para su lectura local.",
+          );
+        }
+        await page.render({ canvasContext: context, viewport }).promise;
+        const recognized = await worker.recognize(
+          canvas,
+          { rotateAuto: false },
+          { text: true },
+        );
+        const pageText = recognized.data.text.trim();
+        ocrCharacters += pageText.length + 1;
+        if (ocrCharacters > MAX_CENSUS_DOCUMENT_TEXT_CHARS) {
+          throw new CensusDocumentFileError(
+            "INVALID_PDF",
+            "El PDF contiene demasiado texto para procesarlo con seguridad.",
+          );
+        }
+        ocrPages.push({ page: pageNumber, text: pageText });
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+      const ocrText = ocrPages
+        .map((page) => page.text)
+        .filter(Boolean)
+        .join("\n")
+        .trim();
+      if (!ocrText) {
+        throw new CensusDocumentFileError(
+          "NO_READABLE_TEXT",
+          "No se ha encontrado texto legible en las páginas escaneadas.",
+        );
+      }
+      return {
+        text: ocrText,
+        totalPages: document.numPages,
+        pages: ocrPages,
+        extractionMethod: "OCR_LOCAL",
+      };
+    } catch (error) {
+      if (error instanceof CensusDocumentFileError) throw error;
+      throw new CensusDocumentFileError(
+        "NO_READABLE_TEXT",
+        "No se ha podido leer localmente el PDF escaneado. Puedes añadir capturas de sus páginas.",
+      );
+    } finally {
+      await worker?.terminate();
+    }
   } finally {
     await document.destroy();
   }
+}
+
+export async function readCensusDocumentText(file: File): Promise<string> {
+  return (await readCensusDocumentPages(file)).text;
 }

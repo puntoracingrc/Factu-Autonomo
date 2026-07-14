@@ -1,6 +1,7 @@
 export * from "./aeat-document-questions";
 export * from "./contracts";
 export * from "./engine";
+export * from "./extractors";
 export * from "./model-catalog";
 export * from "./profile";
 export * from "./questions";

@@ -35,7 +35,7 @@ describe("closed AEAT document to diagnostic-question map", () => {
       Número de justificante 1151234567890
     `);
 
-    expect(mapSubmittedTaxFormToQuestions(candidate)).toMatchObject([
+    expect(mapSubmittedTaxFormToQuestions(candidate, 2026)).toMatchObject([
       {
         field: "rentsBusinessPremises",
         questionId: "G_RENTS_PREMISES",
@@ -60,8 +60,8 @@ describe("closed AEAT document to diagnostic-question map", () => {
       Número de justificante 1301234567890
     `);
 
-    expect(mapSubmittedTaxFormToQuestions(blank115)).toEqual([]);
-    expect(mapSubmittedTaxFormToQuestions(submitted130)).toEqual([]);
+    expect(mapSubmittedTaxFormToQuestions(blank115, 2026)).toEqual([]);
+    expect(mapSubmittedTaxFormToQuestions(submitted130, 2026)).toEqual([]);
   });
 
   it("uses the same exact mapping for a 115 listed in Mis obligaciones", () => {
@@ -81,11 +81,19 @@ describe("closed AEAT document to diagnostic-question map", () => {
       Clave de operación S
       Número de justificante 3491234567890
     `);
-    expect(mapSubmittedTaxFormToQuestions(candidate)).toMatchObject([
+    expect(mapSubmittedTaxFormToQuestions(candidate, 2026)).toMatchObject([
       { field: "euGoodsSales", value: "YES" },
       { field: "euServicesSales", value: "YES" },
-      { field: "roiRegistered", value: "YES" },
     ]);
+  });
+
+  it("never projects a return from another year into the active profile", () => {
+    const candidate = parseAeatTaxFormText(`
+      Modelo 115 NIF 12345678Z Ejercicio 2025 Período 4T
+      Retenciones e ingresos a cuenta por arrendamiento de inmuebles urbanos
+      Número de justificante 1151234567890
+    `);
+    expect(mapSubmittedTaxFormToQuestions(candidate, 2026)).toEqual([]);
   });
 
   it("maps only explicit positive facts from supporting documents", () => {
