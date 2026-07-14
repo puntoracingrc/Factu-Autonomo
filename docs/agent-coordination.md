@@ -2,6 +2,25 @@
 
 Última actualización: 2026-07-14 (Europe/Madrid)
 
+## Reserva adicional — extractores fiscales v1
+
+La rama `agent/tax-document-extractors-v1`, basada en
+`origin/main@4aa8a6c10d128e2b4c8a143a52f60adb2075683d`, reserva:
+
+- `src/lib/tax-model-diagnostic/extractors/**`;
+- `docs/tax-extractors/**`.
+
+El núcleo es TypeScript puro, sin React, red ni almacenamiento. El original,
+OCR y metadatos sensibles son efímeros; la futura integración de UI solo podrá
+persistir una proyección mínima confirmada. `src/lib/fiscal-models/**`, el motor
+de obligaciones público y la UI del catálogo quedan fuera de esta reserva.
+
+Las auditorías coordinadas de cuestionario/reglas, almacenamiento/privacidad y
+UI/resultados se realizaron en solo lectura. Detectaron como incompatibles con
+el nuevo contrato las inferencias históricas directas y la persistencia del
+nombre de archivo; ambos puntos deben corregirse antes de conectar el núcleo a
+la interfaz.
+
 ## Reserva de ámbito
 
 El trabajo se realiza exclusivamente en el worktree

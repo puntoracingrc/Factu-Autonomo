@@ -2,6 +2,7 @@ import { jsPDF } from "jspdf";
 import { describe, expect, it } from "vitest";
 import {
   MAX_CENSUS_DOCUMENT_BYTES,
+  readCensusDocumentPages,
   readCensusDocumentText,
 } from "./census-document-file";
 
@@ -15,6 +16,28 @@ describe("local census PDF reader", () => {
     });
 
     await expect(readCensusDocumentText(file)).resolves.toContain("12345678Z");
+  });
+
+  it("preserves page provenance for native PDF text", async () => {
+    const pdf = new jsPDF();
+    pdf.text("MODELO 036", 15, 20);
+    pdf.addPage();
+    pdf.text("FECHA DE PRESENTACION 14/07/2026", 15, 20);
+    const file = new File([pdf.output("arraybuffer")], "modelo.pdf", {
+      type: "application/pdf",
+    });
+
+    await expect(readCensusDocumentPages(file)).resolves.toMatchObject({
+      totalPages: 2,
+      extractionMethod: "PDF_NATIVE_TEXT",
+      pages: [
+        { page: 1, text: expect.stringContaining("MODELO 036") },
+        {
+          page: 2,
+          text: expect.stringContaining("FECHA DE PRESENTACION"),
+        },
+      ],
+    });
   });
 
   it("rejects a renamed non-PDF by its magic bytes", async () => {

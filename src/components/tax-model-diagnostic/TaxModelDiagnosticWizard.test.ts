@@ -37,9 +37,9 @@ describe("tax model diagnostic UI contract", () => {
     expect(wizard).not.toContain("DiagnosticScreenshotReview");
     expect(hacienda).toContain("Sube lo que tengas de Hacienda");
     expect(hacienda).toContain("Puedes mezclar PDF y capturas sin ordenarlos");
-    expect(hacienda).toContain("readCensusDocumentText");
+    expect(hacienda).toContain("readCensusDocumentPages");
     expect(hacienda).toContain("recognizeAndClassifyAeatScreenshotFiles");
-    expect(hacienda).toContain("parseAeatTaxFormText");
+    expect(hacienda).toContain("extractFiscalDocumentText");
     expect(hacienda).toContain('data-drop-zone="AEAT_FILES"');
     expect(hacienda).toContain(
       'accept="application/pdf,image/png,image/jpeg,image/webp',
@@ -66,10 +66,9 @@ describe("tax model diagnostic UI contract", () => {
     );
     expect(hacienda).toContain("Confirmo que los archivos contienen los datos");
     expect(hacienda).toContain('extractionMethod: "OCR_LOCAL"');
-    expect(hacienda).toContain("mapSubmittedTaxFormToQuestions");
-    expect(hacienda).toContain("parseSupportingDocumentText");
-    expect(hacienda).toContain("mapSupportingDocumentToQuestions");
-    expect(hacienda).toContain("mapCensusObligationsToQuestions");
+    expect(hacienda).toContain("extractionProposals");
+    expect(hacienda).toContain("fiscal-document-");
+    expect(hacienda).not.toContain("sourceLocation: `${fileName}");
     expect(hacienda).not.toContain("reconcileCensusIdentity");
   });
 

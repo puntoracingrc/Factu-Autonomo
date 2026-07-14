@@ -110,13 +110,13 @@ export default function PrivacidadPage() {
           nunca crea ni confirma un asiento contable.
         </p>
         <p>
-          Si eliges importar un certificado censal en el Consultor fiscal, el
-          PDF con texto seleccionable se lee localmente en tu navegador. El
-          archivo, su texto completo y el Código Seguro de Verificación no se
-          guardan ni se envían al proveedor de IA. Solo se conserva el perfil
+          Si añades PDF o capturas al Consultor fiscal, se leen localmente en tu
+          navegador. Los PDF escaneados compatibles usan OCR local; sus
+          archivos, imágenes, texto completo y Código Seguro de Verificación no
+          se guardan ni se envían al proveedor de IA. Solo se conserva el perfil
           fiscal estructurado que confirmas y metadatos mínimos sobre su
-          procedencia. Los PDF escaneados sin texto deben completarse
-          manualmente en esta versión.
+          procedencia. Si una lectura no es suficientemente clara, el sistema
+          pide revisión o deja la pregunta sin responder.
         </p>
         <h2>Aprendizaje de lecturas IA</h2>
         <p>
@@ -162,7 +162,7 @@ export default function PrivacidadPage() {
           previstas por la normativa de protección de datos.
         </p>
         <h2>Última actualización</h2>
-        <p>12 de julio de 2026.</p>
+        <p>14 de julio de 2026.</p>
       </Card>
     </div>
   );

@@ -16,34 +16,24 @@ import { Button } from "@/components/ui/Button";
 import {
   MAX_AEAT_SCREENSHOTS,
   MAX_CENSUS_DOCUMENT_BYTES,
-  parseAeatCensusScreenshotText,
-  parseAeatTaxFormText,
-  parseCensusCertificateText,
-  parseSupportingDocumentText,
-  readCensusDocumentText,
+  readCensusDocumentPages,
   recognizeAndClassifyAeatScreenshotFiles,
   validateAeatScreenshotFile,
-  type AeatCensusScreenshotCandidate,
   type AeatCensusScreenshotKind,
   type AeatScreenshotOcrProgress,
-  type CensusCertificateCandidate,
-  type SupportingDocumentCandidate,
 } from "@/lib/fiscal-profile";
-import {
-  mapCensusObligationsToQuestions,
-  mapSubmittedTaxFormToQuestions,
-  mapSupportingDocumentToQuestions,
-} from "@/lib/tax-model-diagnostic/aeat-document-questions";
 import type {
   Evidence,
   ExtractionMethod,
   TaxpayerProfile,
 } from "@/lib/tax-model-diagnostic/contracts";
+import {
+  extractFiscalDocumentText,
+  type FiscalDocumentExtractionResult,
+} from "@/lib/tax-model-diagnostic/extractors";
+import { DIAGNOSTIC_QUESTIONS } from "@/lib/tax-model-diagnostic/questions";
 
 type ProfilePatch = Partial<TaxpayerProfile>;
-type CandidatesByKind = Partial<
-  Record<AeatCensusScreenshotKind, AeatCensusScreenshotCandidate>
->;
 
 interface UnifiedProposal {
   field: keyof TaxpayerProfile;
@@ -56,6 +46,9 @@ interface UnifiedProposal {
   sourceLocation: string;
   confidence: number;
   date?: string;
+  page?: number;
+  documentId: string;
+  detail?: string;
 }
 
 interface FileAnalysis {
@@ -76,14 +69,6 @@ function isPdf(file: File): boolean {
     file.type.toLowerCase() === "application/pdf" ||
     file.name.toLowerCase().endsWith(".pdf")
   );
-}
-
-function screenshotKindLabel(kind: AeatCensusScreenshotKind): string {
-  return {
-    ACTIVITIES: "Mis actividades económicas",
-    TAX_STATUS: "Mi situación tributaria",
-    OBLIGATIONS: "Mis obligaciones",
-  }[kind];
 }
 
 function activityKindLabels(values: TaxpayerProfile["activityKinds"]): string {
@@ -112,279 +97,148 @@ function vatLabels(values: TaxpayerProfile["vatRegimes"]): string {
   return values.map((value) => labels[value]).join(", ");
 }
 
-function screenshotProposals(
-  candidates: CandidatesByKind,
-  confidences: Partial<Record<AeatCensusScreenshotKind, number>>,
-  currentProfile: TaxpayerProfile,
-): UnifiedProposal[] {
-  const proposals: UnifiedProposal[] = [];
-  const source = (kind: AeatCensusScreenshotKind) => ({
-    evidenceType: "AEAT_CENSUS_SCREENSHOT" as const,
-    extractionMethod: "OCR_LOCAL" as const,
-    sourceLocation: `AEAT · ${screenshotKindLabel(kind)}`,
-    confidence: Math.max(0.5, Math.min(0.9, confidences[kind] ?? 0.7)),
-  });
-  const activities = candidates.ACTIVITIES;
-  if (activities && activities.status !== "BLOCKED") {
-    if (activities.activityKinds.length > 0) {
-      proposals.push({
-        field: "activityKinds",
-        questionId: "C_ACTIVITY_KINDS",
-        label: "Tipos de actividad en alta",
-        displayValue: activityKindLabels(activities.activityKinds),
-        value: activities.activityKinds,
-        ...source("ACTIVITIES"),
-      });
-    }
-    const activeDates = [
-      ...new Set(
-        activities.activities
-          .filter((row) => row.state === "ACTIVE")
-          .map((row) => row.startDate)
-          .filter((date): date is string => Boolean(date)),
-      ),
-    ];
-    if (activeDates.length === 1) {
-      proposals.push({
-        field: "activityStartDate",
-        questionId: "B_START_DATE",
-        label: "Fecha de inicio de la actividad en alta",
-        displayValue: activeDates[0].split("-").reverse().join("/"),
-        value: activeDates[0],
-        ...source("ACTIVITIES"),
-      });
-    }
-  }
-
-  const taxStatus = candidates.TAX_STATUS;
-  if (taxStatus && taxStatus.status !== "BLOCKED") {
-    if (taxStatus.incomeTaxRegime !== "UNKNOWN") {
-      const label = {
-        DIRECT_NORMAL: "Estimación directa normal",
-        DIRECT_SIMPLIFIED: "Estimación directa simplificada",
-        OBJECTIVE_ESTIMATION: "Estimación objetiva (módulos)",
-        ENTITY_ATTRIBUTION: "Atribución de rentas",
-        NOT_APPLICABLE: "No aplicable",
-        UNKNOWN: "Sin determinar",
-      }[taxStatus.incomeTaxRegime];
-      proposals.push({
-        field: "incomeTaxRegime",
-        questionId: "D_INCOME_TAX_REGIME",
-        label: "Régimen de IRPF",
-        displayValue: label,
-        value: taxStatus.incomeTaxRegime,
-        ...source("TAX_STATUS"),
-      });
-    }
-    if (taxStatus.vatRegimes.length > 0) {
-      proposals.push({
-        field: "vatRegimes",
-        questionId: "E_VAT_REGIMES",
-        label: "Regímenes de IVA marcados",
-        displayValue: vatLabels(taxStatus.vatRegimes),
-        value: taxStatus.vatRegimes,
-        ...source("TAX_STATUS"),
-      });
-    }
-  }
-
-  const obligations = candidates.OBLIGATIONS;
-  if (obligations && obligations.status !== "BLOCKED") {
-    const hasExplicitList =
-      obligations.activeTaxModels.length > 0 || obligations.isComplete;
-    if (hasExplicitList) {
-      const models = obligations.isComplete
-        ? obligations.activeTaxModels
-        : ([
-            ...new Set([
-              ...currentProfile.censusObligations,
-              ...obligations.activeTaxModels,
-            ]),
-          ].sort() as TaxpayerProfile["censusObligations"]);
-      proposals.push({
-        field: "censusObligations",
-        questionId: "N_CENSUS_OBLIGATIONS",
-        label: obligations.isComplete
-          ? "Obligaciones periódicas en alta"
-          : "Obligaciones leídas en la captura parcial",
-        displayValue:
-          models.length > 0
-            ? models.map((model) => `Modelo ${model}`).join(", ")
-            : "Ninguna obligación periódica en alta",
-        value: models,
-        ...source("OBLIGATIONS"),
-      });
-    }
-    if (obligations.isComplete) {
-      proposals.push({
-        field: "censusReviewed",
-        questionId: "N_CENSUS_REVIEWED",
-        label: "Relación de obligaciones revisada",
-        displayValue: "Sí",
-        value: "YES",
-        ...source("OBLIGATIONS"),
-      });
-    }
-    proposals.push(
-      ...mapCensusObligationsToQuestions(obligations.activeTaxModels).map(
-        (answer) => ({ ...answer, ...source("OBLIGATIONS") }),
-      ),
-    );
-  }
-  return proposals;
-}
-
-function pdfProposals(
-  candidate: CensusCertificateCandidate,
-  fileName: string,
-): UnifiedProposal[] {
-  const proposals: UnifiedProposal[] = [];
-  const source = {
-    evidenceType:
-      candidate.documentKind === "MODEL_036"
-        ? ("MODEL_036" as const)
-        : candidate.documentKind === "AEAT_CENSUS_CERTIFICATE"
-          ? ("CURRENT_CENSUS" as const)
-          : ("OTHER" as const),
-    extractionMethod: "PDF_NATIVE_TEXT" as const,
-    sourceLocation: `${fileName} · texto nativo del PDF`,
-    confidence: 0.78,
-    ...(candidate.documentDate ? { date: candidate.documentDate } : {}),
-  };
-  const invoicingSubject =
-    candidate.taxpayerType === "SELF_EMPLOYED_IRPF"
-      ? "NATURAL_PERSON"
-      : candidate.taxpayerType === "COMPANY_IS"
-        ? "COMPANY"
-        : null;
-  if (invoicingSubject) {
-    proposals.push({
-      field: "invoicingSubject",
-      questionId: "A_INVOICING_SUBJECT",
-      label: "Quién factura",
-      value: invoicingSubject,
-      displayValue:
-        invoicingSubject === "COMPANY" ? "Sociedad" : "Persona física",
-      ...source,
-    });
-  }
-  const territory = {
-    ES_COMMON: "ES_COMMON",
-    ES_CANARY_IGIC: "ES_CANARY",
-    ES_NAVARRA: "ES_NAVARRA",
-    ES_BASQUE_COUNTRY: "UNCERTAIN",
-    ES_CEUTA_MELILLA: "UNCERTAIN",
-    UNKNOWN: undefined,
-  }[candidate.jurisdiction];
-  if (territory) {
-    proposals.push({
-      field: "territory",
-      questionId: "B_TERRITORY",
-      label: "Territorio fiscal",
-      value: territory as TaxpayerProfile["territory"],
-      displayValue:
-        territory === "UNCERTAIN"
-          ? "Debe concretarse manualmente"
-          : candidate.jurisdiction,
-      ...source,
-    });
-  }
-  const incomeTaxRegime = {
-    DIRECT_ESTIMATION_NORMAL: "DIRECT_NORMAL",
-    DIRECT_ESTIMATION_SIMPLIFIED: "DIRECT_SIMPLIFIED",
-    UNKNOWN: undefined,
-  }[candidate.directTaxRegime];
-  if (incomeTaxRegime) {
-    proposals.push({
-      field: "incomeTaxRegime",
-      questionId: "D_INCOME_TAX_REGIME",
-      label: "Régimen de IRPF",
-      value: incomeTaxRegime as TaxpayerProfile["incomeTaxRegime"],
-      displayValue:
-        incomeTaxRegime === "DIRECT_NORMAL"
-          ? "Estimación directa normal"
-          : "Estimación directa simplificada",
-      ...source,
-    });
-  }
-  if (candidate.vatRegime !== "UNKNOWN") {
-    const vatRegimes =
-      candidate.vatRegime === "EXEMPT" ? ["EXEMPT"] : ["GENERAL"];
-    proposals.push({
-      field: "vatRegimes",
-      questionId: "E_VAT_REGIMES",
-      label: "Tratamiento de IVA",
-      value: vatRegimes as TaxpayerProfile["vatRegimes"],
-      displayValue:
-        candidate.vatRegime === "EXEMPT"
-          ? "Actividad exenta"
-          : candidate.vatRegime === "PRORATA"
-            ? "Régimen general con prorrata: revisar"
-            : "Régimen general",
-      ...source,
-    });
-  }
-  if (candidate.documentKind === "AEAT_CENSUS_CERTIFICATE") {
-    proposals.push({
-      field: "censusReviewed",
-      questionId: "N_CENSUS_REVIEWED",
-      label: "Situación censal revisada",
-      displayValue: "Sí",
-      value: "YES",
-      ...source,
-    });
-  }
-  return proposals;
-}
-
-function taxFormProposals(
-  candidate: ReturnType<typeof parseAeatTaxFormText>,
-  fileName: string,
-  extractionMethod: ExtractionMethod,
-): UnifiedProposal[] {
-  const source = {
-    evidenceType: "PREVIOUS_RETURN" as const,
-    extractionMethod,
-    sourceLocation: `${fileName} · Modelo ${candidate.modelCode}${candidate.taxYear ? ` · ${candidate.taxYear}` : ""}${candidate.period ? ` · ${candidate.period}` : ""}`,
-    confidence: candidate.status === "RESOLVED" ? 0.86 : 0.7,
-  };
-  return mapSubmittedTaxFormToQuestions(candidate).map((answer) => ({
-    ...answer,
-    ...source,
-  }));
-}
-
-function supportingDocumentLabel(
-  candidate: SupportingDocumentCandidate,
+function documentTypeLabel(
+  result: FiscalDocumentExtractionResult,
 ): string {
-  return {
-    RETA_CURRENT_STATUS_REPORT: "Informe de situación actual del trabajador",
-    WORK_LIFE_REPORT: "Informe de vida laboral",
-    SELF_EMPLOYED_ACTIVITY_REPORT:
+  const type = result.envelope.detectedDocumentType;
+  if (!type) return "Documento no reconocido";
+  if (type.startsWith("MODEL_")) {
+    const code = type.slice("MODEL_".length);
+    return code === "037" ? "Modelo 037 histórico" : `Modelo ${code}`;
+  }
+  const labels: Record<string, string> = {
+    CURRENT_CENSUS_CERTIFICATE: "Certificado de situación censal",
+    AEAT_ECONOMIC_ACTIVITIES_VIEW: "Mis actividades económicas",
+    AEAT_TAX_STATUS_VIEW: "Mi situación tributaria",
+    AEAT_OBLIGATIONS_VIEW: "Mis obligaciones tributarias",
+    TGSS_CURRENT_STATUS_REPORT: "Informe de situación actual en RETA",
+    TGSS_EMPLOYMENT_HISTORY: "Informe de vida laboral",
+    TGSS_SELF_EMPLOYED_ACTIVITIES:
       "Informe de actividades de trabajo autónomo",
-    INTRACOMMUNITY_OPERATOR_CERTIFICATE:
-      "Certificado de operador intracomunitario",
+    ROI_CERTIFICATE: "Certificado de operador intracomunitario",
     LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE:
-      "Certificado de exoneración de retención del arrendador",
-    UNKNOWN: "Documento no reconocido",
-  }[candidate.documentType];
+      "Certificado de exoneración del arrendador",
+  };
+  return labels[type] ?? "Documento reconocido";
 }
 
-function supportingDocumentProposals(
-  candidate: SupportingDocumentCandidate,
-  fileName: string,
-  extractionMethod: ExtractionMethod,
+function evidenceType(
+  result: FiscalDocumentExtractionResult,
+): Evidence["type"] {
+  const type = result.envelope.detectedDocumentType;
+  if (type === "CURRENT_CENSUS_CERTIFICATE") return "CURRENT_CENSUS";
+  if (type === "MODEL_036") return "MODEL_036";
+  if (type?.startsWith("MODEL_")) return "PREVIOUS_RETURN";
+  if (type?.startsWith("AEAT_")) return "AEAT_CENSUS_SCREENSHOT";
+  return "OTHER";
+}
+
+function displayProposalValue(
+  field: keyof TaxpayerProfile,
+  value: TaxpayerProfile[keyof TaxpayerProfile],
+): string {
+  if (field === "activityKinds" && Array.isArray(value)) {
+    return activityKindLabels(value as TaxpayerProfile["activityKinds"]);
+  }
+  if (field === "vatRegimes" && Array.isArray(value)) {
+    return vatLabels(value as TaxpayerProfile["vatRegimes"]);
+  }
+  if (field === "censusObligations" && Array.isArray(value)) {
+    return value.length > 0
+      ? value.map((code) => `Modelo ${code}`).join(", ")
+      : "Ninguna obligación periódica en alta";
+  }
+  if (value === "YES") return "Sí";
+  if (value === "NO") return "No";
+  if (value === "NATURAL_PERSON") return "Persona física";
+  if (value === "COMPANY") return "Sociedad";
+  if (value === "ES_COMMON") return "Territorio común AEAT";
+  if (value === "ES_CANARY") return "Canarias";
+  if (value === "ES_NAVARRA") return "Navarra";
+  if (value === "DIRECT_NORMAL") return "Estimación directa normal";
+  if (value === "DIRECT_SIMPLIFIED") return "Estimación directa simplificada";
+  if (value === "OBJECTIVE_ESTIMATION") return "Estimación objetiva (módulos)";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return value.split("-").reverse().join("/");
+  }
+  return String(value);
+}
+
+function extractionProposals(
+  result: FiscalDocumentExtractionResult,
 ): UnifiedProposal[] {
-  const source = {
-    evidenceType: "OTHER" as const,
-    extractionMethod,
-    sourceLocation: `${fileName} · ${supportingDocumentLabel(candidate)}`,
-    confidence: candidate.status === "RESOLVED" ? 0.86 : 0.7,
-  };
-  return mapSupportingDocumentToQuestions(candidate).map((answer) => ({
-    ...answer,
-    ...source,
-  }));
+  if (result.status !== "RESOLVED") return [];
+  return result.questionResolutions.flatMap((resolution) => {
+    if (resolution.status === "CONFLICT") return [];
+    const question = DIAGNOSTIC_QUESTIONS.find(
+      (item) => item.questionId === resolution.questionId,
+    );
+    if (!question) return [];
+    const value = resolution.proposedAnswer;
+    if (
+      typeof value !== "string" &&
+      typeof value !== "number" &&
+      typeof value !== "boolean" &&
+      value !== null &&
+      !Array.isArray(value)
+    ) {
+      return [];
+    }
+    const supportingFacts = result.facts.filter((fact) =>
+      resolution.evidenceIds.includes(fact.factId),
+    );
+    const primaryFact = supportingFacts[0];
+    const profileValue = value as TaxpayerProfile[keyof TaxpayerProfile];
+    return [
+      {
+        field: question.field,
+        questionId: question.questionId,
+        label: question.label.replace(/^¿|\?$/g, ""),
+        displayValue: displayProposalValue(question.field, profileValue),
+        value: profileValue,
+        evidenceType: evidenceType(result),
+        extractionMethod:
+          primaryFact?.extractionMethod === "OCR_LOCAL"
+            ? "OCR_LOCAL"
+            : "PDF_NATIVE_TEXT",
+        sourceLocation: [
+          documentTypeLabel(result),
+          primaryFact?.sourceLabel,
+        ]
+          .filter(Boolean)
+          .join(" · "),
+        confidence:
+          primaryFact?.extractionConfidence ?? result.envelope.overallConfidence,
+        ...(primaryFact?.effectiveFrom
+          ? { date: primaryFact.effectiveFrom }
+          : {}),
+        ...(primaryFact?.sourcePage ? { page: primaryFact.sourcePage } : {}),
+        documentId: result.envelope.documentId,
+        detail: [
+          resolution.explanation,
+          ...resolution.missingInformation,
+        ].join(" "),
+      },
+    ];
+  });
+}
+
+function analysisStatus(
+  result: FiscalDocumentExtractionResult,
+): FileAnalysis["status"] {
+  if (result.status === "BLOCKED") return "BLOCKED";
+  if (result.status === "RESOLVED") return "RESOLVED";
+  return "REVIEW_REQUIRED";
+}
+
+function analysisLabel(result: FiscalDocumentExtractionResult): string {
+  return [
+    documentTypeLabel(result),
+    result.envelope.fiscalYear,
+    result.envelope.period,
+  ]
+    .filter((value) => value !== null && value !== undefined && value !== "")
+    .join(" · ");
 }
 
 function consolidateProposals(raw: UnifiedProposal[]): {
@@ -413,15 +267,6 @@ function consolidateProposals(raw: UnifiedProposal[]): {
     );
   }
   return { proposals, conflicts };
-}
-
-function documentLabel(candidate: CensusCertificateCandidate): string {
-  return {
-    AEAT_CENSUS_CERTIFICATE: "Certificado de situación censal",
-    MODEL_036: "Modelo 036",
-    MODEL_037: "Modelo 037 histórico",
-    UNKNOWN: "PDF no reconocido",
-  }[candidate.documentKind];
 }
 
 export function DiagnosticHaciendaReview({
@@ -498,57 +343,31 @@ export function DiagnosticHaciendaReview({
     setProgress(null);
     const nextAnalyses: FileAnalysis[] = [];
     const rawProposals: UnifiedProposal[] = [];
+    const runId = Date.now().toString(36);
+    let documentIndex = 0;
+    const nextDocumentId = () =>
+      `fiscal-document-${runId}-${documentIndex++}`;
     try {
       for (const file of nextFiles.filter(isPdf)) {
         try {
-          const text = await readCensusDocumentText(file);
-          const census = parseCensusCertificateText(text);
-          if (census.documentKind !== "UNKNOWN") {
-            nextAnalyses.push({
-              fileName: file.name,
-              label: documentLabel(census),
-              status: "RESOLVED",
-              warnings: census.warnings,
-            });
-            rawProposals.push(...pdfProposals(census, file.name));
-            continue;
-          }
-          const taxForm = parseAeatTaxFormText(text);
-          if (taxForm.status !== "BLOCKED") {
-            nextAnalyses.push({
-              fileName: file.name,
-              label: `Modelo ${taxForm.modelCode}${taxForm.taxYear ? ` · ${taxForm.taxYear}` : ""}${taxForm.period ? ` · ${taxForm.period}` : ""}`,
-              status: taxForm.status,
-              warnings: taxForm.warnings,
-            });
-            rawProposals.push(
-              ...taxFormProposals(taxForm, file.name, "PDF_NATIVE_TEXT"),
-            );
-            continue;
-          }
-          const supporting = parseSupportingDocumentText(text);
-          if (supporting.status !== "BLOCKED") {
-            nextAnalyses.push({
-              fileName: file.name,
-              label: supportingDocumentLabel(supporting),
-              status: supporting.status,
-              warnings: supporting.warnings,
-            });
-            rawProposals.push(
-              ...supportingDocumentProposals(
-                supporting,
-                file.name,
-                "PDF_NATIVE_TEXT",
-              ),
-            );
-          } else {
-            nextAnalyses.push({
-              fileName: file.name,
-              label: "PDF no reconocido",
-              status: "BLOCKED",
-              warnings: supporting.warnings,
-            });
-          }
+          const document = await readCensusDocumentPages(file, setProgress);
+          const result = extractFiscalDocumentText({
+            documentId: nextDocumentId(),
+            text: document.text,
+            extractionMethod: document.extractionMethod,
+            totalPages: document.totalPages,
+            detectedPages: document.pages
+              .filter((page) => page.text.length > 0)
+              .map((page) => page.page),
+            pages: document.pages,
+          });
+          nextAnalyses.push({
+            fileName: file.name,
+            label: analysisLabel(result),
+            status: analysisStatus(result),
+            warnings: [...result.warnings],
+          });
+          rawProposals.push(...extractionProposals(result));
         } catch (caught) {
           nextAnalyses.push({
             fileName: file.name,
@@ -569,72 +388,49 @@ export function DiagnosticHaciendaReview({
           imageFiles,
           setProgress,
         );
-        const candidates: CandidatesByKind = {};
-        const confidences: Partial<Record<AeatCensusScreenshotKind, number>> =
-          {};
         for (const kind of SCREENSHOT_KINDS) {
           const matches = results.filter((result) => result.kind === kind);
           if (matches.length === 0) continue;
-          const candidate = parseAeatCensusScreenshotText(
-            matches.map((result) => result.text).join("\n"),
-            kind,
-          );
-          candidates[kind] = candidate;
-          confidences[kind] =
-            matches.reduce((total, result) => total + result.confidence, 0) /
-            matches.length;
+          const extraction = extractFiscalDocumentText({
+            documentId: nextDocumentId(),
+            text: matches.map((result) => result.text).join("\n"),
+            extractionMethod: "OCR_LOCAL",
+            totalPages: matches.length,
+            detectedPages: matches.map((_, index) => index + 1),
+            pages: matches.map((match, index) => ({
+              page: index + 1,
+              text: match.text,
+            })),
+          });
           for (const match of matches) {
             nextAnalyses.push({
               fileName: match.fileName,
-              label: screenshotKindLabel(kind),
-              status: candidate.status,
-              warnings: candidate.warnings,
+              label: analysisLabel(extraction),
+              status: analysisStatus(extraction),
+              warnings: [...extraction.warnings],
             });
           }
+          rawProposals.push(...extractionProposals(extraction));
         }
         for (const result of results.filter(
           (item) => item.kind === "UNKNOWN",
         )) {
-          const taxForm = parseAeatTaxFormText(result.text);
-          if (taxForm.status !== "BLOCKED") {
-            nextAnalyses.push({
-              fileName: result.fileName,
-              label: `Modelo ${taxForm.modelCode}${taxForm.taxYear ? ` · ${taxForm.taxYear}` : ""}${taxForm.period ? ` · ${taxForm.period}` : ""}`,
-              status: taxForm.status,
-              warnings: taxForm.warnings,
-            });
-            rawProposals.push(
-              ...taxFormProposals(taxForm, result.fileName, "OCR_LOCAL"),
-            );
-            continue;
-          }
-          const supporting = parseSupportingDocumentText(result.text);
-          nextAnalyses.push(
-            supporting.status === "BLOCKED"
-              ? {
-                  fileName: result.fileName,
-                  label: "Captura no reconocida",
-                  status: "BLOCKED",
-                  warnings: supporting.warnings,
-                }
-              : {
-                  fileName: result.fileName,
-                  label: supportingDocumentLabel(supporting),
-                  status: supporting.status,
-                  warnings: supporting.warnings,
-                },
-          );
-          rawProposals.push(
-            ...supportingDocumentProposals(
-              supporting,
-              result.fileName,
-              "OCR_LOCAL",
-            ),
-          );
+          const extraction = extractFiscalDocumentText({
+            documentId: nextDocumentId(),
+            text: result.text,
+            extractionMethod: "OCR_LOCAL",
+            totalPages: 1,
+            detectedPages: [1],
+            pages: [{ page: 1, text: result.text }],
+          });
+          nextAnalyses.push({
+            fileName: result.fileName,
+            label: analysisLabel(extraction),
+            status: analysisStatus(extraction),
+            warnings: [...extraction.warnings],
+          });
+          rawProposals.push(...extractionProposals(extraction));
         }
-        rawProposals.push(
-          ...screenshotProposals(candidates, confidences, currentProfile),
-        );
       }
 
       const consolidated = consolidateProposals(rawProposals);
@@ -664,11 +460,11 @@ export function DiagnosticHaciendaReview({
     const patch = Object.fromEntries(
       chosen.map((proposal) => [proposal.field, proposal.value]),
     ) as ProfilePatch;
-    const documentId = `aeat-files-${Date.now()}`;
     const evidence: Evidence[] = chosen.map((proposal) => ({
-      evidenceId: `${documentId}:${proposal.field}`,
-      documentId,
+      evidenceId: `${proposal.documentId}:${proposal.field}`,
+      documentId: proposal.documentId,
       type: proposal.evidenceType,
+      ...(proposal.page ? { page: proposal.page } : {}),
       field: proposal.field,
       sourceLocation: proposal.sourceLocation,
       value: Array.isArray(proposal.value)
@@ -726,6 +522,7 @@ export function DiagnosticHaciendaReview({
   return (
     <section
       aria-labelledby="documentos-apoyo"
+      aria-busy={reading}
       className="rounded-2xl border border-blue-200 bg-blue-50/60 p-5 dark:border-blue-900 dark:bg-blue-950/20"
     >
       <div className="flex items-start gap-3">
@@ -971,6 +768,14 @@ export function DiagnosticHaciendaReview({
                   ) : (
                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                   )}
+                  <span className="sr-only">
+                    {analysis.status === "BLOCKED"
+                      ? "Bloqueado"
+                      : analysis.status === "REVIEW_REQUIRED"
+                        ? "Necesita revisión"
+                        : "Reconocido"}
+                    :{" "}
+                  </span>
                   {analysis.fileName}: {analysis.label}
                 </p>
                 {analysis.warnings.map((warning) => (
@@ -1043,6 +848,11 @@ export function DiagnosticHaciendaReview({
                   />
                   <span className="text-sm text-slate-700 dark:text-slate-200">
                     <strong>{proposal.label}:</strong> {proposal.displayValue}
+                    {proposal.detail && (
+                      <span className="mt-1 block text-xs leading-5 text-slate-500 dark:text-slate-400">
+                        {proposal.detail}
+                      </span>
+                    )}
                     {conflictsWithCurrent && (
                       <span className="mt-1 block font-semibold text-amber-800 dark:text-amber-200">
                         Es distinto de la respuesta actual; al confirmar la

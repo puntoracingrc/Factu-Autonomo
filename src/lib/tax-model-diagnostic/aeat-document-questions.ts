@@ -60,9 +60,8 @@ const MODEL_QUESTION_IDS = {
     "I_EU_GOODS_PURCHASES",
     "I_EU_SERVICES_SALES",
     "I_EU_SERVICES_PURCHASES",
-    "I_ROI",
   ],
-  "369": ["J_OSS"],
+  "369": ["J_EU_CONSUMERS"],
   "390": ["E_VAT_REGIMES", "E_390_EXEMPT"],
   "714": ["M_WEALTH"],
   "720": ["M_FOREIGN_ASSETS"],
@@ -208,9 +207,13 @@ function yes(
 
 function answersForSubmittedModel(
   candidate: AeatTaxFormCandidate,
+  targetFiscalYear: number,
 ): AeatMappedQuestionAnswer[] {
   const code = candidate.modelCode;
   if (code === "UNKNOWN") return [];
+  // Una declaración solo acredita el ejercicio/periodo que contiene. Si el
+  // objetivo es otro ejercicio, no se proyecta al perfil actual.
+  if (candidate.taxYear !== targetFiscalYear) return [];
   if (code === "115" || code === "180") {
     return [
       yes("rentsBusinessPremises", "G_RENTS_PREMISES", "Alquiler de inmueble urbano para la actividad"),
@@ -256,10 +259,13 @@ function answersForSubmittedModel(
     return [yes("wealthTaxPotentiallyApplicable", "M_WEALTH", "Impuesto sobre el Patrimonio presentado")];
   }
   if (code === "369") {
-    return [yes("ossRegistered", "J_OSS", "Alta en un régimen OSS o IOSS")];
-  }
-  if (code === "035" && candidate.ossAction === "REGISTRATION") {
-    return [yes("ossRegistered", "J_OSS", "Alta en un régimen OSS o IOSS")];
+    return [
+      yes(
+        "euConsumerSales",
+        "J_EU_CONSUMERS",
+        "Operaciones con consumidores europeos declaradas",
+      ),
+    ];
   }
   if (code === "349" && candidate.euOperationKeys.length > 0) {
     const keyAnswers: Record<
@@ -273,7 +279,6 @@ function answersForSubmittedModel(
     };
     return [
       ...candidate.euOperationKeys.map((key) => keyAnswers[key]),
-      yes("roiRegistered", "I_ROI", "Alta efectiva en ROI"),
     ];
   }
   return [];
@@ -281,9 +286,10 @@ function answersForSubmittedModel(
 
 export function mapSubmittedTaxFormToQuestions(
   candidate: AeatTaxFormCandidate,
+  targetFiscalYear: number,
 ): AeatMappedQuestionAnswer[] {
   if (!candidate.isSubmitted || candidate.modelCode === "UNKNOWN") return [];
-  return answersForSubmittedModel(candidate);
+  return answersForSubmittedModel(candidate, targetFiscalYear);
 }
 
 export function mapSupportingDocumentToQuestions(
