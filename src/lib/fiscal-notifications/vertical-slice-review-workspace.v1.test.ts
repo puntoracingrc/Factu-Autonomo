@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import { commitAppDataDurably } from "../app-data-durability";
 import { EMPTY_DATA, type AppData } from "../types";
 import type { FiscalNotificationLocalAnalysisResult } from "./local-review-flow";
+import type { BoundedDocumentInput } from "./input-contract";
+import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
 import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "./structured-review-save-command.v1";
+import { projectFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
 import {
   FiscalNotificationVerticalSliceWorkspaceErrorV1,
   appendFiscalNotificationVerticalSliceReviewV1,
@@ -15,6 +18,25 @@ const REVIEW_ID = "review:00000000-0000-4000-8000-000000000103";
 const SECOND_REVIEW_ID = "review:00000000-0000-4000-8000-000000000104";
 const CREATED_AT = "2026-07-14T20:00:00.000Z";
 const HASH = "a".repeat(64);
+
+const BANK_SEIZURE = [
+  "Agencia Tributaria",
+  "sede.agenciatributaria.gob.es",
+  "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+  "Número de diligencia: EMB-SYN-WORKSPACE-001",
+  "Número de expediente: EXP-SYN-WORKSPACE-001",
+  "Clave de deuda: DEBT-SYN-WORKSPACE-001",
+  "Deudor: PERSONA DEUDORA SINTÉTICA",
+  "NIF del deudor: 12345678Z",
+  "Destinatario: BANCO SINTÉTICO",
+  "NIF del destinatario: A12345674",
+  "Entidad financiera: BANCO SINTÉTICO",
+  "IBAN: ES00 0000 0000 0000 1234",
+  "Principal: 1.000,00 EUR",
+  "Límite del embargo: 1.240,00 EUR",
+  "Importe retenido: 900,00 EUR",
+  "Fecha del embargo: 04/03/2026",
+].join("\n");
 
 function field(overrides: Record<string, unknown>) {
   return Object.freeze({
@@ -306,7 +328,86 @@ function notificationAnalysis(): FiscalNotificationLocalAnalysisResult {
   return source as unknown as FiscalNotificationLocalAnalysisResult;
 }
 
+async function seizureAnalysis(): Promise<FiscalNotificationLocalAnalysisResult> {
+  const boundedDocument: BoundedDocumentInput = Object.freeze({
+    ownerScope: OWNER,
+    documentId: "document:synthetic-seizure-workspace",
+    pages: Object.freeze([
+      Object.freeze({ pageNumber: 1, text: BANK_SEIZURE, isBlank: false }),
+    ]),
+  });
+  const review = projectFiscalNotificationVerticalSliceReviewV1(
+    await analyzeFiscalNotificationVerticalSliceV1(boundedDocument),
+  );
+  const source = structuredClone(analysis()) as unknown as {
+    technicalReview: { pageCount: number; byteLength: number };
+    ephemeralVerticalSliceReview: unknown;
+  };
+  source.technicalReview.pageCount = 1;
+  source.technicalReview.byteLength = 5_678;
+  source.ephemeralVerticalSliceReview = review;
+  return source as unknown as FiscalNotificationLocalAnalysisResult;
+}
+
 describe("vertical slice structured workspace v1", () => {
+  it("persiste una diligencia exacta con partes, importes y cuenta enmascarada sin efectos operativos", async () => {
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: await seizureAnalysis(),
+    });
+
+    expect(result.workspace.documents).toEqual([
+      expect.objectContaining({
+        documentType: "AEAT_SEIZURE_ORDER",
+        documentSubtype: "seizure.bank_account",
+        titleRaw: "Diligencia de embargo de cuenta bancaria",
+        subjectParty: {
+          displayName: "PERSONA DEUDORA SINTÉTICA",
+          taxIdNormalized: "12345678Z",
+          matchesBusinessProfile: "UNKNOWN",
+        },
+      }),
+    ]);
+    expect(result.workspace.references.map((item) => [item.referenceType, item.rawValue])).toEqual(
+      expect.arrayContaining([
+        ["DOCUMENT_REFERENCE", "EMB-SYN-WORKSPACE-001"],
+        ["EXPEDIENT_NUMBER", "EXP-SYN-WORKSPACE-001"],
+        ["DEBT_KEY", "DEBT-SYN-WORKSPACE-001"],
+      ]),
+    );
+    expect(result.workspace.analysisSnapshots[0]?.structuredData.administrativeDomain?.moneyFacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "ORIGINAL_TAX_PRINCIPAL", amountCents: 100_000 }),
+        expect.objectContaining({ kind: "SEIZED_AMOUNT", amountCents: 124_000 }),
+        expect.objectContaining({ kind: "RETAINED_AMOUNT", amountCents: 90_000 }),
+      ]),
+    );
+    expect(result.workspace.analysisSnapshots[0]?.structuredData.unknownFields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          labelRaw: "VSR1|MASKED_VALUE|MASKED_ACCOUNT|Cuenta enmascarada",
+          valueRaw: "****1234",
+        }),
+        expect.objectContaining({
+          labelRaw: "VSR1|DETAIL|DEBTOR_TAX_ID|NIF del deudor",
+          valueRaw: "12345678Z",
+        }),
+      ]),
+    );
+    expect(JSON.stringify(result.workspace)).not.toContain("ES00 0000 0000 0000 1234");
+    expect(result.workspace.debts).toEqual([]);
+    expect(result.workspace.deadlineRules).toEqual([]);
+    expect(result.workspace.paymentOptions).toEqual([]);
+    expect(result.workspace.accountingDrafts).toEqual([]);
+    expect(validateFiscalNotificationsWorkspaceIntegrity(result.workspace, OWNER)).toEqual({
+      valid: true,
+      issues: [],
+    });
+  });
+
   it("persiste el sobre electrónico y todos sus datos visibles sin conservar el PDF", () => {
     const source = notificationAnalysis();
     const result = appendFiscalNotificationVerticalSliceReviewV1({

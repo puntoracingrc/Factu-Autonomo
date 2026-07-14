@@ -130,6 +130,26 @@ const ASSESSMENT_PROPOSAL = [
   "Código Seguro de Verificación (CSV): CSV-SYN-CHAIN-002",
 ].join("\n");
 
+const BANK_SEIZURE = [
+  "Agencia Tributaria",
+  "sede.agenciatributaria.gob.es",
+  "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+  "Número de diligencia: EMB-SYN-CHAIN-001",
+  "Número de expediente: EXP-SYN-CHAIN-003",
+  "Clave de deuda: DEBT-SYN-CHAIN-003",
+  "Deudor: PERSONA DEUDORA SINTÉTICA",
+  "NIF del deudor: 12345678Z",
+  "Destinatario: BANCO SINTÉTICO",
+  "NIF del destinatario: A12345674",
+  "Entidad financiera: BANCO SINTÉTICO",
+  "IBAN: ES00 0000 0000 0000 1234",
+  "Principal: 1.000,00 EUR",
+  "Importe a embargar: 1.240,00 EUR",
+  "Importe retenido: 900,00 EUR",
+  "Fecha del embargo: 04/03/2026",
+  "Plazo de contestación: 12/03/2026",
+].join("\n");
+
 describe("fiscal notification first vertical-slice orchestrator v1", () => {
   it("recognizes an electronic notification receipt before the notified act", async () => {
     const result = await analyzeFiscalNotificationVerticalSliceV1(
@@ -250,6 +270,35 @@ describe("fiscal notification first vertical-slice orchestrator v1", () => {
     );
   });
 
+  it("recognizes an exact bank-account seizure and keeps every operation disabled", async () => {
+    const result = await analyzeFiscalNotificationVerticalSliceV1(
+      document(BANK_SEIZURE),
+    );
+
+    expect(result.recognizedExtractorIds).toEqual(["seizure"]);
+    expect(result.extractions.seizure?.seizureFacts).toMatchObject({
+      documentKind: "SEIZURE_ORDER",
+      subtype: "BANK_ACCOUNT",
+      printedState: "SEIZURE_ORDER_RECORDED_REVIEW_REQUIRED",
+      seizureOrderId: { printedValue: "EMB-SYN-CHAIN-001" },
+      recipientRole: "FINANCIAL_ENTITY",
+    });
+    expect(result.extractions.seizure?.seizureFacts.specificFacts).toContainEqual(
+      expect.objectContaining({
+        fieldId: "MASKED_ACCOUNT",
+        printedValue: "****1234",
+      }),
+    );
+    expect(result).toMatchObject({
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+      permitsAccountingAction: false,
+      retainedSourceContent: "NONE",
+    });
+    expect(JSON.stringify(result)).not.toContain("ES00 0000 0000 0000 1234");
+  });
+
   it("keeps a cover and generic instructions outside factual extraction", async () => {
     const result = await analyzeFiscalNotificationVerticalSliceV1(document(
       "Notificación electrónica\nDirección Electrónica Habilitada Única",
@@ -283,6 +332,7 @@ describe("fiscal notification first vertical-slice orchestrator v1", () => {
       assessment: null,
       paymentOrder: null,
       paymentEvidence: null,
+      seizure: null,
     });
   });
 

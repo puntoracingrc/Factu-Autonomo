@@ -736,11 +736,22 @@ function subjectPartyForDocument(
     document.fields
       .filter(
         (field) =>
-          field.semantic === "PARTY" && field.canonicalType === "TAXPAYER",
+          field.semantic === "PARTY" &&
+          (field.canonicalType === "TAXPAYER" ||
+            field.canonicalType === "PRIMARY_DEBTOR"),
       )
       .map((field) => field.displayValue),
   )];
-  const taxIds = [...new Set(
+  const debtorTaxIds = [...new Set(
+    document.fields
+      .filter(
+        (field) =>
+          field.semantic === "DETAIL" &&
+          field.canonicalType === "DEBTOR_TAX_ID",
+      )
+      .map((field) => normalizeReference(field.displayValue)),
+  )];
+  const genericTaxIds = [...new Set(
     document.fields
       .filter(
         (field) =>
@@ -748,11 +759,12 @@ function subjectPartyForDocument(
       )
       .map((field) => field.normalizedValue ?? normalizeReference(field.displayValue)),
   )];
-  if (names.length > 1 || taxIds.length > 1) throw invalidInput();
-  if (!names[0] && !taxIds[0]) return null;
+  if (names.length > 1 || debtorTaxIds.length > 1) throw invalidInput();
+  const taxId = debtorTaxIds[0] ?? (genericTaxIds.length === 1 ? genericTaxIds[0] : undefined);
+  if (!names[0] && !taxId) return null;
   return {
     ...(names[0] ? { displayName: names[0] } : {}),
-    ...(taxIds[0] ? { taxIdNormalized: taxIds[0] } : {}),
+    ...(taxId ? { taxIdNormalized: taxId } : {}),
     matchesBusinessProfile: "UNKNOWN",
   };
 }
@@ -773,7 +785,17 @@ function documentTypeForFamily(familyId: string): AdministrativeDocumentType {
       return "AEAT_PAYMENT_FORM";
     case "payment.receipt":
     case "payment.failed_or_reversed":
+    case "seizure.release":
+    case "seizure.third_party_response":
+    case "seizure.third_party_payment":
       return "GENERIC_ADMINISTRATIVE_NOTICE";
+    case "seizure.bank_account":
+    case "seizure.commercial_credits":
+    case "seizure.wages_or_pensions":
+    case "seizure.tpv_receipts":
+    case "seizure.cash_or_refund":
+    case "seizure.real_estate":
+      return "AEAT_SEIZURE_ORDER";
     default:
       throw invalidInput();
   }
@@ -830,8 +852,18 @@ function moneyKind(value: string, familyId: string): AdministrativeMoneyKind {
     case "PARTIAL_PAYMENT":
       return "PAYMENT_CONFIRMED";
     case "TOTAL_CLAIMED":
+    case "TOTAL_PENDING":
+    case "AVAILABLE_BALANCE":
+    case "RELEASED_AMOUNT":
     case "OTHER":
       return "DOCUMENT_TOTAL";
+    case "SEIZED_AMOUNT":
+    case "SEIZURE_LIMIT":
+      return "SEIZED_AMOUNT";
+    case "RETAINED_AMOUNT":
+      return "RETAINED_AMOUNT";
+    case "THIRD_PARTY_TRANSFERRED":
+      return "REMITTED_AMOUNT";
     default:
       throw invalidInput();
   }

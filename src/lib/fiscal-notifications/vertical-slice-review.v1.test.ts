@@ -43,6 +43,28 @@ const NOTIFICATION = [
   "Fecha de acceso: 12/07/2026 09:42",
 ].join("\n");
 
+const BANK_SEIZURE = [
+  "Agencia Tributaria",
+  "sede.agenciatributaria.gob.es",
+  "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+  "Número de diligencia: EMB-SYN-VIEW-001",
+  "Número de expediente: EXP-SYN-VIEW-001",
+  "Clave de deuda: DEBT-SYN-VIEW-001",
+  "Deudor: PERSONA DEUDORA SINTÉTICA",
+  "NIF del deudor: 12345678Z",
+  "Destinatario: BANCO SINTÉTICO",
+  "NIF del destinatario: A12345674",
+  "Entidad financiera: BANCO SINTÉTICO",
+  "IBAN: ES00 0000 0000 0000 1234",
+  "Principal: 1.000,00 EUR",
+  "Importe a embargar: 1.240,00 EUR",
+  "Límite del embargo: 1.240,00 EUR",
+  "Importe retenido: 900,00 EUR",
+  "Fecha del embargo: 04/03/2026",
+  "Plazo de contestación: 12/03/2026",
+  "Instrucciones: CONTESTAR POR LA SEDE ELECTRÓNICA",
+].join("\n");
+
 function document(text: string): BoundedDocumentInput {
   return Object.freeze({
     ownerScope: "user:synthetic-review-projection",
@@ -52,6 +74,33 @@ function document(text: string): BoundedDocumentInput {
 }
 
 describe("fiscal notification vertical-slice review v1", () => {
+  it.each([
+    ["DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS", "Diligencia de embargo de cuenta bancaria"],
+    ["DILIGENCIA DE EMBARGO DE CRÉDITOS COMERCIALES O ARRENDATICIOS", "Diligencia de embargo de créditos comerciales o arrendaticios"],
+    ["DILIGENCIA DE EMBARGO DE SUELDOS, SALARIOS O PENSIONES", "Diligencia de embargo de sueldos, salarios o pensiones"],
+    ["DILIGENCIA DE EMBARGO DE COBROS MEDIANTE TERMINAL DE PUNTO DE VENTA", "Diligencia de embargo de cobros mediante TPV"],
+    ["DILIGENCIA DE EMBARGO DE DEVOLUCIONES TRIBUTARIAS", "Diligencia de embargo de efectivo, devoluciones o créditos públicos"],
+    ["DILIGENCIA DE EMBARGO DE BIENES INMUEBLES", "Diligencia de embargo de inmueble"],
+    ["LEVANTAMIENTO DE DILIGENCIA DE EMBARGO", "Levantamiento de embargo"],
+    ["CONTESTACIÓN A DILIGENCIA DE EMBARGO", "Contestación a diligencia de embargo"],
+    ["JUSTIFICANTE DE INGRESO DE DILIGENCIA DE EMBARGO", "Ingreso efectuado por tercero retenedor"],
+  ])("names %s exactly in the visible review", async (printedTitle, visibleTitle) => {
+    const review = projectFiscalNotificationVerticalSliceReviewV1(
+      await analyzeFiscalNotificationVerticalSliceV1(document([
+        "Agencia Tributaria",
+        "sede.agenciatributaria.gob.es",
+        printedTitle,
+        "Número de diligencia: EMB-SYN-VIEW-TABLE",
+        "Deudor: PERSONA DEUDORA SINTÉTICA",
+      ].join("\n"))),
+    );
+
+    expect(review.documents).toEqual([
+      expect.objectContaining({ extractorId: "seizure", title: visibleTitle }),
+    ]);
+    expect(review.documents[0]?.title).not.toMatch(/posible/iu);
+  });
+
   it("projects the exact electronic-notification facts into the visible review", async () => {
     const review = projectFiscalNotificationVerticalSliceReviewV1(
       await analyzeFiscalNotificationVerticalSliceV1(document(NOTIFICATION)),
@@ -166,6 +215,65 @@ describe("fiscal notification vertical-slice review v1", () => {
       permitsPaymentAction: false,
       permitsAccountingAction: false,
     });
+  });
+
+  it("projects the exact seizure type, parties, amounts and masked account", async () => {
+    const review = projectFiscalNotificationVerticalSliceReviewV1(
+      await analyzeFiscalNotificationVerticalSliceV1(document(BANK_SEIZURE)),
+    );
+
+    expect(review.documents).toEqual([
+      expect.objectContaining({
+        extractorId: "seizure",
+        familyId: "seizure.bank_account",
+        title: "Diligencia de embargo de cuenta bancaria",
+        subtitle: "Diligencia de embargo registrada",
+      }),
+    ]);
+    expect(review.documents[0]?.fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        semantic: "STATUS",
+        displayValue: "Diligencia de embargo registrada",
+      }),
+      expect.objectContaining({
+        semantic: "REFERENCE",
+        canonicalType: "SEIZURE_ORDER_ID",
+        displayValue: "EMB-SYN-VIEW-001",
+      }),
+      expect.objectContaining({
+        semantic: "PARTY",
+        canonicalType: "PRIMARY_DEBTOR",
+        displayValue: "PERSONA DEUDORA SINTÉTICA",
+      }),
+      expect.objectContaining({
+        semantic: "MONEY",
+        canonicalType: "SEIZURE_LIMIT",
+        label: "Límite del embargo",
+        amountCents: 124_000,
+      }),
+      expect.objectContaining({
+        semantic: "MONEY",
+        canonicalType: "RETAINED_AMOUNT",
+        amountCents: 90_000,
+      }),
+      expect.objectContaining({
+        semantic: "MASKED_VALUE",
+        canonicalType: "MASKED_ACCOUNT",
+        displayValue: "****1234",
+      }),
+      expect.objectContaining({
+        semantic: "DETAIL",
+        canonicalType: "DEBTOR_TAX_ID",
+        displayValue: "12345678Z",
+      }),
+      expect.objectContaining({
+        semantic: "DATE",
+        canonicalType: "RESPONSE_DEADLINE",
+        normalizedValue: "2026-03-12",
+      }),
+    ]));
+    expect(JSON.stringify(review)).not.toContain("ES00 0000 0000 0000 1234");
+    expect(JSON.stringify(review)).not.toContain(BANK_SEIZURE);
   });
 
   it("returns an empty information-pending review for unsupported content", async () => {

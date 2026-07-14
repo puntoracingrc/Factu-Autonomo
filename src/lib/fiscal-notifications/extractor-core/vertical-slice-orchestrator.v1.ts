@@ -28,12 +28,16 @@ import {
   type PaymentOrderExtractorOutputV1,
 } from "./payment-order-extractor.v1";
 import {
+  extractSeizureV1,
+  type SeizureExtractorOutputV1,
+} from "./seizure-extractor.v1";
+import {
   FISCAL_NOTIFICATION_EXTRACTOR_CORE_RELEASE_V1,
   FISCAL_NOTIFICATION_EXTRACTOR_CORE_VERSION_V1,
 } from "./shared.v1";
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_ORCHESTRATOR_VERSION_V1 =
-  "1.1.0" as const;
+  "1.2.0" as const;
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_EXTRACTOR_ORDER_V1 =
   Object.freeze([
@@ -42,6 +46,7 @@ export const FISCAL_NOTIFICATION_VERTICAL_SLICE_EXTRACTOR_ORDER_V1 =
     "assessment",
     "payment-order",
     "payment-evidence",
+    "seizure",
   ] as const);
 
 export type FiscalNotificationVerticalSliceExtractorIdV1 =
@@ -53,6 +58,7 @@ export interface FiscalNotificationVerticalSliceExtractionsV1 {
   readonly assessment: AssessmentExtractorOutputV1 | null;
   readonly paymentOrder: PaymentOrderExtractorOutputV1 | null;
   readonly paymentEvidence: PaymentEvidenceExtractorOutputV1 | null;
+  readonly seizure: SeizureExtractorOutputV1 | null;
 }
 
 export interface FiscalNotificationVerticalSliceAnalysisV1 {
@@ -135,6 +141,11 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
     segments: segmentation.segments,
   });
   assertNotAborted(document.signal);
+  const seizure = extractSeizureV1({
+    document,
+    segments: segmentation.segments,
+  });
+  assertNotAborted(document.signal);
 
   const outputs = Object.freeze([
     Object.freeze({ id: "notification-envelope" as const, output: notificationEnvelope }),
@@ -142,6 +153,7 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
     Object.freeze({ id: "assessment" as const, output: assessment }),
     Object.freeze({ id: "payment-order" as const, output: paymentOrder }),
     Object.freeze({ id: "payment-evidence" as const, output: paymentEvidence }),
+    Object.freeze({ id: "seizure" as const, output: seizure }),
   ]);
   const recognizedExtractorIds = Object.freeze(
     outputs
@@ -191,6 +203,8 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
         paymentOrder.status === "REVIEW_REQUIRED" ? paymentOrder : null,
       paymentEvidence:
         paymentEvidence.status === "REVIEW_REQUIRED" ? paymentEvidence : null,
+      seizure:
+        seizure.status === "REVIEW_REQUIRED" ? seizure : null,
     }),
     recognizedExtractorIds,
     blockedExtractorIds,

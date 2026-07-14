@@ -11,6 +11,13 @@ import type { ReferenceTypeV1 } from "./extractor-core/reference.v1";
 import type { PaymentEvidenceStateV1 } from "./extractor-core/payment-evidence-extractor.v1";
 import type { NotificationEnvelopeStateV1 } from "./extractor-core/notification-envelope-extractor.v1";
 import type {
+  SeizureMoneyRoleV1,
+  SeizurePrintedStateV1,
+  SeizureRecipientRoleV1,
+  SeizureSpecificFactV1,
+  SeizureSpecificFieldIdV1,
+} from "./extractor-core/seizure-extractor.v1";
+import type {
   FiscalNotificationVerticalSliceAnalysisV1,
   FiscalNotificationVerticalSliceExtractorIdV1,
 } from "./extractor-core/vertical-slice-orchestrator.v1";
@@ -20,7 +27,7 @@ export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1 =
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1 =
   Object.freeze({
-    maxDocuments: 5,
+    maxDocuments: 6,
     maxFieldsPerDocument: 256,
     maxWarningsPerDocument: 64,
     maxLabelChars: 160,
@@ -63,11 +70,47 @@ const DETAIL_CANONICAL_TYPES = Object.freeze([
   "NOTIFICATION_SUBJECT",
   "NOTIFICATION_CHANNEL",
   "PRINTED_NOTIFICATION_STATE",
+  "SEIZURE_INSTRUCTIONS",
+  "PRINTED_RESOURCES",
+  "SEIZURE_RECIPIENT_ROLE",
+  "DEBTOR_TAX_ID",
+  "RECIPIENT_TAX_ID",
+  "THIRD_PARTY_TAX_ID",
+  "FINANCIAL_ENTITY",
+  "ACCOUNT_OR_DEPOSIT",
+  "PAYER",
+  "CREDIT_DEBTOR",
+  "CONTRACT_OR_INVOICE",
+  "CREDIT_PAYMENT_PERIODICITY",
+  "PROHIBITION_TO_PAY_DEBTOR",
+  "REMUNERATION_TYPE",
+  "PRINTED_WITHHOLDING_LIMIT",
+  "PAYMENT_SERVICE_PROVIDER",
+  "TERMINAL_OR_MERCHANT",
+  "COLLECTION_FLOW",
+  "PRINTED_PERCENTAGE",
+  "PROPERTY_HOLDER",
+  "PROPERTY_ADDRESS",
+  "CADASTRAL_REFERENCE",
+  "LAND_REGISTRY",
+  "PROPERTY_NUMBER",
+  "SEIZED_RIGHT",
+  "OWNERSHIP_SHARE",
+  "VALUATION",
+  "CHARGES",
+  "RELEASED_ASSET_OR_RIGHT",
+  "EXPLICIT_RELEASE_REASON",
+  "RELEASE_EXTENT",
+  "RELATIONSHIP_TO_DEBTOR",
+  "CREDIT_OR_BALANCE_EXISTS",
+  "THIRD_PARTY_RESPONSE",
+  "TRANSFER_RECEIPT",
 ] as const);
 
 export type FiscalNotificationVerticalSliceCanonicalFieldTypeV1 =
   | ReferenceTypeV1
   | MonetaryComponentTypeV1
+  | SeizureMoneyRoleV1
   | ProceduralDateTypeV1
   | PartyRoleV1
   | (typeof DETAIL_CANONICAL_TYPES)[number];
@@ -128,6 +171,15 @@ const FAMILY_TITLE: Readonly<
   "payment.payment_form": "Carta o documento de pago",
   "payment.receipt": "Justificante de pago",
   "payment.failed_or_reversed": "Incidencia de pago",
+  "seizure.bank_account": "Diligencia de embargo de cuenta bancaria",
+  "seizure.commercial_credits": "Diligencia de embargo de créditos comerciales o arrendaticios",
+  "seizure.wages_or_pensions": "Diligencia de embargo de sueldos, salarios o pensiones",
+  "seizure.tpv_receipts": "Diligencia de embargo de cobros mediante TPV",
+  "seizure.cash_or_refund": "Diligencia de embargo de efectivo, devoluciones o créditos públicos",
+  "seizure.real_estate": "Diligencia de embargo de inmueble",
+  "seizure.release": "Levantamiento de embargo",
+  "seizure.third_party_response": "Contestación a diligencia de embargo",
+  "seizure.third_party_payment": "Ingreso efectuado por tercero retenedor",
 });
 
 const REFERENCE_LABEL: Readonly<Record<ReferenceTypeV1, string>> = Object.freeze({
@@ -207,6 +259,53 @@ const PARTY_LABEL: Readonly<Record<PartyRoleV1, string>> = Object.freeze({
   ISSUING_AUTHORITY: "Órgano emisor",
 });
 
+const SEIZURE_MONEY_LABEL: Readonly<Record<SeizureMoneyRoleV1, string>> = Object.freeze({
+  PRINCIPAL: "Principal pendiente",
+  EXECUTIVE_SURCHARGE: "Recargo ejecutivo",
+  LATE_INTEREST: "Intereses de demora",
+  COSTS: "Costas del procedimiento",
+  TOTAL_PENDING: "Total pendiente impreso",
+  SEIZED_AMOUNT: "Importe embargado",
+  SEIZURE_LIMIT: "Límite del embargo",
+  RETAINED_AMOUNT: "Importe retenido",
+  AVAILABLE_BALANCE: "Saldo disponible impreso",
+  THIRD_PARTY_TRANSFERRED: "Importe ingresado por el tercero",
+  RELEASED_AMOUNT: "Importe liberado",
+});
+
+const SEIZURE_SPECIFIC_LABEL: Readonly<Record<SeizureSpecificFieldIdV1, string>> = Object.freeze({
+  FINANCIAL_ENTITY: "Entidad financiera",
+  MASKED_ACCOUNT: "Cuenta enmascarada",
+  ACCOUNT_OR_DEPOSIT: "Cuenta o depósito",
+  PAYER: "Pagador",
+  CREDIT_DEBTOR: "Deudor del crédito",
+  CONTRACT_OR_INVOICE: "Contrato o factura",
+  CREDIT_PAYMENT_PERIODICITY: "Periodicidad del crédito",
+  PROHIBITION_TO_PAY_DEBTOR: "Prohibición de pago al deudor",
+  REMUNERATION_TYPE: "Tipo de retribución",
+  PRINTED_WITHHOLDING_LIMIT: "Límite de retención impreso",
+  PAYMENT_SERVICE_PROVIDER: "Proveedor de servicios de pago",
+  TERMINAL_OR_MERCHANT: "Terminal o comercio",
+  COLLECTION_FLOW: "Flujo de cobros",
+  PRINTED_PERCENTAGE: "Porcentaje impreso",
+  PROPERTY_HOLDER: "Titular del inmueble",
+  PROPERTY_ADDRESS: "Dirección del inmueble",
+  CADASTRAL_REFERENCE: "Referencia catastral",
+  LAND_REGISTRY: "Registro de la Propiedad",
+  PROPERTY_NUMBER: "Finca registral",
+  SEIZED_RIGHT: "Bien o derecho embargado",
+  OWNERSHIP_SHARE: "Cuota de titularidad",
+  VALUATION: "Valoración impresa",
+  CHARGES: "Cargas registrales",
+  RELEASED_ASSET_OR_RIGHT: "Bien o derecho liberado",
+  EXPLICIT_RELEASE_REASON: "Motivo del levantamiento",
+  RELEASE_EXTENT: "Alcance del levantamiento",
+  RELATIONSHIP_TO_DEBTOR: "Relación con el deudor",
+  CREDIT_OR_BALANCE_EXISTS: "Existencia de crédito o saldo",
+  THIRD_PARTY_RESPONSE: "Respuesta del tercero",
+  TRANSFER_RECEIPT: "Justificante del ingreso",
+});
+
 const FAMILY_IDS = new Set<FiscalNotificationDocumentFamilyIdV3>(
   Object.keys(FAMILY_TITLE) as FiscalNotificationDocumentFamilyIdV3[],
 );
@@ -216,9 +315,13 @@ const EXTRACTOR_IDS = new Set<FiscalNotificationVerticalSliceExtractorIdV1>([
   "assessment",
   "payment-order",
   "payment-evidence",
+  "seizure",
 ]);
 const REFERENCE_TYPES = new Set(Object.keys(REFERENCE_LABEL));
-const MONEY_TYPES = new Set(Object.keys(MONEY_LABEL));
+const MONEY_TYPES = new Set([
+  ...Object.keys(MONEY_LABEL),
+  ...Object.keys(SEIZURE_MONEY_LABEL),
+]);
 const DATE_TYPES = new Set(Object.keys(DATE_LABEL));
 const PARTY_TYPES = new Set(Object.keys(PARTY_LABEL));
 const DETAIL_TYPES = new Set<string>(DETAIL_CANONICAL_TYPES);
@@ -245,6 +348,9 @@ export function projectFiscalNotificationVerticalSliceReviewV1(
   }
   if (extractions.paymentEvidence) {
     documents.push(projectPaymentEvidence(extractions.paymentEvidence));
+  }
+  if (extractions.seizure) {
+    documents.push(projectSeizure(extractions.seizure));
   }
   return parseFiscalNotificationVerticalSliceReviewV1({
     schemaVersion: 1,
@@ -450,7 +556,59 @@ function projectPaymentEvidence(
   return documentProjection("payment-evidence", output, fields, paymentStateLabel(output.paymentEvidenceFacts.paymentState));
 }
 
-function commonFields(output: ExtractorOutputV1): FiscalNotificationVerticalSliceReviewFieldV1[] {
+function projectSeizure(
+  output: NonNullable<FiscalNotificationVerticalSliceAnalysisV1["extractions"]["seizure"]>,
+) {
+  const fields = commonFields(output, { includeMoney: false });
+  const state = seizureStateLabel(output.seizureFacts.printedState);
+  addStatus(fields, state, pagesForOutput(output));
+  if (output.seizureFacts.recipientRole !== "UNKNOWN") {
+    fields.push(field({
+      fieldId: "detail:SEIZURE_RECIPIENT_ROLE",
+      semantic: "DETAIL",
+      canonicalType: "SEIZURE_RECIPIENT_ROLE",
+      label: "Papel del destinatario",
+      displayValue: seizureRecipientRoleLabel(output.seizureFacts.recipientRole),
+      sourcePageNumbers: pagesForOutput(output),
+      sourceLabel: "Tipo exacto del documento",
+    }));
+  }
+  addTextFact(fields, "DEBTOR_TAX_ID", "NIF del deudor", output.seizureFacts.debtorTaxId);
+  addTextFact(fields, "RECIPIENT_TAX_ID", "NIF del destinatario", output.seizureFacts.recipientTaxId);
+  addTextFact(fields, "THIRD_PARTY_TAX_ID", "NIF del tercero", output.seizureFacts.thirdPartyTaxId);
+  output.seizureFacts.moneyFacts.forEach((item, index) => fields.push(field({
+    fieldId: `seizure-money:${index + 1}:${item.role}`,
+    semantic: "MONEY",
+    canonicalType: item.role,
+    label: SEIZURE_MONEY_LABEL[item.role],
+    displayValue: formatCents(item.amountCents, item.sign),
+    amountCents: item.amountCents,
+    currency: "EUR",
+    sourcePageNumbers: [item.sourcePage],
+    sourceLabel: item.sourceLabel,
+  })));
+  addTextFact(
+    fields,
+    "SEIZURE_INSTRUCTIONS",
+    "Instrucciones impresas",
+    output.seizureFacts.instructions,
+  );
+  addTextFact(
+    fields,
+    "PRINTED_RESOURCES",
+    "Recursos indicados en el documento",
+    output.seizureFacts.printedResources,
+  );
+  output.seizureFacts.specificFacts.forEach((item, index) =>
+    addSeizureSpecificFact(fields, item, index),
+  );
+  return documentProjection("seizure", output, fields, state);
+}
+
+function commonFields(
+  output: ExtractorOutputV1,
+  options: Readonly<{ includeMoney: boolean }> = { includeMoney: true },
+): FiscalNotificationVerticalSliceReviewFieldV1[] {
   const fields: FiscalNotificationVerticalSliceReviewFieldV1[] = [];
   output.references.forEach((item, index) => fields.push(field({
     fieldId: `reference:${index + 1}:${item.referenceType}`,
@@ -463,18 +621,20 @@ function commonFields(output: ExtractorOutputV1): FiscalNotificationVerticalSlic
     sourceLabel: item.sourceLabel ?? REFERENCE_LABEL[item.referenceType],
     confidence: item.confidence,
   })));
-  output.monetaryComponents.forEach((item) => fields.push(field({
-    fieldId: `money:${item.componentId}`,
-    semantic: "MONEY",
-    canonicalType: item.componentType,
-    label: MONEY_LABEL[item.componentType],
-    displayValue: formatCents(item.amountCents, item.sign),
-    amountCents: item.amountCents,
-    currency: "EUR",
-    sourcePageNumbers: [item.sourcePage],
-    sourceLabel: item.sourceLabel ?? MONEY_LABEL[item.componentType],
-    confidence: item.extractionConfidence,
-  })));
+  if (options.includeMoney) {
+    output.monetaryComponents.forEach((item) => fields.push(field({
+      fieldId: `money:${item.componentId}`,
+      semantic: "MONEY",
+      canonicalType: item.componentType,
+      label: MONEY_LABEL[item.componentType],
+      displayValue: formatCents(item.amountCents, item.sign),
+      amountCents: item.amountCents,
+      currency: "EUR",
+      sourcePageNumbers: [item.sourcePage],
+      sourceLabel: item.sourceLabel ?? MONEY_LABEL[item.componentType],
+      confidence: item.extractionConfidence,
+    })));
+  }
   output.proceduralDates.forEach((item) => fields.push(field({
     fieldId: `date:${item.proceduralDateId}`,
     semantic: "DATE",
@@ -500,6 +660,23 @@ function commonFields(output: ExtractorOutputV1): FiscalNotificationVerticalSlic
     })));
   });
   return fields;
+}
+
+function addSeizureSpecificFact(
+  fields: FiscalNotificationVerticalSliceReviewFieldV1[],
+  factValue: SeizureSpecificFactV1,
+  index: number,
+): void {
+  const masked = factValue.fieldId === "MASKED_ACCOUNT";
+  fields.push(field({
+    fieldId: `seizure-specific:${index + 1}:${factValue.fieldId}`,
+    semantic: masked ? "MASKED_VALUE" : "DETAIL",
+    canonicalType: factValue.fieldId,
+    label: SEIZURE_SPECIFIC_LABEL[factValue.fieldId],
+    displayValue: factValue.printedValue,
+    sourcePageNumbers: factValue.pageNumbers,
+    sourceLabel: factValue.sourceLabel,
+  }));
 }
 
 function documentProjection(
@@ -650,7 +827,10 @@ function pagesFromEvidence(
 }
 
 function formatCents(amountCents: number, sign: "POSITIVE" | "NEGATIVE"): string {
-  const euros = Math.floor(amountCents / 100).toLocaleString("es-ES");
+  const euros = String(Math.floor(amountCents / 100)).replace(
+    /\B(?=(\d{3})+(?!\d))/gu,
+    ".",
+  );
   const cents = String(amountCents % 100).padStart(2, "0");
   return `${sign === "NEGATIVE" ? "−" : ""}${euros},${cents} €`;
 }
@@ -680,6 +860,29 @@ function notificationStateLabel(state: NotificationEnvelopeStateV1): string {
     UNKNOWN: "Estado de notificación pendiente de revisión",
   });
   return labels[state];
+}
+
+function seizureStateLabel(state: SeizurePrintedStateV1 | null): string {
+  const labels: Readonly<Record<SeizurePrintedStateV1, string>> = Object.freeze({
+    SEIZURE_ORDER_RECORDED_REVIEW_REQUIRED: "Diligencia de embargo registrada",
+    RELEASE_RECORDED_REVIEW_REQUIRED: "Levantamiento de embargo registrado",
+    THIRD_PARTY_RESPONSE_RECORDED_REVIEW_REQUIRED: "Contestación de tercero registrada",
+    THIRD_PARTY_PAYMENT_RECORDED_REVIEW_REQUIRED: "Ingreso de tercero registrado",
+  });
+  return state ? labels[state] : "Documento de embargo registrado";
+}
+
+function seizureRecipientRoleLabel(role: SeizureRecipientRoleV1): string {
+  const labels: Readonly<Record<SeizureRecipientRoleV1, string>> = Object.freeze({
+    DEBTOR: "Deudor",
+    FINANCIAL_ENTITY: "Entidad financiera destinataria",
+    COMMERCIAL_OR_RENT_PAYER: "Pagador comercial o arrendaticio",
+    EMPLOYER_OR_PENSION_PAYER: "Empleador o pagador de pensión",
+    PAYMENT_SERVICE_PROVIDER: "Proveedor de servicios de pago",
+    GARNISHED_THIRD_PARTY: "Tercero obligado por el embargo",
+    UNKNOWN: "Papel pendiente de revisión",
+  });
+  return labels[role];
 }
 
 function parseReviewDocument(value: unknown): FiscalNotificationVerticalSliceReviewDocumentV1 {
