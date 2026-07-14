@@ -3,8 +3,10 @@ import { documentTotals } from "./calculations";
 import { ensureCustomerForDocument } from "./customers";
 import {
   assignNextDocumentNumberByType,
+  compareInvoicesBySeriesAndNumberDesc,
   compareDocumentsByNumberDesc,
   compareDocumentsByNewest,
+  describeInvoiceDocumentSeries,
   DRAFT_INVOICE_NUMBER,
   filterDocumentsByQuery,
   formatDocumentNumber,
@@ -17,6 +19,7 @@ import {
   shouldUseDraftInvoiceNumber,
   sortDocumentsByNumberDesc,
   sortDocumentsByNewest,
+  sortInvoicesBySeriesAndNumberDesc,
 } from "./documents";
 import { issueDocument } from "./document-integrity";
 import type { Document, DocumentType } from "./types";
@@ -46,6 +49,15 @@ function doc(
     status: "borrador",
     createdAt: "",
     updatedAt: "",
+  };
+}
+
+function issuedInvoice(document: Document): Document {
+  return {
+    ...document,
+    status: "pagado",
+    documentLifecycle: "issued",
+    integrityLock: "locked",
   };
 }
 
@@ -448,62 +460,398 @@ describe("buscador de documentos", () => {
     expect(compareDocumentsByNewest(dated[0], dated[1])).toBeGreaterThan(0);
   });
 
-  it("mantiene los meses contiguos al mezclar series históricas, nuevas y rectificativas", () => {
+  it("mantiene contiguas las series actuales, rectificativas e históricas y ordena cada una por número", () => {
+    const asHistoricalImport = (document: Document): Document => ({
+      ...issuedInvoice(document),
+      legacyImportProvenance: {
+        schemaVersion: 1,
+        kind: "external_import",
+        importer: "pcfacturacion",
+        importedAt: "2026-07-01T10:00:00.000Z",
+      },
+    });
     const mixedSeries: Document[] = [
-      {
+      asHistoricalImport({
         ...doc("legacy-june", "factura", "Factura/2949/", "Histórica junio"),
         date: "2026-06-27",
         createdAt: "2026-06-27T10:00:00.000Z",
-      },
-      {
+      }),
+      issuedInvoice({
         ...doc("app-july", "factura", "F-2026-2955", "Nueva julio"),
         date: "2026-07-11",
         createdAt: "2026-07-11T10:00:00.000Z",
-      },
-      {
+      }),
+      issuedInvoice({
         ...doc("app-june-1", "factura", "F-2026-0001", "Nueva junio 1"),
         date: "2026-06-10",
         createdAt: "2026-06-10T09:00:00.000Z",
-      },
-      {
+      }),
+      issuedInvoice({
         ...doc("rect-july", "factura", "FR-2026-0001", "Rectificativa julio"),
         date: "2026-07-06",
         createdAt: "2026-07-06T10:00:00.000Z",
-      },
-      {
+        rectification: {
+          originalDocumentId: "app-original",
+          originalNumber: "F-2026-2951",
+          originalDate: "2026-07-06",
+          reason: "Corrección de datos",
+          type: "correccion",
+        },
+      }),
+      issuedInvoice({
         ...doc("app-june-2", "factura", "F-2026-0002", "Nueva junio 2"),
         date: "2026-06-10",
         createdAt: "2026-06-10T08:00:00.000Z",
-      },
-      {
+      }),
+      asHistoricalImport({
         ...doc("legacy-january", "factura", "Factura/6401/", "Histórica enero"),
         date: "2026-01-15",
         createdAt: "2026-01-15T10:00:00.000Z",
-      },
-      {
-        ...doc("legacy-december", "factura", "Factura/6399/", "Histórica diciembre"),
+      }),
+      asHistoricalImport({
+        ...doc(
+          "legacy-december",
+          "factura",
+          "Factura/6399/",
+          "Histórica diciembre",
+        ),
         date: "2025-12-31",
         createdAt: "2025-12-31T10:00:00.000Z",
-      },
+      }),
     ];
     const originalDocuments = structuredClone(mixedSeries);
-    const sorted = sortDocumentsByNewest(mixedSeries);
+    const sorted = sortInvoicesBySeriesAndNumberDesc(mixedSeries);
 
     expect(sorted.map((item) => item.id)).toEqual([
       "app-july",
-      "rect-july",
-      "legacy-june",
       "app-june-2",
       "app-june-1",
+      "rect-july",
       "legacy-january",
       "legacy-december",
+      "legacy-june",
     ]);
-    const months = sorted.map((item) => item.date.slice(0, 7));
-    const monthTransitions = months.filter(
-      (month, index) => index === 0 || month !== months[index - 1],
-    );
-    expect(monthTransitions).toEqual([...new Set(months)]);
+    expect(
+      sorted.map((item) => describeInvoiceDocumentSeries(item).label),
+    ).toEqual([
+      "Facturas actuales · Serie F-2026-…",
+      "Facturas actuales · Serie F-2026-…",
+      "Facturas actuales · Serie F-2026-…",
+      "Rectificativas · Serie FR-2026-…",
+      "Históricas importadas · Serie Factura/…/",
+      "Históricas importadas · Serie Factura/…/",
+      "Históricas importadas · Serie Factura/…/",
+    ]);
     expect(mixedSeries).toEqual(originalDocuments);
+  });
+
+  it("respeta año, ceros, revisiones y deja los números no definitivos al final", () => {
+    const rectification = {
+      originalDocumentId: "original",
+      originalNumber: "F-2026-0001",
+      originalDate: "2026-01-01",
+      reason: "Corrección",
+      type: "correccion" as const,
+    };
+    const invoices: Document[] = [
+      issuedInvoice(doc("f-2", "factura", "F-2026-0002", "A")),
+      issuedInvoice(doc("f-9", "factura", "F-2026-9", "B")),
+      issuedInvoice(doc("f-10", "factura", "F-2026-0010", "C")),
+      issuedInvoice(doc("f-2025", "factura", "F-2025-9999", "D")),
+      issuedInvoice({
+        ...doc("fr-2", "factura", "FR-2026-0002", "E"),
+        rectification,
+      }),
+      issuedInvoice({
+        ...doc("fr-10", "factura", "FR-2026-0010", "F"),
+        rectification,
+      }),
+      issuedInvoice(doc("revision-0", "factura", "FD-225585.0", "G")),
+      issuedInvoice(doc("revision-1", "factura", "FD-225585.1", "H")),
+      { ...doc("draft", "factura", DRAFT_INVOICE_NUMBER, "I") },
+    ];
+
+    expect(
+      sortInvoicesBySeriesAndNumberDesc(invoices).map((item) => item.id),
+    ).toEqual([
+      "f-10",
+      "f-9",
+      "f-2",
+      "f-2025",
+      "revision-1",
+      "revision-0",
+      "fr-10",
+      "fr-2",
+      "draft",
+    ]);
+  });
+
+  it("no confunde secuencias personalizadas entre 2000 y 2100 con años", () => {
+    const customSeries: Document[] = [
+      issuedInvoice(doc("custom-1999", "factura", "F26 001999", "A")),
+      issuedInvoice(doc("custom-2000", "factura", "F26 002000", "B")),
+      issuedInvoice(doc("custom-2100", "factura", "F26 002100", "C")),
+      issuedInvoice(doc("custom-2101", "factura", "F26 002101", "D")),
+    ];
+
+    expect(
+      sortInvoicesBySeriesAndNumberDesc(customSeries).map((item) => item.id),
+    ).toEqual(["custom-2101", "custom-2100", "custom-2000", "custom-1999"]);
+    expect(
+      customSeries.map((item) => describeInvoiceDocumentSeries(item).key),
+    ).toEqual(["0:f26 …", "0:f26 …", "0:f26 …", "0:f26 …"]);
+    expect(
+      describeInvoiceDocumentSeries(
+        issuedInvoice(
+          doc("custom-revision", "factura", "F26 2000.2", "Revisión"),
+        ),
+      ),
+    ).toMatchObject({
+      label: "Facturas actuales · Serie F26 ….x",
+      explicitYear: 0,
+      sequence: 2000,
+      revision: 2,
+    });
+  });
+
+  it("reconoce años prefijados y sufijados sin convertirlos en secuencia", () => {
+    const prefixYear = issuedInvoice(
+      doc("prefix-year", "factura", "INV-2026-0012", "Prefijo"),
+    );
+    const suffixYear = issuedInvoice(
+      doc("suffix-year", "factura", "INV0012-2026", "Sufijo"),
+    );
+
+    expect(describeInvoiceDocumentSeries(prefixYear)).toMatchObject({
+      label: "Facturas actuales · Serie INV-2026-…",
+      explicitYear: 2026,
+      sequence: 12,
+    });
+    expect(describeInvoiceDocumentSeries(suffixYear)).toMatchObject({
+      label: "Facturas actuales · Serie INV…-2026",
+      explicitYear: 2026,
+      sequence: 12,
+    });
+    expect(
+      describeInvoiceDocumentSeries(
+        issuedInvoice(doc("short-suffix", "factura", "INV12-2026", "C")),
+      ),
+    ).toMatchObject({
+      label: "Facturas actuales · Serie INV…-2026",
+      explicitYear: 2026,
+      sequence: 12,
+    });
+  });
+
+  it("ordena revisiones decimales cortas y largas dentro de su serie", () => {
+    const revisions = [
+      issuedInvoice(doc("revision-12", "factura", "INV-2026-12.1", "A")),
+      issuedInvoice(doc("revision-13", "factura", "INV-2026-13.1", "B")),
+      issuedInvoice(doc("revision-99", "factura", "INV-2026-0012.99", "C")),
+      issuedInvoice(doc("revision-100", "factura", "INV-2026-0012.100", "D")),
+    ];
+
+    expect(
+      sortInvoicesBySeriesAndNumberDesc(revisions).map((item) => item.id),
+    ).toEqual(["revision-13", "revision-100", "revision-99", "revision-12"]);
+    expect(describeInvoiceDocumentSeries(revisions[3]!)).toMatchObject({
+      label: "Facturas actuales · Serie INV-2026-….x",
+      sequence: 12,
+      revision: 100,
+    });
+  });
+
+  it("usa el formato configurado cuando año y secuencia no tienen separador", () => {
+    const prefixYearNumbering = structuredClone(EMPTY_DATA.profile.numbering);
+    prefixYearNumbering.formats.factura = {
+      template: "{year}{num}",
+      padding: 4,
+    };
+    const suffixYearNumbering = structuredClone(EMPTY_DATA.profile.numbering);
+    suffixYearNumbering.formats.factura = {
+      template: "{num}{year}",
+      padding: 4,
+    };
+    const prefixYearInvoices = [
+      issuedInvoice(doc("prefix-12", "factura", "20260012", "A")),
+      issuedInvoice(doc("prefix-13", "factura", "20260013", "B")),
+    ];
+    const suffixYear = issuedInvoice(
+      doc("suffix-12", "factura", "00122026", "C"),
+    );
+
+    expect(
+      sortInvoicesBySeriesAndNumberDesc(
+        prefixYearInvoices,
+        prefixYearNumbering,
+      ).map((item) => item.id),
+    ).toEqual(["prefix-13", "prefix-12"]);
+    expect(
+      describeInvoiceDocumentSeries(
+        prefixYearInvoices[0]!,
+        prefixYearNumbering,
+      ),
+    ).toMatchObject({
+      label: "Facturas actuales · Serie 2026…",
+      explicitYear: 2026,
+      sequence: 12,
+    });
+    expect(
+      describeInvoiceDocumentSeries(suffixYear, suffixYearNumbering),
+    ).toMatchObject({
+      label: "Facturas actuales · Serie …2026",
+      explicitYear: 2026,
+      sequence: 12,
+    });
+  });
+
+  it("mantiene una sola serie cuando la plantilla repite el contador", () => {
+    const separatedNumbering = structuredClone(EMPTY_DATA.profile.numbering);
+    separatedNumbering.formats.factura = {
+      template: "INV-{num}-{num}",
+      padding: 2,
+    };
+    const adjacentNumbering = structuredClone(EMPTY_DATA.profile.numbering);
+    adjacentNumbering.formats.factura = {
+      template: "{num}{num}",
+      padding: 2,
+    };
+    const repeated = [
+      issuedInvoice(doc("repeated-12", "factura", "INV-12-12", "A")),
+      issuedInvoice(doc("repeated-13", "factura", "INV-13-13", "B")),
+    ];
+    const adjacent = issuedInvoice(
+      doc("adjacent-12", "factura", "1212", "C"),
+    );
+
+    expect(
+      sortInvoicesBySeriesAndNumberDesc(repeated, separatedNumbering).map(
+        (item) => item.id,
+      ),
+    ).toEqual(["repeated-13", "repeated-12"]);
+    expect(
+      repeated.map(
+        (item) => describeInvoiceDocumentSeries(item, separatedNumbering).key,
+      ),
+    ).toEqual(["0:inv-…-…", "0:inv-…-…"]);
+    expect(
+      describeInvoiceDocumentSeries(adjacent, adjacentNumbering),
+    ).toMatchObject({
+      label: "Facturas actuales · Serie ……",
+      sequence: 12,
+    });
+  });
+
+  it("ordena secuencias exactas aunque superen la precisión segura de Number", () => {
+    const smaller = issuedInvoice({
+      ...doc("huge-smaller", "factura", "INV-9007199254740992", "A"),
+      date: "2026-07-02",
+    });
+    const larger = issuedInvoice({
+      ...doc("huge-larger", "factura", "INV-9007199254740993", "B"),
+      date: "2026-07-01",
+    });
+
+    expect(
+      sortInvoicesBySeriesAndNumberDesc([smaller, larger]).map(
+        (item) => item.id,
+      ),
+    ).toEqual(["huge-larger", "huge-smaller"]);
+  });
+
+  it("mantiene un borrador importado numerado dentro del bloque de borradores", () => {
+    const importedDraft = {
+      ...doc("pcfacturacion:factura:draft", "factura", "Factura/3001/", "A"),
+      legacyImportProvenance: {
+        schemaVersion: 2 as const,
+        kind: "external_import" as const,
+        importer: "pcfacturacion" as const,
+        importedAt: null,
+        provenanceRecordedAt: "2026-07-01T10:00:00.000Z",
+        issuerOrigin: "unknown_legacy_import" as const,
+        documentStateAtImport: "draft" as const,
+      },
+    };
+
+    expect(describeInvoiceDocumentSeries(importedDraft)).toMatchObject({
+      label: "Borradores sin número definitivo",
+      rank: 6,
+      hasNumber: false,
+    });
+  });
+
+  it("no presenta un namespace provisional como histórico importado aceptado", () => {
+    const provisional = {
+      ...doc(
+        "pcfacturacion:factura:pending",
+        "factura",
+        "Factura/3000/",
+        "Pendiente",
+      ),
+      status: "pagado" as const,
+      documentLifecycle: "issued" as const,
+      integrityLock: "locked" as const,
+    };
+
+    const series = describeInvoiceDocumentSeries(provisional);
+    expect(series.label).toBe(
+      "Importaciones protegidas pendientes de revisar · Serie Factura/…/",
+    );
+    expect(series.label).not.toContain("Históricas importadas");
+  });
+
+  it("produce un orden total estable sin mutar la entrada", () => {
+    const sameSeries: Document[] = [
+      issuedInvoice({
+        ...doc("b", "factura", "F-2026-0001", "A"),
+        date: "2026-06-01",
+        createdAt: "2026-06-01T10:00:00.000Z",
+      }),
+      issuedInvoice({
+        ...doc("a", "factura", "F-2026-0001", "B"),
+        date: "2026-06-01",
+        createdAt: "2026-06-01T10:00:00.000Z",
+      }),
+    ];
+    const original = structuredClone(sameSeries);
+    const expected = ["a", "b"];
+
+    expect(
+      sortInvoicesBySeriesAndNumberDesc(sameSeries).map((item) => item.id),
+    ).toEqual(expected);
+    expect(
+      sortInvoicesBySeriesAndNumberDesc([...sameSeries].reverse()).map(
+        (item) => item.id,
+      ),
+    ).toEqual(expected);
+    expect(
+      compareInvoicesBySeriesAndNumberDesc(sameSeries[0]!, sameSeries[1]!),
+    ).toBeGreaterThan(0);
+    expect(sameSeries).toEqual(original);
+
+    const collatorEquivalent: Document[] = [
+      issuedInvoice({
+        ...doc("id-a", "factura", "F-2026-0001", "A"),
+        date: "2026-06-01",
+        createdAt: "2026-06-01T10:00:00.000Z",
+      }),
+      issuedInvoice({
+        ...doc("id-A", "factura", "F-2026-0001", "B"),
+        date: "2026-06-01",
+        createdAt: "2026-06-01T10:00:00.000Z",
+      }),
+    ];
+    const collatorExpected = ["id-A", "id-a"];
+    expect(
+      sortInvoicesBySeriesAndNumberDesc(collatorEquivalent).map(
+        (item) => item.id,
+      ),
+    ).toEqual(collatorExpected);
+    expect(
+      sortInvoicesBySeriesAndNumberDesc([...collatorEquivalent].reverse()).map(
+        (item) => item.id,
+      ),
+    ).toEqual(collatorExpected);
   });
 });
 
