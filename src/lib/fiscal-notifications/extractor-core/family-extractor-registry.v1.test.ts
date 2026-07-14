@@ -49,6 +49,7 @@ describe("family to reusable extractor registry v1", () => {
     expect(resolveFamilyExtractorBindingV1("compliance.formal_filing_requirement")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     expect(resolveFamilyExtractorBindingV1("assessment.allegations_and_proposal")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     expect(resolveFamilyExtractorBindingV1("assessment.final_provisional_assessment")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(resolveFamilyExtractorBindingV1("payment.payment_form")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     expect(resolveFamilyExtractorBindingV1("sanction.resolution")?.implementationStatus).toBe("CONTRACT_ONLY");
   });
 });
