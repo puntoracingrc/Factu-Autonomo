@@ -24,6 +24,7 @@ import { Card, PageHeader } from "@/components/ui/Card";
 import { FiscalNotificationExplicitFieldsReview } from "@/components/fiscal-notifications/FiscalNotificationExplicitFieldsReview";
 import { FiscalNotificationPartyFactsReview } from "@/components/fiscal-notifications/FiscalNotificationPartyFactsReview";
 import { FiscalNotificationReviewSteps } from "@/components/fiscal-notifications/FiscalNotificationReviewSteps";
+import { FiscalNotificationVerticalSliceReview } from "@/components/fiscal-notifications/FiscalNotificationVerticalSliceReview";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useAppStore } from "@/context/AppStore";
 import {
@@ -64,6 +65,7 @@ import {
   type StructuredReviewRelationEntryV1,
   type StructuredReviewRelationsViewModelV1,
 } from "@/lib/fiscal-notifications/structured-review-relations-view-model.v1";
+import type { FiscalNotificationVerticalSliceReviewV1 } from "@/lib/fiscal-notifications/vertical-slice-review.v1";
 
 const FAMILY_LABELS = {
   AEAT_ENFORCEMENT_ORDER_CANDIDATE: "Providencia de apremio",
@@ -350,6 +352,8 @@ function FiscalNotificationReviewWorkspace({
   const [processing, setProcessing] = useState(false);
   const [result, setResult] =
     useState<FiscalNotificationLocalReviewResult | null>(null);
+  const [verticalSliceReview, setVerticalSliceReview] =
+    useState<FiscalNotificationVerticalSliceReviewV1 | null>(null);
   const [textAcquisition, setTextAcquisition] = useState<
     FiscalNotificationLocalAnalysisResult["textAcquisition"] | null
   >(null);
@@ -421,6 +425,7 @@ function FiscalNotificationReviewWorkspace({
     processingRef.current = false;
     setProcessing(false);
     setResult(null);
+    setVerticalSliceReview(null);
     setTextAcquisition(null);
     setEphemeralMoneyFacts(null);
     setEphemeralDeferralFacts(null);
@@ -443,6 +448,7 @@ function FiscalNotificationReviewWorkspace({
     setProcessing(false);
     setError(null);
     setTextAcquisition(null);
+    setVerticalSliceReview(null);
     setEphemeralMoneyFacts(null);
     setEphemeralDeferralFacts(null);
     setEphemeralOffsetFacts(null);
@@ -472,6 +478,7 @@ function FiscalNotificationReviewWorkspace({
     processingRef.current = true;
     setProcessing(true);
     setResult(null);
+    setVerticalSliceReview(null);
     setTextAcquisition(null);
     setEphemeralMoneyFacts(null);
     setEphemeralDeferralFacts(null);
@@ -509,6 +516,7 @@ function FiscalNotificationReviewWorkspace({
               nextAnalysis.ephemeralEnforcementPartyFacts,
             );
       setResult(nextResult);
+      setVerticalSliceReview(nextAnalysis.ephemeralVerticalSliceReview ?? null);
       setTextAcquisition(nextAnalysis.textAcquisition ?? null);
       setEphemeralMoneyFacts(nextAnalysis.ephemeralEnforcementMoneyFacts);
       setEphemeralDeferralFacts(nextAnalysis.ephemeralDeferralGrantFacts);
@@ -702,6 +710,7 @@ function FiscalNotificationReviewWorkspace({
           explicitFieldsReview={explicitFieldsReview}
           partyFactsReview={partyFactsReview}
           textAcquisition={textAcquisition}
+          verticalSliceReview={verticalSliceReview}
         />
       ) : null}
       {reviewGuidance ? (
@@ -709,7 +718,10 @@ function FiscalNotificationReviewWorkspace({
           <FiscalNotificationReviewSteps
             guidance={reviewGuidance}
             documentTypeRecognized={
-              result ? recognizedCandidateFrom(result) !== null : false
+              result
+                ? recognizedCandidateFrom(result) !== null ||
+                  verticalSliceReview?.status === "REVIEW_REQUIRED"
+                : false
             }
           />
         </div>
@@ -1149,6 +1161,7 @@ function ReviewResult({
   explicitFieldsReview,
   partyFactsReview,
   textAcquisition,
+  verticalSliceReview,
 }: {
   result: FiscalNotificationLocalReviewResult;
   ephemeralMoneyFacts: AeatEnforcementMoneyFactsResult | null;
@@ -1157,10 +1170,28 @@ function ReviewResult({
   explicitFieldsReview: ExplicitFieldsReviewViewModelV2 | null;
   partyFactsReview: PartyFactsReviewViewModelV1 | null;
   textAcquisition: FiscalNotificationLocalAnalysisResult["textAcquisition"] | null;
+  verticalSliceReview: FiscalNotificationVerticalSliceReviewV1 | null;
 }) {
   const recognizedCandidate = recognizedCandidateFrom(result);
+  const verticallyRecognized =
+    verticalSliceReview?.status === "REVIEW_REQUIRED" &&
+    verticalSliceReview.documents.length > 0;
+  const primaryVerticalDocument = verticallyRecognized
+    ? verticalSliceReview.documents[0]!
+    : null;
   const copy =
-    result.reason === "SUPPORTED_FAMILY_CANDIDATE" && !recognizedCandidate
+    primaryVerticalDocument
+      ? {
+          title:
+            verticalSliceReview!.documents.length === 1
+              ? primaryVerticalDocument.title
+              : `${verticalSliceReview!.documents.length} documentos reconocidos`,
+          detail:
+            verticalSliceReview!.documents.length === 1
+              ? primaryVerticalDocument.subtitle
+              : "El PDF contiene varios actos cubiertos que se han separado para revisarlos.",
+        }
+      : result.reason === "SUPPORTED_FAMILY_CANDIDATE" && !recognizedCandidate
       ? {
           title: "Clasificación pendiente",
           detail:
@@ -1177,7 +1208,7 @@ function ReviewResult({
     >
       <Card
         className={
-          recognizedCandidate
+          recognizedCandidate || verticallyRecognized
             ? "border-emerald-200"
             : result.candidates.length > 0
             ? "border-amber-200"
@@ -1188,6 +1219,7 @@ function ReviewResult({
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
               {recognizedCandidate
+                || verticallyRecognized
                 ? "Resultado local"
                 : "Resultado local · pendiente de revisión"}
             </p>
@@ -1211,16 +1243,20 @@ function ReviewResult({
           </div>
           <span
             className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${
-              recognizedCandidate
+              recognizedCandidate || verticallyRecognized
                 ? "bg-emerald-100 text-emerald-900"
                 : "bg-amber-100 text-amber-900"
             }`}
           >
-            {recognizedCandidate ? "Documento reconocido" : "Revisa antes de actuar"}
+            {recognizedCandidate || verticallyRecognized
+              ? "Documento reconocido"
+              : "Revisa antes de actuar"}
           </span>
         </div>
 
-        {recognizedCandidate ? (
+        {verticalSliceReview && verticallyRecognized ? (
+          <FiscalNotificationVerticalSliceReview review={verticalSliceReview} />
+        ) : recognizedCandidate ? (
           <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
             <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">
               Tipo de documento

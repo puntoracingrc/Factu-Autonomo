@@ -29,6 +29,9 @@ const guidanceSource = readSource(
   "../../lib/fiscal-notifications/review-guidance.v1.ts",
 );
 const reviewStepsSource = readSource("./FiscalNotificationReviewSteps.tsx");
+const verticalSlicePanelSource = readSource(
+  "./FiscalNotificationVerticalSliceReview.tsx",
+);
 const explicitFieldsPanelSource = readSource(
   "./FiscalNotificationExplicitFieldsReview.tsx",
 );
@@ -47,7 +50,7 @@ const relationsViewModelSource = readSource(
 const manualSource = readSource(
   "../../lib/manual/sections/consultor-fiscal.ts",
 );
-const surfaceSource = `${componentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}\n${partyFactsPanelSource}\n${partyFactsViewModelSource}\n${relationsViewModelSource}`;
+const surfaceSource = `${componentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}\n${verticalSlicePanelSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}\n${partyFactsPanelSource}\n${partyFactsViewModelSource}\n${relationsViewModelSource}`;
 
 describe("contrato de interfaz de Notificaciones y expedientes", () => {
   it("obtiene el ámbito exclusivamente de la cuenta canónica confirmada", () => {
@@ -768,6 +771,23 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain("md:grid-cols-3");
     expect(componentSource).toContain("sm:grid-cols-2");
     expect(componentSource).not.toMatch(/w-\[(?:4|5|6|7|8|9)\d{2}px\]/);
+  });
+
+  it("prioriza el tipo exacto y los campos del extractor reutilizable", () => {
+    expect(componentSource).toContain(
+      "setVerticalSliceReview(nextAnalysis.ephemeralVerticalSliceReview ?? null)",
+    );
+    expect(componentSource).toContain(
+      '<FiscalNotificationVerticalSliceReview review={verticalSliceReview} />',
+    );
+    expect(componentSource).toContain(
+      'verticalSliceReview?.status === "REVIEW_REQUIRED"',
+    );
+    expect(verticalSlicePanelSource).toContain("Datos leídos del documento");
+    expect(verticalSlicePanelSource).toContain("Documento reconocido");
+    expect(verticalSlicePanelSource).toContain("field.displayValue");
+    expect(verticalSlicePanelSource).toContain("field.sourcePageNumbers");
+    expect(verticalSlicePanelSource).not.toMatch(/posible familia/iu);
   });
 
   it("solo añade el guardado estructurado seguro y no ofrece acciones fiscales", () => {
