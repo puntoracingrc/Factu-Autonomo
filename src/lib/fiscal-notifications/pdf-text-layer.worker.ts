@@ -7,6 +7,7 @@ import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
 import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
+import { extractAeatDeferralGrantFactsV1 } from "./aeat-deferral-grant-facts.v1";
 import { projectFiscalNotificationPdfWorkerAnalysis } from "./pdf-worker-analysis-contract";
 
 interface FiscalNotificationPdfWorkerScope {
@@ -69,6 +70,17 @@ async function processMessage(value: unknown): Promise<void> {
     const enforcementPartyFacts = enforcementCandidate
       ? extractAeatEnforcementPartyFactsV1(documentInput)
       : null;
+    const deferralCandidate =
+      familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
+      familyAnalysis.candidates.length === 1 &&
+      familyAnalysis.candidates[0]?.familyId ===
+        "AEAT_DEFERRAL_GRANT_CANDIDATE" &&
+      familyAnalysis.candidates[0].signalStatus ===
+        "COMPLETE_REQUIRED_ANCHORS" &&
+      familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
+    const deferralGrantFacts = deferralCandidate
+      ? extractAeatDeferralGrantFactsV1(documentInput)
+      : null;
     const analysis = projectFiscalNotificationPdfWorkerAnalysis({
       textLayerStatus: hasText
         ? "TEXT_LAYER_AVAILABLE"
@@ -78,6 +90,7 @@ async function processMessage(value: unknown): Promise<void> {
       enforcementMoneyFacts,
       enforcementExplicitFields,
       enforcementPartyFacts,
+      deferralGrantFacts,
     });
     workerScope.postMessage({
       type: "RESULT",

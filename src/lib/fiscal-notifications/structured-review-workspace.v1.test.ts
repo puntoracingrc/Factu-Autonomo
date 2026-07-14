@@ -120,8 +120,8 @@ function input(
     createdAt: CREATED_AT,
     workspace: null,
     analysis: Object.freeze({
-      schemaVersion: 4 as const,
-      analysisVersion: "4.0.0" as const,
+      schemaVersion: 5 as const,
+      analysisVersion: "5.0.0" as const,
       technicalReview: technical,
       ephemeralEnforcementMoneyFacts:
         extractAeatEnforcementMoneyFacts(documentInput),
@@ -129,6 +129,7 @@ function input(
         extractAeatEnforcementExplicitFieldsV2(documentInput),
       ephemeralEnforcementPartyFacts:
         extractAeatEnforcementPartyFactsV1(documentInput),
+      ephemeralDeferralGrantFacts: null,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
       requiresHumanReview: true as const,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,

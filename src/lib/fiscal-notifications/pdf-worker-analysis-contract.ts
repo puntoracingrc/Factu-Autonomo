@@ -13,6 +13,8 @@ import {
   parseAeatEnforcementPartyFactsV1,
   type AeatEnforcementPartyFactsV1,
 } from "./aeat-enforcement-party-facts.v1";
+import type { AeatDeferralGrantFactsResultV1 } from "./aeat-deferral-grant-facts.v1";
+import { parseAeatDeferralGrantFactsContractV1 } from "./aeat-deferral-grant-facts.v1-contract";
 import type {
   FiscalNotificationAnchorId,
   FiscalNotificationExtractionReason,
@@ -27,9 +29,9 @@ import {
 } from "./recognition-policy.v1";
 
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_SCHEMA_VERSION =
-  4 as const;
+  5 as const;
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_VERSION =
-  "4.0.0" as const;
+  "5.0.0" as const;
 
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_LIMITS = Object.freeze({
   maxCandidates: 5,
@@ -80,14 +82,15 @@ export interface FiscalNotificationPdfWorkerFamilyAnalysis {
 }
 
 export interface FiscalNotificationPdfWorkerAnalysis {
-  readonly schemaVersion: 4;
-  readonly analysisVersion: "4.0.0";
+  readonly schemaVersion: 5;
+  readonly analysisVersion: "5.0.0";
   readonly textLayerStatus: "TEXT_LAYER_AVAILABLE" | "NO_EXTRACTABLE_TEXT";
   readonly pageCount: number;
   readonly familyAnalysis: FiscalNotificationPdfWorkerFamilyAnalysis | null;
   readonly enforcementMoneyFacts: AeatEnforcementMoneyFactsResult | null;
   readonly enforcementExplicitFields: AeatEnforcementExplicitFieldsV2 | null;
   readonly enforcementPartyFacts: AeatEnforcementPartyFactsV1 | null;
+  readonly deferralGrantFacts: AeatDeferralGrantFactsResultV1 | null;
   readonly sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST";
   readonly requiresHumanReview: true;
   readonly materializationPolicy: "PROHIBITED_UNTIL_REVIEW";
@@ -101,6 +104,7 @@ export interface ProjectFiscalNotificationPdfWorkerAnalysisInput {
   readonly enforcementMoneyFacts: AeatEnforcementMoneyFactsResult | null;
   readonly enforcementExplicitFields: AeatEnforcementExplicitFieldsV2 | null;
   readonly enforcementPartyFacts: AeatEnforcementPartyFactsV1 | null;
+  readonly deferralGrantFacts?: AeatDeferralGrantFactsResultV1 | null;
 }
 
 export class FiscalNotificationPdfWorkerAnalysisError extends Error {
@@ -119,6 +123,7 @@ const ENVELOPE_KEYS = new Set([
   "enforcementMoneyFacts",
   "enforcementExplicitFields",
   "enforcementPartyFacts",
+  "deferralGrantFacts",
   "sourceContentPolicy",
   "requiresHumanReview",
   "materializationPolicy",
@@ -402,6 +407,7 @@ export function projectFiscalNotificationPdfWorkerAnalysis(
     enforcementMoneyFacts: input.enforcementMoneyFacts,
     enforcementExplicitFields: input.enforcementExplicitFields,
     enforcementPartyFacts: input.enforcementPartyFacts,
+    deferralGrantFacts: input.deferralGrantFacts ?? null,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -416,8 +422,8 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
     const envelope = snapshotRecord(value);
     assertKnownKeys(envelope, ENVELOPE_KEYS);
     if (
-      envelope.schemaVersion !== 4 ||
-      envelope.analysisVersion !== "4.0.0" ||
+      envelope.schemaVersion !== 5 ||
+      envelope.analysisVersion !== "5.0.0" ||
       (envelope.textLayerStatus !== "TEXT_LAYER_AVAILABLE" &&
         envelope.textLayerStatus !== "NO_EXTRACTABLE_TEXT") ||
       !isBoundedPageCount(envelope.pageCount) ||
@@ -440,7 +446,8 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
         familyAnalysis !== null ||
         envelope.enforcementMoneyFacts !== null ||
         envelope.enforcementExplicitFields !== null ||
-        envelope.enforcementPartyFacts !== null
+        envelope.enforcementPartyFacts !== null ||
+        envelope.deferralGrantFacts !== null
       ) {
         throw new FiscalNotificationPdfWorkerAnalysisError();
       }
@@ -457,6 +464,14 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
       enforcementCandidate !== (envelope.enforcementExplicitFields !== null) ||
       enforcementCandidate !== (envelope.enforcementPartyFacts !== null)
     ) {
+      throw new FiscalNotificationPdfWorkerAnalysisError();
+    }
+    const deferralCandidate =
+      familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
+      familyAnalysis.candidates.length === 1 &&
+      familyAnalysis.candidates[0]?.familyId ===
+        "AEAT_DEFERRAL_GRANT_CANDIDATE";
+    if (deferralCandidate !== (envelope.deferralGrantFacts !== null)) {
       throw new FiscalNotificationPdfWorkerAnalysisError();
     }
     const amountAnchorPageNumbers = enforcementCandidate
@@ -508,16 +523,31 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
     ) {
       throw new FiscalNotificationPdfWorkerAnalysisError();
     }
+    const deferralGrantFacts =
+      envelope.deferralGrantFacts === null
+        ? null
+        : parseAeatDeferralGrantFactsContractV1(
+            envelope.deferralGrantFacts,
+            pageCount,
+          );
+    if (
+      deferralGrantFacts !== null &&
+      deferralGrantFacts.documentType !==
+        "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT"
+    ) {
+      throw new FiscalNotificationPdfWorkerAnalysisError();
+    }
 
     return Object.freeze({
-      schemaVersion: 4 as const,
-      analysisVersion: "4.0.0" as const,
+      schemaVersion: 5 as const,
+      analysisVersion: "5.0.0" as const,
       textLayerStatus: envelope.textLayerStatus,
       pageCount,
       familyAnalysis,
       enforcementMoneyFacts,
       enforcementExplicitFields,
       enforcementPartyFacts,
+      deferralGrantFacts,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
       requiresHumanReview: true as const,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,

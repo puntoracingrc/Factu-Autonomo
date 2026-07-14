@@ -16,6 +16,13 @@ import type {
 import {
   parseAeatEnforcementPartyFactsV1,
 } from "./aeat-enforcement-party-facts.v1";
+import { parseAeatDeferralGrantFactsContractV1 } from "./aeat-deferral-grant-facts.v1-contract";
+import type {
+  AeatDeferralGrantFactsResultV1,
+  AeatDeferralMoneyFactV1,
+  AeatDeferralPrintedDateFactV1,
+  AeatDeferralTextFactV1,
+} from "./aeat-deferral-grant-facts.v1";
 import {
   FISCAL_NOTIFICATION_INPUT_LIMITS,
   assertBoundedId,
@@ -29,6 +36,8 @@ import type {
   ExternalReferenceType,
   FieldEvidence,
   FiscalNotificationsWorkspace,
+  MoneyComponent,
+  PaymentOption,
   UnknownExtractedField,
 } from "./types";
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
@@ -72,6 +81,9 @@ export type AppendAeatEnforcementStructuredReviewResultV1 =
       readonly materializationPolicy: "PROHIBITED_UNTIL_REVIEW";
     };
 
+export type AppendAeatDeferralStructuredReviewResultV1 =
+  AppendAeatEnforcementStructuredReviewResultV1;
+
 const INPUT_KEYS = new Set([
   "ownerScope",
   "reviewId",
@@ -86,6 +98,7 @@ const ANALYSIS_KEYS = new Set([
   "ephemeralEnforcementMoneyFacts",
   "ephemeralEnforcementExplicitFields",
   "ephemeralEnforcementPartyFacts",
+  "ephemeralDeferralGrantFacts",
   "sourceContentPolicy",
   "requiresHumanReview",
   "materializationPolicy",
@@ -188,6 +201,20 @@ const SHA256 = /^[a-f0-9]{64}$/u;
 const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
 const MAX_SOURCE_BYTES = 4 * 1024 * 1024;
 const MAX_AMOUNT_CENTS = 100_000_000_000;
+const ENFORCEMENT_REQUIRED_ANCHOR_IDS = new Set([
+  "AEAT_OFFICIAL_DOMAIN_LABEL",
+  "ENFORCEMENT_ORDER_TITLE",
+  "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
+  "ENFORCEMENT_DEBT_AMOUNT_SECTION",
+  "STRUCTURAL_FIRST_PAGE_HEADER",
+]);
+const DEFERRAL_REQUIRED_ANCHOR_IDS = new Set([
+  "AEAT_OFFICIAL_DOMAIN_LABEL",
+  "DEFERRAL_GRANT_TITLE",
+  "DEFERRAL_INSTALLMENT_ANNEX",
+  "DEFERRAL_INTEREST_CALCULATION",
+  "STRUCTURAL_FIRST_PAGE_HEADER",
+]);
 
 export class FiscalNotificationStructuredReviewV1Error extends Error {
   constructor(readonly code: "INVALID_INPUT" | "NO_STRUCTURED_FACTS") {
@@ -219,8 +246,9 @@ export function appendAeatEnforcementStructuredReviewV1(
   const analysis = snapshotRecord(input.analysis, ANALYSIS_KEYS);
   if (
     !analysis ||
-    analysis.schemaVersion !== 4 ||
-    analysis.analysisVersion !== "4.0.0" ||
+    analysis.schemaVersion !== 5 ||
+    analysis.analysisVersion !== "5.0.0" ||
+    analysis.ephemeralDeferralGrantFacts !== null ||
     analysis.sourceContentPolicy !== "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" ||
     analysis.requiresHumanReview !== true ||
     analysis.materializationPolicy !== "PROHIBITED_UNTIL_REVIEW"
@@ -559,12 +587,572 @@ export function appendAeatEnforcementStructuredReviewV1(
   });
 }
 
+/**
+ * Conserva los hechos impresos de una concesión como ficha revisable. Cada
+ * cuota se guarda como opción documental: no se activa un plan, no se marca
+ * como pagada y no se crea deuda, gasto, vencimiento legal ni asiento.
+ */
+export function appendAeatDeferralStructuredReviewV1(
+  value: AppendAeatEnforcementStructuredReviewInputV1,
+): AppendAeatDeferralStructuredReviewResultV1 {
+  const input = snapshotRecord(value, INPUT_KEYS);
+  if (!input) throw invalidInput();
+  assertBoundedOwnerScope(input.ownerScope, "ownerScope");
+  if (
+    typeof input.ownerScope !== "string" ||
+    !input.ownerScope.startsWith("user:")
+  ) {
+    throw invalidInput();
+  }
+  const ownerScope = input.ownerScope;
+  const reviewUuid = parseReviewId(input.reviewId);
+  const createdAt = parseIsoTimestamp(input.createdAt);
+  const analysis = snapshotRecord(input.analysis, ANALYSIS_KEYS);
+  if (
+    !analysis ||
+    analysis.schemaVersion !== 5 ||
+    analysis.analysisVersion !== "5.0.0" ||
+    analysis.ephemeralEnforcementMoneyFacts !== null ||
+    analysis.ephemeralEnforcementExplicitFields !== null ||
+    analysis.ephemeralEnforcementPartyFacts !== null ||
+    analysis.ephemeralDeferralGrantFacts === null ||
+    analysis.sourceContentPolicy !== "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" ||
+    analysis.requiresHumanReview !== true ||
+    analysis.materializationPolicy !== "PROHIBITED_UNTIL_REVIEW"
+  ) {
+    throw invalidInput();
+  }
+  const technicalReview = parseTechnicalReview(
+    analysis.technicalReview,
+    "DEFERRAL",
+  );
+  let facts: AeatDeferralGrantFactsResultV1;
+  try {
+    facts = parseAeatDeferralGrantFactsContractV1(
+      analysis.ephemeralDeferralGrantFacts,
+      technicalReview.pageCount,
+    );
+  } catch {
+    throw invalidInput();
+  }
+  if (
+    facts.documentType !== "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT" ||
+    facts.debtSchedules.length === 0 ||
+    (facts.outcome !== "FACTS_AVAILABLE" && facts.outcome !== "AMBIGUOUS")
+  ) {
+    throw new FiscalNotificationStructuredReviewV1Error(
+      "NO_STRUCTURED_FACTS",
+    );
+  }
+  const workspace = parseWorkspace(input.workspace, ownerScope, createdAt);
+  const existingFiles = workspace.files.filter(
+    (file) => file.sha256 === technicalReview.sha256,
+  );
+  if (existingFiles.length > 0) {
+    if (existingFiles.length !== 1) throw invalidInput();
+    const existingDocuments = workspace.documents.filter(
+      (document) => document.fileId === existingFiles[0]!.id,
+    );
+    if (existingDocuments.length !== 1) throw invalidInput();
+    return freezeResult({
+      status: "EXISTING",
+      documentId: existingDocuments[0]!.id,
+      workspace,
+    });
+  }
+
+  const ids = idsFor(reviewUuid);
+  const evidence: FieldEvidence[] = [];
+  const evidenceIds = new Set<string>();
+  const addEvidence = (entry: FieldEvidence): string => {
+    if (evidenceIds.has(entry.id)) throw invalidInput();
+    evidenceIds.add(entry.id);
+    evidence.push(entry);
+    return entry.id;
+  };
+  const textEvidence = (
+    id: string,
+    label: string,
+    fact: AeatDeferralTextFactV1,
+  ): string =>
+    addEvidence({
+      id,
+      ownerScope,
+      documentId: ids.document,
+      pageNumber: firstPage(fact.pageNumbers),
+      textSnippet: label,
+      rawValue: fact.printedValue,
+      extractionMethod: "RULE",
+      confidence: "EXACT",
+      assertionType: "EXPLICIT_IN_DOCUMENT",
+    });
+  const moneyEvidence = (
+    id: string,
+    label: string,
+    fact: AeatDeferralMoneyFactV1,
+  ): string =>
+    addEvidence({
+      id,
+      ownerScope,
+      documentId: ids.document,
+      pageNumber: firstPage(fact.pageNumbers),
+      textSnippet: label,
+      rawValue: fact.printedValue,
+      extractionMethod: "RULE",
+      confidence: "EXACT",
+      assertionType: "EXPLICIT_IN_DOCUMENT",
+    });
+  const dateEvidence = (
+    id: string,
+    label: string,
+    fact: AeatDeferralPrintedDateFactV1,
+  ): string =>
+    addEvidence({
+      id,
+      ownerScope,
+      documentId: ids.document,
+      pageNumber: firstPage(fact.pageNumbers),
+      textSnippet: label,
+      rawValue: fact.printedValue,
+      extractionMethod: "RULE",
+      confidence: "EXACT",
+      assertionType: "EXPLICIT_IN_DOCUMENT",
+    });
+
+  const references = [] as FiscalNotificationsWorkspace["references"];
+  if (facts.header.expediente) {
+    const occurrenceId = textEvidence(
+      `${ids.evidence}:expediente`,
+      "Número de expediente",
+      facts.header.expediente,
+    );
+    references.push({
+      id: `${ids.reference}:expediente`,
+      ownerScope,
+      referenceType: "EXPEDIENT_NUMBER",
+      rawValue: facts.header.expediente.printedValue,
+      normalizedValue: normalizeReference(facts.header.expediente.printedValue),
+      issuer: "AEAT",
+      scope: "DOCUMENT",
+      documentId: ids.document,
+      isPrimary: true,
+      confidence: "EXACT",
+      confirmationStatus: "PENDING",
+      extractionMethod: "RULE",
+      occurrenceIds: [occurrenceId],
+      createdAt,
+    });
+  }
+
+  const unknownFields: UnknownExtractedField[] = [];
+  const addUnknownText = (
+    labelRaw: string,
+    label: string,
+    fact: AeatDeferralTextFactV1,
+    suffix: string,
+  ): void => {
+    const evidenceId = textEvidence(
+      `${ids.evidence}:${suffix}`,
+      label,
+      fact,
+    );
+    unknownFields.push({
+      labelRaw,
+      valueRaw: fact.printedValue,
+      page: firstPage(fact.pageNumbers),
+      evidenceId,
+      confidence: "EXACT",
+    });
+  };
+  const addUnknownDate = (
+    labelRaw: string,
+    label: string,
+    fact: AeatDeferralPrintedDateFactV1,
+    suffix: string,
+  ): void => {
+    const evidenceId = dateEvidence(
+      `${ids.evidence}:${suffix}`,
+      label,
+      fact,
+    );
+    unknownFields.push({
+      labelRaw,
+      valueRaw: fact.printedValue,
+      page: firstPage(fact.pageNumbers),
+      evidenceId,
+      confidence: "EXACT",
+    });
+  };
+  const addUnknownMoney = (
+    labelRaw: string,
+    label: string,
+    fact: AeatDeferralMoneyFactV1,
+    suffix: string,
+  ): void => {
+    const evidenceId = moneyEvidence(
+      `${ids.evidence}:${suffix}`,
+      label,
+      fact,
+    );
+    unknownFields.push({
+      labelRaw,
+      valueRaw: fact.printedValue,
+      page: firstPage(fact.pageNumbers),
+      evidenceId,
+      confidence: "EXACT",
+    });
+  };
+  if (facts.header.paymentAccount) {
+    addUnknownText(
+      "PRINTED_PAYMENT_ACCOUNT",
+      "Cuenta de pago impresa",
+      facts.header.paymentAccount,
+      "payment-account",
+    );
+  }
+
+  const paymentOptions: PaymentOption[] = [];
+  for (
+    let scheduleIndex = 0;
+    scheduleIndex < facts.debtSchedules.length;
+    scheduleIndex += 1
+  ) {
+    const schedule = facts.debtSchedules[scheduleIndex]!;
+    const liquidationEvidenceId = textEvidence(
+      `${ids.evidence}:liquidation:${scheduleIndex}`,
+      "Clave de liquidación",
+      schedule.liquidationKey,
+    );
+    references.push({
+      id: `${ids.reference}:liquidation:${scheduleIndex}`,
+      ownerScope,
+      referenceType: "LIQUIDATION_KEY",
+      rawValue: schedule.liquidationKey.printedValue,
+      normalizedValue: normalizeReference(schedule.liquidationKey.printedValue),
+      issuer: "AEAT",
+      scope: "DOCUMENT",
+      documentId: ids.document,
+      isPrimary: references.length === 0,
+      confidence: "EXACT",
+      confirmationStatus: "PENDING",
+      extractionMethod: "RULE",
+      occurrenceIds: [liquidationEvidenceId],
+      createdAt,
+    });
+    if (schedule.concept) {
+      addUnknownText(
+        "PRINTED_DEBT_CONCEPT",
+        "Concepto impreso",
+        schedule.concept,
+        `concept:${scheduleIndex}`,
+      );
+    }
+    if (schedule.interestStartDate) {
+      addUnknownDate(
+        "PRINTED_INTEREST_START_DATE",
+        "Fecha de intereses impresa",
+        schedule.interestStartDate,
+        `interest-date:${scheduleIndex}`,
+      );
+    }
+    if (schedule.listedDebtAmount) {
+      addUnknownMoney(
+        "PRINTED_LISTED_DEBT_AMOUNT",
+        "Importe de deuda impreso",
+        schedule.listedDebtAmount,
+        `listed-debt:${scheduleIndex}`,
+      );
+    }
+    for (
+      let installmentIndex = 0;
+      installmentIndex < schedule.installments.length;
+      installmentIndex += 1
+    ) {
+      const installment = schedule.installments[installmentIndex]!;
+      const prefix = `${scheduleIndex}:${installmentIndex}`;
+      const totalEvidenceId = moneyEvidence(
+        `${ids.evidence}:installment-total:${prefix}`,
+        "Importe de cuota impreso",
+        installment.installmentTotal,
+      );
+      const dueDateEvidenceId = dateEvidence(
+        `${ids.evidence}:installment-date:${prefix}`,
+        "Vencimiento impreso",
+        installment.dueDate,
+      );
+      const components: MoneyComponent[] = [];
+      if (installment.layout === "COMPONENT_BREAKDOWN") {
+        const principalEvidenceId = moneyEvidence(
+          `${ids.evidence}:installment-principal:${prefix}`,
+          "Principal de cuota impreso",
+          installment.principal,
+        );
+        const surchargeEvidenceId = moneyEvidence(
+          `${ids.evidence}:installment-surcharge:${prefix}`,
+          "Recargo de cuota impreso",
+          installment.enforcementSurcharge,
+        );
+        const interestEvidenceId = moneyEvidence(
+          `${ids.evidence}:installment-interest:${prefix}`,
+          "Intereses de cuota impresos",
+          installment.interest,
+        );
+        components.push(
+          {
+            type: "PRINCIPAL",
+            amountCents: installment.principal.amountCents,
+            assertionType: "EXPLICIT_IN_DOCUMENT",
+            evidenceIds: [principalEvidenceId],
+          },
+          {
+            type: "OTHER",
+            amountCents: installment.enforcementSurcharge.amountCents,
+            assertionType: "EXPLICIT_IN_DOCUMENT",
+            evidenceIds: [surchargeEvidenceId],
+          },
+          {
+            type: "INTEREST",
+            amountCents: installment.interest.amountCents,
+            assertionType: "EXPLICIT_IN_DOCUMENT",
+            evidenceIds: [interestEvidenceId],
+          },
+        );
+      } else {
+        components.push({
+          type: "AMOUNT_TO_PAY",
+          amountCents: installment.installmentTotal.amountCents,
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+          evidenceIds: [totalEvidenceId],
+        });
+      }
+      paymentOptions.push({
+        id: `${ids.document}:payment-option:${prefix}`,
+        ownerScope,
+        documentId: ids.document,
+        title: `Cuota impresa ${installmentIndex + 1} · liquidación ${scheduleIndex + 1}`,
+        eligibilityCondition:
+          "Figura en la concesión analizada; pendiente de revisión del usuario.",
+        components,
+        totalCents: installment.installmentTotal.amountCents,
+        deadline: installment.dueDate.calendarDate,
+        deadlineStatus: "DOCUMENT_STATED",
+        evidenceIds: [
+          totalEvidenceId,
+          dueDateEvidenceId,
+          ...components.flatMap((component) => component.evidenceIds),
+        ].filter((item, index, values) => values.indexOf(item) === index),
+      });
+    }
+  }
+
+  const subjectEvidenceIds: string[] = [];
+  if (facts.header.subjectName) {
+    subjectEvidenceIds.push(
+      textEvidence(
+        `${ids.evidence}:subject-name`,
+        "Nombre del obligado impreso",
+        facts.header.subjectName,
+      ),
+    );
+  }
+  if (facts.header.subjectTaxId) {
+    subjectEvidenceIds.push(
+      textEvidence(
+        `${ids.evidence}:subject-tax-id`,
+        "NIF del obligado impreso",
+        facts.header.subjectTaxId,
+      ),
+    );
+  }
+  const grantedMoneyFacts: Array<
+    AdministrativeDomainProjection["moneyFacts"][number]
+  > = [];
+  if (facts.header.grantedTotal) {
+    const grantedEvidenceId = moneyEvidence(
+      `${ids.evidence}:granted-total`,
+      "Importe concedido impreso",
+      facts.header.grantedTotal,
+    );
+    grantedMoneyFacts.push({
+      id: `${ids.money}:granted-total`,
+      ownerScope,
+      documentId: ids.document,
+      kind: "DOCUMENT_TOTAL",
+      amountCents: facts.header.grantedTotal.amountCents,
+      currency: "EUR",
+      assertionType: "EXPLICIT_IN_DOCUMENT",
+      evidenceIds: [grantedEvidenceId],
+      lineageParentIds: [],
+      status: "PROPOSED",
+      createdAt,
+    });
+  }
+  const administrativeDomain = buildAdministrativeDomain({
+    ownerScope,
+    documentId: ids.document,
+    createdAt,
+    familyId: technicalReview.candidate.familyId,
+    identifiedSubject: Boolean(
+      facts.header.subjectName || facts.header.subjectTaxId,
+    ),
+    assertTaxDebtorRole: false,
+    partyEvidenceIds: subjectEvidenceIds,
+    partyRefId: ids.subject,
+    moneyFacts: grantedMoneyFacts,
+    hasReferences: references.length > 0,
+    hasDates: paymentOptions.length > 0,
+  });
+
+  const authority = workspace.authorities.find(
+    (item) => item.id === ids.authority,
+  );
+  if (
+    authority &&
+    (authority.administrationType !== "AEAT" ||
+      authority.nameNormalized !==
+        "AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA" ||
+      authority.officialDomain !== "sede.agenciatributaria.gob.es")
+  ) {
+    throw invalidInput();
+  }
+  if (!authority) {
+    workspace.authorities.push({
+      id: ids.authority,
+      ownerScope,
+      administrationType: "AEAT",
+      nameRaw: "Agencia Estatal de Administración Tributaria",
+      nameNormalized: "AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA",
+      officialDomain: "sede.agenciatributaria.gob.es",
+    });
+  }
+  workspace.packages.push({
+    id: ids.package,
+    ownerScope,
+    fileIds: [ids.file],
+    sourceChannel: "MANUAL_UPLOAD",
+    processingStatus: "NEEDS_REVIEW",
+    securityScanStatus: "NOT_AVAILABLE",
+    uploadedAt: createdAt,
+  });
+  workspace.files.push({
+    id: ids.file,
+    packageId: ids.package,
+    ownerScope,
+    role: "PRIMARY",
+    mimeType: "application/pdf",
+    fileSize: technicalReview.byteLength,
+    pageCount: technicalReview.pageCount,
+    sha256: technicalReview.sha256,
+    contentFingerprint: technicalReview.sha256,
+    sourceContentRetention: "NOT_RETAINED",
+    uploadedAt: createdAt,
+  });
+  workspace.references.push(...references);
+  workspace.evidence.push(...evidence);
+  workspace.paymentOptions.push(...paymentOptions);
+  workspace.documents.push({
+    id: ids.document,
+    packageId: ids.package,
+    fileId: ids.file,
+    ownerScope,
+    documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
+    titleRaw: "Concesión de aplazamiento o fraccionamiento AEAT",
+    titleNormalized: "CONCESION DE APLAZAMIENTO O FRACCIONAMIENTO AEAT",
+    authorityId: ids.authority,
+    notificationDates: {},
+    ...(facts.header.subjectName || facts.header.subjectTaxId
+      ? {
+          subjectParty: {
+            ...(facts.header.subjectName
+              ? { displayName: facts.header.subjectName.printedValue }
+              : {}),
+            ...(facts.header.subjectTaxId
+              ? { taxIdNormalized: facts.header.subjectTaxId.printedValue }
+              : {}),
+            matchesBusinessProfile: "UNKNOWN" as const,
+          },
+        }
+      : {}),
+    status: "UNKNOWN",
+    urgency: "REVIEW",
+    extractionVersion: FISCAL_NOTIFICATION_STRUCTURED_REVIEW_ENGINE_VERSION_V1,
+    analysisStatus: "NEEDS_REVIEW",
+    humanReviewStatus: "PENDING",
+    authenticityStatus: "NOT_CHECKED",
+    partIds: [],
+    referenceIds: references.map((item) => item.id),
+    debtIds: [],
+    caseIds: [],
+    analysisSnapshotIds: [ids.snapshot],
+    createdAt,
+    updatedAt: createdAt,
+  });
+  workspace.analysisSnapshots.push({
+    id: ids.snapshot,
+    ownerScope,
+    documentId: ids.document,
+    version: 1,
+    extractorVersion: FISCAL_NOTIFICATION_STRUCTURED_REVIEW_ENGINE_VERSION_V1,
+    rulesVersion: technicalReview.engineVersion ?? "unavailable",
+    structuredData: {
+      schemaVersion: 1,
+      documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
+      administrativeDomain,
+      paymentOptionIds: paymentOptions.map((item) => item.id),
+      unknownFields,
+      validationCodes: [
+        "AUTHENTICITY_NOT_CHECKED",
+        "HUMAN_REVIEW_REQUIRED",
+        "PRINTED_DUE_DATES_NO_AUTOMATIC_EFFECT",
+        "NO_OPERATIONAL_EFFECT",
+        ...(facts.outcome === "AMBIGUOUS"
+          ? ["PRINTED_VALUES_REQUIRE_REVIEW"]
+          : []),
+      ],
+      factSummary: [],
+      calculatedSummary: [],
+      inferenceSummary: [],
+      userConfirmedSummary: [],
+      documentFields: {
+        title: "Concesión de aplazamiento o fraccionamiento AEAT",
+      },
+    },
+    plainLanguageExplanation: [
+      "Cuotas, importes y vencimientos impresos extraídos y pendientes de revisión humana.",
+      "El documento original y su texto no se conservan.",
+    ],
+    validationWarnings: [
+      "La autenticidad no se ha comprobado.",
+      "No se ha activado un plan ni se ha creado deuda, pago, gasto, plazo legal o asiento.",
+    ],
+    evidenceIds: [...evidenceIds],
+    confidenceBand: facts.outcome === "FACTS_AVAILABLE" ? "HIGH" : "MEDIUM",
+    requiresHumanReview: true,
+    createdAt,
+    createdBySystem: true,
+  });
+  workspace.revision += 1;
+  workspace.updatedAt = createdAt;
+
+  const validation = validateFiscalNotificationsWorkspaceIntegrity(
+    workspace,
+    ownerScope,
+  );
+  if (!validation.valid) throw invalidInput();
+  return freezeResult({
+    status: "APPLIED",
+    documentId: ids.document,
+    workspace,
+  });
+}
+
 function buildAdministrativeDomain(input: {
   ownerScope: string;
   documentId: string;
   createdAt: string;
   familyId: string;
   identifiedSubject: boolean;
+  assertTaxDebtorRole?: boolean;
   partyEvidenceIds: readonly string[];
   partyRefId: string;
   moneyFacts: AdministrativeDomainProjection["moneyFacts"];
@@ -586,7 +1174,8 @@ function buildAdministrativeDomain(input: {
     createdAt: input.createdAt,
     familyId: input.familyId,
     status: "REVIEW_REQUIRED" as const,
-    roleAssertions: input.identifiedSubject
+    roleAssertions:
+      input.identifiedSubject && (input.assertTaxDebtorRole ?? true)
       ? [
           {
             id: `${input.documentId}:role:payment-obligor`,
@@ -674,7 +1263,10 @@ function parseWorkspace(
   return clone;
 }
 
-function parseTechnicalReview(value: unknown): {
+function parseTechnicalReview(
+  value: unknown,
+  family: "ENFORCEMENT" | "DEFERRAL" = "ENFORCEMENT",
+): {
   pageCount: number;
   byteLength: number;
   sha256: string;
@@ -708,19 +1300,37 @@ function parseTechnicalReview(value: unknown): {
   }
   const candidates = snapshotArray(root.candidates, 1);
   const candidate = snapshotRecord(candidates?.[0], CANDIDATE_KEYS);
+  const expected =
+    family === "ENFORCEMENT"
+      ? {
+          familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+          documentType: "AEAT_ENFORCEMENT_ORDER",
+          handlerId: "aeat-enforcement-order-candidate",
+          requiredAnchorIds: ENFORCEMENT_REQUIRED_ANCHOR_IDS,
+        }
+      : {
+          familyId: "AEAT_DEFERRAL_GRANT_CANDIDATE",
+          documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
+          handlerId: "aeat-deferral-grant-candidate",
+          requiredAnchorIds: DEFERRAL_REQUIRED_ANCHOR_IDS,
+        };
   if (
     !candidate ||
-    candidate.familyId !== "AEAT_ENFORCEMENT_ORDER_CANDIDATE" ||
+    candidate.familyId !== expected.familyId ||
     candidate.recognitionPolicyVersion !== "1.3.0" ||
     (candidate.segmentationVersion !== "1.0.0" &&
       candidate.segmentationVersion !== "1.1.0") ||
-    candidate.documentType !== "AEAT_ENFORCEMENT_ORDER" ||
+    candidate.documentType !== expected.documentType ||
     candidate.authoritySignal !== "AEAT_UNVERIFIED" ||
-    candidate.handlerId !== "aeat-enforcement-order-candidate" ||
+    candidate.handlerId !== expected.handlerId ||
     candidate.handlerVersion !== "1.0.0" ||
     candidate.signalStatus !== "COMPLETE_REQUIRED_ANCHORS" ||
     candidate.requiresHumanReview !== true ||
-    !validateTechnicalCandidateArrays(candidate, root.pageCount as number)
+    !validateTechnicalCandidateArrays(
+      candidate,
+      root.pageCount as number,
+      expected.requiredAnchorIds,
+    )
   ) {
     throw invalidInput();
   }
@@ -874,6 +1484,7 @@ function administrativeMoneyKind(
 function validateTechnicalCandidateArrays(
   candidate: Record<string, unknown>,
   maxPageNumber: number,
+  requiredAnchorIds: ReadonlySet<string>,
 ): boolean {
   const matchedAnchors = snapshotArray(candidate.matchedAnchors, 32);
   const missingRequired = snapshotArray(candidate.missingRequiredAnchorIds, 32);
@@ -910,12 +1521,18 @@ function validateTechnicalCandidateArrays(
   });
   return (
     validAnchors &&
-    matchedAnchorIds.has("ENFORCEMENT_ORDER_TITLE") &&
-    matchedAnchorIds.has("ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION") &&
-    matchedAnchorIds.has("ENFORCEMENT_DEBT_AMOUNT_SECTION") &&
-    (matchedAnchorIds.has("STRUCTURAL_FIRST_PAGE_HEADER") ||
-      matchedAnchorIds.has("STRUCTURAL_PRIMARY_ACT_HEADER"))
+    [...requiredAnchorIds].every((anchorId) =>
+      matchedAnchorIds.has(anchorId),
+    )
   );
+}
+
+function firstPage(pageNumbers: readonly number[]): number {
+  const pageNumber = pageNumbers[0];
+  if (!Number.isSafeInteger(pageNumber) || Number(pageNumber) < 1) {
+    throw invalidInput();
+  }
+  return pageNumber;
 }
 
 function referenceEvidenceLabel(fact: AeatEnforcementReferenceFactV2): string {

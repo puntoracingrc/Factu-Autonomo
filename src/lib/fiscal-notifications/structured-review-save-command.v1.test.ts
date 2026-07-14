@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { commitAppDataDurably } from "../app-data-durability";
 import { EMPTY_DATA, type AppData } from "../types";
+import { extractAeatDeferralGrantFactsV1 } from "./aeat-deferral-grant-facts.v1";
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
 import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
@@ -17,6 +18,23 @@ const FOREIGN_OWNER = "user:00000000-0000-4000-8000-000000000072";
 const REVIEW_ID = "review:00000000-0000-4000-8000-000000000073";
 const CREATED_AT = "2026-07-14T10:00:00.000Z";
 const HASH = "b".repeat(64);
+
+const DEFERRAL_TEXT = [
+  "AGENCIA TRIBUTARIA",
+  "sede.agenciatributaria.gob.es",
+  "CONCESION DEL APLAZAMIENTO O FRACCIONAMIENTO",
+  "IDENTIFICACION DEL DOCUMENTO",
+  "N.I.F.: X0000000X",
+  "Nombre: PERSONA SINTETICA",
+  "Numero de expediente: EXP-SAVE-071",
+  "ANEXO I: DEUDAS Y PLAZOS DE LA NOTIFICACION",
+  "Clave Liquidacion: L-SAVE-071",
+  "Concepto: IRPF SINTETICO",
+  "Fecha de Interes: 01-01-2026",
+  "1.000,00 0,00 1.000,00 50,00 1.050,00 20-02-2026",
+  "ANEXO II",
+  "CALCULO DE INTERESES",
+].join("\n");
 
 const DOCUMENT_TEXT = [
   "AGENCIA TRIBUTARIA",
@@ -94,13 +112,14 @@ function analysis(): FiscalNotificationLocalAnalysisResult {
     retainedSourceContent: "NONE",
   });
   return Object.freeze({
-    schemaVersion: 4,
-    analysisVersion: "4.0.0",
+    schemaVersion: 5,
+    analysisVersion: "5.0.0",
     technicalReview,
     ephemeralEnforcementMoneyFacts: extractAeatEnforcementMoneyFacts(input),
     ephemeralEnforcementExplicitFields:
       extractAeatEnforcementExplicitFieldsV2(input),
     ephemeralEnforcementPartyFacts: extractAeatEnforcementPartyFactsV1(input),
+    ephemeralDeferralGrantFacts: null,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -115,6 +134,70 @@ function analysisWithHash(sha256: string): FiscalNotificationLocalAnalysisResult
       ...value.technicalReview,
       sha256,
     }),
+  });
+}
+
+function deferralAnalysis(): FiscalNotificationLocalAnalysisResult {
+  const input: BoundedDocumentInput = Object.freeze({
+    ownerScope: OWNER,
+    documentId: "notification-review:synthetic-deferral-save",
+    pages: Object.freeze([
+      Object.freeze({ pageNumber: 1, text: DEFERRAL_TEXT, isBlank: false }),
+    ]),
+  });
+  const extraction = extractFiscalNotificationCandidates(input);
+  const technicalReview: FiscalNotificationLocalReviewResult = Object.freeze({
+    schemaVersion: 1,
+    flowVersion: "1.0.0",
+    status: extraction.status,
+    reason: extraction.reason,
+    engineId: extraction.engineId,
+    engineVersion: extraction.engineVersion,
+    pageCount: 1,
+    byteLength: 4_096,
+    sha256: "e".repeat(64),
+    candidates: Object.freeze(
+      extraction.candidates.map((candidate) =>
+        Object.freeze({
+          familyId: candidate.familyId,
+          ...(candidate.recognitionPolicyVersion
+            ? { recognitionPolicyVersion: candidate.recognitionPolicyVersion }
+            : {}),
+          ...(candidate.segmentationVersion
+            ? { segmentationVersion: candidate.segmentationVersion }
+            : {}),
+          documentType: candidate.documentType,
+          authoritySignal: candidate.authoritySignal,
+          handlerId: candidate.handlerId,
+          handlerVersion: candidate.handlerVersion,
+          signalStatus: candidate.signalStatus,
+          matchedAnchors: candidate.matchedAnchors.map((anchor) => ({
+            anchorId: anchor.anchorId,
+            pageNumbers: [...anchor.pageNumbers],
+          })),
+          missingRequiredAnchorIds: [...candidate.missingRequiredAnchorIds],
+          conflictingAnchorIds: [...candidate.conflictingAnchorIds],
+          requiresHumanReview: true as const,
+        }),
+      ),
+    ),
+    selectedFamilyId: null,
+    providerCalled: false,
+    requiresHumanReview: true,
+    materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+    retainedSourceContent: "NONE",
+  });
+  return Object.freeze({
+    schemaVersion: 5,
+    analysisVersion: "5.0.0",
+    technicalReview,
+    ephemeralEnforcementMoneyFacts: null,
+    ephemeralEnforcementExplicitFields: null,
+    ephemeralEnforcementPartyFacts: null,
+    ephemeralDeferralGrantFacts: extractAeatDeferralGrantFactsV1(input),
+    sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+    requiresHumanReview: true,
+    materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
   });
 }
 
@@ -190,6 +273,34 @@ describe("structured fiscal notification save command v1", () => {
     expect(input.persist).toHaveBeenCalledTimes(1);
     expect(input.value.expected).toEqual(before);
     expect(JSON.stringify(result.data)).not.toContain(DOCUMENT_TEXT);
+  });
+
+  it("guarda las cuotas de una concesión como datos consultables, no como plan activo", () => {
+    const input = commandInput();
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1({
+      ...input.value,
+      analysis: deferralAnalysis(),
+    });
+
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    const workspace = result.data.fiscalNotificationsWorkspace;
+    expect(workspace?.documents[0]).toMatchObject({
+      documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
+      titleRaw: "Concesión de aplazamiento o fraccionamiento AEAT",
+    });
+    expect(workspace?.paymentOptions).toEqual([
+      expect.objectContaining({
+        totalCents: 105_000,
+        deadline: "2026-02-20",
+        deadlineStatus: "DOCUMENT_STATED",
+      }),
+    ]);
+    expect(workspace?.paymentPlans).toEqual([]);
+    expect(workspace?.installments).toEqual([]);
+    expect(workspace?.debts).toEqual([]);
+    expect(workspace?.accountingDrafts).toEqual([]);
+    expect(input.persist).toHaveBeenCalledTimes(1);
   });
 
   it("bloquea una precondición obsoleta sin escribir", () => {
