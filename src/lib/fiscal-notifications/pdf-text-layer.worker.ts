@@ -42,7 +42,7 @@ async function processMessage(value: unknown): Promise<void> {
       documentId: EPHEMERAL_WORKER_DOCUMENT_ID,
       bytes: new Uint8Array(request.bytes),
     });
-    const projected = analyzeFiscalNotificationDocumentInput(documentInput);
+    const projected = await analyzeFiscalNotificationDocumentInput(documentInput);
     const analysis = projectFiscalNotificationPdfWorkerAnalysis({
       textLayerStatus: projected.hasText
         ? "TEXT_LAYER_AVAILABLE"
@@ -59,6 +59,7 @@ async function processMessage(value: unknown): Promise<void> {
       type: "RESULT",
       requestId: REQUEST_ID,
       analysis,
+      verticalSliceReview: projected.verticalSliceReview,
     });
   } catch (error) {
     workerScope.postMessage({

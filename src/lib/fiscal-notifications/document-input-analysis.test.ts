@@ -13,7 +13,7 @@ function input(text: string): BoundedDocumentInput {
 }
 
 describe("fiscal notification document input analysis", () => {
-  it("recognizes a closed historical AEAT enforcement template deterministically", () => {
+  it("recognizes a closed historical AEAT enforcement template deterministically", async () => {
     const source = input(
       [
         "AGENCIA TRIBUTARIA",
@@ -24,8 +24,8 @@ describe("fiscal notification document input analysis", () => {
       ].join("\n"),
     );
 
-    const first = analyzeFiscalNotificationDocumentInput(source);
-    const second = analyzeFiscalNotificationDocumentInput(source);
+    const first = await analyzeFiscalNotificationDocumentInput(source);
+    const second = await analyzeFiscalNotificationDocumentInput(source);
 
     expect(first.familyAnalysis).toMatchObject({
       status: "REVIEW_REQUIRED",
@@ -39,15 +39,35 @@ describe("fiscal notification document input analysis", () => {
       ],
     });
     expect(first).toEqual(second);
+    expect(first.verticalSliceReview).toMatchObject({
+      schemaVersion: 1,
+      status: "INFORMATION_PENDING",
+      documents: [],
+      retainedSourceContent: "NONE",
+    });
     expect(Object.isFrozen(first)).toBe(true);
     expect(source.pages[0]?.text).toContain("NOTIFICACIÓN");
     expect(JSON.stringify(first)).not.toContain("NOTIFICACIÓN");
   });
 
-  it("returns no family or facts for a blank bounded input", () => {
-    expect(analyzeFiscalNotificationDocumentInput(input(""))).toEqual({
+  it("returns no family or facts for a blank bounded input", async () => {
+    expect(await analyzeFiscalNotificationDocumentInput(input(""))).toEqual({
       hasText: false,
       pageCount: 1,
+      verticalSliceReview: {
+        schemaVersion: 1,
+        reviewVersion: "1.0.0",
+        status: "INFORMATION_PENDING",
+        documents: [],
+        sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+        retainedSourceContent: "NONE",
+        requiresHumanReview: true,
+        materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+        permitsDebtCreation: false,
+        permitsDeadlineCreation: false,
+        permitsPaymentAction: false,
+        permitsAccountingAction: false,
+      },
       familyAnalysis: null,
       enforcementMoneyFacts: null,
       enforcementExplicitFields: null,
@@ -55,5 +75,51 @@ describe("fiscal notification document input analysis", () => {
       deferralGrantFacts: null,
       offsetAgreementFacts: null,
     });
+  });
+
+  it("transports exact payment evidence fields without retaining the source text", async () => {
+    const rawAccount = "ES12 3456 7890 1234 5678 9012";
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input([
+        "Agencia Tributaria",
+        "sede.agenciatributaria.gob.es",
+        "JUSTIFICANTE DE PAGO",
+        "Número de justificante: REC-SYN-PIPELINE-001",
+        "NRC: ABCDEF1234567890GHIJKL",
+        "Fecha del pago: 14/07/2026",
+        "N.I.F.: 12345678Z",
+        "Modelo: 303",
+        "Ejercicio: 2026",
+        "Periodo: 2T",
+        "Clave de deuda: DEBT-SYN-PIPELINE-001",
+        "Importe pagado: 600,00 euros",
+        "Resultado del pago: Pago confirmado",
+        `Cuenta de cargo: ${rawAccount}`,
+      ].join("\n")),
+    );
+
+    expect(result.verticalSliceReview).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      documents: [
+        expect.objectContaining({
+          extractorId: "payment-evidence",
+          familyId: "payment.receipt",
+          title: "Justificante de pago",
+          fields: expect.arrayContaining([
+            expect.objectContaining({
+              canonicalType: "TOTAL_PAID",
+              amountCents: 60_000,
+              displayValue: "600,00 €",
+            }),
+            expect.objectContaining({
+              canonicalType: "MASKED_ACCOUNT",
+              displayValue: "****9012",
+            }),
+          ]),
+        }),
+      ],
+      retainedSourceContent: "NONE",
+    });
+    expect(JSON.stringify(result)).not.toContain(rawAccount);
   });
 });

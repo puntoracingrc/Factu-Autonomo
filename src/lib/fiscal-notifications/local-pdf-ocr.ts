@@ -19,6 +19,10 @@ import {
   projectFiscalNotificationPdfWorkerAnalysis,
   type FiscalNotificationPdfWorkerAnalysis,
 } from "./pdf-worker-analysis-contract";
+import {
+  parseFiscalNotificationVerticalSliceReviewV1,
+  type FiscalNotificationVerticalSliceReviewV1,
+} from "./vertical-slice-review.v1";
 
 export const FISCAL_NOTIFICATION_LOCAL_OCR_SCHEMA_VERSION = 1 as const;
 export const FISCAL_NOTIFICATION_LOCAL_OCR_VERSION = "1.0.0" as const;
@@ -63,6 +67,7 @@ export interface FiscalNotificationLocalOcrAnalysis {
   readonly enforcementPartyFacts: FiscalNotificationPdfWorkerAnalysis["enforcementPartyFacts"];
   readonly deferralGrantFacts: FiscalNotificationPdfWorkerAnalysis["deferralGrantFacts"];
   readonly offsetAgreementFacts: FiscalNotificationPdfWorkerAnalysis["offsetAgreementFacts"];
+  readonly verticalSliceReview: FiscalNotificationVerticalSliceReviewV1;
 }
 
 interface PdfLoadingTaskLike {
@@ -146,6 +151,7 @@ const ANALYSIS_KEYS = new Set([
   "enforcementPartyFacts",
   "deferralGrantFacts",
   "offsetAgreementFacts",
+  "verticalSliceReview",
 ]);
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 const UNSUPPORTED_OCR_CONTROL_PATTERN =
@@ -323,7 +329,7 @@ export async function recognizeFiscalNotificationPdfLocally(
       pages: Object.freeze(pages),
       ...(request.signal ? { signal: request.signal } : {}),
     }) satisfies BoundedDocumentInput;
-    const analyzed = analyzeFiscalNotificationDocumentInput(documentInput);
+    const analyzed = await analyzeFiscalNotificationDocumentInput(documentInput);
     const projected = projectFiscalNotificationPdfWorkerAnalysis({
       textLayerStatus: "TEXT_LAYER_AVAILABLE",
       pageCount: analyzed.pageCount,
@@ -334,7 +340,7 @@ export async function recognizeFiscalNotificationPdfLocally(
       deferralGrantFacts: analyzed.deferralGrantFacts,
       offsetAgreementFacts: analyzed.offsetAgreementFacts,
     });
-    const analysis = freezeAnalysis(projected);
+    const analysis = freezeAnalysis(projected, analyzed.verticalSliceReview);
     return freezeResult({
       status: "OCR_TEXT_AVAILABLE",
       pageCount: pages.length,
@@ -421,6 +427,9 @@ export function parseFiscalNotificationLocalOcrResult(
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
     retainedSourceContent: "NONE",
   });
+  const verticalSliceReview = parseFiscalNotificationVerticalSliceReviewV1(
+    analysis.verticalSliceReview,
+  );
   const parsedAnalysis = Object.freeze({
     hasText: true,
     pageCount: parsed.pageCount,
@@ -430,6 +439,7 @@ export function parseFiscalNotificationLocalOcrResult(
     enforcementPartyFacts: parsed.enforcementPartyFacts,
     deferralGrantFacts: parsed.deferralGrantFacts,
     offsetAgreementFacts: parsed.offsetAgreementFacts,
+    verticalSliceReview,
   });
   return freezeResult({
     status: "OCR_TEXT_AVAILABLE",
@@ -460,6 +470,7 @@ function freezeResult(input: {
 
 function freezeAnalysis(
   value: FiscalNotificationPdfWorkerAnalysis,
+  verticalSliceReview: FiscalNotificationVerticalSliceReviewV1,
 ): FiscalNotificationLocalOcrAnalysis {
   return Object.freeze({
     hasText: true,
@@ -470,6 +481,7 @@ function freezeAnalysis(
     enforcementPartyFacts: value.enforcementPartyFacts ?? null,
     deferralGrantFacts: value.deferralGrantFacts ?? null,
     offsetAgreementFacts: value.offsetAgreementFacts ?? null,
+    verticalSliceReview,
   });
 }
 

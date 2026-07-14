@@ -14,6 +14,7 @@ import {
 } from "./local-review-flow";
 import type { FiscalNotificationPdfTextLayerResult } from "./pdf-text-layer-adapter";
 import { projectFiscalNotificationPdfWorkerAnalysis } from "./pdf-worker-analysis-contract";
+import { createEmptyFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
 
 const HASH = "b".repeat(64);
 const PRIVATE_TEXT = "PRIVATE_TAX_ID_AND_CSV_SENTINEL";
@@ -126,6 +127,7 @@ function intake(
       sha256: HASH,
     }),
     analysis,
+    verticalSliceReview: createEmptyFiscalNotificationVerticalSliceReviewV1(),
     reviewContext: Object.freeze(reviewContext),
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -197,7 +199,8 @@ function noReadableOcrResult() {
 }
 
 function availableOcrResult(text: string) {
-  const parsed = intake(text).analysis;
+  const source = intake(text);
+  const parsed = source.analysis;
   return Object.freeze({
     schemaVersion: 1 as const,
     ocrVersion: "1.0.0" as const,
@@ -213,6 +216,7 @@ function availableOcrResult(text: string) {
       enforcementPartyFacts: parsed.enforcementPartyFacts,
       deferralGrantFacts: parsed.deferralGrantFacts,
       offsetAgreementFacts: parsed.offsetAgreementFacts,
+      verticalSliceReview: source.verticalSliceReview,
     }),
     providerCalled: false as const,
     executionBoundary: "LOCAL_TESSERACT_WORKER" as const,

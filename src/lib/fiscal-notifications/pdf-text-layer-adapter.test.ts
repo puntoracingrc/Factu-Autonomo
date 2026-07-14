@@ -17,6 +17,7 @@ import {
   FISCAL_NOTIFICATION_PDF_LIMITS,
   FiscalNotificationPdfError,
 } from "./pdf-text-layer-parser";
+import { createEmptyFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
 
 const NO_RESPONSE = Symbol("NO_RESPONSE");
 const PRIVATE_FILENAME = "PRIVATE_TAX_ID_12345678Z.pdf";
@@ -174,6 +175,8 @@ function resultMessage(analysis: unknown = workerAnalysis()) {
     type: "RESULT",
     requestId: "parse",
     analysis,
+    verticalSliceReview:
+      createEmptyFiscalNotificationVerticalSliceReviewV1(),
   };
 }
 
@@ -324,6 +327,12 @@ describe("fiscal notification PDF text-layer adapter", () => {
         enforcementMoneyFacts: null,
         enforcementExplicitFields: null,
         enforcementPartyFacts: null,
+        retainedSourceContent: "NONE",
+      },
+      verticalSliceReview: {
+        schemaVersion: 1,
+        status: "INFORMATION_PENDING",
+        documents: [],
         retainedSourceContent: "NONE",
       },
       requiresHumanReview: true,
@@ -988,7 +997,7 @@ describe("fiscal notification PDF text-layer adapter", () => {
         },
         {
           type: "RESULT",
-          keys: ["analysis", "requestId", "type"],
+          keys: ["analysis", "requestId", "type", "verticalSliceReview"],
           analysisIsShorthand: true,
         },
       ]);
@@ -1065,7 +1074,7 @@ describe("fiscal notification PDF text-layer adapter", () => {
       "utf8",
     );
     expect(workerSource).toContain(
-      "analyzeFiscalNotificationDocumentInput(documentInput)",
+      "await analyzeFiscalNotificationDocumentInput(documentInput)",
     );
     expect(workerSource).toContain(
       "enforcementExplicitFields: projected.enforcementExplicitFields",
