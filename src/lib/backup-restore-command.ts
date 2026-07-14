@@ -4,6 +4,12 @@ import type {
 } from "@/lib/app-data-durability";
 import type { BackupDownloadResult } from "@/lib/backup";
 import type { AppData } from "@/lib/types";
+import {
+  mergeTestDocumentRetirementBatches,
+  mergeRetirementQuarantine,
+  projectTestDocumentRetirementHistory,
+  retirementHistoryContains,
+} from "@/lib/test-document-retirement-persistence";
 
 export interface BackupRestoreValue {
   restored: true;
@@ -14,6 +20,8 @@ type DurableCommit = <T>(
   build: (previous: AppData) => AppDataTransition<T>,
 ) => AppDataDurabilityResult<T>;
 
+const TENANT_FINGERPRINT_PATTERN = /^sha256:[a-f0-9]{64}$/;
+
 /**
  * Publica una copia validada solo después de que el commit local completo haya
  * sido confirmado. El commit común añade el diff cloud y conserva la memoria
@@ -22,11 +30,51 @@ type DurableCommit = <T>(
 export function runBackupRestoreCommand(input: {
   expected: AppData;
   restored: AppData;
+  expectedTenantFingerprint?: string;
   commit: DurableCommit;
 }): AppDataDurabilityResult<BackupRestoreValue> {
+  const containsRetirementHistory =
+    (input.expected.testDocumentRetirementBatches?.length ?? 0) > 0 ||
+    (input.restored.testDocumentRetirementBatches?.length ?? 0) > 0;
+  if (
+    containsRetirementHistory &&
+    !TENANT_FINGERPRINT_PATTERN.test(input.expectedTenantFingerprint ?? "")
+  ) {
+    return { status: "blocked", reason: "transition_failed" };
+  }
+  if (
+    !retirementHistoryContains(
+      input.restored.testDocumentRetirementBatches,
+      input.expected.testDocumentRetirementBatches,
+    )
+  ) {
+    return { status: "blocked", reason: "transition_failed" };
+  }
+  const retirementHistory = mergeTestDocumentRetirementBatches(
+    input.expected.testDocumentRetirementBatches,
+    input.restored.testDocumentRetirementBatches,
+  );
+  if (retirementHistory.conflicts.length > 0) {
+    return { status: "blocked", reason: "transition_failed" };
+  }
+  const projected = projectTestDocumentRetirementHistory(
+    {
+      ...input.restored,
+      testDocumentRetirementBatches: retirementHistory.batches,
+      workspaceIntegrityQuarantine: mergeRetirementQuarantine(
+        input.expected.workspaceIntegrityQuarantine,
+        input.restored.workspaceIntegrityQuarantine,
+      ),
+    },
+    input.expectedTenantFingerprint,
+  );
+  if (projected.status === "blocked") {
+    return { status: "blocked", reason: "transition_failed" };
+  }
+  const restored = projected.data;
   return input.commit(input.expected, () => ({
     data: {
-      ...input.restored,
+      ...restored,
       // La copia portable no contiene metadata de sincronización. Conservar la
       // cola local previa evita perder cambios no relacionados; trackDataDiff
       // añadirá/actualizará encima las reversiones del restore por entidad.

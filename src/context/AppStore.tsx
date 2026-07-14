@@ -174,6 +174,17 @@ import {
   type DurableAppIssuedDocumentRecoveryResult,
   type DurableAppIssuedDocumentRecoveryRollbackResult,
 } from "@/lib/document-integrity/app-issued-recovery-command";
+import {
+  runTestDocumentRetirementCommand,
+  runTestDocumentRetirementRollbackCommand,
+  type DurableTestDocumentRetirementResult,
+  type DurableTestDocumentRetirementRollbackResult,
+} from "@/lib/document-integrity/test-document-retirement-command";
+import type {
+  TestDocumentRetirementBackupEvidenceV1,
+  TestDocumentRetirementPreview,
+  TestDocumentRetirementRollbackPreview,
+} from "@/lib/document-integrity/test-document-retirement";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -201,6 +212,7 @@ interface AppStoreValue {
   restoreBackupData: (
     restored: AppData,
     expected: AppData,
+    expectedTenantFingerprint?: string,
   ) => AppDataDurabilityResult<BackupRestoreValue>;
   applyImportedLegacyDocumentRepair: (
     preview: LegacyImportRepairPreview,
@@ -214,6 +226,20 @@ interface AppStoreValue {
     preview: AppIssuedDocumentRecoveryRollbackPreview,
     expected: AppData,
   ) => DurableAppIssuedDocumentRecoveryRollbackResult;
+  applyTestDocumentRetirement: (input: {
+    preview: TestDocumentRetirementPreview;
+    expected: AppData;
+    tenantFingerprint: string;
+    backup: TestDocumentRetirementBackupEvidenceV1;
+    now: string;
+  }) => DurableTestDocumentRetirementResult;
+  rollbackTestDocumentRetirement: (input: {
+    preview: TestDocumentRetirementRollbackPreview;
+    expected: AppData;
+    tenantFingerprint: string;
+    backup: TestDocumentRetirementBackupEvidenceV1;
+    now: string;
+  }) => DurableTestDocumentRetirementRollbackResult;
   updateProfile: (profile: BusinessProfile) => void;
   addDocument: (
     doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
@@ -607,10 +633,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const restoreBackupData = useCallback(
-    (restored: AppData, expected: AppData) =>
+    (
+      restored: AppData,
+      expected: AppData,
+      expectedTenantFingerprint?: string,
+    ) =>
       runBackupRestoreCommand({
         restored,
         expected,
+        expectedTenantFingerprint,
         commit: commitDurableAppData,
       }),
     [commitDurableAppData],
@@ -653,6 +684,36 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         expected,
         preview,
         now: new Date().toISOString(),
+        commit: commitDurableAppData,
+      }),
+    [commitDurableAppData],
+  );
+
+  const applyTestDocumentRetirement = useCallback(
+    (input: {
+      preview: TestDocumentRetirementPreview;
+      expected: AppData;
+      tenantFingerprint: string;
+      backup: TestDocumentRetirementBackupEvidenceV1;
+      now: string;
+    }): DurableTestDocumentRetirementResult =>
+      runTestDocumentRetirementCommand({
+        ...input,
+        commit: commitDurableAppData,
+      }),
+    [commitDurableAppData],
+  );
+
+  const rollbackTestDocumentRetirement = useCallback(
+    (input: {
+      preview: TestDocumentRetirementRollbackPreview;
+      expected: AppData;
+      tenantFingerprint: string;
+      backup: TestDocumentRetirementBackupEvidenceV1;
+      now: string;
+    }): DurableTestDocumentRetirementRollbackResult =>
+      runTestDocumentRetirementRollbackCommand({
+        ...input,
         commit: commitDurableAppData,
       }),
     [commitDurableAppData],
@@ -2059,6 +2120,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       applyImportedLegacyDocumentRepair,
       applyAppIssuedDocumentRecovery,
       rollbackAppIssuedDocumentRecovery,
+      applyTestDocumentRetirement,
+      rollbackTestDocumentRetirement,
       updateProfile,
       addDocument,
       issueDocument,
@@ -2117,6 +2180,8 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       applyImportedLegacyDocumentRepair,
       applyAppIssuedDocumentRecovery,
       rollbackAppIssuedDocumentRecovery,
+      applyTestDocumentRetirement,
+      rollbackTestDocumentRetirement,
       updateProfile,
       addDocument,
       issueDocument,

@@ -21,6 +21,10 @@ import { normalizeBusinessFiscalProfile } from "./fiscal-profile";
 import { normalizeSupplierNif, supplierCompareKey } from "./suppliers";
 import { normalizeRecurringExpense } from "./recurring-expenses";
 import {
+  enforceAppliedTestDocumentRetirements,
+  normalizeTestDocumentRetirementBatches,
+} from "./test-document-retirement-persistence";
+import {
   mergePendingChanges,
   snapshotIntegrityMetadataChange,
 } from "./cloud/diff";
@@ -432,6 +436,19 @@ export function normalizeLoadedData(
       rawValue: parsed.workspaceIntegrityQuarantine,
     });
   }
+  const normalizedRetirementBatches =
+    normalizeTestDocumentRetirementBatches(
+      parsed.testDocumentRetirementBatches,
+    );
+  for (const invalid of normalizedRetirementBatches.invalidEntries) {
+    workspaceIntegrityQuarantine.push({
+      collection: "testDocumentRetirementBatches",
+      index: invalid.index >= 0 ? invalid.index : undefined,
+      reason:
+        invalid.index >= 0 ? "malformed_record" : "malformed_collection",
+      rawValue: invalid.rawValue,
+    });
+  }
   let profile: BusinessProfile;
   if (parsed.profile !== undefined && !isRecord(parsed.profile)) {
     workspaceIntegrityQuarantine.push({
@@ -630,7 +647,15 @@ export function normalizeLoadedData(
     normalizedExpenses,
     suppliers,
   );
-  return {
+  const documentCounters = countersFromDocuments(
+    documents,
+    profile.numbering.year,
+    profile.numbering,
+  );
+  const parsedCounters: Record<string, unknown> = isRecord(parsed.counters)
+    ? parsed.counters
+    : {};
+  const normalized: AppData = {
     ...EMPTY_DATA,
     ...parsed,
     profile,
@@ -641,22 +666,33 @@ export function normalizeLoadedData(
     suppliers,
     expenses,
     documents,
+    testDocumentRetirementBatches: normalizedRetirementBatches.batches,
     snapshotIntegrityVersion: 1,
     workspaceIntegrityQuarantine:
       workspaceIntegrityQuarantine.length > 0
         ? workspaceIntegrityQuarantine
         : undefined,
     counters: {
-      ...EMPTY_DATA.counters,
-      ...parsed.counters,
-      ...countersFromDocuments(
-        documents,
-        profile.numbering.year,
-        profile.numbering,
+      factura: Math.max(
+        documentCounters.factura,
+        Number(parsedCounters.factura) || 0,
+      ),
+      factura_rectificativa: Math.max(
+        documentCounters.factura_rectificativa,
+        Number(parsedCounters.factura_rectificativa) || 0,
+      ),
+      presupuesto: Math.max(
+        documentCounters.presupuesto,
+        Number(parsedCounters.presupuesto) || 0,
+      ),
+      recibo: Math.max(
+        documentCounters.recibo,
+        Number(parsedCounters.recibo) || 0,
       ),
     },
     meta,
   };
+  return enforceAppliedTestDocumentRetirements(normalized);
 }
 
 function linkLooseExpensesToExistingSuppliers(
@@ -985,10 +1021,11 @@ function normalizeHistoricalDocument(
 }
 
 export function touchAppData(data: AppData): AppData {
+  const guarded = enforceAppliedTestDocumentRetirements(data);
   return {
-    ...data,
+    ...guarded,
     meta: {
-      ...data.meta,
+      ...guarded.meta,
       lastModified: new Date().toISOString(),
     },
   };
@@ -1079,6 +1116,7 @@ function storedDataHasContent(parsed: Partial<AppData>): boolean {
     (parsed.userReminders?.length ?? 0) > 0 ||
     (parsed.suppliers?.length ?? 0) > 0 ||
     (parsed.products?.length ?? 0) > 0 ||
+    (parsed.testDocumentRetirementBatches?.length ?? 0) > 0 ||
     (parsed.workspaceIntegrityQuarantine?.length ?? 0) > 0 ||
     (parsed.meta?.pendingChanges?.length ?? 0) > 0 ||
     Object.values(parsed.counters ?? {}).some((value) => (value ?? 0) > 0) ||

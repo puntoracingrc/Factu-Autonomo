@@ -153,6 +153,11 @@ export function mergeRemoteOntoLocal(
 
   const toApply: SyncChange[] = [];
   for (const remote of remoteChanges) {
+    if (remote.entityType === "document_retirement_batch") {
+      // El lote es append-only: su merge por prefijo decide, nunca LWW.
+      toApply.push(remote);
+      continue;
+    }
     const key = `${remote.entityType}:${remote.entityId}`;
     const pending = localPending.get(key);
     if (!pending || remote.updatedAt >= pending.updatedAt) {

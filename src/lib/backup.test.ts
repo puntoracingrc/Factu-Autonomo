@@ -12,6 +12,7 @@ import {
   parseBackupJson,
   PORTABLE_BACKUP_VERSION,
 } from "./backup";
+import { sha256Hex } from "./document-integrity/snapshot-hash";
 import {
   buildDocumentPdfSnapshot,
   buildDocumentSnapshot,
@@ -536,7 +537,7 @@ describe("backup", () => {
     );
   });
 
-  it("usa Blob y descarga controlada desde el navegador", () => {
+  it("usa Blob y registra hash/tamaño de los bytes exactos solicitados", async () => {
     const click = vi.fn();
     const anchor = {
       href: "",
@@ -544,7 +545,11 @@ describe("backup", () => {
       rel: "",
       click,
     };
-    const createObjectURL = vi.fn(() => "blob:backup");
+    let createdBlob: Blob | null = null;
+    const createObjectURL = vi.fn((blob: Blob) => {
+      createdBlob = blob;
+      return "blob:backup";
+    });
     const revokeObjectURL = vi.fn();
     const createElement = vi.fn(() => anchor);
 
@@ -559,8 +564,18 @@ describe("backup", () => {
     expect(result).toEqual({
       ok: true,
       filename: "factu-autonomo-backup-2026-06-24.json",
+      contentSha256: expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+      byteLength: expect.any(Number),
+      disposition: "browser_download_requested",
     });
+    expect(result.ok && result.byteLength).toBeGreaterThan(0);
     expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    if (!createdBlob) throw new Error("No se creó el Blob de la copia");
+    const blob: Blob = createdBlob;
+    expect(result.ok && result.byteLength).toBe(blob.size);
+    expect(result.ok && result.contentSha256).toBe(
+      `sha256:${sha256Hex(await blob.text())}`,
+    );
     expect(createElement).toHaveBeenCalledWith("a");
     expect(anchor.href).toBe("blob:backup");
     expect(anchor.download).toBe("factu-autonomo-backup-2026-06-24.json");
@@ -833,7 +848,13 @@ describe("backup", () => {
     expect(cardSource).toContain("runBackupRestoreWithSafetyCopy");
     expect(cardSource).toContain("getCurrent: getCurrentData");
     expect(cardSource).toContain('purpose: "pre_restore"');
-    expect(cardSource).toContain("restore: restoreBackupData");
+    expect(cardSource).toContain(
+      "testDocumentRetirementTenantFingerprintForUserId(user.id)",
+    );
+    expect(cardSource).toContain(
+      "expectedRetirementTenantFingerprint",
+    );
+    expect(cardSource).toContain("restoreBackupData(");
     expect(cardSource).toContain('result.status === "indeterminate"');
     expect(cardSource).toContain('result.status === "blocked"');
     expect(cardSource).toContain('result.reason === "stale_precondition"');

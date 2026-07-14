@@ -1189,6 +1189,73 @@ export interface UserReminder {
   updatedAt: string;
 }
 
+/** Copia exacta de un documento retirado mediante el flujo explícito de pruebas. */
+export interface RetiredTestDocumentV1 {
+  originalIndex: number;
+  document: Document;
+}
+
+/** Único backlink operativo que el retiro puede retirar de un documento superviviente. */
+export interface TestDocumentRetirementBacklinkChangeV1 {
+  documentId: string;
+  before: Document;
+  after: Document;
+}
+
+/** Identidad fiscal/numeración reservada permanentemente, incluso tras rollback. */
+export interface ReservedTestDocumentIdentityV1 {
+  documentId: string;
+  documentType: Document["type"];
+  number: string;
+}
+
+export interface TestDocumentRetirementBackupEvidenceV1 {
+  /** Nombre local, nunca una ruta ni una URL. */
+  filename: string;
+  createdAt: string;
+  exportableDataFingerprint: string;
+  /** SHA-256 de los bytes JSON exactos enviados al navegador. */
+  contentSha256: string;
+  byteLength: number;
+  /** El navegador recibió la solicitud; no afirmamos que el SO guardara el archivo. */
+  disposition: "browser_download_requested";
+}
+
+export interface TestDocumentRetirementEventV1 {
+  action: "applied" | "rolled_back";
+  at: string;
+  beforeFingerprint: string;
+  afterFingerprint: string;
+  /** Huella de negocio activa inmediatamente antes de la transición. */
+  workspaceFingerprint: string;
+  backup: TestDocumentRetirementBackupEvidenceV1;
+}
+
+/**
+ * Registro append-only del retiro explícito de documentos de prueba.
+ * Conserva la evidencia exacta necesaria para preview, auditoría y rollback.
+ */
+export interface TestDocumentRetirementBatchV1 {
+  schemaVersion: 1;
+  kind: "explicit_test_document_retirement_v1";
+  batchId: string;
+  reason: "explicit_test_cleanup";
+  status: "applied" | "rolled_back";
+  tenantFingerprint: string;
+  selectionFingerprint: string;
+  /** Huella autocontenida del plan inmutable completo. */
+  planFingerprint: string;
+  selectedDocumentIds: string[];
+  retiredDocuments: RetiredTestDocumentV1[];
+  backlinkChanges: TestDocumentRetirementBacklinkChangeV1[];
+  reservedIdentities: ReservedTestDocumentIdentityV1[];
+  beforeDocumentOrder: string[];
+  afterDocumentOrder: string[];
+  beforeFingerprint: string;
+  afterFingerprint: string;
+  events: TestDocumentRetirementEventV1[];
+}
+
 export type SyncEntityType =
   | "document"
   | "customer"
@@ -1198,6 +1265,7 @@ export type SyncEntityType =
   | "supplier"
   | "product"
   | "user_reminder"
+  | "document_retirement_batch"
   | "profile"
   | "counters"
   | "workspace_metadata";
@@ -1232,6 +1300,8 @@ export interface AppData {
   suppliers: Supplier[];
   products: Product[];
   customers: Customer[];
+  /** Historial append-only de retiros explícitos; nunca se deriva de la lista activa. */
+  testDocumentRetirementBatches?: TestDocumentRetirementBatchV1[];
   counters: {
     factura: number;
     factura_rectificativa: number;
@@ -1312,6 +1382,7 @@ export const EMPTY_DATA: AppData = {
   suppliers: [],
   products: [],
   customers: [],
+  testDocumentRetirementBatches: [],
   counters: {
     factura: 0,
     factura_rectificativa: 0,

@@ -2,9 +2,17 @@ import {
   appDataToSyncChanges,
   applySyncChanges,
   emptyCloudBootstrapData,
+  isDerivedTestDocumentRetirementDocumentChange,
 } from "../cloud/diff";
 import { normalizeImportedCloudData } from "../cloud/incremental";
 import type { AppData, SyncChange, SyncEntityType } from "../types";
+import {
+  isValidTestDocumentRetirementBatch,
+  mergeRetirementQuarantine,
+  mergeTestDocumentRetirementBatches,
+  projectTestDocumentRetirementHistory,
+  retirementHistoryContains,
+} from "../test-document-retirement-persistence";
 
 export const ADMIN_RESTORE_ENTITY_TYPES: SyncEntityType[] = [
   "document",
@@ -15,6 +23,7 @@ export const ADMIN_RESTORE_ENTITY_TYPES: SyncEntityType[] = [
   "supplier",
   "product",
   "user_reminder",
+  "document_retirement_batch",
   "profile",
   "counters",
   "workspace_metadata",
@@ -134,6 +143,14 @@ export function syncRowsToChanges(rows: AdminSyncEntityRow[]): SyncChange[] {
   return rows.flatMap((row) => {
     if (!isSyncEntityType(row.entity_type)) return [];
     if (typeof row.entity_id !== "string" || !row.entity_id.trim()) return [];
+    if (
+      row.entity_type === "document_retirement_batch" &&
+      (row.deleted ||
+        !isValidTestDocumentRetirementBatch(row.payload) ||
+        row.payload.batchId !== row.entity_id)
+    ) {
+      return [];
+    }
     return [
       {
         entityType: row.entity_type,
@@ -219,7 +236,13 @@ function buildRestoreChangeSet(
 ): AdminRestoreChange[] {
   return buildRestoreChangeSetFromChanges(
     appDataToSyncChanges(current),
-    target,
+    {
+      ...target,
+      workspaceIntegrityQuarantine: mergeRetirementQuarantine(
+        current.workspaceIntegrityQuarantine,
+        target.workspaceIntegrityQuarantine,
+      ),
+    },
     restoredAt,
   );
 }
@@ -229,11 +252,42 @@ function buildRestoreChangeSetFromChanges(
   target: AppData,
   restoredAt: string,
 ): AdminRestoreChange[] {
+  const currentRetirementBatches = currentChanges.flatMap((change) =>
+    change.entityType === "document_retirement_batch" &&
+    !change.deleted &&
+    isValidTestDocumentRetirementBatch(change.payload)
+      ? [change.payload]
+      : [],
+  );
+  if (
+    !retirementHistoryContains(
+      target.testDocumentRetirementBatches,
+      currentRetirementBatches,
+    )
+  ) {
+    throw new Error("El punto de restauración retrocede el historial de retiro");
+  }
+  const retirementMerge = mergeTestDocumentRetirementBatches(
+    currentRetirementBatches,
+    target.testDocumentRetirementBatches,
+  );
+  if (retirementMerge.conflicts.length > 0) {
+    throw new Error("El historial de retiro del punto de restauración ha divergido");
+  }
+  const mergedRetirementBatches = retirementMerge.batches;
+  const projectedTarget = projectTestDocumentRetirementHistory({
+    ...target,
+    testDocumentRetirementBatches: mergedRetirementBatches,
+  });
+  if (projectedTarget.status === "blocked") {
+    throw new Error("El punto de restauración no es coherente con su retiro");
+  }
+  const guardedTarget = projectedTarget.data;
   const currentMap = new Map(
     currentChanges.map((change) => [keyFor(change), change]),
   );
   const targetMap = new Map(
-    appDataToSyncChanges(target).map((change) => [keyFor(change), change]),
+    appDataToSyncChanges(guardedTarget).map((change) => [keyFor(change), change]),
   );
   const changes: AdminRestoreChange[] = [];
 
@@ -242,7 +296,13 @@ function buildRestoreChangeSetFromChanges(
     if (!currentChange || currentChange.deleted) {
       changes.push({
         kind: "added",
-        change: { ...targetChange, updatedAt: restoredAt },
+        change: {
+          ...targetChange,
+          updatedAt:
+            targetChange.entityType === "document_retirement_batch"
+              ? targetChange.updatedAt
+              : restoredAt,
+        },
       });
       continue;
     }
@@ -251,7 +311,10 @@ function buildRestoreChangeSetFromChanges(
         kind: "updated",
         change: {
           ...targetChange,
-          updatedAt: restoredAt,
+          updatedAt:
+            targetChange.entityType === "document_retirement_batch"
+              ? targetChange.updatedAt
+              : restoredAt,
         },
       });
     }
@@ -259,6 +322,7 @@ function buildRestoreChangeSetFromChanges(
 
   for (const [key, currentChange] of currentMap) {
     if (!currentChange.deleted && !targetMap.has(key)) {
+      if (currentChange.entityType === "document_retirement_batch") continue;
       changes.push({
         kind: "deleted",
         change: {
@@ -271,7 +335,16 @@ function buildRestoreChangeSetFromChanges(
     }
   }
 
-  return changes;
+  // El estado visible ya lleva aplicada la proyección del retiro. Esas bajas
+  // y limpiezas de backlinks no son escrituras documentales reales: la nube
+  // conserva las filas base y el lote es el overlay autoritativo. Esto aplica
+  // también cuando el lote ya estaba compartido y no genera un cambio propio.
+  return changes.filter(
+    ({ change }) =>
+      !mergedRetirementBatches.some((batch) =>
+        isDerivedTestDocumentRetirementDocumentChange(change, batch),
+      ),
+  );
 }
 
 export function summarizeRestoreDiffFromRows(
