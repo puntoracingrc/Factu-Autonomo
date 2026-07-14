@@ -6,6 +6,8 @@ import type {
 } from "@/lib/tax-model-diagnostic/contracts";
 
 export const AEAT_CENSUS_SCREENSHOT_CONTRACT_VERSION = "1.0.0" as const;
+export const AEAT_ACTIVITY_SPARSE_OCR_MARKER =
+  "AEAT OCR SPARSE ACTIVITY PASS" as const;
 
 export type AeatCensusScreenshotKind =
   | "ACTIVITIES"
@@ -106,16 +108,20 @@ function toIsoDate(value: string | undefined): string | undefined {
 
 function detectKind(text: string): AeatCensusScreenshotCandidate["detectedKind"] {
   const value = normalize(text);
+  const lines = normalizedLines(text);
   if (
-    value.includes("RELACION DE ACTIVIDADES") &&
-    value.includes("CENSO DE ACTIVIDADES Y LOCALES")
+    (value.includes("RELACION DE ACTIVIDADES") &&
+      value.includes("CENSO DE ACTIVIDADES Y LOCALES")) ||
+    (value.includes("IMPUESTO SOBRE ACTIVIDADES ECONOMICAS") &&
+      (value.includes("ACTIVIDAD EN ALTA") ||
+        value.includes("ACTIVIDAD EN BAJA"))) ||
+    parseActivities(lines).length > 0
   ) {
     return "ACTIVITIES";
   }
   if (
-    value.includes("OBLIGACIONES TRIBUTARIAS") &&
-    (value.includes("DESCRIPCION DE LA OBLIGACION") ||
-      value.includes("PERIODICIDAD"))
+    value.includes("OBLIGACIONES TRIBUTARIAS") ||
+    obligationFacts(lines).models.length > 0
   ) {
     return "OBLIGATIONS";
   }
@@ -156,6 +162,159 @@ function parseActivities(lines: string[]): AeatCensusActivityRow[] {
     });
   }
   return [...new Map(rows.map((row) => [`${row.section}:${row.code}:${row.state}:${row.startDate ?? ""}`, row])).values()];
+}
+
+function parseFragmentedActivityRows(
+  lines: string[],
+): AeatCensusActivityRow[] {
+  const markerIndex = lines.lastIndexOf(AEAT_ACTIVITY_SPARSE_OCR_MARKER);
+  const activityLines =
+    markerIndex >= 0 ? lines.slice(markerIndex + 1) : lines;
+  if (!lines.some((line) => line.includes("RELACION DE ACTIVIDADES"))) {
+    return [];
+  }
+  const sectionIndexes = activityLines.flatMap((line, index) =>
+    /^(EMPRESARIAL|PROFESIONAL|ARTISTICA)$/.test(line) ? [index] : [],
+  );
+  const rows: AeatCensusActivityRow[] = [];
+  for (const [position, sectionIndex] of sectionIndexes.entries()) {
+    const previousIndex = sectionIndexes[position - 1];
+    const nextIndex = sectionIndexes[position + 1];
+    const start = Math.max(
+      sectionIndex - 4,
+      previousIndex === undefined
+        ? 0
+        : Math.floor((previousIndex + sectionIndex) / 2) + 1,
+    );
+    const end = Math.min(
+      sectionIndex + 6,
+      nextIndex === undefined
+        ? activityLines.length - 1
+        : Math.floor((sectionIndex + nextIndex) / 2),
+    );
+    const segment = activityLines.slice(start, end + 1);
+    const code = segment.find((line) => {
+      if (!/^\d{1,3}(?:[.,]\d{1,2})?$/.test(line)) return false;
+      return Number(line.replace(",", ".")) < 1000;
+    });
+    const dates = segment
+      .flatMap((line) =>
+        [...line.matchAll(/\b\d{1,2}[/.-]\d{1,2}[/.-]\d{4}\b/g)].map(
+          (match) => toIsoDate(match[0]),
+        ),
+      )
+      .filter((date): date is string => Boolean(date));
+    const explicitState = segment.find((line) => /^(ALTA|BAJA)$/.test(line));
+    const state =
+      explicitState === "ALTA"
+        ? "ACTIVE"
+        : explicitState === "BAJA"
+          ? "INACTIVE"
+          : dates.length === 1
+            ? "ACTIVE"
+            : dates.length >= 2
+              ? "INACTIVE"
+              : null;
+    const description = segment
+      .filter(
+        (line) =>
+          line !== code &&
+          line !== activityLines[sectionIndex] &&
+          !/^(ALTA|BAJA)$/.test(line) &&
+          !/\b\d{1,2}[/.-]\d{1,2}[/.-]\d{4}\b/.test(line) &&
+          !/(RELACION DE ACTIVIDADES|CENSO DE ACTIVIDADES|TITULAR|AGENCIA TRIBUTARIA|CONTACTA CON NOSOTROS|ACCESIBILIDAD)/.test(
+            line,
+          ) &&
+          /[A-Z]{3}/.test(line),
+      )
+      .sort((left, right) => right.length - left.length)[0];
+    if (!code || !state || !description) continue;
+    rows.push({
+      section:
+        activityLines[sectionIndex] === "EMPRESARIAL"
+          ? "BUSINESS"
+          : activityLines[sectionIndex] === "PROFESIONAL"
+            ? "PROFESSIONAL"
+            : "ARTISTIC",
+      code: code.replace(",", "."),
+      description,
+      state,
+      ...(dates[0] ? { startDate: dates[0] } : {}),
+      ...(dates[1] ? { endDate: dates[1] } : {}),
+    });
+  }
+  return rows;
+}
+
+function uniqueActivities(
+  rows: AeatCensusActivityRow[],
+): AeatCensusActivityRow[] {
+  return [
+    ...new Map(
+      rows.map((row) => [
+        `${row.section}:${row.code}:${row.state}:${row.startDate ?? ""}`,
+        row,
+      ]),
+    ).values(),
+  ];
+}
+
+function parseActivityDetail(
+  lines: string[],
+): AeatCensusActivityRow | null {
+  const allText = lines.join(" ");
+  const section = allText.match(
+    /\bSECCION\s*:?\s*(EMPRESARIAL|PROFESIONAL|ARTISTICA)\b/,
+  )?.[1];
+  const state = allText.match(/\bACTIVIDAD\s+EN\s+(ALTA|BAJA)\b/)?.[1];
+  const codeAndDescription = lines
+    .map((line) =>
+      line.match(
+        /(?:GRUPO\s*\/?\s*EPIGRAFE\s*:?\s*)?\b(\d{1,4}(?:[.,]\d{1,2})?)\s+([A-Z][A-Z0-9 ,.()\-/]{4,})$/,
+      ),
+    )
+    .find((match) => Boolean(match));
+  const labelledCode = lines
+    .map((line) =>
+      line.match(
+        /GRUPO\s*\/?\s*EPIGRAFE\s*:?\s*(\d{1,4}(?:[.,]\d{1,2})?)/,
+      ),
+    )
+    .find((match) => Boolean(match));
+  const labelledDescription = lines
+    .map((line) => line.match(/DESCRIPCION DE LA ACTIVIDAD\s+(.+)$/))
+    .find((match) => Boolean(match));
+  const code = codeAndDescription?.[1] ?? labelledCode?.[1];
+  const description = (
+    codeAndDescription?.[2] ?? labelledDescription?.[1]
+  )
+    ?.replace(/\s+GRUPO\s*\/?\s*EPIGRAFE.*$/, "")
+    .trim();
+  if (!section || !state || !code || !description) return null;
+
+  const startDate = lines
+    .find((line) => line.includes("FECHA DE INICIO DE LA ACTIVIDAD"))
+    ?.match(/\b\d{1,2}[/.-]\d{1,2}[/.-]\d{4}\b/)?.[0];
+  return {
+    section:
+      section === "EMPRESARIAL"
+        ? "BUSINESS"
+        : section === "PROFESIONAL"
+          ? "PROFESSIONAL"
+          : "ARTISTIC",
+    code: code.replace(",", "."),
+    description,
+    state: state === "ALTA" ? "ACTIVE" : "INACTIVE",
+    ...(toIsoDate(startDate) ? { startDate: toIsoDate(startDate) } : {}),
+  };
+}
+
+function hasDocumentEnd(lines: string[]): boolean {
+  return lines.some(
+    (line) =>
+      line.includes("ACCESIBILIDAD") ||
+      (line.includes("CALENDARIO") && line.includes("FECHA Y HORA OFICIAL")),
+  );
 }
 
 function hasMarkedCode(lines: string[], code: string): boolean {
@@ -238,7 +397,7 @@ function blockedCandidate(
     activeTaxModels: [],
     warnings: [
       detectedKind === "UNKNOWN"
-        ? "No se reconoce la pantalla de la AEAT. Repite la captura incluyendo el título y las cabeceras."
+        ? "No se reconoce la pantalla de la AEAT. Repite la captura procurando que los campos con sus valores sean legibles."
         : "La captura pertenece a otro apartado. Colócala en el bloque que indica su título.",
     ],
   };
@@ -262,7 +421,23 @@ export function parseAeatCensusScreenshotText(
   } as const;
 
   if (expectedKind === "ACTIVITIES") {
-    const activities = parseActivities(lines);
+    const primaryActivities = parseActivities(lines);
+    const primaryActivityKeys = new Set(
+      primaryActivities.map(
+        (row) => `${row.section}:${row.code}:${row.state}`,
+      ),
+    );
+    const fragmentedActivities = parseFragmentedActivityRows(lines).filter(
+      (row) =>
+        !primaryActivityKeys.has(`${row.section}:${row.code}:${row.state}`),
+    );
+    const tableActivities = uniqueActivities([
+      ...primaryActivities,
+      ...fragmentedActivities,
+    ]);
+    const detailActivity =
+      tableActivities.length === 0 ? parseActivityDetail(lines) : null;
+    const activities = detailActivity ? [detailActivity] : tableActivities;
     const active = activities.filter((row) => row.state === "ACTIVE");
     const activityKinds = [
       ...new Set(
@@ -285,10 +460,22 @@ export function parseAeatCensusScreenshotText(
         "No se ha podido confirmar ninguna actividad en alta; no se aplicará una actividad histórica.",
       );
     }
+    if (detailActivity) {
+      warnings.push(
+        "El detalle confirma esta actividad, pero no permite saber si existen otras actividades en alta.",
+      );
+    }
     const hasTableHeaders =
       lines.some((line) => line.includes("EPIGRAFE")) &&
       lines.some((line) => line.includes("ESTADO"));
-    const isComplete = hasTableHeaders && activities.length > 0 && active.length > 0;
+    const isActivityList = lines.some((line) =>
+      line.includes("RELACION DE ACTIVIDADES"),
+    );
+    const isComplete =
+      isActivityList &&
+      (hasTableHeaders || hasDocumentEnd(lines)) &&
+      activities.length > 0 &&
+      active.length > 0;
     return {
       ...base,
       status: active.length > 0 ? "RESOLVED" : "REVIEW_REQUIRED",
@@ -355,13 +542,18 @@ export function parseAeatCensusScreenshotText(
     lines.some((line) => line.includes("DESCRIPCION DE LA OBLIGACION")) &&
     lines.some((line) => line.includes("PERIODICIDAD")) &&
     lines.some((line) => line.includes("ESTADO"));
+  const hasUsableFacts =
+    obligations.models.length > 0 || obligations.explicitlyEmpty;
   const isComplete =
-    hasTableHeaders &&
+    (hasTableHeaders || hasDocumentEnd(lines)) &&
     obligations.unknownActiveRows === 0 &&
     (obligations.activeRowCount > 0 || obligations.explicitlyEmpty);
   return {
     ...base,
-    status: isComplete ? "RESOLVED" : "REVIEW_REQUIRED",
+    status:
+      hasUsableFacts && obligations.unknownActiveRows === 0
+        ? "RESOLVED"
+        : "REVIEW_REQUIRED",
     isComplete,
     activities: [],
     activityKinds: [],
