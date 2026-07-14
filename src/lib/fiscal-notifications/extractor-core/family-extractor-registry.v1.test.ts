@@ -55,6 +55,21 @@ describe("family to reusable extractor registry v1", () => {
     expect(resolveFamilyExtractorBindingV1("payment.payment_form")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     expect(resolveFamilyExtractorBindingV1("payment.receipt")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     expect(resolveFamilyExtractorBindingV1("payment.failed_or_reversed")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    for (const familyId of [
+      "seizure.bank_account",
+      "seizure.commercial_credits",
+      "seizure.wages_or_pensions",
+      "seizure.tpv_receipts",
+      "seizure.cash_or_refund",
+      "seizure.real_estate",
+      "seizure.release",
+      "seizure.third_party_response",
+      "seizure.third_party_payment",
+    ] as const) {
+      expect(resolveFamilyExtractorBindingV1(familyId)?.implementationStatus).toBe(
+        "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY",
+      );
+    }
     expect(resolveFamilyExtractorBindingV1("sanction.resolution")?.implementationStatus).toBe("CONTRACT_ONLY");
   });
 });
