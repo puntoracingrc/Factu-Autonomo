@@ -82,6 +82,12 @@ export function FiscalModelOfficialVisual({
             "Formulario web y servicio web descritos por la AEAT",
           label: "Web y servicio",
         };
+      case "AEAT_FORM_AND_ADMINISTRATIVE_TRANSFER":
+        return {
+          accessibleLabel:
+            "Formulario web y tramitación administrativa descritos por la AEAT",
+          label: "Web y trámite",
+        };
       case "AEAT_FORM_FILE_AND_WEB_SERVICE":
         return {
           accessibleLabel:
@@ -168,6 +174,11 @@ export function FiscalModelOfficialVisual({
               <>
                 <Monitor className={iconClassName} />
                 <Code2 className={accentIconClassName} />
+              </>
+            ) : mode === "AEAT_FORM_AND_ADMINISTRATIVE_TRANSFER" ? (
+              <>
+                <Monitor className={iconClassName} />
+                <ArrowRightLeft className={accentIconClassName} />
               </>
             ) : mode === "AEAT_FORM_FILE_AND_WEB_SERVICE" ? (
               <>
