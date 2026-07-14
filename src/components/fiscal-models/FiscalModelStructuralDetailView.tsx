@@ -24,6 +24,8 @@ const practicalSubtitleByCode: Readonly<Record<string, string>> =
     "180": "Resumen anual de retenciones por alquileres urbanos",
     "190": "Resumen anual de retenciones de nóminas y actividades económicas",
     "303": "Autoliquidación periódica del IVA",
+    "347": "Declaración anual de operaciones con clientes y proveedores",
+    "349": "Operaciones con empresas y profesionales de la Unión Europea",
     "390": "Resumen anual del IVA",
   });
 

@@ -32,6 +32,8 @@ const practicalCatalogLabels: Readonly<
   "180": ["Anual", "Relacionado con 115", "Declaración informativa"],
   "190": ["Anual", "Relacionado con 111", "Declaración informativa"],
   "303": ["Frecuente para autónomos", "IVA", "Trimestral o mensual"],
+  "347": ["Anual", "Declaración informativa", "Clientes y proveedores", "Solo si superas el límite"],
+  "349": ["Unión Europea", "Mensual o trimestral", "Declaración informativa", "Sin importe mínimo"],
   "390": ["Anual", "IVA", "Puede estar exonerado"],
 };
 

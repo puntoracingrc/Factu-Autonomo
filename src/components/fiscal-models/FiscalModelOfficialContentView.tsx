@@ -28,6 +28,8 @@ import { MODEL_131_GUIDE_V1 } from "./model-131-guide.v1";
 import { MODEL_180_GUIDE_V1 } from "./model-180-guide.v1";
 import { MODEL_190_GUIDE_V1 } from "./model-190-guide.v1";
 import { MODEL_303_GUIDE_V1 } from "./model-303-guide.v1";
+import { MODEL_347_GUIDE_V1 } from "./model-347-guide.v1";
+import { MODEL_349_GUIDE_V1 } from "./model-349-guide.v1";
 import { MODEL_390_GUIDE_V1 } from "./model-390-guide.v1";
 
 const focusRing =
@@ -140,6 +142,14 @@ export function FiscalModelOfficialContentView({
 
   if (content.code === "303") {
     return <FiscalModelPracticalGuide content={content} guide={MODEL_303_GUIDE_V1} />;
+  }
+
+  if (content.code === "347") {
+    return <FiscalModelPracticalGuide content={content} guide={MODEL_347_GUIDE_V1} />;
+  }
+
+  if (content.code === "349") {
+    return <FiscalModelPracticalGuide content={content} guide={MODEL_349_GUIDE_V1} />;
   }
 
   if (content.code === "390") {

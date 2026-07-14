@@ -30,6 +30,7 @@ const OFFICIAL_HOSTS = new Set([
   "www1.agenciatributaria.gob.es",
   "www2.agenciatributaria.gob.es",
   "www.boe.es",
+  "ec.europa.eu",
 ]);
 
 function sourceById(
