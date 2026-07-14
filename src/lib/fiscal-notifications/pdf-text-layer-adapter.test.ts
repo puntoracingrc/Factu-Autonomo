@@ -297,7 +297,7 @@ describe("fiscal notification PDF text-layer adapter", () => {
     expect(worker.activeErrorListeners()).toBe(0);
   });
 
-  it("accepts the current 1.2 R1 candidate without returning document content", async () => {
+  it("preserves a historical 1.2 R1 candidate without returning document content", async () => {
     const sourceAnalysis = r1WorkerAnalysis();
     const worker = createFakeWorker({ response: resultMessage(sourceAnalysis) });
     const output = await readFiscalNotificationPdfTextLayer(

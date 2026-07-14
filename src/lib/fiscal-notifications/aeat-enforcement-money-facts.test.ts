@@ -12,6 +12,9 @@ const ENFORCEMENT_HEADER =
   "Agencia Tributaria\nsede.agenciatributaria.gob.es\n" +
   "PROVIDENCIA DE APREMIO\n" +
   "IDENTIFICACIÓN DEL DOCUMENTO\nIMPORTE DE LA DEUDA";
+const ENFORCEMENT_STRUCTURAL_HEADER =
+  "PROVIDENCIA DE APREMIO\n" +
+  "IDENTIFICACIÓN DEL DOCUMENTO\nIMPORTE DE LA DEUDA";
 
 const COMPLETE_MONEY_BLOCK = [
   "Principal pendiente: 1.234,56 EUR",
@@ -105,6 +108,76 @@ describe("AEAT enforcement explicit money facts", () => {
       });
       expect(fact.evidence[0]).not.toHaveProperty("lineNumber");
     }
+  });
+
+  it("unlocks printed money facts for a closed structural signature without a URL", () => {
+    const result = extractAeatEnforcementMoneyFacts(
+      documentWith(`${ENFORCEMENT_STRUCTURAL_HEADER}\n${COMPLETE_MONEY_BLOCK}`),
+    );
+
+    expect(result).toMatchObject({
+      engineVersion: "1.1.0",
+      documentType: "AEAT_ENFORCEMENT_ORDER",
+      status: "REVIEW_REQUIRED",
+      outcome: "FACTS_AVAILABLE",
+      issues: [],
+    });
+    expect(result.facts).toHaveLength(4);
+  });
+
+  it("allows exactly one non-empty preamble line before the first closed label", () => {
+    const privatePreamble = "PRIVATE_TABLE_PREAMBLE_SENTINEL";
+    const result = extractAeatEnforcementMoneyFacts(
+      enforcementWith(`${privatePreamble}\n${COMPLETE_MONEY_BLOCK}`),
+    );
+
+    expect(result).toMatchObject({
+      engineVersion: "1.1.0",
+      outcome: "FACTS_AVAILABLE",
+      issues: [],
+    });
+    expect(result.facts).toHaveLength(4);
+    expect(JSON.stringify(result)).not.toContain(privatePreamble);
+  });
+
+  it("fails closed when more than one non-empty preamble line precedes the labels", () => {
+    expect(
+      extractAeatEnforcementMoneyFacts(
+        enforcementWith(`Preámbulo uno\nPreámbulo dos\n${COMPLETE_MONEY_BLOCK}`),
+      ),
+    ).toMatchObject({
+      engineVersion: "1.1.0",
+      status: "REVIEW_REQUIRED",
+      outcome: "PROCESSING_BLOCKED",
+      facts: [],
+      issues: [
+        {
+          code: "UNSUPPORTED_SECTION_PREAMBLE",
+          kind: null,
+          pageNumbers: [1],
+        },
+      ],
+    });
+  });
+
+  it("never skips an unrecognized line between closed labels", () => {
+    const result = extractAeatEnforcementMoneyFacts(
+      enforcementWith(
+        "Principal pendiente: 100,00 EUR\n" +
+          "Texto intermedio no reconocido\n" +
+          "Recargo ordinario: 20,00 EUR",
+      ),
+    );
+
+    expect(result.facts).toEqual([
+      expect.objectContaining({
+        kind: "OUTSTANDING_PRINCIPAL",
+        amountCents: 10_000,
+      }),
+    ]);
+    expect(result.facts).not.toContainEqual(
+      expect.objectContaining({ kind: "ORDINARY_ENFORCEMENT_SURCHARGE" }),
+    );
   });
 
   it.each([

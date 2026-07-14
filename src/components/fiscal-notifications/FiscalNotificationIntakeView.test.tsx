@@ -268,12 +268,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "ephemeralEnforcementMoneyFacts: ephemeralMoneyFacts",
     );
     expect(componentSource).toContain(
-      "<FiscalNotificationReviewSteps guidance={reviewGuidance} />",
+      "documentTypeRecognized={",
     );
 
     const resultIndex = componentSource.indexOf("<ReviewResult");
     const stepsIndex = componentSource.indexOf(
-      "<FiscalNotificationReviewSteps guidance={reviewGuidance} />",
+      "recognizedCandidateFrom(result) !== null",
     );
     const persistenceIndex = componentSource.indexOf(
       "<ReviewPersistencePanel",
@@ -344,6 +344,24 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(compact(componentSource)).toContain(
       "Para volver a ver importes, referencias o fechas impresas, selecciona otra vez el PDF original: esos datos no se conservan.",
     );
+    expect(componentSource).toContain(
+      "const recognizedCandidate = recognizedCandidateFrom(review.result)",
+    );
+    expect(componentSource).toContain(
+      'candidate?.recognitionPolicyVersion === "1.3.0"',
+    );
+    expect(componentSource).toContain(
+      'candidate.signalStatus === "COMPLETE_REQUIRED_ANCHORS"',
+    );
+    expect(componentSource).toContain("Clasificación histórica pendiente");
+    expect(componentSource).toContain("FAMILY_INDICATION_LABELS");
+    expect(componentSource).toContain("bg-emerald-100 text-emerald-900");
+    expect(compact(componentSource)).toContain(
+      'recognized ? "Tipo reconocido"',
+    );
+    expect(componentSource).toContain(
+      "Organismo y autenticidad no verificados",
+    );
   });
 
   it("mantiene neutral el mensaje live cuando no hay candidatos", () => {
@@ -355,20 +373,30 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
   });
 
-  it("presenta las tres familias R1 como propuestas y limita expresamente ROI", () => {
+  it("presenta las familias reconocidas sin confirmar autoridad y limita expresamente ROI", () => {
     for (const expected of [
-      "Posible diligencia de embargo de bienes inmuebles AEAT",
-      "Posible requerimiento formal de presentación AEAT",
-      "Posible acuerdo de alta en el ROI AEAT",
+      "Documento reconocido",
+      "Diligencia de embargo de bienes inmuebles",
+      "Requerimiento formal de presentación",
+      "Acuerdo de alta en el ROI",
+      "La familia documental coincide con una firma estructural cerrada. La autoridad, autenticidad, datos y efectos siguen pendientes de revisión.",
       "Un acuerdo de alta en el ROI describe el documento analizado: no demuestra que el alta siga vigente ni valida el estado en VIES.",
     ]) {
       expect(compact(componentSource)).toContain(expected);
     }
-    expect(componentSource).toContain("Revisión humana obligatoria");
+    expect(componentSource).toContain("Documento reconocido");
+    expect(componentSource).toContain("Revisa antes de actuar");
+    expect(reviewStepsSource).toContain(
+      "Comprueba los datos del documento reconocido",
+    );
+    expect(reviewStepsSource).toContain(
+      "esa comprobación no vuelve a convertir el tipo en posible",
+    );
     expect(guidanceSource).toContain(
       'materializationPolicy: "PROHIBITED_UNTIL_REVIEW"',
     );
     expect(componentSource).not.toMatch(/alta actual confirmada|VIES válido/iu);
+    expect(componentSource).not.toMatch(/Posible (?:providencia|concesión|diligencia|requerimiento|acuerdo)/u);
   });
 
   it("prohíbe red, API y acceso directo a persistencia fuera del adaptador", () => {
@@ -424,13 +452,13 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     const copy = compact(componentSource);
     for (const expected of [
       "El PDF, su texto y su nombre no se suben ni se guardan.",
-      "Toda clasificación es una propuesta, nunca una confirmación.",
+      "El tipo se reconoce por una firma cerrada; los datos y efectos siguen pendientes de revisión.",
       "Los documentos escaneados quedan pendientes de OCR.",
       "No mostramos ni conservamos el nombre del archivo. El PDF y el texto desaparecen; solo guardamos la ficha técnica si tú lo eliges.",
       "Ficha técnica guardada en este navegador para esta cuenta. No se sincroniza.",
       "Solo incluye la traza técnica de revisión; nunca el PDF, su texto, su nombre, NIF, CSV, referencias, importes, fechas impresas ni plazos.",
       "No se ha enviado a ningún proveedor y debes revisarlo manualmente.",
-      "Reconoce únicamente indicios de providencia de apremio, concesión de aplazamiento o fraccionamiento, diligencia de embargo de bienes inmuebles, requerimiento formal de presentación y acuerdo de alta en el ROI de la AEAT.",
+      "Reconoce la familia documental de providencia de apremio, concesión de aplazamiento o fraccionamiento, diligencia de embargo de bienes inmuebles, requerimiento formal de presentación y acuerdo de alta en el ROI. No confirma por sí sola el organismo emisor ni la autenticidad.",
       "Un acuerdo de alta en el ROI describe el documento analizado: no demuestra que el alta siga vigente ni valida el estado en VIES.",
       "La ficha técnica local no contiene importes, fechas jurídicas, obligado, expediente, cuotas u obligaciones.",
       "Los importes, las categorías de referencia con valor oculto y las fechas impresas se muestran solo durante la revisión actual; desaparecen al salir y nunca se guardan en la ficha técnica.",
@@ -439,9 +467,34 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     ]) {
       expect(copy).toContain(expected);
     }
-    expect(componentSource).toContain("Revisión humana obligatoria");
+    expect(componentSource).toContain("Documento reconocido");
     expect(componentSource).toContain(
       "Resultado local · pendiente de revisión",
+    );
+    expect(componentSource).toContain('"Resultado local"');
+  });
+
+  it("prioriza el tipo reconocido y mantiene la traza técnica accesible pero cerrada", () => {
+    const copy = compact(componentSource);
+    for (const expected of [
+      "Tipo de documento",
+      "Título y estructura coinciden",
+      "<details",
+      "<summary",
+      "Traza técnica",
+      'label="Motor"',
+      'label="Regla"',
+      'label="Anclas encontradas"',
+      'label="Anclas pendientes"',
+      'label="Conflictos"',
+    ]) {
+      expect(copy).toContain(expected);
+    }
+    expect(componentSource).not.toContain("Familias candidatas");
+    expect(componentSource).not.toContain("Revisión humana obligatoria");
+    expect(componentSource).not.toMatch(/<details[^>]*\sopen(?:=|\s|>)/u);
+    expect(componentSource.indexOf("</details>")).toBeLessThan(
+      componentSource.indexOf("{ephemeralMoneyFacts ?"),
     );
   });
 

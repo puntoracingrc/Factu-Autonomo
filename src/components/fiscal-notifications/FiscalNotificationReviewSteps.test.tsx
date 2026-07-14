@@ -121,6 +121,25 @@ describe("FiscalNotificationReviewSteps", () => {
     expect(html).toContain("Se abre en una pestaña nueva");
   });
 
+  it("mantiene definitivo el tipo reconocido y limita la revisión a datos y efectos", () => {
+    const html = renderToStaticMarkup(
+      createElement(FiscalNotificationReviewSteps, {
+        guidance: createGuidance({ officialContext: true }),
+        documentTypeRecognized: true,
+      }),
+    );
+
+    expect(html).toContain("Comprueba los datos del documento reconocido");
+    expect(html).toContain(
+      "esa comprobación no vuelve a convertir el tipo en posible",
+    );
+    expect(html).toContain(
+      "El tipo documental ya está identificado por su firma estructural",
+    );
+    expect(html).not.toContain("La familia mostrada es solo una candidata técnica");
+    expect(html).not.toContain("no confirma su clasificación");
+  });
+
   it("no inventa enlaces cuando la guía no aporta contexto oficial", () => {
     const html = renderToStaticMarkup(
       createElement(FiscalNotificationReviewSteps, {

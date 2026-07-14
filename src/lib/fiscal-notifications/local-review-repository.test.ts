@@ -127,6 +127,31 @@ function deferralCandidate() {
   };
 }
 
+function structuralEnforcementCandidate() {
+  return {
+    familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+    recognitionPolicyVersion: "1.3.0",
+    segmentationVersion: "1.1.0",
+    documentType: "AEAT_ENFORCEMENT_ORDER",
+    authoritySignal: "AEAT_UNVERIFIED",
+    handlerId: "aeat-enforcement-order-candidate",
+    handlerVersion: "1.0.0",
+    signalStatus: "COMPLETE_REQUIRED_ANCHORS",
+    matchedAnchors: [
+      { anchorId: "ENFORCEMENT_ORDER_TITLE", pageNumbers: [1] },
+      {
+        anchorId: "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
+        pageNumbers: [1],
+      },
+      { anchorId: "ENFORCEMENT_DEBT_AMOUNT_SECTION", pageNumbers: [1] },
+      { anchorId: "STRUCTURAL_PRIMARY_ACT_HEADER", pageNumbers: [1] },
+    ],
+    missingRequiredAnchorIds: [] as string[],
+    conflictingAnchorIds: [] as string[],
+    requiresHumanReview: true,
+  };
+}
+
 function r1Candidate(
   familyId:
     | "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE"
@@ -651,6 +676,86 @@ describe("fiscal notification safe local review repository", () => {
         ),
       ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
     }
+  });
+
+  it("persists engine 1.3 structural recognition without relabelling 1.2 history", async () => {
+    const storage = new MemoryStorage();
+    const current = reviewResult({
+      engineVersion: "1.3.0",
+      candidates: [structuralEnforcementCandidate()],
+    });
+
+    await expect(
+      repository(storage).append(
+        appendInput("review-structural-130", { result: current }),
+      ),
+    ).resolves.toMatchObject({ status: "applied" });
+    expect(repository(storage).load()).toMatchObject({
+      status: "loaded",
+      snapshot: {
+        reviews: [
+          {
+            result: {
+              engineVersion: "1.3.0",
+              candidates: [
+                expect.objectContaining({
+                  signalStatus: "COMPLETE_REQUIRED_ANCHORS",
+                  missingRequiredAnchorIds: [],
+                }),
+              ],
+            },
+          },
+        ],
+      },
+    });
+
+    const relabelled = structuredClone(current);
+    relabelled.engineVersion = "1.2.0";
+    await expect(
+      repository(new MemoryStorage()).append(
+        appendInput("review-structural-relabelled-120", {
+          result: relabelled,
+        }),
+      ),
+    ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
+
+    const historicalRelabelled = reviewResult({
+      engineVersion: "1.3.0",
+      candidates: [
+        {
+          ...deferralCandidate(),
+          segmentationVersion: "1.1.0",
+        },
+      ],
+    });
+    await expect(
+      repository(new MemoryStorage()).append(
+        appendInput("review-historical-relabelled-130", {
+          result: historicalRelabelled,
+        }),
+      ),
+    ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
+  });
+
+  it("persists a fake-host structural match only as an authority conflict", async () => {
+    const candidate = structuralEnforcementCandidate();
+    candidate.signalStatus = "CONFLICTING_AUTHORITY_OR_TERRITORY";
+    candidate.matchedAnchors.push({
+      anchorId: "CONFLICTING_AEAT_HOST_LINE",
+      pageNumbers: [1],
+    });
+    candidate.conflictingAnchorIds = ["CONFLICTING_AEAT_HOST_LINE"];
+    const result = reviewResult({
+      engineVersion: "1.3.0",
+      reason: "CONFLICTING_AUTHORITY_OR_TERRITORY",
+      candidates: [candidate],
+    });
+
+    await expect(
+      repository(new MemoryStorage()).append(
+        appendInput("review-structural-fake-host", { result }),
+      ),
+    ).resolves.toMatchObject({ status: "applied" });
   });
 
   it("accepts a current incomplete attached act but rejects it as complete", async () => {

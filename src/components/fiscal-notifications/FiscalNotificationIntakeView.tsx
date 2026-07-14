@@ -43,6 +43,7 @@ import {
 import type {
   FiscalNotificationReviewSnapshot,
   PersistedFiscalNotificationReview,
+  PersistedFiscalNotificationReviewResult,
 } from "@/lib/fiscal-notifications/local-review-repository";
 import {
   FiscalNotificationPdfError,
@@ -51,16 +52,45 @@ import {
 import { projectFiscalNotificationReviewGuidanceV1 } from "@/lib/fiscal-notifications/review-guidance.v1";
 
 const FAMILY_LABELS = {
-  AEAT_ENFORCEMENT_ORDER_CANDIDATE: "Posible providencia de apremio AEAT",
+  AEAT_ENFORCEMENT_ORDER_CANDIDATE: "Providencia de apremio",
   AEAT_DEFERRAL_GRANT_CANDIDATE:
-    "Posible concesión de aplazamiento o fraccionamiento AEAT",
+    "Concesión de aplazamiento o fraccionamiento",
   AEAT_REAL_ESTATE_SEIZURE_CANDIDATE:
-    "Posible diligencia de embargo de bienes inmuebles AEAT",
+    "Diligencia de embargo de bienes inmuebles",
   AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE:
-    "Posible requerimiento formal de presentación AEAT",
+    "Requerimiento formal de presentación",
   AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE:
-    "Posible acuerdo de alta en el ROI AEAT",
+    "Acuerdo de alta en el ROI",
 } as const;
+
+const FAMILY_INDICATION_LABELS = {
+  AEAT_ENFORCEMENT_ORDER_CANDIDATE: "Indicios de providencia de apremio",
+  AEAT_DEFERRAL_GRANT_CANDIDATE:
+    "Indicios de concesión de aplazamiento o fraccionamiento",
+  AEAT_REAL_ESTATE_SEIZURE_CANDIDATE:
+    "Indicios de diligencia de embargo de bienes inmuebles",
+  AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE:
+    "Indicios de requerimiento formal de presentación",
+  AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE:
+    "Indicios de acuerdo de alta en el ROI",
+} as const;
+
+type RecognitionResult =
+  | FiscalNotificationLocalReviewResult
+  | PersistedFiscalNotificationReviewResult;
+
+function recognizedCandidateFrom(result: RecognitionResult) {
+  const candidate = result.candidates[0];
+  return result.engineVersion === "1.3.0" &&
+    result.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
+    result.candidates.length === 1 &&
+    candidate?.recognitionPolicyVersion === "1.3.0" &&
+    candidate.signalStatus === "COMPLETE_REQUIRED_ANCHORS" &&
+    candidate.missingRequiredAnchorIds.length === 0 &&
+    candidate.conflictingAnchorIds.length === 0
+    ? candidate
+    : null;
+}
 
 const SIGNAL_LABELS = {
   COMPLETE_REQUIRED_ANCHORS: "Anclas estructurales completas",
@@ -85,9 +115,9 @@ const REASON_COPY: Readonly<
   >
 > = {
   SUPPORTED_FAMILY_CANDIDATE: {
-    title: "Posible familia reconocida",
+    title: "Documento reconocido",
     detail:
-      "El documento coincide con una estructura conocida, pero la clasificación sigue pendiente de revisión.",
+      "La familia documental coincide con una firma estructural cerrada. La autoridad, autenticidad, datos y efectos siguen pendientes de revisión.",
   },
   PARTIAL_SUPPORTED_FAMILY_SIGNAL: {
     title: "Coincidencia parcial",
@@ -210,8 +240,8 @@ export function FiscalNotificationIntakeView() {
         />
         <InfoTile
           icon={FileSearch}
-          title="Revisión obligatoria"
-          detail="Toda clasificación es una propuesta, nunca una confirmación."
+          title="Datos y efectos"
+          detail="El tipo se reconoce por una firma cerrada; los datos y efectos siguen pendientes de revisión."
         />
         <InfoTile
           icon={LockKeyhole}
@@ -260,10 +290,11 @@ export function FiscalNotificationIntakeView() {
         <h2 className="font-bold text-slate-900">Alcance de esta versión</h2>
         <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
           <li>
-            Reconoce únicamente indicios de providencia de apremio, concesión
+            Reconoce la familia documental de providencia de apremio, concesión
             de aplazamiento o fraccionamiento, diligencia de embargo de bienes
             inmuebles, requerimiento formal de presentación y acuerdo de alta
-            en el ROI de la AEAT.
+            en el ROI. No confirma por sí sola el organismo emisor ni la
+            autenticidad.
           </li>
           <li>
             Un acuerdo de alta en el ROI describe el documento analizado: no
@@ -640,7 +671,12 @@ function FiscalNotificationReviewWorkspace({
       ) : null}
       {reviewGuidance ? (
         <div className="mt-4">
-          <FiscalNotificationReviewSteps guidance={reviewGuidance} />
+          <FiscalNotificationReviewSteps
+            guidance={reviewGuidance}
+            documentTypeRecognized={
+              result ? recognizedCandidateFrom(result) !== null : false
+            }
+          />
         </div>
       ) : null}
       {result ? (
@@ -802,11 +838,20 @@ function ReviewHistoryItem({
 }: {
   review: PersistedFiscalNotificationReview;
 }) {
-  const familySummary = review.result.candidates.length
+  const recognizedCandidate = recognizedCandidateFrom(review.result);
+  const recognized = recognizedCandidate !== null;
+  const familySummary = recognizedCandidate
+    ? FAMILY_LABELS[recognizedCandidate.familyId]
+    : review.result.candidates.length
     ? review.result.candidates
-        .map((candidate) => FAMILY_LABELS[candidate.familyId])
+        .map((candidate) => FAMILY_INDICATION_LABELS[candidate.familyId])
         .join(" · ")
     : REASON_COPY[review.result.reason].detail;
+  const resultTitle = recognized
+    ? "Documento reconocido"
+    : review.result.reason === "SUPPORTED_FAMILY_CANDIDATE"
+      ? "Clasificación histórica pendiente"
+      : REASON_COPY[review.result.reason].title;
   return (
     <li className="rounded-xl border border-slate-200 p-4">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
@@ -815,18 +860,31 @@ function ReviewHistoryItem({
             Analizado {formatReviewTimestamp(review.createdAt)}
           </p>
           <h3 className="mt-1 font-bold text-slate-950">
-            {REASON_COPY[review.result.reason].title}
+            {resultTitle}
           </h3>
         </div>
-        <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
-          {review.result.status === "REVIEW_REQUIRED"
-            ? "Revisión obligatoria"
-            : "Información pendiente"}
+        <span
+          className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${
+            recognized
+              ? "bg-emerald-100 text-emerald-900"
+              : "bg-amber-100 text-amber-900"
+          }`}
+        >
+          {recognized
+            ? "Tipo reconocido"
+            : review.result.status === "REVIEW_REQUIRED"
+              ? "Revisa antes de actuar"
+              : "Información pendiente"}
         </span>
       </div>
       <p className="mt-2 text-sm leading-6 text-slate-600">
         {familySummary}
       </p>
+      {recognized ? (
+        <p className="mt-1 text-xs font-semibold text-slate-500">
+          Organismo y autenticidad no verificados
+        </p>
+      ) : null}
       <p className="mt-2 text-xs font-semibold text-slate-500">
         {review.result.pageCount} páginas · {formatBytes(review.result.byteLength)}
       </p>
@@ -861,7 +919,15 @@ function ReviewResult({
   ephemeralMoneyFacts: AeatEnforcementMoneyFactsResult | null;
   explicitFieldsReview: ExplicitFieldsReviewViewModelV1 | null;
 }) {
-  const copy = REASON_COPY[result.reason];
+  const recognizedCandidate = recognizedCandidateFrom(result);
+  const copy =
+    result.reason === "SUPPORTED_FAMILY_CANDIDATE" && !recognizedCandidate
+      ? {
+          title: "Clasificación pendiente",
+          detail:
+            "Esta ficha no contiene la firma estructural versionada necesaria para mostrar un tipo definitivo.",
+        }
+      : REASON_COPY[result.reason];
   return (
     <section
       className="mt-6"
@@ -872,7 +938,9 @@ function ReviewResult({
     >
       <Card
         className={
-          result.status === "REVIEW_REQUIRED"
+          recognizedCandidate
+            ? "border-emerald-200"
+            : result.candidates.length > 0
             ? "border-amber-200"
             : "border-blue-200"
         }
@@ -880,7 +948,9 @@ function ReviewResult({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              Resultado local · pendiente de revisión
+              {recognizedCandidate
+                ? "Resultado local"
+                : "Resultado local · pendiente de revisión"}
             </p>
             <h2
               id="notification-review-heading"
@@ -892,58 +962,43 @@ function ReviewResult({
               {copy.detail}
             </p>
           </div>
-          <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
-            Revisión humana obligatoria
+          <span
+            className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${
+              recognizedCandidate
+                ? "bg-emerald-100 text-emerald-900"
+                : "bg-amber-100 text-amber-900"
+            }`}
+          >
+            {recognizedCandidate ? "Documento reconocido" : "Revisa antes de actuar"}
           </span>
         </div>
 
-        <dl className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          <ResultFact label="Páginas" value={String(result.pageCount)} />
-          <ResultFact label="Tamaño" value={formatBytes(result.byteLength)} />
-          <ResultFact
-            label="Motor"
-            value={
-              result.engineId && result.engineVersion
-                ? `${result.engineId} · v${result.engineVersion}`
-                : "No ejecutado"
-            }
-          />
-        </dl>
-
-        {result.candidates.length ? (
-          <div className="mt-5 space-y-3">
-            <h3 className="font-bold text-slate-900">
-              Familias candidatas
+        {recognizedCandidate ? (
+          <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+              Tipo de documento
+            </p>
+            <h3 className="mt-1 text-lg font-bold text-emerald-950">
+              {FAMILY_LABELS[recognizedCandidate.familyId]}
             </h3>
+            <p className="mt-1 text-sm font-semibold text-emerald-900">
+              Título y estructura coinciden
+            </p>
+          </div>
+        ) : result.candidates.length ? (
+          <div className="mt-5 space-y-3">
+            <h3 className="font-bold text-slate-900">Coincidencias documentales</h3>
             {result.candidates.map((candidate) => (
               <article
                 key={candidate.familyId}
                 className="rounded-xl border border-slate-200 p-4"
               >
                 <h4 className="font-bold text-slate-900">
-                  {FAMILY_LABELS[candidate.familyId]}
+                  {FAMILY_INDICATION_LABELS[candidate.familyId]}
                 </h4>
                 <p className="mt-1 text-sm text-slate-600">
                   {SIGNAL_LABELS[candidate.signalStatus]}
                 </p>
-                <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
-                  <ResultFact
-                    label="Regla candidata"
-                    value={`${candidate.handlerId} · v${candidate.handlerVersion}`}
-                  />
-                  <ResultFact
-                    label="Anclas encontradas"
-                    value={String(candidate.matchedAnchors.length)}
-                  />
-                  <ResultFact
-                    label="Anclas pendientes"
-                    value={String(candidate.missingRequiredAnchorIds.length)}
-                  />
-                  <ResultFact
-                    label="Conflictos"
-                    value={String(candidate.conflictingAnchorIds.length)}
-                  />
-                </dl>
               </article>
             ))}
           </div>
@@ -953,6 +1008,44 @@ function ReviewResult({
             ninguna entidad ni se toma ninguna acción automática.
           </div>
         )}
+
+        <details className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <summary className="cursor-pointer font-bold text-slate-900">
+            Traza técnica
+          </summary>
+          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <ResultFact label="Páginas" value={String(result.pageCount)} />
+            <ResultFact label="Tamaño" value={formatBytes(result.byteLength)} />
+            <ResultFact
+              label="Motor"
+              value={
+                result.engineId && result.engineVersion
+                  ? `${result.engineId} · v${result.engineVersion}`
+                  : "No ejecutado"
+              }
+            />
+            {result.candidates.map((candidate) => (
+              <div key={candidate.familyId} className="contents">
+                <ResultFact
+                  label="Regla"
+                  value={`${candidate.handlerId} · v${candidate.handlerVersion}`}
+                />
+                <ResultFact
+                  label="Anclas encontradas"
+                  value={String(candidate.matchedAnchors.length)}
+                />
+                <ResultFact
+                  label="Anclas pendientes"
+                  value={String(candidate.missingRequiredAnchorIds.length)}
+                />
+                <ResultFact
+                  label="Conflictos"
+                  value={String(candidate.conflictingAnchorIds.length)}
+                />
+              </div>
+            ))}
+          </dl>
+        </details>
 
         {ephemeralMoneyFacts ? (
           <EphemeralMoneyFactsPanel result={ephemeralMoneyFacts} />

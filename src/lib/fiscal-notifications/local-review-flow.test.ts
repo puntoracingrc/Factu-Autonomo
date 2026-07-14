@@ -161,7 +161,7 @@ describe("fiscal notification local review flow", () => {
       status: "REVIEW_REQUIRED",
       reason: "SUPPORTED_FAMILY_CANDIDATE",
       engineId: "fiscal-notification-family-candidate-engine",
-      engineVersion: "1.2.0",
+      engineVersion: "1.3.0",
       pageCount: 1,
       byteLength: 2_048,
       sha256: HASH,
@@ -227,7 +227,7 @@ describe("fiscal notification local review flow", () => {
       const analysis = await analyzeEphemeralForTest({}, dependencies(text));
       expect(analysis).toMatchObject({
         technicalReview: {
-          engineVersion: "1.2.0",
+          engineVersion: "1.3.0",
           status: "REVIEW_REQUIRED",
           reason: "SUPPORTED_FAMILY_CANDIDATE",
           candidates: [
@@ -275,6 +275,7 @@ describe("fiscal notification local review flow", () => {
         retainedSourceContent: "NONE",
       },
       ephemeralEnforcementMoneyFacts: {
+        engineVersion: "1.1.0",
         status: "REVIEW_REQUIRED",
         outcome: "FACTS_AVAILABLE",
         selectedPaymentAmountKind: null,
@@ -317,6 +318,53 @@ describe("fiscal notification local review flow", () => {
       true,
     );
     expect(Object.isFrozen(analysis.technicalReview)).toBe(true);
+  });
+
+  it("propagates recognized structural documents and their ephemeral data without a URL", async () => {
+    const text = [
+      "PROVIDENCIA DE APREMIO",
+      "IDENTIFICACION DEL DOCUMENTO",
+      "IMPORTE DE LA DEUDA",
+      "Cabecera de importes",
+      "Principal pendiente: 100,00 EUR",
+      `Referencia del documento: ${PRIVATE_TEXT}`,
+      "Fecha de emisión: 05/07/2026",
+    ].join("\n");
+
+    const analysis = await analyzeEphemeralForTest({}, dependencies(text));
+
+    expect(analysis).toMatchObject({
+      technicalReview: {
+        engineVersion: "1.3.0",
+        reason: "SUPPORTED_FAMILY_CANDIDATE",
+        candidates: [
+          expect.objectContaining({
+            authoritySignal: "AEAT_UNVERIFIED",
+            missingRequiredAnchorIds: [],
+          }),
+        ],
+      },
+      ephemeralEnforcementMoneyFacts: {
+        engineVersion: "1.1.0",
+        outcome: "FACTS_AVAILABLE",
+        facts: [
+          expect.objectContaining({
+            kind: "OUTSTANDING_PRINCIPAL",
+            amountCents: 10_000,
+          }),
+        ],
+      },
+      ephemeralEnforcementExplicitFields: {
+        outcome: "FACTS_AVAILABLE",
+        referenceDetections: [
+          expect.objectContaining({ kind: "DOCUMENT_REFERENCE" }),
+        ],
+        printedDateFacts: [
+          expect.objectContaining({ calendarDate: "2026-07-05" }),
+        ],
+      },
+    });
+    expect(JSON.stringify(analysis)).not.toContain(PRIVATE_TEXT);
   });
 
   it("does not attach the enforcement reader to an unsupported family", async () => {

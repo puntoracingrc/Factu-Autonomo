@@ -19,6 +19,11 @@ import type {
   FiscalNotificationFamilyCandidate,
 } from "./extraction-contract";
 import { FISCAL_NOTIFICATION_INPUT_LIMITS } from "./input-contract";
+import {
+  FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS,
+  expectedMissingRecognitionAnchors,
+  recognitionAnchorIdsForEngine,
+} from "./recognition-policy.v1";
 
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_SCHEMA_VERSION =
   2 as const;
@@ -47,6 +52,7 @@ export interface FiscalNotificationPdfWorkerAnchor {
 
 export interface FiscalNotificationPdfWorkerCandidate {
   readonly familyId: FiscalNotificationFamilyCandidate["familyId"];
+  readonly recognitionPolicyVersion?: "1.3.0";
   readonly segmentationVersion?: "1.0.0" | "1.1.0";
   readonly documentType: FiscalNotificationFamilyCandidate["documentType"];
   readonly authoritySignal: "AEAT_UNVERIFIED";
@@ -62,7 +68,7 @@ export interface FiscalNotificationPdfWorkerCandidate {
 export interface FiscalNotificationPdfWorkerFamilyAnalysis {
   readonly schemaVersion: 1;
   readonly engineId: "fiscal-notification-family-candidate-engine";
-  readonly engineVersion: "1.1.0" | "1.2.0";
+  readonly engineVersion: "1.1.0" | "1.2.0" | "1.3.0";
   readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";
   readonly reason: FiscalNotificationExtractionReason;
   readonly candidates: readonly FiscalNotificationPdfWorkerCandidate[];
@@ -141,6 +147,10 @@ const HISTORICAL_CANDIDATE_KEYS = new Set([
 const TRACED_CANDIDATE_KEYS = new Set([
   ...HISTORICAL_CANDIDATE_KEYS,
   "segmentationVersion",
+]);
+const CURRENT_CANDIDATE_KEYS = new Set([
+  ...TRACED_CANDIDATE_KEYS,
+  "recognitionPolicyVersion",
 ]);
 const ANCHOR_KEYS = new Set(["anchorId", "pageNumbers"]);
 const MONEY_KEYS = new Set([
@@ -240,6 +250,7 @@ const ANCHOR_IDS = new Set<FiscalNotificationAnchorId>([
   "AEAT_AUTHORITY_LABEL",
   "AEAT_OFFICIAL_DOMAIN_LABEL",
   "STRUCTURAL_FIRST_PAGE_HEADER",
+  "STRUCTURAL_PRIMARY_ACT_HEADER",
   "ENFORCEMENT_ORDER_TITLE",
   "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
   "ENFORCEMENT_DEBT_AMOUNT_SECTION",
@@ -258,6 +269,7 @@ const ANCHOR_IDS = new Set<FiscalNotificationAnchorId>([
   "CONFLICTING_TERRITORY_FORAL",
   "CONFLICTING_TERRITORY_REGIONAL",
   "CONFLICTING_TERRITORY_CEUTA_MELILLA",
+  "CONFLICTING_AEAT_HOST_LINE",
   "CONFLICTING_NON_DOCUMENT_GUIDE",
 ]);
 const MONEY_KINDS = new Set<AeatEnforcementMoneyFactKind>([
@@ -274,6 +286,7 @@ const MONEY_ISSUE_CODES = new Set<AeatEnforcementMoneyIssueCode>([
   "INVALID_AMOUNT_FORMAT",
   "DUPLICATE_AMOUNT_SECTION",
   "DUPLICATE_MONEY_LABEL",
+  "UNSUPPORTED_SECTION_PREAMBLE",
   "SECTION_SCAN_LIMIT_EXCEEDED",
   "UNSUPPORTED_TEXT_STATE",
 ]);
@@ -434,6 +447,7 @@ const CONFLICTING_ANCHORS = new Set<FiscalNotificationAnchorId>([
   "CONFLICTING_TERRITORY_FORAL",
   "CONFLICTING_TERRITORY_REGIONAL",
   "CONFLICTING_TERRITORY_CEUTA_MELILLA",
+  "CONFLICTING_AEAT_HOST_LINE",
   "CONFLICTING_NON_DOCUMENT_GUIDE",
 ]);
 
@@ -449,6 +463,9 @@ export function projectFiscalNotificationPdfWorkerAnalysis(
         reason: input.familyAnalysis.reason,
         candidates: input.familyAnalysis.candidates.map((candidate) => ({
           familyId: candidate.familyId,
+          ...(candidate.recognitionPolicyVersion === undefined
+            ? {}
+            : { recognitionPolicyVersion: candidate.recognitionPolicyVersion }),
           ...(candidate.segmentationVersion === undefined
             ? {}
             : { segmentationVersion: candidate.segmentationVersion }),
@@ -594,7 +611,8 @@ function parseFamilyAnalysis(
     family.schemaVersion !== 1 ||
     family.engineId !== "fiscal-notification-family-candidate-engine" ||
     (family.engineVersion !== "1.1.0" &&
-      family.engineVersion !== "1.2.0") ||
+      family.engineVersion !== "1.2.0" &&
+      family.engineVersion !== "1.3.0") ||
     (family.status !== "REVIEW_REQUIRED" &&
       family.status !== "INFORMATION_PENDING") ||
     !REASONS.has(family.reason as FiscalNotificationExtractionReason) ||
@@ -652,11 +670,17 @@ function parseCandidate(
     candidate,
     "segmentationVersion",
   );
+  const hasRecognitionPolicyVersion = Object.prototype.hasOwnProperty.call(
+    candidate,
+    "recognitionPolicyVersion",
+  );
   assertKnownKeys(
     candidate,
-    hasSegmentationVersion
-      ? TRACED_CANDIDATE_KEYS
-      : HISTORICAL_CANDIDATE_KEYS,
+    hasRecognitionPolicyVersion
+      ? CURRENT_CANDIDATE_KEYS
+      : hasSegmentationVersion
+        ? TRACED_CANDIDATE_KEYS
+        : HISTORICAL_CANDIDATE_KEYS,
   );
   const definition =
     typeof candidate.familyId === "string"
@@ -666,11 +690,17 @@ function parseCandidate(
       : undefined;
   if (
     !definition ||
-    (engineVersion === "1.2.0"
-      ? candidate.segmentationVersion !== "1.1.0"
-      : hasSegmentationVersion && candidate.segmentationVersion !== "1.0.0") ||
+    (engineVersion === "1.3.0"
+      ? candidate.segmentationVersion !== "1.1.0" ||
+        candidate.recognitionPolicyVersion !== "1.3.0"
+      : engineVersion === "1.2.0"
+      ? candidate.segmentationVersion !== "1.1.0" ||
+        hasRecognitionPolicyVersion
+      : hasRecognitionPolicyVersion ||
+        (hasSegmentationVersion && candidate.segmentationVersion !== "1.0.0")) ||
     (definition.minimumEngineVersion === "1.2.0" &&
-      engineVersion !== "1.2.0") ||
+      engineVersion !== "1.2.0" &&
+      engineVersion !== "1.3.0") ||
     candidate.documentType !== definition.documentType ||
     candidate.authoritySignal !== "AEAT_UNVERIFIED" ||
     candidate.handlerId !== definition.handlerId ||
@@ -721,6 +751,9 @@ function parseCandidate(
   return Object.freeze({
     familyId:
       candidate.familyId as FiscalNotificationPdfWorkerCandidate["familyId"],
+    ...(hasRecognitionPolicyVersion
+      ? { recognitionPolicyVersion: "1.3.0" as const }
+      : {}),
     ...(hasSegmentationVersion
       ? {
           segmentationVersion:
@@ -752,7 +785,8 @@ function parseMoneyFacts(
   if (
     result.schemaVersion !== 1 ||
     result.engineId !== "aeat-enforcement-money-facts" ||
-    result.engineVersion !== "1.0.0" ||
+    (result.engineVersion !== "1.0.0" &&
+      result.engineVersion !== "1.1.0") ||
     result.documentType !== "AEAT_ENFORCEMENT_ORDER" ||
     (result.status !== "REVIEW_REQUIRED" &&
       result.status !== "INFORMATION_PENDING") ||
@@ -860,7 +894,9 @@ function parseMoneyFacts(
     const identity = `${code}:${kind ?? "NONE"}`;
     if (
       kindRequired === (kind === null) ||
-      seenIssues.has(identity)
+      seenIssues.has(identity) ||
+      (code === "UNSUPPORTED_SECTION_PREAMBLE" &&
+        result.engineVersion !== "1.1.0")
     ) {
       throw new FiscalNotificationPdfWorkerAnalysisError();
     }
@@ -889,7 +925,7 @@ function parseMoneyFacts(
   return Object.freeze({
     schemaVersion: 1 as const,
     engineId: "aeat-enforcement-money-facts" as const,
-    engineVersion: "1.0.0" as const,
+    engineVersion: result.engineVersion as "1.0.0" | "1.1.0",
     documentType: "AEAT_ENFORCEMENT_ORDER" as const,
     status: result.status as AeatEnforcementMoneyFactsResult["status"],
     outcome: result.outcome as AeatEnforcementMoneyFactsResult["outcome"],
@@ -1339,16 +1375,24 @@ function assertCandidateTrace(
   conflicting: readonly FiscalNotificationAnchorId[],
 ): void {
   const definition = CANDIDATE_DEFINITIONS[familyId];
-  const required = definition.requiredAnchors;
   const matchedIds = new Set(matchedAnchors.map((anchor) => anchor.anchorId));
   const missingSet = new Set(missing);
   const conflictingSet = new Set(conflicting);
+  const recognitionAnchors = recognitionAnchorIdsForEngine(
+    familyId,
+    engineVersion,
+  );
   const allowedMatched = new Set<FiscalNotificationAnchorId>([
-    ...required,
+    ...recognitionAnchors,
     ...definition.optionalAnchors,
     "AEAT_AUTHORITY_LABEL",
     ...CONFLICTING_ANCHORS,
   ]);
+  const expectedMissing = expectedMissingRecognitionAnchors(
+    familyId,
+    engineVersion,
+    matchedIds,
+  );
   if (
     matchedAnchors.some(
       (anchor) =>
@@ -1358,22 +1402,30 @@ function assertCandidateTrace(
     ) ||
     missing.some(
       (anchorId) =>
-        !(required as readonly FiscalNotificationAnchorId[]).includes(anchorId) ||
-        matchedIds.has(anchorId),
+        !recognitionAnchors.has(anchorId) || matchedIds.has(anchorId),
     ) ||
     conflicting.some(
       (anchorId) =>
         !CONFLICTING_ANCHORS.has(anchorId) || !matchedIds.has(anchorId),
     ) ||
-    required.some(
-      (anchorId) =>
-        matchedIds.has(anchorId) === missingSet.has(anchorId),
-    )
+    !sameStringSet(expectedMissing, [...missingSet]) ||
+    (engineVersion !== "1.3.0" &&
+      matchedAnchors.some((anchor) =>
+        FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS.includes(
+          anchor.anchorId as (typeof FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS)[number],
+        ),
+      ))
   ) {
     throw new FiscalNotificationPdfWorkerAnalysisError();
   }
   const structuralHeader = matchedAnchors.find(
     (anchor) => anchor.anchorId === "STRUCTURAL_FIRST_PAGE_HEADER",
+  );
+  const primaryActHeader = matchedAnchors.find(
+    (anchor) => anchor.anchorId === "STRUCTURAL_PRIMARY_ACT_HEADER",
+  );
+  const conflictingHost = matchedAnchors.find(
+    (anchor) => anchor.anchorId === "CONFLICTING_AEAT_HOST_LINE",
   );
   const officialDomain = matchedAnchors.find(
     (anchor) => anchor.anchorId === "AEAT_OFFICIAL_DOMAIN_LABEL",
@@ -1385,23 +1437,39 @@ function assertCandidateTrace(
   if (
     !familyTitle ||
     (definition.minimumEngineVersion === "1.2.0" &&
-      engineVersion !== "1.2.0") ||
+      engineVersion !== "1.2.0" &&
+      engineVersion !== "1.3.0") ||
     familyTitle.pageNumbers.length !== 1 ||
     titlePageNumber === undefined ||
     (officialDomain &&
       (officialDomain.pageNumbers.length !== 1 ||
         officialDomain.pageNumbers[0] !== titlePageNumber)) ||
     (titlePageNumber > 1 &&
-      (signalStatus !== "INCOMPLETE_REQUIRED_ANCHORS" || structuralHeader)) ||
+      (signalStatus !== "INCOMPLETE_REQUIRED_ANCHORS" ||
+        structuralHeader ||
+        primaryActHeader)) ||
     (signalStatus === "COMPLETE_REQUIRED_ANCHORS" && titlePageNumber !== 1) ||
     (structuralHeader &&
       (structuralHeader.pageNumbers.length !== 1 ||
         structuralHeader.pageNumbers[0] !== 1 ||
         !officialDomain?.pageNumbers.includes(1) ||
-        !familyTitle?.pageNumbers.includes(1)))
+        !familyTitle?.pageNumbers.includes(1))) ||
+    (primaryActHeader &&
+      (primaryActHeader.pageNumbers.length !== 1 ||
+        primaryActHeader.pageNumbers[0] !== 1 ||
+        !familyTitle.pageNumbers.includes(1))) ||
+    (conflictingHost &&
+      (conflictingHost.pageNumbers.length !== 1 ||
+        conflictingHost.pageNumbers[0] !== titlePageNumber))
   ) {
     throw new FiscalNotificationPdfWorkerAnalysisError();
   }
+}
+
+function sameStringSet(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) return false;
+  const rightSet = new Set(right);
+  return left.every((value) => rightSet.has(value));
 }
 
 function assertMoneySemantics(
@@ -1459,6 +1527,7 @@ function assertMoneySemantics(
       facts.length === 0 &&
       issues.length === 1 &&
       (issues[0]?.code === "INVALID_AMOUNT_FORMAT" ||
+        issues[0]?.code === "UNSUPPORTED_SECTION_PREAMBLE" ||
         issues[0]?.code === "SECTION_SCAN_LIMIT_EXCEEDED"));
   if (!valid) {
     throw new FiscalNotificationPdfWorkerAnalysisError();

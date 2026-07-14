@@ -169,6 +169,35 @@ describe("AEAT enforcement explicit printed fields v1", () => {
     );
   });
 
+  it("extracts redacted fields and printed dates from a closed signature without a URL", () => {
+    const structuralHeader = [
+      "PROVIDENCIA DE APREMIO",
+      "IDENTIFICACIÓN DEL DOCUMENTO",
+      "IMPORTE DE LA DEUDA",
+    ];
+    const result = extractAeatEnforcementExplicitFieldsV1(
+      documentWith([[...structuralHeader, ...completeFieldLines()].join("\n")]),
+    );
+
+    expect(result).toMatchObject({
+      documentType: "AEAT_ENFORCEMENT_ORDER",
+      status: "REVIEW_REQUIRED",
+      outcome: "FACTS_AVAILABLE",
+      referenceDetections: expect.arrayContaining([
+        expect.objectContaining({ kind: "DOCUMENT_REFERENCE" }),
+        expect.objectContaining({ kind: "LIQUIDATION_KEY" }),
+      ]),
+      printedDateFacts: expect.arrayContaining([
+        expect.objectContaining({
+          kind: "PRINTED_ISSUE_DATE",
+          calendarDate: "2026-02-05",
+        }),
+      ]),
+    });
+    expect(result.retainedReferenceValues).toBe("NONE");
+    expect(result.calculatedDeadline).toBeNull();
+  });
+
   it("redacts reference values before the returned projection exists", () => {
     const result = extractAeatEnforcementExplicitFieldsV1(
       enforcementWith(...completeFieldLines()),

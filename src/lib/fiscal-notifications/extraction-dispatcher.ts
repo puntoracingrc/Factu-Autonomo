@@ -23,6 +23,7 @@ import {
   type FiscalNotificationPrimaryActSegmentV1,
   type FiscalNotificationPrimaryActTitleAnchorId,
 } from "./primary-act-segmentation.v1";
+import { expectedMissingRecognitionAnchors } from "./recognition-policy.v1";
 
 type AnchorMatchMode =
   | "LINE_EXACT"
@@ -45,6 +46,8 @@ interface PrivateTextIndex {
     readonly pageNumber: number;
     /** Ephemeral only. This type and its builders are intentionally private. */
     readonly normalizedLines: readonly string[];
+    /** Ephemeral only. Retains punctuation solely for bounded hostname parsing. */
+    readonly sourceLines: readonly string[];
   }[];
   readonly extractablePageCount: number;
   /** Page whose header scopes PAGE_ONE/HEADER match modes for this segment. */
@@ -443,10 +446,19 @@ function evaluateFamilyCandidate(
     uniqueTitleAnchorId,
     signal,
   );
+  const primaryActHeader = collectPrimaryActHeaderEvidence(
+    index,
+    requiredAnchors,
+    uniqueTitleAnchorId,
+    signal,
+  );
   const matchedConflicts = dedupeAnchorEvidence(
-    COMMON_CONFLICTING_ANCHORS.map((definition) =>
-      collectClosedAnchorEvidence(index, definition, signal),
-    ).filter((item) => item !== null),
+    [
+      ...COMMON_CONFLICTING_ANCHORS.map((definition) =>
+        collectClosedAnchorEvidence(index, definition, signal),
+      ),
+      collectConflictingAeatHostEvidence(index, signal),
+    ].filter((item) => item !== null),
   );
   const matchedOptional = dedupeAnchorEvidence(
     [...COMMON_OPTIONAL_AUTHORITY_ANCHORS, ...familyOptionalAnchors].map((definition) =>
@@ -456,13 +468,14 @@ function evaluateFamilyCandidate(
   const matchedIds = new Set([
     ...matchedRequired.map((item) => item.anchorId),
     ...(structuralHeader ? [structuralHeader.anchorId] : []),
+    ...(primaryActHeader ? [primaryActHeader.anchorId] : []),
+    ...matchedOptional.map((item) => item.anchorId),
   ]);
-  const missingRequiredAnchorIds = [
-    ...new Set([
-      ...requiredAnchors.map((definition) => definition.anchorId),
-      "STRUCTURAL_FIRST_PAGE_HEADER" as const,
-    ]),
-  ].filter((anchorId) => !matchedIds.has(anchorId));
+  const missingRequiredAnchorIds = expectedMissingRecognitionAnchors(
+    identity.familyId,
+    FISCAL_NOTIFICATION_EXTRACTION_ENGINE_VERSION,
+    matchedIds,
+  );
   const conflictingAnchorIds = [
     ...new Set(matchedConflicts.map((item) => item.anchorId)),
   ];
@@ -472,6 +485,7 @@ function evaluateFamilyCandidate(
 
   return Object.freeze({
     ...identity,
+    recognitionPolicyVersion: "1.3.0",
     segmentationVersion,
     authoritySignal: "AEAT_UNVERIFIED",
     handlerVersion: "1.0.0",
@@ -486,6 +500,7 @@ function evaluateFamilyCandidate(
     matchedAnchors: Object.freeze([
       ...matchedRequired,
       ...(structuralHeader ? [structuralHeader] : []),
+      ...(primaryActHeader ? [primaryActHeader] : []),
       ...matchedOptional,
       ...matchedConflicts,
     ]),
@@ -523,6 +538,112 @@ function collectStructuralHeaderEvidence(
   });
 }
 
+function collectPrimaryActHeaderEvidence(
+  index: PrivateTextIndex,
+  requiredAnchors: readonly ClosedTextAnchorDefinition[],
+  titleAnchorId: FiscalNotificationPrimaryActTitleAnchorId,
+  signal?: AbortSignal,
+): FiscalNotificationAnchorEvidence | null {
+  if (index.headerPageNumber !== 1) return null;
+  const firstPage = index.pages.find((page) => page.pageNumber === 1);
+  const titleDefinition = requiredAnchors.find(
+    (definition) => definition.anchorId === titleAnchorId,
+  );
+  if (
+    !firstPage ||
+    !titleDefinition ||
+    !matchesClosedDefinition(
+      firstPage.normalizedLines.slice(0, HEADER_LINE_LIMIT),
+      titleDefinition,
+      signal,
+    )
+  ) {
+    return null;
+  }
+  return Object.freeze({
+    anchorId: "STRUCTURAL_PRIMARY_ACT_HEADER",
+    pageNumbers: Object.freeze([1]),
+  });
+}
+
+function collectConflictingAeatHostEvidence(
+  index: PrivateTextIndex,
+  signal?: AbortSignal,
+): FiscalNotificationAnchorEvidence | null {
+  const titlePage = index.pages.find(
+    (page) => page.pageNumber === index.headerPageNumber,
+  );
+  if (!titlePage) return null;
+  for (const line of titlePage.sourceLines) {
+    assertNotAborted(signal);
+    if (hasConflictingAeatHostname(line, signal)) {
+      return Object.freeze({
+        anchorId: "CONFLICTING_AEAT_HOST_LINE",
+        pageNumbers: Object.freeze([titlePage.pageNumber]),
+      });
+    }
+  }
+  return null;
+}
+
+const AEAT_OFFICIAL_HOSTNAME = "sede.agenciatributaria.gob.es";
+const AEAT_HOST_TOKEN_EDGE_PATTERN = /^[\s\p{Ps}\p{Pi}\p{P}]+|[\s\p{Pe}\p{Pf}\p{P}]+$/gu;
+
+function hasConflictingAeatHostname(
+  line: string,
+  signal?: AbortSignal,
+): boolean {
+  for (const rawToken of line.split(/\s+/u)) {
+    assertNotAborted(signal);
+    const decodedToken = decodeUrlComponentSafely(rawToken).toLocaleLowerCase(
+      "en-US",
+    );
+    if (
+      !decodedToken.includes(AEAT_OFFICIAL_HOSTNAME)
+    ) {
+      continue;
+    }
+    const token = rawToken.replace(AEAT_HOST_TOKEN_EDGE_PATTERN, "");
+    if (token.length === 0) continue;
+    const parsed = parsePotentialAeatUrl(token);
+    if (!parsed) continue;
+    const hostname = parsed.hostname.toLocaleLowerCase("en-US").replace(/\.$/u, "");
+    const username = decodeUrlComponentSafely(parsed.username).toLocaleLowerCase("en-US");
+    const password = decodeUrlComponentSafely(parsed.password).toLocaleLowerCase("en-US");
+    const officialTree =
+      hostname === AEAT_OFFICIAL_HOSTNAME ||
+      hostname.endsWith(`.${AEAT_OFFICIAL_HOSTNAME}`);
+    if (
+      (!officialTree && hostname.includes(AEAT_OFFICIAL_HOSTNAME)) ||
+      (!officialTree && username.includes(AEAT_OFFICIAL_HOSTNAME)) ||
+      (!officialTree && password.includes(AEAT_OFFICIAL_HOSTNAME))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function parsePotentialAeatUrl(token: string): URL | null {
+  try {
+    const value = /^https?:\/\//iu.test(token) ? token : `https://${token}`;
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:"
+      ? parsed
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function decodeUrlComponentSafely(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 function dedupeAnchorEvidence(
   evidence: readonly FiscalNotificationAnchorEvidence[],
 ): readonly FiscalNotificationAnchorEvidence[] {
@@ -548,6 +669,7 @@ function createPrivateTextIndex(value: unknown): PrivateTextIndexResult {
   const pages: Array<{
     pageNumber: number;
     normalizedLines: readonly string[];
+    sourceLines: readonly string[];
   }> = [];
   let extractablePageCount = 0;
   let normalizedCharCount = 0;
@@ -577,6 +699,7 @@ function createPrivateTextIndex(value: unknown): PrivateTextIndexResult {
     pages.push({
       pageNumber: page.pageNumber,
       normalizedLines: normalizedPage.lines,
+      sourceLines: normalizedPage.sourceLines,
     });
   }
   assertNotAborted(input.signal);
@@ -589,6 +712,7 @@ function createPrivateTextIndex(value: unknown): PrivateTextIndexResult {
           Object.freeze({
             pageNumber: page.pageNumber,
             normalizedLines: page.normalizedLines,
+            sourceLines: page.sourceLines,
           }),
         ),
       ),
@@ -607,6 +731,7 @@ function normalizePageLinesBounded(
   | {
       readonly valid: true;
       readonly lines: readonly string[];
+      readonly sourceLines: readonly string[];
       readonly normalizedCharCount: number;
       readonly observedLineCount: number;
     }
@@ -617,6 +742,7 @@ function normalizePageLinesBounded(
         | "TEXT_LINE_LIMIT_EXCEEDED";
     } {
   const lines: string[] = [];
+  const sourceLines: string[] = [];
   let start = 0;
   let observedLineCount = 0;
   let normalizedCharCount = 0;
@@ -626,14 +752,18 @@ function normalizePageLinesBounded(
     if (observedLineCount > remainingLines) {
       return "TEXT_LINE_LIMIT_EXCEEDED" as const;
     }
+    const sourceLine = text.slice(start, end);
     const normalized = normalizeLineBounded(
-      text.slice(start, end),
+      sourceLine,
       remainingChars - normalizedCharCount,
       signal,
     );
     if (!normalized.valid) return normalized.reason;
     normalizedCharCount += normalized.value.length;
-    if (normalized.value.length > 0) lines.push(normalized.value);
+    if (normalized.value.length > 0) {
+      lines.push(normalized.value);
+      sourceLines.push(sourceLine);
+    }
     return null;
   };
 
@@ -654,6 +784,7 @@ function normalizePageLinesBounded(
   return Object.freeze({
     valid: true as const,
     lines: Object.freeze(lines),
+    sourceLines: Object.freeze(sourceLines),
     normalizedCharCount,
     observedLineCount,
   });

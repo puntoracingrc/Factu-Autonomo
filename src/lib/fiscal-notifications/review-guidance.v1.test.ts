@@ -85,7 +85,12 @@ describe("review guidance v1", () => {
   });
 
   it("accepts historical and current candidate-engine versions but rejects unknown versions", () => {
-    for (const engineVersion of ["1.0.0", "1.1.0", "1.2.0"] as const) {
+    for (const engineVersion of [
+      "1.0.0",
+      "1.1.0",
+      "1.2.0",
+      "1.3.0",
+    ] as const) {
       const candidate = completeDeferralCandidate();
       expect(
         projectFiscalNotificationReviewGuidanceV1(
@@ -96,6 +101,9 @@ describe("review guidance v1", () => {
                 ? candidate
                 : {
                     ...candidate,
+                    ...(engineVersion === "1.3.0"
+                      ? { recognitionPolicyVersion: "1.3.0" as const }
+                      : {}),
                     segmentationVersion:
                       engineVersion === "1.1.0" ? "1.0.0" : "1.1.0",
                   },
@@ -117,7 +125,7 @@ describe("review guidance v1", () => {
         ...current,
         technicalReview: {
           ...current.technicalReview,
-          engineVersion: "1.3.0",
+          engineVersion: "9.9.9" as FiscalNotificationLocalReviewResult["engineVersion"],
         },
       }),
     ).toMatchObject({
@@ -125,6 +133,48 @@ describe("review guidance v1", () => {
       candidateContext: null,
       officialProcedureContexts: [],
     });
+
+    const relabelledHistorical = analysisInput({
+      engineVersion: "1.3.0",
+      candidates: [
+        {
+          ...completeDeferralCandidate(),
+          segmentationVersion: "1.1.0",
+        },
+      ],
+    });
+    expect(
+      projectFiscalNotificationReviewGuidanceV1(relabelledHistorical),
+    ).toMatchObject({ projectionStatus: "GUIDANCE_BLOCKED" });
+  });
+
+  it("projects review guidance for an engine 1.3 structural match without asserting authority", () => {
+    const result = projectFiscalNotificationReviewGuidanceV1(
+      analysisInput({
+        engineVersion: "1.3.0",
+        candidates: [structuralEnforcementCandidate()],
+        money: {
+          ...moneyResult("FACTS_AVAILABLE"),
+          engineVersion: "1.1.0",
+        },
+      }),
+    );
+
+    expect(result).toMatchObject({
+      projectionStatus: "GUIDANCE_AVAILABLE",
+      candidateContext: {
+        familyId: "collection.enforcement_order",
+        classificationPolicy: "CANDIDATE_CONTEXT_ONLY",
+      },
+      requiresHumanReview: true,
+      materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+    });
+    expect(result.steps).toContainEqual(
+      expect.objectContaining({
+        id: "VERIFY_DOCUMENT_RECIPIENT_AND_AUTHORITY",
+        state: "MANUAL_REVIEW_REQUIRED",
+      }),
+    );
   });
 
   it("fails closed on cross-version segmentation traces", () => {
@@ -730,6 +780,23 @@ function completeEnforcementCandidate(): FiscalNotificationLocalReviewCandidate 
     ],
     [],
   );
+}
+
+function structuralEnforcementCandidate(): FiscalNotificationLocalReviewCandidate {
+  return {
+    ...candidate(
+      "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+      [
+        "ENFORCEMENT_ORDER_TITLE",
+        "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
+        "ENFORCEMENT_DEBT_AMOUNT_SECTION",
+        "STRUCTURAL_PRIMARY_ACT_HEADER",
+      ],
+      [],
+    ),
+    recognitionPolicyVersion: "1.3.0",
+    segmentationVersion: "1.1.0",
+  };
 }
 
 function completeDeferralCandidate(): FiscalNotificationLocalReviewCandidate {
