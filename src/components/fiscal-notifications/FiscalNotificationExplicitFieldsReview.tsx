@@ -1,8 +1,8 @@
 import { createElement } from "react";
-import type { ExplicitFieldsReviewViewModelV1 } from "@/lib/fiscal-notifications/explicit-fields-review-view-model.v1";
+import type { ExplicitFieldsReviewViewModelV2 } from "@/lib/fiscal-notifications/explicit-fields-review-view-model.v2";
 
 export interface FiscalNotificationExplicitFieldsReviewProps {
-  readonly viewModel: ExplicitFieldsReviewViewModelV1;
+  readonly viewModel: ExplicitFieldsReviewViewModelV2;
 }
 
 const h = createElement;
@@ -99,7 +99,7 @@ export function FiscalNotificationExplicitFieldsReview({
           h(
             "p",
             { className: "mt-1 text-sm leading-6 text-blue-900" },
-            "Solo mostramos la categoría y dónde aparece. El valor se ocultó dentro del lector local y no se conserva.",
+            "Mostramos el valor tal como se ha leído en el PDF. Es efímero, no se guarda y debe revisarse antes de confirmarlo.",
           ),
           h(
             "dl",
@@ -122,8 +122,11 @@ export function FiscalNotificationExplicitFieldsReview({
                 ),
                 h(
                   "dd",
-                  { className: "mt-1 font-bold text-slate-950" },
-                  category.detectionLabel,
+                  {
+                    className:
+                      "mt-1 break-words font-bold text-slate-950",
+                  },
+                  category.printedValue,
                 ),
                 h(
                   "dd",
@@ -131,7 +134,7 @@ export function FiscalNotificationExplicitFieldsReview({
                     className:
                       "mt-1 text-xs font-semibold text-slate-500",
                   },
-                  `${occurrenceLabel(category.occurrenceCount)} · ${pagesLabel(category.pageNumbers)} · revisión obligatoria`,
+                  `${category.meaningLabel} · ${occurrenceLabel(category.occurrenceCount)} · ${pagesLabel(category.pageNumbers)}`,
                 ),
               ),
             ),
@@ -168,8 +171,11 @@ export function FiscalNotificationExplicitFieldsReview({
                 ),
                 h(
                   "dd",
-                  { className: "mt-1 text-lg font-bold text-slate-950" },
-                  h("time", { dateTime: date.dateTime }, date.displayDate),
+                  {
+                    className:
+                      "mt-1 break-words text-lg font-bold text-slate-950",
+                  },
+                  h("time", { dateTime: date.dateTime }, date.printedValue),
                 ),
                 h(
                   "dd",

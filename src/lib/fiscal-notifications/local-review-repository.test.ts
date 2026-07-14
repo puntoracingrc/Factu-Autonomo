@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { extractAeatEnforcementExplicitFieldsV1 } from "./aeat-enforcement-explicit-fields.v1";
+import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
 import { DISABLED_FISCAL_NOTIFICATION_OCR_PORT } from "./disabled-ocr-port";
 import { FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM } from "./local-review-flow";
 import { projectFiscalNotificationPdfWorkerAnalysis } from "./pdf-worker-analysis-contract";
@@ -333,8 +333,8 @@ describe("fiscal notification safe local review repository", () => {
       {
         readPdf: async () =>
           Object.freeze({
-            schemaVersion: 3 as const,
-            adapterVersion: "3.0.0" as const,
+            schemaVersion: 4 as const,
+            adapterVersion: "4.0.0" as const,
             status: "TEXT_LAYER_AVAILABLE" as const,
             sourceContentPolicy:
               "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
@@ -453,7 +453,7 @@ describe("fiscal notification safe local review repository", () => {
                 retainedSourceContent: "NONE" as const,
               }),
               enforcementExplicitFields:
-                extractAeatEnforcementExplicitFieldsV1(Object.freeze({
+                extractAeatEnforcementExplicitFieldsV2(Object.freeze({
                   ownerScope: OWNER_A,
                   documentId: "document:synthetic-round-trip",
                   pages: Object.freeze([
@@ -483,9 +483,8 @@ describe("fiscal notification safe local review repository", () => {
       },
     );
     const actual = analysis.technicalReview;
-    expect(JSON.stringify(analysis)).not.toContain(
-      "PRIVATE_REFERENCE_SENTINEL",
-    );
+    expect(JSON.stringify(analysis)).toContain("PRIVATE_REFERENCE_SENTINEL");
+    expect(JSON.stringify(actual)).not.toContain("PRIVATE_REFERENCE_SENTINEL");
 
     const storage = new MemoryStorage();
     await expect(
@@ -507,6 +506,7 @@ describe("fiscal notification safe local review repository", () => {
     expect(serialized).not.toContain("PRIVATE_DOCUMENT_TEXT_SENTINEL");
     expect(serialized).not.toContain("amountCents");
     expect(serialized).not.toContain("ephemeralEnforcementMoneyFacts");
+    expect(serialized).not.toContain("PRIVATE_REFERENCE_SENTINEL");
   });
 
   it("accepts historical and current engine versions but rejects a historical trace relabelled current", async () => {

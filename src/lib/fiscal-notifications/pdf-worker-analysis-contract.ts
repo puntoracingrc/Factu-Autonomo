@@ -5,13 +5,10 @@ import {
   type AeatEnforcementMoneyIssueCode,
 } from "./aeat-enforcement-money-facts";
 import {
-  AEAT_ENFORCEMENT_EXPLICIT_FIELDS_LIMITS_V1,
-  type AeatEnforcementExplicitFieldIssueCodeV1,
-  type AeatEnforcementExplicitFieldKindV1,
-  type AeatEnforcementExplicitFieldsV1,
-  type AeatEnforcementPrintedDateKindV1,
-  type AeatEnforcementReferenceKindV1,
-} from "./aeat-enforcement-explicit-fields.v1";
+  AEAT_ENFORCEMENT_EXPLICIT_FIELDS_LIMITS_V2,
+  parseAeatEnforcementExplicitFieldsV2,
+  type AeatEnforcementExplicitFieldsV2,
+} from "./aeat-enforcement-explicit-fields.v2";
 import type {
   FiscalNotificationAnchorId,
   FiscalNotificationExtractionReason,
@@ -26,9 +23,9 @@ import {
 } from "./recognition-policy.v1";
 
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_SCHEMA_VERSION =
-  2 as const;
+  3 as const;
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_VERSION =
-  "2.0.0" as const;
+  "3.0.0" as const;
 
 export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_LIMITS = Object.freeze({
   maxCandidates: 5,
@@ -36,12 +33,12 @@ export const FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_LIMITS = Object.freeze({
   maxFacts: 4,
   maxEvidencePerFact: 1,
   maxIssues: 8,
-  maxReferenceDetections:
-    AEAT_ENFORCEMENT_EXPLICIT_FIELDS_LIMITS_V1.maxReferenceDetections,
+  maxReferenceFacts:
+    AEAT_ENFORCEMENT_EXPLICIT_FIELDS_LIMITS_V2.maxReferenceFacts,
   maxPrintedDateFacts:
-    AEAT_ENFORCEMENT_EXPLICIT_FIELDS_LIMITS_V1.maxPrintedDateFacts,
+    AEAT_ENFORCEMENT_EXPLICIT_FIELDS_LIMITS_V2.maxPrintedDateFacts,
   maxExplicitFieldIssues:
-    AEAT_ENFORCEMENT_EXPLICIT_FIELDS_LIMITS_V1.maxIssues,
+    AEAT_ENFORCEMENT_EXPLICIT_FIELDS_LIMITS_V2.maxIssues,
   maxPageNumbersPerItem: FISCAL_NOTIFICATION_INPUT_LIMITS.maxPages,
 } as const);
 
@@ -79,13 +76,13 @@ export interface FiscalNotificationPdfWorkerFamilyAnalysis {
 }
 
 export interface FiscalNotificationPdfWorkerAnalysis {
-  readonly schemaVersion: 2;
-  readonly analysisVersion: "2.0.0";
+  readonly schemaVersion: 3;
+  readonly analysisVersion: "3.0.0";
   readonly textLayerStatus: "TEXT_LAYER_AVAILABLE" | "NO_EXTRACTABLE_TEXT";
   readonly pageCount: number;
   readonly familyAnalysis: FiscalNotificationPdfWorkerFamilyAnalysis | null;
   readonly enforcementMoneyFacts: AeatEnforcementMoneyFactsResult | null;
-  readonly enforcementExplicitFields: AeatEnforcementExplicitFieldsV1 | null;
+  readonly enforcementExplicitFields: AeatEnforcementExplicitFieldsV2 | null;
   readonly sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST";
   readonly requiresHumanReview: true;
   readonly materializationPolicy: "PROHIBITED_UNTIL_REVIEW";
@@ -97,7 +94,7 @@ export interface ProjectFiscalNotificationPdfWorkerAnalysisInput {
   readonly pageCount: number;
   readonly familyAnalysis: FiscalNotificationExtractionResult | null;
   readonly enforcementMoneyFacts: AeatEnforcementMoneyFactsResult | null;
-  readonly enforcementExplicitFields: AeatEnforcementExplicitFieldsV1 | null;
+  readonly enforcementExplicitFields: AeatEnforcementExplicitFieldsV2 | null;
 }
 
 export class FiscalNotificationPdfWorkerAnalysisError extends Error {
@@ -183,55 +180,6 @@ const EVIDENCE_KEYS = new Set([
   "assertionType",
 ]);
 const ISSUE_KEYS = new Set(["code", "kind", "pageNumbers"]);
-const EXPLICIT_FIELDS_KEYS = new Set([
-  "schemaVersion",
-  "engineId",
-  "engineVersion",
-  "documentType",
-  "status",
-  "outcome",
-  "referenceDetections",
-  "printedDateFacts",
-  "issues",
-  "semanticPolicy",
-  "referenceValuePolicy",
-  "vtoPolicy",
-  "dateMeaningPolicy",
-  "deadlinePolicy",
-  "calculatedDeadline",
-  "legalRuleStatus",
-  "retainedReferenceValues",
-  "retainedSourceContent",
-  "requiresHumanReview",
-  "materializationPolicy",
-]);
-const REFERENCE_DETECTION_KEYS = new Set([
-  "kind",
-  "occurrenceCount",
-  "pageNumbers",
-  "evidenceLabel",
-  "extractionMethod",
-  "assertionType",
-  "valueDisclosure",
-  "reviewStatus",
-]);
-const PRINTED_DATE_FACT_KEYS = new Set([
-  "kind",
-  "calendarDate",
-  "occurrenceCount",
-  "pageNumbers",
-  "evidenceLabel",
-  "extractionMethod",
-  "assertionType",
-  "dateMeaning",
-  "legalEffect",
-  "reviewStatus",
-]);
-const EXPLICIT_FIELD_ISSUE_KEYS = new Set([
-  "code",
-  "fieldKind",
-  "pageNumbers",
-]);
 
 const REASONS = new Set<FiscalNotificationExtractionReason>([
   "SUPPORTED_FAMILY_CANDIDATE",
@@ -290,56 +238,6 @@ const MONEY_ISSUE_CODES = new Set<AeatEnforcementMoneyIssueCode>([
   "SECTION_SCAN_LIMIT_EXCEEDED",
   "UNSUPPORTED_TEXT_STATE",
 ]);
-const REFERENCE_KINDS = Object.freeze([
-  "LIQUIDATION_KEY",
-  "DOCUMENT_REFERENCE",
-  "PAYMENT_JUSTIFICANTE",
-  "CSV",
-  "VTO_RAW",
-] as const satisfies readonly AeatEnforcementReferenceKindV1[]);
-const PRINTED_DATE_KINDS = Object.freeze([
-  "PRINTED_ISSUE_DATE",
-  "PRINTED_SIGNATURE_DATE",
-  "PRINTED_VOLUNTARY_PERIOD_END_DATE",
-] as const satisfies readonly AeatEnforcementPrintedDateKindV1[]);
-const EXPLICIT_FIELD_KINDS = Object.freeze([
-  ...REFERENCE_KINDS,
-  ...PRINTED_DATE_KINDS,
-] as const satisfies readonly AeatEnforcementExplicitFieldKindV1[]);
-const REFERENCE_KIND_SET = new Set<AeatEnforcementReferenceKindV1>(
-  REFERENCE_KINDS,
-);
-const PRINTED_DATE_KIND_SET = new Set<AeatEnforcementPrintedDateKindV1>(
-  PRINTED_DATE_KINDS,
-);
-const EXPLICIT_FIELD_KIND_SET = new Set<AeatEnforcementExplicitFieldKindV1>(
-  EXPLICIT_FIELD_KINDS,
-);
-const EXPLICIT_FIELD_ISSUE_CODES =
-  new Set<AeatEnforcementExplicitFieldIssueCodeV1>([
-    "FAMILY_GATE_NOT_SATISFIED",
-    "NO_CLOSED_LABEL_MATCH",
-    "LABEL_WITHOUT_VALUE",
-    "INVALID_REFERENCE_VALUE",
-    "INVALID_PRINTED_DATE",
-    "MULTIPLE_DISTINCT_REFERENCE_VALUES",
-    "MULTIPLE_DISTINCT_PRINTED_DATES",
-    "FIELD_SCAN_LIMIT_EXCEEDED",
-    "UNSUPPORTED_TEXT_STATE",
-  ]);
-const REFERENCE_EVIDENCE_LABEL_BY_KIND = Object.freeze({
-  LIQUIDATION_KEY: "LIQUIDATION_KEY_LABEL",
-  DOCUMENT_REFERENCE: "DOCUMENT_REFERENCE_LABEL",
-  PAYMENT_JUSTIFICANTE: "PAYMENT_JUSTIFICANTE_LABEL",
-  CSV: "CSV_LABEL",
-  VTO_RAW: "VTO_RAW_LABEL",
-} as const);
-const PRINTED_DATE_EVIDENCE_LABEL_BY_KIND = Object.freeze({
-  PRINTED_ISSUE_DATE: "PRINTED_ISSUE_DATE_LABEL",
-  PRINTED_SIGNATURE_DATE: "PRINTED_SIGNATURE_DATE_LABEL",
-  PRINTED_VOLUNTARY_PERIOD_END_DATE:
-    "PRINTED_VOLUNTARY_PERIOD_END_DATE_LABEL",
-} as const);
 const EVIDENCE_LABEL_BY_KIND = Object.freeze({
   OUTSTANDING_PRINCIPAL: "OUTSTANDING_PRINCIPAL_LABEL",
   ORDINARY_ENFORCEMENT_SURCHARGE:
@@ -510,8 +408,8 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
     const envelope = snapshotRecord(value);
     assertKnownKeys(envelope, ENVELOPE_KEYS);
     if (
-      envelope.schemaVersion !== 2 ||
-      envelope.analysisVersion !== "2.0.0" ||
+      envelope.schemaVersion !== 3 ||
+      envelope.analysisVersion !== "3.0.0" ||
       (envelope.textLayerStatus !== "TEXT_LAYER_AVAILABLE" &&
         envelope.textLayerStatus !== "NO_EXTRACTABLE_TEXT") ||
       !isBoundedPageCount(envelope.pageCount) ||
@@ -577,14 +475,20 @@ export function parseFiscalNotificationPdfWorkerAnalysis(
     const enforcementExplicitFields =
       envelope.enforcementExplicitFields === null
         ? null
-        : parseEnforcementExplicitFields(
+        : parseAeatEnforcementExplicitFieldsV2(
             envelope.enforcementExplicitFields,
             pageCount,
           );
+    if (
+      enforcementExplicitFields !== null &&
+      enforcementExplicitFields.documentType !== "AEAT_ENFORCEMENT_ORDER"
+    ) {
+      throw new FiscalNotificationPdfWorkerAnalysisError();
+    }
 
     return Object.freeze({
-      schemaVersion: 2 as const,
-      analysisVersion: "2.0.0" as const,
+      schemaVersion: 3 as const,
+      analysisVersion: "3.0.0" as const,
       textLayerStatus: envelope.textLayerStatus,
       pageCount,
       familyAnalysis,
@@ -938,362 +842,6 @@ function parseMoneyFacts(
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
     retainedSourceContent: "NONE",
   });
-}
-
-function parseEnforcementExplicitFields(
-  value: unknown,
-  pageCount: number,
-): AeatEnforcementExplicitFieldsV1 {
-  const result = snapshotRecord(value);
-  assertKnownKeys(result, EXPLICIT_FIELDS_KEYS);
-  if (
-    result.schemaVersion !== 1 ||
-    result.engineId !== "aeat-enforcement-explicit-fields" ||
-    result.engineVersion !== "1.0.0" ||
-    result.documentType !== "AEAT_ENFORCEMENT_ORDER" ||
-    (result.status !== "REVIEW_REQUIRED" &&
-      result.status !== "INFORMATION_PENDING") ||
-    (result.outcome !== "FACTS_AVAILABLE" &&
-      result.outcome !== "INFORMATION_PENDING" &&
-      result.outcome !== "AMBIGUOUS" &&
-      result.outcome !== "PROCESSING_BLOCKED") ||
-    result.semanticPolicy !== "EXPLICIT_PRINTED_FIELDS_ONLY" ||
-    result.referenceValuePolicy !== "REDACT_BEFORE_WORKER_RESPONSE" ||
-    result.vtoPolicy !== "RAW_IDENTIFIER_NOT_DATE_OR_INSTALLMENT" ||
-    result.dateMeaningPolicy !== "PRINTED_LABEL_ONLY_NO_LEGAL_EFFECT" ||
-    result.deadlinePolicy !== "NOT_CALCULATED" ||
-    result.calculatedDeadline !== null ||
-    result.legalRuleStatus !== "NOT_APPLIED" ||
-    result.retainedReferenceValues !== "NONE" ||
-    result.retainedSourceContent !== "NONE" ||
-    result.requiresHumanReview !== true ||
-    result.materializationPolicy !== "PROHIBITED_UNTIL_REVIEW"
-  ) {
-    throw new FiscalNotificationPdfWorkerAnalysisError();
-  }
-
-  let totalOccurrences = 0;
-  let previousReferenceIndex = -1;
-  const referenceValues = snapshotArray(
-    result.referenceDetections,
-    FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_LIMITS.maxReferenceDetections,
-  );
-  const referenceDetections = referenceValues.map((item) => {
-    const detection = snapshotRecord(item);
-    assertKnownKeys(detection, REFERENCE_DETECTION_KEYS);
-    if (!REFERENCE_KIND_SET.has(detection.kind as AeatEnforcementReferenceKindV1)) {
-      throw new FiscalNotificationPdfWorkerAnalysisError();
-    }
-    const kind = detection.kind as AeatEnforcementReferenceKindV1;
-    const kindIndex = REFERENCE_KINDS.indexOf(kind);
-    if (kindIndex <= previousReferenceIndex) {
-      throw new FiscalNotificationPdfWorkerAnalysisError();
-    }
-    previousReferenceIndex = kindIndex;
-    const occurrenceCount = parseExplicitOccurrenceCount(
-      detection.occurrenceCount,
-    );
-    totalOccurrences += occurrenceCount;
-    if (
-      totalOccurrences >
-      AEAT_ENFORCEMENT_EXPLICIT_FIELDS_LIMITS_V1.maxOccurrencesTotal
-    ) {
-      throw new FiscalNotificationPdfWorkerAnalysisError();
-    }
-    const pageNumbers = parsePageNumbers(
-      detection.pageNumbers,
-      pageCount,
-      false,
-    );
-    if (
-      pageNumbers.length > occurrenceCount ||
-      detection.evidenceLabel !== REFERENCE_EVIDENCE_LABEL_BY_KIND[kind] ||
-      detection.extractionMethod !== "RULE" ||
-      detection.assertionType !== "EXPLICIT_IN_DOCUMENT" ||
-      detection.valueDisclosure !== "REDACTED_IN_WORKER" ||
-      detection.reviewStatus !== "REVIEW_REQUIRED"
-    ) {
-      throw new FiscalNotificationPdfWorkerAnalysisError();
-    }
-    return Object.freeze({
-      kind,
-      occurrenceCount,
-      pageNumbers,
-      evidenceLabel: REFERENCE_EVIDENCE_LABEL_BY_KIND[kind],
-      extractionMethod: "RULE" as const,
-      assertionType: "EXPLICIT_IN_DOCUMENT" as const,
-      valueDisclosure: "REDACTED_IN_WORKER" as const,
-      reviewStatus: "REVIEW_REQUIRED" as const,
-    });
-  });
-
-  let previousDateIndex = -1;
-  const dateValues = snapshotArray(
-    result.printedDateFacts,
-    FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_LIMITS.maxPrintedDateFacts,
-  );
-  const printedDateFacts = dateValues.map((item) => {
-    const fact = snapshotRecord(item);
-    assertKnownKeys(fact, PRINTED_DATE_FACT_KEYS);
-    if (!PRINTED_DATE_KIND_SET.has(fact.kind as AeatEnforcementPrintedDateKindV1)) {
-      throw new FiscalNotificationPdfWorkerAnalysisError();
-    }
-    const kind = fact.kind as AeatEnforcementPrintedDateKindV1;
-    const kindIndex = PRINTED_DATE_KINDS.indexOf(kind);
-    if (kindIndex <= previousDateIndex || !isCalendarDate(fact.calendarDate)) {
-      throw new FiscalNotificationPdfWorkerAnalysisError();
-    }
-    previousDateIndex = kindIndex;
-    const occurrenceCount = parseExplicitOccurrenceCount(fact.occurrenceCount);
-    totalOccurrences += occurrenceCount;
-    if (
-      totalOccurrences >
-      AEAT_ENFORCEMENT_EXPLICIT_FIELDS_LIMITS_V1.maxOccurrencesTotal
-    ) {
-      throw new FiscalNotificationPdfWorkerAnalysisError();
-    }
-    const pageNumbers = parsePageNumbers(
-      fact.pageNumbers,
-      pageCount,
-      false,
-    );
-    if (
-      pageNumbers.length > occurrenceCount ||
-      fact.evidenceLabel !== PRINTED_DATE_EVIDENCE_LABEL_BY_KIND[kind] ||
-      fact.extractionMethod !== "RULE" ||
-      fact.assertionType !== "EXPLICIT_IN_DOCUMENT" ||
-      fact.dateMeaning !== "PRINTED_LABEL_ONLY" ||
-      fact.legalEffect !== "NOT_DETERMINED" ||
-      fact.reviewStatus !== "REVIEW_REQUIRED"
-    ) {
-      throw new FiscalNotificationPdfWorkerAnalysisError();
-    }
-    return Object.freeze({
-      kind,
-      calendarDate: fact.calendarDate as string,
-      occurrenceCount,
-      pageNumbers,
-      evidenceLabel: PRINTED_DATE_EVIDENCE_LABEL_BY_KIND[kind],
-      extractionMethod: "RULE" as const,
-      assertionType: "EXPLICIT_IN_DOCUMENT" as const,
-      dateMeaning: "PRINTED_LABEL_ONLY" as const,
-      legalEffect: "NOT_DETERMINED" as const,
-      reviewStatus: "REVIEW_REQUIRED" as const,
-    });
-  });
-
-  const issueValues = snapshotArray(
-    result.issues,
-    FISCAL_NOTIFICATION_PDF_WORKER_ANALYSIS_LIMITS.maxExplicitFieldIssues,
-  );
-  const seenIssueKinds = new Set<string>();
-  const issues = issueValues.map((item) => {
-    const issueValue = snapshotRecord(item);
-    assertKnownKeys(issueValue, EXPLICIT_FIELD_ISSUE_KEYS);
-    if (
-      !EXPLICIT_FIELD_ISSUE_CODES.has(
-        issueValue.code as AeatEnforcementExplicitFieldIssueCodeV1,
-      ) ||
-      (issueValue.fieldKind !== null &&
-        !EXPLICIT_FIELD_KIND_SET.has(
-          issueValue.fieldKind as AeatEnforcementExplicitFieldKindV1,
-        ))
-    ) {
-      throw new FiscalNotificationPdfWorkerAnalysisError();
-    }
-    const code =
-      issueValue.code as AeatEnforcementExplicitFieldIssueCodeV1;
-    const fieldKind =
-      issueValue.fieldKind as AeatEnforcementExplicitFieldKindV1 | null;
-    const identity = fieldKind ?? "GLOBAL";
-    if (seenIssueKinds.has(identity)) {
-      throw new FiscalNotificationPdfWorkerAnalysisError();
-    }
-    seenIssueKinds.add(identity);
-    const pageNumbers = parsePageNumbers(
-      issueValue.pageNumbers,
-      pageCount,
-      code === "FAMILY_GATE_NOT_SATISFIED" ||
-        code === "NO_CLOSED_LABEL_MATCH" ||
-        code === "UNSUPPORTED_TEXT_STATE",
-    );
-    assertExplicitFieldIssueShape(code, fieldKind, pageNumbers);
-    return Object.freeze({ code, fieldKind, pageNumbers });
-  });
-
-  assertExplicitFieldsSemantics(
-    result.status as AeatEnforcementExplicitFieldsV1["status"],
-    result.outcome as AeatEnforcementExplicitFieldsV1["outcome"],
-    referenceDetections,
-    printedDateFacts,
-    issues,
-  );
-  return Object.freeze({
-    schemaVersion: 1 as const,
-    engineId: "aeat-enforcement-explicit-fields" as const,
-    engineVersion: "1.0.0" as const,
-    documentType: "AEAT_ENFORCEMENT_ORDER" as const,
-    status: result.status as AeatEnforcementExplicitFieldsV1["status"],
-    outcome: result.outcome as AeatEnforcementExplicitFieldsV1["outcome"],
-    referenceDetections: Object.freeze(referenceDetections),
-    printedDateFacts: Object.freeze(printedDateFacts),
-    issues: Object.freeze(issues),
-    semanticPolicy: "EXPLICIT_PRINTED_FIELDS_ONLY" as const,
-    referenceValuePolicy: "REDACT_BEFORE_WORKER_RESPONSE" as const,
-    vtoPolicy: "RAW_IDENTIFIER_NOT_DATE_OR_INSTALLMENT" as const,
-    dateMeaningPolicy: "PRINTED_LABEL_ONLY_NO_LEGAL_EFFECT" as const,
-    deadlinePolicy: "NOT_CALCULATED" as const,
-    calculatedDeadline: null,
-    legalRuleStatus: "NOT_APPLIED" as const,
-    retainedReferenceValues: "NONE" as const,
-    retainedSourceContent: "NONE" as const,
-    requiresHumanReview: true as const,
-    materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,
-  });
-}
-
-function parseExplicitOccurrenceCount(value: unknown): number {
-  if (
-    !Number.isSafeInteger(value) ||
-    Number(value) < 1 ||
-    Number(value) >
-      AEAT_ENFORCEMENT_EXPLICIT_FIELDS_LIMITS_V1.maxOccurrencesPerKind
-  ) {
-    throw new FiscalNotificationPdfWorkerAnalysisError();
-  }
-  return Number(value);
-}
-
-function assertExplicitFieldIssueShape(
-  code: AeatEnforcementExplicitFieldIssueCodeV1,
-  fieldKind: AeatEnforcementExplicitFieldKindV1 | null,
-  pageNumbers: readonly number[],
-): void {
-  const isReferenceKind =
-    fieldKind !== null &&
-    REFERENCE_KIND_SET.has(fieldKind as AeatEnforcementReferenceKindV1);
-  const isDateKind =
-    fieldKind !== null &&
-    PRINTED_DATE_KIND_SET.has(fieldKind as AeatEnforcementPrintedDateKindV1);
-  const valid =
-    ((code === "FAMILY_GATE_NOT_SATISFIED" ||
-      code === "UNSUPPORTED_TEXT_STATE") &&
-      fieldKind === null &&
-      pageNumbers.length === 0) ||
-    (code === "NO_CLOSED_LABEL_MATCH" &&
-      fieldKind !== null &&
-      pageNumbers.length === 0) ||
-    (code === "LABEL_WITHOUT_VALUE" &&
-      fieldKind !== null &&
-      pageNumbers.length > 0) ||
-    ((code === "INVALID_REFERENCE_VALUE" ||
-      code === "MULTIPLE_DISTINCT_REFERENCE_VALUES") &&
-      isReferenceKind &&
-      pageNumbers.length > 0) ||
-    ((code === "INVALID_PRINTED_DATE" ||
-      code === "MULTIPLE_DISTINCT_PRINTED_DATES") &&
-      isDateKind &&
-      pageNumbers.length > 0) ||
-    (code === "FIELD_SCAN_LIMIT_EXCEEDED" && pageNumbers.length > 0);
-  if (!valid) throw new FiscalNotificationPdfWorkerAnalysisError();
-}
-
-function assertExplicitFieldsSemantics(
-  status: AeatEnforcementExplicitFieldsV1["status"],
-  outcome: AeatEnforcementExplicitFieldsV1["outcome"],
-  referenceDetections: AeatEnforcementExplicitFieldsV1["referenceDetections"],
-  printedDateFacts: AeatEnforcementExplicitFieldsV1["printedDateFacts"],
-  issues: AeatEnforcementExplicitFieldsV1["issues"],
-): void {
-  const facts = new Set<AeatEnforcementExplicitFieldKindV1>([
-    ...referenceDetections.map((item) => item.kind),
-    ...printedDateFacts.map((item) => item.kind),
-  ]);
-  const issueByKind = new Map(
-    issues.flatMap((item) =>
-      item.fieldKind === null ? [] : [[item.fieldKind, item] as const],
-    ),
-  );
-  const onlyPendingIssues = issues.every(
-    (item) =>
-      item.code === "NO_CLOSED_LABEL_MATCH" ||
-      item.code === "LABEL_WITHOUT_VALUE",
-  );
-  const completeCoverage = EXPLICIT_FIELD_KINDS.every((kind) => {
-    const hasFact = facts.has(kind);
-    const pending = issueByKind.get(kind);
-    return hasFact ? pending === undefined : pending !== undefined;
-  });
-  const issuesInCanonicalOrder = issues.every((item, index) => {
-    if (item.fieldKind === null) return issues.length === 1;
-    if (index === 0) return true;
-    const previous = issues[index - 1]?.fieldKind;
-    return (
-      previous !== null &&
-      previous !== undefined &&
-      EXPLICIT_FIELD_KINDS.indexOf(previous) <
-        EXPLICIT_FIELD_KINDS.indexOf(item.fieldKind)
-    );
-  });
-  const factCount = referenceDetections.length + printedDateFacts.length;
-  const blockingCode = issues[0]?.code;
-  const valid =
-    (outcome === "FACTS_AVAILABLE" &&
-      status === "REVIEW_REQUIRED" &&
-      factCount > 0 &&
-      onlyPendingIssues &&
-      completeCoverage &&
-      issuesInCanonicalOrder) ||
-    (outcome === "INFORMATION_PENDING" &&
-      status === "INFORMATION_PENDING" &&
-      factCount === 0 &&
-      issues.length === EXPLICIT_FIELD_KINDS.length &&
-      onlyPendingIssues &&
-      completeCoverage &&
-      issuesInCanonicalOrder) ||
-    (outcome === "AMBIGUOUS" &&
-      status === "REVIEW_REQUIRED" &&
-      factCount === 0 &&
-      issues.length === 1 &&
-      (blockingCode === "MULTIPLE_DISTINCT_REFERENCE_VALUES" ||
-        blockingCode === "MULTIPLE_DISTINCT_PRINTED_DATES")) ||
-    (outcome === "PROCESSING_BLOCKED" &&
-      status === "REVIEW_REQUIRED" &&
-      factCount === 0 &&
-      issues.length === 1 &&
-      (blockingCode === "INVALID_REFERENCE_VALUE" ||
-        blockingCode === "INVALID_PRINTED_DATE" ||
-        blockingCode === "FIELD_SCAN_LIMIT_EXCEEDED"));
-  if (!valid) throw new FiscalNotificationPdfWorkerAnalysisError();
-}
-
-function isCalendarDate(value: unknown): value is string {
-  if (typeof value !== "string") return false;
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value);
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  if (
-    !Number.isSafeInteger(year) ||
-    !Number.isSafeInteger(month) ||
-    !Number.isSafeInteger(day) ||
-    year < 1 ||
-    month < 1 ||
-    month > 12 ||
-    day < 1
-  ) {
-    return false;
-  }
-  const daysInMonth =
-    month === 2
-      ? year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)
-        ? 29
-        : 28
-      : month === 4 || month === 6 || month === 9 || month === 11
-        ? 30
-        : 31;
-  return day <= daysInMonth;
 }
 
 function assertFamilySemantics(

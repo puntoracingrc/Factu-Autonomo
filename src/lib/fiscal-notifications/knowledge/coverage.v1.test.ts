@@ -101,7 +101,7 @@ describe("fiscal notification knowledge coverage v1", () => {
       "utf8",
     );
     expect(manual).toContain(
-      "puede mostrar durante la revisión importes, categorías de referencias con su valor oculto y fechas",
+      "puede mostrar durante la revisión importes, valores exactos de referencias y fechas",
     );
     expect(manual).toContain("todo ello es efímero y no se guarda");
     expect(manual).toContain(
