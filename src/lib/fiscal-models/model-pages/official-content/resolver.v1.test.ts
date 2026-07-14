@@ -219,6 +219,24 @@ const EXPECTED_CODES = [
   "795",
   "796",
   "797",
+  "798",
+  "840",
+  "848",
+  "901",
+  "933",
+  "952",
+  "980",
+  "981",
+  "990",
+  "991",
+  "992",
+  "993",
+  "995",
+  "996",
+  "997",
+  "A22",
+  "A23",
+  "A24",
 ];
 
 const EXPECTED_BATCH_11_NAMES = {
@@ -420,13 +438,44 @@ const EXPECTED_BATCH_17_NAMES = {
     "Autoliquidación de la aportación a realizar por los prestadores del servicio de comunicación audiovisual televisivo y por los prestadores del servicio de intercambio de vídeos a través de plataforma de ámbito geográfico estatal o superior al de una Comunidad Autónoma.",
   "793":
     "Pagos a cuenta de la aportación a realizar por los prestadores del servicio de comunicación audiovisual televisivo y por los prestadores del servicio de intercambio de vídeos a través de plataforma de ámbito geográfico estatal o superior al de una Comunidad Autónoma.",
-  "795": "Gravamen temporal energético. Declaración del ingreso de la prestación",
+  "795":
+    "Gravamen temporal energético. Declaración del ingreso de la prestación",
   "796": "Gravamen temporal energético. Pago anticipado",
   "797":
     "Gravamen temporal de entidades de crédito y establecimientos financieros de crédito. Declaración del ingreso de la prestación.",
 } as const;
 
 const EXPECTED_BATCH_17_CODES = new Set(Object.keys(EXPECTED_BATCH_17_NAMES));
+const EXPECTED_BATCH_18_NAMES = {
+  "798":
+    "Gravamen temporal de entidades de crédito y establecimientos financieros de crédito. Pago anticipado",
+  "840":
+    "IAE. Declaración de alta, variación o baja en el Impuesto sobre Actividades Económicas",
+  "848": "IAE. Comunicación del importe neto de la cifra de negocios",
+  "901":
+    "Información de las CC. AA. sobre datos consignados en el certificado de eficiencia energética",
+  "933":
+    "Información de las CC. AA. sobre guarderías y centros de educación infantil autorizados",
+  "952":
+    "IVA. Comunicación de la modificación de la base imponible en supuestos de concurso y por crédito incobrable",
+  "980":
+    "Información de los intereses de demora pagados a los contribuyentes por las CC. AA.",
+  "981":
+    "Suministro de información sobre la prestación por maternidad/paternidad",
+  "990":
+    "Información mensual de las CC. AA. sobre familias numerosas o con personas con discapacidad a cargo",
+  "991":
+    "Declaración informativa de fianzas derivadas del arrendamiento de inmuebles",
+  "992": "Tributos cedidos sobre el Juego de Comunidades Autónomas",
+  "993": "Control de deducciones autonómicas",
+  "995": "Cesión de Información Urbanística por Entidades Locales",
+  "996": "Embargo de devoluciones gestionadas por la AEAT",
+  "997": "Embargo de pagos presupuestarios de otras Administraciones Públicas",
+  A22: "Impuesto especial sobre los envases de plástico no reutilizables. Solicitud de devolución",
+  A23: "Impuesto sobre los Gases Fluorados de Efecto Invernadero. Solicitud de devolución",
+  A24: "II. EE. Solicitud de devolución del impuesto sobre líquidos para cigarrillos electrónicos y otros productos relacionados con el tabaco",
+} as const;
+const EXPECTED_BATCH_18_CODES = new Set(Object.keys(EXPECTED_BATCH_18_NAMES));
 
 describe("public AEAT official model content v1", () => {
   it("publishes exactly the reviewed official-content catalog", () => {
@@ -434,7 +483,7 @@ describe("public AEAT official model content v1", () => {
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(211);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(229);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
@@ -451,10 +500,12 @@ describe("public AEAT official model content v1", () => {
           entry.code === "797"
             ? "HISTORICAL"
             : "UNDETERMINED",
-        reviewedOn: EXPECTED_BATCH_16_CODES.has(entry.code) ||
-          EXPECTED_BATCH_17_CODES.has(entry.code)
-          ? "2026-07-14"
-          : "2026-07-13",
+        reviewedOn:
+          EXPECTED_BATCH_16_CODES.has(entry.code) ||
+          EXPECTED_BATCH_17_CODES.has(entry.code) ||
+          EXPECTED_BATCH_18_CODES.has(entry.code)
+            ? "2026-07-14"
+            : "2026-07-13",
       });
       expect(entry.faq.length).toBeGreaterThanOrEqual(3);
       expect(Object.isFrozen(entry)).toBe(true);
@@ -488,10 +539,6 @@ describe("public AEAT official model content v1", () => {
         },
       }),
     ).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
-    expect(resolvePublicAeatOfficialModelContentV1({ code: "798" })).toEqual({
-      status: "BLOCKED",
-      reason: "MODEL_CONTENT_NOT_FOUND",
-    });
     expect(resolvePublicAeatOfficialModelContentV1({ code: "191" })).toEqual({
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
@@ -707,7 +754,9 @@ describe("public AEAT official model content v1", () => {
       "BROWSER_FORM",
       "WEB_SERVICE",
     ]);
-    expect(JSON.stringify(model("791"))).toMatch(/no es una declaración fiscal/i);
+    expect(JSON.stringify(model("791"))).toMatch(
+      /no es una declaración fiscal/i,
+    );
     for (const code of ["795", "796", "797"] as const) {
       expect(model(code).lifecycleStatus).toBe("HISTORICAL");
       expect(model(code).accessMethods?.status).toBe(
@@ -715,7 +764,46 @@ describe("public AEAT official model content v1", () => {
       );
       expect(JSON.stringify(model(code))).toMatch(/2023 y 2024/i);
     }
-    expect(JSON.stringify(model("797"))).toMatch(/no.*sustituci[oó]n autom[aá]tica/i);
+    expect(JSON.stringify(model("797"))).toMatch(
+      /no.*sustituci[oó]n autom[aá]tica/i,
+    );
+  });
+
+  it("publishes the final 18 source-backed pages without evaluating obligations", () => {
+    for (const [code, canonicalName] of Object.entries(
+      EXPECTED_BATCH_18_NAMES,
+    )) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      expect(result.data.canonicalName, code).toBe(canonicalName);
+      expect(result.data.faq.length, code).toBeGreaterThanOrEqual(6);
+      expect(result.data.sections.length, code).toBe(4);
+      expect(result.data.searchTerms.length, code).toBeGreaterThanOrEqual(3);
+      expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
+      expect(result.data.lifecycleStatus, code).toBe("UNDETERMINED");
+      expect(result.data.externalNavigation, code).toBeNull();
+      expect(result.data.documents, code).toEqual([]);
+    }
+
+    const get = (code: keyof typeof EXPECTED_BATCH_18_NAMES) => {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      if (result.status !== "OFFICIAL_INFORMATION") throw new Error(code);
+      return result.data;
+    };
+    expect(JSON.stringify(get("798"))).toMatch(/2023 y 2024/);
+    expect(JSON.stringify(get("798"))).toMatch(/no infiere|no confirma/i);
+    expect(get("840").canonicalName).not.toBe(get("848").canonicalName);
+    expect(JSON.stringify(get("840"))).toMatch(/gesti[oó]n censal.*delegada/i);
+    expect(get("995").accessMethods?.methods).toEqual([
+      "BROWSER_FORM",
+      "FILE_UPLOAD",
+    ]);
+    expect(get("997").accessMethods?.methods).toEqual(["FILE_UPLOAD"]);
+    expect(get("A22").accessMethods?.methods).toEqual([
+      "BROWSER_FORM",
+      "FILE_UPLOAD",
+    ]);
   });
 
   it("keeps source provenance complete and internally referenced", () => {
@@ -2027,11 +2115,13 @@ describe("public AEAT official model content v1", () => {
 
     expect(models.get("524")?.documents).toHaveLength(2);
     expect(
-      models.get("524")?.documents.every(
-        (document) =>
-          document.freshnessStatus === "LEGACY_REFERENCES_DETECTED" &&
-          document.previewSuitability === "NONE",
-      ),
+      models
+        .get("524")
+        ?.documents.every(
+          (document) =>
+            document.freshnessStatus === "LEGACY_REFERENCES_DETECTED" &&
+            document.previewSuitability === "NONE",
+        ),
     ).toBe(true);
     expect(models.get("524")?.documents).toEqual([
       expect.objectContaining({
@@ -2327,9 +2417,7 @@ describe("public AEAT official model content v1", () => {
         code,
       ).toBe(true);
     }
-    expect(JSON.stringify(models.get("592"))).toMatch(
-      /no.*canal alternativo/i,
-    );
+    expect(JSON.stringify(models.get("592"))).toMatch(/no.*canal alternativo/i);
     expect(JSON.stringify(models.get("593"))).toMatch(
       /no calcula ni recomienda/i,
     );

@@ -58,6 +58,10 @@ import { PUBLIC_AEAT_BATCH_17_RADIOACTIVE_JUDICIAL_683_696_CONTENT_V1 } from "./
 import { PUBLIC_AEAT_BATCH_17_WEALTH_OVERSEAS_GAME_714_763_CONTENT_V1 } from "./batch-17-wealth-overseas-game-714-763.release.v1";
 import { PUBLIC_AEAT_BATCH_17_REGULARIZATION_FINANCIAL_770_791_CONTENT_V1 } from "./batch-17-regularization-financial-770-791.release.v1";
 import { PUBLIC_AEAT_BATCH_17_AUDIOVISUAL_HISTORICAL_792_797_CONTENT_V1 } from "./batch-17-audiovisual-historical-792-797.release.v1";
+import { PUBLIC_AEAT_BATCH_18_FINANCIAL_IAE_VAT_798_952_CONTENT_V1 } from "./batch-18-financial-iae-vat-798-952.release.v1";
+import { PUBLIC_AEAT_BATCH_18_ADMINISTRATIONS_901_990_CONTENT_V1 } from "./batch-18-administrations-901-990.release.v1";
+import { PUBLIC_AEAT_BATCH_18_ADMINISTRATIONS_991_997_CONTENT_V1 } from "./batch-18-administrations-991-997.release.v1";
+import { PUBLIC_AEAT_BATCH_18_ENVIRONMENT_EXCISE_A22_A24_CONTENT_V1 } from "./batch-18-environment-excise-a22-a24.release.v1";
 
 const EXPECTED_CODES = Object.freeze([
   "01",
@@ -271,6 +275,24 @@ const EXPECTED_CODES = Object.freeze([
   "795",
   "796",
   "797",
+  "798",
+  "840",
+  "848",
+  "901",
+  "933",
+  "952",
+  "980",
+  "981",
+  "990",
+  "991",
+  "992",
+  "993",
+  "995",
+  "996",
+  "997",
+  "A22",
+  "A23",
+  "A24",
 ] as const);
 const EXPECTED_HISTORICAL_CODES = new Set([
   "037",
@@ -429,15 +451,13 @@ function contentIsCoherent(content: PublicAeatOfficialModelContentV1): boolean {
         source.verificationStatus === "SOURCE_HASH_CAPTURED",
     ) &&
     (content.accessMethods === undefined ||
-      (content.accessMethods.sourceIds.every(
-        (sourceId) => {
-          const source = sourceById.get(sourceId);
-          return (
-            source?.authority === "AEAT" ||
-            (source?.authority === "BOE" && source.kind === "LEGAL_TEXT")
-          );
-        },
-      ) &&
+      (content.accessMethods.sourceIds.every((sourceId) => {
+        const source = sourceById.get(sourceId);
+        return (
+          source?.authority === "AEAT" ||
+          (source?.authority === "BOE" && source.kind === "LEGAL_TEXT")
+        );
+      }) &&
         (content.accessMethods.status !== "SOURCE_DESCRIBED_HISTORICAL" ||
           content.lifecycleStatus === "HISTORICAL") &&
         (content.accessMethods.status !== "SOURCE_DESCRIBED_FUTURE" ||
@@ -509,6 +529,10 @@ function buildContentSnapshot():
     ...PUBLIC_AEAT_BATCH_17_WEALTH_OVERSEAS_GAME_714_763_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_17_REGULARIZATION_FINANCIAL_770_791_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_17_AUDIOVISUAL_HISTORICAL_792_797_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_18_FINANCIAL_IAE_VAT_798_952_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_18_ADMINISTRATIONS_901_990_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_18_ADMINISTRATIONS_991_997_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_18_ENVIRONMENT_EXCISE_A22_A24_CONTENT_V1,
   ] as readonly PublicAeatOfficialModelContentV1[];
   const codes = candidates.map((entry) => entry.code);
   if (

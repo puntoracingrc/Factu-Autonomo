@@ -229,9 +229,9 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("pago a cuenta depositos entidades credito")).toContain(
       "410",
     );
-    expect(resultCodes("depositos entidades credito autoliquidacion")).toContain(
-      "411",
-    );
+    expect(
+      resultCodes("depositos entidades credito autoliquidacion"),
+    ).toContain("411");
     expect(resultCodes("primas seguros declaracion liquidacion")).toContain(
       "430",
     );
@@ -239,9 +239,9 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("servicios digitales interfaz digital")).toContain(
       "490",
     );
-    expect(resultCodes("solicitud autorizacion productos union europea")).toContain(
-      "504",
-    );
+    expect(
+      resultCodes("solicitud autorizacion productos union europea"),
+    ).toContain("504");
     expect(resultCodes("autorizacion CARE productos union europea")).toContain(
       "505",
     );
@@ -271,15 +271,13 @@ describe("public AEAT model review search v2", () => {
     expect(
       resultCodes("carburantes relaciones internacionales hidrocarburos"),
     ).toContain("545");
-    expect(resultCodes("avituallamiento embarcaciones SIANE")).toContain(
-      "546",
-    );
+    expect(resultCodes("avituallamiento embarcaciones SIANE")).toContain("546");
     expect(resultCodes("abonos detallistas gasóleo bonificado")).toContain(
       "547",
     );
-    expect(resultCodes("cuotas repercutidas declaración informativa")).toContain(
-      "548",
-    );
+    expect(
+      resultCodes("cuotas repercutidas declaración informativa"),
+    ).toContain("548");
     expect(
       resultCodes("fábricas depósitos vino bebidas fermentadas"),
     ).toContain("553");
@@ -361,13 +359,13 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("bienes derechos extranjero")).toContain("720");
     expect(resultCodes("monedas virtuales extranjero")).toContain("721");
     expect(resultCodes("actividades anuales plurianuales")).toContain("763");
-    expect(resultCodes("regularización voluntaria intereses recargos")).toContain(
-      "770",
-    );
+    expect(
+      resultCodes("regularización voluntaria intereses recargos"),
+    ).toContain("770");
     expect(resultCodes("cuotas sin modelo disponible")).toContain("771");
-    expect(resultCodes("margen intereses comisiones autoliquidación")).toContain(
-      "780",
-    );
+    expect(
+      resultCodes("margen intereses comisiones autoliquidación"),
+    ).toContain("780");
     expect(resultCodes("pago fraccionado entidades financieras")).toContain(
       "781",
     );
@@ -377,6 +375,30 @@ describe("public AEAT model review search v2", () => {
     expect(resultCodes("modelo histórico 795")).toContain("795");
     expect(resultCodes("modelo histórico 796")).toContain("796");
     expect(resultCodes("modelo histórico 797")).toContain("797");
+    expect(resultCodes("pago anticipado entidades de credito")).toContain(
+      "798",
+    );
+    expect(resultCodes("alta variacion baja IAE")).toContain("840");
+    expect(resultCodes("importe neto cifra negocios IAE")).toContain("848");
+    expect(resultCodes("certificado eficiencia energetica")).toContain("901");
+    expect(resultCodes("guarderias centros autorizados")).toContain("933");
+    expect(resultCodes("base imponible credito incobrable")).toContain("952");
+    expect(resultCodes("intereses demora comunidades autonomas")).toContain(
+      "980",
+    );
+    expect(resultCodes("prestacion maternidad paternidad")).toContain("981");
+    expect(resultCodes("familias numerosas discapacidad")).toContain("990");
+    expect(resultCodes("fianzas arrendamiento inmuebles")).toContain("991");
+    expect(resultCodes("tributos cedidos juego")).toContain("992");
+    expect(resultCodes("control deducciones autonomicas")).toContain("993");
+    expect(resultCodes("informacion urbanistica entidades locales")).toContain(
+      "995",
+    );
+    expect(resultCodes("embargo devoluciones AEAT")).toContain("996");
+    expect(resultCodes("embargo pagos presupuestarios")).toContain("997");
+    expect(resultCodes("devolucion envases plastico")).toContain("A22");
+    expect(resultCodes("devolucion gases fluorados")).toContain("A23");
+    expect(resultCodes("liquidos cigarrillos electronicos")).toContain("A24");
   }, 15_000);
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {

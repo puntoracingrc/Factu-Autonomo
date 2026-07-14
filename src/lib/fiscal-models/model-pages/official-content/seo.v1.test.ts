@@ -216,6 +216,24 @@ const OFFICIAL_CODES = [
   "795",
   "796",
   "797",
+  "798",
+  "840",
+  "848",
+  "901",
+  "933",
+  "952",
+  "980",
+  "981",
+  "990",
+  "991",
+  "992",
+  "993",
+  "995",
+  "996",
+  "997",
+  "A22",
+  "A23",
+  "A24",
 ];
 
 describe("AEAT model official-content SEO", () => {
@@ -232,7 +250,7 @@ describe("AEAT model official-content SEO", () => {
       ),
     );
     expect(urls).not.toContain(`${SITE_URL}/consultor-fiscal/modelos/191`);
-    expect(urls).not.toContain(`${SITE_URL}/consultor-fiscal/modelos/798`);
+    expect(urls).not.toContain(`${SITE_URL}/consultor-fiscal/modelos/999`);
   });
 
   it("allows the public Modelos prefix while retaining the Consultor block", () => {
