@@ -29,7 +29,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
-import { Field, Input, Select, Textarea } from "@/components/ui/Field";
+import { Field, Input, Select } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
@@ -64,6 +64,7 @@ import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShare
 import {
   defaultPhraseForType,
   normalizeDocumentPhrases,
+  saveDocumentPhraseForFutureUse,
 } from "@/lib/document-phrases";
 import {
   defaultPaymentMethodForType,
@@ -414,6 +415,7 @@ export function DocumentForm({
   const {
     data,
     ready,
+    updateProfile,
     addDocument,
     updateDocument,
     upsertCustomerForDocument,
@@ -2187,15 +2189,20 @@ export function DocumentForm({
         <DocumentPhrasePicker
           documentType={type}
           settings={data.profile.documentPhrases}
-          onSelect={setNotes}
+          value={notes}
+          onChange={setNotes}
+          onSave={(text, makeDefault) =>
+            updateProfile({
+              ...data.profile,
+              documentPhrases: saveDocumentPhraseForFutureUse(
+                normalizeDocumentPhrases(data.profile.documentPhrases),
+                type,
+                text,
+                makeDefault,
+              ),
+            })
+          }
         />
-        <Field label="Notas (opcional)">
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Condiciones de pago, garantía..."
-          />
-        </Field>
         <div className="mt-4 space-y-1 text-right text-slate-700">
           {!vatExempt && <p>Base: {formatMoney(totals.subtotal)}</p>}
           {!vatExempt && ivaBreakdown.length > 0 && (

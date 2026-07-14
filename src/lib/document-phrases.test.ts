@@ -5,6 +5,7 @@ import {
   normalizeDocumentPhrases,
   phrasesForType,
   removeDocumentPhrase,
+  saveDocumentPhraseForFutureUse,
   setDefaultDocumentPhrase,
   updateDocumentPhrase,
 } from "./document-phrases";
@@ -52,5 +53,48 @@ describe("document-phrases", () => {
 
     expect(settings.defaultPhraseId.factura).toBeUndefined();
     expect(phrasesForType(settings, "factura")).toHaveLength(0);
+  });
+
+  it("guarda una frase para usos futuros sin hacerla predeterminada", () => {
+    const settings = saveDocumentPhraseForFutureUse(
+      normalizeDocumentPhrases(),
+      "recibo",
+      "  Entregado a cuenta.  ",
+    );
+
+    expect(phrasesForType(settings, "recibo")).toMatchObject([
+      { text: "Entregado a cuenta.", documentType: "recibo" },
+    ]);
+    expect(defaultPhraseForType(settings, "recibo")).toBeUndefined();
+  });
+
+  it("evita duplicados y puede dejar la frase existente como predeterminada", () => {
+    let settings = saveDocumentPhraseForFutureUse(
+      normalizeDocumentPhrases(),
+      "presupuesto",
+      "Validez de 30 días.",
+    );
+    settings = saveDocumentPhraseForFutureUse(
+      settings,
+      "presupuesto",
+      " Validez de 30 días. ",
+      true,
+    );
+
+    expect(phrasesForType(settings, "presupuesto")).toHaveLength(1);
+    expect(defaultPhraseForType(settings, "presupuesto")?.text).toBe(
+      "Validez de 30 días.",
+    );
+  });
+
+  it("ignora frases vacías", () => {
+    const settings = saveDocumentPhraseForFutureUse(
+      normalizeDocumentPhrases(),
+      "factura",
+      "   ",
+      true,
+    );
+
+    expect(settings).toEqual({ phrases: [], defaultPhraseId: {} });
   });
 });

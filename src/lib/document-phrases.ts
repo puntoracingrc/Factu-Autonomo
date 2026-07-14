@@ -147,3 +147,35 @@ export function clearDefaultDocumentPhrase(
   delete defaultPhraseId[type];
   return { ...settings, defaultPhraseId };
 }
+
+export function saveDocumentPhraseForFutureUse(
+  settings: DocumentPhrasesSettings,
+  type: DocumentType,
+  text: string,
+  makeDefault = false,
+): DocumentPhrasesSettings {
+  const normalized = normalizeDocumentPhrases(settings);
+  const trimmedText = text.trim();
+  if (!trimmedText) return normalized;
+
+  const existing = normalized.phrases.find(
+    (phrase) =>
+      phrase.documentType === type && phrase.text.trim() === trimmedText,
+  );
+  if (existing) {
+    return makeDefault
+      ? setDefaultDocumentPhrase(normalized, type, existing.id)
+      : normalized;
+  }
+
+  const phrase: DocumentPhrase = {
+    id: newPhraseId(),
+    text: trimmedText,
+    documentType: type,
+  };
+  const next = {
+    ...normalized,
+    phrases: [...normalized.phrases, phrase],
+  };
+  return makeDefault ? setDefaultDocumentPhrase(next, type, phrase.id) : next;
+}

@@ -39,6 +39,10 @@ import {
   normalizeDocumentPaymentMethods,
 } from "@/lib/document-payment-methods";
 import {
+  normalizeDocumentPhrases,
+  saveDocumentPhraseForFutureUse,
+} from "@/lib/document-phrases";
+import {
   normalizeDocumentUnits,
   normalizeLineItemUnits,
 } from "@/lib/document-units";
@@ -78,7 +82,12 @@ export function RectificativaForm({
   historicalProfile,
 }: RectificativaFormProps) {
   const router = useRouter();
-  const { data, addRectificativa, registerVerifactuForDocument } = useAppStore();
+  const {
+    data,
+    updateProfile,
+    addRectificativa,
+    registerVerifactuForDocument,
+  } = useAppStore();
   const {
     billingEnabled,
     checkCanCreateDocument,
@@ -641,15 +650,22 @@ export function RectificativaForm({
         <DocumentPhrasePicker
           documentType="factura"
           settings={data.profile.documentPhrases}
-          onSelect={setNotes}
+          value={notes}
+          onChange={setNotes}
+          onSave={(text, makeDefault) =>
+            updateProfile({
+              ...data.profile,
+              documentPhrases: saveDocumentPhraseForFutureUse(
+                normalizeDocumentPhrases(data.profile.documentPhrases),
+                "factura",
+                text,
+                makeDefault,
+              ),
+            })
+          }
+          label="Notas adicionales"
+          placeholder="Información complementaria para la rectificativa..."
         />
-        <Field label="Notas adicionales">
-          <Textarea
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Información complementaria para la rectificativa..."
-          />
-        </Field>
       </Card>
 
       <div className="flex flex-col gap-3">
