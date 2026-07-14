@@ -7,6 +7,7 @@ import {
   Files,
   FileText,
   Images,
+  Info,
   Loader2,
   ShieldCheck,
   Upload,
@@ -756,6 +757,81 @@ export function DiagnosticHaciendaReview({
           ninguna pregunta.
         </p>
       </div>
+
+      <details
+        data-info-card="recognized-fiscal-documents"
+        className="group mt-4 rounded-2xl border border-cyan-200 bg-cyan-50/70 dark:border-cyan-900 dark:bg-cyan-950/20"
+      >
+        <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 px-4 py-3 font-bold text-slate-950 marker:content-none dark:text-white">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900 dark:text-cyan-200">
+            <Info className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <span className="flex-1">
+            ¿Qué modelos y documentos reconoce el lector?
+          </span>
+          <span className="text-xs font-semibold text-cyan-700 group-open:hidden dark:text-cyan-300">
+            Ver lista
+          </span>
+          <span className="hidden text-xs font-semibold text-cyan-700 group-open:inline dark:text-cyan-300">
+            Ocultar
+          </span>
+        </summary>
+        <div className="border-t border-cyan-200 px-4 py-4 text-sm leading-6 text-slate-700 dark:border-cyan-900 dark:text-slate-200">
+          <p>
+            <strong>Reconocer</strong> significa identificar con seguridad el
+            tipo de documento. Solo se rellenan preguntas cuando su interior
+            contiene un dato compatible y suficientemente claro.
+          </p>
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            <div className="rounded-xl bg-white p-4 dark:bg-slate-900">
+              <h3 className="font-bold text-slate-950 dark:text-white">
+                30 modelos fiscales
+              </h3>
+              <dl className="mt-2 space-y-2">
+                <div>
+                  <dt className="font-semibold">Prioridad máxima</dt>
+                  <dd>036, 037 histórico, 130, 131, 303, 390, 111, 190, 115, 180, 349, 035, 369 y 184.</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold">Segunda prioridad</dt>
+                  <dd>100, 200, 202, 347, 309, 123, 193, 216 y 296.</dd>
+                </div>
+                <div>
+                  <dt className="font-semibold">Casos especiales</dt>
+                  <dd>308, 341, 720, 721, 714, 840 y 151.</dd>
+                </div>
+              </dl>
+            </div>
+            <div className="rounded-xl bg-white p-4 dark:bg-slate-900">
+              <h3 className="font-bold text-slate-950 dark:text-white">
+                9 documentos sin número de modelo
+              </h3>
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>Certificado de situación censal actualizado.</li>
+                <li>Mis actividades económicas.</li>
+                <li>Mi situación tributaria.</li>
+                <li>Mis obligaciones tributarias.</li>
+                <li>Informe de situación actual en RETA.</li>
+                <li>Vida laboral.</li>
+                <li>Informe de actividades de trabajo autónomo.</li>
+                <li>Certificado de operador intracomunitario.</li>
+                <li>Certificado de exoneración de retención del arrendador.</li>
+              </ul>
+              <div className="mt-4 rounded-lg border border-cyan-200 bg-cyan-50 p-3 dark:border-cyan-900 dark:bg-cyan-950/30">
+                <p className="font-semibold text-slate-950 dark:text-white">
+                  Capturas de Hacienda compatibles
+                </p>
+                <p className="mt-1">
+                  Relación de actividades o «Mis actividades económicas»;
+                  detalle de una actividad o número de referencia (Modelo
+                  036); «Mi situación tributaria» —aunque necesite varias
+                  capturas— y «Mis obligaciones tributarias».
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </details>
 
       <details className="mt-4 rounded-2xl border border-blue-200 bg-white p-4 dark:border-blue-900 dark:bg-slate-900">
         <summary className="cursor-pointer font-bold text-slate-950 dark:text-white">
