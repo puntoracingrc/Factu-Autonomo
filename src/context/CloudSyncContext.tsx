@@ -36,6 +36,7 @@ import {
   isSyncPendingFlag,
   markSyncPending,
 } from "@/lib/cloud/sync-queue";
+import { runExclusiveSyncOperation } from "@/lib/cloud/sync-operation";
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
 import {
   getAuthCallbackUrl,
@@ -217,6 +218,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       );
       return;
     }
+    if (syncStatus === "error") return;
     if (
       hasPendingSyncChanges(data) ||
       hasUnsyncedChanges(data) ||
@@ -228,7 +230,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
           ? `${pendingChangeCount} cambio(s) pendiente(s) de subir`
           : "Cambios pendientes de subir a la nube",
       );
-    } else if (syncStatus !== "syncing" && syncStatus !== "error") {
+    } else if (syncStatus !== "syncing") {
       setSyncStatus("synced");
     }
   }, [
@@ -250,8 +252,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         const synced = markFullySynced(payload);
         dataRef.current = synced;
         skipPush.current = true;
-        replaceData(synced, { fromRemote: true });
-        skipPush.current = false;
+        try {
+          replaceData(synced, { fromRemote: true });
+        } finally {
+          skipPush.current = false;
+        }
       }
     },
     [replaceData],
@@ -324,8 +329,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         const synced = markChangesSynced(payload, changes, syncedAt);
         dataRef.current = synced;
         skipPush.current = true;
-        replaceData(synced, { fromRemote: true });
-        skipPush.current = false;
+        try {
+          replaceData(synced, { fromRemote: true });
+        } finally {
+          skipPush.current = false;
+        }
         clearSyncPending();
         setSyncStatus("synced");
         setSyncMessage(
@@ -385,11 +393,35 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus("synced");
         return true;
       }
-      if (syncing.current) return false;
-      syncing.current = true;
-      const ok = await pushToCloud(payload, silent, options);
-      syncing.current = false;
-      return ok;
+      const result = await runExclusiveSyncOperation(syncing, async () => {
+        try {
+          return await pushToCloud(payload, silent, options);
+        } catch (error) {
+          markSyncPending();
+          void reportAppError({
+            severity: "error",
+            area: "sync",
+            code: "push_preflight_failed",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Error al preparar la subida a la nube",
+            metadata: {
+              pendingChanges: payload.meta?.pendingChanges?.length ?? 0,
+            },
+          });
+          setSyncStatus(isBrowserOnline() ? "error" : "offline");
+          setSyncMessage(
+            isBrowserOnline()
+              ? error instanceof Error
+                ? error.message
+                : "No se pudo preparar la sincronización. Vuelve a intentarlo."
+              : "Sin conexión. En cola para subir.",
+          );
+          return false;
+        }
+      });
+      return result.started ? result.value : false;
     },
     [
       demoMode,
@@ -462,8 +494,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
               workingData = picked.data;
               dataRef.current = workingData;
               skipPush.current = true;
-              replaceData(workingData, { fromRemote: true });
-              skipPush.current = false;
+              try {
+                replaceData(workingData, { fromRemote: true });
+              } finally {
+                skipPush.current = false;
+              }
               await migrateLegacyBackupToEntities(user.id, workingData);
               remoteChanges = appDataToSyncChanges(workingData);
               setSyncMessage(
@@ -481,8 +516,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
           workingData = merged;
           dataRef.current = workingData;
           skipPush.current = true;
-          replaceData(workingData, { fromRemote: true });
-          skipPush.current = false;
+          try {
+            replaceData(workingData, { fromRemote: true });
+          } finally {
+            skipPush.current = false;
+          }
           setSyncStatus("synced");
           setSyncMessage(
             applied > 0
@@ -497,8 +535,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             workingData = markChangesSynced(workingData, initial, syncedAt);
             dataRef.current = workingData;
             skipPush.current = true;
-            replaceData(workingData, { fromRemote: true });
-            skipPush.current = false;
+            try {
+              replaceData(workingData, { fromRemote: true });
+            } finally {
+              skipPush.current = false;
+            }
           }
           setSyncStatus("synced");
           setSyncMessage("Copia inicial creada en la nube");
@@ -594,8 +635,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     };
     dataRef.current = queued;
     skipPush.current = true;
-    replaceData(queued, { fromRemote: true });
-    skipPush.current = false;
+    try {
+      replaceData(queued, { fromRemote: true });
+    } finally {
+      skipPush.current = false;
+    }
     markSyncPending();
 
     setLocalDataHandoffStatus("syncing");
@@ -1200,8 +1244,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       };
       skipPush.current = true;
       dataRef.current = withQueue;
-      replaceData(withQueue, { fromRemote: true });
-      skipPush.current = false;
+      try {
+        replaceData(withQueue, { fromRemote: true });
+      } finally {
+        skipPush.current = false;
+      }
       markSyncPending();
 
       if (user && emailConfirmed) await pushToCloud(withQueue, false);
