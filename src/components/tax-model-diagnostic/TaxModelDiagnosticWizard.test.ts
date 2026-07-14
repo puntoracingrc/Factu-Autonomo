@@ -45,6 +45,13 @@ describe("tax model diagnostic UI contract", () => {
       'accept="application/pdf,image/png,image/jpeg,image/webp',
     );
     expect(hacienda).toContain("Arrastra aquí todos tus PDF y capturas");
+    expect(hacienda).toContain(
+      "const nextFiles = mergeFiles(files, Array.from(list))",
+    );
+    expect(hacienda).not.toContain("void analyzeFiles(nextFiles)");
+    expect(hacienda).toContain("No empezaremos hasta que pulses analizar.");
+    expect(hacienda).toContain("onClick={() => void analyzeFiles(files)}");
+    expect(hacienda).toContain("Quitar todos");
     expect(hacienda).toContain("Cómo encontrar la información en Hacienda");
     expect(hacienda).toContain("Área personal");
     expect(hacienda).toContain("Mis datos censales");
@@ -61,6 +68,9 @@ describe("tax model diagnostic UI contract", () => {
     );
     expect(hacienda).toContain("Solo se rellenan preguntas cuando su interior");
     expect(hacienda).toContain("Confirmo que los archivos contienen los datos");
+    expect(hacienda).toContain(
+      "Los datos que confirmes se sumarán a los que ya",
+    );
     expect(hacienda).toContain('extractionMethod: "OCR_LOCAL"');
     expect(hacienda).toContain("extractionProposals");
     expect(hacienda).toContain("accent-emerald-600");

@@ -10,7 +10,9 @@ import {
   Info,
   Loader2,
   ShieldCheck,
+  Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
@@ -69,6 +71,16 @@ function isPdf(file: File): boolean {
     file.type.toLowerCase() === "application/pdf" ||
     file.name.toLowerCase().endsWith(".pdf")
   );
+}
+
+function fileKey(file: File): string {
+  return [file.name, file.size, file.lastModified, file.type].join(":");
+}
+
+function mergeFiles(current: File[], incoming: File[]): File[] {
+  const merged = new Map(current.map((file) => [fileKey(file), file]));
+  for (const file of incoming) merged.set(fileKey(file), file);
+  return [...merged.values()];
 }
 
 function activityKindLabels(values: TaxpayerProfile["activityKinds"]): string {
@@ -316,12 +328,15 @@ export function DiagnosticHaciendaReview({
 
   function selectFiles(list: FileList | null) {
     if (!list || list.length === 0) return;
-    const nextFiles = Array.from(list);
+    const nextFiles = mergeFiles(files, Array.from(list));
     try {
       validateFiles(nextFiles);
+      if (nextFiles.length === files.length) {
+        setError(null);
+        return;
+      }
       setFiles(nextFiles);
       resetResults();
-      void analyzeFiles(nextFiles);
     } catch (caught) {
       setError(
         caught instanceof Error
@@ -329,6 +344,18 @@ export function DiagnosticHaciendaReview({
           : "No se pueden usar esos archivos.",
       );
     }
+  }
+
+  function removeFile(target: File) {
+    setFiles((current) =>
+      current.filter((file) => fileKey(file) !== fileKey(target)),
+    );
+    resetResults();
+  }
+
+  function clearFiles() {
+    setFiles([]);
+    resetResults();
   }
 
   async function analyzeFiles(nextFiles: File[]) {
@@ -646,7 +673,8 @@ export function DiagnosticHaciendaReview({
           </li>
           <li>
             <strong>4.</strong> Arrastra aquí todo lo que tengas; no necesitas
-            identificar cada archivo.
+            identificar cada archivo. Cuando termines, pulsa{" "}
+            <strong>Analizar archivos</strong>.
           </li>
         </ol>
       </details>
@@ -696,25 +724,59 @@ export function DiagnosticHaciendaReview({
 
       {files.length > 0 && (
         <div className="mt-4 rounded-2xl bg-white p-4 dark:bg-slate-900">
-          <p className="font-bold text-slate-950 dark:text-white">
-            {files.length} archivo{files.length === 1 ? "" : "s"} añadido
-            {files.length === 1 ? "" : "s"}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-bold text-slate-950 dark:text-white">
+                {files.length} archivo{files.length === 1 ? "" : "s"} añadido
+                {files.length === 1 ? "" : "s"}
+              </p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                Puedes añadir más. No empezaremos hasta que pulses analizar.
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={reading}
+              onClick={clearFiles}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-300 dark:hover:bg-slate-800"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden="true" />
+              Quitar todos
+            </button>
+          </div>
           <ul className="mt-2 space-y-1 text-sm text-slate-600 dark:text-slate-300">
             {files.map((file) => (
               <li
-                key={`${file.name}:${file.size}`}
-                className="flex items-center gap-2"
+                key={fileKey(file)}
+                className="flex min-h-10 items-center gap-2 rounded-lg px-2 hover:bg-slate-50 dark:hover:bg-slate-800/70"
               >
                 {isPdf(file) ? (
                   <FileText className="h-4 w-4" aria-hidden="true" />
                 ) : (
                   <Images className="h-4 w-4" aria-hidden="true" />
                 )}
-                {file.name}
+                <span className="min-w-0 flex-1 truncate">{file.name}</span>
+                <button
+                  type="button"
+                  disabled={reading}
+                  onClick={() => removeFile(file)}
+                  aria-label={`Quitar ${file.name}`}
+                  className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-200 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50 dark:hover:bg-slate-700 dark:hover:text-white"
+                >
+                  <X className="h-4 w-4" aria-hidden="true" />
+                </button>
               </li>
             ))}
           </ul>
+          {!reading && analyses.length === 0 && (
+            <Button
+              type="button"
+              className="mt-4"
+              onClick={() => void analyzeFiles(files)}
+            >
+              Analizar {files.length} archivo{files.length === 1 ? "" : "s"}
+            </Button>
+          )}
         </div>
       )}
 
@@ -807,7 +869,9 @@ export function DiagnosticHaciendaReview({
             </h3>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
               Puedes desmarcar cualquier dato antes de incorporarlo a tu
-              configuración.
+              configuración. Los datos que confirmes se sumarán a los que ya
+              tengas; si cambia un mismo campo, te avisaremos antes de
+              sustituirlo.
             </p>
           </div>
           <div className="space-y-2">
