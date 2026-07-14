@@ -12,6 +12,7 @@ import type {
   PublicAeatOfficialContentSourceV1,
   PublicAeatOfficialModelContentV1,
 } from "@/lib/fiscal-models/model-pages/official-content";
+import { FiscalModel01Guide } from "./FiscalModel01Guide";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
@@ -51,6 +52,10 @@ export function FiscalModelOfficialContentView({
 }: {
   content: PublicAeatOfficialModelContentV1;
 }) {
+  if (content.code === "01") {
+    return <FiscalModel01Guide content={content} />;
+  }
+
   const procedureLinks = content.links.filter(
     (link) => link.category === "PROCEDURE",
   );

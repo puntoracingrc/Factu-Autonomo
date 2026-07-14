@@ -501,6 +501,7 @@ describe("public AEAT official model content v1", () => {
             ? "HISTORICAL"
             : "UNDETERMINED",
         reviewedOn:
+          entry.code === "01" ||
           EXPECTED_BATCH_16_CODES.has(entry.code) ||
           EXPECTED_BATCH_17_CODES.has(entry.code) ||
           EXPECTED_BATCH_18_CODES.has(entry.code)
