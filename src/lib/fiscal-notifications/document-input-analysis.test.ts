@@ -170,4 +170,56 @@ describe("fiscal notification document input analysis", () => {
     });
     expect(JSON.stringify(result)).not.toContain(rawAccount);
   });
+
+  it("transports an exact seizure with useful fields and no raw account", async () => {
+    const rawAccount = "ES00 0000 0000 0000 1234";
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input([
+        "Agencia Tributaria",
+        "sede.agenciatributaria.gob.es",
+        "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+        "Número de diligencia: EMB-SYN-PIPELINE-001",
+        "Número de expediente: EXP-SYN-PIPELINE-001",
+        "Deudor: PERSONA DEUDORA SINTÉTICA",
+        "Destinatario: BANCO SINTÉTICO",
+        "Entidad financiera: BANCO SINTÉTICO",
+        `IBAN: ${rawAccount}`,
+        "Límite del embargo: 1.240,00 EUR",
+        "Importe retenido: 900,00 EUR",
+        "Fecha del embargo: 04/03/2026",
+      ].join("\n")),
+    );
+
+    expect(result.verticalSliceReview).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      documents: [
+        expect.objectContaining({
+          extractorId: "seizure",
+          familyId: "seizure.bank_account",
+          title: "Diligencia de embargo de cuenta bancaria",
+          subtitle: "Diligencia de embargo registrada",
+          fields: expect.arrayContaining([
+            expect.objectContaining({
+              canonicalType: "SEIZURE_ORDER_ID",
+              displayValue: "EMB-SYN-PIPELINE-001",
+            }),
+            expect.objectContaining({
+              canonicalType: "SEIZURE_LIMIT",
+              amountCents: 124_000,
+            }),
+            expect.objectContaining({
+              canonicalType: "RETAINED_AMOUNT",
+              amountCents: 90_000,
+            }),
+            expect.objectContaining({
+              canonicalType: "MASKED_ACCOUNT",
+              displayValue: "****1234",
+            }),
+          ]),
+        }),
+      ],
+      retainedSourceContent: "NONE",
+    });
+    expect(JSON.stringify(result)).not.toContain(rawAccount);
+  });
 });

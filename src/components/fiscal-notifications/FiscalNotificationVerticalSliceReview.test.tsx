@@ -39,6 +39,21 @@ const NOTIFICATION = [
   "Fecha de expiración: 11/07/2026 10:00",
 ].join("\n");
 
+const BANK_SEIZURE = [
+  "Agencia Tributaria",
+  "sede.agenciatributaria.gob.es",
+  "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+  "Número de diligencia: EMB-SYN-UI-001",
+  "Número de expediente: EXP-SYN-UI-001",
+  "Deudor: PERSONA DEUDORA SINTÉTICA",
+  "Destinatario: BANCO SINTÉTICO",
+  "Entidad financiera: BANCO SINTÉTICO",
+  "IBAN: ES00 0000 0000 0000 1234",
+  "Límite del embargo: 1.240,00 EUR",
+  "Importe retenido: 900,00 EUR",
+  "Fecha del embargo: 04/03/2026",
+].join("\n");
+
 function document(text: string): BoundedDocumentInput {
   return Object.freeze({
     ownerScope: "user:synthetic-ui",
@@ -85,6 +100,29 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).toContain("Página 1");
     expect(html).not.toContain("Posible familia");
     expect(html).not.toContain(RAW_ACCOUNT);
+  });
+
+  it("shows an exact seizure with useful fields instead of a possible-family card", async () => {
+    const review = projectFiscalNotificationVerticalSliceReviewV1(
+      await analyzeFiscalNotificationVerticalSliceV1(document(BANK_SEIZURE)),
+    );
+    const html = renderToStaticMarkup(
+      createElement(FiscalNotificationVerticalSliceReview, { review }),
+    );
+
+    expect(html).toContain("Diligencia de embargo de cuenta bancaria");
+    expect(html).toContain("Diligencia de embargo registrada");
+    expect(html).toContain("EMB-SYN-UI-001");
+    expect(html).toContain("PERSONA DEUDORA SINTÉTICA");
+    expect(html).toContain("BANCO SINTÉTICO");
+    expect(html).toContain("Límite del embargo");
+    expect(html).toContain("1.240,00 €");
+    expect(html).toContain("Importe retenido");
+    expect(html).toContain("900,00 €");
+    expect(html).toContain("****1234");
+    expect(html).toContain("Documento reconocido");
+    expect(html).not.toMatch(/posible familia/iu);
+    expect(html).not.toContain("ES00 0000 0000 0000 1234");
   });
 
   it("renders no empty card for information-pending content", () => {
