@@ -18,6 +18,7 @@ import type {
 } from "@/lib/fiscal-models/model-pages/public-review-catalog.v1";
 import type { PublicAeatOfficialModelContentV1 } from "@/lib/fiscal-models/model-pages/official-content";
 import { FiscalModelOfficialVisual } from "./FiscalModelOfficialVisual";
+import { getFiscalModelDocumentTitle } from "./fiscal-model-document-title";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
@@ -25,19 +26,67 @@ const focusRing =
 const practicalCatalogLabels: Readonly<
   Partial<Record<string, readonly string[]>>
 > = {
-  "100": ["Esencial para autónomos", "Anual", "IRPF", "Obligatoria para altas en RETA"],
+  "035": [
+    "Comercio electrónico",
+    "OSS e IOSS",
+    "Registro censal",
+    "Operaciones B2C",
+  ],
+  "100": [
+    "Esencial para autónomos",
+    "Anual",
+    "IRPF",
+    "Obligatoria para altas en RETA",
+  ],
   "111": ["Frecuente si pagas retenciones", "Trimestral o mensual", "IRPF"],
   "115": ["Si alquilas un local", "Trimestral o mensual", "Retenciones"],
-  "130": ["Frecuente para autónomos", "IRPF", "Trimestral", "Estimación directa"],
+  "130": [
+    "Frecuente para autónomos",
+    "IRPF",
+    "Trimestral",
+    "Estimación directa",
+  ],
   "131": ["Solo módulos", "IRPF", "Trimestral", "Revisión anual"],
   "180": ["Anual", "Relacionado con 115", "Declaración informativa"],
-  "184": ["Comunidades de bienes", "Declaración informativa", "Anual", "Relacionado con Renta"],
+  "184": [
+    "Comunidades de bienes",
+    "Declaración informativa",
+    "Anual",
+    "Relacionado con Renta",
+  ],
   "190": ["Anual", "Relacionado con 111", "Declaración informativa"],
   "303": ["Frecuente para autónomos", "IVA", "Trimestral o mensual"],
-  "309": ["Caso especial de IVA", "No periódico", "Operaciones intracomunitarias", "Solo si se produce el supuesto"],
-  "347": ["Anual", "Declaración informativa", "Clientes y proveedores", "Solo si superas el límite"],
-  "349": ["Unión Europea", "Mensual o trimestral", "Declaración informativa", "Sin importe mínimo"],
+  "309": [
+    "Caso especial de IVA",
+    "No periódico",
+    "Operaciones intracomunitarias",
+    "Solo si se produce el supuesto",
+  ],
+  "347": [
+    "Anual",
+    "Declaración informativa",
+    "Clientes y proveedores",
+    "Solo si superas el límite",
+  ],
+  "349": [
+    "Unión Europea",
+    "Mensual o trimestral",
+    "Declaración informativa",
+    "Sin importe mínimo",
+  ],
+  "369": [
+    "Comercio electrónico",
+    "IVA europeo",
+    "Trimestral o mensual",
+    "OSS e IOSS",
+  ],
   "390": ["Anual", "IVA", "Puede estar exonerado"],
+  "840": [
+    "Normalmente no para autónomos",
+    "IAE",
+    "Empresas no exentas",
+    "Cifra de negocios ≥ 1 millón",
+  ],
 };
 
 export function FiscalModelCatalogView({
@@ -46,7 +95,10 @@ export function FiscalModelCatalogView({
   calendarContext,
   officialContents,
 }: {
-  result: Extract<PublicAeatModelReviewSearchResultV2, { status: "REVIEW_ONLY" }>;
+  result: Extract<
+    PublicAeatModelReviewSearchResultV2,
+    { status: "REVIEW_ONLY" }
+  >;
   pages: readonly PublicAeatModelReviewPageV1[];
   calendarContext: PublicAeatModelCalendarDetailContextResultV1;
   officialContents: readonly PublicAeatOfficialModelContentV1[];
@@ -86,8 +138,8 @@ export function FiscalModelCatalogView({
           Modelos AEAT
         </h1>
         <p className="mt-1 break-words text-base text-slate-600 dark:text-slate-300">
-          Consulta fichas informativas basadas en fuentes oficiales de la AEAT
-          y el BOE.
+          Consulta fichas informativas basadas en fuentes oficiales de la AEAT y
+          el BOE.
         </p>
       </header>
 
@@ -156,7 +208,8 @@ export function FiscalModelCatalogView({
             const detailHref = fromCalendar
               ? calendarNavigation!.detailHref
               : page.href;
-            const officialContent = officialContentByCode.get(page.code) ?? null;
+            const officialContent =
+              officialContentByCode.get(page.code) ?? null;
             const historical =
               page.lifecycleStatus === "HISTORICAL" ||
               officialContent?.lifecycleStatus === "HISTORICAL";
@@ -206,7 +259,7 @@ export function FiscalModelCatalogView({
                   )}
                   <div className="min-w-0">
                     <h3 className="break-words text-lg font-bold text-slate-950 dark:text-slate-100">
-                      Modelo {page.code}
+                      {getFiscalModelDocumentTitle(page.code)}
                     </h3>
                     <p className="mt-1 break-words text-sm font-semibold leading-6 text-slate-800 dark:text-slate-200">
                       {officialContent?.canonicalName ?? page.canonicalName}
@@ -218,7 +271,7 @@ export function FiscalModelCatalogView({
                         </p>
                         <ul
                           className="mt-3 flex flex-wrap gap-2"
-                          aria-label={`Características del Modelo ${page.code}`}
+                          aria-label={`Características de ${getFiscalModelDocumentTitle(page.code)}`}
                         >
                           {practicalLabels.map((label) => (
                             <li
@@ -248,7 +301,9 @@ export function FiscalModelCatalogView({
                   className={`mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-blue-200 bg-white px-4 text-center font-semibold text-blue-800 transition-colors hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-950 ${focusRing}`}
                 >
                   Ver ficha
-                  <span className="sr-only"> del modelo {page.code}</span>
+                  <span className="sr-only">
+                    {" "}de {getFiscalModelDocumentTitle(page.code)}
+                  </span>
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               </Card>

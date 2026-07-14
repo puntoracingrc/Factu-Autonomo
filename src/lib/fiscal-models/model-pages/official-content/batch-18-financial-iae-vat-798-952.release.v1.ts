@@ -201,7 +201,7 @@ const MODEL_840 = model({
   canonicalName:
     "IAE. Declaración de alta, variación o baja en el Impuesto sobre Actividades Económicas",
   summary:
-    "Declaración de alta, variación o baja en el IAE ante la AEAT, diferenciada del Modelo 848 y de la gestión censal delegada.",
+    "Alta, variación o baja en el IAE para empresas y entidades no exentas. Las personas físicas autónomas utilizan el Modelo 036.",
   searchTerms: [
     "iae",
     "impuesto actividades economicas",
