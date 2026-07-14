@@ -1,0 +1,170 @@
+import type { FiscalModelPracticalGuideV1 } from "./fiscal-model-practical-guide.types";
+
+export const MODEL_115_GUIDE_V1 = {
+  code: "115",
+  effectiveYear: 2026,
+  lastVerifiedAt: "2026-07-14",
+  requiresAnnualReview: true,
+  intro: [
+    "El Modelo 115 sirve para ingresar periódicamente en Hacienda las retenciones practicadas al pagar determinados alquileres o subalquileres de inmuebles urbanos.",
+    "En el caso habitual de un autónomo que alquila un local para su actividad, lo presenta el inquilino que paga la renta y descuenta la retención, no el propietario que la cobra.",
+  ],
+  notices: [
+    { title: "No todo uso de un espacio es un alquiler sujeto", paragraphs: ["Coworking, centros de negocios o contratos con servicios conjuntos deben analizarse por su contenido real. No se incluyen automáticamente en el 115."] },
+    { title: "No residentes y otros bienes requieren revisión", paragraphs: ["No debe aplicarse automáticamente a inmuebles rústicos, bienes muebles, negocios o rentas pagadas a un no residente sin establecimiento permanente; pueden corresponder otras reglas y modelos."] },
+  ],
+  actions: [
+    { label: "Presentar Modelo 115", sourceId: "aeat.model-115.procedure-home.2026-06-09", primary: true },
+    { label: "Ver ayuda de presentación electrónica", sourceId: "aeat.model-115.help.2026-06-19", primary: true },
+    { label: "Generar predeclaración", sourceId: "aeat.model-115.paper-help.2026-02-24" },
+    { label: "Consultar rentas sujetas y excepciones", href: "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/rentas-sometidas-retencion-ingreso-cuenta.html" },
+    { label: "Consultar tipos de retención de 2026", href: "https://sede.agenciatributaria.gob.es/static_files/Sede/Programas_ayuda/Retenciones/2026/CUADRO_TIPOS_RETENCION_IRPF_2026.pdf" },
+    { label: "Consultar cuándo nace la obligación de retener", href: "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/que-momento-tengo-que-realizar-cuenta.html" },
+  ],
+  quickSummaryTitle: "El Modelo 115 en pocas palabras",
+  quickFacts: [
+    { label: "Qué es", value: "Una autoliquidación periódica de retenciones sobre determinados alquileres urbanos." },
+    { label: "Quién", value: "Normalmente, el arrendatario o pagador que practica la retención." },
+    { label: "Caso frecuente", value: "El alquiler de un local, oficina, nave u otro inmueble urbano para la actividad." },
+    { label: "Tipo general 2026", value: "19 %, sujeto a revisión anual y a las particularidades aplicables." },
+    { label: "Periodicidad", value: "Normalmente trimestral; mensual para determinados obligados." },
+    { label: "Resumen anual", value: "Modelo 180, con arrendadores e inmuebles." },
+  ],
+  sections: [
+    {
+      id: "model-115-who",
+      title: "Quién lo presenta y qué alquileres incluye",
+      cards: [
+        { title: "Arrendatario", paragraphs: ["Si alquilas un local sujeto, pagas al propietario el importe neto e ingresas la retención mediante el 115."] },
+        { title: "Arrendador", paragraphs: ["Cobra la renta con la retención descontada y recibe el certificado correspondiente. No presenta el 115 por la retención soportada."] },
+        { title: "Inmuebles urbanos", bullets: ["Locales comerciales.", "Oficinas y despachos.", "Naves y otros inmuebles urbanos arrendados para la actividad, cuando estén sujetos."] },
+      ],
+    },
+    {
+      id: "model-115-exceptions",
+      title: "Excepciones y casos que deben comprobarse",
+      cards: [
+        { title: "Importe anual reducido", paragraphs: ["No se practica retención cuando las rentas satisfechas por el arrendatario al mismo arrendador no superan 900 € anuales."] },
+        { title: "Vivienda para empleados", paragraphs: ["Existe excepción cuando empresas arriendan viviendas para sus empleados, en los términos previstos."] },
+        { title: "Arrendador en determinados epígrafes", paragraphs: ["Puede existir excepción cuando la actividad del arrendador se clasifica en el grupo 861 del IAE y la cuota no resulta cero, acreditándolo ante el arrendatario."] },
+        { title: "No residente", paragraphs: ["Si el propietario es no residente sin establecimiento permanente, revisa IRNR y los Modelos 216/296; no elijas el 115 por defecto."] },
+      ],
+      accordions: [
+        { question: "¿Y un coworking o centro de negocios?", paragraphs: ["Depende del contrato y de la factura. Si predominan servicios distintos de la mera cesión de un inmueble, no debe tratarse automáticamente como alquiler sujeto."] },
+        { question: "¿Y un inmueble rústico, un negocio o bienes muebles?", paragraphs: ["El Modelo 115 se refiere al arrendamiento o subarrendamiento de inmuebles urbanos. Otras rentas pueden tener un tratamiento diferente."] },
+      ],
+    },
+    {
+      id: "model-115-base",
+      title: "Base, tipo y ejemplo de 2026",
+      intro: ["El tipo general de retención sobre arrendamientos urbanos es del 19 % en 2026. Debe revisarse cuando cambie el ejercicio o exista una particularidad territorial."],
+      cards: [
+        { title: "Base de retención", paragraphs: ["Incluye, en general, todos los conceptos que el arrendatario satisface al arrendador, excluido el IVA. Pueden formar parte gastos repercutidos como comunidad o IBI si se pagan al arrendador."] },
+        { title: "Ejemplo", bullets: ["Alquiler y conceptos sujetos: 1.000 €.", "IVA del 21 %: +210 €.", "Retención del 19 %: −190 €.", "Importe pagado al arrendador: 1.020 €.", "Importe ingresado mediante el 115: 190 €."] },
+      ],
+      note: "El ejemplo es didáctico. Antes de aplicarlo hay que comprobar contrato, factura, conceptos repercutidos, residencia del arrendador y posibles excepciones.",
+    },
+    {
+      id: "model-115-timing",
+      title: "Momento y plazos",
+      cards: [
+        { title: "Cuándo se practica", paragraphs: ["Con carácter general, la obligación nace cuando la renta se satisface o abona. La fecha del recibo por sí sola no siempre determina el periodo."] },
+        { title: "Trimestral", bullets: ["1T: primeros veinte días naturales de abril.", "2T: primeros veinte días naturales de julio.", "3T: primeros veinte días naturales de octubre.", "4T: primeros veinte días naturales de enero."] },
+        { title: "Mensual", paragraphs: ["Determinados obligados presentan en los primeros veinte días naturales del mes siguiente, con las particularidades oficiales del mes de julio."] },
+      ],
+      note: "La domiciliación termina antes que el plazo general. Confirma cada vencimiento en el calendario oficial.",
+    },
+    {
+      id: "model-115-negative",
+      title: "Declaración negativa y periodos sin alquiler",
+      accordions: [
+        { question: "¿Cuándo puede ser negativa?", paragraphs: ["Cuando se han satisfecho rentas incluidas, pero por las reglas aplicables no se practicó retención ni ingreso a cuenta."] },
+        { question: "¿Y si no pagué ningún alquiler sujeto?", paragraphs: ["No debe presentarse un Modelo 115 vacío solo por ese motivo. No confundas ausencia de rentas con declaración negativa."] },
+      ],
+    },
+    {
+      id: "model-115-filing",
+      title: "Presentación, pago y correcciones",
+      cards: [
+        { title: "Formulario electrónico", paragraphs: ["Permite recuperar datos anteriores, validar, firmar y enviar. Conserva el justificante y el CSV."] },
+        { title: "Predeclaración", paragraphs: ["Cuando el canal esté admitido, genera un PDF validado para su presentación. Descargarlo no equivale a presentarlo."] },
+        { title: "Pago", paragraphs: ["Según plazo y resultado, la AEAT admite domiciliación, NRC, cargo en cuenta y otras modalidades. Comprueba que el pago haya quedado finalizado."] },
+      ],
+      note: "Si ingresaste menos, puede proceder complementaria. Si ingresaste de más o el error te perjudica, utiliza el procedimiento de rectificación aplicable.",
+    },
+    {
+      id: "model-115-reconciliation",
+      title: "Modelo 180, certificados y censo",
+      cards: [
+        { title: "Resumen anual", paragraphs: ["El Modelo 180 identifica al arrendador y al inmueble. Sus importes deben poder conciliarse con los 115 presentados y corregidos."], links: [{ label: "Ver la guía del Modelo 180", href: "/consultor-fiscal/modelos/180" }] },
+        { title: "Certificado", paragraphs: ["El retenedor debe entregar al arrendador el certificado de retenciones e ingresos a cuenta en los términos aplicables."] },
+        { title: "Obligación censal", paragraphs: ["El alta, baja o modificación se comunica actualmente mediante el Modelo 036. El Modelo 037 es histórico y no debe recomendarse como vigente."], links: [{ label: "Ver Modelo 036", href: "/consultor-fiscal/modelos/036" }] },
+      ],
+    },
+    {
+      id: "model-115-mistakes",
+      title: "Errores habituales",
+      cards: [
+        { title: "Contrato y sujeto", bullets: ["Tratar cualquier coworking como alquiler.", "Aplicar el 115 a un no residente sin revisar IRNR.", "No solicitar la acreditación de una excepción.", "Incluir bienes rústicos o muebles por inercia."] },
+        { title: "Importes y presentación", bullets: ["Calcular la retención solo sobre la renta y olvidar conceptos repercutidos sujetos.", "Calcularla sobre el IVA.", "Incluir el alquiler en el Modelo 111.", "No conciliar el año con el 180.", "Creer que el PDF es una presentación."] },
+      ],
+    },
+  ],
+  fillingTitle: "Cómo prepararlo",
+  fillingSteps: [
+    { title: "1. Revisa el contrato y el arrendador", paragraphs: ["Identifica el inmueble, la residencia del propietario y la naturaleza real de la operación."] },
+    { title: "2. Comprueba si existe excepción", paragraphs: ["Revisa el límite de 900 €, vivienda de empleados, acreditación IAE y restantes supuestos oficiales."] },
+    { title: "3. Determina base y periodo", paragraphs: ["Separa IVA y revisa todos los conceptos pagados al arrendador y la fecha del pago."] },
+    { title: "4. Concilia facturas y pagos", paragraphs: ["Compara contrato, recibos, banco y contabilidad, y conserva los datos necesarios para el 180."] },
+    { title: "5. Valida, paga y guarda", paragraphs: ["Firma y envía por el canal oficial, comprueba el pago y conserva el justificante."] },
+  ],
+  afterTitle: "Qué ocurre después",
+  afterSteps: [
+    { title: "Pago", description: "Comprueba el cargo o la modalidad elegida y conserva su referencia." },
+    { title: "Certificado", description: "Mantén el detalle para certificar al arrendador." },
+    { title: "Resumen anual", description: "Prepara el Modelo 180 con el detalle de arrendadores e inmuebles." },
+  ],
+  comparison: {
+    title: "Modelos relacionados",
+    current: { title: "Modelo 115", description: "Ingresa periódicamente retenciones por determinados alquileres urbanos." },
+    related: { title: "Modelo 180", description: "Resumen anual informativo con arrendadores e inmuebles.", href: "/consultor-fiscal/modelos/180", label: "Ver Modelo 180" },
+    additional: [{ title: "Modelo 111", description: "Retenciones de trabajo, profesionales y otras rentas distintas del alquiler urbano.", href: "/consultor-fiscal/modelos/111", label: "Ver Modelo 111" }],
+    conclusion: "El 115 corresponde al alquiler urbano sujeto; no debe mezclarse con nóminas o facturas profesionales del 111.",
+  },
+  pdfNotice: ["La predeclaración en PDF no acredita presentación por sí sola. Debes completar el canal indicado y obtener el justificante oficial."],
+  documents: [],
+  officialLinks: [
+    { label: "Ficha administrativa del procedimiento", sourceId: "aeat.model-115.procedure-record.2026-06-09" },
+    { label: "Ayuda técnica del formulario", sourceId: "aeat.model-115.help.2026-06-19" },
+    { label: "Ayuda oficial de la predeclaración", sourceId: "aeat.model-115.paper-help.2026-02-24" },
+    { label: "Rentas sometidas a retención y excepciones", href: "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/rentas-sometidas-retencion-ingreso-cuenta.html" },
+  ],
+  legalLinks: [
+    { label: "Orden de 20 de noviembre de 2000", sourceId: "boe.model-115.order-2000" },
+    { label: "Orden HAC/540/2003", sourceId: "boe.model-115.order-hac-540-2003" },
+    { label: "Ley 35/2006 del IRPF", href: "https://www.boe.es/buscar/act.php?id=BOE-A-2006-20764" },
+    { label: "Reglamento del IRPF", href: "https://www.boe.es/buscar/act.php?id=BOE-A-2007-6820" },
+  ],
+  faq: [
+    { question: "¿Quién presenta el Modelo 115?", answer: "Normalmente, el arrendatario que paga la renta y practica la retención." },
+    { question: "¿Lo presenta el propietario del local?", answer: "No por la retención soportada; la ingresa el pagador." },
+    { question: "¿Qué tipo se aplica en 2026?", answer: "El tipo general es 19 %, sin perjuicio de particularidades que deben comprobarse." },
+    { question: "¿La retención se calcula sobre el IVA?", answer: "No. El IVA queda fuera de la base de retención." },
+    { question: "¿Se incluyen comunidad o IBI repercutidos?", answer: "Pueden integrar la base cuando son cantidades satisfechas al arrendador; revisa contrato y factura." },
+    { question: "¿Todo coworking lleva Modelo 115?", answer: "No. Depende del contenido real del contrato y de los servicios prestados." },
+    { question: "¿Y si el propietario es no residente?", answer: "Debe revisarse IRNR y, en su caso, los Modelos 216/296; no se aplica el 115 automáticamente." },
+    { question: "¿Existe una excepción por importe pequeño?", answer: "Sí, entre otras, cuando las rentas al mismo arrendador no superan 900 € anuales." },
+    { question: "¿Cuándo se practica la retención?", answer: "Con carácter general, cuando la renta se satisface o abona." },
+    { question: "¿Tengo que presentar también el Modelo 180?", answer: "Con carácter general, quien presenta el 115 presenta el resumen anual 180." },
+    { question: "¿Se presenta si no pagué ningún alquiler sujeto?", answer: "No debe presentarse un modelo vacío solo por ese motivo." },
+    { question: "¿Puede presentarlo mi asesor?", answer: "Sí, mediante los sistemas de representación admitidos." },
+  ],
+  sourceIds: [
+    "aeat.model-115.procedure-home.2026-06-09",
+    "aeat.model-115.procedure-record.2026-06-09",
+    "aeat.model-115.help.2026-06-19",
+    "aeat.model-115.paper-help.2026-02-24",
+    "boe.model-115.order-2000",
+    "boe.model-115.order-hac-540-2003",
+  ],
+} as const satisfies FiscalModelPracticalGuideV1;

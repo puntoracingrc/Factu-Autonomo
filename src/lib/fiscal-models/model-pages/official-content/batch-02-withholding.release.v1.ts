@@ -61,7 +61,7 @@ const MODEL_111_CONTENT = {
   canonicalName:
     "Retenciones e ingresos a cuenta del IRPF. Rendimientos del trabajo y de actividades económicas, premios y determinadas ganancias patrimoniales e imputaciones de renta. Autoliquidación.",
   summary:
-    "Autoliquidación periódica de retenciones e ingresos a cuenta del IRPF sobre las clases de rentas que identifica la Agencia Tributaria.",
+    "Ingreso periódico de retenciones practicadas en nóminas, facturas profesionales y otras rentas sujetas.",
   searchTerms: [
     "modelo 111",
     "retenciones IRPF",
@@ -69,6 +69,12 @@ const MODEL_111_CONTENT = {
     "rendimientos del trabajo",
     "actividades económicas",
     "actividades profesionales",
+    "nóminas",
+    "facturas profesionales",
+    "retención profesional 15 por ciento",
+    "retención nuevo autónomo 7 por ciento",
+    "modelo 190",
+    "trimestral o mensual",
     "actividades agrícolas y ganaderas",
     "premios",
     "ganancias patrimoniales",
@@ -539,13 +545,19 @@ const MODEL_115_CONTENT = {
   canonicalName:
     "Retenciones e ingresos a cuenta. Rentas o rendimientos procedentes del arrendamiento o subarrendamiento de inmuebles urbanos.",
   summary:
-    "Autoliquidación de retenciones e ingresos a cuenta sobre rentas o rendimientos procedentes del arrendamiento o subarrendamiento de inmuebles urbanos.",
+    "Ingreso periódico de retenciones por el alquiler o subalquiler de determinados inmuebles urbanos.",
   searchTerms: [
     "modelo 115",
     "retenciones alquiler",
     "retenciones arrendamiento",
     "subarrendamiento",
     "inmuebles urbanos",
+    "alquiler de local",
+    "retención alquiler 19 por ciento",
+    "arrendatario",
+    "inquilino",
+    "coworking",
+    "modelo 180",
     "capital inmobiliario",
     "actividades económicas",
     "IRPF",

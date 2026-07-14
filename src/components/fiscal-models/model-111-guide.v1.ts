@@ -1,0 +1,172 @@
+import type { FiscalModelPracticalGuideV1 } from "./fiscal-model-practical-guide.types";
+
+export const MODEL_111_GUIDE_V1 = {
+  code: "111",
+  effectiveYear: 2026,
+  lastVerifiedAt: "2026-07-14",
+  requiresAnnualReview: true,
+  intro: [
+    "El Modelo 111 sirve para ingresar periódicamente en Hacienda las retenciones que un autónomo, empresa o entidad ha practicado al pagar determinadas rentas, como nóminas o facturas profesionales.",
+    "Presenta el Modelo 111 quien paga la renta y practica la retención, no quien recibe el importe con la retención descontada. Una retención es un anticipo del impuesto de la persona que cobra.",
+  ],
+  notices: [
+    { title: "No lo presenta quien soporta la retención", paragraphs: ["Si un cliente descuenta IRPF de una factura que tú has emitido, es ese cliente quien ingresa la retención. Tú conservas la factura y la tendrás en cuenta en tu propia tributación."] },
+    { title: "No todas las facturas llevan retención", paragraphs: ["Una factura comercial ordinaria no entra automáticamente en el 111. Hay que identificar la clase de renta y quién está obligado a retener."] },
+  ],
+  actions: [
+    { label: "Presentar Modelo 111", sourceId: "aeat.model-111.procedure-home.2026-06-09", primary: true },
+    { label: "Consultar instrucciones oficiales", sourceId: "aeat.model-111.instructions.2026-06-09", primary: true },
+    { label: "Ver ayuda de presentación electrónica", sourceId: "aeat.model-111.help.2026-06-19" },
+    { label: "Consultar tipos de retención de 2026", href: "https://sede.agenciatributaria.gob.es/static_files/Sede/Programas_ayuda/Retenciones/2026/CUADRO_TIPOS_RETENCION_IRPF_2026.pdf" },
+    { label: "Abrir el servicio de cálculo de retenciones", href: "https://sede.agenciatributaria.gob.es/Sede/Retenciones.shtml" },
+    { label: "Consultar cuándo nace la obligación de retener", href: "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/que-momento-tengo-que-realizar-cuenta.html" },
+  ],
+  quickSummaryTitle: "El Modelo 111 en pocas palabras",
+  quickFacts: [
+    { label: "Qué es", value: "Una autoliquidación periódica de retenciones e ingresos a cuenta." },
+    { label: "Quién", value: "El pagador que satisface una renta sujeta y practica la retención." },
+    { label: "Casos frecuentes", value: "Nóminas y facturas de profesionales; también determinadas actividades, premios y otras rentas." },
+    { label: "Periodicidad", value: "Normalmente trimestral; mensual para grandes empresas y otros obligados mensuales." },
+    { label: "Resumen anual", value: "Modelo 190, con el detalle de cada perceptor." },
+    { label: "Alta o cambio", value: "La obligación censal se comunica actualmente mediante el Modelo 036." },
+  ],
+  sections: [
+    {
+      id: "model-111-who",
+      title: "Quién lo presenta",
+      cards: [
+        { title: "Si pagas nóminas", paragraphs: ["Retienes una parte del IRPF del trabajador, pagas el neto e ingresas la retención mediante el 111. Después identificas al trabajador en el 190."] },
+        { title: "Si recibes una factura profesional con retención", paragraphs: ["Tú pagas al profesional el neto e ingresas la retención mediante el 111. Después lo incluyes en el 190."] },
+        { title: "Si emites tu propia factura con retención", paragraphs: ["Tu cliente practica e ingresa la retención. Tú no presentas un 111 por esa factura."], links: [{ label: "Diferenciarlo del pago fraccionado propio · Modelo 130", href: "/consultor-fiscal/modelos/130" }] },
+      ],
+      note: "Los alquileres urbanos sujetos a retención se declaran mediante el Modelo 115, no mediante el 111.",
+    },
+    {
+      id: "model-111-income",
+      title: "Rentas habituales incluidas",
+      cards: [
+        { title: "Rendimientos del trabajo", bullets: ["Nóminas y otras retribuciones del trabajo sujetas.", "Retribuciones dinerarias o en especie cuando proceda."] },
+        { title: "Actividades económicas", bullets: ["Actividades profesionales.", "Determinadas actividades agrícolas, ganaderas y forestales.", "Determinadas actividades empresariales en estimación objetiva."] },
+      ],
+      accordions: [
+        { question: "Otros pagos que pueden aparecer", paragraphs: ["Las instrucciones incluyen también determinados premios y ciertas ganancias patrimoniales e imputaciones de renta. Debe comprobarse la naturaleza concreta del pago antes de incluirlo."] },
+        { question: "Pagos que no deben mezclarse", paragraphs: ["No se incluyen automáticamente facturas comerciales sin retención, alquileres urbanos del Modelo 115, cotizaciones a la Seguridad Social ni el pago fraccionado propio del Modelo 130."] },
+      ],
+    },
+    {
+      id: "model-111-rates",
+      title: "Tipos habituales en 2026",
+      intro: ["Estos porcentajes proceden del cuadro oficial de retenciones de 2026 y requieren revisión anual. El tipo aplicable depende de la renta y de que se cumplan todos sus requisitos."],
+      cards: [
+        { title: "Profesionales", bullets: ["Tipo general: 15 %.", "Inicio de actividad: 7 % en el año de inicio y los dos siguientes, si se cumplen los requisitos y se comunica al pagador."] },
+        { title: "Agrícolas, ganaderas y forestales", bullets: ["Agrícolas y restantes ganaderas: 2 % con las particularidades oficiales.", "Engorde de porcino y avicultura: 1 %.", "Actividades forestales: 2 %."] },
+        { title: "Determinadas actividades empresariales", paragraphs: ["Ciertas actividades en estimación objetiva están sometidas al 1 %. No se aplica a cualquier factura empresarial."] },
+        { title: "Nóminas", paragraphs: ["No tienen un porcentaje fijo general: el tipo se calcula según retribuciones y circunstancias personales y familiares. La AEAT ofrece un servicio oficial de cálculo."] },
+      ],
+      note: "No apliques el 7 % solo porque una factura lo muestre: el profesional debe cumplir y comunicar los requisitos previstos.",
+    },
+    {
+      id: "model-111-example",
+      title: "Ejemplo de una factura profesional",
+      cards: [{ title: "Base de 1.000 €", bullets: ["Base: 1.000 €.", "IVA del 21 %: +210 €.", "Retención del 15 %: −150 €.", "Importe pagado al profesional: 1.060 €.", "Importe que el cliente ingresa mediante el 111: 150 €."] }],
+      note: "El IVA y la retención cumplen funciones distintas. El ejemplo no decide el tipo aplicable a un caso real.",
+    },
+    {
+      id: "model-111-timing",
+      title: "Momento, periodos y plazos",
+      cards: [
+        { title: "Cuándo se practica", paragraphs: ["Con carácter general, la obligación nace cuando la renta se satisface o abona. La fecha de factura por sí sola no siempre determina el periodo."] },
+        { title: "Trimestral", bullets: ["1T: primeros veinte días naturales de abril.", "2T: primeros veinte días naturales de julio.", "3T: primeros veinte días naturales de octubre.", "4T: primeros veinte días naturales de enero."] },
+        { title: "Mensual", paragraphs: ["Las grandes empresas, Administraciones y otros obligados mensuales presentan durante los primeros veinte días naturales del mes siguiente, con las particularidades del mes de julio."] },
+      ],
+      note: "La domiciliación bancaria termina antes que el plazo general. Comprueba siempre el calendario oficial del ejercicio.",
+    },
+    {
+      id: "model-111-negative",
+      title: "Declaración negativa y periodos sin rentas",
+      accordions: [
+        { question: "¿Cuándo puede ser negativa?", paragraphs: ["Cuando se han satisfecho rentas incluidas en el modelo pero, por las reglas aplicables, no se practicó retención ni ingreso a cuenta."] },
+        { question: "¿Y si no pagué ninguna renta incluida?", paragraphs: ["No debe presentarse un Modelo 111 completamente vacío solo por ese motivo. Una declaración negativa no equivale a ausencia total de rentas."] },
+      ],
+    },
+    {
+      id: "model-111-filing",
+      title: "Presentación, pago y correcciones",
+      cards: [
+        { title: "Presentación electrónica", paragraphs: ["El formulario permite recuperar datos anteriores, validar, firmar y enviar. Conserva el justificante y el CSV."] },
+        { title: "Predeclaración", paragraphs: ["Cuando esté admitida, genera un PDF validado para su presentación por el canal indicado. Descargar o imprimir el PDF no significa que el modelo esté presentado."] },
+        { title: "Resultado a ingresar", paragraphs: ["Puede pagarse mediante domiciliación dentro de su plazo, NRC, cargo en cuenta u otras modalidades admitidas. Generar una carta de pago o reconocer deuda no equivale siempre a pagarla."] },
+      ],
+      note: "Si ingresaste menos, puede proceder una complementaria. Si el error te perjudica o ingresaste de más, utiliza el procedimiento de rectificación aplicable. No traslades al 111 el sistema especial de autoliquidación rectificativa del 303.",
+    },
+    {
+      id: "model-111-certificates",
+      title: "Modelo 190, certificados y comprobaciones",
+      cards: [
+        { title: "Conciliación anual", paragraphs: ["Los totales del Modelo 190 deben poder explicarse con los Modelos 111 presentados y corregidos durante el año."], links: [{ label: "Ver la guía del Modelo 190", href: "/consultor-fiscal/modelos/190" }] },
+        { title: "Certificados", paragraphs: ["El retenedor debe expedir a empleados, profesionales y demás perceptores el certificado de retenciones e ingresos a cuenta en los términos y plazos aplicables."] },
+        { title: "Censo", paragraphs: ["Las altas, bajas o cambios de esta obligación se comunican mediante el Modelo 036. El Modelo 037 es histórico y ya no es el canal vigente."], links: [{ label: "Ver Modelo 036", href: "/consultor-fiscal/modelos/036" }] },
+      ],
+    },
+  ],
+  fillingTitle: "Cómo prepararlo",
+  fillingSteps: [
+    { title: "1. Identifica las rentas pagadas", paragraphs: ["Separa trabajo, profesionales y las restantes categorías incluidas. No copies todas las facturas de proveedores."] },
+    { title: "2. Comprueba el momento y el periodo", paragraphs: ["Revisa cuándo se satisfizo o abonó cada renta y si tu periodicidad es trimestral o mensual."] },
+    { title: "3. Revisa perceptores, bases y retenciones", paragraphs: ["Contrasta nóminas, facturas, justificantes y los tipos comunicados. No deduzcas un porcentaje por intuición."] },
+    { title: "4. Concilia los totales", paragraphs: ["Compara con contabilidad, pagos y los datos que formarán el resumen anual 190."] },
+    { title: "5. Valida, paga y conserva el justificante", paragraphs: ["Revisa avisos, firma y envía por el canal oficial. Conserva el recibo y comprueba el estado del pago."] },
+  ],
+  afterTitle: "Qué ocurre después",
+  afterSteps: [
+    { title: "Pago", description: "Verifica que el cargo, NRC o modalidad elegida ha quedado correctamente tramitada." },
+    { title: "Certificados", description: "Conserva el detalle necesario para certificar a cada perceptor." },
+    { title: "Resumen anual", description: "Prepara el Modelo 190 a partir de los 111 y del detalle individual del año." },
+  ],
+  comparison: {
+    title: "Modelos relacionados",
+    current: { title: "Modelo 111", description: "Ingresa periódicamente retenciones de trabajo, profesionales y otras rentas incluidas." },
+    related: { title: "Modelo 190", description: "Resumen anual informativo con el detalle de cada perceptor.", href: "/consultor-fiscal/modelos/190", label: "Ver Modelo 190" },
+    additional: [
+      { title: "Modelo 115", description: "Retenciones periódicas por determinados alquileres urbanos.", href: "/consultor-fiscal/modelos/115", label: "Ver Modelo 115" },
+      { title: "Modelo 130", description: "Pago fraccionado del IRPF propio del autónomo en estimación directa.", href: "/consultor-fiscal/modelos/130", label: "Ver Modelo 130" },
+    ],
+    conclusion: "El 111 ingresa retenciones practicadas a otras personas; no sustituye el pago fraccionado del IRPF propio ni el modelo de alquileres.",
+  },
+  pdfNotice: ["Una predeclaración o un PDF descargado no acredita la presentación. Debes usar el canal indicado y obtener el justificante oficial."],
+  documents: [],
+  officialLinks: [
+    { label: "Ficha administrativa del procedimiento", sourceId: "aeat.model-111.procedure-record.2026-06-09" },
+    { label: "Instrucciones oficiales", sourceId: "aeat.model-111.instructions.2026-06-09" },
+    { label: "Ayuda técnica del formulario", sourceId: "aeat.model-111.help.2026-06-19" },
+    { label: "Obligaciones del retenedor", href: "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/obligaciones-retenedor.html" },
+  ],
+  legalLinks: [
+    { label: "Orden EHA/586/2011", sourceId: "boe.model-111.order-2011" },
+    { label: "Ley 35/2006 del IRPF", sourceId: "boe.irpf-law-35-2006" },
+    { label: "Reglamento del IRPF", sourceId: "boe.irpf-regulation-rd-439-2007" },
+  ],
+  faq: [
+    { question: "¿Quién presenta el Modelo 111?", answer: "Quien paga una renta sujeta y practica la retención, no quien cobra soportándola." },
+    { question: "¿Lo presento por una factura que yo emito con retención?", answer: "No por esa retención: la ingresa el cliente que te paga." },
+    { question: "¿Todas las facturas de proveedores llevan retención?", answer: "No. Depende de la naturaleza de la renta y del perceptor." },
+    { question: "¿Qué tipo aplica un profesional?", answer: "En 2026, el general es 15 % y puede ser 7 % en determinados inicios de actividad si se cumplen y comunican los requisitos." },
+    { question: "¿Las nóminas llevan siempre el mismo porcentaje?", answer: "No. El tipo se calcula según las retribuciones y circunstancias del trabajador." },
+    { question: "¿Cuándo se practica la retención?", answer: "Con carácter general, cuando la renta se satisface o abona." },
+    { question: "¿Puedo declarar aquí el alquiler del local?", answer: "No. Las retenciones de determinados alquileres urbanos corresponden al Modelo 115." },
+    { question: "¿Se presenta si no pagué ninguna renta incluida?", answer: "No debe presentarse un modelo completamente vacío solo por ese motivo." },
+    { question: "¿Qué ocurre si pagué una renta sujeta pero la retención fue cero?", answer: "Puede corresponder una declaración negativa." },
+    { question: "¿Es lo mismo que el Modelo 130?", answer: "No. El 111 ingresa retenciones de otras personas; el 130 adelanta el IRPF propio." },
+    { question: "¿Tengo que presentar también el Modelo 190?", answer: "Con carácter general, quien presenta el 111 debe presentar su resumen anual 190." },
+    { question: "¿Cómo corrijo un error?", answer: "Depende de si ingresaste menos o si el error te perjudicó; revisa complementaria o rectificación según el caso." },
+  ],
+  sourceIds: [
+    "aeat.model-111.procedure-home.2026-06-09",
+    "aeat.model-111.procedure-record.2026-06-09",
+    "aeat.model-111.instructions.2026-06-09",
+    "aeat.model-111.help.2026-06-19",
+    "boe.model-111.order-2011",
+    "boe.irpf-law-35-2006",
+    "boe.irpf-regulation-rd-439-2007",
+  ],
+} as const satisfies FiscalModelPracticalGuideV1;

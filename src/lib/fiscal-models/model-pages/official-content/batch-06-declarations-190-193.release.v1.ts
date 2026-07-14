@@ -141,11 +141,16 @@ const MODEL_190_CONTENT = {
   canonicalName:
     "Declaración Informativa. Retenciones e ingresos a cuenta. Rendimientos del trabajo y de actividades económicas, premios y determinadas ganancias patrimoniales e imputaciones de rentas. Resumen anual.",
   summary:
-    "Declaración informativa que la AEAT identifica como resumen anual de retenciones e ingresos a cuenta vinculados a rendimientos del trabajo, actividades económicas, premios y determinadas rentas.",
+    "Resumen anual detallado de las retenciones declaradas mediante el Modelo 111.",
   searchTerms: [
     "modelo 190",
     "declaración informativa",
     "resumen anual de retenciones",
+    "modelo 111",
+    "trabajadores",
+    "profesionales",
+    "perceptores",
+    "claves A E F G H K",
     "rendimientos del trabajo",
     "actividades económicas",
     "premios",

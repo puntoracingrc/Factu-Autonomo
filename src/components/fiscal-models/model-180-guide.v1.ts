@@ -1,0 +1,168 @@
+import type { FiscalModelPracticalGuideV1 } from "./fiscal-model-practical-guide.types";
+
+export const MODEL_180_GUIDE_V1 = {
+  code: "180",
+  effectiveYear: 2026,
+  lastVerifiedAt: "2026-07-14",
+  requiresAnnualReview: true,
+  intro: [
+    "El Modelo 180 es la declaración informativa anual que detalla las retenciones declaradas periódicamente mediante el Modelo 115.",
+    "Identifica al arrendador y al inmueble. No vuelve a pagar las retenciones del alquiler ni sustituye los Modelos 115 mensuales o trimestrales.",
+  ],
+  notices: [
+    { title: "No basta con sumar el año", paragraphs: ["El 180 requiere registros individualizados por perceptor e inmueble, con referencia catastral y localización cuando corresponda."] },
+    { title: "La relación con el Modelo 347 tiene condiciones", paragraphs: ["La exclusión del arrendador en el 347 se refiere a alquileres sujetos a retención e incluidos correctamente en el 180, en los términos de la normativa. No debe generalizarse a cualquier alquiler."] },
+  ],
+  actions: [
+    { label: "Presentar Modelo 180 del ejercicio disponible", sourceId: "aeat.model-180.procedure-home.2026-03-01", primary: true },
+    { label: "Ver ayuda del formulario", sourceId: "aeat.model-180.browser-form-help.2026-06-19", primary: true },
+    { label: "Presentar mediante fichero", sourceId: "aeat.model-180.file-upload-help.2026-06-19" },
+    { label: "Consultar preguntas frecuentes oficiales", sourceId: "aeat.model-180.faq.2026-07-08" },
+    { label: "Abrir certificado de retenciones", sourceId: "aeat.model-180.certificate-page.2026-07-08" },
+    { label: "Consultar diseño de registro", sourceId: "aeat.model-180.register-design-pdf.2026-07-13" },
+  ],
+  quickSummaryTitle: "El Modelo 180 en pocas palabras",
+  quickFacts: [
+    { label: "Qué es", value: "El resumen anual informativo de determinadas retenciones por alquileres urbanos." },
+    { label: "Quién", value: "El retenedor o pagador que ha presentado los Modelos 115." },
+    { label: "Qué detalla", value: "Arrendadores, importes, retenciones e inmuebles." },
+    { label: "Resultado", value: "No genera un nuevo pago." },
+    { label: "Plazo general", value: "Del 1 al 31 de enero del año siguiente, según el calendario oficial." },
+    { label: "Canales", value: "Formulario web hasta 40.000 registros y fichero cuando proceda." },
+  ],
+  sections: [
+    {
+      id: "model-180-relation",
+      title: "Relación con el Modelo 115",
+      cards: [
+        { title: "Modelo 115", paragraphs: ["Contiene los totales del periodo e ingresa las retenciones practicadas al pagar el alquiler."], links: [{ label: "Ver la guía del Modelo 115", href: "/consultor-fiscal/modelos/115" }] },
+        { title: "Modelo 180", paragraphs: ["Resume el año e identifica a cada arrendador y cada inmueble relacionado."] },
+        { title: "Conciliación", paragraphs: ["Los importes anuales deben poder explicarse con los 115, facturas, contratos, pagos y correcciones del ejercicio."] },
+      ],
+    },
+    {
+      id: "model-180-data",
+      title: "Qué datos debe reunir",
+      cards: [
+        { title: "Declarante", bullets: ["NIF y denominación del retenedor.", "Ejercicio y tipo de declaración."] },
+        { title: "Arrendador", bullets: ["NIF y nombre o razón social.", "Provincia o país y otros datos exigidos.", "Base anual y retenciones e ingresos a cuenta."] },
+        { title: "Inmueble", bullets: ["Referencia catastral.", "Situación y dirección del inmueble.", "Número de inmuebles y datos adicionales del diseño anual."] },
+      ],
+      note: "No prepares el 180 copiando únicamente el total anual: la AEAT exige detalle de perceptores e inmuebles.",
+    },
+    {
+      id: "model-180-cadastral",
+      title: "Referencia catastral y localización",
+      cards: [
+        { title: "Por qué se solicita", paragraphs: ["La normativa amplió el contenido del 180 para identificar los inmuebles urbanos mediante referencia catastral y datos de localización."] },
+        { title: "Varios inmuebles", paragraphs: ["Si un arrendador tiene varios inmuebles, comprueba cómo deben desglosarse los registros y no concentres todo en una sola referencia."] },
+        { title: "Sin referencia disponible", paragraphs: ["Utiliza la clave de situación y los campos que establezca el diseño vigente. No inventes una referencia catastral."] },
+      ],
+    },
+    {
+      id: "model-180-347",
+      title: "Relación con el Modelo 347",
+      cards: [
+        { title: "Alquiler sujeto e incluido en el 180", paragraphs: ["El arrendador queda excluido de declarar esas mismas operaciones en el 347 en los términos previstos, porque el 180 ya aporta el detalle del inmueble."] },
+        { title: "No cualquier alquiler", paragraphs: ["La exclusión no permite omitir del 347 operaciones que no estén sujetas o no hayan quedado correctamente informadas en el 180."] },
+      ],
+      note: "Comprueba por separado la obligación de cada parte y la naturaleza de la operación.",
+    },
+    {
+      id: "model-180-channels",
+      title: "Formulario, fichero y vista previa",
+      cards: [
+        { title: "Formulario web", paragraphs: ["Permite trabajar con hasta 40.000 registros, importar datos, validar, guardar y recuperar la declaración."] },
+        { title: "Presentación mediante fichero", paragraphs: ["Para más de 40.000 registros se utiliza el canal mediante fichero ajustado al diseño vigente."] },
+        { title: "Vista previa", paragraphs: ["El PDF de vista previa sirve para revisar, pero no es válido para presentar. La presentación termina al firmar y enviar y obtener justificante."] },
+      ],
+      note: "Si se presentan solo los registros correctos, controla expresamente los erróneos pendientes para no dejar arrendadores fuera.",
+    },
+    {
+      id: "model-180-corrections",
+      title: "Cómo corregir una declaración",
+      accordions: [
+        { question: "Añadir un arrendador o inmueble omitido", paragraphs: ["Carga la declaración presentada y realiza el alta del registro mediante la opción oficial de modificación."] },
+        { question: "Modificar o eliminar un registro", paragraphs: ["Recupera la declaración del ejercicio y aplica la modificación o baja correspondiente. No presentes otro 180 completo sin revisar el efecto sobre el anterior."] },
+        { question: "¿Y si estaba mal el Modelo 115?", paragraphs: ["Modificar el 180 no corrige automáticamente la autoliquidación periódica. Revisa también el 115 afectado y su procedimiento de corrección."] },
+      ],
+    },
+    {
+      id: "model-180-certificates",
+      title: "Certificados y documentación",
+      cards: [
+        { title: "Certificados", paragraphs: ["El retenedor debe expedir el certificado al arrendador. La AEAT publica un formulario auxiliar; no es la declaración 180."] },
+        { title: "Documentación", bullets: ["Contratos y facturas.", "Justificantes de pago.", "Modelos 115 y sus correcciones.", "Datos catastrales.", "Justificante y fichero del 180."] },
+        { title: "Ejercicio correcto", paragraphs: ["Usa el formulario, diseño y certificado correspondientes al ejercicio disponible. No hardcodees un año anterior como acción permanente."] },
+      ],
+    },
+    {
+      id: "model-180-mistakes",
+      title: "Errores habituales",
+      cards: [
+        { title: "Contenido", bullets: ["Pensar que vuelve a pagar la retención.", "No conciliar con el 115.", "Omitir complementarias o correcciones del 115.", "No desglosar inmuebles.", "Inventar o copiar mal la referencia catastral."] },
+        { title: "Proceso", bullets: ["Incluir un alquiler no sujeto por inercia.", "Aplicar de forma general la exclusión del 347.", "Creer que la vista previa está presentada.", "Dejar registros erróneos pendientes.", "No emitir certificados."] },
+      ],
+    },
+  ],
+  fillingTitle: "Cómo preparar el resumen anual",
+  fillingSteps: [
+    { title: "1. Reúne los Modelos 115", paragraphs: ["Incluye declaraciones originales, complementarias y rectificaciones del ejercicio."] },
+    { title: "2. Identifica arrendadores", paragraphs: ["Comprueba NIF, nombre y totales de cada perceptor."] },
+    { title: "3. Identifica inmuebles", paragraphs: ["Revisa referencia catastral, dirección, situación y desglose por inmueble."] },
+    { title: "4. Concilia y valida", paragraphs: ["Contrasta contratos, facturas, pagos y 115; resuelve errores del formulario."] },
+    { title: "5. Firma, envía y certifica", paragraphs: ["Obtén el justificante y prepara los certificados de los arrendadores."] },
+  ],
+  afterTitle: "Qué ocurre después",
+  afterSteps: [
+    { title: "Justificante", description: "Conserva el recibo oficial, el CSV y el fichero presentado." },
+    { title: "Certificados", description: "Entrega o pon a disposición de cada arrendador su certificado." },
+    { title: "Correcciones", description: "Distingue los cambios del resumen anual de los que requieren corregir también el 115." },
+  ],
+  comparison: {
+    title: "Relación con el Modelo 115",
+    current: { title: "Modelo 180", description: "Detalle anual informativo por arrendador e inmueble; no genera un nuevo pago." },
+    related: { title: "Modelo 115", description: "Autoliquidación periódica que ingresa las retenciones del alquiler.", href: "/consultor-fiscal/modelos/115", label: "Ver Modelo 115" },
+    additional: [{ title: "Modelo 111", description: "Retenciones de nóminas, profesionales y otras rentas distintas del alquiler urbano.", href: "/consultor-fiscal/modelos/111", label: "Ver Modelo 111" }],
+    conclusion: "El 180 detalla el año del 115; no debe confundirse con el resumen de trabajadores y profesionales del 190.",
+  },
+  pdfNotice: ["El certificado y el PDF de vista previa son documentos auxiliares: ninguno acredita por sí solo la presentación del Modelo 180."],
+  documents: [{ label: "Descargar formulario oficial de certificado de retenciones", sourceId: "aeat.model-180.certificate-pdf.2026-07-13" }],
+  officialLinks: [
+    { label: "Ficha administrativa del procedimiento", sourceId: "aeat.model-180.procedure-record.2026-07-08" },
+    { label: "Ayuda del formulario web", sourceId: "aeat.model-180.browser-form-help.2026-06-19" },
+    { label: "Ayuda de presentación mediante fichero", sourceId: "aeat.model-180.file-upload-help.2026-06-19" },
+    { label: "Preguntas frecuentes oficiales", sourceId: "aeat.model-180.faq.2026-07-08" },
+    { label: "Certificado de retenciones", sourceId: "aeat.model-180.certificate-page.2026-07-08" },
+  ],
+  legalLinks: [
+    { label: "Orden de 20 de noviembre de 2000", sourceId: "boe.model-180.order-2000-11-20" },
+    { label: "Orden HAP/1732/2014", href: "https://www.boe.es/buscar/doc.php?id=BOE-A-2014-9740" },
+    { label: "Ley 35/2006 del IRPF", href: "https://www.boe.es/buscar/act.php?id=BOE-A-2006-20764" },
+    { label: "Reglamento del IRPF", href: "https://www.boe.es/buscar/act.php?id=BOE-A-2007-6820" },
+  ],
+  faq: [
+    { question: "¿El Modelo 180 vuelve a pagar la retención?", answer: "No. Es una declaración informativa anual." },
+    { question: "¿Quién presenta el Modelo 180?", answer: "El pagador o retenedor que presentó los Modelos 115." },
+    { question: "¿Qué datos identifica?", answer: "Cada arrendador, los importes y retenciones y los inmuebles relacionados." },
+    { question: "¿Necesito la referencia catastral?", answer: "Sí cuando corresponda; el diseño también contempla claves de situación para los casos previstos." },
+    { question: "¿Tiene que coincidir con el Modelo 115?", answer: "Los totales deben poder conciliarse con todos los 115 del ejercicio y sus correcciones." },
+    { question: "¿Cuándo se presenta?", answer: "Con carácter general, del 1 al 31 de enero del año siguiente." },
+    { question: "¿Qué canal uso con más de 40.000 registros?", answer: "La presentación mediante fichero ajustado al diseño vigente." },
+    { question: "¿La vista previa es válida para presentar?", answer: "No. Debes firmar y enviar y obtener justificante." },
+    { question: "¿Cómo corrijo un error?", answer: "Carga la declaración del ejercicio y realiza el alta, modificación o baja necesaria; revisa aparte el 115 afectado." },
+    { question: "¿Puedo generar certificados?", answer: "Sí. La AEAT publica herramientas y un formulario auxiliar de certificado." },
+    { question: "¿Debe repetirlo el propietario en el Modelo 347?", answer: "Los alquileres sujetos a retención e incluidos correctamente en el 180 están excluidos del 347 del arrendador en los términos normativos." },
+  ],
+  sourceIds: [
+    "aeat.model-180.procedure-home.2026-03-01",
+    "aeat.model-180.procedure-record.2026-07-08",
+    "aeat.model-180.browser-form-help.2026-06-19",
+    "aeat.model-180.file-upload-help.2026-06-19",
+    "aeat.model-180.certificate-page.2026-07-08",
+    "aeat.model-180.certificate-pdf.2026-07-13",
+    "aeat.model-180.faq.2026-07-08",
+    "aeat.model-180.register-design-pdf.2026-07-13",
+    "boe.model-180.order-2000-11-20",
+  ],
+} as const satisfies FiscalModelPracticalGuideV1;
