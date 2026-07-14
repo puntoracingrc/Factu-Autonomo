@@ -65,6 +65,7 @@ const FAMILY_LABELS = {
   AEAT_ENFORCEMENT_ORDER_CANDIDATE: "Providencia de apremio",
   AEAT_DEFERRAL_GRANT_CANDIDATE:
     "Concesión de aplazamiento o fraccionamiento",
+  AEAT_OFFSET_AGREEMENT_CANDIDATE: "Acuerdo de compensación",
   AEAT_REAL_ESTATE_SEIZURE_CANDIDATE:
     "Diligencia de embargo de bienes inmuebles",
   AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE:
@@ -77,6 +78,7 @@ const FAMILY_INDICATION_LABELS = {
   AEAT_ENFORCEMENT_ORDER_CANDIDATE: "Indicios de providencia de apremio",
   AEAT_DEFERRAL_GRANT_CANDIDATE:
     "Indicios de concesión de aplazamiento o fraccionamiento",
+  AEAT_OFFSET_AGREEMENT_CANDIDATE: "Indicios de acuerdo de compensación",
   AEAT_REAL_ESTATE_SEIZURE_CANDIDATE:
     "Indicios de diligencia de embargo de bienes inmuebles",
   AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE:
@@ -87,7 +89,8 @@ const FAMILY_INDICATION_LABELS = {
 
 function recognizedCandidateFrom(result: FiscalNotificationLocalReviewResult) {
   const candidate = result.candidates[0];
-  return result.engineVersion === "1.3.0" &&
+  return (result.engineVersion === "1.3.0" ||
+    result.engineVersion === "1.4.0") &&
     result.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
     result.candidates.length === 1 &&
     candidate?.recognitionPolicyVersion === "1.3.0" &&

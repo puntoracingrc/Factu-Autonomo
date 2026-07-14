@@ -49,6 +49,7 @@ export interface FiscalNotificationLocalReviewCandidate {
     AdministrativeDocumentType,
     | "AEAT_ENFORCEMENT_ORDER"
     | "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT"
+    | "AEAT_OFFSET_AGREEMENT"
     | "AEAT_SEIZURE_ORDER"
     | "GENERIC_ADMINISTRATIVE_NOTICE"
   >;
@@ -70,7 +71,13 @@ export interface FiscalNotificationLocalReviewResult {
   readonly engineId:
     | "fiscal-notification-family-candidate-engine"
     | null;
-  readonly engineVersion: "1.0.0" | "1.1.0" | "1.2.0" | "1.3.0" | null;
+  readonly engineVersion:
+    | "1.0.0"
+    | "1.1.0"
+    | "1.2.0"
+    | "1.3.0"
+    | "1.4.0"
+    | null;
   readonly pageCount: number;
   readonly byteLength: number;
   readonly sha256: string;
@@ -257,7 +264,13 @@ function freezeResult(input: {
   status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";
   reason: FiscalNotificationLocalReviewReason;
   engineId: "fiscal-notification-family-candidate-engine" | null;
-  engineVersion: "1.0.0" | "1.1.0" | "1.2.0" | "1.3.0" | null;
+  engineVersion:
+    | "1.0.0"
+    | "1.1.0"
+    | "1.2.0"
+    | "1.3.0"
+    | "1.4.0"
+    | null;
   pageCount: number;
   byteLength: number;
   sha256: string;
@@ -269,6 +282,7 @@ function freezeResult(input: {
       AdministrativeDocumentType,
       | "AEAT_ENFORCEMENT_ORDER"
       | "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT"
+      | "AEAT_OFFSET_AGREEMENT"
       | "AEAT_SEIZURE_ORDER"
       | "GENERIC_ADMINISTRATIVE_NOTICE"
     >;

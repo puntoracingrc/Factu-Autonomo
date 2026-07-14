@@ -26,6 +26,11 @@ const DEFERRAL =
   "Agencia Tributaria\nsede.agenciatributaria.gob.es\n" +
   "CONCESIÓN DEL APLAZAMIENTO / FRACCIONAMIENTO DE DEUDAS SIN GARANTÍA\n" +
   "ANEXO I\nCÁLCULO DE INTERESES";
+const OFFSET_AGREEMENT =
+  "Agencia Tributaria\nsede.agenciatributaria.gob.es\n" +
+  "ACUERDO DE COMPENSACIÓN DE OFICIO\n" +
+  "CRÉDITO Y DEUDAS COMPENSADAS DE OFICIO\n" +
+  "NÚMERO DE ACUERDO DE COMPENSACIÓN: ACUERDO-0001";
 const REAL_ESTATE_SEIZURE =
   "Agencia Tributaria\nsede.agenciatributaria.gob.es\n" +
   "DILIGENCIA DE EMBARGO DE BIENES INMUEBLES";
@@ -41,6 +46,7 @@ describe("fiscal notification extraction dispatcher", () => {
   it.each([
     [ENFORCEMENT, "AEAT_ENFORCEMENT_ORDER_CANDIDATE"],
     [DEFERRAL, "AEAT_DEFERRAL_GRANT_CANDIDATE"],
+    [OFFSET_AGREEMENT, "AEAT_OFFSET_AGREEMENT_CANDIDATE"],
     [REAL_ESTATE_SEIZURE, "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE"],
     [FORMAL_FILING_REQUIREMENT, "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE"],
     [ROI_REGISTRATION, "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE"],
@@ -48,7 +54,7 @@ describe("fiscal notification extraction dispatcher", () => {
     const result = extractFiscalNotificationCandidates(documentWith(text));
 
     expect(result).toMatchObject({
-      engineVersion: "1.3.0",
+      engineVersion: "1.4.0",
       status: "REVIEW_REQUIRED",
       reason: "SUPPORTED_FAMILY_CANDIDATE",
       selectedFamilyId: null,
@@ -72,6 +78,10 @@ describe("fiscal notification extraction dispatcher", () => {
       "AEAT_DEFERRAL_GRANT_CANDIDATE",
     ],
     [
+      "ACUERDO DE COMPENSACIÓN DE OFICIO\nCRÉDITO Y DEUDAS COMPENSADAS DE OFICIO\nNÚMERO DE ACUERDO DE COMPENSACIÓN: ACUERDO-0001",
+      "AEAT_OFFSET_AGREEMENT_CANDIDATE",
+    ],
+    [
       "DILIGENCIA DE EMBARGO DE BIENES INMUEBLES\nIDENTIFICACIÓN DEL DOCUMENTO",
       "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
     ],
@@ -88,7 +98,7 @@ describe("fiscal notification extraction dispatcher", () => {
     (text, familyId) => {
       const result = extractFiscalNotificationCandidates(documentWith(text));
       expect(result).toMatchObject({
-        engineVersion: "1.3.0",
+        engineVersion: "1.4.0",
         status: "REVIEW_REQUIRED",
         reason: "SUPPORTED_FAMILY_CANDIDATE",
         candidates: [
@@ -152,7 +162,7 @@ describe("fiscal notification extraction dispatcher", () => {
       ),
     );
     expect(result).toMatchObject({
-      engineVersion: "1.3.0",
+      engineVersion: "1.4.0",
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       candidates: [
@@ -325,7 +335,7 @@ describe("fiscal notification extraction dispatcher", () => {
       documentWith("Wrapper sintético", "Continuación", text),
     );
     expect(result).toMatchObject({
-      engineVersion: "1.3.0",
+      engineVersion: "1.4.0",
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       candidates: [
@@ -574,7 +584,7 @@ describe("fiscal notification extraction dispatcher", () => {
     expect(
       extractFiscalNotificationCandidates(documentWith(withoutOfficialDomain)),
     ).toMatchObject({
-      engineVersion: "1.3.0",
+      engineVersion: "1.4.0",
       status: "REVIEW_REQUIRED",
       reason: "SUPPORTED_FAMILY_CANDIDATE",
       candidates: [
@@ -653,7 +663,7 @@ describe("fiscal notification extraction dispatcher", () => {
     );
 
     expect(result).toMatchObject({
-      engineVersion: "1.3.0",
+      engineVersion: "1.4.0",
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       selectedFamilyId: null,

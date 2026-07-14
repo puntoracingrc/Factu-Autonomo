@@ -12,6 +12,7 @@ export type FiscalNotificationPrimaryActTitleAnchorId = Extract<
   FiscalNotificationAnchorId,
   | "ENFORCEMENT_ORDER_TITLE"
   | "DEFERRAL_GRANT_TITLE"
+  | "OFFSET_AGREEMENT_TITLE"
   | "REAL_ESTATE_SEIZURE_TITLE"
   | "FORMAL_FILING_REQUIREMENT_TITLE"
   | "ROI_REGISTRATION_AGREEMENT_TITLE"
@@ -72,6 +73,16 @@ export const AEAT_DEFERRAL_PRIMARY_TITLE_V1 = Object.freeze({
   ]),
 } satisfies FiscalNotificationRegisteredPrimaryTitleV1);
 
+export const AEAT_OFFSET_AGREEMENT_PRIMARY_TITLE_V1 = Object.freeze({
+  familyId: "AEAT_OFFSET_AGREEMENT_CANDIDATE",
+  titleAnchorId: "OFFSET_AGREEMENT_TITLE",
+  matchMode: "LINE_EXACT",
+  literals: Object.freeze([
+    "acuerdo de compensacion a instancia del obligado al pago",
+    "acuerdo de compensacion de oficio",
+  ]),
+} satisfies FiscalNotificationRegisteredPrimaryTitleV1);
+
 export const AEAT_REAL_ESTATE_SEIZURE_PRIMARY_TITLE_V1 = Object.freeze({
   familyId: "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
   titleAnchorId: "REAL_ESTATE_SEIZURE_TITLE",
@@ -101,6 +112,7 @@ export const AEAT_ROI_REGISTRATION_PRIMARY_TITLE_V1 = Object.freeze({
 export const FISCAL_NOTIFICATION_REGISTERED_PRIMARY_TITLES_V1 = Object.freeze([
   AEAT_ENFORCEMENT_PRIMARY_TITLE_V1,
   AEAT_DEFERRAL_PRIMARY_TITLE_V1,
+  AEAT_OFFSET_AGREEMENT_PRIMARY_TITLE_V1,
   AEAT_REAL_ESTATE_SEIZURE_PRIMARY_TITLE_V1,
   AEAT_FORMAL_FILING_REQUIREMENT_PRIMARY_TITLE_V1,
   AEAT_ROI_REGISTRATION_PRIMARY_TITLE_V1,

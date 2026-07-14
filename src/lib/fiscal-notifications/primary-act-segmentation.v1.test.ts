@@ -72,6 +72,16 @@ describe("fiscal notification primary-act segmentation v1", () => {
       "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
       "ROI_REGISTRATION_AGREEMENT_TITLE",
     ],
+    [
+      "acuerdo de compensacion de oficio",
+      "AEAT_OFFSET_AGREEMENT_CANDIDATE",
+      "OFFSET_AGREEMENT_TITLE",
+    ],
+    [
+      "acuerdo de compensacion a instancia del obligado al pago",
+      "AEAT_OFFSET_AGREEMENT_CANDIDATE",
+      "OFFSET_AGREEMENT_TITLE",
+    ],
   ])("registers the closed R1 title %s", (title, familyId, titleAnchorId) => {
     expect(segmentFiscalNotificationPrimaryActsV1([page(1, title)])).toMatchObject({
       outcome: "PRIMARY_TITLE",
@@ -103,6 +113,8 @@ describe("fiscal notification primary-act segmentation v1", () => {
       "requerimiento",
       "este texto explica un requerimiento de presentacion de declaraciones o autoliquidaciones",
       "acuerdo relativo al registro de operadores intracomunitarios",
+      "solicitud de compensacion",
+      "este documento menciona un acuerdo de compensacion de oficio",
     ]) {
       expect(
         segmentFiscalNotificationPrimaryActsV1([page(1, title)]),

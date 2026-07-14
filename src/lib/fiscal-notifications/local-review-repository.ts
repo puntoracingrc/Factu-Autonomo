@@ -64,6 +64,7 @@ export interface PersistedFiscalNotificationReviewResult {
     | "1.1.0"
     | "1.2.0"
     | "1.3.0"
+    | "1.4.0"
     | null;
   readonly pageCount: number;
   readonly byteLength: number;
@@ -230,6 +231,9 @@ const ANCHOR_IDS = new Set<PersistedFiscalNotificationReviewAnchor["anchorId"]>(
   "DEFERRAL_GRANT_TITLE",
   "DEFERRAL_INSTALLMENT_ANNEX",
   "DEFERRAL_INTEREST_CALCULATION",
+  "OFFSET_AGREEMENT_TITLE",
+  "OFFSET_CREDIT_AND_DEBT_ANNEX",
+  "OFFSET_AGREEMENT_NUMBER",
   "REAL_ESTATE_SEIZURE_TITLE",
   "FORMAL_FILING_REQUIREMENT_TITLE",
   "FORMAL_FILING_OMITTED_RETURNS_MARKER",
@@ -270,6 +274,13 @@ const DEFERRAL_REQUIRED_ANCHOR_IDS = Object.freeze([
   "DEFERRAL_INTEREST_CALCULATION",
   "STRUCTURAL_FIRST_PAGE_HEADER",
 ] as const);
+const OFFSET_REQUIRED_ANCHOR_IDS = Object.freeze([
+  "AEAT_OFFICIAL_DOMAIN_LABEL",
+  "OFFSET_AGREEMENT_TITLE",
+  "OFFSET_CREDIT_AND_DEBT_ANNEX",
+  "OFFSET_AGREEMENT_NUMBER",
+  "STRUCTURAL_FIRST_PAGE_HEADER",
+] as const);
 const REAL_ESTATE_SEIZURE_REQUIRED_ANCHOR_IDS = Object.freeze([
   "AEAT_OFFICIAL_DOMAIN_LABEL",
   "REAL_ESTATE_SEIZURE_TITLE",
@@ -302,6 +313,14 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
     requiredAnchors: DEFERRAL_REQUIRED_ANCHOR_IDS,
     optionalAnchors: Object.freeze([] as const),
     minimumEngineVersion: "1.0.0" as const,
+  }),
+  AEAT_OFFSET_AGREEMENT_CANDIDATE: Object.freeze({
+    documentType: "AEAT_OFFSET_AGREEMENT" as const,
+    handlerId: "aeat-offset-agreement-candidate" as const,
+    titleAnchorId: "OFFSET_AGREEMENT_TITLE" as const,
+    requiredAnchors: OFFSET_REQUIRED_ANCHOR_IDS,
+    optionalAnchors: Object.freeze(["DOCUMENT_IDENTIFICATION_SECTION"] as const),
+    minimumEngineVersion: "1.4.0" as const,
   }),
   AEAT_REAL_ESTATE_SEIZURE_CANDIDATE: Object.freeze({
     documentType: "AEAT_SEIZURE_ORDER" as const,
@@ -341,7 +360,7 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
     readonly titleAnchorId: PersistedFiscalNotificationReviewAnchor["anchorId"];
     readonly requiredAnchors: readonly PersistedFiscalNotificationReviewAnchor["anchorId"][];
     readonly optionalAnchors: readonly PersistedFiscalNotificationReviewAnchor["anchorId"][];
-    readonly minimumEngineVersion: "1.0.0" | "1.2.0";
+    readonly minimumEngineVersion: "1.0.0" | "1.2.0" | "1.4.0";
   }
 >);
 const SIGNAL_STATUSES = new Set<
@@ -741,7 +760,8 @@ function validateResult(
         (result.engineVersion !== "1.0.0" &&
           result.engineVersion !== "1.1.0" &&
           result.engineVersion !== "1.2.0" &&
-          result.engineVersion !== "1.3.0")
+          result.engineVersion !== "1.3.0" &&
+          result.engineVersion !== "1.4.0")
   ) {
     throw new RepositoryDataError(errorCode);
   }
@@ -805,7 +825,7 @@ function validateCandidate(
       : undefined;
   if (
     !definition ||
-    (engineVersion === "1.3.0"
+    (engineVersion === "1.3.0" || engineVersion === "1.4.0"
       ? candidate.segmentationVersion !== "1.1.0" ||
         candidate.recognitionPolicyVersion !== "1.3.0"
       : engineVersion === "1.2.0"
@@ -817,7 +837,10 @@ function validateCandidate(
         : hasSegmentationVersion || hasRecognitionPolicyVersion) ||
     (definition.minimumEngineVersion === "1.2.0" &&
       engineVersion !== "1.2.0" &&
-      engineVersion !== "1.3.0") ||
+      engineVersion !== "1.3.0" &&
+      engineVersion !== "1.4.0") ||
+    (definition.minimumEngineVersion === "1.4.0" &&
+      engineVersion !== "1.4.0") ||
     candidate.documentType !== definition.documentType ||
     candidate.authoritySignal !== "AEAT_UNVERIFIED" ||
     candidate.handlerId !== definition.handlerId ||
@@ -877,7 +900,8 @@ function validateCandidate(
   if (
     (engineVersion === "1.1.0" ||
       engineVersion === "1.2.0" ||
-      engineVersion === "1.3.0") &&
+      engineVersion === "1.3.0" ||
+      engineVersion === "1.4.0") &&
     (!titlePages ||
       titlePages.length !== 1 ||
       titlePageNumber === undefined ||
@@ -935,7 +959,8 @@ function assertCandidateTrace(
     engineVersion !== "1.0.0" &&
     engineVersion !== "1.1.0" &&
     engineVersion !== "1.2.0" &&
-    engineVersion !== "1.3.0"
+    engineVersion !== "1.3.0" &&
+    engineVersion !== "1.4.0"
   ) {
     throw new RepositoryDataError(errorCode);
   }
@@ -962,7 +987,10 @@ function assertCandidateTrace(
   if (
     (definition.minimumEngineVersion === "1.2.0" &&
       engineVersion !== "1.2.0" &&
-      engineVersion !== "1.3.0") ||
+      engineVersion !== "1.3.0" &&
+      engineVersion !== "1.4.0") ||
+    (definition.minimumEngineVersion === "1.4.0" &&
+      engineVersion !== "1.4.0") ||
     (domainPages !== undefined &&
       (engineVersion === "1.0.0"
         ? !sameNumberList(domainPages, [1])
@@ -972,6 +1000,7 @@ function assertCandidateTrace(
   }
   if (
     engineVersion !== "1.3.0" &&
+    engineVersion !== "1.4.0" &&
     matchedAnchors.some((anchor) =>
       FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS.includes(
         anchor.anchorId as (typeof FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS)[number],

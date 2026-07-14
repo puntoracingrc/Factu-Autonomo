@@ -17,6 +17,7 @@ import {
   AEAT_DEFERRAL_PRIMARY_TITLE_V1,
   AEAT_ENFORCEMENT_PRIMARY_TITLE_V1,
   AEAT_FORMAL_FILING_REQUIREMENT_PRIMARY_TITLE_V1,
+  AEAT_OFFSET_AGREEMENT_PRIMARY_TITLE_V1,
   AEAT_REAL_ESTATE_SEIZURE_PRIMARY_TITLE_V1,
   AEAT_ROI_REGISTRATION_PRIMARY_TITLE_V1,
   segmentFiscalNotificationPrimaryActsV1,
@@ -187,6 +188,25 @@ const DEFERRAL_REQUIRED_ANCHORS = Object.freeze([
     anchorId: "DEFERRAL_INTEREST_CALCULATION",
     matchMode: "LINE_PREFIX",
     literals: ["calculo de intereses"],
+  },
+] satisfies readonly ClosedTextAnchorDefinition[]);
+
+const OFFSET_REQUIRED_ANCHORS = Object.freeze([
+  ...COMMON_REQUIRED_AUTHORITY_ANCHORS,
+  {
+    anchorId: AEAT_OFFSET_AGREEMENT_PRIMARY_TITLE_V1.titleAnchorId,
+    matchMode: AEAT_OFFSET_AGREEMENT_PRIMARY_TITLE_V1.matchMode,
+    literals: AEAT_OFFSET_AGREEMENT_PRIMARY_TITLE_V1.literals,
+  },
+  {
+    anchorId: "OFFSET_CREDIT_AND_DEBT_ANNEX",
+    matchMode: "LINE_EXACT",
+    literals: ["credito y deudas", "credito y deudas compensadas de oficio"],
+  },
+  {
+    anchorId: "OFFSET_AGREEMENT_NUMBER",
+    matchMode: "LINE_PREFIX",
+    literals: ["numero de acuerdo de compensacion"],
   },
 ] satisfies readonly ClosedTextAnchorDefinition[]);
 
@@ -371,6 +391,21 @@ function evaluateSegmentCandidate(
         handlerId: "aeat-deferral-grant-candidate",
       },
       [],
+      segmentationVersion,
+    );
+  }
+  if (segment.familyId === "AEAT_OFFSET_AGREEMENT_CANDIDATE") {
+    return evaluateFamilyCandidate(
+      segmentIndex,
+      signal,
+      OFFSET_REQUIRED_ANCHORS,
+      segment.titleAnchorId,
+      {
+        familyId: "AEAT_OFFSET_AGREEMENT_CANDIDATE",
+        documentType: "AEAT_OFFSET_AGREEMENT",
+        handlerId: "aeat-offset-agreement-candidate",
+      },
+      [DOCUMENT_IDENTIFICATION_OPTIONAL_ANCHOR],
       segmentationVersion,
     );
   }

@@ -177,7 +177,7 @@ describe("fiscal notification local review flow", () => {
       status: "REVIEW_REQUIRED",
       reason: "SUPPORTED_FAMILY_CANDIDATE",
       engineId: "fiscal-notification-family-candidate-engine",
-      engineVersion: "1.3.0",
+      engineVersion: "1.4.0",
       pageCount: 1,
       byteLength: 2_048,
       sha256: HASH,
@@ -237,13 +237,24 @@ describe("fiscal notification local review flow", () => {
       "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
       "GENERIC_ADMINISTRATIVE_NOTICE",
     ],
+    [
+      [
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "ACUERDO DE COMPENSACION DE OFICIO",
+        "CREDITO Y DEUDAS COMPENSADAS DE OFICIO",
+        "NUMERO DE ACUERDO DE COMPENSACION: ACUERDO-0001",
+      ].join("\n"),
+      "AEAT_OFFSET_AGREEMENT_CANDIDATE",
+      "AEAT_OFFSET_AGREEMENT",
+    ],
   ])(
     "propagates the R1 review-only family %s without materialization",
     async (text, familyId, documentType) => {
       const analysis = await analyzeEphemeralForTest({}, dependencies(text));
       expect(analysis).toMatchObject({
         technicalReview: {
-          engineVersion: "1.3.0",
+          engineVersion: "1.4.0",
           status: "REVIEW_REQUIRED",
           reason: "SUPPORTED_FAMILY_CANDIDATE",
           candidates: [
@@ -369,7 +380,7 @@ describe("fiscal notification local review flow", () => {
 
     expect(analysis).toMatchObject({
       technicalReview: {
-        engineVersion: "1.3.0",
+        engineVersion: "1.4.0",
         reason: "SUPPORTED_FAMILY_CANDIDATE",
         candidates: [
           expect.objectContaining({

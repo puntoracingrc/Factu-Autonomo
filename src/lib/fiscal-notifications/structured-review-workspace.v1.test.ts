@@ -143,6 +143,24 @@ function mutable<T>(value: T): T {
 }
 
 describe("structured fiscal notification review workspace v1", () => {
+  it("keeps accepting historical engine 1.3 reviews after the 1.4 rollout", () => {
+    const historical = mutable(input());
+
+    const result = appendAeatEnforcementStructuredReviewV1({
+      ...historical,
+      analysis: {
+        ...historical.analysis,
+        technicalReview: {
+          ...historical.analysis.technicalReview,
+          engineVersion: "1.3.0",
+        },
+      },
+    });
+
+    expect(result.status).toBe("APPLIED");
+    expect(result.workspace.analysisSnapshots[0]?.rulesVersion).toBe("1.3.0");
+  });
+
   it("persists exact structured facts without retaining the PDF or raw text", () => {
     const candidate = input();
     const before = structuredClone(candidate);
