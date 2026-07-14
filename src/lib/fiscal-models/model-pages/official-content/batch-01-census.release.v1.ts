@@ -31,7 +31,7 @@ const MODEL_030 = {
   canonicalName:
     "Censo de obligados tributarios. Declaración censal de alta, cambio de domicilio y/o de variación de datos personales.",
   summary:
-    "Declaración censal de la AEAT para comunicar determinados datos identificativos, personales y de domicilio de personas físicas.",
+    "Guía sencilla del Modelo 030: quién debe utilizarlo, cambios de domicilio, datos personales, solicitud de NIF, documentación y presentación.",
   searchTerms: [
     "modelo 030",
     "censo de obligados tributarios",
@@ -43,6 +43,10 @@ const MODEL_030 = {
     "persona física",
     "cambio de domicilio",
     "datos de contacto",
+    "cambio domicilio tres meses",
+    "modelo 030 autónomo",
+    "modelo 030 cónyuge",
+    "presentar modelo 030",
     "Agencia Tributaria",
   ],
   sections: [
@@ -576,7 +580,7 @@ const MODEL_036 = {
   canonicalName:
     "Censo de empresarios, profesionales y retenedores. Declaración censal de alta, modificación y baja.",
   summary:
-    "Declaración censal de la AEAT para comunicar el alta, la modificación o la baja en el Censo de empresarios, profesionales y retenedores.",
+    "Guía sencilla del Modelo 036: alta de autónomos y empresas, actividades, IVA, IRPF, retenciones, plazos, Censos WEB y presentación oficial.",
   searchTerms: [
     "modelo 036",
     "declaración censal",
@@ -589,6 +593,12 @@ const MODEL_036 = {
     "NIF",
     "domicilio fiscal",
     "Censos WEB",
+    "modelo 036 simplificado",
+    "alta autónomo",
+    "plazo modificación censal",
+    "plazo baja censal",
+    "ROI REDEME",
+    "titular real",
     "Agencia Tributaria",
   ],
   sections: [

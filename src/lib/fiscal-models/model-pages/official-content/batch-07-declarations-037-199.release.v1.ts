@@ -141,7 +141,7 @@ const MODEL_037_CONTENT = {
   canonicalName:
     "Declaración censal simplificada de alta, modificación y baja en el Censo de empresarios, profesionales y retenedores.",
   summary:
-    "Modelo histórico que identificaba una declaración censal simplificada de alta, modificación y baja en el Censo de empresarios, profesionales y retenedores. La AEAT y la Orden HAC/1526/2024 confirman su supresión con efectos de 3 de febrero de 2025.",
+    "Modelo histórico que identificaba una declaración censal simplificada de alta, modificación y baja. La AEAT y la Orden HAC/1526/2024 confirman su supresión con efectos de 3 de febrero de 2025.",
   searchTerms: [
     "modelo 037",
     "declaración censal simplificada",
@@ -153,6 +153,7 @@ const MODEL_037_CONTENT = {
     "Orden EHA 1274 2007",
     "Orden HAC 1526 2024",
     "formulario histórico 037",
+    "qué sustituye modelo 037",
   ],
   sections: [
     {

@@ -86,6 +86,27 @@ function ExternalOfficialLink({
   );
 }
 
+function InternalModelLink({
+  href,
+  children,
+  prominent = false,
+}: {
+  href: NonNullable<
+    FiscalModelPracticalGuideV1["actions"][number]["internalHref"]
+  >;
+  children: React.ReactNode;
+  prominent?: boolean;
+}) {
+  const classes = prominent
+    ? "inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-center font-bold text-white shadow-sm transition hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500"
+    : "inline-flex min-h-11 items-center gap-2 rounded-xl px-2 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950";
+  return (
+    <Link href={href} className={`${classes} ${focusRing}`}>
+      {children}
+    </Link>
+  );
+}
+
 function SectionHeading({
   id,
   children,
@@ -141,6 +162,7 @@ export function FiscalModelPracticalGuide({
     guide.documents.map((document) => document.sourceId),
   );
   const supplementalLinks = [...guide.actions.slice(3), ...guide.officialLinks]
+    .filter((item) => !("internalHref" in item && item.internalHref))
     .filter((item) => !item.sourceId || !documentSourceIds.has(item.sourceId))
     .filter((item, index, items) => {
       const key = item.sourceId ?? item.href;
@@ -196,16 +218,27 @@ export function FiscalModelPracticalGuide({
           </Card>
         ))}
         <div className="grid gap-3 lg:grid-cols-3">
-          {guide.actions.slice(0, 3).map((action) => (
-            <ExternalOfficialLink
-              key={action.label}
-              href={resolveOfficialHref(content, action)}
-              prominent={action.primary}
-            >
-              <Landmark className="h-5 w-5" aria-hidden="true" />
-              {action.label}
-            </ExternalOfficialLink>
-          ))}
+          {guide.actions.slice(0, 3).map((action) =>
+            action.internalHref ? (
+              <InternalModelLink
+                key={action.label}
+                href={action.internalHref}
+                prominent={action.primary}
+              >
+                <Landmark className="h-5 w-5" aria-hidden="true" />
+                {action.label}
+              </InternalModelLink>
+            ) : (
+              <ExternalOfficialLink
+                key={action.label}
+                href={resolveOfficialHref(content, action)}
+                prominent={action.primary}
+              >
+                <Landmark className="h-5 w-5" aria-hidden="true" />
+                {action.label}
+              </ExternalOfficialLink>
+            ),
+          )}
         </div>
         <p className="text-center text-xs leading-5 text-slate-500 dark:text-slate-400">
           Los trámites y documentos se abren en la sede oficial que los publica.
