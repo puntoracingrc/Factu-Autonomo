@@ -64,6 +64,19 @@ describe("census certificate parser", () => {
     );
   });
 
+  it("recognizes the historical model 037 without treating it as a current form", () => {
+    const parsed = parseCensusCertificateText(`
+      AGENCIA TRIBUTARIA
+      MODELO 037
+      NIF: 12345678Z
+      Estimación directa simplificada
+      Régimen general de IVA
+    `);
+
+    expect(parsed.documentKind).toBe("MODEL_037");
+    expect(parsed.warnings.join(" ")).toContain("037 histórico");
+  });
+
   it("keeps missing or ambiguous fiscal data unknown", () => {
     const parsed = parseCensusCertificateText(`
       Documento aportado por el usuario

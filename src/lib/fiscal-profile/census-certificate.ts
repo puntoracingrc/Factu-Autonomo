@@ -29,10 +29,17 @@ function comparable(value: string): string {
 }
 
 function cleanLine(value: string): string {
-  return value.replace(/\u0000/g, "").replace(/\s+/g, " ").trim();
+  return value
+    .replace(/\u0000/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
-function toIsoDate(day: string, month: string, year: string): string | undefined {
+function toIsoDate(
+  day: string,
+  month: string,
+  year: string,
+): string | undefined {
   const yyyy = Number(year);
   const mm = Number(month);
   const dd = Number(day);
@@ -138,7 +145,9 @@ function extractActivities(lines: string[]): FiscalActivity[] {
       continue;
     }
     if (parsed.code && !parsed.description) {
-      const next = lines[index + 1] ? parseActivityLine(lines[index + 1]) : null;
+      const next = lines[index + 1]
+        ? parseActivityLine(lines[index + 1])
+        : null;
       if (next?.description && !next.code) {
         activities.push({ ...parsed, description: next.description });
         index += 1;
@@ -160,6 +169,7 @@ function detectDocumentKind(
     return "AEAT_CENSUS_CERTIFICATE";
   }
   if (/\bmodelo\s+036\b/.test(normalizedText)) return "MODEL_036";
+  if (/\bmodelo\s+037\b/.test(normalizedText)) return "MODEL_037";
   return "UNKNOWN";
 }
 
@@ -236,7 +246,9 @@ function detectVat(normalizedText: string) {
     normalizedText.includes("sin derecho a deduccion de iva") ||
     normalizedText.includes("operaciones exentas de iva");
   const hasGeneral = normalizedText.includes("regimen general de iva");
-  const detectedRegimes = [hasProrata, hasExempt, hasGeneral].filter(Boolean).length;
+  const detectedRegimes = [hasProrata, hasExempt, hasGeneral].filter(
+    Boolean,
+  ).length;
 
   if (detectedRegimes > 1) {
     return {
@@ -277,7 +289,9 @@ function detectVat(normalizedText: string) {
   };
 }
 
-export function parseCensusCertificateText(text: string): CensusCertificateCandidate {
+export function parseCensusCertificateText(
+  text: string,
+): CensusCertificateCandidate {
   const bounded = text.slice(0, MAX_CENSUS_TEXT_CHARS);
   const lines = bounded
     .split(/\r?\n/)
@@ -291,14 +305,16 @@ export function parseCensusCertificateText(text: string): CensusCertificateCandi
   const inferredTaxpayerType = inferTaxpayerTypeFromSpanishTaxId(detectedNif);
   const taxpayerType =
     explicitTaxpayerType === "UNKNOWN"
-      ? inferredTaxpayerType ?? "UNKNOWN"
+      ? (inferredTaxpayerType ?? "UNKNOWN")
       : explicitTaxpayerType;
   const vat = detectVat(normalizedText);
   const activities = extractActivities(lines);
   const documentKind = detectDocumentKind(normalizedText);
   const warnings: string[] = [];
   if (!detectedNif) {
-    warnings.push("No se ha podido localizar el NIF del titular en el documento.");
+    warnings.push(
+      "No se ha podido localizar el NIF del titular en el documento.",
+    );
   }
   if (explicitTaxpayerType === "UNKNOWN" && inferredTaxpayerType) {
     warnings.push(
@@ -306,16 +322,18 @@ export function parseCensusCertificateText(text: string): CensusCertificateCandi
     );
   }
   if (activities.length === 0) {
-    warnings.push("No se ha detectado ninguna actividad económica de forma fiable.");
+    warnings.push(
+      "No se ha detectado ninguna actividad económica de forma fiable.",
+    );
   }
   if (vat.conflict) {
     warnings.push(
       "El documento contiene tratamientos de IVA distintos o actividades mixtas. Confirma el régimen y el derecho de deducción manualmente.",
     );
   }
-  if (documentKind === "MODEL_036") {
+  if (documentKind === "MODEL_036" || documentKind === "MODEL_037") {
     warnings.push(
-      "El modelo 036 refleja una declaración concreta; confirma que los datos siguen vigentes.",
+      `El modelo ${documentKind === "MODEL_037" ? "037 histórico" : "036"} refleja una declaración concreta; confirma que los datos siguen vigentes.`,
     );
   } else if (documentKind === "UNKNOWN") {
     warnings.push(

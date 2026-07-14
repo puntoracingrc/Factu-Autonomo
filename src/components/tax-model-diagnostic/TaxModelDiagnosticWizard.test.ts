@@ -8,8 +8,7 @@ function source(path: string): string {
 describe("tax model diagnostic UI contract", () => {
   const wizard = source("./TaxModelDiagnosticWizard.tsx");
   const questions = source("./DiagnosticQuestionField.tsx");
-  const documents = source("./DiagnosticDocumentReview.tsx");
-  const screenshots = source("./DiagnosticScreenshotReview.tsx");
+  const hacienda = source("./DiagnosticHaciendaReview.tsx");
   const results = source("./DiagnosticResults.tsx");
 
   it("exige confirmación humana antes del resultado", () => {
@@ -24,35 +23,39 @@ describe("tax model diagnostic UI contract", () => {
     expect(questions).toContain("<legend");
     expect(questions).toContain("Por qué lo preguntamos");
     expect(questions).toContain('type="radio"');
-    expect(questions).toContain("const checked = completed && value === optionValue");
-    expect(questions).toContain("const checked = completed && value === option.value");
+    expect(questions).toContain(
+      "const checked = completed && value === optionValue",
+    );
+    expect(questions).toContain(
+      "const checked = completed && value === option.value",
+    );
   });
 
-  it("procesa documentos localmente sin aplicar propuestas automáticamente", () => {
-    expect(documents).toContain("readCensusDocumentText");
-    expect(documents).toContain("no se guarda el PDF");
-    expect(documents).toContain("Opción 2 · Usar capturas de Hacienda");
-    expect(documents).toContain('href="#capturas-aeat"');
-    expect(documents).toContain("He contrastado el documento");
-    expect(documents).toContain("userConfirmed: true");
-  });
-
-  it("ofrece capturas AEAT parciales con OCR local y confirmación humana", () => {
-    expect(screenshots).toContain("Mis actividades económicas");
-    expect(screenshots).toContain("Mi situación tributaria");
-    expect(screenshots).toContain("Mis obligaciones");
-    expect(screenshots).toContain("Cómo encontrar esta información en Hacienda");
-    expect(screenshots).toContain("Área personal");
-    expect(screenshots).toContain("Mis datos censales");
-    expect(screenshots).toContain("recognizeAeatScreenshotFiles");
-    expect(screenshots).toContain("Arrastra aquí las capturas desde tu ordenador");
-    expect(screenshots).toContain("Suelta las capturas aquí");
-    expect(screenshots).toContain("onDrop={(event) => handleDrop(slot.kind, event)}");
-    expect(screenshots).toContain("data-drop-zone={slot.kind}");
-    expect(screenshots).toContain("Las imágenes no se envían ni se guardan");
-    expect(screenshots).toContain("Confirmo que las capturas contienen mis datos");
-    expect(screenshots).toContain('extractionMethod: "OCR_LOCAL"');
-    expect(screenshots).not.toContain("reconcileCensusIdentity");
+  it("unifica PDF y capturas, los clasifica localmente y exige confirmación", () => {
+    expect(wizard).toContain("DiagnosticHaciendaReview");
+    expect(wizard).not.toContain("DiagnosticDocumentReview");
+    expect(wizard).not.toContain("DiagnosticScreenshotReview");
+    expect(hacienda).toContain("Sube lo que tengas de Hacienda");
+    expect(hacienda).toContain("Puedes mezclar PDF y capturas sin ordenarlos");
+    expect(hacienda).toContain("readCensusDocumentText");
+    expect(hacienda).toContain("recognizeAndClassifyAeatScreenshotFiles");
+    expect(hacienda).toContain("parseAeatTaxFormText");
+    expect(hacienda).toContain('data-drop-zone="AEAT_FILES"');
+    expect(hacienda).toContain(
+      'accept="application/pdf,image/png,image/jpeg,image/webp',
+    );
+    expect(hacienda).toContain("Arrastra aquí todos tus PDF y capturas");
+    expect(hacienda).toContain("Cómo encontrar la información en Hacienda");
+    expect(hacienda).toContain("Área personal");
+    expect(hacienda).toContain("Mis datos censales");
+    expect(hacienda).toContain("no necesitas");
+    expect(hacienda).toContain("identificar cada archivo");
+    expect(hacienda).toContain("Los archivos no se envían ni se guardan");
+    expect(hacienda).toContain("Confirmo que los archivos contienen los datos");
+    expect(hacienda).toContain('extractionMethod: "OCR_LOCAL"');
+    expect(hacienda).toContain("mapSubmittedTaxFormToQuestions");
+    expect(hacienda).toContain("mapCensusObligationsToQuestions");
+    expect(hacienda).not.toContain("reconcileCensusIdentity");
   });
 
   it("muestra motivo, evidencia, períodos, sujeto, fuentes y siguiente paso", () => {
