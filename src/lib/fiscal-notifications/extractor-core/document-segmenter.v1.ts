@@ -85,6 +85,7 @@ const CLOSED_PAGE_MARKERS = Object.freeze([
     "relacion de deudas",
     "detalle de deudas",
     "anexo relacion de deudas",
+    "anexo i: deudas y plazos de la notificacion",
   ]),
   marker("PAYMENT_DOCUMENT", [
     "carta de pago",

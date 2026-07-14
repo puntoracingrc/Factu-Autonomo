@@ -89,7 +89,7 @@ function bindingForFamily(family: FiscalNotificationDocumentFamilyV3): FamilyExt
     ]),
     presentationViewId: `fiscal-notification.${extractorId}.review-card.v1`,
     implementationStatus: IMPLEMENTED_ADAPTER_FAMILIES.has(family.id)
-      ? "ADAPTER_REQUIRED"
+      ? "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY"
       : RECOGNIZED_WITHOUT_COMPLETE_EXTRACTOR.has(family.id)
         ? "ADAPTER_REQUIRED"
         : "CONTRACT_ONLY",

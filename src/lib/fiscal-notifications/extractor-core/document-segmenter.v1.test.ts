@@ -54,6 +54,17 @@ describe("multipage fiscal notification segmenter v1", () => {
     expect(result.segments[2]).toMatchObject({ pageFrom: 3, pageTo: 4 });
   });
 
+  it("classifies the closed deferral debt-schedule annex as a debt list, not a generic annex", async () => {
+    const result = await segmentFiscalNotificationDocumentV1(input(
+      page(1, "concesion del aplazamiento o fraccionamiento de pago sin garantia"),
+      page(2, "anexo i: deudas y plazos de la notificacion"),
+    ));
+    expect(result.segments).toEqual([
+      expect.objectContaining({ segmentType: "MAIN_ADMINISTRATIVE_ACT", pageFrom: 1, canGenerateAdministrativeFacts: true }),
+      expect.objectContaining({ segmentType: "DEBT_LIST", pageFrom: 2, canGenerateAdministrativeFacts: true }),
+    ]);
+  });
+
   it("keeps generic instructions outside the administrative act", async () => {
     const result = await segmentFiscalNotificationDocumentV1(input(
       page(1, "providencia de apremio"),
