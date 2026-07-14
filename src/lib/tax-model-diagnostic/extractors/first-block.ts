@@ -186,11 +186,7 @@ function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
     add("VAT.REGIMES", vatRegimes, "Régimen de IVA");
   }
   if (current) {
-    add(
-      "CENSUS.CURRENT_STATUS",
-      "REVIEWED",
-      "Certificado de situación censal",
-    );
+    add("CENSUS.CURRENT_STATUS", "REVIEWED", "Certificado de situación censal");
   }
   if (!current) {
     add(
@@ -211,7 +207,7 @@ function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
     (input.totalPages == null ||
       input.detectedPages?.length === input.totalPages);
   return {
-    facts,
+    facts: filed ? facts : [],
     documentKind: current
       ? "CURRENT_CERTIFICATE"
       : filed
@@ -230,10 +226,13 @@ function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
       "FECHA DE PRESENTACION",
       "PRESENTACION REALIZADA EL",
     ]),
-    effectiveDate: extractDateAfterLabel(input.text, ["FECHA EFECTIVA", "FECHA DE EFECTO"]),
+    effectiveDate: extractDateAfterLabel(input.text, [
+      "FECHA EFECTIVA",
+      "FECHA DE EFECTO",
+    ]),
     csvDetected: Boolean(candidate.csv),
     isComplete,
-    confidence: facts.length > 0 ? (current ? 0.9 : 0.78) : 0.55,
+    confidence: filed && facts.length > 0 ? (current ? 0.9 : 0.78) : 0.55,
     warnings: [
       ...candidate.warnings,
       ...(historical
@@ -252,10 +251,13 @@ function screenshotExtraction(input: FirstBlockInput): DeepTextExtraction {
     AEAT_TAX_STATUS_VIEW: "TAX_STATUS",
     AEAT_OBLIGATIONS_VIEW: "OBLIGATIONS",
   } as const satisfies Record<string, AeatCensusScreenshotKind>;
-  const kind = kinds[input.documentType as
-    | "AEAT_ECONOMIC_ACTIVITIES_VIEW"
-    | "AEAT_TAX_STATUS_VIEW"
-    | "AEAT_OBLIGATIONS_VIEW"];
+  const kind =
+    kinds[
+      input.documentType as
+        | "AEAT_ECONOMIC_ACTIVITIES_VIEW"
+        | "AEAT_TAX_STATUS_VIEW"
+        | "AEAT_OBLIGATIONS_VIEW"
+    ];
   const candidate = parseAeatCensusScreenshotText(input.text, kind);
   const facts: ExtractedFact[] = [];
   const add = (factType: string, value: JsonValue, sourceLabel: string) => {
@@ -296,16 +298,25 @@ function screenshotExtraction(input: FirstBlockInput): DeepTextExtraction {
       );
     }
     if (candidate.activityKinds.length > 0) {
-      add("ACTIVITY.NATURE", candidate.activityKinds, "Sección de la actividad");
+      add(
+        "ACTIVITY.NATURE",
+        candidate.activityKinds,
+        "Sección de la actividad",
+      );
     }
     const dates = active
       .map((row) => row.startDate)
       .filter((date): date is string => Boolean(date));
-    if (dates.length > 0) add("ACTIVITY.DATES", [...new Set(dates)], "F. Inicio");
+    if (dates.length > 0)
+      add("ACTIVITY.DATES", [...new Set(dates)], "F. Inicio");
   }
   if (kind === "TAX_STATUS") {
     if (candidate.incomeTaxRegime !== "UNKNOWN") {
-      add("IRPF.METHOD", candidate.incomeTaxRegime, "Método de estimación en IRPF");
+      add(
+        "IRPF.METHOD",
+        candidate.incomeTaxRegime,
+        "Método de estimación en IRPF",
+      );
     }
     if (candidate.vatRegimes.length > 0) {
       add("VAT.REGIMES", candidate.vatRegimes, "Regímenes aplicables de IVA");
@@ -324,7 +335,9 @@ function screenshotExtraction(input: FirstBlockInput): DeepTextExtraction {
   return {
     facts,
     documentKind:
-      input.extractionMethod === "OCR_LOCAL" ? "SCREENSHOT" : "CURRENT_AEAT_VIEW",
+      input.extractionMethod === "OCR_LOCAL"
+        ? "SCREENSHOT"
+        : "CURRENT_AEAT_VIEW",
     filingStatus: "NOT_VERIFIED",
     fiscalYear: extractFiscalYear(input.text),
     period: null,
@@ -365,7 +378,8 @@ function tgssExtraction(input: FirstBlockInput): DeepTextExtraction {
           ? "Periodo en régimen de trabajo autónomo"
           : "Situación en trabajo autónomo",
         extractionMethod: input.extractionMethod,
-        extractionConfidence: input.extractionMethod === "OCR_LOCAL" ? 0.74 : 0.9,
+        extractionConfidence:
+          input.extractionMethod === "OCR_LOCAL" ? 0.74 : 0.9,
         status: "PREFILLED_NEEDS_CONFIRMATION",
       }),
     );

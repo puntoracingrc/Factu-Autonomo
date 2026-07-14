@@ -9,13 +9,10 @@ import type {
   FiscalDocumentType,
   TaxDocumentModelCode,
 } from "./contracts";
-import {
-  getExtractorDefinition,
-  type ExtractorDefinition,
-} from "./registry";
+import { getExtractorDefinition, type ExtractorDefinition } from "./registry";
 
 export const FISCAL_DOCUMENT_CLASSIFIER_VERSION =
-  "fiscal-document-classifier.2026-07.v1" as const;
+  "fiscal-document-classifier.2026-07.v2" as const;
 
 export interface DocumentClassification {
   classifierVersion: typeof FISCAL_DOCUMENT_CLASSIFIER_VERSION;
@@ -86,7 +83,9 @@ const SUPPORTING_TYPE_MAP = {
  * el texto auxiliar "Modelo 036" de una pantalla de actividad se confunda con
  * una declaración censal presentada.
  */
-export function classifyFiscalDocumentText(text: string): DocumentClassification {
+export function classifyFiscalDocumentText(
+  text: string,
+): DocumentClassification {
   const bounded = text.slice(0, 250_000);
   const normalized = normalize(bounded);
   if (!normalized) {
@@ -115,12 +114,6 @@ export function classifyFiscalDocumentText(text: string): DocumentClassification
   if (screenshotKind === "ACTIVITIES") {
     return resolved("AEAT_ECONOMIC_ACTIVITIES_VIEW", 0.96);
   }
-  if (screenshotKind === "TAX_STATUS") {
-    return resolved("AEAT_TAX_STATUS_VIEW", 0.96);
-  }
-  if (screenshotKind === "OBLIGATIONS") {
-    return resolved("AEAT_OBLIGATIONS_VIEW", 0.96);
-  }
 
   const census = parseCensusCertificateText(bounded);
   if (census.documentKind === "AEAT_CENSUS_CERTIFICATE") {
@@ -140,6 +133,13 @@ export function classifyFiscalDocumentText(text: string): DocumentClassification
       taxForm.status === "RESOLVED" ? 0.95 : 0.82,
       taxForm.warnings,
     );
+  }
+
+  if (screenshotKind === "TAX_STATUS") {
+    return resolved("AEAT_TAX_STATUS_VIEW", 0.96);
+  }
+  if (screenshotKind === "OBLIGATIONS") {
+    return resolved("AEAT_OBLIGATIONS_VIEW", 0.96);
   }
 
   const supporting = parseSupportingDocumentText(bounded);

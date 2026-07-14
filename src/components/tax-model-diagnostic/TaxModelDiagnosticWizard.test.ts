@@ -51,22 +51,19 @@ describe("tax model diagnostic UI contract", () => {
     expect(hacienda).toContain("no necesitas");
     expect(hacienda).toContain("identificar cada archivo");
     expect(hacienda).toContain("Los archivos no se envían ni se guardan");
-    expect(hacienda).toContain(
-      'data-info-card="recognized-fiscal-documents"',
-    );
-    expect(hacienda).toContain(
-      "¿Qué modelos y documentos reconoce el lector?",
-    );
+    expect(hacienda).toContain('data-info-card="recognized-fiscal-documents"');
+    expect(hacienda).toContain("¿Qué modelos y documentos reconoce el lector?");
     expect(hacienda).toContain("30 modelos fiscales");
     expect(hacienda).toContain("9 documentos sin número de modelo");
     expect(hacienda).toContain("Capturas de Hacienda compatibles");
-    expect(hacienda).toContain("detalle de una actividad o número de referencia");
     expect(hacienda).toContain(
-      "Solo se rellenan preguntas cuando su interior",
+      "detalle de una actividad o número de referencia",
     );
+    expect(hacienda).toContain("Solo se rellenan preguntas cuando su interior");
     expect(hacienda).toContain("Confirmo que los archivos contienen los datos");
     expect(hacienda).toContain('extractionMethod: "OCR_LOCAL"');
     expect(hacienda).toContain("extractionProposals");
+    expect(hacienda).toContain("accent-emerald-600");
     expect(hacienda).toContain("fiscal-document-");
     expect(hacienda).not.toContain("sourceLocation: `${fileName}");
     expect(hacienda).not.toContain("reconcileCensusIdentity");
@@ -76,7 +73,7 @@ describe("tax model diagnostic UI contract", () => {
     expect(questions).toContain("documentValidated");
     expect(questions).toContain("bg-emerald-600");
     expect(questions).toContain("puedes cambiarlo");
-    expect(wizard).toContain("item.type !== \"USER_ANSWER\"");
+    expect(wizard).toContain('item.type !== "USER_ANSWER"');
     expect(wizard).toContain("item.field !== field");
   });
 

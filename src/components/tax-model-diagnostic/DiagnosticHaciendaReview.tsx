@@ -97,9 +97,7 @@ function vatLabels(values: TaxpayerProfile["vatRegimes"]): string {
   return values.map((value) => labels[value]).join(", ");
 }
 
-function documentTypeLabel(
-  result: FiscalDocumentExtractionResult,
-): string {
+function documentTypeLabel(result: FiscalDocumentExtractionResult): string {
   const type = result.envelope.detectedDocumentType;
   if (!type) return "Documento no reconocido";
   if (type.startsWith("MODEL_")) {
@@ -113,8 +111,7 @@ function documentTypeLabel(
     AEAT_OBLIGATIONS_VIEW: "Mis obligaciones tributarias",
     TGSS_CURRENT_STATUS_REPORT: "Informe de situación actual en RETA",
     TGSS_EMPLOYMENT_HISTORY: "Informe de vida laboral",
-    TGSS_SELF_EMPLOYED_ACTIVITIES:
-      "Informe de actividades de trabajo autónomo",
+    TGSS_SELF_EMPLOYED_ACTIVITIES: "Informe de actividades de trabajo autónomo",
     ROI_CERTIFICATE: "Certificado de operador intracomunitario",
     LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE:
       "Certificado de exoneración del arrendador",
@@ -201,23 +198,20 @@ function extractionProposals(
           primaryFact?.extractionMethod === "OCR_LOCAL"
             ? "OCR_LOCAL"
             : "PDF_NATIVE_TEXT",
-        sourceLocation: [
-          documentTypeLabel(result),
-          primaryFact?.sourceLabel,
-        ]
+        sourceLocation: [documentTypeLabel(result), primaryFact?.sourceLabel]
           .filter(Boolean)
           .join(" · "),
         confidence:
-          primaryFact?.extractionConfidence ?? result.envelope.overallConfidence,
+          primaryFact?.extractionConfidence ??
+          result.envelope.overallConfidence,
         ...(primaryFact?.effectiveFrom
           ? { date: primaryFact.effectiveFrom }
           : {}),
         ...(primaryFact?.sourcePage ? { page: primaryFact.sourcePage } : {}),
         documentId: result.envelope.documentId,
-        detail: [
-          resolution.explanation,
-          ...resolution.missingInformation,
-        ].join(" "),
+        detail: [resolution.explanation, ...resolution.missingInformation].join(
+          " ",
+        ),
       },
     ];
   });
@@ -345,8 +339,7 @@ export function DiagnosticHaciendaReview({
     const rawProposals: UnifiedProposal[] = [];
     const runId = Date.now().toString(36);
     let documentIndex = 0;
-    const nextDocumentId = () =>
-      `fiscal-document-${runId}-${documentIndex++}`;
+    const nextDocumentId = () => `fiscal-document-${runId}-${documentIndex++}`;
     try {
       for (const file of nextFiles.filter(isPdf)) {
         try {
@@ -587,7 +580,10 @@ export function DiagnosticHaciendaReview({
               <dl className="mt-2 space-y-2">
                 <div>
                   <dt className="font-semibold">Prioridad máxima</dt>
-                  <dd>036, 037 histórico, 130, 131, 303, 390, 111, 190, 115, 180, 349, 035, 369 y 184.</dd>
+                  <dd>
+                    036, 037 histórico, 130, 131, 303, 390, 111, 190, 115, 180,
+                    349, 035, 369 y 184.
+                  </dd>
                 </div>
                 <div>
                   <dt className="font-semibold">Segunda prioridad</dt>
@@ -620,9 +616,9 @@ export function DiagnosticHaciendaReview({
                 </p>
                 <p className="mt-1">
                   Relación de actividades o «Mis actividades económicas»;
-                  detalle de una actividad o número de referencia (Modelo
-                  036); «Mi situación tributaria» —aunque necesite varias
-                  capturas— y «Mis obligaciones tributarias».
+                  detalle de una actividad o número de referencia (Modelo 036);
+                  «Mi situación tributaria» —aunque necesite varias capturas— y
+                  «Mis obligaciones tributarias».
                 </p>
               </div>
             </div>
@@ -844,7 +840,7 @@ export function DiagnosticHaciendaReview({
                           : current.filter((field) => field !== proposal.field),
                       )
                     }
-                    className="mt-1 h-4 w-4 accent-blue-600"
+                    className="mt-1 h-4 w-4 accent-emerald-600"
                   />
                   <span className="text-sm text-slate-700 dark:text-slate-200">
                     <strong>{proposal.label}:</strong> {proposal.displayValue}
@@ -869,7 +865,7 @@ export function DiagnosticHaciendaReview({
               type="checkbox"
               checked={confirmed}
               onChange={(event) => setConfirmed(event.target.checked)}
-              className="mt-1 h-4 w-4 accent-blue-600"
+              className="mt-1 h-4 w-4 accent-emerald-600"
             />
             Confirmo que los archivos contienen los datos que quiero utilizar y
             que los campos seleccionados son correctos.
