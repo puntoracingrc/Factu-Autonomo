@@ -271,6 +271,12 @@ describe("administrative domain projection", () => {
     "OUTSTANDING_PRINCIPAL",
     "PAYMENT_ON_ACCOUNT",
     "DOCUMENT_TOTAL",
+    "REFUND_CREDIT",
+    "CREDIT_TOTAL",
+    "OFFSET_APPLIED",
+    "EXECUTIVE_SURCHARGE_PRINTED",
+    "TOTAL_BEFORE_OFFSET",
+    "REMAINING_AFTER_OFFSET",
   ])("accepts exact printed enforcement money kind %s", (kind) => {
     const input = validProjection();
     const facts = input.moneyFacts as Record<string, unknown>[];

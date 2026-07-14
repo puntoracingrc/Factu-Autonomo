@@ -8,9 +8,11 @@ import { appendStructuredReviewRelationSuggestionsV1 } from "./structured-review
 import {
   appendAeatDeferralStructuredReviewV1,
   appendAeatEnforcementStructuredReviewV1,
+  appendAeatOffsetStructuredReviewV1,
   FiscalNotificationStructuredReviewV1Error,
   type AppendAeatDeferralStructuredReviewResultV1,
   type AppendAeatEnforcementStructuredReviewResultV1,
+  type AppendAeatOffsetStructuredReviewResultV1,
 } from "./structured-review-workspace.v1";
 
 export type FiscalNotificationStructuredReviewSaveBlockedReasonV1 =
@@ -21,6 +23,7 @@ export type DurableFiscalNotificationStructuredReviewSaveResultV1 =
   | AppDataDurabilityResult<
       | AppendAeatEnforcementStructuredReviewResultV1
       | AppendAeatDeferralStructuredReviewResultV1
+      | AppendAeatOffsetStructuredReviewResultV1
     >
   | {
       readonly status: "blocked";
@@ -49,11 +52,14 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
 ): DurableFiscalNotificationStructuredReviewSaveResultV1 {
   let prepared:
     | AppendAeatEnforcementStructuredReviewResultV1
-    | AppendAeatDeferralStructuredReviewResultV1;
+    | AppendAeatDeferralStructuredReviewResultV1
+    | AppendAeatOffsetStructuredReviewResultV1;
   try {
-    const append = input.analysis.ephemeralDeferralGrantFacts
-      ? appendAeatDeferralStructuredReviewV1
-      : appendAeatEnforcementStructuredReviewV1;
+    const append = input.analysis.ephemeralOffsetAgreementFacts
+      ? appendAeatOffsetStructuredReviewV1
+      : input.analysis.ephemeralDeferralGrantFacts
+        ? appendAeatDeferralStructuredReviewV1
+        : appendAeatEnforcementStructuredReviewV1;
     prepared = append({
       ownerScope: input.ownerScope,
       reviewId: input.reviewId,

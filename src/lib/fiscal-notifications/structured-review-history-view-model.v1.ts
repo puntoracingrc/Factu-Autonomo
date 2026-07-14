@@ -2,9 +2,11 @@ import type { AdministrativeMoneyKind } from "./administrative-domain";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
 
 export interface FiscalNotificationStructuredHistoryMoneyV1 {
+  readonly key: string;
   readonly label: string;
   readonly amountCents: number;
   readonly currency: "EUR" | "UNKNOWN";
+  readonly sourceReference: string | null;
 }
 
 export interface FiscalNotificationStructuredHistoryFactV1 {
@@ -68,7 +70,11 @@ const MONEY_LABELS: Readonly<Record<AdministrativeMoneyKind, string>> = {
   SANCTION_REDUCED: "Sanción reducida impresa",
   COSTS: "Costas impresas",
   REFUND_CREDIT: "Crédito a devolver impreso",
+  CREDIT_TOTAL: "Total del crédito impreso",
   OFFSET_APPLIED: "Compensación aplicada impresa",
+  EXECUTIVE_SURCHARGE_PRINTED: "Recargo ejecutivo impreso",
+  TOTAL_BEFORE_OFFSET: "Total antes de compensar impreso",
+  REMAINING_AFTER_OFFSET: "Pendiente tras compensar impreso",
   NET_REFUND_PAYMENT: "Devolución neta impresa",
   SEIZED_AMOUNT: "Importe embargado impreso",
   RETAINED_AMOUNT: "Importe retenido impreso",
@@ -101,6 +107,14 @@ const DATE_LABELS: Readonly<Record<string, string>> = {
   PRINTED_DEBT_CONCEPT: "Concepto impreso",
   PRINTED_INTEREST_START_DATE: "Fecha de intereses impresa",
   PRINTED_LISTED_DEBT_AMOUNT: "Importe de deuda impreso",
+  PRINTED_OFFSET_REQUEST_DATE: "Fecha de solicitud impresa",
+  PRINTED_OFFSET_CREDIT_DESCRIPTION: "Descripción del crédito",
+  PRINTED_OFFSET_CREDIT_RECOGNITION_DATE:
+    "Fecha de reconocimiento del crédito",
+  PRINTED_OFFSET_DEBT_DESCRIPTION: "Descripción de la deuda",
+  PRINTED_OFFSET_EFFECT_DATE: "Fecha de efectos impresa",
+  PRINTED_OFFSET_EFFECT_CODE: "Código de efecto impreso",
+  OFFSET_EFFECT_MEANING: "Efecto indicado en el documento",
 };
 
 const COMPONENT_LABELS: Readonly<Record<string, string>> = {
@@ -153,9 +167,13 @@ export function projectFiscalNotificationStructuredHistoryV1(
       const domain = snapshot.structuredData.administrativeDomain;
       const money = (domain?.moneyFacts ?? []).map((fact) =>
         Object.freeze({
+          key: fact.id,
           label: MONEY_LABELS[fact.kind],
           amountCents: fact.amountCents,
           currency: fact.currency,
+          sourceReference: fact.sourceActRefId
+            ? references.get(fact.sourceActRefId)?.rawValue ?? null
+            : null,
         }),
       );
       const documentReferences = document.referenceIds

@@ -5,6 +5,7 @@ import { extractAeatDeferralGrantFactsV1 } from "./aeat-deferral-grant-facts.v1"
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
 import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
+import { extractAeatOffsetAgreementFactsV1 } from "./aeat-offset-agreement-facts.v1";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import type { BoundedDocumentInput } from "./input-contract";
 import type {
@@ -51,6 +52,24 @@ const DOCUMENT_TEXT = [
   "Clave de liquidación: LQ-SYNTH-071",
   "Código Seguro de Verificación (CSV): CSV-SYNTH-071",
   "Fecha de emisión: 05/02/2026",
+].join("\n");
+
+const OFFSET_TEXT = [
+  "AGENCIA TRIBUTARIA",
+  "www.agenciatributaria.es",
+  "ACUERDO DE COMPENSACIÓN A INSTANCIA DEL OBLIGADO AL PAGO",
+  "ANEXO I",
+  "CRÉDITO Y DEUDAS",
+  "NÚMERO DE ACUERDO DE COMPENSACIÓN: ACUERDO-SAVE-071",
+  "CRÉDITO:",
+  "CREDITO-SAVE-071 DEVOLUCIÓN SINTÉTICA 10/01/2026 1.000,00 20,00 1.020,00 900,00",
+  "DEUDA:",
+  "VENCIMIENTO: DEUDA-SAVE-071 MODELO SINTÉTICO",
+  "10/01/2026 800,00 80,00 20,00 0,00 900,00 900,00 0,00 ( 1)",
+  "ANEXO II",
+  "DETALLE DE EFECTOS",
+  "(1) EFECTOS DE LA COMPENSACIÓN",
+  "EL IMPORTE DE LA DEUDA QUE FIGURA EN LA COLUMNA TOTAL PENDIENTE ANTES DE COMPENSAR HA QUEDADO EXTINGUIDO EN PERIODO VOLUNTARIO DE INGRESO.",
 ].join("\n");
 
 function documentInput(): BoundedDocumentInput {
@@ -112,14 +131,15 @@ function analysis(): FiscalNotificationLocalAnalysisResult {
     retainedSourceContent: "NONE",
   });
   return Object.freeze({
-    schemaVersion: 5,
-    analysisVersion: "5.0.0",
+    schemaVersion: 6,
+    analysisVersion: "6.0.0",
     technicalReview,
     ephemeralEnforcementMoneyFacts: extractAeatEnforcementMoneyFacts(input),
     ephemeralEnforcementExplicitFields:
       extractAeatEnforcementExplicitFieldsV2(input),
     ephemeralEnforcementPartyFacts: extractAeatEnforcementPartyFactsV1(input),
     ephemeralDeferralGrantFacts: null,
+    ephemeralOffsetAgreementFacts: null,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -188,13 +208,79 @@ function deferralAnalysis(): FiscalNotificationLocalAnalysisResult {
     retainedSourceContent: "NONE",
   });
   return Object.freeze({
-    schemaVersion: 5,
-    analysisVersion: "5.0.0",
+    schemaVersion: 6,
+    analysisVersion: "6.0.0",
     technicalReview,
     ephemeralEnforcementMoneyFacts: null,
     ephemeralEnforcementExplicitFields: null,
     ephemeralEnforcementPartyFacts: null,
     ephemeralDeferralGrantFacts: extractAeatDeferralGrantFactsV1(input),
+    ephemeralOffsetAgreementFacts: null,
+    sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+    requiresHumanReview: true,
+    materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+  });
+}
+
+function offsetAnalysis(): FiscalNotificationLocalAnalysisResult {
+  const input: BoundedDocumentInput = Object.freeze({
+    ownerScope: OWNER,
+    documentId: "notification-review:synthetic-offset-save",
+    pages: Object.freeze([
+      Object.freeze({ pageNumber: 1, text: OFFSET_TEXT, isBlank: false }),
+    ]),
+  });
+  const extraction = extractFiscalNotificationCandidates(input);
+  const technicalReview: FiscalNotificationLocalReviewResult = Object.freeze({
+    schemaVersion: 1,
+    flowVersion: "1.0.0",
+    status: extraction.status,
+    reason: extraction.reason,
+    engineId: extraction.engineId,
+    engineVersion: extraction.engineVersion,
+    pageCount: 1,
+    byteLength: 4_096,
+    sha256: "a".repeat(64),
+    candidates: Object.freeze(
+      extraction.candidates.map((candidate) =>
+        Object.freeze({
+          familyId: candidate.familyId,
+          ...(candidate.recognitionPolicyVersion
+            ? { recognitionPolicyVersion: candidate.recognitionPolicyVersion }
+            : {}),
+          ...(candidate.segmentationVersion
+            ? { segmentationVersion: candidate.segmentationVersion }
+            : {}),
+          documentType: candidate.documentType,
+          authoritySignal: candidate.authoritySignal,
+          handlerId: candidate.handlerId,
+          handlerVersion: candidate.handlerVersion,
+          signalStatus: candidate.signalStatus,
+          matchedAnchors: candidate.matchedAnchors.map((anchor) => ({
+            anchorId: anchor.anchorId,
+            pageNumbers: [...anchor.pageNumbers],
+          })),
+          missingRequiredAnchorIds: [...candidate.missingRequiredAnchorIds],
+          conflictingAnchorIds: [...candidate.conflictingAnchorIds],
+          requiresHumanReview: true as const,
+        }),
+      ),
+    ),
+    selectedFamilyId: null,
+    providerCalled: false,
+    requiresHumanReview: true,
+    materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+    retainedSourceContent: "NONE",
+  });
+  return Object.freeze({
+    schemaVersion: 6,
+    analysisVersion: "6.0.0",
+    technicalReview,
+    ephemeralEnforcementMoneyFacts: null,
+    ephemeralEnforcementExplicitFields: null,
+    ephemeralEnforcementPartyFacts: null,
+    ephemeralDeferralGrantFacts: null,
+    ephemeralOffsetAgreementFacts: extractAeatOffsetAgreementFactsV1(input),
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -301,6 +387,39 @@ describe("structured fiscal notification save command v1", () => {
     expect(workspace?.debts).toEqual([]);
     expect(workspace?.accountingDrafts).toEqual([]);
     expect(input.persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("guarda créditos y deudas compensadas como datos consultables, sin efectos operativos", () => {
+    const input = commandInput();
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1({
+      ...input.value,
+      analysis: offsetAnalysis(),
+    });
+
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    const workspace = result.data.fiscalNotificationsWorkspace;
+    expect(workspace?.documents[0]).toMatchObject({
+      documentType: "AEAT_OFFSET_AGREEMENT",
+      titleRaw: "Acuerdo de compensación solicitado AEAT",
+      debtIds: [],
+    });
+    expect(
+      workspace?.analysisSnapshots[0]?.structuredData.administrativeDomain
+        ?.moneyFacts,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "CREDIT_TOTAL", amountCents: 102_000 }),
+        expect.objectContaining({ kind: "TOTAL_BEFORE_OFFSET", amountCents: 90_000 }),
+        expect.objectContaining({ kind: "REMAINING_AFTER_OFFSET", amountCents: 0 }),
+      ]),
+    );
+    expect(workspace?.debts).toEqual([]);
+    expect(workspace?.paymentPlans).toEqual([]);
+    expect(workspace?.obligations).toEqual([]);
+    expect(workspace?.accountingDrafts).toEqual([]);
+    expect(input.persist).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(result.data)).not.toContain(OFFSET_TEXT);
   });
 
   it("bloquea una precondición obsoleta sin escribir", () => {

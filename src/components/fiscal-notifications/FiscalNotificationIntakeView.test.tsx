@@ -581,6 +581,40 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
   });
 
+  it("muestra referencias, importes y efectos exactos del acuerdo de compensación", () => {
+    const copy = compact(componentSource);
+    for (const expected of [
+      "Acuerdo de compensación de oficio",
+      "Acuerdo de compensación solicitado",
+      "Crédito, deudas, importes compensados, saldos y efectos leídos de los anexos del acuerdo.",
+      "Número de acuerdo",
+      "Fecha de solicitud impresa",
+      "Total del crédito",
+      "Aplicado a compensar",
+      "Principal pendiente",
+      "Recargo ejecutivo",
+      "Ingresos a cuenta",
+      "Total antes de compensar",
+      "Importe compensado",
+      "Pendiente después de compensar",
+      "Referencia:",
+      "No se recalculan y no se crea, cancela ni marca como pagada ninguna deuda, gasto o asiento.",
+    ]) {
+      expect(copy).toContain(expected);
+    }
+    expect(componentSource).toContain("OffsetAgreementFactsPanel");
+    expect(componentSource).toContain(
+      "setEphemeralOffsetFacts(nextAnalysis.ephemeralOffsetAgreementFacts)",
+    );
+    expect(
+      componentSource.match(/setEphemeralOffsetFacts\(null\)/g)?.length,
+    ).toBeGreaterThanOrEqual(3);
+    expect(componentSource).toContain("OFFSET_EFFECT_LABELS[debt.effectMeaning]");
+    expect(componentSource).not.toMatch(
+      /(?:remainingAfterOffset|compensatedAmount)[^\n]{0,120}\?\?\s*0/,
+    );
+  });
+
   it("proyecta referencias y fechas en memoria y las guarda solo por acción explícita", () => {
     expect(componentSource).toContain(
       "useState<ExplicitFieldsReviewViewModelV2 | null>(null)",
