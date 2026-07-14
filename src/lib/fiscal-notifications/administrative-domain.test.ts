@@ -267,6 +267,44 @@ describe("administrative domain projection", () => {
     );
   });
 
+  it.each([
+    "OUTSTANDING_PRINCIPAL",
+    "PAYMENT_ON_ACCOUNT",
+    "DOCUMENT_TOTAL",
+  ])("accepts exact printed enforcement money kind %s", (kind) => {
+    const input = validProjection();
+    const facts = input.moneyFacts as Record<string, unknown>[];
+    facts[0]!.kind = kind;
+
+    const result = validateAdministrativeDomainProjection(
+      input,
+      OWNER,
+      DOCUMENT,
+    );
+
+    expect(result.valid).toBe(true);
+    expect(result.projection?.moneyFacts[0]?.kind).toBe(kind);
+    expect(result.projection?.moneyFacts[0]?.status).toBe("PROPOSED");
+    expect(result.projection?.materializationPolicy).toBe(
+      "PROHIBITED_UNTIL_REVIEW",
+    );
+  });
+
+  it("preserves an explicitly unknown currency without inventing EUR", () => {
+    const input = validProjection();
+    const facts = input.moneyFacts as Record<string, unknown>[];
+    facts[0]!.currency = "UNKNOWN";
+
+    const result = validateAdministrativeDomainProjection(
+      input,
+      OWNER,
+      DOCUMENT,
+    );
+
+    expect(result.valid).toBe(true);
+    expect(result.projection?.moneyFacts[0]?.currency).toBe("UNKNOWN");
+  });
+
   it.each([-1, 1.5, Number.MAX_SAFE_INTEGER + 1])(
     "rejects unsafe or non-integer cents",
     (amountCents) => {
