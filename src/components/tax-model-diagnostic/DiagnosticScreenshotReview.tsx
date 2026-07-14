@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type DragEvent } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -241,6 +241,13 @@ export function DiagnosticScreenshotReview({
   const [progress, setProgress] = useState<AeatScreenshotOcrProgress | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmed, setConfirmed] = useState(false);
+  const [draggingKind, setDraggingKind] =
+    useState<AeatCensusScreenshotKind | null>(null);
+  const dragDepth = useRef<Record<AeatCensusScreenshotKind, number>>({
+    ACTIVITIES: 0,
+    TAX_STATUS: 0,
+    OBLIGATIONS: 0,
+  });
   const proposals = useMemo(
     () => proposalsFromCandidates(candidates, currentProfile),
     [candidates, currentProfile],
@@ -279,6 +286,47 @@ export function DiagnosticScreenshotReview({
         caught instanceof Error ? caught.message : "No se pueden usar esas capturas.",
       );
     }
+  }
+
+  function handleDragEnter(
+    kind: AeatCensusScreenshotKind,
+    event: DragEvent<HTMLDivElement>,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (reading) return;
+    dragDepth.current[kind] += 1;
+    setDraggingKind(kind);
+  }
+
+  function handleDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!reading) event.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleDragLeave(
+    kind: AeatCensusScreenshotKind,
+    event: DragEvent<HTMLDivElement>,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth.current[kind] = Math.max(0, dragDepth.current[kind] - 1);
+    if (dragDepth.current[kind] === 0) {
+      setDraggingKind((current) => (current === kind ? null : current));
+    }
+  }
+
+  function handleDrop(
+    kind: AeatCensusScreenshotKind,
+    event: DragEvent<HTMLDivElement>,
+  ) {
+    event.preventDefault();
+    event.stopPropagation();
+    dragDepth.current[kind] = 0;
+    setDraggingKind(null);
+    if (reading || event.dataTransfer.files.length === 0) return;
+    selectFiles(kind, event.dataTransfer.files);
   }
 
   async function readScreenshots() {
@@ -415,15 +463,43 @@ export function DiagnosticScreenshotReview({
         {SLOTS.map((slot) => (
           <div
             key={slot.kind}
-            className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900"
+            role="group"
+            aria-labelledby={`aeat-drop-${slot.kind.toLowerCase()}`}
+            data-drop-zone={slot.kind}
+            onDragEnter={(event) => handleDragEnter(slot.kind, event)}
+            onDragOver={handleDragOver}
+            onDragLeave={(event) => handleDragLeave(slot.kind, event)}
+            onDrop={(event) => handleDrop(slot.kind, event)}
+            className={`rounded-2xl border bg-white p-4 transition duration-150 dark:bg-slate-900 ${
+              draggingKind === slot.kind
+                ? "border-emerald-500 bg-emerald-50 ring-4 ring-emerald-200 dark:border-emerald-400 dark:bg-emerald-950/40 dark:ring-emerald-900"
+                : "border-slate-200 dark:border-slate-700"
+            }`}
           >
-            <h3 className="font-bold text-slate-950 dark:text-white">{slot.title}</h3>
+            <h3
+              id={`aeat-drop-${slot.kind.toLowerCase()}`}
+              className="font-bold text-slate-950 dark:text-white"
+            >
+              {slot.title}
+            </h3>
             <p className="mt-1 min-h-10 text-sm text-slate-600 dark:text-slate-300">
               {slot.detail}
             </p>
+            <p
+              aria-live="polite"
+              className={`mt-3 rounded-xl border-2 border-dashed px-3 py-4 text-center text-sm font-semibold ${
+                draggingKind === slot.kind
+                  ? "border-emerald-500 bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100"
+                  : "border-emerald-200 bg-emerald-50/50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950/20 dark:text-emerald-200"
+              }`}
+            >
+              {draggingKind === slot.kind
+                ? "Suelta las capturas aquí"
+                : "Arrastra aquí las capturas desde tu ordenador"}
+            </p>
             <label className="mt-3 inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border-2 border-emerald-200 px-3 text-sm font-bold text-emerald-700 focus-within:ring-2 focus-within:ring-emerald-500 dark:text-emerald-300">
               <Upload className="h-4 w-4" aria-hidden="true" />
-              Elegir capturas
+              O elige las capturas
               <input
                 type="file"
                 multiple

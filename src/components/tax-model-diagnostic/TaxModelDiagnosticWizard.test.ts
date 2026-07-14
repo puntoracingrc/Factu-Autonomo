@@ -45,6 +45,10 @@ describe("tax model diagnostic UI contract", () => {
     expect(screenshots).toContain("Área personal");
     expect(screenshots).toContain("Mis datos censales");
     expect(screenshots).toContain("recognizeAeatScreenshotFiles");
+    expect(screenshots).toContain("Arrastra aquí las capturas desde tu ordenador");
+    expect(screenshots).toContain("Suelta las capturas aquí");
+    expect(screenshots).toContain("onDrop={(event) => handleDrop(slot.kind, event)}");
+    expect(screenshots).toContain("data-drop-zone={slot.kind}");
     expect(screenshots).toContain("Las imágenes no se envían ni se guardan");
     expect(screenshots).toContain("Confirmo que las capturas contienen mis datos");
     expect(screenshots).toContain('extractionMethod: "OCR_LOCAL"');
