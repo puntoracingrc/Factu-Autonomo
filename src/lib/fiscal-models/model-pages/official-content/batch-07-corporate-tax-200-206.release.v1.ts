@@ -161,6 +161,16 @@ const MODEL_200_CONTENT = {
     "formulario modelo 200 2025",
     "manual sociedades 2025",
     "Orden HAC 529 2026",
+    "autónomo societario",
+    "sociedad limitada",
+    "beneficio contable base imponible",
+    "ajustes fiscales",
+    "gastos no deducibles",
+    "sociedad inactiva",
+    "bases imponibles negativas",
+    "tipos impuesto sociedades 2025",
+    "plazo modelo 200",
+    "cuentas anuales",
   ],
   sections: [
     {
@@ -636,6 +646,15 @@ const MODEL_202_CONTENT = {
     "presentación 2026 y siguientes",
     "Orden HFP 227 2017",
     "Orden HAC 495 2024",
+    "autónomo societario",
+    "pagos a cuenta sociedades",
+    "abril octubre diciembre",
+    "periodo 1/P 2/P 3/P",
+    "artículo 40.2",
+    "artículo 40.3",
+    "modalidades pago fraccionado",
+    "cifra de negocios 6 millones",
+    "pago mínimo",
   ],
   sections: [
     {

@@ -27,7 +27,11 @@ const practicalSubtitleByCode: Readonly<Record<string, string>> = Object.freeze(
     "180": "Resumen anual de retenciones por alquileres urbanos",
     "184": "Rentas de comunidades de bienes y otras entidades",
     "190": "Resumen anual de retenciones de nóminas y actividades económicas",
+    "200": "Declaración anual del Impuesto sobre Sociedades",
+    "202": "Pagos a cuenta del Impuesto sobre Sociedades",
     "216": "Retenciones por pagos a personas y empresas no residentes",
+    "232":
+      "Operaciones vinculadas y situaciones relacionadas con jurisdicciones no cooperativas",
     "296": "Resumen anual de rentas pagadas a no residentes",
     "303": "Autoliquidación periódica del IVA",
     "309": "IVA no periódico para operaciones especiales",

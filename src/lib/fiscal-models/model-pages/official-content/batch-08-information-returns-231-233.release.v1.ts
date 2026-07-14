@@ -733,6 +733,16 @@ const MODEL_232_CONTENT = {
     "declaración complementaria",
     "declaración sustitutiva",
     "Orden HFP 816 2017",
+    "autónomo societario",
+    "operaciones socio sociedad",
+    "valor de mercado",
+    "documentación operaciones vinculadas",
+    "límite 250000",
+    "límite 100000",
+    "regla 50 por ciento",
+    "préstamo socio sociedad",
+    "alquiler socio sociedad",
+    "plazo modelo 232",
   ],
   sections: [
     {

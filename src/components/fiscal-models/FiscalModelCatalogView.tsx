@@ -55,11 +55,27 @@ const practicalCatalogLabels: Readonly<
     "Relacionado con Renta",
   ],
   "190": ["Anual", "Relacionado con 111", "Declaración informativa"],
+  "200": [
+    "Autónomo societario y empresas",
+    "Anual",
+    "Impuesto sobre Sociedades",
+  ],
+  "202": [
+    "Autónomo societario y empresas",
+    "Abril, octubre y diciembre",
+    "Pago a cuenta",
+  ],
   "216": [
     "Pagos a no residentes",
     "IRNR",
     "Trimestral o mensual",
     "Solo si existe obligación de retener",
+  ],
+  "232": [
+    "Autónomo societario y empresas",
+    "Operaciones vinculadas",
+    "Informativa",
+    "Anual",
   ],
   "296": ["Anual", "No residentes", "Informativa", "Relacionado con 216"],
   "303": ["Frecuente para autónomos", "IVA", "Trimestral o mensual"],
