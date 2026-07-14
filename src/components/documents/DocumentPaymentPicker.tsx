@@ -1,6 +1,6 @@
 "use client";
 
-import { Field, Input, Select } from "@/components/ui/Field";
+import { Input, Select } from "@/components/ui/Field";
 import {
   defaultPaymentMethodForType,
   normalizeDocumentPaymentMethods,
@@ -25,19 +25,21 @@ export function DocumentPaymentPicker({
   const normalized = normalizeDocumentPaymentMethods(settings);
   const methods = paymentMethodsForType(normalized, documentType);
   const defaultMethod = defaultPaymentMethodForType(normalized, documentType);
+  const inputId = `document-payment-method-${documentType}`;
 
   return (
-    <div className="space-y-4">
-      {methods.length > 0 && (
-        <Field
-          label="Forma de pago guardada"
-          hint={
-            defaultMethod
-              ? "Opcional. La predeterminada ya está rellenada; puedes cambiarla aquí."
-              : "Opcional. Elige un texto configurado en Ajustes."
-          }
+    <div className="space-y-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <label
+          htmlFor={inputId}
+          className="text-sm font-semibold text-slate-700"
         >
+          Forma de pago
+        </label>
+        {methods.length > 0 && (
           <Select
+            aria-label="Elegir otra forma de pago"
+            className="!min-h-9 w-full text-sm sm:w-auto sm:max-w-md"
             defaultValue=""
             onChange={(e) => {
               const method = methods.find((item) => item.id === e.target.value);
@@ -45,7 +47,7 @@ export function DocumentPaymentPicker({
               e.target.value = "";
             }}
           >
-            <option value="">Elegir otra forma de pago…</option>
+            <option value="">Elegir otra…</option>
             {methods.map((method) => (
               <option key={method.id} value={method.id}>
                 {method.id === defaultMethod?.id ? "★ " : ""}
@@ -53,18 +55,14 @@ export function DocumentPaymentPicker({
               </option>
             ))}
           </Select>
-        </Field>
-      )}
-      <Field
-        label="Forma de pago (aparece en el PDF)"
-        hint="Ej: transferencia, efectivo, Bizum…"
-      >
-        <Input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="Pago por transferencia bancaria"
-        />
-      </Field>
+        )}
+      </div>
+      <Input
+        id={inputId}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Pago por transferencia bancaria"
+      />
     </div>
   );
 }
