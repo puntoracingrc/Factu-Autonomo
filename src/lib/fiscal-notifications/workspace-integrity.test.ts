@@ -96,6 +96,85 @@ describe("fiscal notifications workspace integrity", () => {
     });
   });
 
+  it("accepts source identity without retaining filename, path or original PDF", () => {
+    const workspace = empty();
+    workspace.packages.push({
+      id: "package-not-retained",
+      ownerScope: OWNER,
+      fileIds: ["file-not-retained"],
+      sourceChannel: "MANUAL_UPLOAD",
+      processingStatus: "NEEDS_REVIEW",
+      securityScanStatus: "NOT_AVAILABLE",
+      uploadedAt: NOW,
+    });
+    workspace.files.push({
+      id: "file-not-retained",
+      packageId: "package-not-retained",
+      ownerScope: OWNER,
+      role: "PRIMARY",
+      mimeType: "application/pdf",
+      fileSize: 512,
+      pageCount: 2,
+      sha256: "a".repeat(64),
+      contentFingerprint: "a".repeat(64),
+      sourceContentRetention: "NOT_RETAINED",
+      uploadedAt: NOW,
+    });
+
+    const before = structuredClone(workspace);
+    expect(validateFiscalNotificationsWorkspaceIntegrity(workspace, OWNER)).toEqual({
+      valid: true,
+      issues: [],
+    });
+    expect(workspace).toEqual(before);
+    expect(JSON.stringify(workspace.files[0])).not.toMatch(
+      /originalFilename|storageReference|isImmutableOriginal/,
+    );
+  });
+
+  it.each([
+    ["originalFilename", "private-document.pdf"],
+    ["storageReference", "private/storage/path"],
+    ["isImmutableOriginal", true],
+  ])("rejects %s on a non-retained source", (field, value) => {
+    const workspace = empty();
+    workspace.packages.push({
+      id: "package-not-retained",
+      ownerScope: OWNER,
+      fileIds: ["file-not-retained"],
+      sourceChannel: "MANUAL_UPLOAD",
+      processingStatus: "NEEDS_REVIEW",
+      securityScanStatus: "NOT_AVAILABLE",
+      uploadedAt: NOW,
+    });
+    const file: Record<string, unknown> = {
+      id: "file-not-retained",
+      packageId: "package-not-retained",
+      ownerScope: OWNER,
+      role: "PRIMARY",
+      mimeType: "application/pdf",
+      fileSize: 512,
+      pageCount: 2,
+      sha256: "a".repeat(64),
+      contentFingerprint: "a".repeat(64),
+      sourceContentRetention: "NOT_RETAINED",
+      uploadedAt: NOW,
+      [field]: value,
+    };
+    workspace.files.push(
+      file as unknown as FiscalNotificationsWorkspace["files"][number],
+    );
+
+    expect(
+      validateFiscalNotificationsWorkspaceIntegrity(workspace, OWNER),
+    ).toMatchObject({
+      valid: false,
+      issues: expect.arrayContaining([
+        { code: "INVALID_WORKSPACE", path: `workspace.files[0].${field}` },
+      ]),
+    });
+  });
+
   it("rejects a foreign owner, duplicate ids and dangling references", () => {
     const foreign = empty();
     foreign.documents.push({

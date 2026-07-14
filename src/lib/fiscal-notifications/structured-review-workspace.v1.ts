@@ -1,0 +1,1058 @@
+import {
+  validateAdministrativeDomainProjection,
+  type AdministrativeDomainProjection,
+  type AdministrativeMoneyKind,
+} from "./administrative-domain";
+import {
+  parseAeatEnforcementExplicitFieldsV2,
+  type AeatEnforcementPrintedDateFactV2,
+  type AeatEnforcementReferenceFactV2,
+} from "./aeat-enforcement-explicit-fields.v2";
+import type {
+  AeatEnforcementMoneyFact,
+  AeatEnforcementMoneyFactKind,
+  AeatEnforcementMoneyFactsResult,
+} from "./aeat-enforcement-money-facts";
+import {
+  parseAeatEnforcementPartyFactsV1,
+} from "./aeat-enforcement-party-facts.v1";
+import {
+  FISCAL_NOTIFICATION_INPUT_LIMITS,
+  assertBoundedId,
+  assertBoundedOwnerScope,
+} from "./input-contract";
+import type {
+  FiscalNotificationLocalAnalysisResult,
+  FiscalNotificationLocalReviewResult,
+} from "./local-review-flow";
+import type {
+  ExternalReferenceType,
+  FieldEvidence,
+  FiscalNotificationsWorkspace,
+  UnknownExtractedField,
+} from "./types";
+import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
+
+export const FISCAL_NOTIFICATION_STRUCTURED_REVIEW_SCHEMA_VERSION_V1 =
+  1 as const;
+export const FISCAL_NOTIFICATION_STRUCTURED_REVIEW_ENGINE_ID_V1 =
+  "fiscal-notification-structured-review-workspace" as const;
+export const FISCAL_NOTIFICATION_STRUCTURED_REVIEW_ENGINE_VERSION_V1 =
+  "1.0.0" as const;
+
+export interface AppendAeatEnforcementStructuredReviewInputV1 {
+  readonly ownerScope: string;
+  readonly reviewId: string;
+  readonly createdAt: string;
+  readonly workspace: FiscalNotificationsWorkspace | null;
+  readonly analysis: FiscalNotificationLocalAnalysisResult;
+}
+
+export type AppendAeatEnforcementStructuredReviewResultV1 =
+  | {
+      readonly status: "APPLIED";
+      readonly schemaVersion: 1;
+      readonly engineId: "fiscal-notification-structured-review-workspace";
+      readonly engineVersion: "1.0.0";
+      readonly documentId: string;
+      readonly workspace: FiscalNotificationsWorkspace;
+      readonly sourceContentRetention: "NOT_RETAINED";
+      readonly requiresHumanReview: true;
+      readonly materializationPolicy: "PROHIBITED_UNTIL_REVIEW";
+    }
+  | {
+      readonly status: "EXISTING";
+      readonly schemaVersion: 1;
+      readonly engineId: "fiscal-notification-structured-review-workspace";
+      readonly engineVersion: "1.0.0";
+      readonly documentId: string;
+      readonly workspace: FiscalNotificationsWorkspace;
+      readonly sourceContentRetention: "NOT_RETAINED";
+      readonly requiresHumanReview: true;
+      readonly materializationPolicy: "PROHIBITED_UNTIL_REVIEW";
+    };
+
+const INPUT_KEYS = new Set([
+  "ownerScope",
+  "reviewId",
+  "createdAt",
+  "workspace",
+  "analysis",
+]);
+const ANALYSIS_KEYS = new Set([
+  "schemaVersion",
+  "analysisVersion",
+  "technicalReview",
+  "ephemeralEnforcementMoneyFacts",
+  "ephemeralEnforcementExplicitFields",
+  "ephemeralEnforcementPartyFacts",
+  "sourceContentPolicy",
+  "requiresHumanReview",
+  "materializationPolicy",
+]);
+const TECHNICAL_REVIEW_KEYS = new Set([
+  "schemaVersion",
+  "flowVersion",
+  "status",
+  "reason",
+  "engineId",
+  "engineVersion",
+  "pageCount",
+  "byteLength",
+  "sha256",
+  "candidates",
+  "selectedFamilyId",
+  "providerCalled",
+  "requiresHumanReview",
+  "materializationPolicy",
+  "retainedSourceContent",
+]);
+const CANDIDATE_KEYS = new Set([
+  "familyId",
+  "recognitionPolicyVersion",
+  "segmentationVersion",
+  "documentType",
+  "authoritySignal",
+  "handlerId",
+  "handlerVersion",
+  "signalStatus",
+  "matchedAnchors",
+  "missingRequiredAnchorIds",
+  "conflictingAnchorIds",
+  "requiresHumanReview",
+]);
+const ANCHOR_KEYS = new Set(["anchorId", "pageNumbers"]);
+const MONEY_ROOT_KEYS = new Set([
+  "schemaVersion",
+  "engineId",
+  "engineVersion",
+  "documentType",
+  "status",
+  "outcome",
+  "facts",
+  "issues",
+  "selectedPaymentAmountKind",
+  "semanticPolicy",
+  "legalRuleStatus",
+  "requiresHumanReview",
+  "materializationPolicy",
+  "retainedSourceContent",
+]);
+const MONEY_FACT_KEYS = new Set([
+  "kind",
+  "amountCents",
+  "currency",
+  "evidence",
+  "reviewStatus",
+]);
+const MONEY_EVIDENCE_KEYS = new Set([
+  "pageNumber",
+  "label",
+  "extractionMethod",
+  "assertionType",
+]);
+const MONEY_ISSUE_KEYS = new Set(["code", "kind", "pageNumbers"]);
+const MONEY_ISSUE_CODES = new Set([
+  "FAMILY_GATE_NOT_SATISFIED",
+  "NO_AMOUNT_SECTION",
+  "NO_CLOSED_LABEL_MATCH",
+  "LABEL_WITHOUT_AMOUNT",
+  "INVALID_AMOUNT_FORMAT",
+  "DUPLICATE_AMOUNT_SECTION",
+  "DUPLICATE_MONEY_LABEL",
+  "UNSUPPORTED_SECTION_PREAMBLE",
+  "SECTION_SCAN_LIMIT_EXCEEDED",
+  "UNSUPPORTED_TEXT_STATE",
+]);
+const MONEY_KINDS = new Set<AeatEnforcementMoneyFactKind>([
+  "OUTSTANDING_PRINCIPAL",
+  "ORDINARY_ENFORCEMENT_SURCHARGE",
+  "PAYMENT_ON_ACCOUNT",
+  "DOCUMENT_TOTAL",
+]);
+const MONEY_EVIDENCE_LABELS: Readonly<
+  Record<
+    AeatEnforcementMoneyFactKind,
+    AeatEnforcementMoneyFact["evidence"][number]["label"]
+  >
+> = Object.freeze({
+  OUTSTANDING_PRINCIPAL: "OUTSTANDING_PRINCIPAL_LABEL",
+  ORDINARY_ENFORCEMENT_SURCHARGE:
+    "ORDINARY_ENFORCEMENT_SURCHARGE_LABEL",
+  PAYMENT_ON_ACCOUNT: "PAYMENT_ON_ACCOUNT_LABEL",
+  DOCUMENT_TOTAL: "DOCUMENT_TOTAL_LABEL",
+});
+const REVIEW_ID =
+  /^review:([0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/u;
+const SHA256 = /^[a-f0-9]{64}$/u;
+const ISO_TIMESTAMP = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/u;
+const MAX_SOURCE_BYTES = 4 * 1024 * 1024;
+const MAX_AMOUNT_CENTS = 100_000_000_000;
+
+export class FiscalNotificationStructuredReviewV1Error extends Error {
+  constructor(readonly code: "INVALID_INPUT" | "NO_STRUCTURED_FACTS") {
+    super(`FISCAL_NOTIFICATION_STRUCTURED_REVIEW_${code}`);
+    this.name = "FiscalNotificationStructuredReviewV1Error";
+  }
+}
+
+/**
+ * Convierte resultados exactos y efímeros en entidades del workspace fiscal.
+ * El límite es deliberado: guarda hechos estructurados revisables, pero nunca
+ * conserva el PDF/texto, confirma autenticidad ni crea deuda o acción.
+ */
+export function appendAeatEnforcementStructuredReviewV1(
+  value: AppendAeatEnforcementStructuredReviewInputV1,
+): AppendAeatEnforcementStructuredReviewResultV1 {
+  const input = snapshotRecord(value, INPUT_KEYS);
+  if (!input) throw invalidInput();
+  assertBoundedOwnerScope(input.ownerScope, "ownerScope");
+  if (
+    typeof input.ownerScope !== "string" ||
+    !input.ownerScope.startsWith("user:")
+  ) {
+    throw invalidInput();
+  }
+  const ownerScope = input.ownerScope;
+  const reviewUuid = parseReviewId(input.reviewId);
+  const createdAt = parseIsoTimestamp(input.createdAt);
+  const analysis = snapshotRecord(input.analysis, ANALYSIS_KEYS);
+  if (
+    !analysis ||
+    analysis.schemaVersion !== 4 ||
+    analysis.analysisVersion !== "4.0.0" ||
+    analysis.sourceContentPolicy !== "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" ||
+    analysis.requiresHumanReview !== true ||
+    analysis.materializationPolicy !== "PROHIBITED_UNTIL_REVIEW"
+  ) {
+    throw invalidInput();
+  }
+  const technicalReview = parseTechnicalReview(analysis.technicalReview);
+  const workspace = parseWorkspace(input.workspace, ownerScope, createdAt);
+
+  const explicitFields =
+    analysis.ephemeralEnforcementExplicitFields === null
+      ? null
+      : parseAeatEnforcementExplicitFieldsV2(
+          analysis.ephemeralEnforcementExplicitFields,
+          technicalReview.pageCount,
+        );
+  const partyFacts =
+    analysis.ephemeralEnforcementPartyFacts === null
+      ? null
+      : parseAeatEnforcementPartyFactsV1(
+          analysis.ephemeralEnforcementPartyFacts,
+          technicalReview.pageCount,
+        );
+  const moneyFacts =
+    analysis.ephemeralEnforcementMoneyFacts === null
+      ? null
+      : parseMoneyFacts(
+          analysis.ephemeralEnforcementMoneyFacts,
+          technicalReview.pageCount,
+        );
+
+  const existingFiles = workspace.files.filter(
+    (file) => file.sha256 === technicalReview.sha256,
+  );
+  if (existingFiles.length > 0) {
+    if (existingFiles.length !== 1) throw invalidInput();
+    const existingDocuments = workspace.documents.filter(
+      (document) => document.fileId === existingFiles[0]!.id,
+    );
+    if (existingDocuments.length !== 1) throw invalidInput();
+    return freezeResult({
+      status: "EXISTING",
+      documentId: existingDocuments[0]!.id,
+      workspace,
+    });
+  }
+
+  const referenceFacts =
+    explicitFields?.outcome === "FACTS_AVAILABLE"
+      ? explicitFields.referenceFacts
+      : [];
+  const printedDateFacts =
+    explicitFields?.outcome === "FACTS_AVAILABLE"
+      ? explicitFields.printedDateFacts
+      : [];
+  const exactMoneyFacts =
+    moneyFacts?.outcome === "FACTS_AVAILABLE" ? moneyFacts.facts : [];
+  const identifiedSubject =
+    partyFacts?.outcome === "FACTS_AVAILABLE"
+      ? partyFacts.identifiedSubject
+      : null;
+  if (
+    referenceFacts.length === 0 &&
+    printedDateFacts.length === 0 &&
+    exactMoneyFacts.length === 0 &&
+    !identifiedSubject
+  ) {
+    throw new FiscalNotificationStructuredReviewV1Error(
+      "NO_STRUCTURED_FACTS",
+    );
+  }
+
+  const ids = idsFor(reviewUuid);
+  const evidence: FieldEvidence[] = [];
+  const evidenceIds = new Set<string>();
+  const addEvidence = (entry: FieldEvidence): string => {
+    if (evidenceIds.has(entry.id)) throw invalidInput();
+    evidenceIds.add(entry.id);
+    evidence.push(entry);
+    return entry.id;
+  };
+
+  const partyEvidenceIds = identifiedSubject
+    ? identifiedSubject.evidence.map((item) =>
+        addEvidence({
+          id: `${ids.evidence}:party:${item.pageNumber}`,
+          ownerScope,
+          documentId: ids.document,
+          pageNumber: item.pageNumber,
+          textSnippet: "Identificación del obligado al pago",
+          extractionMethod: "RULE",
+          confidence: "EXACT",
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+        }),
+      )
+    : [];
+
+  const references = referenceFacts.map((fact, index) => {
+    const occurrenceIds = fact.pageNumbers.map((pageNumber) =>
+      addEvidence({
+        id: `${ids.evidence}:reference:${index}:${pageNumber}`,
+        ownerScope,
+        documentId: ids.document,
+        pageNumber,
+        textSnippet: referenceEvidenceLabel(fact),
+        rawValue: fact.printedValue,
+        extractionMethod: "RULE",
+        confidence: "EXACT",
+        assertionType: "EXPLICIT_IN_DOCUMENT",
+      }),
+    );
+    return {
+      id: `${ids.reference}:${index}`,
+      ownerScope,
+      referenceType: fact.kind as ExternalReferenceType,
+      rawValue: fact.printedValue,
+      normalizedValue: normalizeReference(fact.printedValue),
+      issuer: "AEAT",
+      scope: "DOCUMENT" as const,
+      documentId: ids.document,
+      isPrimary: index === 0,
+      confidence: "EXACT" as const,
+      confirmationStatus: "PENDING" as const,
+      extractionMethod: "RULE" as const,
+      occurrenceIds,
+      createdAt,
+    };
+  });
+
+  const unknownFields: UnknownExtractedField[] = printedDateFacts.map(
+    (fact, index) => {
+      const pageNumber = fact.pageNumbers[0];
+      if (!pageNumber) throw invalidInput();
+      const evidenceId = addEvidence({
+        id: `${ids.evidence}:date:${index}:${pageNumber}`,
+        ownerScope,
+        documentId: ids.document,
+        pageNumber,
+        textSnippet: printedDateEvidenceLabel(fact),
+        rawValue: fact.printedValue,
+        extractionMethod: "RULE",
+        confidence: "EXACT",
+        assertionType: "EXPLICIT_IN_DOCUMENT",
+      });
+      return {
+        labelRaw: fact.kind,
+        valueRaw: fact.printedValue,
+        page: pageNumber,
+        evidenceId,
+        confidence: "EXACT" as const,
+      };
+    },
+  );
+
+  const moneyProjectionFacts = exactMoneyFacts.map((fact, index) => {
+    const factEvidenceIds = fact.evidence.map((item) =>
+      addEvidence({
+        id: `${ids.evidence}:money:${index}:${item.pageNumber}`,
+        ownerScope,
+        documentId: ids.document,
+        pageNumber: item.pageNumber,
+        textSnippet: moneyEvidenceLabel(fact.kind),
+        extractionMethod: "RULE",
+        confidence: "EXACT",
+        assertionType: "EXPLICIT_IN_DOCUMENT",
+      }),
+    );
+    return {
+      id: `${ids.money}:${index}`,
+      ownerScope,
+      documentId: ids.document,
+      kind: administrativeMoneyKind(fact.kind),
+      amountCents: fact.amountCents,
+      currency: fact.currency,
+      assertionType: "EXPLICIT_IN_DOCUMENT" as const,
+      evidenceIds: factEvidenceIds,
+      lineageParentIds: [],
+      status: "PROPOSED" as const,
+      createdAt,
+    };
+  });
+
+  const administrativeDomain = buildAdministrativeDomain({
+    ownerScope,
+    documentId: ids.document,
+    createdAt,
+    familyId: technicalReview.candidate.familyId,
+    identifiedSubject: Boolean(identifiedSubject),
+    partyEvidenceIds,
+    partyRefId: ids.subject,
+    moneyFacts: moneyProjectionFacts,
+    hasReferences: references.length > 0,
+    hasDates: printedDateFacts.length > 0,
+  });
+  const issueDate = printedDateFacts.find(
+    (fact) => fact.kind === "PRINTED_ISSUE_DATE",
+  )?.calendarDate;
+  const signatureDate = printedDateFacts.find(
+    (fact) => fact.kind === "PRINTED_SIGNATURE_DATE",
+  )?.calendarDate;
+
+  const authority = workspace.authorities.find(
+    (item) => item.id === ids.authority,
+  );
+  if (
+    authority &&
+    (authority.administrationType !== "AEAT" ||
+      authority.nameNormalized !==
+        "AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA" ||
+      authority.officialDomain !== "sede.agenciatributaria.gob.es")
+  ) {
+    throw invalidInput();
+  }
+  if (!authority) {
+    workspace.authorities.push({
+      id: ids.authority,
+      ownerScope,
+      administrationType: "AEAT",
+      nameRaw: "Agencia Estatal de Administración Tributaria",
+      nameNormalized: "AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA",
+      officialDomain: "sede.agenciatributaria.gob.es",
+    });
+  }
+  workspace.packages.push({
+    id: ids.package,
+    ownerScope,
+    fileIds: [ids.file],
+    sourceChannel: "MANUAL_UPLOAD",
+    processingStatus: "NEEDS_REVIEW",
+    securityScanStatus: "NOT_AVAILABLE",
+    uploadedAt: createdAt,
+  });
+  workspace.files.push({
+    id: ids.file,
+    packageId: ids.package,
+    ownerScope,
+    role: "PRIMARY",
+    mimeType: "application/pdf",
+    fileSize: technicalReview.byteLength,
+    pageCount: technicalReview.pageCount,
+    sha256: technicalReview.sha256,
+    contentFingerprint: technicalReview.sha256,
+    sourceContentRetention: "NOT_RETAINED",
+    uploadedAt: createdAt,
+  });
+  workspace.references.push(...references);
+  workspace.evidence.push(...evidence);
+  workspace.documents.push({
+    id: ids.document,
+    packageId: ids.package,
+    fileId: ids.file,
+    ownerScope,
+    documentType: "AEAT_ENFORCEMENT_ORDER",
+    titleRaw: "Providencia de apremio AEAT",
+    titleNormalized: "PROVIDENCIA DE APREMIO AEAT",
+    authorityId: ids.authority,
+    ...(issueDate ? { issueDate } : {}),
+    ...(signatureDate ? { signatureDate } : {}),
+    notificationDates: {},
+    ...(identifiedSubject
+      ? {
+          subjectParty: {
+            displayName: identifiedSubject.printedName,
+            taxIdNormalized: identifiedSubject.printedTaxId,
+            matchesBusinessProfile: "UNKNOWN" as const,
+          },
+        }
+      : {}),
+    status: "UNKNOWN",
+    urgency: "REVIEW",
+    extractionVersion: FISCAL_NOTIFICATION_STRUCTURED_REVIEW_ENGINE_VERSION_V1,
+    analysisStatus: "NEEDS_REVIEW",
+    humanReviewStatus: "PENDING",
+    authenticityStatus: "NOT_CHECKED",
+    partIds: [],
+    referenceIds: references.map((item) => item.id),
+    debtIds: [],
+    caseIds: [],
+    analysisSnapshotIds: [ids.snapshot],
+    createdAt,
+    updatedAt: createdAt,
+  });
+  workspace.analysisSnapshots.push({
+    id: ids.snapshot,
+    ownerScope,
+    documentId: ids.document,
+    version: 1,
+    extractorVersion: FISCAL_NOTIFICATION_STRUCTURED_REVIEW_ENGINE_VERSION_V1,
+    rulesVersion: technicalReview.engineVersion ?? "unavailable",
+    structuredData: {
+      schemaVersion: 1,
+      documentType: "AEAT_ENFORCEMENT_ORDER",
+      administrativeDomain,
+      paymentOptionIds: [],
+      unknownFields,
+      validationCodes: [
+        "AUTHENTICITY_NOT_CHECKED",
+        "HUMAN_REVIEW_REQUIRED",
+        "NO_OPERATIONAL_EFFECT",
+      ],
+      factSummary: [],
+      calculatedSummary: [],
+      inferenceSummary: [],
+      userConfirmedSummary: [],
+      documentFields: {
+        title: "Providencia de apremio AEAT",
+        ...(issueDate ? { issueDate } : {}),
+      },
+    },
+    plainLanguageExplanation: [
+      "Datos impresos extraídos y pendientes de revisión humana.",
+      "El documento original y su texto no se conservan.",
+    ],
+    validationWarnings: [
+      "La autenticidad no se ha comprobado.",
+      "No se ha creado deuda, pago, plazo, gasto ni asiento.",
+    ],
+    evidenceIds: [...evidenceIds],
+    confidenceBand: "HIGH",
+    requiresHumanReview: true,
+    createdAt,
+    createdBySystem: true,
+  });
+  workspace.revision += 1;
+  workspace.updatedAt = createdAt;
+
+  const validation = validateFiscalNotificationsWorkspaceIntegrity(
+    workspace,
+    ownerScope,
+  );
+  if (!validation.valid) throw invalidInput();
+  return freezeResult({
+    status: "APPLIED",
+    documentId: ids.document,
+    workspace,
+  });
+}
+
+function buildAdministrativeDomain(input: {
+  ownerScope: string;
+  documentId: string;
+  createdAt: string;
+  familyId: string;
+  identifiedSubject: boolean;
+  partyEvidenceIds: readonly string[];
+  partyRefId: string;
+  moneyFacts: AdministrativeDomainProjection["moneyFacts"];
+  hasReferences: boolean;
+  hasDates: boolean;
+}): AdministrativeDomainProjection {
+  const missingFieldIds = [
+    ...(input.identifiedSubject ? [] : ["subject.identification"]),
+    ...(input.moneyFacts.length > 0 ? [] : ["money.printed"]),
+    ...(input.hasReferences ? [] : ["reference.printed"]),
+    ...(input.hasDates ? [] : ["date.printed"]),
+  ];
+  const candidate = {
+    schemaVersion: 1 as const,
+    ownerScope: input.ownerScope,
+    documentId: input.documentId,
+    extractorId: FISCAL_NOTIFICATION_STRUCTURED_REVIEW_ENGINE_ID_V1,
+    extractorVersion: FISCAL_NOTIFICATION_STRUCTURED_REVIEW_ENGINE_VERSION_V1,
+    createdAt: input.createdAt,
+    familyId: input.familyId,
+    status: "REVIEW_REQUIRED" as const,
+    roleAssertions: input.identifiedSubject
+      ? [
+          {
+            id: `${input.documentId}:role:payment-obligor`,
+            ownerScope: input.ownerScope,
+            documentId: input.documentId,
+            partyRefId: input.partyRefId,
+            role: "TAX_DEBTOR" as const,
+            assertionType: "EXPLICIT_IN_DOCUMENT" as const,
+            confidence: 1,
+            evidenceIds: [...input.partyEvidenceIds],
+            createdAt: input.createdAt,
+          },
+        ]
+      : [],
+    moneyFacts: input.moneyFacts,
+    missingFieldIds,
+    alternativeFamilyIds: [],
+    validationIssues: [],
+    materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,
+    requiresHumanReview: true as const,
+  };
+  const validation = validateAdministrativeDomainProjection(
+    candidate,
+    input.ownerScope,
+    input.documentId,
+  );
+  if (!validation.valid || !validation.projection) throw invalidInput();
+  return validation.projection;
+}
+
+function parseWorkspace(
+  value: unknown,
+  ownerScope: string,
+  createdAt: string,
+): FiscalNotificationsWorkspace {
+  if (value === null) {
+    return {
+      schemaVersion: 1,
+      workspaceId: "fiscal-notifications-workspace-v1",
+      ownerScope,
+      revision: 0,
+      createdAt,
+      updatedAt: createdAt,
+      packages: [],
+      files: [],
+      documents: [],
+      parts: [],
+      authorities: [],
+      references: [],
+      evidence: [],
+      debts: [],
+      debtObservations: [],
+      cases: [],
+      relations: [],
+      analysisSnapshots: [],
+      paymentOptions: [],
+      paymentPlans: [],
+      installments: [],
+      interestCalculations: [],
+      deadlineRules: [],
+      obligations: [],
+      timeline: [],
+      accountingDrafts: [],
+      auditEvents: [],
+    };
+  }
+  const validation = validateFiscalNotificationsWorkspaceIntegrity(
+    value,
+    ownerScope,
+  );
+  if (!validation.valid) throw invalidInput();
+  let clone: FiscalNotificationsWorkspace;
+  try {
+    clone = structuredClone(value) as FiscalNotificationsWorkspace;
+  } catch {
+    throw invalidInput();
+  }
+  if (
+    Date.parse(createdAt) < Date.parse(clone.updatedAt) ||
+    !Number.isSafeInteger(clone.revision) ||
+    clone.revision >= Number.MAX_SAFE_INTEGER
+  ) {
+    throw invalidInput();
+  }
+  return clone;
+}
+
+function parseTechnicalReview(value: unknown): {
+  pageCount: number;
+  byteLength: number;
+  sha256: string;
+  engineVersion: FiscalNotificationLocalReviewResult["engineVersion"];
+  candidate: FiscalNotificationLocalReviewResult["candidates"][number];
+} {
+  const root = snapshotRecord(value, TECHNICAL_REVIEW_KEYS);
+  if (
+    !root ||
+    root.schemaVersion !== 1 ||
+    root.flowVersion !== "1.0.0" ||
+    root.status !== "REVIEW_REQUIRED" ||
+    root.reason !== "SUPPORTED_FAMILY_CANDIDATE" ||
+    root.engineId !== "fiscal-notification-family-candidate-engine" ||
+    root.engineVersion !== "1.3.0" ||
+    root.selectedFamilyId !== null ||
+    root.providerCalled !== false ||
+    root.requiresHumanReview !== true ||
+    root.materializationPolicy !== "PROHIBITED_UNTIL_REVIEW" ||
+    root.retainedSourceContent !== "NONE" ||
+    !Number.isSafeInteger(root.pageCount) ||
+    Number(root.pageCount) < 1 ||
+    Number(root.pageCount) > FISCAL_NOTIFICATION_INPUT_LIMITS.maxPages ||
+    !Number.isSafeInteger(root.byteLength) ||
+    Number(root.byteLength) < 1 ||
+    Number(root.byteLength) > MAX_SOURCE_BYTES ||
+    typeof root.sha256 !== "string" ||
+    !SHA256.test(root.sha256)
+  ) {
+    throw invalidInput();
+  }
+  const candidates = snapshotArray(root.candidates, 1);
+  const candidate = snapshotRecord(candidates?.[0], CANDIDATE_KEYS);
+  if (
+    !candidate ||
+    candidate.familyId !== "AEAT_ENFORCEMENT_ORDER_CANDIDATE" ||
+    candidate.recognitionPolicyVersion !== "1.3.0" ||
+    (candidate.segmentationVersion !== "1.0.0" &&
+      candidate.segmentationVersion !== "1.1.0") ||
+    candidate.documentType !== "AEAT_ENFORCEMENT_ORDER" ||
+    candidate.authoritySignal !== "AEAT_UNVERIFIED" ||
+    candidate.handlerId !== "aeat-enforcement-order-candidate" ||
+    candidate.handlerVersion !== "1.0.0" ||
+    candidate.signalStatus !== "COMPLETE_REQUIRED_ANCHORS" ||
+    candidate.requiresHumanReview !== true ||
+    !validateTechnicalCandidateArrays(candidate, root.pageCount as number)
+  ) {
+    throw invalidInput();
+  }
+  return {
+    pageCount: root.pageCount as number,
+    byteLength: root.byteLength as number,
+    sha256: root.sha256,
+    engineVersion: "1.3.0",
+    candidate:
+      candidate as unknown as FiscalNotificationLocalReviewResult["candidates"][number],
+  };
+}
+
+function parseMoneyFacts(
+  value: unknown,
+  maxPageNumber: number,
+): AeatEnforcementMoneyFactsResult {
+  const root = snapshotRecord(value, MONEY_ROOT_KEYS);
+  if (
+    !root ||
+    root.schemaVersion !== 1 ||
+    root.engineId !== "aeat-enforcement-money-facts" ||
+    (root.engineVersion !== "1.0.0" && root.engineVersion !== "1.1.0") ||
+    root.documentType !== "AEAT_ENFORCEMENT_ORDER" ||
+    (root.status !== "REVIEW_REQUIRED" &&
+      root.status !== "INFORMATION_PENDING") ||
+    ![
+      "FACTS_AVAILABLE",
+      "INFORMATION_PENDING",
+      "AMBIGUOUS",
+      "PROCESSING_BLOCKED",
+    ].includes(root.outcome as string) ||
+    root.selectedPaymentAmountKind !== null ||
+    root.semanticPolicy !== "EXPLICIT_DOCUMENT_FACTS_ONLY" ||
+    root.legalRuleStatus !== "NOT_APPLIED" ||
+    root.requiresHumanReview !== true ||
+    root.materializationPolicy !== "PROHIBITED_UNTIL_REVIEW" ||
+    root.retainedSourceContent !== "NONE"
+  ) {
+    throw invalidInput();
+  }
+  const factInputs = snapshotArray(root.facts, 4);
+  const issueInputs = snapshotArray(root.issues, 32);
+  if (!factInputs || !issueInputs) throw invalidInput();
+  const facts = factInputs.map((entry) => {
+    const fact = snapshotRecord(entry, MONEY_FACT_KEYS);
+    if (
+      !fact ||
+      !MONEY_KINDS.has(fact.kind as AeatEnforcementMoneyFactKind) ||
+      !Number.isSafeInteger(fact.amountCents) ||
+      Number(fact.amountCents) < 0 ||
+      Number(fact.amountCents) > MAX_AMOUNT_CENTS ||
+      (fact.currency !== "EUR" && fact.currency !== "UNKNOWN") ||
+      fact.reviewStatus !== "REVIEW_REQUIRED"
+    ) {
+      throw invalidInput();
+    }
+    const evidenceInputs = snapshotArray(fact.evidence, maxPageNumber);
+    if (!evidenceInputs || evidenceInputs.length === 0) throw invalidInput();
+    const evidence = evidenceInputs.map((evidenceValue) => {
+      const item = snapshotRecord(evidenceValue, MONEY_EVIDENCE_KEYS);
+      if (
+        !item ||
+        !Number.isSafeInteger(item.pageNumber) ||
+        Number(item.pageNumber) < 1 ||
+        Number(item.pageNumber) > maxPageNumber ||
+        item.label !==
+          MONEY_EVIDENCE_LABELS[
+            fact.kind as AeatEnforcementMoneyFactKind
+          ] ||
+        item.extractionMethod !== "RULE" ||
+        item.assertionType !== "EXPLICIT_IN_DOCUMENT"
+      ) {
+        throw invalidInput();
+      }
+      return Object.freeze({
+        pageNumber: item.pageNumber as number,
+        label: item.label as AeatEnforcementMoneyFact["evidence"][number]["label"],
+        extractionMethod: "RULE" as const,
+        assertionType: "EXPLICIT_IN_DOCUMENT" as const,
+      });
+    });
+    return Object.freeze({
+      kind: fact.kind as AeatEnforcementMoneyFactKind,
+      amountCents: fact.amountCents as number,
+      currency: fact.currency as "EUR" | "UNKNOWN",
+      evidence: Object.freeze(evidence),
+      reviewStatus: "REVIEW_REQUIRED" as const,
+    });
+  });
+  if (new Set(facts.map((fact) => fact.kind)).size !== facts.length) {
+    throw invalidInput();
+  }
+  for (const entry of issueInputs) {
+    const issue = snapshotRecord(entry, MONEY_ISSUE_KEYS);
+    const pageNumbers = snapshotArray(issue?.pageNumbers, maxPageNumber);
+    if (
+      !issue ||
+      !MONEY_ISSUE_CODES.has(issue.code as string) ||
+      (issue.kind !== null && !MONEY_KINDS.has(issue.kind as never)) ||
+      !pageNumbers ||
+      pageNumbers.some(
+        (pageNumber) =>
+          !Number.isSafeInteger(pageNumber) ||
+          Number(pageNumber) < 1 ||
+          Number(pageNumber) > maxPageNumber,
+      )
+    ) {
+      throw invalidInput();
+    }
+  }
+  if (
+    (root.outcome === "FACTS_AVAILABLE" && facts.length === 0) ||
+    (root.outcome !== "FACTS_AVAILABLE" && facts.length > 0)
+  ) {
+    throw invalidInput();
+  }
+  return Object.freeze({
+    schemaVersion: 1,
+    engineId: "aeat-enforcement-money-facts",
+    engineVersion: root.engineVersion as "1.0.0" | "1.1.0",
+    documentType: "AEAT_ENFORCEMENT_ORDER",
+    status: root.status as "REVIEW_REQUIRED" | "INFORMATION_PENDING",
+    outcome: root.outcome as AeatEnforcementMoneyFactsResult["outcome"],
+    facts: Object.freeze(facts),
+    issues: Object.freeze([]),
+    selectedPaymentAmountKind: null,
+    semanticPolicy: "EXPLICIT_DOCUMENT_FACTS_ONLY",
+    legalRuleStatus: "NOT_APPLIED",
+    requiresHumanReview: true,
+    materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+    retainedSourceContent: "NONE",
+  });
+}
+
+function administrativeMoneyKind(
+  kind: AeatEnforcementMoneyFactKind,
+): AdministrativeMoneyKind {
+  switch (kind) {
+    case "OUTSTANDING_PRINCIPAL":
+      return "OUTSTANDING_PRINCIPAL";
+    case "ORDINARY_ENFORCEMENT_SURCHARGE":
+      return "EXECUTIVE_SURCHARGE_20";
+    case "PAYMENT_ON_ACCOUNT":
+      return "PAYMENT_ON_ACCOUNT";
+    case "DOCUMENT_TOTAL":
+      return "DOCUMENT_TOTAL";
+  }
+}
+
+function validateTechnicalCandidateArrays(
+  candidate: Record<string, unknown>,
+  maxPageNumber: number,
+): boolean {
+  const matchedAnchors = snapshotArray(candidate.matchedAnchors, 32);
+  const missingRequired = snapshotArray(candidate.missingRequiredAnchorIds, 32);
+  const conflicting = snapshotArray(candidate.conflictingAnchorIds, 32);
+  if (
+    !matchedAnchors ||
+    !missingRequired ||
+    missingRequired.length !== 0 ||
+    !conflicting ||
+    conflicting.length !== 0
+  ) {
+    return false;
+  }
+  const matchedAnchorIds = new Set<string>();
+  const validAnchors = matchedAnchors.every((entry) => {
+    const anchor = snapshotRecord(entry, ANCHOR_KEYS);
+    const pageNumbers = snapshotArray(anchor?.pageNumbers, maxPageNumber);
+    if (typeof anchor?.anchorId === "string") {
+      if (matchedAnchorIds.has(anchor.anchorId)) return false;
+      matchedAnchorIds.add(anchor.anchorId);
+    }
+    return Boolean(
+      anchor &&
+        typeof anchor.anchorId === "string" &&
+        pageNumbers &&
+        pageNumbers.length > 0 &&
+        pageNumbers.every(
+          (pageNumber) =>
+            Number.isSafeInteger(pageNumber) &&
+            Number(pageNumber) >= 1 &&
+            Number(pageNumber) <= maxPageNumber,
+        ),
+    );
+  });
+  return (
+    validAnchors &&
+    matchedAnchorIds.has("ENFORCEMENT_ORDER_TITLE") &&
+    matchedAnchorIds.has("ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION") &&
+    matchedAnchorIds.has("ENFORCEMENT_DEBT_AMOUNT_SECTION") &&
+    (matchedAnchorIds.has("STRUCTURAL_FIRST_PAGE_HEADER") ||
+      matchedAnchorIds.has("STRUCTURAL_PRIMARY_ACT_HEADER"))
+  );
+}
+
+function referenceEvidenceLabel(fact: AeatEnforcementReferenceFactV2): string {
+  return fact.kind === "LIQUIDATION_KEY"
+    ? "Clave de liquidación"
+    : fact.kind === "DOCUMENT_REFERENCE"
+      ? "Referencia del documento"
+      : fact.kind === "PAYMENT_JUSTIFICANTE"
+        ? "Justificante de pago"
+        : fact.kind === "CSV"
+          ? "Código seguro de verificación"
+          : "VTO impreso";
+}
+
+function printedDateEvidenceLabel(
+  fact: AeatEnforcementPrintedDateFactV2,
+): string {
+  return fact.kind === "PRINTED_ISSUE_DATE"
+    ? "Fecha de emisión impresa"
+    : fact.kind === "PRINTED_SIGNATURE_DATE"
+      ? "Fecha de firma impresa"
+      : "Fin del período voluntario impreso";
+}
+
+function moneyEvidenceLabel(kind: AeatEnforcementMoneyFactKind): string {
+  return kind === "OUTSTANDING_PRINCIPAL"
+    ? "Principal pendiente impreso"
+    : kind === "ORDINARY_ENFORCEMENT_SURCHARGE"
+      ? "Recargo de apremio ordinario impreso"
+      : kind === "PAYMENT_ON_ACCOUNT"
+        ? "Ingreso a cuenta impreso"
+        : "Importe total impreso";
+}
+
+function normalizeReference(value: string): string {
+  return value.toLocaleUpperCase("es").replace(/[\t \u00a0]+/gu, "");
+}
+
+function idsFor(uuid: string) {
+  return Object.freeze({
+    authority: "authority:aeat",
+    package: `package:${uuid}`,
+    file: `file:${uuid}`,
+    document: `document:${uuid}`,
+    subject: `subject:${uuid}`,
+    snapshot: `analysis:${uuid}`,
+    evidence: `evidence:${uuid}`,
+    reference: `reference:${uuid}`,
+    money: `money:${uuid}`,
+  });
+}
+
+function parseReviewId(value: unknown): string {
+  assertBoundedId(value, "reviewId");
+  const match = REVIEW_ID.exec(value as string);
+  if (!match?.[1]) throw invalidInput();
+  return match[1];
+}
+
+function parseIsoTimestamp(value: unknown): string {
+  if (typeof value !== "string" || !ISO_TIMESTAMP.test(value)) {
+    throw invalidInput();
+  }
+  const timestamp = Date.parse(value);
+  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== value) {
+    throw invalidInput();
+  }
+  return value;
+}
+
+function snapshotRecord(
+  value: unknown,
+  allowedKeys: ReadonlySet<string>,
+): Record<string, unknown> | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  try {
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return null;
+    const result: Record<string, unknown> = Object.create(null);
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== "string" || !allowedKeys.has(key)) return null;
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) {
+        return null;
+      }
+      result[key] = descriptor.value;
+    }
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+function snapshotArray(value: unknown, max: number): unknown[] | null {
+  if (!Array.isArray(value) || value.length > max) return null;
+  try {
+    const result: unknown[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!descriptor || !descriptor.enumerable || !("value" in descriptor)) {
+        return null;
+      }
+      result.push(descriptor.value);
+    }
+    return Reflect.ownKeys(value).length === value.length + 1 ? result : null;
+  } catch {
+    return null;
+  }
+}
+
+function freezeResult(input: {
+  status: "APPLIED" | "EXISTING";
+  documentId: string;
+  workspace: FiscalNotificationsWorkspace;
+}): AppendAeatEnforcementStructuredReviewResultV1 {
+  deepFreeze(input.workspace);
+  return Object.freeze({
+    status: input.status,
+    schemaVersion: FISCAL_NOTIFICATION_STRUCTURED_REVIEW_SCHEMA_VERSION_V1,
+    engineId: FISCAL_NOTIFICATION_STRUCTURED_REVIEW_ENGINE_ID_V1,
+    engineVersion: FISCAL_NOTIFICATION_STRUCTURED_REVIEW_ENGINE_VERSION_V1,
+    documentId: input.documentId,
+    workspace: input.workspace,
+    sourceContentRetention: "NOT_RETAINED",
+    requiresHumanReview: true,
+    materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+  });
+}
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === "object" && !Object.isFrozen(value)) {
+    for (const child of Object.values(value)) deepFreeze(child);
+    Object.freeze(value);
+  }
+  return value;
+}
+
+function invalidInput(): FiscalNotificationStructuredReviewV1Error {
+  return new FiscalNotificationStructuredReviewV1Error("INVALID_INPUT");
+}

@@ -122,6 +122,34 @@ describe("FiscalModelOfficialVisual", () => {
   );
 
   it.each([
+    ["798", "AEAT_BROWSER_FORM"],
+    ["840", "AEAT_BROWSER_FORM"],
+    ["848", "AEAT_BROWSER_FORM"],
+    ["901", "AEAT_FORM_AND_ADMINISTRATIVE_TRANSFER"],
+    ["933", "AEAT_FORM_AND_ADMINISTRATIVE_TRANSFER"],
+    ["952", "AEAT_FORM_AND_FILE"],
+    ["980", "AEAT_FORM_AND_ADMINISTRATIVE_TRANSFER"],
+    ["981", "AEAT_FORM_AND_ADMINISTRATIVE_TRANSFER"],
+    ["990", "AEAT_FORM_AND_ADMINISTRATIVE_TRANSFER"],
+    ["991", "AEAT_FORM_AND_ADMINISTRATIVE_TRANSFER"],
+    ["992", "AEAT_FORM_AND_ADMINISTRATIVE_TRANSFER"],
+    ["993", "AEAT_FORM_AND_ADMINISTRATIVE_TRANSFER"],
+    ["995", "AEAT_FORM_AND_FILE"],
+    ["996", "AEAT_FORM_AND_ADMINISTRATIVE_TRANSFER"],
+    ["997", "AEAT_FILE_UPLOAD"],
+    ["A22", "AEAT_FORM_AND_FILE"],
+    ["A23", "AEAT_BROWSER_FORM"],
+    ["A24", "AEAT_BROWSER_FORM"],
+  ] as const)(
+    "uses the source-backed Batch 18 visual for Model %s",
+    (code, mode) => {
+      expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
+        mode,
+      );
+    },
+  );
+
+  it.each([
     ["559", "AEAT_BROWSER_FORM"],
     ["560", "AEAT_BROWSER_FORM"],
     ["561", "AEAT_BROWSER_FORM"],

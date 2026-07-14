@@ -24,6 +24,7 @@ export type AdministrativePartyRole =
 
 export type AdministrativeMoneyKind =
   | "ORIGINAL_TAX_PRINCIPAL"
+  | "OUTSTANDING_PRINCIPAL"
   | "PROPOSED_QUOTA"
   | "FINAL_QUOTA"
   | "DEFERRAL_INTEREST"
@@ -41,6 +42,8 @@ export type AdministrativeMoneyKind =
   | "SEIZED_AMOUNT"
   | "RETAINED_AMOUNT"
   | "REMITTED_AMOUNT"
+  | "PAYMENT_ON_ACCOUNT"
+  | "DOCUMENT_TOTAL"
   | "PAYMENT_CONFIRMED";
 
 export type AdministrativeProjectionStatus =
@@ -72,7 +75,7 @@ export interface AdministrativeMoneyFact {
   readonly documentId: string;
   readonly kind: AdministrativeMoneyKind;
   readonly amountCents: number;
-  readonly currency: "EUR";
+  readonly currency: "EUR" | "UNKNOWN";
   readonly assertionType: AssertionType;
   readonly evidenceIds: readonly string[];
   readonly sourceActRefId?: string;
@@ -155,6 +158,7 @@ const PARTY_ROLES: ReadonlySet<AdministrativePartyRole> = new Set([
 
 const MONEY_KINDS: ReadonlySet<AdministrativeMoneyKind> = new Set([
   "ORIGINAL_TAX_PRINCIPAL",
+  "OUTSTANDING_PRINCIPAL",
   "PROPOSED_QUOTA",
   "FINAL_QUOTA",
   "DEFERRAL_INTEREST",
@@ -172,6 +176,8 @@ const MONEY_KINDS: ReadonlySet<AdministrativeMoneyKind> = new Set([
   "SEIZED_AMOUNT",
   "RETAINED_AMOUNT",
   "REMITTED_AMOUNT",
+  "PAYMENT_ON_ACCOUNT",
+  "DOCUMENT_TOTAL",
   "PAYMENT_CONFIRMED",
 ]);
 
@@ -666,7 +672,7 @@ function validateMoneyFacts(
     } catch {
       addIssue(issues, "INVALID_AMOUNT", `${path}.amountCents`, "ERROR");
     }
-    if (fact.currency !== "EUR") {
+    if (fact.currency !== "EUR" && fact.currency !== "UNKNOWN") {
       addIssue(issues, "INVALID_ENUM", `${path}.currency`, "ERROR");
     }
     if (!ASSERTION_TYPES.has(fact.assertionType as AssertionType)) {
@@ -700,7 +706,7 @@ function validateMoneyFacts(
       documentId: fact.documentId as string,
       kind: fact.kind as AdministrativeMoneyKind,
       amountCents: fact.amountCents as number,
-      currency: "EUR",
+      currency: fact.currency as AdministrativeMoneyFact["currency"],
       assertionType: fact.assertionType as AssertionType,
       evidenceIds,
       ...(fact.sourceActRefId === undefined
