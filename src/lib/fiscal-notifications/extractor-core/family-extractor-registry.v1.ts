@@ -37,6 +37,8 @@ const EXECUTABLE_REVIEW_ONLY_FAMILIES = new Set<FiscalNotificationDocumentFamily
   "collection.offset_requested",
   "collection.offset_ex_officio",
   "payment.payment_form",
+  "payment.receipt",
+  "payment.failed_or_reversed",
 ]);
 
 const RECOGNIZED_WITHOUT_COMPLETE_EXTRACTOR = new Set<FiscalNotificationDocumentFamilyIdV3>([

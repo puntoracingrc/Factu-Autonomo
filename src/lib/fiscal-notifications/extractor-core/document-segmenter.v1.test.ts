@@ -54,6 +54,27 @@ describe("multipage fiscal notification segmenter v1", () => {
     expect(result.segments[2]).toMatchObject({ pageFrom: 3, pageTo: 4 });
   });
 
+  it("segments closed payment-receipt titles as factual payment documents", async () => {
+    const titles = [
+      "justificante de pago",
+      "justificante del ingreso",
+      "recibo de pago",
+      "resultado del pago",
+    ];
+    for (const title of titles) {
+      const result = await segmentFiscalNotificationDocumentV1(input(
+        page(1, title, "agencia tributaria"),
+      ));
+      expect(result.segments).toEqual([
+        expect.objectContaining({
+          segmentType: "PAYMENT_DOCUMENT",
+          detectedTitle: title,
+          canGenerateAdministrativeFacts: true,
+        }),
+      ]);
+    }
+  });
+
   it("classifies the closed deferral debt-schedule annex as a debt list, not a generic annex", async () => {
     const result = await segmentFiscalNotificationDocumentV1(input(
       page(1, "concesion del aplazamiento o fraccionamiento de pago sin garantia"),
