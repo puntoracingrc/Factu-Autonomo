@@ -78,13 +78,12 @@ export type BackupRestoreDraftResult =
 
 export interface BackupRestoreReadiness {
   draftReady: boolean;
-  currentBackupReady: boolean;
   confirmedReplacement: boolean;
-  confirmedCurrentBackup: boolean;
 }
 
 interface DownloadBackupOptions {
   now?: () => Date;
+  purpose?: "manual" | "pre_restore";
 }
 
 const UNSAFE_BACKUP_KEY_PATTERN =
@@ -430,7 +429,7 @@ function normalizeBackupDataForImport(
     ),
     warnings: [
       "La restauración reemplazaría los datos locales actuales.",
-      "Descarga una copia actual antes de restaurar.",
+      "Al confirmar, Factu solicitará automáticamente una copia del estado actual antes de restaurar.",
       "No se ha aplicado ningún cambio todavía.",
     ],
   };
@@ -481,9 +480,14 @@ function createPortableBackupPayload(
 
 export function createBackupFilename(
   exportedAt = new Date().toISOString(),
+  purpose: "manual" | "pre_restore" = "manual",
 ): string {
-  const stamp = exportedAt.slice(0, 10);
-  return `${BACKUP_FILE_PREFIX}-${stamp}.json`;
+  const stamp =
+    purpose === "pre_restore"
+      ? exportedAt.slice(0, 19).replaceAll(":", "-").replace("T", "-")
+      : exportedAt.slice(0, 10);
+  const purposeSuffix = purpose === "pre_restore" ? "-antes-restaurar" : "";
+  return `${BACKUP_FILE_PREFIX}${purposeSuffix}-${stamp}.json`;
 }
 
 export function buildBackupImportPreview(
@@ -531,14 +535,8 @@ export function getBackupRestoreBlocker(
   if (!readiness.draftReady) {
     return "Primero revisa una copia válida.";
   }
-  if (!readiness.currentBackupReady) {
-    return "Descarga antes una copia de seguridad actual.";
-  }
   if (!readiness.confirmedReplacement) {
     return "Confirma que entiendes que se reemplazarán los datos locales.";
-  }
-  if (!readiness.confirmedCurrentBackup) {
-    return "Confirma que has descargado una copia actual.";
   }
   return null;
 }
@@ -586,7 +584,7 @@ export function downloadBackup(
   options: DownloadBackupOptions = {},
 ): BackupDownloadResult {
   const exportedAt = (options.now?.() ?? new Date()).toISOString();
-  const filename = createBackupFilename(exportedAt);
+  const filename = createBackupFilename(exportedAt, options.purpose);
 
   if (
     typeof window === "undefined" ||

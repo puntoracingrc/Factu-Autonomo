@@ -145,4 +145,14 @@ describe("manual sections", () => {
     expect(accountManual).toContain("paymentStatus");
     expect(accountManual).toContain("un caso híbrido queda fuera");
   });
+
+  it("documenta la copia automática previa a una restauración durable", () => {
+    const accountManual = JSON.stringify(getManualSection("cuenta"));
+
+    expect(accountManual).toContain("Restaurar con copia automática");
+    expect(accountManual).toContain("una única confirmación explícita");
+    expect(accountManual).toContain("estado exacto que va a reemplazar");
+    expect(accountManual).toContain("cambio real durante la operación");
+    expect(accountManual).toContain("metadatos de sincronización");
+  });
 });

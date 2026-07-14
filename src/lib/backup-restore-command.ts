@@ -2,6 +2,7 @@ import type {
   AppDataDurabilityResult,
   AppDataTransition,
 } from "@/lib/app-data-durability";
+import type { BackupDownloadResult } from "@/lib/backup";
 import type { AppData } from "@/lib/types";
 
 export interface BackupRestoreValue {
@@ -40,4 +41,52 @@ export function runBackupRestoreCommand(input: {
     },
     value: { restored: true },
   }));
+}
+
+export type BackupRestoreWithSafetyCopyResult =
+  | { status: "backup_failed"; error: string }
+  | { status: "stale_precondition"; safetyCopyFilename: string }
+  | { status: "unexpected_failure" }
+  | {
+      status: "restore_attempted";
+      safetyCopyFilename: string;
+      result: AppDataDurabilityResult<BackupRestoreValue>;
+    };
+
+/**
+ * Captura el estado actual, solicita su copia descargable y ejecuta el commit
+ * sin ceder el control entre ambos pasos. Así una actualización periódica de
+ * metadata cloud no convierte una restauración válida en un bucle stale.
+ */
+export function runBackupRestoreWithSafetyCopy(input: {
+  restored: AppData;
+  getCurrent: () => AppData;
+  downloadCurrent: (current: AppData) => BackupDownloadResult;
+  restore: (
+    restored: AppData,
+    expected: AppData,
+  ) => AppDataDurabilityResult<BackupRestoreValue>;
+}): BackupRestoreWithSafetyCopyResult {
+  try {
+    const expected = input.getCurrent();
+    const safetyCopy = input.downloadCurrent(expected);
+    if (!safetyCopy.ok) {
+      return { status: "backup_failed", error: safetyCopy.error };
+    }
+
+    if (input.getCurrent() !== expected) {
+      return {
+        status: "stale_precondition",
+        safetyCopyFilename: safetyCopy.filename,
+      };
+    }
+
+    return {
+      status: "restore_attempted",
+      safetyCopyFilename: safetyCopy.filename,
+      result: input.restore(input.restored, expected),
+    };
+  } catch {
+    return { status: "unexpected_failure" };
+  }
 }

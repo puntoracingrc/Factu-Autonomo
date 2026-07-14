@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Download, FileJson, HardDrive, Shield } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
@@ -13,10 +13,10 @@ import {
   getBackupRestoreBlocker,
 } from "@/lib/backup";
 import type { BackupRestoreDraft } from "@/lib/backup";
-import type { AppData } from "@/lib/types";
+import { runBackupRestoreWithSafetyCopy } from "@/lib/backup-restore-command";
 
 export function DataOwnershipCard() {
-  const { data, restoreBackupData } = useAppStore();
+  const { data, getCurrentData, restoreBackupData } = useAppStore();
   const { user, cloudEnabled } = useCloudSync();
   const hasCloudSession = Boolean(user);
   const [backupFeedback, setBackupFeedback] = useState<{
@@ -30,11 +30,7 @@ export function DataOwnershipCard() {
     null,
   );
   const [importError, setImportError] = useState<string | null>(null);
-  const [currentBackupData, setCurrentBackupData] = useState<AppData | null>(
-    null,
-  );
   const [confirmedReplacement, setConfirmedReplacement] = useState(false);
-  const [confirmedCurrentBackup, setConfirmedCurrentBackup] = useState(false);
   const [restoreFeedback, setRestoreFeedback] = useState<{
     tone: "success" | "error";
     message: string;
@@ -43,20 +39,11 @@ export function DataOwnershipCard() {
   const [storageStateUnknown, setStorageStateUnknown] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const restoreLockRef = useRef(false);
-  const currentBackupReady = currentBackupData === data;
 
   const restoreBlocker = getBackupRestoreBlocker({
     draftReady: Boolean(restoreDraft),
-    currentBackupReady,
     confirmedReplacement,
-    confirmedCurrentBackup,
   });
-
-  useEffect(() => {
-    if (!currentBackupData || currentBackupData === data) return;
-    setCurrentBackupData(null);
-    setConfirmedCurrentBackup(false);
-  }, [currentBackupData, data]);
 
   function handleBackupExport() {
     const result = downloadBackup(data);
@@ -93,9 +80,7 @@ export function DataOwnershipCard() {
     setSelectedBackupFile(file ?? null);
     setRestoreDraft(null);
     setImportError(null);
-    setCurrentBackupData(null);
     setConfirmedReplacement(false);
-    setConfirmedCurrentBackup(false);
     setRestoreFeedback(null);
   }
 
@@ -107,9 +92,7 @@ export function DataOwnershipCard() {
 
     setImportError(null);
     setRestoreDraft(null);
-    setCurrentBackupData(null);
     setConfirmedReplacement(false);
-    setConfirmedCurrentBackup(false);
     setRestoreFeedback(null);
 
     try {
@@ -132,33 +115,11 @@ export function DataOwnershipCard() {
     }
   }
 
-  function handlePrepareCurrentBackup() {
-    setRestoreFeedback(null);
-    const result = downloadBackup(data);
-    if (!result.ok) {
-      setCurrentBackupData(null);
-      setConfirmedCurrentBackup(false);
-      setRestoreFeedback({
-        tone: "error",
-        message: `${result.error} No se puede restaurar sin una copia actual.`,
-      });
-      return;
-    }
-
-    setCurrentBackupData(data);
-    setRestoreFeedback({
-      tone: "success",
-      message: `Copia actual descargada: ${result.filename}`,
-    });
-  }
-
   async function handleRestoreBackup() {
     if (restoreLockRef.current || storageStateUnknown) return;
     const blocker = getBackupRestoreBlocker({
       draftReady: Boolean(restoreDraft),
-      currentBackupReady,
       confirmedReplacement,
-      confirmedCurrentBackup,
     });
 
     if (blocker || !restoreDraft) {
@@ -171,47 +132,70 @@ export function DataOwnershipCard() {
 
     restoreLockRef.current = true;
     setRestoreInProgress(true);
-    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
-    let result: ReturnType<typeof restoreBackupData>;
     try {
-      result = restoreBackupData(restoreDraft.data, data);
+      await new Promise<void>((resolve) =>
+        window.requestAnimationFrame(() => resolve()),
+      );
+      const execution = runBackupRestoreWithSafetyCopy({
+        restored: restoreDraft.data,
+        getCurrent: getCurrentData,
+        downloadCurrent: (current) =>
+          downloadBackup(current, { purpose: "pre_restore" }),
+        restore: restoreBackupData,
+      });
+
+      if (execution.status === "backup_failed") {
+        setRestoreFeedback({
+          tone: "error",
+          message: `${execution.error} No se aplicó ningún cambio.`,
+        });
+        return;
+      }
+      if (execution.status === "unexpected_failure") {
+        setRestoreFeedback({
+          tone: "error",
+          message:
+            "Ocurrió un error inesperado antes de completar la restauración. No se confirma ningún reemplazo; exporta lo visible y recarga antes de reintentarlo.",
+        });
+        return;
+      }
+      if (execution.status === "stale_precondition") {
+        setRestoreFeedback({
+          tone: "error",
+          message: `Se solicitó la copia actual ${execution.safetyCopyFilename}, pero hubo un cambio real antes de guardar. Revisa la vista actual y vuelve a intentarlo.`,
+        });
+        return;
+      }
+
+      const result = execution.result;
+      if (result.status === "indeterminate") {
+        setStorageStateUnknown(true);
+        setRestoreFeedback({
+          tone: "error",
+          message:
+            "No se puede confirmar el estado del almacenamiento. No se ha publicado la copia en memoria. Exporta lo visible y recarga la página antes de continuar.",
+        });
+        return;
+      }
+      if (result.status === "blocked") {
+        setRestoreFeedback({
+          tone: "error",
+          message:
+            result.reason === "stale_precondition"
+              ? `Se solicitó la copia actual ${execution.safetyCopyFilename}, pero los datos cambiaron durante el guardado. No se aplicó la restauración.`
+              : "No se pudo guardar la restauración completa. Los datos visibles anteriores se conservan; revisa el almacenamiento del navegador y vuelve a intentarlo.",
+        });
+        return;
+      }
+      setRestoreFeedback({
+        tone: "success",
+        message: `Copia restaurada y guardada. Antes se solicitó automáticamente la descarga de ${execution.safetyCopyFilename} con el estado reemplazado. La sincronización pendiente queda registrada.`,
+      });
+      setConfirmedReplacement(false);
     } finally {
       restoreLockRef.current = false;
       setRestoreInProgress(false);
     }
-    if (result.status === "indeterminate") {
-      setStorageStateUnknown(true);
-      setCurrentBackupData(null);
-      setConfirmedCurrentBackup(false);
-      setRestoreFeedback({
-        tone: "error",
-        message:
-          "No se puede confirmar el estado del almacenamiento. No se ha publicado la copia en memoria. Exporta lo visible y recarga la página antes de continuar.",
-      });
-      return;
-    }
-    if (result.status === "blocked") {
-      if (result.reason === "stale_precondition") {
-        setCurrentBackupData(null);
-        setConfirmedCurrentBackup(false);
-      }
-      setRestoreFeedback({
-        tone: "error",
-        message:
-          result.reason === "stale_precondition"
-            ? "Los datos cambiaron antes de restaurar. Descarga otra copia actual y repite la confirmación."
-            : "No se pudo guardar la restauración completa. Los datos visibles anteriores se conservan; revisa el almacenamiento del navegador y vuelve a intentarlo.",
-      });
-      return;
-    }
-    setRestoreFeedback({
-      tone: "success",
-      message:
-        "Copia restaurada y guardada. Los datos locales se han reemplazado en este navegador y la sincronización pendiente queda registrada.",
-    });
-    setConfirmedReplacement(false);
-    setConfirmedCurrentBackup(false);
-    setCurrentBackupData(null);
   }
 
   return (
@@ -424,18 +408,11 @@ export function DataOwnershipCard() {
             <div className="space-y-3 rounded-xl border border-amber-200 bg-white p-4 text-slate-700">
               <p className="font-semibold text-slate-900">Restaurar copia</p>
               <p>
-                Antes de restaurar, descarga una copia actual. Después confirma
-                que se reemplazarán los datos locales de este navegador.
+                Confirma que se reemplazarán los datos locales de este
+                navegador. Al restaurar, Factu solicitará automáticamente la
+                descarga de una copia del estado actual antes de guardar el
+                reemplazo.
               </p>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handlePrepareCurrentBackup}
-                disabled={storageStateUnknown || restoreInProgress}
-              >
-                <Download className="h-5 w-5" />
-                Descargar copia actual
-              </Button>
               <label className="flex items-start gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -450,22 +427,6 @@ export function DataOwnershipCard() {
                   Entiendo que se reemplazarán los datos locales actuales.
                 </span>
               </label>
-              <label className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={confirmedCurrentBackup}
-                  disabled={
-                    !currentBackupReady ||
-                    storageStateUnknown ||
-                    restoreInProgress
-                  }
-                  onChange={(event) =>
-                    setConfirmedCurrentBackup(event.target.checked)
-                  }
-                  className="mt-1 h-4 w-4 rounded"
-                />
-                <span>He descargado una copia de seguridad actual.</span>
-              </label>
               {restoreBlocker && (
                 <p className="text-xs text-amber-700">{restoreBlocker}</p>
               )}
@@ -479,7 +440,9 @@ export function DataOwnershipCard() {
                   restoreInProgress
                 }
               >
-                {restoreInProgress ? "Guardando…" : "Restaurar copia"}
+                {restoreInProgress
+                  ? "Guardando…"
+                  : "Restaurar con copia automática"}
               </Button>
             </div>
           </div>
