@@ -46,7 +46,7 @@ describe("family to reusable extractor registry v1", () => {
     expect(resolveFamilyExtractorBindingV1("collection.deferral_grant")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     expect(resolveFamilyExtractorBindingV1("collection.offset_requested")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     expect(resolveFamilyExtractorBindingV1("collection.offset_ex_officio")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("compliance.formal_filing_requirement")?.implementationStatus).toBe("ADAPTER_REQUIRED");
+    expect(resolveFamilyExtractorBindingV1("compliance.formal_filing_requirement")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     expect(resolveFamilyExtractorBindingV1("sanction.resolution")?.implementationStatus).toBe("CONTRACT_ONLY");
   });
 });

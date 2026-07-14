@@ -28,7 +28,8 @@ const ENGINE_FIELDS = Object.freeze({
   inspection: ["inspectionStage", "scope", "periods", "actReference"],
 } as const satisfies Readonly<Record<BaseExtractorIdV1, readonly string[]>>);
 
-const IMPLEMENTED_ADAPTER_FAMILIES = new Set<FiscalNotificationDocumentFamilyIdV3>([
+const EXECUTABLE_REVIEW_ONLY_FAMILIES = new Set<FiscalNotificationDocumentFamilyIdV3>([
+  "compliance.formal_filing_requirement",
   "collection.enforcement_order",
   "collection.deferral_grant",
   "collection.offset_requested",
@@ -36,7 +37,6 @@ const IMPLEMENTED_ADAPTER_FAMILIES = new Set<FiscalNotificationDocumentFamilyIdV
 ]);
 
 const RECOGNIZED_WITHOUT_COMPLETE_EXTRACTOR = new Set<FiscalNotificationDocumentFamilyIdV3>([
-  "compliance.formal_filing_requirement",
   "seizure.real_estate",
   "registry.tax_registration_resolution",
 ]);
@@ -88,7 +88,7 @@ function bindingForFamily(family: FiscalNotificationDocumentFamilyV3): FamilyExt
       "classification.segment-main-act-only.v1",
     ]),
     presentationViewId: `fiscal-notification.${extractorId}.review-card.v1`,
-    implementationStatus: IMPLEMENTED_ADAPTER_FAMILIES.has(family.id)
+    implementationStatus: EXECUTABLE_REVIEW_ONLY_FAMILIES.has(family.id)
       ? "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY"
       : RECOGNIZED_WITHOUT_COMPLETE_EXTRACTOR.has(family.id)
         ? "ADAPTER_REQUIRED"
