@@ -48,7 +48,7 @@ describe("fiscal notification extraction dispatcher", () => {
     const result = extractFiscalNotificationCandidates(documentWith(text));
 
     expect(result).toMatchObject({
-      engineVersion: "1.2.0",
+      engineVersion: "1.3.0",
       status: "REVIEW_REQUIRED",
       reason: "SUPPORTED_FAMILY_CANDIDATE",
       selectedFamilyId: null,
@@ -61,6 +61,60 @@ describe("fiscal notification extraction dispatcher", () => {
     expect(result.candidates[0]?.segmentationVersion).toBe("1.1.0");
     expect(JSON.stringify(result)).not.toContain(text);
   });
+
+  it.each([
+    [
+      "PROVIDENCIA DE APREMIO\nIDENTIFICACIÓN DEL DOCUMENTO\nIMPORTE DE LA DEUDA",
+      "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
+    ],
+    [
+      "CONCESIÓN DEL APLAZAMIENTO / FRACCIONAMIENTO DE DEUDAS SIN GARANTÍA\nANEXO I\nCÁLCULO DE INTERESES",
+      "AEAT_DEFERRAL_GRANT_CANDIDATE",
+    ],
+    [
+      "DILIGENCIA DE EMBARGO DE BIENES INMUEBLES\nIDENTIFICACIÓN DEL DOCUMENTO",
+      "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
+    ],
+    [
+      "REQUERIMIENTO DE PRESENTACIÓN DE DECLARACIONES O AUTOLIQUIDACIONES\nDeclaraciones o autoliquidaciones no presentadas",
+      "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE",
+    ],
+    [
+      "ACUERDO DE ALTA EN EL REGISTRO DE OPERADORES INTRACOMUNITARIOS\nIDENTIFICACIÓN DEL DOCUMENTO",
+      "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
+    ],
+  ])(
+    "recognizes the closed primary-act structure without inferring authority: %s",
+    (text, familyId) => {
+      const result = extractFiscalNotificationCandidates(documentWith(text));
+      expect(result).toMatchObject({
+        engineVersion: "1.3.0",
+        status: "REVIEW_REQUIRED",
+        reason: "SUPPORTED_FAMILY_CANDIDATE",
+        candidates: [
+          expect.objectContaining({
+            familyId,
+            authoritySignal: "AEAT_UNVERIFIED",
+            missingRequiredAnchorIds: [],
+            conflictingAnchorIds: [],
+          }),
+        ],
+      });
+      expect(result.candidates[0]?.matchedAnchors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            anchorId: "STRUCTURAL_PRIMARY_ACT_HEADER",
+            pageNumbers: [1],
+          }),
+        ]),
+      );
+      expect(result.candidates[0]?.matchedAnchors).not.toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL" }),
+        ]),
+      );
+    },
+  );
 
   it("requires the closed omitted-returns marker for the formal filing family", () => {
     expect(
@@ -98,7 +152,7 @@ describe("fiscal notification extraction dispatcher", () => {
       ),
     );
     expect(result).toMatchObject({
-      engineVersion: "1.2.0",
+      engineVersion: "1.3.0",
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       candidates: [
@@ -137,26 +191,80 @@ describe("fiscal notification extraction dispatcher", () => {
   });
 
   it.each([
-    "mirror.sede.agenciatributaria.gob.es.example",
-    "sede.agenciatributaria.gob.es.example",
-    "mirror sede.agenciatributaria.gob.es",
-    "Consulta sede.agenciatributaria.gob.es para más información",
+    "https://sede.agenciatributaria.gob.es/Sede/procedimientos/G123.shtml",
+    "https://sede.agenciatributaria.gob.es/Sede/procedimientos/?x=1#inicio",
+    "Consulta https://sede.agenciatributaria.gob.es/Sede/procedimientos/G123.shtml",
     "sede.agenciatributaria.gob.es / ayuda",
-  ])("rejects a non-exact or narrative AEAT host line: %s", (hostLine) => {
+    "HTTPS://SEDE.AGENCIATRIBUTARIA.GOB.ES/Sede/ayuda",
+  ])("keeps a legitimate official URL or narrative neutral: %s", (hostLine) => {
     const result = extractFiscalNotificationCandidates(
       documentWith(
         ENFORCEMENT.replace("sede.agenciatributaria.gob.es", hostLine),
       ),
     );
     expect(result).toMatchObject({
-      status: "INFORMATION_PENDING",
-      reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
+      status: "REVIEW_REQUIRED",
+      reason: "SUPPORTED_FAMILY_CANDIDATE",
       candidates: [
         expect.objectContaining({
-          missingRequiredAnchorIds: expect.arrayContaining([
-            "AEAT_OFFICIAL_DOMAIN_LABEL",
-            "STRUCTURAL_FIRST_PAGE_HEADER",
-          ]),
+          signalStatus: "COMPLETE_REQUIRED_ANCHORS",
+          missingRequiredAnchorIds: [],
+          conflictingAnchorIds: [],
+        }),
+      ],
+    });
+    expect(result.candidates[0]?.matchedAnchors).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL" }),
+        expect.objectContaining({ anchorId: "CONFLICTING_AEAT_HOST_LINE" }),
+      ]),
+    );
+  });
+
+  it.each([
+    "https://sede.agenciatributaria.gob.es.example/ruta",
+    "https://mirror.sede.agenciatributaria.gob.es.example/ruta",
+    "https://sede.agenciatributaria.gob.es@evil.example/ruta",
+    "https://user:sede.agenciatributaria.gob.es@evil.example/ruta",
+    "https://sede%2Eagenciatributaria%2Egob%2Ees@evil.example/ruta",
+    "sede.agenciatributaria.gob.es.example/ruta",
+  ])("blocks a reliably parsed AEAT hostname lookalike: %s", (hostLine) => {
+    const result = extractFiscalNotificationCandidates(
+      documentWith(
+        ENFORCEMENT.replace("sede.agenciatributaria.gob.es", hostLine),
+      ),
+    );
+    expect(result).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      reason: "CONFLICTING_AUTHORITY_OR_TERRITORY",
+      candidates: [
+        expect.objectContaining({
+          signalStatus: "CONFLICTING_AUTHORITY_OR_TERRITORY",
+          missingRequiredAnchorIds: [],
+          conflictingAnchorIds: ["CONFLICTING_AEAT_HOST_LINE"],
+        }),
+      ],
+    });
+  });
+
+  it.each([
+    "mirror sede.agenciatributaria.gob.es",
+    "https://evil.example/?next=https://sede.agenciatributaria.gob.es/ruta",
+    "sub.sede.agenciatributaria.gob.es/ruta",
+  ])("does not invent a host conflict from ambiguous or controlled text: %s", (hostLine) => {
+    expect(
+      extractFiscalNotificationCandidates(
+        documentWith(
+          ENFORCEMENT.replace("sede.agenciatributaria.gob.es", hostLine),
+        ),
+      ),
+    ).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      reason: "SUPPORTED_FAMILY_CANDIDATE",
+      candidates: [
+        expect.objectContaining({
+          conflictingAnchorIds: [],
+          authoritySignal: "AEAT_UNVERIFIED",
         }),
       ],
     });
@@ -217,7 +325,7 @@ describe("fiscal notification extraction dispatcher", () => {
       documentWith("Wrapper sintético", "Continuación", text),
     );
     expect(result).toMatchObject({
-      engineVersion: "1.2.0",
+      engineVersion: "1.3.0",
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       candidates: [
@@ -458,7 +566,7 @@ describe("fiscal notification extraction dispatcher", () => {
     },
   );
 
-  it("keeps missing structural evidence pending", () => {
+  it("recognizes a complete closed structural signature without a URL", () => {
     const withoutOfficialDomain = ENFORCEMENT.replace(
       "sede.agenciatributaria.gob.es\n",
       "",
@@ -466,15 +574,30 @@ describe("fiscal notification extraction dispatcher", () => {
     expect(
       extractFiscalNotificationCandidates(documentWith(withoutOfficialDomain)),
     ).toMatchObject({
+      engineVersion: "1.3.0",
+      status: "REVIEW_REQUIRED",
+      reason: "SUPPORTED_FAMILY_CANDIDATE",
+      candidates: [
+        expect.objectContaining({
+          signalStatus: "COMPLETE_REQUIRED_ANCHORS",
+          missingRequiredAnchorIds: [],
+          conflictingAnchorIds: [],
+        }),
+      ],
+    });
+
+    expect(
+      extractFiscalNotificationCandidates(
+        documentWith(
+          "PROVIDENCIA DE APREMIO\nIDENTIFICACIÓN DEL DOCUMENTO",
+        ),
+      ),
+    ).toMatchObject({
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       candidates: [
         expect.objectContaining({
-          signalStatus: "INCOMPLETE_REQUIRED_ANCHORS",
-          missingRequiredAnchorIds: expect.arrayContaining([
-            "AEAT_OFFICIAL_DOMAIN_LABEL",
-            "STRUCTURAL_FIRST_PAGE_HEADER",
-          ]),
+          missingRequiredAnchorIds: ["ENFORCEMENT_DEBT_AMOUNT_SECTION"],
         }),
       ],
     });
@@ -508,10 +631,7 @@ describe("fiscal notification extraction dispatcher", () => {
       candidates: [
         expect.objectContaining({
           signalStatus: "INCOMPLETE_REQUIRED_ANCHORS",
-          missingRequiredAnchorIds: expect.arrayContaining([
-            "AEAT_OFFICIAL_DOMAIN_LABEL",
-            "STRUCTURAL_FIRST_PAGE_HEADER",
-          ]),
+          missingRequiredAnchorIds: ["STRUCTURAL_PRIMARY_ACT_HEADER"],
         }),
       ],
     });
@@ -533,7 +653,7 @@ describe("fiscal notification extraction dispatcher", () => {
     );
 
     expect(result).toMatchObject({
-      engineVersion: "1.2.0",
+      engineVersion: "1.3.0",
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       selectedFamilyId: null,
@@ -576,12 +696,11 @@ describe("fiscal notification extraction dispatcher", () => {
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       candidates: [
         expect.objectContaining({
-          missingRequiredAnchorIds: expect.arrayContaining([
-            "AEAT_OFFICIAL_DOMAIN_LABEL",
+          missingRequiredAnchorIds: [
             "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
             "ENFORCEMENT_DEBT_AMOUNT_SECTION",
-            "STRUCTURAL_FIRST_PAGE_HEADER",
-          ]),
+            "STRUCTURAL_PRIMARY_ACT_HEADER",
+          ],
         }),
       ],
     });

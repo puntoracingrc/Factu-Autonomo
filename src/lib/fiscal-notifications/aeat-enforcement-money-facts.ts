@@ -9,10 +9,11 @@ import {
 export const AEAT_ENFORCEMENT_MONEY_FACTS_SCHEMA_VERSION = 1 as const;
 export const AEAT_ENFORCEMENT_MONEY_FACTS_ENGINE_ID =
   "aeat-enforcement-money-facts" as const;
-export const AEAT_ENFORCEMENT_MONEY_FACTS_ENGINE_VERSION = "1.0.0" as const;
+export const AEAT_ENFORCEMENT_MONEY_FACTS_ENGINE_VERSION = "1.1.0" as const;
 
 export const AEAT_ENFORCEMENT_MONEY_FACTS_LIMITS = Object.freeze({
   maxSectionLines: 32,
+  maxPreambleLines: 1,
   maxLineCharacters: 1_024,
   maxMoneyTokenCharacters: 32,
   maxAmountCents: 100_000_000_000,
@@ -53,6 +54,7 @@ export type AeatEnforcementMoneyIssueCode =
   | "INVALID_AMOUNT_FORMAT"
   | "DUPLICATE_AMOUNT_SECTION"
   | "DUPLICATE_MONEY_LABEL"
+  | "UNSUPPORTED_SECTION_PREAMBLE"
   | "SECTION_SCAN_LIMIT_EXCEEDED"
   | "UNSUPPORTED_TEXT_STATE";
 
@@ -71,7 +73,7 @@ export type AeatEnforcementMoneyFactsOutcome =
 export interface AeatEnforcementMoneyFactsResult {
   readonly schemaVersion: 1;
   readonly engineId: "aeat-enforcement-money-facts";
-  readonly engineVersion: "1.0.0";
+  readonly engineVersion: "1.0.0" | "1.1.0";
   readonly documentType: "AEAT_ENFORCEMENT_ORDER" | null;
   readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";
   readonly outcome: AeatEnforcementMoneyFactsOutcome;
@@ -373,6 +375,7 @@ function scanAmountSection(
   );
   let endedAtStructuralBoundary = false;
   let consecutiveBlankLines = 0;
+  let preambleLineCount = 0;
 
   for (let lineIndex = section.lineIndex + 1; lineIndex < lastIndex; lineIndex += 1) {
     assertNotAborted(input.signal);
@@ -399,6 +402,24 @@ function scanAmountSection(
     consecutiveBlankLines = 0;
     const match = matchClosedMoneyLabel(rawLine);
     if (!match.matched) {
+      if (seenKinds.size === 0) {
+        preambleLineCount += 1;
+        if (
+          preambleLineCount <=
+          AEAT_ENFORCEMENT_MONEY_FACTS_LIMITS.maxPreambleLines
+        ) {
+          continue;
+        }
+        return {
+          observations: [],
+          nonBlockingIssues: [],
+          blockingIssue: issue(
+            "UNSUPPORTED_SECTION_PREAMBLE",
+            null,
+            [section.page.pageNumber],
+          ),
+        };
+      }
       endedAtStructuralBoundary = true;
       break;
     }

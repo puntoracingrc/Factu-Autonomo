@@ -57,8 +57,10 @@ const h = createElement;
 
 export function FiscalNotificationReviewSteps({
   guidance,
+  documentTypeRecognized = false,
 }: {
   readonly guidance: FiscalNotificationReviewGuidanceV1;
+  readonly documentTypeRecognized?: boolean;
 }) {
   return h(
     "section",
@@ -83,7 +85,22 @@ export function FiscalNotificationReviewSteps({
       "ol",
       { className: "mt-4 space-y-4 pl-5 text-sm text-slate-700" },
       guidance.steps.map((step) => {
-        const copy = REVIEW_STEP_COPY[step.id];
+        const copy =
+          step.id === "REVIEW_CANDIDATE_CLASSIFICATION" &&
+          documentTypeRecognized
+            ? {
+                title: "Comprueba los datos del documento reconocido",
+                detail:
+                  "El título y la estructura determinan el tipo mostrado. Revisa el organismo, la autenticidad, los importes, las referencias, las fechas y los efectos antes de actuar; esa comprobación no vuelve a convertir el tipo en posible.",
+              }
+            : step.id === "CONSULT_OFFICIAL_PROCEDURE_CONTEXT" &&
+                documentTypeRecognized
+              ? {
+                  title: "Consulta el contexto oficial del procedimiento",
+                  detail:
+                    "El contexto oficial no confirma el organismo emisor, la autenticidad, la vigencia ni los efectos jurídicos del PDF. El tipo documental ya está identificado por su firma estructural.",
+                }
+            : REVIEW_STEP_COPY[step.id];
         const officialContext =
           step.id === "CONSULT_OFFICIAL_PROCEDURE_CONTEXT"
             ? guidance.officialProcedureContexts

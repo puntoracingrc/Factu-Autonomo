@@ -2,7 +2,7 @@ import type { AdministrativeDocumentType } from "./types";
 export const FISCAL_NOTIFICATION_EXTRACTION_SCHEMA_VERSION = 1 as const;
 export const FISCAL_NOTIFICATION_EXTRACTION_ENGINE_ID =
   "fiscal-notification-family-candidate-engine" as const;
-export const FISCAL_NOTIFICATION_EXTRACTION_ENGINE_VERSION = "1.2.0" as const;
+export const FISCAL_NOTIFICATION_EXTRACTION_ENGINE_VERSION = "1.3.0" as const;
 
 export type FiscalNotificationSupportedFamilyId =
   | "AEAT_ENFORCEMENT_ORDER_CANDIDATE"
@@ -15,6 +15,7 @@ export type FiscalNotificationAnchorId =
   | "AEAT_AUTHORITY_LABEL"
   | "AEAT_OFFICIAL_DOMAIN_LABEL"
   | "STRUCTURAL_FIRST_PAGE_HEADER"
+  | "STRUCTURAL_PRIMARY_ACT_HEADER"
   | "ENFORCEMENT_ORDER_TITLE"
   | "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION"
   | "ENFORCEMENT_DEBT_AMOUNT_SECTION"
@@ -33,6 +34,7 @@ export type FiscalNotificationAnchorId =
   | "CONFLICTING_TERRITORY_FORAL"
   | "CONFLICTING_TERRITORY_REGIONAL"
   | "CONFLICTING_TERRITORY_CEUTA_MELILLA"
+  | "CONFLICTING_AEAT_HOST_LINE"
   | "CONFLICTING_NON_DOCUMENT_GUIDE";
 
 export interface FiscalNotificationAnchorEvidence {
@@ -48,6 +50,8 @@ export type FiscalNotificationCandidateSignalStatus =
 
 export interface FiscalNotificationFamilyCandidate {
   readonly familyId: FiscalNotificationSupportedFamilyId;
+  /** Present only on traces evaluated by the alternative-signature policy. */
+  readonly recognitionPolicyVersion?: "1.3.0";
   /** Absent only on persisted historical traces created before engine 1.2. */
   readonly segmentationVersion?: "1.0.0" | "1.1.0";
   readonly documentType: Extract<
@@ -88,7 +92,7 @@ export type FiscalNotificationExtractionReason =
 export interface FiscalNotificationExtractionResult {
   readonly schemaVersion: 1;
   readonly engineId: "fiscal-notification-family-candidate-engine";
-  readonly engineVersion: "1.1.0" | "1.2.0";
+  readonly engineVersion: "1.1.0" | "1.2.0" | "1.3.0";
   readonly ownerScope: string;
   readonly documentId: string;
   readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";

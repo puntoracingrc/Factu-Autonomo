@@ -17,6 +17,12 @@ import {
   resolveFiscalNotificationOfficialSourceV2,
   type FiscalNotificationOfficialSourceIdV2,
 } from "./knowledge/official-sources.v2";
+import {
+  FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS,
+  expectedMissingRecognitionAnchors,
+  recognitionAnchorIdsForEngine,
+  type FiscalNotificationExtractionEngineVersion,
+} from "./recognition-policy.v1";
 
 export const FISCAL_NOTIFICATION_REVIEW_GUIDANCE_SCHEMA_VERSION_V1 =
   1 as const;
@@ -140,6 +146,10 @@ const TRACED_CANDIDATE_KEYS = new Set([
   ...HISTORICAL_CANDIDATE_KEYS,
   "segmentationVersion",
 ]);
+const CURRENT_CANDIDATE_KEYS = new Set([
+  ...TRACED_CANDIDATE_KEYS,
+  "recognitionPolicyVersion",
+]);
 const ANCHOR_KEYS = new Set(["anchorId", "pageNumbers"]);
 const MONEY_KEYS = new Set([
   "schemaVersion",
@@ -205,6 +215,7 @@ const ANCHOR_IDS = new Set([
   "AEAT_AUTHORITY_LABEL",
   "AEAT_OFFICIAL_DOMAIN_LABEL",
   "STRUCTURAL_FIRST_PAGE_HEADER",
+  "STRUCTURAL_PRIMARY_ACT_HEADER",
   "ENFORCEMENT_ORDER_TITLE",
   "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
   "ENFORCEMENT_DEBT_AMOUNT_SECTION",
@@ -223,6 +234,7 @@ const ANCHOR_IDS = new Set([
   "CONFLICTING_TERRITORY_FORAL",
   "CONFLICTING_TERRITORY_REGIONAL",
   "CONFLICTING_TERRITORY_CEUTA_MELILLA",
+  "CONFLICTING_AEAT_HOST_LINE",
   "CONFLICTING_NON_DOCUMENT_GUIDE",
 ]);
 const SIGNAL_STATES = new Set([
@@ -231,44 +243,13 @@ const SIGNAL_STATES = new Set([
   "CONFLICTING_AUTHORITY_OR_TERRITORY",
   "CONFLICTING_DOCUMENT_SIGNAL",
 ]);
-const REQUIRED_ANCHORS_BY_FAMILY = Object.freeze({
-  AEAT_ENFORCEMENT_ORDER_CANDIDATE: Object.freeze([
-    "AEAT_OFFICIAL_DOMAIN_LABEL",
-    "ENFORCEMENT_ORDER_TITLE",
-    "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
-    "ENFORCEMENT_DEBT_AMOUNT_SECTION",
-    "STRUCTURAL_FIRST_PAGE_HEADER",
-  ] as const),
-  AEAT_DEFERRAL_GRANT_CANDIDATE: Object.freeze([
-    "AEAT_OFFICIAL_DOMAIN_LABEL",
-    "DEFERRAL_GRANT_TITLE",
-    "DEFERRAL_INSTALLMENT_ANNEX",
-    "DEFERRAL_INTEREST_CALCULATION",
-    "STRUCTURAL_FIRST_PAGE_HEADER",
-  ] as const),
-  AEAT_REAL_ESTATE_SEIZURE_CANDIDATE: Object.freeze([
-    "AEAT_OFFICIAL_DOMAIN_LABEL",
-    "REAL_ESTATE_SEIZURE_TITLE",
-    "STRUCTURAL_FIRST_PAGE_HEADER",
-  ] as const),
-  AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE: Object.freeze([
-    "AEAT_OFFICIAL_DOMAIN_LABEL",
-    "FORMAL_FILING_REQUIREMENT_TITLE",
-    "FORMAL_FILING_OMITTED_RETURNS_MARKER",
-    "STRUCTURAL_FIRST_PAGE_HEADER",
-  ] as const),
-  AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: Object.freeze([
-    "AEAT_OFFICIAL_DOMAIN_LABEL",
-    "ROI_REGISTRATION_AGREEMENT_TITLE",
-    "STRUCTURAL_FIRST_PAGE_HEADER",
-  ] as const),
-});
 const CONFLICTING_ANCHOR_IDS = new Set([
   "CONFLICTING_AUTHORITY_TGSS",
   "CONFLICTING_TERRITORY_CANARY",
   "CONFLICTING_TERRITORY_FORAL",
   "CONFLICTING_TERRITORY_REGIONAL",
   "CONFLICTING_TERRITORY_CEUTA_MELILLA",
+  "CONFLICTING_AEAT_HOST_LINE",
   "CONFLICTING_NON_DOCUMENT_GUIDE",
 ]);
 const MONEY_KIND_ORDER = Object.freeze([
@@ -286,6 +267,7 @@ const MONEY_ISSUE_CODES = new Set<AeatEnforcementMoneyIssueCode>([
   "INVALID_AMOUNT_FORMAT",
   "DUPLICATE_AMOUNT_SECTION",
   "DUPLICATE_MONEY_LABEL",
+  "UNSUPPORTED_SECTION_PREAMBLE",
   "SECTION_SCAN_LIMIT_EXCEEDED",
   "UNSUPPORTED_TEXT_STATE",
 ]);
@@ -545,26 +527,47 @@ function validateCandidate(
   engineVersionValue: unknown,
 ): FiscalNotificationLocalReviewCandidate | null {
   if (!Number.isSafeInteger(pageCountValue)) return null;
-  const tracedCandidate = snapshotRecord(value, TRACED_CANDIDATE_KEYS);
+  const currentCandidate = snapshotRecord(value, CURRENT_CANDIDATE_KEYS);
+  const tracedCandidate = currentCandidate
+    ? null
+    : snapshotRecord(value, TRACED_CANDIDATE_KEYS);
   const candidate =
-    tracedCandidate ?? snapshotRecord(value, HISTORICAL_CANDIDATE_KEYS);
+    currentCandidate ??
+    tracedCandidate ??
+    snapshotRecord(value, HISTORICAL_CANDIDATE_KEYS);
   if (!candidate) return null;
-  const hasSegmentationVersion = tracedCandidate !== null;
+  const hasRecognitionPolicyVersion = currentCandidate !== null;
+  const hasSegmentationVersion =
+    currentCandidate !== null || tracedCandidate !== null;
   const definition =
     typeof candidate.familyId === "string"
       ? FAMILY_CONTEXT[
           candidate.familyId as FiscalNotificationLocalReviewCandidate["familyId"]
         ]
       : undefined;
+  const engineVersion =
+    engineVersionValue === "1.0.0" ||
+    engineVersionValue === "1.1.0" ||
+    engineVersionValue === "1.2.0" ||
+    engineVersionValue === "1.3.0"
+      ? (engineVersionValue as FiscalNotificationExtractionEngineVersion)
+      : null;
   if (
     !definition ||
-    (engineVersionValue === "1.2.0"
-      ? candidate.segmentationVersion !== "1.1.0"
+    !engineVersion ||
+    (engineVersionValue === "1.3.0"
+      ? candidate.segmentationVersion !== "1.1.0" ||
+        candidate.recognitionPolicyVersion !== "1.3.0"
+      : engineVersionValue === "1.2.0"
+      ? candidate.segmentationVersion !== "1.1.0" ||
+        hasRecognitionPolicyVersion
       : engineVersionValue === "1.1.0"
-        ? hasSegmentationVersion && candidate.segmentationVersion !== "1.0.0"
-        : hasSegmentationVersion) ||
+        ? hasRecognitionPolicyVersion ||
+          (hasSegmentationVersion && candidate.segmentationVersion !== "1.0.0")
+        : hasSegmentationVersion || hasRecognitionPolicyVersion) ||
     (definition.minimumEngineVersion === "1.2.0" &&
-      engineVersionValue !== "1.2.0")
+      engineVersionValue !== "1.2.0" &&
+      engineVersionValue !== "1.3.0")
   ) {
     return null;
   }
@@ -572,12 +575,14 @@ function validateCandidate(
   const missing = snapshotArray(candidate.missingRequiredAnchorIds, 15);
   const conflicting = snapshotArray(candidate.conflictingAnchorIds, 15);
   if (!matched || !missing || !conflicting) return null;
-  const requiredAnchors =
-    REQUIRED_ANCHORS_BY_FAMILY[
-      candidate.familyId as FiscalNotificationLocalReviewCandidate["familyId"]
-    ];
+  const familyId =
+    candidate.familyId as FiscalNotificationLocalReviewCandidate["familyId"];
+  const recognitionAnchors = recognitionAnchorIdsForEngine(
+    familyId,
+    engineVersion,
+  );
   const allowedMatchedAnchors = new Set<string>([
-    ...requiredAnchors,
+    ...recognitionAnchors,
     ...definition.optionalAnchorIds,
     "AEAT_AUTHORITY_LABEL",
     ...CONFLICTING_ANCHOR_IDS,
@@ -620,6 +625,8 @@ function validateCandidate(
   const titleAnchor = definition.titleAnchorId;
   const domainPages = pagesByAnchor.get("AEAT_OFFICIAL_DOMAIN_LABEL");
   const structuralPages = pagesByAnchor.get("STRUCTURAL_FIRST_PAGE_HEADER");
+  const primaryActPages = pagesByAnchor.get("STRUCTURAL_PRIMARY_ACT_HEADER");
+  const conflictingHostPages = pagesByAnchor.get("CONFLICTING_AEAT_HOST_LINE");
   const titlePages = pagesByAnchor.get(titleAnchor);
   const titlePageNumber = titlePages?.[0];
   if (
@@ -628,28 +635,47 @@ function validateCandidate(
     (domainPages !== undefined &&
       (engineVersionValue === "1.0.0"
         ? !sameNumberList(domainPages, [1])
-        : engineVersionValue === "1.1.0" || engineVersionValue === "1.2.0"
+        : engineVersionValue === "1.1.0" ||
+            engineVersionValue === "1.2.0" ||
+            engineVersionValue === "1.3.0"
           ? titlePages.length !== 1 || !sameNumberList(domainPages, titlePages)
           : true)) ||
     (structuralPages !== undefined &&
       (!sameNumberList(structuralPages, [1]) ||
         !domainPages?.includes(1) ||
         !titlePages.includes(1))) ||
-    ((engineVersionValue === "1.1.0" || engineVersionValue === "1.2.0") &&
+    (primaryActPages !== undefined &&
+      (!sameNumberList(primaryActPages, [1]) || !titlePages.includes(1))) ||
+    (conflictingHostPages !== undefined &&
+      !sameNumberList(conflictingHostPages, titlePages)) ||
+    (engineVersionValue !== "1.3.0" &&
+      validatedAnchors.some((anchor) =>
+        FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS.includes(
+          anchor.anchorId as (typeof FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS)[number],
+        ),
+      )) ||
+    ((engineVersionValue === "1.1.0" ||
+      engineVersionValue === "1.2.0" ||
+      engineVersionValue === "1.3.0") &&
       (titlePages.length !== 1 ||
         titlePageNumber === undefined ||
         (domainPages !== undefined &&
           !sameNumberList(domainPages, [titlePageNumber])) ||
         (titlePageNumber > 1 &&
           (candidate.signalStatus !== "INCOMPLETE_REQUIRED_ANCHORS" ||
-            structuralPages !== undefined)) ||
+            structuralPages !== undefined ||
+            primaryActPages !== undefined)) ||
         (candidate.signalStatus === "COMPLETE_REQUIRED_ANCHORS" &&
           titlePageNumber !== 1)))
   ) {
     return null;
   }
-  const expectedMissing = requiredAnchors.filter(
-    (id: string) => !matchedAnchorIds.has(id),
+  const expectedMissing = expectedMissingRecognitionAnchors(
+    familyId,
+    engineVersion,
+    matchedAnchorIds as ReadonlySet<
+      FiscalNotificationLocalReviewCandidate["matchedAnchors"][number]["anchorId"]
+    >,
   );
   const expectedConflicting = validatedAnchors
     .map((anchor) => anchor.anchorId)
@@ -686,6 +712,9 @@ function validateCandidate(
   return Object.freeze({
     familyId:
       candidate.familyId as FiscalNotificationLocalReviewCandidate["familyId"],
+    ...(hasRecognitionPolicyVersion
+      ? { recognitionPolicyVersion: "1.3.0" as const }
+      : {}),
     ...(hasSegmentationVersion
       ? {
           segmentationVersion:
@@ -795,6 +824,8 @@ function validateMoneyEnvelope(
     if (
       kindRequired === (kind === null) ||
       seenIssues.has(identity) ||
+      (code === "UNSUPPORTED_SECTION_PREAMBLE" &&
+        money.engineVersion !== "1.1.0") ||
       (code === "NO_AMOUNT_SECTION"
         ? pageNumbers.length !== 0
         : pageNumbers.length === 0) ||
@@ -815,7 +846,8 @@ function validateMoneyEnvelope(
   if (
     money.schemaVersion !== 1 ||
     money.engineId !== "aeat-enforcement-money-facts" ||
-    money.engineVersion !== "1.0.0" ||
+    (money.engineVersion !== "1.0.0" &&
+      money.engineVersion !== "1.1.0") ||
     money.documentType !== "AEAT_ENFORCEMENT_ORDER" ||
     !validOutcome ||
     money.selectedPaymentAmountKind !== null ||
@@ -904,6 +936,7 @@ function validMoneySemantics(
       factKinds.size === 0 &&
       issues.length === 1 &&
       (issues[0]?.code === "INVALID_AMOUNT_FORMAT" ||
+        issues[0]?.code === "UNSUPPORTED_SECTION_PREAMBLE" ||
         issues[0]?.code === "SECTION_SCAN_LIMIT_EXCEEDED"))
   );
 }
@@ -918,7 +951,8 @@ function validEngineForReason(
     : engineId === "fiscal-notification-family-candidate-engine" &&
         (engineVersion === "1.0.0" ||
           engineVersion === "1.1.0" ||
-          engineVersion === "1.2.0");
+          engineVersion === "1.2.0" ||
+          engineVersion === "1.3.0");
 }
 
 function validReviewSemantics(
