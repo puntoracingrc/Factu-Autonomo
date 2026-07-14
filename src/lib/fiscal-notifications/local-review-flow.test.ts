@@ -3,6 +3,7 @@ import { DISABLED_FISCAL_NOTIFICATION_OCR_PORT } from "./disabled-ocr-port";
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
 import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
+import { extractAeatDeferralGrantFactsV1 } from "./aeat-deferral-grant-facts.v1";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import type { BoundedDocumentInput } from "./input-contract";
 import {
@@ -59,6 +60,14 @@ function intake(
     familyAnalysis.candidates[0].signalStatus ===
       "COMPLETE_REQUIRED_ANCHORS" &&
     familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
+  const deferralCandidate =
+    familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
+    familyAnalysis.candidates.length === 1 &&
+    familyAnalysis.candidates[0]?.familyId ===
+      "AEAT_DEFERRAL_GRANT_CANDIDATE" &&
+    familyAnalysis.candidates[0].signalStatus ===
+      "COMPLETE_REQUIRED_ANCHORS" &&
+    familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
   const analysis = projectFiscalNotificationPdfWorkerAnalysis({
     textLayerStatus: hasText
       ? "TEXT_LAYER_AVAILABLE"
@@ -73,6 +82,9 @@ function intake(
       : null,
     enforcementPartyFacts: enforcementCandidate
       ? extractAeatEnforcementPartyFactsV1(boundedInput)
+      : null,
+    deferralGrantFacts: deferralCandidate
+      ? extractAeatDeferralGrantFactsV1(boundedInput)
       : null,
   });
   const reviewContext = {
@@ -272,8 +284,8 @@ describe("fiscal notification local review flow", () => {
     const analysis = await analyzeEphemeralForTest({}, dependencies(text));
 
     expect(analysis).toMatchObject({
-      schemaVersion: 4,
-      analysisVersion: "4.0.0",
+      schemaVersion: 5,
+      analysisVersion: "5.0.0",
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       requiresHumanReview: true,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -393,6 +405,64 @@ describe("fiscal notification local review flow", () => {
     expect(JSON.stringify(analysis.technicalReview)).not.toContain(PRIVATE_TEXT);
   });
 
+  it("propagates exact deferral installments in the v5 ephemeral envelope", async () => {
+    const text = [
+      "AGENCIA TRIBUTARIA",
+      "sede.agenciatributaria.gob.es",
+      "CONCESION DEL APLAZAMIENTO O FRACCIONAMIENTO",
+      "IDENTIFICACION DEL DOCUMENTO",
+      "N.I.F.: X0000000X",
+      "Nombre: PERSONA SINTETICA",
+      "Numero de expediente: EXP-SYN-001",
+      "ANEXO I: DEUDAS Y PLAZOS DE LA NOTIFICACION",
+      "Numero Liquidacion: L-SYN-001",
+      "Concepto: IRPF SINTETICO",
+      "Fecha de Intereses: 01-01-2026",
+      "1.000,00 0,00 1.000,00 50,00 1.050,00 20-02-2026",
+      "ANEXO II",
+      "CALCULO DE INTERESES",
+    ].join("\n");
+
+    const analysis = await analyzeEphemeralForTest({}, dependencies(text));
+
+    expect(analysis).toMatchObject({
+      schemaVersion: 5,
+      analysisVersion: "5.0.0",
+      technicalReview: {
+        reason: "SUPPORTED_FAMILY_CANDIDATE",
+        candidates: [
+          { familyId: "AEAT_DEFERRAL_GRANT_CANDIDATE" },
+        ],
+      },
+      ephemeralEnforcementMoneyFacts: null,
+      ephemeralEnforcementExplicitFields: null,
+      ephemeralEnforcementPartyFacts: null,
+      ephemeralDeferralGrantFacts: {
+        outcome: "FACTS_AVAILABLE",
+        header: {
+          expediente: { printedValue: "EXP-SYN-001" },
+        },
+        debtSchedules: [
+          {
+            liquidationKey: { printedValue: "L-SYN-001" },
+            installments: [
+              {
+                installmentTotal: { amountCents: 105_000 },
+                dueDate: { calendarDate: "2026-02-20" },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    expect(Object.isFrozen(analysis.ephemeralDeferralGrantFacts)).toBe(true);
+    expect(
+      Object.isFrozen(
+        analysis.ephemeralDeferralGrantFacts?.debtSchedules[0]?.installments,
+      ),
+    ).toBe(true);
+  });
+
   it("does not attach the enforcement reader to an unsupported family", async () => {
     const analysis = await analyzeEphemeralForTest(
       {},
@@ -401,6 +471,7 @@ describe("fiscal notification local review flow", () => {
     expect(analysis.ephemeralEnforcementMoneyFacts).toBeNull();
     expect(analysis.ephemeralEnforcementExplicitFields).toBeNull();
     expect(analysis.ephemeralEnforcementPartyFacts).toBeNull();
+    expect(analysis.ephemeralDeferralGrantFacts).toBeNull();
     expect(analysis.technicalReview).toMatchObject({
       reason: "NO_SUPPORTED_FAMILY_SIGNAL",
       status: "INFORMATION_PENDING",
@@ -452,8 +523,8 @@ describe("fiscal notification local review flow", () => {
     const analysis = await analyzeEphemeralForTest({}, dependencies(""));
 
     expect(analysis).toMatchObject({
-      schemaVersion: 4,
-      analysisVersion: "4.0.0",
+      schemaVersion: 5,
+      analysisVersion: "5.0.0",
       technicalReview: {
         status: "INFORMATION_PENDING",
         reason: "OCR_DISABLED",
@@ -461,6 +532,7 @@ describe("fiscal notification local review flow", () => {
       ephemeralEnforcementMoneyFacts: null,
       ephemeralEnforcementExplicitFields: null,
       ephemeralEnforcementPartyFacts: null,
+      ephemeralDeferralGrantFacts: null,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       requiresHumanReview: true,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",

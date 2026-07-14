@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
 import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
+import { extractAeatDeferralGrantFactsV1 } from "./aeat-deferral-grant-facts.v1";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import {
   FiscalNotificationPdfWorkerAnalysisError,
@@ -63,7 +64,16 @@ function deferralAnalysis() {
       "AGENCIA TRIBUTARIA",
       "sede.agenciatributaria.gob.es",
       "CONCESION DEL APLAZAMIENTO O FRACCIONAMIENTO",
-      "ANEXO I",
+      "IDENTIFICACION DEL DOCUMENTO",
+      "N.I.F.: X0000000X",
+      "Nombre: PERSONA SINTETICA",
+      "Numero de expediente: EXP-SYN-001",
+      "ANEXO I: DEUDAS Y PLAZOS DE LA NOTIFICACION",
+      "Numero Liquidacion: L-SYN-001",
+      "Concepto: IRPF SINTETICO",
+      "Fecha de Intereses: 01-01-2026",
+      "1.000,00 0,00 1.000,00 50,00 1.050,00 20-02-2026",
+      "ANEXO II",
       "CALCULO DE INTERESES",
     ].join("\n"),
   );
@@ -74,6 +84,7 @@ function deferralAnalysis() {
     enforcementMoneyFacts: null,
     enforcementExplicitFields: null,
     enforcementPartyFacts: null,
+    deferralGrantFacts: extractAeatDeferralGrantFactsV1(input),
   });
 }
 
@@ -155,8 +166,8 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     const analysis = enforcementAnalysis();
 
     expect(analysis).toMatchObject({
-      schemaVersion: 4,
-      analysisVersion: "4.0.0",
+      schemaVersion: 5,
+      analysisVersion: "5.0.0",
       textLayerStatus: "TEXT_LAYER_AVAILABLE",
       pageCount: 1,
       familyAnalysis: {
@@ -365,6 +376,20 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     });
     expect(analysis.enforcementMoneyFacts).toBeNull();
     expect(analysis.enforcementExplicitFields).toBeNull();
+    expect(analysis.deferralGrantFacts).toMatchObject({
+      outcome: "FACTS_AVAILABLE",
+      debtSchedules: [
+        {
+          liquidationKey: { printedValue: "L-SYN-001" },
+          installments: [
+            {
+              installmentTotal: { amountCents: 105_000 },
+              dueDate: { calendarDate: "2026-02-20" },
+            },
+          ],
+        },
+      ],
+    });
   });
 
   it.each([
@@ -660,15 +685,15 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     }
   });
 
-  it("requires the closed v4 envelope and rejects a v3 downgrade", () => {
-    const versionThree = mutableAnalysis();
-    versionThree.schemaVersion = 3;
-    versionThree.analysisVersion = "3.0.0";
+  it("requires the closed v5 envelope and rejects a v4 downgrade", () => {
+    const versionFour = mutableAnalysis();
+    versionFour.schemaVersion = 4;
+    versionFour.analysisVersion = "4.0.0";
 
     const missingField: Record<string | symbol, unknown> = mutableAnalysis();
     delete missingField.enforcementExplicitFields;
 
-    for (const value of [versionThree, missingField]) {
+    for (const value of [versionFour, missingField]) {
       expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
         FiscalNotificationPdfWorkerAnalysisError,
       );
@@ -1203,6 +1228,7 @@ interface MutableAnalysis extends Record<string | symbol, unknown> {
   enforcementMoneyFacts: MutableMoneyFacts | null;
   enforcementExplicitFields: MutableExplicitFields | null;
   enforcementPartyFacts: MutablePartyFacts | null;
+  deferralGrantFacts: Record<string, unknown> | null;
 }
 
 interface MutableFamilyAnalysis extends Record<string, unknown> {

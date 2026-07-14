@@ -238,6 +238,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "nextAnalysis.ephemeralEnforcementPartyFacts",
     );
     expect(analysisSuccess).toContain(
+      "nextAnalysis.ephemeralDeferralGrantFacts",
+    );
+    expect(analysisSuccess).toContain(
       "projectExplicitFieldsReviewViewModelV2(",
     );
     expect(analysisSuccess).toContain(
@@ -345,6 +348,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain("entry.money.map((fact)");
     expect(componentSource).toContain("entry.references");
     expect(componentSource).toContain("entry.printedDates");
+    expect(componentSource).toContain("entry.installments");
+    expect(componentSource).toContain("installment.amountCents");
+    expect(componentSource).toContain("installment.dueDate");
     expect(componentSource).not.toContain("Huella local");
     expect(componentSource).not.toMatch(/\.sha256(?:\.|\[|\s|\})/);
     expect(componentSource).not.toMatch(
@@ -543,6 +549,36 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     const savePayload = componentSource.slice(saveStart, saveEnd);
     expect(savePayload).toContain("analysis: pendingReview.analysis");
     expect(savePayload).not.toMatch(/\b(?:file|text|raw)\b/i);
+  });
+
+  it("muestra los datos exactos de una concesión y su calendario de cuotas", () => {
+    const copy = compact(componentSource);
+    for (const expected of [
+      "Concesión de aplazamiento o fraccionamiento",
+      "Cuotas, importes y vencimientos leídos literalmente de los anexos de la concesión.",
+      "Importe concedido",
+      "Cuenta de pago impresa",
+      "Importe de deuda impreso",
+      "Fecha de intereses impresa",
+      "Vencimiento impreso",
+      "Calendario de cuotas",
+      "Son datos impresos guardados para consulta.",
+    ]) {
+      expect(copy).toContain(expected);
+    }
+    expect(componentSource).toContain("DeferralGrantFactsPanel");
+    expect(componentSource).toContain(
+      "setEphemeralDeferralFacts(nextAnalysis.ephemeralDeferralGrantFacts)",
+    );
+    expect(
+      componentSource.match(/setEphemeralDeferralFacts\(null\)/g)?.length,
+    ).toBeGreaterThanOrEqual(3);
+    expect(componentSource).toContain(
+      'result.outcome === "AMBIGUOUS"',
+    );
+    expect(copy).toContain(
+      "No se ha marcado ninguna cuota como pagada ni se ha creado un gasto o asiento.",
+    );
   });
 
   it("proyecta referencias y fechas en memoria y las guarda solo por acción explícita", () => {

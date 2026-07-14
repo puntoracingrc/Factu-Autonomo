@@ -6,8 +6,10 @@ import type { AppData } from "../types";
 import type { FiscalNotificationLocalAnalysisResult } from "./local-review-flow";
 import { appendStructuredReviewRelationSuggestionsV1 } from "./structured-review-relation-suggestions.v1";
 import {
+  appendAeatDeferralStructuredReviewV1,
   appendAeatEnforcementStructuredReviewV1,
   FiscalNotificationStructuredReviewV1Error,
+  type AppendAeatDeferralStructuredReviewResultV1,
   type AppendAeatEnforcementStructuredReviewResultV1,
 } from "./structured-review-workspace.v1";
 
@@ -16,7 +18,10 @@ export type FiscalNotificationStructuredReviewSaveBlockedReasonV1 =
   | "no_structured_facts";
 
 export type DurableFiscalNotificationStructuredReviewSaveResultV1 =
-  | AppDataDurabilityResult<AppendAeatEnforcementStructuredReviewResultV1>
+  | AppDataDurabilityResult<
+      | AppendAeatEnforcementStructuredReviewResultV1
+      | AppendAeatDeferralStructuredReviewResultV1
+    >
   | {
       readonly status: "blocked";
       readonly reason: FiscalNotificationStructuredReviewSaveBlockedReasonV1;
@@ -42,9 +47,14 @@ export interface SaveFiscalNotificationStructuredReviewCommandInputV1 {
 export function runSaveFiscalNotificationStructuredReviewCommandV1(
   input: SaveFiscalNotificationStructuredReviewCommandInputV1,
 ): DurableFiscalNotificationStructuredReviewSaveResultV1 {
-  let prepared: AppendAeatEnforcementStructuredReviewResultV1;
+  let prepared:
+    | AppendAeatEnforcementStructuredReviewResultV1
+    | AppendAeatDeferralStructuredReviewResultV1;
   try {
-    prepared = appendAeatEnforcementStructuredReviewV1({
+    const append = input.analysis.ephemeralDeferralGrantFacts
+      ? appendAeatDeferralStructuredReviewV1
+      : appendAeatEnforcementStructuredReviewV1;
+    prepared = append({
       ownerScope: input.ownerScope,
       reviewId: input.reviewId,
       createdAt: input.createdAt,

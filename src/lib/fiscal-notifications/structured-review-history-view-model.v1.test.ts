@@ -303,6 +303,57 @@ describe("structured fiscal notification history view model v1", () => {
     ).toEqual({ status: "BLOCKED", entries: [] });
   });
 
+  it("proyecta las cuotas impresas guardadas con importe, fecha y desglose", () => {
+    const value = workspace();
+    value.analysisSnapshots[0]!.structuredData.paymentOptionIds = [
+      "payment-option:synthetic-history",
+    ];
+    value.paymentOptions.push({
+      id: "payment-option:synthetic-history",
+      ownerScope: OWNER,
+      documentId: "document:synthetic-history",
+      title: "Cuota impresa 1 · liquidación 1",
+      eligibilityCondition: "Dato impreso pendiente de revisión.",
+      components: [
+        {
+          type: "PRINCIPAL",
+          amountCents: 100_000,
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+          evidenceIds: ["evidence:money"],
+        },
+        {
+          type: "INTEREST",
+          amountCents: 5_000,
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+          evidenceIds: ["evidence:money"],
+        },
+      ],
+      totalCents: 105_000,
+      deadline: "2026-02-20",
+      deadlineStatus: "DOCUMENT_STATED",
+      evidenceIds: ["evidence:money", "evidence:date"],
+    });
+
+    expect(projectFiscalNotificationStructuredHistoryV1(value, OWNER)).toMatchObject({
+      status: "READY",
+      entries: [
+        {
+          installments: [
+            {
+              label: "Cuota impresa 1 · liquidación 1",
+              amountCents: 105_000,
+              dueDate: "2026-02-20",
+              components: [
+                { label: "Principal impreso", amountCents: 100_000 },
+                { label: "Intereses impresos", amountCents: 5_000 },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("presenta historial vacío cuando todavía no existe workspace", () => {
     expect(projectFiscalNotificationStructuredHistoryV1(undefined, OWNER)).toEqual({
       status: "READY",

@@ -36,6 +36,7 @@ import type {
   AeatEnforcementMoneyFact,
   AeatEnforcementMoneyFactsResult,
 } from "@/lib/fiscal-notifications/aeat-enforcement-money-facts";
+import type { AeatDeferralGrantFactsResultV1 } from "@/lib/fiscal-notifications/aeat-deferral-grant-facts.v1";
 import {
   projectExplicitFieldsReviewViewModelV2,
   type ExplicitFieldsReviewViewModelV2,
@@ -344,6 +345,8 @@ function FiscalNotificationReviewWorkspace({
     useState<FiscalNotificationLocalReviewResult | null>(null);
   const [ephemeralMoneyFacts, setEphemeralMoneyFacts] =
     useState<AeatEnforcementMoneyFactsResult | null>(null);
+  const [ephemeralDeferralFacts, setEphemeralDeferralFacts] =
+    useState<AeatDeferralGrantFactsResultV1 | null>(null);
   const [explicitFieldsReview, setExplicitFieldsReview] =
     useState<ExplicitFieldsReviewViewModelV2 | null>(null);
   const [partyFactsReview, setPartyFactsReview] =
@@ -407,6 +410,7 @@ function FiscalNotificationReviewWorkspace({
     setProcessing(false);
     setResult(null);
     setEphemeralMoneyFacts(null);
+    setEphemeralDeferralFacts(null);
     setExplicitFieldsReview(null);
     setPartyFactsReview(null);
     setPendingReview(null);
@@ -425,6 +429,7 @@ function FiscalNotificationReviewWorkspace({
     setProcessing(false);
     setError(null);
     setEphemeralMoneyFacts(null);
+    setEphemeralDeferralFacts(null);
     setExplicitFieldsReview(null);
     setPartyFactsReview(null);
     clearFileSelection();
@@ -452,6 +457,7 @@ function FiscalNotificationReviewWorkspace({
     setProcessing(true);
     setResult(null);
     setEphemeralMoneyFacts(null);
+    setEphemeralDeferralFacts(null);
     setExplicitFieldsReview(null);
     setPartyFactsReview(null);
     setPendingReview(null);
@@ -486,6 +492,7 @@ function FiscalNotificationReviewWorkspace({
             );
       setResult(nextResult);
       setEphemeralMoneyFacts(nextAnalysis.ephemeralEnforcementMoneyFacts);
+      setEphemeralDeferralFacts(nextAnalysis.ephemeralDeferralGrantFacts);
       setExplicitFieldsReview(nextExplicitFieldsReview);
       setPartyFactsReview(nextPartyFactsReview);
       setPendingReview({
@@ -670,6 +677,7 @@ function FiscalNotificationReviewWorkspace({
         <ReviewResult
           result={result}
           ephemeralMoneyFacts={ephemeralMoneyFacts}
+          ephemeralDeferralFacts={ephemeralDeferralFacts}
           explicitFieldsReview={explicitFieldsReview}
           partyFactsReview={partyFactsReview}
         />
@@ -1013,6 +1021,61 @@ function StructuredReviewHistoryItem({
         </dl>
       ) : null}
 
+      {entry.installments.length > 0 ? (
+        <section className="mt-4" aria-label="Cuotas impresas guardadas">
+          <h4 className="font-bold text-slate-950">Calendario de cuotas</h4>
+          <ol className="mt-3 grid gap-3 lg:grid-cols-2">
+            {entry.installments.map((installment) => (
+              <li
+                key={installment.key}
+                className="rounded-xl border border-blue-100 bg-blue-50 p-4"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-wide text-blue-800">
+                      {installment.label}
+                    </p>
+                    <p className="mt-1 text-lg font-bold text-blue-950">
+                      {installment.amountCents === null
+                        ? "Importe no impreso"
+                        : formatStructuredMoney(installment.amountCents, "EUR")}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs font-bold uppercase tracking-wide text-blue-800">
+                      Vencimiento impreso
+                    </p>
+                    <p className="mt-1 font-bold text-blue-950">
+                      {installment.dueDate
+                        ? formatCalendarDate(installment.dueDate)
+                        : "No impreso"}
+                    </p>
+                  </div>
+                </div>
+                {installment.components.length > 1 ? (
+                  <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-blue-100 pt-3 text-xs">
+                    {installment.components.map((component) => (
+                      <ResultFact
+                        key={`${component.label}:${component.amountCents}`}
+                        label={component.label}
+                        value={formatStructuredMoney(
+                          component.amountCents,
+                          "EUR",
+                        )}
+                      />
+                    ))}
+                  </dl>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            Son datos impresos guardados para consulta. Ninguna cuota se marca
+            como pagada y no se crea automáticamente un gasto o asiento.
+          </p>
+        </section>
+      ) : null}
+
       {entry.references.length > 0 || entry.printedDates.length > 0 ? (
         <dl className="mt-4 grid gap-x-6 gap-y-3 border-t border-slate-200 pt-4 sm:grid-cols-2">
           {[...entry.references, ...entry.printedDates].map((fact) => (
@@ -1054,11 +1117,13 @@ function InfoTile({
 function ReviewResult({
   result,
   ephemeralMoneyFacts,
+  ephemeralDeferralFacts,
   explicitFieldsReview,
   partyFactsReview,
 }: {
   result: FiscalNotificationLocalReviewResult;
   ephemeralMoneyFacts: AeatEnforcementMoneyFactsResult | null;
+  ephemeralDeferralFacts: AeatDeferralGrantFactsResultV1 | null;
   explicitFieldsReview: ExplicitFieldsReviewViewModelV2 | null;
   partyFactsReview: PartyFactsReviewViewModelV1 | null;
 }) {
@@ -1192,6 +1257,10 @@ function ReviewResult({
 
         {ephemeralMoneyFacts ? (
           <EphemeralMoneyFactsPanel result={ephemeralMoneyFacts} />
+        ) : null}
+
+        {ephemeralDeferralFacts ? (
+          <DeferralGrantFactsPanel result={ephemeralDeferralFacts} />
         ) : null}
 
         {partyFactsReview ? (
@@ -1330,6 +1399,249 @@ function EphemeralMoneyFactsPanel({
   );
 }
 
+function DeferralGrantFactsPanel({
+  result,
+}: {
+  result: AeatDeferralGrantFactsResultV1;
+}) {
+  const headerFacts = [
+    result.header.subjectName,
+    result.header.subjectTaxId,
+    result.header.expediente,
+    result.header.grantedTotal,
+    result.header.paymentAccount,
+  ];
+  const hasFacts =
+    headerFacts.some((fact) => fact !== null) ||
+    result.debtSchedules.length > 0;
+
+  if (!hasFacts) {
+    return (
+      <div
+        className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"
+        role={result.outcome === "INFORMATION_PENDING" ? "status" : "alert"}
+      >
+        <h3 className="font-bold text-amber-950">
+          Datos del aplazamiento todavía pendientes
+        </h3>
+        <p className="mt-1 text-sm leading-6 text-amber-900">
+          El documento es una concesión de aplazamiento o fraccionamiento,
+          pero esta copia no contiene un cuadro de cuotas completo que pueda
+          mostrarse como datos estructurados.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <section
+      className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 sm:p-5"
+      aria-labelledby="deferral-grant-facts-heading"
+    >
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-800">
+            Datos impresos del documento
+          </p>
+          <h3
+            id="deferral-grant-facts-heading"
+            className="mt-1 text-lg font-bold text-blue-950"
+          >
+            Concesión de aplazamiento o fraccionamiento
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-blue-900">
+            Cuotas, importes y vencimientos leídos literalmente de los anexos
+            de la concesión.
+          </p>
+        </div>
+        <span className="inline-flex w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-950">
+          {result.debtSchedules.reduce(
+            (total, schedule) => total + schedule.installments.length,
+            0,
+          )}{" "}
+          cuotas
+        </span>
+      </div>
+
+      {result.outcome === "AMBIGUOUS" ? (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
+          Alguna fila impresa no cuadra o está incompleta. Se muestran los
+          valores que sí se han leído, sin corregirlos ni convertirlos en una
+          instrucción de pago.
+        </div>
+      ) : null}
+
+      <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {result.header.subjectName ? (
+          <DeferralFactCard
+            label="Obligado"
+            value={result.header.subjectName.printedValue}
+          />
+        ) : null}
+        {result.header.subjectTaxId ? (
+          <DeferralFactCard
+            label="NIF impreso"
+            value={result.header.subjectTaxId.printedValue}
+          />
+        ) : null}
+        {result.header.expediente ? (
+          <DeferralFactCard
+            label="Expediente"
+            value={result.header.expediente.printedValue}
+          />
+        ) : null}
+        {result.header.grantedTotal ? (
+          <DeferralFactCard
+            label="Importe concedido"
+            value={formatStructuredMoney(
+              result.header.grantedTotal.amountCents,
+              "EUR",
+            )}
+          />
+        ) : null}
+        {result.header.paymentAccount ? (
+          <DeferralFactCard
+            label="Cuenta de pago impresa"
+            value={result.header.paymentAccount.printedValue}
+          />
+        ) : null}
+      </dl>
+
+      <div className="mt-5 space-y-4">
+        {result.debtSchedules.map((schedule, scheduleIndex) => (
+          <article
+            key={`${schedule.liquidationKey.printedValue}:${scheduleIndex}`}
+            className="rounded-2xl border border-blue-200 bg-white p-4"
+          >
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Liquidación
+                </p>
+                <h4 className="mt-1 break-all font-bold text-slate-950">
+                  {schedule.liquidationKey.printedValue}
+                </h4>
+                {schedule.concept ? (
+                  <p className="mt-1 text-sm leading-6 text-slate-700">
+                    {schedule.concept.printedValue}
+                  </p>
+                ) : null}
+              </div>
+              <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                {schedule.listedDebtAmount ? (
+                  <ResultFact
+                    label="Importe de deuda impreso"
+                    value={formatStructuredMoney(
+                      schedule.listedDebtAmount.amountCents,
+                      "EUR",
+                    )}
+                  />
+                ) : null}
+                {schedule.interestStartDate ? (
+                  <ResultFact
+                    label="Fecha de intereses impresa"
+                    value={schedule.interestStartDate.printedValue}
+                  />
+                ) : null}
+              </dl>
+            </div>
+
+            <ol className="mt-4 grid gap-3 lg:grid-cols-2">
+              {schedule.installments.map((installment, installmentIndex) => (
+                <li
+                  key={`${installment.dueDate.calendarDate}:${installmentIndex}`}
+                  className="rounded-xl border border-slate-200 bg-slate-50 p-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Cuota {installmentIndex + 1}
+                      </p>
+                      <p className="mt-1 text-lg font-bold text-slate-950">
+                        {formatStructuredMoney(
+                          installment.installmentTotal.amountCents,
+                          "EUR",
+                        )}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                        Vencimiento impreso
+                      </p>
+                      <p className="mt-1 font-bold text-slate-950">
+                        {installment.dueDate.printedValue}
+                      </p>
+                    </div>
+                  </div>
+                  {installment.layout === "COMPONENT_BREAKDOWN" ? (
+                    <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-slate-200 pt-3 text-xs">
+                      <ResultFact
+                        label="Principal"
+                        value={formatStructuredMoney(
+                          installment.principal.amountCents,
+                          "EUR",
+                        )}
+                      />
+                      <ResultFact
+                        label="Recargo impreso"
+                        value={formatStructuredMoney(
+                          installment.enforcementSurcharge.amountCents,
+                          "EUR",
+                        )}
+                      />
+                      <ResultFact
+                        label="Deuda"
+                        value={formatStructuredMoney(
+                          installment.debtTotal.amountCents,
+                          "EUR",
+                        )}
+                      />
+                      <ResultFact
+                        label="Intereses"
+                        value={formatStructuredMoney(
+                          installment.interest.amountCents,
+                          "EUR",
+                        )}
+                      />
+                    </dl>
+                  ) : (
+                    <p className="mt-3 border-t border-slate-200 pt-3 text-xs leading-5 text-slate-600">
+                      Este formato de la AEAT imprime el importe de la cuota,
+                      pero no desglosa sus componentes.
+                    </p>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </article>
+        ))}
+      </div>
+
+      <p className="mt-4 text-xs leading-5 text-blue-900">
+        Estas son fechas e instrucciones impresas en el documento. No se ha
+        marcado ninguna cuota como pagada ni se ha creado un gasto o asiento.
+      </p>
+    </section>
+  );
+}
+
+function DeferralFactCard({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-blue-100 bg-white p-4">
+      <dt className="text-xs font-bold uppercase tracking-wide text-slate-500">
+        {label}
+      </dt>
+      <dd className="mt-1 break-all font-bold text-slate-950">{value}</dd>
+    </div>
+  );
+}
+
 function ResultFact({ label, value }: { label: string; value: string }) {
   return (
     <div>
@@ -1379,4 +1691,9 @@ function formatReviewTimestamp(value: string): string {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));
+}
+
+function formatCalendarDate(value: string): string {
+  const [year, month, day] = value.split("-");
+  return year && month && day ? `${day}/${month}/${year}` : value;
 }

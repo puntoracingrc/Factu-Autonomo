@@ -12,6 +12,19 @@ export interface FiscalNotificationStructuredHistoryFactV1 {
   readonly value: string;
 }
 
+export interface FiscalNotificationStructuredHistoryInstallmentComponentV1 {
+  readonly label: string;
+  readonly amountCents: number;
+}
+
+export interface FiscalNotificationStructuredHistoryInstallmentV1 {
+  readonly key: string;
+  readonly label: string;
+  readonly amountCents: number | null;
+  readonly dueDate: string | null;
+  readonly components: readonly FiscalNotificationStructuredHistoryInstallmentComponentV1[];
+}
+
 export interface FiscalNotificationStructuredHistoryEntryV1 {
   readonly key: string;
   readonly title: string;
@@ -24,6 +37,7 @@ export interface FiscalNotificationStructuredHistoryEntryV1 {
   readonly references: readonly FiscalNotificationStructuredHistoryFactV1[];
   readonly printedDates: readonly FiscalNotificationStructuredHistoryFactV1[];
   readonly money: readonly FiscalNotificationStructuredHistoryMoneyV1[];
+  readonly installments: readonly FiscalNotificationStructuredHistoryInstallmentV1[];
   readonly authenticityLabel: "Autenticidad no comprobada";
   readonly reviewLabel: "Datos extraídos · revisa antes de actuar";
   readonly sourceContentRetention: "NOT_RETAINED";
@@ -83,6 +97,24 @@ const DATE_LABELS: Readonly<Record<string, string>> = {
   PRINTED_SIGNATURE_DATE: "Fecha de firma impresa",
   PRINTED_VOLUNTARY_PERIOD_END_DATE:
     "Fin del período voluntario impreso",
+  PRINTED_PAYMENT_ACCOUNT: "Cuenta de pago impresa",
+  PRINTED_DEBT_CONCEPT: "Concepto impreso",
+  PRINTED_INTEREST_START_DATE: "Fecha de intereses impresa",
+  PRINTED_LISTED_DEBT_AMOUNT: "Importe de deuda impreso",
+};
+
+const COMPONENT_LABELS: Readonly<Record<string, string>> = {
+  PRINCIPAL: "Principal impreso",
+  INTEREST: "Intereses impresos",
+  EXECUTIVE_SURCHARGE_5: "Recargo ejecutivo impreso",
+  REDUCED_SURCHARGE_10: "Recargo reducido impreso",
+  ORDINARY_SURCHARGE_20: "Recargo ordinario impreso",
+  PENALTY: "Sanción impresa",
+  COSTS: "Costas impresas",
+  PAYMENT_ON_ACCOUNT: "Ingreso a cuenta impreso",
+  TOTAL_DEBT: "Deuda total impresa",
+  AMOUNT_TO_PAY: "Importe de cuota impreso",
+  OTHER: "Recargo impreso",
 };
 
 export function projectFiscalNotificationStructuredHistoryV1(
@@ -105,6 +137,9 @@ export function projectFiscalNotificationStructuredHistoryV1(
   const references = new Map(workspace.references.map((item) => [item.id, item]));
   const snapshots = new Map(
     workspace.analysisSnapshots.map((item) => [item.id, item]),
+  );
+  const paymentOptions = new Map(
+    workspace.paymentOptions.map((item) => [item.id, item]),
   );
 
   const entries = workspace.documents
@@ -138,6 +173,26 @@ export function projectFiscalNotificationStructuredHistoryV1(
           value: field.valueRaw,
         }),
       );
+      const installments = snapshot.structuredData.paymentOptionIds
+        .map((id) => paymentOptions.get(id))
+        .filter((item) => item !== undefined)
+        .map((item) =>
+          Object.freeze({
+            key: item.id,
+            label: item.title,
+            amountCents: item.totalCents ?? null,
+            dueDate: item.deadline ?? null,
+            components: Object.freeze(
+              item.components.map((component) =>
+                Object.freeze({
+                  label:
+                    COMPONENT_LABELS[component.type] ?? "Componente impreso",
+                  amountCents: component.amountCents,
+                }),
+              ),
+            ),
+          }),
+        );
 
       return Object.freeze({
         key: document.id,
@@ -151,6 +206,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
         references: Object.freeze(documentReferences),
         printedDates: Object.freeze(printedDates),
         money: Object.freeze(money),
+        installments: Object.freeze(installments),
         authenticityLabel: "Autenticidad no comprobada" as const,
         reviewLabel: "Datos extraídos · revisa antes de actuar" as const,
         sourceContentRetention: "NOT_RETAINED" as const,
