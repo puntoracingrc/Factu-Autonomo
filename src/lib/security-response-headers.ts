@@ -39,6 +39,7 @@ export function buildSecurityResponseHeaders(): SecurityResponseHeader[] {
         "https://challenges.cloudflare.com",
         "https://maps.googleapis.com",
         "https://maps.gstatic.com",
+        "'wasm-unsafe-eval'",
       ],
     ],
     ["script-src-attr", ["'none'"]],

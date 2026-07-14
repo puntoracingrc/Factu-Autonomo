@@ -139,6 +139,7 @@ export interface TaxpayerProfile {
 export type EvidenceType =
   | "USER_ANSWER"
   | "CURRENT_CENSUS"
+  | "AEAT_CENSUS_SCREENSHOT"
   | "MODEL_036"
   | "PREVIOUS_RETURN"
   | "OPERATIONS_DOCUMENT"

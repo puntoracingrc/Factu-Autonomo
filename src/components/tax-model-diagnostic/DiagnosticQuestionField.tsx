@@ -35,7 +35,7 @@ export function DiagnosticQuestionField({
               question.field === "fiscalYear"
                 ? Number(option.value)
                 : option.value;
-            const checked = value === optionValue;
+            const checked = completed && value === optionValue;
             return (
               <label
                 key={option.value}
@@ -63,7 +63,7 @@ export function DiagnosticQuestionField({
       {question.kind === "FOUR_WAY" && (
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {question.options?.map((option) => {
-            const checked = value === option.value;
+            const checked = completed && value === option.value;
             return (
               <label
                 key={option.value}

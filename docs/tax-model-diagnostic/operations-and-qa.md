@@ -24,6 +24,8 @@
 - Operaciones UE con y sin ROI; alta ROI sin operaciones; OSS confirmado y dudoso.
 - 347 por debajo, por encima, excluido y SII.
 - Censo no revisado, lista vacía confirmada, coincidencia y discrepancia.
+- Capturas AEAT completas y parciales; varias capturas de situación tributaria; filas en alta frente a baja; OCR deformado y apartado equivocado.
+- Código censal leído en una lista parcial sin convertir los códigos ausentes en discrepancias.
 - Territorio desconocido, Canarias y foral.
 - Sesión malformada, enum desconocido, fecha imposible, porcentaje fuera de rango, código concatenado y evidencia no confirmada.
 - Navegación por teclado, foco visible, lector de pantalla, móvil estrecho y modo oscuro.
@@ -50,4 +52,3 @@ Además deben revisarse visualmente la primera pregunta, el paso de confirmació
 - Rollback de código: revertir los commits de la feature. El bloque persistido es opcional y las versiones incompatibles fallan cerrado.
 
 Calendar y Modelos AEAT no deben iniciar su integración hasta recibir un aviso posterior que incluya SHA de `main`, export/shape definitivos, versiones, archivos compartidos y confirmación de Production Domain Wait/Assign/Verify verde.
-

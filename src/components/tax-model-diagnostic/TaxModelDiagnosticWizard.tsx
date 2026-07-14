@@ -32,6 +32,7 @@ import {
 import { DiagnosticDocumentReview } from "./DiagnosticDocumentReview";
 import { DiagnosticQuestionField } from "./DiagnosticQuestionField";
 import { DiagnosticResults } from "./DiagnosticResults";
+import { DiagnosticScreenshotReview } from "./DiagnosticScreenshotReview";
 
 type QuestionValue = TaxpayerProfile[keyof TaxpayerProfile];
 
@@ -310,6 +311,11 @@ export function TaxModelDiagnosticWizard() {
 
       <DiagnosticDocumentReview
         businessNif={data.profile.nif}
+        currentProfile={activeSession.profile}
+        onConfirm={applyDocument}
+      />
+
+      <DiagnosticScreenshotReview
         currentProfile={activeSession.profile}
         onConfirm={applyDocument}
       />

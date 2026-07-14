@@ -9,6 +9,7 @@ describe("tax model diagnostic UI contract", () => {
   const wizard = source("./TaxModelDiagnosticWizard.tsx");
   const questions = source("./DiagnosticQuestionField.tsx");
   const documents = source("./DiagnosticDocumentReview.tsx");
+  const screenshots = source("./DiagnosticScreenshotReview.tsx");
   const results = source("./DiagnosticResults.tsx");
 
   it("exige confirmación humana antes del resultado", () => {
@@ -23,13 +24,31 @@ describe("tax model diagnostic UI contract", () => {
     expect(questions).toContain("<legend");
     expect(questions).toContain("Por qué lo preguntamos");
     expect(questions).toContain('type="radio"');
+    expect(questions).toContain("const checked = completed && value === optionValue");
+    expect(questions).toContain("const checked = completed && value === option.value");
   });
 
   it("procesa documentos localmente sin aplicar propuestas automáticamente", () => {
     expect(documents).toContain("readCensusDocumentText");
     expect(documents).toContain("no se guarda el PDF");
+    expect(documents).toContain("Opción 2 · Usar capturas de Hacienda");
+    expect(documents).toContain('href="#capturas-aeat"');
     expect(documents).toContain("He contrastado el documento");
     expect(documents).toContain("userConfirmed: true");
+  });
+
+  it("ofrece capturas AEAT parciales con OCR local y confirmación humana", () => {
+    expect(screenshots).toContain("Mis actividades económicas");
+    expect(screenshots).toContain("Mi situación tributaria");
+    expect(screenshots).toContain("Mis obligaciones");
+    expect(screenshots).toContain("Cómo encontrar esta información en Hacienda");
+    expect(screenshots).toContain("Área personal");
+    expect(screenshots).toContain("Mis datos censales");
+    expect(screenshots).toContain("recognizeAeatScreenshotFiles");
+    expect(screenshots).toContain("Las imágenes no se envían ni se guardan");
+    expect(screenshots).toContain("Confirmo que las capturas contienen mis datos");
+    expect(screenshots).toContain('extractionMethod: "OCR_LOCAL"');
+    expect(screenshots).not.toContain("reconcileCensusIdentity");
   });
 
   it("muestra motivo, evidencia, períodos, sujeto, fuentes y siguiente paso", () => {
@@ -45,4 +64,3 @@ describe("tax model diagnostic UI contract", () => {
     }
   });
 });
-

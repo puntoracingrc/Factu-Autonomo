@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle2, FileUp, Loader2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, FileUp, Images, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import {
   parseCensusCertificateText,
@@ -212,25 +212,34 @@ export function DiagnosticDocumentReview({
         <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-blue-700 dark:text-blue-300" aria-hidden="true" />
         <div>
           <h2 id="documentos-apoyo" className="font-bold text-slate-950 dark:text-white">
-            Documento de apoyo opcional
+            Añadir información desde Hacienda (opcional)
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-            Puedes añadir un certificado censal o modelo 036. Se procesa en este dispositivo, no se guarda el PDF y ninguna propuesta se aplica sin tu confirmación.
+            Elige la opción que te resulte más fácil: un PDF censal o capturas de las pantallas de tus datos censales. Se procesa en este dispositivo, no se guarda el PDF ni las capturas y nada se aplica sin tu confirmación.
           </p>
         </div>
       </div>
 
-      <label className="mt-4 inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-xl border-2 border-blue-200 bg-white px-4 font-semibold text-blue-700 focus-within:ring-2 focus-within:ring-blue-500 dark:bg-slate-900">
-        {parsing ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <FileUp className="h-5 w-5" aria-hidden="true" />}
-        {parsing ? "Leyendo PDF…" : "Seleccionar PDF"}
-        <input
-          type="file"
-          accept="application/pdf,.pdf"
-          className="sr-only"
-          disabled={parsing}
-          onChange={(event) => void selectFile(event.target.files?.[0] ?? null)}
-        />
-      </label>
+      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+        <label className="inline-flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-blue-200 bg-white px-4 font-semibold text-blue-700 focus-within:ring-2 focus-within:ring-blue-500 dark:bg-slate-900">
+          {parsing ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : <FileUp className="h-5 w-5" aria-hidden="true" />}
+          {parsing ? "Leyendo PDF…" : "Opción 1 · Seleccionar PDF"}
+          <input
+            type="file"
+            accept="application/pdf,.pdf"
+            className="sr-only"
+            disabled={parsing}
+            onChange={(event) => void selectFile(event.target.files?.[0] ?? null)}
+          />
+        </label>
+        <a
+          href="#capturas-aeat"
+          className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-2 border-emerald-200 bg-white px-4 font-semibold text-emerald-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 dark:bg-slate-900 dark:text-emerald-300"
+        >
+          <Images className="h-5 w-5" aria-hidden="true" />
+          Opción 2 · Usar capturas de Hacienda
+        </a>
+      </div>
 
       {error && <p role="alert" className="mt-3 text-sm font-semibold text-red-700">{error}</p>}
 
