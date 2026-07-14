@@ -100,6 +100,7 @@ describe("product document draft", () => {
         date: "2026-07-04",
         dueDate: "",
         notes: "Notas",
+        salesTerms: "Validez de 30 días",
         paymentTerms: "",
         status: "borrador",
         documentIvaPercent: 21,
@@ -112,6 +113,7 @@ describe("product document draft", () => {
     expect(saved).toBe(true);
     const consumed = consumeDocumentProductReturnDraft("presupuesto");
     expect(consumed?.targetLineId).toBe("line-2");
+    expect(consumed?.form.salesTerms).toBe("Validez de 30 días");
     expect(consumed?.form.items[0]).toMatchObject({
       id: "line-2",
       description: "Motor radio",

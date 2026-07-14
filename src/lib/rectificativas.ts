@@ -149,11 +149,12 @@ export function rectificationLineDisplayTotal(
 }
 
 export function rectificationTextDefaults(
-  original: Pick<Document, "notes" | "paymentTerms">,
+  original: Pick<Document, "notes" | "salesTerms" | "paymentTerms">,
   fallbackPaymentTerms = "",
-): { notes: string; paymentTerms: string } {
+): { notes: string; salesTerms: string; paymentTerms: string } {
   return {
     notes: original.notes ?? "",
+    salesTerms: original.salesTerms ?? "",
     paymentTerms: original.paymentTerms?.trim()
       ? original.paymentTerms
       : fallbackPaymentTerms.trim(),

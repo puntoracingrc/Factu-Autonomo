@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { BookmarkPlus, Star } from "lucide-react";
+
 import { Input, Select } from "@/components/ui/Field";
 import {
   defaultPaymentMethodForType,
@@ -14,6 +17,7 @@ interface DocumentPaymentPickerProps {
   settings?: DocumentPaymentMethodsSettings | null;
   value: string;
   onChange: (value: string) => void;
+  onSave: (text: string, makeDefault: boolean) => void;
 }
 
 export function DocumentPaymentPicker({
@@ -21,10 +25,19 @@ export function DocumentPaymentPicker({
   settings,
   value,
   onChange,
+  onSave,
 }: DocumentPaymentPickerProps) {
+  const [makeDefault, setMakeDefault] = useState(false);
   const normalized = normalizeDocumentPaymentMethods(settings);
   const methods = paymentMethodsForType(normalized, documentType);
   const defaultMethod = defaultPaymentMethodForType(normalized, documentType);
+  const trimmedValue = value.trim();
+  const matchingMethod = methods.find(
+    (method) => method.text.trim() === trimmedValue,
+  );
+  const isCurrentDefault = Boolean(
+    matchingMethod && matchingMethod.id === defaultMethod?.id,
+  );
   const inputId = `document-payment-method-${documentType}`;
 
   return (
@@ -44,6 +57,7 @@ export function DocumentPaymentPicker({
             onChange={(e) => {
               const method = methods.find((item) => item.id === e.target.value);
               if (method) onChange(method.text);
+              setMakeDefault(false);
               e.target.value = "";
             }}
           >
@@ -60,9 +74,44 @@ export function DocumentPaymentPicker({
       <Input
         id={inputId}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setMakeDefault(false);
+        }}
         placeholder="Pago por transferencia bancaria"
       />
+      {trimmedValue && !isCurrentDefault && (
+        <div className="flex flex-wrap items-center justify-end gap-3 text-sm">
+          {!matchingMethod && (
+            <label className="flex cursor-pointer items-center gap-2 text-slate-600">
+              <input
+                type="checkbox"
+                checked={makeDefault}
+                onChange={(e) => setMakeDefault(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+              />
+              Dejar como predeterminada
+            </label>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              onSave(trimmedValue, matchingMethod ? true : makeDefault);
+              setMakeDefault(false);
+            }}
+            className="inline-flex min-h-9 items-center gap-2 rounded-lg px-3 font-semibold text-blue-700 transition hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+          >
+            {matchingMethod ? (
+              <Star className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <BookmarkPlus className="h-4 w-4" aria-hidden="true" />
+            )}
+            {matchingMethod
+              ? "Usar como predeterminada"
+              : "Guardar forma de pago"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

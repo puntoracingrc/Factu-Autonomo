@@ -161,6 +161,8 @@ export interface Document {
   client: Client;
   items: LineItem[];
   notes?: string;
+  /** Condiciones de venta visibles en el PDF, separadas de las notas libres. */
+  salesTerms?: string;
   /** Forma de pago visible en el PDF (transferencia, Bizum, etc.) */
   paymentTerms?: string;
   status: DocumentStatus;
@@ -1094,6 +1096,7 @@ export interface DocumentSnapshot {
   taxSummary: TaxSummarySnapshot;
   currency: "EUR";
   paymentTerms?: string;
+  salesTerms?: string;
   notes?: string;
   rectification?: RectificationInfo;
   /** Factura de origen congelada al emitir un recibo automático nuevo. */

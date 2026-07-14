@@ -63,6 +63,7 @@ export function buildInvoiceDraftFromQuote(
     client: { ...quote.client },
     items: quote.items.map((item) => cloneLineItem(item, lineIdFactory)),
     notes: quote.notes,
+    salesTerms: quote.salesTerms,
     paymentTerms: quote.paymentTerms,
     status: "borrador",
     sourceQuoteDocumentId: quote.id,

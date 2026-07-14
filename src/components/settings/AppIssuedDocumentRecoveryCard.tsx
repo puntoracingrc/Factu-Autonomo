@@ -212,10 +212,18 @@ function ConfirmedFiscalContent({ snapshot }: { snapshot: DocumentSnapshot }) {
           </li>
         ))}
       </ul>
-      {(snapshot.paymentTerms || snapshot.notes || snapshot.dueDate) && (
+      {(snapshot.paymentTerms ||
+        snapshot.salesTerms ||
+        snapshot.notes ||
+        snapshot.dueDate) && (
         <p className="break-words">
           <span className="font-semibold">Otros datos visibles:</span>{" "}
-          {[snapshot.dueDate, snapshot.paymentTerms, snapshot.notes]
+          {[
+            snapshot.dueDate,
+            snapshot.paymentTerms,
+            snapshot.salesTerms,
+            snapshot.notes,
+          ]
             .filter(Boolean)
             .join(" · ")}
         </p>

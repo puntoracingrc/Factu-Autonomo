@@ -20,6 +20,7 @@ function quote(): Document {
       },
     ],
     notes: "Notas",
+    salesTerms: "Validez de 30 días",
     paymentTerms: "Transferencia",
     status: "aceptado",
     issuer: {
@@ -54,6 +55,7 @@ describe("buildDuplicatedDocumentDraft", () => {
       customerId: "customer-1",
       client: { name: "Teresa" },
       notes: "Notas",
+      salesTerms: "Validez de 30 días",
       paymentTerms: "Transferencia",
       status: "borrador",
       documentLifecycle: "draft",

@@ -571,6 +571,7 @@ function isDocumentSnapshotSemanticallyValid(
         snapshot.customer.city,
         snapshot.customer.postalCode,
         snapshot.notes,
+        snapshot.salesTerms,
         snapshot.paymentTerms,
       ].every(isOptionalString)
     ) {
@@ -1016,6 +1017,7 @@ export function projectCanonicalSnapshotOntoDocument(doc: Document): Document {
       ivaPercent: item.ivaPercent,
     })),
     notes: snapshot.notes,
+    salesTerms: snapshot.salesTerms,
     paymentTerms: snapshot.paymentTerms,
     issuer: cloneIssuer(snapshot.issuer),
     rectification: cloneRectification(snapshot.rectification),
@@ -1079,6 +1081,7 @@ export function buildDocumentSnapshot(
     taxSummary: snapshotTaxSummary(doc, vatExempt),
     currency: "EUR",
     ...(doc.paymentTerms ? { paymentTerms: doc.paymentTerms } : {}),
+    ...(doc.salesTerms ? { salesTerms: doc.salesTerms } : {}),
     ...(doc.notes ? { notes: doc.notes } : {}),
     ...(rectification ? { rectification } : {}),
     ...((source === "issue" || source === "legacy_import_attested") &&

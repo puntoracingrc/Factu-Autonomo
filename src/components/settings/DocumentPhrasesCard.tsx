@@ -29,12 +29,12 @@ export function DocumentPhrasesCard({
     <Card className="mb-6 space-y-5 dark:border-slate-700 dark:bg-slate-900">
       <div>
         <h2 className="font-bold text-slate-900 dark:text-slate-50">
-          Frases en documentos
+          Condiciones de venta
         </h2>
         <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
-          Guarda textos habituales para notas del PDF. Al crear facturas,
-          presupuestos o recibos podrás elegir una frase o usar la
-          predeterminada.
+          Guarda condiciones habituales de entrega, garantía o validez. Al
+          crear facturas, presupuestos o recibos podrás elegir una o usar la
+          predeterminada sin ocupar el campo de notas.
         </p>
       </div>
 
@@ -57,13 +57,13 @@ export function DocumentPhrasesCard({
                 className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600"
               >
                 <Plus className="h-4 w-4" />
-                Añadir frase
+                Añadir condición
               </button>
             </div>
 
             {phrases.length === 0 ? (
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Sin frases guardadas para {DOCUMENT_PHRASE_TYPE_LABELS[type].toLowerCase()}.
+                Sin condiciones guardadas para {DOCUMENT_PHRASE_TYPE_LABELS[type].toLowerCase()}.
               </p>
             ) : (
               <div className="space-y-3">
@@ -123,13 +123,13 @@ export function DocumentPhrasesCard({
                           type="button"
                           onClick={() => {
                             if (
-                              confirm("¿Borrar esta frase guardada?")
+                              confirm("¿Borrar esta condición guardada?")
                             ) {
                               onChange(removeDocumentPhrase(settings, phrase.id));
                             }
                           }}
                           className="rounded-lg bg-red-50 p-2 text-red-600"
-                          aria-label="Borrar frase"
+                          aria-label="Borrar condición"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -144,8 +144,8 @@ export function DocumentPhrasesCard({
       })}
 
       <p className="text-xs text-slate-500 dark:text-slate-400">
-        La frase predeterminada se rellena sola al crear un documento nuevo. Siempre
-        puedes editarla antes de guardar.
+        La condición predeterminada se rellena sola al crear un documento
+        nuevo. Las notas permanecen vacías para cualquier información extra.
       </p>
     </Card>
   );

@@ -4,6 +4,7 @@ import {
   defaultPaymentMethodForType,
   normalizeDocumentPaymentMethods,
   paymentMethodsForType,
+  saveDocumentPaymentMethodForFutureUse,
   setDefaultDocumentPaymentMethod,
 } from "./document-payment-methods";
 
@@ -33,5 +34,24 @@ describe("document-payment-methods", () => {
       "transferencia",
     );
     expect(paymentMethodsForType(settings, "presupuesto")).toHaveLength(0);
+  });
+
+  it("guarda desde el documento sin duplicar y permite predeterminar", () => {
+    let settings = saveDocumentPaymentMethodForFutureUse(
+      normalizeDocumentPaymentMethods(),
+      "recibo",
+      " Transferencia inmediata ",
+    );
+    settings = saveDocumentPaymentMethodForFutureUse(
+      settings,
+      "recibo",
+      "Transferencia inmediata",
+      true,
+    );
+
+    expect(paymentMethodsForType(settings, "recibo")).toHaveLength(1);
+    expect(defaultPaymentMethodForType(settings, "recibo")?.text).toBe(
+      "Transferencia inmediata",
+    );
   });
 });

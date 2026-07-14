@@ -37,8 +37,10 @@ import { openDocumentPdfPreview } from "@/lib/pdf";
 import {
   defaultPaymentMethodForType,
   normalizeDocumentPaymentMethods,
+  saveDocumentPaymentMethodForFutureUse,
 } from "@/lib/document-payment-methods";
 import {
+  defaultPhraseForType,
   normalizeDocumentPhrases,
   saveDocumentPhraseForFutureUse,
 } from "@/lib/document-phrases";
@@ -115,6 +117,9 @@ export function RectificativaForm({
   const [date, setDate] = useState(todayISO());
   const initialTextDefaults = rectificationTextDefaults(original);
   const [notes, setNotes] = useState(initialTextDefaults.notes);
+  const [salesTerms, setSalesTerms] = useState(
+    initialTextDefaults.salesTerms,
+  );
   const [paymentTerms, setPaymentTerms] = useState(
     initialTextDefaults.paymentTerms,
   );
@@ -138,6 +143,15 @@ export function RectificativaForm({
       setPaymentTerms((current) => current || defaults.paymentTerms);
     }
   }, [data.profile.documentPaymentMethods, original]);
+
+  useEffect(() => {
+    if (original.salesTerms?.trim()) return;
+    const phrase = defaultPhraseForType(
+      normalizeDocumentPhrases(data.profile.documentPhrases),
+      "factura",
+    );
+    if (phrase) setSalesTerms((current) => current || phrase.text);
+  }, [data.profile.documentPhrases, original.salesTerms]);
 
   function handleTypeChange(type: RectificationType) {
     setRectType(type);
@@ -212,6 +226,7 @@ export function RectificativaForm({
       customerId: original.customerId,
       items: rectificativaItemsForSave(),
       notes: notes || undefined,
+      salesTerms: salesTerms.trim() || undefined,
       paymentTerms: paymentTerms.trim() || undefined,
       status,
       sourceQuoteDocumentId: original.sourceQuoteDocumentId,
@@ -328,6 +343,7 @@ export function RectificativaForm({
         customerId: original.customerId,
         items: rectificativaItemsForSave(),
         notes: notes || undefined,
+        salesTerms: salesTerms.trim() || undefined,
         paymentTerms: paymentTerms.trim() || undefined,
         status: statusOverride,
         sourceQuoteDocumentId: original.sourceQuoteDocumentId,
@@ -646,12 +662,25 @@ export function RectificativaForm({
           settings={data.profile.documentPaymentMethods}
           value={paymentTerms}
           onChange={setPaymentTerms}
+          onSave={(text, makeDefault) =>
+            updateProfile({
+              ...data.profile,
+              documentPaymentMethods: saveDocumentPaymentMethodForFutureUse(
+                normalizeDocumentPaymentMethods(
+                  data.profile.documentPaymentMethods,
+                ),
+                "factura",
+                text,
+                makeDefault,
+              ),
+            })
+          }
         />
         <DocumentPhrasePicker
           documentType="factura"
           settings={data.profile.documentPhrases}
-          value={notes}
-          onChange={setNotes}
+          value={salesTerms}
+          onChange={setSalesTerms}
           onSave={(text, makeDefault) =>
             updateProfile({
               ...data.profile,
@@ -663,9 +692,21 @@ export function RectificativaForm({
               ),
             })
           }
-          label="Notas adicionales"
-          placeholder="Información complementaria para la rectificativa..."
         />
+        <div className="space-y-2">
+          <label
+            htmlFor="rectificativa-notes"
+            className="text-sm font-semibold text-slate-700"
+          >
+            Notas (opcional)
+          </label>
+          <Textarea
+            id="rectificativa-notes"
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            placeholder="Añade aquí información extra para esta rectificativa"
+          />
+        </div>
       </Card>
 
       <div className="flex flex-col gap-3">

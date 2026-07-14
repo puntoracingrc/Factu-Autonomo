@@ -50,6 +50,8 @@ export interface DocumentProductFormStateDraft {
   date: string;
   dueDate: string;
   notes: string;
+  /** Opcional para poder recuperar borradores de sesión v1 anteriores. */
+  salesTerms?: string;
   paymentTerms: string;
   status: Document["status"];
   documentIvaPercent: number;

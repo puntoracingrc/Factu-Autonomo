@@ -123,6 +123,7 @@ function invoice(overrides: Partial<Document> = {}): Document {
     ],
     issuer,
     notes: "Notas visibles",
+    salesTerms: "Garantía de dos años",
     paymentTerms: "Transferencia",
     status: "borrador",
     createdAt: "2026-06-24T09:00:00.000Z",
@@ -804,7 +805,7 @@ describe("document snapshots", () => {
     expect(issued.issuer).toEqual(issued.documentSnapshot?.issuer);
   });
 
-  it("snapshot captura cliente, lineas, paymentTerms y notes", () => {
+  it("snapshot captura cliente, lineas, paymentTerms, salesTerms y notes", () => {
     const issued = issueDocument(invoice(), profile, NOW);
     const snapshot = issued.documentSnapshot;
 
@@ -823,6 +824,7 @@ describe("document snapshots", () => {
       },
     ]);
     expect(snapshot?.paymentTerms).toBe("Transferencia");
+    expect(snapshot?.salesTerms).toBe("Garantía de dos años");
     expect(snapshot?.notes).toBe("Notas visibles");
   });
 
@@ -1320,6 +1322,7 @@ describe("document snapshots", () => {
       ["date", { ...issued, date: "2026-06-25" }],
       ["dueDate", { ...issued, dueDate: "2026-08-24" }],
       ["notes", { ...issued, notes: "Otra nota" }],
+      ["salesTerms", { ...issued, salesTerms: "Otra condición" }],
       ["paymentTerms", { ...issued, paymentTerms: "Bizum" }],
       ["rectification", { ...issued, rectification }],
     ];
