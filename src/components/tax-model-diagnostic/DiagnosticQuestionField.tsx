@@ -3,6 +3,7 @@ import type {
   TaxpayerProfile,
 } from "@/lib/tax-model-diagnostic/contracts";
 import { Input } from "@/components/ui/Field";
+import { BadgeCheck } from "lucide-react";
 
 type QuestionValue = TaxpayerProfile[keyof TaxpayerProfile];
 
@@ -10,17 +11,25 @@ export function DiagnosticQuestionField({
   question,
   profile,
   completed,
+  documentValidated,
   onAnswer,
 }: {
   question: DiagnosticQuestion;
   profile: TaxpayerProfile;
   completed: boolean;
+  documentValidated: boolean;
   onAnswer: (value: QuestionValue) => void;
 }) {
   const value = profile[question.field];
 
   return (
-    <fieldset className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900 sm:p-5">
+    <fieldset
+      className={`rounded-2xl border bg-white p-4 shadow-sm dark:bg-slate-900 sm:p-5 ${
+        documentValidated
+          ? "border-emerald-400 ring-1 ring-emerald-100 dark:border-emerald-700 dark:ring-emerald-950"
+          : "border-slate-200 dark:border-slate-700"
+      }`}
+    >
       <legend className="px-1 text-base font-bold text-slate-950 dark:text-white">
         {question.label}
       </legend>
@@ -41,7 +50,9 @@ export function DiagnosticQuestionField({
                 key={option.value}
                 className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-semibold transition-colors focus-within:ring-2 focus-within:ring-blue-500 ${
                   checked
-                    ? "border-blue-500 bg-blue-50 text-blue-950 dark:bg-blue-950/40 dark:text-blue-100"
+                    ? documentValidated
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100"
+                      : "border-blue-500 bg-blue-50 text-blue-950 dark:bg-blue-950/40 dark:text-blue-100"
                     : "border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                 }`}
               >
@@ -51,7 +62,7 @@ export function DiagnosticQuestionField({
                   value={option.value}
                   checked={checked}
                   onChange={() => onAnswer(optionValue as QuestionValue)}
-                  className="h-4 w-4 accent-blue-600"
+                  className={`h-4 w-4 ${documentValidated ? "accent-emerald-600" : "accent-blue-600"}`}
                 />
                 {option.label}
               </label>
@@ -69,7 +80,9 @@ export function DiagnosticQuestionField({
                 key={option.value}
                 className={`flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-xl border px-3 py-2 text-center text-sm font-bold focus-within:ring-2 focus-within:ring-blue-500 ${
                   checked
-                    ? "border-blue-500 bg-blue-600 text-white"
+                    ? documentValidated
+                      ? "border-emerald-600 bg-emerald-600 text-white"
+                      : "border-blue-500 bg-blue-600 text-white"
                     : "border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                 }`}
               >
@@ -98,7 +111,9 @@ export function DiagnosticQuestionField({
                 key={option.value}
                 className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-semibold focus-within:ring-2 focus-within:ring-blue-500 ${
                   selected
-                    ? "border-blue-500 bg-blue-50 text-blue-950 dark:bg-blue-950/40 dark:text-blue-100"
+                    ? documentValidated
+                      ? "border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100"
+                      : "border-blue-500 bg-blue-50 text-blue-950 dark:bg-blue-950/40 dark:text-blue-100"
                     : "border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
                 }`}
               >
@@ -115,7 +130,7 @@ export function DiagnosticQuestionField({
                         : current.filter((item) => item !== option.value)) as QuestionValue,
                     );
                   }}
-                  className="h-4 w-4 rounded accent-blue-600"
+                  className={`h-4 w-4 rounded ${documentValidated ? "accent-emerald-600" : "accent-blue-600"}`}
                 />
                 {option.label}
               </label>
@@ -185,8 +200,16 @@ export function DiagnosticQuestionField({
         </div>
       </details>
 
-      <p className="mt-3 text-xs font-semibold text-slate-500" aria-live="polite">
-        {completed ? "Respuesta guardada" : "Pendiente de responder"}
+      <p
+        className={`mt-3 inline-flex items-center gap-1.5 text-xs font-semibold ${documentValidated ? "text-emerald-700 dark:text-emerald-300" : "text-slate-500"}`}
+        aria-live="polite"
+      >
+        {documentValidated && <BadgeCheck className="h-4 w-4" aria-hidden="true" />}
+        {documentValidated
+          ? "Dato validado por el motor a partir de un documento confirmado · puedes cambiarlo"
+          : completed
+            ? "Respuesta guardada"
+            : "Pendiente de responder"}
       </p>
     </fieldset>
   );
