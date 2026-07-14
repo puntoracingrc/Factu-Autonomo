@@ -2,19 +2,39 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, FileSearch, LibraryBig, Scale } from "lucide-react";
+import {
+  CalendarDays,
+  ClipboardCheck,
+  FileSearch,
+  LibraryBig,
+  Scale,
+} from "lucide-react";
 
 interface AdvisorAreaNavigationProps {
   expenseAnalysisEnabled?: boolean;
   notificationsEnabled?: boolean;
+  taxModelDiagnosticEnabled?: boolean;
 }
 
 export function AdvisorAreaNavigation({
   expenseAnalysisEnabled = false,
   notificationsEnabled = false,
+  taxModelDiagnosticEnabled = false,
 }: AdvisorAreaNavigationProps) {
   const pathname = usePathname();
   const items = [
+    ...(taxModelDiagnosticEnabled
+      ? [
+          {
+            href: "/consultor-fiscal/diagnostico",
+            label: "Configurar mi actividad",
+            icon: ClipboardCheck,
+            active: pathname.startsWith(
+              "/consultor-fiscal/diagnostico",
+            ),
+          },
+        ]
+      : []),
     ...(expenseAnalysisEnabled
       ? [
           {

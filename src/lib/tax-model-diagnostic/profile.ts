@@ -139,6 +139,7 @@ const FOUR_WAY_FIELDS = [
   "foreignCryptoPotentiallyReportable",
   "wealthTaxPotentiallyApplicable",
   "changesDuringYear",
+  "censusReviewed",
 ] as const satisfies readonly (keyof TaxpayerProfile)[];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -222,6 +223,7 @@ export function createEmptyTaxpayerProfile(
     foreignCryptoPotentiallyReportable: "UNKNOWN",
     wealthTaxPotentiallyApplicable: "UNKNOWN",
     changesDuringYear: "UNKNOWN",
+    censusReviewed: "UNKNOWN",
     censusObligations: [],
   };
   return profile;

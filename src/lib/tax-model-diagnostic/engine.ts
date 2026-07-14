@@ -3,7 +3,6 @@ import {
   TAX_MODEL_DIAGNOSTIC_SCHEMA_VERSION,
   type DiagnosticResult,
   type DiagnosticVatRegime,
-  type FilingPeriodicity,
   type FilingSubject,
   type FourWayAnswer,
   type ModelResult,
@@ -171,7 +170,8 @@ function withCensusReconciliation(
   result: ModelResult,
 ): ModelResult {
   const censusContains = profile.censusObligations.includes(result.modelNumber);
-  const hasCurrentCensusList = profile.censusObligations.length > 0;
+  const hasCurrentCensusList =
+    profile.censusReviewed === "YES" || profile.censusObligations.length > 0;
   if (
     censusContains &&
     (result.status === "DERIVED" || result.status === "CONDITIONAL")
@@ -221,10 +221,6 @@ function yes(values: FourWayAnswer[]): boolean {
 
 function unknown(values: FourWayAnswer[]): boolean {
   return values.some((value) => value === "UNKNOWN");
-}
-
-function allNoOrNotApplicable(values: FourWayAnswer[]): boolean {
-  return values.every((value) => value === "NO" || value === "NOT_APPLICABLE");
 }
 
 function result036(profile: TaxpayerProfile): ModelResult {
@@ -777,6 +773,7 @@ export function isProfileQuestionnaireComplete(profile: TaxpayerProfile): boolea
       profile.euConsumerSales,
       profile.thirdPartyThresholdExceeded,
       profile.changesDuringYear,
+      profile.censusReviewed,
       ...euOperations,
     ])
   );

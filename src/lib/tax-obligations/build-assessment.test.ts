@@ -85,7 +85,7 @@ describe("public tax obligations assessment", () => {
 
   it("mantiene los conflictos visibles y exige revisión", () => {
     const diagnostic = evaluateTaxModelDiagnostic(
-      completeCommonTerritoryProfile({ censusObligations: ["303"] }),
+      completeCommonTerritoryProfile({ censusReviewed: "YES", censusObligations: ["303"] }),
       GENERATED_AT,
     );
     const assessment = buildTaxObligationsAssessment(diagnostic);

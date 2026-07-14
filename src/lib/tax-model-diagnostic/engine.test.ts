@@ -94,7 +94,7 @@ describe("tax model diagnostic engine", () => {
 
   it("eleva las discrepancias entre hechos y censo", () => {
     const result = evaluateTaxModelDiagnostic(
-      completeCommonTerritoryProfile({ censusObligations: ["303"] }),
+      completeCommonTerritoryProfile({ censusReviewed: "YES", censusObligations: ["303"] }),
       GENERATED_AT,
     );
 
@@ -105,4 +105,3 @@ describe("tax model diagnostic engine", () => {
     expect(result.discrepancies.length).toBeGreaterThan(0);
   });
 });
-

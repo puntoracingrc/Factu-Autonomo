@@ -132,6 +132,7 @@ export interface TaxpayerProfile {
   foreignCryptoPotentiallyReportable: FourWayAnswer;
   wealthTaxPotentiallyApplicable: FourWayAnswer;
   changesDuringYear: FourWayAnswer;
+  censusReviewed: FourWayAnswer;
   censusObligations: TaxModelNumber[];
 }
 

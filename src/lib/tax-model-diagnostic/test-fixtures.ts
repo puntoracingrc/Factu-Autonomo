@@ -45,6 +45,7 @@ export function completeCommonTerritoryProfile(
     foreignCryptoPotentiallyReportable: "NO",
     wealthTaxPotentiallyApplicable: "NO",
     changesDuringYear: "NO",
+    censusReviewed: "NO",
     censusObligations: [],
     ...overrides,
   };
@@ -100,4 +101,3 @@ export const REFERENCE_PROFILES: readonly ReferenceProfile[] = [
   reference("720", "NEEDS_PROFESSIONAL_REVIEW", { foreignAssetsPotentiallyReportable: "YES" }),
   reference("721", "NEEDS_PROFESSIONAL_REVIEW", { foreignCryptoPotentiallyReportable: "YES" }),
 ] as const;
-

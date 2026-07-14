@@ -282,6 +282,16 @@ export const DIAGNOSTIC_QUESTIONS: readonly DiagnosticQuestion[] = [
   fourWay({ questionId: "M_FOREIGN_CRYPTO", sectionId: "M", field: "foreignCryptoPotentiallyReportable", label: "¿Tuviste monedas virtuales custodiadas en el extranjero potencialmente declarables?", explanation: "Importan custodio, localización y valor, no solo poseer criptoactivos.", why: "Permite señalar el 721 como revisión personal.", affectedModels: ["721"], example: "Saldo en un custodio extranjero al cierre del ejercicio.", supportingDocument: "Extractos del custodio y valoración." }),
   fourWay({ questionId: "M_WEALTH", sectionId: "M", field: "wealthTaxPotentiallyApplicable", label: "¿Tu patrimonio podría obligarte a presentar el Impuesto sobre el Patrimonio?", explanation: "Los límites y bonificaciones dependen también de la comunidad autónoma.", why: "Separa el 714 de las obligaciones de la actividad.", affectedModels: ["714"], example: "Patrimonio elevado o cuota resultante según residencia autonómica.", supportingDocument: "Inventario patrimonial y residencia fiscal autonómica." }),
   fourWay({ questionId: "N_CHANGES", sectionId: "N", field: "changesDuringYear", label: "¿Hubo altas, bajas o cambios relevantes durante el ejercicio?", explanation: "Incluye actividad, local, trabajadores, alquiler, UE, régimen o sujeto que factura.", why: "Puede exigir una modificación censal con fecha de efecto.", affectedModels: ["036"], example: "Primer trabajador, nuevo local o inicio de operaciones UE.", supportingDocument: "Situación censal actual y justificantes de cada cambio." }),
+  fourWay({ questionId: "N_CENSUS_REVIEWED", sectionId: "N", field: "censusReviewed", label: "¿Has revisado una situación censal actual para este ejercicio?", explanation: "Una lista vacía confirmada no significa lo mismo que no haber consultado el censo.", why: "Permite comparar obligaciones derivadas y censales sin convertir la falta de documento en una discrepancia.", affectedModels: ["111", "115", "123", "130", "131", "216", "303"], example: "Descargas un certificado de situación censal vigente y compruebas sus obligaciones periódicas.", supportingDocument: "Certificado de situación censal actual de la AEAT." }),
+  question({ questionId: "N_CENSUS_OBLIGATIONS", sectionId: "N", field: "censusObligations", kind: "MULTI_CHOICE", label: "¿Qué obligaciones periódicas figuran en el censo revisado?", explanation: "Marca únicamente códigos que aparezcan expresamente; si no figura ninguno, usa el botón de lista vacía confirmada.", why: "El cruce detecta altas pendientes, obligaciones antiguas o datos que requieren comprobar su fecha de efecto.", affectedModels: ["111", "115", "123", "130", "131", "216", "303"], example: "El certificado muestra 130 y 303, pero no 115.", supportingDocument: "Apartado de obligaciones periódicas del certificado censal.", options: [
+    { value: "111", label: "111 · Trabajo y profesionales" },
+    { value: "115", label: "115 · Alquileres" },
+    { value: "123", label: "123 · Capital" },
+    { value: "130", label: "130 · IRPF estimación directa" },
+    { value: "131", label: "131 · IRPF módulos" },
+    { value: "216", label: "216 · No residentes" },
+    { value: "303", label: "303 · IVA periódico" },
+  ], applicability: "Solo después de revisar una situación censal actual." }),
 ] as const;
 
 const SECTION_BY_ID = new Map(
@@ -361,6 +371,9 @@ export function isQuestionApplicable(
   if (item.questionId === "L_ATTRIBUTION_THRESHOLD") {
     return profile.invoicingSubject === "COMMUNITY_OF_PROPERTY" ||
       profile.invoicingSubject === "CIVIL_PARTNERSHIP";
+  }
+  if (item.questionId === "N_CENSUS_OBLIGATIONS") {
+    return profile.censusReviewed === "YES";
   }
   return true;
 }

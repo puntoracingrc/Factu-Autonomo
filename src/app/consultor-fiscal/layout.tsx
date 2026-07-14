@@ -1,5 +1,6 @@
 import { AdvisorAreaNavigation } from "@/components/consultor-fiscal/AdvisorAreaNavigation";
 import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
+import { isTaxModelDiagnosticEnabled } from "@/lib/tax-model-diagnostic/config";
 
 export default function ConsultorFiscalLayout({
   children,
@@ -10,6 +11,7 @@ export default function ConsultorFiscalLayout({
       <AdvisorAreaNavigation
         expenseAnalysisEnabled={consultorFiscalEnabled}
         notificationsEnabled
+        taxModelDiagnosticEnabled={isTaxModelDiagnosticEnabled()}
       />
       {children}
     </>

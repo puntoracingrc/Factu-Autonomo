@@ -13,6 +13,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
+import { isTaxModelDiagnosticEnabled } from "@/lib/tax-model-diagnostic/config";
 export type AppNavItem = {
   href: string;
   activeBase?: string;
@@ -22,7 +23,9 @@ export type AppNavItem = {
 };
 
 const CONSULTOR_FISCAL_NAV_ITEM: AppNavItem = {
-  href: "/consultor-fiscal/modelos",
+  href: isTaxModelDiagnosticEnabled()
+    ? "/consultor-fiscal/diagnostico"
+    : "/consultor-fiscal/modelos",
   activeBase: "/consultor-fiscal",
   label: "Asesoría fiscal",
   shortLabel: "Asesoría",

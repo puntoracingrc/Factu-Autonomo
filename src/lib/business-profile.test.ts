@@ -74,6 +74,40 @@ describe("business profile document data", () => {
     ]);
   });
 
+  it("normaliza la sesión del configurador de modelos antes de guardarla", () => {
+    const normalized = normalizeBusinessProfileForSave({
+      ...DEFAULT_PROFILE,
+      taxModelDiagnostic: {
+        schemaVersion: 1,
+        profile: {
+          fiscalYear: 2026,
+          territory: "ES_COMMON",
+        } as never,
+        evidence: [
+          {
+            evidenceId: "unconfirmed",
+            type: "MODEL_036",
+            field: "territory",
+            value: "ES_COMMON",
+            confidence: 0.9,
+            extractionMethod: "PDF_NATIVE_TEXT",
+            userConfirmed: false,
+            sourcePriority: 10,
+          },
+        ],
+        completedQuestionIds: ["B_TERRITORY", "B_TERRITORY"],
+        currentSection: "B",
+        updatedAt: "2026-07-14T12:00:00.000Z",
+      },
+    });
+
+    expect(normalized.taxModelDiagnostic?.profile.territory).toBe("ES_COMMON");
+    expect(normalized.taxModelDiagnostic?.evidence).toEqual([]);
+    expect(normalized.taxModelDiagnostic?.completedQuestionIds).toEqual([
+      "B_TERRITORY",
+    ]);
+  });
+
   it("avisa de datos necesarios para documentos completos", () => {
     const labels = businessProfileMissingDocumentLabels(DEFAULT_PROFILE);
     const labelsWithCommercialName = businessProfileMissingDocumentLabels({

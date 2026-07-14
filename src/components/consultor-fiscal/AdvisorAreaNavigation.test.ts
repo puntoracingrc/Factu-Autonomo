@@ -12,6 +12,15 @@ describe("AdvisorAreaNavigation", () => {
     expect(source).toContain('href: "/consultor-fiscal/calendario"');
     expect(source).toContain("expenseAnalysisEnabled = false");
     expect(source).toContain("notificationsEnabled = false");
+    expect(source).toContain("taxModelDiagnosticEnabled = false");
+  });
+
+  it("coloca el configurador como primera opción cuando está habilitado", () => {
+    expect(source).toContain('href: "/consultor-fiscal/diagnostico"');
+    expect(source).toContain('label: "Configurar mi actividad"');
+    expect(source.indexOf('href: "/consultor-fiscal/diagnostico"')).toBeLessThan(
+      source.indexOf('href: "/consultor-fiscal/modelos"'),
+    );
   });
 
   it("añade Notificaciones únicamente cuando el módulo está habilitado", () => {

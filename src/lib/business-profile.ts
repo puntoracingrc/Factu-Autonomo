@@ -3,6 +3,7 @@ import { normalizeGooglePlacesSettings } from "./google-places";
 import { normalizeQuoteValidityDays } from "./quote-validity";
 import { normalizeProductFamilyMarkupSettings } from "./product-family-markups";
 import { normalizeBusinessFiscalProfile } from "./fiscal-profile";
+import { normalizeTaxModelDiagnosticSession } from "./tax-model-diagnostic/profile";
 
 export interface BusinessProfileFields {
   commercialName?: string;
@@ -89,6 +90,9 @@ export function normalizeBusinessProfileForSave(
     ),
     quoteValidityDays: normalizeQuoteValidityDays(profile.quoteValidityDays),
     fiscalProfile: normalizeBusinessFiscalProfile(profile.fiscalProfile),
+    taxModelDiagnostic: normalizeTaxModelDiagnosticSession(
+      profile.taxModelDiagnostic,
+    ),
   };
 }
 
