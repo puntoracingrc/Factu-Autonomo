@@ -170,4 +170,23 @@ describe("Google Drive token route", () => {
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("cierra con error reintentable si Google no responde", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Promise.reject(new Error("timeout"))),
+    );
+
+    const response = await POST(
+      makeRequest({
+        code: "oauth-code",
+        redirectUri: "https://facturacion-autonomos.app/drive/callback",
+      }),
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      error: "Google Drive no ha respondido. Vuelve a intentarlo.",
+    });
+  });
 });

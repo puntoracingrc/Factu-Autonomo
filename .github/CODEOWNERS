@@ -2,10 +2,12 @@
 # These paths require an explicit review of ADR-0001 before their contract changes.
 /AGENTS.md                                             @puntoracingrc
 /.github/CODEOWNERS                                   @puntoracingrc
+/docs/architecture/PROTECTED-SYSTEM-INVARIANTS.md     @puntoracingrc
 /docs/architecture/ADR-0001-historical-imported-documents.md @puntoracingrc
 /docs/architecture/ADR-0002-app-issued-document-recovery.md @puntoracingrc
 /docs/architecture/ADR-0003-explicit-test-document-retirement.md @puntoracingrc
 /docs/architecture/ADR-0004-expense-inbox-email-reliability.md @puntoracingrc
+/docs/architecture/ADR-0005-cloud-and-drive-sync-reliability.md @puntoracingrc
 /src/lib/storage.ts                                    @puntoracingrc
 /src/lib/document-integrity/**                         @puntoracingrc
 /src/lib/importers/**                                  @puntoracingrc
@@ -21,3 +23,13 @@
 /src/lib/expense-inbox*                                @puntoracingrc
 /supabase/migrations/*expense_inbox*                   @puntoracingrc
 /src/middleware.ts                                     @puntoracingrc
+
+# Live account sync and user-owned Google Drive backups.
+# ADR-0005 and its contract tests must be reviewed before these paths change.
+/src/context/CloudSyncContext.tsx                      @puntoracingrc
+/src/lib/cloud/**                                      @puntoracingrc
+/src/lib/google-drive/**                               @puntoracingrc
+/src/components/cloud/GoogleDriveAutoBackup.tsx       @puntoracingrc
+/src/components/cloud/GoogleDriveBackupCard.tsx       @puntoracingrc
+/src/app/drive/callback/**                             @puntoracingrc
+/src/app/api/google-drive/**                           @puntoracingrc

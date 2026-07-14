@@ -37,6 +37,7 @@ import {
   getGoogleDriveClientId,
   isGoogleDriveBackupEnabled,
 } from "@/lib/google-drive/config";
+import { runExclusiveDriveBackup } from "@/lib/google-drive/operation";
 
 type FeedbackTone = "success" | "error" | "info";
 
@@ -167,13 +168,25 @@ export function GoogleDriveBackupCard() {
           : "Guardando copia en Drive…",
       });
 
-      const result = await uploadAppBackupToGoogleDrive(data, {
-        clientId,
-        prompt: settings.enabled ? "" : "consent",
-      });
+      const execution = await runExclusiveDriveBackup(() =>
+        uploadAppBackupToGoogleDrive(data, {
+          clientId,
+          prompt: settings.enabled ? "" : "consent",
+        }),
+      );
 
       setBusy(false);
 
+      if (!execution.started) {
+        setFeedback({
+          tone: "info",
+          message:
+            "Ya hay una copia de Drive en curso. Espera a que termine antes de iniciar otra.",
+        });
+        return;
+      }
+
+      const result = execution.value;
       if (!result.ok) {
         setTokenReady(hasUsableDriveToken());
         setFeedback({ tone: "error", message: result.error });

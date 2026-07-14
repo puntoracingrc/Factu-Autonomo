@@ -10,6 +10,8 @@ import { readJsonBody } from "@/lib/server/request-body";
 
 export const runtime = "nodejs";
 
+const GOOGLE_TOKEN_TIMEOUT_MS = 20_000;
+
 type GoogleTokenPayload = {
   access_token?: string;
   expires_in?: number;
@@ -124,17 +126,26 @@ export async function POST(request: Request) {
     );
   }
 
-  const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      code,
-      client_id: clientId,
-      client_secret: clientSecret,
-      redirect_uri: redirectUri,
-      grant_type: "authorization_code",
-    }),
-  });
+  let tokenResponse: Response;
+  try {
+    tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+      }),
+      signal: AbortSignal.timeout(GOOGLE_TOKEN_TIMEOUT_MS),
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Google Drive no ha respondido. Vuelve a intentarlo." },
+      { status: 502 },
+    );
+  }
 
   const payload = (await tokenResponse.json()) as GoogleTokenPayload;
   if (!tokenResponse.ok || !payload.access_token) {

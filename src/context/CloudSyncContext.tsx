@@ -67,14 +67,23 @@ import {
 } from "@/lib/email/welcome-client-retry";
 
 export type SyncStatus =
-  "disabled" | "offline" | "idle" | "pending" | "syncing" | "synced" | "error";
+  | "disabled"
+  | "offline"
+  | "idle"
+  | "pending"
+  | "syncing"
+  | "synced"
+  | "error";
 
 export type SignUpResult =
   | { ok: true; email: string; needsEmailConfirmation: boolean }
   | { ok: false; error: string };
 
 export type LocalDataHandoffStatus =
-  "none" | "pending" | "kept_local" | "syncing";
+  | "none"
+  | "pending"
+  | "kept_local"
+  | "syncing";
 
 interface CloudSyncValue {
   cloudEnabled: boolean;
@@ -89,14 +98,9 @@ interface CloudSyncValue {
   pendingChangeCount: number;
   localDataHandoffStatus: LocalDataHandoffStatus;
   setEmail: (value: string) => void;
-  signUp: (
-    password: string,
-    captchaToken?: string,
-  ) => Promise<SignUpResult>;
+  signUp: (password: string, captchaToken?: string) => Promise<SignUpResult>;
   signIn: (password: string, captchaToken?: string) => Promise<string | null>;
-  requestPasswordReset: (
-    captchaToken?: string,
-  ) => Promise<string | null>;
+  requestPasswordReset: (captchaToken?: string) => Promise<string | null>;
   updatePassword: (password: string) => Promise<string | null>;
   signInWithGoogle: () => Promise<string | null>;
   resendConfirmationEmail: () => Promise<string | null>;
@@ -464,75 +468,57 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      let workingData = dataRef.current;
+      const operation = await runExclusiveSyncOperation(syncing, async () => {
+        try {
+          let workingData = dataRef.current;
 
-      if (
-        hasPendingSyncChanges(workingData) ||
-        hasUnsyncedChanges(workingData) ||
-        isSyncPendingFlag()
-      ) {
-        const uploaded = await flushPendingUpload(true, workingData, options);
-        workingData = dataRef.current;
-        if (!uploaded && hasUnsyncedChanges(workingData)) return false;
-      }
+          if (
+            hasPendingSyncChanges(workingData) ||
+            hasUnsyncedChanges(workingData) ||
+            isSyncPendingFlag()
+          ) {
+            const uploaded = await pushToCloud(workingData, true, options);
+            workingData = dataRef.current;
+            if (!uploaded && hasUnsyncedChanges(workingData)) return false;
+          }
 
-      setSyncStatus("syncing");
-      try {
-        const since = workingData.meta?.lastSyncedAt;
-        let remoteChanges = await pullSyncChanges(user.id, since);
+          setSyncStatus("syncing");
+          const since = workingData.meta?.lastSyncedAt;
+          let remoteChanges = await pullSyncChanges(user.id, since);
 
-        if (remoteChanges.length === 0) {
-          const entityCount = await countSyncEntities(user.id);
-          if (entityCount === 0) {
-            const legacy = await fetchLegacyCloudBackup(user.id);
-            if (legacy) {
-              const picked = pickNewerAppData(
-                workingData,
-                legacy.data,
-                legacy.updated_at,
-              );
-              workingData = picked.data;
-              dataRef.current = workingData;
-              skipPush.current = true;
-              try {
-                replaceData(workingData, { fromRemote: true });
-              } finally {
-                skipPush.current = false;
+          if (remoteChanges.length === 0) {
+            const entityCount = await countSyncEntities(user.id);
+            if (entityCount === 0) {
+              const legacy = await fetchLegacyCloudBackup(user.id);
+              if (legacy) {
+                const picked = pickNewerAppData(
+                  workingData,
+                  legacy.data,
+                  legacy.updated_at,
+                );
+                workingData = picked.data;
+                dataRef.current = workingData;
+                skipPush.current = true;
+                try {
+                  replaceData(workingData, { fromRemote: true });
+                } finally {
+                  skipPush.current = false;
+                }
+                await migrateLegacyBackupToEntities(user.id, workingData);
+                remoteChanges = appDataToSyncChanges(workingData);
+                setSyncMessage(
+                  "Copia antigua migrada a sincronización por cambios",
+                );
               }
-              await migrateLegacyBackupToEntities(user.id, workingData);
-              remoteChanges = appDataToSyncChanges(workingData);
-              setSyncMessage(
-                "Copia antigua migrada a sincronización por cambios",
-              );
             }
           }
-        }
 
-        if (remoteChanges.length > 0) {
-          const { data: merged, applied } =
-            !since && !hasWorkspaceContent(workingData)
-              ? rebuildCloudSnapshot(remoteChanges)
-              : mergeRemoteOntoLocal(workingData, remoteChanges);
-          workingData = merged;
-          dataRef.current = workingData;
-          skipPush.current = true;
-          try {
-            replaceData(workingData, { fromRemote: true });
-          } finally {
-            skipPush.current = false;
-          }
-          setSyncStatus("synced");
-          setSyncMessage(
-            applied > 0
-              ? `${applied} cambio(s) recibido(s) de la nube`
-              : "Ya estabas al día",
-          );
-        } else if (!since) {
-          const initial = appDataToSyncChanges(workingData);
-          if (initial.length > 0) {
-            const syncedAt = new Date().toISOString();
-            await pushSyncChanges(user.id, initial);
-            workingData = markChangesSynced(workingData, initial, syncedAt);
+          if (remoteChanges.length > 0) {
+            const { data: merged, applied } =
+              !since && !hasWorkspaceContent(workingData)
+                ? rebuildCloudSnapshot(remoteChanges)
+                : mergeRemoteOntoLocal(workingData, remoteChanges);
+            workingData = merged;
             dataRef.current = workingData;
             skipPush.current = true;
             try {
@@ -540,61 +526,84 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             } finally {
               skipPush.current = false;
             }
+            setSyncStatus("synced");
+            setSyncMessage(
+              applied > 0
+                ? `${applied} cambio(s) recibido(s) de la nube`
+                : "Ya estabas al día",
+            );
+          } else if (!since) {
+            const initial = appDataToSyncChanges(workingData);
+            if (initial.length > 0) {
+              const syncedAt = new Date().toISOString();
+              await pushSyncChanges(user.id, initial);
+              workingData = markChangesSynced(workingData, initial, syncedAt);
+              dataRef.current = workingData;
+              skipPush.current = true;
+              try {
+                replaceData(workingData, { fromRemote: true });
+              } finally {
+                skipPush.current = false;
+              }
+            }
+            setSyncStatus("synced");
+            setSyncMessage("Copia inicial creada en la nube");
+          } else {
+            setSyncStatus("synced");
+            setSyncMessage("Todo sincronizado");
           }
-          setSyncStatus("synced");
-          setSyncMessage("Copia inicial creada en la nube");
-        } else {
-          setSyncStatus("synced");
-          setSyncMessage("Todo sincronizado");
-        }
 
-        if (
-          hasPendingSyncChanges(workingData) ||
-          hasUnsyncedChanges(workingData) ||
-          isSyncPendingFlag()
-        ) {
-          await flushPendingUpload(true, workingData, options);
-          workingData = dataRef.current;
-        }
+          if (
+            hasPendingSyncChanges(workingData) ||
+            hasUnsyncedChanges(workingData) ||
+            isSyncPendingFlag()
+          ) {
+            const uploaded = await pushToCloud(workingData, true, options);
+            workingData = dataRef.current;
+            if (!uploaded && hasUnsyncedChanges(workingData)) return false;
+          }
 
-        if (
-          !hasPendingSyncChanges(workingData) &&
-          !hasUnsyncedChanges(workingData)
-        ) {
-          finalizeSyncState(workingData);
-        }
-        return true;
-      } catch (error) {
-        void reportAppError({
-          severity: "error",
-          area: "sync",
-          code: "pull_failed",
-          message:
+          if (
+            !hasPendingSyncChanges(workingData) &&
+            !hasUnsyncedChanges(workingData)
+          ) {
+            finalizeSyncState(workingData);
+          }
+          return true;
+        } catch (error) {
+          markSyncPending();
+          void reportAppError({
+            severity: "error",
+            area: "sync",
+            code: "pull_failed",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Error al descargar de la nube",
+            metadata: {
+              hasPendingChanges:
+                hasPendingSyncChanges(dataRef.current) ||
+                hasUnsyncedChanges(dataRef.current),
+            },
+          });
+          setSyncStatus("error");
+          setSyncMessage(
             error instanceof Error
               ? error.message
               : "Error al descargar de la nube",
-          metadata: {
-            hasPendingChanges:
-              hasPendingSyncChanges(dataRef.current) ||
-              hasUnsyncedChanges(dataRef.current),
-          },
-        });
-        setSyncStatus("error");
-        setSyncMessage(
-          error instanceof Error
-            ? error.message
-            : "Error al descargar de la nube",
-        );
-        skipPush.current = false;
-        return false;
-      }
+          );
+          skipPush.current = false;
+          return false;
+        }
+      });
+      return operation.started ? operation.value : false;
     },
     [
       demoMode,
       finalizeSyncState,
-      flushPendingUpload,
       handoffPausesCloud,
       localDataHandoffStatus,
+      pushToCloud,
       replaceData,
       requiresEmailConfirmation,
       user,
@@ -675,11 +684,6 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (syncing.current) {
-      setSyncMessage("Ya hay una sincronización en marcha.");
-      return;
-    }
-
     const cloudAccess = await canUseCloudForUser(user.id);
     if (!cloudAccess.allowed) {
       setSyncStatus("idle");
@@ -693,62 +697,65 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    syncing.current = true;
-    setSyncStatus("syncing");
+    const operation = await runExclusiveSyncOperation(syncing, async () => {
+      setSyncStatus("syncing");
 
-    try {
-      const remoteChanges = await pullSyncChanges(user.id);
+      try {
+        const remoteChanges = await pullSyncChanges(user.id);
 
-      if (remoteChanges.length > 0) {
-        const { data: normalized, applied } =
-          rebuildCloudSnapshot(remoteChanges);
-        const synced = markFullySynced(normalized);
-        clearSyncPending();
-        replaceLocalDataFromCloud(synced);
-        rememberHandoffDecision(user.id, "synced");
-        setLocalDataHandoffStatus("none");
+        if (remoteChanges.length > 0) {
+          const { data: normalized, applied } =
+            rebuildCloudSnapshot(remoteChanges);
+          const synced = markFullySynced(normalized);
+          clearSyncPending();
+          replaceLocalDataFromCloud(synced);
+          rememberHandoffDecision(user.id, "synced");
+          setLocalDataHandoffStatus("none");
+          setSyncStatus("synced");
+          setSyncMessage(
+            applied > 0
+              ? `Descarga completa: ${applied} elemento(s) traído(s) de la nube`
+              : "Descarga completa terminada",
+          );
+          return;
+        }
+
+        const legacy = await fetchLegacyCloudBackup(user.id);
+        if (legacy) {
+          const synced = markFullySynced(legacy.data, legacy.updated_at);
+          clearSyncPending();
+          replaceLocalDataFromCloud(synced);
+          rememberHandoffDecision(user.id, "synced");
+          setLocalDataHandoffStatus("none");
+          await migrateLegacyBackupToEntities(user.id, synced);
+          setSyncStatus("synced");
+          setSyncMessage("Copia antigua descargada y actualizada en la nube");
+          return;
+        }
+
         setSyncStatus("synced");
+        setSyncMessage("No hay datos guardados en la nube para esta cuenta");
+      } catch (error) {
+        void reportAppError({
+          severity: "error",
+          area: "sync",
+          code: "force_download_failed",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Error al descargar todos los datos de la nube",
+        });
+        setSyncStatus("error");
         setSyncMessage(
-          applied > 0
-            ? `Descarga completa: ${applied} elemento(s) traído(s) de la nube`
-            : "Descarga completa terminada",
-        );
-        return;
-      }
-
-      const legacy = await fetchLegacyCloudBackup(user.id);
-      if (legacy) {
-        const synced = markFullySynced(legacy.data, legacy.updated_at);
-        clearSyncPending();
-        replaceLocalDataFromCloud(synced);
-        rememberHandoffDecision(user.id, "synced");
-        setLocalDataHandoffStatus("none");
-        await migrateLegacyBackupToEntities(user.id, synced);
-        setSyncStatus("synced");
-        setSyncMessage("Copia antigua descargada y actualizada en la nube");
-        return;
-      }
-
-      setSyncStatus("synced");
-      setSyncMessage("No hay datos guardados en la nube para esta cuenta");
-    } catch (error) {
-      void reportAppError({
-        severity: "error",
-        area: "sync",
-        code: "force_download_failed",
-        message:
           error instanceof Error
             ? error.message
             : "Error al descargar todos los datos de la nube",
-      });
-      setSyncStatus("error");
-      setSyncMessage(
-        error instanceof Error
-          ? error.message
-          : "Error al descargar todos los datos de la nube",
-      );
-    } finally {
-      syncing.current = false;
+        );
+      }
+    });
+
+    if (!operation.started) {
+      setSyncMessage("Ya hay una sincronización en marcha.");
     }
   }, [demoMode, replaceLocalDataFromCloud, requiresEmailConfirmation, user]);
 
@@ -1061,10 +1068,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [updatePendingStatus, pendingUpload, online, pendingChangeCount]);
 
   const signUp = useCallback(
-    async (
-      password: string,
-      captchaToken?: string,
-    ): Promise<SignUpResult> => {
+    async (password: string, captchaToken?: string): Promise<SignUpResult> => {
       const supabase = await getSupabaseClientAsync();
       if (!supabase) {
         return {

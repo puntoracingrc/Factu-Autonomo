@@ -5,8 +5,7 @@ export const DRIVE_BACKUP_SCOPE = "https://www.googleapis.com/auth/drive.file";
 export const DRIVE_BACKUP_FOLDER_NAME = "Factu - copias de seguridad";
 export const DRIVE_BACKUP_SETTINGS_KEY = "factura-autonomo-drive-backup";
 export const DRIVE_BACKUP_CALLBACK_PATH = "/drive/callback";
-export const DRIVE_BACKUP_PENDING_KEY =
-  "factura-autonomo-drive-backup-pending";
+export const DRIVE_BACKUP_PENDING_KEY = "factura-autonomo-drive-backup-pending";
 export const DRIVE_BACKUP_TOKEN_KEY = "factura-autonomo-drive-access-token";
 export const DRIVE_BACKUP_FILE_PREFIX = "factu-autonomo-drive-backup-";
 export const DRIVE_BACKUP_RETENTION_LIMIT = 10;
@@ -125,6 +124,7 @@ const GOOGLE_IDENTITY_SCRIPT_ID = "google-identity-services";
 
 const DRIVE_FILE_FIELDS = "id,name,webViewLink";
 const DRIVE_BACKUP_PENDING_MAX_AGE_MS = 30 * 60 * 1000;
+const DRIVE_FETCH_TIMEOUT_MS = 30_000;
 
 let scriptPromise: Promise<void> | null = null;
 let cachedToken: { accessToken: string; expiresAt: number } | null = null;
@@ -389,7 +389,9 @@ function loadSessionToken(): { accessToken: string; expiresAt: number } | null {
   if (typeof window === "undefined") return null;
 
   try {
-    const raw = JSON.parse(sessionStorage.getItem(DRIVE_BACKUP_TOKEN_KEY) ?? "null");
+    const raw = JSON.parse(
+      sessionStorage.getItem(DRIVE_BACKUP_TOKEN_KEY) ?? "null",
+    );
     if (!isRecord(raw)) return null;
     const accessToken = safeString(raw.accessToken);
     const expiresAt = Number(raw.expiresAt);
@@ -463,7 +465,9 @@ export async function restoreDriveAccessToken(
 
 function loadGoogleIdentityServices(): Promise<void> {
   if (typeof window === "undefined" || typeof document === "undefined") {
-    return Promise.reject(new Error("Google Drive solo funciona en el navegador."));
+    return Promise.reject(
+      new Error("Google Drive solo funciona en el navegador."),
+    );
   }
 
   if (window.google?.accounts?.oauth2) return Promise.resolve();
@@ -503,7 +507,8 @@ async function requestDriveAccessToken(
 
   await loadGoogleIdentityServices();
   const oauth2 = window.google?.accounts?.oauth2;
-  if (!oauth2) throw new Error("Google Drive no está disponible en este navegador.");
+  if (!oauth2)
+    throw new Error("Google Drive no está disponible en este navegador.");
 
   return new Promise((resolve, reject) => {
     const tokenClient = oauth2.initTokenClient({
@@ -558,31 +563,71 @@ async function parseDriveError(response: Response): Promise<string> {
   return `Google Drive ha rechazado la copia (${response.status}).`;
 }
 
+async function driveRequest<T>(
+  url: string,
+  accessToken: string,
+  init: RequestInit = {},
+  parse: (response: Response) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), DRIVE_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      ...init,
+      signal: controller.signal,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(init.headers ?? {}),
+      },
+    });
+
+    if (!response.ok) {
+      if (response.status === 401) {
+        clearDriveAccessToken();
+        throw new Error(
+          "El permiso de Google Drive ha caducado. Vuelve a conectar Drive.",
+        );
+      }
+
+      throw new Error(await parseDriveError(response));
+    }
+
+    return await parse(response);
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error("Google Drive ha tardado demasiado en responder.");
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function driveFetch<T>(
   url: string,
   accessToken: string,
   init: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...(init.headers ?? {}),
-    },
-  });
+  return driveRequest(
+    url,
+    accessToken,
+    init,
+    async (response) => (await response.json()) as T,
+  );
+}
 
-  if (!response.ok) {
-    if (response.status === 401) {
-      clearDriveAccessToken();
-      throw new Error(
-        "El permiso de Google Drive ha caducado. Vuelve a conectar Drive.",
-      );
-    }
-
-    throw new Error(await parseDriveError(response));
-  }
-
-  return (await response.json()) as T;
+async function readDriveBackupFile(
+  accessToken: string,
+  fileId: string,
+): Promise<string> {
+  return driveRequest(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(
+      fileId,
+    )}?alt=media`,
+    accessToken,
+    {},
+    (response) => response.text(),
+  );
 }
 
 async function findOrCreateBackupFolder(
@@ -699,10 +744,15 @@ async function listDriveBackupFiles(
 
   return files
     .filter((file) => file.id && file.name.startsWith(DRIVE_BACKUP_FILE_PREFIX))
-    .sort((a, b) => backupFileSortValue(b).localeCompare(backupFileSortValue(a)));
+    .sort((a, b) =>
+      backupFileSortValue(b).localeCompare(backupFileSortValue(a)),
+    );
 }
 
-async function trashDriveFile(accessToken: string, fileId: string): Promise<void> {
+async function trashDriveFile(
+  accessToken: string,
+  fileId: string,
+): Promise<void> {
   await driveFetch<{ id: string; trashed?: boolean }>(
     `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(
       fileId,
@@ -723,7 +773,9 @@ async function pruneOldDriveBackups(
   const files = await listDriveBackupFiles(accessToken, folderId);
   const oldFiles = files.slice(DRIVE_BACKUP_RETENTION_LIMIT);
 
-  await Promise.all(oldFiles.map((file) => trashDriveFile(accessToken, file.id)));
+  await Promise.all(
+    oldFiles.map((file) => trashDriveFile(accessToken, file.id)),
+  );
 
   return {
     limit: DRIVE_BACKUP_RETENTION_LIMIT,
@@ -749,9 +801,13 @@ export async function uploadAppBackupToGoogleDrive(
       options.clientId,
       options.prompt ?? "",
     );
-    return await uploadAppBackupToGoogleDriveWithAccessToken(data, accessToken, {
-      now: options.now,
-    });
+    return await uploadAppBackupToGoogleDriveWithAccessToken(
+      data,
+      accessToken,
+      {
+        now: options.now,
+      },
+    );
   } catch (error) {
     return {
       ok: false,
@@ -779,12 +835,21 @@ export async function uploadAppBackupToGoogleDriveWithAccessToken(
     const folder = await findOrCreateBackupFolder(accessToken);
     const fileName = buildDriveBackupFileName(exportedAt);
     const payload = createBackupPayload(data, exportedAt);
+    const jsonText = JSON.stringify(payload, null, 2);
     const uploaded = await uploadJsonBackup(
       accessToken,
       folder.id,
       fileName,
-      JSON.stringify(payload, null, 2),
+      jsonText,
     );
+    const readback = await readDriveBackupFile(accessToken, uploaded.id);
+    if (readback !== jsonText) {
+      return {
+        ok: false,
+        error:
+          "Drive recibió el archivo, pero no devolvió una copia idéntica. No se ha marcado como copia válida.",
+      };
+    }
     let cleanupWarning: string | undefined;
     let retention = {
       limit: DRIVE_BACKUP_RETENTION_LIMIT,
