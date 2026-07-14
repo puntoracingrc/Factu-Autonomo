@@ -1,0 +1,182 @@
+import type { OfficialSource } from "./contracts";
+
+const VERIFIED_AT = "2026-07-14";
+
+export const OFFICIAL_SOURCES: readonly OfficialSource[] = [
+  {
+    sourceId: "boe.irpf-law.article-96",
+    authority: "BOE",
+    title: "Ley 35/2006 del IRPF",
+    url: "https://www.boe.es/buscar/act.php?id=BOE-A-2006-20764#a96",
+    location: "Artículo 96, obligación de declarar",
+    officialUpdatedAt: null,
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.renta-2025.obligation",
+    authority: "AEAT",
+    title: "Renta 2025 · obligación de declarar",
+    url: "https://sede.agenciatributaria.gob.es/Sede/Ayuda/25Presentacion/100/2.html",
+    location: "Contribuyentes obligados; alta en RETA durante el período",
+    officialUpdatedAt: "2026-03-16",
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.model-130.instructions",
+    authority: "AEAT",
+    title: "Modelo 130 · instrucciones",
+    url: "https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-130-irpf______esionales-estimacion-directa-fraccionado_/instrucciones.html",
+    location: "Apartados I y II; excepción del 70 % e inicio de actividad",
+    officialUpdatedAt: null,
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.model-131.instructions",
+    authority: "AEAT",
+    title: "Modelo 131 · instrucciones",
+    url: "https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-131-irpf______sionales-estimacion-objetiva-fraccionado_/instrucciones.html",
+    location: "Actividades en estimación objetiva y excepciones agrarias",
+    officialUpdatedAt: null,
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.model-303.instructions-2026",
+    authority: "AEAT",
+    title: "Modelo 303 · instrucciones 2026",
+    url: "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-303-iva-autoliquidacion_/instrucciones-2026.html",
+    location: "Obligados, período y regímenes declarados",
+    officialUpdatedAt: "2026-06-09",
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.model-390.procedure",
+    authority: "AEAT",
+    title: "Modelo 390 · resumen anual de IVA",
+    url: "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G412.shtml",
+    location: "Información e instrucciones por ejercicio; exoneraciones",
+    officialUpdatedAt: "2026-06-09",
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.withholding.111-190",
+    authority: "AEAT",
+    title: "Retenciones de trabajo y actividades económicas · modelos 111 y 190",
+    url: "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/7-otras-obligaciones-fiscales-retenciones/7_2-retenciones-ingresos-cuenta-rendimientos.html",
+    location: "Personas obligadas, modelo periódico 111 y resumen 190",
+    officialUpdatedAt: "2026-03-26",
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.withholding.115-180",
+    authority: "AEAT",
+    title: "Retenciones por arrendamiento · modelos 115 y 180",
+    url: "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/7-otras-obligaciones-fiscales-retenciones/7_3-retenciones-arrendamiento-bienes-inmuebles-180.html",
+    location: "Rentas de inmuebles urbanos, excepciones y resumen anual",
+    officialUpdatedAt: "2026-03-26",
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.withholding.123-193",
+    authority: "AEAT",
+    title: "Retenciones del capital mobiliario · modelos 123 y 193",
+    url: "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/7-otras-obligaciones-fiscales-retenciones/7_4-retenciones-capital-mobiliario-modelos-193.html",
+    location: "Obligados, ingreso periódico y excepciones del resumen anual",
+    officialUpdatedAt: "2026-03-26",
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.roi-intraeu",
+    authority: "AEAT",
+    title: "ROI, VIES, NIF-IVA y operaciones intracomunitarias",
+    url: "https://sede.agenciatributaria.gob.es/Sede/iva/iva-operaciones-comercio-exterior/identificacion-realizar-operaciones-otros-empresarios-ue.html",
+    location: "Operaciones que exigen NIF-IVA, modelo 036 y relación con el 349",
+    officialUpdatedAt: null,
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.model-347.exclusions",
+    authority: "AEAT",
+    title: "Modelo 347 · obligados y exclusiones",
+    url: "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-347-decla_____racion-anual-operaciones-personas_/excluidos-obligacion-presentar-modelo-347.html",
+    location: "Artículos 31 y 32 RGAT; umbral, SII y operaciones excluidas",
+    officialUpdatedAt: null,
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.model-369.procedure",
+    authority: "AEAT",
+    title: "Modelo 369 · regímenes OSS/IOSS",
+    url: "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G420.shtml",
+    location: "Regímenes de la Unión, exterior e importación",
+    officialUpdatedAt: "2026-06-09",
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.model-184.obligations",
+    authority: "AEAT",
+    title: "Entidades en atribución de rentas · obligaciones",
+    url: "https://sede.agenciatributaria.gob.es/Sede/irpf/empresarios-individuales-profesionales/entidades-regimen-atribucion-renta/obligaciones-entidad.html",
+    location: "Actividad económica, umbral de rentas y modelo 184",
+    officialUpdatedAt: null,
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.is.installments",
+    authority: "AEAT",
+    title: "Pagos fraccionados del Impuesto sobre Sociedades",
+    url: "https://sede.agenciatributaria.gob.es/Sede/impuesto-sobre-sociedades/pagos-fraccionados-impuesto-sobre-sociedades/obligacion-efectuar-pagos-fraccionados-cuenta-sociedades.html",
+    location: "Obligación, excepciones y períodos de pago",
+    officialUpdatedAt: null,
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.irnr.withholding",
+    authority: "AEAT",
+    title: "IRNR · obligación de declarar del retenedor",
+    url: "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/manual-tributacion-no-residentes/capitulo-04-retenciones-sobre-rentas-permanente/obligacion-declarar-parte-obligados-retener.html",
+    location: "Modelos 216 y 296 y supuestos exceptuados",
+    officialUpdatedAt: null,
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+  {
+    sourceId: "aeat.models.catalog",
+    authority: "AEAT",
+    title: "Presentar y consultar declaraciones por modelo",
+    url: "https://sede.agenciatributaria.gob.es/Sede/presentar-consultar-declaraciones-modelo.html",
+    location: "Índice oficial de modelos y procedimientos",
+    officialUpdatedAt: "2026-07-08",
+    lastVerifiedAt: VERIFIED_AT,
+    verificationStatus: "VERIFIED",
+  },
+] as const;
+
+const SOURCE_BY_ID = new Map(
+  OFFICIAL_SOURCES.map((source) => [source.sourceId, source]),
+);
+
+export function getOfficialSources(sourceIds: readonly string[]): OfficialSource[] {
+  return sourceIds.map((sourceId) => {
+    const source = SOURCE_BY_ID.get(sourceId);
+    if (!source) throw new Error(`Fuente oficial no registrada: ${sourceId}`);
+    return { ...source };
+  });
+}
+
+export function hasOfficialSource(sourceId: string): boolean {
+  return SOURCE_BY_ID.has(sourceId);
+}
