@@ -37,6 +37,10 @@ import type {
   AeatEnforcementMoneyFactsResult,
 } from "@/lib/fiscal-notifications/aeat-enforcement-money-facts";
 import type { AeatDeferralGrantFactsResultV1 } from "@/lib/fiscal-notifications/aeat-deferral-grant-facts.v1";
+import type {
+  AeatOffsetAgreementFactsResultV1,
+  AeatOffsetPrintedEffectMeaningV1,
+} from "@/lib/fiscal-notifications/aeat-offset-agreement-facts.v1";
 import {
   projectExplicitFieldsReviewViewModelV2,
   type ExplicitFieldsReviewViewModelV2,
@@ -350,6 +354,8 @@ function FiscalNotificationReviewWorkspace({
     useState<AeatEnforcementMoneyFactsResult | null>(null);
   const [ephemeralDeferralFacts, setEphemeralDeferralFacts] =
     useState<AeatDeferralGrantFactsResultV1 | null>(null);
+  const [ephemeralOffsetFacts, setEphemeralOffsetFacts] =
+    useState<AeatOffsetAgreementFactsResultV1 | null>(null);
   const [explicitFieldsReview, setExplicitFieldsReview] =
     useState<ExplicitFieldsReviewViewModelV2 | null>(null);
   const [partyFactsReview, setPartyFactsReview] =
@@ -414,6 +420,7 @@ function FiscalNotificationReviewWorkspace({
     setResult(null);
     setEphemeralMoneyFacts(null);
     setEphemeralDeferralFacts(null);
+    setEphemeralOffsetFacts(null);
     setExplicitFieldsReview(null);
     setPartyFactsReview(null);
     setPendingReview(null);
@@ -433,6 +440,7 @@ function FiscalNotificationReviewWorkspace({
     setError(null);
     setEphemeralMoneyFacts(null);
     setEphemeralDeferralFacts(null);
+    setEphemeralOffsetFacts(null);
     setExplicitFieldsReview(null);
     setPartyFactsReview(null);
     clearFileSelection();
@@ -461,6 +469,7 @@ function FiscalNotificationReviewWorkspace({
     setResult(null);
     setEphemeralMoneyFacts(null);
     setEphemeralDeferralFacts(null);
+    setEphemeralOffsetFacts(null);
     setExplicitFieldsReview(null);
     setPartyFactsReview(null);
     setPendingReview(null);
@@ -496,6 +505,7 @@ function FiscalNotificationReviewWorkspace({
       setResult(nextResult);
       setEphemeralMoneyFacts(nextAnalysis.ephemeralEnforcementMoneyFacts);
       setEphemeralDeferralFacts(nextAnalysis.ephemeralDeferralGrantFacts);
+      setEphemeralOffsetFacts(nextAnalysis.ephemeralOffsetAgreementFacts);
       setExplicitFieldsReview(nextExplicitFieldsReview);
       setPartyFactsReview(nextPartyFactsReview);
       setPendingReview({
@@ -681,6 +691,7 @@ function FiscalNotificationReviewWorkspace({
           result={result}
           ephemeralMoneyFacts={ephemeralMoneyFacts}
           ephemeralDeferralFacts={ephemeralDeferralFacts}
+          ephemeralOffsetFacts={ephemeralOffsetFacts}
           explicitFieldsReview={explicitFieldsReview}
           partyFactsReview={partyFactsReview}
         />
@@ -1010,7 +1021,7 @@ function StructuredReviewHistoryItem({
         <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {entry.money.map((fact) => (
             <div
-              key={`${fact.label}:${fact.amountCents}`}
+              key={fact.key}
               className="rounded-xl border border-blue-100 bg-blue-50 p-4"
             >
               <dt className="text-xs font-bold uppercase tracking-wide text-blue-800">
@@ -1019,6 +1030,11 @@ function StructuredReviewHistoryItem({
               <dd className="mt-1 text-lg font-bold text-blue-950">
                 {formatStructuredMoney(fact.amountCents, fact.currency)}
               </dd>
+              {fact.sourceReference ? (
+                <dd className="mt-1 break-all text-xs font-semibold text-blue-800">
+                  Referencia: {fact.sourceReference}
+                </dd>
+              ) : null}
             </div>
           ))}
         </dl>
@@ -1121,12 +1137,14 @@ function ReviewResult({
   result,
   ephemeralMoneyFacts,
   ephemeralDeferralFacts,
+  ephemeralOffsetFacts,
   explicitFieldsReview,
   partyFactsReview,
 }: {
   result: FiscalNotificationLocalReviewResult;
   ephemeralMoneyFacts: AeatEnforcementMoneyFactsResult | null;
   ephemeralDeferralFacts: AeatDeferralGrantFactsResultV1 | null;
+  ephemeralOffsetFacts: AeatOffsetAgreementFactsResultV1 | null;
   explicitFieldsReview: ExplicitFieldsReviewViewModelV2 | null;
   partyFactsReview: PartyFactsReviewViewModelV1 | null;
 }) {
@@ -1264,6 +1282,10 @@ function ReviewResult({
 
         {ephemeralDeferralFacts ? (
           <DeferralGrantFactsPanel result={ephemeralDeferralFacts} />
+        ) : null}
+
+        {ephemeralOffsetFacts ? (
+          <OffsetAgreementFactsPanel result={ephemeralOffsetFacts} />
         ) : null}
 
         {partyFactsReview ? (
@@ -1623,6 +1645,219 @@ function DeferralGrantFactsPanel({
       <p className="mt-4 text-xs leading-5 text-blue-900">
         Estas son fechas e instrucciones impresas en el documento. No se ha
         marcado ninguna cuota como pagada ni se ha creado un gasto o asiento.
+      </p>
+    </section>
+  );
+}
+
+const OFFSET_EFFECT_LABELS: Readonly<
+  Record<AeatOffsetPrintedEffectMeaningV1, string>
+> = {
+  TOTAL_EXTINGUISHED_IN_VOLUNTARY_PERIOD:
+    "Deuda totalmente extinguida en período voluntario",
+  PARTIALLY_EXTINGUISHED_IN_ENFORCEMENT:
+    "Deuda parcialmente extinguida en período ejecutivo",
+  TOTAL_EXTINGUISHED_IN_ENFORCEMENT:
+    "Deuda totalmente extinguida en período ejecutivo",
+  PRINTED_CODE_UNMAPPED: "Código de efecto impreso sin equivalencia verificada",
+};
+
+function OffsetAgreementFactsPanel({
+  result,
+}: {
+  result: AeatOffsetAgreementFactsResultV1;
+}) {
+  const hasFacts =
+    Object.values(result.header).some((fact) => fact !== null) ||
+    result.credits.length > 0 ||
+    result.debts.length > 0;
+  if (!hasFacts) {
+    return (
+      <div
+        className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"
+        role={result.outcome === "INFORMATION_PENDING" ? "status" : "alert"}
+      >
+        <h3 className="font-bold text-amber-950">
+          Datos del acuerdo todavía pendientes
+        </h3>
+        <p className="mt-1 text-sm leading-6 text-amber-900">
+          El documento se ha reconocido como acuerdo de compensación, pero sus
+          anexos no contienen filas completas que puedan mostrarse como datos
+          estructurados.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <section
+      className="mt-5 rounded-xl border border-blue-200 bg-blue-50 p-4 sm:p-5"
+      aria-labelledby="offset-agreement-facts-heading"
+    >
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wide text-blue-800">
+            Datos impresos del documento
+          </p>
+          <h3
+            id="offset-agreement-facts-heading"
+            className="mt-1 text-lg font-bold text-blue-950"
+          >
+            {result.agreementMode === "EX_OFFICIO"
+              ? "Acuerdo de compensación de oficio"
+              : "Acuerdo de compensación solicitado"}
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-blue-900">
+            Crédito, deudas, importes compensados, saldos y efectos leídos de
+            los anexos del acuerdo.
+          </p>
+        </div>
+        <span className="inline-flex w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-950">
+          {result.credits.length} {result.credits.length === 1 ? "crédito" : "créditos"}
+          {" · "}
+          {result.debts.length} {result.debts.length === 1 ? "deuda" : "deudas"}
+        </span>
+      </div>
+
+      {result.outcome === "AMBIGUOUS" ? (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
+          Hay alguna fila incompleta o un código de efecto sin texto explicativo.
+          Se muestran los valores exactos que sí constan, sin completar ni
+          corregir los demás.
+        </div>
+      ) : null}
+
+      <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {result.header.subjectName ? (
+          <DeferralFactCard
+            label="Obligado"
+            value={result.header.subjectName.printedValue}
+          />
+        ) : null}
+        {result.header.subjectTaxId ? (
+          <DeferralFactCard
+            label="NIF impreso"
+            value={result.header.subjectTaxId.printedValue}
+          />
+        ) : null}
+        {result.header.agreementNumber ? (
+          <DeferralFactCard
+            label="Número de acuerdo"
+            value={result.header.agreementNumber.printedValue}
+          />
+        ) : null}
+        {result.header.requestDate ? (
+          <DeferralFactCard
+            label="Fecha de solicitud impresa"
+            value={result.header.requestDate.printedValue}
+          />
+        ) : null}
+      </dl>
+
+      <div className="mt-5 space-y-4">
+        {result.credits.map((credit, index) => (
+          <article
+            key={`${credit.reference.printedValue}:${index}`}
+            className="rounded-2xl border border-emerald-200 bg-white p-4"
+          >
+            <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+              Crédito {index + 1}
+            </p>
+            <h4 className="mt-1 break-all font-bold text-slate-950">
+              {credit.reference.printedValue}
+            </h4>
+            <p className="mt-1 text-sm text-slate-700">
+              {credit.description.printedValue}
+            </p>
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <ResultFact
+                label="Reconocimiento"
+                value={credit.recognitionDate.printedValue}
+              />
+              <ResultFact
+                label="Crédito"
+                value={formatStructuredMoney(credit.creditAmount.amountCents, "EUR")}
+              />
+              <ResultFact
+                label="Intereses de demora"
+                value={formatStructuredMoney(credit.delayInterest.amountCents, "EUR")}
+              />
+              <ResultFact
+                label="Total del crédito"
+                value={formatStructuredMoney(credit.totalCredit.amountCents, "EUR")}
+              />
+              <ResultFact
+                label="Aplicado a compensar"
+                value={formatStructuredMoney(credit.compensatedAmount.amountCents, "EUR")}
+              />
+            </dl>
+          </article>
+        ))}
+
+        {result.debts.map((debt, index) => (
+          <article
+            key={`${debt.liquidationKey.printedValue}:${index}`}
+            className="rounded-2xl border border-blue-200 bg-white p-4"
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+                  Deuda {index + 1}
+                </p>
+                <h4 className="mt-1 break-all font-bold text-slate-950">
+                  {debt.liquidationKey.printedValue}
+                </h4>
+                <p className="mt-1 text-sm text-slate-700">
+                  {debt.description.printedValue}
+                </p>
+              </div>
+              <span className="inline-flex w-fit rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-800">
+                Efecto {debt.effectCode.printedValue}
+              </span>
+            </div>
+            <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <ResultFact label="Fecha de efectos" value={debt.effectDate.printedValue} />
+              <ResultFact
+                label="Principal pendiente"
+                value={formatStructuredMoney(debt.principalPending.amountCents, "EUR")}
+              />
+              <ResultFact
+                label="Recargo ejecutivo"
+                value={formatStructuredMoney(debt.enforcementSurcharge.amountCents, "EUR")}
+              />
+              {debt.delayInterest ? (
+                <ResultFact
+                  label="Intereses de demora"
+                  value={formatStructuredMoney(debt.delayInterest.amountCents, "EUR")}
+                />
+              ) : null}
+              <ResultFact
+                label="Ingresos a cuenta"
+                value={formatStructuredMoney(debt.paymentsOnAccount.amountCents, "EUR")}
+              />
+              <ResultFact
+                label="Total antes de compensar"
+                value={formatStructuredMoney(debt.totalBeforeOffset.amountCents, "EUR")}
+              />
+              <ResultFact
+                label="Importe compensado"
+                value={formatStructuredMoney(debt.compensatedAmount.amountCents, "EUR")}
+              />
+              <ResultFact
+                label="Pendiente después de compensar"
+                value={formatStructuredMoney(debt.remainingAfterOffset.amountCents, "EUR")}
+              />
+            </dl>
+            <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-800">
+              {OFFSET_EFFECT_LABELS[debt.effectMeaning]}
+            </p>
+          </article>
+        ))}
+      </div>
+
+      <p className="mt-4 text-xs leading-5 text-blue-900">
+        Los importes se muestran tal como aparecen impresos. No se recalculan y
+        no se crea, cancela ni marca como pagada ninguna deuda, gasto o asiento.
       </p>
     </section>
   );

@@ -4,6 +4,7 @@ import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-expli
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
 import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { extractAeatDeferralGrantFactsV1 } from "./aeat-deferral-grant-facts.v1";
+import { extractAeatOffsetAgreementFactsV1 } from "./aeat-offset-agreement-facts.v1";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import type { BoundedDocumentInput } from "./input-contract";
 import {
@@ -68,6 +69,14 @@ function intake(
     familyAnalysis.candidates[0].signalStatus ===
       "COMPLETE_REQUIRED_ANCHORS" &&
     familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
+  const offsetCandidate =
+    familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
+    familyAnalysis.candidates.length === 1 &&
+    familyAnalysis.candidates[0]?.familyId ===
+      "AEAT_OFFSET_AGREEMENT_CANDIDATE" &&
+    familyAnalysis.candidates[0].signalStatus ===
+      "COMPLETE_REQUIRED_ANCHORS" &&
+    familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
   const analysis = projectFiscalNotificationPdfWorkerAnalysis({
     textLayerStatus: hasText
       ? "TEXT_LAYER_AVAILABLE"
@@ -86,6 +95,11 @@ function intake(
     deferralGrantFacts: deferralCandidate
       ? extractAeatDeferralGrantFactsV1(boundedInput)
       : null,
+    offsetAgreementFacts: (() => {
+      if (!offsetCandidate) return null;
+      const facts = extractAeatOffsetAgreementFactsV1(boundedInput);
+      return facts.documentType === "AEAT_OFFSET_AGREEMENT" ? facts : null;
+    })(),
   });
   const reviewContext = {
     ownerScope: boundedInput.ownerScope,
@@ -102,8 +116,8 @@ function intake(
     });
   }
   return Object.freeze({
-    schemaVersion: 5,
-    adapterVersion: "5.0.0",
+    schemaVersion: 6,
+    adapterVersion: "6.0.0",
     status: analysis.textLayerStatus,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     fileIntegrity: Object.freeze({
@@ -295,8 +309,8 @@ describe("fiscal notification local review flow", () => {
     const analysis = await analyzeEphemeralForTest({}, dependencies(text));
 
     expect(analysis).toMatchObject({
-      schemaVersion: 5,
-      analysisVersion: "5.0.0",
+      schemaVersion: 6,
+      analysisVersion: "6.0.0",
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       requiresHumanReview: true,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -416,7 +430,7 @@ describe("fiscal notification local review flow", () => {
     expect(JSON.stringify(analysis.technicalReview)).not.toContain(PRIVATE_TEXT);
   });
 
-  it("propagates exact deferral installments in the v5 ephemeral envelope", async () => {
+  it("propagates exact deferral installments in the v6 ephemeral envelope", async () => {
     const text = [
       "AGENCIA TRIBUTARIA",
       "sede.agenciatributaria.gob.es",
@@ -437,8 +451,8 @@ describe("fiscal notification local review flow", () => {
     const analysis = await analyzeEphemeralForTest({}, dependencies(text));
 
     expect(analysis).toMatchObject({
-      schemaVersion: 5,
-      analysisVersion: "5.0.0",
+      schemaVersion: 6,
+      analysisVersion: "6.0.0",
       technicalReview: {
         reason: "SUPPORTED_FAMILY_CANDIDATE",
         candidates: [
@@ -474,6 +488,59 @@ describe("fiscal notification local review flow", () => {
     ).toBe(true);
   });
 
+  it("keeps exact offset credit and debt facts available in memory", async () => {
+    const text = [
+      "AGENCIA TRIBUTARIA",
+      "www.agenciatributaria.es",
+      "ACUERDO DE COMPENSACIÓN A INSTANCIA DEL OBLIGADO AL PAGO",
+      "ANEXO I",
+      "CRÉDITO Y DEUDAS",
+      "IDENTIFICACIÓN DEL DOCUMENTO",
+      "NOMBRE Y APELLIDOS / RAZÓN SOCIAL: PERSONA SINTÉTICA",
+      "N.I.F.: X0000000T",
+      "NÚMERO DE ACUERDO DE COMPENSACIÓN: ACUERDO-0001",
+      "FECHA DE PRESENTACIÓN DE LA SOLICITUD DE COMPENSACIÓN: 05/01/2026",
+      "CRÉDITO:",
+      "CREDITO-0001 DEVOLUCIÓN SINTÉTICA 10/01/2026 1.000,00 20,00 1.020,00 900,00",
+      "DEUDA:",
+      "VENCIMIENTO: DEUDA-0001 MODELO SINTÉTICO EJERCICIO 2025",
+      "10/01/2026 800,00 80,00 20,00 0,00 900,00 900,00 0,00 ( 1)",
+      "ANEXO II",
+      "(1) EFECTOS DE LA COMPENSACIÓN",
+      "EL IMPORTE DE LA DEUDA QUE FIGURA EN LA COLUMNA TOTAL PENDIENTE ANTES DE COMPENSAR HA QUEDADO EXTINGUIDO EN PERIODO VOLUNTARIO DE INGRESO.",
+    ].join("\n");
+
+    const analysis = await analyzeEphemeralForTest({}, dependencies(text));
+
+    expect(analysis).toMatchObject({
+      schemaVersion: 6,
+      analysisVersion: "6.0.0",
+      technicalReview: {
+        candidates: [{ familyId: "AEAT_OFFSET_AGREEMENT_CANDIDATE" }],
+      },
+      ephemeralEnforcementMoneyFacts: null,
+      ephemeralEnforcementExplicitFields: null,
+      ephemeralEnforcementPartyFacts: null,
+      ephemeralDeferralGrantFacts: null,
+      ephemeralOffsetAgreementFacts: {
+        agreementMode: "REQUESTED",
+        outcome: "FACTS_AVAILABLE",
+        credits: [{ totalCredit: { amountCents: 102_000 } }],
+        debts: [
+          {
+            liquidationKey: { printedValue: "DEUDA-0001" },
+            compensatedAmount: { amountCents: 90_000 },
+            remainingAfterOffset: { amountCents: 0 },
+          },
+        ],
+      },
+    });
+    expect(Object.isFrozen(analysis.ephemeralOffsetAgreementFacts)).toBe(true);
+    expect(
+      Object.isFrozen(analysis.ephemeralOffsetAgreementFacts?.debts[0]),
+    ).toBe(true);
+  });
+
   it("does not attach the enforcement reader to an unsupported family", async () => {
     const analysis = await analyzeEphemeralForTest(
       {},
@@ -483,6 +550,7 @@ describe("fiscal notification local review flow", () => {
     expect(analysis.ephemeralEnforcementExplicitFields).toBeNull();
     expect(analysis.ephemeralEnforcementPartyFacts).toBeNull();
     expect(analysis.ephemeralDeferralGrantFacts).toBeNull();
+    expect(analysis.ephemeralOffsetAgreementFacts).toBeNull();
     expect(analysis.technicalReview).toMatchObject({
       reason: "NO_SUPPORTED_FAMILY_SIGNAL",
       status: "INFORMATION_PENDING",
@@ -534,8 +602,8 @@ describe("fiscal notification local review flow", () => {
     const analysis = await analyzeEphemeralForTest({}, dependencies(""));
 
     expect(analysis).toMatchObject({
-      schemaVersion: 5,
-      analysisVersion: "5.0.0",
+      schemaVersion: 6,
+      analysisVersion: "6.0.0",
       technicalReview: {
         status: "INFORMATION_PENDING",
         reason: "OCR_DISABLED",
@@ -544,6 +612,7 @@ describe("fiscal notification local review flow", () => {
       ephemeralEnforcementExplicitFields: null,
       ephemeralEnforcementPartyFacts: null,
       ephemeralDeferralGrantFacts: null,
+      ephemeralOffsetAgreementFacts: null,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       requiresHumanReview: true,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",

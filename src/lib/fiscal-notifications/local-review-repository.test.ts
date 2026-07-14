@@ -356,8 +356,8 @@ describe("fiscal notification safe local review repository", () => {
       {
         readPdf: async () =>
           Object.freeze({
-            schemaVersion: 5 as const,
-            adapterVersion: "5.0.0" as const,
+            schemaVersion: 6 as const,
+            adapterVersion: "6.0.0" as const,
             status: "TEXT_LAYER_AVAILABLE" as const,
             sourceContentPolicy:
               "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,

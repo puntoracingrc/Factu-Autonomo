@@ -282,9 +282,11 @@ describe("structured fiscal notification history view model v1", () => {
         ],
         money: [
           {
+            key: "money:principal",
             label: "Principal pendiente impreso",
             amountCents: 123_456,
             currency: "EUR",
+            sourceReference: null,
           },
         ],
       }),

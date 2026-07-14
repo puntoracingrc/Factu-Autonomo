@@ -110,13 +110,14 @@ function analysis(
   input: BoundedDocumentInput = source(),
 ): FiscalNotificationLocalAnalysisResult {
   return Object.freeze({
-    schemaVersion: 5,
-    analysisVersion: "5.0.0",
+    schemaVersion: 6,
+    analysisVersion: "6.0.0",
     technicalReview: technicalReview(input),
     ephemeralEnforcementMoneyFacts: null,
     ephemeralEnforcementExplicitFields: null,
     ephemeralEnforcementPartyFacts: null,
     ephemeralDeferralGrantFacts: extractAeatDeferralGrantFactsV1(input),
+    ephemeralOffsetAgreementFacts: null,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",

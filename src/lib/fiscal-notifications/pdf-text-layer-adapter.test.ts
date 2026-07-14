@@ -67,8 +67,8 @@ function workerAnalysis(
     "TEXT_LAYER_AVAILABLE",
 ) {
   return {
-    schemaVersion: 5,
-    analysisVersion: "5.0.0",
+    schemaVersion: 6,
+    analysisVersion: "6.0.0",
     textLayerStatus: status,
     pageCount: 1,
     familyAnalysis:
@@ -90,6 +90,7 @@ function workerAnalysis(
     enforcementExplicitFields: null,
     enforcementPartyFacts: null,
     deferralGrantFacts: null,
+    offsetAgreementFacts: null,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -298,8 +299,8 @@ describe("fiscal notification PDF text-layer adapter", () => {
     const output = await readFiscalNotificationPdfTextLayer(input, deps);
 
     expect(output).toMatchObject({
-      schemaVersion: 5,
-      adapterVersion: "5.0.0",
+      schemaVersion: 6,
+      adapterVersion: "6.0.0",
       status,
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       fileIntegrity: {
@@ -1082,6 +1083,7 @@ describe("fiscal notification PDF text-layer adapter", () => {
       "enforcementExplicitFields",
       "enforcementPartyFacts",
       "deferralGrantFacts",
+      "offsetAgreementFacts",
     ]);
     const explicitProjection = projection.properties.find(
       (property) => property.name?.getText(sourceFile) === "enforcementExplicitFields",

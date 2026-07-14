@@ -4,6 +4,7 @@ import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts
 import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
 import { extractAeatDeferralGrantFactsV1 } from "./aeat-deferral-grant-facts.v1";
+import { extractAeatOffsetAgreementFactsV1 } from "./aeat-offset-agreement-facts.v1";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import {
   FiscalNotificationPdfWorkerAnalysisError,
@@ -88,6 +89,41 @@ function deferralAnalysis() {
   });
 }
 
+function offsetAnalysis() {
+  const input = documentInput(
+    [
+      "AGENCIA TRIBUTARIA",
+      "www.agenciatributaria.es",
+      "ACUERDO DE COMPENSACIÓN A INSTANCIA DEL OBLIGADO AL PAGO",
+      "ANEXO I",
+      "CRÉDITO Y DEUDAS",
+      "IDENTIFICACIÓN DEL DOCUMENTO",
+      "NOMBRE Y APELLIDOS / RAZÓN SOCIAL: PERSONA SINTÉTICA",
+      "N.I.F.: X0000000T",
+      "NÚMERO DE ACUERDO DE COMPENSACIÓN: ACUERDO-0001",
+      "FECHA DE PRESENTACIÓN DE LA SOLICITUD DE COMPENSACIÓN: 05/01/2026",
+      "CRÉDITO:",
+      "CREDITO-0001 DEVOLUCIÓN SINTÉTICA 10/01/2026 1.000,00 20,00 1.020,00 900,00",
+      "DEUDA:",
+      "VENCIMIENTO: DEUDA-0001 MODELO SINTÉTICO EJERCICIO 2025",
+      "10/01/2026 800,00 80,00 20,00 0,00 900,00 900,00 0,00 ( 1)",
+      "ANEXO II",
+      "(1) EFECTOS DE LA COMPENSACIÓN",
+      "EL IMPORTE DE LA DEUDA QUE FIGURA EN LA COLUMNA TOTAL PENDIENTE ANTES DE COMPENSAR HA QUEDADO EXTINGUIDO EN PERIODO VOLUNTARIO DE INGRESO.",
+    ].join("\n"),
+  );
+  return projectFiscalNotificationPdfWorkerAnalysis({
+    textLayerStatus: "TEXT_LAYER_AVAILABLE",
+    pageCount: 1,
+    familyAnalysis: extractFiscalNotificationCandidates(input),
+    enforcementMoneyFacts: null,
+    enforcementExplicitFields: null,
+    enforcementPartyFacts: null,
+    deferralGrantFacts: null,
+    offsetAgreementFacts: extractAeatOffsetAgreementFactsV1(input),
+  });
+}
+
 function reviewOnlyFamilyAnalysis(text: string) {
   const input = documentInput(text);
   return projectFiscalNotificationPdfWorkerAnalysis({
@@ -166,8 +202,8 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     const analysis = enforcementAnalysis();
 
     expect(analysis).toMatchObject({
-      schemaVersion: 5,
-      analysisVersion: "5.0.0",
+      schemaVersion: 6,
+      analysisVersion: "6.0.0",
       textLayerStatus: "TEXT_LAYER_AVAILABLE",
       pageCount: 1,
       familyAnalysis: {
@@ -390,6 +426,43 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
         },
       ],
     });
+  });
+
+  it("transports exact offset credit and debt facts only for an offset agreement", () => {
+    const analysis = offsetAnalysis();
+
+    expect(analysis).toMatchObject({
+      familyAnalysis: {
+        reason: "SUPPORTED_FAMILY_CANDIDATE",
+        candidates: [{ familyId: "AEAT_OFFSET_AGREEMENT_CANDIDATE" }],
+      },
+      enforcementMoneyFacts: null,
+      enforcementExplicitFields: null,
+      enforcementPartyFacts: null,
+      deferralGrantFacts: null,
+      offsetAgreementFacts: {
+        agreementMode: "REQUESTED",
+        outcome: "FACTS_AVAILABLE",
+        header: { agreementNumber: { printedValue: "ACUERDO-0001" } },
+        credits: [{ totalCredit: { amountCents: 102_000 } }],
+        debts: [
+          {
+            liquidationKey: { printedValue: "DEUDA-0001" },
+            compensatedAmount: { amountCents: 90_000 },
+            remainingAfterOffset: { amountCents: 0 },
+            effectMeaning: "TOTAL_EXTINGUISHED_IN_VOLUNTARY_PERIOD",
+          },
+        ],
+      },
+    });
+    expect(Object.isFrozen(analysis.offsetAgreementFacts)).toBe(true);
+    expect(Object.isFrozen(analysis.offsetAgreementFacts?.debts[0])).toBe(true);
+
+    const forged = mutableAnalysis(analysis);
+    forged.offsetAgreementFacts!.paymentActionPolicy = "CREATED";
+    expect(() => parseFiscalNotificationPdfWorkerAnalysis(forged)).toThrow(
+      FiscalNotificationPdfWorkerAnalysisError,
+    );
   });
 
   it.each([
@@ -1240,6 +1313,7 @@ interface MutableAnalysis extends Record<string | symbol, unknown> {
   enforcementExplicitFields: MutableExplicitFields | null;
   enforcementPartyFacts: MutablePartyFacts | null;
   deferralGrantFacts: Record<string, unknown> | null;
+  offsetAgreementFacts: Record<string, unknown> | null;
 }
 
 interface MutableFamilyAnalysis extends Record<string, unknown> {

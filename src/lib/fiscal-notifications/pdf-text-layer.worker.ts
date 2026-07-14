@@ -8,6 +8,7 @@ import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-expli
 import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
 import { extractAeatDeferralGrantFactsV1 } from "./aeat-deferral-grant-facts.v1";
+import { extractAeatOffsetAgreementFactsV1 } from "./aeat-offset-agreement-facts.v1";
 import { projectFiscalNotificationPdfWorkerAnalysis } from "./pdf-worker-analysis-contract";
 
 interface FiscalNotificationPdfWorkerScope {
@@ -81,6 +82,21 @@ async function processMessage(value: unknown): Promise<void> {
     const deferralGrantFacts = deferralCandidate
       ? extractAeatDeferralGrantFactsV1(documentInput)
       : null;
+    const offsetCandidate =
+      familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
+      familyAnalysis.candidates.length === 1 &&
+      familyAnalysis.candidates[0]?.familyId ===
+        "AEAT_OFFSET_AGREEMENT_CANDIDATE" &&
+      familyAnalysis.candidates[0].signalStatus ===
+        "COMPLETE_REQUIRED_ANCHORS" &&
+      familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
+    const extractedOffsetAgreementFacts = offsetCandidate
+      ? extractAeatOffsetAgreementFactsV1(documentInput)
+      : null;
+    const offsetAgreementFacts =
+      extractedOffsetAgreementFacts?.documentType === "AEAT_OFFSET_AGREEMENT"
+        ? extractedOffsetAgreementFacts
+        : null;
     const analysis = projectFiscalNotificationPdfWorkerAnalysis({
       textLayerStatus: hasText
         ? "TEXT_LAYER_AVAILABLE"
@@ -91,6 +107,7 @@ async function processMessage(value: unknown): Promise<void> {
       enforcementExplicitFields,
       enforcementPartyFacts,
       deferralGrantFacts,
+      offsetAgreementFacts,
     });
     workerScope.postMessage({
       type: "RESULT",
