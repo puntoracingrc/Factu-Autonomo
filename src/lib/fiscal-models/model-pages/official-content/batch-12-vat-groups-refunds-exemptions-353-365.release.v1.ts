@@ -768,12 +768,17 @@ const MODEL_360_CONTENT = {
   canonicalName:
     "IVA. Gestión de devoluciones de IVA a empresarios o profesionales no establecidos en el territorio de aplicación del impuesto.",
   summary:
-    "Modalidades del Modelo 360 descritas por la AEAT para solicitudes de devolución de IVA soportado fuera del territorio de establecimiento, con formulario, fichero, instrucciones y guía oficiales.",
+    "Solicitud de devolución del IVA soportado en otros Estados miembros por autónomos y empresas establecidos en España.",
   searchTerms: [
     "modelo 360",
     "devolución IVA no establecidos",
     "devolucion IVA otros Estados miembros",
     "IVA soportado otros Estados miembros",
+    "IVA francés",
+    "IVA alemán",
+    "factura extranjera",
+    "30 septiembre",
+    "mínimo 400 50 euros",
     "Canarias Ceuta Melilla devolución IVA",
     "formulario 360",
     "fichero 360",
@@ -1054,12 +1059,16 @@ const MODEL_361_CONTENT = {
   canonicalName:
     "IVA. Gestión de devoluciones de IVA a empresarios o profesionales no establecidos en el territorio de aplicación del impuesto.",
   summary:
-    "Modalidad 361 del procedimiento de devolución de IVA soportado en el territorio de aplicación del impuesto, descrita por la AEAT para empresarios o profesionales establecidos en terceros países con reciprocidad.",
+    "Solicitud de devolución del IVA español por determinados empresarios establecidos fuera de la Unión Europea.",
   searchTerms: [
     "modelo 361",
     "devolución IVA no establecidos",
     "devolucion IVA terceros paises reciprocidad",
     "IVA terceros países reciprocidad",
+    "representante en España",
+    "certificado de actividad",
+    "apostilla legalización",
+    "facturas 1000 250 euros",
     "IVA soportado territorio aplicación",
     "formulario 361",
     "alta solicitudes 361",

@@ -53,10 +53,15 @@ export async function generateMetadata({
         "180": "Modelo 180 AEAT: resumen anual de alquileres",
         "184": "Modelo 184 AEAT: comunidades de bienes y rentas atribuidas",
         "190": "Modelo 190 AEAT: resumen anual de retenciones",
+        "216": "Modelo 216 AEAT: retenciones por pagos a no residentes",
+        "296": "Modelo 296 AEAT: resumen anual de pagos a no residentes",
         "303": "Modelo 303 AEAT: declaración trimestral del IVA",
         "309": "Modelo 309 AEAT: IVA no periódico",
         "347": "Modelo 347 AEAT: operaciones con clientes y proveedores",
         "349": "Modelo 349 AEAT: operaciones intracomunitarias",
+        "360": "Modelo 360 AEAT: devolución del IVA soportado en la UE",
+        "361":
+          "Modelo 361 AEAT: devolución del IVA a empresas de fuera de la UE",
         "369": "Modelo 369 AEAT: declaración de IVA OSS e IOSS",
         "390": "Modelo 390 AEAT: resumen anual del IVA",
         "840": "Modelo 840 AEAT: alta, variación y baja en el IAE",
@@ -84,6 +89,10 @@ export async function generateMetadata({
           "Guía sencilla del Modelo 184: quién debe presentarlo, límite de 3.000 euros, socios, reparto de rentas, plazo y relación con el Modelo 100.",
         "190":
           "Guía sencilla del Modelo 190: trabajadores, profesionales, claves, relación con el Modelo 111, certificados, correcciones y presentación.",
+        "216":
+          "Guía sencilla del Modelo 216: quién debe presentarlo, alquileres y profesionales no residentes, convenios, certificado de residencia, plazos y pago.",
+        "296":
+          "Guía sencilla del Modelo 296: perceptores no residentes, rentas exentas, TIN, relación con el Modelo 216, plazo, presentación y correcciones.",
         "303":
           "Guía sencilla del Modelo 303: quién debe presentarlo, IVA repercutido y deducible, resultados, plazos, Pre303 y corrección de errores.",
         "309":
@@ -92,6 +101,10 @@ export async function generateMetadata({
           "Guía sencilla del Modelo 347: quién debe presentarlo, límite de 3.005,06 euros, operaciones incluidas y excluidas, trimestres y presentación.",
         "349":
           "Guía sencilla del Modelo 349: ROI, VIES, bienes y servicios con empresas de la UE, claves, periodicidad, plazos y presentación.",
+        "360":
+          "Guía sencilla del Modelo 360: quién puede solicitar IVA extranjero, periodos, importes mínimos, plazo del 30 de septiembre, facturas y procedimiento.",
+        "361":
+          "Guía sencilla del Modelo 361: quién puede solicitar IVA español, representante, reciprocidad, documentos, importes mínimos y plazo.",
         "369":
           "Guía sencilla del Modelo 369: quién lo presenta, periodos, países de consumo, tipos de IVA, declaraciones sin actividad, pago y correcciones.",
         "390":

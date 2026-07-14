@@ -1270,7 +1270,7 @@ const MODEL_216_CONTENT = {
   canonicalName:
     "IRNR. Impuesto sobre la Renta de no Residentes. Rentas obtenidas sin mediación de establecimiento permanente. Retenciones e ingresos a cuenta (declaración - documento de ingreso).",
   summary:
-    "Declaración que la AEAT relaciona con retenciones e ingresos a cuenta del IRNR sobre rentas obtenidas sin mediación de establecimiento permanente.",
+    "Ingreso periódico de retenciones por determinadas rentas pagadas a personas o empresas no residentes sin establecimiento permanente.",
   searchTerms: [
     "modelo 216",
     "IRNR",
@@ -1278,6 +1278,11 @@ const MODEL_216_CONTENT = {
     "retenciones no residentes",
     "ingresos a cuenta",
     "sin establecimiento permanente",
+    "alquiler local propietario no residente",
+    "profesional no residente",
+    "certificado residencia fiscal",
+    "convenio doble imposición",
+    "modelo 296",
     "presentación 2024 y siguientes",
     "formulario modelo 216",
     "fichero .216",
