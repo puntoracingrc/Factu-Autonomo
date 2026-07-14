@@ -1048,6 +1048,10 @@ describe("MVP usability polish", () => {
       new URL("../components/documents/DocumentList.tsx", import.meta.url),
       "utf8",
     );
+    const timelineDividerSource = readFileSync(
+      new URL("../components/ui/TimelineMonthDivider.tsx", import.meta.url),
+      "utf8",
+    );
 
     expect(documentListSource).toContain("DOCUMENT_LIST_BATCH_SIZE = 30");
     expect(documentListSource).toContain('"factura"');
@@ -1060,11 +1064,15 @@ describe("MVP usability polish", () => {
     expect(documentListSource).toContain("TimelineMonthDivider");
     expect(documentListSource).toContain("formatTimelineMonthLabel");
     expect(documentListSource.replace(/\s+/g, " ")).toContain(
-      'type === "factura" ? sortDocumentsByNewest(statusDocuments) : sortDocumentsByNumberDesc(statusDocuments)',
+      'type === "factura" ? sortInvoicesBySeriesAndNumberDesc( statusDocuments, data.profile.numbering, ) : sortDocumentsByNumberDesc(statusDocuments)',
     );
     expect(documentListSource).toContain(
-      "Ordenadas por fecha del documento, más recientes primero",
+      "Agrupadas por serie y ordenadas por número, de mayor a menor",
     );
+    expect(documentListSource).toContain("describeInvoiceDocumentSeries");
+    expect(documentListSource).toContain("previousInvoiceSeries.key");
+    expect(timelineDividerSource).toContain("min-w-0 max-w-full truncate");
+    expect(timelineDividerSource).toContain("title={label}");
   });
 
   it("carga gastos por bloques y muestra separadores por mes", () => {

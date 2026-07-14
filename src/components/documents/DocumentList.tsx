@@ -43,11 +43,12 @@ import {
   findLinkedCustomerForDocument,
 } from "@/lib/document-client-contact";
 import {
+  describeInvoiceDocumentSeries,
   filterDocumentsByQuery,
   isDocumentEditable,
   isDraftInvoiceNumber,
   sortDocumentsByNumberDesc,
-  sortDocumentsByNewest,
+  sortInvoicesBySeriesAndNumberDesc,
 } from "@/lib/documents";
 import { openDocumentPdfPreview } from "@/lib/pdf";
 import { summarizeWorkDocumentExpensesById } from "@/lib/expenses";
@@ -94,7 +95,7 @@ const SEARCH_PLACEHOLDERS: Record<DocumentType, string> = {
 };
 
 const SEARCH_HINTS: Record<DocumentType, string> = {
-  factura: "Ordenadas por fecha del documento, más recientes primero",
+  factura: "Agrupadas por serie y ordenadas por número, de mayor a menor",
   presupuesto: "Ordenados por número, más recientes primero",
   recibo: "Ordenados por número, más recientes primero",
 };
@@ -193,12 +194,16 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     );
     const sorted =
       type === "factura"
-        ? sortDocumentsByNewest(statusDocuments)
+        ? sortInvoicesBySeriesAndNumberDesc(
+            statusDocuments,
+            data.profile.numbering,
+          )
         : sortDocumentsByNumberDesc(statusDocuments);
     return filterDocumentsByQuery(sorted, search, { vatExempt });
   }, [
     allDocuments,
     data.documents,
+    data.profile.numbering,
     period,
     search,
     statusFilter,
@@ -401,10 +406,28 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
           {visibleDocuments.map((doc, index) => {
             const previousDocument =
               index > 0 ? visibleDocuments[index - 1] : null;
-            const showTimelineDivider =
-              !previousDocument ||
-              timelineMonthKey(previousDocument.date) !==
-                timelineMonthKey(doc.date);
+            const invoiceSeries =
+              type === "factura"
+                ? describeInvoiceDocumentSeries(doc, data.profile.numbering)
+                : null;
+            const previousInvoiceSeries =
+              type === "factura" && previousDocument
+                ? describeInvoiceDocumentSeries(
+                    previousDocument,
+                    data.profile.numbering,
+                  )
+                : null;
+            const dividerLabel =
+              type === "factura"
+                ? !previousInvoiceSeries ||
+                  previousInvoiceSeries.key !== invoiceSeries?.key
+                  ? invoiceSeries?.label
+                  : null
+                : !previousDocument ||
+                    timelineMonthKey(previousDocument.date) !==
+                      timelineMonthKey(doc.date)
+                  ? formatTimelineMonthLabel(doc.date)
+                  : null;
             const recoveryCollectionValid =
               !hasAppIssuedRecoveryProtectionClaim(doc) ||
               appIssuedRecoveryCollection.validDocumentIds.has(doc.id);
@@ -506,11 +529,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
 
             return (
               <Fragment key={doc.id}>
-                {showTimelineDivider && (
-                  <TimelineMonthDivider
-                    label={formatTimelineMonthLabel(doc.date)}
-                  />
-                )}
+                {dividerLabel && <TimelineMonthDivider label={dividerLabel} />}
                 <Card
                   className={`grid gap-4 ${
                     type === "factura"
