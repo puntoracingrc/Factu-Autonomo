@@ -95,7 +95,7 @@ describe("fiscal notification knowledge coverage v1", () => {
     expect(resolveFiscalNotificationFamilyCoverageV1(1)).toBeNull();
   });
 
-  it("keeps the Consultor manual aligned with every ephemeral printed field", () => {
+  it("keeps the Consultor manual aligned with every structured printed field", () => {
     const manual = readFileSync(
       new URL("../../manual/sections/consultor-fiscal.ts", import.meta.url),
       "utf8",
@@ -106,7 +106,12 @@ describe("fiscal notification knowledge coverage v1", () => {
     expect(manual).toContain(
       "también puede mostrar importes, valores exactos de referencias y fechas bajo etiquetas cerradas",
     );
-    expect(manual).toContain("Todo ello es efímero y no se guarda");
+    expect(manual).toContain(
+      "Esos campos permanecen solo en memoria hasta que el usuario pulsa el botón de guardado",
+    );
+    expect(manual).toContain(
+      "Nunca guarda el PDF, su nombre ni el texto completo",
+    );
     expect(manual).toContain(
       "Una fecha impresa no se interpreta como fecha de notificación ni como vencimiento",
     );
