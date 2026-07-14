@@ -955,7 +955,7 @@ const MODEL_309_CONTENT = {
   reviewedOn: REVIEWED_ON,
   canonicalName: "IVA. Declaración - Liquidación no periódica.",
   summary:
-    "Declaración-liquidación no periódica del Impuesto sobre el Valor Añadido, con formulario electrónico, importación de fichero y ayuda oficial sobre predeclaración.",
+    "Autoliquidación especial de IVA para determinadas operaciones cuando no corresponde una declaración periódica normal.",
   searchTerms: [
     "modelo 309",
     "liquidacion no periodica",
@@ -967,6 +967,13 @@ const MODEL_309_CONTENT = {
     "fichero 309",
     "instrucciones modelo 309",
     "Orden HAC 3625 2003",
+    "recargo de equivalencia",
+    "actividades exentas",
+    "adquisiciones intracomunitarias",
+    "medios de transporte nuevos",
+    "ejecución forzosa",
+    "régimen especial agricultura ganadería pesca",
+    "periodo 0A",
   ],
   sections: [
     {

@@ -69,7 +69,7 @@ const MODEL_100_CONTENT = {
   canonicalName:
     "Impuesto sobre la Renta de las Personas Físicas. Declaración y documentos de ingreso o devolución.",
   summary:
-    "Declaración anual del Impuesto sobre la Renta de las Personas Físicas y documentación asociada, según la información oficial de la Agencia Tributaria.",
+    "Declaración anual del IRPF. Incluye el resultado de la actividad, las demás rentas, retenciones y pagos realizados durante el año.",
   searchTerms: [
     "declaración de la renta",
     "declaración anual IRPF",
@@ -81,6 +81,14 @@ const MODEL_100_CONTENT = {
     "documento de ingreso o devolución",
     "campaña de renta",
     "Impuesto sobre la Renta de las Personas Físicas",
+    "autónomo",
+    "RETA",
+    "ingresos y gastos",
+    "pagos fraccionados",
+    "Modelo 130",
+    "Modelo 131",
+    "estimación directa",
+    "estimación objetiva",
   ],
   sections: [
     {
