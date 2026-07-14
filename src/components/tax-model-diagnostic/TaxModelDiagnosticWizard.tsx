@@ -212,9 +212,7 @@ export function TaxModelDiagnosticWizard() {
       ...activeSession,
       profile: { ...activeSession.profile, [field]: value } as TaxpayerProfile,
       evidence: [
-        ...activeSession.evidence.filter(
-          (item) => item.evidenceId !== nextEvidence.evidenceId,
-        ),
+        ...activeSession.evidence.filter((item) => item.field !== field),
         nextEvidence,
       ],
       completedQuestionIds: [
@@ -231,13 +229,13 @@ export function TaxModelDiagnosticWizard() {
     evidence: Evidence[],
     completedQuestionIds: string[],
   ) {
-    const evidenceIds = new Set(evidence.map((item) => item.evidenceId));
+    const patchedFields = new Set(Object.keys(patch));
     persist({
       ...activeSession,
       profile: { ...activeSession.profile, ...patch },
       evidence: [
         ...activeSession.evidence.filter(
-          (item) => !evidenceIds.has(item.evidenceId),
+          (item) => !patchedFields.has(item.field),
         ),
         ...evidence,
       ],
@@ -430,6 +428,12 @@ export function TaxModelDiagnosticWizard() {
               profile={activeSession.profile}
               completed={activeSession.completedQuestionIds.includes(
                 question.questionId,
+              )}
+              documentValidated={activeSession.evidence.some(
+                (item) =>
+                  item.field === question.field &&
+                  item.userConfirmed &&
+                  item.type !== "USER_ANSWER",
               )}
               onAnswer={(value) =>
                 updateAnswer(question.questionId, question.field, value)

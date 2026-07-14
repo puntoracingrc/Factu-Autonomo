@@ -4,5 +4,6 @@ export * from "./aeat-tax-form";
 export * from "./census-certificate";
 export * from "./census-document-file";
 export * from "./profile";
+export * from "./supporting-document";
 export * from "./tax-context";
 export * from "./types";

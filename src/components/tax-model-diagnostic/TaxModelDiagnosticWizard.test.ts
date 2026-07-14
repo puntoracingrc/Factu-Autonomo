@@ -54,8 +54,18 @@ describe("tax model diagnostic UI contract", () => {
     expect(hacienda).toContain("Confirmo que los archivos contienen los datos");
     expect(hacienda).toContain('extractionMethod: "OCR_LOCAL"');
     expect(hacienda).toContain("mapSubmittedTaxFormToQuestions");
+    expect(hacienda).toContain("parseSupportingDocumentText");
+    expect(hacienda).toContain("mapSupportingDocumentToQuestions");
     expect(hacienda).toContain("mapCensusObligationsToQuestions");
     expect(hacienda).not.toContain("reconcileCensusIdentity");
+  });
+
+  it("keeps document answers editable and distinguishes them in green", () => {
+    expect(questions).toContain("documentValidated");
+    expect(questions).toContain("bg-emerald-600");
+    expect(questions).toContain("puedes cambiarlo");
+    expect(wizard).toContain("item.type !== \"USER_ANSWER\"");
+    expect(wizard).toContain("item.field !== field");
   });
 
   it("muestra motivo, evidencia, períodos, sujeto, fuentes y siguiente paso", () => {

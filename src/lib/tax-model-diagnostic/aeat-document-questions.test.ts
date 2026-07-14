@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { parseAeatTaxFormText } from "@/lib/fiscal-profile/aeat-tax-form";
+import { parseSupportingDocumentText } from "@/lib/fiscal-profile/supporting-document";
 import { DIAGNOSTIC_QUESTIONS } from "./questions";
 import {
   AEAT_DOCUMENT_QUESTION_CAPABILITIES,
+  FISCAL_DOCUMENT_QUESTION_CATALOG_VERSION,
   mapCensusObligationsToQuestions,
   mapSubmittedTaxFormToQuestions,
+  mapSupportingDocumentToQuestions,
 } from "./aeat-document-questions";
 
 describe("closed AEAT document to diagnostic-question map", () => {
@@ -19,6 +22,10 @@ describe("closed AEAT document to diagnostic-question map", () => {
         expect(knownQuestions.has(questionId), questionId).toBe(true);
       }
     }
+    expect(Object.keys(AEAT_DOCUMENT_QUESTION_CAPABILITIES)).toHaveLength(39);
+    expect(FISCAL_DOCUMENT_QUESTION_CATALOG_VERSION).toBe(
+      "fiscal-document-question-catalog.2026-07.v1",
+    );
   });
 
   it("maps a submitted 115 to the two rental answers it demonstrates", () => {
@@ -63,6 +70,33 @@ describe("closed AEAT document to diagnostic-question map", () => {
     ).toMatchObject([
       { field: "rentsBusinessPremises", value: "YES" },
       { field: "rentSubjectToWithholding", value: "YES" },
+    ]);
+  });
+
+  it("maps exact 349 record keys to their corresponding questions", () => {
+    const candidate = parseAeatTaxFormText(`
+      Modelo 349 NIF 12345678Z Ejercicio 2026 Período 2T
+      Operaciones intracomunitarias · Declaración recapitulativa
+      Clave de operación E
+      Clave de operación S
+      Número de justificante 3491234567890
+    `);
+    expect(mapSubmittedTaxFormToQuestions(candidate)).toMatchObject([
+      { field: "euGoodsSales", value: "YES" },
+      { field: "euServicesSales", value: "YES" },
+      { field: "roiRegistered", value: "YES" },
+    ]);
+  });
+
+  it("maps only explicit positive facts from supporting documents", () => {
+    const candidate = parseSupportingDocumentText(`
+      Seguridad Social
+      Informe de situación actual del trabajador
+      Régimen especial de trabajadores por cuenta propia o autónomos
+      Situación actual: Alta
+    `);
+    expect(mapSupportingDocumentToQuestions(candidate)).toMatchObject([
+      { field: "retaDuringYear", questionId: "B_RETA", value: "YES" },
     ]);
   });
 });

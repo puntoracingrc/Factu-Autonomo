@@ -18,6 +18,7 @@ import {
   parseAeatCensusScreenshotText,
   parseAeatTaxFormText,
   parseCensusCertificateText,
+  parseSupportingDocumentText,
   readCensusDocumentText,
   recognizeAndClassifyAeatScreenshotFiles,
   validateAeatScreenshotFile,
@@ -25,10 +26,12 @@ import {
   type AeatCensusScreenshotKind,
   type AeatScreenshotOcrProgress,
   type CensusCertificateCandidate,
+  type SupportingDocumentCandidate,
 } from "@/lib/fiscal-profile";
 import {
   mapCensusObligationsToQuestions,
   mapSubmittedTaxFormToQuestions,
+  mapSupportingDocumentToQuestions,
 } from "@/lib/tax-model-diagnostic/aeat-document-questions";
 import type {
   Evidence,
@@ -350,6 +353,39 @@ function taxFormProposals(
   }));
 }
 
+function supportingDocumentLabel(
+  candidate: SupportingDocumentCandidate,
+): string {
+  return {
+    RETA_CURRENT_STATUS_REPORT: "Informe de situación actual del trabajador",
+    WORK_LIFE_REPORT: "Informe de vida laboral",
+    SELF_EMPLOYED_ACTIVITY_REPORT:
+      "Informe de actividades de trabajo autónomo",
+    INTRACOMMUNITY_OPERATOR_CERTIFICATE:
+      "Certificado de operador intracomunitario",
+    LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE:
+      "Certificado de exoneración de retención del arrendador",
+    UNKNOWN: "Documento no reconocido",
+  }[candidate.documentType];
+}
+
+function supportingDocumentProposals(
+  candidate: SupportingDocumentCandidate,
+  fileName: string,
+  extractionMethod: ExtractionMethod,
+): UnifiedProposal[] {
+  const source = {
+    evidenceType: "OTHER" as const,
+    extractionMethod,
+    sourceLocation: `${fileName} · ${supportingDocumentLabel(candidate)}`,
+    confidence: candidate.status === "RESOLVED" ? 0.86 : 0.7,
+  };
+  return mapSupportingDocumentToQuestions(candidate).map((answer) => ({
+    ...answer,
+    ...source,
+  }));
+}
+
 function consolidateProposals(raw: UnifiedProposal[]): {
   proposals: UnifiedProposal[];
   conflicts: string[];
@@ -487,12 +523,29 @@ export function DiagnosticHaciendaReview({
             rawProposals.push(
               ...taxFormProposals(taxForm, file.name, "PDF_NATIVE_TEXT"),
             );
+            continue;
+          }
+          const supporting = parseSupportingDocumentText(text);
+          if (supporting.status !== "BLOCKED") {
+            nextAnalyses.push({
+              fileName: file.name,
+              label: supportingDocumentLabel(supporting),
+              status: supporting.status,
+              warnings: supporting.warnings,
+            });
+            rawProposals.push(
+              ...supportingDocumentProposals(
+                supporting,
+                file.name,
+                "PDF_NATIVE_TEXT",
+              ),
+            );
           } else {
             nextAnalyses.push({
               fileName: file.name,
               label: "PDF no reconocido",
               status: "BLOCKED",
-              warnings: taxForm.warnings,
+              warnings: supporting.warnings,
             });
           }
         } catch (caught) {
@@ -542,23 +595,40 @@ export function DiagnosticHaciendaReview({
           (item) => item.kind === "UNKNOWN",
         )) {
           const taxForm = parseAeatTaxFormText(result.text);
+          if (taxForm.status !== "BLOCKED") {
+            nextAnalyses.push({
+              fileName: result.fileName,
+              label: `Modelo ${taxForm.modelCode}${taxForm.taxYear ? ` · ${taxForm.taxYear}` : ""}${taxForm.period ? ` · ${taxForm.period}` : ""}`,
+              status: taxForm.status,
+              warnings: taxForm.warnings,
+            });
+            rawProposals.push(
+              ...taxFormProposals(taxForm, result.fileName, "OCR_LOCAL"),
+            );
+            continue;
+          }
+          const supporting = parseSupportingDocumentText(result.text);
           nextAnalyses.push(
-            taxForm.status === "BLOCKED"
+            supporting.status === "BLOCKED"
               ? {
                   fileName: result.fileName,
                   label: "Captura no reconocida",
                   status: "BLOCKED",
-                  warnings: taxForm.warnings,
+                  warnings: supporting.warnings,
                 }
               : {
                   fileName: result.fileName,
-                  label: `Modelo ${taxForm.modelCode}${taxForm.taxYear ? ` · ${taxForm.taxYear}` : ""}${taxForm.period ? ` · ${taxForm.period}` : ""}`,
-                  status: taxForm.status,
-                  warnings: taxForm.warnings,
+                  label: supportingDocumentLabel(supporting),
+                  status: supporting.status,
+                  warnings: supporting.warnings,
                 },
           );
           rawProposals.push(
-            ...taxFormProposals(taxForm, result.fileName, "OCR_LOCAL"),
+            ...supportingDocumentProposals(
+              supporting,
+              result.fileName,
+              "OCR_LOCAL",
+            ),
           );
         }
         rawProposals.push(
@@ -680,9 +750,10 @@ export function DiagnosticHaciendaReview({
       <div className="mt-4 flex gap-2 rounded-xl border border-blue-200 bg-white p-3 text-sm text-blue-900 dark:border-blue-900 dark:bg-slate-900 dark:text-blue-200">
         <ShieldCheck className="h-5 w-5 shrink-0" aria-hidden="true" />
         <p>
-          Los archivos no se envían ni se guardan. El lector reconoce
-          certificados censales, modelos 036 y 037 históricos, pantallas
-          censales y autoliquidaciones 115, 130, 131 y 303.
+          Los archivos no se envían ni se guardan. El lector usa un catálogo
+          cerrado de modelos fiscales, documentos censales, certificados e
+          informes de Seguridad Social; un archivo desconocido no contesta
+          ninguna pregunta.
         </p>
       </div>
 
