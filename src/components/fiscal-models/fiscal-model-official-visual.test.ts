@@ -122,6 +122,46 @@ describe("FiscalModelOfficialVisual", () => {
   );
 
   it.each([
+    ["559", "AEAT_BROWSER_FORM"],
+    ["560", "AEAT_BROWSER_FORM"],
+    ["561", "AEAT_BROWSER_FORM"],
+    ["562", "AEAT_BROWSER_FORM"],
+    ["563", "AEAT_BROWSER_FORM"],
+    ["566", "AEAT_BROWSER_FORM"],
+    ["568", "AEAT_FORM_AND_FILE"],
+    ["571", "AEAT_BROWSER_FORM"],
+    ["572", "AEAT_BROWSER_FORM"],
+    ["573", "AEAT_BROWSER_FORM"],
+    ["576", "AEAT_FORM_AND_FILE"],
+    ["581", "AEAT_BROWSER_FORM"],
+    ["582", "AEAT_HISTORICAL_PROCEDURE"],
+    ["583", "AEAT_BROWSER_FORM"],
+    ["584", "AEAT_BROWSER_FORM"],
+    ["585", "AEAT_ADMINISTRATIVE_TRANSFER"],
+    ["586", "AEAT_HISTORICAL_PROCEDURE"],
+    ["587", "AEAT_BROWSER_FORM"],
+    ["588", "AEAT_BROWSER_FORM"],
+    ["589", "AEAT_BROWSER_FORM"],
+    ["590", "AEAT_BROWSER_FORM"],
+    ["591", "AEAT_FORM_AND_FILE"],
+    ["592", "AEAT_BROWSER_FORM"],
+    ["593", "AEAT_BROWSER_FORM"],
+    ["595", "AEAT_BROWSER_FORM"],
+    ["596", "AEAT_BROWSER_FORM"],
+    ["600", "AEAT_ADMINISTRATIVE_TRANSFER"],
+    ["610", "AEAT_ADMINISTRATIVE_TRANSFER"],
+    ["615", "AEAT_ADMINISTRATIVE_TRANSFER"],
+    ["620", "AEAT_ADMINISTRATIVE_TRANSFER"],
+  ] as const)(
+    "uses the source-backed Batch 16 visual for Model %s",
+    (code, mode) => {
+      expect(resolveFiscalModelOfficialVisualMode(officialContent(code))).toBe(
+        mode,
+      );
+    },
+  );
+
+  it.each([
     ["347", "AEAT_FORM_AND_FILE"],
     ["349", "AEAT_FORM_AND_FILE"],
     ["353", "AEAT_FORM_AND_FILE"],

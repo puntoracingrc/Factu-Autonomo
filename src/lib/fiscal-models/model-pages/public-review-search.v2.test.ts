@@ -283,6 +283,61 @@ describe("public AEAT model review search v2", () => {
     expect(
       resultCodes("fábricas depósitos vino bebidas fermentadas"),
     ).toContain("553");
+    expect(resultCodes("destilación artesanal cosechero")).toContain("559");
+    expect(resultCodes("electricidad fichero auxiliar desglose")).toContain(
+      "560",
+    );
+    expect(resultCodes("impuesto cerveza")).toContain("561");
+    expect(resultCodes("productos intermedios")).toContain("562");
+    expect(resultCodes("alcohol bebidas derivadas")).toContain("563");
+    expect(resultCodes("labores tabaco")).toContain("566");
+    expect(resultCodes("reventa medios transporte lotes")).toContain("568");
+    expect(resultCodes("beneficio devolución hidrocarburos")).toContain("571");
+    expect(resultCodes("solicitud devolución hidrocarburos")).toContain("572");
+    expect(resultCodes("cigarrillos electrónicos bolsas nicotina")).toContain(
+      "573",
+    );
+    expect(
+      resultCodes("determinados medios transporte autoliquidación"),
+    ).toContain("576");
+    expect(resultCodes("hidrocarburos declaración liquidación")).toContain(
+      "581",
+    );
+    expect(resultCodes("reexpedición comunidad autónoma")).toContain("582");
+    expect(
+      resultCodes("producción energía eléctrica pagos fraccionados"),
+    ).toContain("583");
+    expect(
+      resultCodes("combustible nuclear gastado nucleoeléctrica"),
+    ).toContain("584");
+    expect(
+      resultCodes("almacenamiento combustible nuclear centralizadas"),
+    ).toContain("585");
+    expect(resultCodes("declaración informativa gases fluorados")).toContain(
+      "586",
+    );
+    expect(resultCodes("gases fluorados efecto invernadero")).toContain("587");
+    expect(
+      resultCodes("cese actividad enero octubre energía eléctrica"),
+    ).toContain("588");
+    expect(resultCodes("extracción gas petróleo condensación")).toContain(
+      "589",
+    );
+    expect(resultCodes("devolución exportación expedición")).toContain("590");
+    expect(
+      resultCodes("declaración anual operaciones energía eléctrica"),
+    ).toContain("591");
+    expect(resultCodes("envases plástico no reutilizables")).toContain("592");
+    expect(resultCodes("depósito residuos vertederos incineración")).toContain(
+      "593",
+    );
+    expect(resultCodes("impuesto carbón")).toContain("595");
+    expect(resultCodes("declaración anual operaciones carbón")).toContain(
+      "596",
+    );
+    expect(
+      resultCodes("transmisiones patrimoniales actos jurídicos documentados"),
+    ).toEqual(expect.arrayContaining(["600", "610", "615", "620"]));
   }, 15_000);
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {
