@@ -51,6 +51,19 @@ describe("tax model diagnostic UI contract", () => {
     expect(hacienda).toContain("no necesitas");
     expect(hacienda).toContain("identificar cada archivo");
     expect(hacienda).toContain("Los archivos no se envían ni se guardan");
+    expect(hacienda).toContain(
+      'data-info-card="recognized-fiscal-documents"',
+    );
+    expect(hacienda).toContain(
+      "¿Qué modelos y documentos reconoce el lector?",
+    );
+    expect(hacienda).toContain("30 modelos fiscales");
+    expect(hacienda).toContain("9 documentos sin número de modelo");
+    expect(hacienda).toContain("Capturas de Hacienda compatibles");
+    expect(hacienda).toContain("detalle de una actividad o número de referencia");
+    expect(hacienda).toContain(
+      "Solo se rellenan preguntas cuando su interior",
+    );
     expect(hacienda).toContain("Confirmo que los archivos contienen los datos");
     expect(hacienda).toContain('extractionMethod: "OCR_LOCAL"');
     expect(hacienda).toContain("mapSubmittedTaxFormToQuestions");
