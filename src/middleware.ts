@@ -3,6 +3,7 @@ import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
 import { isPublicAeatOfficialIndexablePathV1 } from "@/lib/fiscal-models/model-pages/official-content/indexable-paths.v1";
 import { isPublicAeatModelReviewPathV1 } from "@/lib/fiscal-models/model-pages/public-review-route-manifest.v1";
 import { buildSecurityResponseHeaders } from "@/lib/security-response-headers";
+import { isTaxModelDiagnosticEnabled } from "@/lib/tax-model-diagnostic/config";
 
 const PRIVATE_APP_HEADERS = {
   "Cache-Control": "no-store, max-age=0",
@@ -91,6 +92,10 @@ function isAllowedConsultorPublicReviewPath(pathname: string): boolean {
   );
 }
 
+function isTaxModelDiagnosticPath(pathname: string): boolean {
+  return pathname === "/consultor-fiscal/diagnostico";
+}
+
 function privateNotFoundResponse(): NextResponse {
   const response = applyPrivateHeaders(
     new NextResponse("Not Found", { status: 404 }),
@@ -135,8 +140,17 @@ export function middleware(request?: NextRequest) {
 
   if (
     request &&
+    isTaxModelDiagnosticPath(request.nextUrl.pathname) &&
+    !isTaxModelDiagnosticEnabled()
+  ) {
+    return privateNotFoundResponse();
+  }
+
+  if (
+    request &&
     isConsultorFiscalReleasePath(request.nextUrl.pathname) &&
     !isAllowedConsultorPublicReviewPath(request.nextUrl.pathname) &&
+    !isTaxModelDiagnosticPath(request.nextUrl.pathname) &&
     !isConsultorFiscalEnabled()
   ) {
     return privateNotFoundResponse();

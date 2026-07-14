@@ -60,10 +60,10 @@ describe("app navigation", () => {
     ).toBeUndefined();
   });
 
-  it("expone Asesoría fiscal mediante una ruta pública segura", () => {
+  it("abre Asesoría fiscal en el configurador cuando está habilitado", () => {
     expect(
       APP_NAV_ITEMS.find(
-        (item) => item.href === "/consultor-fiscal/modelos",
+        (item) => item.href === "/consultor-fiscal/diagnostico",
       ),
     ).toMatchObject({
       label: "Asesoría fiscal",
@@ -75,12 +75,12 @@ describe("app navigation", () => {
         "/consultor-fiscal/calendario",
         APP_NAV_ITEMS,
       )?.href,
-    ).toBe("/consultor-fiscal/modelos");
+    ).toBe("/consultor-fiscal/diagnostico");
     expect(
       findActiveAppNavItem(
         "/consultor-fiscal/notificaciones",
         APP_NAV_ITEMS,
       )?.href,
-    ).toBe("/consultor-fiscal/modelos");
+    ).toBe("/consultor-fiscal/diagnostico");
   });
 });

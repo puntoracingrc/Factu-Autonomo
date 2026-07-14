@@ -58,6 +58,27 @@ describe("private route middleware", () => {
     );
   });
 
+  it("abre el diagnóstico en preview de Vercel y lo mantiene cerrado en producción", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", "preview");
+
+    const preview = middleware(
+      new NextRequest(
+        "https://preview.vercel.app/consultor-fiscal/diagnostico",
+      ),
+    );
+    expect(preview.status).toBe(200);
+    expect(preview.headers.get("x-middleware-next")).toBe("1");
+
+    vi.stubEnv("NEXT_PUBLIC_VERCEL_ENV", "production");
+    const production = middleware(
+      new NextRequest(
+        "https://facturacion-autonomos.app/consultor-fiscal/diagnostico",
+      ),
+    );
+    expect(production.status).toBe(404);
+  });
+
   it("publica únicamente el índice y las 229 rutas literales informativas", () => {
     expect(PUBLIC_AEAT_MODEL_REVIEW_PATHS_V1).toHaveLength(229);
 

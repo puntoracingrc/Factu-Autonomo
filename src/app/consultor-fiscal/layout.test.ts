@@ -9,6 +9,9 @@ describe("ConsultorFiscalLayout", () => {
       "expenseAnalysisEnabled={consultorFiscalEnabled}",
     );
     expect(source).toContain("notificationsEnabled");
+    expect(source).toContain(
+      "taxModelDiagnosticEnabled={isTaxModelDiagnosticEnabled()}",
+    );
     expect(source).not.toContain(
       "notificationsEnabled={consultorFiscalEnabled}",
     );

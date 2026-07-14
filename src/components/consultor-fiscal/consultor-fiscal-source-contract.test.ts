@@ -168,7 +168,7 @@ describe("navegación, ayuda y perímetro privado", () => {
   it("registra Asesoría fiscal en escritorio, Más móvil y rutas anidadas", () => {
     expect(
       APP_NAV_ITEMS.find(
-        (item) => item.href === "/consultor-fiscal/modelos",
+        (item) => item.href === "/consultor-fiscal/diagnostico",
       ),
     ).toMatchObject({
       label: "Asesoría fiscal",
@@ -177,12 +177,12 @@ describe("navegación, ayuda y perímetro privado", () => {
     });
     expect(
       MOBILE_MORE_NAV_ITEMS.some(
-        (item) => item.href === "/consultor-fiscal/modelos",
+        (item) => item.href === "/consultor-fiscal/diagnostico",
       ),
     ).toBe(true);
     expect(
       MOBILE_PRIMARY_NAV_ITEMS.some(
-        (item) => item.href === "/consultor-fiscal/modelos",
+        (item) => item.href === "/consultor-fiscal/diagnostico",
       ),
     ).toBe(false);
     expect(
@@ -190,7 +190,7 @@ describe("navegación, ayuda y perímetro privado", () => {
         "/consultor-fiscal/analisis",
         APP_NAV_ITEMS,
       )?.href,
-    ).toBe("/consultor-fiscal/modelos");
+    ).toBe("/consultor-fiscal/diagnostico");
   });
 
   it("mantiene ayuda contextual específica y documenta límites operativos", () => {

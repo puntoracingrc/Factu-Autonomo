@@ -34,6 +34,7 @@ import { ensureCustomerForDocument, type ClientInput } from "@/lib/customers";
 import type { Client } from "@/lib/types";
 import { EMPTY_DATA } from "@/lib/types";
 import { normalizeBusinessFiscalProfile } from "@/lib/fiscal-profile";
+import { normalizeTaxModelDiagnosticSession } from "@/lib/tax-model-diagnostic/profile";
 import {
   assignNextDocumentNumber,
   assignNextDocumentNumberByType,
@@ -735,6 +736,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           documentUnits: normalizeDocumentUnits(profile.documentUnits),
           appPreferences: normalizeAppPreferences(profile.appPreferences),
           fiscalProfile: normalizeBusinessFiscalProfile(profile.fiscalProfile),
+          taxModelDiagnostic: normalizeTaxModelDiagnosticSession(
+            profile.taxModelDiagnostic,
+          ),
         },
       }));
     },

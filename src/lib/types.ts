@@ -1,4 +1,5 @@
 import type { BusinessFiscalProfile } from "./fiscal-profile/types";
+import type { TaxModelDiagnosticSession } from "./tax-model-diagnostic/contracts";
 
 export type DocumentType = "factura" | "presupuesto" | "recibo";
 
@@ -1144,6 +1145,8 @@ export interface BusinessProfile {
   vatExempt?: boolean;
   /** Contexto fiscal opcional reutilizado por el Consultor fiscal. */
   fiscalProfile?: BusinessFiscalProfile;
+  /** Cuestionario confirmado para orientar los modelos tributarios. */
+  taxModelDiagnostic?: TaxModelDiagnosticSession;
   /** % IRPF estimado sobre el beneficio (modelo 130 orientativo) */
   irpfPercent?: number;
   /** Días de validez aplicados por defecto a presupuestos nuevos; 0 desactiva la fecha automática. */

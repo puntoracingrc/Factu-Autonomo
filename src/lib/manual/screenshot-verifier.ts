@@ -32,6 +32,7 @@ export const MANUAL_SCREENSHOT_ROUTE_TEMPLATES = [
   "/configuracion",
   "/configuracion/plantillas",
   "/consultor-fiscal",
+  "/consultor-fiscal/diagnostico",
   "/cuenta",
   "/demo",
   "/facturas",
