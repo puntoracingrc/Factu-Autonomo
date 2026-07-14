@@ -14,6 +14,12 @@ import {
   type AppendAeatEnforcementStructuredReviewResultV1,
   type AppendAeatOffsetStructuredReviewResultV1,
 } from "./structured-review-workspace.v1";
+import {
+  appendFiscalNotificationVerticalSliceReviewV1,
+  FiscalNotificationVerticalSliceWorkspaceErrorV1,
+  type AppendFiscalNotificationVerticalSliceReviewResultV1,
+} from "./vertical-slice-review-workspace.v1";
+import { parseFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
 
 export type FiscalNotificationStructuredReviewSaveBlockedReasonV1 =
   | "invalid_structured_review"
@@ -24,6 +30,7 @@ export type DurableFiscalNotificationStructuredReviewSaveResultV1 =
       | AppendAeatEnforcementStructuredReviewResultV1
       | AppendAeatDeferralStructuredReviewResultV1
       | AppendAeatOffsetStructuredReviewResultV1
+      | AppendFiscalNotificationVerticalSliceReviewResultV1
     >
   | {
       readonly status: "blocked";
@@ -53,13 +60,16 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
   let prepared:
     | AppendAeatEnforcementStructuredReviewResultV1
     | AppendAeatDeferralStructuredReviewResultV1
-    | AppendAeatOffsetStructuredReviewResultV1;
+    | AppendAeatOffsetStructuredReviewResultV1
+    | AppendFiscalNotificationVerticalSliceReviewResultV1;
   try {
-    const append = input.analysis.ephemeralOffsetAgreementFacts
-      ? appendAeatOffsetStructuredReviewV1
-      : input.analysis.ephemeralDeferralGrantFacts
-        ? appendAeatDeferralStructuredReviewV1
-        : appendAeatEnforcementStructuredReviewV1;
+    const append = hasStructuredVerticalSlice(input.analysis)
+      ? appendFiscalNotificationVerticalSliceReviewV1
+      : input.analysis.ephemeralOffsetAgreementFacts
+        ? appendAeatOffsetStructuredReviewV1
+        : input.analysis.ephemeralDeferralGrantFacts
+          ? appendAeatDeferralStructuredReviewV1
+          : appendAeatEnforcementStructuredReviewV1;
     prepared = append({
       ownerScope: input.ownerScope,
       reviewId: input.reviewId,
@@ -82,8 +92,10 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
     }
   } catch (error) {
     if (
-      error instanceof FiscalNotificationStructuredReviewV1Error &&
-      error.code === "NO_STRUCTURED_FACTS"
+      (error instanceof FiscalNotificationStructuredReviewV1Error &&
+        error.code === "NO_STRUCTURED_FACTS") ||
+      (error instanceof FiscalNotificationVerticalSliceWorkspaceErrorV1 &&
+        error.code === "NO_STRUCTURED_FACTS")
     ) {
       return { status: "blocked", reason: "no_structured_facts" };
     }
@@ -106,4 +118,22 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
     },
     value: prepared,
   }));
+}
+
+function hasStructuredVerticalSlice(
+  analysis: FiscalNotificationLocalAnalysisResult,
+): boolean {
+  const descriptor = Object.getOwnPropertyDescriptor(
+    analysis,
+    "ephemeralVerticalSliceReview",
+  );
+  if (!descriptor) return false;
+  if (!("value" in descriptor) || descriptor.value === undefined) {
+    if ("value" in descriptor) return false;
+    throw new FiscalNotificationVerticalSliceWorkspaceErrorV1("INVALID_INPUT");
+  }
+  const review = parseFiscalNotificationVerticalSliceReviewV1(
+    descriptor.value,
+  );
+  return review.status === "REVIEW_REQUIRED" && review.documents.length > 0;
 }
