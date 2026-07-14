@@ -137,6 +137,28 @@ describe("expense inbox attachment download boundaries", () => {
     expect(headers.get("authorization")).toBe("Bearer synthetic-test-key");
   });
 
+  it("descarga extremo a extremo desde el CDN real observado de Resend", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        metadataResponse({
+          download_url:
+            "https://cdn.resend.app/email_123/attachments/att_123?signature=test",
+          size: 4,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(new Uint8Array([1, 2, 3, 4]), { status: 200 }),
+      );
+
+    const downloaded = await downloadResendAttachment(downloadInput(fetchImpl));
+
+    expect(downloaded.buffer).toEqual(Buffer.from([1, 2, 3, 4]));
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(String(fetchImpl.mock.calls[1]?.[0])).toContain("cdn.resend.app");
+    expect(fetchImpl.mock.calls[1]?.[1]).toMatchObject({ redirect: "manual" });
+  });
+
   it("conserva solo el estado seguro cuando Resend rechaza la lectura", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()

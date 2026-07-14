@@ -1,0 +1,76 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { NextRequest } from "next/server";
+import { describe, expect, it } from "vitest";
+import { middleware } from "@/middleware";
+
+const root = fileURLToPath(new URL("../../", import.meta.url));
+
+function source(relativePath: string): string {
+  return readFileSync(resolve(root, relativePath), "utf8");
+}
+
+describe("expense inbox reliability contract", () => {
+  it("mantiene el webhook firmado accesible sin sesión de usuario", () => {
+    const response = middleware(
+      new NextRequest(
+        "https://facturacion-autonomos.app/api/expense-inbox/inbound",
+        { method: "POST" },
+      ),
+    );
+    const route = source("src/app/api/expense-inbox/inbound/route.ts");
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(route).toContain("verifyResendPayload");
+    expect(route).toContain("readTextBody");
+    expect(route).toContain("maxBytes: 4 * 1024 * 1024");
+    expect(route).not.toContain("getUserFromBearer");
+  });
+
+  it("conserva reintentos, deduplicación y logs sin contenido sensible", () => {
+    const route = source("src/app/api/expense-inbox/inbound/route.ts");
+    const server = source("src/lib/expense-inbox-server.ts");
+
+    expect(route).toContain("{ status: 500 }");
+    expect(route).toContain("providerHostname: error.providerHostname");
+    expect(route).not.toContain("download_url");
+    expect(server).toContain("hasDuplicateAttachment(input.userId, hash)");
+    expect(server).toContain('error.code === "23505"');
+    expect(server).toContain('return "duplicate"');
+  });
+
+  it("protege la regeneración y evita reutilizar alias retirados", () => {
+    const route = source("src/app/api/expense-inbox/route.ts");
+    const server = source("src/lib/expense-inbox-server.ts");
+
+    expect(route).toContain('body.action === "rotate-alias"');
+    expect(route).toContain("rotateExpenseInboxAlias(user.id)");
+    expect(server).toContain("aliasTokenReserved(aliasToken)");
+    expect(server).toContain("rememberExpenseInboxAlias");
+    expect(server).toContain('status: "retired"');
+    expect(server).toContain('status: "active"');
+    expect(server).toContain('.eq("active", true)');
+  });
+
+  it("mantiene la norma raíz y la decisión versionada", () => {
+    const agents = source("AGENTS.md");
+    const codeowners = source(".github/CODEOWNERS");
+    const adr = source(
+      "docs/architecture/ADR-0004-expense-inbox-email-reliability.md",
+    );
+
+    expect(agents).toContain("ADR-0004-expense-inbox-email-reliability.md");
+    expect(agents).toContain("expense-inbox-reliability-contract.test.ts");
+    expect(adr).toContain("cdn.resend.app");
+    expect(adr).toContain("HTTP 500");
+    expect(adr).toContain("attachment_hash");
+    expect(codeowners).toContain(
+      "/docs/architecture/ADR-0004-expense-inbox-email-reliability.md",
+    );
+    expect(codeowners).toContain("/src/app/api/expense-inbox/**");
+    expect(codeowners).toContain("/src/lib/expense-inbox*");
+    expect(codeowners).toContain("/supabase/migrations/*expense_inbox*");
+  });
+});

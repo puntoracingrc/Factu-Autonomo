@@ -104,3 +104,29 @@ La decisión versionada está en
 Esta excepción solo sirve para retirar datos declarados expresamente como
 pruebas. No es una herramienta para borrar operaciones fiscales reales ni para
 silenciar una incidencia de integridad.
+
+## Fiabilidad del buzón de gastos por email
+
+La decisión obligatoria y versionada está en
+[`docs/architecture/ADR-0004-expense-inbox-email-reliability.md`](docs/architecture/ADR-0004-expense-inbox-email-reliability.md).
+
+- `POST /api/expense-inbox/inbound` es un webhook público únicamente para
+  Resend: no se coloca detrás de sesión, suscripción ni flags de UI. Siempre
+  exige firma Svix válida, cuerpo acotado y secreto configurado.
+- Los adjuntos se recuperan solo desde metadatos obtenidos con la API
+  autenticada de Resend. `cdn.resend.app`, `resend.com` y sus subdominios son
+  los únicos destinos admitidos; HTTPS, ausencia de credenciales/puertos
+  inesperados/fragmentos y cero redirecciones son invariantes.
+- Un fallo transitorio o de proveedor responde 500 para conservar el reintento
+  del webhook. Los replays son idempotentes por hash del adjunto y usuario; un
+  conflicto único se trata como duplicado, nunca como una segunda factura.
+- Regenerar la dirección activa un alias privado nuevo, retira y reserva el
+  anterior y resuelve recepción solo contra el alias activo. Un alias retirado
+  nunca se reutiliza.
+- Los logs de fallo solo pueden contener códigos, estados HTTP y hostname
+  seguro: nunca URL firmada, remitente, destinatario, asunto, contenido, API
+  key o secreto de webhook.
+- Cualquier cambio en inbound, descargas, alias, middleware, billing, Supabase
+  o sus migraciones debe ejecutar `expense-inbox-reliability-contract.test.ts`
+  y `expense-inbox-download.test.ts`. Una auditoría o refactor no puede relajar
+  estos invariantes ni convertir un fallo parcial en 200.
