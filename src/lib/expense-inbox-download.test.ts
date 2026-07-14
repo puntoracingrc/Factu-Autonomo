@@ -57,10 +57,16 @@ describe("expense inbox attachment download boundaries", () => {
         "https://attachments.resend.com/email/attachments/file?signature=test",
       ).hostname,
     ).toBe("attachments.resend.com");
+    expect(
+      assertAllowedResendDownloadUrl(
+        "https://cdn.resend.app/email/attachments/file?signature=test",
+      ).hostname,
+    ).toBe("cdn.resend.app");
 
     const blocked = [
       "http://inbound-cdn.resend.com/email/attachments/file",
       "https://inbound-cdn.resend.com.attacker.test/file",
+      "https://cdn.resend.app.attacker.test/file",
       "https://attacker.test/file",
       "https://localhost/file",
       "https://127.0.0.1/file",
