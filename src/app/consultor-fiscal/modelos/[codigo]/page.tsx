@@ -53,7 +53,10 @@ export async function generateMetadata({
         "180": "Modelo 180 AEAT: resumen anual de alquileres",
         "184": "Modelo 184 AEAT: comunidades de bienes y rentas atribuidas",
         "190": "Modelo 190 AEAT: resumen anual de retenciones",
+        "200": "Modelo 200 AEAT: Impuesto sobre Sociedades",
+        "202": "Modelo 202 AEAT: pagos a cuenta de Sociedades",
         "216": "Modelo 216 AEAT: retenciones por pagos a no residentes",
+        "232": "Modelo 232 AEAT: operaciones vinculadas",
         "296": "Modelo 296 AEAT: resumen anual de pagos a no residentes",
         "303": "Modelo 303 AEAT: declaración trimestral del IVA",
         "309": "Modelo 309 AEAT: IVA no periódico",
@@ -89,8 +92,14 @@ export async function generateMetadata({
           "Guía sencilla del Modelo 184: quién debe presentarlo, límite de 3.000 euros, socios, reparto de rentas, plazo y relación con el Modelo 100.",
         "190":
           "Guía sencilla del Modelo 190: trabajadores, profesionales, claves, relación con el Modelo 111, certificados, correcciones y presentación.",
+        "200":
+          "Guía del Modelo 200: quién lo presenta, resultado contable, ajustes fiscales, tipos del ejercicio 2025, plazos, Sociedades WEB y correcciones.",
+        "202":
+          "Guía del Modelo 202: pagos fraccionados, modalidades de cálculo, periodos de abril, octubre y diciembre, plazos y relación con el Modelo 200.",
         "216":
           "Guía sencilla del Modelo 216: quién debe presentarlo, alquileres y profesionales no residentes, convenios, certificado de residencia, plazos y pago.",
+        "232":
+          "Guía del Modelo 232: operaciones vinculadas, valoración de mercado, límites, documentación, plazo y corrección de la declaración.",
         "296":
           "Guía sencilla del Modelo 296: perceptores no residentes, rentas exentas, TIN, relación con el Modelo 216, plazo, presentación y correcciones.",
         "303":
