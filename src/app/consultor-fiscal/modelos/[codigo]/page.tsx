@@ -51,6 +51,8 @@ export async function generateMetadata({
         "180": "Modelo 180 AEAT: resumen anual de alquileres",
         "190": "Modelo 190 AEAT: resumen anual de retenciones",
         "303": "Modelo 303 AEAT: declaración trimestral del IVA",
+        "347": "Modelo 347 AEAT: operaciones con clientes y proveedores",
+        "349": "Modelo 349 AEAT: operaciones intracomunitarias",
         "390": "Modelo 390 AEAT: resumen anual del IVA",
       }[codigo]
     : undefined;
@@ -65,6 +67,8 @@ export async function generateMetadata({
         "180": "Guía sencilla del Modelo 180: arrendadores, referencias catastrales, relación con el Modelo 115, certificados, correcciones y presentación.",
         "190": "Guía sencilla del Modelo 190: trabajadores, profesionales, claves, relación con el Modelo 111, certificados, correcciones y presentación.",
         "303": "Guía sencilla del Modelo 303: quién debe presentarlo, IVA repercutido y deducible, resultados, plazos, Pre303 y corrección de errores.",
+        "347": "Guía sencilla del Modelo 347: quién debe presentarlo, límite de 3.005,06 euros, operaciones incluidas y excluidas, trimestres y presentación.",
+        "349": "Guía sencilla del Modelo 349: ROI, VIES, bienes y servicios con empresas de la UE, claves, periodicidad, plazos y presentación.",
         "390": "Guía sencilla del Modelo 390: quién debe presentarlo, exoneraciones, relación con el Modelo 303, plazo, comprobaciones y trámite oficial.",
       }[codigo]
     : undefined;

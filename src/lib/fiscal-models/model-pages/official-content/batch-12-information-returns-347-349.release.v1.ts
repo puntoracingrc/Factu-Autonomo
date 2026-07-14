@@ -369,11 +369,19 @@ const MODEL_347_CONTENT = {
   canonicalName:
     "Declaración Informativa anual de operaciones con terceras personas",
   summary:
-    "Declaración informativa anual de operaciones con terceras personas, con formulario en navegador y carga mediante fichero documentados por la AEAT.",
+    "Declaración anual de determinadas operaciones con clientes y proveedores cuando se supera el límite general y no existe una exclusión.",
   searchTerms: [
     "modelo 347",
     "declaración informativa anual",
     "operaciones con terceras personas",
+    "clientes y proveedores",
+    "límite 3005,06 euros",
+    "facturas con IVA",
+    "compras y ventas",
+    "desglose trimestral",
+    "cobros en efectivo",
+    "alquileres",
+    "SII REDEME módulos",
     "formulario web",
     "presentación mediante fichero",
     "diseños lógicos 347",
@@ -672,11 +680,20 @@ const MODEL_349_CONTENT = {
   canonicalName:
     "IVA. Declaración recapitulativa de operaciones intracomunitarias.",
   summary:
-    "Declaración informativa recapitulativa de operaciones intracomunitarias, con formulario en navegador, carga mediante fichero, instrucciones y diseños lógicos publicados por la AEAT.",
+    "Declaración informativa de determinadas operaciones de bienes y servicios con empresas o profesionales de otros países de la Unión Europea.",
   searchTerms: [
     "modelo 349",
     "IVA operaciones intracomunitarias",
     "declaración recapitulativa",
+    "ROI",
+    "VIES",
+    "NIF IVA",
+    "bienes y servicios Unión Europea",
+    "adquisiciones intracomunitarias",
+    "entregas intracomunitarias",
+    "servicios recibidos UE",
+    "servicios prestados UE",
+    "periodicidad 50000 euros",
     "formulario web",
     "presentación mediante fichero",
     "TGVI online",
