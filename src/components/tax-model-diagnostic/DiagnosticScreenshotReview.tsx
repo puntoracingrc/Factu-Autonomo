@@ -53,7 +53,8 @@ const SLOTS: readonly {
   {
     kind: "ACTIVITIES",
     title: "1. Mis actividades económicas",
-    detail: "Incluye el título y la tabla con Epígrafe, Estado y fechas.",
+    detail:
+      "Puedes usar la relación completa o el detalle de una actividad si se ven Epígrafe, Estado y fechas.",
   },
   {
     kind: "TAX_STATUS",
@@ -63,7 +64,8 @@ const SLOTS: readonly {
   {
     kind: "OBLIGATIONS",
     title: "3. Mis obligaciones",
-    detail: "Incluye toda la tabla hasta la última fila y la columna Estado.",
+    detail:
+      "Incluye las filas hasta el final; basta con que la descripción, periodicidad y estado sean legibles.",
   },
 ] as const;
 

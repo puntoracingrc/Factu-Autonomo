@@ -1,4 +1,7 @@
-import type { AeatCensusScreenshotKind } from "./aeat-census-screenshot";
+import {
+  AEAT_ACTIVITY_SPARSE_OCR_MARKER,
+  type AeatCensusScreenshotKind,
+} from "./aeat-census-screenshot";
 
 export const MAX_AEAT_SCREENSHOT_BYTES = 8 * 1024 * 1024;
 export const MAX_AEAT_SCREENSHOTS = 8;
@@ -155,7 +158,31 @@ export async function recognizeAeatScreenshotFiles(
         { rotateAuto: false },
         { text: true },
       );
-      const text = recognized.data.text.trim();
+      let text = recognized.data.text.trim();
+      let confidence = recognized.data.confidence;
+      if (input.kind === "ACTIVITIES") {
+        try {
+          await worker.setParameters({
+            tessedit_pageseg_mode: PSM.SPARSE_TEXT,
+          });
+          const sparse = await worker.recognize(
+            input.file,
+            { rotateAuto: false },
+            { text: true },
+          );
+          if (sparse.data.text.trim()) {
+            text = `${text}\n${AEAT_ACTIVITY_SPARSE_OCR_MARKER}\n${sparse.data.text.trim()}`;
+            confidence = (confidence + sparse.data.confidence) / 2;
+          }
+        } catch {
+          // La segunda pasada mejora tablas fragmentadas, pero la lectura
+          // principal sigue siendo aprovechable si el navegador no la admite.
+        } finally {
+          await worker.setParameters({
+            tessedit_pageseg_mode: PSM.AUTO,
+          });
+        }
+      }
       if (!text) {
         throw new AeatScreenshotFileError(
           "NO_READABLE_TEXT",
@@ -171,7 +198,7 @@ export async function recognizeAeatScreenshotFiles(
       results.push({
         kind: input.kind,
         text,
-        confidence: Math.max(0, Math.min(1, recognized.data.confidence / 100)),
+        confidence: Math.max(0, Math.min(1, confidence / 100)),
       });
     }
     return results;
