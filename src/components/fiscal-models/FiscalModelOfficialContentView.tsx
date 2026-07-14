@@ -15,6 +15,9 @@ import type {
 import { FiscalModel01Guide } from "./FiscalModel01Guide";
 import { FiscalModelPracticalGuide } from "./FiscalModelPracticalGuide";
 import { MODEL_01C_GUIDE_V1 } from "./model-01c-guide.v1";
+import { MODEL_030_GUIDE_V1 } from "./model-030-guide.v1";
+import { MODEL_036_GUIDE_V1 } from "./model-036-guide.v1";
+import { MODEL_037_GUIDE_V1 } from "./model-037-guide.v1";
 import { MODEL_04_GUIDE_V1 } from "./model-04-guide.v1";
 import { MODEL_05_GUIDE_V1 } from "./model-05-guide.v1";
 import { MODEL_06_GUIDE_V1 } from "./model-06-guide.v1";
@@ -64,6 +67,24 @@ export function FiscalModelOfficialContentView({
   if (content.code === "01C") {
     return (
       <FiscalModelPracticalGuide content={content} guide={MODEL_01C_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "030") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_030_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "036") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_036_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "037") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_037_GUIDE_V1} />
     );
   }
 

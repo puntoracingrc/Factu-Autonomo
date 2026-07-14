@@ -1,5 +1,17 @@
+export type FiscalModelGuideInternalHrefV1 =
+  | "/consultor-fiscal/modelos"
+  | "/consultor-fiscal/modelos/01"
+  | "/consultor-fiscal/modelos/030"
+  | "/consultor-fiscal/modelos/036"
+  | "/consultor-fiscal/modelos/037"
+  | "/consultor-fiscal/modelos/04"
+  | "/consultor-fiscal/modelos/05"
+  | "/consultor-fiscal/modelos/06"
+  | "/consultor-fiscal/modelos/576"
+  | "/consultor-fiscal/modelos/840";
+
 export interface FiscalModelPracticalGuideV1 {
-  readonly code: "01C" | "04" | "05" | "06";
+  readonly code: "01C" | "030" | "036" | "037" | "04" | "05" | "06";
   readonly intro: readonly string[];
   readonly notices: readonly {
     readonly title: string;
@@ -9,6 +21,7 @@ export interface FiscalModelPracticalGuideV1 {
     readonly label: string;
     readonly sourceId?: string;
     readonly href?: string;
+    readonly internalHref?: FiscalModelGuideInternalHrefV1;
     readonly primary?: boolean;
   }[];
   readonly quickSummaryTitle: string;
@@ -26,11 +39,7 @@ export interface FiscalModelPracticalGuideV1 {
       readonly bullets?: readonly string[];
       readonly links?: readonly {
         readonly label: string;
-        readonly href:
-          | "/consultor-fiscal/modelos/04"
-          | "/consultor-fiscal/modelos/05"
-          | "/consultor-fiscal/modelos/06"
-          | "/consultor-fiscal/modelos/576";
+        readonly href: FiscalModelGuideInternalHrefV1;
       }[];
     }[];
     readonly note?: string;
@@ -57,20 +66,13 @@ export interface FiscalModelPracticalGuideV1 {
     readonly related: {
       readonly title: string;
       readonly description: string;
-      readonly href:
-        | "/consultor-fiscal/modelos/01"
-        | "/consultor-fiscal/modelos/05"
-        | "/consultor-fiscal/modelos/06";
+      readonly href: FiscalModelGuideInternalHrefV1;
       readonly label: string;
     };
     readonly additional?: readonly {
       readonly title: string;
       readonly description: string;
-      readonly href:
-        | "/consultor-fiscal/modelos/04"
-        | "/consultor-fiscal/modelos/05"
-        | "/consultor-fiscal/modelos/06"
-        | "/consultor-fiscal/modelos/576";
+      readonly href: FiscalModelGuideInternalHrefV1;
       readonly label: string;
     }[];
     readonly conclusion: string;
