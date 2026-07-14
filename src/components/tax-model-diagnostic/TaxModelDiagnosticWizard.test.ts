@@ -24,6 +24,8 @@ describe("tax model diagnostic UI contract", () => {
     expect(questions).toContain("<legend");
     expect(questions).toContain("Por qué lo preguntamos");
     expect(questions).toContain('type="radio"');
+    expect(questions).toContain("const checked = completed && value === optionValue");
+    expect(questions).toContain("const checked = completed && value === option.value");
   });
 
   it("procesa documentos localmente sin aplicar propuestas automáticamente", () => {
