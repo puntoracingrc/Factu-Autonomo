@@ -30,6 +30,8 @@ const ENGINE_FIELDS = Object.freeze({
 
 const EXECUTABLE_REVIEW_ONLY_FAMILIES = new Set<FiscalNotificationDocumentFamilyIdV3>([
   "compliance.formal_filing_requirement",
+  "assessment.allegations_and_proposal",
+  "assessment.final_provisional_assessment",
   "collection.enforcement_order",
   "collection.deferral_grant",
   "collection.offset_requested",
