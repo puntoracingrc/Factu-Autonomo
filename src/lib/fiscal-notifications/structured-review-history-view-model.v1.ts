@@ -93,6 +93,10 @@ const REFERENCE_LABELS: Readonly<Record<string, string>> = {
   PAYMENT_JUSTIFICANTE: "Número de justificante",
   CSV: "Código Seguro de Verificación (CSV)",
   NRC: "NRC",
+  TAX_MODEL: "Modelo tributario",
+  TAX_EXERCISE: "Ejercicio fiscal",
+  TAX_PERIOD: "Periodo fiscal",
+  PAYMENT_MODEL: "Modelo de pago",
   VTO_RAW: "Referencia Vto.",
   NOTIFICATION_ID: "Identificador de notificación",
   REQUEST_NUMBER: "Número de requerimiento",
@@ -165,10 +169,22 @@ export function projectFiscalNotificationStructuredHistoryV1(
       if (!authority || !file || !snapshot) return null;
 
       const domain = snapshot.structuredData.administrativeDomain;
+      const verticalFieldsByEvidence = new Map(
+        snapshot.structuredData.unknownFields.flatMap((field) => {
+          const metadata = parseVerticalFieldLabel(field.labelRaw);
+          return metadata && field.evidenceId
+            ? [[field.evidenceId, metadata] as const]
+            : [];
+        }),
+      );
       const money = (domain?.moneyFacts ?? []).map((fact) =>
         Object.freeze({
           key: fact.id,
-          label: MONEY_LABELS[fact.kind],
+          label:
+            fact.evidenceIds
+              .map((id) => verticalFieldsByEvidence.get(id))
+              .find((metadata) => metadata?.semantic === "MONEY")?.label ??
+            MONEY_LABELS[fact.kind],
           amountCents: fact.amountCents,
           currency: fact.currency,
           sourceReference: fact.sourceActRefId
@@ -181,15 +197,35 @@ export function projectFiscalNotificationStructuredHistoryV1(
         .filter((item) => item !== undefined)
         .map((item) =>
           Object.freeze({
-            label: REFERENCE_LABELS[item.referenceType] ?? "Referencia impresa",
+            label:
+              item.occurrenceIds
+                .map((id) => verticalFieldsByEvidence.get(id))
+                .find((metadata) => metadata?.semantic === "REFERENCE")
+                ?.label ??
+              REFERENCE_LABELS[item.referenceType] ??
+              "Referencia impresa",
             value: item.rawValue,
           }),
         );
-      const printedDates = snapshot.structuredData.unknownFields.map((field) =>
-        Object.freeze({
-          label: DATE_LABELS[field.labelRaw] ?? "Fecha impresa",
-          value: field.valueRaw,
-        }),
+      const printedDates = snapshot.structuredData.unknownFields.flatMap(
+        (field) => {
+          const metadata = parseVerticalFieldLabel(field.labelRaw);
+          if (
+            metadata?.semantic === "MONEY" ||
+            metadata?.semantic === "REFERENCE"
+          ) {
+            return [];
+          }
+          return [
+            Object.freeze({
+              label:
+                metadata?.label ??
+                DATE_LABELS[field.labelRaw] ??
+                "Dato impreso",
+              value: field.valueRaw,
+            }),
+          ];
+        },
       );
       const installments = snapshot.structuredData.paymentOptionIds
         .map((id) => paymentOptions.get(id))
@@ -237,4 +273,22 @@ export function projectFiscalNotificationStructuredHistoryV1(
     status: "READY",
     entries: Object.freeze(entries),
   });
+}
+
+interface PersistedVerticalFieldLabelV1 {
+  readonly semantic: string;
+  readonly canonicalType: string;
+  readonly label: string;
+}
+
+function parseVerticalFieldLabel(
+  value: string,
+): PersistedVerticalFieldLabelV1 | null {
+  const parts = value.split("|");
+  if (parts.length < 4 || parts[0] !== "VSR1") return null;
+  const semantic = parts[1];
+  const canonicalType = parts[2];
+  const label = parts.slice(3).join("|");
+  if (!semantic || !canonicalType || !label) return null;
+  return Object.freeze({ semantic, canonicalType, label });
 }

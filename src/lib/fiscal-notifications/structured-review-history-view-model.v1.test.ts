@@ -305,6 +305,48 @@ describe("structured fiscal notification history view model v1", () => {
     ).toEqual({ status: "BLOCKED", entries: [] });
   });
 
+  it("recupera las etiquetas exactas del extractor sin duplicar referencias ni importes", () => {
+    const value = workspace();
+    const snapshot = value.analysisSnapshots[0]!;
+    snapshot.structuredData.unknownFields = [
+      {
+        labelRaw: "VSR1|REFERENCE|LIQUIDATION_KEY|Clave exacta",
+        valueRaw: "LQ-SYNTH-081",
+        page: 1,
+        evidenceId: "evidence:reference",
+        confidence: "EXACT",
+      },
+      {
+        labelRaw: "VSR1|MONEY|PRINCIPAL|Principal exacto",
+        valueRaw: "1.234,56 €",
+        page: 2,
+        evidenceId: "evidence:money",
+        confidence: "EXACT",
+      },
+      {
+        labelRaw: "VSR1|DATE|ISSUE_DATE|Fecha exacta de emisión",
+        valueRaw: "05/02/2026",
+        page: 3,
+        evidenceId: "evidence:date",
+        confidence: "EXACT",
+      },
+    ];
+
+    const result = projectFiscalNotificationStructuredHistoryV1(value, OWNER);
+    expect(result.status).toBe("READY");
+    if (result.status !== "READY") return;
+    expect(result.entries[0]?.references[0]).toEqual({
+      label: "Clave exacta",
+      value: "LQ-SYNTH-081",
+    });
+    expect(result.entries[0]?.money[0]).toEqual(
+      expect.objectContaining({ label: "Principal exacto" }),
+    );
+    expect(result.entries[0]?.printedDates).toEqual([
+      { label: "Fecha exacta de emisión", value: "05/02/2026" },
+    ]);
+  });
+
   it("proyecta las cuotas impresas guardadas con importe, fecha y desglose", () => {
     const value = workspace();
     value.analysisSnapshots[0]!.structuredData.paymentOptionIds = [
