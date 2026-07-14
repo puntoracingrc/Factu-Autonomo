@@ -159,6 +159,36 @@ const EXPECTED_CODES = [
   "547",
   "548",
   "553",
+  "559",
+  "560",
+  "561",
+  "562",
+  "563",
+  "566",
+  "568",
+  "571",
+  "572",
+  "573",
+  "576",
+  "581",
+  "582",
+  "583",
+  "584",
+  "585",
+  "586",
+  "587",
+  "588",
+  "589",
+  "590",
+  "591",
+  "592",
+  "593",
+  "595",
+  "596",
+  "600",
+  "610",
+  "615",
+  "620",
 ];
 
 const EXPECTED_BATCH_11_NAMES = {
@@ -258,23 +288,83 @@ const EXPECTED_BATCH_15_NAMES = {
     "II. EE. Declaración de operaciones en fábricas y depósitos de vino y bebidas fermentadas.",
 } as const;
 
+const EXPECTED_BATCH_16_NAMES = {
+  "559":
+    "II. EE. Impuesto sobre el alcohol y bebidas derivadas. Regímenes de destilación artesanal y de cosechero.",
+  "560": "II. EE. Impuesto sobre la electricidad.",
+  "561": "II. EE. Impuesto sobre la cerveza.",
+  "562": "II. EE. Impuesto sobre productos intermedios.",
+  "563": "II. EE. Impuesto sobre el alcohol y bebidas derivadas",
+  "566": "II. EE. Impuesto sobre las labores del tabaco.",
+  "568":
+    "Impuesto Especial sobre Determinados Medios de Transporte. Solicitud de devolución por reventa y envío de medios de transporte fuera del territorio.",
+  "571":
+    "II. EE. Modelo 571. Aplicación del beneficio devolución de los impuestos especiales hidrocarburos.",
+  "572": "II. EE. Solicitud de devolución del Impuesto sobre Hidrocarburos.",
+  "573":
+    "II. EE. Impuesto sobre los líquidos para cigarrillos electrónicos y otros productos relacionados con el tabaco",
+  "576":
+    "Impuesto Especial sobre Determinados Medios de Transporte. Autoliquidación",
+  "581": "Impuesto sobre Hidrocarburos. Declaración-liquidación.",
+  "582":
+    "Impuesto sobre Hidrocarburos. Regularización por reexpedición de productos a otra Comunidad Autónoma.",
+  "583":
+    "Impuesto sobre el valor de la producción de la energía eléctrica. Autoliquidación y Pagos Fraccionados.",
+  "584":
+    "Impuesto sobre la producción de combustible nuclear gastado y residuos radioactivos resultantes de la generación de energía nucleoeléctrica. Autoliquidación y pagos fraccionados.",
+  "585":
+    "Impuesto sobre el almacenamiento de combustible nuclear gastado y residuos radioactivos en instalaciones centralizadas. Autoliquidación y pagos fraccionados.",
+  "586": "Declaración Informativa. Gases Fluorados",
+  "587": "Declaración-Liquidación Gases Fluorados Efecto Invernadero.",
+  "588":
+    "Impuesto sobre el valor de la producción de la energía eléctrica. Autoliquidación por cese de actividad de enero a octubre",
+  "589":
+    "Impuesto sobre el valor de la extracción de gas, petróleo y condensación. Autoliquidación y pago fraccionado.",
+  "590": "IIEE. Solicitud de devolución por exportación o expedición.",
+  "591":
+    "Impuesto sobre el valor de la producción de la energía eléctrica. Declaración anual de operaciones.",
+  "592":
+    "Declaración-Liquidación Impuesto especial sobre los envases de plástico no reutilizables. Autoliquidación",
+  "593":
+    "Impuesto sobre el depósito de residuos en vertederos, la incineración y la coincineración de residuos. Autoliquidación.",
+  "595": "II. EE. Impuesto sobre el carbón.",
+  "596":
+    "II. EE. Declaración anual de operaciones realizadas. Impuesto sobre el carbón.",
+  "600":
+    "Transmisiones Patrimoniales y Actos Jurídicos Documentados - Autoliquidación del Impuesto (tramitación ante la Agencia Estatal de Administración Tributaria: Ceuta y Melilla y otros supuestos).",
+  "610":
+    "Transmisiones Patrimoniales y Actos Jurídicos Documentados - Autoliquidación del Impuesto (tramitación ante la Agencia Estatal de Administración Tributaria: Ceuta y Melilla y otros supuestos).",
+  "615":
+    "Transmisiones Patrimoniales y Actos Jurídicos Documentados - Autoliquidación del Impuesto (tramitación ante la Agencia Estatal de Administración Tributaria: Ceuta y Melilla y otros supuestos).",
+  "620":
+    "Transmisiones Patrimoniales y Actos Jurídicos Documentados - Autoliquidación del Impuesto (tramitación ante la Agencia Estatal de Administración Tributaria: Ceuta y Melilla y otros supuestos).",
+} as const;
+
+const EXPECTED_BATCH_16_CODES = new Set(Object.keys(EXPECTED_BATCH_16_NAMES));
+
 describe("public AEAT official model content v1", () => {
   it("publishes exactly the reviewed official-content catalog", () => {
     const result = listPublicAeatOfficialModelContentsV1();
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(151);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(181);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
         sourceVerificationStatus: "VERIFIED",
         applicabilityStatus: "NOT_EVALUATED",
         lifecycleStatus:
-          entry.code === "037" || entry.code === "150" || entry.code === "179"
+          entry.code === "037" ||
+          entry.code === "150" ||
+          entry.code === "179" ||
+          entry.code === "582" ||
+          entry.code === "586"
             ? "HISTORICAL"
             : "UNDETERMINED",
-        reviewedOn: "2026-07-13",
+        reviewedOn: EXPECTED_BATCH_16_CODES.has(entry.code)
+          ? "2026-07-14"
+          : "2026-07-13",
       });
       expect(entry.faq.length).toBeGreaterThanOrEqual(3);
       expect(Object.isFrozen(entry)).toBe(true);
@@ -308,7 +398,7 @@ describe("public AEAT official model content v1", () => {
         },
       }),
     ).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
-    expect(resolvePublicAeatOfficialModelContentV1({ code: "551" })).toEqual({
+    expect(resolvePublicAeatOfficialModelContentV1({ code: "630" })).toEqual({
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
     });
@@ -447,6 +537,25 @@ describe("public AEAT official model content v1", () => {
     }
   });
 
+  it("keeps every Batch 16 page useful and source-backed without evaluating applicability", () => {
+    for (const [code, canonicalName] of Object.entries(
+      EXPECTED_BATCH_16_NAMES,
+    )) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      expect(result.data.canonicalName, code).toBe(canonicalName);
+      expect(result.data.faq.length, code).toBeGreaterThanOrEqual(6);
+      expect(result.data.searchTerms.length, code).toBeGreaterThanOrEqual(3);
+      expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
+      expect(result.data.lifecycleStatus, code).toBe(
+        code === "582" || code === "586" ? "HISTORICAL" : "UNDETERMINED",
+      );
+      expect(result.data.externalNavigation, code).toBeNull();
+      expect(result.data.thumbnail, code).toBeNull();
+    }
+  });
+
   it("keeps source provenance complete and internally referenced", () => {
     const result = listPublicAeatOfficialModelContentsV1();
     if (result.status !== "OFFICIAL_INFORMATION") throw new Error("blocked");
@@ -461,6 +570,7 @@ describe("public AEAT official model content v1", () => {
         );
         expect(source.sourceSha256).toMatch(/^[a-f0-9]{64}$/);
         expect(source.verificationStatus).toBe("SOURCE_HASH_CAPTURED");
+        expect(source.capturedOn <= entry.reviewedOn).toBe(true);
       }
       for (const section of entry.sections) {
         for (const item of section.items) {
@@ -803,6 +913,66 @@ describe("public AEAT official model content v1", () => {
         status: "SOURCE_DESCRIBED",
       },
       "553": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "559": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "560": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "561": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "562": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "563": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "566": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "568": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "571": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "572": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "573": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "576": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "581": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "582": {
+        methods: ["BROWSER_FORM"],
+        status: "SOURCE_DESCRIBED_HISTORICAL",
+      },
+      "583": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "584": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "585": {
+        methods: ["ADMINISTRATIVE_TRANSFER"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "586": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED_HISTORICAL",
+      },
+      "587": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "588": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "589": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "590": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "591": {
+        methods: ["BROWSER_FORM", "FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "592": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "593": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "595": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "596": { methods: ["BROWSER_FORM"], status: "SOURCE_DESCRIBED" },
+      "600": {
+        methods: ["ADMINISTRATIVE_TRANSFER"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "610": {
+        methods: ["ADMINISTRATIVE_TRANSFER"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "615": {
+        methods: ["ADMINISTRATIVE_TRANSFER"],
+        status: "SOURCE_DESCRIBED",
+      },
+      "620": {
+        methods: ["ADMINISTRATIVE_TRANSFER"],
+        status: "SOURCE_DESCRIBED",
+      },
     } as const;
 
     for (const [code, access] of Object.entries(expected)) {
@@ -1789,6 +1959,264 @@ describe("public AEAT official model content v1", () => {
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
     });
+  });
+
+  it("keeps Batch 16 informational and preserves the audited channels, legacy documents and BOE provenance", () => {
+    const codes = [
+      "559",
+      "560",
+      "561",
+      "562",
+      "563",
+      "566",
+      "568",
+      "571",
+      "572",
+      "573",
+      "576",
+      "581",
+      "582",
+      "583",
+      "584",
+      "585",
+      "586",
+      "587",
+      "588",
+      "589",
+      "590",
+      "591",
+      "592",
+      "593",
+      "595",
+      "596",
+      "600",
+      "610",
+      "615",
+      "620",
+    ] as const;
+    const models = new Map<
+      (typeof codes)[number],
+      PublicAeatOfficialModelContentV1
+    >();
+
+    for (const code of codes) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      models.set(code, result.data);
+      expect(result.data.thumbnail, code).toBeNull();
+      expect(result.data.externalNavigation, code).toBeNull();
+      expect(result.data.accessMethods?.methods, code).not.toContain(
+        "WEB_SERVICE",
+      );
+      expect(
+        result.data.links.some((link) =>
+          /firmar|pagar|enviar|iniciar tr[aá]mite/i.test(link.label),
+        ),
+        code,
+      ).toBe(false);
+    }
+
+    for (const code of ["559", "568", "572", "573"] as const) {
+      expect(models.get(code)?.documents.length, code).toBeGreaterThan(0);
+      expect(
+        models
+          .get(code)
+          ?.documents.every(
+            (document) =>
+              document.freshnessStatus === "LEGACY_REFERENCES_DETECTED" &&
+              document.previewSuitability === "NONE" &&
+              document.usePolicy === "OFFICIAL_EXTERNAL_DOWNLOAD_ONLY",
+          ),
+        code,
+      ).toBe(true);
+    }
+
+    expect(models.get("560")?.accessMethods?.methods).toEqual(["BROWSER_FORM"]);
+    expect(models.get("560")?.summary).toMatch(/fichero auxiliar de desglose/i);
+    expect(JSON.stringify(models.get("560"))).toMatch(
+      /no un canal alternativo de presentaci[oó]n/i,
+    );
+    expect(
+      models
+        .get("560")
+        ?.sources.find((source) =>
+          source.id.startsWith("aeat.model-560.import-designs."),
+        )?.officialUpdatedOn,
+    ).toBe("2025-01-22");
+    expect(models.get("560")?.documents).toEqual([
+      expect.objectContaining({
+        id: "model-560-import-guide-document",
+        freshnessStatus: "CURRENTNESS_UNDETERMINED",
+        previewSuitability: "NONE",
+      }),
+    ]);
+
+    expect(models.get("568")?.accessMethods?.methods).toEqual([
+      "BROWSER_FORM",
+      "FILE_UPLOAD",
+    ]);
+    expect(JSON.stringify(models.get("568"))).toMatch(
+      /un [uú]nico fichero que contiene todas las solicitudes/i,
+    );
+    expect(JSON.stringify(models.get("568"))).not.toMatch(
+      /selecci[oó]n de directorios y ficheros/i,
+    );
+    expect(
+      models
+        .get("568")
+        ?.sources.find((source) =>
+          source.id.startsWith("aeat.model-568.download."),
+        )?.officialUpdatedOn,
+    ).toBe("2026-03-10");
+
+    expect(JSON.stringify(models.get("582"))).toMatch(/2018 y anteriores/i);
+    expect(models.get("582")?.lifecycleStatus).toBe("HISTORICAL");
+    expect(JSON.stringify(models.get("586"))).toMatch(
+      /31(?:-08-| de agosto de )2022|1 de septiembre de 2022/i,
+    );
+    expect(models.get("586")?.lifecycleStatus).toBe("HISTORICAL");
+
+    expect(
+      models
+        .get("576")
+        ?.sources.some((source) =>
+          source.id.startsWith("aeat.model-576.information."),
+        ),
+    ).toBe(true);
+    expect(
+      models
+        .get("583")
+        ?.sources.some((source) =>
+          source.id.startsWith("aeat.model-583.information-faq."),
+        ),
+    ).toBe(true);
+
+    expect(models.get("585")?.documents).toHaveLength(2);
+    expect(
+      models
+        .get("585")
+        ?.documents.every(
+          (document) =>
+            document.freshnessStatus === "LEGACY_REFERENCES_DETECTED" &&
+            document.previewSuitability === "NONE" &&
+            document.usePolicy === "OFFICIAL_EXTERNAL_DOWNLOAD_ONLY",
+        ),
+    ).toBe(true);
+    expect(models.get("585")?.documents[0]).toMatchObject({
+      id: "model-585-form-document",
+      activeContentStatus: "JAVASCRIPT_PRESENT",
+      formStatus: "ACROFORM_PRESENT",
+    });
+
+    expect(models.get("587")?.documents).toEqual([
+      expect.objectContaining({
+        id: "model-587-faq-document",
+        freshnessStatus: "CURRENTNESS_UNDETERMINED",
+      }),
+      expect.objectContaining({
+        id: "model-587-form-document",
+        freshnessStatus: "LEGACY_REFERENCES_DETECTED",
+      }),
+      expect.objectContaining({
+        id: "model-587-instructions-document",
+        freshnessStatus: "LEGACY_REFERENCES_DETECTED",
+      }),
+    ]);
+    expect(models.get("588")?.documents).toEqual([
+      expect.objectContaining({
+        id: "model-588-form-document",
+        freshnessStatus: "LEGACY_REFERENCES_DETECTED",
+      }),
+      expect.objectContaining({
+        id: "model-588-instructions-document",
+        freshnessStatus: "LEGACY_REFERENCES_DETECTED",
+      }),
+    ]);
+
+    expect(models.get("590")?.documents).toEqual([
+      expect.objectContaining({
+        id: "model-590-form-document",
+        freshnessStatus: "LEGACY_REFERENCES_DETECTED",
+        previewSuitability: "NONE",
+      }),
+    ]);
+    expect(models.get("591")?.documents).toHaveLength(2);
+    expect(
+      models
+        .get("591")
+        ?.documents.every(
+          (document) =>
+            document.freshnessStatus === "LEGACY_REFERENCES_DETECTED" &&
+            document.previewSuitability === "NONE",
+        ),
+    ).toBe(true);
+    expect(models.get("592")?.documents).toHaveLength(2);
+    expect(models.get("593")?.documents).toHaveLength(2);
+    for (const code of ["592", "593"] as const) {
+      expect(
+        models
+          .get(code)
+          ?.documents.every(
+            (document) =>
+              document.freshnessStatus === "CURRENTNESS_UNDETERMINED" &&
+              document.previewSuitability === "NONE",
+          ),
+        code,
+      ).toBe(true);
+    }
+    expect(JSON.stringify(models.get("592"))).toMatch(
+      /no.*canal alternativo/i,
+    );
+    expect(JSON.stringify(models.get("593"))).toMatch(
+      /no calcula ni recomienda/i,
+    );
+
+    for (const code of ["600", "610", "615", "620"] as const) {
+      expect(models.get(code)?.accessMethods).toMatchObject({
+        methods: ["ADMINISTRATIVE_TRANSFER"],
+        status: "SOURCE_DESCRIBED",
+      });
+      expect(JSON.stringify(models.get(code)), code).toMatch(
+        /Ceuta y Melilla/i,
+      );
+      expect(JSON.stringify(models.get(code)), code).toMatch(
+        /supuestos residuales|gesti[oó]n estatal acotada/i,
+      );
+      expect(models.get(code)?.documents).toEqual([
+        expect.objectContaining({
+          id: `model-${code}-form-document`,
+          activeContentStatus: "JAVASCRIPT_PRESENT",
+          formStatus: "ACROFORM_PRESENT",
+          freshnessStatus: "LEGACY_REFERENCES_DETECTED",
+          previewSuitability: "NONE",
+        }),
+      ]);
+    }
+
+    for (const model of models.values()) {
+      const exciseLaw = model.sources.find((source) =>
+        source.canonicalUrl.includes("BOE-A-1992-28741"),
+      );
+      if (exciseLaw) {
+        expect(exciseLaw.sourceSha256).toBe(
+          "14dd5b82352b18945ff58d20ee87d07a191e3a222fdc637e5fdaab3a5fd3ecad",
+        );
+        expect(exciseLaw.capturedOn).toBe("2026-07-14");
+      }
+      const exciseRegulation = model.sources.find((source) =>
+        source.canonicalUrl.includes("BOE-A-1995-18266"),
+      );
+      if (exciseRegulation) {
+        expect(exciseRegulation.sourceSha256).toBe(
+          "c6533dc4fc4d888cb9db85aa8ad06f852924ddd1eacf82c5d46b5dc73a9a6a4a",
+        );
+        expect(exciseRegulation.capturedOn).toBe("2026-07-14");
+      }
+      expect(JSON.stringify(model), model.code).not.toMatch(
+        /textos primarios consolidados|fuentes primarias consolidadas/i,
+      );
+    }
   });
 
   it("keeps the Model 180 certificate with active content external-only", () => {

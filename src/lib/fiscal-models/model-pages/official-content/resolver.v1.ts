@@ -48,6 +48,10 @@ import { PUBLIC_AEAT_BATCH_14_EXCISE_REFUNDS_506_512_CONTENT_V1 } from "./batch-
 import { PUBLIC_AEAT_BATCH_14_EXCISE_MARKS_OPERATIONS_515_520_CONTENT_V1 } from "./batch-14-excise-marks-operations-515-520.release.v1";
 import { PUBLIC_AEAT_BATCH_15_EXCISE_REPORTS_REFUNDS_521_524_CONTENT_V1 } from "./batch-15-excise-reports-refunds-521-524.release.v1";
 import { PUBLIC_AEAT_BATCH_15_EXCISE_FUEL_WINE_544_553_CONTENT_V1 } from "./batch-15-excise-fuel-wine-544-553.release.v1";
+import { PUBLIC_AEAT_BATCH_16_EXCISE_TOBACCO_ENVIRONMENT_559_563_CONTENT_V1 } from "./batch-16-excise-tobacco-environment-559-563.release.v1";
+import { PUBLIC_AEAT_BATCH_16_EXCISE_COAL_ELECTRICITY_566_573_CONTENT_V1 } from "./batch-16-excise-coal-electricity-566-573.release.v1";
+import { PUBLIC_AEAT_BATCH_16_LATE_EXCISE_576_589_CONTENT_V1 } from "./batch-16-late-excise-576-589.release.v1";
+import { PUBLIC_AEAT_BATCH_16_LATE_EXCISE_CUSTOMS_590_620_CONTENT_V1 } from "./batch-16-late-excise-customs-590-620.release.v1";
 
 const EXPECTED_CODES = Object.freeze([
   "01",
@@ -201,8 +205,38 @@ const EXPECTED_CODES = Object.freeze([
   "547",
   "548",
   "553",
+  "559",
+  "560",
+  "561",
+  "562",
+  "563",
+  "566",
+  "568",
+  "571",
+  "572",
+  "573",
+  "576",
+  "581",
+  "582",
+  "583",
+  "584",
+  "585",
+  "586",
+  "587",
+  "588",
+  "589",
+  "590",
+  "591",
+  "592",
+  "593",
+  "595",
+  "596",
+  "600",
+  "610",
+  "615",
+  "620",
 ] as const);
-const EXPECTED_HISTORICAL_CODES = new Set(["037", "150", "179"]);
+const EXPECTED_HISTORICAL_CODES = new Set(["037", "150", "179", "582", "586"]);
 const OFFICIAL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -345,6 +379,7 @@ function contentIsCoherent(content: PublicAeatOfficialModelContentV1): boolean {
         (source.officialUpdatedOn === null ||
           ISO_DATE.test(source.officialUpdatedOn)) &&
         ISO_DATE.test(source.capturedOn) &&
+        source.capturedOn <= content.reviewedOn &&
         SHA256.test(source.sourceSha256) &&
         source.verificationStatus === "SOURCE_HASH_CAPTURED",
     ) &&
@@ -419,6 +454,10 @@ function buildContentSnapshot():
     ...PUBLIC_AEAT_BATCH_14_EXCISE_MARKS_OPERATIONS_515_520_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_15_EXCISE_REPORTS_REFUNDS_521_524_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_15_EXCISE_FUEL_WINE_544_553_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_16_EXCISE_TOBACCO_ENVIRONMENT_559_563_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_16_EXCISE_COAL_ELECTRICITY_566_573_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_16_LATE_EXCISE_576_589_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_16_LATE_EXCISE_CUSTOMS_590_620_CONTENT_V1,
   ] as readonly PublicAeatOfficialModelContentV1[];
   const codes = candidates.map((entry) => entry.code);
   if (
