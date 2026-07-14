@@ -95,6 +95,46 @@ describe("multipage fiscal notification segmenter v1", () => {
     }
   });
 
+  it("segments every implemented seizure title as a separate main administrative act", async () => {
+    const titles = [
+      "diligencia de embargo de cuentas bancarias",
+      "diligencia de embargo de creditos comerciales o arrendaticios",
+      "diligencia de embargo de sueldos salarios o pensiones",
+      "diligencia de embargo de cobros mediante terminal de punto de venta",
+      "diligencia de embargo de devoluciones tributarias",
+      "diligencia de embargo de bienes inmuebles",
+      "levantamiento de diligencia de embargo",
+      "contestacion a diligencia de embargo",
+      "justificante de ingreso de diligencia de embargo",
+    ];
+    for (const title of titles) {
+      const result = await segmentFiscalNotificationDocumentV1(input(
+        page(1, title, "agencia tributaria"),
+      ));
+      expect(result.segments).toEqual([
+        expect.objectContaining({
+          segmentType: "MAIN_ADMINISTRATIVE_ACT",
+          detectedTitle: title,
+          canGenerateAdministrativeFacts: true,
+        }),
+      ]);
+    }
+  });
+
+  it("keeps a seizure notification cover and annex outside the main diligence", async () => {
+    const result = await segmentFiscalNotificationDocumentV1(input(
+      page(1, "datos de la notificacion", "dehu"),
+      page(2, "diligencia de embargo de cuentas bancarias", "agencia tributaria"),
+      page(3, "continuacion de la diligencia"),
+      page(4, "anexo", "detalle sintetico"),
+    ));
+    expect(result.segments).toEqual([
+      expect.objectContaining({ segmentType: "NOTIFICATION_COVER", pageFrom: 1, pageTo: 1 }),
+      expect.objectContaining({ segmentType: "MAIN_ADMINISTRATIVE_ACT", pageFrom: 2, pageTo: 3 }),
+      expect.objectContaining({ segmentType: "ANNEX", pageFrom: 4, pageTo: 4 }),
+    ]);
+  });
+
   it("classifies the closed deferral debt-schedule annex as a debt list, not a generic annex", async () => {
     const result = await segmentFiscalNotificationDocumentV1(input(
       page(1, "concesion del aplazamiento o fraccionamiento de pago sin garantia"),

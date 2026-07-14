@@ -45,10 +45,18 @@ const EXECUTABLE_REVIEW_ONLY_FAMILIES = new Set<FiscalNotificationDocumentFamily
   "payment.payment_form",
   "payment.receipt",
   "payment.failed_or_reversed",
+  "seizure.bank_account",
+  "seizure.commercial_credits",
+  "seizure.wages_or_pensions",
+  "seizure.tpv_receipts",
+  "seizure.cash_or_refund",
+  "seizure.real_estate",
+  "seizure.release",
+  "seizure.third_party_response",
+  "seizure.third_party_payment",
 ]);
 
 const RECOGNIZED_WITHOUT_COMPLETE_EXTRACTOR = new Set<FiscalNotificationDocumentFamilyIdV3>([
-  "seizure.real_estate",
   "registry.tax_registration_resolution",
 ]);
 

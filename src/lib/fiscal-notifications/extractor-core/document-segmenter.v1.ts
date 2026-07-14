@@ -123,6 +123,28 @@ const CLOSED_ASSESSMENT_MAIN_ACT_TITLES = Object.freeze([
   "resolucion con liquidacion provisional",
 ] as const);
 
+export const CLOSED_SEIZURE_MAIN_ACT_TITLES_V1 = Object.freeze([
+  "diligencia de embargo de cuentas bancarias",
+  "diligencia de embargo de cuentas en entidades de credito",
+  "diligencia de embargo de creditos comerciales o arrendaticios",
+  "diligencia de embargo de creditos comerciales",
+  "diligencia de embargo de creditos arrendaticios",
+  "diligencia de embargo de sueldos, salarios o pensiones",
+  "diligencia de embargo de sueldos salarios o pensiones",
+  "diligencia de embargo de sueldos y salarios",
+  "diligencia de embargo de cobros mediante terminal de punto de venta",
+  "diligencia de embargo de tpv",
+  "diligencia de embargo de dinero efectivo devoluciones o creditos frente a la administracion",
+  "diligencia de embargo de devoluciones tributarias",
+  "diligencia de embargo de bienes inmuebles",
+  "levantamiento de diligencia de embargo",
+  "orden de levantamiento de embargo",
+  "justificante de contestacion a diligencia de embargo",
+  "contestacion a diligencia de embargo",
+  "justificante de ingreso de diligencia de embargo",
+  "ingreso efectuado por tercero retenedor",
+] as const);
+
 function marker(
   segmentType: Exclude<DocumentSegmentTypeV1, "MAIN_ADMINISTRATIVE_ACT" | "UNKNOWN">,
   titles: readonly string[],
@@ -293,6 +315,19 @@ function classifyExplicitPage(lines: readonly string[]): ExplicitPageClassificat
     return Object.freeze({
       segmentType: "MAIN_ADMINISTRATIVE_ACT",
       detectedTitle: assessmentTitle,
+      detectedAuthority: detectAuthority(lines),
+      confidence: 0.99,
+    });
+  }
+  const seizureTitle = header.find((line) =>
+    CLOSED_SEIZURE_MAIN_ACT_TITLES_V1.some(
+      (literal) => line === literal || line.startsWith(`${literal} `),
+    ),
+  );
+  if (seizureTitle !== undefined) {
+    return Object.freeze({
+      segmentType: "MAIN_ADMINISTRATIVE_ACT",
+      detectedTitle: seizureTitle,
       detectedAuthority: detectAuthority(lines),
       confidence: 0.99,
     });
