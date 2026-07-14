@@ -116,6 +116,13 @@ const CLOSED_PAGE_MARKERS = Object.freeze([
   marker("ANNEX", ["anexo", "anexo i", "anexo ii", "documentacion anexa"]),
 ] as const);
 
+const CLOSED_ASSESSMENT_MAIN_ACT_TITLES = Object.freeze([
+  "notificacion del tramite de alegaciones y propuesta de liquidacion provisional",
+  "notificacion del tramite de alegaciones y",
+  "notificacion de resolucion con liquidacion provisional",
+  "resolucion con liquidacion provisional",
+] as const);
+
 function marker(
   segmentType: Exclude<DocumentSegmentTypeV1, "MAIN_ADMINISTRATIVE_ACT" | "UNKNOWN">,
   titles: readonly string[],
@@ -273,6 +280,19 @@ function classifyExplicitPage(lines: readonly string[]): ExplicitPageClassificat
     return Object.freeze({
       segmentType: "MAIN_ADMINISTRATIVE_ACT",
       detectedTitle: title,
+      detectedAuthority: detectAuthority(lines),
+      confidence: 0.99,
+    });
+  }
+  const assessmentTitle = header.find((line) =>
+    CLOSED_ASSESSMENT_MAIN_ACT_TITLES.some(
+      (literal) => line === literal || line.startsWith(`${literal} `),
+    ),
+  );
+  if (assessmentTitle !== undefined) {
+    return Object.freeze({
+      segmentType: "MAIN_ADMINISTRATIVE_ACT",
+      detectedTitle: assessmentTitle,
       detectedAuthority: detectAuthority(lines),
       confidence: 0.99,
     });
