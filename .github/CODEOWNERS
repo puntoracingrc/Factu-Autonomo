@@ -8,6 +8,7 @@
 /docs/architecture/ADR-0003-explicit-test-document-retirement.md @puntoracingrc
 /docs/architecture/ADR-0004-expense-inbox-email-reliability.md @puntoracingrc
 /docs/architecture/ADR-0005-cloud-and-drive-sync-reliability.md @puntoracingrc
+/docs/architecture/ADR-0006-customer-master-reliability.md @puntoracingrc
 /src/lib/storage.ts                                    @puntoracingrc
 /src/lib/document-integrity/**                         @puntoracingrc
 /src/lib/importers/**                                  @puntoracingrc
@@ -33,3 +34,13 @@
 /src/components/cloud/GoogleDriveBackupCard.tsx       @puntoracingrc
 /src/app/drive/callback/**                             @puntoracingrc
 /src/app/api/google-drive/**                           @puntoracingrc
+
+# Customer master reliability and immutable issued-document links.
+# ADR-0006 and its contract tests must be reviewed before these paths change.
+/src/lib/customers.ts                                  @puntoracingrc
+/src/lib/customer-document-links.ts                    @puntoracingrc
+/src/lib/master-record-deletion.ts                     @puntoracingrc
+/src/lib/document-integrity/customer-merge.ts          @puntoracingrc
+/src/app/clientes/**                                   @puntoracingrc
+/src/components/clients/**                             @puntoracingrc
+/src/components/forms/DocumentForm.tsx                 @puntoracingrc

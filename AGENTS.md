@@ -185,3 +185,27 @@ La decisión obligatoria y versionada está en
   `cloud-drive-sync-reliability-contract.test.ts`, `sync-operation.test.ts`,
   `sync-queue.test.ts`, `repository.test.ts`, `google-drive/operation.test.ts`
   y `google-drive/backup.test.ts`.
+
+## Fiabilidad del maestro de clientes
+
+La decisión obligatoria y versionada está en
+[`docs/architecture/ADR-0006-customer-master-reliability.md`](docs/architecture/ADR-0006-customer-master-reliability.md).
+
+- El blindaje es interno: no añade al usuario permisos, confirmaciones, avisos,
+  suscripciones, campos obligatorios ni pasos nuevos en el uso normal.
+- NIF distintos nunca se unen por nombre. Las altas y ediciones validan contra
+  la colección vigente dentro de una única transición para evitar duplicados
+  por doble clic, render obsoleto o creación desde documentos.
+- Buscar recorre toda la colección y tolera tildes y formatos; ordenar, filtrar
+  y cargar más no omite ni repite clientes.
+- Editar, borrar o fusionar el maestro nunca reescribe snapshots, PDF, sellos,
+  hashes o evidencia de documentos emitidos. El borrado solo desvincula la
+  referencia operativa y la fusión conserva aliases.
+- Un documento que no supera su validación no puede dejar una ficha fantasma.
+  Un fallo de escritura nunca se comunica como guardado correcto.
+- Cualquier cambio en Clientes, AppStore, formularios de documentos,
+  borrado/fusión, backup o sync debe ejecutar
+  `customer-master-reliability-contract.test.ts`, `customers.test.ts`,
+  `customer-document-links.test.ts`, `customer-merge.test.ts`,
+  `master-record-deletion.test.ts`, `cloud/diff.test.ts`,
+  `cloud/sync.test.ts` y `backup.test.ts`.

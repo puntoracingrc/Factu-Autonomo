@@ -94,6 +94,22 @@ Regresiones mínimas: `cloud-drive-sync-reliability-contract.test.ts`,
 `sync-operation.test.ts`, `sync-queue.test.ts`, `repository.test.ts`,
 `google-drive/operation.test.ts` y `google-drive/backup.test.ts`.
 
+### 6. Maestro de clientes y vínculos documentales
+
+Contrato: [ADR-0006](ADR-0006-customer-master-reliability.md).
+
+- El blindaje es interno y no añade fricción, permisos ni pasos al usuario.
+- NIF contradictorios nunca se unen por nombre; cada escritura valida contra la
+  colección vigente y el alta desde documentos no deja duplicados o fantasmas.
+- Búsqueda, orden y carga por tramos cubren toda la colección sin omisiones.
+- Editar, borrar o fusionar el maestro conserva byte-semánticamente el cliente
+  congelado, snapshots, PDF, sellos, hashes y evidencia de documentos emitidos.
+
+Regresiones mínimas: `customer-master-reliability-contract.test.ts`,
+`customers.test.ts`, `customer-document-links.test.ts`,
+`document-integrity/customer-merge.test.ts`, `master-record-deletion.test.ts`,
+`cloud/diff.test.ts`, `cloud/sync.test.ts` y `backup.test.ts`.
+
 ## Prohibido sin autorización expresa
 
 - Debilitar el fail-closed de documentos nuevos emitidos por la app.
@@ -105,6 +121,8 @@ Regresiones mínimas: `cloud-drive-sync-reliability-contract.test.ts`,
   Drive la fuente operativa de verdad.
 - Omitir la firma del buzón, aceptar un alias retirado o responder éxito cuando
   una operación obligatoria quedó incompleta.
+- Unir clientes con NIF contradictorios, reescribir el cliente congelado de un
+  documento emitido o convertir el blindaje interno en fricción para el usuario.
 - Borrar, renumerar o alterar evidencia fiscal existente para hacer pasar una
   validación.
 
@@ -120,5 +138,5 @@ Regresiones mínimas: `cloud-drive-sync-reliability-contract.test.ts`,
    sistema nuevo.
 
 `src/lib/protected-system-invariants-contract.test.ts` hace fallar CI si esta
-lectura deja de estar enlazada desde la raíz, si falta alguno de los cinco ADR o
+lectura deja de estar enlazada desde la raíz, si falta alguno de los seis ADR o
 si el registro deja de estar protegido por `CODEOWNERS`.

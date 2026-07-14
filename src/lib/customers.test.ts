@@ -4,7 +4,9 @@ import {
   buildCustomerInvoicedTotals,
   clientInputToSnapshot,
   clientMatchesCustomer,
+  createCustomerInCollection,
   customerFullName,
+  customerListWindow,
   customerInvoicedTotal,
   customerPayloadFromInput,
   customerToClient,
@@ -20,6 +22,8 @@ import {
   normalizeCustomerNif,
   sortCustomers,
   sortCustomersByName,
+  updateCustomerInCollection,
+  upsertCustomerForDocumentInCollection,
   validateCustomerContact,
   validateCustomerInput,
   validateUniqueCustomer,
@@ -205,6 +209,29 @@ describe("sortCustomersByName", () => {
   });
 });
 
+describe("customerListWindow", () => {
+  it("carga por tramos sin omitir ni repetir clientes", () => {
+    const customers = Array.from({ length: 67 }, (_, index) => ({
+      ...sample[index % sample.length],
+      id: `customer-${index}`,
+    }));
+
+    const first = customerListWindow(customers, 30);
+    const second = customerListWindow(customers, 60);
+    const last = customerListWindow(customers, 90);
+
+    expect(first.visible).toHaveLength(30);
+    expect(first.hiddenCount).toBe(37);
+    expect(second.visible).toHaveLength(60);
+    expect(second.hiddenCount).toBe(7);
+    expect(last.visible.map((customer) => customer.id)).toEqual(
+      customers.map((customer) => customer.id),
+    );
+    expect(new Set(last.visible.map((customer) => customer.id)).size).toBe(67);
+    expect(last.hiddenCount).toBe(0);
+  });
+});
+
 describe("filterCustomers", () => {
   it("filtra por nombre", () => {
     expect(filterCustomers(sample, "ana").map((c) => c.name)).toEqual([
@@ -223,6 +250,22 @@ describe("filterCustomers", () => {
       "Zara Servicios",
     ]);
   });
+
+  it("busca sin exigir tildes ni el formato del teléfono o NIF", () => {
+    expect(filterCustomers(sample, "garcia").map((c) => c.id)).toEqual(["2"]);
+    expect(filterCustomers(sample, "600 111 111").map((c) => c.id)).toEqual([
+      "1",
+    ]);
+    expect(filterCustomers(sample, "1234-5678-a").map((c) => c.id)).toEqual([
+      "2",
+    ]);
+  });
+
+  it("admite varias palabras en distinto formato", () => {
+    expect(filterCustomers(sample, "beatriz madrid").map((c) => c.id)).toEqual([
+      "3",
+    ]);
+  });
 });
 
 describe("validateUniqueCustomer", () => {
@@ -236,6 +279,25 @@ describe("validateUniqueCustomer", () => {
     const result = validateUniqueCustomer(sample, "Pedro", "");
     expect(result.ok).toBe(true);
     expect(result.lastName).toBe("");
+  });
+
+  it("rechaza repetir exactamente un cliente sin apellidos", () => {
+    const customers = [
+      ...sample,
+      {
+        id: "teresa",
+        firstName: "Teresa",
+        lastName: "",
+        name: "Teresa",
+        createdAt: "",
+        updatedAt: "",
+      },
+    ];
+
+    expect(validateUniqueCustomer(customers, " Teresa ", "").ok).toBe(false);
+    expect(validateUniqueCustomer(customers, "Teresa", "Martínez").ok).toBe(
+      true,
+    );
   });
 
   it("rechaza duplicado", () => {
@@ -505,6 +567,28 @@ describe("ensureCustomerForDocument", () => {
     }
   });
 
+  it("reutiliza un cliente sin apellidos en vez de duplicarlo", () => {
+    const teresa: Customer = {
+      id: "teresa",
+      firstName: "Teresa",
+      lastName: "",
+      name: "Teresa",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    };
+    const result = ensureCustomerForDocument(
+      [...sample, teresa],
+      { firstName: " Teresa ", lastName: "", phone: "600111222" },
+      null,
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.created).toBe(false);
+      expect(result.customer.id).toBe("teresa");
+    }
+  });
+
   it("crea empresa desde documento con contacto opcional", () => {
     const result = ensureCustomerForDocument(
       sample,
@@ -663,6 +747,110 @@ describe("ensureCustomerForDocument", () => {
       expect(result.customer.nif).toBe("12345678A");
       expect(result.customer.phone).toBe("600222333");
       expect(result.customer.email).toBe("ana.actualizada@test.com");
+    }
+  });
+
+  it("permite vaciar contacto y dirección desde un documento", () => {
+    const result = ensureCustomerForDocument(
+      sample,
+      {
+        firstName: "Ana",
+        lastName: "García",
+        nif: "12345678A",
+        email: "",
+        phone: "",
+        address: "",
+        city: "",
+        postalCode: "",
+        notes: "",
+      },
+      "2",
+      { now: "2026-07-14T10:00:00.000Z" },
+    );
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.customer.email).toBeUndefined();
+      expect(result.customer.phone).toBeUndefined();
+      expect(result.customer.address).toBeUndefined();
+      expect(result.customer.city).toBeUndefined();
+      expect(result.customer.postalCode).toBeUndefined();
+      expect(result.customer.notes).toBeUndefined();
+    }
+  });
+});
+
+describe("customer collection writes", () => {
+  it("valida contra la colección actual y bloquea un doble alta", () => {
+    const first = createCustomerInCollection(
+      sample,
+      {
+        firstName: "Teresa",
+        lastName: "",
+        name: "Teresa",
+      },
+      "new-1",
+      "2026-07-14T10:00:00.000Z",
+    );
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    const second = createCustomerInCollection(
+      first.customers,
+      {
+        firstName: " Teresa ",
+        lastName: "",
+        name: "Teresa",
+      },
+      "new-2",
+      "2026-07-14T10:00:01.000Z",
+    );
+    expect(second.ok).toBe(false);
+    expect(first.customers).toHaveLength(sample.length + 1);
+  });
+
+  it("actualiza solo la ficha existente y rechaza ids desaparecidos", () => {
+    const updated = updateCustomerInCollection(
+      sample,
+      { ...sample[1], phone: "699 111 222" },
+      "2026-07-14T10:00:00.000Z",
+    );
+    expect(updated.ok).toBe(true);
+    if (updated.ok) {
+      expect(updated.customers).toHaveLength(sample.length);
+      expect(updated.customer.phone).toBe("699 111 222");
+    }
+    expect(
+      updateCustomerInCollection(
+        sample,
+        { ...sample[1], id: "missing" },
+        "2026-07-14T10:00:00.000Z",
+      ).ok,
+    ).toBe(false);
+  });
+
+  it("hace atómico el alta desde documento usando la colección más reciente", () => {
+    const first = upsertCustomerForDocumentInCollection(
+      sample,
+      { firstName: "Teresa", lastName: "" },
+      null,
+      "new-1",
+      "2026-07-14T10:00:00.000Z",
+    );
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    const second = upsertCustomerForDocumentInCollection(
+      first.customers,
+      { firstName: "Teresa", lastName: "" },
+      null,
+      "new-2",
+      "2026-07-14T10:00:01.000Z",
+    );
+    expect(second.ok).toBe(true);
+    if (second.ok) {
+      expect(second.customerId).toBe("new-1");
+      expect(second.customers).toHaveLength(sample.length + 1);
     }
   });
 });
@@ -1032,6 +1220,15 @@ describe("clientMatchesCustomer", () => {
       true,
     );
   });
+
+  it("no empareja dos fichas con el mismo nombre y NIF distintos", () => {
+    expect(
+      clientMatchesCustomer(
+        { name: "Ana García", nif: "99999999Z" },
+        sample[1],
+      ),
+    ).toBe(false);
+  });
 });
 
 describe("findCustomerByClient", () => {
@@ -1047,5 +1244,15 @@ describe("findCustomerByClient", () => {
   it("encuentra por identidad", () => {
     const found = findCustomerByIdentity(sample, "Zara", "Servicios");
     expect(found?.id).toBe("1");
+  });
+
+  it("no elige por nombre cuando el NIF informado contradice la ficha", () => {
+    const found = findCustomerByClient(sample, {
+      firstName: "Ana",
+      lastName: "García",
+      name: "Ana García",
+      nif: "99999999Z",
+    });
+    expect(found).toBeUndefined();
   });
 });

@@ -394,11 +394,21 @@ export function buildCustomerInvoicedTotals(
           byIdentity.get(
             customerIdentityKey(doc.client.firstName, doc.client.lastName),
           ) ?? [];
-        identityMatches.forEach((id) => matchedIds.add(id));
+        identityMatches.forEach((id) => {
+          const customer = customers.find((candidate) => candidate.id === id);
+          if (customer && clientMatchesCustomer(doc.client, customer)) {
+            matchedIds.add(id);
+          }
+        });
       } else {
         const clientName = (doc.client.name ?? "").trim().toLowerCase();
         const nameMatches = byDisplayName.get(clientName) ?? [];
-        nameMatches.forEach((id) => matchedIds.add(id));
+        nameMatches.forEach((id) => {
+          const customer = customers.find((candidate) => candidate.id === id);
+          if (customer && clientMatchesCustomer(doc.client, customer)) {
+            matchedIds.add(id);
+          }
+        });
       }
     }
 
@@ -421,6 +431,7 @@ export function clientMatchesCustomer(client: Client, customer: Customer): boole
     const customerName = customerComparableName(migrated);
     return !clientName || !customerName || clientName === customerName;
   }
+  if (customerNif && clientNif) return false;
 
   const clientType = normalizeCustomerType(client.customerType);
   const customerType = normalizeCustomerType(migrated.customerType);
@@ -498,6 +509,20 @@ export type CustomerSortField =
   | "facturacion"
   | "direccion";
 export type CustomerSortDirection = "asc" | "desc";
+
+export function customerListWindow(
+  customers: Customer[],
+  visibleCount: number,
+): { visible: Customer[]; hiddenCount: number } {
+  const safeCount = Number.isFinite(visibleCount)
+    ? Math.max(0, Math.floor(visibleCount))
+    : 0;
+  const visible = customers.slice(0, safeCount);
+  return {
+    visible,
+    hiddenCount: Math.max(customers.length - visible.length, 0),
+  };
+}
 
 export const CUSTOMER_SORT_FIELD_LABELS: Record<CustomerSortField, string> = {
   reciente: "Últimos añadidos",
@@ -593,8 +618,10 @@ export function customerToClient(customer: Customer): Client {
 }
 
 export function filterCustomers(customers: Customer[], query: string): Customer[] {
-  const q = query.trim().toLowerCase();
+  const q = normalizeComparableCustomerText(query);
   if (!q) return sortCustomersByName(customers);
+  const queryTokens = q.split(" ").filter(Boolean);
+  const compactQuery = q.replace(/\s/g, "");
 
   return sortCustomersByName(customers).filter((c) => {
     const migrated = migrateCustomer(c);
@@ -612,11 +639,16 @@ export function filterCustomers(customers: Customer[], query: string): Customer[
       migrated.address,
       migrated.addressExtra,
       migrated.city,
+      migrated.postalCode,
     ]
       .filter(Boolean)
-      .join(" ")
-      .toLowerCase();
-    return haystack.includes(q);
+      .map((value) => normalizeComparableCustomerText(String(value)))
+      .join(" ");
+    const compactHaystack = haystack.replace(/\s/g, "");
+    return (
+      queryTokens.every((token) => haystack.includes(token)) ||
+      Boolean(compactQuery && compactHaystack.includes(compactQuery))
+    );
   });
 }
 
@@ -631,10 +663,6 @@ export function findCustomerByIdentity(
   if (!normalizeNamePart(firstName)) {
     return undefined;
   }
-  if (type === "person" && !normalizeNamePart(lastName)) {
-    return undefined;
-  }
-
   const key = customerIdentityKeyForType(type, firstName, lastName);
   return customers.find(
     (c) => {
@@ -655,32 +683,6 @@ export function findCustomerByClient(
   customers: Customer[],
   client: Client,
 ): Customer | undefined {
-  const clientType = normalizeCustomerType(client.customerType);
-  if (clientType === "company" && (client.name || client.firstName)) {
-    const byCompanyName = findCustomerByIdentity(
-      customers,
-      client.name || client.firstName || "",
-      "",
-      undefined,
-      "company",
-    );
-    if (byCompanyName) return byCompanyName;
-  }
-
-  if (client.firstName && client.lastName) {
-    const byIdentity = findCustomerByIdentity(
-      customers,
-      client.firstName,
-      client.lastName,
-      undefined,
-      clientType,
-    );
-    if (byIdentity) return byIdentity;
-  }
-
-  const name = (client.name ?? "").trim().toLowerCase();
-  if (!name) return undefined;
-
   const byNif = client.nif
     ? customers.find(
         (c) =>
@@ -689,10 +691,7 @@ export function findCustomerByClient(
       )
     : undefined;
   if (byNif) return byNif;
-
-  return customers.find(
-    (c) => getCustomerDisplayName(migrateCustomer(c)).toLowerCase() === name,
-  );
+  return customers.find((customer) => clientMatchesCustomer(client, customer));
 }
 
 export interface CustomerNameValidation {
@@ -759,7 +758,7 @@ export function validateUniqueCustomer(
     }
   }
 
-  if (type === "company" || base.lastName) {
+  if (type === "company" || base.firstName) {
     const duplicate = findCustomerByIdentity(
       customers,
       base.firstName!,
@@ -944,9 +943,7 @@ function findReusableCustomerForDocumentInput(
     : undefined;
   if (byNif) return byNif;
 
-  if (!firstName || (customerType === "person" && !lastName)) {
-    return undefined;
-  }
+  if (!firstName) return undefined;
 
   return findCustomerByIdentity(
     customers,
@@ -961,6 +958,7 @@ export function ensureCustomerForDocument(
   customers: Customer[],
   input: ClientInput,
   selectedCustomerId: string | null,
+  options?: { now?: string },
 ): EnsureCustomerResult {
   const reusableCustomer = findReusableCustomerForDocumentInput(
     customers,
@@ -991,7 +989,7 @@ export function ensureCustomerForDocument(
     email: validation.email,
     phone: validation.phone,
   });
-  const now = new Date().toISOString();
+  const now = options?.now ?? new Date().toISOString();
 
   if (effectiveSelectedCustomerId) {
     const existing =
@@ -1011,13 +1009,13 @@ export function ensureCustomerForDocument(
       nif: client.nif,
       email: client.email,
       phone: client.phone,
-      streetType: input.streetType?.trim() || existing.streetType,
+      streetType: input.streetType?.trim() || undefined,
       residenceType,
       addressExtra: addressExtra || undefined,
-      address: input.address?.trim() || existing.address,
-      city: input.city?.trim() || existing.city,
-      postalCode: input.postalCode?.trim() || existing.postalCode,
-      notes: input.notes?.trim() || existing.notes,
+      address: input.address?.trim() || undefined,
+      city: input.city?.trim() || undefined,
+      postalCode: input.postalCode?.trim() || undefined,
+      notes: input.notes?.trim() || undefined,
       updatedAt: now,
     };
 
@@ -1029,7 +1027,7 @@ export function ensureCustomerForDocument(
     };
   }
 
-  if (customerType === "company" || lastName) {
+  if (customerType === "company" || firstName) {
     const duplicate = findCustomerByIdentity(
       customers,
       firstName,
@@ -1067,6 +1065,98 @@ export function ensureCustomerForDocument(
   };
 
   return { ok: true, customer, created: true, client: customerToClient(customer) };
+}
+
+export type CustomerCollectionWriteResult =
+  | { ok: true; customers: Customer[]; customer: Customer }
+  | { ok: false; error: string };
+
+export function createCustomerInCollection(
+  customers: Customer[],
+  customer: Omit<Customer, "id" | "createdAt" | "updatedAt">,
+  id: string,
+  now: string,
+): CustomerCollectionWriteResult {
+  const validation = validateCustomerInput(customers, customer);
+  if (!validation.ok) {
+    return { ok: false, error: validation.error ?? "Revisa los datos del cliente" };
+  }
+
+  const created = migrateCustomer({
+    ...customer,
+    firstName: validation.firstName ?? customer.firstName,
+    lastName: validation.lastName ?? customer.lastName,
+    email: validation.email,
+    phone: validation.phone,
+    id,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return { ok: true, customers: [...customers, created], customer: created };
+}
+
+export function updateCustomerInCollection(
+  customers: Customer[],
+  customer: Customer,
+  now: string,
+): CustomerCollectionWriteResult {
+  if (!customers.some((candidate) => candidate.id === customer.id)) {
+    return { ok: false, error: "El cliente ya no existe" };
+  }
+  const validation = validateCustomerInput(customers, customer, customer.id);
+  if (!validation.ok) {
+    return { ok: false, error: validation.error ?? "Revisa los datos del cliente" };
+  }
+
+  const updated = migrateCustomer({
+    ...customer,
+    firstName: validation.firstName ?? customer.firstName,
+    lastName: validation.lastName ?? customer.lastName,
+    email: validation.email,
+    phone: validation.phone,
+    updatedAt: now,
+  });
+  return {
+    ok: true,
+    customers: customers.map((candidate) =>
+      candidate.id === updated.id ? updated : candidate,
+    ),
+    customer: updated,
+  };
+}
+
+export type CustomerDocumentUpsertResult =
+  | {
+      ok: true;
+      customers: Customer[];
+      customerId: string;
+      client: Client;
+    }
+  | { ok: false; error: string };
+
+export function upsertCustomerForDocumentInCollection(
+  customers: Customer[],
+  input: ClientInput,
+  selectedCustomerId: string | null,
+  id: string,
+  now: string,
+): CustomerDocumentUpsertResult {
+  const result = ensureCustomerForDocument(customers, input, selectedCustomerId, {
+    now,
+  });
+  if (!result.ok) return result;
+
+  const customer = result.created ? { ...result.customer, id } : result.customer;
+  return {
+    ok: true,
+    customers: result.created
+      ? [...customers, customer]
+      : customers.map((candidate) =>
+          candidate.id === customer.id ? customer : candidate,
+        ),
+    customerId: customer.id,
+    client: customerToClient(customer),
+  };
 }
 
 export function customerPayloadFromInput(input: ClientInput) {
