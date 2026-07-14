@@ -104,6 +104,44 @@ describe("expense inbox attachment download boundaries", () => {
     ).rejects.toSatisfy((error: unknown) => failureOf(error) === "too_large");
   });
 
+  it("identifica la llamada directa y solicita JSON a la API de Resend", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(metadataResponse({ size: 4 }))
+      .mockResolvedValueOnce(
+        new Response(new Uint8Array([1, 2, 3, 4]), { status: 200 }),
+      );
+
+    await downloadResendAttachment(downloadInput(fetchImpl));
+
+    const headers = new Headers(fetchImpl.mock.calls[0]?.[1]?.headers);
+    expect(headers.get("accept")).toBe("application/json");
+    expect(headers.get("user-agent")).toBe(
+      "Facturacion-Autonomos/expense-inbox",
+    );
+    expect(headers.get("authorization")).toBe("Bearer synthetic-test-key");
+  });
+
+  it("conserva solo el estado seguro cuando Resend rechaza la lectura", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response('{"message":"secret provider detail"}', { status: 401 }),
+      );
+
+    const error = await downloadResendAttachment(downloadInput(fetchImpl)).catch(
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toBeInstanceOf(ExpenseInboxDownloadError);
+    expect(error).toMatchObject({
+      failure: "provider_error",
+      providerStatus: 401,
+      message: "Resend no devolvió el adjunto solicitado.",
+    });
+    expect(String(error)).not.toContain("secret provider detail");
+  });
+
   it("lee por streaming y corta aunque no exista content-length", async () => {
     const body = new ReadableStream<Uint8Array>({
       start(controller) {

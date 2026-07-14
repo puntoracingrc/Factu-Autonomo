@@ -7,6 +7,7 @@ export const MAX_RESEND_ATTACHMENTS_TOTAL_BYTES = 16 * 1024 * 1024;
 const MAX_RESEND_ATTACHMENT_METADATA_BYTES = 64 * 1024;
 const RESEND_API_ORIGIN = "https://api.resend.com";
 const RESEND_INBOUND_CDN_HOST = "inbound-cdn.resend.com";
+const RESEND_API_USER_AGENT = "Facturacion-Autonomos/expense-inbox";
 const DEFAULT_DOWNLOAD_TIMEOUT_MS = 10_000;
 
 export type ExpenseInboxDownloadFailure =
@@ -20,11 +21,17 @@ export type ExpenseInboxDownloadFailure =
 
 export class ExpenseInboxDownloadError extends Error {
   readonly failure: ExpenseInboxDownloadFailure;
+  readonly providerStatus?: number;
 
-  constructor(failure: ExpenseInboxDownloadFailure, message: string) {
+  constructor(
+    failure: ExpenseInboxDownloadFailure,
+    message: string,
+    providerStatus?: number,
+  ) {
     super(message);
     this.name = "ExpenseInboxDownloadError";
     this.failure = failure;
+    this.providerStatus = providerStatus;
   }
 }
 
@@ -281,7 +288,11 @@ export async function downloadResendAttachment(
   try {
     const metadataResponse = await awaitWithAbort(
       fetchImpl(apiUrl, {
-        headers: { Authorization: `Bearer ${input.apiKey}` },
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${input.apiKey}`,
+          "User-Agent": RESEND_API_USER_AGENT,
+        },
         cache: "no-store",
         redirect: "manual",
         signal: controller.signal,
@@ -293,6 +304,7 @@ export async function downloadResendAttachment(
       throw new ExpenseInboxDownloadError(
         "provider_error",
         "Resend no devolvió el adjunto solicitado.",
+        metadataResponse.status,
       );
     }
 

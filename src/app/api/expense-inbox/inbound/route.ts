@@ -5,6 +5,7 @@ import {
   ingestExpenseInboxEmail,
   ingestResendExpenseInboxEmail,
 } from "@/lib/expense-inbox-server";
+import { ExpenseInboxDownloadError } from "@/lib/expense-inbox-download";
 import { readTextBody } from "@/lib/server/request-body";
 
 function expectedSecret(): string {
@@ -69,6 +70,21 @@ function isResendReceivedEvent(payload: unknown): boolean {
   );
 }
 
+function logInboundFailure(error: unknown): void {
+  if (error instanceof ExpenseInboxDownloadError) {
+    console.error("expense_inbox_inbound_failed", {
+      failure: error.failure,
+      providerStatus: error.providerStatus,
+    });
+    return;
+  }
+
+  console.error("expense_inbox_inbound_failed", {
+    failure: "processing_error",
+    errorName: error instanceof Error ? error.name : "UnknownError",
+  });
+}
+
 export async function POST(request: Request) {
   const bodyResult = await readTextBody(request, {
     maxBytes: 4 * 1024 * 1024,
@@ -104,6 +120,7 @@ export async function POST(request: Request) {
       : await ingestExpenseInboxEmail(payload);
     return NextResponse.json(result);
   } catch (error) {
+    logInboundFailure(error);
     return NextResponse.json(
       {
         error:
