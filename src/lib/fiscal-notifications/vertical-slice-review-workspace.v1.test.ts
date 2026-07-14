@@ -200,7 +200,209 @@ function analysis(sha256 = HASH): FiscalNotificationLocalAnalysisResult {
   });
 }
 
+function notificationAnalysis(): FiscalNotificationLocalAnalysisResult {
+  const source = structuredClone(analysis()) as unknown as {
+    technicalReview: { pageCount: number; byteLength: number };
+    ephemeralVerticalSliceReview: { documents: unknown[] };
+  };
+  source.technicalReview.pageCount = 1;
+  source.technicalReview.byteLength = 4_321;
+  source.ephemeralVerticalSliceReview.documents = [
+    {
+      reviewDocumentId: "review-document:notification-envelope",
+      extractorId: "notification-envelope",
+      familyId: "notification.dehu_envelope",
+      title: "Sobre o acuse de notificación electrónica",
+      subtitle: "Notificación accedida o aceptada",
+      pageFrom: 1,
+      pageTo: 1,
+      confidence: 1,
+      fields: [
+        field({
+          displayValue: "Notificación accedida o aceptada",
+        }),
+        field({
+          fieldId: "reference:notification",
+          semantic: "REFERENCE",
+          canonicalType: "NOTIFICATION_ID",
+          label: "Notificación",
+          displayValue: "NOT-SYN-WORKSPACE-001",
+          normalizedValue: "NOT-SYN-WORKSPACE-001",
+          sourceLabel: "Identificador de la notificación",
+        }),
+        field({
+          fieldId: "reference:act",
+          semantic: "REFERENCE",
+          canonicalType: "ACT_ID",
+          label: "Acto o requerimiento",
+          displayValue: "ACT-SYN-WORKSPACE-001",
+          normalizedValue: "ACT-SYN-WORKSPACE-001",
+          sourceLabel: "Identificador del acto",
+        }),
+        field({
+          fieldId: "reference:nif",
+          semantic: "REFERENCE",
+          canonicalType: "NIF",
+          label: "NIF",
+          displayValue: "12345678Z",
+          normalizedValue: "12345678Z",
+          sourceLabel: "NIF del destinatario",
+        }),
+        field({
+          fieldId: "date:available",
+          semantic: "DATE",
+          canonicalType: "AVAILABILITY_DATE",
+          label: "Puesta a disposición",
+          displayValue: "10/07/2026 08:15",
+          normalizedValue: "2026-07-10",
+          sourceLabel: "Fecha de puesta a disposición",
+        }),
+        field({
+          fieldId: "date:accessed",
+          semantic: "DATE",
+          canonicalType: "ACCESS_DATE",
+          label: "Fecha de acceso",
+          displayValue: "12/07/2026 09:42",
+          normalizedValue: "2026-07-12",
+          sourceLabel: "Fecha de acceso",
+        }),
+        field({
+          fieldId: "party:issuer",
+          semantic: "PARTY",
+          canonicalType: "ISSUING_AUTHORITY",
+          label: "Órgano emisor",
+          displayValue: "Agencia Estatal de Administración Tributaria",
+          sourceLabel: "Órgano emisor",
+        }),
+        field({
+          fieldId: "party:taxpayer",
+          semantic: "PARTY",
+          canonicalType: "TAXPAYER",
+          label: "Obligado tributario",
+          displayValue: "PERSONA SINTÉTICA",
+          sourceLabel: "Destinatario",
+        }),
+        field({
+          fieldId: "detail:subject",
+          semantic: "DETAIL",
+          canonicalType: "NOTIFICATION_SUBJECT",
+          label: "Asunto",
+          displayValue: "Resolución sintética notificada",
+          sourceLabel: "Asunto",
+        }),
+        field({
+          fieldId: "detail:channel",
+          semantic: "DETAIL",
+          canonicalType: "NOTIFICATION_CHANNEL",
+          label: "Canal",
+          displayValue: "DEHú",
+          sourceLabel: "Canal de notificación",
+        }),
+      ],
+      warnings: [],
+      requiresHumanReview: true,
+    },
+  ];
+  return source as unknown as FiscalNotificationLocalAnalysisResult;
+}
+
 describe("vertical slice structured workspace v1", () => {
+  it("persiste el sobre electrónico y todos sus datos visibles sin conservar el PDF", () => {
+    const source = notificationAnalysis();
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: source,
+    });
+
+    expect(result.status).toBe("APPLIED");
+    expect(result.workspace.files).toEqual([
+      expect.objectContaining({
+        sourceContentRetention: "NOT_RETAINED",
+        pageCount: 1,
+        fileSize: 4_321,
+      }),
+    ]);
+    expect(result.workspace.documents).toEqual([
+      expect.objectContaining({
+        documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+        documentSubtype: "notification.dehu_envelope",
+        titleRaw: "Sobre o acuse de notificación electrónica",
+        authorityId: "authority:aeat",
+        subjectParty: {
+          displayName: "PERSONA SINTÉTICA",
+          taxIdNormalized: "12345678Z",
+          matchesBusinessProfile: "UNKNOWN",
+        },
+        notificationDates: {},
+      }),
+    ]);
+    expect(result.workspace.references.map((item) => [item.referenceType, item.rawValue])).toEqual([
+      ["NOTIFICATION_ID", "NOT-SYN-WORKSPACE-001"],
+      ["DOCUMENT_REFERENCE", "ACT-SYN-WORKSPACE-001"],
+      ["OTHER", "12345678Z"],
+    ]);
+    expect(result.workspace.analysisSnapshots[0]?.structuredData.unknownFields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          labelRaw: "VSR1|DATE|AVAILABILITY_DATE|Puesta a disposición",
+          valueRaw: "10/07/2026 08:15",
+          page: 1,
+        }),
+        expect.objectContaining({
+          labelRaw: "VSR1|DATE|ACCESS_DATE|Fecha de acceso",
+          valueRaw: "12/07/2026 09:42",
+          page: 1,
+        }),
+        expect.objectContaining({
+          labelRaw: "VSR1|DETAIL|NOTIFICATION_SUBJECT|Asunto",
+          valueRaw: "Resolución sintética notificada",
+          page: 1,
+        }),
+      ]),
+    );
+    expect(result.workspace.debts).toEqual([]);
+    expect(result.workspace.deadlineRules).toEqual([]);
+    expect(result.workspace.paymentOptions).toEqual([]);
+    expect(result.workspace.accountingDrafts).toEqual([]);
+    expect(validateFiscalNotificationsWorkspaceIntegrity(result.workspace, OWNER)).toEqual({
+      valid: true,
+      issues: [],
+    });
+  });
+
+  it("conserva literalmente un emisor no AEAT sin atribuírselo falsamente a AEAT", () => {
+    const source = structuredClone(notificationAnalysis()) as unknown as {
+      ephemeralVerticalSliceReview: {
+        documents: Array<{ fields: Array<{ canonicalType: string; displayValue: string }> }>;
+      };
+    };
+    const issuer = source.ephemeralVerticalSliceReview.documents[0]!.fields.find(
+      (item) => item.canonicalType === "ISSUING_AUTHORITY",
+    )!;
+    issuer.displayValue = "Organismo tributario sintético";
+
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: source as unknown as FiscalNotificationLocalAnalysisResult,
+    });
+
+    expect(result.workspace.authorities).toEqual([
+      expect.objectContaining({
+        administrationType: "OTHER",
+        nameRaw: "Organismo tributario sintético",
+        nameNormalized: "ORGANISMO TRIBUTARIO SINTETICO",
+      }),
+    ]);
+    expect(result.workspace.documents[0]?.authorityId).toBe(result.workspace.authorities[0]?.id);
+    expect(result.workspace.documents[0]?.authorityId).not.toBe("authority:aeat");
+  });
+
   it("persiste varias fichas segmentadas con datos exactos y ningún efecto operativo", () => {
     const source = analysis();
     const before = structuredClone(source);

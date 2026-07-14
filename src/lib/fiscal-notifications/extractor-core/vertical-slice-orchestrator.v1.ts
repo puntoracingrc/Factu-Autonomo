@@ -16,6 +16,10 @@ import {
   type FormalFilingRequirementExtractorOutputV1,
 } from "./formal-filing-requirement-extractor.v1";
 import {
+  extractNotificationEnvelopeV1,
+  type NotificationEnvelopeExtractorOutputV1,
+} from "./notification-envelope-extractor.v1";
+import {
   extractPaymentEvidenceV1,
   type PaymentEvidenceExtractorOutputV1,
 } from "./payment-evidence-extractor.v1";
@@ -29,10 +33,11 @@ import {
 } from "./shared.v1";
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_ORCHESTRATOR_VERSION_V1 =
-  "1.0.0" as const;
+  "1.1.0" as const;
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_EXTRACTOR_ORDER_V1 =
   Object.freeze([
+    "notification-envelope",
     "requirement",
     "assessment",
     "payment-order",
@@ -43,6 +48,7 @@ export type FiscalNotificationVerticalSliceExtractorIdV1 =
   (typeof FISCAL_NOTIFICATION_VERTICAL_SLICE_EXTRACTOR_ORDER_V1)[number];
 
 export interface FiscalNotificationVerticalSliceExtractionsV1 {
+  readonly notificationEnvelope: NotificationEnvelopeExtractorOutputV1 | null;
   readonly formalFilingRequirement: FormalFilingRequirementExtractorOutputV1 | null;
   readonly assessment: AssessmentExtractorOutputV1 | null;
   readonly paymentOrder: PaymentOrderExtractorOutputV1 | null;
@@ -104,6 +110,11 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
   });
   assertNotAborted(document.signal);
 
+  const notificationEnvelope = extractNotificationEnvelopeV1({
+    document,
+    segments: segmentation.segments,
+  });
+  assertNotAborted(document.signal);
   const requirement = extractFormalFilingRequirementV1({
     document,
     segments: segmentation.segments,
@@ -126,6 +137,7 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
   assertNotAborted(document.signal);
 
   const outputs = Object.freeze([
+    Object.freeze({ id: "notification-envelope" as const, output: notificationEnvelope }),
     Object.freeze({ id: "requirement" as const, output: requirement }),
     Object.freeze({ id: "assessment" as const, output: assessment }),
     Object.freeze({ id: "payment-order" as const, output: paymentOrder }),
@@ -169,6 +181,8 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
     segmentation,
     extractionOrder: FISCAL_NOTIFICATION_VERTICAL_SLICE_EXTRACTOR_ORDER_V1,
     extractions: Object.freeze({
+      notificationEnvelope:
+        notificationEnvelope.status === "REVIEW_REQUIRED" ? notificationEnvelope : null,
       formalFilingRequirement:
         requirement.status === "REVIEW_REQUIRED" ? requirement : null,
       assessment:

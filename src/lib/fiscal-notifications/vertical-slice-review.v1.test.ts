@@ -28,6 +28,21 @@ const PAYMENT = [
   "Cuenta de cargo: ES12 3456 7890 1234 5678 9012",
 ].join("\n");
 
+const NOTIFICATION = [
+  "Dirección Electrónica Habilitada Única",
+  "dehu.redsara.es",
+  "ACUSE DE RECIBO",
+  "Estado de la notificación: Aceptada",
+  "Identificador de la notificación: NOT-SYN-VIEW-001",
+  "Identificador del acto: ACT-SYN-VIEW-001",
+  "Asunto: Liquidación sintética notificada",
+  "Organismo emisor: Agencia Estatal de Administración Tributaria",
+  "Destinatario: PERSONA SINTÉTICA",
+  "Canal de notificación: DEHú",
+  "Fecha de puesta a disposición: 10/07/2026 08:15",
+  "Fecha de acceso: 12/07/2026 09:42",
+].join("\n");
+
 function document(text: string): BoundedDocumentInput {
   return Object.freeze({
     ownerScope: "user:synthetic-review-projection",
@@ -37,6 +52,76 @@ function document(text: string): BoundedDocumentInput {
 }
 
 describe("fiscal notification vertical-slice review v1", () => {
+  it("projects the exact electronic-notification facts into the visible review", async () => {
+    const review = projectFiscalNotificationVerticalSliceReviewV1(
+      await analyzeFiscalNotificationVerticalSliceV1(document(NOTIFICATION)),
+    );
+
+    expect(review.documents).toEqual([
+      expect.objectContaining({
+        extractorId: "notification-envelope",
+        familyId: "notification.dehu_envelope",
+        title: "Sobre o acuse de notificación electrónica",
+        subtitle: "Notificación accedida o aceptada",
+      }),
+    ]);
+    expect(review.documents[0]?.fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        semantic: "STATUS",
+        displayValue: "Notificación accedida o aceptada",
+      }),
+      expect.objectContaining({
+        semantic: "REFERENCE",
+        canonicalType: "NOTIFICATION_ID",
+        displayValue: "NOT-SYN-VIEW-001",
+      }),
+      expect.objectContaining({
+        semantic: "REFERENCE",
+        canonicalType: "ACT_ID",
+        displayValue: "ACT-SYN-VIEW-001",
+      }),
+      expect.objectContaining({
+        semantic: "DATE",
+        canonicalType: "AVAILABILITY_DATE",
+        displayValue: "10/07/2026 08:15",
+        normalizedValue: "2026-07-10",
+      }),
+      expect.objectContaining({
+        semantic: "DATE",
+        canonicalType: "ACCESS_DATE",
+        displayValue: "12/07/2026 09:42",
+        normalizedValue: "2026-07-12",
+      }),
+      expect.objectContaining({
+        semantic: "PARTY",
+        canonicalType: "ISSUING_AUTHORITY",
+        displayValue: "Agencia Estatal de Administración Tributaria",
+      }),
+      expect.objectContaining({
+        semantic: "PARTY",
+        canonicalType: "TAXPAYER",
+        displayValue: "PERSONA SINTÉTICA",
+      }),
+      expect.objectContaining({
+        semantic: "DETAIL",
+        canonicalType: "NOTIFICATION_SUBJECT",
+        displayValue: "Liquidación sintética notificada",
+      }),
+      expect.objectContaining({
+        semantic: "DETAIL",
+        canonicalType: "NOTIFICATION_CHANNEL",
+        displayValue: "DEHú",
+      }),
+    ]));
+    expect(review).toMatchObject({
+      retainedSourceContent: "NONE",
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+      permitsAccountingAction: false,
+    });
+  });
+
   it("projects visible exact fields without retaining raw document text", async () => {
     const analysis = await analyzeFiscalNotificationVerticalSliceV1(document(PAYMENT));
     const review = projectFiscalNotificationVerticalSliceReviewV1(analysis);

@@ -27,7 +27,7 @@ import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integ
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_WORKSPACE_ENGINE_ID_V1 =
   "fiscal-notification-vertical-slice-workspace" as const;
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_WORKSPACE_VERSION_V1 =
-  "1.0.0" as const;
+  "1.1.0" as const;
 
 export interface AppendFiscalNotificationVerticalSliceReviewInputV1 {
   readonly ownerScope: string;
@@ -171,8 +171,6 @@ export function appendFiscalNotificationVerticalSliceReviewV1(
     assertUnusedId(workspace.packages, packageId);
     assertUnusedId(workspace.files, fileId);
   }
-  ensureAeatAuthority(workspace, ownerScope);
-
   const documentIds: string[] = [];
   const missingDocuments: FiscalNotificationVerticalSliceReviewDocumentV1[] = [];
   for (const document of review.documents) {
@@ -352,6 +350,8 @@ function appendDocument(input: {
     moneyFacts,
   });
   const documentType = documentTypeForFamily(document.familyId);
+  const authorityId = ensureDocumentAuthority(workspace, ownerScope, document);
+  const subjectParty = subjectPartyForDocument(document);
   const issueDate = normalizedDate(document, "ISSUE_DATE");
   const signingDate = normalizedDate(document, "SIGNING_DATE");
   const effectiveNotificationDate = normalizedDate(
@@ -370,12 +370,13 @@ function appendDocument(input: {
     documentSubtype: document.familyId,
     titleRaw: document.title,
     titleNormalized: normalizeTitle(document.title),
-    authorityId: AEAT_AUTHORITY_ID,
+    authorityId,
     ...(issueDate ? { issueDate } : {}),
     ...(signingDate ? { signatureDate: signingDate } : {}),
     notificationDates: effectiveNotificationDate
       ? { effectiveAt: effectiveNotificationDate }
       : {},
+    ...(subjectParty ? { subjectParty } : {}),
     status: "UNKNOWN",
     urgency: "REVIEW",
     extractionVersion: FISCAL_NOTIFICATION_VERTICAL_SLICE_WORKSPACE_VERSION_V1,
@@ -678,8 +679,90 @@ function ensureAeatAuthority(
   });
 }
 
+function ensureDocumentAuthority(
+  workspace: FiscalNotificationsWorkspace,
+  ownerScope: string,
+  document: FiscalNotificationVerticalSliceReviewDocumentV1,
+): string {
+  const issuerNames = [...new Set(
+    document.fields
+      .filter(
+        (field) =>
+          field.semantic === "PARTY" &&
+          field.canonicalType === "ISSUING_AUTHORITY",
+      )
+      .map((field) => field.displayValue),
+  )];
+  if (issuerNames.length > 1) throw invalidInput();
+  const issuer = issuerNames[0];
+  const normalized = issuer ? normalizeTitle(issuer) : null;
+  if (
+    !normalized ||
+    normalized === "AEAT" ||
+    normalized === "AGENCIA TRIBUTARIA" ||
+    normalized === "AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA" ||
+    normalized.startsWith("AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA ")
+  ) {
+    ensureAeatAuthority(workspace, ownerScope);
+    return AEAT_AUTHORITY_ID;
+  }
+  const id = `authority:printed-issuer:${stableHash(normalized)}`;
+  assertBoundedId(id, "authorityId");
+  const existing = workspace.authorities.find((item) => item.id === id);
+  if (existing) {
+    if (
+      existing.ownerScope !== ownerScope ||
+      existing.nameNormalized !== normalized ||
+      existing.administrationType !== "OTHER"
+    ) {
+      throw invalidInput();
+    }
+    return id;
+  }
+  workspace.authorities.push({
+    id,
+    ownerScope,
+    administrationType: "OTHER",
+    nameRaw: issuer!,
+    nameNormalized: normalized,
+  });
+  return id;
+}
+
+function subjectPartyForDocument(
+  document: FiscalNotificationVerticalSliceReviewDocumentV1,
+): FiscalNotificationsWorkspace["documents"][number]["subjectParty"] | null {
+  const names = [...new Set(
+    document.fields
+      .filter(
+        (field) =>
+          field.semantic === "PARTY" && field.canonicalType === "TAXPAYER",
+      )
+      .map((field) => field.displayValue),
+  )];
+  const taxIds = [...new Set(
+    document.fields
+      .filter(
+        (field) =>
+          field.semantic === "REFERENCE" && field.canonicalType === "NIF",
+      )
+      .map((field) => field.normalizedValue ?? normalizeReference(field.displayValue)),
+  )];
+  if (names.length > 1 || taxIds.length > 1) throw invalidInput();
+  if (!names[0] && !taxIds[0]) return null;
+  return {
+    ...(names[0] ? { displayName: names[0] } : {}),
+    ...(taxIds[0] ? { taxIdNormalized: taxIds[0] } : {}),
+    matchesBusinessProfile: "UNKNOWN",
+  };
+}
+
 function documentTypeForFamily(familyId: string): AdministrativeDocumentType {
   switch (familyId) {
+    case "notification.delivery_attempt":
+    case "notification.publication_or_appearance":
+    case "notification.dehu_envelope":
+      return "GENERIC_ADMINISTRATIVE_NOTICE";
     case "compliance.formal_filing_requirement":
       return "AEAT_INFORMATION_REQUEST";
     case "assessment.allegations_and_proposal":
@@ -795,6 +878,15 @@ function normalizeTitle(value: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/gu, "")
     .toLocaleUpperCase("es");
+}
+
+function stableHash(value: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
 }
 
 function documentId(reviewUuid: string, extractorId: string): string {
