@@ -661,7 +661,7 @@ const MODEL_369_CONTENT = {
   reviewedOn: REVIEWED_ON,
   canonicalName: "Declaraciones de IVA del régimen One Stop Shop (OSS)",
   summary:
-    "La AEAT identifica el Modelo 369 con las declaraciones de IVA del régimen One Stop Shop, o ventanilla única europea para determinadas operaciones transfronterizas, y documenta los regímenes de la Unión, exterior de la Unión e importación, además de un canal por fichero.",
+    "Declaración y pago del IVA de las operaciones incluidas en los regímenes OSS e IOSS.",
   searchTerms: [
     "modelo 369",
     "IVA",

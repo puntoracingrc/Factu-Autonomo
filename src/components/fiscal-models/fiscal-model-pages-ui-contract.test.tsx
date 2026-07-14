@@ -57,7 +57,7 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(catalog).not.toContain("Abrir ficha en revisión");
     expect(catalog).toContain("href={detailHref}");
     expect(catalog).toContain("Ver ficha");
-    expect(catalog).toContain("del modelo {page.code}");
+    expect(catalog).toContain("getFiscalModelDocumentTitle(page.code)");
     expect(catalog + browser).not.toMatch(/\b(?:AVAILABLE|CURRENT|APPROVED)\b/);
   });
 

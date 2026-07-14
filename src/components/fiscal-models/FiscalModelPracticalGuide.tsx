@@ -21,6 +21,7 @@ import type {
   PublicAeatOfficialModelContentV1,
 } from "@/lib/fiscal-models/model-pages/official-content";
 import type { FiscalModelPracticalGuideV1 } from "./fiscal-model-practical-guide.types";
+import { getFiscalModelDocumentTitle } from "./fiscal-model-document-title";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
@@ -31,6 +32,7 @@ const OFFICIAL_HOSTS = new Set([
   "www2.agenciatributaria.gob.es",
   "www.boe.es",
   "ec.europa.eu",
+  "taxation-customs.ec.europa.eu",
 ]);
 
 function sourceById(
@@ -181,7 +183,7 @@ export function FiscalModelPracticalGuide({
         className="space-y-4"
       >
         <h2 id={`model-${guide.code}-introduction`} className="sr-only">
-          Introducción al Modelo {guide.code}
+          Introducción al {getFiscalModelDocumentTitle(guide.code)}
         </h2>
         {guide.intro.map((paragraph) => (
           <p
@@ -623,7 +625,8 @@ export function FiscalModelPracticalGuide({
         AEAT o del BOE.
         {guide.lastVerifiedAt ? (
           <>
-            {" "}Última comprobación: {guide.lastVerifiedAt}.
+            {" "}
+            Última comprobación: {guide.lastVerifiedAt}.
             {guide.requiresAnnualReview && guide.effectiveYear
               ? ` Las reglas marcadas para ${guide.effectiveYear} requieren revisión en el ejercicio siguiente.`
               : ""}

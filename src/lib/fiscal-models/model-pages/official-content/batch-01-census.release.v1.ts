@@ -164,8 +164,7 @@ const MODEL_030 = {
       authority: "BOE",
       kind: "LEGAL_TEXT",
       title: "Orden HAC/1526/2024, de 11 de diciembre",
-      canonicalUrl:
-        "https://www.boe.es/buscar/act.php?id=BOE-A-2025-410",
+      canonicalUrl: "https://www.boe.es/buscar/act.php?id=BOE-A-2025-410",
       officialUpdatedOn: "2025-01-09",
       capturedOn: REVIEWED_ON,
       sourceSha256:
@@ -190,15 +189,13 @@ const MODEL_030 = {
   thumbnail: {
     id: "model-030-form-preview",
     sourceId: "boe.model-030.form-image.2025-01-09",
-    publicHref:
-      "/fiscal-models/modelo-030/formulario-modelo-030-preview.png",
+    publicHref: "/fiscal-models/modelo-030/formulario-modelo-030-preview.png",
     mediaType: "image/png",
     width: 640,
     height: 640,
     pageNumber: 1,
     cropVariant: "HEADER_AND_DOCUMENT_START",
-    sha256:
-      "5eaae0ba02f63e31e2d9c731d115295e583fcc1bcac7fdbe5322c491f669d0b6",
+    sha256: "5eaae0ba02f63e31e2d9c731d115295e583fcc1bcac7fdbe5322c491f669d0b6",
     alt: "Vista previa del formulario oficial Modelo 030 publicado por el BOE",
     provenanceStatus: "DERIVED_FROM_HASHED_OFFICIAL_IMAGE",
   },
@@ -236,21 +233,24 @@ const MODEL_030 = {
     {
       id: "model-030-faq-purpose",
       question: "¿Qué es el Modelo 030?",
-      answer: "Es la declaración censal que la AEAT identifica para el alta en el Censo de Obligados Tributarios y para comunicar determinados cambios de domicilio o de datos personales de personas físicas.",
+      answer:
+        "Es la declaración censal que la AEAT identifica para el alta en el Censo de Obligados Tributarios y para comunicar determinados cambios de domicilio o de datos personales de personas físicas.",
       sourceIds: ["aeat.model-030.procedure-record.2026-07-10"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-030-faq-data",
       question: "¿Qué tipo de datos aparecen en el formulario?",
-      answer: "La imagen oficial incluye bloques de identificación, domicilio fiscal, domicilio de notificaciones y datos de contacto, entre otros apartados censales.",
+      answer:
+        "La imagen oficial incluye bloques de identificación, domicilio fiscal, domicilio de notificaciones y datos de contacto, entre otros apartados censales.",
       sourceIds: ["boe.model-030.form-image.2025-01-09"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-030-faq-online",
       question: "¿La AEAT ofrece presentación electrónica?",
-      answer: "Sí. La Sede de la AEAT publica una ayuda específica para la presentación electrónica del Modelo 030 y la ficha del procedimiento incluye la vía telemática.",
+      answer:
+        "Sí. La Sede de la AEAT publica una ayuda específica para la presentación electrónica del Modelo 030 y la ficha del procedimiento incluye la vía telemática.",
       sourceIds: [
         "aeat.model-030.electronic-help.2026-06-26",
         "aeat.model-030.procedure-record.2026-07-10",
@@ -260,7 +260,8 @@ const MODEL_030 = {
     {
       id: "model-030-faq-instructions",
       question: "¿Dónde se consulta la explicación oficial del modelo?",
-      answer: "La Sede de la AEAT mantiene una página de instrucciones enlazada desde el procedimiento oficial del Modelo 030.",
+      answer:
+        "La Sede de la AEAT mantiene una página de instrucciones enlazada desde el procedimiento oficial del Modelo 030.",
       sourceIds: [
         "aeat.model-030.procedure-home.2026-07-10",
         "aeat.model-030.instructions.2026-07-10",
@@ -284,7 +285,7 @@ const MODEL_035 = {
   canonicalName:
     "Registro Censal de los regímenes especiales aplicables a las prestaciones de servicios, ventas a distancia de bienes y determinadas entregas interiores.",
   summary:
-    "Formulario electrónico para gestionar el registro en el sistema OSS, la ventanilla única europea de IVA para ventas transfronterizas.",
+    "Alta, modificación y baja en los regímenes OSS e IOSS para determinadas ventas y servicios a consumidores de la Unión Europea.",
   searchTerms: [
     "formulario 035",
     "modelo 035",
@@ -445,8 +446,7 @@ const MODEL_035 = {
       authority: "BOE",
       kind: "LEGAL_TEXT",
       title: "Orden HAC/611/2021, de 16 de junio",
-      canonicalUrl:
-        "https://www.boe.es/buscar/act.php?id=BOE-A-2021-10162",
+      canonicalUrl: "https://www.boe.es/buscar/act.php?id=BOE-A-2021-10162",
       officialUpdatedOn: "2021-06-18",
       capturedOn: REVIEWED_ON,
       sourceSha256:
@@ -477,8 +477,7 @@ const MODEL_035 = {
     height: 640,
     pageNumber: 1,
     cropVariant: "HEADER_AND_DOCUMENT_START",
-    sha256:
-      "1f2b70276d9e141c1033795bc75ca3a3048f307b4a6dc6e0fc3214ebc66befce",
+    sha256: "1f2b70276d9e141c1033795bc75ca3a3048f307b4a6dc6e0fc3214ebc66befce",
     alt: "Vista previa del Formulario 035 oficial publicado por el BOE",
     provenanceStatus: "DERIVED_FROM_HASHED_OFFICIAL_IMAGE",
   },
@@ -530,21 +529,24 @@ const MODEL_035 = {
     {
       id: "model-035-faq-purpose",
       question: "¿Qué es el Formulario 035?",
-      answer: "Es el formulario que la AEAT vincula al registro censal de los regímenes especiales para prestaciones de servicios, ventas a distancia de bienes y determinadas entregas interiores.",
+      answer:
+        "Es el formulario que la AEAT vincula al registro censal de los regímenes especiales para prestaciones de servicios, ventas a distancia de bienes y determinadas entregas interiores.",
       sourceIds: ["aeat.model-035.procedure-home.2026-07-10"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-035-faq-oss",
       question: "¿Qué relación tiene con el sistema OSS?",
-      answer: "La ficha oficial describe el procedimiento como el medio para gestionar el registro en OSS, la ventanilla única europea de IVA para ventas transfronterizas.",
+      answer:
+        "La ficha oficial describe el procedimiento como el medio para gestionar el registro en OSS, la ventanilla única europea de IVA para ventas transfronterizas.",
       sourceIds: ["aeat.model-035.procedure-record.2026-04-01"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-035-faq-guides",
       question: "¿Qué ayudas de presentación publica la AEAT?",
-      answer: "La AEAT ofrece ayudas separadas para el régimen de la Unión, el régimen exterior de la Unión y el régimen de importación en sus recorridos de declarante e intermediario.",
+      answer:
+        "La AEAT ofrece ayudas separadas para el régimen de la Unión, el régimen exterior de la Unión y el régimen de importación en sus recorridos de declarante e intermediario.",
       sourceIds: [
         "aeat.model-035.union-guide.2025-07-29",
         "aeat.model-035.non-union-guide.2025-07-28",
@@ -556,7 +558,8 @@ const MODEL_035 = {
     {
       id: "model-035-faq-channel",
       question: "¿Cuál es el canal que figura en la ficha oficial?",
-      answer: "La ficha del procedimiento señala la vía telemática y la página principal enlaza accesos electrónicos diferenciados por régimen.",
+      answer:
+        "La ficha del procedimiento señala la vía telemática y la página principal enlaza accesos electrónicos diferenciados por régimen.",
       sourceIds: [
         "aeat.model-035.procedure-home.2026-07-10",
         "aeat.model-035.procedure-record.2026-04-01",
@@ -717,8 +720,7 @@ const MODEL_036 = {
       authority: "BOE",
       kind: "LEGAL_TEXT",
       title: "Orden HAC/1526/2024, de 11 de diciembre",
-      canonicalUrl:
-        "https://www.boe.es/buscar/act.php?id=BOE-A-2025-410",
+      canonicalUrl: "https://www.boe.es/buscar/act.php?id=BOE-A-2025-410",
       officialUpdatedOn: "2025-01-09",
       capturedOn: REVIEWED_ON,
       sourceSha256:
@@ -743,15 +745,13 @@ const MODEL_036 = {
   thumbnail: {
     id: "model-036-form-preview",
     sourceId: "boe.model-036.form-image.2025-01-09",
-    publicHref:
-      "/fiscal-models/modelo-036/formulario-modelo-036-preview.png",
+    publicHref: "/fiscal-models/modelo-036/formulario-modelo-036-preview.png",
     mediaType: "image/png",
     width: 640,
     height: 640,
     pageNumber: 1,
     cropVariant: "HEADER_AND_DOCUMENT_START",
-    sha256:
-      "b97ca6773ff543d30122e595e1daba3da24f61580c26d6c2dba398a0c7899f28",
+    sha256: "b97ca6773ff543d30122e595e1daba3da24f61580c26d6c2dba398a0c7899f28",
     alt: "Vista previa del formulario oficial Modelo 036 publicado por el BOE",
     provenanceStatus: "DERIVED_FROM_HASHED_OFFICIAL_IMAGE",
   },
@@ -789,21 +789,24 @@ const MODEL_036 = {
     {
       id: "model-036-faq-purpose",
       question: "¿Qué es el Modelo 036?",
-      answer: "Es la declaración censal que la AEAT identifica para el alta, la modificación y la baja en el Censo de empresarios, profesionales y retenedores.",
+      answer:
+        "Es la declaración censal que la AEAT identifica para el alta, la modificación y la baja en el Censo de empresarios, profesionales y retenedores.",
       sourceIds: ["aeat.model-036.procedure-record.2026-07-10"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-036-faq-audience",
       question: "¿Cómo clasifica la AEAT a quienes inician el procedimiento?",
-      answer: "La ficha oficial identifica como solicitantes a ciudadanos y empresas. La ficha no sustituye la comprobación de la situación concreta ante la AEAT.",
+      answer:
+        "La ficha oficial identifica como solicitantes a ciudadanos y empresas. La ficha no sustituye la comprobación de la situación concreta ante la AEAT.",
       sourceIds: ["aeat.model-036.procedure-record.2026-07-10"],
       semantics: "OFFICIAL_INFORMATION_ONLY",
     },
     {
       id: "model-036-faq-help",
       question: "¿Qué recursos informativos publica la AEAT?",
-      answer: "La Sede ofrece la ficha del procedimiento, una página informativa del modelo y ayuda para la presentación electrónica.",
+      answer:
+        "La Sede ofrece la ficha del procedimiento, una página informativa del modelo y ayuda para la presentación electrónica.",
       sourceIds: [
         "aeat.model-036.procedure-home.2026-07-10",
         "aeat.model-036.information.2026-04-01",
@@ -814,7 +817,8 @@ const MODEL_036 = {
     {
       id: "model-036-faq-form",
       question: "¿De dónde procede la vista previa del formulario?",
-      answer: "Procede de la imagen del Modelo 036 incluida en el anexo oficial publicado por el BOE junto a la Orden HAC/1526/2024.",
+      answer:
+        "Procede de la imagen del Modelo 036 incluida en el anexo oficial publicado por el BOE junto a la Orden HAC/1526/2024.",
       sourceIds: [
         "boe.order-hac-1526-2024.2025-01-09",
         "boe.model-036.form-image.2025-01-09",
@@ -826,14 +830,11 @@ const MODEL_036 = {
   limitations: LIMITATIONS,
 } as const satisfies PublicAeatOfficialModelContentV1<"036">;
 
-export const PUBLIC_AEAT_MODEL_030_OFFICIAL_CONTENT_V1 =
-  deepFreeze(MODEL_030);
+export const PUBLIC_AEAT_MODEL_030_OFFICIAL_CONTENT_V1 = deepFreeze(MODEL_030);
 
-export const PUBLIC_AEAT_MODEL_035_OFFICIAL_CONTENT_V1 =
-  deepFreeze(MODEL_035);
+export const PUBLIC_AEAT_MODEL_035_OFFICIAL_CONTENT_V1 = deepFreeze(MODEL_035);
 
-export const PUBLIC_AEAT_MODEL_036_OFFICIAL_CONTENT_V1 =
-  deepFreeze(MODEL_036);
+export const PUBLIC_AEAT_MODEL_036_OFFICIAL_CONTENT_V1 = deepFreeze(MODEL_036);
 
 export const PUBLIC_AEAT_BATCH_01_CENSUS_OFFICIAL_CONTENTS_V1 = deepFreeze([
   PUBLIC_AEAT_MODEL_030_OFFICIAL_CONTENT_V1,
