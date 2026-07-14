@@ -16,6 +16,11 @@ import {
   hasStrictPdfMagic,
   type FiscalNotificationPdfErrorCode,
 } from "./pdf-text-layer-parser";
+import {
+  FiscalNotificationVerticalSliceReviewErrorV1,
+  parseFiscalNotificationVerticalSliceReviewV1,
+  type FiscalNotificationVerticalSliceReviewV1,
+} from "./vertical-slice-review.v1";
 
 export const FISCAL_NOTIFICATION_PDF_ADAPTER_SCHEMA_VERSION = 6 as const;
 export const FISCAL_NOTIFICATION_PDF_ADAPTER_VERSION = "6.0.0" as const;
@@ -40,6 +45,7 @@ export interface FiscalNotificationPdfTextLayerResult {
   readonly sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST";
   readonly fileIntegrity: FiscalNotificationPdfFileIntegrity;
   readonly analysis: FiscalNotificationPdfWorkerAnalysis;
+  readonly verticalSliceReview: FiscalNotificationVerticalSliceReviewV1;
   readonly reviewContext: Readonly<{
     ownerScope: string;
     documentId: string;
@@ -73,7 +79,12 @@ export interface FiscalNotificationPdfAdapterDependencies {
 }
 
 const REQUEST_KEYS = new Set(["ownerScope", "documentId", "file", "signal"]);
-const RESULT_KEYS = new Set(["type", "requestId", "analysis"]);
+const RESULT_KEYS = new Set([
+  "type",
+  "requestId",
+  "analysis",
+  "verticalSliceReview",
+]);
 const ERROR_KEYS = new Set(["type", "requestId", "code"]);
 const PDFJS_READY_KEYS = new Set([
   "sourceName",
@@ -166,7 +177,12 @@ export async function readFiscalNotificationPdfTextLayer(
       buffer,
       operationController.signal,
     );
-    const analysis = parseFiscalNotificationPdfWorkerAnalysis(workerResult);
+    const analysis = parseFiscalNotificationPdfWorkerAnalysis(
+      workerResult.analysis,
+    );
+    const verticalSliceReview = parseFiscalNotificationVerticalSliceReviewV1(
+      workerResult.verticalSliceReview,
+    );
     const reviewContext = snapshotReviewContext(
       request.ownerScope,
       request.documentId,
@@ -183,6 +199,7 @@ export async function readFiscalNotificationPdfTextLayer(
         sha256,
       }),
       analysis,
+      verticalSliceReview,
       reviewContext,
       requiresHumanReview: true,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -196,6 +213,9 @@ export async function readFiscalNotificationPdfTextLayer(
       throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
     }
     if (error instanceof FiscalNotificationPdfWorkerAnalysisError) {
+      throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
+    }
+    if (error instanceof FiscalNotificationVerticalSliceReviewErrorV1) {
       throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
     }
     throw new FiscalNotificationPdfError("INVALID_PDF");
@@ -315,13 +335,18 @@ function createWorker(
   }
 }
 
+interface FiscalNotificationPdfWorkerResultPayload {
+  readonly analysis: unknown;
+  readonly verticalSliceReview: unknown;
+}
+
 function awaitWorkerResult(
   worker: FiscalNotificationPdfWorkerLike,
   bytes: ArrayBuffer,
   signal: AbortSignal,
-): Promise<unknown> {
+): Promise<FiscalNotificationPdfWorkerResultPayload> {
   assertOperationActive(signal);
-  return new Promise<unknown>((resolve, reject) => {
+  return new Promise<FiscalNotificationPdfWorkerResultPayload>((resolve, reject) => {
     let settled = false;
     let pdfJsReadySeen = false;
     const finish = (action: () => void) => {
@@ -350,7 +375,12 @@ function awaitWorkerResult(
         }
         if (message.type === "RESULT") {
           assertKnownKeys(message, RESULT_KEYS, "INVALID_WORKER_RESPONSE");
-          finish(() => resolve(message.analysis));
+          finish(() =>
+            resolve({
+              analysis: message.analysis,
+              verticalSliceReview: message.verticalSliceReview,
+            }),
+          );
           return;
         }
         if (message.type === "ERROR") {

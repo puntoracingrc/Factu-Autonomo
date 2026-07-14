@@ -9,6 +9,11 @@ import {
   type BoundedDocumentInput,
 } from "./input-contract";
 import type { ProjectFiscalNotificationPdfWorkerAnalysisInput } from "./pdf-worker-analysis-contract";
+import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
+import {
+  projectFiscalNotificationVerticalSliceReviewV1,
+  type FiscalNotificationVerticalSliceReviewV1,
+} from "./vertical-slice-review.v1";
 
 export interface FiscalNotificationDocumentInputAnalysis
   extends Omit<
@@ -16,15 +21,16 @@ export interface FiscalNotificationDocumentInputAnalysis
     "textLayerStatus"
   > {
   readonly hasText: boolean;
+  readonly verticalSliceReview: FiscalNotificationVerticalSliceReviewV1;
 }
 
 /**
  * Pure deterministic projection shared by the PDF text-layer Worker and the
  * local OCR boundary. Raw page text never leaves this call.
  */
-export function analyzeFiscalNotificationDocumentInput(
+export async function analyzeFiscalNotificationDocumentInput(
   documentInput: BoundedDocumentInput,
-): FiscalNotificationDocumentInputAnalysis {
+): Promise<FiscalNotificationDocumentInputAnalysis> {
   assertBoundedDocumentInput(documentInput);
   const pageCount = documentInput.pages.length;
   const hasText = documentInput.pages.some(
@@ -64,10 +70,14 @@ export function analyzeFiscalNotificationDocumentInput(
   const enforcementExplicitFields = enforcementCandidate
     ? extractAeatEnforcementExplicitFieldsV2(documentInput)
     : null;
+  const verticalSliceReview = projectFiscalNotificationVerticalSliceReviewV1(
+    await analyzeFiscalNotificationVerticalSliceV1(documentInput),
+  );
 
   return Object.freeze({
     hasText,
     pageCount,
+    verticalSliceReview,
     familyAnalysis,
     enforcementMoneyFacts: enforcementCandidate
       ? extractAeatEnforcementMoneyFacts(documentInput)

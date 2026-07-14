@@ -4,6 +4,7 @@ import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-fac
 import { DISABLED_FISCAL_NOTIFICATION_OCR_PORT } from "./disabled-ocr-port";
 import { FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM } from "./local-review-flow";
 import { projectFiscalNotificationPdfWorkerAnalysis } from "./pdf-worker-analysis-contract";
+import { createEmptyFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
 import {
   FISCAL_NOTIFICATION_SAFE_REVIEW_REPOSITORY_LIMITS,
   createFiscalNotificationLocalReviewRepository,
@@ -516,6 +517,8 @@ describe("fiscal notification safe local review repository", () => {
                   ]),
                 })),
             }),
+            verticalSliceReview:
+              createEmptyFiscalNotificationVerticalSliceReviewV1(),
             reviewContext: Object.freeze({
               ownerScope: OWNER_A,
               documentId: "document:synthetic-round-trip",

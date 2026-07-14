@@ -48,6 +48,7 @@ import type {
   UnknownExtractedField,
 } from "./types";
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
+import { parseFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
 
 export const FISCAL_NOTIFICATION_STRUCTURED_REVIEW_SCHEMA_VERSION_V1 =
   1 as const;
@@ -110,6 +111,8 @@ const ANALYSIS_KEYS = new Set([
   "ephemeralEnforcementPartyFacts",
   "ephemeralDeferralGrantFacts",
   "ephemeralOffsetAgreementFacts",
+  "ephemeralVerticalSliceReview",
+  "textAcquisition",
   "sourceContentPolicy",
   "requiresHumanReview",
   "materializationPolicy",
@@ -280,6 +283,7 @@ export function appendAeatEnforcementStructuredReviewV1(
   ) {
     throw invalidInput();
   }
+  validateEphemeralAnalysisExtensions(analysis);
   const technicalReview = parseTechnicalReview(analysis.technicalReview);
   const workspace = parseWorkspace(input.workspace, ownerScope, createdAt);
 
@@ -487,6 +491,7 @@ export function appendAeatEnforcementStructuredReviewV1(
   ) {
     throw invalidInput();
   }
+  validateEphemeralAnalysisExtensions(analysis);
   if (!authority) {
     workspace.authorities.push({
       id: ids.authority,
@@ -648,6 +653,7 @@ export function appendAeatDeferralStructuredReviewV1(
   ) {
     throw invalidInput();
   }
+  validateEphemeralAnalysisExtensions(analysis);
   const technicalReview = parseTechnicalReview(
     analysis.technicalReview,
     "DEFERRAL",
@@ -1208,6 +1214,7 @@ export function appendAeatOffsetStructuredReviewV1(
   ) {
     throw invalidInput();
   }
+  validateEphemeralAnalysisExtensions(analysis);
   const technicalReview = parseTechnicalReview(
     analysis.technicalReview,
     "OFFSET",
@@ -2259,6 +2266,38 @@ function parseIsoTimestamp(value: unknown): string {
     throw invalidInput();
   }
   return value;
+}
+
+function validateEphemeralAnalysisExtensions(
+  analysis: Record<string, unknown>,
+): void {
+  try {
+    if (Object.hasOwn(analysis, "ephemeralVerticalSliceReview")) {
+      parseFiscalNotificationVerticalSliceReviewV1(
+        analysis.ephemeralVerticalSliceReview,
+      );
+    }
+    if (Object.hasOwn(analysis, "textAcquisition")) {
+      const acquisition = snapshotRecord(
+        analysis.textAcquisition,
+        new Set(["mode", "averageConfidence"]),
+      );
+      if (
+        !acquisition ||
+        (acquisition.mode !== "PDF_TEXT_LAYER" &&
+          acquisition.mode !== "LOCAL_OCR") ||
+        (acquisition.averageConfidence !== null &&
+          (typeof acquisition.averageConfidence !== "number" ||
+            !Number.isFinite(acquisition.averageConfidence) ||
+            acquisition.averageConfidence < 0 ||
+            acquisition.averageConfidence > 1))
+      ) {
+        throw invalidInput();
+      }
+    }
+  } catch {
+    throw invalidInput();
+  }
 }
 
 function snapshotRecord(

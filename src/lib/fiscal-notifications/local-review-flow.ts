@@ -24,6 +24,7 @@ import {
 } from "./pdf-text-layer-adapter";
 import { FiscalNotificationPdfError } from "./pdf-text-layer-parser";
 import type { AdministrativeDocumentType } from "./types";
+import type { FiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
 
 export const FISCAL_NOTIFICATION_LOCAL_REVIEW_SCHEMA_VERSION = 1 as const;
 export const FISCAL_NOTIFICATION_LOCAL_REVIEW_FLOW_VERSION = "1.0.0" as const;
@@ -102,6 +103,8 @@ export interface FiscalNotificationLocalAnalysisResult {
   readonly ephemeralOffsetAgreementFacts:
     | AeatOffsetAgreementFactsResultV1
     | null;
+  /** Additive v1 projection; absent only in legacy in-memory test fixtures. */
+  readonly ephemeralVerticalSliceReview?: FiscalNotificationVerticalSliceReviewV1;
   readonly textAcquisition?: Readonly<{
     readonly mode: "PDF_TEXT_LAYER" | "LOCAL_OCR";
     readonly averageConfidence: number | null;
@@ -180,6 +183,7 @@ async function analyzeFiscalNotificationWithDependencies(
           mode: "LOCAL_OCR" as const,
           averageConfidence: ocr.averageConfidence,
         }),
+        ocr.analysis.verticalSliceReview,
       );
     }
     return freezeAnalysisResult(
@@ -198,6 +202,7 @@ async function analyzeFiscalNotificationWithDependencies(
       null,
       null,
       null,
+      intake.verticalSliceReview,
       Object.freeze({
         mode: "LOCAL_OCR" as const,
         averageConfidence: null,
@@ -213,6 +218,7 @@ async function analyzeFiscalNotificationWithDependencies(
       mode: "PDF_TEXT_LAYER" as const,
       averageConfidence: null,
     }),
+    intake.verticalSliceReview,
   );
 }
 
@@ -225,6 +231,7 @@ function projectAnalysis(
   textAcquisition: NonNullable<
     FiscalNotificationLocalAnalysisResult["textAcquisition"]
   >,
+  verticalSliceReview: FiscalNotificationVerticalSliceReviewV1,
 ): FiscalNotificationLocalAnalysisResult {
   const extraction = analysis.familyAnalysis;
   if (!extraction) {
@@ -266,6 +273,7 @@ function projectAnalysis(
     analysis.enforcementPartyFacts ?? null,
     analysis.deferralGrantFacts ?? null,
     analysis.offsetAgreementFacts ?? null,
+    verticalSliceReview,
     textAcquisition,
   );
 }
@@ -295,6 +303,7 @@ function freezeAnalysisResult(
   ephemeralEnforcementPartyFacts: AeatEnforcementPartyFactsV1 | null,
   ephemeralDeferralGrantFacts: AeatDeferralGrantFactsResultV1 | null,
   ephemeralOffsetAgreementFacts: AeatOffsetAgreementFactsResultV1 | null,
+  ephemeralVerticalSliceReview: FiscalNotificationVerticalSliceReviewV1,
   textAcquisition?: NonNullable<
     FiscalNotificationLocalAnalysisResult["textAcquisition"]
   >,
@@ -308,6 +317,7 @@ function freezeAnalysisResult(
     ephemeralEnforcementPartyFacts,
     ephemeralDeferralGrantFacts,
     ephemeralOffsetAgreementFacts,
+    ephemeralVerticalSliceReview,
     ...(textAcquisition
       ? { textAcquisition: Object.freeze({ ...textAcquisition }) }
       : {}),
