@@ -41,9 +41,6 @@ const partyFactsViewModelSource = readSource(
 const manualSource = readSource(
   "../../lib/manual/sections/consultor-fiscal.ts",
 );
-const browserRepositorySource = readSource(
-  "../../lib/fiscal-notifications/browser-local-review-repository.ts",
-);
 const surfaceSource = `${componentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}\n${partyFactsPanelSource}\n${partyFactsViewModelSource}`;
 
 describe("contrato de interfaz de Notificaciones y expedientes", () => {
@@ -95,17 +92,17 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       /readonly\s+(?:file|filename|bytes|text|pages|documentInput)\b/i,
     );
 
-    const pendingSafeReviewContract = componentSource.slice(
-      componentSource.indexOf("interface PendingSafeReview"),
+    const pendingStructuredReviewContract = componentSource.slice(
+      componentSource.indexOf("interface PendingStructuredReview"),
       componentSource.indexOf("type ReviewPersistenceState"),
     );
-    expect(pendingSafeReviewContract).toContain("readonly reviewId: string");
-    expect(pendingSafeReviewContract).toContain("readonly createdAt: string");
-    expect(pendingSafeReviewContract).toContain(
-      "readonly result: FiscalNotificationLocalReviewResult",
+    expect(pendingStructuredReviewContract).toContain("readonly reviewId: string");
+    expect(pendingStructuredReviewContract).toContain("readonly createdAt: string");
+    expect(pendingStructuredReviewContract).toContain(
+      "readonly analysis: FiscalNotificationLocalAnalysisResult",
     );
-    expect(pendingSafeReviewContract).not.toMatch(
-      /\b(?:ownerScope|file|filename|name|bytes|text|pages|documentId|raw|nif|csv|amount|deadline)\b/i,
+    expect(pendingStructuredReviewContract).not.toMatch(
+      /\b(?:file|filename|bytes|text|pages|documentInput|raw)\b/i,
     );
   });
 
@@ -123,8 +120,11 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(workspace).toContain("controller?.abort()");
     expect(workspace).toContain("fileInputRef.current.value = \"\"");
     expect(workspace).toContain("[ownerScope]");
-    expect(workspace).toContain("storeRef.current = null");
     expect(workspace).toContain("saveOperationRef.current = null");
+    expect(workspace).toContain(
+      "projectFiscalNotificationStructuredHistoryV1(",
+    );
+    expect(workspace).toContain("data.fiscalNotificationsWorkspace");
 
     expect(componentSource).toContain("controller.signal.aborted ||");
     expect(componentSource).toContain(
@@ -173,46 +173,39 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
   });
 
-  it("conecta el repositorio browser solo tras montar y lo liga al owner canónico", () => {
+  it("conecta el workspace durable al AppStore y al owner canónico", () => {
     expect(componentSource).toContain(
-      'from "@/lib/fiscal-notifications/browser-local-review-repository"',
+      'import { useAppStore } from "@/context/AppStore"',
     );
     expect(componentSource).toContain(
-      "createBrowserFiscalNotificationLocalReviewStore(ownerScope)",
+      "ready: appStoreReady",
     );
-    expect(componentSource).toContain("subscribeToExternalChanges");
-
-    const factoryIndex = componentSource.indexOf(
-      "createBrowserFiscalNotificationLocalReviewStore(ownerScope)",
+    expect(componentSource).toContain("saveFiscalNotificationStructuredReview,");
+    expect(componentSource).toContain("if (!appStoreReady)");
+    expect(componentSource).toContain(
+      "projectFiscalNotificationStructuredHistoryV1(",
     );
-    const precedingEffectIndex = componentSource.lastIndexOf(
-      "useEffect(",
-      factoryIndex,
+    expect(componentSource).toContain(
+      "data.fiscalNotificationsWorkspace",
     );
-    expect(factoryIndex).toBeGreaterThan(-1);
-    expect(precedingEffectIndex).toBeGreaterThan(
-      componentSource.indexOf("function FiscalNotificationReviewWorkspace"),
-    );
-    expect(
-      componentSource.slice(precedingEffectIndex, factoryIndex),
-    ).not.toContain("return (");
-    expect(componentSource).toMatch(
-      /subscribeToExternalChanges\([\s\S]{0,800}unsubscribe\(\)/,
+    expect(componentSource).toContain(
+      "saveFiscalNotificationStructuredReview({",
     );
     expect(componentSource).toContain("key={ownerScope}");
+    expect(componentSource).not.toContain(
+      "createBrowserFiscalNotificationLocalReviewStore",
+    );
   });
 
-  it("guarda solo por acción explícita una ficha técnica con el sobre seguro N7", () => {
-    expect(componentSource).toContain("Guardar ficha técnica local");
+  it("guarda solo por acción explícita una ficha estructurada", () => {
+    expect(componentSource).toContain("Guardar datos en mi cuenta");
     expect(componentSource).toContain("onClick={() => void onSave()}");
-    expect(componentSource).toContain(".repository.load()");
-    expect(componentSource).toContain(".repository.append({");
-    expect(componentSource).toMatch(
-      /expectedRevision:\s*[A-Za-z0-9_]+\.snapshot\.revision/,
-    );
+    expect(componentSource).toContain("saveFiscalNotificationStructuredReview({");
+    expect(componentSource).toContain("expected: data");
+    expect(componentSource).toContain("ownerScope,");
     expect(componentSource).toMatch(/reviewId:\s*[A-Za-z0-9_]+\.reviewId/);
     expect(componentSource).toMatch(/createdAt:\s*[A-Za-z0-9_]+\.createdAt/);
-    expect(componentSource).toMatch(/result:\s*[A-Za-z0-9_]+\.result/);
+    expect(componentSource).toMatch(/analysis:\s*[A-Za-z0-9_]+\.analysis/);
     expect(componentSource).toMatch(/`review:\$\{/);
     expect(componentSource).toContain("new Date().toISOString()");
 
@@ -249,20 +242,20 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(analysisSuccess).toContain(
       "setPartyFactsReview(nextPartyFactsReview)",
     );
-    expect(analysisSuccess).toContain("result: nextResult");
-    expect(analysisSuccess).not.toContain(".append(");
+    expect(analysisSuccess).toContain("analysis: nextAnalysis");
+    expect(analysisSuccess).not.toContain(
+      "saveFiscalNotificationStructuredReview",
+    );
 
-    const appendStart = componentSource.indexOf(".repository.append({");
-    const appendEnd = componentSource.indexOf("});", appendStart);
-    const appendPayload = componentSource.slice(appendStart, appendEnd);
-    expect(appendStart).toBeGreaterThan(-1);
-    expect(appendPayload).not.toMatch(
-      /\b(?:ownerScope|file|filename|documentId|text|bytes|raw|nif|csv|amount|deadline)\b/i,
+    const saveStart = componentSource.indexOf(
+      "saveFiscalNotificationStructuredReview({",
     );
-    expect(appendPayload).not.toMatch(
-      /explicit|reference|printedDate|calendarDate/i,
-    );
-    expect(appendPayload).not.toMatch(/guidance|reviewSteps|officialProcedure/i);
+    const saveEnd = componentSource.indexOf("});", saveStart);
+    const savePayload = componentSource.slice(saveStart, saveEnd);
+    expect(saveStart).toBeGreaterThan(-1);
+    expect(savePayload).toContain("analysis: pendingReview.analysis");
+    expect(savePayload).not.toMatch(/\b(?:file|filename|text|bytes|raw)\b/i);
+    expect(savePayload).not.toMatch(/guidance|reviewSteps|officialProcedure/i);
   });
 
   it("muestra una guía efímera antes del guardado sin registrar su progreso", () => {
@@ -309,71 +302,57 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
   });
 
-  it("solo presenta applied o existing como guardado y separa blocked de indeterminate", () => {
-    const appendStart = componentSource.indexOf(".repository.append({");
-    const writeFlow = componentSource.slice(appendStart, appendStart + 4_000);
-    expect(appendStart).toBeGreaterThan(-1);
+  it("solo presenta applied como guardado y separa los bloqueos", () => {
+    const saveStart = componentSource.indexOf(
+      "saveFiscalNotificationStructuredReview({",
+    );
+    const writeFlow = componentSource.slice(saveStart, saveStart + 4_000);
+    expect(saveStart).toBeGreaterThan(-1);
     expect(writeFlow).toMatch(
-      /\.status === "applied"[\s\S]{0,200}\.status === "existing"[\s\S]{0,600}set[A-Za-z0-9_]+\("saved"\)/,
+      /\.status === "applied"[\s\S]{0,300}set[A-Za-z0-9_]+\("saved"\)/,
     );
-    expect(writeFlow).toContain(
-      'write.status === "indeterminate" ? "indeterminate" : "blocked"',
-    );
+    expect(writeFlow).toContain('write.status === "indeterminate"');
+    expect(writeFlow).toContain('write.reason === "no_structured_facts"');
+    expect(writeFlow).toContain('write.reason === "invalid_structured_review"');
     expect(
       componentSource.match(/set[A-Za-z0-9_]+\("saved"\)/g),
     ).toHaveLength(1);
     expect(componentSource).toContain('const successful = state === "saved"');
     expect(componentSource).toContain(
-      "Ficha técnica guardada en este navegador para esta cuenta. No se sincroniza.",
+      "Ficha guardada en los datos de tu cuenta.",
     );
     expect(componentSource).toContain(
-      "la ficha técnica no se ha guardado",
+      "No se ha guardado una tarjeta vacía",
     );
     expect(componentSource).toContain(
-      "No se puede confirmar si se guardó",
+      "No se puede confirmar el estado de la escritura",
     );
   });
 
-  it("muestra historial validado por owner sin exponer SHA, reviewId ni ownerScope", () => {
-    expect(componentSource).toContain("Historial técnico local");
+  it("muestra el expediente validado con datos exactos sin exponer la huella", () => {
+    expect(componentSource).toContain("Mis notificaciones guardadas");
     expect(componentSource).toContain(
-      "const reviews = [...state.snapshot.reviews].reverse()",
+      "const entries = viewModel.entries",
     );
-    expect(componentSource).toContain("reviews.map((review)");
-    expect(componentSource).toContain("review.createdAt");
-    expect(componentSource).toContain("review.result.status");
+    expect(componentSource).toContain("entries.map((entry)");
+    expect(componentSource).toContain("entry.createdAt");
+    expect(componentSource).toContain("entry.subjectName");
+    expect(componentSource).toContain("entry.subjectTaxId");
+    expect(componentSource).toContain("entry.money.map((fact)");
+    expect(componentSource).toContain("entry.references");
+    expect(componentSource).toContain("entry.printedDates");
     expect(componentSource).not.toContain("Huella local");
     expect(componentSource).not.toMatch(/\.sha256(?:\.|\[|\s|\})/);
     expect(componentSource).not.toMatch(
       />\s*\{[^}]*\b(?:reviewId|ownerScope)\b[^}]*\}\s*</,
     );
-    expect(componentSource).toContain("key={review.reviewId}");
-    expect(componentSource).not.toMatch(/\breview\.ownerScope\b/);
-    expect(componentSource).toContain(
-      ": REASON_COPY[review.result.reason].detail",
-    );
-    expect(componentSource).not.toContain("Sin familia reconocida");
+    expect(componentSource).toContain("key={entry.key}");
+    expect(componentSource).not.toMatch(/\bentry\.ownerScope\b/);
     expect(compact(componentSource)).toContain(
-      "Para volver a ver el nombre, NIF, importes, referencias o fechas impresas, selecciona otra vez el PDF original: esos datos no se conservan.",
+      "Conservan los campos que aceptaste guardar, pero nunca el PDF, su nombre ni el texto completo.",
     );
-    expect(componentSource).toContain(
-      "const recognizedCandidate = recognizedCandidateFrom(review.result)",
-    );
-    expect(componentSource).toContain(
-      'candidate?.recognitionPolicyVersion === "1.3.0"',
-    );
-    expect(componentSource).toContain(
-      'candidate.signalStatus === "COMPLETE_REQUIRED_ANCHORS"',
-    );
-    expect(componentSource).toContain("Clasificación histórica pendiente");
-    expect(componentSource).toContain("FAMILY_INDICATION_LABELS");
-    expect(componentSource).toContain("bg-emerald-100 text-emerald-900");
-    expect(compact(componentSource)).toContain(
-      'recognized ? "Tipo reconocido"',
-    );
-    expect(componentSource).toContain(
-      "Organismo y autenticidad no verificados",
-    );
+    expect(componentSource).toContain("entry.authenticityLabel");
+    expect(componentSource).toContain("PDF no conservado");
   });
 
   it("mantiene neutral el mensaje live cuando no hay candidatos", () => {
@@ -411,7 +390,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).not.toMatch(/Posible (?:providencia|concesión|diligencia|requerimiento|acuerdo)/u);
   });
 
-  it("prohíbe red, API y acceso directo a persistencia fuera del adaptador", () => {
+  it("prohíbe red, API y acceso directo al almacenamiento del navegador", () => {
     for (const forbidden of [
       /\bfetch\s*\(/,
       /XMLHttpRequest/,
@@ -420,8 +399,6 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       /localStorage/,
       /sessionStorage/,
       /indexedDB/,
-      /useAppStore/,
-      /context\/AppStore/,
       /\bOpenAI\b/i,
       /\bAnthropic\b/i,
       /dangerouslySetInnerHTML/,
@@ -437,43 +414,26 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).not.toMatch(
       /window\.localStorage|globalThis\.localStorage|navigator\.locks/,
     );
-    expect(componentSource).not.toMatch(
-      /@\/lib\/storage|context\/AppStore|useAppStore/,
+    expect(componentSource).toContain(
+      'import { useAppStore } from "@/context/AppStore"',
     );
-    expect(browserRepositorySource).toContain("window.localStorage");
-    expect(browserRepositorySource).toContain("window.navigator?.locks");
-    for (const forbidden of [
-      /\bfetch\s*\(/,
-      /XMLHttpRequest/,
-      /WebSocket/,
-      /\/api\//,
-      /sessionStorage/,
-      /indexedDB/,
-      /context\/AppStore/,
-      /useAppStore/,
-      /\bOpenAI\b/i,
-      /\bAnthropic\b/i,
-      /FileReader/,
-      /createObjectURL/,
-    ]) {
-      expect(browserRepositorySource).not.toMatch(forbidden);
-    }
+    expect(componentSource).not.toMatch(/@\/lib\/storage|saveData\s*\(/);
   });
 
-  it("explica con precisión OCR, alcance y persistencia local opcional", () => {
+  it("explica con precisión OCR, alcance y persistencia estructurada opcional", () => {
     const copy = compact(componentSource);
     for (const expected of [
       "El PDF, su texto y su nombre no se suben ni se guardan.",
-      "El tipo se reconoce por una firma cerrada; los datos y efectos siguen pendientes de revisión.",
+      "Muestra y puede guardar importes, referencias, fechas y sujeto cuando constan expresamente.",
       "Los documentos escaneados quedan pendientes de OCR.",
-      "No mostramos ni conservamos el nombre del archivo. El PDF y el texto desaparecen; solo guardamos la ficha técnica si tú lo eliges.",
-      "Ficha técnica guardada en este navegador para esta cuenta. No se sincroniza.",
-      "Solo incluye la traza técnica de revisión; nunca el PDF, su texto, su nombre, NIF, CSV, referencias, importes, fechas impresas ni plazos.",
+      "No mostramos ni conservamos el nombre del archivo. El PDF y el texto desaparecen; solo se guardan los campos estructurados que aceptes conservar.",
+      "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias, fechas y sujeto identificado.",
+      "Guarda únicamente campos estructurados visibles y su procedencia: nunca conserva el PDF, su nombre ni el texto completo.",
       "No se ha enviado a ningún proveedor y debes revisarlo manualmente.",
       "Reconoce la familia documental de providencia de apremio, concesión de aplazamiento o fraccionamiento, diligencia de embargo de bienes inmuebles, requerimiento formal de presentación y acuerdo de alta en el ROI. No confirma por sí sola el organismo emisor ni la autenticidad.",
       "Un acuerdo de alta en el ROI describe el documento analizado: no demuestra que el alta siga vigente ni valida el estado en VIES.",
-      "La ficha técnica local no contiene importes, fechas jurídicas, obligado, expediente, cuotas u obligaciones.",
-      "El nombre, el NIF, los importes, los valores exactos de referencia y las fechas impresas se muestran solo durante la revisión actual; desaparecen al salir y nunca se guardan en la ficha técnica.",
+      "El nombre, el NIF, los importes, los valores exactos de referencia y las fechas impresas pueden guardarse en una ficha estructurada mediante una acción explícita.",
+      "Una fecha impresa se presenta como tal: no se convierte por sí sola en fecha de notificación o vencimiento ni activa una acción.",
       "No consulta automáticamente sedes oficiales, no ejecuta OCR remoto y no utiliza IA.",
       "Esta herramienta no sustituye la revisión de un asesor ni confirma la validez jurídica del documento.",
     ]) {
@@ -522,7 +482,8 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "moneda no confirmada",
       "Una ausencia nunca se convierte en cero.",
       "No se han sumado, recalculado ni elegido como importe a pagar.",
-      "Estos importes son efímeros",
+      "Permanecen solo en memoria hasta que pulses",
+      "Guardar datos en mi cuenta",
       "No se encontró una etiqueta cubierta; no se ha convertido en cero.",
       "Una etiqueta cubierta aparece sin cifra; se mantiene pendiente.",
     ]) {
@@ -532,23 +493,25 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       'result.outcome !== "FACTS_AVAILABLE"',
     );
     expect(componentSource).toContain(
-      'fact.currency === "EUR"',
+      'currency === "EUR"',
     );
-    expect(componentSource).toContain("BigInt(fact.amountCents)");
+    expect(componentSource).toContain("BigInt(amountCents)");
     expect(componentSource).not.toMatch(
       /(?:amountCents|ephemeralMoneyFacts)[^\n]{0,120}\?\?\s*0/,
     );
     expect(componentSource.match(/setEphemeralMoneyFacts\(null\)/g)?.length)
       .toBeGreaterThanOrEqual(3);
 
-    const appendStart = componentSource.indexOf(".repository.append({");
-    const appendEnd = componentSource.indexOf("});", appendStart);
-    const appendPayload = componentSource.slice(appendStart, appendEnd);
-    expect(appendPayload).toContain("result: pendingReview.result");
-    expect(appendPayload).not.toMatch(/money|amount|fact/i);
+    const saveStart = componentSource.indexOf(
+      "saveFiscalNotificationStructuredReview({",
+    );
+    const saveEnd = componentSource.indexOf("});", saveStart);
+    const savePayload = componentSource.slice(saveStart, saveEnd);
+    expect(savePayload).toContain("analysis: pendingReview.analysis");
+    expect(savePayload).not.toMatch(/\b(?:file|text|raw)\b/i);
   });
 
-  it("proyecta referencias y fechas a un estado React seguro, efímero y no persistible", () => {
+  it("proyecta referencias y fechas en memoria y las guarda solo por acción explícita", () => {
     expect(componentSource).toContain(
       "useState<ExplicitFieldsReviewViewModelV2 | null>(null)",
     );
@@ -600,16 +563,14 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(localGuaranteeIndex).toBeGreaterThan(explicitIndex);
 
     const pendingContract = componentSource.slice(
-      componentSource.indexOf("interface PendingSafeReview"),
+      componentSource.indexOf("interface PendingStructuredReview"),
       componentSource.indexOf("type ReviewPersistenceState"),
     );
-    expect(pendingContract).not.toMatch(
-      /explicit|reference|printedDate|calendarDate/i,
+    expect(pendingContract).toContain(
+      "readonly analysis: FiscalNotificationLocalAnalysisResult",
     );
-    const appendStart = componentSource.indexOf(".repository.append({");
-    const appendEnd = componentSource.indexOf("});", appendStart);
-    expect(componentSource.slice(appendStart, appendEnd)).not.toMatch(
-      /explicit|reference|printedDate|calendarDate/i,
+    expect(componentSource).toContain(
+      "saveFiscalNotificationStructuredReview({",
     );
 
     expect(explicitFieldsPanelSource).not.toMatch(
@@ -629,7 +590,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
   });
 
-  it("muestra nombre, NIF y rol documental exactos sin añadirlos al guardado", () => {
+  it("muestra nombre, NIF y rol exactos y permite guardarlos estructurados", () => {
     expect(componentSource).toContain(
       "useState<PartyFactsReviewViewModelV1 | null>(null)",
     );
@@ -645,15 +606,14 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain("viewModel={partyFactsReview}");
 
     const pendingContract = componentSource.slice(
-      componentSource.indexOf("interface PendingSafeReview"),
+      componentSource.indexOf("interface PendingStructuredReview"),
       componentSource.indexOf("type ReviewPersistenceState"),
     );
-    expect(pendingContract).not.toMatch(/party|subject|printedName|printedTaxId/i);
-    const appendStart = componentSource.indexOf(".repository.append({");
-    const appendEnd = componentSource.indexOf("});", appendStart);
-    expect(componentSource.slice(appendStart, appendEnd)).not.toMatch(
-      /party|subject|printedName|printedTaxId|nif/i,
+    expect(pendingContract).toContain(
+      "readonly analysis: FiscalNotificationLocalAnalysisResult",
     );
+    expect(componentSource).toContain('label="Obligado al pago"');
+    expect(componentSource).toContain('label="NIF impreso"');
     expect(partyFactsViewModelSource).toContain("Obligado al pago");
     expect(partyFactsPanelSource).not.toMatch(/posible|podr[ií]a ser/iu);
     expect(partyFactsPanelSource).not.toMatch(
@@ -706,7 +666,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).not.toMatch(/w-\[(?:4|5|6|7|8|9)\d{2}px\]/);
   });
 
-  it("solo añade el guardado local seguro y no ofrece acciones fiscales", () => {
+  it("solo añade el guardado estructurado seguro y no ofrece acciones fiscales", () => {
     const controls = [...componentSource.matchAll(
       /<(?:Button|ButtonLink|button|Link)\b[\s\S]*?<\/(?:Button|ButtonLink|button|Link)>/g,
     )]
@@ -715,7 +675,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
 
     expect(controls).toContain("Analizar documento");
     expect(controls).toContain("Cancelar");
-    expect(controls).toContain("Guardar ficha técnica local");
+    expect(controls).toContain("Guardar datos en mi cuenta");
     expect(controls).not.toMatch(
       /(?:Confirmar|Aceptar propuesta|Crear (?:expediente|deuda|plazo|pago|gasto|asiento)|Pagar|Contabilizar|Aplicar propuesta|Borrar ficha|Eliminar ficha)/i,
     );

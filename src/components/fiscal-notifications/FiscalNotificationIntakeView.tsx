@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import {
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ChangeEvent,
@@ -24,8 +25,10 @@ import { FiscalNotificationExplicitFieldsReview } from "@/components/fiscal-noti
 import { FiscalNotificationPartyFactsReview } from "@/components/fiscal-notifications/FiscalNotificationPartyFactsReview";
 import { FiscalNotificationReviewSteps } from "@/components/fiscal-notifications/FiscalNotificationReviewSteps";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useAppStore } from "@/context/AppStore";
 import {
   analyzeFiscalNotificationLocallyWithEphemeralFacts,
+  type FiscalNotificationLocalAnalysisResult,
   type FiscalNotificationLocalReviewReason,
   type FiscalNotificationLocalReviewResult,
 } from "@/lib/fiscal-notifications/local-review-flow";
@@ -42,19 +45,15 @@ import {
   type PartyFactsReviewViewModelV1,
 } from "@/lib/fiscal-notifications/party-facts-review-view-model.v1";
 import {
-  createBrowserFiscalNotificationLocalReviewStore,
-  type FiscalNotificationBrowserLocalReviewStore,
-} from "@/lib/fiscal-notifications/browser-local-review-repository";
-import type {
-  FiscalNotificationReviewSnapshot,
-  PersistedFiscalNotificationReview,
-  PersistedFiscalNotificationReviewResult,
-} from "@/lib/fiscal-notifications/local-review-repository";
-import {
   FiscalNotificationPdfError,
   type FiscalNotificationPdfErrorCode,
 } from "@/lib/fiscal-notifications/pdf-text-layer-parser";
 import { projectFiscalNotificationReviewGuidanceV1 } from "@/lib/fiscal-notifications/review-guidance.v1";
+import {
+  projectFiscalNotificationStructuredHistoryV1,
+  type FiscalNotificationStructuredHistoryEntryV1,
+  type FiscalNotificationStructuredHistoryViewModelV1,
+} from "@/lib/fiscal-notifications/structured-review-history-view-model.v1";
 
 const FAMILY_LABELS = {
   AEAT_ENFORCEMENT_ORDER_CANDIDATE: "Providencia de apremio",
@@ -80,11 +79,7 @@ const FAMILY_INDICATION_LABELS = {
     "Indicios de acuerdo de alta en el ROI",
 } as const;
 
-type RecognitionResult =
-  | FiscalNotificationLocalReviewResult
-  | PersistedFiscalNotificationReviewResult;
-
-function recognizedCandidateFrom(result: RecognitionResult) {
+function recognizedCandidateFrom(result: FiscalNotificationLocalReviewResult) {
   const candidate = result.candidates[0];
   return result.engineVersion === "1.3.0" &&
     result.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
@@ -203,10 +198,10 @@ interface SelectedFileSummary {
   readonly mimeType: string;
 }
 
-interface PendingSafeReview {
+interface PendingStructuredReview {
   readonly reviewId: string;
   readonly createdAt: string;
-  readonly result: FiscalNotificationLocalReviewResult;
+  readonly analysis: FiscalNotificationLocalAnalysisResult;
 }
 
 type ReviewPersistenceState =
@@ -214,16 +209,10 @@ type ReviewPersistenceState =
   | "pending"
   | "saving"
   | "saved"
+  | "no_structured_facts"
+  | "invalid_structured_review"
   | "blocked"
   | "indeterminate";
-
-type ReviewHistoryState =
-  | { readonly status: "loading" }
-  | {
-      readonly status: "ready";
-      readonly snapshot: FiscalNotificationReviewSnapshot;
-    }
-  | { readonly status: "blocked" };
 
 export function FiscalNotificationIntakeView() {
   const { authReady, user, emailConfirmed } = useCloudSync();
@@ -245,8 +234,8 @@ export function FiscalNotificationIntakeView() {
         />
         <InfoTile
           icon={FileSearch}
-          title="Datos y efectos"
-          detail="El tipo se reconoce por una firma cerrada; los datos y efectos siguen pendientes de revisión."
+          title="Datos exactos visibles"
+          detail="Muestra y puede guardar importes, referencias, fechas y sujeto cuando constan expresamente."
         />
         <InfoTile
           icon={LockKeyhole}
@@ -306,13 +295,14 @@ export function FiscalNotificationIntakeView() {
             demuestra que el alta siga vigente ni valida el estado en VIES.
           </li>
           <li>
-            La ficha técnica local no contiene importes, fechas jurídicas,
-            obligado, expediente, cuotas u obligaciones.
+            El nombre, el NIF, los importes, los valores exactos de referencia
+            y las fechas impresas pueden guardarse en una ficha estructurada
+            mediante una acción explícita. El PDF, su nombre y el texto completo
+            no se conservan.
           </li>
           <li>
-            El nombre, el NIF, los importes, los valores exactos de referencia
-            y las fechas impresas se muestran solo durante la revisión actual;
-            desaparecen al salir y nunca se guardan en la ficha técnica.
+            Una fecha impresa se presenta como tal: no se convierte por sí sola
+            en fecha de notificación o vencimiento ni activa una acción.
           </li>
           <li>
             No consulta automáticamente sedes oficiales, no ejecuta OCR remoto
@@ -333,13 +323,15 @@ function FiscalNotificationReviewWorkspace({
 }: {
   ownerScope: string;
 }) {
+  const {
+    data,
+    ready: appStoreReady,
+    saveFiscalNotificationStructuredReview,
+  } = useAppStore();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const controllerRef = useRef<AbortController | null>(null);
   const processingRef = useRef(false);
   const saveOperationRef = useRef<symbol | null>(null);
-  const storeRef = useRef<FiscalNotificationBrowserLocalReviewStore | null>(
-    null,
-  );
   const [selectedFile, setSelectedFile] =
     useState<SelectedFileSummary | null>(null);
   const [processing, setProcessing] = useState(false);
@@ -353,36 +345,22 @@ function FiscalNotificationReviewWorkspace({
     useState<PartyFactsReviewViewModelV1 | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingReview, setPendingReview] =
-    useState<PendingSafeReview | null>(null);
+    useState<PendingStructuredReview | null>(null);
   const [persistenceState, setPersistenceState] =
     useState<ReviewPersistenceState>("idle");
-  const [historyState, setHistoryState] = useState<ReviewHistoryState>({
-    status: "loading",
-  });
+  const history = useMemo(
+    () =>
+      projectFiscalNotificationStructuredHistoryV1(
+        data.fiscalNotificationsWorkspace,
+        ownerScope,
+      ),
+    [data.fiscalNotificationsWorkspace, ownerScope],
+  );
 
   useEffect(() => {
-    let active = true;
-    const store = createBrowserFiscalNotificationLocalReviewStore(ownerScope);
-    storeRef.current = store;
-
-    const refreshHistory = () => {
-      if (!active || storeRef.current !== store) return;
-      const loaded = store.repository.load();
-      setHistoryState(
-        loaded.status === "blocked"
-          ? { status: "blocked" }
-          : { status: "ready", snapshot: loaded.snapshot },
-      );
-    };
-
-    refreshHistory();
-    const unsubscribe = store.subscribeToExternalChanges(refreshHistory);
     const fileInput = fileInputRef.current;
 
     return () => {
-      active = false;
-      unsubscribe();
-      if (storeRef.current === store) storeRef.current = null;
       saveOperationRef.current = null;
       processingRef.current = false;
       const controller = controllerRef.current;
@@ -391,6 +369,17 @@ function FiscalNotificationReviewWorkspace({
       if (fileInput) fileInput.value = "";
     };
   }, [ownerScope]);
+
+  if (!appStoreReady) {
+    return (
+      <Card role="status" aria-live="polite">
+        <div className="flex items-center gap-3 text-sm text-slate-700">
+          <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
+          Cargando los datos de tu cuenta…
+        </div>
+      </Card>
+    );
+  }
 
   function clearFileSelection(): void {
     setSelectedFile(null);
@@ -489,7 +478,7 @@ function FiscalNotificationReviewWorkspace({
       setPendingReview({
         reviewId: `review:${reviewUuid}`,
         createdAt: new Date().toISOString(),
-        result: nextResult,
+        analysis: nextAnalysis,
       });
       setPersistenceState("pending");
     } catch (caught) {
@@ -510,51 +499,36 @@ function FiscalNotificationReviewWorkspace({
     }
   }
 
-  async function saveTechnicalReview(): Promise<void> {
-    const store = storeRef.current;
-    if (!store || !pendingReview || saveOperationRef.current) return;
+  function saveStructuredReview(): void {
+    if (!pendingReview || saveOperationRef.current) return;
 
-    const loaded = store.repository.load();
-    if (loaded.status === "blocked") {
-      setHistoryState({ status: "blocked" });
-      setPersistenceState("blocked");
-      return;
-    }
-    setHistoryState({ status: "ready", snapshot: loaded.snapshot });
-
-    const operation = Symbol("safe-review-save");
+    const operation = Symbol("structured-review-save");
     saveOperationRef.current = operation;
     setPersistenceState("saving");
     try {
-      const write = await store.repository.append({
-        expectedRevision: loaded.snapshot.revision,
+      const write = saveFiscalNotificationStructuredReview({
+        expected: data,
+        ownerScope,
         reviewId: pendingReview.reviewId,
         createdAt: pendingReview.createdAt,
-        result: pendingReview.result,
+        analysis: pendingReview.analysis,
       });
-      if (
-        saveOperationRef.current !== operation ||
-        storeRef.current !== store
-      ) {
-        return;
-      }
+      if (saveOperationRef.current !== operation) return;
 
-      if (write.status === "applied" || write.status === "existing") {
-        setHistoryState({ status: "ready", snapshot: write.snapshot });
+      if (write.status === "applied") {
         setPendingReview(null);
         setPersistenceState("saved");
         return;
       }
-
-      const refreshed = store.repository.load();
-      setHistoryState(
-        refreshed.status === "blocked"
-          ? { status: "blocked" }
-          : { status: "ready", snapshot: refreshed.snapshot },
-      );
-      setPersistenceState(
-        write.status === "indeterminate" ? "indeterminate" : "blocked",
-      );
+      if (write.status === "indeterminate") {
+        setPersistenceState("indeterminate");
+      } else if (write.reason === "no_structured_facts") {
+        setPersistenceState("no_structured_facts");
+      } else if (write.reason === "invalid_structured_review") {
+        setPersistenceState("invalid_structured_review");
+      } else {
+        setPersistenceState("blocked");
+      }
     } finally {
       if (saveOperationRef.current === operation) {
         saveOperationRef.current = null;
@@ -619,8 +593,8 @@ function FiscalNotificationReviewWorkspace({
               className="text-sm text-slate-500"
             >
               No mostramos ni conservamos el nombre del archivo. El PDF y el
-              texto desaparecen; solo guardamos la ficha técnica si tú lo
-              eliges.
+              texto desaparecen; solo se guardan los campos estructurados que
+              aceptes conservar.
             </p>
           </div>
 
@@ -701,10 +675,10 @@ function FiscalNotificationReviewWorkspace({
         <ReviewPersistencePanel
           state={persistenceState}
           canSave={pendingReview !== null}
-          onSave={saveTechnicalReview}
+          onSave={saveStructuredReview}
         />
       ) : null}
-      <ReviewHistory state={historyState} />
+      <StructuredReviewHistory viewModel={history} />
     </>
   );
 }
@@ -716,19 +690,23 @@ function ReviewPersistencePanel({
 }: {
   state: ReviewPersistenceState;
   canSave: boolean;
-  onSave: () => Promise<void>;
+  onSave: () => void;
 }) {
   const copy: Readonly<Record<ReviewPersistenceState, string>> = {
-    idle: "La ficha técnica todavía no se ha guardado.",
+    idle: "Los datos estructurados todavía no se han guardado.",
     pending:
-      "El análisis está disponible, pero la ficha técnica aún no se ha guardado.",
-    saving: "Guardando la ficha técnica segura en este navegador…",
+      "El análisis está disponible. Guarda la ficha si quieres conservar los datos exactos detectados.",
+    saving: "Guardando los datos estructurados en tu cuenta…",
     saved:
-      "Ficha técnica guardada en este navegador para esta cuenta. No se sincroniza.",
+      "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias, fechas y sujeto identificado.",
+    no_structured_facts:
+      "Este análisis no contiene todavía campos exactos compatibles con la ficha estructurada. No se ha guardado una tarjeta vacía.",
+    invalid_structured_review:
+      "Los datos no superan la validación de integridad y no se han guardado. El resultado visible sigue disponible para revisarlo.",
     blocked:
-      "El análisis sigue disponible, pero la ficha técnica no se ha guardado. El historial existente no se ha sustituido ni borrado.",
+      "No se ha podido guardar porque los datos de la cuenta cambiaron o el almacenamiento está bloqueado. Ninguna ficha existente se ha sustituido.",
     indeterminate:
-      "No se puede confirmar si se guardó. Comprueba de nuevo con el mismo botón.",
+      "No se puede confirmar el estado de la escritura. Comprueba el historial antes de volver a intentarlo.",
   };
   const successful = state === "saved";
 
@@ -744,14 +722,16 @@ function ReviewPersistencePanel({
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-bold text-slate-950">Ficha técnica local</h2>
+          <h2 className="font-bold text-slate-950">
+            Guardar ficha estructurada
+          </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
             {copy[state]}
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Solo incluye la traza técnica de revisión; nunca el PDF, su texto,
-            su nombre, NIF, CSV, referencias, importes, fechas impresas ni
-            plazos.
+            Guarda únicamente campos estructurados visibles y su procedencia:
+            nunca conserva el PDF, su nombre ni el texto completo. Tampoco crea
+            una deuda, pago, vencimiento, gasto o asiento.
           </p>
         </div>
         {canSave ? (
@@ -767,10 +747,10 @@ function ReviewPersistencePanel({
               <ShieldCheck aria-hidden="true" className="h-5 w-5" />
             )}
             {state === "indeterminate"
-              ? "Comprobar y guardar de nuevo"
+              ? "Comprobar ficha y reintentar"
               : state === "saving"
-                ? "Guardando ficha técnica…"
-                : "Guardar ficha técnica local"}
+                ? "Guardando ficha…"
+                : "Guardar datos en mi cuenta"}
           </Button>
         ) : null}
       </div>
@@ -778,19 +758,12 @@ function ReviewPersistencePanel({
   );
 }
 
-function ReviewHistory({ state }: { state: ReviewHistoryState }) {
-  if (state.status === "loading") {
-    return (
-      <Card className="mt-6" role="status" aria-live="polite">
-        <div className="flex items-center gap-3 text-sm text-slate-700">
-          <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
-          Cargando historial técnico local…
-        </div>
-      </Card>
-    );
-  }
-
-  if (state.status === "blocked") {
+function StructuredReviewHistory({
+  viewModel,
+}: {
+  viewModel: FiscalNotificationStructuredHistoryViewModelV1;
+}) {
+  if (viewModel.status === "BLOCKED") {
     return (
       <Card className="mt-6 border-amber-200 bg-amber-50" role="alert">
         <div className="flex items-start gap-3">
@@ -800,11 +773,11 @@ function ReviewHistory({ state }: { state: ReviewHistoryState }) {
           />
           <div>
             <h2 className="font-bold text-amber-950">
-              Historial local no disponible
+              Expediente estructurado no disponible
             </h2>
             <p className="mt-1 text-sm leading-6 text-amber-900">
-              No se ha sustituido ni borrado ningún historial. Puedes seguir
-              analizando documentos sin guardar la ficha técnica.
+              Los datos guardados no superan la validación de integridad para
+              esta cuenta. No se han sustituido, reinterpretado ni borrado.
             </p>
           </div>
         </div>
@@ -812,39 +785,39 @@ function ReviewHistory({ state }: { state: ReviewHistoryState }) {
     );
   }
 
-  const reviews = [...state.snapshot.reviews].reverse();
+  const entries = viewModel.entries;
   return (
-    <Card className="mt-6" aria-labelledby="notification-review-history">
+    <Card className="mt-6" aria-labelledby="notification-structured-history">
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h2
-            id="notification-review-history"
+            id="notification-structured-history"
             className="text-lg font-bold text-slate-950"
           >
-            Historial técnico local
+            Mis notificaciones guardadas
           </h2>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            Solo existe en este navegador y está separado por cuenta.
+            Fichas estructuradas separadas por cuenta y disponibles para copia
+            de seguridad y sincronización.
           </p>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-            Para volver a ver el nombre, NIF, importes, referencias o fechas
-            impresas, selecciona otra vez el PDF original: esos datos no se
-            conservan.
+            Conservan los campos que aceptaste guardar, pero nunca el PDF, su
+            nombre ni el texto completo.
           </p>
         </div>
         <span className="text-xs font-semibold text-slate-500">
-          {reviews.length} {reviews.length === 1 ? "ficha" : "fichas"}
+          {entries.length} {entries.length === 1 ? "ficha" : "fichas"}
         </span>
       </div>
 
-      {reviews.length === 0 ? (
+      {entries.length === 0 ? (
         <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-          Aún no hay fichas técnicas guardadas para esta cuenta.
+          Aún no has guardado ninguna ficha estructurada en esta cuenta.
         </p>
       ) : (
-        <ol className="mt-4 space-y-3">
-          {reviews.map((review) => (
-            <ReviewHistoryItem key={review.reviewId} review={review} />
+        <ol className="mt-4 space-y-4">
+          {entries.map((entry) => (
+            <StructuredReviewHistoryItem key={entry.key} entry={entry} />
           ))}
         </ol>
       )}
@@ -852,60 +825,74 @@ function ReviewHistory({ state }: { state: ReviewHistoryState }) {
   );
 }
 
-function ReviewHistoryItem({
-  review,
+function StructuredReviewHistoryItem({
+  entry,
 }: {
-  review: PersistedFiscalNotificationReview;
+  entry: FiscalNotificationStructuredHistoryEntryV1;
 }) {
-  const recognizedCandidate = recognizedCandidateFrom(review.result);
-  const recognized = recognizedCandidate !== null;
-  const familySummary = recognizedCandidate
-    ? FAMILY_LABELS[recognizedCandidate.familyId]
-    : review.result.candidates.length
-    ? review.result.candidates
-        .map((candidate) => FAMILY_INDICATION_LABELS[candidate.familyId])
-        .join(" · ")
-    : REASON_COPY[review.result.reason].detail;
-  const resultTitle = recognized
-    ? "Documento reconocido"
-    : review.result.reason === "SUPPORTED_FAMILY_CANDIDATE"
-      ? "Clasificación histórica pendiente"
-      : REASON_COPY[review.result.reason].title;
   return (
-    <li className="rounded-xl border border-slate-200 p-4">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+    <li className="rounded-2xl border border-slate-200 p-4 sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Analizado {formatReviewTimestamp(review.createdAt)}
+            Guardado {formatReviewTimestamp(entry.createdAt)}
           </p>
-          <h3 className="mt-1 font-bold text-slate-950">
-            {resultTitle}
+          <h3 className="mt-1 text-lg font-bold text-slate-950">
+            {entry.title}
           </h3>
+          <p className="mt-1 text-sm font-semibold text-slate-600">
+            {entry.authority}
+          </p>
         </div>
-        <span
-          className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${
-            recognized
-              ? "bg-emerald-100 text-emerald-900"
-              : "bg-amber-100 text-amber-900"
-          }`}
-        >
-          {recognized
-            ? "Tipo reconocido"
-            : review.result.status === "REVIEW_REQUIRED"
-              ? "Revisa antes de actuar"
-              : "Información pendiente"}
+        <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
+          {entry.reviewLabel}
         </span>
       </div>
-      <p className="mt-2 text-sm leading-6 text-slate-600">
-        {familySummary}
-      </p>
-      {recognized ? (
-        <p className="mt-1 text-xs font-semibold text-slate-500">
-          Organismo y autenticidad no verificados
-        </p>
+
+      {entry.subjectName || entry.subjectTaxId ? (
+        <dl className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
+          {entry.subjectName ? (
+            <ResultFact label="Obligado al pago" value={entry.subjectName} />
+          ) : null}
+          {entry.subjectTaxId ? (
+            <ResultFact label="NIF impreso" value={entry.subjectTaxId} />
+          ) : null}
+        </dl>
       ) : null}
-      <p className="mt-2 text-xs font-semibold text-slate-500">
-        {review.result.pageCount} páginas · {formatBytes(review.result.byteLength)}
+
+      {entry.money.length > 0 ? (
+        <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {entry.money.map((fact) => (
+            <div
+              key={`${fact.label}:${fact.amountCents}`}
+              className="rounded-xl border border-blue-100 bg-blue-50 p-4"
+            >
+              <dt className="text-xs font-bold uppercase tracking-wide text-blue-800">
+                {fact.label}
+              </dt>
+              <dd className="mt-1 text-lg font-bold text-blue-950">
+                {formatStructuredMoney(fact.amountCents, fact.currency)}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+
+      {entry.references.length > 0 || entry.printedDates.length > 0 ? (
+        <dl className="mt-4 grid gap-x-6 gap-y-3 border-t border-slate-200 pt-4 sm:grid-cols-2">
+          {[...entry.references, ...entry.printedDates].map((fact) => (
+            <ResultFact
+              key={`${fact.label}:${fact.value}`}
+              label={fact.label}
+              value={fact.value}
+            />
+          ))}
+        </dl>
+      ) : null}
+
+      <p className="mt-4 text-xs font-semibold text-slate-500">
+        {entry.authenticityLabel} · {entry.pageCount} páginas ·{" "}
+        {formatBytes(entry.byteLength)} · PDF no conservado
       </p>
     </li>
   );
@@ -1089,9 +1076,9 @@ function ReviewResult({
           />
           <p>
             El análisis se ha realizado en este navegador. No se ha llamado a
-            un proveedor y el texto no se conserva. Solo se mantiene una ficha
-            técnica segura si eliges guardarla; no existe ninguna acción
-            automática pendiente.
+            un proveedor y el texto no se conserva. Si eliges guardar, solo se
+            mantienen los campos estructurados mostrados y su procedencia; no
+            existe ninguna acción automática pendiente.
           </p>
         </div>
       </Card>
@@ -1199,8 +1186,10 @@ function EphemeralMoneyFactsPanel({
         </p>
       ) : null}
       <p className="mt-3 text-xs leading-5 text-blue-900">
-        Estos importes son efímeros: desaparecen al salir y no se incluyen en
-        la ficha técnica ni en el historial local.
+        Permanecen solo en memoria hasta que pulses{" "}
+        <strong>Guardar datos en mi cuenta</strong>. Si los guardas, se conserva
+        la cifra estructurada y su procedencia, nunca el PDF ni el texto
+        completo.
       </p>
     </section>
   );
@@ -1231,14 +1220,21 @@ function formatBytes(value: number): string {
 }
 
 function formatPrintedMoney(fact: AeatEnforcementMoneyFact): string {
-  const cents = BigInt(fact.amountCents);
+  return formatStructuredMoney(fact.amountCents, fact.currency);
+}
+
+function formatStructuredMoney(
+  amountCents: number,
+  currency: "EUR" | "UNKNOWN",
+): string {
+  const cents = BigInt(amountCents);
   const hundred = BigInt(100);
   const integerPart = (cents / hundred)
     .toString()
     .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   const decimalPart = (cents % hundred).toString().padStart(2, "0");
   const value = `${integerPart},${decimalPart}`;
-  return fact.currency === "EUR"
+  return currency === "EUR"
     ? `${value} €`
     : `${value} · moneda no confirmada`;
 }
