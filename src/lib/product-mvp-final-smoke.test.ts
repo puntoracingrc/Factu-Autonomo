@@ -179,9 +179,7 @@ describe("product MVP final smoke", () => {
     expect(
       getBackupRestoreBlocker({
         draftReady: true,
-        currentBackupReady: true,
         confirmedReplacement: true,
-        confirmedCurrentBackup: true,
       }),
     ).toBeNull();
   });

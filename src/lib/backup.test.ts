@@ -531,6 +531,9 @@ describe("backup", () => {
     expect(createBackupFilename(NOW)).toBe(
       "factu-autonomo-backup-2026-06-24.json",
     );
+    expect(createBackupFilename(NOW, "pre_restore")).toBe(
+      "factu-autonomo-backup-antes-restaurar-2026-06-24-10-00-00.json",
+    );
   });
 
   it("usa Blob y descarga controlada desde el navegador", () => {
@@ -827,16 +830,29 @@ describe("backup", () => {
     expect(`${helperSource}\n${cardSource}`).not.toContain(
       "localStorage.setItem",
     );
-    expect(cardSource).toContain("restoreBackupData(restoreDraft.data, data)");
+    expect(cardSource).toContain("runBackupRestoreWithSafetyCopy");
+    expect(cardSource).toContain("getCurrent: getCurrentData");
+    expect(cardSource).toContain('purpose: "pre_restore"');
+    expect(cardSource).toContain("restore: restoreBackupData");
     expect(cardSource).toContain('result.status === "indeterminate"');
     expect(cardSource).toContain('result.status === "blocked"');
     expect(cardSource).toContain('result.reason === "stale_precondition"');
-    expect(cardSource).toContain("currentBackupData === data");
-    expect(cardSource).toContain("setCurrentBackupData(null)");
+    expect(cardSource).not.toContain("currentBackupData");
+    expect(cardSource).not.toContain("confirmedCurrentBackup");
+    expect(cardSource).not.toContain("window.setTimeout");
+    expect(cardSource).toContain("window.requestAnimationFrame");
+    expect(cardSource).toContain("} finally {");
     expect(cardSource).toContain("restoreLockRef.current");
     expect(cardSource).not.toContain("getSupabase");
     expect(cardSource).not.toContain("fiscal_transport_attempts");
     expect(cardSource).not.toContain("api/verifactu");
+
+    const restoreHandler = cardSource.slice(
+      cardSource.indexOf("async function handleRestoreBackup"),
+    );
+    expect(restoreHandler.indexOf("window.requestAnimationFrame")).toBeLessThan(
+      restoreHandler.indexOf("runBackupRestoreWithSafetyCopy({"),
+    );
   });
 
   it("FileReader se limita a la UI de selección de copia", () => {
@@ -858,9 +874,7 @@ describe("backup", () => {
     expect(
       getBackupRestoreBlocker({
         draftReady: false,
-        currentBackupReady: true,
         confirmedReplacement: true,
-        confirmedCurrentBackup: true,
       }),
     ).toBe("Primero revisa una copia válida.");
   });
@@ -869,39 +883,16 @@ describe("backup", () => {
     expect(
       getBackupRestoreBlocker({
         draftReady: true,
-        currentBackupReady: true,
         confirmedReplacement: false,
-        confirmedCurrentBackup: true,
       }),
     ).toBe("Confirma que entiendes que se reemplazarán los datos locales.");
-    expect(
-      getBackupRestoreBlocker({
-        draftReady: true,
-        currentBackupReady: true,
-        confirmedReplacement: true,
-        confirmedCurrentBackup: false,
-      }),
-    ).toBe("Confirma que has descargado una copia actual.");
-  });
-
-  it("bloquea restore si no hay backup previo actual", () => {
-    expect(
-      getBackupRestoreBlocker({
-        draftReady: true,
-        currentBackupReady: false,
-        confirmedReplacement: true,
-        confirmedCurrentBackup: true,
-      }),
-    ).toBe("Descarga antes una copia de seguridad actual.");
   });
 
   it("permite restore solo con todas las condiciones listas", () => {
     expect(
       getBackupRestoreBlocker({
         draftReady: true,
-        currentBackupReady: true,
         confirmedReplacement: true,
-        confirmedCurrentBackup: true,
       }),
     ).toBeNull();
   });
