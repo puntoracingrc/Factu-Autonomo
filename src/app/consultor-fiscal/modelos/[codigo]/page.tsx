@@ -34,9 +34,13 @@ export async function generateMetadata({
   });
   const isOfficialInformation =
     officialContent.status === "OFFICIAL_INFORMATION";
+  const isModel01 = codigo === "01" && isOfficialInformation;
+  const modelTitle = isModel01
+    ? "Modelo 01 AEAT: solicitud de certificados tributarios"
+    : "Modelo " + result.data.code + " · Modelos AEAT";
 
   return {
-    title: "Modelo " + result.data.code + " · Modelos AEAT",
+    title: isModel01 ? { absolute: modelTitle } : modelTitle,
     description: isOfficialInformation
       ? officialContent.data.summary
       : result.data.summary,
@@ -48,7 +52,7 @@ export async function generateMetadata({
       : undefined,
     openGraph: isOfficialInformation
       ? {
-          title: `Modelo ${result.data.code} · Modelos AEAT`,
+          title: modelTitle,
           description: officialContent.data.summary,
           url: result.data.href,
           type: "article",
