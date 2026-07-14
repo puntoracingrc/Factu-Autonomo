@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   applySyncChanges,
   appDataToSyncChanges,
+  clearSyncedChanges,
   diffAppData,
   emptyCloudBootstrapData,
   snapshotIntegrityMetadataChange,
@@ -14,6 +15,8 @@ import type {
   RecurringExpense,
   SyncChange,
 } from "../types";
+import type { FiscalNotificationsWorkspace } from "../fiscal-notifications/types";
+import { FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 } from "../fiscal-notifications/workspace-persistence.v1";
 import {
   applyLegacyImportRepair,
   buildLegacyImportRepairPreview,
@@ -42,6 +45,55 @@ function customer(id: string, name: string): Customer {
     name,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
+  };
+}
+
+const FISCAL_OWNER = "user:00000000-0000-4000-8000-000000000001";
+const FISCAL_NOW = "2026-07-14T09:00:00.000Z";
+
+function fiscalWorkspace(revision = 0): FiscalNotificationsWorkspace {
+  return {
+    schemaVersion: 1,
+    workspaceId: "fiscal-notifications-workspace-v1",
+    ownerScope: FISCAL_OWNER,
+    revision,
+    createdAt: FISCAL_NOW,
+    updatedAt:
+      revision === 0 ? FISCAL_NOW : "2026-07-14T09:01:00.000Z",
+    packages:
+      revision === 0
+        ? []
+        : [
+            {
+              id: "package-synthetic",
+              ownerScope: FISCAL_OWNER,
+              fileIds: [],
+              sourceChannel: "MANUAL_UPLOAD",
+              processingStatus: "NEEDS_REVIEW",
+              securityScanStatus: "NOT_AVAILABLE",
+              uploadedAt: FISCAL_NOW,
+            },
+          ],
+    files: [],
+    documents: [],
+    parts: [],
+    authorities: [],
+    references: [],
+    evidence: [],
+    debts: [],
+    debtObservations: [],
+    cases: [],
+    relations: [],
+    analysisSnapshots: [],
+    paymentOptions: [],
+    paymentPlans: [],
+    installments: [],
+    interestCalculations: [],
+    deadlineRules: [],
+    obligations: [],
+    timeline: [],
+    accountingDrafts: [],
+    auditEvents: [],
   };
 }
 
@@ -793,3 +845,169 @@ describe("sync por cambios", () => {
     ).toBe("recurring-two-devices:2026-01-31");
   });
 });
+
+describe("sync del expediente fiscal estructurado", () => {
+  it("emite una única entidad de workspace y reconstruye una descarga completa", () => {
+    const source: AppData = {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: fiscalWorkspace(),
+    };
+    const changes = diffAppData(EMPTY_DATA, source);
+    const workspaceChanges = changes.filter(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+
+    expect(workspaceChanges).toHaveLength(1);
+    expect(workspaceChanges[0]).toMatchObject({
+      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+      deleted: false,
+    });
+    expect(applySyncChanges(EMPTY_DATA, workspaceChanges).fiscalNotificationsWorkspace)
+      .toEqual(source.fiscalNotificationsWorkspace);
+    expect(
+      appDataToSyncChanges(source).filter(
+        (change) => change.entityType === "fiscal_notifications_workspace",
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("sincroniza avances append-only y no degrada una revisión más nueva", () => {
+    const base: AppData = {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: fiscalWorkspace(),
+    };
+    const advanced: AppData = {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: fiscalWorkspace(1),
+    };
+    expect(
+      diffAppData(base, advanced).filter(
+        (change) => change.entityType === "fiscal_notifications_workspace",
+      ),
+    ).toHaveLength(1);
+    expect(
+      diffAppData(advanced, base).filter(
+        (change) => change.entityType === "fiscal_notifications_workspace",
+      ),
+    ).toHaveLength(0);
+
+    const staleRemote: SyncChange = {
+      entityType: "fiscal_notifications_workspace",
+      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+      deleted: false,
+      payload: fiscalWorkspace(),
+      updatedAt: "2026-07-14T09:02:00.000Z",
+    };
+    expect(
+      mergeRemoteOntoLocal(advanced, [staleRemote]).data
+        .fiscalNotificationsWorkspace,
+    ).toEqual(advanced.fiscalNotificationsWorkspace);
+  });
+
+  it("mantiene el estado local ante una rama divergente o un payload inválido", () => {
+    const localWorkspace = fiscalWorkspace(1);
+    const local: AppData = {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: localWorkspace,
+    };
+    const divergent = fiscalWorkspace(1);
+    divergent.packages[0]!.id = "package-divergent";
+    const rawSensitive = {
+      ...fiscalWorkspace(1),
+      rawPdfText: "private source text",
+    };
+    const remote = (payload: unknown): SyncChange => ({
+      entityType: "fiscal_notifications_workspace",
+      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+      deleted: false,
+      payload,
+      updatedAt: "2026-07-14T09:02:00.000Z",
+    });
+
+    expect(applySyncChanges(local, [remote(divergent)])).toEqual(local);
+    expect(applySyncChanges(local, [remote(rawSensitive)])).toEqual(local);
+    expect(
+      diffAppData(EMPTY_DATA, {
+        ...EMPTY_DATA,
+        fiscalNotificationsWorkspace: rawSensitive as never,
+      }).some(
+        (change) => change.entityType === "fiscal_notifications_workspace",
+      ),
+    ).toBe(false);
+  });
+
+  it("conserva en cola el avance monotónico y descarta sobres inválidos", () => {
+    const first = diffAppData(EMPTY_DATA, {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: fiscalWorkspace(),
+    }).filter(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+    const second = diffAppData(
+      {
+        ...EMPTY_DATA,
+        fiscalNotificationsWorkspace: fiscalWorkspace(),
+      },
+      {
+        ...EMPTY_DATA,
+        fiscalNotificationsWorkspace: fiscalWorkspace(1),
+      },
+    ).filter(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+    const invalid: SyncChange = {
+      entityType: "fiscal_notifications_workspace",
+      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+      deleted: false,
+      payload: { ownerScope: FISCAL_OWNER, rawPdfText: "private" },
+      updatedAt: "2026-07-14T09:02:00.000Z",
+    };
+    const tracked = trackDataDiff(
+      {
+        ...EMPTY_DATA,
+        fiscalNotificationsWorkspace: fiscalWorkspace(),
+        meta: { lastModified: FISCAL_NOW, pendingChanges: first },
+      },
+      {
+        ...EMPTY_DATA,
+        fiscalNotificationsWorkspace: fiscalWorkspace(1),
+      },
+    );
+    expect(
+      tracked.meta?.pendingChanges?.find(
+        (change) => change.entityType === "fiscal_notifications_workspace",
+      )?.payload,
+    ).toEqual(fiscalWorkspace(1));
+    const uploadChanges = buildCloudUploadChanges({
+        ...tracked,
+        meta: {
+          ...tracked.meta!,
+          pendingChanges: [...(tracked.meta?.pendingChanges ?? []), invalid],
+        },
+      }).filter(
+        (change) => change.entityType === "fiscal_notifications_workspace",
+      );
+    expect(uploadChanges).toHaveLength(1);
+    expect(uploadChanges[0]?.payload).toEqual(fiscalWorkspace(1));
+    expect(second).toHaveLength(1);
+  });
+
+  it("no borra una revisión fiscal más nueva mientras termina un sync anterior", () => {
+    const sent = fiscalWorkspaceChangeForTest(fiscalWorkspace());
+    const pendingNewer = fiscalWorkspaceChangeForTest(fiscalWorkspace(1));
+    expect(clearSyncedChanges([pendingNewer], [sent])).toEqual([pendingNewer]);
+    expect(clearSyncedChanges([sent], [sent])).toEqual([]);
+  });
+});
+
+function fiscalWorkspaceChangeForTest(
+  workspace: FiscalNotificationsWorkspace,
+): SyncChange {
+  return {
+    entityType: "fiscal_notifications_workspace",
+    entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+    deleted: false,
+    payload: workspace,
+    updatedAt: workspace.updatedAt,
+  };
+}

@@ -14,6 +14,8 @@ import {
   testDocumentRetirementExportableDataFingerprint,
 } from "../document-integrity/test-document-retirement";
 import { testDocumentRetirementTenantFingerprintForUserId } from "../test-document-retirement-persistence";
+import type { FiscalNotificationsWorkspace } from "../fiscal-notifications/types";
+import { FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 } from "../fiscal-notifications/workspace-persistence.v1";
 
 const supabaseMock = vi.hoisted(() => ({
   from: vi.fn(),
@@ -239,9 +241,178 @@ function documentRows(data: AppData, updatedAt: string): Row[] {
   }));
 }
 
+const FISCAL_USER_ID = "00000000-0000-4000-8000-000000000001";
+const FISCAL_OWNER = `user:${FISCAL_USER_ID}`;
+const FISCAL_CREATED_AT = "2026-07-14T09:00:00.000Z";
+
+function fiscalWorkspace(revision = 0): FiscalNotificationsWorkspace {
+  return {
+    schemaVersion: 1,
+    workspaceId: "fiscal-notifications-workspace-v1",
+    ownerScope: FISCAL_OWNER,
+    revision,
+    createdAt: FISCAL_CREATED_AT,
+    updatedAt:
+      revision === 0
+        ? FISCAL_CREATED_AT
+        : "2026-07-14T09:01:00.000Z",
+    packages:
+      revision === 0
+        ? []
+        : [
+            {
+              id: "package-synthetic",
+              ownerScope: FISCAL_OWNER,
+              fileIds: [],
+              sourceChannel: "MANUAL_UPLOAD",
+              processingStatus: "NEEDS_REVIEW",
+              securityScanStatus: "NOT_AVAILABLE",
+              uploadedAt: FISCAL_CREATED_AT,
+            },
+          ],
+    files: [],
+    documents: [],
+    parts: [],
+    authorities: [],
+    references: [],
+    evidence: [],
+    debts: [],
+    debtObservations: [],
+    cases: [],
+    relations: [],
+    analysisSnapshots: [],
+    paymentOptions: [],
+    paymentPlans: [],
+    installments: [],
+    interestCalculations: [],
+    deadlineRules: [],
+    obligations: [],
+    timeline: [],
+    accountingDrafts: [],
+    auditEvents: [],
+  };
+}
+
+function fiscalWorkspaceChange(
+  workspace: FiscalNotificationsWorkspace,
+  updatedAt = workspace.updatedAt,
+): SyncChange {
+  return {
+    entityType: "fiscal_notifications_workspace",
+    entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+    deleted: false,
+    payload: workspace,
+    updatedAt,
+  };
+}
+
 describe("cloud repository", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("recupera siempre la cabeza fiscal anterior al watermark", async () => {
+    const workspace = fiscalWorkspace(1);
+    installPullMock([
+      {
+        user_id: FISCAL_USER_ID,
+        entity_type: "fiscal_notifications_workspace",
+        entity_id: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+        payload: workspace,
+        deleted: false,
+        updated_at: "2026-07-14T09:01:00.000Z",
+      },
+    ]);
+
+    const changes = await pullSyncChanges(
+      FISCAL_USER_ID,
+      "2026-07-14T10:00:00.000Z",
+    );
+    expect(changes).toEqual([
+      expect.objectContaining({
+        entityType: "fiscal_notifications_workspace",
+        entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+        payload: workspace,
+      }),
+    ]);
+  });
+
+  it("inserta la primera cabeza fiscal con aislamiento de cuenta", async () => {
+    const rows: Row[] = [];
+    const writes = installPullMock(rows);
+    const workspace = fiscalWorkspace();
+
+    await pushSyncChanges(FISCAL_USER_ID, [fiscalWorkspaceChange(workspace)]);
+
+    expect(writes.insert).toHaveBeenCalledTimes(1);
+    expect(rows).toEqual([
+      expect.objectContaining({
+        user_id: FISCAL_USER_ID,
+        entity_type: "fiscal_notifications_workspace",
+        entity_id: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+        payload: workspace,
+        deleted: false,
+      }),
+    ]);
+  });
+
+  it("avanza la cabeza fiscal por CAS sin usar last-write-wins", async () => {
+    const rows: Row[] = [
+      {
+        user_id: FISCAL_USER_ID,
+        entity_type: "fiscal_notifications_workspace",
+        entity_id: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+        payload: fiscalWorkspace(),
+        deleted: false,
+        updated_at: "2026-07-14T09:00:00.000Z",
+      },
+    ];
+    const writes = installPullMock(rows);
+    const advanced = fiscalWorkspace(1);
+
+    await pushSyncChanges(FISCAL_USER_ID, [
+      fiscalWorkspaceChange(advanced, "2026-07-14T09:02:00.000Z"),
+    ]);
+
+    expect(writes.update).toHaveBeenCalledTimes(1);
+    expect(rows[0]).toMatchObject({
+      payload: advanced,
+      updated_at: "2026-07-14T09:02:00.000Z",
+    });
+  });
+
+  it("bloquea una rama fiscal divergente y un owner ajeno", async () => {
+    const remote = fiscalWorkspace(1);
+    const rows: Row[] = [
+      {
+        user_id: FISCAL_USER_ID,
+        entity_type: "fiscal_notifications_workspace",
+        entity_id: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+        payload: remote,
+        deleted: false,
+        updated_at: remote.updatedAt,
+      },
+    ];
+    const writes = installPullMock(rows);
+    const divergent = fiscalWorkspace(1);
+    divergent.packages[0]!.id = "package-divergent";
+
+    await expect(
+      pushSyncChanges(FISCAL_USER_ID, [fiscalWorkspaceChange(divergent)]),
+    ).rejects.toThrow("expediente fiscal remoto ha divergido");
+    expect(writes.update).not.toHaveBeenCalled();
+
+    rows[0]!.payload = {
+      ...remote,
+      ownerScope: "user:other",
+      packages: remote.packages.map((entry) => ({
+        ...entry,
+        ownerScope: "user:other",
+      })),
+    };
+    await expect(pullSyncChanges(FISCAL_USER_ID)).rejects.toThrow(
+      "expediente fiscal remoto no es verificable",
+    );
   });
 
   it("descarga entidades sincronizadas por paginas para cuentas grandes", async () => {

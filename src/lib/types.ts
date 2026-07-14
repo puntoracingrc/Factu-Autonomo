@@ -1,5 +1,6 @@
 import type { BusinessFiscalProfile } from "./fiscal-profile/types";
 import type { TaxModelDiagnosticSession } from "./tax-model-diagnostic/contracts";
+import type { FiscalNotificationsWorkspace } from "./fiscal-notifications/types";
 
 export type DocumentType = "factura" | "presupuesto" | "recibo";
 
@@ -1269,6 +1270,7 @@ export type SyncEntityType =
   | "product"
   | "user_reminder"
   | "document_retirement_batch"
+  | "fiscal_notifications_workspace"
   | "profile"
   | "counters"
   | "workspace_metadata";
@@ -1305,6 +1307,11 @@ export interface AppData {
   customers: Customer[];
   /** Historial append-only de retiros explícitos; nunca se deriva de la lista activa. */
   testDocumentRetirementBatches?: TestDocumentRetirementBatchV1[];
+  /**
+   * Expediente fiscal estructurado de la cuenta. No contiene el PDF original
+   * ni texto completo y permanece REVIEW_REQUIRED hasta acción explícita.
+   */
+  fiscalNotificationsWorkspace?: FiscalNotificationsWorkspace;
   counters: {
     factura: number;
     factura_rectificativa: number;

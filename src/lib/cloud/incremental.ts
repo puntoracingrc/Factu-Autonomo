@@ -153,8 +153,11 @@ export function mergeRemoteOntoLocal(
 
   const toApply: SyncChange[] = [];
   for (const remote of remoteChanges) {
-    if (remote.entityType === "document_retirement_batch") {
-      // El lote es append-only: su merge por prefijo decide, nunca LWW.
+    if (
+      remote.entityType === "document_retirement_batch" ||
+      remote.entityType === "fiscal_notifications_workspace"
+    ) {
+      // Los historiales monotónicos deciden por revisión/prefijo, nunca LWW.
       toApply.push(remote);
       continue;
     }
