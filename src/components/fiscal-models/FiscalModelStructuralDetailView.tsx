@@ -15,6 +15,14 @@ import { FiscalModelOfficialVisual } from "./FiscalModelOfficialVisual";
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
 
+const practicalSubtitleByCode: Readonly<Record<string, string>> =
+  Object.freeze({
+    "130": "Pago trimestral del IRPF en estimación directa",
+    "131": "Pago trimestral del IRPF para autónomos en módulos",
+    "303": "Autoliquidación periódica del IVA",
+    "390": "Resumen anual del IVA",
+  });
+
 export function FiscalModelStructuralDetailView({
   page,
   calendarReturnHref,
@@ -71,7 +79,9 @@ export function FiscalModelStructuralDetailView({
               Modelo {page.code}
             </h1>
             <p className="mt-2 break-words text-base leading-7 text-slate-700 dark:text-slate-300">
-              {enrichedContent?.canonicalName ?? page.canonicalName}
+              {practicalSubtitleByCode[page.code] ??
+                enrichedContent?.canonicalName ??
+                page.canonicalName}
             </p>
           </div>
         </div>

@@ -22,6 +22,15 @@ import { FiscalModelOfficialVisual } from "./FiscalModelOfficialVisual";
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
 
+const practicalCatalogLabels: Readonly<
+  Partial<Record<string, readonly string[]>>
+> = {
+  "130": ["Frecuente para autónomos", "IRPF", "Trimestral", "Estimación directa"],
+  "131": ["Solo módulos", "IRPF", "Trimestral", "Revisión anual"],
+  "303": ["Frecuente para autónomos", "IVA", "Trimestral o mensual"],
+  "390": ["Anual", "IVA", "Puede estar exonerado"],
+};
+
 export function FiscalModelCatalogView({
   result,
   pages,
@@ -142,6 +151,7 @@ export function FiscalModelCatalogView({
             const historical =
               page.lifecycleStatus === "HISTORICAL" ||
               officialContent?.lifecycleStatus === "HISTORICAL";
+            const practicalLabels = practicalCatalogLabels[page.code] ?? [];
             return (
               <Card
                 key={page.code}
@@ -192,6 +202,26 @@ export function FiscalModelCatalogView({
                     <p className="mt-1 break-words text-sm font-semibold leading-6 text-slate-800 dark:text-slate-200">
                       {officialContent?.canonicalName ?? page.canonicalName}
                     </p>
+                    {officialContent && practicalLabels.length > 0 ? (
+                      <>
+                        <p className="mt-2 break-words text-sm leading-6 text-slate-600 dark:text-slate-300">
+                          {officialContent.summary}
+                        </p>
+                        <ul
+                          className="mt-3 flex flex-wrap gap-2"
+                          aria-label={`Características del Modelo ${page.code}`}
+                        >
+                          {practicalLabels.map((label) => (
+                            <li
+                              key={label}
+                              className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                            >
+                              {label}
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : null}
                   </div>
                 </div>
                 <div className="flex-1" />

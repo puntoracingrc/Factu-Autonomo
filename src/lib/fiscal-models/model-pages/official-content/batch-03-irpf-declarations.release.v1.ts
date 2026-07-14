@@ -366,7 +366,7 @@ const MODEL_130_CONTENT = {
   canonicalName:
     "IRPF. Empresarios y profesionales en estimación directa. Pago fraccionado.",
   summary:
-    "Modelo que la AEAT vincula a los pagos fraccionados del IRPF de actividades económicas en estimación directa.",
+    "Pago fraccionado trimestral del IRPF para autónomos y profesionales en estimación directa.",
   searchTerms: [
     "modelo 130",
     "IRPF",
@@ -382,6 +382,12 @@ const MODEL_130_CONTENT = {
     "datos de declaraciones anteriores",
     "predeclaración modelo 130",
     "Orden EHA 672 2007",
+    "regla 70 por ciento profesionales",
+    "cálculo acumulado desde enero",
+    "20 por ciento rendimiento neto",
+    "retenciones modelo 130",
+    "declaración negativa",
+    "pago a cuenta renta",
   ],
   sections: [
     {
@@ -639,7 +645,7 @@ const MODEL_131_CONTENT = {
   canonicalName:
     "IRPF. Empresarios y profesionales en estimación objetiva. Pago fraccionado.",
   summary:
-    "Modelo que la AEAT vincula a los pagos fraccionados del IRPF de actividades económicas en estimación objetiva.",
+    "Pago fraccionado trimestral del IRPF para actividades en estimación objetiva o módulos.",
   searchTerms: [
     "modelo 131",
     "IRPF",
@@ -654,6 +660,12 @@ const MODEL_131_CONTENT = {
     "predeclaración modelo 131",
     "datos de declaraciones anteriores",
     "Orden EHA 672 2007",
+    "límites módulos 2026",
+    "reducción 5 por ciento 2026",
+    "porcentajes 2 3 4 por ciento",
+    "unidades personal asalariado",
+    "estimación objetiva requisitos",
+    "declaración negativa",
   ],
   sections: [
     {

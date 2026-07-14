@@ -1,0 +1,155 @@
+import type { FiscalModelPracticalGuideV1 } from "./fiscal-model-practical-guide.types";
+
+export const MODEL_390_GUIDE_V1 = {
+  code: "390",
+  lastVerifiedAt: "2026-07-14",
+  intro: [
+    "El Modelo 390 es una declaración informativa que resume las operaciones de IVA de todo el año.",
+    "No sirve para pagar de nuevo el IVA y no sustituye las autoliquidaciones mensuales o trimestrales del Modelo 303.",
+  ],
+  notices: [
+    { title: "No todos los autónomos que presentan el 303 presentan el 390", paragraphs: ["Antes de comenzar, comprueba si estás obligado o exonerado. Si estás exonerado, la información anual se completa en el último Modelo 303."] },
+  ],
+  actions: [
+    { label: "Acceder a las gestiones del Modelo 390", sourceId: "aeat.model-390.procedure-home.2026-06-09", primary: true },
+    { label: "Comprobar los supuestos de exoneración", href: "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/manual-gran-empresa/se-declara-volumen-operaciones/obligados-presentar-modelo-303/exonerados-presentacion-modelo-390.html", primary: true },
+    { label: "Abrir la ayuda del simulador OPEN", sourceId: "aeat.model-390.simulator-help.2026-02-05" },
+    { label: "Consultar el plazo oficial", href: "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-390-iva-declaracion-resumen-anual_/plazos-presentacion.html" },
+    { label: "Consultar la ayuda de presentación", sourceId: "aeat.model-390.form-help.2026-06-19" },
+  ],
+  quickSummaryTitle: "El Modelo 390 en pocas palabras",
+  quickFacts: [
+    { label: "Qué es", value: "El resumen anual informativo del IVA." },
+    { label: "¿Es una autoliquidación?", value: "No. No genera normalmente un nuevo pago." },
+    { label: "¿Sustituye al 303?", value: "No. Los 303 declaran cada periodo y el 390 resume el ejercicio." },
+    { label: "Periodicidad", value: "Anual, durante los treinta primeros días naturales de enero del año siguiente." },
+    { label: "Presentación", value: "Electrónica mediante formulario o fichero y con Cl@ve, certificado o DNI electrónico según el declarante y el acceso admitido." },
+    { label: "Exoneración", value: "Existe para determinados contribuyentes; deberán completar la información anual en el último 303." },
+  ],
+  sections: [
+    {
+      id: "model-390-obligation",
+      title: "Quién debe presentarlo y quién puede estar exonerado",
+      intro: ["Lo presentan quienes tienen obligación de resumen anual de IVA y no están incluidos en un supuesto de exoneración. La comprobación debe hacerse con los datos censales y las actividades del ejercicio."],
+      cards: [
+        { title: "Liquidación trimestral", paragraphs: ["Pueden estar exonerados quienes tributan solo en territorio común y realizan exclusivamente actividades en régimen simplificado, arrendamiento de inmuebles urbanos o ambas, incluso junto a actividades sin obligación de 303."] },
+        { title: "Suministro Inmediato de Información", paragraphs: ["Los contribuyentes incluidos en el SII están exonerados del 390."] },
+        { title: "Qué hace quien está exonerado", paragraphs: ["Completa en el último 303 la información anual de actividades, volumen de operaciones, prorrata y sectores diferenciados que corresponda."] },
+      ],
+      note: "No conviertas la exoneración en una regla universal para cualquier arrendador. Deben cumplirse todos sus requisitos y existir obligación de presentar el último periodo.",
+    },
+    {
+      id: "model-390-comparison",
+      title: "Diferencia entre 303 y 390",
+      cards: [
+        { title: "Modelo 303", bullets: ["Mensual o trimestral.", "Calcula el resultado del periodo.", "Puede ser a ingresar, compensar o devolver.", "Es una autoliquidación."] },
+        { title: "Modelo 390", bullets: ["Anual.", "Resume todo el ejercicio.", "No genera normalmente un nuevo pago.", "Es informativo."] },
+      ],
+      note: "El total anual debe poder explicarse a partir de los libros registro y de las autoliquidaciones del ejercicio.",
+    },
+    {
+      id: "model-390-preparation",
+      title: "Qué debes preparar",
+      cards: [
+        { title: "Autoliquidaciones y libros", bullets: ["Modelos 303 del ejercicio.", "Libro de facturas expedidas.", "Libro de facturas recibidas.", "Libro de bienes de inversión."] },
+        { title: "Operaciones especiales", bullets: ["Adquisiciones intracomunitarias.", "Importaciones y exportaciones.", "Operaciones exentas, no sujetas o con inversión del sujeto pasivo."] },
+        { title: "Actividad y deducción", bullets: ["Actividades y epígrafes del IAE.", "Prorrata y sectores diferenciados.", "Volumen anual de operaciones."] },
+      ],
+      note: "No prepares el 390 sumando únicamente lo pagado: hay que revisar bases imponibles, cuotas y operaciones informativas.",
+    },
+    {
+      id: "model-390-checks",
+      title: "Comprobaciones antes de presentar",
+      cards: [
+        { title: "Identidad y actividad", bullets: ["Ejercicio correcto.", "Todas las actividades y epígrafes.", "Tipos de IVA aplicables al año.", "Prorrata y sectores diferenciados cuando proceda."] },
+        { title: "Coherencia contable", bullets: ["IVA devengado y deducible conciliados con libros.", "Bienes de inversión separados.", "Adquisiciones intracomunitarias tratadas en devengado y deducible cuando corresponda.", "Operaciones informativas incluidas."] },
+        { title: "Coherencia con los 303", bullets: ["Los resultados periódicos deben explicar el resultado anual.", "Un 303 incorrecto debe corregirse por separado.", "Comprobar antes si existe exoneración."] },
+      ],
+    },
+    {
+      id: "model-390-simulator",
+      title: "Simulador OPEN",
+      intro: ["Permite preparar y comprobar una simulación sin identificarse."],
+      cards: [
+        { title: "Lo que sí hace", bullets: ["Crear una simulación.", "Validar errores.", "Guardar una sesión .ses para volver a abrirla en el simulador.", "Generar una vista previa."] },
+        { title: "Lo que no hace", bullets: ["No presenta la declaración.", "El PDF no es válido para presentar.", "El archivo .ses no puede cargarse en el formulario telemático oficial."] },
+      ],
+    },
+    {
+      id: "model-390-corrections",
+      title: "Cómo corregir errores",
+      intro: ["El formulario permite usar «Modificar declaración» cuando ya existe una presentación del mismo ejercicio."],
+      note: "Modificar el 390 no corrige automáticamente un 303. Si el error está en una autoliquidación periódica, debe corregirse también ese Modelo 303 mediante el procedimiento aplicable a su periodo.",
+    },
+    {
+      id: "model-390-mistakes",
+      title: "Errores habituales",
+      cards: [
+        { title: "Obligación y contenido", bullets: ["Presentarlo sin comprobar exoneración.", "Creer que sustituye los 303.", "Sumar únicamente pagos.", "Olvidar operaciones sin cuota, intracomunitarias o exportaciones.", "No separar bienes de inversión ni revisar prorrata."] },
+        { title: "Herramientas y correcciones", bullets: ["Modificar el 390 y dejar incorrecto el 303.", "Creer que el simulador presenta.", "Usar el PDF de vista previa como declaración.", "Abrir como acción principal un ejercicio antiguo.", "No conservar el justificante."] },
+      ],
+    },
+    {
+      id: "model-390-territory",
+      title: "Ámbito territorial",
+      note: "Esta guía se refiere a la AEAT estatal y al territorio común. En Canarias se aplica el IGIC; en Ceuta y Melilla, el IPSI; y en País Vasco o Navarra la presentación puede corresponder a la Hacienda foral competente.",
+    },
+  ],
+  fillingTitle: "Cómo preparar el resumen anual",
+  fillingSteps: [
+    { title: "1. Identificación", paragraphs: ["Revisa NIF, nombre, ejercicio, actividades y epígrafes del IAE."] },
+    { title: "2. IVA devengado", paragraphs: ["Resume por tipos, regímenes, adquisiciones intracomunitarias, inversión del sujeto pasivo y modificaciones."] },
+    { title: "3. IVA deducible", paragraphs: ["Separa operaciones interiores corrientes, bienes de inversión, importaciones, adquisiciones intracomunitarias, rectificaciones y regularizaciones."] },
+    { title: "4. Resultado y volumen", paragraphs: ["Relaciona cuotas y resultados periódicos e incorpora el volumen de operaciones y la información exigida."] },
+    { title: "5. Prorrata, validación y firma", paragraphs: ["Cumplimenta prorrata y sectores diferenciados solo cuando proceda. Revisa errores, firma y conserva el justificante con CSV."] },
+  ],
+  afterTitle: "Qué ocurre después",
+  afterSteps: [
+    { title: "Justificante", description: "Conserva el recibo oficial y el Código Seguro de Verificación." },
+    { title: "Coherencia", description: "Mantén disponibles libros, 303 y cálculos que expliquen el resumen anual." },
+    { title: "Corrección", description: "Si detectas un error, distingue entre modificar el 390 y corregir además el 303 afectado." },
+  ],
+  comparison: {
+    title: "Relación con el Modelo 303",
+    current: { title: "Modelo 390", description: "Declaración informativa anual que resume el ejercicio." },
+    related: { title: "Modelo 303", description: "Autoliquidación periódica que calcula el resultado de cada mes o trimestre.", href: "/consultor-fiscal/modelos/303", label: "Ver Modelo 303" },
+    additional: [{ title: "Modelo 036", description: "Recoge las obligaciones censales y regímenes comunicados.", href: "/consultor-fiscal/modelos/036", label: "Ver Modelo 036" }],
+    conclusion: "El 390 no reemplaza ni corrige por sí solo las autoliquidaciones periódicas.",
+  },
+  pdfNotice: ["Las instrucciones descargables corresponden al ejercicio que indican. El simulador y su PDF son borradores: no acreditan presentación."],
+  documents: [{ label: "Descargar instrucciones oficiales del Modelo 390 · 2025", sourceId: "aeat.model-390.instructions-2025-pdf.2026-07-13" }],
+  officialLinks: [
+    { label: "Ficha administrativa del procedimiento", sourceId: "aeat.model-390.procedure-record.2026-06-09" },
+    { label: "Ayuda del formulario oficial", sourceId: "aeat.model-390.form-help.2026-06-19" },
+    { label: "Ayuda del canal mediante fichero", sourceId: "aeat.model-390.file-help.2026-06-19" },
+    { label: "Preguntas frecuentes oficiales", sourceId: "aeat.model-390.manual-iva-faq.2025-09-29" },
+  ],
+  legalLinks: [
+    { label: "Orden EHA/3111/2009", sourceId: "boe.model-390.order-eha-3111-2009.original" },
+    { label: "Orden HAP/2194/2013", sourceId: "boe.order-hap-2194-2013.original" },
+    { label: "Ley 37/1992 del IVA", href: "https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740" },
+  ],
+  faq: [
+    { question: "¿Todos los autónomos con IVA presentan el 390?", answer: "No. Existen supuestos de exoneración." },
+    { question: "¿Sustituye los Modelos 303?", answer: "No. Resume el año, pero no sustituye las autoliquidaciones periódicas." },
+    { question: "¿Tengo que pagar algo con el 390?", answer: "No es una autoliquidación de pago; es una declaración informativa." },
+    { question: "¿Cuándo se presenta?", answer: "Durante los treinta primeros días naturales de enero del año siguiente." },
+    { question: "¿Qué hago si estoy exonerado?", answer: "Completa la información anual exigida en el último Modelo 303." },
+    { question: "¿Puedo prepararlo con el simulador?", answer: "Sí, pero el simulador no realiza la presentación." },
+    { question: "¿El PDF del simulador es válido?", answer: "No. Es únicamente una vista previa." },
+    { question: "¿Cómo compruebo que coincide con mis 303?", answer: "Revisa bases, cuotas, operaciones informativas y resultados, no solo los pagos." },
+    { question: "¿Qué hago si el error está en un 303?", answer: "Debes corregir también la autoliquidación periódica correspondiente." },
+    { question: "¿Puede presentarlo un representante?", answer: "Sí, mediante los sistemas de representación admitidos." },
+  ],
+  sourceIds: [
+    "aeat.model-390.procedure-home.2026-06-09",
+    "aeat.model-390.procedure-record.2026-06-09",
+    "aeat.model-390.form-help.2026-06-19",
+    "aeat.model-390.file-help.2026-06-19",
+    "aeat.model-390.simulator-help.2026-02-05",
+    "aeat.model-390.instructions-2025-pdf.2026-07-13",
+    "aeat.model-390.manual-iva-faq.2025-09-29",
+    "boe.model-390.order-eha-3111-2009.original",
+    "boe.order-hap-2194-2013.original",
+  ],
+} as const satisfies FiscalModelPracticalGuideV1;

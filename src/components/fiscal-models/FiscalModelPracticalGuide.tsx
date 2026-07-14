@@ -494,7 +494,9 @@ export function FiscalModelPracticalGuide({
           className="border-amber-200 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/40"
         >
           <h3 className="font-bold text-amber-950 dark:text-amber-100">
-            Antes de abrir el PDF
+            {guide.documents.length > 0
+              ? "Antes de abrir el PDF"
+              : "Antes de utilizar los servicios oficiales"}
           </h3>
           {guide.pdfNotice.map((paragraph) => (
             <p
@@ -618,6 +620,14 @@ export function FiscalModelPracticalGuide({
         Información general basada en fuentes oficiales. No determina si el
         modelo corresponde a un caso concreto ni sustituye la información de la
         AEAT o del BOE.
+        {guide.lastVerifiedAt ? (
+          <>
+            {" "}Última comprobación: {guide.lastVerifiedAt}.
+            {guide.requiresAnnualReview && guide.effectiveYear
+              ? ` Las reglas marcadas para ${guide.effectiveYear} requieren revisión en el ejercicio siguiente.`
+              : ""}
+          </>
+        ) : null}
       </p>
     </div>
   );
