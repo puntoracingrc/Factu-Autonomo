@@ -54,6 +54,11 @@ import {
   type FiscalNotificationStructuredHistoryEntryV1,
   type FiscalNotificationStructuredHistoryViewModelV1,
 } from "@/lib/fiscal-notifications/structured-review-history-view-model.v1";
+import {
+  projectStructuredReviewRelationsV1,
+  type StructuredReviewRelationEntryV1,
+  type StructuredReviewRelationsViewModelV1,
+} from "@/lib/fiscal-notifications/structured-review-relations-view-model.v1";
 
 const FAMILY_LABELS = {
   AEAT_ENFORCEMENT_ORDER_CANDIDATE: "Providencia de apremio",
@@ -351,6 +356,14 @@ function FiscalNotificationReviewWorkspace({
   const history = useMemo(
     () =>
       projectFiscalNotificationStructuredHistoryV1(
+        data.fiscalNotificationsWorkspace,
+        ownerScope,
+      ),
+    [data.fiscalNotificationsWorkspace, ownerScope],
+  );
+  const relations = useMemo(
+    () =>
+      projectStructuredReviewRelationsV1(
         data.fiscalNotificationsWorkspace,
         ownerScope,
       ),
@@ -678,6 +691,7 @@ function FiscalNotificationReviewWorkspace({
           onSave={saveStructuredReview}
         />
       ) : null}
+      <StructuredReviewRelations viewModel={relations} />
       <StructuredReviewHistory viewModel={history} />
     </>
   );
@@ -755,6 +769,127 @@ function ReviewPersistencePanel({
         ) : null}
       </div>
     </Card>
+  );
+}
+
+function StructuredReviewRelations({
+  viewModel,
+}: {
+  viewModel: StructuredReviewRelationsViewModelV1;
+}) {
+  if (viewModel.status === "BLOCKED") {
+    return (
+      <Card className="mt-6 border-amber-200 bg-amber-50" role="alert">
+        <div className="flex items-start gap-3">
+          <TriangleAlert
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5 shrink-0 text-amber-700"
+          />
+          <div>
+            <h2 className="font-bold text-amber-950">
+              Relaciones no disponibles
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-amber-900">
+              El expediente no supera la validación de integridad para esta
+              cuenta. No se muestran ni se recalculan relaciones parciales.
+            </p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  const entries = viewModel.entries;
+  return (
+    <Card className="mt-6" aria-labelledby="notification-relations-heading">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2
+            id="notification-relations-heading"
+            className="text-lg font-bold text-slate-950"
+          >
+            Relaciones entre documentos
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+            Detecta identificadores administrativos que coinciden en dos
+            fichas guardadas y conserva la relación como sugerencia revisable.
+          </p>
+        </div>
+        <span className="text-xs font-semibold text-slate-500">
+          {entries.length} {entries.length === 1 ? "relación" : "relaciones"}
+        </span>
+      </div>
+
+      {entries.length === 0 ? (
+        <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+          Todavía no hay dos fichas guardadas que compartan una referencia
+          exacta de expediente, liquidación, deuda, notificación o registro.
+        </p>
+      ) : (
+        <ol className="mt-4 space-y-4">
+          {entries.map((entry) => (
+            <StructuredReviewRelationItem key={entry.key} entry={entry} />
+          ))}
+        </ol>
+      )}
+    </Card>
+  );
+}
+
+function StructuredReviewRelationItem({
+  entry,
+}: {
+  entry: StructuredReviewRelationEntryV1;
+}) {
+  return (
+    <li className="rounded-2xl border border-blue-200 bg-blue-50/40 p-4 sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <h3 className="text-base font-bold text-slate-950">{entry.title}</h3>
+        <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
+          {entry.statusLabel}
+        </span>
+      </div>
+
+      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
+        {entry.documents.map((document) => (
+          <li
+            key={document.id}
+            className="rounded-xl border border-slate-200 bg-white p-4"
+          >
+            <p className="font-bold text-slate-900">{document.title}</p>
+            <p className="mt-1 text-xs text-slate-500">
+              Guardado {formatReviewTimestamp(document.createdAt)}
+            </p>
+          </li>
+        ))}
+      </ul>
+
+      <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+        {entry.matches.map((match) => (
+          <div
+            key={`${match.label}:${match.value}`}
+            className="rounded-xl border border-blue-100 bg-white p-4"
+          >
+            <dt className="text-xs font-bold uppercase tracking-wide text-blue-800">
+              {match.label}
+            </dt>
+            <dd className="mt-1 break-all font-bold text-blue-950">
+              {match.value}
+            </dd>
+            <dd className="mt-1 text-xs text-slate-500">
+              {match.issuer} ·{" "}
+              {match.matchMode === "EXACT_PRINTED"
+                ? "Mismo valor impreso"
+                : "Mismo identificador, con formato distinto"}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <p className="mt-4 text-sm leading-6 text-slate-700">
+        {entry.explanation}
+      </p>
+    </li>
   );
 }
 

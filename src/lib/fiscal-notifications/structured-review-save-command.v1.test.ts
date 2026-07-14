@@ -107,6 +107,17 @@ function analysis(): FiscalNotificationLocalAnalysisResult {
   });
 }
 
+function analysisWithHash(sha256: string): FiscalNotificationLocalAnalysisResult {
+  const value = analysis();
+  return Object.freeze({
+    ...value,
+    technicalReview: Object.freeze({
+      ...value.technicalReview,
+      sha256,
+    }),
+  });
+}
+
 function commandInput(options?: {
   expected?: AppData;
   ownerScope?: string;
@@ -244,6 +255,40 @@ describe("structured fiscal notification save command v1", () => {
     expect(result.value.status).toBe("EXISTING");
     expect(result.data).toBe(applied.data);
     expect(replay.persist).not.toHaveBeenCalled();
+  });
+
+  it("guarda como sugerencia la referencia exacta compartida por dos fichas", () => {
+    const first = commandInput();
+    const firstResult = runSaveFiscalNotificationStructuredReviewCommandV1(
+      first.value,
+    );
+    expect(firstResult.status).toBe("applied");
+    if (firstResult.status !== "applied") return;
+
+    const second = commandInput({ expected: firstResult.data });
+    const secondResult = runSaveFiscalNotificationStructuredReviewCommandV1({
+      ...second.value,
+      reviewId: "review:00000000-0000-4000-8000-000000000075",
+      createdAt: "2026-07-14T10:02:00.000Z",
+      analysis: analysisWithHash("c".repeat(64)),
+    });
+
+    expect(secondResult.status).toBe("applied");
+    if (secondResult.status !== "applied") return;
+    expect(second.persist).toHaveBeenCalledTimes(1);
+    expect(secondResult.data.fiscalNotificationsWorkspace?.documents).toHaveLength(
+      2,
+    );
+    expect(secondResult.data.fiscalNotificationsWorkspace?.relations).toEqual([
+      expect.objectContaining({
+        relationType: "POSSIBLY_RELATED",
+        status: "SUGGESTED",
+        confidenceBand: "HIGH",
+        evidence: expect.objectContaining({
+          matchingReferenceTypes: ["CSV", "LIQUIDATION_KEY"],
+        }),
+      }),
+    ]);
   });
 
   it("no guarda una clasificación sin hechos estructurados exactos", () => {

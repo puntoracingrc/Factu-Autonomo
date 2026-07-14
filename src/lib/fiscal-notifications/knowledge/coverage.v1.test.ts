@@ -112,6 +112,11 @@ describe("fiscal notification knowledge coverage v1", () => {
     expect(manual).toContain(
       "Nunca guarda el PDF, su nombre ni el texto completo",
     );
+    expect(manual).toContain("**Relaciones entre documentos**");
+    expect(manual).toContain("**Relación detectada · revisar**");
+    expect(manual).toContain(
+      "no inventa cuál causó a cuál, no confirma un pago y no cierra el expediente",
+    );
     expect(manual).toContain(
       "Una fecha impresa no se interpreta como fecha de notificación ni como vencimiento",
     );

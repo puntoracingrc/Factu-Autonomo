@@ -4,6 +4,7 @@ import type {
 } from "../app-data-durability";
 import type { AppData } from "../types";
 import type { FiscalNotificationLocalAnalysisResult } from "./local-review-flow";
+import { appendStructuredReviewRelationSuggestionsV1 } from "./structured-review-relation-suggestions.v1";
 import {
   appendAeatEnforcementStructuredReviewV1,
   FiscalNotificationStructuredReviewV1Error,
@@ -50,6 +51,19 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
       workspace: input.expected.fiscalNotificationsWorkspace ?? null,
       analysis: input.analysis,
     });
+    if (prepared.status === "APPLIED") {
+      const relations = appendStructuredReviewRelationSuggestionsV1({
+        ownerScope: input.ownerScope,
+        workspace: prepared.workspace,
+        createdAt: input.createdAt,
+      });
+      if (relations.status === "APPLIED") {
+        prepared = Object.freeze({
+          ...prepared,
+          workspace: relations.workspace,
+        });
+      }
+    }
   } catch (error) {
     if (
       error instanceof FiscalNotificationStructuredReviewV1Error &&
