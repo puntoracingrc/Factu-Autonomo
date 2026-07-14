@@ -1,7 +1,7 @@
 # ADR-0004 - Fiabilidad del buzón de gastos por email
 
 - Estado: aceptada
-- Versión: 1
+- Versión: 2
 - Fecha: 2026-07-14
 - Ámbito: recepción de facturas de proveedores por email mediante Resend
 
@@ -60,14 +60,28 @@ de host exacta, HTTPS y las restricciones SSRF. No se siguen redirecciones.
 10. La recepción no modifica facturas emitidas, recibos, importes, PDFs,
     snapshots, sellos, hashes fiscales ni VeriFactu. Solo crea entradas del
     buzón para revisión humana.
+11. Si Datos de empresa contiene un email válido, la app envía desde su dominio
+    verificado una copia con los adjuntos ya descargados. No usa el servidor que
+    reenvió el original. La dirección nunca puede pertenecer al propio dominio
+    del buzón, para impedir bucles.
+12. La copia usa una clave idempotente derivada de usuario y `email_id` de
+    Resend. Un resultado ambiguo o fallido conserva HTTP 500 para que Resend
+    repita el webhook; la deduplicación de adjuntos evita volver a consumir IA o
+    crear otro pendiente durante ese reintento.
+13. Al guardar, la entrada pasa a `processed`; al descartar, pasa a `ignored`.
+    Ambos estados desaparecen de la consulta abierta. El gasto creado conserva
+    `sourceInboxItemId`, de modo que si falla únicamente el cierre, el siguiente
+    intento repite el cierre y no vuelve a crear el gasto.
 
 ## Pruebas y despliegue
 
 La suite de contrato debe fallar si el middleware bloquea el webhook, se añade
 autenticación de usuario, se elimina firma o límite, se deja de devolver 500,
 se pierde deduplicación, se relaja la resolución de alias activos o desaparece
-el historial de retirada. La prueba de descarga reproduce el host real
-`cdn.resend.app` y mantiene casos adversariales para dominios imitadores.
+el historial de retirada. También cubre la copia idempotente, el bloqueo de
+bucles y el cierre `processed`/`ignored`. La prueba de descarga reproduce el
+host real `cdn.resend.app` y mantiene casos adversariales para dominios
+imitadores.
 
 Antes de fusionar se ejecutan pruebas dirigidas, lint, typecheck y la suite CI.
 Tras fusionar, `Production Domain` debe asignar y verificar

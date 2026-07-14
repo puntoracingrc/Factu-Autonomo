@@ -41,6 +41,35 @@ describe("expense inbox reliability contract", () => {
     expect(server).toContain('return "duplicate"');
   });
 
+  it("copia al email de empresa sin reenvío externo ni duplicados", () => {
+    const server = source("src/lib/expense-inbox-server.ts");
+    const copy = source("src/lib/expense-inbox-copy.ts");
+
+    expect(server).toContain("getExpenseInboxCopyRecipient");
+    expect(server).toContain("sendExpenseInboxCompanyCopy");
+    expect(server).toContain("sourceEmailId: received.emailId");
+    expect(copy).toContain("expense-inbox-copy-v1/");
+    expect(copy).toContain("normalizeExpenseInboxCopyRecipient");
+    expect(copy).toContain("emailDomain(email) === normalizedInboxDomain");
+  });
+
+  it("cierra guardados y descartes sin volver a crear el gasto", () => {
+    const route = source("src/app/api/expense-inbox/route.ts");
+    const form = source("src/app/gastos/nuevo/page.tsx");
+    const types = source("src/lib/types.ts");
+
+    expect(route).toContain(
+      'body.status === "processed" || body.status === "ignored"',
+    );
+    expect(route).toContain(
+      "getExpenseInboxCopyRecipient(user.id).catch(() => null)",
+    );
+    expect(form).toContain('updateActiveInboxItemStatus("ignored")');
+    expect(form).toContain('sourceInboxItemId: activeInboxItemId ?? undefined');
+    expect(form).toContain("expenseAlreadySavedFromInbox");
+    expect(types).toContain("sourceInboxItemId?: string");
+  });
+
   it("protege la regeneración y evita reutilizar alias retirados", () => {
     const route = source("src/app/api/expense-inbox/route.ts");
     const server = source("src/lib/expense-inbox-server.ts");
@@ -63,6 +92,7 @@ describe("expense inbox reliability contract", () => {
 
     expect(agents).toContain("ADR-0004-expense-inbox-email-reliability.md");
     expect(agents).toContain("expense-inbox-reliability-contract.test.ts");
+    expect(agents).toContain("expense-inbox-copy.test.ts");
     expect(adr).toContain("cdn.resend.app");
     expect(adr).toContain("HTTP 500");
     expect(adr).toContain("attachment_hash");

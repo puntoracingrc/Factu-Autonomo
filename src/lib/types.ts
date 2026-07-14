@@ -474,6 +474,8 @@ export interface Expense {
   id: string;
   date: string;
   origin?: "manual" | "scan" | "import" | "recurring";
+  /** Entrada del buzón que originó el gasto; evita duplicarlo si falla su cierre. */
+  sourceInboxItemId?: string;
   /** Clasificación práctica para separar compras, facturas recibidas, tickets y fijos. */
   businessKind?: ExpenseBusinessKind;
   supplierId?: string;

@@ -6,6 +6,7 @@ import {
   ingestResendExpenseInboxEmail,
 } from "@/lib/expense-inbox-server";
 import { ExpenseInboxDownloadError } from "@/lib/expense-inbox-download";
+import { ExpenseInboxCopyDeliveryError } from "@/lib/expense-inbox-copy";
 import { readTextBody } from "@/lib/server/request-body";
 
 function expectedSecret(): string {
@@ -80,6 +81,16 @@ function logInboundFailure(error: unknown): void {
     return;
   }
 
+  if (error instanceof ExpenseInboxCopyDeliveryError) {
+    console.error("expense_inbox_inbound_failed", {
+      failure: "company_copy_delivery_failed",
+      providerStatus: error.status,
+      providerCode: error.providerCode,
+      retryable: error.retryable,
+    });
+    return;
+  }
+
   console.error("expense_inbox_inbound_failed", {
     failure: "processing_error",
     errorName: error instanceof Error ? error.name : "UnknownError",
@@ -123,12 +134,7 @@ export async function POST(request: Request) {
   } catch (error) {
     logInboundFailure(error);
     return NextResponse.json(
-      {
-        error:
-          error instanceof Error
-            ? error.message
-            : "No se pudo procesar el email.",
-      },
+      { error: "No se pudo procesar el email." },
       { status: 500 },
     );
   }

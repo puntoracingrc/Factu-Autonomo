@@ -126,7 +126,16 @@ La decisión obligatoria y versionada está en
 - Los logs de fallo solo pueden contener códigos, estados HTTP y hostname
   seguro: nunca URL firmada, remitente, destinatario, asunto, contenido, API
   key o secreto de webhook.
+- La copia opcional usa exclusivamente el email válido de Datos de empresa y
+  sale desde el proveedor autenticado de la app con clave idempotente estable;
+  nunca depende de un reenvío SMTP externo ni puede apuntar al propio dominio
+  del buzón. Un fallo confirmado mantiene el webhook reintentable.
+- Guardar un gasto cierra su entrada como `processed` y descartarlo la cierra
+  como `ignored`. La lista solo muestra estados abiertos. El gasto conserva el
+  ID opaco de origen para que un fallo posterior de cierre nunca cree otro
+  gasto al reintentar.
 - Cualquier cambio en inbound, descargas, alias, middleware, billing, Supabase
-  o sus migraciones debe ejecutar `expense-inbox-reliability-contract.test.ts`
-  y `expense-inbox-download.test.ts`. Una auditoría o refactor no puede relajar
-  estos invariantes ni convertir un fallo parcial en 200.
+  o sus migraciones debe ejecutar `expense-inbox-reliability-contract.test.ts`,
+  `expense-inbox-copy.test.ts` y `expense-inbox-download.test.ts`. Una auditoría
+  o refactor no puede relajar estos invariantes ni convertir un fallo parcial
+  en 200.
