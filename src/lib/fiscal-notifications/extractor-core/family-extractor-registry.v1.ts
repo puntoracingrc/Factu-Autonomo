@@ -36,6 +36,7 @@ const EXECUTABLE_REVIEW_ONLY_FAMILIES = new Set<FiscalNotificationDocumentFamily
   "collection.deferral_grant",
   "collection.offset_requested",
   "collection.offset_ex_officio",
+  "payment.payment_form",
 ]);
 
 const RECOGNIZED_WITHOUT_COMPLETE_EXTRACTOR = new Set<FiscalNotificationDocumentFamilyIdV3>([
