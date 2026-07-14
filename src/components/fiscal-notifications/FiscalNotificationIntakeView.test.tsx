@@ -38,10 +38,13 @@ const partyFactsPanelSource = readSource(
 const partyFactsViewModelSource = readSource(
   "../../lib/fiscal-notifications/party-facts-review-view-model.v1.ts",
 );
+const relationsViewModelSource = readSource(
+  "../../lib/fiscal-notifications/structured-review-relations-view-model.v1.ts",
+);
 const manualSource = readSource(
   "../../lib/manual/sections/consultor-fiscal.ts",
 );
-const surfaceSource = `${componentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}\n${partyFactsPanelSource}\n${partyFactsViewModelSource}`;
+const surfaceSource = `${componentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}\n${partyFactsPanelSource}\n${partyFactsViewModelSource}\n${relationsViewModelSource}`;
 
 describe("contrato de interfaz de Notificaciones y expedientes", () => {
   it("obtiene el ámbito exclusivamente de la cuenta canónica confirmada", () => {
@@ -124,6 +127,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(workspace).toContain(
       "projectFiscalNotificationStructuredHistoryV1(",
     );
+    expect(workspace).toContain("projectStructuredReviewRelationsV1(");
     expect(workspace).toContain("data.fiscalNotificationsWorkspace");
 
     expect(componentSource).toContain("controller.signal.aborted ||");
@@ -353,6 +357,36 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(componentSource).toContain("entry.authenticityLabel");
     expect(componentSource).toContain("PDF no conservado");
+  });
+
+  it("muestra relaciones guardadas por referencias exactas sin afirmar causalidad", () => {
+    expect(componentSource).toContain("Relaciones entre documentos");
+    expect(componentSource).toContain(
+      "projectStructuredReviewRelationsV1(",
+    );
+    expect(componentSource).toContain(
+      "data.fiscalNotificationsWorkspace",
+    );
+    expect(relationsViewModelSource).toContain(
+      "Documentos relacionados por referencia",
+    );
+    expect(relationsViewModelSource).toContain("Relación detectada · revisar");
+    expect(componentSource).toContain("entry.documents.map((document)");
+    expect(componentSource).toContain("entry.matches.map((match)");
+    expect(componentSource).toContain("Mismo valor impreso");
+    expect(componentSource).toContain(
+      "Mismo identificador, con formato distinto",
+    );
+    expect(componentSource).toContain("{entry.explanation}");
+    expect(relationsViewModelSource).toContain(
+      "no demuestra por sí sola cuál originó a la otra",
+    );
+    expect(relationsViewModelSource).toContain(
+      "ni que el expediente esté cerrado",
+    );
+    expect(componentSource).not.toMatch(
+      /relación confirmada|pago confirmado|expediente cerrado/iu,
+    );
   });
 
   it("mantiene neutral el mensaje live cuando no hay candidatos", () => {

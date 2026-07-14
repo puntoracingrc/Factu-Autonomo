@@ -1,0 +1,260 @@
+import { describe, expect, it } from "vitest";
+import {
+  appendStructuredReviewRelationSuggestionsV1,
+  STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
+} from "./structured-review-relation-suggestions.v1";
+import { projectStructuredReviewRelationsV1 } from "./structured-review-relations-view-model.v1";
+import type { FiscalNotificationsWorkspace } from "./types";
+
+const OWNER = "user:00000000-0000-4000-8000-000000000093";
+const NOW = "2026-07-14T11:30:00.000Z";
+
+function workspace(): FiscalNotificationsWorkspace {
+  return {
+    schemaVersion: 1,
+    workspaceId: "fiscal-notifications-workspace-v1",
+    ownerScope: OWNER,
+    revision: 2,
+    createdAt: NOW,
+    updatedAt: NOW,
+    packages: [0, 1].map((index) => ({
+      id: `package:${index}`,
+      ownerScope: OWNER,
+      fileIds: [`file:${index}`],
+      sourceChannel: "MANUAL_UPLOAD" as const,
+      processingStatus: "NEEDS_REVIEW" as const,
+      securityScanStatus: "NOT_AVAILABLE" as const,
+      uploadedAt: NOW,
+    })),
+    files: [0, 1].map((index) => ({
+      id: `file:${index}`,
+      packageId: `package:${index}`,
+      ownerScope: OWNER,
+      role: "PRIMARY" as const,
+      mimeType: "application/pdf",
+      fileSize: 2_048,
+      pageCount: 2,
+      sha256: (index + 3).toString().repeat(64),
+      contentFingerprint: (index + 3).toString().repeat(64),
+      sourceContentRetention: "NOT_RETAINED" as const,
+      uploadedAt: NOW,
+    })),
+    documents: [0, 1].map((index) => ({
+      id: `document:${index}`,
+      packageId: `package:${index}`,
+      fileId: `file:${index}`,
+      ownerScope: OWNER,
+      documentType: "AEAT_ENFORCEMENT_ORDER" as const,
+      titleRaw: `Providencia de apremio ${index + 1}`,
+      titleNormalized: `PROVIDENCIA DE APREMIO ${index + 1}`,
+      authorityId: "authority:aeat",
+      notificationDates: {},
+      status: "UNKNOWN" as const,
+      urgency: "REVIEW" as const,
+      extractionVersion: "synthetic-v1",
+      analysisStatus: "NEEDS_REVIEW" as const,
+      humanReviewStatus: "PENDING" as const,
+      authenticityStatus: "NOT_CHECKED" as const,
+      partIds: [],
+      referenceIds: [`reference:liquidation:${index}`, `reference:csv:${index}`],
+      debtIds: [],
+      caseIds: [],
+      analysisSnapshotIds: [],
+      createdAt: `2026-07-14T11:${index}0:00.000Z`,
+      updatedAt: NOW,
+    })),
+    parts: [],
+    authorities: [
+      {
+        id: "authority:aeat",
+        ownerScope: OWNER,
+        administrationType: "AEAT",
+        nameRaw: "Agencia Estatal de Administración Tributaria",
+        nameNormalized: "AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA",
+        officialDomain: "sede.agenciatributaria.gob.es",
+      },
+    ],
+    references: [
+      reference(0, "LIQUIDATION_KEY", "LQ-SYNTH-093"),
+      reference(0, "CSV", "CSV SYNTH 093"),
+      reference(1, "LIQUIDATION_KEY", "LQ-SYNTH-093"),
+      reference(1, "CSV", "CSV-SYNTH-093"),
+    ],
+    evidence: [
+      evidence(0, "liquidation"),
+      evidence(0, "csv"),
+      evidence(1, "liquidation"),
+      evidence(1, "csv"),
+    ],
+    debts: [],
+    debtObservations: [],
+    cases: [],
+    relations: [],
+    analysisSnapshots: [],
+    paymentOptions: [],
+    paymentPlans: [],
+    installments: [],
+    interestCalculations: [],
+    deadlineRules: [],
+    obligations: [],
+    timeline: [],
+    accountingDrafts: [],
+    auditEvents: [],
+  };
+}
+
+function reference(
+  documentIndex: number,
+  type: "LIQUIDATION_KEY" | "CSV",
+  rawValue: string,
+) {
+  const suffix = type === "CSV" ? "csv" : "liquidation";
+  return {
+    id: `reference:${suffix}:${documentIndex}`,
+    ownerScope: OWNER,
+    referenceType: type,
+    rawValue,
+    normalizedValue:
+      type === "CSV" ? "CSV-SYNTH-093" : "LQ-SYNTH-093",
+    issuer: "AEAT",
+    scope: "DOCUMENT" as const,
+    documentId: `document:${documentIndex}`,
+    isPrimary: type === "LIQUIDATION_KEY",
+    confidence: "EXACT" as const,
+    confirmationStatus: "PENDING" as const,
+    extractionMethod: "RULE" as const,
+    occurrenceIds: [`evidence:${suffix}:${documentIndex}`],
+    createdAt: NOW,
+  };
+}
+
+function evidence(documentIndex: number, suffix: "liquidation" | "csv") {
+  return {
+    id: `evidence:${suffix}:${documentIndex}`,
+    ownerScope: OWNER,
+    documentId: `document:${documentIndex}`,
+    pageNumber: 1,
+    textSnippet:
+      suffix === "csv" ? "Código Seguro de Verificación" : "Clave de liquidación",
+    extractionMethod: "RULE" as const,
+    confidence: "EXACT" as const,
+    assertionType: "EXPLICIT_IN_DOCUMENT" as const,
+  };
+}
+
+describe("structured review relations view model v1", () => {
+  it("shows the matching values and both documents without exposing hashes", () => {
+    const source = workspace();
+    const derived = appendStructuredReviewRelationSuggestionsV1({
+      ownerScope: OWNER,
+      workspace: source,
+      createdAt: NOW,
+    });
+    expect(derived.status).toBe("APPLIED");
+
+    const result = projectStructuredReviewRelationsV1(
+      derived.workspace,
+      OWNER,
+    );
+
+    expect(result).toEqual({
+      status: "READY",
+      entries: [
+        expect.objectContaining({
+          title: "Documentos relacionados por referencia",
+          statusLabel: "Relación detectada · revisar",
+          requiresHumanReview: true,
+          documents: [
+            expect.objectContaining({
+              id: "document:0",
+              title: "Providencia de apremio 1",
+            }),
+            expect.objectContaining({
+              id: "document:1",
+              title: "Providencia de apremio 2",
+            }),
+          ],
+          matches: [
+            {
+              label: "Clave de liquidación",
+              value: "LQ-SYNTH-093",
+              issuer: "AEAT",
+              matchMode: "EXACT_PRINTED",
+            },
+            {
+              label: "Código Seguro de Verificación (CSV)",
+              value: "CSV-SYNTH-093",
+              issuer: "AEAT",
+              matchMode: "NORMALIZED_FORMAT",
+            },
+          ],
+        }),
+      ],
+    });
+    const serialized = JSON.stringify(result);
+    expect(serialized).not.toContain("3".repeat(64));
+    expect(serialized).not.toContain("4".repeat(64));
+    expect(Object.isFrozen(result)).toBe(true);
+    expect(Object.isFrozen(result.entries)).toBe(true);
+  });
+
+  it("blocks another owner and hides rejected or unrelated algorithms", () => {
+    const source = workspace();
+    source.relations.push({
+      id: "relation:other",
+      ownerScope: OWNER,
+      sourceDocumentId: "document:0",
+      targetDocumentId: "document:1",
+      relationType: "POSSIBLY_RELATED",
+      confidenceBand: "LOW",
+      score: 1,
+      evidence: {
+        matchingReferenceTypes: ["LIQUIDATION_KEY"],
+        matchingAmountTypes: [],
+        matchingDates: [],
+        differences: [],
+      },
+      algorithmVersion: "another-algorithm/1.0.0",
+      status: "SUGGESTED",
+      createdAt: NOW,
+    });
+    expect(projectStructuredReviewRelationsV1(source, OWNER)).toEqual({
+      status: "READY",
+      entries: [],
+    });
+    expect(
+      projectStructuredReviewRelationsV1(
+        source,
+        "user:00000000-0000-4000-8000-000000000099",
+      ),
+    ).toEqual({ status: "BLOCKED", entries: [] });
+  });
+
+  it("does not revive a relation rejected by the user", () => {
+    const source = workspace();
+    source.relations.push({
+      id: "relation:rejected",
+      ownerScope: OWNER,
+      sourceDocumentId: "document:0",
+      targetDocumentId: "document:1",
+      relationType: "POSSIBLY_RELATED",
+      confidenceBand: "HIGH",
+      score: 100,
+      evidence: {
+        matchingReferenceTypes: ["LIQUIDATION_KEY"],
+        matchingAmountTypes: [],
+        matchingDates: [],
+        differences: [],
+      },
+      algorithmVersion: STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
+      status: "USER_REJECTED",
+      createdAt: NOW,
+      confirmedAt: NOW,
+      confirmedBy: "actor:synthetic",
+    });
+    expect(projectStructuredReviewRelationsV1(source, OWNER)).toEqual({
+      status: "READY",
+      entries: [],
+    });
+  });
+});
