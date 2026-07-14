@@ -27,8 +27,8 @@ export function DocumentPhrasePicker({
   value,
   onChange,
   onSave,
-  label = "Notas (opcional)",
-  placeholder = "Condiciones de pago, garantía...",
+  label = "Condiciones de venta",
+  placeholder = "Plazo de entrega, garantía, validez...",
 }: DocumentPhrasePickerProps) {
   const [makeDefault, setMakeDefault] = useState(false);
   const normalized = normalizeDocumentPhrases(settings);
@@ -38,8 +38,10 @@ export function DocumentPhrasePicker({
   const matchingPhrase = phrases.find(
     (phrase) => phrase.text.trim() === trimmedValue,
   );
-  const isCurrentDefault = matchingPhrase?.id === defaultPhrase?.id;
-  const textareaId = `document-notes-${documentType}`;
+  const isCurrentDefault = Boolean(
+    matchingPhrase && matchingPhrase.id === defaultPhrase?.id,
+  );
+  const textareaId = `document-sales-terms-${documentType}`;
 
   return (
     <div className="space-y-2">
@@ -107,7 +109,9 @@ export function DocumentPhrasePicker({
             ) : (
               <BookmarkPlus className="h-4 w-4" aria-hidden="true" />
             )}
-            {matchingPhrase ? "Usar como predeterminada" : "Guardar frase"}
+            {matchingPhrase
+              ? "Usar como predeterminada"
+              : "Guardar condición"}
           </button>
         </div>
       )}

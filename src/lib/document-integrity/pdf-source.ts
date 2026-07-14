@@ -94,6 +94,7 @@ function docFromSnapshot(
     client: { ...snapshot.customer },
     items: snapshot.items.map(lineFromSnapshot),
     notes: snapshot.notes,
+    salesTerms: snapshot.salesTerms,
     paymentTerms: snapshot.paymentTerms,
     issuer: {
       ...snapshot.issuer,

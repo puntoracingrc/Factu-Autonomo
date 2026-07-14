@@ -151,3 +151,37 @@ export function clearDefaultDocumentPaymentMethod(
   delete defaultMethodId[type];
   return { ...settings, defaultMethodId };
 }
+
+export function saveDocumentPaymentMethodForFutureUse(
+  settings: DocumentPaymentMethodsSettings,
+  type: DocumentType,
+  text: string,
+  makeDefault = false,
+): DocumentPaymentMethodsSettings {
+  const normalized = normalizeDocumentPaymentMethods(settings);
+  const trimmedText = text.trim();
+  if (!trimmedText) return normalized;
+
+  const existing = normalized.methods.find(
+    (method) =>
+      method.documentType === type && method.text.trim() === trimmedText,
+  );
+  if (existing) {
+    return makeDefault
+      ? setDefaultDocumentPaymentMethod(normalized, type, existing.id)
+      : normalized;
+  }
+
+  const method: DocumentPaymentMethod = {
+    id: newMethodId(),
+    text: trimmedText,
+    documentType: type,
+  };
+  const next = {
+    ...normalized,
+    methods: [...normalized.methods, method],
+  };
+  return makeDefault
+    ? setDefaultDocumentPaymentMethod(next, type, method.id)
+    : next;
+}

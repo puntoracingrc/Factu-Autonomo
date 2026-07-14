@@ -206,14 +206,16 @@ describe("facturas rectificativas", () => {
     }
   });
 
-  it("mantiene forma de pago y notas de la factura original", () => {
+  it("mantiene forma de pago, condiciones y notas de la factura original", () => {
     const original = invoice("1", "F-2026-0001", "pagado", {
       paymentTerms: "Transferencia a 30 días",
+      salesTerms: "Garantía de dos años",
       notes: "Texto escrito a mano en la factura original",
     });
 
     expect(rectificationTextDefaults(original, "Bizum")).toEqual({
       paymentTerms: "Transferencia a 30 días",
+      salesTerms: "Garantía de dos años",
       notes: "Texto escrito a mano en la factura original",
     });
   });
@@ -222,6 +224,7 @@ describe("facturas rectificativas", () => {
     expect(rectificationTextDefaults(invoice("1", "F-1", "pagado"), "Bizum"))
       .toEqual({
         paymentTerms: "Bizum",
+        salesTerms: "",
         notes: "",
       });
   });

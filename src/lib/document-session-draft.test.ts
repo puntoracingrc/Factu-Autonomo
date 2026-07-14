@@ -43,6 +43,7 @@ describe("document session draft", () => {
     const saved = saveDocumentSessionDraft(
       "presupuesto",
       formDraft({
+        salesTerms: "Garantía de dos años",
         items: [
           {
             id: "line-1",
@@ -60,6 +61,7 @@ describe("document session draft", () => {
     expect(getDocumentSessionDraft("presupuesto")).toMatchObject({
       documentType: "presupuesto",
       form: {
+        salesTerms: "Garantía de dos años",
         items: [
           {
             id: "line-1",
@@ -95,6 +97,7 @@ function formDraft(
     date: "2026-07-04",
     dueDate: "",
     notes: "",
+    salesTerms: "",
     paymentTerms: "",
     status: "borrador",
     documentIvaPercent: 21,

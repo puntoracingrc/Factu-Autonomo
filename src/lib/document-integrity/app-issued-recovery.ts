@@ -555,6 +555,7 @@ function comparableFiscalSnapshot(snapshot: DocumentSnapshot): string {
     taxSummary: snapshot.taxSummary,
     currency: snapshot.currency,
     paymentTerms: snapshot.paymentTerms ?? null,
+    ...(snapshot.salesTerms ? { salesTerms: snapshot.salesTerms } : {}),
     notes: snapshot.notes ?? null,
     rectification: snapshot.rectification ?? null,
     sourceDocumentId: snapshot.sourceDocumentId ?? null,

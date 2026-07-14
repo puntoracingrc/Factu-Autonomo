@@ -29,7 +29,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { IvaPercentSelect } from "@/components/iva/IvaPercentSelect";
-import { Field, Input, Select } from "@/components/ui/Field";
+import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
@@ -69,6 +69,7 @@ import {
 import {
   defaultPaymentMethodForType,
   normalizeDocumentPaymentMethods,
+  saveDocumentPaymentMethodForFutureUse,
 } from "@/lib/document-payment-methods";
 import {
   normalizeDocumentUnits,
@@ -508,7 +509,8 @@ export function DocumentForm({
   const effectiveDueDate =
     type === "presupuesto" && !existing ? automaticQuoteDueDate : dueDate;
   const [notes, setNotes] = useState(existing?.notes ?? "");
-  const defaultNotesApplied = useRef(Boolean(existing?.notes));
+  const [salesTerms, setSalesTerms] = useState(existing?.salesTerms ?? "");
+  const defaultSalesTermsApplied = useRef(Boolean(existing?.salesTerms));
   const [paymentTerms, setPaymentTerms] = useState(
     existing?.paymentTerms ?? "",
   );
@@ -692,6 +694,7 @@ export function DocumentForm({
     setDate(returnDraft.form.date);
     setDueDate(returnDraft.form.dueDate);
     setNotes(returnDraft.form.notes);
+    setSalesTerms(returnDraft.form.salesTerms ?? "");
     setPaymentTerms(returnDraft.form.paymentTerms);
     setStatus(returnDraft.form.status);
     setDocumentIvaPercent(vatExempt ? 0 : returnDraft.form.documentIvaPercent);
@@ -799,7 +802,7 @@ export function DocumentForm({
       unitsSettings,
     );
 
-    defaultNotesApplied.current = true;
+    defaultSalesTermsApplied.current = true;
     defaultPaymentApplied.current = true;
     itemsRef.current = normalizedRestoredItems;
     setClientForm({ ...EMPTY_CLIENT, ...form.clientForm } as ClientFormValues);
@@ -807,6 +810,7 @@ export function DocumentForm({
     setDate(form.date || todayISO());
     setDueDate(form.dueDate);
     setNotes(form.notes);
+    setSalesTerms(form.salesTerms ?? "");
     setPaymentTerms(form.paymentTerms);
     setStatus(form.status);
     setDocumentIvaPercent(vatExempt ? 0 : form.documentIvaPercent);
@@ -843,6 +847,7 @@ export function DocumentForm({
         date,
         dueDate,
         notes,
+        salesTerms,
         paymentTerms,
         status,
         documentIvaPercent: effectiveDocumentIva,
@@ -862,6 +867,7 @@ export function DocumentForm({
     date,
     dueDate,
     notes,
+    salesTerms,
     paymentTerms,
     status,
     effectiveDocumentIva,
@@ -889,14 +895,14 @@ export function DocumentForm({
   }, [unitsSettings]);
 
   useEffect(() => {
-    if (existing || defaultNotesApplied.current) return;
+    if (existing || defaultSalesTermsApplied.current) return;
     const phrase = defaultPhraseForType(
       normalizeDocumentPhrases(data.profile.documentPhrases),
       type,
     );
     if (!phrase) return;
-    setNotes(phrase.text);
-    defaultNotesApplied.current = true;
+    setSalesTerms(phrase.text);
+    defaultSalesTermsApplied.current = true;
   }, [existing, type, data.profile.documentPhrases]);
 
   useEffect(() => {
@@ -920,6 +926,7 @@ export function DocumentForm({
     client: clientInputToSnapshot(clientForm),
     items: safeItems,
     notes,
+    salesTerms: salesTerms || undefined,
     paymentTerms: paymentTerms || undefined,
     status,
     rectification: existing?.rectification,
@@ -1195,6 +1202,7 @@ export function DocumentForm({
         date,
         dueDate,
         notes,
+        salesTerms,
         paymentTerms,
         status,
         documentIvaPercent: effectiveDocumentIva,
@@ -1453,6 +1461,7 @@ export function DocumentForm({
       client,
       items: normalizeLineItemUnits(safeItems, unitsSettings),
       notes: notes || undefined,
+      salesTerms: salesTerms.trim() || undefined,
       paymentTerms: paymentTerms.trim() || undefined,
       status: resolvedStatus,
       rectification: existing?.rectification,
@@ -2185,12 +2194,25 @@ export function DocumentForm({
           settings={data.profile.documentPaymentMethods}
           value={paymentTerms}
           onChange={setPaymentTerms}
+          onSave={(text, makeDefault) =>
+            updateProfile({
+              ...data.profile,
+              documentPaymentMethods: saveDocumentPaymentMethodForFutureUse(
+                normalizeDocumentPaymentMethods(
+                  data.profile.documentPaymentMethods,
+                ),
+                type,
+                text,
+                makeDefault,
+              ),
+            })
+          }
         />
         <DocumentPhrasePicker
           documentType={type}
           settings={data.profile.documentPhrases}
-          value={notes}
-          onChange={setNotes}
+          value={salesTerms}
+          onChange={setSalesTerms}
           onSave={(text, makeDefault) =>
             updateProfile({
               ...data.profile,
@@ -2203,6 +2225,20 @@ export function DocumentForm({
             })
           }
         />
+        <div className="space-y-2">
+          <label
+            htmlFor={`document-notes-${type}`}
+            className="text-sm font-semibold text-slate-700"
+          >
+            Notas (opcional)
+          </label>
+          <Textarea
+            id={`document-notes-${type}`}
+            value={notes}
+            onChange={(event) => setNotes(event.target.value)}
+            placeholder="Añade aquí información extra para este documento"
+          />
+        </div>
         <div className="mt-4 space-y-1 text-right text-slate-700">
           {!vatExempt && <p>Base: {formatMoney(totals.subtotal)}</p>}
           {!vatExempt && ivaBreakdown.length > 0 && (

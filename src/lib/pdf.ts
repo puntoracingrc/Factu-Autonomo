@@ -589,6 +589,20 @@ export function buildDocumentPdfFromViewModel(
     footerY += 3;
   }
 
+  if (doc.salesTerms) {
+    pdf.setFont(pdfFont, "normal");
+    pdf.setFontSize(bodyFontSize);
+    const salesTermLines = pdf.splitTextToSize(
+      `Condiciones de venta: ${doc.salesTerms}`,
+      180,
+    );
+    for (const line of salesTermLines) {
+      pdf.text(line, 14, footerY + 4);
+      footerY += 5.5;
+    }
+    footerY += 5;
+  }
+
   if (doc.notes) {
     pdf.setFont(pdfFont, "normal");
     pdf.setFontSize(bodyFontSize);

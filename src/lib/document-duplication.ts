@@ -32,6 +32,7 @@ export function buildDuplicatedDocumentDraft(
     client: { ...source.client },
     items: source.items.map((item) => cloneLineItem(item, lineIdFactory)),
     notes: source.notes,
+    salesTerms: source.salesTerms,
     paymentTerms: source.paymentTerms,
     status: "borrador",
     documentLifecycle: "draft",

@@ -34,6 +34,7 @@ const quote: Document = {
     },
   ],
   notes: "Validez 15 días.",
+  salesTerms: "Garantía de dos años.",
   paymentTerms: "Transferencia",
   status: "aceptado",
   documentLifecycle: "issued",
@@ -100,6 +101,7 @@ describe("quote to invoice conversion", () => {
     expect(invoice.items[0].id).not.toBe(quote.items[0].id);
     expect(documentTotals(invoice).total).toBe(documentTotals(quote).total);
     expect(invoice.notes).toBe(quote.notes);
+    expect(invoice.salesTerms).toBe(quote.salesTerms);
     expect(invoice.paymentTerms).toBe(quote.paymentTerms);
     expect(invoice.sourceQuoteDocumentId).toBe(quote.id);
     expect(invoice.sourceQuoteNumber).toBe(quote.number);
