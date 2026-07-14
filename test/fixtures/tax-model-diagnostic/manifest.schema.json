@@ -1,0 +1,297 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://facturacion-autonomos.app/schemas/fiscal-extractor-corpus.2026-07.v1.json",
+  "title": "Fiscal extractor corpus manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "corpusVersion",
+    "fixtureId",
+    "semanticCaseId",
+    "parentFixtureId",
+    "documentType",
+    "formVersion",
+    "fiscalYear",
+    "period",
+    "documentKind",
+    "filingStatus",
+    "temporalScope",
+    "lifecycleLabels",
+    "stateCoverage",
+    "visualVariant",
+    "expectedEnvelope",
+    "expectedFields",
+    "expectedQuestionMappings",
+    "mustNotInfer",
+    "allowAdditionalFactTypes",
+    "source",
+    "asset",
+    "extractor"
+  ],
+  "properties": {
+    "corpusVersion": {
+      "const": "fiscal-extractor-corpus.2026-07.v1"
+    },
+    "fixtureId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{2,127}$"
+    },
+    "semanticCaseId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{2,127}$"
+    },
+    "parentFixtureId": {
+      "type": ["string", "null"]
+    },
+    "documentType": {
+      "type": "string",
+      "pattern": "^(MODEL_[0-9]{3}|AEAT_ECONOMIC_ACTIVITIES_VIEW|AEAT_TAX_STATUS_VIEW|AEAT_OBLIGATIONS_VIEW)$"
+    },
+    "formVersion": {
+      "type": "string",
+      "minLength": 1
+    },
+    "fiscalYear": {
+      "type": "integer",
+      "minimum": 2000,
+      "maximum": 2100
+    },
+    "period": {
+      "type": ["string", "null"]
+    },
+    "documentKind": {
+      "enum": [
+        "CURRENT_CERTIFICATE",
+        "CURRENT_AEAT_VIEW",
+        "FILED_DECLARATION",
+        "FILED_DECLARATION_COPY",
+        "FILING_RECEIPT",
+        "STRUCTURED_OFFICIAL_FILE",
+        "DRAFT",
+        "PREDECLARATION",
+        "SUPPORTING_DOCUMENT",
+        "SCREENSHOT",
+        "UNKNOWN"
+      ]
+    },
+    "filingStatus": {
+      "enum": [
+        "VERIFIED_FILED",
+        "APPARENTLY_FILED",
+        "NOT_VERIFIED",
+        "DRAFT",
+        "UNKNOWN"
+      ]
+    },
+    "temporalScope": {
+      "enum": [
+        "CURRENT_AS_OF_DATE",
+        "TARGET_FISCAL_YEAR",
+        "SPECIFIC_PERIOD",
+        "HISTORICAL",
+        "FUTURE_INTENTION"
+      ]
+    },
+    "lifecycleLabels": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "CURRENT_EVIDENCE",
+          "HISTORICAL_DOCUMENT",
+          "NOT_CURRENT_CENSUS_STATUS"
+        ]
+      }
+    },
+    "stateCoverage": {
+      "enum": [
+        "FULL_CURRENT_STATE",
+        "PARTIAL_CURRENT_STATE",
+        "PERIOD_ONLY",
+        "HISTORICAL_ONLY"
+      ]
+    },
+    "visualVariant": {
+      "enum": [
+        "NATIVE_PDF",
+        "SCANNED_PDF",
+        "LOW_RESOLUTION_SCAN",
+        "ROTATED_SCAN",
+        "PHOTOGRAPHED_PDF",
+        "SCREENSHOT",
+        "COMPRESSED_SCREENSHOT",
+        "CROPPED_SCREENSHOT"
+      ]
+    },
+    "expectedEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["isComplete"],
+      "properties": {
+        "isComplete": { "type": "boolean" }
+      }
+    },
+    "expectedFields": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "factType",
+          "value",
+          "normalizedValue",
+          "page",
+          "sourceLabel"
+        ],
+        "properties": {
+          "factType": { "type": "string", "minLength": 1 },
+          "value": {},
+          "normalizedValue": {},
+          "page": { "type": "integer", "minimum": 1 },
+          "sourceLabel": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "expectedQuestionMappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "questionId",
+          "proposedAnswer",
+          "canSkipQuestion",
+          "confirmationRequired"
+        ],
+        "properties": {
+          "questionId": { "type": "string", "minLength": 1 },
+          "proposedAnswer": {},
+          "canSkipQuestion": { "type": "boolean" },
+          "confirmationRequired": { "type": "boolean" }
+        }
+      }
+    },
+    "mustNotInfer": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "reason"],
+        "properties": {
+          "code": {
+            "enum": [
+              "CURRENT_CENSUS_STATUS",
+              "FUTURE_OBLIGATION",
+              "CURRENT_ROI_STATUS",
+              "CURRENT_VAT_REGIME",
+              "ABSENCE_OUTSIDE_CAPTURE",
+              "EMPLOYEES_FROM_MODEL_111",
+              "PROFESSIONALS_FROM_MODEL_111"
+            ]
+          },
+          "questionId": { "type": "string" },
+          "reason": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "allowAdditionalFactTypes": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "authorizationRecorded",
+        "sha256",
+        "officialReference",
+        "anonymizationAudit"
+      ],
+      "properties": {
+        "kind": {
+          "enum": ["SYNTHETIC_OFFICIAL_FORM", "IRREVERSIBLY_ANONYMIZED_REAL"]
+        },
+        "authorizationRecorded": { "type": "boolean" },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "officialReference": {
+          "anyOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["url", "capturedOn", "sha256"],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "pattern": "^https://"
+                },
+                "capturedOn": {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                },
+                "sha256": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "pattern": "^[a-f0-9]{64}$"
+                    },
+                    { "type": "null" }
+                  ]
+                }
+              }
+            },
+            { "type": "null" }
+          ]
+        },
+        "anonymizationAudit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "textLayerChecked",
+            "acroFormChecked",
+            "metadataChecked",
+            "annotationsChecked",
+            "hiddenPagesChecked",
+            "qrAndBarcodeChecked",
+            "embeddedFilesChecked",
+            "originalFileNameStored"
+          ],
+          "properties": {
+            "textLayerChecked": { "type": "boolean" },
+            "acroFormChecked": { "type": "boolean" },
+            "metadataChecked": { "type": "boolean" },
+            "annotationsChecked": { "type": "boolean" },
+            "hiddenPagesChecked": { "type": "boolean" },
+            "qrAndBarcodeChecked": { "type": "boolean" },
+            "embeddedFilesChecked": { "type": "boolean" },
+            "originalFileNameStored": { "const": false }
+          }
+        }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pdfPath", "extractedTextPath"],
+      "properties": {
+        "pdfPath": { "type": "string", "minLength": 1 },
+        "extractedTextPath": { "type": ["string", "null"] }
+      }
+    },
+    "extractor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contractVersion", "catalogVersion", "extractorVersion"],
+      "properties": {
+        "contractVersion": { "type": "string", "minLength": 1 },
+        "catalogVersion": { "type": "string", "minLength": 1 },
+        "extractorVersion": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
