@@ -1,5 +1,6 @@
 import {
   AEAT_ACTIVITY_SPARSE_OCR_MARKER,
+  detectAeatCensusScreenshotKind,
   type AeatCensusScreenshotKind,
 } from "./aeat-census-screenshot";
 
@@ -34,6 +35,13 @@ export interface AeatScreenshotOcrInput {
 
 export interface AeatScreenshotOcrResult {
   kind: AeatCensusScreenshotKind;
+  text: string;
+  confidence: number;
+}
+
+export interface ClassifiedAeatScreenshotOcrResult {
+  fileName: string;
+  kind: AeatCensusScreenshotKind | "UNKNOWN";
   text: string;
   confidence: number;
 }
@@ -81,7 +89,11 @@ async function hasValidMagicBytes(file: File): Promise<boolean> {
     bytes[5] === 0x0a &&
     bytes[6] === 0x1a &&
     bytes[7] === 0x0a;
-  const jpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  const jpeg =
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff;
   const webp =
     bytes.length >= 12 &&
     String.fromCharCode(...bytes.slice(0, 4)) === "RIFF" &&
@@ -100,10 +112,11 @@ function progressLabel(status: string): string {
   return labels[status] ?? "Procesando en este dispositivo";
 }
 
-export async function recognizeAeatScreenshotFiles(
+async function recognizeAeatScreenshotInputs(
   inputs: AeatScreenshotOcrInput[],
   onProgress?: (progress: AeatScreenshotOcrProgress) => void,
-): Promise<AeatScreenshotOcrResult[]> {
+  classify = false,
+): Promise<ClassifiedAeatScreenshotOcrResult[]> {
   if (inputs.length === 0) return [];
   if (inputs.length > MAX_AEAT_SCREENSHOTS) {
     throw new AeatScreenshotFileError(
@@ -122,7 +135,9 @@ export async function recognizeAeatScreenshotFiles(
   }
 
   let activeIndex = 0;
-  let worker: Awaited<ReturnType<typeof import("tesseract.js")["createWorker"]>> | null = null;
+  let worker: Awaited<
+    ReturnType<(typeof import("tesseract.js"))["createWorker"]>
+  > | null = null;
   try {
     const { createWorker, OEM, PSM } = await import("tesseract.js");
     worker = await createWorker("spa", OEM.LSTM_ONLY, {
@@ -143,7 +158,7 @@ export async function recognizeAeatScreenshotFiles(
       user_defined_dpi: "150",
     });
 
-    const results: AeatScreenshotOcrResult[] = [];
+    const results: ClassifiedAeatScreenshotOcrResult[] = [];
     for (let index = 0; index < inputs.length; index += 1) {
       activeIndex = index;
       const input = inputs[index];
@@ -160,7 +175,10 @@ export async function recognizeAeatScreenshotFiles(
       );
       let text = recognized.data.text.trim();
       let confidence = recognized.data.confidence;
-      if (input.kind === "ACTIVITIES") {
+      const detectedKind = classify
+        ? detectAeatCensusScreenshotKind(text)
+        : input.kind;
+      if (detectedKind === "ACTIVITIES") {
         try {
           await worker.setParameters({
             tessedit_pageseg_mode: PSM.SPARSE_TEXT,
@@ -196,7 +214,8 @@ export async function recognizeAeatScreenshotFiles(
         );
       }
       results.push({
-        kind: input.kind,
+        fileName: input.file.name,
+        kind: detectedKind,
         text,
         confidence: Math.max(0, Math.min(1, confidence / 100)),
       });
@@ -211,4 +230,27 @@ export async function recognizeAeatScreenshotFiles(
   } finally {
     await worker?.terminate();
   }
+}
+
+export async function recognizeAeatScreenshotFiles(
+  inputs: AeatScreenshotOcrInput[],
+  onProgress?: (progress: AeatScreenshotOcrProgress) => void,
+): Promise<AeatScreenshotOcrResult[]> {
+  const results = await recognizeAeatScreenshotInputs(inputs, onProgress);
+  return results.map(({ kind, text, confidence }) => ({
+    kind: kind as AeatCensusScreenshotKind,
+    text,
+    confidence,
+  }));
+}
+
+export async function recognizeAndClassifyAeatScreenshotFiles(
+  files: File[],
+  onProgress?: (progress: AeatScreenshotOcrProgress) => void,
+): Promise<ClassifiedAeatScreenshotOcrResult[]> {
+  return recognizeAeatScreenshotInputs(
+    files.map((file) => ({ kind: "TAX_STATUS", file })),
+    onProgress,
+    true,
+  );
 }

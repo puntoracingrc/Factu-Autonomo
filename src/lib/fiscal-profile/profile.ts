@@ -59,7 +59,11 @@ function cleanText(value: unknown, maximum: number): string {
     : "";
 }
 
-function enumValue<T extends string>(value: unknown, values: Set<T>, fallback: T): T {
+function enumValue<T extends string>(
+  value: unknown,
+  values: Set<T>,
+  fallback: T,
+): T {
   return typeof value === "string" && values.has(value as T)
     ? (value as T)
     : fallback;
@@ -77,7 +81,9 @@ function isoDate(value: unknown): string | undefined {
     : undefined;
 }
 
-export function normalizeSpanishTaxId(value: string | null | undefined): string {
+export function normalizeSpanishTaxId(
+  value: string | null | undefined,
+): string {
   return (value ?? "").toUpperCase().replace(/[\s.\-]/g, "");
 }
 
@@ -98,7 +104,10 @@ export function normalizeFiscalActivities(value: unknown): FiscalActivity[] {
   const activities: FiscalActivity[] = [];
   for (const candidate of value) {
     if (!isRecord(candidate)) continue;
-    const description = cleanText(candidate.description, MAX_ACTIVITY_DESCRIPTION);
+    const description = cleanText(
+      candidate.description,
+      MAX_ACTIVITY_DESCRIPTION,
+    );
     const code = cleanText(candidate.code, MAX_ACTIVITY_CODE).toUpperCase();
     if (!description && !code) continue;
     const key = `${code}|${description.toLocaleLowerCase("es")}`;
@@ -218,31 +227,29 @@ function normalizeSource(value: unknown): FiscalProfileSource | null {
   if (!kind) return null;
   const confirmedAt = isoTimestamp(value.confirmedAt);
   if (!confirmedAt) return null;
-  const identityMatch = value.identityMatch === "MATCHED" ? "MATCHED" : "NOT_CHECKED";
+  const identityMatch =
+    value.identityMatch === "MATCHED" ? "MATCHED" : "NOT_CHECKED";
   const csvRecord = isRecord(value.csv) ? value.csv : null;
   const csvDetected = csvRecord?.detected === true;
   const verificationStatus =
     csvRecord?.verificationStatus === "USER_VERIFIED"
       ? "USER_VERIFIED"
       : "PENDING_VERIFICATION";
-  const matchedTaxId = normalizeSpanishTaxId(
-    cleanText(value.matchedTaxId, 16),
-  );
+  const matchedTaxId = normalizeSpanishTaxId(cleanText(value.matchedTaxId, 16));
   return {
     kind,
     confirmedAt,
     identityMatch,
     ...(value.documentKind === "AEAT_CENSUS_CERTIFICATE" ||
     value.documentKind === "MODEL_036" ||
+    value.documentKind === "MODEL_037" ||
     value.documentKind === "UNKNOWN"
       ? { documentKind: value.documentKind }
       : {}),
     ...(value.extractionMethod === "LOCAL_TEXT"
       ? { extractionMethod: "LOCAL_TEXT" as const }
       : {}),
-    ...(/^[A-Z0-9]{9}$/.test(matchedTaxId)
-      ? { matchedTaxId }
-      : {}),
+    ...(/^[A-Z0-9]{9}$/.test(matchedTaxId) ? { matchedTaxId } : {}),
     ...(isoDate(value.documentDate)
       ? { documentDate: value.documentDate as string }
       : {}),
@@ -267,8 +274,10 @@ export function normalizeBusinessFiscalProfile(
   if (value.schemaVersion !== FISCAL_PROFILE_SCHEMA_VERSION) return undefined;
   const source = normalizeSource(value.source);
   if (!source) return undefined;
-  const setupStatus = value.setupStatus === "SKIPPED" ? "SKIPPED" : "CONFIGURED";
-  if (setupStatus === "SKIPPED") return createSkippedFiscalProfile(source.confirmedAt);
+  const setupStatus =
+    value.setupStatus === "SKIPPED" ? "SKIPPED" : "CONFIGURED";
+  if (setupStatus === "SKIPPED")
+    return createSkippedFiscalProfile(source.confirmedAt);
   return {
     schemaVersion: FISCAL_PROFILE_SCHEMA_VERSION,
     setupStatus,
@@ -290,7 +299,9 @@ export function normalizeBusinessFiscalProfile(
   };
 }
 
-export function fiscalProfileMissingLabels(profile: BusinessFiscalProfile): string[] {
+export function fiscalProfileMissingLabels(
+  profile: BusinessFiscalProfile,
+): string[] {
   if (profile.setupStatus === "SKIPPED") {
     return ["perfil fiscal no configurado"];
   }

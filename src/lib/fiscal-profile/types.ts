@@ -7,22 +7,15 @@ import type {
 
 export const FISCAL_PROFILE_SCHEMA_VERSION = 1 as const;
 
-export type VatDeductionRight =
-  | "FULL"
-  | "PARTIAL"
-  | "NONE"
-  | "UNKNOWN";
+export type VatDeductionRight = "FULL" | "PARTIAL" | "NONE" | "UNKNOWN";
 
 export type FiscalProfileSourceKind =
-  | "MANUAL"
-  | "AEAT_CENSUS_CERTIFICATE"
-  | "SKIPPED";
+  "MANUAL" | "AEAT_CENSUS_CERTIFICATE" | "SKIPPED";
 
 export type FiscalIdentityMatch = "MATCHED" | "NOT_CHECKED";
 
 export type FiscalCsvVerificationStatus =
-  | "PENDING_VERIFICATION"
-  | "USER_VERIFIED";
+  "PENDING_VERIFICATION" | "USER_VERIFIED";
 
 export interface FiscalActivity {
   code?: string;
@@ -33,7 +26,8 @@ export interface FiscalActivity {
 export interface FiscalProfileSource {
   kind: FiscalProfileSourceKind;
   confirmedAt: string;
-  documentKind?: "AEAT_CENSUS_CERTIFICATE" | "MODEL_036" | "UNKNOWN";
+  documentKind?:
+    "AEAT_CENSUS_CERTIFICATE" | "MODEL_036" | "MODEL_037" | "UNKNOWN";
   extractionMethod?: "LOCAL_TEXT";
   documentDate?: string;
   identityMatch: FiscalIdentityMatch;
@@ -75,6 +69,7 @@ export interface CensusCertificateCandidate extends FiscalProfileDraft {
   detectedNif: string | null;
   documentDate?: string;
   csv?: string;
-  documentKind: "AEAT_CENSUS_CERTIFICATE" | "MODEL_036" | "UNKNOWN";
+  documentKind:
+    "AEAT_CENSUS_CERTIFICATE" | "MODEL_036" | "MODEL_037" | "UNKNOWN";
   warnings: string[];
 }

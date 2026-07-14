@@ -1,3 +1,4 @@
+export * from "./aeat-document-questions";
 export * from "./contracts";
 export * from "./engine";
 export * from "./model-catalog";

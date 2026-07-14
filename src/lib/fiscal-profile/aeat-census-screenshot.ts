@@ -10,14 +10,10 @@ export const AEAT_ACTIVITY_SPARSE_OCR_MARKER =
   "AEAT OCR SPARSE ACTIVITY PASS" as const;
 
 export type AeatCensusScreenshotKind =
-  | "ACTIVITIES"
-  | "TAX_STATUS"
-  | "OBLIGATIONS";
+  "ACTIVITIES" | "TAX_STATUS" | "OBLIGATIONS";
 
 export type AeatCensusScreenshotStatus =
-  | "RESOLVED"
-  | "REVIEW_REQUIRED"
-  | "BLOCKED";
+  "RESOLVED" | "REVIEW_REQUIRED" | "BLOCKED";
 
 export interface AeatCensusActivityRow {
   section: "BUSINESS" | "PROFESSIONAL" | "ARTISTIC";
@@ -52,7 +48,8 @@ const OBLIGATION_RULES: readonly {
   { model: "111", label: /IRPF.{0,20}RET(?:ENCIONES?)?.{0,30}TRABAJO/ },
   {
     model: "115",
-    label: /IRPF.{0,20}RET(?:ENCIONES?)?.{0,30}ARREND(?:AMIENTOS?)?.{0,30}INMUEBLES\s+URBANOS/,
+    label:
+      /IRPF.{0,20}RET(?:ENCIONES?)?.{0,30}ARREND(?:AMIENTOS?)?.{0,30}INMUEBLES\s+URBANOS/,
   },
   {
     model: "123",
@@ -82,10 +79,7 @@ function normalize(value: string): string {
 }
 
 function normalizedLines(text: string): string[] {
-  return text
-    .split(/\r?\n/)
-    .map(normalize)
-    .filter(Boolean);
+  return text.split(/\r?\n/).map(normalize).filter(Boolean);
 }
 
 function toIsoDate(value: string | undefined): string | undefined {
@@ -106,7 +100,9 @@ function toIsoDate(value: string | undefined): string | undefined {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-function detectKind(text: string): AeatCensusScreenshotCandidate["detectedKind"] {
+export function detectAeatCensusScreenshotKind(
+  text: string,
+): AeatCensusScreenshotCandidate["detectedKind"] {
   const value = normalize(text);
   const lines = normalizedLines(text);
   if (
@@ -144,9 +140,9 @@ function parseActivities(lines: string[]): AeatCensusActivityRow[] {
       /\b(EMPRESARIAL|PROFESIONAL|ARTISTICA)\s+(\d{1,4}(?:[.,]\d{1,2})?)\s+(.+?)\s+(ALTA|BAJA)\b(.*)$/,
     );
     if (!match) continue;
-    const dates = [...match[5].matchAll(/\b\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4}\b/g)].map(
-      (date) => toIsoDate(date[0]),
-    );
+    const dates = [
+      ...match[5].matchAll(/\b\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4}\b/g),
+    ].map((date) => toIsoDate(date[0]));
     rows.push({
       section:
         match[1] === "EMPRESARIAL"
@@ -161,15 +157,19 @@ function parseActivities(lines: string[]): AeatCensusActivityRow[] {
       ...(dates[1] ? { endDate: dates[1] } : {}),
     });
   }
-  return [...new Map(rows.map((row) => [`${row.section}:${row.code}:${row.state}:${row.startDate ?? ""}`, row])).values()];
+  return [
+    ...new Map(
+      rows.map((row) => [
+        `${row.section}:${row.code}:${row.state}:${row.startDate ?? ""}`,
+        row,
+      ]),
+    ).values(),
+  ];
 }
 
-function parseFragmentedActivityRows(
-  lines: string[],
-): AeatCensusActivityRow[] {
+function parseFragmentedActivityRows(lines: string[]): AeatCensusActivityRow[] {
   const markerIndex = lines.lastIndexOf(AEAT_ACTIVITY_SPARSE_OCR_MARKER);
-  const activityLines =
-    markerIndex >= 0 ? lines.slice(markerIndex + 1) : lines;
+  const activityLines = markerIndex >= 0 ? lines.slice(markerIndex + 1) : lines;
   if (!lines.some((line) => line.includes("RELACION DE ACTIVIDADES"))) {
     return [];
   }
@@ -199,8 +199,8 @@ function parseFragmentedActivityRows(
     });
     const dates = segment
       .flatMap((line) =>
-        [...line.matchAll(/\b\d{1,2}[/.-]\d{1,2}[/.-]\d{4}\b/g)].map(
-          (match) => toIsoDate(match[0]),
+        [...line.matchAll(/\b\d{1,2}[/.-]\d{1,2}[/.-]\d{4}\b/g)].map((match) =>
+          toIsoDate(match[0]),
         ),
       )
       .filter((date): date is string => Boolean(date));
@@ -259,9 +259,7 @@ function uniqueActivities(
   ];
 }
 
-function parseActivityDetail(
-  lines: string[],
-): AeatCensusActivityRow | null {
+function parseActivityDetail(lines: string[]): AeatCensusActivityRow | null {
   const allText = lines.join(" ");
   const section = allText.match(
     /\bSECCION\s*:?\s*(EMPRESARIAL|PROFESIONAL|ARTISTICA)\b/,
@@ -276,18 +274,14 @@ function parseActivityDetail(
     .find((match) => Boolean(match));
   const labelledCode = lines
     .map((line) =>
-      line.match(
-        /GRUPO\s*\/?\s*EPIGRAFE\s*:?\s*(\d{1,4}(?:[.,]\d{1,2})?)/,
-      ),
+      line.match(/GRUPO\s*\/?\s*EPIGRAFE\s*:?\s*(\d{1,4}(?:[.,]\d{1,2})?)/),
     )
     .find((match) => Boolean(match));
   const labelledDescription = lines
     .map((line) => line.match(/DESCRIPCION DE LA ACTIVIDAD\s+(.+)$/))
     .find((match) => Boolean(match));
   const code = codeAndDescription?.[1] ?? labelledCode?.[1];
-  const description = (
-    codeAndDescription?.[2] ?? labelledDescription?.[1]
-  )
+  const description = (codeAndDescription?.[2] ?? labelledDescription?.[1])
     ?.replace(/\s+GRUPO\s*\/?\s*EPIGRAFE.*$/, "")
     .trim();
   if (!section || !state || !code || !description) return null;
@@ -329,7 +323,8 @@ function taxStatusFacts(lines: string[]) {
   const incomeCandidates: IncomeTaxRegime[] = [];
   if (hasMarkedCode(lines, "608")) incomeCandidates.push("DIRECT_NORMAL");
   if (hasMarkedCode(lines, "609")) incomeCandidates.push("DIRECT_SIMPLIFIED");
-  if (hasMarkedCode(lines, "604")) incomeCandidates.push("OBJECTIVE_ESTIMATION");
+  if (hasMarkedCode(lines, "604"))
+    incomeCandidates.push("OBJECTIVE_ESTIMATION");
 
   const vatRegimes: DiagnosticVatRegime[] = [];
   const vatCodes: readonly [string, DiagnosticVatRegime][] = [
@@ -408,7 +403,7 @@ export function parseAeatCensusScreenshotText(
   expectedKind: AeatCensusScreenshotKind,
 ): AeatCensusScreenshotCandidate {
   const lines = normalizedLines(text.slice(0, 160_000));
-  const detectedKind = detectKind(text);
+  const detectedKind = detectAeatCensusScreenshotKind(text);
   if (detectedKind !== expectedKind) {
     return blockedCandidate(expectedKind, detectedKind);
   }
@@ -423,9 +418,7 @@ export function parseAeatCensusScreenshotText(
   if (expectedKind === "ACTIVITIES") {
     const primaryActivities = parseActivities(lines);
     const primaryActivityKeys = new Set(
-      primaryActivities.map(
-        (row) => `${row.section}:${row.code}:${row.state}`,
-      ),
+      primaryActivities.map((row) => `${row.section}:${row.code}:${row.state}`),
     );
     const fragmentedActivities = parseFragmentedActivityRows(lines).filter(
       (row) =>
@@ -516,7 +509,10 @@ export function parseAeatCensusScreenshotText(
     const hasFacts = incomeTaxRegime !== "UNKNOWN" || vatRegimes.length > 0;
     return {
       ...base,
-      status: hasFacts && incomeCandidates.length <= 1 ? "RESOLVED" : "REVIEW_REQUIRED",
+      status:
+        hasFacts && incomeCandidates.length <= 1
+          ? "RESOLVED"
+          : "REVIEW_REQUIRED",
       isComplete,
       activities: [],
       activityKinds: [],
