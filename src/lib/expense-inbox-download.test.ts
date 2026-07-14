@@ -41,16 +41,25 @@ function failureOf(error: unknown): string | undefined {
 }
 
 describe("expense inbox attachment download boundaries", () => {
-  it("solo admite el CDN inbound oficial de Resend por HTTPS", () => {
+  it("solo admite dominios controlados por Resend mediante HTTPS", () => {
     expect(
       assertAllowedResendDownloadUrl(
         "https://inbound-cdn.resend.com/email/attachments/file?signature=test",
       ).hostname,
     ).toBe("inbound-cdn.resend.com");
+    expect(
+      assertAllowedResendDownloadUrl(
+        "https://eu.inbound-cdn.resend.com/email/attachments/file?signature=test",
+      ).hostname,
+    ).toBe("eu.inbound-cdn.resend.com");
+    expect(
+      assertAllowedResendDownloadUrl(
+        "https://attachments.resend.com/email/attachments/file?signature=test",
+      ).hostname,
+    ).toBe("attachments.resend.com");
 
     const blocked = [
       "http://inbound-cdn.resend.com/email/attachments/file",
-      "https://outbound-cdn.resend.com/email/attachments/file",
       "https://inbound-cdn.resend.com.attacker.test/file",
       "https://attacker.test/file",
       "https://localhost/file",
