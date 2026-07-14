@@ -83,6 +83,9 @@ const COMMON_REQUIRED_AUTHORITY_ANCHORS = Object.freeze([
     literals: [
       "sede.agenciatributaria.gob.es",
       "https://sede.agenciatributaria.gob.es",
+      "www.agenciatributaria.es",
+      "http://www.agenciatributaria.es",
+      "https://www.agenciatributaria.es",
     ],
   },
 ] satisfies readonly ClosedTextAnchorDefinition[]);

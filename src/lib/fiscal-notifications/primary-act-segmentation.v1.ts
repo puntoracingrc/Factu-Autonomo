@@ -57,7 +57,10 @@ export const AEAT_ENFORCEMENT_PRIMARY_TITLE_V1 = Object.freeze({
   familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
   titleAnchorId: "ENFORCEMENT_ORDER_TITLE",
   matchMode: "LINE_EXACT",
-  literals: Object.freeze(["providencia de apremio"]),
+  literals: Object.freeze([
+    "providencia de apremio",
+    "notificacion de providencia de apremio",
+  ]),
 } satisfies FiscalNotificationRegisteredPrimaryTitleV1);
 
 export const AEAT_DEFERRAL_PRIMARY_TITLE_V1 = Object.freeze({

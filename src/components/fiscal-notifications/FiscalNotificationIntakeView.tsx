@@ -158,9 +158,9 @@ const REASON_COPY: Readonly<
       "Se ha leído localmente, pero no coincide con las familias cubiertas. No se ha inventado una clasificación.",
   },
   NO_EXTRACTABLE_TEXT: {
-    title: "Sin texto seleccionable",
+    title: "No se ha podido leer el escaneo",
     detail:
-      "El PDF puede ser una imagen escaneada. Esta versión no ejecuta OCR automáticamente.",
+      "El OCR local no ha recuperado texto suficiente. Prueba con un escaneo más nítido o revisa el documento manualmente.",
   },
   INCONSISTENT_PAGE_STATE: {
     title: "Estructura de páginas incoherente",
@@ -197,7 +197,7 @@ const ERROR_COPY: Readonly<Record<FiscalNotificationPdfErrorCode, string>> = {
   TOO_MANY_TEXT_ITEMS: "El PDF contiene demasiados elementos de texto.",
   TEXT_ITEM_TOO_LARGE: "El PDF contiene un bloque de texto demasiado grande.",
   TEXT_TOO_LARGE: "El PDF contiene demasiado texto para este análisis local.",
-  TIMEOUT: "El análisis local ha superado el tiempo máximo de 15 segundos.",
+  TIMEOUT: "El análisis local ha superado el tiempo máximo permitido.",
   ABORTED: "El análisis se ha cancelado.",
   WORKER_UNAVAILABLE:
     "El navegador no puede ejecutar el lector aislado de PDF.",
@@ -350,6 +350,9 @@ function FiscalNotificationReviewWorkspace({
   const [processing, setProcessing] = useState(false);
   const [result, setResult] =
     useState<FiscalNotificationLocalReviewResult | null>(null);
+  const [textAcquisition, setTextAcquisition] = useState<
+    FiscalNotificationLocalAnalysisResult["textAcquisition"] | null
+  >(null);
   const [ephemeralMoneyFacts, setEphemeralMoneyFacts] =
     useState<AeatEnforcementMoneyFactsResult | null>(null);
   const [ephemeralDeferralFacts, setEphemeralDeferralFacts] =
@@ -418,6 +421,7 @@ function FiscalNotificationReviewWorkspace({
     processingRef.current = false;
     setProcessing(false);
     setResult(null);
+    setTextAcquisition(null);
     setEphemeralMoneyFacts(null);
     setEphemeralDeferralFacts(null);
     setEphemeralOffsetFacts(null);
@@ -438,6 +442,7 @@ function FiscalNotificationReviewWorkspace({
     processingRef.current = false;
     setProcessing(false);
     setError(null);
+    setTextAcquisition(null);
     setEphemeralMoneyFacts(null);
     setEphemeralDeferralFacts(null);
     setEphemeralOffsetFacts(null);
@@ -467,6 +472,7 @@ function FiscalNotificationReviewWorkspace({
     processingRef.current = true;
     setProcessing(true);
     setResult(null);
+    setTextAcquisition(null);
     setEphemeralMoneyFacts(null);
     setEphemeralDeferralFacts(null);
     setEphemeralOffsetFacts(null);
@@ -503,6 +509,7 @@ function FiscalNotificationReviewWorkspace({
               nextAnalysis.ephemeralEnforcementPartyFacts,
             );
       setResult(nextResult);
+      setTextAcquisition(nextAnalysis.textAcquisition ?? null);
       setEphemeralMoneyFacts(nextAnalysis.ephemeralEnforcementMoneyFacts);
       setEphemeralDeferralFacts(nextAnalysis.ephemeralDeferralGrantFacts);
       setEphemeralOffsetFacts(nextAnalysis.ephemeralOffsetAgreementFacts);
@@ -592,8 +599,8 @@ function FiscalNotificationReviewWorkspace({
                 Analizar una notificación
               </h2>
               <p className="mt-1 text-sm leading-6 text-slate-600">
-                Admite PDF con texto seleccionable, hasta 4 MB y 80 páginas.
-                Los documentos escaneados quedan pendientes de OCR.
+                Admite PDF con texto o escaneado, hasta 4 MB y 80 páginas. Si
+                es una imagen, ejecuta OCR en este navegador sin subirla.
               </p>
             </div>
           </div>
@@ -694,6 +701,7 @@ function FiscalNotificationReviewWorkspace({
           ephemeralOffsetFacts={ephemeralOffsetFacts}
           explicitFieldsReview={explicitFieldsReview}
           partyFactsReview={partyFactsReview}
+          textAcquisition={textAcquisition}
         />
       ) : null}
       {reviewGuidance ? (
@@ -1140,6 +1148,7 @@ function ReviewResult({
   ephemeralOffsetFacts,
   explicitFieldsReview,
   partyFactsReview,
+  textAcquisition,
 }: {
   result: FiscalNotificationLocalReviewResult;
   ephemeralMoneyFacts: AeatEnforcementMoneyFactsResult | null;
@@ -1147,6 +1156,7 @@ function ReviewResult({
   ephemeralOffsetFacts: AeatOffsetAgreementFactsResultV1 | null;
   explicitFieldsReview: ExplicitFieldsReviewViewModelV2 | null;
   partyFactsReview: PartyFactsReviewViewModelV1 | null;
+  textAcquisition: FiscalNotificationLocalAnalysisResult["textAcquisition"] | null;
 }) {
   const recognizedCandidate = recognizedCandidateFrom(result);
   const copy =
@@ -1190,6 +1200,14 @@ function ReviewResult({
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
               {copy.detail}
             </p>
+            {textAcquisition?.mode === "LOCAL_OCR" ? (
+              <p className="mt-2 text-sm font-bold text-blue-800">
+                Lectura OCR local
+                {textAcquisition.averageConfidence === null
+                  ? ""
+                  : ` · ${Math.round(textAcquisition.averageConfidence * 100)} % de confianza de lectura`}
+              </p>
+            ) : null}
           </div>
           <span
             className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${
