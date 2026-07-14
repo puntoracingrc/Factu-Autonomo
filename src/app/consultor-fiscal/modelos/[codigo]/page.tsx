@@ -34,13 +34,18 @@ export async function generateMetadata({
   });
   const isOfficialInformation =
     officialContent.status === "OFFICIAL_INFORMATION";
-  const isModel01 = codigo === "01" && isOfficialInformation;
-  const modelTitle = isModel01
-    ? "Modelo 01 AEAT: solicitud de certificados tributarios"
-    : "Modelo " + result.data.code + " · Modelos AEAT";
+  const dedicatedSeoTitle = isOfficialInformation
+    ? {
+        "01": "Modelo 01 AEAT: solicitud de certificados tributarios",
+        "01C": "Modelo 01C AEAT: certificado de contratistas y subcontratistas",
+        "04": "Modelo 04 AEAT: IVA del 4 % para vehículos y movilidad reducida",
+      }[codigo]
+    : undefined;
+  const modelTitle =
+    dedicatedSeoTitle ?? "Modelo " + result.data.code + " · Modelos AEAT";
 
   return {
-    title: isModel01 ? { absolute: modelTitle } : modelTitle,
+    title: dedicatedSeoTitle ? { absolute: modelTitle } : modelTitle,
     description: isOfficialInformation
       ? officialContent.data.summary
       : result.data.summary,
