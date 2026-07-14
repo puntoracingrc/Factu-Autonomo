@@ -10,7 +10,10 @@ import {
 import { FISCAL_NOTIFICATION_EXTRACTOR_CORE_VERSION_V1 } from "./shared.v1";
 
 const ENGINE_FIELDS = Object.freeze({
-  "notification-envelope": ["notificationReference", "deliveryStatus", "availabilityDate", "accessDate"],
+  "notification-envelope": [
+    "notificationReference", "actReference", "deliveryStatus", "issuer", "recipient",
+    "availabilityDate", "accessDate", "rejectionDate", "expirationDate", "effectiveNotificationDate",
+  ],
   "informative-communication": ["subject", "communicationDate", "explicitInformation"],
   "identity-and-certificate": ["certificateType", "issueDate", "validityText"],
   "census-resolution": ["agreementType", "effectiveDate", "registryReference"],
@@ -29,6 +32,9 @@ const ENGINE_FIELDS = Object.freeze({
 } as const satisfies Readonly<Record<BaseExtractorIdV1, readonly string[]>>);
 
 const EXECUTABLE_REVIEW_ONLY_FAMILIES = new Set<FiscalNotificationDocumentFamilyIdV3>([
+  "notification.delivery_attempt",
+  "notification.publication_or_appearance",
+  "notification.dehu_envelope",
   "compliance.formal_filing_requirement",
   "assessment.allegations_and_proposal",
   "assessment.final_provisional_assessment",

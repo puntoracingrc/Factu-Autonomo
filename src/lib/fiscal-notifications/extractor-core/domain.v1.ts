@@ -96,7 +96,7 @@ export interface RefundEventV1 extends EntityBaseV1 {
 
 export interface NotificationEventV1 extends EntityBaseV1 {
   readonly entityKind: "NOTIFICATION_EVENT";
-  readonly notificationStatus: "AVAILABLE" | "ACCESSED" | "REJECTED" | "ATTEMPTED" | "DELIVERED" | "PUBLISHED";
+  readonly notificationStatus: "AVAILABLE" | "ACCESSED" | "REJECTED" | "EXPIRED" | "ATTEMPTED" | "DELIVERED" | "PUBLISHED";
   readonly dates: readonly ProceduralDateV1[];
   readonly referenceIds: readonly string[];
 }
