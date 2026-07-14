@@ -20,10 +20,11 @@ Canarias, Navarra, País Vasco, Ceuta, Melilla y no residentes fallan cerrado: n
 ## Flujo de uso
 
 1. La persona responde los bloques A–N. `No lo sé` es una respuesta explícita y nunca se convierte en `No`.
-2. Opcionalmente añade un certificado de situación censal o modelo 036 con texto nativo. El PDF se procesa localmente y no se conserva.
-3. Revisa cada propuesta documental y confirma identidad, vigencia y campos elegidos.
-4. Confirma expresamente el conjunto de respuestas.
-5. El motor puro genera una decisión por cada código, separando sujeto, estado, motivo, evidencia, datos pendientes, períodos, próxima acción y fuentes.
+2. Opcionalmente añade un certificado de situación censal o modelo 036 con texto nativo, o capturas de «Mis actividades económicas», «Mi situación tributaria» y «Mis obligaciones» de la AEAT.
+3. Los PDFs y las capturas se procesan localmente y no se conservan. Una captura parcial puede proponer los campos leídos sin exigir que se aporten los tres apartados.
+4. Revisa cada propuesta documental y confirma vigencia y campos elegidos. En la vía de capturas se confía en la declaración del usuario y no se bloquea por NIF.
+5. Confirma expresamente el conjunto de respuestas.
+6. El motor puro genera una decisión por cada código, separando sujeto, estado, motivo, evidencia, datos pendientes, períodos, próxima acción y fuentes.
 
 ## Estados internos
 
@@ -37,4 +38,3 @@ Canarias, Navarra, País Vasco, Ceuta, Melilla y no residentes fallan cerrado: n
 - `TERRITORY_NOT_SUPPORTED`: no existe un ruleset territorial compatible.
 
 Las reglas están en estado `PENDING_FISCAL_REVIEW`. El flag de producción debe permanecer cerrado hasta que todas las reglas del ejercicio estén aprobadas y el QA de dominio de producción sea verde.
-

@@ -9,6 +9,7 @@ describe("tax model diagnostic UI contract", () => {
   const wizard = source("./TaxModelDiagnosticWizard.tsx");
   const questions = source("./DiagnosticQuestionField.tsx");
   const documents = source("./DiagnosticDocumentReview.tsx");
+  const screenshots = source("./DiagnosticScreenshotReview.tsx");
   const results = source("./DiagnosticResults.tsx");
 
   it("exige confirmación humana antes del resultado", () => {
@@ -32,6 +33,17 @@ describe("tax model diagnostic UI contract", () => {
     expect(documents).toContain("userConfirmed: true");
   });
 
+  it("ofrece capturas AEAT parciales con OCR local y confirmación humana", () => {
+    expect(screenshots).toContain("Mis actividades económicas");
+    expect(screenshots).toContain("Mi situación tributaria");
+    expect(screenshots).toContain("Mis obligaciones");
+    expect(screenshots).toContain("recognizeAeatScreenshotFiles");
+    expect(screenshots).toContain("Las imágenes no se envían ni se guardan");
+    expect(screenshots).toContain("Confirmo que las capturas contienen mis datos");
+    expect(screenshots).toContain('extractionMethod: "OCR_LOCAL"');
+    expect(screenshots).not.toContain("reconcileCensusIdentity");
+  });
+
   it("muestra motivo, evidencia, períodos, sujeto, fuentes y siguiente paso", () => {
     for (const copy of [
       "Por qué aparece",
@@ -45,4 +57,3 @@ describe("tax model diagnostic UI contract", () => {
     }
   });
 });
-

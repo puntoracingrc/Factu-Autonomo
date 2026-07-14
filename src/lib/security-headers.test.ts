@@ -42,6 +42,9 @@ describe("security headers config", () => {
       "script-src 'self' 'unsafe-inline' https://accounts.google.com https://challenges.cloudflare.com",
     );
     expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
+      "'wasm-unsafe-eval'",
+    );
+    expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
       "frame-src 'self' https://accounts.google.com https://challenges.cloudflare.com",
     );
     expect(headers.get("Content-Security-Policy-Report-Only")).toContain(

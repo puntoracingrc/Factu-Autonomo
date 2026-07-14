@@ -39,13 +39,16 @@ Cada pregunta declara explicación, motivo, ejemplo, documento útil, modelos af
 | --- | --- | --- | --- |
 | Certificado de situación censal AEAT | Identidad, sujeto, territorio, IRPF, IVA y confirmación de censo revisado | Texto nativo local | Obligatoria por campo |
 | Modelo 036 | Propuesta de sujeto, territorio y regímenes; puede no reflejar el estado actual | Texto nativo local | Obligatoria, incluida vigencia |
+| Captura «Mis actividades económicas» | Actividades en alta, naturaleza, epígrafe y fecha; las filas en baja quedan como histórico | OCR local + parser acotado | Obligatoria por campo |
+| Capturas «Mi situación tributaria» | Casillas marcadas de IRPF e IVA; admite varias capturas de una página larga | OCR local + códigos de casilla cerrados | Obligatoria por campo |
+| Captura «Mis obligaciones» | Códigos periódicos expresamente asociados a filas en alta | OCR local + catálogo cerrado | Obligatoria por campo |
 | Situación RETA/vida laboral | Fechas de alta para modelo 100 | Manual | Obligatoria |
 | Libros de facturas y retenciones | Porcentaje del 70 %, pagadores, UE y terceros | Manual | Obligatoria |
 | Nóminas, facturas profesionales y alquiler | 111/190 y 115/180 | Manual | Obligatoria |
 | Certificados de residencia y convenios | 216/296 | Manual y revisión profesional | Obligatoria |
 | Modelos anteriores | Coherencia histórica y periodicidad | Manual | Obligatoria |
 
-Los PDFs escaneados sin texto, protegidos, dañados, de más de 4 MB o de más de 80 páginas no se procesan. OCR local y OCR externo permanecen deshabilitados. No se interpreta una captura, una conversación ni un texto libre como censo.
+Los PDFs escaneados sin texto, protegidos, dañados, de más de 4 MB o de más de 80 páginas no se procesan. Las capturas admiten PNG, JPG y WebP, hasta 8 MB por archivo y 8 archivos por lectura. El OCR externo permanece deshabilitado. Una conversación o un texto libre no se interpreta como censo.
 
 ## Reconciliación censal
 
@@ -55,5 +58,4 @@ La persona debe distinguir entre:
 - haberlo revisado y confirmar una lista vacía; y
 - haberlo revisado y seleccionar los códigos que aparecen expresamente.
 
-Solo los códigos periódicos acotados 111, 115, 123, 130, 131, 216 y 303 entran en el cruce censal inicial. Una discrepancia nunca cambia automáticamente el censo ni elimina una obligación: genera `CENSUS_MISMATCH` y una acción de revisión.
-
+Solo los códigos periódicos acotados 111, 115, 123, 130, 131, 216 y 303 entran en el cruce censal inicial. Una lista parcial puede confirmar un código presente, pero su ausencia no genera discrepancia. Las ausencias solo se comparan cuando la persona confirma que revisó la lista completa. Una discrepancia nunca cambia automáticamente el censo ni elimina una obligación: genera `CENSUS_MISMATCH` y una acción de revisión.

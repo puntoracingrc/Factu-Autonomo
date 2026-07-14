@@ -3,7 +3,7 @@
 ## Separación de responsabilidades
 
 ```text
-Cuestionario / documento local
+Cuestionario / PDF o capturas locales
           │
           ▼
 Perfil normalizado + evidencia confirmada
@@ -35,7 +35,7 @@ El catálogo informativo existente `src/lib/fiscal-models/**` no se modifica ni 
 - solo se conserva evidencia con `userConfirmed=true`;
 - el resultado se recalcula desde el perfil y el ruleset vigente, evitando conservar decisiones obsoletas.
 
-El bloque se guarda mediante el mecanismo local/nube ya existente del perfil de empresa. El documento original, su texto y su nombre de archivo no se persisten.
+El bloque se guarda mediante el mecanismo local/nube ya existente del perfil de empresa. El documento o la captura original, su texto y su nombre de archivo no se persisten. El OCR de capturas se carga bajo demanda y usa recursos WebAssembly e idioma servidos por la propia aplicación; la imagen no sale del dispositivo.
 
 ## Trazabilidad
 
@@ -55,9 +55,11 @@ La evidencia documental incluye tipo de documento, método de extracción, campo
 | Riesgo | Control |
 | --- | --- |
 | PDF malicioso o falso tipo MIME | Comprobación de cabecera `%PDF-`, tamaño, páginas, texto máximo y `isEvalSupported=false` |
-| Documento de otra persona | Reconciliación exacta de NIF; sin coincidencia no se puede confirmar |
+| Imagen maliciosa o falso tipo MIME | Formatos PNG/JPG/WebP acotados, comprobación de firma y máximo de 8 MB y 8 capturas por lectura |
+| PDF de otra persona | Reconciliación exacta de NIF en el flujo PDF |
+| Captura aportada por el usuario | No se exige coincidencia de NIF; la persona confirma expresamente que contiene sus datos y asume la corrección de lo aportado |
 | Datos extraídos incorrectos | Propuestas por campo, advertencias y confirmación explícita |
-| Fuga de documentos | Procesamiento local efímero; no se sube ni se conserva PDF/texto/nombre |
+| Fuga de documentos | Procesamiento local efímero; no se sube ni se conserva PDF, imagen, texto o nombre |
 | Inyección mediante texto | El texto no se ejecuta ni decide reglas; solo alimenta parsers locales acotados |
 | Códigos inventados o concatenados | Unión cerrada, normalizador canónico y rechazo de texto libre/múltiples códigos |
 | Falta de datos interpretada como exclusión | `UNKNOWN`/`NEEDS_INFORMATION`; `NOT_APPLICABLE` exige evidencia explícita |
@@ -65,5 +67,4 @@ La evidencia documental incluye tipo de documento, método de extracción, campo
 | Regla sin revisión fiscal | Estado de revisión y feature flag cerrado en producción |
 | Consumidor incompatible | `contractVersion`, `catalogVersion` y fallback obligatorio a vista completa |
 
-No hay llamadas de IA para determinar obligaciones. No hay telemetría con NIF, contenido documental o respuestas fiscales en esta entrega.
-
+No hay llamadas de IA para determinar obligaciones. El OCR solo transcribe; un parser determinista y acotado propone los campos. No hay telemetría con NIF, contenido documental o respuestas fiscales en esta entrega.

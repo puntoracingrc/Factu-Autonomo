@@ -293,6 +293,7 @@ function normalizeEvidence(value: unknown): Evidence[] {
         : 0;
     const type =
       item.type === "CURRENT_CENSUS" ||
+      item.type === "AEAT_CENSUS_SCREENSHOT" ||
       item.type === "MODEL_036" ||
       item.type === "PREVIOUS_RETURN" ||
       item.type === "OPERATIONS_DOCUMENT" ||

@@ -104,4 +104,20 @@ describe("tax model diagnostic engine", () => {
       .toBe("CENSUS_MISMATCH");
     expect(result.discrepancies.length).toBeGreaterThan(0);
   });
+
+  it("usa códigos censales parciales sin convertir ausencias en discrepancias", () => {
+    const result = evaluateTaxModelDiagnostic(
+      completeCommonTerritoryProfile({
+        censusReviewed: "UNKNOWN",
+        censusObligations: ["303"],
+      }),
+      GENERATED_AT,
+    );
+
+    expect(result.models.find((model) => model.modelNumber === "303")?.status)
+      .toBe("CONFIRMED_BY_CENSUS");
+    expect(result.models.find((model) => model.modelNumber === "130")?.status)
+      .toBe("DERIVED");
+    expect(result.discrepancies).toEqual([]);
+  });
 });

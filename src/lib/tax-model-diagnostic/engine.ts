@@ -170,8 +170,10 @@ function withCensusReconciliation(
   result: ModelResult,
 ): ModelResult {
   const censusContains = profile.censusObligations.includes(result.modelNumber);
-  const hasCurrentCensusList =
-    profile.censusReviewed === "YES" || profile.censusObligations.length > 0;
+  // Una lista parcial puede confirmar los códigos presentes, pero la ausencia
+  // solo puede generar discrepancia cuando el usuario confirmó que revisó la
+  // relación censal completa.
+  const hasCurrentCensusList = profile.censusReviewed === "YES";
   if (
     censusContains &&
     (result.status === "DERIVED" || result.status === "CONDITIONAL")
