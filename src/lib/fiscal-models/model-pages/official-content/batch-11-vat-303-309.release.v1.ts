@@ -363,7 +363,7 @@ const MODEL_303_CONTENT = {
   reviewedOn: REVIEWED_ON,
   canonicalName: "IVA. Autoliquidación.",
   summary:
-    "Autoliquidación del Impuesto sobre el Valor Añadido con formulario electrónico, servicio de ayuda Pre303, instrucciones y preguntas frecuentes oficiales.",
+    "Autoliquidación periódica del IVA: cuotas cobradas, IVA deducible y resultado a ingresar, compensar o devolver.",
   searchTerms: [
     "modelo 303",
     "IVA autoliquidacion",
@@ -374,6 +374,14 @@ const MODEL_303_CONTENT = {
     "formulario electrónico",
     "instrucciones 2026",
     "preguntas frecuentes Pre303",
+    "IVA repercutido",
+    "IVA soportado deducible",
+    "declaración trimestral IVA",
+    "resultado a compensar",
+    "sin actividad",
+    "autoliquidación rectificativa 303",
+    "operaciones intracomunitarias",
+    "inversión del sujeto pasivo",
     "Ley 37 1992",
     "Orden EHA 3786 2008",
   ],

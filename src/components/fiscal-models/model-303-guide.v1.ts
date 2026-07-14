@@ -1,0 +1,186 @@
+import type { FiscalModelPracticalGuideV1 } from "./fiscal-model-practical-guide.types";
+
+export const MODEL_303_GUIDE_V1 = {
+  code: "303",
+  lastVerifiedAt: "2026-07-14",
+  intro: [
+    "El Modelo 303 es la autoliquidación periódica del IVA. Compara el IVA repercutido a clientes con el IVA soportado que puede deducirse, incorporando los ajustes que correspondan.",
+    "El resultado puede ser a ingresar, a compensar, con solicitud de devolución, cero o sin actividad. No todos los autónomos están obligados: depende de la actividad, del régimen de IVA y de lo comunicado en el Modelo 036.",
+  ],
+  notices: [
+    { title: "El IVA cobrado no es, en principio, un ingreso propio", paragraphs: ["Es una cuota que se cobra al cliente para liquidarla con Hacienda, descontando el IVA deducible."] },
+    { title: "No todo el IVA pagado es deducible", paragraphs: ["El bien o servicio debe estar vinculado a la actividad, cumplir los requisitos legales, estar correctamente justificado y registrarse."] },
+  ],
+  actions: [
+    { label: "Presentar el Modelo 303 y acceder a Pre303", sourceId: "aeat.model-303.procedure-home.2026-06-09", primary: true },
+    { label: "Abrir el simulador 303 y otras ayudas", href: "https://sede.agenciatributaria.gob.es/Sede/empresarios-individuales-profesionales/contribuyentes-modulos/modelo-303.html", primary: true },
+    { label: "Consultar plazos oficiales", href: "https://sede.agenciatributaria.gob.es/Sede/iva/presentar-declaracion-iva-modelo-303/plazo-presentacion-modelo-303.html" },
+    { label: "Consultar errores y rectificación", href: "https://sede.agenciatributaria.gob.es/Sede/iva/presentar-declaracion-iva-modelo-303/errores-declaracion.html" },
+    { label: "Consultar qué IVA puedo deducir", href: "https://sede.agenciatributaria.gob.es/Sede/iva/que-iva-soportado-puedo-deducir.html" },
+    { label: "Consultar operaciones internacionales", href: "https://sede.agenciatributaria.gob.es/Sede/iva/iva-operaciones-comercio-exterior.html" },
+  ],
+  quickSummaryTitle: "El Modelo 303 en pocas palabras",
+  quickFacts: [
+    { label: "Qué es", value: "La autoliquidación periódica del IVA." },
+    { label: "Quién", value: "Empresarios y profesionales con obligación periódica de IVA según sus datos censales." },
+    { label: "Periodicidad", value: "Habitualmente trimestral; mensual en REDEME, grandes empresas, grupos y otros casos previstos." },
+    { label: "Presentación", value: "Exclusivamente electrónica: Cl@ve para quienes puedan usarla, certificado o DNI electrónico y, cuando el trámite lo admita, identificación eIDAS." },
+    { label: "Resultados", value: "A ingresar, a compensar, a devolver cuando proceda, cero o sin actividad." },
+    { label: "Corrección actual", value: "Desde septiembre o 3T de 2024 se utiliza normalmente el propio 303 como autoliquidación rectificativa." },
+  ],
+  sections: [
+    {
+      id: "model-303-obligation",
+      title: "¿Tengo que presentarlo?",
+      intro: ["Debes presentarlo cuando constas en el censo con obligación de realizar autoliquidaciones periódicas de IVA."],
+      cards: [
+        { title: "Casos habituales", bullets: ["Actividad en régimen general.", "Actividad en régimen simplificado.", "Arrendamiento de un local sujeto y no exento.", "Inscripción en el Registro de Devolución Mensual (REDEME)."] },
+        { title: "Puede no existir obligación periódica", bullets: ["Solo realizas actividades exentas sin derecho a deducción.", "Estás exclusivamente en determinados regímenes especiales.", "Eres minorista en recargo de equivalencia por tus operaciones ordinarias.", "Tus datos censales no recogen esa obligación."], links: [{ label: "Consultar la ficha del Modelo 036", href: "/consultor-fiscal/modelos/036" }] },
+      ],
+      note: "Aunque no exista obligación periódica, determinadas operaciones pueden exigir otro modelo, como el Modelo 309.",
+    },
+    {
+      id: "model-303-basics",
+      title: "Conceptos básicos y resultado",
+      cards: [
+        { title: "IVA repercutido", paragraphs: ["Es el IVA que añades a tus facturas y cobras a clientes."] },
+        { title: "IVA soportado", paragraphs: ["Es el IVA que pagas al adquirir bienes o servicios."] },
+        { title: "IVA soportado deducible", paragraphs: ["Es solo la parte del IVA soportado que cumple los requisitos para restarse."] },
+        { title: "Cálculo simplificado", paragraphs: ["IVA repercutido menos IVA deducible, incorporando después las compensaciones, regularizaciones y demás ajustes aplicables."] },
+      ],
+      note: "Ejemplo: 2.100 € de IVA repercutido y 700 € deducibles darían, antes de otros ajustes, 1.400 € a ingresar. Es una simplificación: el modelo puede incluir operaciones intracomunitarias, inversión del sujeto pasivo, prorrata, rectificaciones y cuotas pendientes.",
+    },
+    {
+      id: "model-303-concepts",
+      title: "Exenta, no sujeta e inversión del sujeto pasivo",
+      cards: [
+        { title: "Operación exenta", paragraphs: ["Está dentro del ámbito del IVA, pero la ley establece que no se repercute en determinadas condiciones."] },
+        { title: "Operación no sujeta", paragraphs: ["Queda fuera del IVA por las reglas aplicables."] },
+        { title: "Inversión del sujeto pasivo", paragraphs: ["En determinadas operaciones, quien recibe la factura declara el IVA en lugar de quien la emite."] },
+      ],
+      note: "No son conceptos equivalentes. Su tratamiento en el 303 y el derecho a deducir pueden ser distintos.",
+    },
+    {
+      id: "model-303-deduction",
+      title: "Qué IVA puede deducirse",
+      intro: ["Debes ser empresario o profesional, realizar operaciones con derecho a deducción, vincular el gasto a la actividad, disponer de justificante válido, registrarlo y ejercer el derecho dentro del plazo legal."],
+      accordions: [
+        { question: "¿Vehículo, teléfono, vivienda o comidas?", paragraphs: ["No existe una respuesta automática. El porcentaje y los requisitos dependen del bien, del uso profesional real, de la documentación y de las limitaciones legales."] },
+        { question: "¿Y si el uso es personal y profesional?", paragraphs: ["Los bienes y servicios de uso mixto requieren especial atención y pruebas suficientes. No debe deducirse el 100 % por defecto."] },
+      ],
+    },
+    {
+      id: "model-303-international",
+      title: "Operaciones con otros países",
+      intro: ["Publicidad, software, servicios en la nube, marketplaces, proveedores europeos, importaciones y exportaciones no se declaran todos de la misma forma."],
+      cards: [
+        { title: "Revisa el tipo de operación", bullets: ["Adquisiciones y entregas intracomunitarias.", "Importaciones y exportaciones.", "Servicios localizados fuera de España.", "Inversión del sujeto pasivo.", "Comercio electrónico y OSS."] },
+        { title: "Otras obligaciones posibles", paragraphs: ["Pueden resultar relevantes el Registro de Operadores Intracomunitarios y los Modelos 349 o 369."], links: [{ label: "Ver Modelo 349", href: "/consultor-fiscal/modelos/349" }, { label: "Ver Modelo 369", href: "/consultor-fiscal/modelos/369" }] },
+      ],
+    },
+    {
+      id: "model-303-results",
+      title: "Posibles resultados",
+      cards: [
+        { title: "A ingresar", paragraphs: ["El resultado es positivo y debe efectuarse el pago por una modalidad admitida."] },
+        { title: "A compensar", paragraphs: ["El saldo negativo se conserva para restarlo de futuras autoliquidaciones."] },
+        { title: "Con solicitud de devolución", paragraphs: ["Fuera del último periodo, la devolución periódica se vincula normalmente al REDEME."] },
+        { title: "Cero o sin actividad", paragraphs: ["Cero significa que el cálculo termina exactamente en cero. Sin actividad exige que no se hayan devengado ni soportado cuotas."] },
+      ],
+      note: "No marques «sin actividad» solo porque no hayas facturado: si soportaste IVA deducible o existe otra operación que declarar, puede no corresponder.",
+    },
+    {
+      id: "model-303-quarterly",
+      title: "Plazos trimestrales",
+      cards: [
+        { title: "Primer a tercer trimestre", bullets: ["1T: del 1 al 20 de abril.", "2T: del 1 al 20 de julio.", "3T: del 1 al 20 de octubre."] },
+        { title: "Cuarto trimestre", bullets: ["Del 1 al 30 de enero del año siguiente.", "Si el último día es inhábil, finaliza el primer día hábil siguiente."] },
+      ],
+      note: "La domiciliación puede cerrar antes que el plazo general. Las liquidaciones mensuales se presentan del 1 al 30 del mes siguiente; la de enero, hasta el último día de febrero.",
+    },
+    {
+      id: "model-303-territory",
+      title: "Ámbito territorial",
+      note: "Esta guía se refiere a la AEAT estatal y al territorio común. En Canarias se aplica el IGIC; en Ceuta y Melilla, el IPSI; y en País Vasco o Navarra la presentación puede corresponder a la Hacienda foral competente.",
+    },
+    {
+      id: "model-303-corrections",
+      title: "Cómo corregir un error",
+      intro: ["Para periodos desde septiembre o el tercer trimestre de 2024 se utiliza normalmente el propio Modelo 303, marcando «autoliquidación rectificativa» e indicando el justificante anterior."],
+      accordions: [
+        { question: "Excepciones y límites", paragraphs: ["Si la norma aplicada vulnera una de rango superior puede existir elección entre rectificativa y solicitud de rectificación. No se utiliza la rectificativa cuando hay IVA repercutido superior al debido y también debe rectificarse la factura. La rectificativa no permite adjuntar documentación."] },
+        { question: "De devolver a compensar, o al revés", paragraphs: ["Solo puede cambiarse mientras no haya terminado el plazo de presentación."] },
+        { question: "Periodos anteriores", paragraphs: ["Para periodos anteriores a septiembre o al tercer trimestre de 2024 debe consultarse el procedimiento anterior de la AEAT."] },
+      ],
+    },
+    {
+      id: "model-303-mistakes",
+      title: "Errores habituales",
+      cards: [
+        { title: "IVA y facturas", bullets: ["Tratar el IVA cobrado como ingreso propio.", "Deducir todo el IVA sin revisar requisitos.", "Confundir exención y no sujeción.", "Olvidar inversión del sujeto pasivo o adquisiciones intracomunitarias.", "Introducir una factura extranjera como compra nacional."] },
+        { title: "Resultado y presentación", bullets: ["Marcar sin actividad pese a tener operaciones.", "Solicitar devolución fuera del periodo permitido.", "No arrastrar cuotas a compensar.", "Creer que el simulador o una vista previa equivalen a presentar.", "No completar la información anual si existe exoneración del 390."] },
+      ],
+    },
+  ],
+  fillingTitle: "Cómo prepararlo y presentarlo",
+  fillingSteps: [
+    { title: "1. Identificación y periodo", paragraphs: ["Comprueba NIF, ejercicio y trimestre o mes. Revisa indicadores como REDEME, régimen simplificado, criterio de caja, prorrata, SII o exoneración del 390 cuando correspondan."] },
+    { title: "2. IVA repercutido", paragraphs: ["Agrupa bases y cuotas por tipo e incorpora modificaciones, recargo de equivalencia y otras operaciones aplicables sin trasladar ciegamente una factura extranjera como nacional."] },
+    { title: "3. IVA deducible", paragraphs: ["Diferencia operaciones corrientes, bienes de inversión, importaciones, adquisiciones intracomunitarias, rectificaciones y regularizaciones. Declara solo la cuota deducible."] },
+    { title: "4. Ajustes e información", paragraphs: ["Revisa cuotas a compensar, prorrata, bienes de inversión, IVA diferido e información sobre entregas intracomunitarias, exportaciones, exentas, no sujetas o comercio electrónico."] },
+    { title: "5. Resultado, identificación y justificante", paragraphs: ["Identifícate por el sistema admitido para tu perfil, valida, revisa avisos, selecciona resultado o pago, firma y envía. Conserva número de registro, justificante y Código Seguro de Verificación."] },
+  ],
+  afterTitle: "Qué ocurre después",
+  afterSteps: [
+    { title: "A ingresar", description: "Comprueba que el pago o el reconocimiento de deuda se ha tramitado por el canal elegido." },
+    { title: "A compensar", description: "Conserva el saldo y revisa su arrastre en los periodos siguientes." },
+    { title: "Devolución", description: "La solicitud inicia su tramitación; un saldo negativo no implica un abono inmediato." },
+  ],
+  comparison: {
+    title: "Modelos de IVA relacionados",
+    current: { title: "Modelo 303", description: "Autoliquidación mensual o trimestral que calcula el resultado de cada periodo." },
+    related: { title: "Modelo 390", description: "Resumen anual informativo cuando existe obligación; no sustituye al 303.", href: "/consultor-fiscal/modelos/390", label: "Ver Modelo 390" },
+    additional: [
+      { title: "Modelo 309", description: "Declaración-liquidación no periódica para determinadas operaciones.", href: "/consultor-fiscal/modelos/309", label: "Ver Modelo 309" },
+      { title: "Modelo 036", description: "Comunica las obligaciones y regímenes censales de la actividad.", href: "/consultor-fiscal/modelos/036", label: "Ver Modelo 036" },
+    ],
+    conclusion: "El 303 puede coexistir con el 130 o el 131: IVA e IRPF son obligaciones distintas y deben coincidir con los datos censales.",
+  },
+  pdfNotice: ["El simulador, un borrador o una vista previa no presentan el modelo. La presentación termina al firmar y enviar y obtener el justificante oficial."],
+  documents: [],
+  officialLinks: [
+    { label: "Información oficial del Pre303", sourceId: "aeat.model-303.pre303.2026-06-02" },
+    { label: "Instrucciones oficiales 2026", sourceId: "aeat.model-303.instructions-2026.2026-06-09" },
+    { label: "Preguntas frecuentes de Pre303", sourceId: "aeat.model-303.pre303-faq.2026-04-30" },
+    { label: "Ficha administrativa del procedimiento", sourceId: "aeat.model-303.procedure-record.2025-12-02" },
+  ],
+  legalLinks: [
+    { label: "Ley 37/1992 del IVA", sourceId: "boe.iva.law-37-1992.original" },
+    { label: "Reglamento del IVA", sourceId: "boe.iva.royal-decree-1624-1992.original" },
+    { label: "Orden EHA/3786/2008", sourceId: "boe.models-303-308.order-eha-3786-2008.original" },
+  ],
+  faq: [
+    { question: "¿Todos los autónomos presentan el 303?", answer: "No. Depende de la actividad, del régimen de IVA y de lo comunicado en el Modelo 036." },
+    { question: "¿El IVA que cobro es un ingreso mío?", answer: "En términos generales, no: es una cuota que se repercute y después se liquida con Hacienda." },
+    { question: "¿Puedo deducir todo el IVA de mis gastos?", answer: "No. Debe cumplir los requisitos de deducción y estar vinculado a la actividad." },
+    { question: "¿Qué ocurre si no he facturado?", answer: "Puede seguir existiendo obligación. Si has soportado IVA o realizado otras operaciones, no marques automáticamente sin actividad." },
+    { question: "¿Qué significa a compensar?", answer: "El saldo negativo se conserva para restarlo de resultados positivos futuros." },
+    { question: "¿Puedo pedir devolución cada trimestre?", answer: "Como regla general, no. Fuera del último periodo las devoluciones periódicas se relacionan con REDEME." },
+    { question: "¿Qué hago con una factura europea?", answer: "Comprueba si es una adquisición intracomunitaria o un servicio con inversión del sujeto pasivo." },
+    { question: "¿El 303 sustituye al 349?", answer: "No. Pueden existir ambas obligaciones." },
+    { question: "¿Tengo que presentar el 390?", answer: "Depende de si estás obligado o exonerado; si estás exonerado debes completar la información anual del último 303." },
+    { question: "¿Cómo corrijo un error?", answer: "Desde septiembre o 3T de 2024 se utiliza normalmente una autoliquidación rectificativa del propio 303, con las excepciones explicadas." },
+    { question: "¿Puede presentarlo otra persona?", answer: "Sí, mediante representación, apoderamiento o colaboración social cuando corresponda." },
+    { question: "¿Una vista previa significa que está presentado?", answer: "No. Debes completar firma y envío y obtener el justificante con CSV." },
+  ],
+  sourceIds: [
+    "aeat.model-303.procedure-home.2026-06-09",
+    "aeat.model-303.procedure-record.2025-12-02",
+    "aeat.model-303.instructions-2026.2026-06-09",
+    "aeat.model-303.pre303.2026-06-02",
+    "aeat.model-303.pre303-faq.2026-04-30",
+    "boe.iva.law-37-1992.original",
+    "boe.iva.royal-decree-1624-1992.original",
+    "boe.models-303-308.order-eha-3786-2008.original",
+  ],
+} as const satisfies FiscalModelPracticalGuideV1;
