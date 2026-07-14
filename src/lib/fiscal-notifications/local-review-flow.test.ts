@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { DISABLED_FISCAL_NOTIFICATION_OCR_PORT } from "./disabled-ocr-port";
-import { extractAeatEnforcementExplicitFieldsV1 } from "./aeat-enforcement-explicit-fields.v1";
+import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import type { BoundedDocumentInput } from "./input-contract";
@@ -68,7 +68,7 @@ function intake(
       ? extractAeatEnforcementMoneyFacts(boundedInput)
       : null,
     enforcementExplicitFields: enforcementCandidate
-      ? extractAeatEnforcementExplicitFieldsV1(boundedInput)
+      ? extractAeatEnforcementExplicitFieldsV2(boundedInput)
       : null,
   });
   const reviewContext = {
@@ -86,8 +86,8 @@ function intake(
     });
   }
   return Object.freeze({
-    schemaVersion: 3,
-    adapterVersion: "3.0.0",
+    schemaVersion: 4,
+    adapterVersion: "4.0.0",
     status: analysis.textLayerStatus,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     fileIntegrity: Object.freeze({
@@ -265,8 +265,8 @@ describe("fiscal notification local review flow", () => {
     const analysis = await analyzeEphemeralForTest({}, dependencies(text));
 
     expect(analysis).toMatchObject({
-      schemaVersion: 2,
-      analysisVersion: "2.0.0",
+      schemaVersion: 3,
+      analysisVersion: "3.0.0",
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       requiresHumanReview: true,
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
@@ -289,16 +289,18 @@ describe("fiscal notification local review flow", () => {
       ephemeralEnforcementExplicitFields: {
         status: "REVIEW_REQUIRED",
         outcome: "FACTS_AVAILABLE",
-        referenceDetections: [
+        referenceFacts: [
           {
             kind: "LIQUIDATION_KEY",
+            printedValue: PRIVATE_TEXT,
             occurrenceCount: 1,
-            valueDisclosure: "REDACTED_IN_WORKER",
+            valueDisclosure: "EPHEMERAL_UI_ONLY",
           },
         ],
         printedDateFacts: [
           {
             kind: "PRINTED_ISSUE_DATE",
+            printedValue: "05/07/2026",
             calendarDate: "2026-07-05",
             dateMeaning: "PRINTED_LABEL_ONLY",
             legalEffect: "NOT_DETERMINED",
@@ -306,11 +308,13 @@ describe("fiscal notification local review flow", () => {
         ],
         deadlinePolicy: "NOT_CALCULATED",
         calculatedDeadline: null,
-        retainedReferenceValues: "NONE",
+        referenceValuePolicy: "EPHEMERAL_UI_ONLY",
+        persistencePolicy: "DO_NOT_PERSIST",
       },
     });
     const serialized = JSON.stringify(analysis);
-    expect(serialized).not.toContain(PRIVATE_TEXT);
+    expect(serialized).toContain(PRIVATE_TEXT);
+    expect(JSON.stringify(analysis.technicalReview)).not.toContain(PRIVATE_TEXT);
     expect(serialized).not.toMatch(/ownerScope|documentId|filename|textSnippet/i);
     expect(Object.isFrozen(analysis)).toBe(true);
     expect(Object.isFrozen(analysis.ephemeralEnforcementMoneyFacts)).toBe(true);
@@ -356,15 +360,19 @@ describe("fiscal notification local review flow", () => {
       },
       ephemeralEnforcementExplicitFields: {
         outcome: "FACTS_AVAILABLE",
-        referenceDetections: [
-          expect.objectContaining({ kind: "DOCUMENT_REFERENCE" }),
+        referenceFacts: [
+          expect.objectContaining({
+            kind: "DOCUMENT_REFERENCE",
+            printedValue: PRIVATE_TEXT,
+          }),
         ],
         printedDateFacts: [
           expect.objectContaining({ calendarDate: "2026-07-05" }),
         ],
       },
     });
-    expect(JSON.stringify(analysis)).not.toContain(PRIVATE_TEXT);
+    expect(JSON.stringify(analysis)).toContain(PRIVATE_TEXT);
+    expect(JSON.stringify(analysis.technicalReview)).not.toContain(PRIVATE_TEXT);
   });
 
   it("does not attach the enforcement reader to an unsupported family", async () => {
@@ -425,8 +433,8 @@ describe("fiscal notification local review flow", () => {
     const analysis = await analyzeEphemeralForTest({}, dependencies(""));
 
     expect(analysis).toMatchObject({
-      schemaVersion: 2,
-      analysisVersion: "2.0.0",
+      schemaVersion: 3,
+      analysisVersion: "3.0.0",
       technicalReview: {
         status: "INFORMATION_PENDING",
         reason: "OCR_DISABLED",

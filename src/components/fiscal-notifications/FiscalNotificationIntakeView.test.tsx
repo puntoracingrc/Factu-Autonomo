@@ -30,7 +30,7 @@ const explicitFieldsPanelSource = readSource(
   "./FiscalNotificationExplicitFieldsReview.tsx",
 );
 const explicitFieldsViewModelSource = readSource(
-  "../../lib/fiscal-notifications/explicit-fields-review-view-model.v1.ts",
+  "../../lib/fiscal-notifications/explicit-fields-review-view-model.v2.ts",
 );
 const manualSource = readSource(
   "../../lib/manual/sections/consultor-fiscal.ts",
@@ -140,7 +140,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(workerSource).toContain("extractFiscalNotificationCandidates");
     expect(workerSource).toContain("extractAeatEnforcementMoneyFacts");
     expect(workerSource).toContain(
-      "extractAeatEnforcementExplicitFieldsV1",
+      "extractAeatEnforcementExplicitFieldsV2",
     );
     expect(workerSource).toContain(
       "projectFiscalNotificationPdfWorkerAnalysis",
@@ -232,7 +232,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "nextAnalysis.ephemeralEnforcementExplicitFields",
     );
     expect(analysisSuccess).toContain(
-      "projectExplicitFieldsReviewViewModelV1(",
+      "projectExplicitFieldsReviewViewModelV2(",
     );
     expect(analysisSuccess).toContain(
       "setExplicitFieldsReview(nextExplicitFieldsReview)",
@@ -461,7 +461,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "Reconoce la familia documental de providencia de apremio, concesión de aplazamiento o fraccionamiento, diligencia de embargo de bienes inmuebles, requerimiento formal de presentación y acuerdo de alta en el ROI. No confirma por sí sola el organismo emisor ni la autenticidad.",
       "Un acuerdo de alta en el ROI describe el documento analizado: no demuestra que el alta siga vigente ni valida el estado en VIES.",
       "La ficha técnica local no contiene importes, fechas jurídicas, obligado, expediente, cuotas u obligaciones.",
-      "Los importes, las categorías de referencia con valor oculto y las fechas impresas se muestran solo durante la revisión actual; desaparecen al salir y nunca se guardan en la ficha técnica.",
+      "Los importes, los valores exactos de referencia y las fechas impresas se muestran solo durante la revisión actual; desaparecen al salir y nunca se guardan en la ficha técnica.",
       "No consulta automáticamente sedes oficiales, no ejecuta OCR remoto y no utiliza IA.",
       "Esta herramienta no sustituye la revisión de un asesor ni confirma la validez jurídica del documento.",
     ]) {
@@ -538,10 +538,10 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
 
   it("proyecta referencias y fechas a un estado React seguro, efímero y no persistible", () => {
     expect(componentSource).toContain(
-      "useState<ExplicitFieldsReviewViewModelV1 | null>(null)",
+      "useState<ExplicitFieldsReviewViewModelV2 | null>(null)",
     );
     expect(componentSource).toContain(
-      "projectExplicitFieldsReviewViewModelV1(",
+      "projectExplicitFieldsReviewViewModelV2(",
     );
     expect(componentSource).toContain(
       "nextAnalysis.ephemeralEnforcementExplicitFields",
@@ -601,16 +601,16 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
 
     expect(explicitFieldsPanelSource).not.toMatch(
-      /AeatEnforcementExplicitFieldsV1|rawValue|referenceValue|canonicalValue/,
+      /AeatEnforcementExplicitFieldsV2|rawValue|referenceValue|canonicalValue|dangerouslySetInnerHTML/,
     );
     expect(explicitFieldsViewModelSource).toContain(
-      'referenceDisclosure: "CATEGORY_ONLY_VALUE_HIDDEN"',
+      'referenceDisclosure: "EXACT_VALUE_VISIBLE_EPHEMERAL"',
     );
     expect(explicitFieldsViewModelSource).toContain(
       'persistencePolicy: "DO_NOT_PERSIST"',
     );
     expect(compact(manualSource)).toContain(
-      "categorías de referencias con su valor oculto y fechas que figuran bajo etiquetas cerradas",
+      "valores exactos de referencias y fechas que figuran bajo etiquetas cerradas",
     );
     expect(compact(manualSource)).toContain(
       "Una fecha impresa no se interpreta como fecha de notificación ni como vencimiento",

@@ -33,9 +33,9 @@ import type {
   AeatEnforcementMoneyFactsResult,
 } from "@/lib/fiscal-notifications/aeat-enforcement-money-facts";
 import {
-  projectExplicitFieldsReviewViewModelV1,
-  type ExplicitFieldsReviewViewModelV1,
-} from "@/lib/fiscal-notifications/explicit-fields-review-view-model.v1";
+  projectExplicitFieldsReviewViewModelV2,
+  type ExplicitFieldsReviewViewModelV2,
+} from "@/lib/fiscal-notifications/explicit-fields-review-view-model.v2";
 import {
   createBrowserFiscalNotificationLocalReviewStore,
   type FiscalNotificationBrowserLocalReviewStore,
@@ -305,8 +305,8 @@ export function FiscalNotificationIntakeView() {
             obligado, expediente, cuotas u obligaciones.
           </li>
           <li>
-            Los importes, las categorías de referencia con valor oculto y las
-            fechas impresas se muestran solo durante la revisión actual;
+            Los importes, los valores exactos de referencia y las fechas
+            impresas se muestran solo durante la revisión actual;
             desaparecen al salir y nunca se guardan en la ficha técnica.
           </li>
           <li>
@@ -343,7 +343,7 @@ function FiscalNotificationReviewWorkspace({
   const [ephemeralMoneyFacts, setEphemeralMoneyFacts] =
     useState<AeatEnforcementMoneyFactsResult | null>(null);
   const [explicitFieldsReview, setExplicitFieldsReview] =
-    useState<ExplicitFieldsReviewViewModelV1 | null>(null);
+    useState<ExplicitFieldsReviewViewModelV2 | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingReview, setPendingReview] =
     useState<PendingSafeReview | null>(null);
@@ -463,7 +463,7 @@ function FiscalNotificationReviewWorkspace({
       const nextExplicitFieldsReview =
         nextAnalysis.ephemeralEnforcementExplicitFields === null
           ? null
-          : projectExplicitFieldsReviewViewModelV1(
+          : projectExplicitFieldsReviewViewModelV2(
               nextAnalysis.ephemeralEnforcementExplicitFields,
             );
       setResult(nextResult);
@@ -917,7 +917,7 @@ function ReviewResult({
 }: {
   result: FiscalNotificationLocalReviewResult;
   ephemeralMoneyFacts: AeatEnforcementMoneyFactsResult | null;
-  explicitFieldsReview: ExplicitFieldsReviewViewModelV1 | null;
+  explicitFieldsReview: ExplicitFieldsReviewViewModelV2 | null;
 }) {
   const recognizedCandidate = recognizedCandidateFrom(result);
   const copy =

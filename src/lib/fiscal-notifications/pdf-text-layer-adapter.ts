@@ -17,8 +17,8 @@ import {
   type FiscalNotificationPdfErrorCode,
 } from "./pdf-text-layer-parser";
 
-export const FISCAL_NOTIFICATION_PDF_ADAPTER_SCHEMA_VERSION = 3 as const;
-export const FISCAL_NOTIFICATION_PDF_ADAPTER_VERSION = "3.0.0" as const;
+export const FISCAL_NOTIFICATION_PDF_ADAPTER_SCHEMA_VERSION = 4 as const;
+export const FISCAL_NOTIFICATION_PDF_ADAPTER_VERSION = "4.0.0" as const;
 
 export interface FiscalNotificationPdfTextLayerRequest {
   readonly ownerScope: string;
@@ -34,8 +34,8 @@ export interface FiscalNotificationPdfFileIntegrity {
 }
 
 export interface FiscalNotificationPdfTextLayerResult {
-  readonly schemaVersion: 3;
-  readonly adapterVersion: "3.0.0";
+  readonly schemaVersion: 4;
+  readonly adapterVersion: "4.0.0";
   readonly status: "TEXT_LAYER_AVAILABLE" | "NO_EXTRACTABLE_TEXT";
   readonly sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST";
   readonly fileIntegrity: FiscalNotificationPdfFileIntegrity;

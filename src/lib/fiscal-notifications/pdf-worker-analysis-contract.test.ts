@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
-import { extractAeatEnforcementExplicitFieldsV1 } from "./aeat-enforcement-explicit-fields.v1";
+import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import {
   FiscalNotificationPdfWorkerAnalysisError,
@@ -10,6 +10,7 @@ import {
 } from "./pdf-worker-analysis-contract";
 
 const PRIVATE_SENTINEL = "PRIVATE_NIF_CSV_DOCUMENT_TEXT_SENTINEL";
+const PRINTED_LIQUIDATION_KEY = "SYNTHETIC-LIQUIDATION-001";
 const ENFORCEMENT_TEXT = [
   "AGENCIA TRIBUTARIA",
   "sede.agenciatributaria.gob.es",
@@ -21,9 +22,8 @@ const ENFORCEMENT_TEXT = [
   "Ingreso a cuenta: 0,00 EUR",
   "Importe total: 120,00 EUR",
   "PLAZOS DE PAGO",
-  `Clave de liquidación: ${PRIVATE_SENTINEL}`,
+  `Clave de liquidación: ${PRINTED_LIQUIDATION_KEY}`,
   "Fecha de emisión: 10/07/2026",
-  PRIVATE_SENTINEL,
 ].join("\n");
 
 function documentInput(text = ENFORCEMENT_TEXT) {
@@ -48,7 +48,7 @@ function enforcementAnalysis() {
     familyAnalysis: extractFiscalNotificationCandidates(input),
     enforcementMoneyFacts: extractAeatEnforcementMoneyFacts(input),
     enforcementExplicitFields:
-      extractAeatEnforcementExplicitFieldsV1(input),
+      extractAeatEnforcementExplicitFieldsV2(input),
   });
 }
 
@@ -138,7 +138,7 @@ function completeExplicitFields(): MutableExplicitFields {
     ].join("\n"),
   );
   return mutableExplicitFields(
-    extractAeatEnforcementExplicitFieldsV1(input),
+    extractAeatEnforcementExplicitFieldsV2(input),
   );
 }
 
@@ -147,8 +147,8 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     const analysis = enforcementAnalysis();
 
     expect(analysis).toMatchObject({
-      schemaVersion: 2,
-      analysisVersion: "2.0.0",
+      schemaVersion: 3,
+      analysisVersion: "3.0.0",
       textLayerStatus: "TEXT_LAYER_AVAILABLE",
       pageCount: 1,
       familyAnalysis: {
@@ -172,16 +172,18 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       enforcementExplicitFields: {
         engineId: "aeat-enforcement-explicit-fields",
         outcome: "FACTS_AVAILABLE",
-        referenceDetections: [
+        referenceFacts: [
           {
             kind: "LIQUIDATION_KEY",
+            printedValue: PRINTED_LIQUIDATION_KEY,
             occurrenceCount: 1,
-            valueDisclosure: "REDACTED_IN_WORKER",
+            valueDisclosure: "EPHEMERAL_UI_ONLY",
           },
         ],
         printedDateFacts: [
           {
             kind: "PRINTED_ISSUE_DATE",
+            printedValue: "10/07/2026",
             calendarDate: "2026-07-10",
             dateMeaning: "PRINTED_LABEL_ONLY",
             legalEffect: "NOT_DETERMINED",
@@ -189,13 +191,15 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
         ],
         deadlinePolicy: "NOT_CALCULATED",
         calculatedDeadline: null,
-        retainedReferenceValues: "NONE",
+        persistencePolicy: "DO_NOT_PERSIST",
+        networkPolicy: "NO_NETWORK",
       },
       sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
       retainedSourceContent: "NONE",
       materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
     });
     const serialized = JSON.stringify(analysis);
+    expect(serialized).toContain(PRINTED_LIQUIDATION_KEY);
     expect(serialized).not.toContain(PRIVATE_SENTINEL);
     expect(serialized).not.toMatch(
       /"(?:ownerScope|documentId|filename|bytes|pages|text|rawValue|textSnippet|nif|csv)"\s*:/i,
@@ -211,7 +215,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     expect(Object.isFrozen(analysis.enforcementExplicitFields)).toBe(true);
     expect(
       Object.isFrozen(
-        analysis.enforcementExplicitFields?.referenceDetections,
+        analysis.enforcementExplicitFields?.referenceFacts,
       ),
     ).toBe(true);
     expect(
@@ -233,7 +237,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       pageCount: 1,
       familyAnalysis: extractFiscalNotificationCandidates(input),
       enforcementMoneyFacts: extractAeatEnforcementMoneyFacts(input),
-      enforcementExplicitFields: extractAeatEnforcementExplicitFieldsV1(input),
+      enforcementExplicitFields: extractAeatEnforcementExplicitFieldsV2(input),
     });
 
     expect(analysis).toMatchObject({
@@ -575,7 +579,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       value.enforcementExplicitFields!.rawIdentifier = PRIVATE_SENTINEL;
     },
     (value: MutableAnalysis) => {
-      value.enforcementExplicitFields!.referenceDetections[0]!.rawValue =
+      value.enforcementExplicitFields!.referenceFacts[0]!.rawValue =
         PRIVATE_SENTINEL;
     },
     (value: MutableAnalysis) => {
@@ -625,15 +629,15 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     }
   });
 
-  it("requires the closed v2 envelope and rejects a v1 downgrade", () => {
-    const versionOne = mutableAnalysis();
-    versionOne.schemaVersion = 1;
-    versionOne.analysisVersion = "1.0.0";
+  it("requires the closed v3 envelope and rejects a v2 downgrade", () => {
+    const versionTwo = mutableAnalysis();
+    versionTwo.schemaVersion = 2;
+    versionTwo.analysisVersion = "2.0.0";
 
     const missingField: Record<string | symbol, unknown> = mutableAnalysis();
     delete missingField.enforcementExplicitFields;
 
-    for (const value of [versionOne, missingField]) {
+    for (const value of [versionTwo, missingField]) {
       expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
         FiscalNotificationPdfWorkerAnalysisError,
       );
@@ -654,11 +658,11 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     }
   });
 
-  it("accepts all eight redacted explicit fields at the aggregate limit", () => {
+  it("accepts all eight ephemeral explicit fields at the aggregate limit", () => {
     const value = mutableAnalysis();
     value.enforcementExplicitFields = completeExplicitFields();
     for (const item of [
-      ...value.enforcementExplicitFields.referenceDetections,
+      ...value.enforcementExplicitFields.referenceFacts,
       ...value.enforcementExplicitFields.printedDateFacts,
     ]) {
       item.occurrenceCount = 16;
@@ -667,10 +671,11 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     const parsed = parseFiscalNotificationPdfWorkerAnalysis(value);
     expect(parsed.enforcementExplicitFields).toMatchObject({
       outcome: "FACTS_AVAILABLE",
-      referenceDetections: expect.arrayContaining([
+      referenceFacts: expect.arrayContaining([
         expect.objectContaining({
           kind: "VTO_RAW",
-          valueDisclosure: "REDACTED_IN_WORKER",
+          printedValue: "001",
+          valueDisclosure: "EPHEMERAL_UI_ONLY",
         }),
       ]),
       printedDateFacts: expect.arrayContaining([
@@ -706,24 +711,24 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
   it("rejects forged explicit-field provenance, counts and ordering", () => {
     const wrongReferenceLabel = mutableAnalysis();
     wrongReferenceLabel.enforcementExplicitFields = completeExplicitFields();
-    wrongReferenceLabel.enforcementExplicitFields.referenceDetections[0]!
+    wrongReferenceLabel.enforcementExplicitFields.referenceFacts[0]!
       .evidenceLabel = "CSV_LABEL";
 
     const impossibleCount = mutableAnalysis();
     impossibleCount.enforcementExplicitFields = completeExplicitFields();
-    impossibleCount.enforcementExplicitFields.referenceDetections[0]!
+    impossibleCount.enforcementExplicitFields.referenceFacts[0]!
       .occurrenceCount = 0;
 
     const morePagesThanOccurrences = mutableAnalysis();
     morePagesThanOccurrences.pageCount = 2;
     morePagesThanOccurrences.enforcementExplicitFields =
       completeExplicitFields();
-    morePagesThanOccurrences.enforcementExplicitFields.referenceDetections[0]!
+    morePagesThanOccurrences.enforcementExplicitFields.referenceFacts[0]!
       .pageNumbers = [1, 2];
 
     const unsortedKinds = mutableAnalysis();
     unsortedKinds.enforcementExplicitFields = completeExplicitFields();
-    unsortedKinds.enforcementExplicitFields.referenceDetections.reverse();
+    unsortedKinds.enforcementExplicitFields.referenceFacts.reverse();
 
     for (const value of [
       wrongReferenceLabel,
@@ -760,7 +765,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     ambiguous.enforcementExplicitFields = completeExplicitFields();
     ambiguous.enforcementExplicitFields.status = "REVIEW_REQUIRED";
     ambiguous.enforcementExplicitFields.outcome = "AMBIGUOUS";
-    ambiguous.enforcementExplicitFields.referenceDetections = [];
+    ambiguous.enforcementExplicitFields.referenceFacts = [];
     ambiguous.enforcementExplicitFields.printedDateFacts = [];
     ambiguous.enforcementExplicitFields.issues = [
       {
@@ -776,7 +781,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     blocked.enforcementExplicitFields = completeExplicitFields();
     blocked.enforcementExplicitFields.status = "REVIEW_REQUIRED";
     blocked.enforcementExplicitFields.outcome = "PROCESSING_BLOCKED";
-    blocked.enforcementExplicitFields.referenceDetections = [];
+    blocked.enforcementExplicitFields.referenceFacts = [];
     blocked.enforcementExplicitFields.printedDateFacts = [];
     blocked.enforcementExplicitFields.issues = [
       {
@@ -814,9 +819,9 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
   });
 
   it("rejects policy changes and any calculated deadline", () => {
-    const retained = mutableAnalysis();
-    retained.enforcementExplicitFields!.retainedReferenceValues =
-      "PRIVATE_REFERENCE";
+    const persisted = mutableAnalysis();
+    persisted.enforcementExplicitFields!.persistencePolicy =
+      "PERSIST_PRIVATE_REFERENCE";
 
     const calculated = mutableAnalysis();
     calculated.enforcementExplicitFields!.calculatedDeadline = "2026-07-31";
@@ -825,7 +830,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     legalEffect.enforcementExplicitFields!.printedDateFacts[0]!.legalEffect =
       "DEADLINE_START";
 
-    for (const value of [retained, calculated, legalEffect]) {
+    for (const value of [persisted, calculated, legalEffect]) {
       expect(() => parseFiscalNotificationPdfWorkerAnalysis(value)).toThrow(
         FiscalNotificationPdfWorkerAnalysisError,
       );
@@ -918,7 +923,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       familyAnalysis: extractFiscalNotificationCandidates(input),
       enforcementMoneyFacts: extractAeatEnforcementMoneyFacts(input),
       enforcementExplicitFields:
-        extractAeatEnforcementExplicitFieldsV1(input),
+        extractAeatEnforcementExplicitFieldsV2(input),
     });
 
     expect(analysis.enforcementMoneyFacts).toMatchObject({
@@ -1178,9 +1183,10 @@ interface MutableMoneyFact extends Record<string, unknown> {
 interface MutableExplicitFields extends Record<string, unknown> {
   status: string;
   outcome: string;
-  referenceDetections: Array<
+  referenceFacts: Array<
     Record<string, unknown> & {
       kind: string;
+      printedValue: string;
       occurrenceCount: number;
       pageNumbers: number[];
       evidenceLabel: string;
