@@ -34,6 +34,29 @@ function isRequired(result: ModelResult): boolean {
   return result.status === "CONFIRMED_BY_CENSUS" || result.status === "DERIVED";
 }
 
+function filingSubjectLabel(subject: ModelResult["filingSubject"]): string {
+  const labels: Record<ModelResult["filingSubject"], string> = {
+    PERSONA_FISICA: "Persona física",
+    SOCIEDAD: "Sociedad",
+    ENTIDAD: "Entidad",
+    SOCIOS_O_COMUNEROS: "Socios o comuneros",
+    POR_DETERMINAR: "Por determinar",
+  };
+  return labels[subject];
+}
+
+function periodicityLabel(periodicity: ModelResult["periodicity"]): string {
+  const labels: Record<ModelResult["periodicity"], string> = {
+    EVENT_DRIVEN: "Cuando se produce el hecho o cambio",
+    MONTHLY: "Mensual",
+    QUARTERLY: "Trimestral",
+    ANNUAL: "Anual",
+    PER_OPERATION: "Por operación o supuesto",
+    TO_BE_CONFIRMED: "Periodicidad por confirmar",
+  };
+  return labels[periodicity];
+}
+
 function ResultCard({ result }: { result: ModelResult }) {
   const catalog = getTaxModelCatalogEntry(result.modelNumber);
   const required = isRequired(result);
@@ -48,7 +71,7 @@ function ResultCard({ result }: { result: ModelResult }) {
             Modelo {result.modelNumber} · {catalog.name}
           </h3>
           <p className="mt-1 text-sm font-semibold text-slate-600 dark:text-slate-300">
-            Sujeto: {result.filingSubject.replaceAll("_", " ").toLocaleLowerCase("es")}
+            Sujeto: {filingSubjectLabel(result.filingSubject)}
           </p>
         </div>
         {catalog.canonicalPath && (
@@ -66,7 +89,7 @@ function ResultCard({ result }: { result: ModelResult }) {
         </div>
         <div>
           <h4 className="font-bold text-slate-950 dark:text-white">Periodicidad y períodos</h4>
-          <p>{result.periodicity.replaceAll("_", " ").toLocaleLowerCase("es")}</p>
+          <p>{periodicityLabel(result.periodicity)}</p>
           <p>{result.periods.length > 0 ? result.periods.join(" · ") : "Sin período confirmado"}</p>
         </div>
         <div>
@@ -207,4 +230,3 @@ export function DiagnosticResults({
     </section>
   );
 }
-

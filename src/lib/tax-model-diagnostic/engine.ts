@@ -618,10 +618,10 @@ function personalSupplementary(
   fact: string,
 ): ModelResult {
   if (answer === "YES") {
-    return buildResult(profile, { modelNumber, filingSubject: "PERSONA_FISICA", status: "NEEDS_PROFESSIONAL_REVIEW", periods: ["ANUAL"], periodicity: "ANNUAL", reason: `Se ha indicado ${fact}, pero faltan umbrales, categorías y excepciones personales.`, evidenceFields: [fact], missingInformation: ["Importes, titularidad, residencia y reglas del ejercicio."], nextAction: "Realizar una revisión personal separada de las obligaciones de la actividad." });
+    return buildResult(profile, { modelNumber, filingSubject: "PERSONA_FISICA", status: "NEEDS_PROFESSIONAL_REVIEW", periods: ["ANUAL"], periodicity: "ANNUAL", reason: `Se ha indicado que puede haber ${fact}, pero faltan umbrales, categorías y excepciones personales.`, evidenceFields: [fact], missingInformation: ["Importes, titularidad, residencia y reglas del ejercicio."], nextAction: "Realizar una revisión personal separada de las obligaciones de la actividad." });
   }
   if (answer === "UNKNOWN") {
-    return buildResult(profile, { modelNumber, filingSubject: "PERSONA_FISICA", status: "NEEDS_INFORMATION", periods: ["ANUAL"], periodicity: "ANNUAL", reason: `No se sabe si existe ${fact}.`, missingInformation: [fact], nextAction: "Reunir la información personal correspondiente." });
+    return buildResult(profile, { modelNumber, filingSubject: "PERSONA_FISICA", status: "NEEDS_INFORMATION", periods: ["ANUAL"], periodicity: "ANNUAL", reason: `No está confirmado si hay ${fact}.`, missingInformation: [fact], nextAction: "Reunir la información personal correspondiente." });
   }
   return buildResult(profile, { modelNumber, filingSubject: "PERSONA_FISICA", status: "NOT_APPLICABLE", periods: [], periodicity: "ANNUAL", reason: `No se ha declarado ${fact}.`, evidenceFields: [fact], missingInformation: [], nextAction: "Sin acción dentro de este diagnóstico." });
 }

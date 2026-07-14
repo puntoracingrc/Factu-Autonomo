@@ -51,14 +51,70 @@ function evidenceValue(value: QuestionValue): EvidenceValue {
 }
 
 function profileSummary(profile: TaxpayerProfile) {
+  const territoryLabels: Record<TaxpayerProfile["territory"], string> = {
+    UNKNOWN: "Sin indicar",
+    ES_COMMON: "Territorio común AEAT",
+    ES_CANARY: "Canarias",
+    ES_NAVARRA: "Navarra",
+    ES_BASQUE_ALAVA: "País Vasco · Álava",
+    ES_BASQUE_BIZKAIA: "País Vasco · Bizkaia",
+    ES_BASQUE_GIPUZKOA: "País Vasco · Gipuzkoa",
+    ES_CEUTA: "Ceuta",
+    ES_MELILLA: "Melilla",
+    NON_RESIDENT: "No residente",
+    UNCERTAIN: "Por concretar",
+  };
+  const subjectLabels: Record<TaxpayerProfile["invoicingSubject"], string> = {
+    UNKNOWN: "Sin indicar",
+    NATURAL_PERSON: "Persona física",
+    COMPANY: "Sociedad",
+    COMMUNITY_OF_PROPERTY: "Comunidad de bienes",
+    CIVIL_PARTNERSHIP: "Sociedad civil",
+    OTHER_ENTITY: "Otra entidad",
+  };
+  const roleLabels: Record<TaxpayerProfile["taxpayerRole"], string> = {
+    UNKNOWN: "Sin indicar",
+    INDIVIDUAL_SELF_EMPLOYED: "Autónomo individual",
+    CORPORATE_SELF_EMPLOYED: "Autónomo societario",
+    COLLABORATING_SELF_EMPLOYED: "Autónomo colaborador",
+    PARTNER_OR_COMMUNITY_MEMBER: "Socio o comunero",
+    DIRECTOR: "Administrador",
+    SEVERAL: "Varias relaciones",
+  };
+  const activityLabels = {
+    PROFESSIONAL: "Profesional",
+    BUSINESS: "Empresarial",
+    AGRICULTURE: "Agrícola",
+    LIVESTOCK: "Ganadera",
+    FORESTRY: "Forestal",
+    OTHER: "Otra",
+  } as const;
+  const incomeTaxLabels: Record<TaxpayerProfile["incomeTaxRegime"], string> = {
+    UNKNOWN: "Sin indicar",
+    DIRECT_NORMAL: "Estimación directa normal",
+    DIRECT_SIMPLIFIED: "Estimación directa simplificada",
+    OBJECTIVE_ESTIMATION: "Estimación objetiva · módulos",
+    ENTITY_ATTRIBUTION: "Atribución de rentas",
+    NOT_APPLICABLE: "No aplicable",
+  };
+  const vatLabels = {
+    GENERAL: "Régimen general",
+    SIMPLIFIED: "Régimen simplificado",
+    EQUIVALENCE_SURCHARGE: "Recargo de equivalencia",
+    AGRICULTURE_LIVESTOCK_FISHING: "Agricultura, ganadería y pesca",
+    CASH_ACCOUNTING: "Criterio de caja",
+    EXEMPT: "Actividad exenta",
+    NOT_SUBJECT: "Actividad no sujeta",
+    OTHER_SPECIAL: "Otro régimen especial",
+  } as const;
   return [
     ["Ejercicio", String(profile.fiscalYear)],
-    ["Territorio", profile.territory],
-    ["Quién factura", profile.invoicingSubject],
-    ["Relación", profile.taxpayerRole],
-    ["Actividades", profile.activityKinds.join(", ") || "Sin indicar"],
-    ["IRPF", profile.incomeTaxRegime],
-    ["IVA", profile.vatRegimes.join(", ") || "Sin indicar"],
+    ["Territorio", territoryLabels[profile.territory]],
+    ["Quién factura", subjectLabels[profile.invoicingSubject]],
+    ["Relación", roleLabels[profile.taxpayerRole]],
+    ["Actividades", profile.activityKinds.map((kind) => activityLabels[kind]).join(", ") || "Sin indicar"],
+    ["IRPF", incomeTaxLabels[profile.incomeTaxRegime]],
+    ["IVA", profile.vatRegimes.map((regime) => vatLabels[regime]).join(", ") || "Sin indicar"],
   ] as const;
 }
 
@@ -317,7 +373,7 @@ export function TaxModelDiagnosticWizard() {
           <Card className="dark:border-slate-700 dark:bg-slate-900">
             <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {profileSummary(activeSession.profile).map(([label, value]) => (
-                <div key={label}><dt className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 font-semibold text-slate-950 dark:text-white">{value.replaceAll("_", " ").toLocaleLowerCase("es")}</dd></div>
+                <div key={label}><dt className="text-xs font-bold uppercase tracking-wide text-slate-500">{label}</dt><dd className="mt-1 font-semibold text-slate-950 dark:text-white">{value}</dd></div>
               ))}
             </dl>
           </Card>

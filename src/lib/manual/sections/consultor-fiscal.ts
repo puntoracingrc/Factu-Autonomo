@@ -7,6 +7,7 @@ export const consultorFiscalSection: ManualSection = {
     "Analiza de forma orientativa manutención, atenciones y gastos corrientes de vehículo.",
   order: 9.5,
   intro: [
+    "La primera opción de **Asesoría fiscal** es **Configurar mi actividad**. Su cuestionario determinista separa persona física, sociedad o entidad, territorio, IRPF, IVA, retenciones y operaciones especiales para orientar qué modelos pueden corresponder.",
     "El **Consultor fiscal** ejecuta primero reglas locales, versionadas y auditables. Si el fallback opcional está habilitado y no existe coincidencia, puede pedir a una IA una clasificación auxiliar; nunca crea asientos ni sustituye a tu asesor.",
     "La versión Beta solo cubre autónomos persona física en estimación directa y territorio común. Canarias, territorios forales, Ceuta/Melilla y sociedades se muestran como no implementados para evitar aplicar una regla incorrecta.",
     "Puedes analizar un gasto ya registrado o introducir un caso manual. El análisis no crea una copia del gasto ni modifica su estado.",
@@ -14,7 +15,17 @@ export const consultorFiscalSection: ManualSection = {
   ],
   steps: [
     {
-      title: "1. Preparar el perfil fiscal",
+      title: "1. Configurar actividad y modelos",
+      paragraphs: [
+        "Abre **Asesoría fiscal → Configurar mi actividad**. Recorre los bloques A–N; **No lo sé** es una respuesta válida y mantiene el dato como pendiente.",
+        "Puedes seleccionar opcionalmente un certificado censal o modelo 036 en PDF. Se lee localmente, el archivo no se guarda y debes revisar la identidad y confirmar cada propuesta antes de incorporarla.",
+        "En el último bloque indica si has consultado una situación censal actual y qué obligaciones aparecen expresamente. El sistema cruza ese dato con los hechos confirmados y señala las discrepancias sin modificar el censo.",
+        "Antes de generar los modelos debes confirmar que has revisado las respuestas. El resultado separa obligaciones derivadas, casos incompletos o sujetos a revisión y exclusiones explícitas, con evidencia, sujeto, períodos, siguiente paso y fuentes oficiales.",
+      ],
+      tip: "El resultado es orientativo; no presenta declaraciones ni sustituye la revisión profesional.",
+    },
+    {
+      title: "2. Preparar el perfil fiscal para gastos",
       paragraphs: [
         "Abre **Consultor fiscal** desde el menú **Más** en móvil o desde la barra lateral en escritorio.",
         "Elige **Importar certificado censal**, **Rellenar manualmente** o **Continuar sin completar**. Ninguna opción bloquea el acceso al Consultor.",
@@ -24,7 +35,7 @@ export const consultorFiscalSection: ManualSection = {
       ],
     },
     {
-      title: "2. Introducir el gasto",
+      title: "3. Introducir el gasto",
       paragraphs: [
         "Selecciona opcionalmente un gasto existente. El Consultor reutiliza sus datos y el perfil del negocio; si el desglose de IVA o el documento original están bloqueados, te pide resolverlo en Gastos y no convierte esos importes en ceros.",
         "Para un caso que aún no está registrado, indica concepto, fecha, proveedor opcional, medio de pago y justificante. Base, IVA y total solo aparecen si activas **También quiero calcular cuánto podría deducirme**.",
@@ -35,7 +46,7 @@ export const consultorFiscalSection: ManualSection = {
       tip: "Describe el concepto con precisión, por ejemplo «comida cliente», «gasolina» o «peaje».",
     },
     {
-      title: "3. Responder las preguntas",
+      title: "4. Responder las preguntas del gasto",
       paragraphs: [
         "El motor pide únicamente la información que necesita para la regla seleccionada. En comidas pregunta primero la finalidad; «comida» o «cena de empresa» nunca se resuelven automáticamente.",
         "Aunque el gasto tenga un número de documento, el Consultor puede pedirte confirmar si es factura completa, simplificada o recibo. El número por sí solo no habilita la deducción del IVA.",
@@ -44,7 +55,7 @@ export const consultorFiscalSection: ManualSection = {
       ],
     },
     {
-      title: "4. Interpretar el resultado",
+      title: "5. Interpretar el resultado del gasto",
       paragraphs: [
         "Los estados **Falta información**, **Necesita revisión**, **Sin regla compatible** y **Caso no implementado** son distintos. La ausencia de datos no se convierte automáticamente en rojo.",
         "Si no indicas territorio, tipo de contribuyente, régimen fiscal o actividad, el resultado permanece en **Falta información** y no anticipa importes. Un caso conocido pero fuera del alcance aparece como **Caso no implementado**.",
@@ -54,7 +65,7 @@ export const consultorFiscalSection: ManualSection = {
       ],
     },
     {
-      title: "5. Revisar antes de contabilizar",
+      title: "6. Revisar antes de contabilizar",
       paragraphs: [
         "El botón **Aplicar propuesta** está deshabilitado en esta fase. Revisa la regla y su versión, conserva las pruebas y consulta a un asesor cuando el caso dependa de interpretación.",
         "La IA no es una fuente jurídica. Una banda de confianza alta no permite aceptar la propuesta automáticamente, y cualquier fallo de proveedor o del validador conserva el resultado local.",
@@ -63,7 +74,7 @@ export const consultorFiscalSection: ManualSection = {
       tip: "No uses este análisis como declaración oficial ni como sustituto de los modelos tributarios.",
     },
     {
-      title: "6. Analizar una notificación",
+      title: "7. Analizar una notificación",
       paragraphs: [
         "Abre **Notificaciones y expedientes** dentro de Asesoría fiscal con una cuenta confirmada y selecciona un PDF. El archivo se lee de forma local y aislada: no se conserva ni el PDF, ni su texto, ni el nombre del archivo.",
         "Tras el análisis puedes pulsar **Guardar ficha técnica local**. Es una acción opcional: solo conserva en este navegador, y separada por cuenta, la traza técnica necesaria para volver a ver el resultado. No se sincroniza con la nube ni guarda NIF, CSV, referencias, importes, fechas impresas, plazos o contenido del documento.",

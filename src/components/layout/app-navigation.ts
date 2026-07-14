@@ -22,15 +22,20 @@ export type AppNavItem = {
   icon: LucideIcon;
 };
 
-const CONSULTOR_FISCAL_NAV_ITEM: AppNavItem = {
-  href: isTaxModelDiagnosticEnabled()
-    ? "/consultor-fiscal/diagnostico"
-    : "/consultor-fiscal/modelos",
+const CONSULTOR_FISCAL_FALLBACK_NAV_ITEM: AppNavItem = {
+  href: "/consultor-fiscal/modelos",
   activeBase: "/consultor-fiscal",
   label: "Asesoría fiscal",
   shortLabel: "Asesoría",
   icon: Scale,
 };
+
+const CONSULTOR_FISCAL_NAV_ITEM: AppNavItem = isTaxModelDiagnosticEnabled()
+  ? {
+      ...CONSULTOR_FISCAL_FALLBACK_NAV_ITEM,
+      href: "/consultor-fiscal/diagnostico",
+    }
+  : CONSULTOR_FISCAL_FALLBACK_NAV_ITEM;
 
 export const APP_NAV_ITEMS: readonly AppNavItem[] = [
   { href: "/", label: "Panel", shortLabel: "Panel", icon: Home },
