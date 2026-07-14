@@ -91,6 +91,12 @@ const CLOSED_PAGE_MARKERS = Object.freeze([
     "carta de pago",
     "documento de ingreso",
     "instrucciones para efectuar el pago",
+    "justificante de pago",
+    "justificante del pago",
+    "justificante del ingreso",
+    "justificante de ingreso",
+    "recibo de pago",
+    "resultado del pago",
   ]),
   marker("RESPONSE_FORM", [
     "formulario de alegaciones",
