@@ -75,6 +75,7 @@ function logInboundFailure(error: unknown): void {
     console.error("expense_inbox_inbound_failed", {
       failure: error.failure,
       providerStatus: error.providerStatus,
+      providerHostname: error.providerHostname,
     });
     return;
   }
