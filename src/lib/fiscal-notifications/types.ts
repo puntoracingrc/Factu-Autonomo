@@ -129,22 +129,43 @@ export interface FieldEvidence {
 
 export type UploadedFileRole = "PRIMARY" | "ANNEX" | "NOTIFICATION_PROOF";
 
-export interface UploadedFileRecord {
+interface UploadedFileRecordBase {
   id: string;
   packageId: string;
   ownerScope: string;
   role: UploadedFileRole;
-  originalFilename: string;
   mimeType: string;
   fileSize: number;
   pageCount: number;
   sha256: string;
   contentFingerprint: string;
-  storageReference: string;
   uploadedAt: string;
   receivedAt?: string;
-  isImmutableOriginal: true;
 }
+
+/**
+ * Metadatos de la fuente sin forzar la conservación del PDF original.
+ *
+ * Los registros históricos sin `sourceContentRetention` siguen significando
+ * un original inmutable retenido. El modo `NOT_RETAINED` conserva únicamente
+ * identidad técnica y datos estructurados; prohíbe nombre de archivo, ruta y
+ * cualquier referencia recuperable al contenido.
+ */
+export type UploadedFileRecord = UploadedFileRecordBase &
+  (
+    | {
+        sourceContentRetention?: "RETAINED_IMMUTABLE";
+        originalFilename: string;
+        storageReference: string;
+        isImmutableOriginal: true;
+      }
+    | {
+        sourceContentRetention: "NOT_RETAINED";
+        originalFilename?: never;
+        storageReference?: never;
+        isImmutableOriginal?: never;
+      }
+  );
 
 export type PackageProcessingStatus =
   | "PENDING"

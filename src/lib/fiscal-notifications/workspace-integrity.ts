@@ -63,7 +63,7 @@ const ENTITY_KEYS: Readonly<Record<CollectionName, ReadonlySet<string>>> = {
   files: new Set([
     "id", "packageId", "ownerScope", "role", "originalFilename", "mimeType",
     "fileSize", "pageCount", "sha256", "contentFingerprint", "storageReference",
-    "uploadedAt", "receivedAt", "isImmutableOriginal",
+    "uploadedAt", "receivedAt", "isImmutableOriginal", "sourceContentRetention",
   ]),
   documents: new Set([
     "id", "packageId", "fileId", "ownerScope", "documentType", "documentSubtype",
@@ -231,8 +231,7 @@ const TEXT_ARRAY_FIELDS: Readonly<
 const REQUIRED_STRING_FIELDS: Readonly<Record<CollectionName, readonly string[]>> = {
   packages: ["sourceChannel", "processingStatus", "securityScanStatus", "uploadedAt"],
   files: [
-    "packageId", "role", "originalFilename", "mimeType", "sha256",
-    "contentFingerprint", "storageReference", "uploadedAt",
+    "packageId", "role", "mimeType", "sha256", "contentFingerprint", "uploadedAt",
   ],
   documents: [
     "packageId", "fileId", "documentType", "titleRaw", "titleNormalized", "authorityId",
@@ -277,7 +276,7 @@ const REQUIRED_STRING_FIELDS: Readonly<Record<CollectionName, readonly string[]>
 
 const OPTIONAL_STRING_FIELDS: Readonly<Record<CollectionName, readonly string[]>> = {
   packages: ["uploadedBy", "exactDuplicateOf", "receivedAt"],
-  files: ["receivedAt"],
+  files: ["originalFilename", "storageReference", "receivedAt"],
   documents: ["documentSubtype", "issuingUnit", "issueDate", "signatureDate"],
   parts: ["duplicateOf", "duplicateBasis"],
   authorities: [
@@ -315,7 +314,7 @@ const OPTIONAL_STRING_FIELDS: Readonly<Record<CollectionName, readonly string[]>
 
 const REQUIRED_BOOLEAN_FIELDS: Readonly<Record<CollectionName, readonly string[]>> = {
   packages: [],
-  files: ["isImmutableOriginal"],
+  files: [],
   documents: [],
   parts: ["isCanonical"],
   authorities: [],
@@ -648,7 +647,13 @@ const ENTITY_ENUM_FIELDS: Readonly<
     ]),
     securityScanStatus: new Set(["NOT_AVAILABLE", "PASSED", "FAILED"]),
   },
-  files: { role: new Set(["PRIMARY", "ANNEX", "NOTIFICATION_PROOF"]) },
+  files: {
+    role: new Set(["PRIMARY", "ANNEX", "NOTIFICATION_PROOF"]),
+    sourceContentRetention: new Set([
+      "RETAINED_IMMUTABLE",
+      "NOT_RETAINED",
+    ]),
+  },
   documents: {
     documentType: new Set([
       "AEAT_ENFORCEMENT_ORDER",
@@ -2366,8 +2371,35 @@ function validateEntityStructure(
       addIssue("INVALID_WORKSPACE", `${path}.${field}`);
     }
   }
-  if (collection === "files" && value.isImmutableOriginal !== true) {
-    addIssue("INVALID_WORKSPACE", `${path}.isImmutableOriginal`);
+  if (collection === "files") {
+    const notRetained = value.sourceContentRetention === "NOT_RETAINED";
+    if (notRetained) {
+      if (value.originalFilename !== undefined) {
+        addIssue("INVALID_WORKSPACE", `${path}.originalFilename`);
+      }
+      if (value.storageReference !== undefined) {
+        addIssue("INVALID_WORKSPACE", `${path}.storageReference`);
+      }
+      if (value.isImmutableOriginal !== undefined) {
+        addIssue("INVALID_WORKSPACE", `${path}.isImmutableOriginal`);
+      }
+    } else {
+      if (
+        typeof value.originalFilename !== "string" ||
+        value.originalFilename.length === 0
+      ) {
+        addIssue("INVALID_WORKSPACE", `${path}.originalFilename`);
+      }
+      if (
+        typeof value.storageReference !== "string" ||
+        value.storageReference.length === 0
+      ) {
+        addIssue("INVALID_WORKSPACE", `${path}.storageReference`);
+      }
+      if (value.isImmutableOriginal !== true) {
+        addIssue("INVALID_WORKSPACE", `${path}.isImmutableOriginal`);
+      }
+    }
   }
   if (
     collection === "accountingDrafts" &&
