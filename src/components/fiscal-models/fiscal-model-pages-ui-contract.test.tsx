@@ -157,8 +157,17 @@ describe("fiscal model structural review pages UI contract", () => {
       ["declaración anual operaciones carbón", ["596"]],
       [
         "transmisiones patrimoniales actos jurídicos documentados",
-        ["600", "610", "615", "620"],
+        ["600", "610", "615", "620", "630"],
       ],
+      ["tasa gestión administrativa juego", ["602"]],
+      ["impuesto transacciones financieras", ["604"]],
+      ["sucesiones mortis causa", ["650"]],
+      ["divergencia apartado 3 4", ["682"]],
+      ["solidaridad grandes fortunas", ["718"]],
+      ["bienes derechos extranjero", ["720"]],
+      ["monedas virtuales extranjero", ["721"]],
+      ["empleo público oposiciones", ["791"]],
+      ["modelo histórico 797", ["797"]],
     ] as const;
     for (const [query, expectedCodes] of cases) {
       const result = searchPublicAeatModelReviewPagesV2({ modelo: query });
@@ -175,6 +184,9 @@ describe("fiscal model structural review pages UI contract", () => {
     const structural = resolvePublicAeatModelReviewPageV1({ code: "130" });
     const officialHistorical = resolvePublicAeatOfficialModelContentV1({
       code: "150",
+    });
+    const batch17Historical = resolvePublicAeatOfficialModelContentV1({
+      code: "795",
     });
     const officialModel037 = resolvePublicAeatOfficialModelContentV1({
       code: "037",
@@ -203,6 +215,10 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(officialModel037).toMatchObject({
       status: "OFFICIAL_INFORMATION",
       data: { code: "037", lifecycleStatus: "HISTORICAL" },
+    });
+    expect(batch17Historical).toMatchObject({
+      status: "OFFICIAL_INFORMATION",
+      data: { code: "795", lifecycleStatus: "HISTORICAL" },
     });
     expect(catalog).toContain(
       'officialContent?.lifecycleStatus === "HISTORICAL"',

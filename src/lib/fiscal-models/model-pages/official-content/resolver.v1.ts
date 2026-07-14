@@ -52,6 +52,12 @@ import { PUBLIC_AEAT_BATCH_16_EXCISE_TOBACCO_ENVIRONMENT_559_563_CONTENT_V1 } fr
 import { PUBLIC_AEAT_BATCH_16_EXCISE_COAL_ELECTRICITY_566_573_CONTENT_V1 } from "./batch-16-excise-coal-electricity-566-573.release.v1";
 import { PUBLIC_AEAT_BATCH_16_LATE_EXCISE_576_589_CONTENT_V1 } from "./batch-16-late-excise-576-589.release.v1";
 import { PUBLIC_AEAT_BATCH_16_LATE_EXCISE_CUSTOMS_590_620_CONTENT_V1 } from "./batch-16-late-excise-customs-590-620.release.v1";
+import { PUBLIC_AEAT_BATCH_17_ADMINISTRATIVE_FINANCIAL_602_630_CONTENT_V1 } from "./batch-17-administrative-financial-602-630.release.v1";
+import { PUBLIC_AEAT_BATCH_17_INHERITANCE_RADIOACTIVE_650_682_CONTENT_V1 } from "./batch-17-inheritance-radioactive-650-682.release.v1";
+import { PUBLIC_AEAT_BATCH_17_RADIOACTIVE_JUDICIAL_683_696_CONTENT_V1 } from "./batch-17-radioactive-judicial-683-696.release.v1";
+import { PUBLIC_AEAT_BATCH_17_WEALTH_OVERSEAS_GAME_714_763_CONTENT_V1 } from "./batch-17-wealth-overseas-game-714-763.release.v1";
+import { PUBLIC_AEAT_BATCH_17_REGULARIZATION_FINANCIAL_770_791_CONTENT_V1 } from "./batch-17-regularization-financial-770-791.release.v1";
+import { PUBLIC_AEAT_BATCH_17_AUDIOVISUAL_HISTORICAL_792_797_CONTENT_V1 } from "./batch-17-audiovisual-historical-792-797.release.v1";
 
 const EXPECTED_CODES = Object.freeze([
   "01",
@@ -235,8 +241,47 @@ const EXPECTED_CODES = Object.freeze([
   "610",
   "615",
   "620",
+  "630",
+  "602",
+  "604",
+  "611",
+  "616",
+  "650",
+  "651",
+  "655",
+  "681",
+  "682",
+  "683",
+  "684",
+  "685",
+  "695",
+  "696",
+  "714",
+  "718",
+  "720",
+  "721",
+  "763",
+  "770",
+  "771",
+  "780",
+  "781",
+  "791",
+  "792",
+  "793",
+  "795",
+  "796",
+  "797",
 ] as const);
-const EXPECTED_HISTORICAL_CODES = new Set(["037", "150", "179", "582", "586"]);
+const EXPECTED_HISTORICAL_CODES = new Set([
+  "037",
+  "150",
+  "179",
+  "582",
+  "586",
+  "795",
+  "796",
+  "797",
+]);
 const OFFICIAL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
 const SHA256 = /^[a-f0-9]{64}$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -458,6 +503,12 @@ function buildContentSnapshot():
     ...PUBLIC_AEAT_BATCH_16_EXCISE_COAL_ELECTRICITY_566_573_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_16_LATE_EXCISE_576_589_CONTENT_V1,
     ...PUBLIC_AEAT_BATCH_16_LATE_EXCISE_CUSTOMS_590_620_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_17_ADMINISTRATIVE_FINANCIAL_602_630_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_17_INHERITANCE_RADIOACTIVE_650_682_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_17_RADIOACTIVE_JUDICIAL_683_696_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_17_WEALTH_OVERSEAS_GAME_714_763_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_17_REGULARIZATION_FINANCIAL_770_791_CONTENT_V1,
+    ...PUBLIC_AEAT_BATCH_17_AUDIOVISUAL_HISTORICAL_792_797_CONTENT_V1,
   ] as readonly PublicAeatOfficialModelContentV1[];
   const codes = candidates.map((entry) => entry.code);
   if (

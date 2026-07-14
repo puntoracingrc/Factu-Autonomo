@@ -189,6 +189,36 @@ const EXPECTED_CODES = [
   "610",
   "615",
   "620",
+  "630",
+  "602",
+  "604",
+  "611",
+  "616",
+  "650",
+  "651",
+  "655",
+  "681",
+  "682",
+  "683",
+  "684",
+  "685",
+  "695",
+  "696",
+  "714",
+  "718",
+  "720",
+  "721",
+  "763",
+  "770",
+  "771",
+  "780",
+  "781",
+  "791",
+  "792",
+  "793",
+  "795",
+  "796",
+  "797",
 ];
 
 const EXPECTED_BATCH_11_NAMES = {
@@ -342,13 +372,69 @@ const EXPECTED_BATCH_16_NAMES = {
 
 const EXPECTED_BATCH_16_CODES = new Set(Object.keys(EXPECTED_BATCH_16_NAMES));
 
+const EXPECTED_BATCH_17_NAMES = {
+  "630":
+    "Transmisiones Patrimoniales y Actos Jurídicos Documentados - Autoliquidación del Impuesto (tramitación ante la Agencia Estatal de Administración Tributaria: Ceuta y Melilla y otros supuestos).",
+  "602": "Tasa por la gestión administrativa del juego.",
+  "604": "Impuesto sobre las Transacciones Financieras. Autoliquidación",
+  "611":
+    "Declaración Informativa. Pagos en metálico del impuesto que grava los documentos negociados por Entidades Colaboradoras. Declaración Resumen Anual.",
+  "616":
+    "Declaración Informativa. Pagos en metálico del impuesto que grava la emisión de documentos que lleven aparejada acción cambiaria o sean endosables a la orden. Declaración Resumen Anual.",
+  "650":
+    "Impuesto sobre Sucesiones y Donaciones. Autoliquidación adquisición “mortis causa”.",
+  "651":
+    "Impuesto sobre Sucesiones y Donaciones. Autoliquidación adquisición “inter vivos”.",
+  "655":
+    "Impuesto sobre Sucesiones y Donaciones. Consolidación de dominio por extinción de usufructo.",
+  "681":
+    "Tasa por la prestación de servicios de gestión de residuos radiactivos a que se refiere el apartado 3 de la disposición adicional sexta de la Ley 54/1997.",
+  "682":
+    "Tasa por la prestación de servicios de gestión de residuos radiactivos a que se refiere el apartado 3 de la disposición adicional sexta de la Ley 54/1997.",
+  "683":
+    "Tasa por la prestación de servicios de gestión de residuos radiactivos derivados de la fabricación de elementos combustibles, incluido desmantelamiento de instalaciones de fabricación.",
+  "684":
+    "Tasa por la prestación de servicios de gestión de residuos radiactivos generados en otras instalaciones.",
+  "685": "Tasa sobre apuestas y combinaciones aleatorias, autoliquidación.",
+  "695": "Solicitud de devolución tasa judicial.",
+  "696":
+    "Tasa por el Ejercicio de la Potestad Jurisdiccional en los Órdenes Civil y Contencioso-Administrativo.",
+  "714": "Impuesto sobre el Patrimonio",
+  "718": "Impuesto temporal de Solidaridad de las Grandes Fortunas.",
+  "720":
+    "Declaración informativa sobre bienes y derechos situados en el extranjero.",
+  "721":
+    "Declaración informativa sobre monedas virtuales situadas en el extranjero",
+  "763":
+    "Autoliquidación del Impuesto sobre actividades de juego en los supuestos de actividades anuales o plurianuales.",
+  "770":
+    "Autoliquidación de intereses de demora y recargos para la regularización voluntaria prevista en el artículo 252 de la Ley General Tributaria",
+  "771":
+    "Autoliquidación de cuotas de conceptos y ejercicios sin modelo disponible en la Sede electrónica de la AEAT para la regularización voluntaria prevista en el artículo 252 de la Ley General Tributaria",
+  "780":
+    "Impuesto sobre el margen de intereses y comisiones de determinadas entidades financieras. Autoliquidación",
+  "781":
+    "Impuesto sobre el margen de intereses y comisiones de determinadas entidades financieras. Pago fraccionado.",
+  "791": "Empleo Público. Presentación instancias oposiciones.",
+  "792":
+    "Autoliquidación de la aportación a realizar por los prestadores del servicio de comunicación audiovisual televisivo y por los prestadores del servicio de intercambio de vídeos a través de plataforma de ámbito geográfico estatal o superior al de una Comunidad Autónoma.",
+  "793":
+    "Pagos a cuenta de la aportación a realizar por los prestadores del servicio de comunicación audiovisual televisivo y por los prestadores del servicio de intercambio de vídeos a través de plataforma de ámbito geográfico estatal o superior al de una Comunidad Autónoma.",
+  "795": "Gravamen temporal energético. Declaración del ingreso de la prestación",
+  "796": "Gravamen temporal energético. Pago anticipado",
+  "797":
+    "Gravamen temporal de entidades de crédito y establecimientos financieros de crédito. Declaración del ingreso de la prestación.",
+} as const;
+
+const EXPECTED_BATCH_17_CODES = new Set(Object.keys(EXPECTED_BATCH_17_NAMES));
+
 describe("public AEAT official model content v1", () => {
   it("publishes exactly the reviewed official-content catalog", () => {
     const result = listPublicAeatOfficialModelContentsV1();
     expect(result.status).toBe("OFFICIAL_INFORMATION");
     if (result.status !== "OFFICIAL_INFORMATION") return;
     expect(result.data.map((entry) => entry.code)).toEqual(EXPECTED_CODES);
-    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(181);
+    expect(new Set(result.data.map((entry) => entry.code)).size).toBe(211);
     for (const entry of result.data) {
       expect(entry).toMatchObject({
         contentStatus: "OFFICIAL_INFORMATION",
@@ -359,10 +445,14 @@ describe("public AEAT official model content v1", () => {
           entry.code === "150" ||
           entry.code === "179" ||
           entry.code === "582" ||
-          entry.code === "586"
+          entry.code === "586" ||
+          entry.code === "795" ||
+          entry.code === "796" ||
+          entry.code === "797"
             ? "HISTORICAL"
             : "UNDETERMINED",
-        reviewedOn: EXPECTED_BATCH_16_CODES.has(entry.code)
+        reviewedOn: EXPECTED_BATCH_16_CODES.has(entry.code) ||
+          EXPECTED_BATCH_17_CODES.has(entry.code)
           ? "2026-07-14"
           : "2026-07-13",
       });
@@ -398,7 +488,7 @@ describe("public AEAT official model content v1", () => {
         },
       }),
     ).toEqual({ status: "BLOCKED", reason: "INVALID_INPUT" });
-    expect(resolvePublicAeatOfficialModelContentV1({ code: "630" })).toEqual({
+    expect(resolvePublicAeatOfficialModelContentV1({ code: "798" })).toEqual({
       status: "BLOCKED",
       reason: "MODEL_CONTENT_NOT_FOUND",
     });
@@ -554,6 +644,78 @@ describe("public AEAT official model content v1", () => {
       expect(result.data.externalNavigation, code).toBeNull();
       expect(result.data.thumbnail, code).toBeNull();
     }
+  });
+
+  it("keeps every Batch 17 page useful, source-backed and fail-closed", () => {
+    for (const [code, canonicalName] of Object.entries(
+      EXPECTED_BATCH_17_NAMES,
+    )) {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") continue;
+      expect(result.data.canonicalName, code).toBe(canonicalName);
+      expect(result.data.faq.length, code).toBeGreaterThanOrEqual(6);
+      expect(result.data.sections.length, code).toBeGreaterThanOrEqual(4);
+      expect(result.data.searchTerms.length, code).toBeGreaterThanOrEqual(3);
+      expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
+      expect(result.data.lifecycleStatus, code).toBe(
+        code === "795" || code === "796" || code === "797"
+          ? "HISTORICAL"
+          : "UNDETERMINED",
+      );
+      expect(result.data.externalNavigation, code).toBeNull();
+      expect(result.data.thumbnail, code).toBeNull();
+      expect(result.data.documents, code).toEqual([]);
+    }
+  });
+
+  it("preserves the audited Batch 17 distinctions and historical boundaries", () => {
+    const model = (code: keyof typeof EXPECTED_BATCH_17_NAMES) => {
+      const result = resolvePublicAeatOfficialModelContentV1({ code });
+      expect(result.status, code).toBe("OFFICIAL_INFORMATION");
+      if (result.status !== "OFFICIAL_INFORMATION") throw new Error(code);
+      return result.data;
+    };
+
+    expect(model("630").accessMethods).toMatchObject({
+      methods: ["ADMINISTRATIVE_TRANSFER"],
+      status: "SOURCE_DESCRIBED",
+    });
+    expect(JSON.stringify(model("630"))).toMatch(/Ceuta y Melilla/i);
+    for (const code of ["611", "616"] as const) {
+      expect(model(code).accessMethods).toMatchObject({
+        methods: ["FILE_UPLOAD"],
+        status: "SOURCE_DESCRIBED",
+      });
+      expect(JSON.stringify(model(code))).toMatch(/anteriores a 2015/i);
+    }
+    for (const code of ["650", "651", "655"] as const) {
+      expect(JSON.stringify(model(code))).toMatch(/no residentes/i);
+      expect(JSON.stringify(model(code))).toMatch(/Ceuta y Melilla/i);
+    }
+    expect(JSON.stringify(model("682"))).toMatch(/apartado 3/i);
+    expect(JSON.stringify(model("682"))).toMatch(/apartado 4/i);
+    expect(model("681").sources[1].canonicalUrl).not.toBe(
+      model("682").sources[1].canonicalUrl,
+    );
+    expect(JSON.stringify(model("696"))).toMatch(/divergencia|diferencia/i);
+    expect(model("720").accessMethods?.methods).toEqual([
+      "BROWSER_FORM",
+      "FILE_UPLOAD",
+    ]);
+    expect(model("721").accessMethods?.methods).toEqual([
+      "BROWSER_FORM",
+      "WEB_SERVICE",
+    ]);
+    expect(JSON.stringify(model("791"))).toMatch(/no es una declaración fiscal/i);
+    for (const code of ["795", "796", "797"] as const) {
+      expect(model(code).lifecycleStatus).toBe("HISTORICAL");
+      expect(model(code).accessMethods?.status).toBe(
+        "SOURCE_DESCRIBED_HISTORICAL",
+      );
+      expect(JSON.stringify(model(code))).toMatch(/2023 y 2024/i);
+    }
+    expect(JSON.stringify(model("797"))).toMatch(/no.*sustituci[oó]n autom[aá]tica/i);
   });
 
   it("keeps source provenance complete and internally referenced", () => {

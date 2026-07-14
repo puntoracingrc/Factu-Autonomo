@@ -337,7 +337,46 @@ describe("public AEAT model review search v2", () => {
     );
     expect(
       resultCodes("transmisiones patrimoniales actos jurídicos documentados"),
-    ).toEqual(expect.arrayContaining(["600", "610", "615", "620"]));
+    ).toEqual(expect.arrayContaining(["600", "610", "615", "620", "630"]));
+    expect(resultCodes("tasa gestión administrativa juego")).toContain("602");
+    expect(resultCodes("impuesto transacciones financieras")).toContain("604");
+    expect(resultCodes("TGVI documentos negociados")).toContain("611");
+    expect(resultCodes("acción cambiaria endosables")).toContain("616");
+    expect(resultCodes("sucesiones mortis causa")).toContain("650");
+    expect(resultCodes("donaciones inter vivos")).toContain("651");
+    expect(resultCodes("extinción usufructo")).toContain("655");
+    expect(resultCodes("residuos radiactivos apartado 3")).toContain("681");
+    expect(resultCodes("divergencia apartado 3 4")).toContain("682");
+    expect(resultCodes("desmantelamiento instalaciones fabricación")).toContain(
+      "683",
+    );
+    expect(resultCodes("residuos radiactivos otras instalaciones")).toContain(
+      "684",
+    );
+    expect(resultCodes("apuestas combinaciones aleatorias")).toContain("685");
+    expect(resultCodes("devolución tasa judicial")).toContain("695");
+    expect(resultCodes("potestad jurisdiccional social")).toContain("696");
+    expect(resultCodes("impuesto patrimonio 2025")).toContain("714");
+    expect(resultCodes("solidaridad grandes fortunas")).toContain("718");
+    expect(resultCodes("bienes derechos extranjero")).toContain("720");
+    expect(resultCodes("monedas virtuales extranjero")).toContain("721");
+    expect(resultCodes("actividades anuales plurianuales")).toContain("763");
+    expect(resultCodes("regularización voluntaria intereses recargos")).toContain(
+      "770",
+    );
+    expect(resultCodes("cuotas sin modelo disponible")).toContain("771");
+    expect(resultCodes("margen intereses comisiones autoliquidación")).toContain(
+      "780",
+    );
+    expect(resultCodes("pago fraccionado entidades financieras")).toContain(
+      "781",
+    );
+    expect(resultCodes("empleo público oposiciones")).toContain("791");
+    expect(resultCodes("aportación audiovisual televisivo")).toContain("792");
+    expect(resultCodes("pago cuenta audiovisual")).toContain("793");
+    expect(resultCodes("modelo histórico 795")).toContain("795");
+    expect(resultCodes("modelo histórico 796")).toContain("796");
+    expect(resultCodes("modelo histórico 797")).toContain("797");
   }, 15_000);
 
   it("supports word-prefix discovery without fuzzy or substring matching", () => {
