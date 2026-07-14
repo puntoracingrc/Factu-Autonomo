@@ -11,7 +11,7 @@ export const BACKUP_SOURCE = "local";
 export const BACKUP_WARNING =
   "Copia local generada en el navegador. Puede contener datos personales o fiscales; guárdala de forma segura. No restaura datos automáticamente. No incluye los datos y ajustes de Rentabilidad Real guardados solo en este navegador.";
 export const BACKUP_SCOPE_NOTICE =
-  "Incluye el perfil, documentos, gastos, recurrencias, fichas maestras y el historial auditable de retiros explícitos de Factu. No incluye los datos y ajustes de Rentabilidad Real guardados solo en este navegador.";
+  "Incluye el perfil, documentos, gastos, recurrencias, fichas maestras, el expediente fiscal estructurado —sin PDF original— y el historial auditable de retiros explícitos de Factu. No incluye los datos y ajustes de Rentabilidad Real guardados solo en este navegador.";
 
 export interface BackupMetadata {
   app: typeof BACKUP_APP_ID;

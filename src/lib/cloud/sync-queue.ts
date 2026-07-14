@@ -1,6 +1,7 @@
 import { hasPendingSyncChanges } from "./incremental";
 import {
   appDataToSyncChanges,
+  mergePendingChanges,
   recurringOccurrenceExclusionSyncChanges,
   type SyncChange,
 } from "./diff";
@@ -18,7 +19,16 @@ export function hasUnsyncedChanges(data: AppData): boolean {
 }
 
 export function buildCloudUploadChanges(data: AppData): SyncChange[] {
-  const pending = data.meta?.pendingChanges ?? [];
+  const rawPending = data.meta?.pendingChanges ?? [];
+  const normalizedPending = mergePendingChanges(
+    undefined,
+    rawPending,
+  );
+  const pending =
+    normalizedPending.length === rawPending.length &&
+    normalizedPending.every((change, index) => change === rawPending[index])
+      ? rawPending
+      : normalizedPending;
   if (pending.length > 0) {
     const exclusions = recurringOccurrenceExclusionSyncChanges(data);
     if (exclusions.length === 0) return pending;

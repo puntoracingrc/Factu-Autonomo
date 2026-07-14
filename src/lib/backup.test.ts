@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createBackupBlob,
+  createBackupData,
   createBackupFilename,
   createBackupPayload,
   buildBackupImportPreview,
@@ -35,8 +36,41 @@ import {
   inspectLegacyImportAttestation,
 } from "./document-integrity/legacy-import-attestation";
 import { EMPTY_DATA, type Document } from "./types";
+import type { FiscalNotificationsWorkspace } from "./fiscal-notifications/types";
 
 const NOW = "2026-06-24T10:00:00.000Z";
+
+function fiscalNotificationsWorkspace(): FiscalNotificationsWorkspace {
+  return {
+    schemaVersion: 1,
+    workspaceId: "fiscal-notifications-workspace-v1",
+    ownerScope: "user:00000000-0000-4000-8000-000000000001",
+    revision: 0,
+    createdAt: NOW,
+    updatedAt: NOW,
+    packages: [],
+    files: [],
+    documents: [],
+    parts: [],
+    authorities: [],
+    references: [],
+    evidence: [],
+    debts: [],
+    debtObservations: [],
+    cases: [],
+    relations: [],
+    analysisSnapshots: [],
+    paymentOptions: [],
+    paymentPlans: [],
+    installments: [],
+    interestCalculations: [],
+    deadlineRules: [],
+    obligations: [],
+    timeline: [],
+    accountingDrafts: [],
+    auditEvents: [],
+  };
+}
 
 function snapshotDocument(): Document {
   return issueDocument(
@@ -234,6 +268,19 @@ function attestedHistoricalReceiptDocuments(): Document[] {
 }
 
 describe("backup", () => {
+  it("incluye el expediente fiscal estructurado sin contenido fuente", () => {
+    const workspace = fiscalNotificationsWorkspace();
+    const backup = createBackupData({
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: workspace,
+    });
+
+    expect(backup.fiscalNotificationsWorkspace).toEqual(workspace);
+    expect(JSON.stringify(backup.fiscalNotificationsWorkspace)).not.toMatch(
+      /originalFilename|storageReference|rawPdfText/,
+    );
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });

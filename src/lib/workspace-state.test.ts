@@ -1,6 +1,39 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_DATA } from "@/lib/types";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
+import type { FiscalNotificationsWorkspace } from "@/lib/fiscal-notifications/types";
+
+function fiscalWorkspace(): FiscalNotificationsWorkspace {
+  return {
+    schemaVersion: 1,
+    workspaceId: "fiscal-notifications-workspace-v1",
+    ownerScope: "user:00000000-0000-4000-8000-000000000001",
+    revision: 0,
+    createdAt: "2026-07-14T09:00:00.000Z",
+    updatedAt: "2026-07-14T09:00:00.000Z",
+    packages: [],
+    files: [],
+    documents: [],
+    parts: [],
+    authorities: [],
+    references: [],
+    evidence: [],
+    debts: [],
+    debtObservations: [],
+    cases: [],
+    relations: [],
+    analysisSnapshots: [],
+    paymentOptions: [],
+    paymentPlans: [],
+    installments: [],
+    interestCalculations: [],
+    deadlineRules: [],
+    obligations: [],
+    timeline: [],
+    accountingDrafts: [],
+    auditEvents: [],
+  };
+}
 
 describe("hasWorkspaceContent", () => {
   it("detecta un espacio vacío", () => {
@@ -41,6 +74,15 @@ describe("hasWorkspaceContent", () => {
             updatedAt: "2026-07-04T00:00:00.000Z",
           },
         ],
+      }),
+    ).toBe(true);
+  });
+
+  it("protege un expediente fiscal aunque sea el único contenido local", () => {
+    expect(
+      hasWorkspaceContent({
+        ...EMPTY_DATA,
+        fiscalNotificationsWorkspace: fiscalWorkspace(),
       }),
     ).toBe(true);
   });

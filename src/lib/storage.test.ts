@@ -24,12 +24,46 @@ import {
   rollbackAppIssuedDocumentRecovery,
 } from "./document-integrity/app-issued-recovery";
 import type { AppData, Document } from "./types";
+import type { FiscalNotificationsWorkspace } from "./fiscal-notifications/types";
 import { EMPTY_DATA } from "./types";
 import { hasWorkspaceContent } from "./workspace-state";
 import { documentAmounts } from "./vat-regime";
 
 const STORAGE_KEY = "factura-autonomo-data";
 const NOW = "2026-06-24T10:00:00.000Z";
+const FISCAL_OWNER = "user:00000000-0000-4000-8000-000000000001";
+
+function emptyFiscalNotificationsWorkspace(): FiscalNotificationsWorkspace {
+  return {
+    schemaVersion: 1,
+    workspaceId: "fiscal-notifications-workspace-v1",
+    ownerScope: FISCAL_OWNER,
+    revision: 0,
+    createdAt: NOW,
+    updatedAt: NOW,
+    packages: [],
+    files: [],
+    documents: [],
+    parts: [],
+    authorities: [],
+    references: [],
+    evidence: [],
+    debts: [],
+    debtObservations: [],
+    cases: [],
+    relations: [],
+    analysisSnapshots: [],
+    paymentOptions: [],
+    paymentPlans: [],
+    installments: [],
+    interestCalculations: [],
+    deadlineRules: [],
+    obligations: [],
+    timeline: [],
+    accountingDrafts: [],
+    auditEvents: [],
+  };
+}
 
 function sampleData(): AppData {
   return {
@@ -414,6 +448,45 @@ describe("storage", () => {
       clear: () => store.clear(),
     });
     vi.stubGlobal("window", {});
+  });
+
+  it("rehidrata el expediente fiscal estructurado sin retener contenido fuente", () => {
+    const workspace = emptyFiscalNotificationsWorkspace();
+    const normalized = normalizeLoadedData({
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: workspace,
+    });
+
+    expect(normalized.fiscalNotificationsWorkspace).toEqual(workspace);
+    expect(normalized.fiscalNotificationsWorkspace).not.toBe(workspace);
+    expect(JSON.stringify(normalized.fiscalNotificationsWorkspace)).not.toMatch(
+      /originalFilename|storageReference|rawPdfText/,
+    );
+  });
+
+  it("rechaza un expediente fiscal malformado sin copiar su PII a cuarentena", () => {
+    const malformed = {
+      ...emptyFiscalNotificationsWorkspace(),
+      rawPdfText: "contenido privado que no debe persistir",
+    };
+    const normalized = normalizeLoadedData({
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: malformed as never,
+    });
+
+    expect(normalized.fiscalNotificationsWorkspace).toBeUndefined();
+    const quarantine = normalized.workspaceIntegrityQuarantine?.find(
+      (entry) => entry.collection === "fiscalNotificationsWorkspace",
+    );
+    expect(quarantine).toEqual({
+      collection: "fiscalNotificationsWorkspace",
+      reason: "malformed_record",
+      rawValue: {
+        status: "rejected",
+        schema: "fiscal-notifications-workspace-v1",
+      },
+    });
+    expect(JSON.stringify(normalized)).not.toContain("contenido privado");
   });
 
   it("migra y conserva el perfil fiscal aditivo sin persistir el documento", () => {

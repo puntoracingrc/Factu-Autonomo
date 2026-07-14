@@ -19,6 +19,7 @@ import { normalizeProductFamilyMarkupSettings } from "./product-family-markups";
 import { normalizeAppPreferences } from "./app-preferences";
 import { normalizeBusinessFiscalProfile } from "./fiscal-profile";
 import { normalizeTaxModelDiagnosticSession } from "./tax-model-diagnostic/profile";
+import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./fiscal-notifications/workspace-persistence.v1";
 import { normalizeSupplierNif, supplierCompareKey } from "./suppliers";
 import { normalizeRecurringExpense } from "./recurring-expenses";
 import {
@@ -651,6 +652,25 @@ export function normalizeLoadedData(
     normalizedExpenses,
     suppliers,
   );
+  const fiscalNotificationsWorkspace =
+    parsed.fiscalNotificationsWorkspace === undefined
+      ? undefined
+      : parseFiscalNotificationsWorkspaceForPersistenceV1(
+          parsed.fiscalNotificationsWorkspace,
+        ) ?? undefined;
+  if (
+    parsed.fiscalNotificationsWorkspace !== undefined &&
+    fiscalNotificationsWorkspace === undefined
+  ) {
+    workspaceIntegrityQuarantine.push({
+      collection: "fiscalNotificationsWorkspace",
+      reason: "malformed_record",
+      rawValue: {
+        status: "rejected",
+        schema: "fiscal-notifications-workspace-v1",
+      },
+    });
+  }
   const documentCounters = countersFromDocuments(
     documents,
     profile.numbering.year,
@@ -671,6 +691,7 @@ export function normalizeLoadedData(
     expenses,
     documents,
     testDocumentRetirementBatches: normalizedRetirementBatches.batches,
+    fiscalNotificationsWorkspace,
     snapshotIntegrityVersion: 1,
     workspaceIntegrityQuarantine:
       workspaceIntegrityQuarantine.length > 0
@@ -1121,6 +1142,7 @@ function storedDataHasContent(parsed: Partial<AppData>): boolean {
     (parsed.suppliers?.length ?? 0) > 0 ||
     (parsed.products?.length ?? 0) > 0 ||
     (parsed.testDocumentRetirementBatches?.length ?? 0) > 0 ||
+    Boolean(parsed.fiscalNotificationsWorkspace) ||
     (parsed.workspaceIntegrityQuarantine?.length ?? 0) > 0 ||
     (parsed.meta?.pendingChanges?.length ?? 0) > 0 ||
     Object.values(parsed.counters ?? {}).some((value) => (value ?? 0) > 0) ||

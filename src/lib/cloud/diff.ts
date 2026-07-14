@@ -20,6 +20,12 @@ import {
   quarantineTestDocumentRetirementPayload,
   testDocumentRetirementBatchUpdatedAt,
 } from "../test-document-retirement-persistence";
+import {
+  FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+  compareFiscalNotificationsWorkspacesV1,
+  mergeFiscalNotificationsWorkspacesV1,
+  parseFiscalNotificationsWorkspaceForPersistenceV1,
+} from "../fiscal-notifications/workspace-persistence.v1";
 
 export type { SyncChange, SyncEntityType };
 
@@ -180,6 +186,46 @@ function diffTestDocumentRetirementBatches(
   });
 }
 
+function fiscalNotificationsWorkspaceChange(
+  payload: unknown,
+  updatedAt: string,
+): SyncChange[] {
+  const workspace = parseFiscalNotificationsWorkspaceForPersistenceV1(payload);
+  if (!workspace) return [];
+  return [
+    {
+      entityType: "fiscal_notifications_workspace",
+      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+      deleted: false,
+      payload: workspace,
+      updatedAt,
+    },
+  ];
+}
+
+function diffFiscalNotificationsWorkspace(
+  previous: AppData,
+  next: AppData,
+  updatedAt: string,
+): SyncChange[] {
+  const incoming = parseFiscalNotificationsWorkspaceForPersistenceV1(
+    next.fiscalNotificationsWorkspace,
+  );
+  if (!incoming) return [];
+  const current = parseFiscalNotificationsWorkspaceForPersistenceV1(
+    previous.fiscalNotificationsWorkspace,
+    incoming.ownerScope,
+  );
+  if (!current) return fiscalNotificationsWorkspaceChange(incoming, updatedAt);
+  return compareFiscalNotificationsWorkspacesV1(
+    current,
+    incoming,
+    incoming.ownerScope,
+  ) === "INCOMING_ADVANCES"
+    ? fiscalNotificationsWorkspaceChange(incoming, updatedAt)
+    : [];
+}
+
 export function isDerivedTestDocumentRetirementDocumentChange(
   change: SyncChange,
   batch: TestDocumentRetirementBatchV1,
@@ -256,6 +302,7 @@ export function diffAppData(prev: AppData, next: AppData): SyncChange[] {
     ...diffById("supplier", prev.suppliers, next.suppliers, timestamp),
     ...diffById("product", prev.products, next.products, timestamp),
     ...retirementChanges,
+    ...diffFiscalNotificationsWorkspace(prev, next, timestamp),
   ];
 
   if (stableJson(prev.profile) !== stableJson(next.profile)) {
@@ -313,10 +360,47 @@ export function mergePendingChanges(
     ) {
       continue;
     }
+    if (change.entityType === "fiscal_notifications_workspace") {
+      if (
+        change.deleted ||
+        change.entityId !== FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 ||
+        !parseFiscalNotificationsWorkspaceForPersistenceV1(change.payload)
+      ) {
+        continue;
+      }
+    }
     map.set(`${change.entityType}:${change.entityId}`, change);
   }
   for (const change of safeIncoming) {
     const key = `${change.entityType}:${change.entityId}`;
+    if (change.entityType === "fiscal_notifications_workspace") {
+      const incomingWorkspace =
+        change.deleted ||
+        change.entityId !== FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1
+          ? null
+          : parseFiscalNotificationsWorkspaceForPersistenceV1(change.payload);
+      if (!incomingWorkspace) continue;
+      const current = map.get(key);
+      if (!current) {
+        map.set(key, { ...change, payload: incomingWorkspace });
+        continue;
+      }
+      const currentWorkspace =
+        parseFiscalNotificationsWorkspaceForPersistenceV1(
+          current.payload,
+          incomingWorkspace.ownerScope,
+        );
+      if (!currentWorkspace) continue;
+      const comparison = compareFiscalNotificationsWorkspacesV1(
+        currentWorkspace,
+        incomingWorkspace,
+        incomingWorkspace.ownerScope,
+      );
+      if (comparison === "INCOMING_ADVANCES") {
+        map.set(key, { ...change, payload: incomingWorkspace });
+      }
+      continue;
+    }
     if (change.entityType !== "document_retirement_batch") {
       map.set(key, change);
       continue;
@@ -396,6 +480,10 @@ export function appDataToSyncChanges(data: AppData): SyncChange[] {
       updatedAt: product.updatedAt || product.createdAt || timestamp,
     })),
     ...testDocumentRetirementSyncChanges(data),
+    ...fiscalNotificationsWorkspaceChange(
+      data.fiscalNotificationsWorkspace,
+      timestamp,
+    ),
     {
       entityType: "profile",
       entityId: "profile",
@@ -561,6 +649,30 @@ function applyOneChange(data: AppData, change: SyncChange): AppData {
       nextBatches[existingIndex] = merged;
       return { ...data, testDocumentRetirementBatches: nextBatches };
     }
+    case "fiscal_notifications_workspace": {
+      if (
+        change.deleted ||
+        change.entityId !== FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1
+      ) {
+        return data;
+      }
+      const incoming = parseFiscalNotificationsWorkspaceForPersistenceV1(
+        change.payload,
+      );
+      if (!incoming) return data;
+      const current = data.fiscalNotificationsWorkspace;
+      if (!current) {
+        return { ...data, fiscalNotificationsWorkspace: incoming };
+      }
+      const merged = mergeFiscalNotificationsWorkspacesV1(
+        current,
+        incoming,
+        current.ownerScope,
+      );
+      return merged
+        ? { ...data, fiscalNotificationsWorkspace: merged }
+        : data;
+    }
     case "profile":
       if (change.deleted) return data;
       return {
@@ -620,10 +732,32 @@ export function clearSyncedChanges(
   pending: SyncChange[] | undefined,
   synced: SyncChange[],
 ): SyncChange[] {
-  const syncedKeys = new Set(
-    synced.map((change) => `${change.entityType}:${change.entityId}`),
+  const syncedByKey = new Map(
+    synced.map((change) => [
+      `${change.entityType}:${change.entityId}`,
+      change,
+    ]),
   );
-  return (pending ?? []).filter(
-    (change) => !syncedKeys.has(`${change.entityType}:${change.entityId}`),
-  );
+  return (pending ?? []).filter((change) => {
+    const syncedChange = syncedByKey.get(
+      `${change.entityType}:${change.entityId}`,
+    );
+    if (!syncedChange) return true;
+    if (change.entityType !== "fiscal_notifications_workspace") return false;
+    const pendingWorkspace =
+      parseFiscalNotificationsWorkspaceForPersistenceV1(change.payload);
+    if (!pendingWorkspace) return false;
+    const syncedWorkspace =
+      parseFiscalNotificationsWorkspaceForPersistenceV1(
+        syncedChange.payload,
+        pendingWorkspace.ownerScope,
+      );
+    if (!syncedWorkspace) return true;
+    const comparison = compareFiscalNotificationsWorkspacesV1(
+      syncedWorkspace,
+      pendingWorkspace,
+      pendingWorkspace.ownerScope,
+    );
+    return comparison === "INCOMING_ADVANCES" || comparison === "DIVERGED";
+  });
 }
