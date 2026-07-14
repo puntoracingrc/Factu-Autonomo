@@ -2,7 +2,6 @@ import { hasPendingSyncChanges } from "./incremental";
 import {
   appDataToSyncChanges,
   recurringOccurrenceExclusionSyncChanges,
-  testDocumentRetirementSyncChanges,
   type SyncChange,
 } from "./diff";
 import { getDataTimestamp } from "../storage";
@@ -22,15 +21,14 @@ export function buildCloudUploadChanges(data: AppData): SyncChange[] {
   const pending = data.meta?.pendingChanges ?? [];
   if (pending.length > 0) {
     const exclusions = recurringOccurrenceExclusionSyncChanges(data);
-    const retirementBatches = testDocumentRetirementSyncChanges(data);
-    if (exclusions.length === 0 && retirementBatches.length === 0) return pending;
+    if (exclusions.length === 0) return pending;
     const changes = new Map(
       pending.map((change) => [
         `${change.entityType}:${change.entityId}`,
         change,
       ]),
     );
-    for (const monotonic of [...exclusions, ...retirementBatches]) {
+    for (const monotonic of exclusions) {
       changes.set(`${monotonic.entityType}:${monotonic.entityId}`, monotonic);
     }
     return [...changes.values()];

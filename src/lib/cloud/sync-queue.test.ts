@@ -9,6 +9,12 @@ import {
 } from "./sync-queue";
 import { EMPTY_DATA, type Document } from "../types";
 import { attestNewImportedDocument } from "../document-integrity/legacy-import-attestation";
+import {
+  applyTestDocumentRetirement,
+  buildTestDocumentRetirementPreview,
+  testDocumentRetirementExportableDataFingerprint,
+} from "../document-integrity/test-document-retirement";
+import { testDocumentRetirementTenantFingerprintForUserId } from "../test-document-retirement-persistence";
 
 const NOW = "2026-06-28T06:55:00.000Z";
 
@@ -31,6 +37,57 @@ const invoice: Document = {
   createdAt: "2026-06-12T08:00:00.000Z",
   updatedAt: "2026-06-28T06:48:00.000Z",
 };
+
+function dataWithAppliedRetirement() {
+  const sourceInvoice: Document = {
+    ...invoice,
+    id: "synthetic-retirement-sync-queue-invoice",
+    number: "F-2026-0043",
+    date: "2026-06-10",
+    documentLifecycle: "issued",
+    integrityLock: "locked",
+    createdAt: "2026-06-10T08:00:00.000Z",
+    updatedAt: "2026-06-10T08:00:00.000Z",
+  };
+  const receipt: Document = {
+    ...sourceInvoice,
+    id: "synthetic-retirement-sync-queue-receipt",
+    type: "recibo",
+    number: "R-2026-0044",
+    sourceDocumentId: sourceInvoice.id,
+    receiptDocumentId: undefined,
+  };
+  const before = {
+    ...structuredClone(EMPTY_DATA),
+    documents: [{ ...sourceInvoice, receiptDocumentId: receipt.id }, receipt],
+  };
+  const tenantFingerprint =
+    testDocumentRetirementTenantFingerprintForUserId("user-1");
+  const preview = buildTestDocumentRetirementPreview(before, {
+    selectedDocumentIds: [receipt.id],
+    tenantFingerprint,
+  });
+  const applied = applyTestDocumentRetirement(
+    before,
+    preview,
+    "2026-07-14T08:00:00.000Z",
+    tenantFingerprint,
+    {
+      filename:
+        "factu-autonomo-backup-antes-retirar-pruebas-2026-07-14-08-00-00.json",
+      createdAt: "2026-07-14T08:00:00.000Z",
+      exportableDataFingerprint:
+        testDocumentRetirementExportableDataFingerprint(before),
+      contentSha256: `sha256:${"a".repeat(64)}`,
+      byteLength: 1_024,
+      disposition: "browser_download_requested",
+    },
+  );
+  if (applied.status !== "applied") {
+    throw new Error("No se pudo preparar el lote sintético de retiro");
+  }
+  return applied.data;
+}
 
 describe("sync queue", () => {
   beforeEach(() => {
@@ -83,6 +140,43 @@ describe("sync queue", () => {
       meta: {
         lastModified: "2026-06-28T06:48:00.000Z",
         lastSyncedAt: "2026-06-27T10:00:00.000Z",
+        pendingChanges: pending,
+      },
+    };
+
+    expect(buildCloudUploadChanges(data)).toBe(pending);
+  });
+
+  it("no reinyecta un retiro ya estable al subir solo un cambio de perfil", () => {
+    const retired = dataWithAppliedRetirement();
+    const profile = {
+      ...retired.profile,
+      documentPhrases: {
+        phrases: [
+          {
+            id: "phrase-sync-queue",
+            documentType: "factura" as const,
+            text: "Condiciones de venta guardadas",
+          },
+        ],
+        defaultPhraseId: {},
+      },
+    };
+    const pending = [
+      {
+        entityType: "profile" as const,
+        entityId: "profile",
+        deleted: false,
+        payload: profile,
+        updatedAt: NOW,
+      },
+    ];
+    const data = {
+      ...retired,
+      profile,
+      meta: {
+        lastModified: NOW,
+        lastSyncedAt: "2026-07-14T07:59:00.000Z",
         pendingChanges: pending,
       },
     };
