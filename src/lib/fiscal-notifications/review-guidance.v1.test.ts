@@ -265,6 +265,35 @@ describe("review guidance v1", () => {
     });
   });
 
+  it("maps an offset agreement to both official compensation procedures", () => {
+    const result = projectFiscalNotificationReviewGuidanceV1(
+      analysisInput({
+        engineVersion: "1.4.0",
+        candidates: [completeOffsetCandidate()],
+      }),
+    );
+
+    expect(result.projectionStatus).toBe("GUIDANCE_AVAILABLE");
+    expect(result.candidateContext).toEqual({
+      familyId: "collection.offset_resolution",
+      classificationPolicy: "CANDIDATE_CONTEXT_ONLY",
+    });
+    expect(result.officialProcedureContexts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          sourceId: "aeat.collection.offset.requested",
+          canonicalUrl:
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientos/RC01.shtml",
+        }),
+        expect.objectContaining({
+          sourceId: "aeat.collection.offset.exofficio",
+          canonicalUrl:
+            "https://sede.agenciatributaria.gob.es/Sede/procedimientos/RC02.shtml",
+        }),
+      ]),
+    );
+  });
+
   it.each([
     [
       completeRealEstateSeizureCandidate,
@@ -813,6 +842,23 @@ function completeDeferralCandidate(): FiscalNotificationLocalReviewCandidate {
   );
 }
 
+function completeOffsetCandidate(): FiscalNotificationLocalReviewCandidate {
+  return {
+    ...candidate(
+      "AEAT_OFFSET_AGREEMENT_CANDIDATE",
+      [
+        "OFFSET_AGREEMENT_TITLE",
+        "OFFSET_CREDIT_AND_DEBT_ANNEX",
+        "OFFSET_AGREEMENT_NUMBER",
+        "STRUCTURAL_PRIMARY_ACT_HEADER",
+      ],
+      [],
+    ),
+    recognitionPolicyVersion: "1.3.0",
+    segmentationVersion: "1.1.0",
+  };
+}
+
 function completeRealEstateSeizureCandidate(): FiscalNotificationLocalReviewCandidate {
   return {
     ...candidate(
@@ -980,6 +1026,10 @@ function candidate(
     AEAT_DEFERRAL_GRANT_CANDIDATE: {
       documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
       handlerId: "aeat-deferral-grant-candidate",
+    },
+    AEAT_OFFSET_AGREEMENT_CANDIDATE: {
+      documentType: "AEAT_OFFSET_AGREEMENT",
+      handlerId: "aeat-offset-agreement-candidate",
     },
     AEAT_REAL_ESTATE_SEIZURE_CANDIDATE: {
       documentType: "AEAT_SEIZURE_ORDER",

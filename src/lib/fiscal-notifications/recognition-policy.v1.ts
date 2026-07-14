@@ -7,7 +7,8 @@ export type FiscalNotificationExtractionEngineVersion =
   | "1.0.0"
   | "1.1.0"
   | "1.2.0"
-  | "1.3.0";
+  | "1.3.0"
+  | "1.4.0";
 
 const LEGACY_REQUIRED_ANCHORS = Object.freeze({
   AEAT_ENFORCEMENT_ORDER_CANDIDATE: Object.freeze([
@@ -22,6 +23,13 @@ const LEGACY_REQUIRED_ANCHORS = Object.freeze({
     "DEFERRAL_GRANT_TITLE",
     "DEFERRAL_INSTALLMENT_ANNEX",
     "DEFERRAL_INTEREST_CALCULATION",
+    "STRUCTURAL_FIRST_PAGE_HEADER",
+  ] as const),
+  AEAT_OFFSET_AGREEMENT_CANDIDATE: Object.freeze([
+    "AEAT_OFFICIAL_DOMAIN_LABEL",
+    "OFFSET_AGREEMENT_TITLE",
+    "OFFSET_CREDIT_AND_DEBT_ANNEX",
+    "OFFSET_AGREEMENT_NUMBER",
     "STRUCTURAL_FIRST_PAGE_HEADER",
   ] as const),
   AEAT_REAL_ESTATE_SEIZURE_CANDIDATE: Object.freeze([
@@ -58,6 +66,12 @@ const STRUCTURAL_REQUIRED_ANCHORS = Object.freeze({
     "DEFERRAL_INTEREST_CALCULATION",
     "STRUCTURAL_PRIMARY_ACT_HEADER",
   ] as const),
+  AEAT_OFFSET_AGREEMENT_CANDIDATE: Object.freeze([
+    "OFFSET_AGREEMENT_TITLE",
+    "OFFSET_CREDIT_AND_DEBT_ANNEX",
+    "OFFSET_AGREEMENT_NUMBER",
+    "STRUCTURAL_PRIMARY_ACT_HEADER",
+  ] as const),
   AEAT_REAL_ESTATE_SEIZURE_CANDIDATE: Object.freeze([
     "REAL_ESTATE_SEIZURE_TITLE",
     "DOCUMENT_IDENTIFICATION_SECTION",
@@ -87,7 +101,7 @@ export function requiredAnchorAlternativesForEngine(
   familyId: FiscalNotificationSupportedFamilyId,
   engineVersion: FiscalNotificationExtractionEngineVersion,
 ): readonly (readonly FiscalNotificationAnchorId[])[] {
-  return engineVersion === "1.3.0"
+  return engineVersion === "1.3.0" || engineVersion === "1.4.0"
     ? Object.freeze([
         LEGACY_REQUIRED_ANCHORS[familyId],
         STRUCTURAL_REQUIRED_ANCHORS[familyId],

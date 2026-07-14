@@ -153,6 +153,28 @@ function structuralEnforcementCandidate() {
   };
 }
 
+function structuralOffsetCandidate() {
+  return {
+    familyId: "AEAT_OFFSET_AGREEMENT_CANDIDATE",
+    recognitionPolicyVersion: "1.3.0",
+    segmentationVersion: "1.1.0",
+    documentType: "AEAT_OFFSET_AGREEMENT",
+    authoritySignal: "AEAT_UNVERIFIED",
+    handlerId: "aeat-offset-agreement-candidate",
+    handlerVersion: "1.0.0",
+    signalStatus: "COMPLETE_REQUIRED_ANCHORS",
+    matchedAnchors: [
+      { anchorId: "OFFSET_AGREEMENT_TITLE", pageNumbers: [1] },
+      { anchorId: "OFFSET_CREDIT_AND_DEBT_ANNEX", pageNumbers: [1] },
+      { anchorId: "OFFSET_AGREEMENT_NUMBER", pageNumbers: [1] },
+      { anchorId: "STRUCTURAL_PRIMARY_ACT_HEADER", pageNumbers: [1] },
+    ],
+    missingRequiredAnchorIds: [] as string[],
+    conflictingAnchorIds: [] as string[],
+    requiresHumanReview: true,
+  };
+}
+
 function r1Candidate(
   familyId:
     | "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE"
@@ -758,6 +780,26 @@ describe("fiscal notification safe local review repository", () => {
         appendInput("review-historical-relabelled-130", {
           result: historicalRelabelled,
         }),
+      ),
+    ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
+  });
+
+  it("persists offset recognition only under engine 1.4", async () => {
+    const result = reviewResult({
+      engineVersion: "1.4.0",
+      candidates: [structuralOffsetCandidate()],
+    });
+    await expect(
+      repository(new MemoryStorage()).append(
+        appendInput("review-offset-140", { result }),
+      ),
+    ).resolves.toMatchObject({ status: "applied" });
+
+    const relabelled = structuredClone(result);
+    relabelled.engineVersion = "1.3.0";
+    await expect(
+      repository(new MemoryStorage()).append(
+        appendInput("review-offset-relabelled-130", { result: relabelled }),
       ),
     ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
   });

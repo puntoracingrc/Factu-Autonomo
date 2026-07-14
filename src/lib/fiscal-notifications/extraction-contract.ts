@@ -2,11 +2,12 @@ import type { AdministrativeDocumentType } from "./types";
 export const FISCAL_NOTIFICATION_EXTRACTION_SCHEMA_VERSION = 1 as const;
 export const FISCAL_NOTIFICATION_EXTRACTION_ENGINE_ID =
   "fiscal-notification-family-candidate-engine" as const;
-export const FISCAL_NOTIFICATION_EXTRACTION_ENGINE_VERSION = "1.3.0" as const;
+export const FISCAL_NOTIFICATION_EXTRACTION_ENGINE_VERSION = "1.4.0" as const;
 
 export type FiscalNotificationSupportedFamilyId =
   | "AEAT_ENFORCEMENT_ORDER_CANDIDATE"
   | "AEAT_DEFERRAL_GRANT_CANDIDATE"
+  | "AEAT_OFFSET_AGREEMENT_CANDIDATE"
   | "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE"
   | "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE"
   | "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE";
@@ -22,6 +23,9 @@ export type FiscalNotificationAnchorId =
   | "DEFERRAL_GRANT_TITLE"
   | "DEFERRAL_INSTALLMENT_ANNEX"
   | "DEFERRAL_INTEREST_CALCULATION"
+  | "OFFSET_AGREEMENT_TITLE"
+  | "OFFSET_CREDIT_AND_DEBT_ANNEX"
+  | "OFFSET_AGREEMENT_NUMBER"
   | "REAL_ESTATE_SEIZURE_TITLE"
   | "FORMAL_FILING_REQUIREMENT_TITLE"
   | "FORMAL_FILING_OMITTED_RETURNS_MARKER"
@@ -58,6 +62,7 @@ export interface FiscalNotificationFamilyCandidate {
     AdministrativeDocumentType,
     | "AEAT_ENFORCEMENT_ORDER"
     | "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT"
+    | "AEAT_OFFSET_AGREEMENT"
     | "AEAT_SEIZURE_ORDER"
     | "GENERIC_ADMINISTRATIVE_NOTICE"
   >;
@@ -65,6 +70,7 @@ export interface FiscalNotificationFamilyCandidate {
   readonly handlerId:
     | "aeat-enforcement-order-candidate"
     | "aeat-deferral-grant-candidate"
+    | "aeat-offset-agreement-candidate"
     | "aeat-real-estate-seizure-candidate"
     | "aeat-formal-filing-requirement-candidate"
     | "aeat-roi-registration-agreement-candidate";
@@ -92,7 +98,7 @@ export type FiscalNotificationExtractionReason =
 export interface FiscalNotificationExtractionResult {
   readonly schemaVersion: 1;
   readonly engineId: "fiscal-notification-family-candidate-engine";
-  readonly engineVersion: "1.1.0" | "1.2.0" | "1.3.0";
+  readonly engineVersion: "1.1.0" | "1.2.0" | "1.3.0" | "1.4.0";
   readonly ownerScope: string;
   readonly documentId: string;
   readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";

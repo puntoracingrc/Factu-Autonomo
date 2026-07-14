@@ -281,7 +281,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
 
     expect(analysis).toMatchObject({
       familyAnalysis: {
-        engineVersion: "1.3.0",
+        engineVersion: "1.4.0",
         reason: "SUPPORTED_FAMILY_CANDIDATE",
         candidates: [
           expect.objectContaining({
@@ -310,7 +310,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
 
     expect(analysis).toMatchObject({
       familyAnalysis: {
-        engineVersion: "1.3.0",
+        engineVersion: "1.4.0",
         reason: "CONFLICTING_AUTHORITY_OR_TERRITORY",
         candidates: [
           expect.objectContaining({
@@ -421,13 +421,24 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
       "GENERIC_ADMINISTRATIVE_NOTICE",
     ],
+    [
+      [
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "ACUERDO DE COMPENSACION DE OFICIO",
+        "CREDITO Y DEUDAS COMPENSADAS DE OFICIO",
+        "NUMERO DE ACUERDO DE COMPENSACION: ACUERDO-0001",
+      ].join("\n"),
+      "AEAT_OFFSET_AGREEMENT_CANDIDATE",
+      "AEAT_OFFSET_AGREEMENT",
+    ],
   ])(
     "projects the R1 review-only candidate %s without facts",
     (text, familyId, documentType) => {
       const analysis = reviewOnlyFamilyAnalysis(text);
       expect(analysis).toMatchObject({
         familyAnalysis: {
-          engineVersion: "1.3.0",
+          engineVersion: "1.4.0",
           reason: "SUPPORTED_FAMILY_CANDIDATE",
           candidates: [
             { familyId, segmentationVersion: "1.1.0", documentType },
@@ -1105,7 +1116,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       enforcementPartyFacts: null,
     });
     expect(analysis.familyAnalysis).toMatchObject({
-      engineVersion: "1.3.0",
+      engineVersion: "1.4.0",
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       candidates: [

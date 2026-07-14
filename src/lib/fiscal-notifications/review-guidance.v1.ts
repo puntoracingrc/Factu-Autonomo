@@ -66,6 +66,7 @@ type SupportedGuidanceFamilyId = Extract<
   FiscalNotificationDocumentFamilyIdV2,
   | "collection.enforcement_order"
   | "collection.deferral_grant"
+  | "collection.offset_resolution"
   | "seizure.real_estate"
   | "compliance.formal_filing_requirement"
   | "registry.tax_registration_resolution"
@@ -222,6 +223,9 @@ const ANCHOR_IDS = new Set([
   "DEFERRAL_GRANT_TITLE",
   "DEFERRAL_INSTALLMENT_ANNEX",
   "DEFERRAL_INTEREST_CALCULATION",
+  "OFFSET_AGREEMENT_TITLE",
+  "OFFSET_CREDIT_AND_DEBT_ANNEX",
+  "OFFSET_AGREEMENT_NUMBER",
   "REAL_ESTATE_SEIZURE_TITLE",
   "FORMAL_FILING_REQUIREMENT_TITLE",
   "FORMAL_FILING_OMITTED_RETURNS_MARKER",
@@ -298,6 +302,18 @@ const FAMILY_CONTEXT = Object.freeze({
     optionalAnchorIds: Object.freeze([] as const),
     minimumEngineVersion: "1.0.0" as const,
     sourceIds: Object.freeze(["aeat.collection.deferral"] as const),
+  }),
+  AEAT_OFFSET_AGREEMENT_CANDIDATE: Object.freeze({
+    familyId: "collection.offset_resolution" as const,
+    documentType: "AEAT_OFFSET_AGREEMENT" as const,
+    handlerId: "aeat-offset-agreement-candidate" as const,
+    titleAnchorId: "OFFSET_AGREEMENT_TITLE" as const,
+    optionalAnchorIds: Object.freeze(["DOCUMENT_IDENTIFICATION_SECTION"] as const),
+    minimumEngineVersion: "1.4.0" as const,
+    sourceIds: Object.freeze([
+      "aeat.collection.offset.requested",
+      "aeat.collection.offset.exofficio",
+    ] as const),
   }),
   AEAT_REAL_ESTATE_SEIZURE_CANDIDATE: Object.freeze({
     familyId: "seizure.real_estate" as const,
@@ -549,13 +565,14 @@ function validateCandidate(
     engineVersionValue === "1.0.0" ||
     engineVersionValue === "1.1.0" ||
     engineVersionValue === "1.2.0" ||
-    engineVersionValue === "1.3.0"
+    engineVersionValue === "1.3.0" ||
+    engineVersionValue === "1.4.0"
       ? (engineVersionValue as FiscalNotificationExtractionEngineVersion)
       : null;
   if (
     !definition ||
     !engineVersion ||
-    (engineVersionValue === "1.3.0"
+    (engineVersionValue === "1.3.0" || engineVersionValue === "1.4.0"
       ? candidate.segmentationVersion !== "1.1.0" ||
         candidate.recognitionPolicyVersion !== "1.3.0"
       : engineVersionValue === "1.2.0"
@@ -567,7 +584,10 @@ function validateCandidate(
         : hasSegmentationVersion || hasRecognitionPolicyVersion) ||
     (definition.minimumEngineVersion === "1.2.0" &&
       engineVersionValue !== "1.2.0" &&
-      engineVersionValue !== "1.3.0")
+      engineVersionValue !== "1.3.0" &&
+      engineVersionValue !== "1.4.0") ||
+    (definition.minimumEngineVersion === "1.4.0" &&
+      engineVersionValue !== "1.4.0")
   ) {
     return null;
   }
@@ -637,7 +657,8 @@ function validateCandidate(
         ? !sameNumberList(domainPages, [1])
         : engineVersionValue === "1.1.0" ||
             engineVersionValue === "1.2.0" ||
-            engineVersionValue === "1.3.0"
+            engineVersionValue === "1.3.0" ||
+            engineVersionValue === "1.4.0"
           ? titlePages.length !== 1 || !sameNumberList(domainPages, titlePages)
           : true)) ||
     (structuralPages !== undefined &&
@@ -649,6 +670,7 @@ function validateCandidate(
     (conflictingHostPages !== undefined &&
       !sameNumberList(conflictingHostPages, titlePages)) ||
     (engineVersionValue !== "1.3.0" &&
+      engineVersionValue !== "1.4.0" &&
       validatedAnchors.some((anchor) =>
         FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS.includes(
           anchor.anchorId as (typeof FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS)[number],
@@ -656,7 +678,8 @@ function validateCandidate(
       )) ||
     ((engineVersionValue === "1.1.0" ||
       engineVersionValue === "1.2.0" ||
-      engineVersionValue === "1.3.0") &&
+      engineVersionValue === "1.3.0" ||
+      engineVersionValue === "1.4.0") &&
       (titlePages.length !== 1 ||
         titlePageNumber === undefined ||
         (domainPages !== undefined &&
@@ -952,7 +975,8 @@ function validEngineForReason(
         (engineVersion === "1.0.0" ||
           engineVersion === "1.1.0" ||
           engineVersion === "1.2.0" ||
-          engineVersion === "1.3.0");
+          engineVersion === "1.3.0" ||
+          engineVersion === "1.4.0");
 }
 
 function validReviewSemantics(
