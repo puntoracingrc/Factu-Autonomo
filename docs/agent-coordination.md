@@ -2,6 +2,22 @@
 
 Última actualización: 2026-07-14 (Europe/Madrid)
 
+## Reserva adicional — extractores fiscales de los 39 tipos
+
+La rama `agent/tax-document-extractors-priority-1`, basada en
+`origin/main@97428df8122c9a05163d2b72eaaea17015449ca9`, amplía exclusivamente:
+
+- `src/lib/tax-model-diagnostic/extractors/**`;
+- `docs/tax-extractors/**`;
+- pruebas y conexión mínima de `DiagnosticHaciendaReview` cuando el contrato
+  público necesite exponer nuevas evidencias confirmables.
+
+Objetivo cerrado: completar el registro de 30 modelos y 9 documentos sin
+número con extracción estructurada, trazabilidad, reconciliación y propuestas
+confirmables. Se mantiene fuera de alcance `src/lib/fiscal-models/**`; no se
+introducen reglas tributarias en OCR ni se proyectan hechos de un periodo como
+situación censal futura.
+
 ## Reserva adicional — extractores fiscales v1
 
 La rama `agent/tax-document-extractors-v1`, basada en
@@ -44,18 +60,18 @@ catálogo existente solo podrá usarse como referencia de identidad y enlaces.
 
 ## Agentes y trabajos detectados
 
-| Agente o hilo | Objetivo | Rama o worktree | Archivos y directorios reservados | Estado | Dependencias | Riesgos de conflicto | Última actualización |
-|---|---|---|---|---|---|---|---|
-| Agente principal | Diseñar e implementar el diagnóstico de modelos dentro de Asesoría fiscal | `feat/tax-model-diagnostic` / `factura-autonomo-tax-model-diagnostic` | Ámbito indicado arriba | En curso | Fuentes AEAT/BOE, perfil fiscal, AppStore, calendario y navegación existentes | Navegación, normalización de perfil y manual | 2026-07-14 |
-| `repo_coordination_audit` | Auditar Git, worktrees, PR, issues y handoffs | Solo lectura sobre `origin/main@4dc421f` | Ninguno | Completado | Git y GitHub | Ninguno; no modificó archivos | 2026-07-14 |
-| `architecture_audit` | Cartografiar arquitectura y punto de integración | Solo lectura sobre `origin/main@4dc421f` | Ninguno | Completado | README, AGENTS, ADR, código | Ninguno; no modificó archivos | 2026-07-14 |
-| `quality_ops_audit` | Auditar pruebas, CI, Vercel, entorno y seguridad | Solo lectura sobre `origin/main@4dc421f` | Ninguno | Completado | CI, Vercel, Supabase y configuración | Ninguno; no modificó archivos | 2026-07-14 |
-| Worktree `fiscal-calendar-resume` | Trabajo histórico del calendario | `codex/fiscal-calendar-aeat-resume` | Cambios sin confirmar en calendario | Detectado; no se presupone activo | Calendario fiscal | Evitar copiar o sobrescribir sus cambios | 2026-07-14 |
-| Worktree `fiscal-notifications-resume` | Trabajo histórico de notificaciones | `codex/fiscal-notifications-cases-resume` | Cambios sin confirmar en `/consultor-fiscal`, navegación y notificaciones | Detectado; no se presupone activo | Navegación Asesoría fiscal | Solapamiento potencial en `AdvisorAreaNavigation`; comparar conscientemente | 2026-07-14 |
-| Worktree `notifications-persisted-workspace-v1` | Persistencia de notificaciones | `agent/fiscal-notifications-persisted-workspace-v1` | Archivos sin confirmar de notificaciones | Detectado; no se presupone activo | AppStore/Supabase | No reutilizar su estado no integrado | 2026-07-14 |
-| Worktree `fiscal-change-watch` | Vigilancia de cambios fiscales | `codex/fiscal-change-watch` | Workflow, catálogo y panel admin | Commit no integrado en `origin/main` | Fuentes fiscales | Futuro punto de integración; no incorporarlo silenciosamente | 2026-07-14 |
-| Worktrees de fichas AEAT | Publicar contenido oficial de modelos | ramas `codex/aeat-models-official-batch-*` | `src/lib/fiscal-models/**` | Parte integrada; lotes 03/16 conservan cambios locales | Catálogo de modelos | Límite duro: diagnóstico fuera de ese módulo | 2026-07-14 |
-| Worktree `fix-backup-restore-stale-loop` | Reparar backup/restauración | `codex/fix-backup-restore-stale-loop` | Ajustes, backup y manual | Sucio, aunque apunta a `origin/main` | Persistencia local | No usar como base ni copiar cambios sin commit | 2026-07-14 |
+| Agente o hilo                                   | Objetivo                                                                  | Rama o worktree                                                       | Archivos y directorios reservados                                         | Estado                                                 | Dependencias                                                                  | Riesgos de conflicto                                                        | Última actualización |
+| ----------------------------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------- | -------------------- |
+| Agente principal                                | Diseñar e implementar el diagnóstico de modelos dentro de Asesoría fiscal | `feat/tax-model-diagnostic` / `factura-autonomo-tax-model-diagnostic` | Ámbito indicado arriba                                                    | En curso                                               | Fuentes AEAT/BOE, perfil fiscal, AppStore, calendario y navegación existentes | Navegación, normalización de perfil y manual                                | 2026-07-14           |
+| `repo_coordination_audit`                       | Auditar Git, worktrees, PR, issues y handoffs                             | Solo lectura sobre `origin/main@4dc421f`                              | Ninguno                                                                   | Completado                                             | Git y GitHub                                                                  | Ninguno; no modificó archivos                                               | 2026-07-14           |
+| `architecture_audit`                            | Cartografiar arquitectura y punto de integración                          | Solo lectura sobre `origin/main@4dc421f`                              | Ninguno                                                                   | Completado                                             | README, AGENTS, ADR, código                                                   | Ninguno; no modificó archivos                                               | 2026-07-14           |
+| `quality_ops_audit`                             | Auditar pruebas, CI, Vercel, entorno y seguridad                          | Solo lectura sobre `origin/main@4dc421f`                              | Ninguno                                                                   | Completado                                             | CI, Vercel, Supabase y configuración                                          | Ninguno; no modificó archivos                                               | 2026-07-14           |
+| Worktree `fiscal-calendar-resume`               | Trabajo histórico del calendario                                          | `codex/fiscal-calendar-aeat-resume`                                   | Cambios sin confirmar en calendario                                       | Detectado; no se presupone activo                      | Calendario fiscal                                                             | Evitar copiar o sobrescribir sus cambios                                    | 2026-07-14           |
+| Worktree `fiscal-notifications-resume`          | Trabajo histórico de notificaciones                                       | `codex/fiscal-notifications-cases-resume`                             | Cambios sin confirmar en `/consultor-fiscal`, navegación y notificaciones | Detectado; no se presupone activo                      | Navegación Asesoría fiscal                                                    | Solapamiento potencial en `AdvisorAreaNavigation`; comparar conscientemente | 2026-07-14           |
+| Worktree `notifications-persisted-workspace-v1` | Persistencia de notificaciones                                            | `agent/fiscal-notifications-persisted-workspace-v1`                   | Archivos sin confirmar de notificaciones                                  | Detectado; no se presupone activo                      | AppStore/Supabase                                                             | No reutilizar su estado no integrado                                        | 2026-07-14           |
+| Worktree `fiscal-change-watch`                  | Vigilancia de cambios fiscales                                            | `codex/fiscal-change-watch`                                           | Workflow, catálogo y panel admin                                          | Commit no integrado en `origin/main`                   | Fuentes fiscales                                                              | Futuro punto de integración; no incorporarlo silenciosamente                | 2026-07-14           |
+| Worktrees de fichas AEAT                        | Publicar contenido oficial de modelos                                     | ramas `codex/aeat-models-official-batch-*`                            | `src/lib/fiscal-models/**`                                                | Parte integrada; lotes 03/16 conservan cambios locales | Catálogo de modelos                                                           | Límite duro: diagnóstico fuera de ese módulo                                | 2026-07-14           |
+| Worktree `fix-backup-restore-stale-loop`        | Reparar backup/restauración                                               | `codex/fix-backup-restore-stale-loop`                                 | Ajustes, backup y manual                                                  | Sucio, aunque apunta a `origin/main`                   | Persistencia local                                                            | No usar como base ni copiar cambios sin commit                              | 2026-07-14           |
 
 No existe acceso a conversaciones históricas de esos worktrees. Solo se afirma
 lo observado en Git, GitHub y el repositorio. Los tres agentes accesibles

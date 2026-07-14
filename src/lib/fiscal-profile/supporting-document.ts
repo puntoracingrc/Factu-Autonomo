@@ -9,8 +9,7 @@ export const SUPPORTING_DOCUMENT_TYPES = [
   "LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE",
 ] as const;
 
-export type SupportingDocumentType =
-  (typeof SUPPORTING_DOCUMENT_TYPES)[number];
+export type SupportingDocumentType = (typeof SUPPORTING_DOCUMENT_TYPES)[number];
 
 export interface SupportingDocumentStructure {
   documentType: SupportingDocumentType;
@@ -30,8 +29,14 @@ export const SUPPORTING_DOCUMENT_STRUCTURES = [
     officialInformationUrl:
       "https://portal.seg-social.gob.es/wps/portal/importass/importass/Categorias/Vida%2Blaboral%2Be%2Binformes/Informes%2Bsobre%2Btu%2Bsituacion%2Blaboral/Informe%2Bde%2Bsituacion%2Blaboral%2Bactual",
     requiredPhrases: ["INFORME DE SITUACION ACTUAL DEL TRABAJADOR"],
-    requiredAnyPhraseGroups: [["TESORERIA GENERAL DE LA SEGURIDAD SOCIAL", "SEGURIDAD SOCIAL"]],
-    extractableFacts: ["currentSocialSecurityStatus", "currentRegimes", "statusDate"],
+    requiredAnyPhraseGroups: [
+      ["TESORERIA GENERAL DE LA SEGURIDAD SOCIAL", "SEGURIDAD SOCIAL"],
+    ],
+    extractableFacts: [
+      "currentSocialSecurityStatus",
+      "currentRegimes",
+      "statusDate",
+    ],
   },
   {
     documentType: "WORK_LIFE_REPORT",
@@ -40,8 +45,16 @@ export const SUPPORTING_DOCUMENT_STRUCTURES = [
     officialInformationUrl:
       "https://portal.seg-social.gob.es/wps/wcm/connect/importass/IMPORTASS_Contenidos/Categorias/Vida%2Blaboral%2Be%2Binformes/Informes%2Bsobre%2Btu%2Bsituacion%2Blaboral/Informe%2Bde%2Btu%2Bvida%2Blaboral",
     requiredPhrases: ["VIDA LABORAL"],
-    requiredAnyPhraseGroups: [["TESORERIA GENERAL DE LA SEGURIDAD SOCIAL", "SEGURIDAD SOCIAL"], ["FECHA DE ALTA", "SITUACIONES", "DIAS EN ALTA"]],
-    extractableFacts: ["socialSecurityPeriods", "retaPeriods", "startDates", "endDates"],
+    requiredAnyPhraseGroups: [
+      ["TESORERIA GENERAL DE LA SEGURIDAD SOCIAL", "SEGURIDAD SOCIAL"],
+      ["FECHA DE ALTA", "SITUACIONES", "DIAS EN ALTA"],
+    ],
+    extractableFacts: [
+      "socialSecurityPeriods",
+      "retaPeriods",
+      "startDates",
+      "endDates",
+    ],
   },
   {
     documentType: "SELF_EMPLOYED_ACTIVITY_REPORT",
@@ -50,8 +63,15 @@ export const SUPPORTING_DOCUMENT_STRUCTURES = [
     officialInformationUrl:
       "https://portal.seg-social.gob.es/wps/portal/importass/importass/Categorias/Vida%20laboral%20e%20informes/Informes%20sobre%20tu%20situacion%20laboral/Infor_Act_Autonomo",
     requiredPhrases: ["INFORME DE ACTIVIDADES DE TRABAJO AUTONOMO"],
-    requiredAnyPhraseGroups: [["TESORERIA GENERAL DE LA SEGURIDAD SOCIAL", "SEGURIDAD SOCIAL"], ["ACTIVIDAD PROFESIONAL", "ACTIVIDADES PROFESIONALES"]],
-    extractableFacts: ["currentSelfEmployedActivities", "activityCodes", "effectiveDates"],
+    requiredAnyPhraseGroups: [
+      ["TESORERIA GENERAL DE LA SEGURIDAD SOCIAL", "SEGURIDAD SOCIAL"],
+      ["ACTIVIDAD PROFESIONAL", "ACTIVIDADES PROFESIONALES"],
+    ],
+    extractableFacts: [
+      "currentSelfEmployedActivities",
+      "activityCodes",
+      "effectiveDates",
+    ],
   },
   {
     documentType: "INTRACOMMUNITY_OPERATOR_CERTIFICATE",
@@ -60,7 +80,12 @@ export const SUPPORTING_DOCUMENT_STRUCTURES = [
     officialInformationUrl:
       "https://sede.agenciatributaria.gob.es/Sede/certificaciones/censales/certificados-trib_____ificados-tributarios-operadores-intracomunitarios/que-certifica.html",
     requiredPhrases: ["CERTIFICADO TRIBUTARIO"],
-    requiredAnyPhraseGroups: [["REGISTRO DE OPERADORES INTRACOMUNITARIOS", "OPERADORES INTRACOMUNITARIOS"]],
+    requiredAnyPhraseGroups: [
+      [
+        "REGISTRO DE OPERADORES INTRACOMUNITARIOS",
+        "OPERADORES INTRACOMUNITARIOS",
+      ],
+    ],
     extractableFacts: ["roiRegistration", "nifVat", "certificateDate"],
   },
   {
@@ -70,8 +95,19 @@ export const SUPPORTING_DOCUMENT_STRUCTURES = [
     officialInformationUrl:
       "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G325.shtml",
     requiredPhrases: ["CERTIFICADO TRIBUTARIO"],
-    requiredAnyPhraseGroups: [["EXONERACION DE RETENCION", "EXONERADO DE RETENCION"], ["ARRENDADOR", "ARRENDAMIENTO DE INMUEBLES"]],
-    extractableFacts: ["landlordWithholdingExemption", "iaeRegistration", "certificateDate"],
+    requiredAnyPhraseGroups: [
+      [
+        "EXONERACION DE RETENCION",
+        "EXONERADO DE RETENCION",
+        "EXONERACION DE LA OBLIGACION DE RETENER",
+      ],
+      ["ARRENDADOR", "ARRENDAMIENTO DE INMUEBLES"],
+    ],
+    extractableFacts: [
+      "landlordWithholdingExemption",
+      "iaeRegistration",
+      "certificateDate",
+    ],
   },
 ] as const satisfies readonly SupportingDocumentStructure[];
 
@@ -154,11 +190,11 @@ export function parseSupportingDocumentText(
     };
   }
 
-  const facts: Omit<SupportingDocumentCandidate, "catalogVersion" | "documentType" | "status" | "warnings"> = {};
-  if (
-    structure.documentType === "WORK_LIFE_REPORT" &&
-    mentionsReta(value)
-  ) {
+  const facts: Omit<
+    SupportingDocumentCandidate,
+    "catalogVersion" | "documentType" | "status" | "warnings"
+  > = {};
+  if (structure.documentType === "WORK_LIFE_REPORT" && mentionsReta(value)) {
     facts.retaDuringYear = "YES";
   }
   if (
@@ -177,8 +213,7 @@ export function parseSupportingDocumentText(
     facts.roiRegistered = "YES";
   }
   if (
-    structure.documentType ===
-      "LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE" &&
+    structure.documentType === "LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE" &&
     positiveLandlordExemption(value)
   ) {
     facts.landlordWithholdingExemption = "YES";

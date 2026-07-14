@@ -10,6 +10,8 @@ import {
   FISCAL_DOCUMENT_EXTRACTOR_CATALOG_VERSION,
 } from "./contracts";
 import { extractFirstBlockText } from "./first-block";
+import { extractPriorityModelText } from "./priority-models";
+import { extractRemainingModelText } from "./remaining-models";
 import {
   extractDateAfterLabel,
   extractFiscalYear,
@@ -20,10 +22,7 @@ import {
 } from "./normalization";
 import { reconcileExtractedFacts } from "./reconciliation";
 import { resolveQuestionsFromFacts } from "./question-mapping";
-import {
-  validateDocumentEnvelope,
-  validateExtractedFacts,
-} from "./validation";
+import { validateDocumentEnvelope, validateExtractedFacts } from "./validation";
 
 function genericEnvelope(
   input: TextDocumentInput,
@@ -65,12 +64,18 @@ function genericEnvelope(
             : "UNKNOWN",
     taxpayerNifMasked: maskSpanishTaxId(detectedNif),
     taxpayerNameMasked: null,
-    issueDate: extractDateAfterLabel(input.text, ["FECHA DE EXPEDICION", "FECHA DE EMISION"]),
+    issueDate: extractDateAfterLabel(input.text, [
+      "FECHA DE EXPEDICION",
+      "FECHA DE EMISION",
+    ]),
     filingDate: extractDateAfterLabel(input.text, [
       "FECHA DE PRESENTACION",
       "PRESENTACION REALIZADA EL",
     ]),
-    effectiveDate: extractDateAfterLabel(input.text, ["FECHA EFECTIVA", "FECHA DE EFECTO"]),
+    effectiveDate: extractDateAfterLabel(input.text, [
+      "FECHA EFECTIVA",
+      "FECHA DE EFECTO",
+    ]),
     receiptNumberMasked: maskReference(receipt),
     csv: csvDetected
       ? { detected: true, verificationStatus: "CSV_DETECTED" }
@@ -118,7 +123,7 @@ export function extractFiscalDocumentText(
     };
   }
 
-  const extraction = extractFirstBlockText({
+  const extractionInput = {
     documentId: input.documentId,
     documentType: classification.documentType,
     text: input.text,
@@ -128,7 +133,11 @@ export function extractFiscalDocumentText(
       ? {}
       : { detectedPages: input.detectedPages }),
     ...(input.pages == null ? {} : { pages: input.pages }),
-  });
+  };
+  const extraction =
+    extractFirstBlockText(extractionInput) ??
+    extractPriorityModelText(extractionInput) ??
+    extractRemainingModelText(extractionInput);
   if (!extraction) {
     return {
       contractVersion: FISCAL_DOCUMENT_EXTRACTION_CONTRACT_VERSION,

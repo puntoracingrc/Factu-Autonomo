@@ -1,6 +1,6 @@
 export const FISCAL_DOCUMENT_EXTRACTION_CONTRACT_VERSION = "1.0.0" as const;
 export const FISCAL_DOCUMENT_EXTRACTOR_CATALOG_VERSION =
-  "fiscal-document-extractors.2026-07.v1" as const;
+  "fiscal-document-extractors.2026-07.v2" as const;
 
 export const TAX_DOCUMENT_MODEL_CODES = [
   "035",
@@ -53,15 +53,10 @@ export type UnnumberedFiscalDocumentType =
   (typeof UNNUMBERED_FISCAL_DOCUMENT_TYPES)[number];
 
 export type FiscalDocumentType =
-  | `MODEL_${TaxDocumentModelCode}`
-  | UnnumberedFiscalDocumentType;
+  `MODEL_${TaxDocumentModelCode}` | UnnumberedFiscalDocumentType;
 
 export type DocumentAuthority =
-  | "AEAT"
-  | "TGSS"
-  | "FORAL"
-  | "CANARY_TAX_AUTHORITY"
-  | "UNKNOWN";
+  "AEAT" | "TGSS" | "FORAL" | "CANARY_TAX_AUTHORITY" | "UNKNOWN";
 
 export type DocumentTerritory =
   | "ES_COMMON"
@@ -88,11 +83,7 @@ export type DocumentKind =
   | "UNKNOWN";
 
 export type FilingStatus =
-  | "VERIFIED_FILED"
-  | "APPARENTLY_FILED"
-  | "NOT_VERIFIED"
-  | "DRAFT"
-  | "UNKNOWN";
+  "VERIFIED_FILED" | "APPARENTLY_FILED" | "NOT_VERIFIED" | "DRAFT" | "UNKNOWN";
 
 export type TemporalScope =
   | "CURRENT_AS_OF_DATE"
@@ -121,9 +112,7 @@ export type StructuredExtractionMethod =
 
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue =
-  | JsonPrimitive
-  | readonly JsonValue[]
-  | { readonly [key: string]: JsonValue };
+  JsonPrimitive | readonly JsonValue[] | { readonly [key: string]: JsonValue };
 
 export interface SourceCoordinates {
   page: number;
@@ -152,11 +141,7 @@ export interface DocumentEnvelope {
   documentKind: DocumentKind;
   filingStatus: FilingStatus;
   originalOrCorrection:
-    | "ORIGINAL"
-    | "COMPLEMENTARY"
-    | "SUBSTITUTE"
-    | "RECTIFICATION"
-    | "UNKNOWN";
+    "ORIGINAL" | "COMPLEMENTARY" | "SUBSTITUTE" | "RECTIFICATION" | "UNKNOWN";
   taxpayerNifMasked: string | null;
   taxpayerNameMasked: string | null;
   issueDate: string | null;
@@ -210,10 +195,7 @@ export interface QuestionResolution {
 }
 
 export type ExtractionResultStatus =
-  | "RESOLVED"
-  | "MANUAL_REVIEW"
-  | "UNSUPPORTED_DOCUMENT"
-  | "BLOCKED";
+  "RESOLVED" | "MANUAL_REVIEW" | "UNSUPPORTED_DOCUMENT" | "BLOCKED";
 
 export interface FiscalDocumentExtractionResult {
   contractVersion: typeof FISCAL_DOCUMENT_EXTRACTION_CONTRACT_VERSION;
