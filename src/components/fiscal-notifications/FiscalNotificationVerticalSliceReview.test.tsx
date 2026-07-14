@@ -28,6 +28,17 @@ const PAYMENT = [
   `Cuenta de cargo: ${RAW_ACCOUNT}`,
 ].join("\n");
 
+const NOTIFICATION = [
+  "Dirección Electrónica Habilitada Única",
+  "dehu.redsara.es",
+  "ACUSE DE RECIBO",
+  "Estado de la notificación: Expirada",
+  "Identificador de la notificación: NOT-SYN-UI-001",
+  "Asunto: Acto sintético notificado",
+  "Fecha de puesta a disposición: 01/07/2026 10:00",
+  "Fecha de expiración: 11/07/2026 10:00",
+].join("\n");
+
 function document(text: string): BoundedDocumentInput {
   return Object.freeze({
     ownerScope: "user:synthetic-ui",
@@ -39,6 +50,24 @@ function document(text: string): BoundedDocumentInput {
 }
 
 describe("FiscalNotificationVerticalSliceReview", () => {
+  it("shows an exact expired notification and its printed dates", async () => {
+    const review = projectFiscalNotificationVerticalSliceReviewV1(
+      await analyzeFiscalNotificationVerticalSliceV1(document(NOTIFICATION)),
+    );
+    const html = renderToStaticMarkup(
+      createElement(FiscalNotificationVerticalSliceReview, { review }),
+    );
+
+    expect(html).toContain("Sobre o acuse de notificación electrónica");
+    expect(html).toContain("Notificación expirada");
+    expect(html).toContain("NOT-SYN-UI-001");
+    expect(html).toContain("Acto sintético notificado");
+    expect(html).toContain("01/07/2026 10:00");
+    expect(html).toContain("11/07/2026 10:00");
+    expect(html).toContain("Documento reconocido");
+    expect(html).not.toMatch(/posible familia/iu);
+  });
+
   it("shows the exact type and extracted fields without possible-family copy", async () => {
     const review = projectFiscalNotificationVerticalSliceReviewV1(
       await analyzeFiscalNotificationVerticalSliceV1(document(PAYMENT)),

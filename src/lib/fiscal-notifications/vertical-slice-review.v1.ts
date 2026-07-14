@@ -9,6 +9,7 @@ import type { MonetaryComponentTypeV1 } from "./extractor-core/monetary-componen
 import type { ProceduralDateTypeV1 } from "./extractor-core/procedural-date.v1";
 import type { ReferenceTypeV1 } from "./extractor-core/reference.v1";
 import type { PaymentEvidenceStateV1 } from "./extractor-core/payment-evidence-extractor.v1";
+import type { NotificationEnvelopeStateV1 } from "./extractor-core/notification-envelope-extractor.v1";
 import type {
   FiscalNotificationVerticalSliceAnalysisV1,
   FiscalNotificationVerticalSliceExtractorIdV1,
@@ -19,7 +20,7 @@ export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1 =
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1 =
   Object.freeze({
-    maxDocuments: 4,
+    maxDocuments: 5,
     maxFieldsPerDocument: 256,
     maxWarningsPerDocument: 64,
     maxLabelChars: 160,
@@ -59,6 +60,9 @@ const DETAIL_CANONICAL_TYPES = Object.freeze([
   "PAYMENT_TIME",
   "MASKED_ACCOUNT",
   "BARCODE_REFERENCE",
+  "NOTIFICATION_SUBJECT",
+  "NOTIFICATION_CHANNEL",
+  "PRINTED_NOTIFICATION_STATE",
 ] as const);
 
 export type FiscalNotificationVerticalSliceCanonicalFieldTypeV1 =
@@ -115,6 +119,9 @@ export interface FiscalNotificationVerticalSliceReviewV1 {
 const FAMILY_TITLE: Readonly<
   Partial<Record<FiscalNotificationDocumentFamilyIdV3, string>>
 > = Object.freeze({
+  "notification.delivery_attempt": "Aviso o intento de notificación",
+  "notification.publication_or_appearance": "Publicación o comparecencia para notificación",
+  "notification.dehu_envelope": "Sobre o acuse de notificación electrónica",
   "compliance.formal_filing_requirement": "Requerimiento formal de presentación",
   "assessment.allegations_and_proposal": "Propuesta de liquidación provisional",
   "assessment.final_provisional_assessment": "Liquidación provisional",
@@ -204,6 +211,7 @@ const FAMILY_IDS = new Set<FiscalNotificationDocumentFamilyIdV3>(
   Object.keys(FAMILY_TITLE) as FiscalNotificationDocumentFamilyIdV3[],
 );
 const EXTRACTOR_IDS = new Set<FiscalNotificationVerticalSliceExtractorIdV1>([
+  "notification-envelope",
   "requirement",
   "assessment",
   "payment-order",
@@ -223,6 +231,9 @@ export function projectFiscalNotificationVerticalSliceReviewV1(
 ): FiscalNotificationVerticalSliceReviewV1 {
   const documents: FiscalNotificationVerticalSliceReviewDocumentV1[] = [];
   const { extractions } = analysis;
+  if (extractions.notificationEnvelope) {
+    documents.push(projectNotificationEnvelope(extractions.notificationEnvelope));
+  }
   if (extractions.formalFilingRequirement) {
     documents.push(projectRequirement(extractions.formalFilingRequirement));
   }
@@ -365,6 +376,33 @@ function projectRequirement(
     addTextFact(fields, "EXPLICIT_CONSEQUENCE", `Consecuencia indicada ${index + 1}`, item),
   );
   return documentProjection("requirement", output, fields, "Requerimiento formal de presentación");
+}
+
+function projectNotificationEnvelope(
+  output: NonNullable<FiscalNotificationVerticalSliceAnalysisV1["extractions"]["notificationEnvelope"]>,
+) {
+  const fields = commonFields(output);
+  const state = notificationStateLabel(output.notificationEnvelopeFacts.notificationState);
+  addStatus(fields, state, pagesForOutput(output));
+  addTextFact(
+    fields,
+    "PRINTED_NOTIFICATION_STATE",
+    "Estado impreso",
+    output.notificationEnvelopeFacts.printedState,
+  );
+  addTextFact(
+    fields,
+    "NOTIFICATION_SUBJECT",
+    "Asunto",
+    output.notificationEnvelopeFacts.subject,
+  );
+  addTextFact(
+    fields,
+    "NOTIFICATION_CHANNEL",
+    "Canal",
+    output.notificationEnvelopeFacts.channel,
+  );
+  return documentProjection("notification-envelope", output, fields, state);
 }
 
 function projectAssessment(
@@ -626,6 +664,20 @@ function paymentStateLabel(state: PaymentEvidenceStateV1): string {
     CANCELLED: "Pago anulado",
     RETURNED: "Pago devuelto",
     UNKNOWN: "Resultado de pago pendiente de revisión",
+  });
+  return labels[state];
+}
+
+function notificationStateLabel(state: NotificationEnvelopeStateV1): string {
+  const labels: Readonly<Record<NotificationEnvelopeStateV1, string>> = Object.freeze({
+    AVAILABLE: "Notificación puesta a disposición",
+    ACCESSED: "Notificación accedida o aceptada",
+    REJECTED: "Notificación rechazada",
+    EXPIRED: "Notificación expirada",
+    ATTEMPTED: "Intento de notificación",
+    DELIVERED: "Notificación entregada",
+    PUBLISHED: "Notificación publicada",
+    UNKNOWN: "Estado de notificación pendiente de revisión",
   });
   return labels[state];
 }

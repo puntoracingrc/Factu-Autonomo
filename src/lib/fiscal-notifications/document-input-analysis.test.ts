@@ -77,6 +77,54 @@ describe("fiscal notification document input analysis", () => {
     });
   });
 
+  it("transports an exact notification envelope without retaining its source page", async () => {
+    const sourceMarker = "RAW-NOTIFICATION-SOURCE-MUST-DISAPPEAR";
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input([
+        "Dirección Electrónica Habilitada Única",
+        "dehu.redsara.es",
+        "ACUSE DE RECIBO",
+        "Estado de la notificación: Rechazada",
+        "Identificador de la notificación: NOT-SYN-PIPELINE-001",
+        "Identificador del acto: ACT-SYN-PIPELINE-001",
+        "Asunto: Resolución sintética notificada",
+        "Fecha de puesta a disposición: 10/07/2026 08:15",
+        "Fecha de rechazo: 12/07/2026 09:42",
+        sourceMarker,
+      ].join("\n")),
+    );
+
+    expect(result.verticalSliceReview).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      documents: [
+        expect.objectContaining({
+          extractorId: "notification-envelope",
+          familyId: "notification.dehu_envelope",
+          title: "Sobre o acuse de notificación electrónica",
+          subtitle: "Notificación rechazada",
+          fields: expect.arrayContaining([
+            expect.objectContaining({
+              canonicalType: "NOTIFICATION_ID",
+              displayValue: "NOT-SYN-PIPELINE-001",
+            }),
+            expect.objectContaining({
+              canonicalType: "ACT_ID",
+              displayValue: "ACT-SYN-PIPELINE-001",
+            }),
+            expect.objectContaining({
+              canonicalType: "REJECTION_DATE",
+              displayValue: "12/07/2026 09:42",
+              normalizedValue: "2026-07-12",
+            }),
+          ]),
+        }),
+      ],
+      retainedSourceContent: "NONE",
+    });
+    expect(JSON.stringify(result)).not.toContain(sourceMarker);
+  });
+
+
   it("transports exact payment evidence fields without retaining the source text", async () => {
     const rawAccount = "ES12 3456 7890 1234 5678 9012";
     const result = await analyzeFiscalNotificationDocumentInput(

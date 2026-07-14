@@ -8,6 +8,23 @@ import { analyzeFiscalNotificationVerticalSliceV1 } from "./vertical-slice-orche
 const OWNER_SCOPE = "user:synthetic-vertical-slice";
 const DOCUMENT_ID = "document:synthetic-vertical-slice";
 
+const NOTIFICATION_RECEIPT = [
+  "Dirección Electrónica Habilitada Única",
+  "dehu.redsara.es",
+  "ACUSE DE RECIBO",
+  "Estado de la notificación: Aceptada",
+  "Identificador de la notificación: NOT-SYN-CHAIN-001",
+  "Identificador del acto: ACT-SYN-CHAIN-001",
+  "Número de expediente: EXP-SYN-CHAIN-001",
+  "Asunto: Resolución administrativa sintética",
+  "Organismo emisor: Agencia Estatal de Administración Tributaria",
+  "Destinatario: PERSONA SINTÉTICA",
+  "NIF del destinatario: 12345678Z",
+  "Canal de notificación: DEHú",
+  "Fecha de puesta a disposición: 10/07/2026 08:15",
+  "Fecha de acceso: 12/07/2026 09:42",
+].join("\n");
+
 function document(...pagesOrSignal: readonly (string | AbortSignal)[]): BoundedDocumentInput {
   const signal = pagesOrSignal.at(-1) instanceof AbortSignal
     ? pagesOrSignal.at(-1) as AbortSignal
@@ -114,6 +131,33 @@ const ASSESSMENT_PROPOSAL = [
 ].join("\n");
 
 describe("fiscal notification first vertical-slice orchestrator v1", () => {
+  it("recognizes an electronic notification receipt before the notified act", async () => {
+    const result = await analyzeFiscalNotificationVerticalSliceV1(
+      document(NOTIFICATION_RECEIPT),
+    );
+
+    expect(result.recognizedExtractorIds).toEqual(["notification-envelope"]);
+    expect(result.extractions.notificationEnvelope?.notificationEnvelopeFacts).toMatchObject({
+      documentKind: "ELECTRONIC_NOTIFICATION_RECEIPT",
+      notificationState: "ACCESSED",
+      notificationReference: { printedValue: "NOT-SYN-CHAIN-001" },
+      actReference: { printedValue: "ACT-SYN-CHAIN-001" },
+      subject: { printedValue: "Resolución administrativa sintética" },
+      issuer: { printedValue: "Agencia Estatal de Administración Tributaria" },
+      recipientName: { printedValue: "PERSONA SINTÉTICA" },
+      channel: { printedValue: "DEHú" },
+      availabilityDate: { parsedDate: "2026-07-10", parsedTime: "08:15:00" },
+      accessDate: { parsedDate: "2026-07-12", parsedTime: "09:42:00" },
+    });
+    expect(result).toMatchObject({
+      retainedSourceContent: "NONE",
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+      permitsAccountingAction: false,
+    });
+  });
+
   it("segments a payment order and exposes exact review-only fields", async () => {
     const result = await analyzeFiscalNotificationVerticalSliceV1(
       document(PAYMENT_ORDER),
@@ -234,6 +278,7 @@ describe("fiscal notification first vertical-slice orchestrator v1", () => {
     expect(result.status).toBe("INFORMATION_PENDING");
     expect(result.recognizedExtractorIds).toEqual([]);
     expect(result.extractions).toEqual({
+      notificationEnvelope: null,
       formalFilingRequirement: null,
       assessment: null,
       paymentOrder: null,
