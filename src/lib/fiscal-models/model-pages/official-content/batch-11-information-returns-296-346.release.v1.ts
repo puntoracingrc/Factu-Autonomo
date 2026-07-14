@@ -394,7 +394,7 @@ const MODEL_296_CONTENT = {
   canonicalName:
     "Declaración informativa. Retenciones e ingresos a cuenta del Impuesto sobre la Renta de no Residentes (sin establecimiento permanente). Resumen anual.",
   summary:
-    "Resumen anual informativo de retenciones e ingresos a cuenta del Impuesto sobre la Renta de no Residentes sin establecimiento permanente, con formulario en navegador y carga mediante fichero descritos por la AEAT.",
+    "Resumen anual de las rentas, retenciones y perceptores no residentes declarados mediante el Modelo 216.",
   searchTerms: [
     "modelo 296",
     "IRNR resumen anual",
@@ -406,6 +406,10 @@ const MODEL_296_CONTENT = {
     "presentación mediante fichero",
     "diseño lógico 296",
     "TIN NIF no residente",
+    "certificado residencia fiscal",
+    "rentas exentas no residentes",
+    "modelo 216",
+    "diseño ejercicio 2026",
     "Orden EHA 3290 2008",
     "Orden HAC 623 2026",
   ],

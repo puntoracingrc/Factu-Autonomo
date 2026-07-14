@@ -16,6 +16,10 @@ export type FiscalModelGuideInternalHrefV1 =
   | "/consultor-fiscal/modelos/180"
   | "/consultor-fiscal/modelos/184"
   | "/consultor-fiscal/modelos/190"
+  | "/consultor-fiscal/modelos/210"
+  | "/consultor-fiscal/modelos/211"
+  | "/consultor-fiscal/modelos/216"
+  | "/consultor-fiscal/modelos/296"
   | "/consultor-fiscal/modelos/303"
   | "/consultor-fiscal/modelos/347"
   | "/consultor-fiscal/modelos/309"
@@ -46,14 +50,19 @@ export interface FiscalModelPracticalGuideV1 {
     | "180"
     | "184"
     | "190"
+    | "216"
+    | "296"
     | "303"
     | "309"
     | "347"
     | "349"
+    | "360"
+    | "361"
     | "369"
     | "390"
     | "840";
   readonly effectiveYear?: number;
+  readonly filingYear?: number;
   readonly lastVerifiedAt?: string;
   readonly requiresAnnualReview?: boolean;
   readonly intro: readonly string[];

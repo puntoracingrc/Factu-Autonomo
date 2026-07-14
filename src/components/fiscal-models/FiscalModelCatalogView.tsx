@@ -55,6 +55,13 @@ const practicalCatalogLabels: Readonly<
     "Relacionado con Renta",
   ],
   "190": ["Anual", "Relacionado con 111", "Declaración informativa"],
+  "216": [
+    "Pagos a no residentes",
+    "IRNR",
+    "Trimestral o mensual",
+    "Solo si existe obligación de retener",
+  ],
+  "296": ["Anual", "No residentes", "Informativa", "Relacionado con 216"],
   "303": ["Frecuente para autónomos", "IVA", "Trimestral o mensual"],
   "309": [
     "Caso especial de IVA",
@@ -74,6 +81,13 @@ const practicalCatalogLabels: Readonly<
     "Declaración informativa",
     "Sin importe mínimo",
   ],
+  "360": [
+    "IVA extranjero",
+    "Unión Europea",
+    "Devolución",
+    "Fecha límite anual",
+  ],
+  "361": ["Internacional", "No establecido", "IVA español", "Avanzado"],
   "369": [
     "Comercio electrónico",
     "IVA europeo",
@@ -302,7 +316,8 @@ export function FiscalModelCatalogView({
                 >
                   Ver ficha
                   <span className="sr-only">
-                    {" "}de {getFiscalModelDocumentTitle(page.code)}
+                    {" "}
+                    de {getFiscalModelDocumentTitle(page.code)}
                   </span>
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
