@@ -62,7 +62,7 @@ export interface FiscalNotificationPdfWorkerCandidate {
   readonly documentType: FiscalNotificationFamilyCandidate["documentType"];
   readonly authoritySignal: "AEAT_UNVERIFIED";
   readonly handlerId: FiscalNotificationFamilyCandidate["handlerId"];
-  readonly handlerVersion: "1.0.0";
+  readonly handlerVersion: "1.0.0" | "1.1.0";
   readonly signalStatus: FiscalNotificationFamilyCandidate["signalStatus"];
   readonly matchedAnchors: readonly FiscalNotificationPdfWorkerAnchor[];
   readonly missingRequiredAnchorIds: readonly FiscalNotificationAnchorId[];
@@ -312,6 +312,7 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
   AEAT_ENFORCEMENT_ORDER_CANDIDATE: Object.freeze({
     documentType: "AEAT_ENFORCEMENT_ORDER" as const,
     handlerId: "aeat-enforcement-order-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
     titleAnchorId: "ENFORCEMENT_ORDER_TITLE" as const,
     requiredAnchors: ENFORCEMENT_REQUIRED_ANCHORS,
     optionalAnchors: Object.freeze([] as const),
@@ -320,6 +321,7 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
   AEAT_DEFERRAL_GRANT_CANDIDATE: Object.freeze({
     documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT" as const,
     handlerId: "aeat-deferral-grant-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
     titleAnchorId: "DEFERRAL_GRANT_TITLE" as const,
     requiredAnchors: DEFERRAL_REQUIRED_ANCHORS,
     optionalAnchors: Object.freeze([] as const),
@@ -328,6 +330,7 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
   AEAT_OFFSET_AGREEMENT_CANDIDATE: Object.freeze({
     documentType: "AEAT_OFFSET_AGREEMENT" as const,
     handlerId: "aeat-offset-agreement-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0", "1.1.0"] as const),
     titleAnchorId: "OFFSET_AGREEMENT_TITLE" as const,
     requiredAnchors: OFFSET_REQUIRED_ANCHORS,
     optionalAnchors: Object.freeze(["DOCUMENT_IDENTIFICATION_SECTION"] as const),
@@ -336,6 +339,7 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
   AEAT_REAL_ESTATE_SEIZURE_CANDIDATE: Object.freeze({
     documentType: "AEAT_SEIZURE_ORDER" as const,
     handlerId: "aeat-real-estate-seizure-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
     titleAnchorId: "REAL_ESTATE_SEIZURE_TITLE" as const,
     requiredAnchors: REAL_ESTATE_SEIZURE_REQUIRED_ANCHORS,
     optionalAnchors: Object.freeze(["DOCUMENT_IDENTIFICATION_SECTION"] as const),
@@ -344,6 +348,7 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
   AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE: Object.freeze({
     documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
     handlerId: "aeat-formal-filing-requirement-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
     titleAnchorId: "FORMAL_FILING_REQUIREMENT_TITLE" as const,
     requiredAnchors: FORMAL_FILING_REQUIRED_ANCHORS,
     optionalAnchors: Object.freeze([
@@ -355,6 +360,7 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
   AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: Object.freeze({
     documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
     handlerId: "aeat-roi-registration-agreement-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
     titleAnchorId: "ROI_REGISTRATION_AGREEMENT_TITLE" as const,
     requiredAnchors: ROI_REGISTRATION_REQUIRED_ANCHORS,
     optionalAnchors: Object.freeze([
@@ -368,6 +374,7 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
   {
     readonly documentType: FiscalNotificationFamilyCandidate["documentType"];
     readonly handlerId: FiscalNotificationFamilyCandidate["handlerId"];
+    readonly handlerVersions: readonly FiscalNotificationFamilyCandidate["handlerVersion"][];
     readonly titleAnchorId: FiscalNotificationAnchorId;
     readonly requiredAnchors: readonly FiscalNotificationAnchorId[];
     readonly optionalAnchors: readonly FiscalNotificationAnchorId[];
@@ -713,7 +720,9 @@ function parseCandidate(
     candidate.documentType !== definition.documentType ||
     candidate.authoritySignal !== "AEAT_UNVERIFIED" ||
     candidate.handlerId !== definition.handlerId ||
-    candidate.handlerVersion !== "1.0.0" ||
+    !definition.handlerVersions.some(
+      (version) => version === candidate.handlerVersion,
+    ) ||
     (candidate.signalStatus !== "COMPLETE_REQUIRED_ANCHORS" &&
       candidate.signalStatus !== "INCOMPLETE_REQUIRED_ANCHORS" &&
       candidate.signalStatus !== "CONFLICTING_AUTHORITY_OR_TERRITORY" &&
@@ -774,7 +783,8 @@ function parseCandidate(
     authoritySignal: "AEAT_UNVERIFIED" as const,
     handlerId:
       candidate.handlerId as FiscalNotificationPdfWorkerCandidate["handlerId"],
-    handlerVersion: "1.0.0" as const,
+    handlerVersion:
+      candidate.handlerVersion as FiscalNotificationPdfWorkerCandidate["handlerVersion"],
     signalStatus:
       candidate.signalStatus as FiscalNotificationPdfWorkerCandidate["signalStatus"],
     matchedAnchors: Object.freeze(matchedAnchors),

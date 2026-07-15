@@ -20,6 +20,8 @@ import {
   AEAT_OFFSET_AGREEMENT_PRIMARY_TITLE_V1,
   AEAT_REAL_ESTATE_SEIZURE_PRIMARY_TITLE_V1,
   AEAT_ROI_REGISTRATION_PRIMARY_TITLE_V1,
+  FISCAL_NOTIFICATION_PRIMARY_ACT_HEADER_LINE_LIMIT,
+  FISCAL_NOTIFICATION_REGISTERED_PRIMARY_TITLES_V1,
   segmentFiscalNotificationPrimaryActsV1,
   type FiscalNotificationPrimaryActSegmentV1,
   type FiscalNotificationPrimaryActTitleAnchorId,
@@ -360,11 +362,14 @@ function evaluateSegmentCandidate(
   signal?: AbortSignal,
 ): FiscalNotificationFamilyCandidate | null {
   const pageNumbers = new Set(segment.pageNumbers);
+  for (const pageNumber of offsetAnnexContinuationPageNumbers(index, segment)) {
+    pageNumbers.add(pageNumber);
+  }
   const segmentIndex = Object.freeze({
     pages: Object.freeze(
       index.pages.filter((page) => pageNumbers.has(page.pageNumber)),
     ),
-    extractablePageCount: segment.pageNumbers.length,
+    extractablePageCount: pageNumbers.size,
     headerPageNumber: segment.startPageNumber,
   });
   if (segment.familyId === "AEAT_ENFORCEMENT_ORDER_CANDIDATE") {
@@ -377,6 +382,7 @@ function evaluateSegmentCandidate(
         familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
         documentType: "AEAT_ENFORCEMENT_ORDER",
         handlerId: "aeat-enforcement-order-candidate",
+        handlerVersion: "1.0.0",
       },
       [],
       segmentationVersion,
@@ -392,6 +398,7 @@ function evaluateSegmentCandidate(
         familyId: "AEAT_DEFERRAL_GRANT_CANDIDATE",
         documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
         handlerId: "aeat-deferral-grant-candidate",
+        handlerVersion: "1.0.0",
       },
       [],
       segmentationVersion,
@@ -407,6 +414,7 @@ function evaluateSegmentCandidate(
         familyId: "AEAT_OFFSET_AGREEMENT_CANDIDATE",
         documentType: "AEAT_OFFSET_AGREEMENT",
         handlerId: "aeat-offset-agreement-candidate",
+        handlerVersion: "1.1.0",
       },
       [DOCUMENT_IDENTIFICATION_OPTIONAL_ANCHOR],
       segmentationVersion,
@@ -422,6 +430,7 @@ function evaluateSegmentCandidate(
         familyId: "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE",
         documentType: "AEAT_SEIZURE_ORDER",
         handlerId: "aeat-real-estate-seizure-candidate",
+        handlerVersion: "1.0.0",
       },
       REAL_ESTATE_SEIZURE_OPTIONAL_ANCHORS,
       segmentationVersion,
@@ -437,6 +446,7 @@ function evaluateSegmentCandidate(
         familyId: "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE",
         documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
         handlerId: "aeat-formal-filing-requirement-candidate",
+        handlerVersion: "1.0.0",
       },
       FORMAL_FILING_OPTIONAL_ANCHORS,
       segmentationVersion,
@@ -451,9 +461,83 @@ function evaluateSegmentCandidate(
       familyId: "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
       documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
       handlerId: "aeat-roi-registration-agreement-candidate",
+      handlerVersion: "1.0.0",
     },
     ROI_REGISTRATION_OPTIONAL_ANCHORS,
     segmentationVersion,
+  );
+}
+
+/**
+ * Handler v1.1: some historical AEAT compensation agreements repeat their
+ * exact primary title on Annex I and Annex II. The generic segmenter keeps
+ * that repeated title as a conservative boundary. This handler may look past
+ * it only when the boundary page is explicitly headed as one of those two
+ * annexes, and it stops again before any other registered primary act.
+ */
+function offsetAnnexContinuationPageNumbers(
+  index: PrivateTextIndex,
+  segment: FiscalNotificationPrimaryActSegmentV1,
+): readonly number[] {
+  if (
+    segment.familyId !== "AEAT_OFFSET_AGREEMENT_CANDIDATE" ||
+    segment.boundaryPageNumber === null
+  ) {
+    return Object.freeze([]);
+  }
+  const boundaryPage = index.pages.find(
+    (page) => page.pageNumber === segment.boundaryPageNumber,
+  );
+  if (!boundaryPage || !isOffsetAnnexContinuationPage(boundaryPage)) {
+    return Object.freeze([]);
+  }
+
+  const pageNumbers: number[] = [];
+  for (const page of index.pages) {
+    if (page.pageNumber < segment.boundaryPageNumber) continue;
+    const registeredTitles = registeredPrimaryTitlesOnPage(page);
+    if (
+      page.pageNumber > segment.boundaryPageNumber &&
+      registeredTitles.length > 0 &&
+      !isOffsetAnnexContinuationPage(page)
+    ) {
+      break;
+    }
+    pageNumbers.push(page.pageNumber);
+  }
+  return Object.freeze(pageNumbers);
+}
+
+function isOffsetAnnexContinuationPage(
+  page: PrivateTextIndex["pages"][number],
+): boolean {
+  return (
+    page.normalizedLines.some(
+      (line) => line === "anexo i" || line === "anexo ii",
+    ) &&
+    registeredPrimaryTitlesOnPage(page).some(
+      (definition) =>
+        definition.familyId === "AEAT_OFFSET_AGREEMENT_CANDIDATE",
+    )
+  );
+}
+
+function registeredPrimaryTitlesOnPage(
+  page: PrivateTextIndex["pages"][number],
+): readonly (typeof FISCAL_NOTIFICATION_REGISTERED_PRIMARY_TITLES_V1)[number][] {
+  const header = page.normalizedLines.slice(
+    0,
+    FISCAL_NOTIFICATION_PRIMARY_ACT_HEADER_LINE_LIMIT,
+  );
+  return FISCAL_NOTIFICATION_REGISTERED_PRIMARY_TITLES_V1.filter(
+    (definition) =>
+      header.some((line) =>
+        definition.literals.some((literal) =>
+          definition.matchMode === "LINE_EXACT"
+            ? line === literal
+            : line === literal || line.startsWith(`${literal} `),
+        ),
+      ),
   );
 }
 
@@ -464,7 +548,7 @@ function evaluateFamilyCandidate(
   uniqueTitleAnchorId: FiscalNotificationPrimaryActTitleAnchorId,
   identity: Pick<
     FiscalNotificationFamilyCandidate,
-    "familyId" | "documentType" | "handlerId"
+    "familyId" | "documentType" | "handlerId" | "handlerVersion"
   >,
   familyOptionalAnchors: readonly ClosedTextAnchorDefinition[],
   segmentationVersion: "1.1.0",
@@ -526,7 +610,7 @@ function evaluateFamilyCandidate(
     recognitionPolicyVersion: "1.3.0",
     segmentationVersion,
     authoritySignal: "AEAT_UNVERIFIED",
-    handlerVersion: "1.0.0",
+    handlerVersion: identity.handlerVersion,
     signalStatus:
       hasGuideConflict
         ? "CONFLICTING_DOCUMENT_SIGNAL"
