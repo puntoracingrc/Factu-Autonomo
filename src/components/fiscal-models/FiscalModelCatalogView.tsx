@@ -654,6 +654,40 @@ const practicalCatalogLabels: Readonly<
     "Impuestos Especiales",
     "Suministro o autoconsumo",
   ],
+  "600": ["ITP y AJD", "Competencia territorial", "30 días hábiles"],
+  "602": ["Juego", "Tasa administrativa", "No periódica"],
+  "604": ["Transacciones financieras", "Mensual", "0,2 %", "Anexo previo"],
+  "610": ["Documentos mercantiles", "Entidades colaboradoras", "AJD"],
+  "611": ["Informativa anual", "No genera pago", "Relacionado con 610"],
+  "615": ["Documentos mercantiles", "Función de giro", "AJD"],
+  "616": ["Informativa anual", "No genera pago", "Relacionado con 615"],
+  "620": ["Vehículos usados", "Comprador", "Competencia territorial"],
+  "630": ["Letras de cambio", "AJD", "Competencia territorial"],
+  "650": ["Herencias", "Seis meses", "Competencia territorial"],
+  "651": ["Donaciones", "Donatario", "30 días hábiles"],
+  "655": ["Usufructo", "Nuda propiedad", "Competencia territorial"],
+  "681": ["Sector eléctrico", "Residuos radiactivos", "Mensual"],
+  "682": ["Centrales nucleares", "Residuos radiactivos", "Mensual"],
+  "683": ["Combustible nuclear", "Anual", "Muy especializado"],
+  "684": ["Residuos radiactivos", "ENRESA", "60 días"],
+  "685": ["Apuestas", "Promociones", "Periodo 0A", "30 días"],
+  "695": ["Tasa judicial", "Devolución parcial", "60 % o 20 %"],
+  "696": ["Tasa judicial", "Personas jurídicas", "Revisar exenciones"],
+  "763": ["Operadores de juego", "Trimestral", "Sectorial"],
+  "770": ["Alta complejidad", "Intereses y recargos", "Artículo 252 LGT"],
+  "771": ["Alta complejidad", "Cuota principal", "Solo sin modelo ordinario"],
+  "780": ["Entidades financieras", "Impuesto vigente", "Septiembre"],
+  "781": ["Entidades financieras", "Pago fraccionado", "40 %", "Febrero"],
+  "791": ["Empleo público", "Oposiciones AEAT", "No tributario"],
+  "792": ["Servicios audiovisuales", "Anual", "Febrero"],
+  "793": [
+    "Servicios audiovisuales",
+    "Pagos a cuenta",
+    "Abril, julio y octubre",
+  ],
+  "795": ["Histórico", "Energía", "2023 y 2024"],
+  "796": ["Histórico", "Pago anticipado", "2023 y 2024"],
+  "797": ["Histórico", "Entidades financieras", "Relacionado con 780 y 781"],
   "232": [
     "Autónomo societario y empresas",
     "Operaciones vinculadas",
@@ -984,6 +1018,64 @@ const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
     "Relación informativa de suministros de carbón realizada por operadores obligados.",
   "596":
     "Autoliquidación del Impuesto Especial sobre el Carbón por operaciones sujetas y autoconsumos.",
+  "600":
+    "Autoliquidación general de ITP y AJD en los supuestos de competencia estatal.",
+  "602":
+    "Tasa asociada a determinados trámites administrativos estatales en materia de juego.",
+  "604":
+    "Autoliquidación mensual del impuesto sobre determinadas adquisiciones de acciones españolas.",
+  "610":
+    "Ingreso del AJD sobre determinados documentos negociados por entidades colaboradoras.",
+  "611":
+    "Resumen anual de los documentos y cuotas declarados mediante el Modelo 610.",
+  "615":
+    "Ingreso del AJD sobre determinados documentos con función de giro o endosables a la orden.",
+  "616":
+    "Resumen anual de los documentos y cuotas declarados mediante el Modelo 615.",
+  "620":
+    "Autoliquidación de ITP por determinados medios de transporte usados adquiridos entre particulares.",
+  "630":
+    "Pago en metálico del AJD correspondiente a determinadas letras y documentos mercantiles.",
+  "650":
+    "Autoliquidación del impuesto correspondiente a herencias, legados y seguros por fallecimiento.",
+  "651":
+    "Autoliquidación del impuesto correspondiente a donaciones y otras adquisiciones gratuitas inter vivos.",
+  "655":
+    "Autoliquidación por consolidación de la plena propiedad al extinguirse un usufructo.",
+  "681":
+    "Tasa sectorial vinculada a la financiación de determinados servicios de gestión de residuos radiactivos.",
+  "682":
+    "Tasa por la gestión de combustible nuclear gastado y residuos generados en centrales nucleares.",
+  "683":
+    "Tasa anual por residuos derivados de la fabricación de elementos combustibles nucleares.",
+  "684":
+    "Tasa por la gestión de residuos radiactivos generados en otras instalaciones.",
+  "685":
+    "Autoliquidación estatal de determinadas apuestas y combinaciones aleatorias promocionales.",
+  "695":
+    "Solicitud de devolución parcial de una tasa judicial por terminación del litigio o acumulación.",
+  "696":
+    "Autoliquidación de la tasa judicial de determinadas personas jurídicas y actuaciones procesales.",
+  "763":
+    "Autoliquidación trimestral del impuesto sobre actividades de juego de operadores estatales.",
+  "770":
+    "Intereses y recargos de una regularización voluntaria especial del artículo 252 LGT.",
+  "771":
+    "Cuota principal de una regularización especial cuando no existe modelo electrónico ordinario.",
+  "780":
+    "Autoliquidación anual del impuesto vigente sobre el margen de intereses y comisiones.",
+  "781":
+    "Pago fraccionado del impuesto sobre el margen de intereses y comisiones.",
+  "791":
+    "Solicitud electrónica de admisión a procesos selectivos de la AEAT y tasa de examen.",
+  "792":
+    "Autoliquidación anual de la aportación a RTVE de determinados prestadores audiovisuales.",
+  "793":
+    "Pagos de abril, julio y octubre a cuenta de la aportación audiovisual a RTVE.",
+  "795": "Modelo histórico del gravamen temporal energético de 2023 y 2024.",
+  "796": "Pago anticipado histórico del gravamen energético de 2023 y 2024.",
+  "797":
+    "Modelo histórico del antiguo gravamen bancario, relacionado con los actuales 780 y 781.",
   "040":
     "Alta, modificación y baja de operadores de plataformas en sus dos registros específicos. No es el Modelo 04 y no lo presenta el vendedor.",
   "172":
