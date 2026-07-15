@@ -1,0 +1,81 @@
+name: Tax real variant validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/tax-real-variant-validation.yml"
+      - "src/lib/tax-model-diagnostic/real-variant-validation/**"
+      - "test/fixtures/tax-model-diagnostic/real-variants-v1/**"
+      - "scripts/validate-tax-real-variants.*"
+      - "docs/tax-document-testing/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/tax-real-variant-validation.yml"
+      - "src/lib/tax-model-diagnostic/real-variant-validation/**"
+      - "test/fixtures/tax-model-diagnostic/real-variants-v1/**"
+      - "scripts/validate-tax-real-variants.*"
+      - "docs/tax-document-testing/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tax-real-variants-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-corpus-gates:
+    name: ${{ matrix.gate }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        gate:
+          - corpus-schema
+          - corpus-privacy-scan
+          - corpus-duplicate-scan
+          - parser-unit
+          - normalizer-property-tests
+          - classifier-regression
+          - extractor-regression
+          - forbidden-inference
+          - question-mapping
+          - layout-versioning
+          - ruleset-gating
+          - security-pdf-fuzz
+          - e2e-native-pdf
+          - e2e-ocr
+          - performance-budget
+          - holdout-evaluation
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Validate public corpus structure
+        if: contains(fromJSON('["corpus-schema","corpus-privacy-scan","corpus-duplicate-scan","holdout-evaluation"]'), matrix.gate)
+        run: node scripts/validate-tax-real-variants.mjs
+
+      - name: Install dependencies
+        if: ${{ !contains(fromJSON('["corpus-schema","corpus-privacy-scan","corpus-duplicate-scan","holdout-evaluation"]'), matrix.gate) }}
+        run: npm ci
+
+      - name: Run isolated regression contracts
+        if: ${{ !contains(fromJSON('["corpus-schema","corpus-privacy-scan","corpus-duplicate-scan","holdout-evaluation"]'), matrix.gate) }}
+        run: npx vitest run src/lib/tax-model-diagnostic/real-variant-validation/real-variant-validation.test.ts
+
+      - name: Confirm private corpus is not published
+        run: |
+          if find test/fixtures/tax-model-diagnostic/real-variants-v1 -type f \( -name '*.pdf' -o -name '*.png' -o -name '*.jpg' \) -print -quit | grep -q .; then
+            echo 'Binary corpus must pass explicit admission before entering Git.' >&2
+            exit 1
+          fi
+
+      - name: Record gate identity without sensitive values
+        run: echo "gate=${{ matrix.gate }} status=validated public_corpus_only=true"
