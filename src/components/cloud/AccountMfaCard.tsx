@@ -1,12 +1,20 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KeyRound, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import {
+  accountMfaErrorMessage,
+  createAccountMfaAsyncGuard,
+  normalizeTotpInput,
+  readAccountMfaSession,
+  verifyAccountTotp,
+  type AccountMfaAsyncToken,
+} from "@/lib/auth/account-mfa";
 
 type MfaBusyState = "idle" | "enroll" | "verify" | "remove";
 
@@ -22,23 +30,20 @@ function qrCodeSrc(qrCode: string): string {
   return `data:image/svg+xml;utf8,${encodeURIComponent(qrCode)}`;
 }
 
-function cleanOtpCode(value: string): string {
-  return value.trim().replace(/\s+/g, "");
-}
-
-function friendlyMfaError(message: string): string {
-  if (/already exists/i.test(message)) {
-    return "Ya hay una configuración pendiente. Cancélala y vuelve a generar el QR.";
-  }
-  if (/invalid|code|factor/i.test(message)) {
-    return "No se pudo verificar el código. Revisa los 6 dígitos e inténtalo de nuevo.";
-  }
-  return message;
-}
-
 export function AccountMfaCard() {
   const { user, cloudEnabled } = useCloudSync();
+  const userId = user?.id ?? null;
+  const sessionKey = user
+    ? `${user.id}:${user.last_sign_in_at ?? ""}:${user.updated_at ?? ""}`
+    : null;
   const [loading, setLoading] = useState(false);
+  const [mfaStateReady, setMfaStateReady] = useState(false);
+  const [mfaStateSessionKey, setMfaStateSessionKey] = useState<string | null>(
+    null,
+  );
+  const [mfaStateSessionId, setMfaStateSessionId] = useState<string | null>(
+    null,
+  );
   const [busy, setBusy] = useState<MfaBusyState>("idle");
   const [factors, setFactors] = useState<AccountMfaFactor[]>([]);
   const [currentLevel, setCurrentLevel] = useState<string | null>(null);
@@ -47,138 +52,387 @@ export function AccountMfaCard() {
     factorId: string;
     qrCode: string;
     secret: string;
+    sessionKey: string;
+    sessionId: string;
   } | null>(null);
   const [code, setCode] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mfaAsyncGuard] = useState(createAccountMfaAsyncGuard);
+  const activeSessionKey = useRef<string | null>(sessionKey);
 
   const loadMfa = useCallback(async () => {
-    if (!user || !cloudEnabled) return;
-    setLoading(true);
-    setError(null);
-    const supabase = await getSupabaseClientAsync();
-    if (!supabase) {
-      setError("Supabase no está disponible ahora mismo.");
-      setLoading(false);
+    const expectedSessionKey = sessionKey;
+    if (
+      !userId ||
+      !expectedSessionKey ||
+      !cloudEnabled ||
+      activeSessionKey.current !== expectedSessionKey
+    ) {
       return;
     }
+    const requestToken = mfaAsyncGuard.beginRequest(expectedSessionKey);
+    setLoading(true);
+    setMfaStateReady(false);
+    setMfaStateSessionKey(null);
+    setMfaStateSessionId(null);
+    setFactors([]);
+    setCurrentLevel(null);
+    setNextLevel(null);
+    setError(null);
+    try {
+      const supabase = await getSupabaseClientAsync();
+      if (!supabase) {
+        if (
+          mfaAsyncGuard.isCurrentRequest(
+            requestToken,
+            activeSessionKey.current,
+          )
+        ) {
+          setError("Supabase no está disponible ahora mismo.");
+        }
+        return;
+      }
 
-    const [aalResult, factorsResult] = await Promise.all([
-      supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
-      supabase.auth.mfa.listFactors(),
-    ]);
+      const sessionResult = await readAccountMfaSession(supabase, userId);
+      if (sessionResult.status === "blocked") {
+        if (
+          mfaAsyncGuard.isCurrentRequest(
+            requestToken,
+            activeSessionKey.current,
+          )
+        ) {
+          setError(sessionResult.message);
+        }
+        return;
+      }
 
-    if (aalResult.error) {
-      setError(aalResult.error.message);
-    } else {
+      const [aalResult, factorsResult] = await Promise.all([
+        supabase.auth.mfa.getAuthenticatorAssuranceLevel(),
+        supabase.auth.mfa.listFactors(),
+      ]);
+      if (
+        !mfaAsyncGuard.isCurrentRequest(
+          requestToken,
+          activeSessionKey.current,
+        )
+      ) {
+        return;
+      }
+
+      if (aalResult.error) {
+        setError(accountMfaErrorMessage(aalResult.error, "load"));
+        return;
+      }
+
+      if (factorsResult.error) {
+        setError(accountMfaErrorMessage(factorsResult.error, "load"));
+        return;
+      }
+
+      const finalSessionResult = await readAccountMfaSession(supabase, userId);
+      if (
+        finalSessionResult.status === "blocked" ||
+        finalSessionResult.sessionId !== sessionResult.sessionId
+      ) {
+        if (
+          mfaAsyncGuard.isCurrentRequest(
+            requestToken,
+            activeSessionKey.current,
+          )
+        ) {
+          setError(
+            finalSessionResult.status === "blocked"
+              ? finalSessionResult.message
+              : "La sesión de seguridad cambió durante la comprobación. Actualiza el estado.",
+          );
+        }
+        return;
+      }
+      if (
+        !mfaAsyncGuard.isCurrentRequest(
+          requestToken,
+          activeSessionKey.current,
+        )
+      ) {
+        return;
+      }
+
       setCurrentLevel(aalResult.data.currentLevel ?? null);
       setNextLevel(aalResult.data.nextLevel ?? null);
-    }
-
-    if (factorsResult.error) {
-      setError(factorsResult.error.message);
-    } else {
       setFactors((factorsResult.data.all ?? []) as AccountMfaFactor[]);
+      setMfaStateSessionKey(expectedSessionKey);
+      setMfaStateSessionId(sessionResult.sessionId);
+      setMfaStateReady(true);
+    } catch {
+      if (
+        mfaAsyncGuard.isCurrentRequest(
+          requestToken,
+          activeSessionKey.current,
+        )
+      ) {
+        setError(
+          "No se pudo consultar el doble factor. Comprueba la conexión y vuelve a intentarlo.",
+        );
+      }
+    } finally {
+      if (
+        mfaAsyncGuard.isCurrentRequest(
+          requestToken,
+          activeSessionKey.current,
+        )
+      ) {
+        setLoading(false);
+      }
     }
+  }, [cloudEnabled, mfaAsyncGuard, sessionKey, userId]);
 
+  useEffect(() => {
+    activeSessionKey.current = sessionKey;
+    mfaAsyncGuard.invalidateRequests();
+    mfaAsyncGuard.resetOperations();
     setLoading(false);
-  }, [cloudEnabled, user]);
+    setMfaStateReady(false);
+    setMfaStateSessionKey(null);
+    setMfaStateSessionId(null);
+    setBusy("idle");
+    setFactors([]);
+    setCurrentLevel(null);
+    setNextLevel(null);
+    setEnrollment(null);
+    setCode("");
+    setMessage(null);
+    setError(null);
+  }, [mfaAsyncGuard, sessionKey]);
 
   useEffect(() => {
     void loadMfa();
   }, [loadMfa]);
 
+  const scopedMfaStateReady =
+    mfaStateReady &&
+    mfaStateSessionKey === sessionKey &&
+    mfaStateSessionId !== null;
+  const visibleEnrollment =
+    enrollment?.sessionKey === sessionKey ? enrollment : null;
   const totpFactors = useMemo(
-    () => factors.filter((factor) => factor.factor_type === "totp"),
-    [factors],
+    () =>
+      scopedMfaStateReady
+        ? factors.filter((factor) => factor.factor_type === "totp")
+        : [],
+    [factors, scopedMfaStateReady],
   );
   const verifiedTotp = totpFactors.find((factor) => factor.status === "verified");
   const verifiedTotps = totpFactors.filter(
     (factor) => factor.status === "verified",
   );
-  const pendingTotp = totpFactors.find((factor) => factor.status !== "verified");
-  const sessionVerified = currentLevel === "aal2";
-  const canVerifySession = Boolean(verifiedTotp && nextLevel === "aal2");
+  const pendingTotps = totpFactors.filter(
+    (factor) => factor.status !== "verified",
+  );
+  const pendingTotp = pendingTotps[0];
+  const sessionVerified = scopedMfaStateReady && currentLevel === "aal2";
+  const canVerifySession = Boolean(
+    scopedMfaStateReady && verifiedTotp && nextLevel === "aal2",
+  );
   const hasVerifiedTotp = verifiedTotps.length > 0;
 
+  const beginOperation = (
+    nextBusy: MfaBusyState,
+    operationSessionKey: string,
+  ): AccountMfaAsyncToken | null => {
+    const operation = mfaAsyncGuard.beginOperation(operationSessionKey);
+    if (!operation) return null;
+    setBusy(nextBusy);
+    return operation;
+  };
+
+  const finishOperation = (operation: AccountMfaAsyncToken) => {
+    if (!mfaAsyncGuard.finishOperation(operation)) return;
+    setBusy("idle");
+  };
+
+  const invalidateSessionState = (sessionError: string) => {
+    setMfaStateReady(false);
+    setMfaStateSessionKey(null);
+    setMfaStateSessionId(null);
+    setFactors([]);
+    setCurrentLevel(null);
+    setNextLevel(null);
+    setEnrollment(null);
+    setCode("");
+    setError(sessionError);
+  };
+
   const startEnrollment = async () => {
+    if (!scopedMfaStateReady) {
+      setError("Actualiza el estado del doble factor antes de continuar.");
+      return;
+    }
     if (hasVerifiedTotp && !sessionVerified) {
       setError("Verifica esta sesión antes de añadir otro dispositivo.");
       return;
     }
+    if (!sessionKey || !mfaStateSessionId || !userId) return;
+    const operation = beginOperation("enroll", sessionKey);
+    if (!operation) return;
 
-    setBusy("enroll");
+    const expectedSessionKey = sessionKey;
+    const expectedSessionId = mfaStateSessionId;
+    const expectedUserId = userId;
     setError(null);
     setMessage(null);
-    const supabase = await getSupabaseClientAsync();
-    if (!supabase) {
-      setError("Supabase no está disponible ahora mismo.");
-      setBusy("idle");
-      return;
-    }
+    try {
+      const supabase = await getSupabaseClientAsync();
+      if (!supabase) {
+        if (activeSessionKey.current === expectedSessionKey) {
+          setError("Supabase no está disponible ahora mismo.");
+        }
+        return;
+      }
+      const sessionResult = await readAccountMfaSession(
+        supabase,
+        expectedUserId,
+      );
+      if (activeSessionKey.current !== expectedSessionKey) return;
+      if (
+        sessionResult.status === "blocked" ||
+        sessionResult.sessionId !== expectedSessionId
+      ) {
+        invalidateSessionState(
+          sessionResult.status === "blocked"
+            ? sessionResult.message
+            : "La sesión de seguridad cambió. Actualiza el estado antes de continuar.",
+        );
+        return;
+      }
 
-    const { data, error: enrollError } = await supabase.auth.mfa.enroll({
-      factorType: "totp",
-      friendlyName: "Factura Autonomo Cuenta",
-    });
-    if (enrollError) {
-      setError(friendlyMfaError(enrollError.message));
+      const { data, error: enrollError } = await supabase.auth.mfa.enroll({
+        factorType: "totp",
+      });
+      if (enrollError) {
+        const enrollMessage = accountMfaErrorMessage(enrollError, "enroll");
+        await loadMfa();
+        if (activeSessionKey.current === expectedSessionKey) {
+          setError(enrollMessage);
+        }
+        return;
+      }
+      if (activeSessionKey.current !== expectedSessionKey) return;
+
+      setCode("");
+      setEnrollment({
+        factorId: data.id,
+        qrCode: data.totp.qr_code,
+        secret: data.totp.secret,
+        sessionKey: expectedSessionKey,
+        sessionId: expectedSessionId,
+      });
       await loadMfa();
-      setBusy("idle");
-      return;
+    } catch {
+      if (activeSessionKey.current === expectedSessionKey) {
+        setError(
+          "No se pudo generar el QR. Comprueba la conexión y vuelve a intentarlo.",
+        );
+      }
+    } finally {
+      finishOperation(operation);
     }
-
-    setEnrollment({
-      factorId: data.id,
-      qrCode: data.totp.qr_code,
-      secret: data.totp.secret,
-    });
-    setBusy("idle");
   };
 
-  const verifyFactor = async (factorId: string) => {
-    const otp = cleanOtpCode(code);
-    if (!otp) {
-      setError("Introduce el código de 6 dígitos.");
+  const verifyFactor = async (
+    factorId: string,
+    factorSessionKey: string | null,
+    factorSessionId: string | null,
+    mode: "enrollment" | "session",
+  ) => {
+    if (!scopedMfaStateReady) {
+      setError("Actualiza el estado del doble factor antes de continuar.");
       return;
     }
+    if (
+      !userId ||
+      !sessionKey ||
+      !factorSessionId ||
+      factorSessionKey !== sessionKey ||
+      factorSessionId !== mfaStateSessionId
+    ) {
+      setEnrollment(null);
+      setCode("");
+      setError(
+        "Este QR pertenece a otra sesión. Actualiza el estado y genera uno nuevo.",
+      );
+      return;
+    }
+    const operation = beginOperation("verify", sessionKey);
+    if (!operation) return;
 
-    setBusy("verify");
     setError(null);
     setMessage(null);
-    const supabase = await getSupabaseClientAsync();
-    if (!supabase) {
-      setError("Supabase no está disponible ahora mismo.");
-      setBusy("idle");
-      return;
-    }
+    try {
+      const supabase = await getSupabaseClientAsync();
+      if (!supabase) {
+        if (activeSessionKey.current === factorSessionKey) {
+          setError("Supabase no está disponible ahora mismo.");
+        }
+        return;
+      }
+      const sessionResult = await readAccountMfaSession(supabase, userId);
+      if (activeSessionKey.current !== factorSessionKey) return;
+      if (
+        sessionResult.status === "blocked" ||
+        sessionResult.sessionId !== factorSessionId
+      ) {
+        invalidateSessionState(
+          sessionResult.status === "blocked"
+            ? sessionResult.message
+            : "La sesión de seguridad cambió. Actualiza el estado antes de continuar.",
+        );
+        return;
+      }
 
-    const challenge = await supabase.auth.mfa.challenge({ factorId });
-    if (challenge.error) {
-      setError(friendlyMfaError(challenge.error.message));
-      setBusy("idle");
-      return;
-    }
+      const result = await verifyAccountTotp(supabase, factorId, code, mode);
+      if (activeSessionKey.current !== factorSessionKey) return;
+      if (result.status === "blocked") {
+        if (result.invalidatesEnrollment) {
+          setEnrollment(null);
+          setCode("");
+          await loadMfa();
+        }
+        if (activeSessionKey.current === factorSessionKey) {
+          setError(result.message);
+        }
+        return;
+      }
 
-    const verified = await supabase.auth.mfa.verify({
-      factorId,
-      challengeId: challenge.data.id,
-      code: otp,
-    });
-    if (verified.error) {
-      setError(friendlyMfaError(verified.error.message));
-      setBusy("idle");
-      return;
+      setCode("");
+      setEnrollment(null);
+      setMessage("Verificación en dos pasos activa en esta sesión.");
+      await loadMfa();
+    } catch {
+      if (activeSessionKey.current === factorSessionKey) {
+        setError(
+          "No se pudo completar la verificación. No se ha activado nada; vuelve a intentarlo.",
+        );
+      }
+    } finally {
+      finishOperation(operation);
     }
-
-    setCode("");
-    setEnrollment(null);
-    setMessage("Verificación en dos pasos activa en esta sesión.");
-    await loadMfa();
-    setBusy("idle");
   };
 
-  const removeFactor = async (factorId: string, verified: boolean) => {
+  const removeFactor = async (
+    factorId: string,
+    verified: boolean,
+    factorSessionId: string | null,
+  ) => {
+    const canCancelVisibleEnrollment = Boolean(
+      !verified &&
+        visibleEnrollment?.factorId === factorId &&
+        visibleEnrollment.sessionId === factorSessionId,
+    );
+    if (!scopedMfaStateReady && !canCancelVisibleEnrollment) {
+      setError("Actualiza el estado del doble factor antes de continuar.");
+      return;
+    }
     if (verified && !sessionVerified) {
       setError("Verifica esta sesión antes de desactivar el doble factor.");
       return;
@@ -188,33 +442,64 @@ export function AccountMfaCard() {
       ? confirm("Vas a desactivar el doble factor de esta cuenta. ¿Continuar?")
       : true;
     if (!confirmed) return;
+    if (!sessionKey || !factorSessionId || !userId) return;
+    const expectedSessionKey = sessionKey;
+    const expectedSessionId = factorSessionId;
+    const expectedUserId = userId;
+    const operation = beginOperation("remove", sessionKey);
+    if (!operation) return;
 
-    setBusy("remove");
     setError(null);
     setMessage(null);
-    const supabase = await getSupabaseClientAsync();
-    if (!supabase) {
-      setError("Supabase no está disponible ahora mismo.");
-      setBusy("idle");
-      return;
-    }
+    try {
+      const supabase = await getSupabaseClientAsync();
+      if (!supabase) {
+        if (activeSessionKey.current === expectedSessionKey) {
+          setError("Supabase no está disponible ahora mismo.");
+        }
+        return;
+      }
+      const sessionResult = await readAccountMfaSession(
+        supabase,
+        expectedUserId,
+      );
+      if (activeSessionKey.current !== expectedSessionKey) return;
+      if (
+        sessionResult.status === "blocked" ||
+        sessionResult.sessionId !== expectedSessionId
+      ) {
+        invalidateSessionState(
+          sessionResult.status === "blocked"
+            ? sessionResult.message
+            : "La sesión de seguridad cambió. Actualiza el estado antes de continuar.",
+        );
+        return;
+      }
 
-    const result = await supabase.auth.mfa.unenroll({ factorId });
-    if (result.error) {
-      setError(friendlyMfaError(result.error.message));
-      setBusy("idle");
-      return;
-    }
+      const result = await supabase.auth.mfa.unenroll({ factorId });
+      if (activeSessionKey.current !== expectedSessionKey) return;
+      if (result.error) {
+        setError(accountMfaErrorMessage(result.error, "remove"));
+        return;
+      }
 
-    setCode("");
-    setEnrollment(null);
-    setMessage(
-      verified
-        ? "Doble factor desactivado."
-        : "Configuración pendiente cancelada. Puedes generar un QR nuevo.",
-    );
-    await loadMfa();
-    setBusy("idle");
+      setCode("");
+      setEnrollment(null);
+      setMessage(
+        verified
+          ? "Doble factor desactivado."
+          : "Configuración pendiente cancelada. Puedes generar un QR nuevo.",
+      );
+      await loadMfa();
+    } catch {
+      if (activeSessionKey.current === expectedSessionKey) {
+        setError(
+          "No se pudo retirar la configuración. Comprueba la conexión y vuelve a intentarlo.",
+        );
+      }
+    } finally {
+      finishOperation(operation);
+    }
   };
 
   if (!cloudEnabled) {
@@ -288,11 +573,22 @@ export function AccountMfaCard() {
             <p className="mt-1 text-sm leading-6 text-slate-600">
               Añade un código temporal de una app autenticadora a esta cuenta.
             </p>
-            <p className="mt-2 text-sm font-bold text-slate-700">
-              Estado: {hasVerifiedTotp ? "activo" : "no activo"} ·{" "}
-              {verifiedTotps.length} dispositivo(s) · Sesión{" "}
-              {sessionVerified ? "verificada" : "normal"}
-            </p>
+            {scopedMfaStateReady ? (
+              <p className="mt-2 text-sm font-bold text-slate-700">
+                Estado: {hasVerifiedTotp ? "activo" : "no activo"} ·{" "}
+                {verifiedTotps.length} dispositivo(s) activo(s)
+                {pendingTotps.length > 0
+                  ? ` · ${pendingTotps.length} configuración pendiente${
+                      pendingTotps.length === 1 ? "" : "es"
+                    }`
+                  : ""} · Sesión{" "}
+                {sessionVerified ? "verificada" : "normal"}
+              </p>
+            ) : (
+              <p className="mt-2 text-sm font-bold text-slate-700">
+                Estado pendiente de comprobar
+              </p>
+            )}
           </div>
         </div>
         <Button
@@ -302,7 +598,7 @@ export function AccountMfaCard() {
           disabled={loading || busy !== "idle"}
         >
           <RefreshCw className="h-4 w-4" />
-          Actualizar
+          Actualizar estado
         </Button>
       </div>
 
@@ -337,15 +633,26 @@ export function AccountMfaCard() {
               </span>
               <input
                 value={code}
-                onChange={(event) => setCode(event.target.value)}
+                onChange={(event) =>
+                  setCode(normalizeTotpInput(event.target.value))
+                }
                 inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
                 autoComplete="one-time-code"
                 className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
               />
             </label>
             <Button
               type="button"
-              onClick={() => void verifyFactor(verifiedTotp.id)}
+              onClick={() =>
+                void verifyFactor(
+                  verifiedTotp.id,
+                  sessionKey,
+                  mfaStateSessionId,
+                  "session",
+                )
+              }
               disabled={busy !== "idle"}
             >
               <KeyRound className="h-4 w-4" />
@@ -355,7 +662,7 @@ export function AccountMfaCard() {
         </div>
       ) : null}
 
-      {!loading && pendingTotp && !enrollment ? (
+      {!loading && scopedMfaStateReady && pendingTotp && !visibleEnrollment ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
           <p className="font-black">Configuración pendiente</p>
           <p className="mt-1 leading-6">
@@ -366,7 +673,9 @@ export function AccountMfaCard() {
             type="button"
             variant="secondary"
             className="mt-3"
-            onClick={() => void removeFactor(pendingTotp.id, false)}
+            onClick={() =>
+              void removeFactor(pendingTotp.id, false, mfaStateSessionId)
+            }
             disabled={busy !== "idle"}
           >
             <Trash2 className="h-4 w-4" />
@@ -375,7 +684,11 @@ export function AccountMfaCard() {
         </div>
       ) : null}
 
-      {!loading && !verifiedTotp && !pendingTotp && !enrollment ? (
+      {!loading &&
+      scopedMfaStateReady &&
+      !verifiedTotp &&
+      !pendingTotp &&
+      !visibleEnrollment ? (
         <Button
           type="button"
           onClick={startEnrollment}
@@ -386,7 +699,12 @@ export function AccountMfaCard() {
         </Button>
       ) : null}
 
-      {!loading && hasVerifiedTotp && sessionVerified && !pendingTotp && !enrollment ? (
+      {!loading &&
+      scopedMfaStateReady &&
+      hasVerifiedTotp &&
+      sessionVerified &&
+      !pendingTotp &&
+      !visibleEnrollment ? (
         <Button
           type="button"
           variant="secondary"
@@ -398,11 +716,11 @@ export function AccountMfaCard() {
         </Button>
       ) : null}
 
-      {enrollment ? (
+      {visibleEnrollment ? (
         <div className="grid gap-4 rounded-xl border border-slate-200 bg-white p-4 lg:grid-cols-[180px_1fr]">
           <div className="rounded-lg border border-slate-200 bg-white p-3">
             <Image
-              src={qrCodeSrc(enrollment.qrCode)}
+              src={qrCodeSrc(visibleEnrollment.qrCode)}
               alt="Código QR doble factor"
               width={144}
               height={144}
@@ -415,9 +733,18 @@ export function AccountMfaCard() {
               Escanea el QR con Google Authenticator, 1Password, Authy o una app
               compatible. Si no puedes escanearlo, usa esta clave:
             </p>
-            <p className="break-all rounded-lg bg-slate-50 px-3 py-2 font-mono text-xs text-slate-700">
-              {enrollment.secret}
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950">
+              Este QR y su clave son secretos. Si se han compartido o mostrado
+              en una captura, cancélalos y genera una configuración nueva.
             </p>
+            <details className="rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-700">
+              <summary className="cursor-pointer font-bold">
+                Usar clave manual en vez del QR
+              </summary>
+              <p className="mt-2 break-all font-mono text-xs">
+                {visibleEnrollment.secret}
+              </p>
+            </details>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="block flex-1 space-y-1">
                 <span className="text-sm font-bold text-slate-700">
@@ -425,21 +752,47 @@ export function AccountMfaCard() {
                 </span>
                 <input
                   value={code}
-                  onChange={(event) => setCode(event.target.value)}
+                  onChange={(event) =>
+                    setCode(normalizeTotpInput(event.target.value))
+                  }
                   inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={6}
                   autoComplete="one-time-code"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </label>
               <Button
                 type="button"
-                onClick={() => void verifyFactor(enrollment.factorId)}
-                disabled={busy !== "idle"}
+                onClick={() =>
+                  void verifyFactor(
+                    visibleEnrollment.factorId,
+                    visibleEnrollment.sessionKey,
+                    visibleEnrollment.sessionId,
+                    "enrollment",
+                  )
+                }
+                disabled={busy !== "idle" || !scopedMfaStateReady}
               >
                 <ShieldCheck className="h-4 w-4" />
                 Activar
               </Button>
             </div>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() =>
+                void removeFactor(
+                  visibleEnrollment.factorId,
+                  false,
+                  visibleEnrollment.sessionId,
+                )
+              }
+              disabled={busy !== "idle"}
+            >
+              <Trash2 className="h-4 w-4" />
+              Cancelar este QR
+            </Button>
           </div>
         </div>
       ) : null}
@@ -451,7 +804,9 @@ export function AccountMfaCard() {
               key={factor.id}
               type="button"
               variant="danger"
-              onClick={() => void removeFactor(factor.id, true)}
+              onClick={() =>
+                void removeFactor(factor.id, true, mfaStateSessionId)
+              }
               disabled={busy !== "idle"}
             >
               <Trash2 className="h-4 w-4" />
