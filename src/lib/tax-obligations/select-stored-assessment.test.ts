@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import { describe, expect, it } from "vitest";
 
 import { evaluateTaxModelDiagnostic } from "@/lib/tax-model-diagnostic/engine";
@@ -13,8 +15,24 @@ import { buildTaxObligationsAssessment } from "./build-assessment";
 import { selectStoredTaxObligationsAssessment } from "./select-stored-assessment";
 
 const GENERATED_AT = "2026-07-15T07:15:00.000Z";
+const PUBLIC_CONTRACT_DOCUMENT = readFileSync(
+  new URL("../../../docs/tax-obligations-contract.md", import.meta.url),
+  "utf8",
+);
 
 describe("stored public tax obligations assessment", () => {
+  it("mantiene la documentación alineada con la versión pública congelada", () => {
+    expect(PUBLIC_CONTRACT_DOCUMENT).toContain(
+      `Estado: \`${TAX_OBLIGATIONS_CONTRACT_VERSION}\`, congelado y autorizado para integración`,
+    );
+    expect(PUBLIC_CONTRACT_DOCUMENT).not.toContain(
+      "No está congelado ni autorizado para integración",
+    );
+    expect(PUBLIC_CONTRACT_DOCUMENT).not.toContain(
+      "No crear integraciones contra este borrador",
+    );
+  });
+
   it("falla cerrado cuando el usuario todavía no ha generado resultados", () => {
     expect(selectStoredTaxObligationsAssessment(undefined)).toBeNull();
     expect(
