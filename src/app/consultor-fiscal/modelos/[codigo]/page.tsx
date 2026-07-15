@@ -141,6 +141,38 @@ export async function generateMetadata({
         "322": "Modelo 322 AEAT: IVA mensual de grupos de entidades",
         "345": "Modelo 345 AEAT: planes de pensiones y previsión social",
         "346": "Modelo 346 AEAT: subvenciones e indemnizaciones agrarias",
+        "353": "Modelo 353 AEAT: IVA agregado de grupos de entidades",
+        "364": "Modelo 364 AEAT: reembolso de IVA en el ámbito OTAN",
+        "365": "Modelo 365 AEAT: exención previa de IVA en el ámbito OTAN",
+        "368": "Modelo 368 AEAT histórico: MOSS sustituido por 035 y 369",
+        "379": "Modelo 379 AEAT: pagos transfronterizos CESOP",
+        "380": "Modelo 380 AEAT: operaciones asimiladas a importaciones",
+        "381": "Modelo 381 AEAT: reembolso de IVA para fuerzas armadas UE",
+        "410": "Modelo 410 AEAT: pago a cuenta del impuesto sobre depósitos",
+        "411": "Modelo 411 AEAT: autoliquidación anual de depósitos",
+        "430": "Modelo 430 AEAT: impuesto mensual sobre primas de seguros",
+        "480": "Modelo 480 AEAT: resumen anual de primas de seguros",
+        "490": "Modelo 490 AEAT: impuesto sobre servicios digitales",
+        "504":
+          "Modelo 504 AEAT: solicitud para movimientos de Impuestos Especiales",
+        "505": "Modelo 505 AEAT: autorización administrativa de movimientos UE",
+        "506": "Modelo 506 AEAT: devolución por depósito fiscal",
+        "507": "Modelo 507 AEAT: devolución en envíos garantizados",
+        "508": "Modelo 508 AEAT: devolución en ventas a distancia",
+        "510": "Modelo 510 AEAT: recepciones UE de Impuestos Especiales",
+        "512":
+          "Modelo 512 AEAT: destinatarios de hidrocarburos de tarifa segunda",
+        "515": "Modelo 515 AEAT: marcas fiscales para tabaco",
+        "517": "Modelo 517 AEAT: marcas fiscales para bebidas derivadas",
+        "518": "Modelo 518 AEAT: declaración previa de trabajo",
+        "519": "Modelo 519 AEAT: parte inmediato de incidencias",
+        "520": "Modelo 520 AEAT: resultado final de trabajo",
+        "521": "Modelo 521 AEAT: materias primas para alcohol vínico",
+        "522": "Modelo 522 AEAT: vigencia del parte de biocarburantes",
+        "523": "Modelo 523 AEAT: beneficio de devolución sobre alcohol",
+        "524": "Modelo 524 AEAT: devolución de impuestos sobre alcohol",
+        "544": "Modelo 544 AEAT: pagos de gasóleo bonificado",
+        "545": "Modelo 545 AEAT: suministros para relaciones internacionales",
         "232": "Modelo 232 AEAT: operaciones vinculadas",
         "233": "Modelo 233 AEAT: gastos de guarderías y centros infantiles",
         "238": "Modelo 238 AEAT: información de operadores de plataformas",
@@ -357,6 +389,66 @@ export async function generateMetadata({
           "Guía del Modelo 345: planes de pensiones y otros sistemas de previsión, entidades declarantes, aportaciones y plazo anual.",
         "346":
           "Guía del Modelo 346: ayudas agrarias informadas por entidades pagadoras, datos, correcciones y plazo sujeto a revisión anual.",
+        "353":
+          "Guía del Modelo 353: entidad dominante, resultados de los Modelos 322, presentación mensual, plazos y responsabilidad por declaraciones individuales omitidas.",
+        "364":
+          "Guía del Modelo 364: reembolso institucional de IVA para la OTAN, cuarteles generales internacionales y Estados parte.",
+        "365":
+          "Guía del Modelo 365: reconocimiento previo de exenciones de IVA en operaciones del ámbito OTAN y documentación oficial.",
+        "368":
+          "Guía histórica del Modelo 368: antiguo MOSS sin periodos actuales y transición a los regímenes OSS e IOSS de los Modelos 035 y 369.",
+        "379":
+          "Guía del Modelo 379 CESOP: proveedores de servicios de pago, más de 25 pagos transfronterizos, agregación y presentación trimestral.",
+        "380":
+          "Guía del Modelo 380: IVA de operaciones asimiladas a importaciones, liquidación aduanera, pago y documentación.",
+        "381":
+          "Guía del Modelo 381: reembolso de IVA a fuerzas armadas de otro Estado miembro por actividades de defensa de la UE.",
+        "410":
+          "Guía del Modelo 410: pago a cuenta del Impuesto sobre los Depósitos en las Entidades de Crédito.",
+        "411":
+          "Guía del Modelo 411: autoliquidación anual del Impuesto sobre los Depósitos en las Entidades de Crédito.",
+        "430":
+          "Guía del Modelo 430: autoliquidación mensual del Impuesto sobre las Primas de Seguros, base, cuota y correcciones.",
+        "480":
+          "Guía del Modelo 480: resumen anual del Impuesto sobre las Primas de Seguros y conciliación con los Modelos 430.",
+        "490":
+          "Guía del Modelo 490: autoliquidación trimestral del Impuesto sobre Determinados Servicios Digitales.",
+        "504":
+          "Guía del Modelo 504: solicitud electrónica de autorización para determinados movimientos intracomunitarios de productos sujetos a Impuestos Especiales.",
+        "505":
+          "Guía del Modelo 505: autorización emitida por la AEAT tras el Modelo 504, sin presentación independiente.",
+        "506":
+          "Guía del Modelo 506: devolución de Impuestos Especiales por introducción de productos en depósito fiscal.",
+        "507":
+          "Guía vigente del Modelo 507: devolución de Impuestos Especiales en el sistema de envíos garantizados conforme a la Orden HFP/626/2023.",
+        "508":
+          "Guía del Modelo 508: devolución de Impuestos Especiales en ventas a distancia y documentación del movimiento.",
+        "510":
+          "Guía del Modelo 510: recepciones intracomunitarias de productos sujetos a Impuestos Especiales y sujetos obligados específicos.",
+        "512":
+          "Guía del Modelo 512: relación anual de destinatarios de determinados productos de la tarifa segunda del Impuesto sobre Hidrocarburos.",
+        "515":
+          "Guía del Modelo 515: solicitud electrónica y control posterior de marcas fiscales para todas las labores del tabaco.",
+        "517":
+          "Guía del Modelo 517: solicitud, entrega y control de marcas fiscales para alcohol y bebidas derivadas.",
+        "518":
+          "Guía del Modelo 518: declaración previa de operaciones de trabajo con al menos un día hábil de antelación.",
+        "519":
+          "Guía del Modelo 519: comunicación inmediata de incidencias surgidas durante una operación de trabajo.",
+        "520":
+          "Guía del Modelo 520: resultado final presentado el día en que termina el periodo de actividad.",
+        "521":
+          "Guía del Modelo 521: materias primas destinadas a producir alcohol vínico y otros productos relacionados.",
+        "522":
+          "Guía cautelar del Modelo 522: trámite visible en la AEAT pero con precepto reglamentario histórico derogado; consulta obligatoria antes de actuar.",
+        "523":
+          "Guía del Modelo 523: reconocimiento previo del beneficio de devolución del impuesto sobre alcohol para determinados usos.",
+        "524":
+          "Guía del Modelo 524: solicitud trimestral de devolución del impuesto sobre alcohol por usos previamente reconocidos.",
+        "544":
+          "Guía del Modelo 544: relación trimestral de pagos mediante cheques y tarjetas de gasóleo bonificado.",
+        "545":
+          "Guía del Modelo 545: suministros trimestrales de carburantes bajo beneficios de relaciones internacionales.",
         "232":
           "Guía del Modelo 232: operaciones vinculadas, valoración de mercado, límites, documentación, plazo y corrección de la declaración.",
         "233":
