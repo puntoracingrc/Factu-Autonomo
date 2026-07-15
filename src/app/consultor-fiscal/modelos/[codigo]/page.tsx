@@ -42,12 +42,19 @@ export async function generateMetadata({
         "035": "Formulario 035 AEAT: alta en OSS e IOSS",
         "036": "Modelo 036 AEAT: alta, modificación y baja censal",
         "037": "Modelo 037 AEAT: modelo histórico sustituido por el 036",
+        "038": "Modelo 038 AEAT: operaciones de entidades inscritas en Registros públicos",
+        "039": "Modelo 039 AEAT: grupo de entidades de IVA",
         "040": "Modelo 040 AEAT: registro de operadores de plataformas",
+        "043": "Modelo 043 AEAT: tasa sobre el juego del bingo",
+        "044": "Modelo 044 AEAT: tasa sobre casinos de juego",
+        "045": "Modelo 045 AEAT: tasa sobre máquinas de juego",
         "04": "Modelo 04 AEAT: IVA del 4 % para vehículos y movilidad reducida",
         "05": "Modelo 05 AEAT: beneficios en el impuesto de matriculación",
         "06": "Modelo 06 AEAT: exenciones del impuesto de matriculación",
         "100": "Modelo 100 AEAT: declaración de la Renta del autónomo",
+        "102": "Modelo 102 AEAT: segundo plazo de la Renta",
         "111": "Modelo 111 AEAT: retenciones de nóminas y profesionales",
+        "113": "Modelo 113 AEAT: impuesto de salida a la UE o al EEE",
         "115": "Modelo 115 AEAT: retención del alquiler de un local",
         "117": "Modelo 117 AEAT: retenciones sobre fondos de inversión",
         "121": "Modelo 121 AEAT: cesión de deducciones familiares",
@@ -58,27 +65,50 @@ export async function generateMetadata({
         "128": "Modelo 128 AEAT: retenciones sobre seguros y capitalización",
         "130": "Modelo 130 AEAT: pago trimestral del IRPF",
         "131": "Modelo 131 AEAT: pago trimestral por módulos",
+        "136": "Modelo 136 AEAT: premios de loterías sin retención",
         "140": "Modelo 140 AEAT: abono anticipado por maternidad",
         "143": "Modelo 143 AEAT: abono anticipado de deducciones familiares",
         "145": "Modelo 145 AEAT: datos para calcular la retención de la nómina",
+        "146": "Modelo 146 AEAT: pensionistas con varios pagadores",
+        "147": "Modelo 147 AEAT: trabajador desplazado y retenciones",
         "149": "Modelo 149 AEAT: opción por el régimen de desplazados",
+        "150": "Modelo 150 AEAT histórico: régimen de desplazados anterior a 2015",
         "151": "Modelo 151 AEAT: declaración de trabajadores desplazados",
+        "156": "Modelo 156 AEAT: resumen anual de cotizaciones",
+        "159": "Modelo 159 AEAT: consumo anual de energía eléctrica",
+        "165": "Modelo 165 AEAT: inversión en empresas nuevas",
+        "170": "Modelo 170 AEAT: cobros con tarjeta y móvil desde 2026",
+        "171": "Modelo 171 AEAT: operaciones de efectivo informadas",
+        "174": "Modelo 174 AEAT: tarjetas y primera presentación en 2027",
         "172": "Modelo 172 AEAT: saldos en monedas virtuales",
         "173": "Modelo 173 AEAT: operaciones con monedas virtuales",
         "179": "Modelo 179 AEAT: histórico de alquileres turísticos",
         "180": "Modelo 180 AEAT: resumen anual de alquileres",
+        "181": "Modelo 181 AEAT: préstamos e hipotecas informados",
+        "182": "Modelo 182 AEAT: donativos y aportaciones recibidas",
         "184": "Modelo 184 AEAT: comunidades de bienes y rentas atribuidas",
+        "185": "Modelo 185 AEAT: cotizaciones mensuales desde 2026",
+        "186": "Modelo 186 AEAT: nacimientos y defunciones",
         "187": "Modelo 187 AEAT: operaciones con fondos de inversión",
         "188": "Modelo 188 AEAT: resumen anual de seguros y capitalización",
+        "189": "Modelo 189 AEAT: valores, seguros y rentas",
         "190": "Modelo 190 AEAT: resumen anual de retenciones",
         "193": "Modelo 193 AEAT: resumen anual de dividendos e intereses",
         "194": "Modelo 194 AEAT: resumen anual de activos de deuda",
+        "192": "Modelo 192 AEAT: operaciones con Letras del Tesoro",
+        "195": "Modelo 195 AEAT: cuentas sin NIF comunicado",
         "196": "Modelo 196 AEAT: información mensual de cuentas financieras",
+        "198": "Modelo 198 AEAT: operaciones con activos financieros",
+        "199": "Modelo 199 AEAT: operaciones con cheques",
         "200": "Modelo 200 AEAT: Impuesto sobre Sociedades",
         "202": "Modelo 202 AEAT: pagos a cuenta de Sociedades",
+        "206": "Modelo 206 AEAT: documento auxiliar del Modelo 200",
         "210": "Modelo 210 AEAT: declaración de no residentes",
         "211": "Modelo 211 AEAT: retención en la compra a no residentes",
+        "213": "Modelo 213 AEAT: gravamen sobre inmuebles de no residentes",
         "216": "Modelo 216 AEAT: retenciones por pagos a no residentes",
+        "217": "Modelo 217 AEAT: gravamen especial SOCIMI del 19 %",
+        "220": "Modelo 220 AEAT: consolidación fiscal de Sociedades",
         "232": "Modelo 232 AEAT: operaciones vinculadas",
         "233": "Modelo 233 AEAT: gastos de guarderías y centros infantiles",
         "238": "Modelo 238 AEAT: información de operadores de plataformas",
@@ -107,12 +137,26 @@ export async function generateMetadata({
     ? {
         "035":
           "Guía sencilla del Formulario 035: régimen de la Unión, régimen exterior, IOSS, límite de 10.000 euros, alta, cambios y cese.",
+        "038":
+          "Guía del Modelo 038: quién lo presenta, inscripciones del mes anterior, fichero, correcciones y extensión técnica excepcional.",
+        "039":
+          "Guía del Modelo 039: grupo de entidades de IVA, dominante, dependientes, modalidades, cambios y relación con los Modelos 322 y 353.",
         "040":
           "Guía del Modelo 040: quién es operador de plataforma, sus dos registros, alta, cambios, baja, plazos y relación con el Modelo 238.",
+        "043":
+          "Guía del Modelo 043: tasa estatal sobre bingo, sujeto pasivo, competencia territorial, cartones, devengo y correcciones.",
+        "044":
+          "Guía del Modelo 044: tasa sobre casinos, base, premios pagados, competencia territorial, plazo y rectificación.",
+        "045":
+          "Guía del Modelo 045: máquinas recreativas y de azar, autorización, cuota, altas, traslados, bajas y competencia territorial.",
         "100":
           "Guía sencilla del Modelo 100 para autónomos: obligación de declarar, ingresos, gastos, pagos trimestrales, retenciones, resultado y Renta WEB.",
+        "102":
+          "Guía del Modelo 102: segundo 40 % de la Renta, domiciliación, fecha de campaña, pago y diferencias con la declaración del Modelo 100.",
         "111":
           "Guía sencilla del Modelo 111: quién debe presentarlo, retenciones de empleados y facturas profesionales, tipos, plazos, pago y corrección de errores.",
+        "113":
+          "Guía del Modelo 113: impuesto de salida, residencia previa, umbrales, traslado a la UE o EEE y hechos posteriores que deben comunicarse.",
         "115":
           "Guía sencilla del Modelo 115: quién debe presentarlo, alquileres sujetos, excepciones, base, tipo del 19 %, plazos y pago.",
         "117":
@@ -133,16 +177,36 @@ export async function generateMetadata({
           "Guía sencilla del Modelo 130: quién debe presentarlo, regla del 70 %, cálculo acumulado, gastos, retenciones, plazos y presentación.",
         "131":
           "Guía sencilla del Modelo 131: quién puede tributar por módulos, cálculo, límites de 2026, porcentajes, plazos y presentación.",
+        "136":
+          "Guía del Modelo 136: premios sujetos sin retención, parte exenta, 20 %, premios compartidos, plazos y relación con 230 y 270.",
         "140":
           "Guía del Modelo 140: abono anticipado por maternidad, requisitos, cuantía, variaciones, guardería y relación con los Modelos 100 y 233.",
         "143":
           "Guía del Modelo 143: abono anticipado de deducciones familiares, requisitos, cuantías, solicitud individual o colectiva y variaciones.",
         "145":
           "Guía sencilla del Modelo 145: quién lo rellena, a quién se entrega, datos familiares, cambios, conservación y relación con los Modelos 111 y 190.",
+        "146":
+          "Guía del Modelo 146: pensionistas con dos o más pagadores, tipo conjunto, datos familiares, vigencia y relación con el Modelo 145.",
+        "147":
+          "Guía del Modelo 147: trabajador desplazado, previsión de 183 días, certificado del empleador, documento de la AEAT y retenciones.",
         "149":
           "Guía del Modelo 149: quién puede optar por el régimen de desplazados, comunicaciones, documentación, plazos y relación con el Modelo 151.",
+        "150":
+          "Guía histórica del Modelo 150 para el régimen de desplazados anterior a 2015: consultas, rectificaciones y modelos actuales 149 y 151.",
         "151":
           "Guía del Modelo 151: declaración anual del régimen de desplazados, rentas, tipos, deducciones, patrimonio y presentación.",
+        "156":
+          "Guía del Modelo 156: cotizaciones anuales informadas por Seguridad Social y mutualidades para comprobar la deducción por maternidad.",
+        "159":
+          "Guía del Modelo 159: contratos, CUPS, inmuebles, consumos e importes informados anualmente por entidades eléctricas.",
+        "165":
+          "Guía del Modelo 165: certificados de inversión en empresas nuevas, quién lo presenta, requisitos, plazo y correcciones.",
+        "170":
+          "Guía del Modelo 170 mensual desde 2026: entidades de pago, cobros con tarjeta y móvil, servicio web, plazo y correcciones.",
+        "171":
+          "Guía del Modelo 171: imposiciones, retiradas y cobros de documentos informados anualmente por entidades financieras.",
+        "174":
+          "Guía del Modelo 174: tarjetas, titulares, autorizados y operaciones de 2026 con primera presentación en enero de 2027.",
         "172":
           "Guía del Modelo 172: quién lo presenta, saldos de criptomonedas, moneda fiduciaria, valoración, XML, plazo y relación con el Modelo 721.",
         "173":
@@ -151,30 +215,56 @@ export async function generateMetadata({
           "Guía histórica del Modelo 179: último ejercicio 2023, supresión desde 2024, consultas antiguas y relación con el Modelo 238.",
         "180":
           "Guía sencilla del Modelo 180: arrendadores, referencias catastrales, relación con el Modelo 115, certificados, correcciones y presentación.",
+        "181":
+          "Guía del Modelo 181: préstamos, hipotecas, inmuebles, saldos e intereses informados anualmente por entidades financieras.",
+        "182":
+          "Guía del Modelo 182: donativos y aportaciones, certificados, recurrencia, devoluciones, plazo y correcciones.",
         "184":
           "Guía sencilla del Modelo 184: quién debe presentarlo, límite de 3.000 euros, socios, reparto de rentas, plazo y relación con el Modelo 100.",
+        "185":
+          "Guía del Modelo 185 mensual y electrónico desde 2026: organismos obligados, cotizaciones, plazo de diez días y correcciones.",
+        "186":
+          "Guía del Modelo 186: nacimientos y defunciones suministrados mensualmente por el Registro Civil, sin formulario ciudadano.",
         "187":
           "Guía del Modelo 187: quién informa sobre fondos de inversión, operaciones, perceptores, plazo anual y conciliación con el Modelo 117.",
         "188":
           "Guía del Modelo 188: resumen anual de capitalización y seguros de vida o invalidez, perceptores, plazo y relación con el Modelo 128.",
+        "189":
+          "Guía del Modelo 189: valores, seguros y rentas a 31 de diciembre, obligados, valoración y diferencias con 188 y 198.",
         "190":
           "Guía sencilla del Modelo 190: trabajadores, profesionales, claves, relación con el Modelo 111, certificados, correcciones y presentación.",
         "193":
           "Guía sencilla del Modelo 193: perceptores, dividendos, intereses, claves, relación con el Modelo 123, plazo, presentación y correcciones.",
         "194":
           "Guía del Modelo 194: resumen anual de operaciones con activos de deuda, perceptores, plazo, presentación y relación con el Modelo 124.",
+        "192":
+          "Guía del Modelo 192: adquisiciones, transmisiones y amortizaciones de Letras del Tesoro comunicadas por intermediarios.",
+        "195":
+          "Guía del Modelo 195 trimestral: cuentas cuyos titulares no facilitaron el NIF en plazo, actualización y relación con el 196.",
         "196":
           "Guía del Modelo 196: declaración mensual de cuentas desde 2026, entidades obligadas, contenido de diciembre, A0, A1, A2 y servicio web.",
+        "198":
+          "Guía del Modelo 198: operaciones con activos financieros, claves, formulario o fichero, parciales y correcciones.",
+        "199":
+          "Guía del Modelo 199: cheques, intervinientes, cuentas e importes informados anualmente por entidades de crédito.",
         "200":
           "Guía del Modelo 200: quién lo presenta, resultado contable, ajustes fiscales, tipos del ejercicio 2025, plazos, Sociedades WEB y correcciones.",
         "202":
           "Guía del Modelo 202: pagos fraccionados, modalidades de cálculo, periodos de abril, octubre y diciembre, plazos y relación con el Modelo 200.",
+        "206":
+          "Guía del Modelo 206 como documento auxiliar de ingreso o devolución generado dentro del Modelo 200 para determinados contribuyentes del IRNR.",
         "210":
           "Guía del Modelo 210: rentas de no residentes, inmuebles, alquileres, transmisiones, tipos, plazos de 2026 y presentación.",
         "211":
           "Guía del Modelo 211: retención del 3 % al comprar un inmueble a una persona no residente, plazo, justificante y relación con el Modelo 210.",
+        "213":
+          "Guía del Modelo 213: entidades de jurisdicciones no cooperativas con inmuebles en España, tipo del 3 %, exenciones y plazo de enero.",
         "216":
           "Guía sencilla del Modelo 216: quién debe presentarlo, alquileres y profesionales no residentes, convenios, certificado de residencia, plazos y pago.",
+        "217":
+          "Guía del Modelo 217: gravamen especial SOCIMI del 19 %, acuerdo de distribución, perceptores y plazo de dos meses.",
+        "220":
+          "Guía del Modelo 220: grupo fiscal, entidad representante, eliminaciones, incorporaciones, pagos 222, Sociedades WEB y correcciones.",
         "232":
           "Guía del Modelo 232: operaciones vinculadas, valoración de mercado, límites, documentación, plazo y corrección de la declaración.",
         "233":

@@ -74,8 +74,8 @@ function ExternalOfficialLink({
   prominent?: boolean;
 }) {
   const classes = prominent
-    ? "inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-center font-bold text-white shadow-sm transition hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500"
-    : "inline-flex min-h-11 items-center gap-2 rounded-xl px-2 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950";
+    ? "inline-flex min-h-12 w-full min-w-0 items-center justify-center gap-2 break-words rounded-xl bg-blue-700 px-4 py-3 text-center font-bold text-white shadow-sm transition hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500"
+    : "inline-flex min-h-11 min-w-0 items-center gap-2 break-words rounded-xl px-2 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950";
   return (
     <a
       href={href}
@@ -102,8 +102,8 @@ function InternalModelLink({
   prominent?: boolean;
 }) {
   const classes = prominent
-    ? "inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-3 text-center font-bold text-white shadow-sm transition hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500"
-    : "inline-flex min-h-11 items-center gap-2 rounded-xl px-2 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950";
+    ? "inline-flex min-h-12 w-full min-w-0 items-center justify-center gap-2 break-words rounded-xl bg-blue-700 px-4 py-3 text-center font-bold text-white shadow-sm transition hover:bg-blue-800 dark:bg-blue-600 dark:hover:bg-blue-500"
+    : "inline-flex min-h-11 min-w-0 items-center gap-2 break-words rounded-xl px-2 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950";
   return (
     <Link href={href} className={`${classes} ${focusRing}`}>
       {children}
@@ -144,7 +144,7 @@ function BulletList({ items }: { items: readonly string[] }) {
             className="mt-1 h-4 w-4 shrink-0 text-blue-700 dark:text-blue-300"
             aria-hidden="true"
           />
-          <span>{item}</span>
+          <span className="min-w-0 break-words">{item}</span>
         </li>
       ))}
     </ul>
@@ -178,7 +178,7 @@ export function FiscalModelPracticalGuide({
     });
 
   return (
-    <div className="space-y-8">
+    <div className="min-w-0 space-y-8">
       <section
         aria-labelledby={`model-${guide.code}-introduction`}
         className="space-y-4"
@@ -186,10 +186,31 @@ export function FiscalModelPracticalGuide({
         <h2 id={`model-${guide.code}-introduction`} className="sr-only">
           Introducción al {getFiscalModelDocumentTitle(guide.code)}
         </h2>
-        {guide.editorialCategory ? (
-          <p className="w-fit rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-blue-900 dark:bg-blue-950 dark:text-blue-100">
-            {guide.editorialCategory}
-          </p>
+        {guide.editorialCategory || guide.statusLabel ? (
+          <div className="flex flex-wrap gap-2">
+            {guide.editorialCategory ? (
+              <p className="w-fit rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                {guide.editorialCategory}
+              </p>
+            ) : null}
+            {guide.statusLabel ? (
+              <p
+                className={`w-fit rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${
+                  guide.statusTone === "historical"
+                    ? "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-slate-100"
+                    : guide.statusTone === "future"
+                      ? "bg-violet-100 text-violet-950 dark:bg-violet-950 dark:text-violet-100"
+                      : guide.statusTone === "auxiliary"
+                        ? "bg-cyan-100 text-cyan-950 dark:bg-cyan-950 dark:text-cyan-100"
+                        : guide.statusTone === "territorial"
+                          ? "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100"
+                          : "bg-emerald-100 text-emerald-950 dark:bg-emerald-950 dark:text-emerald-100"
+                }`}
+              >
+                {guide.statusLabel}
+              </p>
+            ) : null}
+          </div>
         ) : null}
         {guide.intro.map((paragraph) => (
           <p
