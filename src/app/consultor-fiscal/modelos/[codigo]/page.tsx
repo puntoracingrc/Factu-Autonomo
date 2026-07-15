@@ -173,6 +173,37 @@ export async function generateMetadata({
         "524": "Modelo 524 AEAT: devolución de impuestos sobre alcohol",
         "544": "Modelo 544 AEAT: pagos de gasóleo bonificado",
         "545": "Modelo 545 AEAT: suministros para relaciones internacionales",
+        "546": "Modelo 546 AEAT: cheques-tarjeta de gasóleo bonificado",
+        "547": "Modelo 547 AEAT: abonos a detallistas de gasóleo bonificado",
+        "548": "Modelo 548 AEAT: cuotas repercutidas por depositarios",
+        "553": "Modelo 553 AEAT: operaciones de vino y SILICIE",
+        "559": "Modelo 559 AEAT: destilación artesanal",
+        "560": "Modelo 560 AEAT: Impuesto Especial sobre la Electricidad",
+        "561": "Modelo 561 AEAT: Impuesto sobre la Cerveza",
+        "562": "Modelo 562 AEAT: productos intermedios",
+        "563": "Modelo 563 AEAT: alcohol y bebidas derivadas",
+        "566": "Modelo 566 AEAT: labores del tabaco",
+        "568": "Modelo 568 AEAT: devolución por medios de transporte",
+        "571": "Modelo 571 AEAT: reconocimiento de devolución de hidrocarburos",
+        "572": "Modelo 572 AEAT: devolución de hidrocarburos",
+        "573": "Modelo 573 AEAT: cigarrillos electrónicos desde 2025",
+        "576": "Modelo 576 AEAT: devolución por gasóleo profesional",
+        "581": "Modelo 581 AEAT: autoliquidación de hidrocarburos",
+        "582": "Modelo 582 AEAT histórico: periodos anteriores a 2019",
+        "583": "Modelo 583 AEAT: producción de energía eléctrica",
+        "584": "Modelo 584 AEAT: producción de residuos nucleares",
+        "585": "Modelo 585 AEAT: almacenamiento nuclear centralizado",
+        "586":
+          "Modelo 586 AEAT histórico: gases fluorados hasta agosto de 2022",
+        "587": "Modelo 587 AEAT: impuesto sobre gases fluorados",
+        "588": "Modelo 588 AEAT: cese de producción eléctrica",
+        "589": "Modelo 589 AEAT: extracción de gas y petróleo",
+        "590": "Modelo 590 AEAT: devolución de hidrocarburos",
+        "591": "Modelo 591 AEAT: pagos a productores eléctricos",
+        "592": "Modelo 592 AEAT: impuesto sobre envases de plástico",
+        "593": "Modelo 593 AEAT: impuesto sobre residuos",
+        "595": "Modelo 595 AEAT: suministros de carbón",
+        "596": "Modelo 596 AEAT: Impuesto Especial sobre el Carbón",
         "232": "Modelo 232 AEAT: operaciones vinculadas",
         "233": "Modelo 233 AEAT: gastos de guarderías y centros infantiles",
         "238": "Modelo 238 AEAT: información de operadores de plataformas",
@@ -449,6 +480,66 @@ export async function generateMetadata({
           "Guía del Modelo 544: relación trimestral de pagos mediante cheques y tarjetas de gasóleo bonificado.",
         "545":
           "Guía del Modelo 545: suministros trimestrales de carburantes bajo beneficios de relaciones internacionales.",
+        "546":
+          "Guía del Modelo 546: entidades emisoras, cheques-tarjeta de gasóleo bonificado, periodicidad trimestral, plazo y control SIANE.",
+        "547":
+          "Guía del Modelo 547: entidades emisoras que abonan a detallistas de gasóleo bonificado, plazo trimestral y diferencias con el 546.",
+        "548":
+          "Guía del Modelo 548: cuotas repercutidas por depositarios autorizados en operaciones por cuenta ajena, presentación mensual y exclusión de electricidad.",
+        "553":
+          "Guía del Modelo 553: operaciones y existencias de vino y bebidas fermentadas, flujo 2025 y siguientes y coordinación con SILICIE.",
+        "559":
+          "Guía del Modelo 559: destilación artesanal, Tarifa 1 y Tarifa 2, actividad, plazos especiales y relación RBRC.",
+        "560":
+          "Guía del Modelo 560: contribuyentes del Impuesto Especial sobre la Electricidad, CIE, periodos, tipos, reducciones y correcciones.",
+        "561":
+          "Guía del Modelo 561: autoliquidación del Impuesto sobre la Cerveza, operadores, clasificación, grados Plato y plazos.",
+        "562":
+          "Guía del Modelo 562: autoliquidación de productos intermedios tranquilos y espumosos, clasificación, territorio y plazos.",
+        "563":
+          "Guía del Modelo 563: autoliquidación de alcohol y bebidas derivadas, operadores, litros de alcohol puro, tipos y plazos.",
+        "566":
+          "Guía del Modelo 566: autoliquidación de labores del tabaco, operadores, epígrafes, unidades, tipos y marcas fiscales.",
+        "568":
+          "Guía del Modelo 568: devolución para revendedores profesionales que envían definitivamente medios de transporte antes de cuatro años.",
+        "571":
+          "Guía del Modelo 571: reconocimiento previo del derecho a determinadas devoluciones del Impuesto sobre Hidrocarburos.",
+        "572":
+          "Guía del Modelo 572: solicitud trimestral de devolución de hidrocarburos, beneficiarios, cantidades y reconocimiento previo.",
+        "573":
+          "Guía del Modelo 573: autoliquidación mensual del impuesto exigible desde abril de 2025 sobre líquidos para cigarrillos electrónicos y otros productos.",
+        "576":
+          "Guía del Modelo 576: devolución por determinados usos profesionales de gasóleo, inscripción, vehículos, consumos y límites.",
+        "581":
+          "Guía del Modelo 581: autoliquidación vigente del Impuesto sobre Hidrocarburos por establecimiento y periodo.",
+        "582":
+          "Guía histórica del Modelo 582: declaración trimestral por establecimiento limitada a periodos anteriores a 2019.",
+        "583":
+          "Guía del Modelo 583: pagos fraccionados de mayo, septiembre, noviembre y febrero y autoliquidación anual en noviembre.",
+        "584":
+          "Guía del Modelo 584: producción de combustible nuclear gastado y residuos radiactivos, magnitudes, pagos y autoliquidación.",
+        "585":
+          "Guía del Modelo 585: almacenamiento centralizado de combustible nuclear gastado y residuos, operador, inventario y cuota.",
+        "586":
+          "Guía histórica del Modelo 586: declaración de gases fluorados limitada a operaciones realizadas hasta el 31 de agosto de 2022.",
+        "587":
+          "Guía del Modelo 587: impuesto sobre gases fluorados y autoliquidación rectificativa para periodos iniciados desde julio de 2026.",
+        "588":
+          "Guía del Modelo 588: autoliquidación por determinados ceses anticipados de producción eléctrica y conciliación con el 583.",
+        "589":
+          "Guía del Modelo 589: extracción de gas, petróleo y condensados, pago fraccionado de octubre y autoliquidación anual de abril.",
+        "590":
+          "Guía del Modelo 590: devolución de hidrocarburos por determinados envíos o exportaciones y documentación aduanera.",
+        "591":
+          "Guía del Modelo 591: información anual presentada por quienes pagan a contribuyentes del impuesto sobre la producción eléctrica.",
+        "592":
+          "Guía del Modelo 592: impuesto sobre envases de plástico no reutilizables, plástico no reciclado, importaciones, exenciones y libros.",
+        "593":
+          "Guía del Modelo 593: impuesto sobre depósito e incineración de residuos, contribuyentes, territorio, clasificación, tarifas y plazos.",
+        "595":
+          "Guía del Modelo 595: relación informativa de suministros de carbón, operadores, destinatarios, cantidades y correcciones.",
+        "596":
+          "Guía del Modelo 596: autoliquidación del Impuesto Especial sobre el Carbón, operaciones sujetas, autoconsumo, exenciones y cuota.",
         "232":
           "Guía del Modelo 232: operaciones vinculadas, valoración de mercado, límites, documentación, plazo y corrección de la declaración.",
         "233":

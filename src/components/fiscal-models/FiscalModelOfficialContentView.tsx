@@ -143,6 +143,44 @@ import {
   MODEL_544_GUIDE_V1,
   MODEL_545_GUIDE_V1,
 } from "./model-batch-3-fuel-guides.v1";
+import {
+  MODEL_546_GUIDE_V1,
+  MODEL_547_GUIDE_V1,
+  MODEL_548_GUIDE_V1,
+  MODEL_568_GUIDE_V1,
+  MODEL_571_GUIDE_V1,
+  MODEL_572_GUIDE_V1,
+  MODEL_576_GUIDE_V1,
+  MODEL_590_GUIDE_V1,
+} from "./model-batch-4-supply-refund-guides.v1";
+import {
+  MODEL_553_GUIDE_V1,
+  MODEL_559_GUIDE_V1,
+  MODEL_560_GUIDE_V1,
+  MODEL_561_GUIDE_V1,
+  MODEL_562_GUIDE_V1,
+  MODEL_563_GUIDE_V1,
+  MODEL_566_GUIDE_V1,
+  MODEL_573_GUIDE_V1,
+  MODEL_581_GUIDE_V1,
+  MODEL_582_GUIDE_V1,
+  MODEL_595_GUIDE_V1,
+  MODEL_596_GUIDE_V1,
+} from "./model-batch-4-excise-manufacturing-guides.v1";
+import {
+  MODEL_583_GUIDE_V1,
+  MODEL_584_GUIDE_V1,
+  MODEL_585_GUIDE_V1,
+  MODEL_588_GUIDE_V1,
+  MODEL_589_GUIDE_V1,
+  MODEL_591_GUIDE_V1,
+} from "./model-batch-4-energy-nuclear-guides.v1";
+import {
+  MODEL_586_GUIDE_V1,
+  MODEL_587_GUIDE_V1,
+  MODEL_592_GUIDE_V1,
+  MODEL_593_GUIDE_V1,
+} from "./model-batch-4-environmental-guides.v1";
 import { MODEL_01C_GUIDE_V1 } from "./model-01c-guide.v1";
 import { MODEL_030_GUIDE_V1 } from "./model-030-guide.v1";
 import { MODEL_035_GUIDE_V1 } from "./model-035-guide.v1";
@@ -313,6 +351,41 @@ const BATCH_3_PRACTICAL_GUIDES_BY_CODE: Readonly<
   "545": MODEL_545_GUIDE_V1,
 });
 
+const BATCH_4_PRACTICAL_GUIDES_BY_CODE: Readonly<
+  Record<string, FiscalModelPracticalGuideV1>
+> = Object.freeze({
+  "546": MODEL_546_GUIDE_V1,
+  "547": MODEL_547_GUIDE_V1,
+  "548": MODEL_548_GUIDE_V1,
+  "553": MODEL_553_GUIDE_V1,
+  "559": MODEL_559_GUIDE_V1,
+  "560": MODEL_560_GUIDE_V1,
+  "561": MODEL_561_GUIDE_V1,
+  "562": MODEL_562_GUIDE_V1,
+  "563": MODEL_563_GUIDE_V1,
+  "566": MODEL_566_GUIDE_V1,
+  "568": MODEL_568_GUIDE_V1,
+  "571": MODEL_571_GUIDE_V1,
+  "572": MODEL_572_GUIDE_V1,
+  "573": MODEL_573_GUIDE_V1,
+  "576": MODEL_576_GUIDE_V1,
+  "581": MODEL_581_GUIDE_V1,
+  "582": MODEL_582_GUIDE_V1,
+  "583": MODEL_583_GUIDE_V1,
+  "584": MODEL_584_GUIDE_V1,
+  "585": MODEL_585_GUIDE_V1,
+  "586": MODEL_586_GUIDE_V1,
+  "587": MODEL_587_GUIDE_V1,
+  "588": MODEL_588_GUIDE_V1,
+  "589": MODEL_589_GUIDE_V1,
+  "590": MODEL_590_GUIDE_V1,
+  "591": MODEL_591_GUIDE_V1,
+  "592": MODEL_592_GUIDE_V1,
+  "593": MODEL_593_GUIDE_V1,
+  "595": MODEL_595_GUIDE_V1,
+  "596": MODEL_596_GUIDE_V1,
+});
+
 function ExternalOfficialLink({
   href,
   children,
@@ -365,6 +438,11 @@ export function FiscalModelOfficialContentView({
   const batch3Guide = BATCH_3_PRACTICAL_GUIDES_BY_CODE[content.code];
   if (batch3Guide) {
     return <FiscalModelPracticalGuide content={content} guide={batch3Guide} />;
+  }
+
+  const batch4Guide = BATCH_4_PRACTICAL_GUIDES_BY_CODE[content.code];
+  if (batch4Guide) {
+    return <FiscalModelPracticalGuide content={content} guide={batch4Guide} />;
   }
 
   if (content.code === "01C") {
