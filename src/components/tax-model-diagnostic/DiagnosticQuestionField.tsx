@@ -64,7 +64,14 @@ export function DiagnosticQuestionField({
                   onChange={() => onAnswer(optionValue as QuestionValue)}
                   className={`h-4 w-4 ${documentValidated ? "accent-emerald-600" : "accent-blue-600"}`}
                 />
-                {option.label}
+                <span className="min-w-0">
+                  <span className="block">{option.label}</span>
+                  {option.description && (
+                    <span className="mt-1 block text-xs font-normal leading-5 opacity-75">
+                      {option.description}
+                    </span>
+                  )}
+                </span>
               </label>
             );
           })}
@@ -94,7 +101,14 @@ export function DiagnosticQuestionField({
                   onChange={() => onAnswer(option.value as QuestionValue)}
                   className="sr-only"
                 />
-                {option.label}
+                <span className="min-w-0">
+                  <span className="block">{option.label}</span>
+                  {option.description && (
+                    <span className="mt-1 block text-xs font-normal leading-5 opacity-75">
+                      {option.description}
+                    </span>
+                  )}
+                </span>
               </label>
             );
           })}
@@ -105,36 +119,46 @@ export function DiagnosticQuestionField({
         <div className="mt-4">
           <div className="grid gap-2 sm:grid-cols-2">
             {question.options?.map((option) => {
-            const selected = Array.isArray(value) && value.includes(option.value as never);
-            return (
-              <label
-                key={option.value}
-                className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-semibold focus-within:ring-2 focus-within:ring-blue-500 ${
-                  selected
-                    ? documentValidated
-                      ? "border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100"
-                      : "border-blue-500 bg-blue-50 text-blue-950 dark:bg-blue-950/40 dark:text-blue-100"
-                    : "border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
-                }`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selected}
-                  onChange={(event) => {
-                    const current = Array.isArray(value)
-                      ? value.map((item) => String(item))
-                      : [];
-                    onAnswer(
-                      (event.target.checked
-                        ? [...new Set([...current, option.value])]
-                        : current.filter((item) => item !== option.value)) as QuestionValue,
-                    );
-                  }}
-                  className={`h-4 w-4 rounded ${documentValidated ? "accent-emerald-600" : "accent-blue-600"}`}
-                />
-                {option.label}
-              </label>
-            );
+              const selected =
+                Array.isArray(value) && value.includes(option.value as never);
+              return (
+                <label
+                  key={option.value}
+                  className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm font-semibold focus-within:ring-2 focus-within:ring-blue-500 ${
+                    selected
+                      ? documentValidated
+                        ? "border-emerald-500 bg-emerald-50 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100"
+                        : "border-blue-500 bg-blue-50 text-blue-950 dark:bg-blue-950/40 dark:text-blue-100"
+                      : "border-slate-200 text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    onChange={(event) => {
+                      const current = Array.isArray(value)
+                        ? value.map((item) => String(item))
+                        : [];
+                      onAnswer(
+                        (event.target.checked
+                          ? [...new Set([...current, option.value])]
+                          : current.filter(
+                              (item) => item !== option.value,
+                            )) as QuestionValue,
+                      );
+                    }}
+                    className={`h-4 w-4 rounded ${documentValidated ? "accent-emerald-600" : "accent-blue-600"}`}
+                  />
+                  <span className="min-w-0">
+                    <span className="block">{option.label}</span>
+                    {option.description && (
+                      <span className="mt-1 block text-xs font-normal leading-5 opacity-75">
+                        {option.description}
+                      </span>
+                    )}
+                  </span>
+                </label>
+              );
             })}
           </div>
           {question.field === "censusObligations" && (

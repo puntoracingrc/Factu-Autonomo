@@ -1,8 +1,11 @@
+import type { TaxObligationsAssessmentV1 } from "../tax-obligations/contracts";
+
 export const TAX_MODEL_DIAGNOSTIC_SCHEMA_VERSION = 1 as const;
 export const TAX_MODEL_DIAGNOSTIC_ENGINE_VERSION =
   "tax-model-diagnostic.engine.2026-07.v1" as const;
 
 export type FourWayAnswer = "YES" | "NO" | "UNKNOWN" | "NOT_APPLICABLE";
+export type YesNoAnswer = "YES" | "NO" | "UNKNOWN";
 
 export type FiscalTerritory =
   | "UNKNOWN"
@@ -97,6 +100,7 @@ export interface TaxpayerProfile {
   hasPersonalActivity: FourWayAnswer;
   retaDuringYear: FourWayAnswer;
   activityStartDate: string | null;
+  activityStillActive: YesNoAnswer;
   activityEndDate: string | null;
   activityKinds: ActivityKind[];
   incomeTaxRegime: IncomeTaxRegime;
@@ -274,6 +278,8 @@ export interface TaxModelDiagnosticSession {
   currentSection: string;
   updatedAt: string;
   lastResult?: DiagnosticResult;
+  /** Immutable public snapshot replaced only after confirming a new result. */
+  publishedAssessment?: TaxObligationsAssessmentV1;
 }
 
 export type DiagnosticQuestionKind =
@@ -286,6 +292,7 @@ export type DiagnosticQuestionKind =
 export interface DiagnosticQuestionOption {
   value: string;
   label: string;
+  description?: string;
 }
 
 export interface DiagnosticQuestion {

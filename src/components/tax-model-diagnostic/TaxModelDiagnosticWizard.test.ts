@@ -90,6 +90,27 @@ describe("tax model diagnostic UI contract", () => {
     expect(wizard).toContain("item.field !== field");
   });
 
+  it("al cambiar de bloque desplaza y enfoca la primera pregunta", () => {
+    expect(wizard).toContain("firstQuestionRef.current?.scrollIntoView");
+    expect(wizard).toContain('behavior: "smooth"');
+    expect(wizard).toContain('block: "start"');
+    expect(wizard).toContain(
+      "firstQuestionRef.current?.focus({ preventScroll: true })",
+    );
+    expect(wizard).not.toContain(
+      'window.scrollTo({ top: 0, behavior: "smooth" });\n  }\n\n  function generateResult',
+    );
+  });
+
+  it("mantiene la foto publicada hasta que se generan resultados nuevos", () => {
+    expect(wizard).toContain("setResult(storedSession.lastResult ?? null)");
+    expect(wizard).toContain(
+      "const publishedAssessment = buildTaxObligationsAssessment(nextResult)",
+    );
+    expect(wizard).toContain("publishedAssessment,");
+    expect(wizard).not.toContain("lastResult: undefined");
+  });
+
   it("muestra motivo, evidencia, períodos, sujeto, fuentes y siguiente paso", () => {
     for (const copy of [
       "Por qué aparece",
