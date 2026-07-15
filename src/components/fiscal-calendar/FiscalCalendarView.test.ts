@@ -127,6 +127,34 @@ describe("contrato de interfaz del calendario fiscal", () => {
     expect(componentSource).not.toContain("buildTaxObligationsAssessment");
   });
 
+  it("prepara un borrador revisable en Recordatorios sin guardarlo automáticamente", () => {
+    const prepareReminderSource = componentSource.slice(
+      componentSource.indexOf("function prepareReminder"),
+      componentSource.indexOf(
+        "  return (",
+        componentSource.indexOf("function prepareReminder"),
+      ),
+    );
+
+    expect(componentSource).toContain("createFiscalCalendarReminderDraft");
+    expect(componentSource).toContain("storeFiscalCalendarReminderDraft");
+    expect(componentSource).toContain(
+      "FISCAL_CALENDAR_REMINDER_TARGET_HREF",
+    );
+    expect(componentSource).toContain("Crear recordatorio");
+    expect(componentSource).toContain(
+      "No hemos podido preparar el recordatorio",
+    );
+    expect(
+      prepareReminderSource.indexOf("storeFiscalCalendarReminderDraft"),
+    ).toBeLessThan(
+      prepareReminderSource.indexOf(
+        "router.push(FISCAL_CALENDAR_REMINDER_TARGET_HREF)",
+      ),
+    );
+    expect(componentSource).not.toContain("addUserReminder");
+  });
+
   it("valida toda la respuesta no confiable antes de entregarla al render", () => {
     expect(componentSource).toContain("parseFiscalCalendarResponseData");
     expect(componentSource).toContain(

@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
+  BellPlus,
   CalendarDays,
   CircleAlert,
   ExternalLink,
@@ -30,6 +32,11 @@ import {
   type FiscalCalendarEventObligationDecision,
   type FiscalCalendarObligationView,
 } from "@/lib/fiscal-calendar/obligation-filter";
+import {
+  createFiscalCalendarReminderDraft,
+  FISCAL_CALENDAR_REMINDER_TARGET_HREF,
+  storeFiscalCalendarReminderDraft,
+} from "@/lib/fiscal-calendar/reminder-draft";
 import { parseFiscalCalendarResponseData } from "@/lib/fiscal-calendar/response-data";
 import type {
   FiscalCalendarCategory,
@@ -184,15 +191,17 @@ function EventCard({
   categoryLabel,
   modelLinks,
   obligationDecision,
+  onCreateReminder,
 }: {
   event: FiscalCalendarEvent;
   categoryLabel: string;
   modelLinks: ReadonlyMap<string, FiscalCalendarModelPageLink>;
   obligationDecision?: FiscalCalendarEventObligationDecision;
+  onCreateReminder: (event: FiscalCalendarEvent) => void;
 }) {
   return (
     <li>
-      <Card className="h-full border-slate-200/80 dark:border-slate-700 dark:bg-slate-900">
+      <Card className="flex h-full flex-col border-slate-200/80 dark:border-slate-700 dark:bg-slate-900">
         <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-wide">
           <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700 dark:bg-blue-950 dark:text-blue-200">
             {categoryLabel}
@@ -259,6 +268,16 @@ function EventCard({
         <p className="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
           Fuente del evento: Agencia Tributaria
         </p>
+        <Button
+          type="button"
+          variant="secondary"
+          className="mt-4 w-full sm:w-auto"
+          aria-label={`Crear recordatorio: ${event.title}`}
+          onClick={() => onCreateReminder(event)}
+        >
+          <BellPlus className="h-4 w-4" aria-hidden="true" />
+          Crear recordatorio
+        </Button>
       </Card>
     </li>
   );
@@ -270,6 +289,7 @@ export function FiscalCalendarView({
   categoryOptions,
   officialSource,
 }: FiscalCalendarViewProps) {
+  const router = useRouter();
   const { data: appData, ready: appReady } = useAppStore();
   const allCategories = useMemo(
     () => categoryOptions.map((option) => option.key),
@@ -292,6 +312,9 @@ export function FiscalCalendarView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterError, setFilterError] = useState<string | null>(null);
+  const [reminderDraftError, setReminderDraftError] = useState<string | null>(
+    null,
+  );
   const [requestedScope, setRequestedScope] = useState<AdvisoryScope>("ALL");
 
   const categoryLabels = useMemo(
@@ -444,6 +467,28 @@ export function FiscalCalendarView({
       endDateInclusive,
       categories: selectedCategories,
     });
+  }
+
+  function prepareReminder(event: FiscalCalendarEvent) {
+    setReminderDraftError(null);
+    try {
+      const draft = createFiscalCalendarReminderDraft(event);
+      const stored = storeFiscalCalendarReminderDraft(
+        window.sessionStorage,
+        draft,
+      );
+      if (!stored.ok) {
+        setReminderDraftError(
+          "No hemos podido preparar el recordatorio. Inténtalo de nuevo.",
+        );
+        return;
+      }
+      router.push(FISCAL_CALENDAR_REMINDER_TARGET_HREF);
+    } catch {
+      setReminderDraftError(
+        "No hemos podido preparar el recordatorio. Inténtalo de nuevo.",
+      );
+    }
   }
 
   return (
@@ -703,6 +748,15 @@ export function FiscalCalendarView({
           </Card>
         ) : null}
 
+        {reminderDraftError ? (
+          <p
+            className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200"
+            role="alert"
+          >
+            {reminderDraftError}
+          </p>
+        ) : null}
+
         {visibleEvents.length > 0 ? (
           <section aria-labelledby="fiscal-calendar-upcoming-title">
             <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
@@ -741,6 +795,7 @@ export function FiscalCalendarView({
                       ? obligationDecisions.get(event.id)
                       : undefined
                   }
+                  onCreateReminder={prepareReminder}
                 />
               ))}
             </ol>

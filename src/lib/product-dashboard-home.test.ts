@@ -102,6 +102,27 @@ describe("product dashboard home", () => {
     expect(panel).not.toContain("<SendToOfficeForm");
   });
 
+  it("consume una sola vez el borrador del calendario y exige guardado explícito", () => {
+    const panel = source("../components/reminders/UserRemindersPanel.tsx");
+    const initialEffect = panel.slice(
+      panel.indexOf("useEffect(() =>"),
+      panel.indexOf("function resetForm"),
+    );
+
+    expect(panel).toContain("consumeFiscalCalendarReminderDraft");
+    expect(initialEffect).toContain("initialRouteHandled.current = true");
+    expect(initialEffect).toContain('originValues[0] === "calendario"');
+    expect(initialEffect).toContain("window.sessionStorage");
+    expect(initialEffect).toContain("setTarget(\"self\")");
+    expect(initialEffect).toContain("setLinkMode(\"none\")");
+    expect(initialEffect).toContain("setText(result.draft.text)");
+    expect(initialEffect).not.toContain("addUserReminder");
+    expect(panel).toContain(
+      "Borrador preparado desde el calendario fiscal. Revísalo antes de guardarlo.",
+    );
+    expect(panel).toContain("Guardar recordatorio");
+  });
+
   it("no duplica accesos ni ultimos documentos en la sugerencia de Factu", () => {
     const component = source("../components/recommendations/HomeFactuTip.tsx");
 
