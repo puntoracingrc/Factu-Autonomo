@@ -66,6 +66,18 @@ const practicalCatalogLabels: Readonly<
     "No se presenta a la AEAT",
     "Datos del trabajador",
   ],
+  "149": [
+    "Movilidad internacional y no residentes",
+    "Régimen de desplazados",
+    "Opción y comunicaciones",
+    "IRPF",
+  ],
+  "151": [
+    "Movilidad internacional y no residentes",
+    "Régimen de desplazados",
+    "Declaración anual",
+    "IRPF",
+  ],
   "180": ["Anual", "Relacionado con 115", "Declaración informativa"],
   "184": [
     "Comunidades de bienes",
@@ -89,6 +101,18 @@ const practicalCatalogLabels: Readonly<
     "Autónomo societario y empresas",
     "Abril, octubre y diciembre",
     "Pago a cuenta",
+  ],
+  "210": [
+    "Movilidad internacional y no residentes",
+    "IRNR",
+    "Sin establecimiento permanente",
+    "Inmuebles y otras rentas",
+  ],
+  "211": [
+    "Movilidad internacional y no residentes",
+    "IRNR",
+    "Venta de inmuebles",
+    "Retención del 3 %",
   ],
   "216": [
     "Pagos a no residentes",
@@ -199,12 +223,20 @@ const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
     "Ingreso periódico de determinadas retenciones sobre dividendos, intereses y otras rentas del capital.",
   "145":
     "Datos personales y familiares del trabajador para calcular la retención de su nómina. Se entrega al pagador.",
+  "149":
+    "Comunicación de la opción, renuncia, exclusión o fin del régimen especial para personas desplazadas a España.",
+  "151":
+    "Declaración anual de quienes tributan por el régimen especial de personas desplazadas a territorio español.",
   "140":
     "Solicitud del abono anticipado de la deducción por maternidad y comunicación de variaciones.",
   "143":
     "Solicitud del abono anticipado de deducciones por familia numerosa y determinadas circunstancias familiares o de discapacidad.",
   "193":
     "Resumen anual de determinadas rentas y retenciones declaradas mediante el Modelo 123.",
+  "210":
+    "Declaración del IRNR para rentas obtenidas en España por no residentes sin establecimiento permanente.",
+  "211":
+    "Retención del 3 % que practica quien compra un inmueble a una persona no residente sin establecimiento permanente.",
   "714":
     "Declaración del Impuesto sobre el Patrimonio cuando existe cuota o se supera el límite bruto establecido.",
   "718":
