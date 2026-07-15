@@ -71,6 +71,9 @@ const driveArchiveDomainSource = readSource(
 const driveArchiveUploadSource = readSource(
   "../../lib/google-drive/fiscal-notification-original-archive.v1.ts",
 );
+const driveOriginalDeleteSource = readSource(
+  "../../lib/google-drive/fiscal-notification-original-delete.v1.ts",
+);
 const manualSource = readSource(
   "../../lib/manual/sections/consultor-fiscal.ts",
 );
@@ -101,7 +104,21 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
   });
 
-  it("elimina solo la ficha local tras confirmación y mantiene Drive independiente", () => {
+  it("muestra organismo, título y fecha sin etiquetas técnicas en cada tarjeta", () => {
+    expect(documentLibraryComponentSource).toContain(
+      "abbreviateAuthority(document.authority)",
+    );
+    expect(documentLibraryComponentSource).toContain(
+      "formatGroupMonthSequence(group)",
+    );
+    expect(documentLibraryComponentSource).toContain("<CalendarDays");
+    expect(documentLibraryComponentSource).not.toContain("Solo ficha");
+    expect(documentLibraryComponentSource).not.toContain(
+      "Fecha del documento pendiente",
+    );
+  });
+
+  it("confirma de forma breve y separa borrar en Factu de enviar el original a la papelera de Drive", () => {
     expect(documentLibraryComponentSource).toContain(
       "Eliminar ficha de Factu",
     );
@@ -109,10 +126,15 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "deleteFiscalNotificationDocument({",
     );
     expect(documentDeleteModalSource).toContain(
-      "Google Drive es independiente",
+      "¿Quieres eliminar también el documento original subido a Google Drive?",
     );
-    expect(compact(documentDeleteModalSource)).toContain(
-      "Esta acción no elimina, mueve ni modifica ningún archivo de tu Google Drive",
+    expect(documentDeleteModalSource).toContain("¿Eliminar este documento?");
+    expect(documentDeleteModalSource).not.toContain("Se eliminarán la ficha");
+    expect(documentLibraryComponentSource).toContain(
+      "trashFiscalNotificationOriginalInGoogleDriveV1",
+    );
+    expect(documentLibraryComponentSource).toContain(
+      "restoreFiscalNotificationOriginalInGoogleDriveV1",
     );
     expect(documentDeletionSource).toContain(
       'drivePolicy: "PRESERVE_USER_DRIVE_ORIGINAL"',
@@ -123,6 +145,13 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(documentDeletionCommandSource).toContain(
       "fiscalNotificationsWorkspace: prepared.workspace",
     );
+    expect(driveOriginalDeleteSource).toContain(
+      'body: JSON.stringify({ trashed })',
+    );
+    expect(driveOriginalDeleteSource).toContain(
+      "FISCAL_NOTIFICATION_DRIVE_ARCHIVE_POLICY_V1",
+    );
+    expect(driveOriginalDeleteSource).not.toMatch(/method:\s*["']DELETE["']/u);
     expect(
       `${documentDeletionSource}\n${documentDeletionCommandSource}`,
     ).not.toMatch(/fetch\s*\(|googleapis|drive\.files\.(?:delete|update)|trashDrive/iu);
@@ -431,7 +460,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       /\bdocument\.ownerScope\b/,
     );
     expect(documentLibraryComponentSource).toContain("original no archivado");
-    expect(documentLibraryComponentSource).toContain("Original en Drive");
+    expect(documentLibraryComponentSource).toContain(
+      "Original archivado en tu Google Drive",
+    );
   });
 
   it("muestra relaciones exactas con tarjetas iguales y navegación a la ficha", () => {
