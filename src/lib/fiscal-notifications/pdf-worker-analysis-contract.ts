@@ -795,7 +795,8 @@ function parseMoneyFacts(
     result.schemaVersion !== 1 ||
     result.engineId !== "aeat-enforcement-money-facts" ||
     (result.engineVersion !== "1.0.0" &&
-      result.engineVersion !== "1.1.0") ||
+      result.engineVersion !== "1.1.0" &&
+      result.engineVersion !== "1.2.0") ||
     result.documentType !== "AEAT_ENFORCEMENT_ORDER" ||
     (result.status !== "REVIEW_REQUIRED" &&
       result.status !== "INFORMATION_PENDING") ||
@@ -905,7 +906,8 @@ function parseMoneyFacts(
       kindRequired === (kind === null) ||
       seenIssues.has(identity) ||
       (code === "UNSUPPORTED_SECTION_PREAMBLE" &&
-        result.engineVersion !== "1.1.0")
+        result.engineVersion !== "1.1.0" &&
+        result.engineVersion !== "1.2.0")
     ) {
       throw new FiscalNotificationPdfWorkerAnalysisError();
     }
@@ -934,7 +936,7 @@ function parseMoneyFacts(
   return Object.freeze({
     schemaVersion: 1 as const,
     engineId: "aeat-enforcement-money-facts" as const,
-    engineVersion: result.engineVersion as "1.0.0" | "1.1.0",
+    engineVersion: result.engineVersion as "1.0.0" | "1.1.0" | "1.2.0",
     documentType: "AEAT_ENFORCEMENT_ORDER" as const,
     status: result.status as AeatEnforcementMoneyFactsResult["status"],
     outcome: result.outcome as AeatEnforcementMoneyFactsResult["outcome"],

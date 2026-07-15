@@ -835,6 +835,36 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     }
   });
 
+  it("resume todos los PDF analizados y distingue la ficha seleccionada", () => {
+    for (const expected of [
+      "Resumen del lote",
+      "analizados",
+      "Cada tarjeta corresponde a un PDF. Abre una para ver su ficha completa.",
+      "Ver ficha completa",
+      "Ficha abierta",
+      "Ficha seleccionada · documento",
+      "Archivo temporal:",
+    ]) {
+      expect(compact(componentSource)).toContain(expected);
+    }
+    expect(componentSource).toContain(
+      "const review = reviewsRef.current.get(item.id)",
+    );
+    expect(componentSource).toContain(
+      "projectBatchReviewSummary(review.analysis)",
+    );
+    expect(componentSource).toContain(
+      'item.kind === "DOCUMENT_TOTAL"',
+    );
+    expect(componentSource).toContain(
+      'item.kind === "OUTSTANDING_PRINCIPAL"',
+    );
+    expect(componentSource).toContain("pageCount: technicalReview.pageCount");
+    expect(componentSource).toContain(
+      "batchContext.position} de ${batchContext.total",
+    );
+  });
+
   it("ofrece archivar voluntariamente un duplicado registrado sin custodiar el PDF", () => {
     expect(componentSource).toContain(
       "inspectFiscalNotificationDriveArchiveCandidateV1(",

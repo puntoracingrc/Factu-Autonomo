@@ -9,7 +9,7 @@ import {
 export const AEAT_ENFORCEMENT_MONEY_FACTS_SCHEMA_VERSION = 1 as const;
 export const AEAT_ENFORCEMENT_MONEY_FACTS_ENGINE_ID =
   "aeat-enforcement-money-facts" as const;
-export const AEAT_ENFORCEMENT_MONEY_FACTS_ENGINE_VERSION = "1.1.0" as const;
+export const AEAT_ENFORCEMENT_MONEY_FACTS_ENGINE_VERSION = "1.2.0" as const;
 
 export const AEAT_ENFORCEMENT_MONEY_FACTS_LIMITS = Object.freeze({
   maxSectionLines: 32,
@@ -73,7 +73,7 @@ export type AeatEnforcementMoneyFactsOutcome =
 export interface AeatEnforcementMoneyFactsResult {
   readonly schemaVersion: 1;
   readonly engineId: "aeat-enforcement-money-facts";
-  readonly engineVersion: "1.0.0" | "1.1.0";
+  readonly engineVersion: "1.0.0" | "1.1.0" | "1.2.0";
   readonly documentType: "AEAT_ENFORCEMENT_ORDER" | null;
   readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";
   readonly outcome: AeatEnforcementMoneyFactsOutcome;
@@ -256,6 +256,12 @@ export function extractAeatEnforcementMoneyFacts(
     observationsByKind.set(observation.kind, current);
   }
 
+  const sectionCurrency = scan.observations.some(
+    (observation) => observation.currency === "EUR",
+  )
+    ? "EUR"
+    : "UNKNOWN";
+
   const facts = MONEY_KINDS.flatMap((kind) => {
     const observations = observationsByKind.get(kind) ?? [];
     if (observations.length !== 1) return [];
@@ -265,7 +271,10 @@ export function extractAeatEnforcementMoneyFacts(
       Object.freeze({
         kind,
         amountCents: observation.amountCents,
-        currency: observation.currency,
+        currency:
+          observation.currency === "UNKNOWN"
+            ? sectionCurrency
+            : observation.currency,
         evidence: Object.freeze([Object.freeze({ ...observation.evidence })]),
         reviewStatus: "REVIEW_REQUIRED" as const,
       }),
