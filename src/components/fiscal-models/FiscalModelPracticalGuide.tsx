@@ -244,9 +244,8 @@ export function FiscalModelPracticalGuide({
           )}
         </div>
         <p className="text-center text-xs leading-5 text-slate-500 dark:text-slate-400">
-          Los trámites y documentos se abren en la sede oficial que los publica.
-          Factu no presenta solicitudes, no firma formularios y no envía datos a
-          la Agencia Tributaria.
+          {guide.externalActionNotice ??
+            "Los trámites y documentos se abren en la sede oficial que los publica. Factu no presenta solicitudes, no firma formularios y no envía datos a la Agencia Tributaria."}
         </p>
       </section>
 

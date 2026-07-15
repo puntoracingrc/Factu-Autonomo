@@ -11,11 +11,19 @@ export type FiscalModelGuideInternalHrefV1 =
   | "/consultor-fiscal/modelos/100"
   | "/consultor-fiscal/modelos/111"
   | "/consultor-fiscal/modelos/115"
+  | "/consultor-fiscal/modelos/117"
+  | "/consultor-fiscal/modelos/123"
+  | "/consultor-fiscal/modelos/124"
+  | "/consultor-fiscal/modelos/126"
+  | "/consultor-fiscal/modelos/128"
   | "/consultor-fiscal/modelos/130"
   | "/consultor-fiscal/modelos/131"
   | "/consultor-fiscal/modelos/180"
   | "/consultor-fiscal/modelos/184"
   | "/consultor-fiscal/modelos/190"
+  | "/consultor-fiscal/modelos/193"
+  | "/consultor-fiscal/modelos/194"
+  | "/consultor-fiscal/modelos/196"
   | "/consultor-fiscal/modelos/200"
   | "/consultor-fiscal/modelos/202"
   | "/consultor-fiscal/modelos/210"
@@ -48,11 +56,14 @@ export interface FiscalModelPracticalGuideV1 {
     | "100"
     | "111"
     | "115"
+    | "123"
     | "130"
     | "131"
+    | "145"
     | "180"
     | "184"
     | "190"
+    | "193"
     | "200"
     | "202"
     | "216"
@@ -72,6 +83,7 @@ export interface FiscalModelPracticalGuideV1 {
   readonly filingYear?: number;
   readonly lastVerifiedAt?: string;
   readonly requiresAnnualReview?: boolean;
+  readonly externalActionNotice?: string;
   readonly intro: readonly string[];
   readonly notices: readonly {
     readonly title: string;
