@@ -7,7 +7,7 @@ import {
 } from "./batch-18.release-helper.v1";
 
 export const PUBLIC_AEAT_BATCH_18_ENVIRONMENT_EXCISE_A22_A24_RELEASE_ID_V1 =
-  "public-aeat-official-batch-18-environment-excise-a22-a24.2026-07-14.v1" as const;
+  "public-aeat-official-batch-18-environment-excise-a22-a24.2026-07-15.v2" as const;
 
 function official(value: PublicAeatOfficialContentSourceV1) {
   return source(value);
@@ -82,27 +82,27 @@ const ORDER_A22 = official({
   verificationStatus: "SOURCE_HASH_CAPTURED",
 });
 const ORDER_A23 = official({
-  id: "boe.order-hfp-826-2022.model-a23.2026-07-14",
+  id: "boe.order-hfp-826-2022.model-a23.2026-07-15",
   authority: "BOE",
   kind: "LEGAL_TEXT",
   title: "Orden HFP/826/2022, de 30 de agosto",
-  canonicalUrl: "https://www.boe.es/buscar/doc.php?id=BOE-A-2022-14225",
+  canonicalUrl: "https://www.boe.es/buscar/doc.php?id=BOE-A-2022-14275",
   officialUpdatedOn: null,
-  capturedOn: PUBLIC_AEAT_BATCH_18_REVIEWED_ON_V1,
+  capturedOn: "2026-07-15",
   sourceSha256:
-    "6bc44406e2bb3b1022726479adbfea04536c5a6db0faa52d8814695465451404",
+    "10604ea3a50a54b7075ad368237e59b8d9911be8e6a58b0ff7340755cd983798",
   verificationStatus: "SOURCE_HASH_CAPTURED",
 });
 const ORDER_A24 = official({
-  id: "boe.order-hac-86-2025.model-a24.2026-07-14",
+  id: "boe.order-hac-86-2025.model-a24.2026-07-15",
   authority: "BOE",
   kind: "LEGAL_TEXT",
-  title: "Orden HAC/86/2025, de 30 de enero",
-  canonicalUrl: "https://www.boe.es/buscar/doc.php?id=BOE-A-2025-1742",
+  title: "Orden HAC/86/2025, de 13 de enero",
+  canonicalUrl: "https://www.boe.es/buscar/doc.php?id=BOE-A-2025-1732",
   officialUpdatedOn: null,
-  capturedOn: PUBLIC_AEAT_BATCH_18_REVIEWED_ON_V1,
+  capturedOn: "2026-07-15",
   sourceSha256:
-    "9ef1c435820cbcf53c45eed2d8803f33cf2756ba36e3468bda71407a468f945b",
+    "0df29bac3ecaff980c24ccdcdec1eb90f43f3118d11dcf1a8e22a1d87888618e",
   verificationStatus: "SOURCE_HASH_CAPTURED",
 });
 
@@ -116,6 +116,7 @@ function ids(
 
 const MODEL_A22 = model({
   releaseId: PUBLIC_AEAT_BATCH_18_ENVIRONMENT_EXCISE_A22_A24_RELEASE_ID_V1,
+  reviewedOn: "2026-07-15",
   code: "A22",
   canonicalName:
     "Impuesto especial sobre los envases de plástico no reutilizables. Solicitud de devolución",
@@ -156,6 +157,7 @@ const MODEL_A22 = model({
 
 const MODEL_A23 = model({
   releaseId: PUBLIC_AEAT_BATCH_18_ENVIRONMENT_EXCISE_A22_A24_RELEASE_ID_V1,
+  reviewedOn: "2026-07-15",
   code: "A23",
   canonicalName:
     "Impuesto sobre los Gases Fluorados de Efecto Invernadero. Solicitud de devolución",
@@ -196,6 +198,7 @@ const MODEL_A23 = model({
 
 const MODEL_A24 = model({
   releaseId: PUBLIC_AEAT_BATCH_18_ENVIRONMENT_EXCISE_A22_A24_RELEASE_ID_V1,
+  reviewedOn: "2026-07-15",
   code: "A24",
   canonicalName:
     "II. EE. Solicitud de devolución del impuesto sobre líquidos para cigarrillos electrónicos y otros productos relacionados con el tabaco",

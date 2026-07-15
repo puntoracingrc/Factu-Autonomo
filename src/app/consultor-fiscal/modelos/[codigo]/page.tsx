@@ -237,6 +237,23 @@ export async function generateMetadata({
         "795": "Modelo 795 AEAT histórico: gravamen energético 2023 y 2024",
         "796": "Modelo 796 AEAT histórico: pago energético 2023 y 2024",
         "797": "Modelo 797 AEAT histórico: antiguo gravamen bancario",
+        "798": "Modelo 798 AEAT histórico: pago anticipado bancario",
+        "848": "Modelo 848 AEAT: cifra de negocios e IAE",
+        "901": "Modelo 901 AEAT: certificados de eficiencia energética",
+        "933": "Modelo 933 AEAT: centros autorizados y menores",
+        "952": "Modelo 952 AEAT: IVA de créditos incobrables",
+        "980": "Modelo 980 AEAT: intereses de demora de las CC. AA.",
+        "981": "Modelo 981 AEAT histórico: prestaciones de 2014 a 2017",
+        "990": "Modelo 990 AEAT: información mensual de Administraciones",
+        "991": "Modelo 991 AEAT: fianzas de arrendamientos",
+        "992": "Modelo 992 AEAT: información sobre juegos",
+        "993": "Modelo 993 AEAT: deducciones familiares",
+        "995": "Modelo 995 AEAT: información urbanística local",
+        "996": "Modelo 996 AEAT: embargo de devoluciones",
+        "997": "Modelo 997 AEAT: embargo de pagos presupuestarios",
+        A22: "Modelo A22 AEAT: devolución del impuesto sobre plástico",
+        A23: "Modelo A23 AEAT: devolución del impuesto sobre gases fluorados",
+        A24: "Modelo A24 AEAT: devolución por envíos de productos de vapeo",
         "232": "Modelo 232 AEAT: operaciones vinculadas",
         "233": "Modelo 233 AEAT: gastos de guarderías y centros infantiles",
         "238": "Modelo 238 AEAT: información de operadores de plataformas",
@@ -633,6 +650,37 @@ export async function generateMetadata({
           "Modelo 796 histórico: pago anticipado energético de 2023 y 2024; no existe pago actual.",
         "797":
           "Modelo 797 histórico: antiguo gravamen temporal bancario, distinto de los actuales Modelos 780 y 781.",
+        "798":
+          "Modelo 798 histórico: umbral de 800 millones, tipo del 4,8 %, anticipo del 50 % y uso limitado a 2023 y 2024.",
+        "848":
+          "Guía del Modelo 848: quién comunica la cifra de negocios del IAE, exenciones, datos ya conocidos por la AEAT y plazo del 1 de enero al 14 de febrero.",
+        "901":
+          "Guía del Modelo 901: suministro institucional de certificados de eficiencia energética, organismo declarante y corrección de datos.",
+        "933":
+          "Guía del Modelo 933: centros autorizados, datos suministrados por Administraciones y diferencia con el Modelo 233.",
+        "952":
+          "Guía del Modelo 952: IVA de facturas impagadas, plazos, factura rectificativa, documentación, concurso, Modelo 303 y SII.",
+        "980":
+          "Guía del Modelo 980: intereses de demora comunicados por comunidades autónomas y corrección en el organismo pagador.",
+        "981":
+          "Modelo 981 histórico: presentación solo en 2019 para determinadas prestaciones devengadas de 2014 a 2017 con clave L27.",
+        "990":
+          "Guía institucional del Modelo 990: suministro mensual restringido de Administraciones públicas y protección de datos.",
+        "991":
+          "Guía del Modelo 991: fianzas de arrendamientos informadas por Administraciones y diferencias con 115 y 180.",
+        "992":
+          "Guía institucional del Modelo 992: registros y autorizaciones de juego, organismo declarante y modelos tributarios relacionados.",
+        "993":
+          "Guía del Modelo 993: información institucional para deducciones familiares y corrección ante el organismo emisor.",
+        "995":
+          "Guía del Modelo 995: información urbanística anual de entidades locales, canal institucional y corrección de datos.",
+        "996":
+          "Guía institucional del Modelo 996: embargo de devoluciones gestionadas por la AEAT; no lo presenta el afectado.",
+        "997":
+          "Guía institucional del Modelo 997: embargo de pagos presupuestarios de otras Administraciones, portal y plazos operativos.",
+        A22: "Guía del A22: devolución trimestral del impuesto sobre envases de plástico, supuestos, documentos y diferencia con el Modelo 592.",
+        A23: "Guía del A23: devolución trimestral del impuesto sobre gases fluorados, destino exento vigente, documentos y relación con el Modelo 587.",
+        A24: "Guía del A24: productos de vapeo y nicotina, envíos a la UE, documentos, plazo mensual y diferencias con los Modelos 573 y 590.",
         "232":
           "Guía del Modelo 232: operaciones vinculadas, valoración de mercado, límites, documentación, plazo y corrección de la declaración.",
         "233":

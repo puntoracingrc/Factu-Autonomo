@@ -219,6 +219,31 @@ import {
   MODEL_796_GUIDE_V1,
   MODEL_797_GUIDE_V1,
 } from "./model-batch-5-financial-historical-guides.v1";
+import {
+  MODEL_901_GUIDE_V1,
+  MODEL_933_GUIDE_V1,
+  MODEL_980_GUIDE_V1,
+  MODEL_981_GUIDE_V1,
+  MODEL_990_GUIDE_V1,
+} from "./model-final-administrations-901-990-guides.v1";
+import {
+  MODEL_991_GUIDE_V1,
+  MODEL_992_GUIDE_V1,
+  MODEL_993_GUIDE_V1,
+  MODEL_995_GUIDE_V1,
+  MODEL_996_GUIDE_V1,
+  MODEL_997_GUIDE_V1,
+} from "./model-final-administrations-991-997-guides.v1";
+import {
+  MODEL_A22_GUIDE_V1,
+  MODEL_A23_GUIDE_V1,
+  MODEL_A24_GUIDE_V1,
+} from "./model-final-environment-refund-guides.v1";
+import {
+  MODEL_798_GUIDE_V1,
+  MODEL_848_GUIDE_V1,
+  MODEL_952_GUIDE_V1,
+} from "./model-final-financial-iae-vat-guides.v1";
 import { MODEL_01C_GUIDE_V1 } from "./model-01c-guide.v1";
 import { MODEL_030_GUIDE_V1 } from "./model-030-guide.v1";
 import { MODEL_035_GUIDE_V1 } from "./model-035-guide.v1";
@@ -459,6 +484,28 @@ const BATCH_5_PRACTICAL_GUIDES_BY_CODE: Readonly<
   "797": MODEL_797_GUIDE_V1,
 });
 
+const FINAL_PRACTICAL_GUIDES_BY_CODE: Readonly<
+  Record<string, FiscalModelPracticalGuideV1>
+> = Object.freeze({
+  "798": MODEL_798_GUIDE_V1,
+  "848": MODEL_848_GUIDE_V1,
+  "901": MODEL_901_GUIDE_V1,
+  "933": MODEL_933_GUIDE_V1,
+  "952": MODEL_952_GUIDE_V1,
+  "980": MODEL_980_GUIDE_V1,
+  "981": MODEL_981_GUIDE_V1,
+  "990": MODEL_990_GUIDE_V1,
+  "991": MODEL_991_GUIDE_V1,
+  "992": MODEL_992_GUIDE_V1,
+  "993": MODEL_993_GUIDE_V1,
+  "995": MODEL_995_GUIDE_V1,
+  "996": MODEL_996_GUIDE_V1,
+  "997": MODEL_997_GUIDE_V1,
+  A22: MODEL_A22_GUIDE_V1,
+  A23: MODEL_A23_GUIDE_V1,
+  A24: MODEL_A24_GUIDE_V1,
+});
+
 function ExternalOfficialLink({
   href,
   children,
@@ -521,6 +568,11 @@ export function FiscalModelOfficialContentView({
   const batch5Guide = BATCH_5_PRACTICAL_GUIDES_BY_CODE[content.code];
   if (batch5Guide) {
     return <FiscalModelPracticalGuide content={content} guide={batch5Guide} />;
+  }
+
+  const finalGuide = FINAL_PRACTICAL_GUIDES_BY_CODE[content.code];
+  if (finalGuide) {
+    return <FiscalModelPracticalGuide content={content} guide={finalGuide} />;
   }
 
   if (content.code === "01C") {

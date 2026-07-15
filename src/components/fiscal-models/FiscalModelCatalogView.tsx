@@ -688,6 +688,39 @@ const practicalCatalogLabels: Readonly<
   "795": ["Histórico", "Energía", "2023 y 2024"],
   "796": ["Histórico", "Pago anticipado", "2023 y 2024"],
   "797": ["Histórico", "Entidades financieras", "Relacionado con 780 y 781"],
+  "798": ["Histórico", "Pago anticipado", "Solo 2023 y 2024"],
+  "848": ["IAE", "Cifra de negocios", "Del 1 de enero al 14 de febrero"],
+  "901": [
+    "Administraciones públicas",
+    "Eficiencia energética",
+    "Institucional",
+  ],
+  "933": ["Administraciones públicas", "Centros autorizados", "Institucional"],
+  "952": [
+    "IVA",
+    "Créditos incobrables",
+    "Un mes desde la factura rectificativa",
+  ],
+  "980": ["Administraciones públicas", "Intereses de demora", "Institucional"],
+  "981": ["Histórico", "Único ejercicio 2019", "Prestaciones 2014 a 2017"],
+  "990": [
+    "Administraciones públicas",
+    "Información mensual",
+    "Datos sensibles",
+  ],
+  "991": ["Administraciones públicas", "Fianzas de alquiler", "Institucional"],
+  "992": ["Administraciones públicas", "Juegos", "Institucional"],
+  "993": [
+    "Administraciones públicas",
+    "Deducciones familiares",
+    "Institucional",
+  ],
+  "995": ["Entidades locales", "Información urbanística", "Institucional"],
+  "996": ["Recaudación", "Embargo de devoluciones AEAT", "Institucional"],
+  "997": ["Recaudación", "Pagos presupuestarios", "Institucional"],
+  A22: ["Plástico", "Solicitud de devolución", "Trimestral"],
+  A23: ["Gases fluorados", "Solicitud de devolución", "Trimestral"],
+  A24: ["Vapeo y nicotina", "Solicitud de devolución", "Mensual"],
   "232": [
     "Autónomo societario y empresas",
     "Operaciones vinculadas",
@@ -1076,6 +1109,37 @@ const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
   "796": "Pago anticipado histórico del gravamen energético de 2023 y 2024.",
   "797":
     "Modelo histórico del antiguo gravamen bancario, relacionado con los actuales 780 y 781.",
+  "798":
+    "Pago anticipado histórico del antiguo gravamen bancario, limitado a 2023 y 2024.",
+  "848":
+    "Comunicación excepcional de la cifra de negocios para el IAE cuando la AEAT no dispone ya del dato.",
+  "901":
+    "Suministro institucional de certificados de eficiencia energética por las Administraciones competentes.",
+  "933":
+    "Información institucional de centros autorizados y datos de atención a menores, distinta del Modelo 233.",
+  "952":
+    "Comunicación electrónica de la modificación de la base imponible del IVA por créditos incobrables.",
+  "980":
+    "Información institucional de los intereses de demora pagados por las comunidades autónomas.",
+  "981":
+    "Declaración histórica presentada solo en 2019 para determinadas prestaciones devengadas entre 2014 y 2017.",
+  "990":
+    "Suministro mensual y restringido de información por Administraciones públicas autorizadas.",
+  "991":
+    "Información institucional sobre fianzas derivadas del arrendamiento de inmuebles.",
+  "992":
+    "Información institucional sobre registros y autorizaciones relacionados con juegos.",
+  "993":
+    "Información institucional utilizada en determinadas deducciones familiares del IRPF.",
+  "995":
+    "Información anual de entidades locales sobre hechos urbanísticos con relevancia catastral o tributaria.",
+  "996":
+    "Canal institucional para embargos sobre devoluciones gestionadas por la AEAT.",
+  "997":
+    "Canal institucional para embargos de pagos presupuestarios de otras Administraciones públicas.",
+  A22: "Solicitud trimestral de devolución del impuesto sobre envases de plástico para determinados importadores y compradores posteriores.",
+  A23: "Solicitud trimestral de devolución del impuesto sobre gases fluorados para determinados importadores y compradores posteriores.",
+  A24: "Solicitud mensual de devolución por envíos a otros Estados miembros de productos de vapeo y nicotina.",
   "040":
     "Alta, modificación y baja de operadores de plataformas en sus dos registros específicos. No es el Modelo 04 y no lo presenta el vendedor.",
   "172":
