@@ -184,6 +184,15 @@ function thirdPartyPayment(orderId = "EMB-SYN-REL-001") {
   ], "third-party-payment");
 }
 
+function reiteration(orderId = "EMB-SYN-REL-001") {
+  return followUp("REITERACIÓN DE EMBARGO DE CRÉDITOS", [
+    `Número de diligencia: ${orderId}`,
+    "Destinatario: TERCERO SINTÉTICO",
+    "Fecha de la reiteración: 09/03/2026",
+    "Motivo de la reiteración: FALTA DE CONTESTACIÓN INDICADA EN EL DOCUMENTO",
+  ], "reiteration");
+}
+
 function linkEnforcement(
   enforcementOutput = enforcement(),
   seizureOutput = seizure(),
@@ -234,6 +243,34 @@ describe("enforcement-to-seizure relation engine v1", () => {
         userConfirmed: false,
       }),
     ]);
+  });
+
+  it.each([
+    ["DILIGENCIA DE EMBARGO DE VEHÍCULOS", "MOVABLE_PROPERTY"],
+    ["DILIGENCIA DE EMBARGO DE VALORES", "SECURITIES_OR_FINANCIAL_ASSETS"],
+    ["DILIGENCIA DE EMBARGO DE INTERESES, RENTAS Y FRUTOS DE TODA ESPECIE", "BUSINESS_INCOME_OR_RENTS"],
+  ] as const)("links the expanded exact seizure %s to its enforcement order", (title, subtype) => {
+    const seizureOutput = seizure(
+      SEIZURE_TEXT.replace(
+        "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+        title,
+      ),
+      OWNER,
+      `seizure-${subtype.toLowerCase()}`,
+      title,
+    );
+    const output = linkEnforcement(enforcement(), seizureOutput);
+
+    expect(seizureOutput.seizureFacts.subtype).toBe(subtype);
+    expect(output).toMatchObject({
+      status: "LINKED_REVIEW_REQUIRED",
+      reason: "EXPLICIT_ENFORCEMENT_REFERENCE_LINK",
+      automaticEffect: "NONE",
+    });
+    expect(output.relationships).toContainEqual(expect.objectContaining({
+      relationType: "ENFORCES",
+      confidenceLevel: "EXACT",
+    }));
   });
 
   it("does not link two documents on amount and dates alone", () => {
@@ -353,6 +390,7 @@ describe("enforcement-to-seizure relation engine v1", () => {
 
 describe("seizure follow-up relation engine v1", () => {
   it.each([
+    ["reiteration", reiteration(), "CONTINUES"],
     ["release", release(), "RELEASES_SEIZURE"],
     ["third-party response", thirdPartyResponse(), "RESPONDS_TO_SEIZURE"],
     ["third-party transfer", thirdPartyPayment(), "TRANSFERS_SEIZED_FUNDS"],
@@ -437,7 +475,7 @@ describe("seizure follow-up relation engine v1", () => {
 
   it("publishes strict identity, source-retention and no-action policies", () => {
     expect(ENFORCEMENT_SEIZURE_RELATION_ENGINE_RELEASE_V1).toEqual({
-      version: "1.0.0",
+      version: "1.1.0",
       exactMatchKeys: [
         "DEBT_KEY",
         "LIQUIDATION_KEY",
@@ -446,6 +484,7 @@ describe("seizure follow-up relation engine v1", () => {
       ],
       amountOnlyRelationPolicy: "PROHIBITED",
       followUpTypes: [
+        "SEIZURE_REITERATION",
         "SEIZURE_RELEASE",
         "THIRD_PARTY_RESPONSE",
         "THIRD_PARTY_PAYMENT",

@@ -2,6 +2,34 @@
 
 Última actualización: 2026-07-15 (Europe/Madrid)
 
+## Reserva activa — motor de expedientes tributarios F0/F1
+
+La rama `agent/tax-procedure-master-phase0-v1`, basada en
+`origin/main@7a9c6f7282a7f0bff5c6952879e310b41ccd2581`, trabaja únicamente en el
+Motor 2 de notificaciones y expedientes tributarios.
+
+Perímetro de este lote:
+
+- `src/lib/fiscal-notifications/extractor-core/seizure-extractor.v1.ts` y
+  pruebas;
+- `src/lib/fiscal-notifications/extractor-core/document-segmenter.v1.ts` y
+  pruebas;
+- registro de familias, proyección visible y adaptación al workspace, con sus
+  pruebas, exclusivamente dentro de `src/lib/fiscal-notifications/**`;
+- `docs/plans/tax-procedure-extractors.md` y esta nota de coordinación.
+
+Objetivo cerrado: reconciliar las 87 familias con `main` y completar los cuatro
+embargos que aún no tenían extractor ejecutable: bienes muebles, valores o
+activos financieros, ingresos de actividad o rentas y reiteración a tercero.
+Todos continúan en revisión humana, sin crear deuda, plazo, pago, embargo o
+asiento, y sin conservar PDF, nombre de archivo, texto u OCR.
+
+Quedan fuera `src/lib/tax-model-diagnostic/**`, `src/lib/fiscal-models/**`,
+Calendar, navegación global, `types.ts` compartido, AppStore, storage, cloud,
+Supabase, Stripe, documentos emitidos, snapshots, sellos, hashes y VeriFactu.
+Los tasks de Modelos, Calendar y Reparaciones han recibido directamente este
+perímetro antes del primer parche.
+
 ## Reserva adicional — importación del corpus sintético v1
 
 La rama `agent/import-tax-profile-corpus-v1`, basada en `main@679be29`, reserva:

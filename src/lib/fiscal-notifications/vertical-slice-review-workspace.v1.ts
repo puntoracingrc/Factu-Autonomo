@@ -786,13 +786,17 @@ function documentTypeForFamily(familyId: string): AdministrativeDocumentType {
     case "payment.receipt":
     case "payment.failed_or_reversed":
     case "seizure.release":
+    case "seizure.compliance_reiteration":
     case "seizure.third_party_response":
     case "seizure.third_party_payment":
       return "GENERIC_ADMINISTRATIVE_NOTICE";
     case "seizure.bank_account":
+    case "seizure.movable_asset":
     case "seizure.commercial_credits":
     case "seizure.wages_or_pensions":
+    case "seizure.securities_or_financial_assets":
     case "seizure.tpv_receipts":
+    case "seizure.business_income_or_rents":
     case "seizure.cash_or_refund":
     case "seizure.real_estate":
       return "AEAT_SEIZURE_ORDER";

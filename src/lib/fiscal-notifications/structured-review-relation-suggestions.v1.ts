@@ -14,7 +14,7 @@ import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-p
 export const STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1 =
   "fiscal-notification-explicit-reference-relations/1.0.0" as const;
 export const STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1 =
-  "fiscal-notification-typed-explicit-relations/1.0.0" as const;
+  "fiscal-notification-typed-explicit-relations/1.1.0" as const;
 
 export type AppendStructuredReviewRelationSuggestionsResultV1 =
   | {
@@ -81,7 +81,8 @@ type RelationPlan =
         | "ENFORCES"
         | "RESPONDS_TO_SEIZURE"
         | "TRANSFERS_SEIZED_FUNDS"
-        | "RELEASES_SEIZURE";
+        | "RELEASES_SEIZURE"
+        | "CONTINUES";
       readonly confidenceBand: "EXACT";
       readonly status: "SYSTEM_CONFIRMED_EXACT";
       readonly algorithmVersion: typeof STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1;
@@ -95,9 +96,12 @@ const ENFORCEMENT_SEIZURE_REFERENCE_TYPES = new Set<ExternalReferenceType>([
 ]);
 const SEIZURE_ORDER_SUBTYPES = new Set([
   "seizure.bank_account",
+  "seizure.movable_asset",
   "seizure.commercial_credits",
   "seizure.wages_or_pensions",
+  "seizure.securities_or_financial_assets",
   "seizure.tpv_receipts",
+  "seizure.business_income_or_rents",
   "seizure.cash_or_refund",
   "seizure.real_estate",
 ]);
@@ -109,12 +113,14 @@ const SEIZURE_FOLLOW_UP_TYPES: Readonly<
       | "RESPONDS_TO_SEIZURE"
       | "TRANSFERS_SEIZED_FUNDS"
       | "RELEASES_SEIZURE"
+      | "CONTINUES"
     >
   >
 > = Object.freeze({
   "seizure.third_party_response": "RESPONDS_TO_SEIZURE",
   "seizure.third_party_payment": "TRANSFERS_SEIZED_FUNDS",
   "seizure.release": "RELEASES_SEIZURE",
+  "seizure.compliance_reiteration": "CONTINUES",
 });
 
 /**
@@ -409,6 +415,7 @@ function typedPlan(
     | "RESPONDS_TO_SEIZURE"
     | "TRANSFERS_SEIZED_FUNDS"
     | "RELEASES_SEIZURE"
+    | "CONTINUES"
   >,
 ): RelationPlan {
   return Object.freeze({

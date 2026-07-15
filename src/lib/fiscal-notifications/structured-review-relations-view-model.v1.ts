@@ -185,7 +185,8 @@ type ExactTimelineRelationTypeV1 =
   | "ENFORCES"
   | "RESPONDS_TO_SEIZURE"
   | "TRANSFERS_SEIZED_FUNDS"
-  | "RELEASES_SEIZURE";
+  | "RELEASES_SEIZURE"
+  | "CONTINUES";
 
 interface TimelineEdgeV1 {
   readonly entry: StructuredReviewRelationEntryV1;
@@ -320,7 +321,8 @@ function isExactTimelineRelation(
     relationType === "ENFORCES" ||
     relationType === "RESPONDS_TO_SEIZURE" ||
     relationType === "TRANSFERS_SEIZED_FUNDS" ||
-    relationType === "RELEASES_SEIZURE"
+    relationType === "RELEASES_SEIZURE" ||
+    relationType === "CONTINUES"
   );
 }
 
@@ -334,6 +336,8 @@ function timelineLinkLabel(relationType: ExactTimelineRelationTypeV1): string {
       return "Ingreso del tercero retenedor";
     case "RELEASES_SEIZURE":
       return "Levantamiento de la diligencia";
+    case "CONTINUES":
+      return "Reiteración de la diligencia";
   }
 }
 
@@ -424,6 +428,13 @@ function relationPresentation(relationType: DocumentRelationType): Readonly<{
         statusLabel: "Referencia exacta · revisar efectos",
         explanation:
           "El levantamiento cita la misma diligencia de embargo. El documento histórico se conserva y no se infiere automáticamente si el levantamiento es total, parcial o el estado vigente fuera de lo impreso.",
+      });
+    case "CONTINUES":
+      return Object.freeze({
+        title: "Reiteración vinculada a diligencia de embargo",
+        statusLabel: "Referencia exacta · revisar efectos",
+        explanation:
+          "La reiteración cita la misma diligencia de embargo. Se muestra como continuación documental, pero no confirma por sí sola que la deuda o la traba sigan vigentes ni altera ningún saldo.",
       });
     default:
       return Object.freeze({

@@ -38,6 +38,20 @@ const BANK_SEIZURE = [
   "Fecha del embargo: 04/03/2026",
 ].join("\n");
 
+const SECURITIES_SEIZURE = [
+  "Agencia Tributaria",
+  "sede.agenciatributaria.gob.es",
+  "DILIGENCIA DE EMBARGO DE VALORES",
+  "Número de diligencia: EMB-SYN-VALUES-WORKSPACE-001",
+  "Deudor: PERSONA DEUDORA SINTÉTICA",
+  "Destinatario: ENTIDAD DEPOSITARIA SINTÉTICA",
+  "Entidad depositaria: ENTIDAD DEPOSITARIA SINTÉTICA",
+  "Valor o activo financiero: PARTICIPACIÓN SINTÉTICA",
+  "Cuenta de valores: CUENTA-SYN-001",
+  "Número de valores: 25",
+  "Fecha del embargo: 05/03/2026",
+].join("\n");
+
 function field(overrides: Record<string, unknown>) {
   return Object.freeze({
     fieldId: "status:document",
@@ -84,7 +98,7 @@ function analysis(sha256 = HASH): FiscalNotificationLocalAnalysisResult {
     ephemeralOffsetAgreementFacts: null,
     ephemeralVerticalSliceReview: Object.freeze({
       schemaVersion: 1,
-      reviewVersion: "1.0.0",
+      reviewVersion: "1.1.0",
       status: "REVIEW_REQUIRED",
       documents: Object.freeze([
         Object.freeze({
@@ -349,6 +363,27 @@ async function seizureAnalysis(): Promise<FiscalNotificationLocalAnalysisResult>
   return source as unknown as FiscalNotificationLocalAnalysisResult;
 }
 
+async function securitiesSeizureAnalysis(): Promise<FiscalNotificationLocalAnalysisResult> {
+  const boundedDocument: BoundedDocumentInput = Object.freeze({
+    ownerScope: OWNER,
+    documentId: "document:synthetic-securities-workspace",
+    pages: Object.freeze([
+      Object.freeze({ pageNumber: 1, text: SECURITIES_SEIZURE, isBlank: false }),
+    ]),
+  });
+  const review = projectFiscalNotificationVerticalSliceReviewV1(
+    await analyzeFiscalNotificationVerticalSliceV1(boundedDocument),
+  );
+  const source = structuredClone(analysis()) as unknown as {
+    technicalReview: { pageCount: number; byteLength: number };
+    ephemeralVerticalSliceReview: unknown;
+  };
+  source.technicalReview.pageCount = 1;
+  source.technicalReview.byteLength = 4_321;
+  source.ephemeralVerticalSliceReview = review;
+  return source as unknown as FiscalNotificationLocalAnalysisResult;
+}
+
 describe("vertical slice structured workspace v1", () => {
   it("persiste una diligencia exacta con partes, importes y cuenta enmascarada sin efectos operativos", async () => {
     const result = appendFiscalNotificationVerticalSliceReviewV1({
@@ -406,6 +441,43 @@ describe("vertical slice structured workspace v1", () => {
       valid: true,
       issues: [],
     });
+  });
+
+  it("persiste un embargo de valores como orden exacta y conserva sus campos visibles", async () => {
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: await securitiesSeizureAnalysis(),
+    });
+
+    expect(result.workspace.documents).toEqual([
+      expect.objectContaining({
+        documentType: "AEAT_SEIZURE_ORDER",
+        documentSubtype: "seizure.securities_or_financial_assets",
+        titleRaw: "Diligencia de embargo de valores o activos financieros",
+      }),
+    ]);
+    expect(result.workspace.analysisSnapshots[0]?.structuredData.unknownFields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          labelRaw: "VSR1|DETAIL|SECURITIES_DEPOSITARY|Entidad depositaria de los valores",
+          valueRaw: "ENTIDAD DEPOSITARIA SINTÉTICA",
+        }),
+        expect.objectContaining({
+          labelRaw: "VSR1|DETAIL|SECURITY_OR_FINANCIAL_ASSET|Valor o activo financiero",
+          valueRaw: "PARTICIPACIÓN SINTÉTICA",
+        }),
+        expect.objectContaining({
+          labelRaw: "VSR1|DETAIL|SECURITY_QUANTITY|Cantidad de valores",
+          valueRaw: "25",
+        }),
+      ]),
+    );
+    expect(result.workspace.debts).toEqual([]);
+    expect(result.workspace.paymentOptions).toEqual([]);
+    expect(result.workspace.accountingDrafts).toEqual([]);
   });
 
   it("persiste el sobre electrónico y todos sus datos visibles sin conservar el PDF", () => {
