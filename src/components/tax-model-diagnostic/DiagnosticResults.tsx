@@ -15,13 +15,22 @@ import type {
   ModelResult,
 } from "@/lib/tax-model-diagnostic/contracts";
 import { getTaxModelCatalogEntry } from "@/lib/tax-model-diagnostic/model-catalog";
+import {
+  buildTaxObligationsAssessment,
+  isTaxObligationExclusionAuthorized,
+} from "@/lib/tax-obligations";
 
-function statusLabel(status: ModelResult["status"]): string {
+function statusLabel(
+  status: ModelResult["status"],
+  exclusionAuthorized: boolean,
+): string {
   const labels: Record<ModelResult["status"], string> = {
     CONFIRMED_BY_CENSUS: "Confirmado también por el censo",
     DERIVED: "Obligación derivada",
     CONDITIONAL: "Condicional",
-    NOT_APPLICABLE: "No aplicable con los datos confirmados",
+    NOT_APPLICABLE: exclusionAuthorized
+      ? "No aplicable con los datos confirmados"
+      : "Probablemente no aplicable · pendiente de revisión fiscal",
     NEEDS_INFORMATION: "Faltan datos",
     NEEDS_PROFESSIONAL_REVIEW: "Revisión profesional",
     CENSUS_MISMATCH: "Discrepancia con el censo",
@@ -57,7 +66,13 @@ function periodicityLabel(periodicity: ModelResult["periodicity"]): string {
   return labels[periodicity];
 }
 
-function ResultCard({ result }: { result: ModelResult }) {
+function ResultCard({
+  result,
+  exclusionAuthorized,
+}: {
+  result: ModelResult;
+  exclusionAuthorized: boolean;
+}) {
   const catalog = getTaxModelCatalogEntry(result.modelNumber);
   const required = isRequired(result);
   return (
@@ -65,7 +80,7 @@ function ResultCard({ result }: { result: ModelResult }) {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className={`text-xs font-extrabold uppercase tracking-wide ${required ? "text-emerald-700 dark:text-emerald-300" : "text-amber-800 dark:text-amber-300"}`}>
-            {statusLabel(result.status)}
+            {statusLabel(result.status, exclusionAuthorized)}
           </p>
           <h3 className="mt-1 text-xl font-bold text-slate-950 dark:text-white">
             Modelo {result.modelNumber} · {catalog.name}
@@ -144,6 +159,9 @@ export function DiagnosticResults({
   onEdit: () => void;
 }) {
   const [showExcluded, setShowExcluded] = useState(false);
+  const assessment = buildTaxObligationsAssessment(result);
+  const exclusionAuthorized =
+    isTaxObligationExclusionAuthorized(assessment);
   const required = result.models.filter(isRequired);
   const review = result.models.filter(
     (model) => !isRequired(model) && model.status !== "NOT_APPLICABLE",
@@ -155,10 +173,20 @@ export function DiagnosticResults({
       <div className="rounded-3xl bg-slate-950 p-6 text-white sm:p-8">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-sm font-bold uppercase tracking-wide text-blue-300">Resultado orientativo · ejercicio {result.fiscalYear}</p>
+            <p className="text-sm font-bold uppercase tracking-wide text-blue-300">
+              {exclusionAuthorized
+                ? "Resultado personalizado"
+                : "Resultado orientativo · pendiente de revisión fiscal"}{" "}
+              · ejercicio {result.fiscalYear}
+            </p>
             <h2 id="resultado-modelos" className="mt-2 text-2xl font-extrabold sm:text-3xl">Tus posibles obligaciones tributarias</h2>
             <p className="mt-3 max-w-3xl leading-7 text-slate-300">
-              {required.length} modelos derivados, {review.length} pendientes de completar o revisar y {excluded.length} exclusiones explícitas.
+              {required.length} modelos recomendados, {review.length} pendientes
+              de completar o revisar y {excluded.length}{" "}
+              {exclusionAuthorized
+                ? "exclusiones explícitas"
+                : "modelos considerados improbables, todavía sin excluir"}
+              .
             </p>
           </div>
           <div className="flex flex-wrap gap-2 print:hidden">
@@ -175,7 +203,11 @@ export function DiagnosticResults({
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <div>
             <p className="font-bold">No sustituye la revisión de un profesional ni una comunicación de la AEAT.</p>
-            <p>Las reglas están pendientes de aprobación fiscal formal y la activación de producción permanece cerrada.</p>
+            <p>
+              {exclusionAuthorized
+                ? "El ruleset y este resultado cumplen la doble aprobación necesaria para aplicar exclusiones justificadas."
+                : "Las reglas están pendientes de aprobación fiscal formal. Todos los candidatos se conservan visibles y ninguna mejora del OCR, del corpus o de las pruebas técnicas autoriza una exclusión."}
+            </p>
           </div>
         </div>
       </div>
@@ -196,23 +228,35 @@ export function DiagnosticResults({
       {required.length > 0 && (
         <div className="space-y-4">
           <h3 className="flex items-center gap-2 text-xl font-bold text-slate-950 dark:text-white"><CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden="true" /> Modelos derivados</h3>
-          {required.map((model) => <ResultCard key={model.modelNumber} result={model} />)}
+          {required.map((model) => <ResultCard key={model.modelNumber} result={model} exclusionAuthorized={exclusionAuthorized} />)}
         </div>
       )}
 
       {review.length > 0 && (
         <div className="space-y-4">
           <h3 className="flex items-center gap-2 text-xl font-bold text-slate-950 dark:text-white"><AlertTriangle className="h-6 w-6 text-amber-600" aria-hidden="true" /> Completar o revisar</h3>
-          {review.map((model) => <ResultCard key={model.modelNumber} result={model} />)}
+          {review.map((model) => <ResultCard key={model.modelNumber} result={model} exclusionAuthorized={exclusionAuthorized} />)}
         </div>
       )}
 
       {excluded.length > 0 && (
         <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
-          <Button type="button" variant="ghost" onClick={() => setShowExcluded((current) => !current)} aria-expanded={showExcluded}>
-            {showExcluded ? "Ocultar" : "Mostrar"} {excluded.length} modelos no aplicables
-          </Button>
-          {showExcluded && (
+          {exclusionAuthorized ? (
+            <Button type="button" variant="ghost" onClick={() => setShowExcluded((current) => !current)} aria-expanded={showExcluded}>
+              {showExcluded ? "Ocultar" : "Mostrar"} {excluded.length} modelos no aplicables
+            </Button>
+          ) : (
+            <div>
+              <h3 className="font-bold text-slate-950 dark:text-white">
+                Modelos improbables · pendientes de revisión fiscal
+              </h3>
+              <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                Se muestran para que puedas revisar la explicación. No se ha
+                eliminado ni excluido ninguno.
+              </p>
+            </div>
+          )}
+          {(exclusionAuthorized ? showExcluded : true) && (
             <div className="mt-4 space-y-3">
               {excluded.map((model) => {
                 const catalog = getTaxModelCatalogEntry(model.modelNumber);
@@ -220,6 +264,12 @@ export function DiagnosticResults({
                   <div key={model.modelNumber} className="rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-800">
                     <p className="font-bold text-slate-950 dark:text-white">Modelo {model.modelNumber} · {catalog.name}</p>
                     <p className="mt-1 leading-6 text-slate-600 dark:text-slate-300">{model.reason}</p>
+                    {!exclusionAuthorized && (
+                      <p className="mt-2 font-semibold text-amber-800 dark:text-amber-200">
+                        Recomendación orientativa: conservar y confirmar con la
+                        revisión fiscal del ruleset.
+                      </p>
+                    )}
                   </div>
                 );
               })}

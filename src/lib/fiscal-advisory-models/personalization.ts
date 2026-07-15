@@ -1,5 +1,8 @@
 import type { TaxModelDiagnosticSession } from "@/lib/tax-model-diagnostic/contracts";
-import { selectStoredTaxObligationsAssessment } from "@/lib/tax-obligations";
+import {
+  isTaxObligationExclusionAuthorized,
+  selectStoredTaxObligationsAssessment,
+} from "@/lib/tax-obligations";
 import { normalizeFiscalAdvisoryModelPreferencesV1 } from "./preferences";
 
 export type FiscalModelPersonalizationFallbackReasonV1 =
@@ -79,11 +82,12 @@ export function buildFiscalModelPersonalizationV1({
 
   if (invalidCatalog) return allOnly("INVALID_CATALOG");
   if (!assessment) return allOnly("NO_PUBLISHED_ASSESSMENT");
-  if (assessment.ruleReviewState !== "APPROVED") {
-    return allOnly("RULES_PENDING_REVIEW");
-  }
-  if (assessment.resolutionState !== "RESOLVED") {
-    return allOnly("ASSESSMENT_NOT_RESOLVED");
+  if (!isTaxObligationExclusionAuthorized(assessment)) {
+    return allOnly(
+      assessment.ruleReviewState !== "APPROVED"
+        ? "RULES_PENDING_REVIEW"
+        : "ASSESSMENT_NOT_RESOLVED",
+    );
   }
   if (assessment.profile.state !== "COMPLETE") {
     return allOnly("PROFILE_NOT_COMPLETE");

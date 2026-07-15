@@ -20,7 +20,7 @@ export const consultorFiscalSection: ManualSection = {
         "Abre **Asesoría fiscal → Configurar mi actividad**. Recorre los bloques A–N; **No lo sé** es una respuesta válida y mantiene el dato como pendiente.",
         "Puedes seleccionar opcionalmente un certificado censal o modelo 036 en PDF. Se lee localmente, el archivo no se guarda y debes revisar la identidad y confirmar cada propuesta antes de incorporarla.",
         "En el último bloque indica si has consultado una situación censal actual y qué obligaciones aparecen expresamente. El sistema cruza ese dato con los hechos confirmados y señala las discrepancias sin modificar el censo.",
-        "Antes de generar los modelos debes confirmar que has revisado las respuestas. El resultado separa obligaciones derivadas, casos incompletos o sujetos a revisión y exclusiones explícitas, con evidencia, sujeto, períodos, siguiente paso y fuentes oficiales.",
+        "Antes de generar los modelos debes confirmar que has revisado las respuestas. El resultado separa recomendaciones, casos incompletos y modelos improbables, con evidencia, sujeto, períodos, siguiente paso y fuentes oficiales. Mientras el ruleset esté pendiente de revisión fiscal, los modelos improbables siguen visibles y no se aplican exclusiones.",
       ],
       tip: "El resultado es orientativo; no presenta declaraciones ni sustituye la revisión profesional.",
     },

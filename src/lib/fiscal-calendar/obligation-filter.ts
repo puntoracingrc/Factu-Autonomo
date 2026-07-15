@@ -1,5 +1,6 @@
 import type { TaxModelDiagnosticSession } from "@/lib/tax-model-diagnostic/contracts";
 import {
+  isTaxObligationExclusionAuthorized,
   normalizeTaxObligationModelCode,
   selectStoredTaxObligationsAssessment,
   type TaxObligationModelCode,
@@ -89,13 +90,11 @@ function orientativeReason(
     ReturnType<typeof selectStoredTaxObligationsAssessment>
   >,
 ): FiscalCalendarObligationFallbackReason | null {
+  if (isTaxObligationExclusionAuthorized(assessment)) return null;
   if (assessment.ruleReviewState !== "APPROVED") {
     return "RULES_PENDING_REVIEW";
   }
-  if (assessment.resolutionState !== "RESOLVED") {
-    return "ASSESSMENT_NOT_RESOLVED";
-  }
-  return null;
+  return "ASSESSMENT_NOT_RESOLVED";
 }
 
 function frozenSet(values: readonly string[]): ReadonlySet<string> {
@@ -264,7 +263,8 @@ export function buildFiscalCalendarObligationView({
   const assessment = selectStoredTaxObligationsAssessment(session);
   if (!assessment) return fallbackView(events, "NO_PUBLISHED_ASSESSMENT");
   const pendingReason = orientativeReason(assessment);
-  const isOrientative = pendingReason !== null;
+  const exclusionAuthorized =
+    isTaxObligationExclusionAuthorized(assessment);
   const obligations = new Map(
     assessment.obligations.map((obligation) => [
       obligation.modelCode,
@@ -284,7 +284,7 @@ export function buildFiscalCalendarObligationView({
       fiscalYear: assessment.fiscalYear,
       obligations,
       manualModelCodes: manual,
-      allowSafeExclusion: !isOrientative,
+      allowSafeExclusion: exclusionAuthorized,
     }),
   );
   const visible = decisions
@@ -298,7 +298,7 @@ export function buildFiscalCalendarObligationView({
     .map((decision) => decision.eventId);
 
   return Object.freeze({
-    status: isOrientative ? "ORIENTATIVE" : "PERSONALIZED",
+    status: exclusionAuthorized ? "PERSONALIZED" : "ORIENTATIVE",
     fallbackReason: pendingReason,
     decisions: Object.freeze(decisions),
     visibleEventIds: frozenSet(visible),
