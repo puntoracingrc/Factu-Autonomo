@@ -1,0 +1,112 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                       349
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen recapitulativo
+
+NIF        B22006852        Titular / entidad ENTIDAD SINTÉTICA 072 SL.
+
+["
+Tipo documental SYNTHETIC INCOMPLETE O | Estado esperado *—— | REVIEW OR_REJECT   E
+
+|      RAMaGUOUS.COPY ON
+Totales
+
+Operadores               1
+
+Importe total              9.200,00
+
+mode 349_incomplete_ambiguous 072 native - MO PRESENTASLE - datos totalmente aintélicos                                                                                                NATIVE TEXT_POF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+349
+
+ap
+
+a de
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen recapitulativo
+
+a ———
+
+—
+
+B22006852
+
+do
+
+—
+
+— A
+
+Titular / entidad                 | ENTIDAD SINTÉTICA 072 SL.
+
+Ejercicio
+
+Periodo
+
+2T
+
+pi TE
+
+—
+
+-:   2028
+
+— li
+
+——
+
+——
+
+Tipo documental
+
+| SYNTHETIC_INCOMPLETE_O | Estado esperado
+
+| REVIEW_OR_REJECT
+
+E
+
+aa
+
+| A_AMBIGUOUS_COPY
+
+e 0
+
+— —lL.
+
+—
+
+——————s
+
+——
+
+Totales
+
+Operadores
+
+Importe total
+
+9200.00
+
+co
+
+NN
+
+KO
+
+N
+
+NN
+
+os
+
+mode 349_incomplete_ambiguous 072 native - MO PRESENTASLE - datos totalmente aintélicos
+
+NATIVE TEXT_POF

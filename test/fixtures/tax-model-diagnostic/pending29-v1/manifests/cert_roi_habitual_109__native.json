@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "cert_roi_habitual_109__native",
+  "baseFixtureId": "cert_roi_habitual_109",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_CERT_ROI",
+  "displayName": "CERT-ROI - Certificado de operador intracomunitario - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12012317S",
+    "taxpayer.name": "PERSONA SINTÉTICA 109",
+    "document.code": "CERT-ROI",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "certificate.issueDate": "10/07/2026",
+    "roi.status": "INSCRITO",
+    "roi.startDate": "15/02/2024",
+    "roi.vatNumber": "ES12012317S",
+    "certificate.csv": "CSV-SYN-ROI-0001"
+  },
+  "expectedQuestionMappings": {
+    "EU.ROI": "REGISTERED"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "ACTUAL_INTRACOMMUNITY_OPERATIONS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12012317S"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 109"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_CERT_ROI"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "CERT-ROI"
+    },
+    {
+      "fieldId": "certificate.issueDate",
+      "page": 1,
+      "label": "Fecha de expedición",
+      "value": "10/07/2026"
+    },
+    {
+      "fieldId": "roi.status",
+      "page": 1,
+      "label": "Situación en ROI",
+      "value": "INSCRITO"
+    },
+    {
+      "fieldId": "roi.startDate",
+      "page": 1,
+      "label": "Fecha de alta",
+      "value": "15/02/2024"
+    },
+    {
+      "fieldId": "roi.vatNumber",
+      "page": 1,
+      "label": "NIF-IVA",
+      "value": "ES12012317S"
+    },
+    {
+      "fieldId": "certificate.csv",
+      "page": 1,
+      "label": "CSV",
+      "value": "CSV-SYN-ROI-0001"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/iva/iva-quiero-certificado-IVA.html",
+      "https://sede.agenciatributaria.gob.es/Sede/certificaciones/censales.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/cert_roi_habitual_109__native.pdf",
+  "sha256": "afb3743ec188374244c14442911b639802b125d3b4d648bbe0f54f9422979301"
+}

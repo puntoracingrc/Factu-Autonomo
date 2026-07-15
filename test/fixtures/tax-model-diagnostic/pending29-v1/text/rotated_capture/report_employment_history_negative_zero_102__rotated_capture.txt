@@ -1,0 +1,161 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                        TGSS-VIDA
+
+Infor                                                                                                                                                Página |
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen de vida laboral
+
+NIF                              | 12011526Y                                 | Titular / entidad                     PERSONA SINTÉTICA 102
+CCA
+Tipo documental SYNTHETIC FILED.COPY — Estado esperado     | ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Resumen
+
+Fecha de emisión            10/07/2026
+
+Días totalos de alta            2.263
+
+report_employment_history_ negative zero 102 native -NO PRESENTABLE - delos tolalmente siméticos                                                                     NATIVE_TEXT_PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+TGSS-VIDA
+
+nom
+
+Of
+
+laboral
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen de vida laboral
+
+NIF
+
+— —
+
+| 20r1s2oN
+
+——
+
+—
+
+Titular / entidad
+
+— PERSONA SINTÉTICA 102
+
+m—
+
+—
+
+—
+
+2026
+
+Periodo
+
+N/A
+
+Ejercicio
+
+_—
+
+Tipo documental
+
+ SYNTHETIC. FILED_COPY
+
+Estado esperado
+
+| ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Resumen
+
+Fecha de emisión
+
+10/07/2026
+
+Dias totales de alta
+
+2.263
+
+co
+
+e
+
+NN
+
+KO
+
+N
+
+NN
+
+y
+
+report_employment_history_ negative zero 102 native -NO PRESENTABLE - delos tolalmente siméticos
+
+NATIVE_TEXT_PDF
+
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                         TGSS-VIDA
+
+informo de vida laboral                                                                                                                                              Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situaciones de alta y baja
+
+Periodos
+Régimen                |Empresassituación         Alta                    Baja                    Días
+GENERAL                                   | EMPRESA SINTÉTICA B             | 01/05/2020                                                                                          2.263
+
+report_employment_hintory negative zero 102 native - NO PRESENTABLE - datos totalmente sintéticos                                                                               NATIVE TEXT _ PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+TGSS-VIDA
+
+Informe de vida laboral
+
+Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situaciones de alta y baja
+
+Periodos
+
+Régimen
+
+| Empresaisituación
+
+[Baja
+
+Días
+
+GENERAL
+
+2.263
+
+“EMPRESA SINTÉTICA B
+
+01/05/2020
+
+co
+
+e
+
+N
+
+KO
+
+N
+
+NN
+
+o
+
+report_employment_hintory negative zero 102 native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT_PDF

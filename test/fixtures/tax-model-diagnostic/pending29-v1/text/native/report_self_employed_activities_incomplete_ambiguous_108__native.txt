@@ -1,0 +1,44 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                                                TGSS-ACT-AUT
+Informe de actividades de trabajo autónomo                                                                                             Página 1
+
+
+                                                       FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Actividades comunicadas en trabajo autónomo
+ NIF                      12012204V                          Titular / entidad               PERSONA SINTÉTICA 108
+
+ Ejercicio                2026                               Periodo                         N/A
+
+ Tipo documental          SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                          R_AMBIGUOUS_COPY
+
+
+  Resumen
+ Fecha de emisión                                       12/07/2026
+ Actividades comunicadas                                [CAPTURA PARCIAL]
+
+
+  Actividades
+Código                                       Descripción                                  Inicio                       Estado
+[CÓDIGO RECORTADO]                           Comercio electrónico                         [NO VISIBLE]                 ACTIVA
+
+
+
+
+                                                                                                                        CO
+                                                                                                           É         TI
+                                                                                                         T
+                                                                                                 S     IN
+                                                                       T O
+                                                    M                EN
+                                                C U
+                                  DO
+
+
+
+
+report_self_employed_activities_incomplete_ambiguous_108__native - NO PRESENTABLE - datos totalmente sintéticos                 NATIVE_TEXT_PDF
+

@@ -1,0 +1,94 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                  YA 4
+
+Impuesto sabre el Patrimonio                                                                                                                      Fágina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen patrimonial
+
+NIF                               12009040G                                 Titular / entidad                    PERSONA SINTÉTICA 080
+Ejercicio             2025                          Periodo                   ANUAL
+Tipo documental      SYNTHETIC_INCOMPLETE O Estado esperado           REVIEW_OR_REJECT
+
+A_AMBIGUOUS COPY
+
+Liquidación
+
+Patrimonio bruto                                         1.240.000,00
+Base imponible                                          [NO VISIBLE]
+Cuota                                                      [PÁGINA AUSENTE]
+
+NATIVE TEXT PDF
+
+model 714_incomplete- ambigueus 080 native- NO PRESENTABLE - dados totalmente sintéticos
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+714
+
+Impuesto sabre el Patrimonio
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen patrimonial
+
+NIF
+
+12009040G
+
+Titular / entidad
+
+PERSONA SINTÉTICA 080
+
+2025
+
+Periodo
+
+ANUAL
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC_INCOMPLETE O Estado esperado
+
+REVIEW_OR_REJECT
+
+A_AMBIGUOUS COPY
+
+Liquidación
+
+Patrimonio bruto
+
+1.240.000,00
+
+Base imponible
+
+[NO VISIBLE]
+
+Cuala
+
+[PÁGINA AUSENTE]
+
+co
+
+e
+
+NN
+
+XO
+
+N
+
+NN
+
+yo
+
+model 714 _incomplete_ ambiguens 0BO
+
+native
+
+NO PRESENTABLE - dados tolalmente sintéticos
+
+NATIVE TEXT PDF

@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_341_incomplete_ambiguous_064__native",
+  "baseFixtureId": "model_341_incomplete_ambiguous_064",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_341",
+  "displayName": "341 - Reintegro de compensaciones del régimen especial agrario - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": "2T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12007232J",
+    "taxpayer.name": "PERSONA SINTÉTICA 064",
+    "document.code": "341",
+    "document.fiscalYear": 2026,
+    "document.period": "2T",
+    "agriculture.operations": 1,
+    "agriculture.totalCompensation": "[BORROSO]"
+  },
+  "expectedQuestionMappings": {
+    "VAT.AGRICULTURE_COMPENSATION_REFUND": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12007232J"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 064"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_341"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "341"
+    },
+    {
+      "fieldId": "agriculture.operations",
+      "page": 1,
+      "label": "Operaciones",
+      "value": 1
+    },
+    {
+      "fieldId": "agriculture.totalCompensation",
+      "page": 1,
+      "label": "Compensación solicitada",
+      "value": "[BORROSO]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "agriculture.totalCompensation"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ10.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_341_incomplete_ambiguous_064__native.pdf",
+  "sha256": "c0bada1fa87df4b8ed03a9473891e88841ad0e8c83b416ec86d984427981f5dc"
+}

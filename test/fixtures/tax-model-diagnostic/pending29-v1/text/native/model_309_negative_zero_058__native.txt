@@ -1,0 +1,40 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   309
+IVA - liquidación no periódica                                                                                                 Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  IVA no periódico
+ NIF                     12006554W                            Titular / entidad      PERSONA SINTÉTICA 058
+
+ Ejercicio               2026                                 Periodo                3T
+
+ Tipo documental         SYNTHETIC_FILED_COPY                 Estado esperado        ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Operación
+ Supuesto                                              LIQUIDACIÓN NO PERIÓDICA
+ Base                                                  0,00
+ Cuota                                                 0,00
+ Resultado                                             0,00
+
+
+
+
+                                                                                                                CO
+                                                                                                É            TI
+                                                                                              T
+                                                                                          S IN
+                                                                       T O
+                                                   M                 EN
+                                               C U
+                                  DO
+
+
+
+
+model_309_negative_zero_058__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+

@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_193_habitual_033__scan_compressed",
+  "baseFixtureId": "model_193_habitual_033",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_MODEL_193",
+  "displayName": "193 - Resumen anual de retenciones sobre capital mobiliario - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B18918441",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 033 S.L.",
+    "document.code": "193",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "capital.recipients": 1,
+    "capital.totalIncome": "5.000,00",
+    "capital.totalWithholding": "950,00",
+    "capital.records": [
+      [
+        "35000033J",
+        "PERCEPTOR INTERESES",
+        "B",
+        "01",
+        "5.000,00",
+        "950,00"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.CAPITAL": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B18918441"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 033 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_193"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "193"
+    },
+    {
+      "fieldId": "capital.recipients",
+      "page": 1,
+      "label": "Perceptores",
+      "value": 1
+    },
+    {
+      "fieldId": "capital.totalIncome",
+      "page": 1,
+      "label": "Rendimientos",
+      "value": "5.000,00"
+    },
+    {
+      "fieldId": "capital.totalWithholding",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "950,00"
+    },
+    {
+      "fieldId": "capital.records",
+      "page": 2,
+      "label": "Perceptores de capital mobiliario",
+      "value": [
+        [
+          "35000033J",
+          "PERCEPTOR INTERESES",
+          "B",
+          "01",
+          "5.000,00",
+          "950,00"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI12.shtml",
+      "https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_193_2025.pdf"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_193_habitual_033__scan_compressed.pdf",
+  "sha256": "7aceac436616e785ff44041095a4a9f8a98c7ff2c27d237a6ed69dd5ccadd7b1"
+}

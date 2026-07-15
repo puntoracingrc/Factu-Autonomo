@@ -1,0 +1,40 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                308
+Solicitud de devolución en supuestos especiales de IVA                                                                      Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Solicitud de devolución
+ NIF                      12005989N                         Titular / entidad     PERSONA SINTÉTICA 053
+
+ Ejercicio                2026                              Periodo               2T
+
+ Tipo documental          SYNTHETIC_FILED_COPY              Estado esperado       ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Operación y devolución
+ Motivo de devolución                                  RECARGO DE EQUIVALENCIA - VENTAS A VIAJEROS
+ Operaciones                                           3
+ Devolución solicitada                                 860,00
+ Cuenta de abono                                       ES** **** **** **** 0012
+
+
+
+
+                                                                                                             CO
+                                                                                             É            TI
+                                                                                           T
+                                                                                       S IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_308_habitual_053__native - NO PRESENTABLE - datos totalmente sintéticos                                        NATIVE_TEXT_PDF
+

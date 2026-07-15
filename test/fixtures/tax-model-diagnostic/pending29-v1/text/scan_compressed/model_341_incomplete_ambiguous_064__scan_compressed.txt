@@ -1,0 +1,90 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 341
+
+Reintegro de compensaciones del ágimen                                                                                                                                             Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de reintegro
+
+NIF                        12007232                          Titular / entidad               PERSONA SINTÉTICA 064
+Ejercicio                   2026                                     Periodo                            2T
+Tipo documental       SYNTHETIC INCOMPLETE O Estado esperado              REVIEW_OR_REJECT
+
+A_AMBIGUOUS COPY
+
+Resumen
+Operaciones                                                                  1
+Compensación solicitada                              [BORROSO]
+
+model 341 incomplete ambigueus 064 native- NO PRESENTABLE - datos iotalmente sintéticos                                                                            NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+341
+
+Reintegro de compensaciones d
+
+regimen
+
+aro
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de reintegro
+
+NIF
+
+12007232
+
+Titular / entidad
+
+PERSONA SINTÉTICA 064
+
+Ejercicio
+
+2026
+
+Periodo
+
+2T
+
+REVIEW_OR_REJECT
+
+Tipo documental
+
+A_AMBIGUOUS COPY
+
+SYNTHETIC INCOMPLETE O Estado esperado
+
+Resumen
+
+1
+
+Operaciones
+
+Compensación solicitada
+
+[BORROSO]
+
+co
+
+O
+
+NN
+
+XO
+
+N
+
+NN
+
+yo
+
+model 341 _incomplete ambiguehs 064
+
+native
+
+NO PRESENTABLE - dalos tolalmente sintéticos
+
+NATIVE TEXT PDF

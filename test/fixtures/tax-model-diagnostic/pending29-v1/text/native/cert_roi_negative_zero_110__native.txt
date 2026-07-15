@@ -1,0 +1,39 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                           CERT-ROI
+Certificado de operador intracomunitario                                                                                        Página 1
+
+
+                                                        FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Certificación de operador intracomunitario
+ NIF                      12012430J                           Titular / entidad     PERSONA SINTÉTICA 110
+
+ Ejercicio                2026                                Periodo               N/A
+
+ Tipo documental          SYNTHETIC_FILED_COPY                Estado esperado       ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Datos certificados
+ Fecha de expedición                                     10/07/2026
+ Situación en ROI                                        NO INSCRITO
+ CSV                                                     CSV-SYN-ROI-0002
+
+
+
+
+                                                                                                               CO
+                                                                                               É            TI
+                                                                                             T
+                                                                                      S    IN
+                                                                        T O
+                                                    M                 EN
+                                                C U
+                                   DO
+
+
+
+
+cert_roi_negative_zero_110__native - NO PRESENTABLE - datos totalmente sintéticos                                        NATIVE_TEXT_PDF
+

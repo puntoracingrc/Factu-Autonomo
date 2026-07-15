@@ -1,0 +1,43 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                    CERT-CENSO
+Certificado tributario de situación censal                                                                                                 Página 1
+
+
+                                                        FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Certificación de situación censal
+ NIF                      12010509R                           Titular / entidad              PERSONA SINTÉTICA 093
+
+ Ejercicio                2026                                Periodo                        N/A
+
+ Tipo documental          SYNTHETIC_FILED_COPY                Estado esperado                ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Datos certificados
+ Fecha de expedición                                     10/07/2026
+ Situación                                               ALTA
+ Actividades                                             Consultoría informática - IAE 763
+ IRPF                                                    ESTIMACIÓN DIRECTA SIMPLIFICADA
+ IVA                                                     RÉGIMEN GENERAL
+ Obligaciones periódicas                                 130 TRIMESTRAL; 303 TRIMESTRAL
+ CSV                                                     CSV-SYN-CENSO-0001
+
+
+
+
+                                                                                                                        CO
+                                                                                                        É            TI
+                                                                                                      T
+                                                                                                 S  IN
+                                                                        T O
+                                                    M                 EN
+                                                C U
+                                   DO
+
+
+
+
+cert_current_census_status_habitual_093__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+

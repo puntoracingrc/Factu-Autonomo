@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_349_negative_zero_070__native",
+  "baseFixtureId": "model_349_negative_zero_070",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_MODEL_349",
+  "displayName": "349 - Declaración recapitulativa de operaciones intracomunitarias - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": "2T",
+  "expectedPages": 2,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B21848478",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 070 S.L.",
+    "document.code": "349",
+    "document.fiscalYear": 2026,
+    "document.period": "2T",
+    "eu.operators": 0,
+    "eu.total": "0,00",
+    "eu.records": []
+  },
+  "expectedQuestionMappings": {
+    "EU.OPERATIONS": []
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS",
+    "CURRENT_ROI_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B21848478"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 070 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_349"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "349"
+    },
+    {
+      "fieldId": "eu.operators",
+      "page": 1,
+      "label": "Operadores",
+      "value": 0
+    },
+    {
+      "fieldId": "eu.total",
+      "page": 1,
+      "label": "Importe total",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "eu.records",
+      "page": 2,
+      "label": "Operaciones",
+      "value": []
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI28.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_349_negative_zero_070__native.pdf",
+  "sha256": "736926227b605681c069f5ea79354ce07710ba346b785750761fcc48076206b4"
+}

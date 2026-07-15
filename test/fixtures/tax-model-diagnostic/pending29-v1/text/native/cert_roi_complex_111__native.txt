@@ -1,0 +1,43 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                        CERT-ROI
+Certificado de operador intracomunitario                                                                                     Página 1
+
+
+                                                       FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Certificación de operador intracomunitario
+ NIF                      12012543B                          Titular / entidad   PERSONA SINTÉTICA 111
+
+ Ejercicio                2026                               Periodo             N/A
+
+ Tipo documental          SYNTHETIC_COMPLEMENTA              Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                          RY_OR_MULTI_RECORD
+
+
+  Datos certificados
+ Fecha de expedición                                    11/07/2026
+ Situación en ROI                                       BAJA ACTUAL
+ Fecha de alta histórica                                01/06/2022
+ Fecha de baja                                          31/03/2026
+ NIF-IVA                                                ES12012543B
+ CSV                                                    CSV-SYN-ROI-0003
+
+
+
+
+                                                                                                            CO
+                                                                                            É            TI
+                                                                                          T
+                                                                                    S   IN
+                                                                       T O
+                                                    M                EN
+                                                C U
+                                  DO
+
+
+
+
+cert_roi_complex_111__native - NO PRESENTABLE - datos totalmente sintéticos                                           NATIVE_TEXT_PDF
+

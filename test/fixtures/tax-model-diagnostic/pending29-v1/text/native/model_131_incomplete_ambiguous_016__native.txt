@@ -1,0 +1,40 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                       131
+Pago fraccionado de IRPF en estimación objetiva                                                                                    Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Pago fraccionado
+ NIF                     12001808V                         Titular / entidad                PERSONA SINTÉTICA 016
+
+ Ejercicio               2026                              Periodo                          1T
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Cálculo por módulos
+ Método                                               ESTIMACIÓN OBJETIVA
+ Actividad                                            [PÁGINA DE MÓDULOS AUSENTE]
+ Resultado                                            [ILEGIBLE]
+
+
+
+
+                                                                                                                       CO
+                                                                                                       É            TI
+                                                                                                     T
+                                                                                                 S IN
+                                                                     T O
+                                                  M                EN
+                                              C U
+                                 DO
+
+
+
+
+model_131_incomplete_ambiguous_016__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

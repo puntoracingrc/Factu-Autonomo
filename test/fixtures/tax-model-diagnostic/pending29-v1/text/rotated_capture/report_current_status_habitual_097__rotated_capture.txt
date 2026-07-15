@@ -1,0 +1,115 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                TGSS-ACTUAL
+
+nforme de situación actual del trabajador
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situación laboral actual
+NIF                       120109610 _—                      Titular / entidad PERSONA SINTÉTICA 097
+
+| Ejercicio                2026                                Periodo                        N/A
+Tipo documental        SYNTHETIC_FILED_COPY       Estado esperado             | ACCEPT WITH SYNTHETIC LIMITATION
+
+Datos de afiliación
+Fecha de emisión                                                      10/07/2026
+| NUSS/NAF                                                                 28/00000097/988
+Régimen                                                                    RETA
+Situación actual                                                        ALTA
+Fecha de alta                                                             01/03/2024
+
+report current stelus habitual 097 native - NO PRESENTASLE - datos tolsimente sintéticos                                                                         NATIVE TEXT_PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+nforme de situación actual del trabajador
+
+SEC
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situación laboral actual
+
+e
+
+1201 09610
+
+—
+
+—
+
+Titular / entidad
+
+PEC
+
+PERSONA SINTÉTICA 087
+
+——
+
+——
+
+—
+
+=
+
+o
+
+—
+
+| Ejercicio
+
+——
+
+2026
+
+Periodo
+
+—
+
+N/A
+
+Tipo documental
+
+SYNTHETIC_FILED_COPY
+
+Estado esperado
+
+| ACCEPT WITH _SYNTHETIC LIMITATION
+
+Datos de afiliación
+
+Fecha de emisión
+
+1007/2026
+
+| NUSSINAF
+
+28/00000097/98
+
+Régimen
+
+RETA
+
+Situación actual
+
+ALTA
+
+Fecha de alta
+
+01/03/2024
+
+co
+
+O
+
+Ne
+
+..
+
+N
+
+NN
+
+y
+
+report current_stelus habiual 097 native - NO PRESENTASLE - datos tolsimente sintéticos
+
+NATIVE TEXT_FDF

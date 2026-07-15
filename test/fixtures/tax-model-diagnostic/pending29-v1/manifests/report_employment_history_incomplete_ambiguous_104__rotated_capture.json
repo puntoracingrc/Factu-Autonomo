@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "report_employment_history_incomplete_ambiguous_104__rotated_capture",
+  "baseFixtureId": "report_employment_history_incomplete_ambiguous_104",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "TGSS_REPORT_EMPLOYMENT_HISTORY",
+  "displayName": "TGSS-VIDA - Informe de vida laboral - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "HISTORICAL_AND_CURRENT",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12011752W",
+    "taxpayer.name": "PERSONA SINTÉTICA 104",
+    "document.code": "TGSS-VIDA",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "tgss.issueDate": "12/07/2026",
+    "tgss.totalDays": "[NO VISIBLE]"
+  },
+  "expectedQuestionMappings": {
+    "IRPF.RETA_PERIODS": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12011752W"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 104"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "TGSS_REPORT_EMPLOYMENT_HISTORY"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "TGSS-VIDA"
+    },
+    {
+      "fieldId": "tgss.issueDate",
+      "page": 1,
+      "label": "Fecha de emisión",
+      "value": "12/07/2026"
+    },
+    {
+      "fieldId": "tgss.totalDays",
+      "page": 1,
+      "label": "Días totales de alta",
+      "value": "[NO VISIBLE]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "tgss.totalDays"
+  ],
+  "sourceTemplate": {
+    "authority": "TGSS",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://portal.seg-social.gob.es/wps/portal/importass/importass/Categorias/Vida%2Blaboral%2Be%2Binformes/Informes%2Bsobre%2Btu%2Bsituacion%2Blaboral/Informe%2Bde%2Btu%2Bvida%2Blaboral"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/report_employment_history_incomplete_ambiguous_104__rotated_capture.pdf",
+  "sha256": "266744b7518457255afcf005f14b147d970d62735c2a5f4b2062bd486539cba1"
+}

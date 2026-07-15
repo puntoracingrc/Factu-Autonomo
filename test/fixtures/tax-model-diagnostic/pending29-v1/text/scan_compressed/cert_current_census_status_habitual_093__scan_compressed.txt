@@ -1,0 +1,122 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                 CERT-CENSO
+
+artificado tributario de situación cense                                                                                      Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de situación censal
+
+NIF                               120105088                                 Titular / entidad                    PERSONA SINTÉTICA 093
+Ejercicio                         2026                                                Periodo                                    MAA
+Tipo documental           SYNTHETIC_ FILED COPY          Estado esperado                    ACCEPT WITH_SYNTHETIC LIMITATION
+
+Datos certificados
+
+Fecha de expedición                                    10/07/2026
+
+Situación                                                  ALTA
+
+Actividades                                               Consultoria informática = IAE 763
+
+IRPF                                                     ESTIMACIÓN DIRECTA SIMPLIFICADA
+IVA                                                         REGIMEN GENERAL
+
+Obligaciones periódicas                                 130 TRIMESTRAL: 303 TRIMESTRAL
+csv                                               CSv-SYN-CENSO-0001
+
+cerf cument-census status habitual 099 native- MO PRESENTAR! E - datos intalmente sintéticos                                            NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+CERT-CENSO
+
+e
+
+ficado tributario d
+
+Uación cen
+
+a
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de situación censal
+
+NIF
+
+12010508R
+
+Titular / entidad
+
+PERSONA SINTÉTICA 093
+
+2026
+
+Periodo
+
+N/A
+
+Ejercicio
+
+Tipo documental
+
+|  SYNTHETIC_FILED COPY
+
+Estado esperado
+
+ACCEPT WITH SYNTHETIC LIMITATION
+
+Datos certificados
+
+Fecha de expedición
+
+10/07/2026
+
+Situación
+
+ALTA
+
+Actividades
+
+Consultoria informática
+
+IAE 763
+
+IRPF
+
+ESTIMACIÓN DIRECTA SIMPLIFICADA
+
+IVA
+
+REGIMEN GENERAL
+
+Obligaciones periódicas
+
+130 TRIMESTRAL: 303 TRIMESTRAL
+
+csv
+
+CSvY-SYN-CENSO-0001
+
+co
+
+e
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+cerf cument-census status habitual 083
+
+native - MO PRESENTABLE
+
+datos iotalmente sintéticos
+
+NATIVE TEXT PDF

@@ -1,0 +1,100 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Pago               ado del Impr                            dades
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF                              B19789536                                Titular / entidad                    ENTIDAD SINTÉTICA 044 S.L.
+Ejercicio                         2026                                                Periodo                                    2P
+Tipo documental           SYNTHETIC INCOMPLETE O Estado esperado                    REVIEW_OPR_REJECT
+
+R_AMBIGUOUS COPY
+
+Cálculo
+Modalidad                                                 [NO VISIBLE]
+
+Base imponible                                        [PÁGINA DE DATOS ADICIONALES ALISENTE]
+Resultado                                                 6.600,00
+
+model_202 incomplete ambigueus 044 native— NO PRESENTABLE - datos iotalmente sintéticos                                                NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+202
+
+Pago
+
+ado del Impr
+
+dades
+
+a!
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF
+
+B19789536
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 044 S.L.
+
+Ejercicio
+
+2026
+
+Periodo
+
+2P
+
+REVIEW_OR_REJECT
+
+Tipo documental
+
+SYNTHETIC INCOMPLETE O Estado esperado
+
+R_AMBIGUOUS COPY
+
+Cálculo
+
+Modalidad
+
+[NO VISIBLE]
+
+Base imponible
+
+[PÁGINA DE DATOS ADICIONALES AUSENTE]
+
+Resultado
+
+6.600,00
+
+co
+
+NN
+
+xXO
+
+N
+
+NN
+
+yo
+
+menda
+
+2
+
+o
+
+02 incomplete ambigueus 044
+
+native - NO PRESENTABLE
+
+datos intalmente sintéticos
+
+NATIVE TEXT_FDF

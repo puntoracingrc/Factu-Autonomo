@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "cert_landlord_withholding_exemption_incomplete_ambiguous_116__scan_compressed",
+  "baseFixtureId": "cert_landlord_withholding_exemption_incomplete_ambiguous_116",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_CERT_LANDLORD_WITHHOLDING_EXEMPTION",
+  "displayName": "CERT-ARREND - Certificado de exoneración de retención del arrendador - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "CURRENT_AS_OF_DATE_OR_PERIOD",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "B25491218",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 116 S.L.",
+    "document.code": "CERT-ARREND",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "certificate.issueDate": "12/07/2026",
+    "rentExemption.status": "ACREDITADA",
+    "rentExemption.validForYear": "[NO VISIBLE]",
+    "certificate.csv": "[RECORTADO]"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.RENT.EXEMPTION": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "EXEMPTION_FOR_OTHER_LANDLORDS_OR_PERIODS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B25491218"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 116 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_CERT_LANDLORD_WITHHOLDING_EXEMPTION"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "CERT-ARREND"
+    },
+    {
+      "fieldId": "certificate.issueDate",
+      "page": 1,
+      "label": "Fecha de expedición",
+      "value": "12/07/2026"
+    },
+    {
+      "fieldId": "rentExemption.status",
+      "page": 1,
+      "label": "Exoneración de retención",
+      "value": "ACREDITADA"
+    },
+    {
+      "fieldId": "rentExemption.validForYear",
+      "page": 1,
+      "label": "Ejercicio de validez",
+      "value": "[NO VISIBLE]"
+    },
+    {
+      "fieldId": "certificate.csv",
+      "page": 1,
+      "label": "CSV",
+      "value": "[RECORTADO]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "rentExemption.validForYear",
+    "certificate.csv"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G312.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/certificaciones/censales.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/cert_landlord_withholding_exemption_incomplete_ambiguous_116__scan_compressed.pdf",
+  "sha256": "9091237c39ab6dea0ca19678a4c5a16a0ce2f4f1c0ac89a87a5efcc23bccb97c"
+}

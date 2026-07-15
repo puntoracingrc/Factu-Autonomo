@@ -1,0 +1,40 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                       202
+Pago fraccionado del Impuesto sobre Sociedades                                                                                     Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Pago fraccionado
+ NIF                     B19789536                         Titular / entidad                ENTIDAD SINTÉTICA 044 S.L.
+
+ Ejercicio               2026                              Periodo                          2P
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Cálculo
+ Modalidad                                            [NO VISIBLE]
+ Base imponible                                       [PÁGINA DE DATOS ADICIONALES AUSENTE]
+ Resultado                                            6.600,00
+
+
+
+
+                                                                                                                       CO
+                                                                                                       É            TI
+                                                                                                     T
+                                                                                                 S IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_202_incomplete_ambiguous_044__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

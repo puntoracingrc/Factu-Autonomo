@@ -1,0 +1,98 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Declaración del régimen especial
+
+NIF                     120019215                      Titular / entidad            | PERSONA SINTÉTICA 017
+| Ejercicio                  2026                                   Periodo                          ANUAL
+[Tipo documental SYNTHETIC FILED.COPY — | Estado esperado     | ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Rentas y liquidación
+
+Régimen especial                                                  ARTÍCULO 93 LIRPF
+Fecha de desplazamiento             01/02/2025
+Rendimientos del trabajo                                         92.000,00
+Retenciones                    22.000,00
+Resultado                      1.400,00
+
+model 151 habitual 017 native - NÓ PRESENTABLE - datos totalmente aIntésicos                                                                                           NATIVE _TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+0
+
+IRPF d
+
+al dé por
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Declaración del régimen especial
+
+Titular / entidad
+
+—————— —
+
+| 120019215
+
+TERR
+
+—:
+
+| PERSONA SINTÉTICA 017
+
+———
+
+—
+
+———
+
+2026
+
+ANUAL
+
+ea
+
+| Periodo
+
+Tipo documental
+
+| SYNTHETIC_FILED_COPY Estado esperado — AECEPT WITH SYNTHETIC_LIMITATION
+
+Rentas y liquidación
+
+Régimen especial
+
+ARTÍCULO 93 LIRPF
+
+Fecha de desplazamiento
+
+01/02/2025
+
+Rendimientos del trabajo
+
+92.000,00
+
+Retenciones
+
+22.000,00
+
+Resultado
+
+1.400,00
+
+-
+
+Ne
+
+KO
+
+N
+
+NN
+
+y
+
+model 151 habitual 017 native - NÓ PRESENTABLE - datos totalmente aIntésicos
+
+NATIVE_TEXT_PDF

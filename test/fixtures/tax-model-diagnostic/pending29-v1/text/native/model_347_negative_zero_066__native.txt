@@ -1,0 +1,67 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   347
+Declaración anual de operaciones con terceras personas                                                                         Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen anual
+ NIF                     B21531710                            Titular / entidad      ENTIDAD SINTÉTICA 066 S.L.
+
+ Ejercicio               2025                                 Periodo                ANUAL
+
+ Tipo documental         SYNTHETIC_FILED_COPY                 Estado esperado        ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Totales
+ Número de terceros                                    0
+ Importe anual declarado                               0,00
+
+
+
+
+                                                                                                                CO
+                                                                                                 É           TI
+                                                                                               T
+                                                                                       S     IN
+                                                                       T O
+                                                   M                 EN
+                                               C U
+                                  DO
+
+
+
+
+model_347_negative_zero_066__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                347
+Declaración anual de operaciones con terceras personas                                                                      Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Operaciones con terceros
+  Detalle
+NIF                 Tercero            Clave               Anual               1T     2T            3T      4T   Especial
+
+
+
+
+                                                                                                            CO
+                                                                                           É             TI
+                                                                                         T
+                                                                                     S IN
+                                                                     T O
+                                                   M               EN
+                                               C U
+                                  DO
+
+
+
+
+model_347_negative_zero_066__native - NO PRESENTABLE - datos totalmente sintéticos                               NATIVE_TEXT_PDF
+

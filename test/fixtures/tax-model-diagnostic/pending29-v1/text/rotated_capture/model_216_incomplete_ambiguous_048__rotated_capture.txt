@@ -1,0 +1,121 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Hetenciones de renta            Or Me                   blecim     permanente
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Retenciones de no residentes
+
+NIF          12005424€           Titular / entidad      | PERSONA SINTÉTICA 048
+CC A
+“Tipo documental SYNTHETIC INCOMPLETE O Estado esperado     | REVIEW_OR_REJECT
+A_AMBIGUOUS_COPY  —
+Rentas y retenciones
+Número de rentas                   2
+Tipo de renta                                                         [ILEGIBLE]
+País                          [NO VISIBLE]
+Base                          “14.000,00
+Resultado                       [BORROSO]
+
+model 216 incompleta ambiguous 348 native - NO PRESENTABLE - datos totalment sintéticos                                                                                                NATIVE _TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+216
+
+Hetenciones de renta
+
+arno
+
+abler
+
+permanente
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Retenciones de no residentes
+
+NIF
+
+== —
+
+12005424E
+
+——
+
+—
+
+- Titular / entidad
+
+Ce
+
+| PERSONA SINTÉTICA 048
+
+!
+
+| Ejercicio
+
+—
+
+2026
+
+Periodo
+
+lar
+
+Tipo documental
+
+SYNTHETIC_INCOMPLETE_O Estado esperado REVIEW OR_REJECT
+
+———
+
+R_AMBIGUOUS COPY
+
+dm ——
+
+m———]]— dan
+
+———
+
+——
+
+Rentas y retenciones
+
+Número de rentas
+
+2
+
+Tipo de renta
+
+[LEGIBLE]
+
+País
+
+[NO VISIBLE]
+
+Base
+
+14.000,00
+
+Resultado
+
+[BORROSO]
+
+co
+
+N
+
+No
+
+KO
+
+N
+
+NN
+
+o
+
+model 216 incomplete ambiguous 348 native - NO PRESENTASLE - datos tolalmento sintéticos
+
+NATIVE_TEXT_PDF

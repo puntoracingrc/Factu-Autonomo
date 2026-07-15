@@ -1,0 +1,135 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_200_habitual_037__scan_compressed",
+  "baseFixtureId": "model_200_habitual_037",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_MODEL_200",
+  "displayName": "200 - Impuesto sobre Sociedades - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B19235209",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 037 S.L.",
+    "document.code": "200",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "company.cnae": "6202",
+    "company.activity": "Consultoría informática",
+    "company.turnover": "285.000,00",
+    "company.accountingResult": "54.000,00",
+    "company.taxBase": "52.000,00",
+    "company.taxRate": "23%",
+    "company.taxDue": "11.960,00",
+    "filing.result": "3.400,00"
+  },
+  "expectedQuestionMappings": {
+    "COMPANY.CORPORATE_TAX": true,
+    "COMPANY.PRIOR_MODEL_200_FILING": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B19235209"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 037 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_200"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "200"
+    },
+    {
+      "fieldId": "company.cnae",
+      "page": 1,
+      "label": "CNAE",
+      "value": "6202"
+    },
+    {
+      "fieldId": "company.activity",
+      "page": 1,
+      "label": "Actividad principal",
+      "value": "Consultoría informática"
+    },
+    {
+      "fieldId": "company.turnover",
+      "page": 1,
+      "label": "Importe neto cifra de negocios",
+      "value": "285.000,00"
+    },
+    {
+      "fieldId": "company.accountingResult",
+      "page": 2,
+      "label": "Resultado contable",
+      "value": "54.000,00"
+    },
+    {
+      "fieldId": "company.taxBase",
+      "page": 2,
+      "label": "Base imponible",
+      "value": "52.000,00"
+    },
+    {
+      "fieldId": "company.taxRate",
+      "page": 2,
+      "label": "Tipo de gravamen",
+      "value": "23%"
+    },
+    {
+      "fieldId": "company.taxDue",
+      "page": 2,
+      "label": "Cuota íntegra",
+      "value": "11.960,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 2,
+      "label": "Resultado a ingresar",
+      "value": "3.400,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE04.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/impuesto-sobre-sociedades/campana-sociedades.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_200_habitual_037__scan_compressed.pdf",
+  "sha256": "1a4a2bf0d15d640bec7d0fd954b890ea130b626ca1d6b17c963bc07bbc14afc9"
+}

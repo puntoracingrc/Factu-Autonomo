@@ -1,0 +1,155 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_721_complex_087__native",
+  "baseFixtureId": "model_721_complex_087",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_721",
+  "displayName": "721 - Monedas virtuales situadas en el extranjero - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12009831J",
+    "taxpayer.name": "PERSONA SINTÉTICA 087",
+    "document.code": "721",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "filing.complementary": "SÍ",
+    "foreignCrypto.records": 3,
+    "foreignCrypto.totalValue": "228.000,00",
+    "foreignCrypto.detail": [
+      [
+        "BTC",
+        "EXCHANGE A",
+        "CH",
+        "TITULAR",
+        "2,40000000",
+        "139.000,00"
+      ],
+      [
+        "ETH",
+        "CUSTODIO B",
+        "US",
+        "BENEFICIARIO",
+        "18,00000000",
+        "54.000,00"
+      ],
+      [
+        "USDC",
+        "CUSTODIO C",
+        "SG",
+        "TITULAR REAL",
+        "35000,00000000",
+        "35.000,00"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.FOREIGN_CRYPTO": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12009831J"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 087"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_721"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "721"
+    },
+    {
+      "fieldId": "filing.complementary",
+      "page": 1,
+      "label": "Complementaria",
+      "value": "SÍ"
+    },
+    {
+      "fieldId": "foreignCrypto.records",
+      "page": 1,
+      "label": "Registros",
+      "value": 3
+    },
+    {
+      "fieldId": "foreignCrypto.totalValue",
+      "page": 1,
+      "label": "Valor total",
+      "value": "228.000,00"
+    },
+    {
+      "fieldId": "foreignCrypto.detail",
+      "page": 2,
+      "label": "Registros",
+      "value": [
+        [
+          "BTC",
+          "EXCHANGE A",
+          "CH",
+          "TITULAR",
+          "2,40000000",
+          "139.000,00"
+        ],
+        [
+          "ETH",
+          "CUSTODIO B",
+          "US",
+          "BENEFICIARIO",
+          "18,00000000",
+          "54.000,00"
+        ],
+        [
+          "USDC",
+          "CUSTODIO C",
+          "SG",
+          "TITULAR REAL",
+          "35000,00000000",
+          "35.000,00"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI55.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_721_complex_087__native.pdf",
+  "sha256": "aceecf78419f6aed30b4f55855dccb85e93b2b486c44d595083eafda031c2f70"
+}

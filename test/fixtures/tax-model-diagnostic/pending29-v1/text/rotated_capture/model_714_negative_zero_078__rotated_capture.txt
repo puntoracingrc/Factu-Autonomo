@@ -1,0 +1,180 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Imp       sobre el Patrimonio
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen patrimonial
+
+NIF                                12008814P                                   Titular / entidad PERSONA SINTÉTICA 078
+
+Ejercicio            2025                          Perlodo
+|  Tipo documental            SYNTHETIC_FILED_COPY            Estado esperado
+
+ANUAL
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Liquidación
+Patrimonio bruto                                                     — 520.000,00
+Deudas deducibles                                                   180.000.00
+Base imponible                                                         370.000,00
+Cuota a ingresar                                           0,00
+
+model_714_negative zara 078 native - NO PRESENTABLE - dazos tetalmento sintéticos                                                                                            NATIVE TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+714
+
+p
+
+bre el Patrimonio
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+| Resumen patrimonial
+
+12008814P
+
+—
+
+Titular / entidad
+
+—
+
+| PERSONA SINTÉTICA 078
+
+E
+
+Ejercicio
+
+2025
+
+sn —
+
+| Periodo
+
+—),
+
+LN
+
+Tipo documental
+
+o
+
+—
+
+| SYNTHETIC FILED_COPY —   Estado esperado
+
+—
+
+| ACCEPT_WITH_SYNTHETIC. LIMITATION
+
+Liquidación
+
+Patrimonio bruto
+
+520.000,00
+
+Deudas deducibles
+
+150,000.00
+
+Base imponible
+
+370.000.00
+
+Cuota a ingresar
+
+0,00
+
+CO
+
+e
+
+NN
+
+KO
+
+N
+
+NN
+
+y
+
+model_714_negative zara 078 native - NO PRESENTABLE - dazos tetalmento sintéticos
+
+NATIVE TEXT_PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Impue     ore el Pa
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Categorías de bienes
+| Detalle
+
+Categoría —__        "        — Valor —                       Exentodeuda ———        — Computable
+| Inmuebles                                                   400.000,00                                                | 150.000,00 A                                               250.000,00
+Cuentas                                                               120.000.00                                                          0.00                                                                       120.000,00
+
+mode! 714 negative zero_078_ native - NO PRESENTABLE - daros teialmente siméxticos                                                                                               NATIVE _TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+714
+
+mo
+
+Imp
+
+obre al Pa
+
+Pág
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Categorías de bienes
+
+|  Detalle
+
+—
+
+Valor
+
+=
+
+| Exento/deuda
+
+Inmuebles
+
+400.000,00
+
+250.000,00
+
+DI
+
+_150.000,00
+
+120,000,00
+
+10,00
+
+120.000,00
+
+co
+
+MN
+
+Ne
+
+No
+
+UN
+
+.
+
+model 714 negative zaro_078_ native - NO PRESENTABLE - datos totalmente siméticos
+
+NATIVE TEXT_PDF

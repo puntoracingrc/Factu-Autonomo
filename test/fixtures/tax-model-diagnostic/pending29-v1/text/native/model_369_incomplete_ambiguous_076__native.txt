@@ -1,0 +1,40 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                       369
+IVA de los regímenes de ventanilla única OSS/IOSS                                                                                  Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Autoliquidación OSS/IOSS
+ NIF                     B22323612                         Titular / entidad                ENTIDAD SINTÉTICA 076 S.L.
+
+ Ejercicio               2026                              Periodo                          2T
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Régimen y totales
+ Régimen                                              [NO VISIBLE]
+ Estados de consumo                                   1
+ IVA total                                            [BORROSO]
+
+
+
+
+                                                                                                                       CO
+                                                                                                       É            TI
+                                                                                                     T
+                                                                                                 S IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_369_incomplete_ambiguous_076__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

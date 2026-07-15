@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_309_complex_059__native",
+  "baseFixtureId": "model_309_complex_059",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_309",
+  "displayName": "309 - IVA - liquidación no periódica - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": "3T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12006667T",
+    "taxpayer.name": "PERSONA SINTÉTICA 059",
+    "document.code": "309",
+    "document.fiscalYear": 2026,
+    "document.period": "3T",
+    "vat.nonPeriodicReason": "INVERSIÓN DEL SUJETO PASIVO + ADQUISICIÓN INTRACOMUNITARIA",
+    "eu.supplierVat": "FR000000002",
+    "vat.intraBase": "22.000,00",
+    "vat.reverseChargeBase": "18.000,00",
+    "vat.taxDue": "8.400,00",
+    "filing.result": "8.400,00"
+  },
+  "expectedQuestionMappings": {
+    "VAT.NON_PERIODIC_309": true,
+    "EU.OPERATIONS": true,
+    "VAT.REVERSE_CHARGE": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12006667T"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 059"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_309"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "309"
+    },
+    {
+      "fieldId": "vat.nonPeriodicReason",
+      "page": 1,
+      "label": "Supuestos",
+      "value": "INVERSIÓN DEL SUJETO PASIVO + ADQUISICIÓN INTRACOMUNITARIA"
+    },
+    {
+      "fieldId": "eu.supplierVat",
+      "page": 1,
+      "label": "NIF-IVA proveedor",
+      "value": "FR000000002"
+    },
+    {
+      "fieldId": "vat.intraBase",
+      "page": 1,
+      "label": "Base intracomunitaria",
+      "value": "22.000,00"
+    },
+    {
+      "fieldId": "vat.reverseChargeBase",
+      "page": 1,
+      "label": "Base inversión sujeto pasivo",
+      "value": "18.000,00"
+    },
+    {
+      "fieldId": "vat.taxDue",
+      "page": 1,
+      "label": "Cuota total",
+      "value": "8.400,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "8.400,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G404.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-309-iva-declaracion-liquidacion-periodica_/instrucciones-modelo-309.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_309_complex_059__native.pdf",
+  "sha256": "b5f492e78978ba4e9e6ff830222b37431564df38acba484ddb91e56607db3b26"
+}

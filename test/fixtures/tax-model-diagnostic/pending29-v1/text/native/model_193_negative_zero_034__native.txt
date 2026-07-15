@@ -1,0 +1,68 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   193
+Resumen anual de retenciones sobre capital mobiliario                                                                          Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen anual
+ NIF                     B18997635                            Titular / entidad      ENTIDAD SINTÉTICA 034 S.L.
+
+ Ejercicio               2025                                 Periodo                ANUAL
+
+ Tipo documental         SYNTHETIC_FILED_COPY                 Estado esperado        ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Totales
+ Perceptores                                           0
+ Rendimientos                                          0,00
+ Retenciones                                           0,00
+
+
+
+
+                                                                                                                CO
+                                                                                                 É           TI
+                                                                                               T
+                                                                                       S     IN
+                                                                       T O
+                                                   M                 EN
+                                               C U
+                                  DO
+
+
+
+
+model_193_negative_zero_034__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                  193
+Resumen anual de retenciones sobre capital mobiliario                                                                         Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Perceptores
+  Detalle
+NIF                           Perceptor                    Clave                     Naturaleza       Importe   Retención
+
+
+
+
+                                                                                                           CO
+                                                                                                      É TI
+                                                                                                    T
+                                                                                          S       IN
+                                                                     T O
+                                                   M               EN
+                                               C U
+                                  DO
+
+
+
+
+model_193_negative_zero_034__native - NO PRESENTABLE - datos totalmente sintéticos                                     NATIVE_TEXT_PDF
+

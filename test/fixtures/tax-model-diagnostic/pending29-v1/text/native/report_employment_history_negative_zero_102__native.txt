@@ -1,0 +1,68 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                                                       TGSS-VIDA
+Informe de vida laboral                                                                                                                  Página 1
+
+
+                                                       FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen de vida laboral
+ NIF                      12011526Y                          Titular / entidad              PERSONA SINTÉTICA 102
+
+ Ejercicio                2026                               Periodo                        N/A
+
+ Tipo documental          SYNTHETIC_FILED_COPY               Estado esperado                ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Resumen
+ Fecha de emisión                                       10/07/2026
+ Días totales de alta                                   2.263
+
+
+
+
+                                                                                                                       CO
+                                                                                                         É          TI
+                                                                                                       T
+                                                                                                S    IN
+                                                                       T O
+                                                    M                EN
+                                                C U
+                                  DO
+
+
+
+
+report_employment_history_negative_zero_102__native - NO PRESENTABLE - datos totalmente sintéticos                                NATIVE_TEXT_PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                                             TGSS-VIDA
+Informe de vida laboral                                                                                                         Página 2
+
+
+                                                       FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Situaciones de alta y baja
+  Periodos
+Régimen                             Empresa/situación                   Alta                          Baja       Días
+GENERAL                             EMPRESA SINTÉTICA B                 01/05/2020                               2.263
+
+
+
+
+                                                                                                                CO
+                                                                                                         É   TI
+                                                                                                       T
+                                                                                                S    IN
+                                                                      T O
+                                                    M               EN
+                                                C U
+                                  DO
+
+
+
+
+report_employment_history_negative_zero_102__native - NO PRESENTABLE - datos totalmente sintéticos                       NATIVE_TEXT_PDF
+

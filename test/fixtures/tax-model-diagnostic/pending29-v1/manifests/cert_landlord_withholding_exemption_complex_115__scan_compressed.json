@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "cert_landlord_withholding_exemption_complex_115__scan_compressed",
+  "baseFixtureId": "cert_landlord_withholding_exemption_complex_115",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_CERT_LANDLORD_WITHHOLDING_EXEMPTION",
+  "displayName": "CERT-ARREND - Certificado de exoneración de retención del arrendador - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "CURRENT_AS_OF_DATE_OR_PERIOD",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B25412024",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 115 S.L.",
+    "document.code": "CERT-ARREND",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "certificate.issueDate": "11/07/2026",
+    "rentExemption.status": "ACREDITADA",
+    "rentExemption.validFrom": "01/01/2026",
+    "rentExemption.validTo": "31/12/2026",
+    "rentExemption.scope": "IAE GRUPO 861 - INMUEBLES URBANOS",
+    "rentExemption.observations": "Válida para el arrendador identificado; comprobar coincidencia del NIF",
+    "certificate.csv": "CSV-SYN-ARR-0003"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.RENT.EXEMPTION": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "EXEMPTION_FOR_OTHER_LANDLORDS_OR_PERIODS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B25412024"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 115 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_CERT_LANDLORD_WITHHOLDING_EXEMPTION"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "CERT-ARREND"
+    },
+    {
+      "fieldId": "certificate.issueDate",
+      "page": 1,
+      "label": "Fecha de expedición",
+      "value": "11/07/2026"
+    },
+    {
+      "fieldId": "rentExemption.status",
+      "page": 1,
+      "label": "Exoneración de retención",
+      "value": "ACREDITADA"
+    },
+    {
+      "fieldId": "rentExemption.validFrom",
+      "page": 1,
+      "label": "Validez desde",
+      "value": "01/01/2026"
+    },
+    {
+      "fieldId": "rentExemption.validTo",
+      "page": 1,
+      "label": "Validez hasta",
+      "value": "31/12/2026"
+    },
+    {
+      "fieldId": "rentExemption.scope",
+      "page": 1,
+      "label": "Alcance",
+      "value": "IAE GRUPO 861 - INMUEBLES URBANOS"
+    },
+    {
+      "fieldId": "rentExemption.observations",
+      "page": 1,
+      "label": "Observaciones",
+      "value": "Válida para el arrendador identificado; comprobar coincidencia del NIF"
+    },
+    {
+      "fieldId": "certificate.csv",
+      "page": 1,
+      "label": "CSV",
+      "value": "CSV-SYN-ARR-0003"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G312.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/certificaciones/censales.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/cert_landlord_withholding_exemption_complex_115__scan_compressed.pdf",
+  "sha256": "2554bbba47630d710feacc3061d481d123a2debc2a210dc592683cbc6a48e7b2"
+}

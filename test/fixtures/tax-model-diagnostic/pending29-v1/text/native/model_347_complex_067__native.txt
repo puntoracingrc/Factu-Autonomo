@@ -1,0 +1,75 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                             347
+Declaración anual de operaciones con terceras personas                                                                   Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen anual
+ NIF                     B21610902                         Titular / entidad   ENTIDAD SINTÉTICA 067 S.L.
+
+ Ejercicio               2025                              Periodo             ANUAL
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Totales
+ Sustitutiva                                          SÍ
+ Número de terceros                                   3
+ Importe anual declarado                              99.000,00
+ Cobros en metálico                                   7.200,00
+
+
+
+
+                                                                                                          CO
+                                                                                           É           TI
+                                                                                         T
+                                                                                  S    IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_347_complex_067__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                              347
+Declaración anual de operaciones con terceras personas                                                                                    Página 2
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Operaciones con terceros
+  Detalle
+NIF                 Tercero            Clave              Anual                1T          2T          3T          4T          Especial
+B73163594           CLIENTE A S.L.     B                  48.000,00            12.000,00   12.000,00   12.000,00   12.000,00   SÍ
+B73242786           PROVEEDOR B        A                  33.000,00            8.000,00    9.000,00    7.000,00    9.000,00    NO
+                    S.A.
+40000067P           ARRENDADOR         B                  18.000,00            4.500,00    4.500,00    4.500,00    4.500,00    INMUEBLE
+                    C
+
+
+
+
+                                                                                                               CO
+                                                                                                É           TI
+                                                                                              T
+                                                                                           SIN
+                                                                    T O
+                                                   M              EN
+                                               C U
+                                 DO
+
+
+
+
+model_347_complex_067__native - NO PRESENTABLE - datos totalmente sintéticos                                                   NATIVE_TEXT_PDF
+

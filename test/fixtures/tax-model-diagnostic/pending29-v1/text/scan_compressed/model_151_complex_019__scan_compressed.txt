@@ -1,0 +1,118 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                1 51
+
+IRPF del régime      ecial d                  adas a España                                                                                         Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Declaración del régimen especial
+
+NIF                              120021478                                Titular / entidad                    PERSONA SINTÉTICA 019
+Ejercicio                   2026                                     Periodo                            ANUAL
+Tipo documental       SYNTHETIC COMPLEMENTA Estado esperado              ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Rentas y liquidación
+
+Régimen especial                                       ARTÍCULO 83 LIRPF
+Rendimientos del trabajo                               180.000,00
+Ganancias patrimoniales                               22.000,00
+
+Rentas extranjeras declaradas                        31.000,00
+Retenciones                                                   48.000,00
+Resultado                                                       7.200,00
+
+model 151 complex 019 nálive - NO PRESENTABLE - datos totalmente si                                                   NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+151
+
+IRPF del régime
+
+ec
+
+de
+
+adas a España
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Declaración del régimen especial
+
+NIF
+
+120021478
+
+Titular / entidad
+
+PERSONA SINTÉTICA 019
+
+2026
+
+Periodo
+
+ANUAL
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Rentas y liquidación
+
+Régimen especial
+
+ARTÍCULO 83 LIRPF
+
+Rendimientos del trabajo
+
+180.000,00
+
+Ganancias patrimoniales
+
+22.000,00
+
+Rentas extranjeras declaradas
+
+31.000,00
+
+Retenciones
+
+48.000,00
+
+Resultado
+
+7.200,00
+
+co
+
+<<
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+model 15
+
+compres
+
+ma
+
+native NO PRESENTABLE - datos totalmente sh
+
+Shticos
+
+NATIVE TEXT PDF

@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_296_negative_zero_050__scan_compressed",
+  "baseFixtureId": "model_296_negative_zero_050",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_MODEL_296",
+  "displayName": "296 - Resumen anual de retenciones de no residentes - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B20264677",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 050 S.L.",
+    "document.code": "296",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "nonresident.recipients": 0,
+    "nonresident.totalBase": "0,00",
+    "nonresident.totalWithholding": "0,00",
+    "nonresident.records": []
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.NON_RESIDENTS": false
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B20264677"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 050 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_296"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "296"
+    },
+    {
+      "fieldId": "nonresident.recipients",
+      "page": 1,
+      "label": "Perceptores",
+      "value": 0
+    },
+    {
+      "fieldId": "nonresident.totalBase",
+      "page": 1,
+      "label": "Base total",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "nonresident.totalWithholding",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "nonresident.records",
+      "page": 2,
+      "label": "Perceptores",
+      "value": []
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI22.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_296_negative_zero_050__scan_compressed.pdf",
+  "sha256": "cca9a0a7e47eb5c3e40645afc6e1ac5b2eaf3a827ff375979ee81a64cbf4af91"
+}

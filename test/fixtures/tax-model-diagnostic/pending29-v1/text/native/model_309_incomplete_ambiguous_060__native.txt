@@ -1,0 +1,41 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                       309
+IVA - liquidación no periódica                                                                                                     Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  IVA no periódico
+ NIF                     12006780K                         Titular / entidad                PERSONA SINTÉTICA 060
+
+ Ejercicio               2026                              Periodo                          3T
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Operación
+ Supuesto                                             [CASILLA ILEGIBLE]
+ Base                                                 14.500,00
+ Cuota                                                3.045,00
+ Resultado                                            [NO VISIBLE]
+
+
+
+
+                                                                                                                       CO
+                                                                                                       É            TI
+                                                                                                     T
+                                                                                                 S IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_309_incomplete_ambiguous_060__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

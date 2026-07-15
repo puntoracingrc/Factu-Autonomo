@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_720_incomplete_ambiguous_084__scan_compressed",
+  "baseFixtureId": "model_720_incomplete_ambiguous_084",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_720",
+  "displayName": "720 - Bienes y derechos situados en el extranjero - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12009492L",
+    "taxpayer.name": "PERSONA SINTÉTICA 084",
+    "document.code": "720",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "foreignAssets.records": 1,
+    "foreignAssets.categories": "CUENTAS"
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.FOREIGN_ASSETS": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12009492L"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 084"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_720"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "720"
+    },
+    {
+      "fieldId": "foreignAssets.records",
+      "page": 1,
+      "label": "Registros",
+      "value": 1
+    },
+    {
+      "fieldId": "foreignAssets.categories",
+      "page": 1,
+      "label": "Categorías",
+      "value": "CUENTAS"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI34.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_720_incomplete_ambiguous_084__scan_compressed.pdf",
+  "sha256": "eb27360c82f54a8526d29be10478a965c2e1e8da0a98da7e6c318088b3cf63f7"
+}

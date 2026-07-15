@@ -1,0 +1,185 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 720
+
+Bien    jerec   si       1e    anjero                                                                              Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen informativo
+
+NIF                  120091531                   Titular / entidad            PERSONA SINTÉTICA 081
+
+Ejercicio                       |  2025                                                Periodo                                    ANUAL
+
+Tipo documental           SYNTHETIC_FILED COPY          Estado esperado                    ACCEPT WITH _SYNTHETIC LIMITATION
+Totales
+
+Registros                                                                       1
+
+Categorias                                                                     CUENTAS
+
+Valor total informado                                     86.000,00
+
+model 720 fsbitual DI native - NO PRESENTARLE - datos intalmente sintéticos                                                                                              NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+720
+
+Bien
+
+dérech
+
+ne
+
+anjero
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen informativo
+
+NIF
+
+120091536
+
+Titular / entidad
+
+PERSONA SINTÉTICA 081
+
+Ejercicio
+
+2025
+
+Periodo
+
+ANUAL
+
+SYNTHETIC_FILED COPY
+
+ACCEPT_ WITH SYNTHETIC LIMITATION
+
+Tipo documental
+
+Estado esperado
+
+Totales
+
+1
+
+Registros
+
+Categorías
+
+CUENTAS
+
+Yalor total informado
+
+86.000,00
+
+co
+
+e
+
+NN
+
+XO
+
+N
+
+NN
+
+yo
+
+mode
+
+fa
+
+habitual 081 native
+
+NO PRESENTABLE - datos intalmente sintéticos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 720
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Bienes y derechos en el extranjero
+
+Detalle
+
+Clave                               País                                 Entidad'bien                   Condición                       Fecha                              Valor                               Estado
+
+[e]                                      FA                                    BANCO SINTÉTICO — TITULAR                         31/12/2025                      86.000,00                        ALTA
+FR
+
+model 720 febitual DB1. mative - NO PRESENTARLE - datos intalmente simtéticos                                                   NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+720
+
+precho!
+
+tua!
+
+en él
+
+jért
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Bienes y derechos en el extranjero
+
+Detalle
+
+Clave
+
+Entidad'bien
+
+Condición
+
+Fecha
+
+Valor
+
+Estado
+
+[o]
+
+FA
+
+BANCO SINTÉTICO
+
+TITULAR
+
+31/12/2025
+
+86.000,00
+
+ALTA
+
+FR
+
+co
+
+<<
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+moda
+
+720_hebitual 081 native - NO PRESENTABLE - datos iotalmente sintetiens
+
+NATIVE TEXT PDF

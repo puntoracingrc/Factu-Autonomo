@@ -1,0 +1,168 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+ción recapitulati,               E intracomunitarias
+
+349
+
+Fagina 1
+
+Resumen recapitulativo
+
+NIF                            B21 769286                              Titular / entidad                  ENTIDAD SINTÉTICA 069 S.L.
+
+Ejercicio                       |  2026                                                Periodo                                    2T
+
+Tipo documental         |  SYNTHETIC_FILED COPY          Estado esperado                    ACCEPT WITH _SYNTHETIC LIMITATION
+Totales
+
+Operadores                                                                   1
+
+Importe total                                   14.000,00
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+model 349 Rebitual DOS native - NO PRESENTARLE - datos infalmente simiéticos                                                                                              NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+349
+
+Dec
+
+ción recapitulal
+
+acomunitarias
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen recapitulativo
+
+NIF
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 069 S.L.
+
+ B21769286
+
+Ejercicio
+
+2026
+
+Periodo
+
+2T
+
+|  SYNTHETIC_ FILED COPY
+
+ACCEPT WITH SYNTHETIC LIMITATION
+
+Tipo documental
+
+Estado esperado
+
+Totales
+
+Operadores
+
+1
+
+Importe total
+
+14.000,00
+
+co
+
+<<
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+model 349 Rebitual DOS native - NO PRESENTARLE - datos infalmente simiéticos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 349
+
+De      ción recapitulativa de o         es intracomunitarias                                                                                                 Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operadores intracomunitarios
+
+Detalle
+HIF-IVA                              Operador                           Clave                                 importe                              Ejercicio rect.                    Periodo rect.
+FRO00000001                       CLIENTE FRANCÉS            5                                           14.000,00
+€   L
+model_349 hebitual 089 mative - NO PRESENTABLE - datos intalmente simiéticos
+
+NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+349
+
+De
+
+ción recapitulativa d
+
+eo
+
+as Intracomunitarias
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operadores intracomunitarios
+
+Detalle
+
+NIF-IVA
+
+Operador
+
+Clave
+
+importe
+
+Ejercicio rect.
+
+Periodo rect.
+
+FROO0000001
+
+CLIENTE FRANCÉS
+
+5
+
+14.000,00
+
+co
+
+e
+
+NN
+
+XO
+
+N
+
+NN
+
+yo
+
+modal_349
+
+tebitual 069
+
+native - NO PRESENTABLE - datos intalmente siméticos
+
+NATIVE TEXT_PDF

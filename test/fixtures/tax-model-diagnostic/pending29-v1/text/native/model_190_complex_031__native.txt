@@ -1,0 +1,73 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                             190
+Resumen anual de retenciones del trabajo y actividades económicas                                                        Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen anual
+ NIF                     B18760066                         Titular / entidad   ENTIDAD SINTÉTICA 031 S.L.
+
+ Ejercicio               2025                              Periodo             ANUAL
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Totales
+ Complementaria                                       SÍ
+ Perceptores                                          3
+ Percepciones                                         83.000,00
+ Retenciones                                          12.600,00
+
+
+
+
+                                                                                                          CO
+                                                                                           É           TI
+                                                                                         T
+                                                                                  S    IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_190_complex_031__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                      190
+Resumen anual de retenciones del trabajo y actividades económicas                                                                 Página 2
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Perceptores
+  Detalle por clave y subclave
+NIF                          Perceptor                    Clave                Subclave            Percepción   Retención
+32000031Q                    TRABAJADOR A                 A                    01                  35.000,00    4.200,00
+33000031E                    PROFESIONAL B                G                    01                  18.000,00    2.700,00
+34000031M                    ADMINISTRADOR C              E                    01                  30.000,00    5.700,00
+
+
+
+
+                                                                                                        CO
+                                                                                              É      TI
+                                                                                            T
+                                                                                    S     IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_190_complex_031__native - NO PRESENTABLE - datos totalmente sintéticos                                               NATIVE_TEXT_PDF
+

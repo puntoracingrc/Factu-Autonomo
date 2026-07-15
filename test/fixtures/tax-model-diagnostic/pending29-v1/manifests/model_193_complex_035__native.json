@@ -1,0 +1,163 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_193_complex_035__native",
+  "baseFixtureId": "model_193_complex_035",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_193",
+  "displayName": "193 - Resumen anual de retenciones sobre capital mobiliario - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B19076827",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 035 S.L.",
+    "document.code": "193",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "filing.substitute": "SÍ",
+    "capital.recipients": 3,
+    "capital.totalIncome": "42.500,00",
+    "capital.totalWithholding": "8.075,00",
+    "capital.records": [
+      [
+        "36000035K",
+        "PERCEPTOR A",
+        "B",
+        "01",
+        "12.000,00",
+        "2.280,00"
+      ],
+      [
+        "B50752823",
+        "ENTIDAD PERCEPTORA B",
+        "D",
+        "02",
+        "24.000,00",
+        "4.560,00"
+      ],
+      [
+        "37000035G",
+        "PERCEPTOR EN ESPECIE C",
+        "A",
+        "03",
+        "6.500,00",
+        "1.235,00"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.CAPITAL": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B19076827"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 035 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_193"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "193"
+    },
+    {
+      "fieldId": "filing.substitute",
+      "page": 1,
+      "label": "Sustitutiva",
+      "value": "SÍ"
+    },
+    {
+      "fieldId": "capital.recipients",
+      "page": 1,
+      "label": "Perceptores",
+      "value": 3
+    },
+    {
+      "fieldId": "capital.totalIncome",
+      "page": 1,
+      "label": "Rendimientos",
+      "value": "42.500,00"
+    },
+    {
+      "fieldId": "capital.totalWithholding",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "8.075,00"
+    },
+    {
+      "fieldId": "capital.records",
+      "page": 2,
+      "label": "Perceptores de capital mobiliario",
+      "value": [
+        [
+          "36000035K",
+          "PERCEPTOR A",
+          "B",
+          "01",
+          "12.000,00",
+          "2.280,00"
+        ],
+        [
+          "B50752823",
+          "ENTIDAD PERCEPTORA B",
+          "D",
+          "02",
+          "24.000,00",
+          "4.560,00"
+        ],
+        [
+          "37000035G",
+          "PERCEPTOR EN ESPECIE C",
+          "A",
+          "03",
+          "6.500,00",
+          "1.235,00"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI12.shtml",
+      "https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_193_2025.pdf"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_193_complex_035__native.pdf",
+  "sha256": "ddfc237a4425da7e55479409a087964d25a549769a0e7b2a948d2ad61f04ffa6"
+}

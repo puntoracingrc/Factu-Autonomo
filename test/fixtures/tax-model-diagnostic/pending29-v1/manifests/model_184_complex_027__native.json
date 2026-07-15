@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_184_complex_027__native",
+  "baseFixtureId": "model_184_complex_027",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_184",
+  "displayName": "184 - Entidades en régimen de atribución de rentas - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B18443309",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 027 S.L.",
+    "document.code": "184",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "filing.complementary": "SÍ",
+    "entity.type": "SOCIEDAD CIVIL EN ATRIBUCIÓN",
+    "entity.activities": "Consultoría + arrendamiento",
+    "entity.totalIncome": "90.000,00",
+    "entity.totalWithholding": "10.500,00",
+    "entity.members": [
+      [
+        "24000027X",
+        "SOCIO A",
+        "40,00%",
+        "36.000,00",
+        "4.200,00"
+      ],
+      [
+        "25000027Q",
+        "SOCIO B",
+        "35,00%",
+        "31.500,00",
+        "3.675,00"
+      ],
+      [
+        "26000027E",
+        "SOCIO C",
+        "25,00%",
+        "22.500,00",
+        "2.625,00"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "ENTITY.INCOME_ATTRIBUTION": true,
+    "ENTITY.MEMBERS": 3
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B18443309"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 027 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_184"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "184"
+    },
+    {
+      "fieldId": "filing.complementary",
+      "page": 1,
+      "label": "Complementaria",
+      "value": "SÍ"
+    },
+    {
+      "fieldId": "entity.type",
+      "page": 1,
+      "label": "Tipo de entidad",
+      "value": "SOCIEDAD CIVIL EN ATRIBUCIÓN"
+    },
+    {
+      "fieldId": "entity.activities",
+      "page": 1,
+      "label": "Actividades",
+      "value": "Consultoría + arrendamiento"
+    },
+    {
+      "fieldId": "entity.totalIncome",
+      "page": 1,
+      "label": "Renta atribuible",
+      "value": "90.000,00"
+    },
+    {
+      "fieldId": "entity.totalWithholding",
+      "page": 1,
+      "label": "Retenciones atribuibles",
+      "value": "10.500,00"
+    },
+    {
+      "fieldId": "entity.members",
+      "page": 2,
+      "label": "Socios, herederos, comuneros o partícipes",
+      "value": [
+        [
+          "24000027X",
+          "SOCIO A",
+          "40,00%",
+          "36.000,00",
+          "4.200,00"
+        ],
+        [
+          "25000027Q",
+          "SOCIO B",
+          "35,00%",
+          "31.500,00",
+          "3.675,00"
+        ],
+        [
+          "26000027E",
+          "SOCIO C",
+          "25,00%",
+          "22.500,00",
+          "2.625,00"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI04.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_184_complex_027__native.pdf",
+  "sha256": "9e1b28a74bf54c5875a161e5d80959c54bc43472651b2b934ab1b6bcb4508213"
+}

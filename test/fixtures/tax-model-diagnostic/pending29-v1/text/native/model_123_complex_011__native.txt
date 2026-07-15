@@ -1,0 +1,43 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                             123
+Retenciones sobre determinados rendimientos del capital mobiliario                                                       Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Autoliquidación
+ NIF                     12001243G                         Titular / entidad   PERSONA SINTÉTICA 011
+
+ Ejercicio               2026                              Periodo             4T
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Retenciones e ingresos a cuenta
+ Declaración complementaria                           SÍ
+ Número de perceptores                                5
+ Base                                                 28.750,00
+ Retenciones                                          5.462,50
+ Resultado anterior                                   4.800,00
+ Resultado complementario                             662,50
+
+
+
+
+                                                                                                          CO
+                                                                                          É            TI
+                                                                                        T
+                                                                                    S IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_123_complex_011__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+

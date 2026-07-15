@@ -288,14 +288,29 @@ export function resolveQuestionsFromFacts(
 
   const rentExemption = factsOf(facts, "WITHHOLDING.RENT_EXEMPTION");
   if (rentExemption.length > 0) {
+    const exemptionValue = rentExemption[0]?.normalizedValue;
+    const exemptionFlag =
+      exemptionValue &&
+      typeof exemptionValue === "object" &&
+      !Array.isArray(exemptionValue)
+        ? (exemptionValue as {
+            readonly exemptionAccredited?: JsonValue;
+          }).exemptionAccredited
+        : undefined;
+    const exemptionAccredited =
+      typeof exemptionFlag === "boolean"
+        ? exemptionFlag
+        : true;
     add(
       output,
       resolution({
         questionId: "G_LANDLORD_EXEMPTION",
-        answer: "YES",
+        answer: exemptionAccredited ? "YES" : "NO",
         facts: rentExemption,
         explanation:
-          "El certificado acredita expresamente una exoneración de retención del arrendador.",
+          exemptionAccredited
+            ? "El certificado acredita expresamente una exoneración de retención del arrendador."
+            : "El certificado indica expresamente que la exoneración de retención no está acreditada.",
         completeDocument,
         missingInformation: [
           "Confirmar que el certificado sigue vigente y corresponde al alquiler analizado.",
@@ -536,14 +551,25 @@ export function resolveQuestionsFromFacts(
 
   const roi = factsOf(facts, "EU.ROI");
   if (roi.length > 0) {
+    const roiValue = roi[0]?.normalizedValue;
+    const registeredFlag =
+      roiValue && typeof roiValue === "object" && !Array.isArray(roiValue)
+        ? (roiValue as { readonly registered?: JsonValue }).registered
+        : undefined;
+    const registered =
+      typeof registeredFlag === "boolean"
+        ? registeredFlag
+        : true;
     add(
       output,
       resolution({
         questionId: "I_ROI",
-        answer: "YES",
+        answer: registered ? "YES" : "NO",
         facts: roi,
         explanation:
-          "El certificado acredita expresamente la inclusión en el Registro de Operadores Intracomunitarios.",
+          registered
+            ? "El certificado acredita expresamente la inclusión en el Registro de Operadores Intracomunitarios."
+            : "El certificado indica expresamente que no existe una inscripción ROI vigente.",
         completeDocument,
         missingInformation: [
           "Confirmar que no existe una baja o certificado posterior.",

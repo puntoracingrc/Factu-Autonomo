@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_216_negative_zero_046__scan_compressed",
+  "baseFixtureId": "model_216_negative_zero_046",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_MODEL_216",
+  "displayName": "216 - Retenciones de rentas obtenidas por no residentes sin establecimiento permanente - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": "3T",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12005198A",
+    "taxpayer.name": "PERSONA SINTÉTICA 046",
+    "document.code": "216",
+    "document.fiscalYear": 2026,
+    "document.period": "3T",
+    "nonresident.recipients": 0,
+    "nonresident.base": "0,00",
+    "nonresident.withholding": "0,00",
+    "filing.result": "0,00"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.NON_RESIDENTS": false
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12005198A"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 046"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_216"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "216"
+    },
+    {
+      "fieldId": "nonresident.recipients",
+      "page": 1,
+      "label": "Número de rentas",
+      "value": 0
+    },
+    {
+      "fieldId": "nonresident.base",
+      "page": 1,
+      "label": "Base",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "nonresident.withholding",
+      "page": 1,
+      "label": "Retención",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "0,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF05.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_216_negative_zero_046__scan_compressed.pdf",
+  "sha256": "9fc4cd8de87ca66cbc267e5870da27fecc04f379a7704d1395be5f4f2dcf9c2d"
+}

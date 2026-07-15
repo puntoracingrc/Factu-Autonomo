@@ -1,0 +1,170 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_714_complex_079__rotated_capture",
+  "baseFixtureId": "model_714_complex_079",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_714",
+  "displayName": "714 - Impuesto sobre el Patrimonio - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12008927Y",
+    "taxpayer.name": "PERSONA SINTÉTICA 079",
+    "document.code": "714",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "wealth.totalAssets": "4.330.000,00",
+    "wealth.exemptAssets": "950.000,00",
+    "wealth.debts": "400.000,00",
+    "wealth.taxableBase": "2.980.000,00",
+    "filing.result": "19.500,00",
+    "wealth.assets": [
+      [
+        "Inmuebles",
+        "1.800.000,00",
+        "400.000,00",
+        "1.400.000,00"
+      ],
+      [
+        "Empresa familiar exenta",
+        "950.000,00",
+        "950.000,00",
+        "0,00"
+      ],
+      [
+        "Valores",
+        "1.200.000,00",
+        "0,00",
+        "1.200.000,00"
+      ],
+      [
+        "Seguros y rentas",
+        "380.000,00",
+        "0,00",
+        "380.000,00"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.WEALTH_TAX": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12008927Y"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 079"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_714"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "714"
+    },
+    {
+      "fieldId": "wealth.totalAssets",
+      "page": 1,
+      "label": "Patrimonio bruto",
+      "value": "4.330.000,00"
+    },
+    {
+      "fieldId": "wealth.exemptAssets",
+      "page": 1,
+      "label": "Bienes exentos",
+      "value": "950.000,00"
+    },
+    {
+      "fieldId": "wealth.debts",
+      "page": 1,
+      "label": "Deudas deducibles",
+      "value": "400.000,00"
+    },
+    {
+      "fieldId": "wealth.taxableBase",
+      "page": 1,
+      "label": "Base imponible",
+      "value": "2.980.000,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Cuota a ingresar",
+      "value": "19.500,00"
+    },
+    {
+      "fieldId": "wealth.assets",
+      "page": 2,
+      "label": "Bienes y derechos",
+      "value": [
+        [
+          "Inmuebles",
+          "1.800.000,00",
+          "400.000,00",
+          "1.400.000,00"
+        ],
+        [
+          "Empresa familiar exenta",
+          "950.000,00",
+          "950.000,00",
+          "0,00"
+        ],
+        [
+          "Valores",
+          "1.200.000,00",
+          "0,00",
+          "1.200.000,00"
+        ],
+        [
+          "Seguros y rentas",
+          "380.000,00",
+          "0,00",
+          "380.000,00"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G611.shtml",
+      "https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Manual/Practicos/Patrimonio/Patrimonio-2025/ManualPatrimonio2025_es_es.pdf"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_714_complex_079__rotated_capture.pdf",
+  "sha256": "d7fc36071c172b2453ef17cd88cfb2821a00d41f44ce7558967ba680b05bde1b"
+}

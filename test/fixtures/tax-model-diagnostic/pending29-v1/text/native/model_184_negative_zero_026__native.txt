@@ -1,0 +1,70 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                        184
+Entidades en régimen de atribución de rentas                                                                                        Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Datos de la entidad
+ NIF                     B18364117                            Titular / entidad           ENTIDAD SINTÉTICA 026 S.L.
+
+ Ejercicio               2025                                 Periodo                     ANUAL
+
+ Tipo documental         SYNTHETIC_FILED_COPY                 Estado esperado             ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Entidad y actividad
+ Tipo de entidad                                       HERENCIA YACENTE
+ Actividad                                             Sin actividad económica en el ejercicio
+ Renta atribuible                                      0,00
+
+
+
+
+                                                                                                                     CO
+                                                                                                      É           TI
+                                                                                                    T
+                                                                                             S    IN
+                                                                       T O
+                                                   M                 EN
+                                               C U
+                                  DO
+
+
+
+
+model_184_negative_zero_026__native - NO PRESENTABLE - datos totalmente sintéticos                                           NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   184
+Entidades en régimen de atribución de rentas                                                                                   Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Miembros y rentas atribuidas
+  Detalle de miembros
+NIF                                Miembro                             Participación       Renta          Retenciones
+23000026A                          COMUNERO ÚNICO A                    100,00%             0,00           0,00
+                                   EFECTOS DE PRUEBA
+
+
+
+
+                                                                                                         CO
+                                                                                            É         TI
+                                                                                          T
+                                                                                       SIN
+                                                                     T O
+                                                   M               EN
+                                               C U
+                                  DO
+
+
+
+
+model_184_negative_zero_026__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+

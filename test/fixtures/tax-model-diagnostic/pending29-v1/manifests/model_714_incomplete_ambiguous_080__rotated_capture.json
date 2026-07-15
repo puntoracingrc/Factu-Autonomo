@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_714_incomplete_ambiguous_080__rotated_capture",
+  "baseFixtureId": "model_714_incomplete_ambiguous_080",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_714",
+  "displayName": "714 - Impuesto sobre el Patrimonio - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12009040G",
+    "taxpayer.name": "PERSONA SINTÉTICA 080",
+    "document.code": "714",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "wealth.totalAssets": "1.240.000,00",
+    "wealth.taxableBase": "[NO VISIBLE]",
+    "filing.result": "[PÁGINA AUSENTE]"
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.WEALTH_TAX": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12009040G"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 080"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_714"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "714"
+    },
+    {
+      "fieldId": "wealth.totalAssets",
+      "page": 1,
+      "label": "Patrimonio bruto",
+      "value": "1.240.000,00"
+    },
+    {
+      "fieldId": "wealth.taxableBase",
+      "page": 1,
+      "label": "Base imponible",
+      "value": "[NO VISIBLE]"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Cuota",
+      "value": "[PÁGINA AUSENTE]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "wealth.taxableBase",
+    "filing.result"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G611.shtml",
+      "https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Manual/Practicos/Patrimonio/Patrimonio-2025/ManualPatrimonio2025_es_es.pdf"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_714_incomplete_ambiguous_080__rotated_capture.pdf",
+  "sha256": "ef086b05ca8a7e19b69d6bc92e30ea134e293dbcdfa3cab936e6ca2b18beb731"
+}

@@ -1,0 +1,171 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 341
+
+Reintegro de compensacio       gimen         grario                                                                               Fágina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de reintegro
+
+NIF                               12007006 Y                                 Titular / entidad                    PERSONA SINTÉTICA 062
+
+Ejercicio                       |  2026                                                Periodo                                    2T
+
+Tipo documental           SYNTHETIC_ FILED COPY          Estado esperado                    ACCEPT WITH_SYNTHETIC LIMITATION
+Resumen
+
+Operaciones                                                                 o
+
+Compensación solicitada                              0,00
+
+model 341 negative zen: 062 _ native - NO PRESENTABLE - datos intalmente smtéficos                                                     NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+341
+
+Reintegro de compens
+
+acio
+
+gimen
+
+aro
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de reintegro
+
+NIF
+
+12007006 Y
+
+Titular / entidad
+
+PERSONA SINTÉTICA 062
+
+Ejercicio
+
+2026
+
+Periodo
+
+2T
+
+Tipo documental
+
+SYNTHETIC FILED COPY
+
+ACCEPT WITH_SYNTHETIC LIMITATION
+
+Estado esperado
+
+Resumen
+
+Operaciones
+
+Compensación solicitada
+
+0,00
+
+co
+
+O
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+model_341_ negative zen (6:
+
+a
+
+5
+
+Tative
+
+NO PRESENTABLE - datos fatalmente sintéficos
+
+NATIVE TEXT_PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 341
+
+Reintegro de compens         es del ágimen                                                                                                                                                                            Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operaciones
+
+Detalle
+Adquirente                            NIF                                          Producto                                Base                                      E                                            Compensación
+
+model 341 negative zen DA?  native- NO PRESENTABLE - datos iotalmente sintéticos                                                                                     NATIVE TEXT. PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+341
+
+Reintegro de compe
+
+5 del ágimen
+
+agrario
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operaciones
+
+Detalle
+
+Adquirente
+
+NIF
+
+Producto
+
+Base
+
+Compensación
+
+co
+
+<<
+
+Ne
+
+XO
+
+N
+
+NN
+
+yo
+
+moda
+
+3
+
+Le
+
+negative
+
+e
+
+DEF
+
+a
+
+3
+
+native- NO) PRESENTABLE
+
+datos intalmente smtéficos
+
+NATIVE TEXT PDF

@@ -1,0 +1,168 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_296_complex_051__native",
+  "baseFixtureId": "model_296_complex_051",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_296",
+  "displayName": "296 - Resumen anual de retenciones de no residentes - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B20343869",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 051 S.L.",
+    "document.code": "296",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "filing.complementary": "SÍ",
+    "nonresident.recipients": 3,
+    "nonresident.totalBase": "67.000,00",
+    "nonresident.totalWithholding": "7.180,00",
+    "nonresident.records": [
+      [
+        "FR",
+        "FRSYN00002",
+        "PERCEPTOR A",
+        "CÁNONES",
+        "22.000,00",
+        "19%",
+        "4.180,00"
+      ],
+      [
+        "DE",
+        "DESYN00003",
+        "PERCEPTOR B",
+        "INTERESES EXENTOS",
+        "15.000,00",
+        "0%",
+        "0,00"
+      ],
+      [
+        "US",
+        "USSYN00004",
+        "PERCEPTOR C",
+        "SERVICIOS",
+        "30.000,00",
+        "10%",
+        "3.000,00"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.NON_RESIDENTS": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B20343869"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 051 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_296"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "296"
+    },
+    {
+      "fieldId": "filing.complementary",
+      "page": 1,
+      "label": "Complementaria",
+      "value": "SÍ"
+    },
+    {
+      "fieldId": "nonresident.recipients",
+      "page": 1,
+      "label": "Perceptores",
+      "value": 3
+    },
+    {
+      "fieldId": "nonresident.totalBase",
+      "page": 1,
+      "label": "Base total",
+      "value": "67.000,00"
+    },
+    {
+      "fieldId": "nonresident.totalWithholding",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "7.180,00"
+    },
+    {
+      "fieldId": "nonresident.records",
+      "page": 2,
+      "label": "Perceptores",
+      "value": [
+        [
+          "FR",
+          "FRSYN00002",
+          "PERCEPTOR A",
+          "CÁNONES",
+          "22.000,00",
+          "19%",
+          "4.180,00"
+        ],
+        [
+          "DE",
+          "DESYN00003",
+          "PERCEPTOR B",
+          "INTERESES EXENTOS",
+          "15.000,00",
+          "0%",
+          "0,00"
+        ],
+        [
+          "US",
+          "USSYN00004",
+          "PERCEPTOR C",
+          "SERVICIOS",
+          "30.000,00",
+          "10%",
+          "3.000,00"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI22.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_296_complex_051__native.pdf",
+  "sha256": "f5309a5bf4655983fa5339d5014d9d561697dbe9272fc059883444b3c5017ee6"
+}

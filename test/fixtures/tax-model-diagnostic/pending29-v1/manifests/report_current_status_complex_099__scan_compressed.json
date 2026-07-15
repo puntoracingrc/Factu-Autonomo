@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "report_current_status_complex_099__scan_compressed",
+  "baseFixtureId": "report_current_status_complex_099",
+  "semanticScenario": "complex",
+  "documentType": "TGSS_REPORT_CURRENT_STATUS",
+  "displayName": "TGSS-ACTUAL - Informe de situación actual del trabajador - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12011187N",
+    "taxpayer.name": "PERSONA SINTÉTICA 099",
+    "document.code": "TGSS-ACTUAL",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "tgss.issueDate": "11/07/2026",
+    "tgss.nussMasked": "28/00000099/99",
+    "tgss.status": "RETA ALTA + RÉGIMEN GENERAL ALTA",
+    "tgss.retaStart": "15/01/2023",
+    "tgss.generalStart": "01/06/2026"
+  },
+  "expectedQuestionMappings": {
+    "RETA.CURRENT_STATUS": "ACTIVE",
+    "IRPF.RETA_PERIODS": [
+      {
+        "from": "15/01/2023",
+        "to": null
+      }
+    ]
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "FULL_RETA_HISTORY"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12011187N"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 099"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "TGSS_REPORT_CURRENT_STATUS"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "TGSS-ACTUAL"
+    },
+    {
+      "fieldId": "tgss.issueDate",
+      "page": 1,
+      "label": "Fecha de emisión",
+      "value": "11/07/2026"
+    },
+    {
+      "fieldId": "tgss.nussMasked",
+      "page": 1,
+      "label": "NUSS/NAF",
+      "value": "28/00000099/99"
+    },
+    {
+      "fieldId": "tgss.status",
+      "page": 1,
+      "label": "Situaciones actuales",
+      "value": "RETA ALTA + RÉGIMEN GENERAL ALTA"
+    },
+    {
+      "fieldId": "tgss.retaStart",
+      "page": 1,
+      "label": "Alta RETA",
+      "value": "15/01/2023"
+    },
+    {
+      "fieldId": "tgss.generalStart",
+      "page": 1,
+      "label": "Alta régimen general",
+      "value": "01/06/2026"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "TGSS",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://portal.seg-social.gob.es/wps/portal/importass/importass/Categorias/Vida%2Blaboral%2Be%2Binformes/Informes%2Bsobre%2Btu%2Bsituacion%2Blaboral/Informe%2Bde%2Bsituacion%2Blaboral%2Bactual"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/report_current_status_complex_099__scan_compressed.pdf",
+  "sha256": "02bd29ee1acea8fa7ff920f173b08f0842ccc5d848f9c033f370f8c8741b3e59"
+}

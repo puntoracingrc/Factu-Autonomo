@@ -1,0 +1,107 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+APF del régimen especial de personas
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Declaración del régimen especial
+
+NIF                           12002034)                                    Titular / entidad                     PERSONA SINTÉTICA 018
+
+¡Ejercicio 2026 Peredo ANAL o
+
+Tipo documental —SYNTHETIC FILED COPY — | Estado esperado     - ACCEPT_WITH_SYNTHETIC_LIMITATION o        -
+Rentas y liquidación
+
+Régimen especial                    ARTÍCULO 93 LIRPF
+
+Rendimientos del trabajo 45.000,00
+
+Retenciones                       10.800,00
+
+Resultado
+
+0,00
+
+model _151 negative zero 018_ native - NO PRESENTABLE - datos iotalmente sintéticos
+
+NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+151
+
+APF del régimen especial de personas
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Declaración del régimen especial
+
+NIF
+
+==
+
+el —
+
+120020344
+
+————————]]——a td
+
+Titular / entidad
+
+|  PERSONA SINTÉTICA 018
+
+———l
+
+2026
+
+Periodo
+
+ANUAL
+
+| Ejercicio
+
+———u;o——
+
+——
+
+Estado esperado
+
+| Tipo documental SYNTHETIC FILED COPY
+
+“ | ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Rentas y liquidación
+
+Régimen especial
+
+ARTÍCULO 93 LIRPF
+
+Rendimientos del trabajo
+
+45.000,00
+
+Retenciones
+
+10.800,00
+
+Resultado
+
+0,00
+
+co
+
+NN
+
+O
+
+N
+
+NN
+
+o
+
+model_151 negative zero 018 native- NO PRESENTABLE - datos iozalmente sintéticos
+
+NATIVE TEXT PDF

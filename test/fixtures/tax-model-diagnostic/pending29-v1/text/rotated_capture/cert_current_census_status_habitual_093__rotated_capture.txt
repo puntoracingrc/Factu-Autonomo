@@ -1,0 +1,119 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                           CERT-CENSO
+
+Certificado tri:             tuación      E                                                                                                                                      Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de situación censal
+
+NIF                     120105098                      Titular / entidad             PERSONA SINTÉTICA 093
+| Ejercicio               2026                              Periodo                     N/A
+“Tipo documental SYNTHETIC FILED COPY — Estado esperado     ACCEPT WITH_SYNTHETIC_LIMITATION
+
+Datos certificados
+
+Fecha de expedición                                                 10/07/2026
+
+Situación                                                                   ALTA
+
+Actividades                                               Consultoría informática - IAE 763
+
+IRPF                                                                           ESTIMACIÓN DIRECTA SIMPLIFICADA
+IVA                                                                  - RÉGIMEN GENERAL
+Obligaciones periódicas                                 190 TRIMESTRAL; 303 TRIMESTRAL
+csv                                                                            CSV-SYN-CENSO-0001
+
+cen_carem_census stilus habitual 093 native - NO PRESENTABLE - datos intalmento sintéticos                                                                                         NATIVE _TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+CERT-CENSO
+
+Certificado tri:
+
+tuación
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de situación censal
+
+um
+
+——
+
+| 12010509R
+
+——]Eeeielil1i7i1vi5gl¡ió DT |
+
+Titular / entidad
+
+|  PERSONA SINTÉTICA 093
+
+ca
+
+——:
+
+E
+
+—
+
+| Ejercicio
+
+2026
+
+Periodo
+
+NíA
+
+—
+
+Tipo documental     | SYNTHETIC_FILED_COPY     Estado esperado          | ACCEPT WITH_SYNTHETIC_LIMITATION —
+
+Datos certificados
+
+Fecha de expedición
+
+10/07/2026
+
+Situación
+
+ALTA
+
+Actividades
+
+Consultoría informática - IAE 763
+
+IRPF
+
+ESTIMACIÓN DIRECTA SIMPLIFICADA
+
+1VA
+
+RÉGIMEN GENERAL
+
+Obligaciones periódicas
+
+130 TRIMESTRAL; 303 TRIMESTRAL
+
+csv
+
+CSV-SYN-CENSO-0001
+
+CO
+
+N
+
+Ne
+
+O
+
+N
+
+NN
+
+9
+
+cen_carem_census stilus habitual 093 native - NO PRESENTABLE - datos intalmento sintéticos
+
+NATIVE_TEXT_PDF

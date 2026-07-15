@@ -1,0 +1,71 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   200
+Impuesto sobre Sociedades                                                                                                      Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Identificación y actividad
+ NIF                     B19314392                          Titular / entidad        ENTIDAD SINTÉTICA 038 S.L.
+
+ Ejercicio               2025                               Periodo                  ANUAL
+
+ Tipo documental         SYNTHETIC_FILED_COPY               Estado esperado          ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Entidad
+ CNAE                                                  7022
+ Actividad principal                                   Consultoría empresarial
+ Importe neto cifra de negocios                        90.000,00
+
+
+
+
+                                                                                                                CO
+                                                                                                 É           TI
+                                                                                               T
+                                                                                       S     IN
+                                                                     T O
+                                                   M               EN
+                                               C U
+                                  DO
+
+
+
+
+model_200_negative_zero_038__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                         200
+Impuesto sobre Sociedades                                                                                            Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Liquidación
+  Resultado fiscal
+ Resultado contable                                    -22.000,00
+ Base imponible                                        0,00
+ Cuota íntegra                                         0,00
+ Resultado                                             0,00
+
+
+
+
+                                                                                                         CO
+                                                                                           É          TI
+                                                                                         T
+                                                                                     S IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_200_negative_zero_038__native - NO PRESENTABLE - datos totalmente sintéticos                            NATIVE_TEXT_PDF
+

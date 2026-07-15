@@ -1,0 +1,69 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                              341
+Reintegro de compensaciones del régimen especial agrario                                                                  Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Solicitud de reintegro
+ NIF                      12006893L                         Titular / entidad   PERSONA SINTÉTICA 061
+
+ Ejercicio                2026                              Periodo             2T
+
+ Tipo documental          SYNTHETIC_FILED_COPY              Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Resumen
+ Operaciones                                           1
+ Compensación solicitada                               2.160,00
+
+
+
+
+                                                                                                           CO
+                                                                                           É            TI
+                                                                                         T
+                                                                                     S IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_341_habitual_061__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                      341
+Reintegro de compensaciones del régimen especial agrario                                                                          Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Operaciones
+  Detalle
+Adquirente                    NIF                          Producto             Base                %           Compensación
+COMPRADOR AGRARIO             B64690266                    PRODUCTOS            18.000,00           12%         2.160,00
+A                                                          HORTÍCOLAS
+
+
+
+
+                                                                                                           CO
+                                                                                                É       TI
+                                                                                              T
+                                                                                       S    IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                    DO
+
+
+
+
+model_341_habitual_061__native - NO PRESENTABLE - datos totalmente sintéticos                                              NATIVE_TEXT_PDF
+

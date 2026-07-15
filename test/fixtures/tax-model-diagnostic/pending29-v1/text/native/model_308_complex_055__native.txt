@@ -1,0 +1,43 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                               308
+Solicitud de devolución en supuestos especiales de IVA                                                                     Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Solicitud de devolución
+ NIF                     12006215P                         Titular / entidad     PERSONA SINTÉTICA 055
+
+ Ejercicio               2026                              Periodo               2T
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado       ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Operación y devolución
+ Motivo de devolución                                 RECARGO DE EQUIVALENCIA + ARTÍCULO 30 BIS
+ Operaciones                                          8
+ Base acreditada                                      18.500,00
+ Devolución solicitada                                2.380,00
+ Cuenta de abono                                      ES** **** **** **** 1299
+ Rectificativa                                        SÍ
+
+
+
+
+                                                                                                            CO
+                                                                                            É            TI
+                                                                                          T
+                                                                                      S IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_308_complex_055__native - NO PRESENTABLE - datos totalmente sintéticos                                        NATIVE_TEXT_PDF
+

@@ -1,0 +1,111 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                             TGSS-ACTUAL
+
+Informe de situación act                                                                                                                                                                                           Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situación laboral actual
+
+NIF                              12011187N                                Titular / entidad                    PERSONA SINTÉTICA 099
+Ejercicio                   2026                                     Periodo                            NAA
+Tipo documental       SYNTHETIC COMPLEMENTA Estado esperado              ACCEPT WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Datos de afiliación
+
+Fecha de emisión                                            11/07/2026
+
+NUSS'NAF                                                280000009999
+
+Situaciones actuales                                   RETA ALTA + RÉGIMEN GENERAL ALTA
+Alta RETA                                  15012023
+
+Alta regimen general                                        01/06/2026
+
+report cument siaus complex 088 native -NO PAESENTABLE - dates- totalmente sintébcos                                                         NATIVE TEXT PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+TGSS-ACTUAL
+
+Informe de situación act
+
+del in
+
+ador
+
+Fagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situación laboral actual
+
+NIF
+
+12011187N
+
+Titular / entidad
+
+PERSONA SINTÉTICA 098
+
+2026
+
+Periodo
+
+N/A
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Datos de afiliación
+
+Fecha de emisión
+
+11/07/2026
+
+NUSSNAF
+
+280000009999
+
+Situaciones actuales
+
+RETA ALTA + RÉGIMEN GENERAL ALTA
+
+Alta RETA
+
+1501/2023
+
+Alta regimen general
+
+01/06/2026
+
+co
+
+O
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+repor current sisius complex
+
+nen
+
+native
+
+NO PRESENTABLE - datos tolalmente sintébcos
+
+NATIVE TEXT. PDF

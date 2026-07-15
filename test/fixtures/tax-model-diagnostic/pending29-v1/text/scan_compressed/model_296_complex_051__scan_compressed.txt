@@ -1,0 +1,214 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                         296
+
+Resumen anual de rete         e       dentes                                                                                                       Fagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen anual
+
+NIF                            B20343869                              Titular / entidad                  ENTIDAD SINTÉTICA 051 S.L.
+Ejercicio                         2025                                                Perlodo                                    ANUAL
+Tipo documental      SYNTHETIC_COMPLEMENTA Estado esperado          ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Totales
+
+Complementaria                                         si
+Perceptores                                                                  a
+
+Base total                                                 67.000,00
+Retenciones                                                                  7.180,00
+
+modal 2936 complex 061 nalive- NO PRESENTABLE - datos totalmente smiéticos:                                                                    NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+296
+
+Resumen anual de rete
+
+no re
+
+dentes
+
+Fagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen anual
+
+NIF
+
+B20343869
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 051 S.L.
+
+Ejercicio
+
+2025
+
+Periodo
+
+ANUAL
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA Estado esperado
+
+AY _OR_MULTI_RECORD
+
+Totales
+
+Complementaria
+
+Si
+
+3
+
+Perceptores
+
+Base total
+
+67.000,00
+
+Retenciones
+
+7.180,00
+
+co
+
+e
+
+NN
+
+XO
+
+N
+
+NN
+
+yo
+
+modal 296 compe:
+
+051
+
+1alive - NO PRESENTABLE - datos Ioctahmente simiéticos
+
+NATIVE TEXT. PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                        296
+
+Resumen anual de retenc:                                                                                                                              Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Perceptores no residentes
+
+Detalle
+Pais                       NIF                        Percaptor                 Renta                     Base                      Tipo                       Retención
+FR                         FASYNO0002             PERCEPTOR A          CÁNONES                22.000,00                 19%                        4.180,00
+DE                         DESYNOCONOS            PERCEPTOR B          INTERESES              15.000,00                 0%                         0,00
+EXENTOS
+us                         USSYNOKM:4            | PERCEPTOR E          SERVICIOS              30.000.060                 10%                        3.000,00
+
+model 2936 complex 051 native - NO PRESENTABLE - datos totalmente simiéticos:                                                         NATIVE. TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+296
+
+Resumen anal de retenc
+
+no re
+
+dentes
+
+Faágina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Perceptores no residentes
+
+Detalle
+
+Pais
+
+NIF
+
+Percaptor
+
+Renta
+
+Base
+
+Tipo
+
+Retención
+
+FR
+
+FASYMNO0002
+
+PERCEPTOR A
+
+CÁNONES
+
+22.000,00
+
+19%
+
+4.180,00
+
+DE
+
+DESYNOCODOS
+
+PERCEPTORB
+
+INTERESES
+
+15.000,00
+
+LS
+
+0,00
+
+EXENTOS
+
+Us
+
+USSYNONIN4
+
+PERCEFPTOR 6
+
+SERVICIOS
+
+30.000.00
+
+10%
+
+3.000,00
+
+co
+
+NN
+
+KO
+
+N
+
+NN
+
+yo
+
+model 296 compte:
+
+Dai
+
+alive - NO PRESENTABLE - datos totalmente sintéticos
+
+VATIVE TEXT PDF

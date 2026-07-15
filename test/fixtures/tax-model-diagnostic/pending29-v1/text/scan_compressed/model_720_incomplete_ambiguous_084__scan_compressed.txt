@@ -1,0 +1,92 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 720
+
+Pagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen informativo
+
+NIF                               120094921                                  Titular / entidad                    PERSONA SINTÉTICA 084
+Ejercicio                         2025                                                Periodo                                    ANUAL
+Tipo documental      SYNTHETIC INCOMPLETE O Estado esperado           REVIEW_OR_REJECT
+
+R_AMBIGUOUS COPY
+
+Totales
+Registros                                                                       1
+Categorías                                                                     CUENTAS
+
+N                                                                                                                                                 NATIVE TEXT PDF
+
+model 720 incomplete ambiguos 084 native— NO PRESENTABLE - datos totalmente sintéticos
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+720
+
+dere
+
+jero
+
+Pagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen informativo
+
+NIF
+
+120094921
+
+Titular / entidad
+
+PERSONA SINTÉTICA 084
+
+Ejercicio
+
+2025
+
+Periodo
+
+ANUAL
+
+Tipo documental
+
+SYNTHETIC INCOMPLETE O Estado esperado
+
+REVIEW_OR_REJECT
+
+R_AMBIGUOUS COPY
+
+Totales
+
+Registros
+
+1
+
+Categorías
+
+CUENTAS
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+7
+
+Moda
+
+incomplete ambigumus 084
+
+ative -NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT_PDF

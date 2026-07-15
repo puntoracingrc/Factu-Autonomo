@@ -2,7 +2,7 @@
 
 Versión del contrato: `1.0.0`  
 Catálogo: `fiscal-document-extractors.2026-07.v2`
-Revisión: 2026-07-14
+Revisión: 2026-07-15
 
 ## Regla de lectura
 
@@ -102,3 +102,11 @@ crean hechos. Las capturas PNG, JPG y WebP usan el mismo pipeline tras OCR local
 Todos conservan modelo, ejercicio, periodo, página, campo/casilla, método de
 lectura, confianza y estado de presentación aparente. Una plantilla, un
 borrador, una casilla a cero o una sección vacía no genera respuestas.
+
+## Corpus ampliado pending29-v1
+
+Las 29 familias que no estaban cubiertas exhaustivamente disponen ahora de
+116 casos semánticos y 348 variantes PDF: texto nativo, escaneo comprimido y
+captura girada. La validación reproducible, el inventario y los límites de
+seguridad están descritos en
+[`pending29-corpus-v1.md`](./pending29-corpus-v1.md).

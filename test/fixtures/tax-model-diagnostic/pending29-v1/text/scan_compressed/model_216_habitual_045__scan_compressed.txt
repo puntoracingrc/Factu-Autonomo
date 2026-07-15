@@ -1,0 +1,112 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+por no re          in          MT            nañente
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Retenciones de no residentes
+
+NIF                               12005085M                                 Titular / entidad                    PERSONA SINTÉTICA 045
+Ejercicio             2026                         Perlodo                   ar
+Tipo documental      SYNTHETIC_FILED COPY     Estado esperado          ACCEPT_ WITH_SYNTHETIC LIMITATION
+
+Rentas y retenciones
+
+Número de rentas                                        T
+
+Tipo de renta                                             CÁNONES
+País                                                               FRANCIA
+Base                                                              10.000,00
+Retención                                                       1.900,00
+Resultado                                                       1.500,00
+
+model 216 Rebitual 045 native - NO PRESENTARLE - datos infalmente simiéticos                                                   NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+216
+
+órntas o
+
+pórno re
+
+sin
+
+ecimient
+
+nanente
+
+a!
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Retenciones de no residentes
+
+NIF
+
+12005085M
+
+Titular / entidad
+
+PERSONA SINTÉTICA 045
+
+Ejercicio
+
+| 2026
+
+Periodo
+
+ar
+
+|  SYNTHETIC_FILED COPY
+
+ACCEPT_ WITH_SYNTHETIC LIMITATION
+
+Tipo documental
+
+Estado esperado
+
+Rentas y retenciones
+
+Número de rentas
+
+1
+
+Tipo de renta
+
+CÁNONES
+
+Pais
+
+FRANCIA
+
+10.000,00
+
+Retención
+
+1.200,00
+
+Resultado
+
+1.500,00
+
+co
+
+e
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+madal_216
+
+tebitual 045
+
+Aative - NO PRESENTABLE - datos infalmente simiéticos
+
+NATIVE TEXT PDF

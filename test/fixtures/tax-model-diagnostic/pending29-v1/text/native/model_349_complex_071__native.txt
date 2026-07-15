@@ -1,0 +1,72 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                             349
+Declaración recapitulativa de operaciones intracomunitarias                                                              Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen recapitulativo
+ NIF                     B21927660                         Titular / entidad   ENTIDAD SINTÉTICA 071 S.L.
+
+ Ejercicio               2026                              Periodo             3T
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Totales
+ Rectificaciones                                      SÍ
+ Operadores                                           3
+ Importe total                                        36.000,00
+
+
+
+
+                                                                                                          CO
+                                                                                          É            TI
+                                                                                        T
+                                                                                    S IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_349_complex_071__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                         349
+Declaración recapitulativa de operaciones intracomunitarias                                                                          Página 2
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Operadores intracomunitarios
+  Detalle
+NIF-IVA                      Operador                     Clave                Importe             Ejercicio rect.   Periodo rect.
+DE000000001                  PROVEEDOR ALEMÁN             A                    21.000,00
+PT000000002                  CLIENTE PORTUGUÉS            S                    18.500,00
+FR000000003                  CLIENTE RECTIFICADO          S                    -3.500,00           2025              4T
+
+
+
+
+                                                                                                        CO
+                                                                                               É     TI
+                                                                                             T
+                                                                                    S      IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_349_complex_071__native - NO PRESENTABLE - datos totalmente sintéticos                                                  NATIVE_TEXT_PDF
+

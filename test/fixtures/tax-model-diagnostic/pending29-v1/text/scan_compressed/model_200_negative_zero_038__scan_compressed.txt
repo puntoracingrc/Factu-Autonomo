@@ -1,0 +1,173 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                        200
+
+dades                                                                                                                                                           Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Identificación y actividad
+
+NIF                            B19314392                              Titular / entidad                  ENTIDAD SINTÉTICA 098 S.L.
+
+Ejercicio             | 2025                            Periodo                     ANUAL
+
+Tipo documental    | SYNTHETIC_FILED COPY     Estado esperado         ACCEPT_WITH_SYNTHETIC LIMITATION
+Entidad
+
+CNAE                                                                    7022
+
+Actividad principal                                                Consultoría empresarial
+
+Importe neto cifra de negocios                        90.000,00
+
+model_200 negativa zem 058 native - NO PRESENTABLE - datos intalmente sintéticos                                                         NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+200
+
+Impriner
+
+dades
+
+Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Identificación y actividad
+
+NIF
+
+ B19314392
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 038 S.L.
+
+Ejercicio
+
+2025
+
+Periodo
+
+ANUAL
+
+Tipo documental
+
+|  SYNTHETIC FILED COPY
+
+Estado esperado
+
+ACCEPT WITH _SYNTHETIC LIMITATION
+
+Entidad
+
+CNAE
+
+7022
+
+Actividad principal
+
+Consultoría empresarial
+
+Importe neto cifra de negocios
+
+90.000,00
+
+co
+
+O
+
+NN
+
+KO
+
+N
+
+NN
+
+yo
+
+modal_200
+
+epgativa zam 038
+
+1alive
+
+NO PRESENTABLE - datos intalmente sintéficos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 200
+
+dades                                                                                                                                                                                      Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Liquidación
+
+Resultado fiscal
+
+Resultado contable                                      22.000,00
+Base imponible                                          0,00
+Cueta integra                                             0,00
+Resultado                                                 0,00
+
+model 200 negative zem 058 native- NO PRESENTABLE - datos intalmente sintéticos                                                                                     NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+200
+
+Impiñesi
+
+dades
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Liquidación
+
+Resultado fiscal
+
+Resultado contable
+
+22.000,00
+
+000
+
+Base imponible
+
+Cueta integra
+
+0,00
+
+Resultado
+
+0,00
+
+co
+
+<<
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+MOD:
+
+2
+
+o
+
+negative zem 058
+
+1ative
+
+NO PRESENTABLE - datos intalmente sintéficos
+
+NATIVE TEXT PDF

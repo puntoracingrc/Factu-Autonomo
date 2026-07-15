@@ -1,0 +1,46 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                                                   TGSS-ACT-AUT
+Informe de actividades de trabajo autónomo                                                                                                Página 1
+
+
+                                                        FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Actividades comunicadas en trabajo autónomo
+ NIF                      12012091L                           Titular / entidad              PERSONA SINTÉTICA 107
+
+ Ejercicio                2026                                Periodo                        N/A
+
+ Tipo documental          SYNTHETIC_COMPLEMENTA               Estado esperado                ACCEPT_WITH_SYNTHETIC_LIMITATION
+                          RY_OR_MULTI_RECORD
+
+
+  Resumen
+ Fecha de emisión                                        11/07/2026
+ Actividades comunicadas                                 3
+
+
+  Actividades
+Código                                        Descripción                                  Inicio                         Estado
+6201                                          Programación informática                     01/01/2023                     ACTIVA
+4791                                          Comercio por Internet                        15/02/2026                     ACTIVA
+7022                                          Consultoría de gestión                       01/06/2024                     ACTIVA
+
+
+
+
+                                                                                                                        CO
+                                                                                                            É        TI
+                                                                                                          T
+                                                                                                 S      IN
+                                                                        T O
+                                                    M                 EN
+                                                C U
+                                   DO
+
+
+
+
+report_self_employed_activities_complex_107__native - NO PRESENTABLE - datos totalmente sintéticos                                 NATIVE_TEXT_PDF
+

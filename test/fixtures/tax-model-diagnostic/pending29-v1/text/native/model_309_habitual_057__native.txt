@@ -1,0 +1,42 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                               309
+IVA - liquidación no periódica                                                                                             Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  IVA no periódico
+ NIF                      12006441G                          Titular / entidad   PERSONA SINTÉTICA 057
+
+ Ejercicio                2026                               Periodo             3T
+
+ Tipo documental          SYNTHETIC_FILED_COPY               Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Operación
+ Supuesto                                              ADQUISICIÓN INTRACOMUNITARIA EN RECARGO DE EQUIVALENCIA
+ NIF-IVA proveedor                                     DE000000001
+ Base                                                  12.000,00
+ Tipo                                                  21%
+ Cuota                                                 2.520,00
+ Resultado                                             2.520,00
+
+
+
+
+                                                                                                            CO
+                                                                                            É            TI
+                                                                                          T
+                                                                                      S IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_309_habitual_057__native - NO PRESENTABLE - datos totalmente sintéticos                                       NATIVE_TEXT_PDF
+

@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "form_035_incomplete_ambiguous_004__scan_compressed",
+  "baseFixtureId": "form_035_incomplete_ambiguous_004",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_FORM_035",
+  "displayName": "035 - Registro censal de los regímenes especiales OSS/IOSS - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "CURRENT_AS_OF_EFFECTIVE_DATE",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "B16621930",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 004 S.L.",
+    "document.code": "035",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "oss.action": "ALTA",
+    "oss.regime": "[CAMPO PARCIALMENTE ILEGIBLE]",
+    "oss.effectiveDate": "[NO VISIBLE]"
+  },
+  "expectedQuestionMappings": {
+    "ECOMMERCE.OSS_IOSS_REGISTRATION": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "ACTUAL_OSS_IOSS_OPERATIONS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B16621930"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 004 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_FORM_035"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "035"
+    },
+    {
+      "fieldId": "oss.action",
+      "page": 1,
+      "label": "Tipo de declaración",
+      "value": "ALTA"
+    },
+    {
+      "fieldId": "oss.regime",
+      "page": 1,
+      "label": "Régimen",
+      "value": "[CAMPO PARCIALMENTE ILEGIBLE]"
+    },
+    {
+      "fieldId": "oss.effectiveDate",
+      "page": 1,
+      "label": "Fecha de efectos",
+      "value": "[NO VISIBLE]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "oss.regime",
+    "oss.effectiveDate"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G333.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/Ayuda/035.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/form_035_incomplete_ambiguous_004__scan_compressed.pdf",
+  "sha256": "e5d3d8063a3e82053ab5f69d8ae933e77669a8c234331ba8402fb6bb23df7b38"
+}

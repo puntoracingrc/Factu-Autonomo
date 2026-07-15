@@ -1,0 +1,43 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                              202
+Pago fraccionado del Impuesto sobre Sociedades                                                                            Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Pago fraccionado
+ NIF                     B19710342                          Titular / entidad   ENTIDAD SINTÉTICA 043 S.L.
+
+ Ejercicio               2026                               Periodo             3P
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA              Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Cálculo
+ Modalidad                                            ARTÍCULO 40.3 LIS
+ Base imponible del periodo                           420.000,00
+ Porcentaje                                           17%
+ Bonificaciones y retenciones                         8.500,00
+ Pagos anteriores                                     42.000,00
+ Pago fraccionado                                     20.900,00
+
+
+
+
+                                                                                                           CO
+                                                                                           É            TI
+                                                                                         T
+                                                                                     S IN
+                                                                     T O
+                                                  M                EN
+                                              C U
+                                 DO
+
+
+
+
+model_202_complex_043__native - NO PRESENTABLE - datos totalmente sintéticos                                       NATIVE_TEXT_PDF
+

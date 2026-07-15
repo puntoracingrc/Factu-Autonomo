@@ -1,0 +1,139 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Pago fraccionado de IRPF en estimación o
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+ME Ham0M6eSL O Miular/emidad -  PERSONASNTÉMCAOS
+Ejercicio    2026        Periodo      aro            _  —
+
+Tipo documental | SYNTHETIC_COMPLEMENTA | Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+AY_OR_MULTI_ RECORD                    |                                              |
+
+Cálculo por módulos
+
+Complementaria                                                        si
+
+Método                                                              ESTIMACIÓN OBJETIVA
+| Actividades                                                      |  Restaurante + comercio menor
+Rendimiento conjunto                                            43.600,00
+
+Retenciones soportadas                                          250,00
+
+Pagos anteriores                                                       1.400,00
+
+Resultado                                                                  94,00
+
+model 131 complex 015_ native . NO PRESENTABLE - datos totalmente aintélicos                                                                                                      NATIVE TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+131
+
+Pago fraccio
+
+do de IAPF en es
+
+Con objetiva
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+o —]]————
+
+120016951
+
+aa
+
+———
+
+Titular / entidad
+
+a —]—o—]—hra
+
+PERSONA SINTÉTICA 015
+
+—
+
+—
+
+Ejercicio
+
+2026
+
+Periodo
+
+a
+
+e
+
+lar _
+
+—
+
+Tipo documental
+
+| SYNTHETIC_COMPLEMENTA | Estado esperado
+
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+———
+
+RY_OR_MULTI_RECORD
+
+a —]——]
+
+__——oo
+
+E —
+
+—oÉ—
+
+Cálculo por módulos
+
+Complementaria
+
+si
+
+Método
+
+ESTIMACIÓN OBJETIVA
+
+Actividades
+
+Restaurante + comercio menor
+
+Rendimiento conjunto
+
+43.600,00
+
+Retenciones soportadas
+
+250,00
+
+Pagos anteriores
+
+1400.00
+
+Resultado
+
+94,00
+
+co
+
+O
+
+NN
+
+o
+
+UN
+
+,
+
+model 131 complex 015_ native . NO PRESENTABLE - datos totalmente aintélicos
+
+NATIVE TEXT_PDF

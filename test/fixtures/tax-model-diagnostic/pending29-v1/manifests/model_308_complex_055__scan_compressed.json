@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_308_complex_055__scan_compressed",
+  "baseFixtureId": "model_308_complex_055",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_308",
+  "displayName": "308 - Solicitud de devolución en supuestos especiales de IVA - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": "2T",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12006215P",
+    "taxpayer.name": "PERSONA SINTÉTICA 055",
+    "document.code": "308",
+    "document.fiscalYear": 2026,
+    "document.period": "2T",
+    "vat.refundReason": "RECARGO DE EQUIVALENCIA + ARTÍCULO 30 BIS",
+    "vat.operations": 8,
+    "vat.taxableBase": "18.500,00",
+    "vat.refundRequested": "2.380,00",
+    "bank.ibanMasked": "ES** **** **** **** 1299",
+    "filing.complementary": "SÍ"
+  },
+  "expectedQuestionMappings": {
+    "VAT.SPECIAL_REFUND_308": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12006215P"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 055"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_308"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "308"
+    },
+    {
+      "fieldId": "vat.refundReason",
+      "page": 1,
+      "label": "Motivo de devolución",
+      "value": "RECARGO DE EQUIVALENCIA + ARTÍCULO 30 BIS"
+    },
+    {
+      "fieldId": "vat.operations",
+      "page": 1,
+      "label": "Operaciones",
+      "value": 8
+    },
+    {
+      "fieldId": "vat.taxableBase",
+      "page": 1,
+      "label": "Base acreditada",
+      "value": "18.500,00"
+    },
+    {
+      "fieldId": "vat.refundRequested",
+      "page": 1,
+      "label": "Devolución solicitada",
+      "value": "2.380,00"
+    },
+    {
+      "fieldId": "bank.ibanMasked",
+      "page": 1,
+      "label": "Cuenta de abono",
+      "value": "ES** **** **** **** 1299"
+    },
+    {
+      "fieldId": "filing.complementary",
+      "page": 1,
+      "label": "Rectificativa",
+      "value": "SÍ"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G403.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_308_complex_055__scan_compressed.pdf",
+  "sha256": "c7c657a7f210f9d9131d08aa7b4069094f78fd67123b1af855a071fca0367187"
+}

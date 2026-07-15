@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_721_habitual_085__rotated_capture",
+  "baseFixtureId": "model_721_habitual_085",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_MODEL_721",
+  "displayName": "721 - Monedas virtuales situadas en el extranjero - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12009605V",
+    "taxpayer.name": "PERSONA SINTÉTICA 085",
+    "document.code": "721",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "foreignCrypto.records": 1,
+    "foreignCrypto.totalValue": "72.500,00",
+    "foreignCrypto.detail": [
+      [
+        "BTC",
+        "SINTÉTIC EXCHANGE AG",
+        "CH",
+        "TITULAR",
+        "1,25000000",
+        "72.500,00"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.FOREIGN_CRYPTO": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12009605V"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 085"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_721"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "721"
+    },
+    {
+      "fieldId": "foreignCrypto.records",
+      "page": 1,
+      "label": "Registros",
+      "value": 1
+    },
+    {
+      "fieldId": "foreignCrypto.totalValue",
+      "page": 1,
+      "label": "Valor total",
+      "value": "72.500,00"
+    },
+    {
+      "fieldId": "foreignCrypto.detail",
+      "page": 2,
+      "label": "Registros",
+      "value": [
+        [
+          "BTC",
+          "SINTÉTIC EXCHANGE AG",
+          "CH",
+          "TITULAR",
+          "1,25000000",
+          "72.500,00"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI55.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_721_habitual_085__rotated_capture.pdf",
+  "sha256": "83e6ce027340d16906e1953f91fc53602080c0a23c591ada26125d9f3e9980f1"
+}

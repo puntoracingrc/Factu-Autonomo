@@ -1,0 +1,40 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   151
+IRPF del régimen especial de personas desplazadas a España                                                                     Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Declaración del régimen especial
+ NIF                     12002034J                            Titular / entidad      PERSONA SINTÉTICA 018
+
+ Ejercicio               2026                                 Periodo                ANUAL
+
+ Tipo documental         SYNTHETIC_FILED_COPY                 Estado esperado        ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Rentas y liquidación
+ Régimen especial                                      ARTÍCULO 93 LIRPF
+ Rendimientos del trabajo                              45.000,00
+ Retenciones                                           10.800,00
+ Resultado                                             0,00
+
+
+
+
+                                                                                                                CO
+                                                                                                 É           TI
+                                                                                               T
+                                                                                       S     IN
+                                                                       T O
+                                                   M                 EN
+                                               C U
+                                  DO
+
+
+
+
+model_151_negative_zero_018__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+

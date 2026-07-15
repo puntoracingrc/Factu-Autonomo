@@ -1,0 +1,151 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_714_habitual_077__native",
+  "baseFixtureId": "model_714_habitual_077",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_MODEL_714",
+  "displayName": "714 - Impuesto sobre el Patrimonio - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12008701X",
+    "taxpayer.name": "PERSONA SINTÉTICA 077",
+    "document.code": "714",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "wealth.totalAssets": "1.070.000,00",
+    "wealth.debts": "200.000,00",
+    "wealth.taxableBase": "870.000,00",
+    "filing.result": "1.450,00",
+    "wealth.assets": [
+      [
+        "Inmuebles",
+        "650.000,00",
+        "200.000,00",
+        "450.000,00"
+      ],
+      [
+        "Cuentas y depósitos",
+        "180.000,00",
+        "0,00",
+        "180.000,00"
+      ],
+      [
+        "Valores",
+        "240.000,00",
+        "0,00",
+        "240.000,00"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.WEALTH_TAX": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12008701X"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 077"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_714"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "714"
+    },
+    {
+      "fieldId": "wealth.totalAssets",
+      "page": 1,
+      "label": "Patrimonio bruto",
+      "value": "1.070.000,00"
+    },
+    {
+      "fieldId": "wealth.debts",
+      "page": 1,
+      "label": "Deudas deducibles",
+      "value": "200.000,00"
+    },
+    {
+      "fieldId": "wealth.taxableBase",
+      "page": 1,
+      "label": "Base imponible",
+      "value": "870.000,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Cuota a ingresar",
+      "value": "1.450,00"
+    },
+    {
+      "fieldId": "wealth.assets",
+      "page": 2,
+      "label": "Bienes y derechos",
+      "value": [
+        [
+          "Inmuebles",
+          "650.000,00",
+          "200.000,00",
+          "450.000,00"
+        ],
+        [
+          "Cuentas y depósitos",
+          "180.000,00",
+          "0,00",
+          "180.000,00"
+        ],
+        [
+          "Valores",
+          "240.000,00",
+          "0,00",
+          "240.000,00"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G611.shtml",
+      "https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Manual/Practicos/Patrimonio/Patrimonio-2025/ManualPatrimonio2025_es_es.pdf"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_714_habitual_077__native.pdf",
+  "sha256": "51819df41b0d5c23496948edf975bdd541e06bbb9bffd7d6b7006939d1bad5a0"
+}

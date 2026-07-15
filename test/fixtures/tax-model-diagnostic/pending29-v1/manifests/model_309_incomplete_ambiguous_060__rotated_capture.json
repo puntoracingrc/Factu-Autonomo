@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_309_incomplete_ambiguous_060__rotated_capture",
+  "baseFixtureId": "model_309_incomplete_ambiguous_060",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_309",
+  "displayName": "309 - IVA - liquidación no periódica - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": "3T",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12006780K",
+    "taxpayer.name": "PERSONA SINTÉTICA 060",
+    "document.code": "309",
+    "document.fiscalYear": 2026,
+    "document.period": "3T",
+    "vat.nonPeriodicReason": "[CASILLA ILEGIBLE]",
+    "vat.taxableBase": "14.500,00",
+    "vat.taxDue": "3.045,00",
+    "filing.result": "[NO VISIBLE]"
+  },
+  "expectedQuestionMappings": {
+    "VAT.NON_PERIODIC_309": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12006780K"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 060"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_309"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "309"
+    },
+    {
+      "fieldId": "vat.nonPeriodicReason",
+      "page": 1,
+      "label": "Supuesto",
+      "value": "[CASILLA ILEGIBLE]"
+    },
+    {
+      "fieldId": "vat.taxableBase",
+      "page": 1,
+      "label": "Base",
+      "value": "14.500,00"
+    },
+    {
+      "fieldId": "vat.taxDue",
+      "page": 1,
+      "label": "Cuota",
+      "value": "3.045,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "[NO VISIBLE]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "vat.nonPeriodicReason",
+    "filing.result"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G404.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-309-iva-declaracion-liquidacion-periodica_/instrucciones-modelo-309.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_309_incomplete_ambiguous_060__rotated_capture.pdf",
+  "sha256": "203834819e3a88fa8b8efee2b1d0cd41c2b5a101ccd54310ac7f69d165548541"
+}

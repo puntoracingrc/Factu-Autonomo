@@ -1,0 +1,41 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                       308
+Solicitud de devolución en supuestos especiales de IVA                                                                             Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Solicitud de devolución
+ NIF                     12006328Y                         Titular / entidad                PERSONA SINTÉTICA 056
+
+ Ejercicio               2026                              Periodo                          2T
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Operación y devolución
+ Motivo de devolución                                 [NO VISIBLE]
+ Operaciones                                          4
+ Devolución solicitada                                1.250,00
+ Cuenta de abono                                      [PÁGINA AUSENTE]
+
+
+
+
+                                                                                                                       CO
+                                                                                                       É            TI
+                                                                                                     T
+                                                                                                 S IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_308_incomplete_ambiguous_056__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

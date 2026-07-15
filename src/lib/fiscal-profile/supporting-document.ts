@@ -47,7 +47,12 @@ export const SUPPORTING_DOCUMENT_STRUCTURES = [
     requiredPhrases: ["VIDA LABORAL"],
     requiredAnyPhraseGroups: [
       ["TESORERIA GENERAL DE LA SEGURIDAD SOCIAL", "SEGURIDAD SOCIAL"],
-      ["FECHA DE ALTA", "SITUACIONES", "DIAS EN ALTA"],
+      [
+        "FECHA DE ALTA",
+        "SITUACIONES",
+        "DIAS EN ALTA",
+        "DIAS TOTALES DE ALTA",
+      ],
     ],
     extractableFacts: [
       "socialSecurityPeriods",
@@ -116,8 +121,8 @@ export interface SupportingDocumentCandidate {
   documentType: SupportingDocumentType | "UNKNOWN";
   status: "RESOLVED" | "REVIEW_REQUIRED" | "BLOCKED";
   retaDuringYear?: "YES";
-  roiRegistered?: "YES";
-  landlordWithholdingExemption?: "YES";
+  roiRegistered?: "YES" | "NO";
+  landlordWithholdingExemption?: "YES" | "NO";
   warnings: string[];
 }
 
@@ -135,6 +140,56 @@ function matchesStructure(
   value: string,
   structure: SupportingDocumentStructure,
 ): boolean {
+  const aeatAuthority = value.includes(
+    "AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA",
+  );
+  const socialSecurityAuthority =
+    value.includes("TESORERIA GENERAL DE LA SEGURIDAD SOCIAL") ||
+    value.includes("SEGURIDAD SOCIAL");
+  const authorityMatches =
+    structure.authority === "AEAT" ? aeatAuthority : socialSecurityAuthority;
+
+  if (
+    authorityMatches &&
+    structure.documentType === "INTRACOMMUNITY_OPERATOR_CERTIFICATE" &&
+    (/(?:CERTIFICADO|CERTIFICACION) DE OPERADOR INTRACOMUNITARIO/.test(
+      value,
+    ) ||
+      (value.includes("SITUACION EN ROI") && value.includes("NIF-IVA")))
+  ) {
+    return true;
+  }
+  if (
+    authorityMatches &&
+    structure.documentType ===
+      "LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE" &&
+    (value.includes("CERTIFICADO DE EXONERACION DE RETENCION DEL ARRENDADOR") ||
+      value.includes("CERT-ARREND") ||
+      (value.includes("CERTIFICACION DE EXONERACION") &&
+        value.includes("ARRENDAMIENTO DE INMUEBLES")))
+  ) {
+    return true;
+  }
+  if (
+    authorityMatches &&
+    structure.documentType === "RETA_CURRENT_STATUS_REPORT" &&
+    (value.includes("TGSS-ACTUAL") ||
+      (value.includes("SITUACION LABORAL ACTUAL") &&
+        value.includes("DATOS DE AFILIACION") &&
+        mentionsReta(value)))
+  ) {
+    return true;
+  }
+  if (
+    authorityMatches &&
+    structure.documentType === "SELF_EMPLOYED_ACTIVITY_REPORT" &&
+    ((value.includes("INFORME DE ACTIVIDADES DE TRABAJO AUTONOMO") &&
+      value.includes("ACTIVIDADES COMUNICADAS")) ||
+      value.includes("TGSS-ACT-AUT") ||
+      value.includes("ACTIVIDADES COMUNICADAS EN TRABAJO AUTONOMO"))
+  ) {
+    return true;
+  }
   if (!structure.requiredPhrases.every((phrase) => value.includes(phrase))) {
     return false;
   }
@@ -154,21 +209,45 @@ function mentionsReta(value: string): boolean {
 function currentRetaIsActive(value: string): boolean {
   return (
     mentionsReta(value) &&
-    /(?:SITUACION(?: ACTUAL)?|ESTADO)\s*[:.\-]?\s*(?:DE\s+)?ALTA\b|\bEN SITUACION DE ALTA\b/.test(
+    /(?:SITUACION(?: ACTUAL)?|ESTADO)\s*[:.\-]?\s*(?:DE\s+)?ALTA\b|(?:SITUACION(?:ES)?(?: ACTUAL(?:ES)?)?|ESTADO)\s*[:.\-]?\s*(?:DE\s+)?(?:[^\n]{0,80}\b)?RETA\s+ALTA\b|\bRETA\s+ALTA\b|\bEN SITUACION DE ALTA\b/.test(
       value,
     )
   );
 }
 
 function positiveRoiCertificate(value: string): boolean {
-  return /(?:SE ENCUENTRA|FIGURA|CONSTA).{0,80}(?:INCLUIDO|INSCRITO|ALTA).{0,100}(?:REGISTRO DE OPERADORES INTRACOMUNITARIOS|ROI)|(?:REGISTRO DE OPERADORES INTRACOMUNITARIOS|ROI).{0,100}(?:INCLUIDO|INSCRITO|ALTA)/.test(
+  return /(?:SE ENCUENTRA|FIGURA|CONSTA).{0,80}(?:INCLUIDO|INSCRITO|ALTA).{0,100}(?:REGISTRO DE OPERADORES INTRACOMUNITARIOS|ROI)|(?:REGISTRO DE OPERADORES INTRACOMUNITARIOS|SITUACION EN ROI|ROI).{0,100}(?:INCLUIDO|INSCRITO|ALTA)/.test(
+    value,
+  );
+}
+
+function negativeRoiCertificate(value: string): boolean {
+  return /(?:REGISTRO DE OPERADORES INTRACOMUNITARIOS|SITUACION EN ROI|ROI).{0,80}(?:NO INSCRITO|NO INCLUIDO|BAJA ACTUAL)/.test(
     value,
   );
 }
 
 function positiveLandlordExemption(value: string): boolean {
-  return /(?:SE ENCUENTRA|FIGURA|CONSTA|ACREDITA).{0,100}(?:EXONERAD|EXENT).{0,100}(?:RETENCION|RETENER)|(?:EXONERACION|EXENTO).{0,100}(?:OBLIGACION DE RETENER|RETENCION)/.test(
+  return /(?:SE ENCUENTRA|FIGURA|CONSTA|ACREDITA).{0,100}(?:EXONERAD|EXENT).{0,100}(?:RETENCION|RETENER)|(?:EXONERACION DE RETENCION|EXONERACION|EXENTO).{0,100}(?:ACREDITADA|OBLIGACION DE RETENER|RETENCION)/.test(
     value,
+  );
+}
+
+function negativeLandlordExemption(value: string): boolean {
+  return /(?:EXONERACION DE RETENCION|EXONERACION).{0,80}(?:NO ACREDITADA|NO CONSTA|DENEGADA)/.test(
+    value,
+  );
+}
+
+function hasExplicitSelfEmployedActivity(value: string): boolean {
+  if (/SIN ACTIVIDADES ACTUALES|ACTIVIDADES COMUNICADAS\s*[:.\-]?\s*0\b/.test(value)) {
+    return false;
+  }
+  return (
+    /ACTIVIDADES COMUNICADAS\s*[:.\-]?\s*[1-9]\d*\b/.test(value) ||
+    /\b\d{4}\s+[A-Z][A-Z ]{4,}\s+\d{1,2}[/.\-]\d{1,2}[/.\-]20\d{2}\s+ACTIVA\b/.test(
+      value,
+    )
   );
 }
 
@@ -203,7 +282,10 @@ export function parseSupportingDocumentText(
   ) {
     facts.retaDuringYear = "YES";
   }
-  if (structure.documentType === "SELF_EMPLOYED_ACTIVITY_REPORT") {
+  if (
+    structure.documentType === "SELF_EMPLOYED_ACTIVITY_REPORT" &&
+    hasExplicitSelfEmployedActivity(value)
+  ) {
     facts.retaDuringYear = "YES";
   }
   if (
@@ -211,12 +293,23 @@ export function parseSupportingDocumentText(
     positiveRoiCertificate(value)
   ) {
     facts.roiRegistered = "YES";
+  } else if (
+    structure.documentType === "INTRACOMMUNITY_OPERATOR_CERTIFICATE" &&
+    negativeRoiCertificate(value)
+  ) {
+    facts.roiRegistered = "NO";
   }
   if (
     structure.documentType === "LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE" &&
     positiveLandlordExemption(value)
   ) {
     facts.landlordWithholdingExemption = "YES";
+  } else if (
+    structure.documentType ===
+      "LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE" &&
+    negativeLandlordExemption(value)
+  ) {
+    facts.landlordWithholdingExemption = "NO";
   }
   const hasFact = Object.keys(facts).length > 0;
 

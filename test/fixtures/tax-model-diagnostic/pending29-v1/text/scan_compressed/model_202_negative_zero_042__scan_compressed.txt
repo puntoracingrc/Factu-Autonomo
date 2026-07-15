@@ -1,0 +1,101 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Pago        ado del Impuesto                 5                                                                                                       Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF                            B19631159                              Titular / entidad                  ENTIDAD SINTÉTICA 042 S.L.
+
+Ejercicio             | 2026                            Periodo                     2P
+
+Tipo documental       | SYNTHETIC_FILED COPY        Estado esperado                ACCEPT WITH _SYNTHETIC LIMITATION
+Calculo
+
+Modalidad                                                 ARTÍCULO 40.2 LIS
+
+Cuota último periodo                                   0.00
+
+Pago fraccionado                                        0,00
+
+modal 202 negative zen 042 native- NO PRESENTABLE - datos intalmente sintéticos                                                                                     NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+202
+
+Pago
+
+ado del Impuesto
+
+Pagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF
+
+B19631159
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 042 S.L.
+
+Ejercicio
+
+2026
+
+Periodo
+
+2P
+
+SYNTHETIC_ FILED COPY
+
+ACCEPT WITH_SYNTHETIC LIMITATION
+
+Tipo documental
+
+Estado esperado
+
+Cálculo
+
+Modalidad
+
+ARTÍCULO 40.2 LIS
+
+0.00
+
+Cuota último periodo
+
+Pago fraccionado
+
+0,00
+
+co
+
+<<
+
+NN
+
+KO
+
+N
+
+NN
+
+yo
+
+Moda
+
+2
+
+o
+
+02 negative zen 042
+
+native
+
+NO PRESENTABLE - datos totalmente sinteficos
+
+NATIVE TEXT_FDF

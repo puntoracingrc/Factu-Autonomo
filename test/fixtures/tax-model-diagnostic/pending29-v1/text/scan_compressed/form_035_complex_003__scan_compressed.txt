@@ -1,0 +1,180 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                0   5
+
+Registr      al      regimenes      i             i                                                                                       Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Identificación y opción censal
+
+NIF                            B16542748                              Titular / entidad                  ENTIDAD SINTÉTICA 003 S.L.
+Ejercicio                         2026                                                Periodo                                    N/A
+Tipo documental           SYNTHETIC_COMPLEMENTA Estado esperado                    ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Registro OSS1055
+
+Tipo de declaración                                     MODIFICACIÓN
+
+Régimen                                              RÉGIMEN DE IMPORTACIÓN - INTERMEDIARIO
+Estado miembro de identificación                    ESPAÑA
+
+Fecha de efectos                                         1509/2026
+
+Número 1055                                             IM2765Y NODOS
+
+NIF del intermediario                                    BA3854240
+
+form 035 complex 003 mabve- NO PAESENTABLE - delos totalmente eimisticos                                                                                              NATIVE. TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+035
+
+Registr
+
+de
+
+regimenes
+
+pe
+
+Pagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Identificación y opción censal
+
+NIF
+
+B16542748
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 003 S.L.
+
+2026
+
+Periodo
+
+N/A
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Registro OSS1055
+
+Tipo de declaración
+
+MODIFICACIÓN
+
+Régimen
+
+RÉGIMEN DE IMPORTACIÓN -
+
+INTERMEDIARIO
+
+Estado miembro de identificación
+
+ESPAÑA
+
+Fecha de efectos
+
+1509/2026
+
+Número 1055
+
+IM2765YNOCO8S
+
+NIF del intermediario
+
+Ba3854240
+
+co
+
+e
+
+NN
+
+XO
+
+N
+
+NN
+
+yo
+
+form 035 comp
+
+003
+
+nabve - NO PRESENTABLE - datos totabmente sinléticos
+
+NATIVE TEXT_PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 035
+
+05 regimenes              5                                                                                                     Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Información complementaria
+
+Datos adicionales
+Establecimientos permanentes                        FRANCIA; PORTUGAL
+Registros anteriores                                    DE + NL
+
+form 035 complex 003 nabve- HOC PAESENTABLE - datos totalmente simeticos                                                                                                   NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+035
+
+Regis
+
+egimanes
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Información complementaria
+
+Datos adicionales
+
+Establecimientos permanentes
+
+FRANCIA; PORTUGAL
+
+DE / NL
+
+Registros anteriores
+
+co
+
+<
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+torm
+
+95 complex 003
+
+nabve
+
+NE PRESENTABLE - datos totalmente siniéticos
+
+NATIVE TEXT PDF

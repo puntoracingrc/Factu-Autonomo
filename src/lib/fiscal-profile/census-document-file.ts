@@ -2,7 +2,12 @@ export const MAX_CENSUS_DOCUMENT_BYTES = 8 * 1024 * 1024;
 const MAX_CENSUS_DOCUMENT_PAGES = 80;
 const MAX_CENSUS_DOCUMENT_TEXT_CHARS = 250_000;
 const MAX_CENSUS_DOCUMENT_OCR_PAGES = 12;
-const MAX_CENSUS_DOCUMENT_CANVAS_EDGE = 2_200;
+// Los impresos de AEAT colocan a menudo el código y el título en tipografía
+// pequeña. A 144-180 ppp las variantes comprimidas pueden conservar importes
+// pero perder precisamente esa cabecera, lo que impide clasificarlas con
+// seguridad. El límite sigue siendo por página y el canvas se libera antes de
+// pasar a la siguiente.
+const MAX_CENSUS_DOCUMENT_CANVAS_EDGE = 3_600;
 
 type PdfjsWorkerGlobal = typeof globalThis & {
   pdfjsWorker?: unknown;
@@ -208,7 +213,7 @@ export async function readCensusDocumentPages(
           ? PSM.SPARSE_TEXT
           : PSM.AUTO,
         preserve_interword_spaces: "1",
-        user_defined_dpi: "180",
+        user_defined_dpi: "300",
       });
 
       const ocrPages: CensusDocumentPageText[] = [];
@@ -222,7 +227,7 @@ export async function readCensusDocumentPages(
         const page = await document.getPage(pageNumber);
         const unitViewport = page.getViewport({ scale: 1 });
         const scale = Math.min(
-          2,
+          4,
           MAX_CENSUS_DOCUMENT_CANVAS_EDGE /
             Math.max(unitViewport.width, unitViewport.height),
         );
@@ -243,7 +248,7 @@ export async function readCensusDocumentPages(
         await page.render({ canvasContext: context, viewport }).promise;
         const recognized = await worker.recognize(
           canvas,
-          { rotateAuto: false },
+          { rotateAuto: true },
           { text: true },
         );
         const pageText = recognized.data.text.trim();

@@ -1,0 +1,221 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                        369
+
+anilla únic:                                                                                                                      Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación OSS/IOSS
+
+NIF                            B2e2244420                              Titular / entidad                  ENTIDAD SINTÉTICA 075 S.L.
+Ejercicio                         2026                                                Periodo                                    ar
+Tipo documental           SYNTHETIC COMPLEMENTA Estado esperado                    ACCEPT WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Régimen y totales
+
+Régimen                                                RÉGIMEN DE LA UNIÓN
+Estados de consumo                                   4
+
+Correcciones                                                  si
+
+IVA total                                                   14.000,00
+
+model 369 complex 075 nalive - NO PRESENTABLE - daíns totalmente sintéticos:                                                                    NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+369
+
+IA d
+
+me
+
+anilla únic:
+
+Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación OSS/IOSS
+
+NIF
+
+B22244420
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 075 S.L.
+
+Ejercicio
+
+2026
+
+Periodo
+
+ar
+
+Tipo documental
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+AY _OR_MULTI_RECORD
+
+Régimen y totales
+
+Régimen
+
+RÉGIMEN DE LA UNIÓN
+
+Estados de consumo
+
+4
+
+Comecciones
+
+si
+
+IVA total
+
+14.000,00
+
+co
+
+O
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+model 369 complex 076
+
+native - NO PRESENTABLE - dados totalmente sintéticos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 369
+
+IVA de los regimene            lla única £                                                                                                                Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operaciones por Estado miembro
+
+Detalle
+
+Pais                                      Operación                              Base                                     Tipo                                      Cuota
+
+FR                                              VENTAS A DISTANCIA DE          32.000,00                                   20%                                            6.400,00
+BIENES
+
+DE                              SERVICIOS DIGITALES          24.000.00                        19%                             4.560,00
+
+IT                                      VENTAS A DISTANCIA DE        18.000,00                            22%                                   2.960,00
+BIENES
+
+PT                                         CORRECCIÓN PERIODO           -4,000,00                                23%                                       -920,00
+ANTERIOR
+
+madel_369 complex 075 malive- MO PRESENTABLE - datos totalmente simiéticos:                                                           NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+369
+
+IVA de los regimen
+
+lla única €
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operaciones por Estado miembro
+
+Detalle
+
+Pais
+
+Operación
+
+Base
+
+Tipo
+
+Cuota
+
+FR
+
+VENTAS A DISTANCIA DE
+
+32.000,00
+
+20%
+
+6.400,00
+
+BIENES
+
+DE
+
+SERVICIOS DIGITALES
+
+24.000.00
+
+19%
+
+4 560. 00
+
+IT
+
+VENTAS A DISTANCIA DE
+
+18.000,00
+
+22%
+
+2.960,00
+
+BIENES
+
+PT
+
+CORRECCIÓN PERIODO
+
+-4,000,00
+
+23%
+
+-920,00
+
+ANTERIOR
+
+co
+
+O
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+madel_369 complex 075
+
+native - NO PRESENTABLE - datos totalmente simiéficos
+
+NATIVE TEXT PI
+
+F
+
+-

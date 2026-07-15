@@ -1,0 +1,98 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Certificado de operador intracomunitario
+
+CERT-ROI
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de operador intracomunitario
+
+NIF                              12012430                                 Titular / entidad                    PERSONA SINTÉTICA 110
+Ejercicio                   2026                                     Periodo                            NA
+Tipo documental       SYNTHETIC FILED COPY       Estado esperado              ACCEPT WITH_SYNTHETIC LIMITATION
+
+Datos certificados
+
+Fecha de expedición                                    10/07/2026
+Situación en ROI                                         NO INSCRITO
+csv                                                        CSV-SYN-ROI-0002
+
+cert ri negafve zaro 110 native. NC PRESENTABLE - datos totalments siméticos
+
+NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+CERT-ROI
+
+Certificado de operador intrecomunitario
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de operador intracomunitario
+
+NIF
+
+12012430
+
+Titular / entidad
+
+PERSONA SINTÉTICA 110
+
+Ejercicio
+
+2026
+
+Periodo
+
+N/A
+
+Tipo documental
+
+|  SYNTHETIC_FILED COPY
+
+Estado esperado
+
+ACCEPT WITH_SYNTHETIC LIMITATION
+
+Datos certificados
+
+Fecha de expedición
+
+10/07/2026
+
+Situación en ROI
+
+NC INSCRITO
+
+[==
+
+CSv-SYN-ROI-0002
+
+co
+
+<<
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+cer rr negative
+
+r
+
+1
+
+native - NO PRESENTABLE - datos iotalments siméticos
+
+NATIVE TEXT PDF

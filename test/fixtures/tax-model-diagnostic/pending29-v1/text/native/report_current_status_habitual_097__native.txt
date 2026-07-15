@@ -1,0 +1,41 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                                                   TGSS-ACTUAL
+Informe de situación actual del trabajador                                                                                             Página 1
+
+
+                                                        FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Situación laboral actual
+ NIF                      12010961Q                           Titular / entidad             PERSONA SINTÉTICA 097
+
+ Ejercicio                2026                                Periodo                       N/A
+
+ Tipo documental          SYNTHETIC_FILED_COPY                Estado esperado               ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Datos de afiliación
+ Fecha de emisión                                        10/07/2026
+ NUSS/NAF                                                28/00000097/99
+ Régimen                                                 RETA
+ Situación actual                                        ALTA
+ Fecha de alta                                           01/03/2024
+
+
+
+
+                                                                                                                       CO
+                                                                                                       É            TI
+                                                                                                     T
+                                                                                              S    IN
+                                                                        T O
+                                                     M                EN
+                                                 C U
+                                   DO
+
+
+
+
+report_current_status_habitual_097__native - NO PRESENTABLE - datos totalmente sintéticos                                       NATIVE_TEXT_PDF
+

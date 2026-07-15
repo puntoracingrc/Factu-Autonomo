@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_180_incomplete_ambiguous_024__rotated_capture",
+  "baseFixtureId": "model_180_incomplete_ambiguous_024",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_180",
+  "displayName": "180 - Resumen anual de retenciones por arrendamiento de inmuebles urbanos - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "B18205732",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 024 S.L.",
+    "document.code": "180",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "rent.recipients": 2,
+    "rent.totalBase": "26.400,00",
+    "rent.totalWithholding": "5.016,00"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.RENT": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B18205732"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 024 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_180"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "180"
+    },
+    {
+      "fieldId": "rent.recipients",
+      "page": 1,
+      "label": "Perceptores",
+      "value": 2
+    },
+    {
+      "fieldId": "rent.totalBase",
+      "page": 1,
+      "label": "Base total",
+      "value": "26.400,00"
+    },
+    {
+      "fieldId": "rent.totalWithholding",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "5.016,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/retenciones-ingresos-cuenta/modelo-180.html",
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI00.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_180_incomplete_ambiguous_024__rotated_capture.pdf",
+  "sha256": "5c35fa7764325d74ff47b67ae4e9cdb73c0c6d8d20a554956a3089ee7f56af56"
+}

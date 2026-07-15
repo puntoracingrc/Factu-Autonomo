@@ -1,0 +1,141 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 151
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Declaración del régimen especial
+
+NIF                    120021478                       Titular / entidad            | PERSONA SINTÉTICA 019
+Ejercicio               2026                             Periodo                    ANUAL
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Tipo documental SYNTHETIC COMPLEMENTA Estado esperado
+AY_OR_MULTI_RECORD
+
+Rentas y liquidación
+
+Régimen especial                                                ARTÍCULO 93 LIAPE
+Rendimientos del trabajo                                         180,000.00
+Ganancias patrimoniales                                         22.000,00
+
+Rentas extranjeras declaradas                               31.000,00
+Retenciones                                                              48.000,00
+Resultado                                                                  7.200,00
+
+model_151_ complex 019_ native - MO PRESENTABLE - datos totalmente sintéticos                                                                                      NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+151
+
+APF
+
+1 régimo:
+
+esp
+
+ana
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Declaración del régimen especial
+
+Titular / entidad
+
+| 120021478
+
+—]
+
+——-L—]—]
+
+] PERSONA SINTÉTICA 019
+
+———
+
+=——
+
+| Ejercicio
+
+—
+
+2026
+
+sobren
+
+TE
+
+—
+
+—
+
+| ANUAL
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA | Estado esperado
+
+| ACCEPT WITH_SYNTHETIC_LIMITATION
+
+——] []s a] fwQÓóÓNÑstsarlxm.. 2
+
+TRE
+
+DL
+
+_——
+
+—
+
+o
+
+—a—
+
+——
+
+—]Ij-—
+
+Rentas y liquidación
+
+Régimen especial
+
+ARTÍCULO 93 LIAPE
+
+Rendimientos del trabajo
+
+180.000.00
+
+Ganancias patrimoniales
+
+22.000,00
+
+Rentas extranjeras declaradas
+
+31.000,00
+
+Retenciones
+
+48.000.00
+
+Resultado
+
+7.200,00
+
+CO
+
+e
+
+N
+
+KO
+
+N
+
+NN
+
+y
+
+model_151_ complex 019_ native - MO PRESENTABLE - datos totalmente sintéticos
+
+MATIVE TEXT_PDF

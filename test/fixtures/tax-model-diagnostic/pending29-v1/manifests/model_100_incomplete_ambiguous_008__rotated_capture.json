@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_100_incomplete_ambiguous_008__rotated_capture",
+  "baseFixtureId": "model_100_incomplete_ambiguous_008",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_100",
+  "displayName": "100 - Impuesto sobre la Renta de las Personas Físicas - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12000904X",
+    "taxpayer.name": "PERSONA SINTÉTICA 008",
+    "document.code": "100",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "irpf.filingType": "INDIVIDUAL",
+    "irpf.result": "[PÁGINA FINAL AUSENTE]",
+    "irpf.activities": [
+      [
+        "A01",
+        "[ANEXO DE ACTIVIDAD AUSENTE]",
+        "[NO VISIBLE]",
+        "[NO VISIBLE]",
+        "[NO VISIBLE]",
+        "[NO VISIBLE]",
+        "[NO VISIBLE]"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "IRPF.PRIOR_ANNUAL_FILING": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12000904X"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 008"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_100"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "100"
+    },
+    {
+      "fieldId": "irpf.filingType",
+      "page": 1,
+      "label": "Tipo de declaración",
+      "value": "INDIVIDUAL"
+    },
+    {
+      "fieldId": "irpf.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "[PÁGINA FINAL AUSENTE]"
+    },
+    {
+      "fieldId": "irpf.activities",
+      "page": 1,
+      "label": "Actividades",
+      "value": [
+        [
+          "A01",
+          "[ANEXO DE ACTIVIDAD AUSENTE]",
+          "[NO VISIBLE]",
+          "[NO VISIBLE]",
+          "[NO VISIBLE]",
+          "[NO VISIBLE]",
+          "[NO VISIBLE]"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "irpf.result"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G229.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/Ayuda/25Presentacion/100.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_100_incomplete_ambiguous_008__rotated_capture.pdf",
+  "sha256": "7dbb89451fdc04dfb815b933aa58cc4ee4ffe1b63ffe995b6052026bbde28bb9"
+}

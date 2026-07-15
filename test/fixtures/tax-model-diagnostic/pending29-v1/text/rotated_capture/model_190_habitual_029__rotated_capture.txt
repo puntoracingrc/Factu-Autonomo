@@ -1,0 +1,170 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                       190
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen anual
+
+NIF            B18601682             Titular / entidad        ENTIDAD SINTÉTICA 029 s
+
+|  Ejercicio                           2025                                                     Periodo                                        ANUAL
+
+| Tipo documental       y  SYNTHETIC_FILED_COPY          Estado esperado                L | ACCEPT. _WITH_SYNTHETIC LIMITATION
+Totales
+
+_Perceptores                       2
+
+ Percepciones                                                                      52.000,00
+Retenciones                                                                        5.550,00
+
+model_190 nabitual_029_ native - NO PRESENTABLE - datos totalmente sintéticos                                                                                                 NATIVE_TEXT_FDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+190
+
+al de
+
+trab
+
+= e
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen anual
+
+B18601682
+
+Titular / entidad
+
+——[2——I
+
+ENTIDAD SINTÉTICA 029 si
+
+| Ejercicio
+
+[————]—
+
+2025
+
+— ———
+
+ANUAL
+
+Tipo documental
+
+| SYNTHETIC_FILED_COPY
+
+Estado esperado
+
+—| ACCEPT_WITH_SYNTHETIC L LIMITATION
+
+Totales
+
+Perceptores
+
+ Percepciones
+
+52.000,00
+
+Retenciones
+
+5.550,00
+
+co
+
+N
+
+Ne
+
+e.
+
+N
+
+NN
+
+os
+
+model 190 habitual 029 native- NÓ PRESENTASLE - datos totalmente sintéticos
+
+NATIVE_TEXT_FDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                  190
+
+A              Ide retenc     > del trabajo y                      cas                                                                                          Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Perceptores
+
+Detalle por clave y subciave
+MF Permptor Clave      — Subelave       Percepción      Retención
+ 30000028W                       TRABAJADOR UNO          A                                     o"                          28.000,00              :            3.100,00
+31000029P TRABAJADOR DOS          A                                     [1]                                   “24.000,00                         2.450,00
+
+medal _190 habitual 029 native - NO PRESENTABLE - datos totalmente sintéticos                                                                                                             MATIVE_TEXT_POF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+190
+
+[e
+
+del trabajo y
+
+Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Perceptores
+
+Detalle por clave y subciave
+
+NIF
+
+Subciave
+
+Retención
+
+Perceptor
+
+— Clave
+
+Percepción
+
+E      --n
+
+TRABAJADOR UNO
+
+ol
+
+28.000,00
+
+3.100,00
+
+31 a00029P
+
+1]
+
+24.000,00
+
+ TRABAJADOR DOS
+
+[2.450,00
+
+co
+
+EN
+
+Ne
+
+o
+
+UN
+
+,
+
+medal _190 habitual 029 native - NO PRESENTABLE - datos totalmente sintéticos
+
+MATIVE_TEXT_PDF

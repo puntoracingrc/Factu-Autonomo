@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "cert_current_census_status_negative_zero_094__rotated_capture",
+  "baseFixtureId": "cert_current_census_status_negative_zero_094",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_CERT_CURRENT_CENSUS_STATUS",
+  "displayName": "CERT-CENSO - Certificado tributario de situación censal - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12010622E",
+    "taxpayer.name": "PERSONA SINTÉTICA 094",
+    "document.code": "CERT-CENSO",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "certificate.issueDate": "10/07/2026",
+    "census.status": "SIN ALTA EN ACTIVIDADES ECONÓMICAS",
+    "census.activities": "NINGUNA",
+    "census.periodicObligations": "NINGUNA",
+    "certificate.csv": "CSV-SYN-CENSO-0002"
+  },
+  "expectedQuestionMappings": {
+    "CENSUS.CURRENT_STATUS": "INACTIVE",
+    "CENSUS.PERIODIC_OBLIGATIONS": []
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12010622E"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 094"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_CERT_CURRENT_CENSUS_STATUS"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "CERT-CENSO"
+    },
+    {
+      "fieldId": "certificate.issueDate",
+      "page": 1,
+      "label": "Fecha de expedición",
+      "value": "10/07/2026"
+    },
+    {
+      "fieldId": "census.status",
+      "page": 1,
+      "label": "Situación",
+      "value": "SIN ALTA EN ACTIVIDADES ECONÓMICAS"
+    },
+    {
+      "fieldId": "census.activities",
+      "page": 1,
+      "label": "Actividades",
+      "value": "NINGUNA"
+    },
+    {
+      "fieldId": "census.periodicObligations",
+      "page": 1,
+      "label": "Obligaciones periódicas",
+      "value": "NINGUNA"
+    },
+    {
+      "fieldId": "certificate.csv",
+      "page": 1,
+      "label": "CSV",
+      "value": "CSV-SYN-CENSO-0002"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/certificaciones/censales/certificados-trib_____de-certificados-tributarios-situacion-censal/que-certifica.html",
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G313.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/cert_current_census_status_negative_zero_094__rotated_capture.pdf",
+  "sha256": "330f3cc5c69ac86285afa49bf23301873cd86ed781b02098bdfad0188b18d83b"
+}

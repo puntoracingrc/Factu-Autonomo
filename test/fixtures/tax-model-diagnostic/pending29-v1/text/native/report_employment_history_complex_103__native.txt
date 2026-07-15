@@ -1,0 +1,73 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                                                      TGSS-VIDA
+Informe de vida laboral                                                                                                                 Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen de vida laboral
+ NIF                      12011639G                         Titular / entidad              PERSONA SINTÉTICA 103
+
+ Ejercicio                2026                              Periodo                        N/A
+
+ Tipo documental          SYNTHETIC_COMPLEMENTA             Estado esperado                ACCEPT_WITH_SYNTHETIC_LIMITATION
+                          RY_OR_MULTI_RECORD
+
+
+  Resumen
+ Fecha de emisión                                      11/07/2026
+ Días totales de alta                                  3.861
+ Solapamiento                                          15/06/2021 - 30/06/2021
+
+
+
+
+                                                                                                                      CO
+                                                                                                      É            TI
+                                                                                                    T
+                                                                                               S  IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+report_employment_history_complex_103__native - NO PRESENTABLE - datos totalmente sintéticos                                     NATIVE_TEXT_PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                                                  TGSS-VIDA
+Informe de vida laboral                                                                                                             Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Situaciones de alta y baja
+  Periodos
+Régimen                             Empresa/situación                  Alta                        Baja             Días
+GENERAL                             EMPRESA A                          01/01/2016                  31/12/2019       1.461
+RETA                                TRABAJO AUTÓNOMO                   01/01/2020                  30/06/2021       547
+GENERAL                             EMPRESA B                          15/06/2021                  31/12/2022       565
+RETA                                TRABAJO AUTÓNOMO                   01/01/2023                                   1.288
+
+
+
+
+                                                                                                                   CO
+                                                                                                    É           TI
+                                                                                                  T
+                                                                                               SIN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+report_employment_history_complex_103__native - NO PRESENTABLE - datos totalmente sintéticos                                 NATIVE_TEXT_PDF
+

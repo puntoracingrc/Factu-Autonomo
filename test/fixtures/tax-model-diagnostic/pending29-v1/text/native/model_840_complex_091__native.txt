@@ -1,0 +1,76 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                      840
+Declaración de alta, baja o variación en el IAE                                                                                   Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Declaración de IAE
+ NIF                     B23511462                          Titular / entidad           ENTIDAD SINTÉTICA 091 S.L.
+
+ Ejercicio               2026                               Periodo                     N/A
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA              Estado esperado             ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Actividad y efectos
+ Tipo de declaración                                  VARIACIÓN
+ Grupo o epígrafe                                     765
+ Actividad                                            Espectáculos y servicios audiovisuales
+ Tipo de cuota                                        PROVINCIAL
+ Fecha de efectos                                     15/06/2026
+ Locales                                              3
+ Superficie computable                                365 m²
+
+
+
+
+                                                                                                                   CO
+                                                                                                   É            TI
+                                                                                                 T
+                                                                                           S   IN
+                                                                     T O
+                                                  M                EN
+                                              C U
+                                 DO
+
+
+
+
+model_840_complex_091__native - NO PRESENTABLE - datos totalmente sintéticos                                               NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                           840
+Declaración de alta, baja o variación en el IAE                                                                        Página 2
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Anexo de locales
+  Locales
+Dirección                                                 Municipio                                Superficie
+CL SINTÉTICA 1                                            MADRID                                   120 m²
+CL SINTÉTICA 2                                            ALCALÁ                                   95 m²
+AV SINTÉTICA 3                                            GETAFE                                   150 m²
+
+
+
+
+                                                                                                        CO
+                                                                                          É          TI
+                                                                                        T
+                                                                                  S   IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_840_complex_091__native - NO PRESENTABLE - datos totalmente sintéticos                                    NATIVE_TEXT_PDF
+

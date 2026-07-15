@@ -139,6 +139,18 @@ export function classifyFiscalDocumentText(
     return resolved("AEAT_OBLIGATIONS_VIEW", 0.96);
   }
 
+  // Los certificados de apoyo tienen marcas cerradas propias. Se comprueban
+  // antes que los modelos porque el OCR puede convertir ruido de su cabecera
+  // en un número de tres cifras aparentemente válido.
+  const supporting = parseSupportingDocumentText(bounded);
+  if (supporting.documentType !== "UNKNOWN") {
+    return resolved(
+      SUPPORTING_TYPE_MAP[supporting.documentType],
+      supporting.status === "RESOLVED" ? 0.94 : 0.8,
+      supporting.warnings,
+    );
+  }
+
   const taxForm = parseAeatTaxFormText(bounded);
   if (taxForm.modelCode !== "UNKNOWN") {
     return resolved(
@@ -153,15 +165,6 @@ export function classifyFiscalDocumentText(
   }
   if (screenshotKind === "OBLIGATIONS") {
     return resolved("AEAT_OBLIGATIONS_VIEW", 0.96);
-  }
-
-  const supporting = parseSupportingDocumentText(bounded);
-  if (supporting.documentType !== "UNKNOWN") {
-    return resolved(
-      SUPPORTING_TYPE_MAP[supporting.documentType],
-      supporting.status === "RESOLVED" ? 0.94 : 0.8,
-      supporting.warnings,
-    );
   }
 
   return blocked(

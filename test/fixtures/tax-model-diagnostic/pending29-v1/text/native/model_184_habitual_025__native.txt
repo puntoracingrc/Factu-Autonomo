@@ -1,0 +1,70 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   184
+Entidades en régimen de atribución de rentas                                                                                   Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Datos de la entidad
+ NIF                      B18284927                         Titular / entidad        ENTIDAD SINTÉTICA 025 S.L.
+
+ Ejercicio                2025                              Periodo                  ANUAL
+
+ Tipo documental          SYNTHETIC_FILED_COPY              Estado esperado          ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Entidad y actividad
+ Tipo de entidad                                       COMUNIDAD DE BIENES
+ Actividad                                             Alquiler de local comercial
+ Renta atribuible                                      44.000,00
+
+
+
+
+                                                                                                                CO
+                                                                                                 É           TI
+                                                                                               T
+                                                                                       S     IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_184_habitual_025__native - NO PRESENTABLE - datos totalmente sintéticos                                           NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                    184
+Entidades en régimen de atribución de rentas                                                                                    Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Miembros y rentas atribuidas
+  Detalle de miembros
+NIF                                 Miembro                            Participación       Renta           Retenciones
+21000025J                           COMUNERO UNO                       50,00%              22.000,00       1.800,00
+22000025L                           COMUNERO DOS                       50,00%              22.000,00       1.800,00
+
+
+
+
+                                                                                                          CO
+                                                                                            É          TI
+                                                                                          T
+                                                                                       SIN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_184_habitual_025__native - NO PRESENTABLE - datos totalmente sintéticos                                            NATIVE_TEXT_PDF
+

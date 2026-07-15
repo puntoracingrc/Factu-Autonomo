@@ -1,0 +1,130 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Retenciones de no residentes
+
+NIF                 120050854                 Titular fentidad          | PERSONA SINTÉTICA 045
+Ejercicio       2026              Periodo           aT
+
+Tipo documental SYNTHETIC_FILED COPY — | Estado esperado  | ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Rentas y retenciones
+Número de rentas                                     1
+
+Tipo de renta                                                           - CÁNONES
+
+País                                                                                                          FRANCIA
+
+Base                                                     10.000,00
+ Retención                                             1.900,00
+Resultado                                                    1.900,00
+
+model 216 habitual 045 native - NO PRESENTABLE - datos totalmente eintéticon                                                                                                             NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+216
+
+Relenciones de renta:
+
+da
+
+1
+
+O per
+
+Ne
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Retenciones de no residentes
+
+a ——
+
+120050854
+
+———]—
+
+Titular /entidad
+
+REP
+
+—
+
+  PERSONA SINTÉTICA 045
+
+———
+
+—Ñ
+
+2026
+
+EE
+
+Ejercicio
+
+1 Periodo
+
+—
+
+3
+
+—
+
+Tipo documental
+
+E
+
+—
+
+| SYNTHETIC_FILED_COPY     Estado esperado
+
+—
+
+| ACCEPT_WITW_SYNTHETIC_LIMITATION
+
+Rentas y retenciones
+
+1
+
+Número de rentas
+
+Tipo de renta
+
+CÁNONES
+
+País
+
+FRANCIA
+
+Base
+
+10.000.00
+
+Retención
+
+1.900.00
+
+Resultado
+
+1.900,00
+
+CO
+
+e
+
+NN
+
+O
+
+N
+
+NN
+
+y
+
+medel_216_habitual_ 045 native - NO PRESENTABLE - datos totalmente sintélicon
+
+NATIVE TEXT_POF

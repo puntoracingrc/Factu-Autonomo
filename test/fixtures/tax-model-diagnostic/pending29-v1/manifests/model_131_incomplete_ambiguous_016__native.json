@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_131_incomplete_ambiguous_016__native",
+  "baseFixtureId": "model_131_incomplete_ambiguous_016",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_131",
+  "displayName": "131 - Pago fraccionado de IRPF en estimación objetiva - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": "1T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12001808V",
+    "taxpayer.name": "PERSONA SINTÉTICA 016",
+    "document.code": "131",
+    "document.fiscalYear": 2026,
+    "document.period": "1T",
+    "irpf.method": "ESTIMACIÓN OBJETIVA",
+    "modules.activity": "[PÁGINA DE MÓDULOS AUSENTE]",
+    "filing.result": "[ILEGIBLE]"
+  },
+  "expectedQuestionMappings": {
+    "IRPF.METHOD": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12001808V"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 016"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_131"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "131"
+    },
+    {
+      "fieldId": "irpf.method",
+      "page": 1,
+      "label": "Método",
+      "value": "ESTIMACIÓN OBJETIVA"
+    },
+    {
+      "fieldId": "modules.activity",
+      "page": 1,
+      "label": "Actividad",
+      "value": "[PÁGINA DE MÓDULOS AUSENTE]"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "[ILEGIBLE]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "modules.activity",
+    "filing.result"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/tramitacion/G602.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/pagos-fraccionados/modelo-131.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_131_incomplete_ambiguous_016__native.pdf",
+  "sha256": "9247af925451b8e2519f68e72802b3d896d0736bf4cf8735cf1bc7d6ff6c71ed"
+}

@@ -1,0 +1,151 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Retenciones de rentas oblonidas por
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Retenciones de no residentes
+
+NIF                       12005311R                        Titular / entidad              PERSONA SINTÉTICA 047
+Periodo                   12
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+-AY_OR MULTI RECORD
+
+Rentas y retenciones
+
+Número de rentas                                                     4
+
+Tipos de renta                                                       Cánones: servielos: int
+Países                                                                      —FR:DE:US
+
+Rentas exentas                                       | 12.000,00
+
+Rentas sujetas                                                          35.000,00
+
+Retención                                                                  4.375.00
+
+Resultado                                                                “4375.00
+
+model_216 complex 047 _ native - NO PRESENTABLE - daros totalmente sintéticos                                                                                             NATIVE TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+216
+
+Retenciones de rentas oblonidas por
+
+ermi
+
+P
+
+ágina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+| Retenciones de no residentes
+
+LE
+
+12005311R
+
+Titular / entidad
+
+SEANTEND
+
+a a TT
+
+|  PERSONA SINTÉTICA 047
+
+——]
+
+———
+
+ Periodo
+
+Ejercicio
+
+[a
+
+—-
+
+e
+
+—
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA | Estado esperado
+
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+E
+
+—|
+
+AY _OR_MULTI RECORD
+
+—
+
+E —0—
+
+—.
+
+—
+
+a
+
+———
+
+—C|s——
+
+——
+
+Rentas y retenciones
+
+4
+
+Número de rentas
+
+Tipos de renta
+
+Ca
+
+semicios: ir
+
+Países
+
+FR; DE: US
+
+Rentas exentas
+
+12.000,00
+
+Rentas sujetas
+
+35.000.00
+
+Retención
+
+4375.00
+
+Resultado
+
+4375.00
+
+co
+
+e
+
+NN
+
+KO
+
+N
+
+NN
+
+y
+
+model_216 complex 047 _ native - NO PRESENTABLE - daros totalmente sintéticos
+
+NATIVE TEXT_PDF

@@ -1,0 +1,116 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "cert_current_census_status_incomplete_ambiguous_096__native",
+  "baseFixtureId": "cert_current_census_status_incomplete_ambiguous_096",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_CERT_CURRENT_CENSUS_STATUS",
+  "displayName": "CERT-CENSO - Certificado tributario de situación censal - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12010848H",
+    "taxpayer.name": "PERSONA SINTÉTICA 096",
+    "document.code": "CERT-CENSO",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "certificate.issueDate": "12/07/2026",
+    "census.status": "ALTA",
+    "census.activities": "[SEGUNDA PÁGINA AUSENTE]",
+    "census.periodicObligations": "[NO VISIBLE]",
+    "certificate.csv": "[RECORTADO]"
+  },
+  "expectedQuestionMappings": {
+    "CENSUS.CURRENT_STATUS": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12010848H"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 096"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_CERT_CURRENT_CENSUS_STATUS"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "CERT-CENSO"
+    },
+    {
+      "fieldId": "certificate.issueDate",
+      "page": 1,
+      "label": "Fecha de expedición",
+      "value": "12/07/2026"
+    },
+    {
+      "fieldId": "census.status",
+      "page": 1,
+      "label": "Situación",
+      "value": "ALTA"
+    },
+    {
+      "fieldId": "census.activities",
+      "page": 1,
+      "label": "Actividades",
+      "value": "[SEGUNDA PÁGINA AUSENTE]"
+    },
+    {
+      "fieldId": "census.periodicObligations",
+      "page": 1,
+      "label": "Obligaciones periódicas",
+      "value": "[NO VISIBLE]"
+    },
+    {
+      "fieldId": "certificate.csv",
+      "page": 1,
+      "label": "CSV",
+      "value": "[RECORTADO]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "census.activities",
+    "census.periodicObligations",
+    "certificate.csv"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/certificaciones/censales/certificados-trib_____de-certificados-tributarios-situacion-censal/que-certifica.html",
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G313.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/cert_current_census_status_incomplete_ambiguous_096__native.pdf",
+  "sha256": "374c5d1fa4cf1a8a12e98f71fa0cd949cd6931831788f469605c39b6c8419331"
+}

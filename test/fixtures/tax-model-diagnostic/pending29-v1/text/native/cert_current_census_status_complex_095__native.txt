@@ -1,0 +1,50 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   CERT-CENSO
+Certificado tributario de situación censal                                                                                                Página 1
+
+
+                                                       FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Certificación de situación censal
+ NIF                      12010735C                          Titular / entidad              PERSONA SINTÉTICA 095
+
+ Ejercicio                2026                               Periodo                        N/A
+
+ Tipo documental          SYNTHETIC_COMPLEMENTA              Estado esperado                ACCEPT_WITH_SYNTHETIC_LIMITATION
+                          RY_OR_MULTI_RECORD
+
+
+  Datos certificados
+ Fecha de expedición                                    11/07/2026
+ Situación                                              ALTA
+ Actividades                                            Arquitectura IAE 411; comercio electrónico IAE 665
+ Locales                                                2 locales afectos
+ IRPF                                                   DIRECTA NORMAL
+ IVA                                                    GENERAL + RECARGO DE EQUIVALENCIA
+ ROI                                                    ALTA DESDE 15/02/2026
+ SII                                                    INCLUIDO
+ Obligaciones periódicas                                130; 303 MENSUAL; 111; 115
+
+
+
+                                                                                                                        O
+ CSV                                                    CSV-SYN-CENSO-0003
+
+
+
+
+                                                                                                                    TI C
+                                                                                                     T É
+                                                                                                S  IN
+                                                                       T O
+                                                    M                EN
+                                                C U
+                                  DO
+
+
+
+
+cert_current_census_status_complex_095__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+

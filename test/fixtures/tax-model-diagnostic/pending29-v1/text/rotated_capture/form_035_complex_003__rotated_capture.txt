@@ -1,0 +1,181 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Registro censal de los regimor:
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Identificación y opción censal
+                                                                                                                                         | ENTIDAD SINTÉTICA 003 S.L.
+
+NIF       B16542748       Titular / entidad
+— 16         1   ———    is    a —
+Ejercicio   — 2026          Periodo       N/A                          |
+Tipo documental SYNTHETIC_COMPLEMENTA Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+| RY_OR MULTI RECORD
+
+Registro OSS10SS
+Tipo de declaración                                                  MODIFICACIÓN
+Régimen                                                                RÉGIMEN DE IMPORTACIÓN - INTERMEDIARIO
+Estado miembro de identificación ESPAÑA
+Fecha de efectos                                                       15/09/2026
+Número 1088                   1M276SYN00099
+NIF del intermediario                                                883854240
+
+torm_035_ complex 0D3_ natve - NO PRESENTABLE - datos totalmente sniéticos                                                                                                    NATIVE _TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+035
+
+Registro cens
+
+de los regimor:
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+| Identificación y opción censal
+
+| 816542748
+
+——
+
+Titular / entidad
+
+== —— E
+
+ENTIDAD SINTÉTICA 003 S.L.
+
+p————
+
+|
+
+- Ejercicio
+
+Ed
+
+| 2026
+
+Periodo
+
+N/A
+
+SYNTHETIC_COMPLEMENTA | Estado esperado
+
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Tipo documental
+
+aro eco €
+
+| RY_OR_MULTI_ RECORD
+
+—
+
+—
+
+—
+
+—
+
+——
+
+—
+
+——
+
+—u¡a"
+
+Registro OSS10SS
+
+Tipo de declaración
+
+MODIFICACIÓN
+
+RÉGIMEN DE IMPORTACIÓN - INTERMEDIARIO
+
+Régimen
+
+Estado miembro de identificación
+
+ESPAÑA
+
+Facha de electos
+
+1509/2026
+
+Número 10SS
+
+BA276S YN00099
+
+NIF del intermediario
+
+883854240
+
+CO
+
+Ne
+
+KO
+
+N
+
+NN
+
+y
+
+torm_035_ complex 0D3_ natve - NO PRESENTABLE - datos totalmente sniéticos
+
+NATIVE TEXT_PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Reg stro censal de los regimenes especialé
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Información complementaria
+
+Datos adicionales
+
+Establecimientos permanentes                           !  FRANCIA; PORTUGAL
+Registros anteriores                                                 DE /NL
+
+tom 035 complex 003 native - NO PRESENTABLE - delos totalmente sivóéfzos                                                                                             NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+035
+
+Reg stro censal de los regimenes especialé
+
+==
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Información complementaria
+
+Datos adicionales
+
+Establecimientos permanentes
+
+!  FRANCIA; PORTUGAL
+
+DE /NL
+
+Registros anteriores
+
+5
+
+E
+
+NN
+
+No
+
+UN
+
+Jo
+
+tor 035 complex 003 native - NO PRESENTABLE - delos totalmente sintóbzos
+
+NATIVE_TEXT_PDF

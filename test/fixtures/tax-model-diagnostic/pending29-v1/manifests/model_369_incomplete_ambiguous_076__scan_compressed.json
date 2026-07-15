@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_369_incomplete_ambiguous_076__scan_compressed",
+  "baseFixtureId": "model_369_incomplete_ambiguous_076",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_369",
+  "displayName": "369 - IVA de los regímenes de ventanilla única OSS/IOSS - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": "2T",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "B22323612",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 076 S.L.",
+    "document.code": "369",
+    "document.fiscalYear": 2026,
+    "document.period": "2T",
+    "oss.regime": "[NO VISIBLE]",
+    "oss.countries": 1,
+    "oss.totalVat": "[BORROSO]"
+  },
+  "expectedQuestionMappings": {
+    "ECOMMERCE.OSS_IOSS_OPERATIONS": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B22323612"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 076 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_369"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "369"
+    },
+    {
+      "fieldId": "oss.regime",
+      "page": 1,
+      "label": "Régimen",
+      "value": "[NO VISIBLE]"
+    },
+    {
+      "fieldId": "oss.countries",
+      "page": 1,
+      "label": "Estados de consumo",
+      "value": 1
+    },
+    {
+      "fieldId": "oss.totalVat",
+      "page": 1,
+      "label": "IVA total",
+      "value": "[BORROSO]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "oss.regime",
+    "oss.totalVat"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G420.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/iva/iva-comercio-electronico/presentacion-autoliquidaciones-periodicas-modelo-369.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_369_incomplete_ambiguous_076__scan_compressed.pdf",
+  "sha256": "2fc85c73f19952cf3b6adf65ca882a5a6116eae380ae4eea4185dda26ea12d9d"
+}

@@ -1,0 +1,70 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                              193
+Resumen anual de retenciones sobre capital mobiliario                                                                     Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen anual
+ NIF                      B18918441                         Titular / entidad   ENTIDAD SINTÉTICA 033 S.L.
+
+ Ejercicio                2025                              Periodo             ANUAL
+
+ Tipo documental          SYNTHETIC_FILED_COPY              Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Totales
+ Perceptores                                           1
+ Rendimientos                                          5.000,00
+ Retenciones                                           950,00
+
+
+
+
+                                                                                                           CO
+                                                                                            É           TI
+                                                                                          T
+                                                                                   S    IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_193_habitual_033__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   193
+Resumen anual de retenciones sobre capital mobiliario                                                                          Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Perceptores
+  Detalle
+NIF                           Perceptor                    Clave                Naturaleza          Importe    Retención
+35000033J                     PERCEPTOR                    B                    01                  5.000,00   950,00
+                              INTERESES
+
+
+
+
+                                                                                                         CO
+                                                                                                 É    TI
+                                                                                               T
+                                                                                     S       IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_193_habitual_033__native - NO PRESENTABLE - datos totalmente sintéticos                                           NATIVE_TEXT_PDF
+

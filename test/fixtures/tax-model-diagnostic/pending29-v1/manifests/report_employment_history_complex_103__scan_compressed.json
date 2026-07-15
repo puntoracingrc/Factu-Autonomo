@@ -1,0 +1,170 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "report_employment_history_complex_103__scan_compressed",
+  "baseFixtureId": "report_employment_history_complex_103",
+  "semanticScenario": "complex",
+  "documentType": "TGSS_REPORT_EMPLOYMENT_HISTORY",
+  "displayName": "TGSS-VIDA - Informe de vida laboral - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 2,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "HISTORICAL_AND_CURRENT",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12011639G",
+    "taxpayer.name": "PERSONA SINTÉTICA 103",
+    "document.code": "TGSS-VIDA",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "tgss.issueDate": "11/07/2026",
+    "tgss.totalDays": "3.861",
+    "tgss.overlap": "15/06/2021 - 30/06/2021",
+    "tgss.periods": [
+      [
+        "GENERAL",
+        "EMPRESA A",
+        "01/01/2016",
+        "31/12/2019",
+        "1.461"
+      ],
+      [
+        "RETA",
+        "TRABAJO AUTÓNOMO",
+        "01/01/2020",
+        "30/06/2021",
+        "547"
+      ],
+      [
+        "GENERAL",
+        "EMPRESA B",
+        "15/06/2021",
+        "31/12/2022",
+        "565"
+      ],
+      [
+        "RETA",
+        "TRABAJO AUTÓNOMO",
+        "01/01/2023",
+        "",
+        "1.288"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "IRPF.RETA_PERIODS": [
+      {
+        "from": "01/01/2020",
+        "to": "30/06/2021"
+      },
+      {
+        "from": "01/01/2023",
+        "to": null
+      }
+    ]
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12011639G"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 103"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "TGSS_REPORT_EMPLOYMENT_HISTORY"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "TGSS-VIDA"
+    },
+    {
+      "fieldId": "tgss.issueDate",
+      "page": 1,
+      "label": "Fecha de emisión",
+      "value": "11/07/2026"
+    },
+    {
+      "fieldId": "tgss.totalDays",
+      "page": 1,
+      "label": "Días totales de alta",
+      "value": "3.861"
+    },
+    {
+      "fieldId": "tgss.overlap",
+      "page": 1,
+      "label": "Solapamiento",
+      "value": "15/06/2021 - 30/06/2021"
+    },
+    {
+      "fieldId": "tgss.periods",
+      "page": 2,
+      "label": "Vida laboral",
+      "value": [
+        [
+          "GENERAL",
+          "EMPRESA A",
+          "01/01/2016",
+          "31/12/2019",
+          "1.461"
+        ],
+        [
+          "RETA",
+          "TRABAJO AUTÓNOMO",
+          "01/01/2020",
+          "30/06/2021",
+          "547"
+        ],
+        [
+          "GENERAL",
+          "EMPRESA B",
+          "15/06/2021",
+          "31/12/2022",
+          "565"
+        ],
+        [
+          "RETA",
+          "TRABAJO AUTÓNOMO",
+          "01/01/2023",
+          "",
+          "1.288"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "TGSS",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://portal.seg-social.gob.es/wps/portal/importass/importass/Categorias/Vida%2Blaboral%2Be%2Binformes/Informes%2Bsobre%2Btu%2Bsituacion%2Blaboral/Informe%2Bde%2Btu%2Bvida%2Blaboral"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/report_employment_history_complex_103__scan_compressed.pdf",
+  "sha256": "356a5fc9c6b6f3a1f7779d38322000e287a79b63ac8be92936b6b3577aea0d8e"
+}

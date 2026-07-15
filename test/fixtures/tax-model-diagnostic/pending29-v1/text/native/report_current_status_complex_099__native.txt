@@ -1,0 +1,42 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                                                  TGSS-ACTUAL
+Informe de situación actual del trabajador                                                                                            Página 1
+
+
+                                                       FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Situación laboral actual
+ NIF                      12011187N                          Titular / entidad             PERSONA SINTÉTICA 099
+
+ Ejercicio                2026                               Periodo                       N/A
+
+ Tipo documental          SYNTHETIC_COMPLEMENTA              Estado esperado               ACCEPT_WITH_SYNTHETIC_LIMITATION
+                          RY_OR_MULTI_RECORD
+
+
+  Datos de afiliación
+ Fecha de emisión                                       11/07/2026
+ NUSS/NAF                                               28/00000099/99
+ Situaciones actuales                                   RETA ALTA + RÉGIMEN GENERAL ALTA
+ Alta RETA                                              15/01/2023
+ Alta régimen general                                   01/06/2026
+
+
+
+
+                                                                                                                      CO
+                                                                                                      É            TI
+                                                                                                    T
+                                                                                             S    IN
+                                                                       T O
+                                                    M                EN
+                                                C U
+                                  DO
+
+
+
+
+report_current_status_complex_099__native - NO PRESENTABLE - datos totalmente sintéticos                                       NATIVE_TEXT_PDF
+

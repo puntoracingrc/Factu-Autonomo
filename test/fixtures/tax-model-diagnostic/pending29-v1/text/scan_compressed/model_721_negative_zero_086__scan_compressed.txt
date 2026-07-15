@@ -1,0 +1,154 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 721
+
+Monedas viruales situadas             ero                                                                                                           Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen informativo
+
+NIF                          120097185                           Titular / entidad                PERSONA SINTÉTICA 086
+Ejercicio             2025                            Periodo                     ANUAL
+
+Tipo documental        SYNTHETIC EMPTY DRAFT Estado esperado               REVIEW_OR_REJECT
+Totales
+
+Registros                                                       a
+
+Estado                                                           BORRADOR VACÍO
+
+model 721 negative zem 086 nativo - NO PRESENTABLE - datos intalmente emtéticos                                                     NATIVE _TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+721
+
+Monedas viriuales situadas
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen informativo
+
+NIF
+
+120097185
+
+Titular / entidad
+
+PERSONA SINTÉTICA 086
+
+Ejercicio
+
+| 2025
+
+Periodo
+
+ANUAL
+
+Tipo documental
+
+REVIEW_OR_REJECT
+
+SYNTHETIC EMPTY DRAFT Estado esperado
+
+Totales
+
+Registros
+
+a
+
+Estado
+
+BORRADOR VACÍO
+
+co
+
+e
+
+N
+
+xXO
+
+N
+
+NN
+
+yo
+
+model 72
+
+negative zamo 086
+
+native - NO PRESENTABLE
+
+datos iotalmente smtéticos
+
+NATIVE TEXT_PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 721
+
+Monedas virtuales situadas er          jero                                                                                                           Fagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Monedas virtuales en el extranjero
+
+Detalle
+Moneda                                  Custodio                               País                                        Condición                              Unidades                               Valor
+
+model_721 negative zero 066 native - NO PRESENTABLE - datos intalmente sintéticos                                                                                     NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+721
+
+Mon
+
+edas viiueles situadas
+
+ero
+
+Fagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Monedas virtuales en el extranjero
+
+Detalle
+
+Moneda
+
+Custodio
+
+País
+
+Condición
+
+Unidades
+
+Valor
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+model_724
+
+egative zero DEB
+
+tative
+
+NO PRESENTABLE
+
+datos intalmente sintéticos
+
+NATIVE TEXT_FPDF

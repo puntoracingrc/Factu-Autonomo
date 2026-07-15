@@ -1,0 +1,2095 @@
+{
+  "status": "VALIDATED_SYNTHETIC_CORPUS_EXTENSION",
+  "errors": [],
+  "warnings": [],
+  "results": [
+    {
+      "fixtureId": "form_035_habitual_001__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "form_035_habitual_001__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "form_035_habitual_001__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "form_035_negative_zero_002__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "form_035_negative_zero_002__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "form_035_negative_zero_002__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "form_035_complex_003__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "form_035_complex_003__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "form_035_complex_003__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "form_035_incomplete_ambiguous_004__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "form_035_incomplete_ambiguous_004__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "form_035_incomplete_ambiguous_004__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_100_habitual_005__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_100_habitual_005__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_100_habitual_005__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_100_negative_zero_006__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_100_negative_zero_006__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_100_negative_zero_006__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_100_complex_007__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_100_complex_007__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_100_complex_007__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_100_incomplete_ambiguous_008__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_100_incomplete_ambiguous_008__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_100_incomplete_ambiguous_008__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_123_habitual_009__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_123_habitual_009__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_123_habitual_009__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_123_negative_zero_010__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_123_negative_zero_010__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_123_negative_zero_010__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_123_complex_011__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_123_complex_011__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_123_complex_011__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_123_incomplete_ambiguous_012__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_123_incomplete_ambiguous_012__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_123_incomplete_ambiguous_012__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_131_habitual_013__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_131_habitual_013__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_131_habitual_013__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_131_negative_zero_014__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_131_negative_zero_014__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_131_negative_zero_014__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_131_complex_015__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_131_complex_015__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_131_complex_015__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_131_incomplete_ambiguous_016__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_131_incomplete_ambiguous_016__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_131_incomplete_ambiguous_016__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_151_habitual_017__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_151_habitual_017__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_151_habitual_017__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_151_negative_zero_018__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_151_negative_zero_018__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_151_negative_zero_018__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_151_complex_019__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_151_complex_019__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_151_complex_019__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_151_incomplete_ambiguous_020__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_151_incomplete_ambiguous_020__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_151_incomplete_ambiguous_020__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_180_habitual_021__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_180_habitual_021__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_180_habitual_021__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_180_negative_zero_022__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_180_negative_zero_022__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_180_negative_zero_022__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_180_complex_023__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_180_complex_023__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_180_complex_023__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_180_incomplete_ambiguous_024__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_180_incomplete_ambiguous_024__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_180_incomplete_ambiguous_024__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_184_habitual_025__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_184_habitual_025__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_184_habitual_025__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_184_negative_zero_026__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_184_negative_zero_026__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_184_negative_zero_026__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_184_complex_027__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_184_complex_027__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_184_complex_027__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_184_incomplete_ambiguous_028__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_184_incomplete_ambiguous_028__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_184_incomplete_ambiguous_028__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_190_habitual_029__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_190_habitual_029__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_190_habitual_029__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_190_negative_zero_030__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_190_negative_zero_030__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_190_negative_zero_030__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_190_complex_031__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_190_complex_031__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_190_complex_031__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_190_incomplete_ambiguous_032__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_190_incomplete_ambiguous_032__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_190_incomplete_ambiguous_032__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_193_habitual_033__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_193_habitual_033__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_193_habitual_033__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_193_negative_zero_034__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_193_negative_zero_034__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_193_negative_zero_034__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_193_complex_035__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_193_complex_035__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_193_complex_035__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_193_incomplete_ambiguous_036__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_193_incomplete_ambiguous_036__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_193_incomplete_ambiguous_036__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_200_habitual_037__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_200_habitual_037__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_200_habitual_037__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_200_negative_zero_038__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_200_negative_zero_038__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_200_negative_zero_038__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_200_complex_039__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_200_complex_039__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_200_complex_039__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_200_incomplete_ambiguous_040__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_200_incomplete_ambiguous_040__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_200_incomplete_ambiguous_040__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_202_habitual_041__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_202_habitual_041__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_202_habitual_041__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_202_negative_zero_042__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_202_negative_zero_042__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_202_negative_zero_042__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_202_complex_043__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_202_complex_043__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_202_complex_043__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_202_incomplete_ambiguous_044__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_202_incomplete_ambiguous_044__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_202_incomplete_ambiguous_044__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_216_habitual_045__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_216_habitual_045__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_216_habitual_045__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_216_negative_zero_046__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_216_negative_zero_046__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_216_negative_zero_046__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_216_complex_047__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_216_complex_047__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_216_complex_047__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_216_incomplete_ambiguous_048__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_216_incomplete_ambiguous_048__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_216_incomplete_ambiguous_048__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_296_habitual_049__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_296_habitual_049__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_296_habitual_049__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_296_negative_zero_050__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_296_negative_zero_050__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_296_negative_zero_050__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_296_complex_051__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_296_complex_051__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_296_complex_051__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_296_incomplete_ambiguous_052__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_296_incomplete_ambiguous_052__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_296_incomplete_ambiguous_052__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_308_habitual_053__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_308_habitual_053__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_308_habitual_053__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_308_negative_zero_054__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_308_negative_zero_054__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_308_negative_zero_054__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_308_complex_055__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_308_complex_055__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_308_complex_055__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_308_incomplete_ambiguous_056__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_308_incomplete_ambiguous_056__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_308_incomplete_ambiguous_056__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_309_habitual_057__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_309_habitual_057__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_309_habitual_057__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_309_negative_zero_058__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_309_negative_zero_058__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_309_negative_zero_058__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_309_complex_059__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_309_complex_059__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_309_complex_059__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_309_incomplete_ambiguous_060__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_309_incomplete_ambiguous_060__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_309_incomplete_ambiguous_060__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_341_habitual_061__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_341_habitual_061__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_341_habitual_061__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_341_negative_zero_062__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_341_negative_zero_062__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_341_negative_zero_062__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_341_complex_063__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_341_complex_063__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_341_complex_063__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_341_incomplete_ambiguous_064__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_341_incomplete_ambiguous_064__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_341_incomplete_ambiguous_064__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_347_habitual_065__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_347_habitual_065__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_347_habitual_065__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_347_negative_zero_066__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_347_negative_zero_066__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_347_negative_zero_066__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_347_complex_067__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_347_complex_067__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_347_complex_067__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_347_incomplete_ambiguous_068__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_347_incomplete_ambiguous_068__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_347_incomplete_ambiguous_068__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_349_habitual_069__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_349_habitual_069__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_349_habitual_069__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_349_negative_zero_070__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_349_negative_zero_070__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_349_negative_zero_070__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_349_complex_071__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_349_complex_071__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_349_complex_071__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_349_incomplete_ambiguous_072__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_349_incomplete_ambiguous_072__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_349_incomplete_ambiguous_072__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_369_habitual_073__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_369_habitual_073__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_369_habitual_073__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_369_negative_zero_074__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_369_negative_zero_074__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_369_negative_zero_074__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_369_complex_075__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_369_complex_075__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_369_complex_075__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_369_incomplete_ambiguous_076__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_369_incomplete_ambiguous_076__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_369_incomplete_ambiguous_076__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_714_habitual_077__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_714_habitual_077__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_714_habitual_077__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_714_negative_zero_078__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_714_negative_zero_078__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_714_negative_zero_078__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_714_complex_079__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_714_complex_079__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_714_complex_079__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_714_incomplete_ambiguous_080__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_714_incomplete_ambiguous_080__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_714_incomplete_ambiguous_080__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_720_habitual_081__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_720_habitual_081__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_720_habitual_081__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_720_negative_zero_082__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_720_negative_zero_082__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_720_negative_zero_082__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_720_complex_083__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_720_complex_083__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_720_complex_083__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_720_incomplete_ambiguous_084__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_720_incomplete_ambiguous_084__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_720_incomplete_ambiguous_084__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_721_habitual_085__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_721_habitual_085__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_721_habitual_085__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_721_negative_zero_086__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_721_negative_zero_086__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_721_negative_zero_086__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_721_complex_087__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_721_complex_087__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_721_complex_087__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_721_incomplete_ambiguous_088__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_721_incomplete_ambiguous_088__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_721_incomplete_ambiguous_088__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_840_habitual_089__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_840_habitual_089__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_840_habitual_089__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_840_negative_zero_090__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_840_negative_zero_090__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_840_negative_zero_090__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_840_complex_091__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_840_complex_091__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_840_complex_091__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_840_incomplete_ambiguous_092__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_840_incomplete_ambiguous_092__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "model_840_incomplete_ambiguous_092__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_current_census_status_habitual_093__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_current_census_status_habitual_093__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_current_census_status_habitual_093__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_current_census_status_negative_zero_094__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_current_census_status_negative_zero_094__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_current_census_status_negative_zero_094__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_current_census_status_complex_095__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_current_census_status_complex_095__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_current_census_status_complex_095__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_current_census_status_incomplete_ambiguous_096__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_current_census_status_incomplete_ambiguous_096__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_current_census_status_incomplete_ambiguous_096__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_current_status_habitual_097__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_current_status_habitual_097__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_current_status_habitual_097__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_current_status_negative_zero_098__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_current_status_negative_zero_098__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_current_status_negative_zero_098__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_current_status_complex_099__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_current_status_complex_099__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_current_status_complex_099__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_current_status_incomplete_ambiguous_100__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_current_status_incomplete_ambiguous_100__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_current_status_incomplete_ambiguous_100__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_employment_history_habitual_101__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_employment_history_habitual_101__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_employment_history_habitual_101__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_employment_history_negative_zero_102__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_employment_history_negative_zero_102__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_employment_history_negative_zero_102__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_employment_history_complex_103__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_employment_history_complex_103__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_employment_history_complex_103__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_employment_history_incomplete_ambiguous_104__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_employment_history_incomplete_ambiguous_104__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_employment_history_incomplete_ambiguous_104__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_self_employed_activities_habitual_105__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_self_employed_activities_habitual_105__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_self_employed_activities_habitual_105__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_self_employed_activities_negative_zero_106__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_self_employed_activities_negative_zero_106__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_self_employed_activities_negative_zero_106__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_self_employed_activities_complex_107__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_self_employed_activities_complex_107__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_self_employed_activities_complex_107__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_self_employed_activities_incomplete_ambiguous_108__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_self_employed_activities_incomplete_ambiguous_108__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "report_self_employed_activities_incomplete_ambiguous_108__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_roi_habitual_109__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_roi_habitual_109__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_roi_habitual_109__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_roi_negative_zero_110__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_roi_negative_zero_110__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_roi_negative_zero_110__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_roi_complex_111__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_roi_complex_111__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_roi_complex_111__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_roi_incomplete_ambiguous_112__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_roi_incomplete_ambiguous_112__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_roi_incomplete_ambiguous_112__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_landlord_withholding_exemption_habitual_113__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_landlord_withholding_exemption_habitual_113__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_landlord_withholding_exemption_habitual_113__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_landlord_withholding_exemption_negative_zero_114__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_landlord_withholding_exemption_negative_zero_114__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_landlord_withholding_exemption_negative_zero_114__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_landlord_withholding_exemption_complex_115__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_landlord_withholding_exemption_complex_115__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_landlord_withholding_exemption_complex_115__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_landlord_withholding_exemption_incomplete_ambiguous_116__native",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_landlord_withholding_exemption_incomplete_ambiguous_116__scan_compressed",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "cert_landlord_withholding_exemption_incomplete_ambiguous_116__rotated_capture",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    }
+  ]
+}

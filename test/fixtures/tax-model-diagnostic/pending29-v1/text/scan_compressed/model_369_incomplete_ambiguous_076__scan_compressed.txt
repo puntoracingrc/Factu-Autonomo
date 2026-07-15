@@ -1,0 +1,100 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                        369
+
+IVA de los regime:       ventanilla única O                                                                                                              Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación OSS/10SS
+
+NIF                            B22323612                              Titular / entidad                  ENTIDAD SINTÉTICA 076 S.L.
+Ejercicio                         2026                                                Periodo                                    aT
+Tipo documental           SYNTHETIC_INCOMPLETE O Estado esperado                    REVIEW_OR_ REJECT
+
+R_AMBIGUOUS COPY
+
+Régimen y totales
+
+Régimen                                                               [NO VISIBLE]
+Estados de consumo                                               1
+IVA total                                                         [BORROSO]
+
+model 369 incomplete ambigunus 076 native- NO PRESENTABLE - datos iotalmente sintéticos                                            NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+369
+
+IVA de los regime:
+
+'entanilla única O
+
+3055
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación OSS/10SS
+
+NIF
+
+B22323612
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 076 S.L.
+
+2026
+
+Periodo
+
+aT
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC_INCOMPLETE O Estado esperado
+
+REVIEW_OR_REJECT
+
+R_AMBIGUOUS COPY
+
+Régimen y totales
+
+Régimen
+
+[NO VISIBLE
+
+i
+
+Estados de consumo
+
+IVA total
+
+[BORROSO]
+
+co
+
+O
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+F
+
+=
+
+model 360 incomplete_ ambiguos 076
+
+native - NO PRESENTABLE
+
+datos totalmente sintéticas
+
+NATIVE TEXT Pl

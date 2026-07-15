@@ -1,0 +1,206 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                  349
+
+va de op                 omunilarias                                                                                                        Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen recapitulativo
+
+NIF            — B21927660                       —| Titular / entidad —          ENTIDAD SINTÉTICA 071 si
+
+Ejercicio:    | 2026    Periodo     er   —_     o   —]
+¡Tipo documental SYNTHETIC COMPLEMENTA Estado esperado + ACCEPT WITH SYNTHETIC LIMITATION
+PO RYOAMIMAEORD |
+Totales
+
+Rectificaciones              si
+
+Operadores               3
+
+Importe total               36.000,00
+
+model 319 complex 071_ native - NO PRESENTABLE - datos totsimenté sintéticos                                                                                                              NATIVE TEXT_POF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+349
+
+ción noc:
+
+a de op
+
+Narie:
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen recapitulativo
+
+B21927660
+
+—] liar
+
+Titutar / entidad
+
+—
+
+ENTIDAD SINTÉTICA 071 Si
+
+A
+
+—
+
+—]————]]———
+
+| Ejercicio
+
+[o
+
+2026
+
+—l
+
+Periodo
+
+—¡—la—!.u-—|.
+
+[ar
+
+—
+
+—
+
+p——
+
+—
+
+—
+
+SYNTHETIC_COMPLEMENTA Estado esperado
+
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+jee TE
+
+laa E ————Ú]al E
+
+AY_OA_MULTI_ RECORD
+
+[e —————]—di o
+
+——6[—
+
+——]—
+
+—————
+
+—
+
+Totales
+
+Rectificaciones
+
+si
+
+Operadores
+
+Importe total
+
+ 36.000,00
+
+co
+
+Ne
+
+No
+
+UN
+
+..
+
+model_349 complex 071_ native = NO PRESENTABLE - daros torsimente sintéticos
+
+NATIVE_TEXT_POF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                       349
+
+Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operadores intracomunitarios
+
+Detalle
+¡NIFIVA    — Operador Clave    Importe    —— Ejerciciorect. ————-— Perlodorect
+“DEODODOC00!                    PROVEEDOR ALEMÁN — A                                    - 21.000,00
+ PTOCGD0D0002     [CLIENTE PORTUGUÉS — S          18.500,00       |           |
+FRO000D0003      ¡CLIENTE RECTIFICADO —S           3.500,00        2025          AT
+
+medel_349 complex 071 native - NO PRESENTABLE - datos totsimente sintéticos                                                                                                            NATIVE TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+349
+
+ación re
+
+[a]
+
+aña
+
+Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operadores intracomunitarios
+
+Detalle
+
+Clave
+
+Importe
+
+Operador
+
+E
+
+Ejercicio rect.
+
+_Porlodo rect.
+
+DEODOONCO01
+
+ PROVEEDOR ALEMÁN
+
+21.000,00
+
+PTOODOONCO2
+
+CLIENTE PORTUGUÉS
+
+s
+
+18.500,00
+
+CLIENTE RECTIFICADO $
+
+-3.500,00
+
+AT
+
+co
+
+E
+
+N
+
+KO
+
+N
+
+NN
+
+os
+
+medel_349 complex 071 native - NO PRESENTABLE - datos totsimente sintéticos
+
+NATIVE_TEXT_PDF

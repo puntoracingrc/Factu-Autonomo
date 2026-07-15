@@ -1,0 +1,152 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                               TGSS-ACT-AUT
+
+Informe de actividades de L
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Actividades comunicadas en trabajo autónomo
+
+NIF                  12012091
+
+|                                                =—                                 =            o
+
+Titular / entidad                    PERSONA SINTÉTICA 107
+Ejercicio             2026                          Periodo                    N/A
+
+Tipo documental SYNTHETIC_ COMPLEMENTA Estado esperado —
+AY_OR_MULTI_ RECORD
+
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Resumen
+
+Fecha de emisión                                                      11/07/2026
+
+Actividades comunicadas                                        3
+
+Actividades
+“Código                                                       Descripción                                               Inicio                                                          Estado
+6201                                            Programación informática                          01012023                             “ACTIVA
+14791                      Comercio por Internet            15/02/2026                  “ACTIVA
+7022                                                          Consultoría de gestión                                01/06/2024                                                 ACTIVA
+
+report_=0lt_employod_activiies complex 107 native -NO PRESENTABLE - datos totamente sintéticos                                                                      NATIVE_TEXT_FDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+TGSS-ACT-AUT
+
+Info
+
+e de acimdades de
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Actividades comunicadas en trabajo autónomo
+
+fa
+
+— 120120911
+
+=
+
+Titular / entidad
+
+oi
+
+——
+
+| PERSONA SINTÉTICA 107
+
+—
+
+o
+
+—
+
+—
+
+Periodo
+
+Ejercicio
+
+=—
+
+2026
+
+| N/A
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA ' Estado esperado —
+
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+—
+
+AY_OR_MULTI_RECORD
+
+—
+
+Resumen
+
+Fecha de emisión
+
+11/07/2026
+
+Actividades comunicadas
+
+Actividades
+
+Inicio
+
+Estado
+
+Código
+
+=
+
+6201
+
+Programación informática
+
+01/01/2023
+
+ACTIVA
+
+4731
+
+15/02/2026
+
+ACTIVA
+
+Comercio por Internet
+
+7022
+
+Consultoria de gestión
+
+01/06/2024
+
+ACTIVA
+
+CO
+
+E
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+report_=0lt_employod_activiies complex 107 native -NO PRESENTABLE - datos totamente sintéticos
+
+NATIVE_TEXT_PDF

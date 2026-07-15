@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "cert_roi_complex_111__native",
+  "baseFixtureId": "cert_roi_complex_111",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_CERT_ROI",
+  "displayName": "CERT-ROI - Certificado de operador intracomunitario - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12012543B",
+    "taxpayer.name": "PERSONA SINTÉTICA 111",
+    "document.code": "CERT-ROI",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "certificate.issueDate": "11/07/2026",
+    "roi.status": "BAJA ACTUAL",
+    "roi.startDate": "01/06/2022",
+    "roi.endDate": "31/03/2026",
+    "roi.vatNumber": "ES12012543B",
+    "certificate.csv": "CSV-SYN-ROI-0003"
+  },
+  "expectedQuestionMappings": {
+    "EU.ROI": "HISTORICAL_DEREGISTERED"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "ACTUAL_INTRACOMMUNITY_OPERATIONS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12012543B"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 111"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_CERT_ROI"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "CERT-ROI"
+    },
+    {
+      "fieldId": "certificate.issueDate",
+      "page": 1,
+      "label": "Fecha de expedición",
+      "value": "11/07/2026"
+    },
+    {
+      "fieldId": "roi.status",
+      "page": 1,
+      "label": "Situación en ROI",
+      "value": "BAJA ACTUAL"
+    },
+    {
+      "fieldId": "roi.startDate",
+      "page": 1,
+      "label": "Fecha de alta histórica",
+      "value": "01/06/2022"
+    },
+    {
+      "fieldId": "roi.endDate",
+      "page": 1,
+      "label": "Fecha de baja",
+      "value": "31/03/2026"
+    },
+    {
+      "fieldId": "roi.vatNumber",
+      "page": 1,
+      "label": "NIF-IVA",
+      "value": "ES12012543B"
+    },
+    {
+      "fieldId": "certificate.csv",
+      "page": 1,
+      "label": "CSV",
+      "value": "CSV-SYN-ROI-0003"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/iva/iva-quiero-certificado-IVA.html",
+      "https://sede.agenciatributaria.gob.es/Sede/certificaciones/censales.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/cert_roi_complex_111__native.pdf",
+  "sha256": "90411cf8adc831e911faf241d53c81254bdf1cdab45e4fa90db3bfde65d31d83"
+}

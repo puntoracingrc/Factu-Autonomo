@@ -1,0 +1,145 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                            CERT-CENSO
+
+Certificado tributario de situación censal                                                                                     Fagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de situación censal
+
+NIF                              120107356                                Titular / entidad                    PERSONA SINTÉTICA 095
+Ejercicio                   2026                                     Perlodo                            N/A
+Tipo documental       SYNTHETIC COMPLEMENTA Estado esperado              ACCEPT_ WITH SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Datos certificados
+
+Fecha de expedición                                        11/07/2026
+
+Situación                                                  ALTA
+
+Actividades                                             Amultectura IAE 411; comercio electrónico IAE 665
+Locales                                                          2 locales afectos
+
+IRPF                                                              DIRECTA NORMAL
+
+IVA                                                      GENERAL + RECARGO DE EQUIVALENCIA
+
+ROI                                          ALTA DESDE 15/02/2026
+
+Si                                                           INCLUIDO
+
+Obligaciones periódicas                              130; 303 MENSUAL: 111; 115
+
+csv                                           CSY-5YN-CENSO-0003                                             O
+
+cert cument-census status complex 086 native - NO PRESENTABLE - datos totalmente sintéticos                                           NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+CERT-CENSO
+
+Ge
+
+A
+
+e
+
+-
+
+ficado tributario de situació
+
+censal
+
+Fagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de situación censal
+
+NIF
+
+120107356
+
+Titular / entidad
+
+PERSONA SINTÉTICA 095
+
+2026
+
+Periodo
+
+N/A
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+ACCEPT_ WITH SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Datos certificados
+
+Fecha de expedición
+
+11/07/2026
+
+Situación
+
+ALTA
+
+Actividades
+
+Amultectura IAE 411; comercio electrónico IAE 665
+
+Locales
+
+2 locales afectos
+
+IRPF
+
+DIRECTA NORMAL
+
+IVA
+
+GENERAL + RECARGO DE EQUIVALENCIA
+
+ROI
+
+ALTA DESDE 15/02/2026
+
+E
+
+INCLUIDO
+
+Obligaciones periódicas
+
+130; 303 MENSUAL: 111; 115
+
+csv
+
+CSY-5YN-CENSO-0003
+
+co
+
+e
+
+NN
+
+KO
+
+N
+
+NN
+
+yo
+
+cert cument-census status complex 006
+
+native - NO PRESENTABLE
+
+datos totalmente sintéticos
+
+NATIVE TEXT PDF

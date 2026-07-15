@@ -1,0 +1,112 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Solicitud de des               '                 5 de IVA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de devolución
+
+NIF                                12006102X                                   Titular / entidad                   | PERSONA SINTÉTICA 054
+| Ejercicio                     | 2026                                             Periodo                                21
+“Tipo documental —— SYNTHETIC FILED COPY — Estado esperado     | ACCEPT_WITH_SYNTHETIC_LIMITATION                    |
+
+Operación y devolución
+
+Motivo de devolución                                                       SUJETO PASIVO OCASIONAL
+Operaciones                                                                        Lo]
+Devolución solicitada                                               0,00
+
+model 306_ negativo zero 054 native - NO PRESENTABLE - datos totalmente sintéticos                                                                                               NATIVE TEXT_FDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+308
+
+Solicitud de do
+
+pu
+
+de IVA
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de devolución
+
+Tm __———_o—
+
+12006102X
+
+———]]]— ———
+
+——e O
+
+Titular / entidad
+
+| PERSONA SINTÉTICA 054
+
+PTI TM E E
+
+A
+
+—
+
+|
+
+Periodo
+
+|
+
+21
+
+' Ejercicio
+
+AAA
+
+——
+
+——— Ñ—]
+
+—
+
+E
+
+Tipo documental
+
+Estado esperado
+
+| SYNTHETIC_FILED_COPY E
+
+| ACCEPT_WITH_SYNTHETIC_LIMITATION _
+
+  Operación y devolución
+
+Motivo de devolución
+
+SUJETO PASIVO OCASIONAL
+
+Operaciones
+
+0
+
+Devolución solicitada
+
+0.00
+
+co
+
+e
+
+N
+
+KO
+
+N
+
+UN
+
+os
+
+model 308 negativo zero 064 native - NO PRESENTABLE - datos totalmente siméticos
+
+NATIVE TEXT_PDF

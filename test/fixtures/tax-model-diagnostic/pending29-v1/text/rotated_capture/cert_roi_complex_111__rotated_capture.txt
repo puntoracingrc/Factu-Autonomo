@@ -1,0 +1,141 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                       CERT-ROI
+
+Certificado de operador intracomunitario                                                                                                                               Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de operador intracomunitario
+
+NIF                 120125438                  Titular / entidad           PERSONA SINTÉTICA 111
+
+| Ejercicio            | 2026                         Periodo                  N/A
+Tipo documental SYNTHETIC COMPLEMENTA Estado esperado             ACCEPT_WITH_SYNTHETIC_LIMITATION
+AY_OR_ MULTI RECORD                                       |
+
+Datos certificados
+
+Fecha de expedición                                                 11/07/2006
+Situación en ROI                                                   BAJA ACTUAL
+Fecha de alta histórica               01/08/2022
+Fecha de baja                                                            31/03/2026
+
+NIF-IVA                                                                       ES12012549B
+
+csv                                                                            CSV-SYN-ROL-0008
+
+com_rmoi complex 111_ native - NO PRESENTABLE - datos totalmente sintéticos                                                                                                             NATIVE TEXT_FDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+CERT-ROI
+
+Certificado de operador intracomunitario
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de operador intracomunitario
+
+— == ——— ME
+
+120125438
+
+——.
+
+E Ts
+
+Titular / entidad
+
+—“
+
+| PERSONA SINTÉTICA 111
+
+—
+
+mó
+
+_—
+
+Am —a———
+
+Ejercicio
+
+| 2026
+
+Periodo
+
+—.
+
+—
+
+limar
+
+1 SYNTHETIC COMPLEMENTA Estado esperado E
+
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+a
+
+———]— —
+
+AY_OA_MULTI_RECORD
+
+——
+
+O
+
+—!
+
+|
+
+——
+
+——
+
+—
+
+—
+
+—
+
+—
+
+Datos certificados
+
+Fecha de expedición
+
+11/07/2026
+
+Situación en ROI
+
+BAJA ACTUAL
+
+0108/2022
+
+Fecha de baja
+
+31/03/2026
+
+NIF-1VA
+
+ES12012543B
+
+csv
+
+CSV-SYN-ROI-0003
+
+co
+
+NN
+
+KO
+
+N
+
+NN
+
+os
+
+com_rmoi complex 111_ native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT_FDF

@@ -1,0 +1,167 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Resumen anual de rete!
+
+s por arrendamiento de inmue:        banos
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen anual
+
+NIF
+Ejercicio
+
+Tipo documental
+
+Resumen
+Perceptores
+Ease total
+Retenciones
+
+model 180 negative zem
+
+B18047357                              Titular / entidad                  ENTIDAD SINTÉTICA 022 S.L.
+| 2025                            Periodo                     ANUAL
+| SYNTHETIC_FILED COPY       Estado esperado              ACCEPT_ WITH SYNTHETIC LIMITATION
+a
+0.00
+0,00
+
+22 _ native - NO PRESENTABLE - datos intalmente sintéficos                                                               NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+180
+
+Resumen anual de rete!
+
+s por arrendamiento de inmue:
+
+banos
+
+E
+
+a!
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen anual
+
+NIF
+
+B18047357
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 022 S.L.
+
+Ejercicio
+
+2025
+
+Periodo
+
+ANUAL
+
+SYNTHETIC_FILED COPY
+
+ACCEPT_ WITH SYNTHETIC LIMITATION
+
+Tipo documental
+
+Estado esperado
+
+Resumen
+
+Perceptores
+
+Ease total
+
+0.00
+
+Retenciones
+
+0,00
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+modal 180 negative zem 022
+
+native - NO) PRESENTABLE
+
+datos intalmente sintéficos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                1 80
+
+Resumen anal de retenciones por amendamiento de Inmue           os                                                                                  Fagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Relación de perceptores e inmuebles
+
+Detalle
+NIF                     Perceptor               Inmueble                Relerencia              Base                   Retención
+
+model 180 negative zem- 022 — native - NO PRESENTABLE - datos intalmente sintéticos                                                         NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+180
+
+Resumen anal! de retenciones por amendamiento de inmue
+
+año
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Relación de perceptores e inmuebles
+
+Detalle
+
+NIF
+
+Perceptor
+
+Inmueble
+
+Reterencia
+
+Base
+
+Retención
+
+co
+
+<<
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+mode
+
+150 negative zaem 022
+
+native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT_PDF

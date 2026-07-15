@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_347_negative_zero_066__scan_compressed",
+  "baseFixtureId": "model_347_negative_zero_066",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_MODEL_347",
+  "displayName": "347 - Declaración anual de operaciones con terceras personas - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B21531710",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 066 S.L.",
+    "document.code": "347",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "thirdParties.records": 0,
+    "thirdParties.total": "0,00",
+    "thirdParties.detail": []
+  },
+  "expectedQuestionMappings": {
+    "THIRD_PARTIES.MODEL_347_CANDIDATE": false
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B21531710"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 066 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_347"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "347"
+    },
+    {
+      "fieldId": "thirdParties.records",
+      "page": 1,
+      "label": "Número de terceros",
+      "value": 0
+    },
+    {
+      "fieldId": "thirdParties.total",
+      "page": 1,
+      "label": "Importe anual declarado",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "thirdParties.detail",
+      "page": 2,
+      "label": "Terceros",
+      "value": []
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI27.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_347_negative_zero_066__scan_compressed.pdf",
+  "sha256": "4b8b0cff06fbd9c9b5459def9ee41faa405648b817c36288884332256a60211d"
+}

@@ -1,0 +1,227 @@
+nforme de vida laboral                                                                                                                           2 N
+
+LE
+
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                          TGSS-VIDA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen de vida laboral
+
+NIF           120116396           Titular / entidad       PERSONA SINTÉTICA 103
+ Ejercicio       | 2026              Periodo           NA
+
+Tipo documental SYNTHETIC COMPLEMENTA Estado esperado
+|             AY_OR_MULTI RECORD
+
+—ACCEPT WITH SYNTHETIC_LIMITATION
+
+Resumen
+Fecha de emisión                                                      11/07/2026
+Días totales de alta                                                3.861
+Solapamiento                                          15/06/2021 - 30/06/2021
+
+report_employment_history_complex_103_ nativa - NO PRESENTABLE - datos totalmente sintéticos                                                                                         NATIVE_TEXT_PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+A
+
+"e
+
+nforme de vida laboral
+
+SECT
+
+LE
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen de vida laboral
+
+120116396
+
+——
+
+=
+
+==
+
+Titular / entidad ad —
+
+—
+
+| PERSONA SINTÉTICA 103
+
+—
+
+—
+
+p—
+
+Ejercicio
+
+2026
+
+Periodo
+
+N/A
+
+o
+
+»"
+
+Tipo documental
+
+| SYNTHETIC_COMPLEMENTA | Estado esperado
+
+| ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+-—
+
+———
+
+| AY_OR_MULTI_RECORD
+
+ma
+
+=—
+
+—
+
+Po
+
+— M——
+
+———
+
+m—
+
+—
+
+—
+
+—
+
+Resumen
+
+Fecha de emisión
+
+11/07/2026
+
+Días totales de alta
+
+3.861
+
+Solapamiento
+
+15/06/2021 » 30/06/2021
+
+co
+
+e
+
+NN
+
+KO
+
+N
+
+NN
+
+o
+
+report_employment_history_complex_103_ nativa - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE_TEXT_PDF
+
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                         TGSS-VIDA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situaciones de alta y baja
+
+Periodos
+Régimen            ¡Empresaisituación       Alta               Baja            — Dias
+GENERAL             "EMPRESA A           "01/01/2016            31/12/2019            1.461
+RETA                                           TRABAJO AUTÓNOMO               "01/01/2020                                   30/06/2021                                    47
+GENERAL EMPRESA 6                                15/08/2021                                   31/12/2022                                   565
+RETA TRABAJO AUTÓNOMO               01/01/2023                                                                                         [1.288
+
+report employment_history complex 103 native - NO PRESENTABLE - datos totalmente smtéticos                                                                                   MATIVE TEXT _PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+re
+
+e or
+
+da
+
+EEE
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situaciones de alta y baja
+
+Periodos
+
+Empresa'situación
+
+Baja
+
+Régimen
+
+ja
+
+GENERAL
+
+EMPRESA A
+
+01/01/2016
+
+31/12/2019
+
+1,461
+
+RETA
+
+TRABAJO AUTÓNOMO
+
+01/01/2020
+
+30/06/2021
+
+547
+
+GENERAL
+
+EMPRESA 8
+
+15/06/2021
+
+31/12/2022
+
+RETA
+
+TRABAJO AUTÓNOMO
+
+01/01/2023
+
+1.288
+
+Ne
+
+RE
+
+N
+
+KO
+
+N
+
+NN
+
+o
+
+report employment_history complex 103 native - NO PRESENTABLE - datos totalmente smtéticos
+
+MATIVE TEXT _PDF
