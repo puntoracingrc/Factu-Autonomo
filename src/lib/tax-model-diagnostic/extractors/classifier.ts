@@ -126,6 +126,19 @@ export function classifyFiscalDocumentText(
     return resolved("MODEL_037", 0.9, census.warnings);
   }
 
+  if (
+    screenshotKind === "TAX_STATUS" &&
+    normalized.includes("SITUACION TRIBUTARIA")
+  ) {
+    return resolved("AEAT_TAX_STATUS_VIEW", 0.96);
+  }
+  if (
+    screenshotKind === "OBLIGATIONS" &&
+    normalized.includes("OBLIGACIONES TRIBUTARIAS")
+  ) {
+    return resolved("AEAT_OBLIGATIONS_VIEW", 0.96);
+  }
+
   const taxForm = parseAeatTaxFormText(bounded);
   if (taxForm.modelCode !== "UNKNOWN") {
     return resolved(

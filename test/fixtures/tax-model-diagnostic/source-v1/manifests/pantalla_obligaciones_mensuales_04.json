@@ -1,0 +1,155 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "pantalla_obligaciones_mensuales_04",
+  "documentType": "AEAT_SCREEN_PERIODIC_OBLIGATIONS",
+  "displayName": "Pantalla · obligaciones mensuales mixtas",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_PORTAL_SCREEN",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT-inspired synthetic UI",
+    "reference": "Simulación de pantallas de Mis datos censales",
+    "templateStatus": "synthetic-interface",
+    "notOfficialScreenshot": true
+  },
+  "expectedFields": {
+    "screenType": "OBLIGATIONS",
+    "taxpayerNif": "00000040V",
+    "taxpayerName": "OLGA PRUEBA CUARENTA Y UNO",
+    "consultationDate": "14/07/2026",
+    "obligations": [
+      {
+        "model": "303",
+        "description": "Autoliquidación IVA",
+        "periodicity": "Mensual",
+        "status": "ACTIVA",
+        "startDate": "01/01/2026"
+      },
+      {
+        "model": "111",
+        "description": "Retenciones trabajo/profesionales",
+        "periodicity": "Mensual",
+        "status": "ACTIVA",
+        "startDate": "01/01/2026"
+      },
+      {
+        "model": "115",
+        "description": "Retenciones arrendamientos",
+        "periodicity": "Mensual",
+        "status": "ACTIVA",
+        "startDate": "01/01/2026"
+      },
+      {
+        "model": "349",
+        "description": "Operaciones intracomunitarias",
+        "periodicity": "Mensual",
+        "status": "ACTIVA",
+        "startDate": "01/02/2026"
+      }
+    ]
+  },
+  "expectedQuestionMappings": {
+    "CENSUS.PERIODIC_OBLIGATIONS": [
+      {
+        "model": "303",
+        "description": "Autoliquidación IVA",
+        "periodicity": "Mensual",
+        "status": "ACTIVA",
+        "startDate": "01/01/2026"
+      },
+      {
+        "model": "111",
+        "description": "Retenciones trabajo/profesionales",
+        "periodicity": "Mensual",
+        "status": "ACTIVA",
+        "startDate": "01/01/2026"
+      },
+      {
+        "model": "115",
+        "description": "Retenciones arrendamientos",
+        "periodicity": "Mensual",
+        "status": "ACTIVA",
+        "startDate": "01/01/2026"
+      },
+      {
+        "model": "349",
+        "description": "Operaciones intracomunitarias",
+        "periodicity": "Mensual",
+        "status": "ACTIVA",
+        "startDate": "01/02/2026"
+      }
+    ]
+  },
+  "mustNotInfer": [
+    "ACTUAL_FILING_COMPLIANCE",
+    "FUTURE_OPERATIONS",
+    "VALID_OFFICIAL_CERTIFICATE",
+    "CHANGES_AFTER_CONSULTATION_DATE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000040V"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "OLGA PRUEBA CUARENTA Y UNO"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "census.periodicObligations",
+      "page": 1,
+      "label": "Mis obligaciones tributarias",
+      "value": [
+        {
+          "model": "303",
+          "description": "Autoliquidación IVA",
+          "periodicity": "Mensual",
+          "status": "ACTIVA",
+          "startDate": "01/01/2026"
+        },
+        {
+          "model": "111",
+          "description": "Retenciones trabajo/profesionales",
+          "periodicity": "Mensual",
+          "status": "ACTIVA",
+          "startDate": "01/01/2026"
+        },
+        {
+          "model": "115",
+          "description": "Retenciones arrendamientos",
+          "periodicity": "Mensual",
+          "status": "ACTIVA",
+          "startDate": "01/01/2026"
+        },
+        {
+          "model": "349",
+          "description": "Operaciones intracomunitarias",
+          "periodicity": "Mensual",
+          "status": "ACTIVA",
+          "startDate": "01/02/2026"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "La pantalla indica obligaciones censadas, no confirma que todas las declaraciones se hayan presentado."
+  ],
+  "pdfFile": "pantalla_obligaciones_mensuales_04.pdf",
+  "sha256": "3fe2f3d4e40c963130f57679836b5b1fc4584b8ea1a1c81e9d53d9db6135a5f4"
+}

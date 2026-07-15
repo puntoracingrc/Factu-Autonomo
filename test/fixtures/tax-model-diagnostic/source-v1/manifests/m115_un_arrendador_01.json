@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m115_un_arrendador_01",
+  "documentType": "AEAT_MODEL_115",
+  "displayName": "115 · un arrendador",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "1T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "Modelo 115, anexo oficial",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000025W",
+    "taxpayerName": "ZOE EJEMPLO VEINTISEIS",
+    "fiscalYear": 2026,
+    "period": "1T",
+    "recipients": "1",
+    "base": "3.000,00",
+    "withholdings": "570,00",
+    "result": "570,00"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.RENT": true,
+    "WITHHOLDING.PRIOR_MODEL_115_FILING": true
+  },
+  "mustNotInfer": [
+    "CURRENT_RENTAL_CONTRACT",
+    "CURRENT_MODEL_115_CENSUS",
+    "FUTURE_MODEL_115_OBLIGATION",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000025W"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "ZOE EJEMPLO VEINTISEIS"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "115"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "1T"
+    },
+    {
+      "fieldId": "rent.recipients",
+      "page": 1,
+      "label": "Número de perceptores",
+      "value": "1"
+    },
+    {
+      "fieldId": "rent.base",
+      "page": 1,
+      "label": "Base de las retenciones",
+      "value": "3.000,00"
+    },
+    {
+      "fieldId": "rent.withholdings",
+      "page": 1,
+      "label": "Retenciones e ingresos a cuenta",
+      "value": "570,00"
+    }
+  ],
+  "notes": [
+    "Una declaración anterior no acredita que el alquiler siga vigente."
+  ],
+  "pdfFile": "m115_un_arrendador_01.pdf",
+  "sha256": "e1eef60bb4fe3930ad548d3a4625a64544cf6a3468903f20d17bef5eb8792de0"
+}

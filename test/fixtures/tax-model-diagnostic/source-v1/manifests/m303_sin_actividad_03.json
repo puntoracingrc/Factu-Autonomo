@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m303_sin_actividad_03",
+  "documentType": "AEAT_MODEL_303",
+  "displayName": "303 · sin actividad",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "3T",
+  "expectedPages": 6,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2026-1761, anexo III, modelo 303",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000014Z",
+    "taxpayerName": "OSCAR CASO QUINCE",
+    "fiscalYear": 2026,
+    "period": "3T",
+    "general": {
+      "base21": "0,00",
+      "outputVat21": "0,00",
+      "deductible": "0,00",
+      "generalResult": "0,00"
+    },
+    "result": "0,00",
+    "noActivity": true
+  },
+  "expectedQuestionMappings": {
+    "VAT.PRIOR_PERIODIC_FILING": true,
+    "VAT.PERIODICITY_EVIDENCE": "QUARTERLY",
+    "VAT.DECLARED_OPERATIONS": {}
+  },
+  "mustNotInfer": [
+    "CURRENT_VAT_REGIME",
+    "CURRENT_ROI_STATUS",
+    "FUTURE_MODEL_303_OBLIGATION",
+    "MODEL_390_OBLIGATION",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000014Z"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "OSCAR CASO QUINCE"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "303"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "3T"
+    },
+    {
+      "fieldId": "vat.general",
+      "page": 1,
+      "label": "Régimen general",
+      "value": {
+        "base21": "0,00",
+        "outputVat21": "0,00",
+        "deductible": "0,00",
+        "generalResult": "0,00"
+      }
+    },
+    {
+      "fieldId": "vat.additionalInfo",
+      "page": 3,
+      "label": "Información adicional",
+      "value": {}
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 3,
+      "label": "Resultado",
+      "value": "0,00"
+    }
+  ],
+  "notes": [
+    "El modelo acredita operaciones declaradas en el periodo, no la situación censal actual."
+  ],
+  "pdfFile": "m303_sin_actividad_03.pdf",
+  "sha256": "132c80a301ed7f8e400d3351c6f183e5247065427e83d403d9378a4466403bac"
+}

@@ -1,0 +1,146 @@
+{
+  "corpusVersion": "fiscal-extractor-corpus.2026-07.v1",
+  "fixtureId": "m037-historical-initial-001-native",
+  "semanticCaseId": "m037-historical-initial-001",
+  "parentFixtureId": null,
+  "documentType": "MODEL_037",
+  "formVersion": "AEAT_MODEL_037_BOE_2023_HISTORICAL",
+  "fiscalYear": 2024,
+  "period": null,
+  "documentKind": "DRAFT",
+  "filingStatus": "DRAFT",
+  "temporalScope": "HISTORICAL",
+  "lifecycleLabels": [
+    "HISTORICAL_DOCUMENT",
+    "NOT_CURRENT_CENSUS_STATUS"
+  ],
+  "stateCoverage": "HISTORICAL_ONLY",
+  "visualVariant": "NATIVE_PDF",
+  "expectedEnvelope": {
+    "isComplete": false
+  },
+  "expectedFields": [
+    {
+      "factType": "SUBJECT.TAXPAYER_TYPE",
+      "value": "NATURAL_PERSON",
+      "normalizedValue": "NATURAL_PERSON",
+      "page": 1,
+      "sourceLabel": "Tipo de contribuyente"
+    },
+    {
+      "factType": "ACTIVITY.LIST",
+      "value": [
+        {
+          "code": "774",
+          "description": "SERVICIOS DE TRADUCCION"
+        }
+      ],
+      "normalizedValue": [
+        {
+          "code": "774",
+          "description": "SERVICIOS DE TRADUCCION"
+        }
+      ],
+      "page": 3,
+      "sourceLabel": "Actividades económicas"
+    },
+    {
+      "factType": "ACTIVITY.NATURE",
+      "value": [
+        "PROFESSIONAL"
+      ],
+      "normalizedValue": [
+        "PROFESSIONAL"
+      ],
+      "page": 3,
+      "sourceLabel": "Sección de la actividad"
+    },
+    {
+      "factType": "ACTIVITY.DATES",
+      "value": [
+        "2024-01-01"
+      ],
+      "normalizedValue": [
+        "2024-01-01"
+      ],
+      "page": 3,
+      "sourceLabel": "Fecha de inicio de la actividad"
+    }
+  ],
+  "expectedQuestionMappings": [
+    {
+      "questionId": "A_INVOICING_SUBJECT",
+      "proposedAnswer": "NATURAL_PERSON",
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    },
+    {
+      "questionId": "C_ACTIVITY_KINDS",
+      "proposedAnswer": [
+        "PROFESSIONAL"
+      ],
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    },
+    {
+      "questionId": "B_START_DATE",
+      "proposedAnswer": "2024-01-01",
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    }
+  ],
+  "mustNotInfer": [
+    {
+      "code": "CURRENT_CENSUS_STATUS",
+      "reason": "El modelo 037 solo conserva evidencia histórica."
+    },
+    {
+      "code": "FUTURE_OBLIGATION",
+      "reason": "Una declaración de un período no acredita una obligación futura."
+    },
+    {
+      "code": "VERIFIED_FILING",
+      "reason": "El impreso sintético no acredita presentación ante la AEAT."
+    },
+    {
+      "code": "OFFICIAL_DOCUMENT_VALIDITY",
+      "reason": "El documento sintético carece de validez oficial."
+    },
+    {
+      "code": "ABSENCE_OUTSIDE_CAPTURE",
+      "reason": "Una captura parcial no permite inferir datos ausentes fuera de ella."
+    }
+  ],
+  "allowAdditionalFactTypes": [
+    "CENSUS.EVENT"
+  ],
+  "source": {
+    "kind": "SYNTHETIC_OFFICIAL_FORM",
+    "authorizationRecorded": true,
+    "sha256": "33e4de5516b9e39bc430ff578629c9eaec51e147e0b07e9d462c7e4c52b13fab",
+    "officialReference": {
+      "url": "https://www.boe.es/buscar/doc.php?id=BOE-A-2023-26632",
+      "capturedOn": "2026-07-15",
+      "sha256": null
+    },
+    "anonymizationAudit": {
+      "textLayerChecked": true,
+      "acroFormChecked": true,
+      "metadataChecked": true,
+      "annotationsChecked": true,
+      "hiddenPagesChecked": true,
+      "qrAndBarcodeChecked": true,
+      "embeddedFilesChecked": true,
+      "originalFileNameStored": false
+    }
+  },
+  "asset": {
+    "pdfPath": "pdf/m037-historical-initial-001-native.pdf",
+    "extractedTextPath": "text/m037-historical-initial-001-native.txt"
+  },
+  "extractor": {
+    "contractVersion": "1.0.0",
+    "catalogVersion": "fiscal-document-extractors.2026-07.v2",
+    "extractorVersion": "aeat.model.037.v2"
+  }
+}

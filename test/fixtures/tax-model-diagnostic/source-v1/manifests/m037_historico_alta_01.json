@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m037_historico_alta_01",
+  "documentType": "AEAT_MODEL_037_HISTORICAL",
+  "displayName": "037 histórico: alta simplificada",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "HISTORICAL_SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2024,
+  "period": null,
+  "expectedPages": 4,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2023-26632, anexo II, modelo 037",
+    "templateStatus": "official-layout",
+    "historical": true
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000005M",
+    "taxpayerName": "FABIO ENSAYO SEIS",
+    "cause": "ALTA",
+    "irpfMethod": "DIRECT_SIMPLIFIED",
+    "vatRegime": "GENERAL",
+    "model111": "NO",
+    "model115": "NO",
+    "activityDescription": "SERVICIOS DE TRADUCCION",
+    "epigraph": "774",
+    "activityType": "PROFESIONAL",
+    "effectiveDate": "01/01/2024"
+  },
+  "expectedQuestionMappings": {
+    "CENSUS.HISTORICAL_EVENT": "ALTA",
+    "IRPF.METHOD_HISTORICAL": "DIRECT_SIMPLIFIED",
+    "VAT.REGIME_HISTORICAL": "GENERAL"
+  },
+  "mustNotInfer": [
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_PERIODIC_OBLIGATIONS",
+    "VALID_CURRENT_037_FORM",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000005M"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "FABIO ENSAYO SEIS"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "037"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2024
+    },
+    {
+      "fieldId": "census.cause",
+      "page": 1,
+      "label": "Causas de presentación",
+      "value": "ALTA"
+    },
+    {
+      "fieldId": "irpf.method",
+      "page": 2,
+      "label": "Método de estimación en el IRPF",
+      "value": "DIRECT_SIMPLIFIED"
+    },
+    {
+      "fieldId": "vat.regime",
+      "page": 2,
+      "label": "Regímenes aplicables",
+      "value": "GENERAL"
+    },
+    {
+      "fieldId": "activity.description",
+      "page": 3,
+      "label": "Descripción de la actividad",
+      "value": "SERVICIOS DE TRADUCCION"
+    }
+  ],
+  "notes": [
+    "Documento histórico: el modelo 037 quedó suprimido en 2025."
+  ],
+  "pdfFile": "m037_historico_alta_01.pdf",
+  "sha256": "5cb87bbc89240e42a49706b86fb6e34e17b64a4d864799fecd9a05057cf1252c"
+}

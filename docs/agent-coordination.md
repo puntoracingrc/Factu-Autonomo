@@ -1,6 +1,22 @@
 # Coordinación — diagnóstico de modelos tributarios
 
-Última actualización: 2026-07-14 (Europe/Madrid)
+Última actualización: 2026-07-15 (Europe/Madrid)
+
+## Reserva adicional — importación del corpus sintético v1
+
+La rama `agent/import-tax-profile-corpus-v1`, basada en `main@679be29`, reserva:
+
+- `test/fixtures/tax-model-diagnostic/**`;
+- `scripts/import-tax-profile-corpus-v1.py` y
+  `scripts/generate-tax-corpus-ocr-text.mjs`;
+- pruebas y ajustes acotados de clasificación, extracción y lectura local en
+  `src/lib/fiscal-profile/**` y `src/lib/tax-model-diagnostic/**`;
+- documentación operativa del corpus.
+
+El alcance es importar y validar 41 documentos sintéticos sin ampliar reglas
+tributarias ni tocar `src/lib/fiscal-models/**`. Calendar y Modelos AEAT siguen
+fuera de esta rama y no deben integrar hasta el aviso formal posterior al merge,
+con contrato definitivo y Production Domain verde.
 
 ## Reserva adicional — extractores fiscales de los 39 tipos
 

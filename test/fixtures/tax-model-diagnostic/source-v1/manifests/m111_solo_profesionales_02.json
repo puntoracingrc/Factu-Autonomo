@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m111_solo_profesionales_02",
+  "documentType": "AEAT_MODEL_111",
+  "displayName": "111 · solo profesionales",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "2T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT/BOE",
+    "reference": "Modelo 111, anexo oficial",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000022E",
+    "taxpayerName": "WALTER CASO VEINTITRES",
+    "fiscalYear": 2026,
+    "period": "2T",
+    "workRecipients": "0",
+    "workIncome": "0,00",
+    "workWithholdings": "0,00",
+    "professionalRecipients": "3",
+    "professionalIncome": "7.500,00",
+    "professionalWithholdings": "1.125,00",
+    "totalWithholdings": "1.125,00",
+    "result": "1.125,00"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.WORK_RECIPIENTS": false,
+    "WITHHOLDING.PROFESSIONALS_PAID": true,
+    "WITHHOLDING.PRIOR_MODEL_111_FILING": true
+  },
+  "mustNotInfer": [
+    "EMPLOYEES_FROM_WORK_ROW_ALONE",
+    "CURRENT_MODEL_111_CENSUS",
+    "FUTURE_MODEL_111_OBLIGATION",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000022E"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "WALTER CASO VEINTITRES"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "111"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "2T"
+    },
+    {
+      "fieldId": "withholding.workRecipients",
+      "page": 1,
+      "label": "Rendimientos del trabajo",
+      "value": "0"
+    },
+    {
+      "fieldId": "withholding.professionalRecipients",
+      "page": 1,
+      "label": "Rendimientos de actividades económicas",
+      "value": "3"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado a ingresar",
+      "value": "1.125,00"
+    }
+  ],
+  "notes": [
+    "El 111 no permite distinguir por sí solo trabajadores de todas las demás subclases anuales."
+  ],
+  "pdfFile": "m111_solo_profesionales_02.pdf",
+  "sha256": "4650dc8c3bb9f1d1ddcb4fdadfdf47f0c755871e955356b265f9126b854868a1"
+}

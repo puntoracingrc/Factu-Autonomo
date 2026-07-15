@@ -1,0 +1,192 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m036_modificacion_actividad_local_02",
+  "documentType": "AEAT_MODEL_036",
+  "displayName": "Modificación: segunda actividad y nuevo local",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 12,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT/BOE",
+    "reference": "Modelo 036 vigente, ejemplar para el interesado",
+    "templateStatus": "official-layout",
+    "validationStatus": "not server-validated"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000001R",
+    "taxpayerName": "BRUNO EJEMPLO DOS",
+    "filingDate": "15/01/2026",
+    "cause": "MODIFICACION",
+    "modificationType": "ACTIVITY_CHANGE",
+    "activities": [
+      {
+        "description": "SERVICIOS DE DISENO GRAFICO",
+        "epigraph": "399",
+        "activityType": "PROFESIONAL",
+        "activityCode": "M7410",
+        "effectiveDate": "01/01/2025",
+        "municipality": "MADRID",
+        "province": "MADRID",
+        "premises": {
+          "street": "CALLE SINTETICA",
+          "number": "10",
+          "postalCode": "28080",
+          "municipality": "MADRID",
+          "province": "MADRID",
+          "surface": "45"
+        }
+      },
+      {
+        "description": "FORMACION NO REGLADA",
+        "epigraph": "826",
+        "activityType": "PROFESIONAL",
+        "activityCode": "P8559",
+        "effectiveDate": "01/02/2026"
+      }
+    ],
+    "irpf": {
+      "method": "DIRECT_SIMPLIFIED",
+      "paymentsModel": "130",
+      "effectiveDate": "01/01/2025"
+    },
+    "vat": {
+      "taxableInSpain": true,
+      "regimes": [
+        "GENERAL"
+      ],
+      "effectiveDate": "01/01/2025",
+      "roi": "NO",
+      "redeme": false,
+      "sii": false
+    },
+    "withholdings": {}
+  },
+  "expectedQuestionMappings": {
+    "SUBJECT.TAXPAYER_TYPE": "PERSONA_FISICA",
+    "CENSUS.CURRENT_STATUS": "PROPOSED_FROM_CENSUS_EVENT",
+    "ACTIVITY.LIST": [
+      {
+        "description": "SERVICIOS DE DISENO GRAFICO",
+        "epigraph": "399",
+        "activityType": "PROFESIONAL",
+        "activityCode": "M7410",
+        "effectiveDate": "01/01/2025",
+        "municipality": "MADRID",
+        "province": "MADRID",
+        "premises": {
+          "street": "CALLE SINTETICA",
+          "number": "10",
+          "postalCode": "28080",
+          "municipality": "MADRID",
+          "province": "MADRID",
+          "surface": "45"
+        }
+      },
+      {
+        "description": "FORMACION NO REGLADA",
+        "epigraph": "826",
+        "activityType": "PROFESIONAL",
+        "activityCode": "P8559",
+        "effectiveDate": "01/02/2026"
+      }
+    ],
+    "IRPF.METHOD": "DIRECT_SIMPLIFIED",
+    "VAT.REGIMES": [
+      "GENERAL"
+    ]
+  },
+  "mustNotInfer": [
+    "CURRENT_CENSUS_STATUS_WITHOUT_RECONCILIATION",
+    "FUTURE_OPERATIONS",
+    "ACTUAL_FILING_STATUS",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000001R"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "BRUNO EJEMPLO DOS"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "036"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "census.cause",
+      "page": 1,
+      "label": "Causa de presentación",
+      "value": "MODIFICACION"
+    },
+    {
+      "fieldId": "activity.list",
+      "page": 4,
+      "label": "Declaración de actividades económicas y locales",
+      "value": [
+        {
+          "description": "SERVICIOS DE DISENO GRAFICO",
+          "epigraph": "399",
+          "activityType": "PROFESIONAL",
+          "activityCode": "M7410",
+          "effectiveDate": "01/01/2025",
+          "municipality": "MADRID",
+          "province": "MADRID",
+          "premises": {
+            "street": "CALLE SINTETICA",
+            "number": "10",
+            "postalCode": "28080",
+            "municipality": "MADRID",
+            "province": "MADRID",
+            "surface": "45"
+          }
+        },
+        {
+          "description": "FORMACION NO REGLADA",
+          "epigraph": "826",
+          "activityType": "PROFESIONAL",
+          "activityCode": "P8559",
+          "effectiveDate": "01/02/2026"
+        }
+      ]
+    },
+    {
+      "fieldId": "irpf.method",
+      "page": 6,
+      "label": "Método de estimación en el IRPF",
+      "value": "DIRECT_SIMPLIFIED"
+    },
+    {
+      "fieldId": "vat.regimes",
+      "page": 5,
+      "label": "Regímenes aplicables",
+      "value": [
+        "GENERAL"
+      ]
+    }
+  ],
+  "notes": [
+    "El 036 representa un evento censal, no una fotografía completa salvo reconciliación con fuentes posteriores."
+  ],
+  "pdfFile": "m036_modificacion_actividad_local_02.pdf",
+  "sha256": "9aaad97797e0d3027844bbc1bef2e2a76cb9a2b66e628c59bc0ac66705914af6"
+}

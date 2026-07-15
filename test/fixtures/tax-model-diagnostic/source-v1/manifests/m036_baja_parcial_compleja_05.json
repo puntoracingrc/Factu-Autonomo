@@ -1,0 +1,202 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m036_baja_parcial_compleja_05",
+  "documentType": "AEAT_MODEL_036",
+  "displayName": "Modificación compleja: baja parcial de actividad y local",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 12,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT/BOE",
+    "reference": "Modelo 036 vigente, ejemplar para el interesado",
+    "templateStatus": "official-layout",
+    "validationStatus": "not server-validated"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000004G",
+    "taxpayerName": "ELENA DEMO CINCO",
+    "filingDate": "15/01/2026",
+    "cause": "MODIFICACION",
+    "modificationType": "PARTIAL_CESSATION",
+    "activities": [
+      {
+        "description": "COMERCIO MENOR ARTICULOS HOGAR",
+        "epigraph": "653.2",
+        "activityType": "EMPRESARIAL",
+        "activityCode": "G4759",
+        "effectiveDate": "01/01/2023",
+        "municipality": "BILBAO",
+        "province": "BIZKAIA",
+        "premises": {
+          "street": "CALLE EJEMPLO",
+          "number": "5",
+          "postalCode": "48080",
+          "municipality": "BILBAO",
+          "province": "BIZKAIA",
+          "surface": "70"
+        }
+      },
+      {
+        "description": "VENTA EN LINEA",
+        "epigraph": "665",
+        "activityType": "EMPRESARIAL",
+        "activityCode": "G4791",
+        "effectiveDate": "01/06/2024"
+      }
+    ],
+    "irpf": {
+      "method": "DIRECT_SIMPLIFIED",
+      "paymentsModel": "130",
+      "effectiveDate": "01/01/2023"
+    },
+    "vat": {
+      "taxableInSpain": true,
+      "regimes": [
+        "RECHARGE_EQUIVALENCE",
+        "GENERAL"
+      ],
+      "effectiveDate": "01/01/2023",
+      "roi": "BAJA",
+      "redeme": false,
+      "sii": false
+    },
+    "withholdings": {
+      "model111": "NO",
+      "model115": "BAJA",
+      "model123": "NO",
+      "effectiveDate": "31/03/2026"
+    },
+    "cessationReason": "BAJA PARCIAL DE ACTIVIDAD",
+    "effectiveDate": "31/03/2026"
+  },
+  "expectedQuestionMappings": {
+    "SUBJECT.TAXPAYER_TYPE": "PERSONA_FISICA",
+    "CENSUS.CURRENT_STATUS": "PROPOSED_FROM_CENSUS_EVENT",
+    "ACTIVITY.LIST": [
+      {
+        "description": "COMERCIO MENOR ARTICULOS HOGAR",
+        "epigraph": "653.2",
+        "activityType": "EMPRESARIAL",
+        "activityCode": "G4759",
+        "effectiveDate": "01/01/2023",
+        "municipality": "BILBAO",
+        "province": "BIZKAIA",
+        "premises": {
+          "street": "CALLE EJEMPLO",
+          "number": "5",
+          "postalCode": "48080",
+          "municipality": "BILBAO",
+          "province": "BIZKAIA",
+          "surface": "70"
+        }
+      },
+      {
+        "description": "VENTA EN LINEA",
+        "epigraph": "665",
+        "activityType": "EMPRESARIAL",
+        "activityCode": "G4791",
+        "effectiveDate": "01/06/2024"
+      }
+    ],
+    "IRPF.METHOD": "DIRECT_SIMPLIFIED",
+    "VAT.REGIMES": [
+      "RECHARGE_EQUIVALENCE",
+      "GENERAL"
+    ]
+  },
+  "mustNotInfer": [
+    "CURRENT_CENSUS_STATUS_WITHOUT_RECONCILIATION",
+    "FUTURE_OPERATIONS",
+    "ACTUAL_FILING_STATUS",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000004G"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "ELENA DEMO CINCO"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "036"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "census.cause",
+      "page": 1,
+      "label": "Causa de presentación",
+      "value": "MODIFICACION"
+    },
+    {
+      "fieldId": "activity.list",
+      "page": 4,
+      "label": "Declaración de actividades económicas y locales",
+      "value": [
+        {
+          "description": "COMERCIO MENOR ARTICULOS HOGAR",
+          "epigraph": "653.2",
+          "activityType": "EMPRESARIAL",
+          "activityCode": "G4759",
+          "effectiveDate": "01/01/2023",
+          "municipality": "BILBAO",
+          "province": "BIZKAIA",
+          "premises": {
+            "street": "CALLE EJEMPLO",
+            "number": "5",
+            "postalCode": "48080",
+            "municipality": "BILBAO",
+            "province": "BIZKAIA",
+            "surface": "70"
+          }
+        },
+        {
+          "description": "VENTA EN LINEA",
+          "epigraph": "665",
+          "activityType": "EMPRESARIAL",
+          "activityCode": "G4791",
+          "effectiveDate": "01/06/2024"
+        }
+      ]
+    },
+    {
+      "fieldId": "irpf.method",
+      "page": 6,
+      "label": "Método de estimación en el IRPF",
+      "value": "DIRECT_SIMPLIFIED"
+    },
+    {
+      "fieldId": "vat.regimes",
+      "page": 5,
+      "label": "Regímenes aplicables",
+      "value": [
+        "RECHARGE_EQUIVALENCE",
+        "GENERAL"
+      ]
+    }
+  ],
+  "notes": [
+    "El 036 representa un evento censal, no una fotografía completa salvo reconciliación con fuentes posteriores."
+  ],
+  "pdfFile": "m036_baja_parcial_compleja_05.pdf",
+  "sha256": "91c065bdc852fdc5fab625121bb9528406f833f2b49c054da815eba06ea66f91"
+}

@@ -275,8 +275,8 @@ export function resolveQuestionsFromFacts(
           questionId,
           answer: "YES",
           facts: rentWithholding,
-          explanation:
-            "El modelo presentado corresponde a rentas de inmuebles urbanos sujetas a retención.",
+        explanation:
+            "El documento contiene rentas de inmuebles urbanos sujetas a retención.",
           completeDocument,
           missingInformation: [
             "Confirmar si el alquiler continúa en el ejercicio que se está configurando.",

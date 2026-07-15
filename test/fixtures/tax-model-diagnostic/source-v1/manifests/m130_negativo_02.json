@@ -1,0 +1,107 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m130_negativo_02",
+  "documentType": "AEAT_MODEL_130",
+  "displayName": "130 · resultado negativo",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "2T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2015-1656, anexo I, modelo 130",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000009D",
+    "taxpayerName": "JORGE EJEMPLO DIEZ",
+    "fiscalYear": 2026,
+    "period": "2T",
+    "income": "8.000,00",
+    "expenses": "9.250,00",
+    "netIncome": "-1.250,00",
+    "twentyPercent": "0,00",
+    "priorPayments": "0,00",
+    "withholdings": "0,00",
+    "quarterPayment": "0,00",
+    "result": "0,00",
+    "negative": true
+  },
+  "expectedQuestionMappings": {
+    "IRPF.PRIOR_DIRECT_ESTIMATION_FILING": true,
+    "IRPF.PERIOD": "2T",
+    "IRPF.DECLARED_WITHHOLDINGS": "0,00"
+  },
+  "mustNotInfer": [
+    "CURRENT_MODEL_130_CENSUS",
+    "FUTURE_MODEL_130_OBLIGATION",
+    "PROFESSIONAL_WITHHOLDING_RATIO",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000009D"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "JORGE EJEMPLO DIEZ"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "130"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "2T"
+    },
+    {
+      "fieldId": "irpf.income",
+      "page": 1,
+      "label": "Ingresos computables",
+      "value": "8.000,00"
+    },
+    {
+      "fieldId": "irpf.expenses",
+      "page": 1,
+      "label": "Gastos fiscalmente deducibles",
+      "value": "9.250,00"
+    },
+    {
+      "fieldId": "irpf.withholdings",
+      "page": 1,
+      "label": "Retenciones e ingresos a cuenta soportados",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado de la autoliquidación",
+      "value": "0,00"
+    }
+  ],
+  "notes": [
+    "El importe de retenciones no permite calcular por sí solo el porcentaje de ingresos sometidos a retención."
+  ],
+  "pdfFile": "m130_negativo_02.pdf",
+  "sha256": "c064f6310e00686ecec2afea55156955daed3e71dc52455d407423842b61977e"
+}

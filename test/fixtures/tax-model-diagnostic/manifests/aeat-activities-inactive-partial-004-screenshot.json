@@ -1,0 +1,63 @@
+{
+  "corpusVersion": "fiscal-extractor-corpus.2026-07.v1",
+  "fixtureId": "aeat-activities-inactive-partial-004-screenshot",
+  "semanticCaseId": "aeat-activities-inactive-partial-004",
+  "parentFixtureId": null,
+  "documentType": "AEAT_ECONOMIC_ACTIVITIES_VIEW",
+  "formVersion": "SYNTHETIC_AEAT_INSPIRED_ACTIVITIES_VIEW_V1",
+  "fiscalYear": 2026,
+  "period": null,
+  "documentKind": "CURRENT_AEAT_VIEW",
+  "filingStatus": "NOT_VERIFIED",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "lifecycleLabels": [
+    "CURRENT_EVIDENCE"
+  ],
+  "stateCoverage": "PARTIAL_CURRENT_STATE",
+  "visualVariant": "SCREENSHOT",
+  "expectedEnvelope": {
+    "isComplete": false
+  },
+  "expectedFields": [],
+  "expectedQuestionMappings": [],
+  "mustNotInfer": [
+    {
+      "code": "OFFICIAL_DOCUMENT_VALIDITY",
+      "reason": "La vista funcional sintética no es una captura ni certificado oficial."
+    },
+    {
+      "code": "ABSENCE_OUTSIDE_CAPTURE",
+      "reason": "Una captura parcial no permite inferir datos ausentes fuera de ella."
+    }
+  ],
+  "allowAdditionalFactTypes": [],
+  "source": {
+    "kind": "SYNTHETIC_FUNCTIONAL_VIEW",
+    "authorizationRecorded": true,
+    "sha256": "af95cc79140fd6d8f2727ce65208c5cf96cfac080aeec7f1c7754efafa619fe7",
+    "officialReference": {
+      "url": "https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/otros-servicios-ayuda-tecnica/datos-censales.html",
+      "capturedOn": "2026-07-15",
+      "sha256": null
+    },
+    "anonymizationAudit": {
+      "textLayerChecked": true,
+      "acroFormChecked": true,
+      "metadataChecked": true,
+      "annotationsChecked": true,
+      "hiddenPagesChecked": true,
+      "qrAndBarcodeChecked": true,
+      "embeddedFilesChecked": true,
+      "originalFileNameStored": false
+    }
+  },
+  "asset": {
+    "pdfPath": "pdf/aeat-activities-inactive-partial-004-screenshot.pdf",
+    "extractedTextPath": "text/aeat-activities-inactive-partial-004-screenshot.txt"
+  },
+  "extractor": {
+    "contractVersion": "1.0.0",
+    "catalogVersion": "fiscal-document-extractors.2026-07.v2",
+    "extractorVersion": "aeat.aeat_economic_activities_view.v2"
+  }
+}

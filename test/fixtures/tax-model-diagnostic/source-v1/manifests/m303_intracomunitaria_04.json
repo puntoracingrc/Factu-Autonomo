@@ -1,0 +1,129 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m303_intracomunitaria_04",
+  "documentType": "AEAT_MODEL_303",
+  "displayName": "303 · adquisición intracomunitaria e inversión del sujeto pasivo",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "4T",
+  "expectedPages": 6,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2026-1761, anexo III, modelo 303",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000015S",
+    "taxpayerName": "PAULA SUPUESTO DIECISEIS",
+    "fiscalYear": 2026,
+    "period": "4T",
+    "general": {
+      "base21": "18.000,00",
+      "outputVat21": "3.780,00",
+      "intraBase": "2.500,00",
+      "intraVat": "525,00",
+      "reverseBase": "1.000,00",
+      "reverseVat": "210,00",
+      "deductible": "3.100,00",
+      "generalResult": "1.415,00"
+    },
+    "additionalInfo": {
+      "intraDeliveries": "0,00",
+      "exports": "0,00",
+      "nonLocated": "0,00",
+      "reverseChargeOps": "1.000,00"
+    },
+    "result": "1.415,00"
+  },
+  "expectedQuestionMappings": {
+    "VAT.PRIOR_PERIODIC_FILING": true,
+    "VAT.PERIODICITY_EVIDENCE": "QUARTERLY",
+    "VAT.DECLARED_OPERATIONS": {
+      "intraDeliveries": "0,00",
+      "exports": "0,00",
+      "nonLocated": "0,00",
+      "reverseChargeOps": "1.000,00"
+    }
+  },
+  "mustNotInfer": [
+    "CURRENT_VAT_REGIME",
+    "CURRENT_ROI_STATUS",
+    "FUTURE_MODEL_303_OBLIGATION",
+    "MODEL_390_OBLIGATION",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000015S"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "PAULA SUPUESTO DIECISEIS"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "303"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "4T"
+    },
+    {
+      "fieldId": "vat.general",
+      "page": 1,
+      "label": "Régimen general",
+      "value": {
+        "base21": "18.000,00",
+        "outputVat21": "3.780,00",
+        "intraBase": "2.500,00",
+        "intraVat": "525,00",
+        "reverseBase": "1.000,00",
+        "reverseVat": "210,00",
+        "deductible": "3.100,00",
+        "generalResult": "1.415,00"
+      }
+    },
+    {
+      "fieldId": "vat.additionalInfo",
+      "page": 3,
+      "label": "Información adicional",
+      "value": {
+        "intraDeliveries": "0,00",
+        "exports": "0,00",
+        "nonLocated": "0,00",
+        "reverseChargeOps": "1.000,00"
+      }
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 3,
+      "label": "Resultado",
+      "value": "1.415,00"
+    }
+  ],
+  "notes": [
+    "El modelo acredita operaciones declaradas en el periodo, no la situación censal actual."
+  ],
+  "pdfFile": "m303_intracomunitaria_04.pdf",
+  "sha256": "6661249eb1a06164f2c90711af21522301cf0e9fdf626fe310c2c433a7bfa7c6"
+}

@@ -1,0 +1,93 @@
+{
+  "corpusVersion": "fiscal-extractor-corpus.2026-07.v1",
+  "fixtureId": "aeat-tax-status-special-registers-004-screenshot",
+  "semanticCaseId": "aeat-tax-status-special-registers-004",
+  "parentFixtureId": null,
+  "documentType": "AEAT_TAX_STATUS_VIEW",
+  "formVersion": "SYNTHETIC_AEAT_INSPIRED_TAX_STATUS_VIEW_V1",
+  "fiscalYear": 2026,
+  "period": null,
+  "documentKind": "CURRENT_AEAT_VIEW",
+  "filingStatus": "NOT_VERIFIED",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "lifecycleLabels": [
+    "CURRENT_EVIDENCE"
+  ],
+  "stateCoverage": "FULL_CURRENT_STATE",
+  "visualVariant": "SCREENSHOT",
+  "expectedEnvelope": {
+    "isComplete": true
+  },
+  "expectedFields": [
+    {
+      "factType": "IRPF.METHOD",
+      "value": "DIRECT_NORMAL",
+      "normalizedValue": "DIRECT_NORMAL",
+      "page": 1,
+      "sourceLabel": "Método de estimación en IRPF"
+    },
+    {
+      "factType": "VAT.REGIMES",
+      "value": [
+        "GENERAL"
+      ],
+      "normalizedValue": [
+        "GENERAL"
+      ],
+      "page": 1,
+      "sourceLabel": "Regímenes aplicables de IVA"
+    }
+  ],
+  "expectedQuestionMappings": [
+    {
+      "questionId": "D_INCOME_TAX_REGIME",
+      "proposedAnswer": "DIRECT_NORMAL",
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    },
+    {
+      "questionId": "E_VAT_REGIMES",
+      "proposedAnswer": [
+        "GENERAL"
+      ],
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    }
+  ],
+  "mustNotInfer": [
+    {
+      "code": "OFFICIAL_DOCUMENT_VALIDITY",
+      "reason": "La vista funcional sintética no es una captura ni certificado oficial."
+    }
+  ],
+  "allowAdditionalFactTypes": [],
+  "source": {
+    "kind": "SYNTHETIC_FUNCTIONAL_VIEW",
+    "authorizationRecorded": true,
+    "sha256": "ef3543ff6b692bf2842952415b235213d06c87a26e4c5a2e24ecc281884ae402",
+    "officialReference": {
+      "url": "https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/otros-servicios-ayuda-tecnica/datos-censales.html",
+      "capturedOn": "2026-07-15",
+      "sha256": null
+    },
+    "anonymizationAudit": {
+      "textLayerChecked": true,
+      "acroFormChecked": true,
+      "metadataChecked": true,
+      "annotationsChecked": true,
+      "hiddenPagesChecked": true,
+      "qrAndBarcodeChecked": true,
+      "embeddedFilesChecked": true,
+      "originalFileNameStored": false
+    }
+  },
+  "asset": {
+    "pdfPath": "pdf/aeat-tax-status-special-registers-004-screenshot.pdf",
+    "extractedTextPath": "text/aeat-tax-status-special-registers-004-screenshot.txt"
+  },
+  "extractor": {
+    "contractVersion": "1.0.0",
+    "catalogVersion": "fiscal-document-extractors.2026-07.v2",
+    "extractorVersion": "aeat.aeat_tax_status_view.v2"
+  }
+}

@@ -1,0 +1,24 @@
+Agencia Tributaria
+SIMULACIÓN LOCAL DEL ÁREA PERSONAL · NO EMITIDA POR LA AEAT
+ Mi situación tributaria
+Resumen de la situación tributaria vigente a la fecha indicada.
+NIF 00000033X · consulta 14/07/2026
+Impuesto sobre la Renta
+Método
+Estimación directa simplificada
+Pagos fraccionados
+Modelo 130
+Impuesto sobre el Valor Añadido
+Régimen
+General
+Periodicidad
+Trimestral
+Registros y opciones
+ROI
+No
+REDEME
+No
+SII
+No
+DOCUMENTO SINTÉTICO · SIN VALIDEZ
+FIXTURE pantalla_situacion_directa_general_01 · página 1 · NO PRESENTABLE · datos totalmente sintéticos

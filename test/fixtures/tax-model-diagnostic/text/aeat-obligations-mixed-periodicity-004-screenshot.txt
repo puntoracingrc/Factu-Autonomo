@@ -1,0 +1,38 @@
+Agencia Tributaria
+SIMULACIÓN LOCAL DEL ÁREA PERSONAL · NO EMITIDA POR LA AEAT
+ Mis obligaciones tributarias
+Relación de obligaciones periódicas, periodicidad y estado.
+NIF 00000040V · consulta 14/07/2026
+Obligaciones vigentes e históricas
+Modelo
+Descripción
+Periodicidad
+Estado
+Alta
+Baja
+303
+Autoliquidación IVA
+Mensual
+ACTIVA
+01/01/2026
+—
+111
+Retenciones trabajo/profesiona
+Mensual
+ACTIVA
+01/01/2026
+—
+115
+Retenciones arrendamientos
+Mensual
+ACTIVA
+01/01/2026
+—
+349
+Operaciones intracomunitarias
+Mensual
+ACTIVA
+01/02/2026
+—
+DOCUMENTO SINTÉTICO · SIN VALIDEZ
+FIXTURE pantalla_obligaciones_mensuales_04 · página 1 · NO PRESENTABLE · datos totalmente sintéticos

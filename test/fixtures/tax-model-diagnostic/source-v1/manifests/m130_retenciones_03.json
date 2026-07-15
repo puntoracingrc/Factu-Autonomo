@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m130_retenciones_03",
+  "documentType": "AEAT_MODEL_130",
+  "displayName": "130 · con retenciones soportadas",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "3T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2015-1656, anexo I, modelo 130",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000010X",
+    "taxpayerName": "KARLA FICTICIA ONCE",
+    "fiscalYear": 2026,
+    "period": "3T",
+    "income": "25.000,00",
+    "expenses": "9.000,00",
+    "netIncome": "16.000,00",
+    "twentyPercent": "3.200,00",
+    "priorPayments": "1.300,00",
+    "withholdings": "1.750,00",
+    "quarterPayment": "150,00",
+    "result": "150,00"
+  },
+  "expectedQuestionMappings": {
+    "IRPF.PRIOR_DIRECT_ESTIMATION_FILING": true,
+    "IRPF.PERIOD": "3T",
+    "IRPF.DECLARED_WITHHOLDINGS": "1.750,00"
+  },
+  "mustNotInfer": [
+    "CURRENT_MODEL_130_CENSUS",
+    "FUTURE_MODEL_130_OBLIGATION",
+    "PROFESSIONAL_WITHHOLDING_RATIO",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000010X"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "KARLA FICTICIA ONCE"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "130"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "3T"
+    },
+    {
+      "fieldId": "irpf.income",
+      "page": 1,
+      "label": "Ingresos computables",
+      "value": "25.000,00"
+    },
+    {
+      "fieldId": "irpf.expenses",
+      "page": 1,
+      "label": "Gastos fiscalmente deducibles",
+      "value": "9.000,00"
+    },
+    {
+      "fieldId": "irpf.withholdings",
+      "page": 1,
+      "label": "Retenciones e ingresos a cuenta soportados",
+      "value": "1.750,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado de la autoliquidación",
+      "value": "150,00"
+    }
+  ],
+  "notes": [
+    "El importe de retenciones no permite calcular por sí solo el porcentaje de ingresos sometidos a retención."
+  ],
+  "pdfFile": "m130_retenciones_03.pdf",
+  "sha256": "130cef9f5ec455387fd6579b243a61be6bcac7f484c5eef5dc70a59f926a2004"
+}

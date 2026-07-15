@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m111_negativo_complementario_04",
+  "documentType": "AEAT_MODEL_111",
+  "displayName": "111 · negativa y complementaria",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "4T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT/BOE",
+    "reference": "Modelo 111, anexo oficial",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000024R",
+    "taxpayerName": "YAGO PRUEBA VEINTICINCO",
+    "fiscalYear": 2026,
+    "period": "4T",
+    "workRecipients": "0",
+    "workIncome": "0,00",
+    "workWithholdings": "0,00",
+    "professionalRecipients": "0",
+    "professionalIncome": "0,00",
+    "professionalWithholdings": "0,00",
+    "totalWithholdings": "0,00",
+    "result": "0,00",
+    "negative": true,
+    "complementary": true,
+    "previousReceipt": "1112026SYN00004"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.WORK_RECIPIENTS": false,
+    "WITHHOLDING.PROFESSIONALS_PAID": false,
+    "WITHHOLDING.PRIOR_MODEL_111_FILING": true
+  },
+  "mustNotInfer": [
+    "EMPLOYEES_FROM_WORK_ROW_ALONE",
+    "CURRENT_MODEL_111_CENSUS",
+    "FUTURE_MODEL_111_OBLIGATION",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000024R"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "YAGO PRUEBA VEINTICINCO"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "111"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "4T"
+    },
+    {
+      "fieldId": "withholding.workRecipients",
+      "page": 1,
+      "label": "Rendimientos del trabajo",
+      "value": "0"
+    },
+    {
+      "fieldId": "withholding.professionalRecipients",
+      "page": 1,
+      "label": "Rendimientos de actividades económicas",
+      "value": "0"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado a ingresar",
+      "value": "0,00"
+    }
+  ],
+  "notes": [
+    "El 111 no permite distinguir por sí solo trabajadores de todas las demás subclases anuales."
+  ],
+  "pdfFile": "m111_negativo_complementario_04.pdf",
+  "sha256": "1f7391b33abf503cfbb667c2aafecbc04e6d5d399483dd42a96656398f1fbac1"
+}

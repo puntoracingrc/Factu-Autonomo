@@ -97,6 +97,48 @@ function parseSpanishNumber(value: string | undefined): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function filledOverlayLines(pageText: string): readonly string[] {
+  const lines = pageText
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const identityIndex = lines.findIndex((line) =>
+    /^(?:[XYZ]\d{7}[A-Z]|\d{8}[A-Z]|[A-Z]\d{7}[A-Z0-9])$/i.test(line),
+  );
+  if (identityIndex < 0) return [];
+  const endIndex = lines.findIndex(
+    (line, index) =>
+      index > identityIndex &&
+      /^(?:DOCUMENTO SINTETICO|DOCUMENTO SINTÉTICO|FIXTURE\b)/i.test(line),
+  );
+  return lines.slice(identityIndex, endIndex < 0 ? lines.length : endIndex);
+}
+
+function filledOverlayPages(input: PriorityModelInput): readonly (readonly string[])[] {
+  const pages =
+    input.pages?.map((page) => page.text) ?? input.text.split(/\n?\f\n?/);
+  return pages.map(filledOverlayLines).filter((lines) => lines.length > 0);
+}
+
+function exactNumericValues(lines: readonly string[]): readonly number[] {
+  return lines.flatMap((line) => {
+    if (!/^[+-]?(?:\d{1,3}(?:\.\d{3})*|\d+)(?:,\d{1,2})?$/.test(line)) {
+      return [];
+    }
+    const parsed = parseSpanishNumber(line);
+    return parsed == null ? [] : [parsed];
+  });
+}
+
+function valuesAfterPeriod(
+  lines: readonly string[],
+  period: string | undefined,
+): readonly number[] {
+  if (!period) return [];
+  const periodIndex = lines.findIndex((line) => line === period);
+  return periodIndex < 0 ? [] : exactNumericValues(lines.slice(periodIndex + 1));
+}
+
 function explicitBoxNumber(text: string, box: string): number | null {
   const normalized = normalizeDocumentText(text);
   const escaped = box.replace(/^0+/, "0*");
@@ -335,8 +377,7 @@ function extractionForSubmittedModel(
   const normalized = normalizeDocumentText(input.text);
   const validCandidate =
     candidate.modelCode === code &&
-    candidate.isSubmitted &&
-    candidate.status === "RESOLVED";
+    (candidate.isSubmitted || candidate.hasPopulatedData);
   const temporalScope: TemporalScope = ANNUAL_MODELS.has(code)
     ? "TARGET_FISCAL_YEAR"
     : "SPECIFIC_PERIOD";
@@ -407,22 +448,41 @@ function extractionForSubmittedModel(
     };
   }
 
-  add(
-    "FILING.MODEL",
-    {
-      model: code,
-      ...(candidate.taxYear ? { fiscalYear: candidate.taxYear } : {}),
-      ...(candidate.period ? { period: candidate.period } : {}),
-      status: "APPARENTLY_FILED",
-    },
-    `Modelo ${code} presentado`,
-    null,
+  if (candidate.isSubmitted) {
+    add(
+      "FILING.MODEL",
+      {
+        model: code,
+        ...(candidate.taxYear ? { fiscalYear: candidate.taxYear } : {}),
+        ...(candidate.period ? { period: candidate.period } : {}),
+        status: "APPARENTLY_FILED",
+      },
+      `Modelo ${code} presentado`,
+      null,
+    );
+  }
+
+  const overlayPages = filledOverlayPages(input);
+  const mainOverlay =
+    overlayPages.find((lines) => lines.includes(candidate.period ?? "")) ??
+    overlayPages[0] ??
+    [];
+  const valuesAfterVisiblePeriod = valuesAfterPeriod(
+    mainOverlay,
+    candidate.period,
   );
+  const mainValues =
+    valuesAfterVisiblePeriod.length > 0
+      ? valuesAfterVisiblePeriod
+      : exactNumericValues(mainOverlay);
 
   if (code === "130") {
     add(
       "IRPF.PAYMENT_130",
-      { method: "DIRECT_ESTIMATION", filed: true },
+      {
+        method: "DIRECT_ESTIMATION",
+        filingStatus: candidate.isSubmitted ? "APPARENTLY_FILED" : "DRAFT",
+      },
       "Actividades económicas en estimación directa",
     );
   }
@@ -430,15 +490,21 @@ function extractionForSubmittedModel(
   if (code === "131") {
     add(
       "IRPF.PAYMENT_131",
-      { method: "OBJECTIVE_ESTIMATION", filed: true },
+      {
+        method: "OBJECTIVE_ESTIMATION",
+        filingStatus: candidate.isSubmitted ? "APPARENTLY_FILED" : "DRAFT",
+      },
       "Actividades económicas en estimación objetiva",
     );
     add("IRPF.METHOD", "OBJECTIVE_ESTIMATION", "Estimación objetiva");
   }
 
   if (code === "111") {
+    const overlayWorkRecipients = mainValues[0] ?? 0;
+    const overlayProfessionalRecipients = mainValues[3] ?? 0;
     if (
       hasPositiveBox(input.text, ["01", "04"]) ||
+      overlayWorkRecipients > 0 ||
       hasExplicitPositiveLabel(input.text, [
         "Rendimientos del trabajo número de perceptores",
       ])
@@ -450,7 +516,10 @@ function extractionForSubmittedModel(
         "01/04",
       );
     }
-    if (hasPositiveBox(input.text, ["07", "10"])) {
+    if (
+      hasPositiveBox(input.text, ["07", "10"]) ||
+      overlayProfessionalRecipients > 0
+    ) {
       add(
         "WITHHOLDING.ECONOMIC_ACTIVITY_RECIPIENTS",
         { paid: true, categoryRequiresAnnualDetail: true },
@@ -489,8 +558,12 @@ function extractionForSubmittedModel(
   }
 
   if (code === "115" || code === "180") {
+    const rentValues = exactNumericValues(mainOverlay);
+    const overlayRentRecipients =
+      rentValues.length >= 5 ? rentValues[rentValues.length - 5] : 0;
     const positiveRentData =
       hasPositiveBox(input.text, ["01", "02", "03"]) ||
+      overlayRentRecipients > 0 ||
       hasExplicitPositiveLabel(input.text, [
         "Número total de perceptores",
         "Número de perceptores",
@@ -572,11 +645,20 @@ function extractionForSubmittedModel(
     if (code === "303") {
       add(
         "VAT.FILING_303",
-        { periodicVatReturn: true },
+        {
+          periodicVatReturnObserved: true,
+          filingStatus: candidate.isSubmitted ? "APPARENTLY_FILED" : "DRAFT",
+        },
         "IVA · Autoliquidación",
       );
+      const additionalValues = overlayPages
+        .filter((lines) => lines !== mainOverlay)
+        .map(exactNumericValues)
+        .find((values) => values.length >= 6) ?? [];
       if (
         hasPositiveBox(input.text, ["12", "13", "125"]) ||
+        (mainValues[5] ?? 0) > 0 ||
+        (additionalValues[3] ?? 0) > 0 ||
         hasExplicitPositiveLabel(input.text, [
           "Operaciones con inversión del sujeto pasivo",
           "Otras operaciones con inversión del sujeto pasivo",
@@ -592,12 +674,14 @@ function extractionForSubmittedModel(
       const euKeys = new Set<string>();
       if (
         hasPositiveBox(input.text, ["10", "11"]) ||
+        (mainValues[3] ?? 0) > 0 ||
         hasExplicitPositiveLabel(input.text, [
           "Adquisiciones intracomunitarias de bienes",
         ])
       ) {
         euKeys.add("A");
       }
+      if ((additionalValues[0] ?? 0) > 0) euKeys.add("E");
       if (
         hasExplicitPositiveLabel(input.text, [
           "Entregas intracomunitarias de bienes",
@@ -629,7 +713,10 @@ function extractionForSubmittedModel(
     } else {
       add(
         "VAT.ANNUAL_SUMMARY",
-        { annualVatSummaryFiled: true },
+        {
+          annualVatSummaryObserved: true,
+          filingStatus: candidate.isSubmitted ? "APPARENTLY_FILED" : "DRAFT",
+        },
         "IVA · Resumen anual",
       );
       const annualEuKeys = new Set<string>();
@@ -671,7 +758,7 @@ function extractionForSubmittedModel(
       add(
         "VAT.MODEL_390_FACTORS",
         {
-          annualSummaryFiled: true,
+          annualSummaryObserved: true,
           explicitRegimes: regimes,
           euOperationKeys: [...annualEuKeys],
         },
@@ -764,15 +851,11 @@ function extractionForSubmittedModel(
 
   return {
     facts,
-    documentKind: "FILED_DECLARATION_COPY",
-    filingStatus: "APPARENTLY_FILED",
+    documentKind: candidate.isSubmitted ? "FILED_DECLARATION_COPY" : "DRAFT",
+    filingStatus: candidate.isSubmitted ? "APPARENTLY_FILED" : "DRAFT",
     fiscalYear: candidate.taxYear ?? null,
     period: candidate.period ?? null,
-    taxpayerNifMasked: maskSpanishTaxId(
-      normalized.match(
-        /\b(?:NIF|NIE)\s*[:.\-]?\s*([XYZ]?\d{7,8}[A-Z]|[A-Z]\d{7}[A-Z0-9])\b/,
-      )?.[1],
-    ),
+    taxpayerNifMasked: maskSpanishTaxId(candidate.detectedNif),
     issueDate: null,
     filingDate: signals.filingDate,
     effectiveDate: extractDateAfterLabel(input.text, [
@@ -780,9 +863,16 @@ function extractionForSubmittedModel(
       "FECHA DE EFECTO",
     ]),
     csvDetected: signals.csvDetected,
-    isComplete: completePages(input),
+    isComplete: candidate.isSubmitted && completePages(input),
     confidence: facts.length > 1 ? confidence : 0.76,
-    warnings: candidate.warnings,
+    warnings: [
+      ...candidate.warnings,
+      ...(!candidate.isSubmitted
+        ? [
+            "Los campos se han leído de un impreso cumplimentado sin prueba de presentación; deben confirmarse y solo describen el periodo visible.",
+          ]
+        : []),
+    ],
   };
 }
 

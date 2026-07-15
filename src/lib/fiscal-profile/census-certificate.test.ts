@@ -77,6 +77,23 @@ describe("census certificate parser", () => {
     expect(parsed.warnings.join(" ")).toContain("037 histórico");
   });
 
+  it("recognizes 036 and historical 037 when OCR separates Modelo from its code", () => {
+    expect(
+      parseCensusCertificateText(`
+        DECLARACIÓN CENSAL
+        Modelo Datos identificativos de alta y baja en el Censo de
+        Empresarios, Profesionales y Retenedores 036
+      `).documentKind,
+    ).toBe("MODEL_036");
+    expect(
+      parseCensusCertificateText(`
+        Declaración censal simplificada de alta, modificación y baja en el
+        Censo de Empresarios, Profesionales y Retenedores
+        Modelo declaración histórica 037
+      `).documentKind,
+    ).toBe("MODEL_037");
+  });
+
   it("keeps missing or ambiguous fiscal data unknown", () => {
     const parsed = parseCensusCertificateText(`
       Documento aportado por el usuario

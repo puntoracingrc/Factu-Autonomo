@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "pantalla_obligaciones_130_303_01",
+  "documentType": "AEAT_SCREEN_PERIODIC_OBLIGATIONS",
+  "displayName": "Pantalla · modelos 130 y 303 trimestrales",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_PORTAL_SCREEN",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT-inspired synthetic UI",
+    "reference": "Simulación de pantallas de Mis datos censales",
+    "templateStatus": "synthetic-interface",
+    "notOfficialScreenshot": true
+  },
+  "expectedFields": {
+    "screenType": "OBLIGATIONS",
+    "taxpayerNif": "00000037Z",
+    "taxpayerName": "LAURA ENSAYO TREINTA Y OCHO",
+    "consultationDate": "14/07/2026",
+    "obligations": [
+      {
+        "model": "130",
+        "description": "Pago fraccionado IRPF",
+        "periodicity": "Trimestral",
+        "status": "ACTIVA",
+        "startDate": "01/01/2026"
+      },
+      {
+        "model": "303",
+        "description": "Autoliquidación IVA",
+        "periodicity": "Trimestral",
+        "status": "ACTIVA",
+        "startDate": "01/01/2026"
+      }
+    ]
+  },
+  "expectedQuestionMappings": {
+    "CENSUS.PERIODIC_OBLIGATIONS": [
+      {
+        "model": "130",
+        "description": "Pago fraccionado IRPF",
+        "periodicity": "Trimestral",
+        "status": "ACTIVA",
+        "startDate": "01/01/2026"
+      },
+      {
+        "model": "303",
+        "description": "Autoliquidación IVA",
+        "periodicity": "Trimestral",
+        "status": "ACTIVA",
+        "startDate": "01/01/2026"
+      }
+    ]
+  },
+  "mustNotInfer": [
+    "ACTUAL_FILING_COMPLIANCE",
+    "FUTURE_OPERATIONS",
+    "VALID_OFFICIAL_CERTIFICATE",
+    "CHANGES_AFTER_CONSULTATION_DATE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000037Z"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "LAURA ENSAYO TREINTA Y OCHO"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "census.periodicObligations",
+      "page": 1,
+      "label": "Mis obligaciones tributarias",
+      "value": [
+        {
+          "model": "130",
+          "description": "Pago fraccionado IRPF",
+          "periodicity": "Trimestral",
+          "status": "ACTIVA",
+          "startDate": "01/01/2026"
+        },
+        {
+          "model": "303",
+          "description": "Autoliquidación IVA",
+          "periodicity": "Trimestral",
+          "status": "ACTIVA",
+          "startDate": "01/01/2026"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "La pantalla indica obligaciones censadas, no confirma que todas las declaraciones se hayan presentado."
+  ],
+  "pdfFile": "pantalla_obligaciones_130_303_01.pdf",
+  "sha256": "30ee3bcb7f9c1c5a8fb03483a17e3757919318adfb27d313f2f73289542301fb"
+}

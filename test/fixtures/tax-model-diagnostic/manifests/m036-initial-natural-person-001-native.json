@@ -1,0 +1,145 @@
+{
+  "corpusVersion": "fiscal-extractor-corpus.2026-07.v1",
+  "fixtureId": "m036-initial-natural-person-001-native",
+  "semanticCaseId": "m036-initial-natural-person-001",
+  "parentFixtureId": null,
+  "documentType": "MODEL_036",
+  "formVersion": "AEAT_MODEL_036_INTERESTED_COPY_2026",
+  "fiscalYear": 2026,
+  "period": null,
+  "documentKind": "DRAFT",
+  "filingStatus": "DRAFT",
+  "temporalScope": "SPECIFIC_PERIOD",
+  "lifecycleLabels": [
+    "NOT_CURRENT_CENSUS_STATUS"
+  ],
+  "stateCoverage": "PERIOD_ONLY",
+  "visualVariant": "NATIVE_PDF",
+  "expectedEnvelope": {
+    "isComplete": false
+  },
+  "expectedFields": [
+    {
+      "factType": "SUBJECT.TAXPAYER_TYPE",
+      "value": "NATURAL_PERSON",
+      "normalizedValue": "NATURAL_PERSON",
+      "page": 1,
+      "sourceLabel": "Tipo de contribuyente"
+    },
+    {
+      "factType": "ACTIVITY.LIST",
+      "value": [
+        {
+          "code": "763",
+          "description": "SERVICIOS DE PROGRAMACION"
+        }
+      ],
+      "normalizedValue": [
+        {
+          "code": "763",
+          "description": "SERVICIOS DE PROGRAMACION"
+        }
+      ],
+      "page": 6,
+      "sourceLabel": "Actividades económicas"
+    },
+    {
+      "factType": "ACTIVITY.NATURE",
+      "value": [
+        "PROFESSIONAL"
+      ],
+      "normalizedValue": [
+        "PROFESSIONAL"
+      ],
+      "page": 6,
+      "sourceLabel": "Sección de la actividad"
+    },
+    {
+      "factType": "ACTIVITY.DATES",
+      "value": [
+        "2026-01-01"
+      ],
+      "normalizedValue": [
+        "2026-01-01"
+      ],
+      "page": 6,
+      "sourceLabel": "Fecha de inicio de la actividad"
+    }
+  ],
+  "expectedQuestionMappings": [
+    {
+      "questionId": "A_INVOICING_SUBJECT",
+      "proposedAnswer": "NATURAL_PERSON",
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    },
+    {
+      "questionId": "C_ACTIVITY_KINDS",
+      "proposedAnswer": [
+        "PROFESSIONAL"
+      ],
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    },
+    {
+      "questionId": "B_START_DATE",
+      "proposedAnswer": "2026-01-01",
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    }
+  ],
+  "mustNotInfer": [
+    {
+      "code": "CURRENT_CENSUS_STATUS",
+      "reason": "Una declaración concreta no acredita por sí sola la situación censal actual."
+    },
+    {
+      "code": "FUTURE_OBLIGATION",
+      "reason": "Una declaración de un período no acredita una obligación futura."
+    },
+    {
+      "code": "VERIFIED_FILING",
+      "reason": "El impreso sintético no acredita presentación ante la AEAT."
+    },
+    {
+      "code": "OFFICIAL_DOCUMENT_VALIDITY",
+      "reason": "El documento sintético carece de validez oficial."
+    },
+    {
+      "code": "ABSENCE_OUTSIDE_CAPTURE",
+      "reason": "Una captura parcial no permite inferir datos ausentes fuera de ella."
+    }
+  ],
+  "allowAdditionalFactTypes": [
+    "CENSUS.EVENT"
+  ],
+  "source": {
+    "kind": "SYNTHETIC_OFFICIAL_FORM",
+    "authorizationRecorded": true,
+    "sha256": "56d220cf74c4d91d3a3698b4aa186265d5d9b6272745320658211d609a451e6c",
+    "officialReference": {
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G322.shtml",
+      "capturedOn": "2026-07-15",
+      "sha256": null
+    },
+    "anonymizationAudit": {
+      "textLayerChecked": true,
+      "acroFormChecked": true,
+      "metadataChecked": true,
+      "annotationsChecked": true,
+      "hiddenPagesChecked": true,
+      "qrAndBarcodeChecked": true,
+      "embeddedFilesChecked": true,
+      "originalFileNameStored": false
+    }
+  },
+  "asset": {
+    "pdfPath": "pdf/m036-initial-natural-person-001-native.pdf",
+    "extractedTextPath": "text/m036-initial-natural-person-001-native.txt"
+  },
+  "extractor": {
+    "contractVersion": "1.0.0",
+    "catalogVersion": "fiscal-document-extractors.2026-07.v2",
+    "extractorVersion": "aeat.model.036.v2"
+  }
+}

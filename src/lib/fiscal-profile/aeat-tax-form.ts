@@ -336,6 +336,8 @@ export interface AeatTaxFormCandidate {
   modelCode: AeatSupportedTaxFormCode | "UNKNOWN";
   status: "RESOLVED" | "REVIEW_REQUIRED" | "BLOCKED";
   isSubmitted: boolean;
+  hasPopulatedData: boolean;
+  detectedNif?: string;
   taxYear?: number;
   period?: string;
   receiptNumber?: string;
@@ -355,21 +357,56 @@ function normalize(value: string): string {
 }
 
 function containsModelCode(value: string, code: AeatSupportedTaxFormCode): boolean {
-  return new RegExp(`\\b(?:MODELO|FORMULARIO)\\s*${code}\\b`).test(value);
+  return (
+    new RegExp(`\\b(?:MODELO|FORMULARIO)\\s*${code}\\b`).test(value) ||
+    new RegExp(`\\b(?:MODELO|FORMULARIO)\\b.{0,240}\\b${code}\\b`).test(
+      value,
+    )
+  );
 }
 
 function matchesStructure(value: string, structure: AeatTaxFormStructure): boolean {
   if (!containsModelCode(value, structure.code)) return false;
-  if (!value.includes("NIF")) return false;
   if (!structure.requiredPhrases.every((phrase) => value.includes(phrase))) {
     return false;
   }
-  return (structure.requiredAnyPhraseGroups ?? []).every((group) =>
-    group.some((phrase) => value.includes(phrase)),
+  const optionalGroupsMatch = (structure.requiredAnyPhraseGroups ?? []).every(
+    (group) => group.some((phrase) => value.includes(phrase)),
   );
+  if (optionalGroupsMatch) return true;
+
+  // En formularios impresos el OCR puede perder el subtítulo específico,
+  // pero conservar el rótulo Modelo y su código exacto. Ese par, unido a las
+  // frases obligatorias anteriores, sigue siendo una señal estructural.
+  return new RegExp(
+    `\\b(?:MODELO|FORMULARIO)\\b.{0,240}\\b${structure.code}\\b`,
+  ).test(value);
 }
 
 function detectModel(value: string): AeatTaxFormStructure | undefined {
+  const printedWithholding115 =
+    /\b115\b/.test(value) &&
+    value.includes("RETENCIONES E INGRESOS A CUENTA") &&
+    value.includes("BASE DE LAS RETENCIONES") &&
+    value.includes("DECLARACION-DOCUMENTO DE INGRESO");
+  if (printedWithholding115) {
+    return AEAT_TAX_FORM_STRUCTURES.find(
+      (structure) => structure.code === "115",
+    );
+  }
+
+  const printedWithholding111 =
+    /\b111\b/.test(value) &&
+    value.includes("RETENCIONES E INGRESOS A CUENTA") &&
+    value.includes("RENDIMIENTOS DEL TRABAJO") &&
+    value.includes("RENDIMIENTOS DE ACTIVIDADES ECONOMICAS") &&
+    value.includes("AUTOLIQUIDACION");
+  if (printedWithholding111) {
+    return AEAT_TAX_FORM_STRUCTURES.find(
+      (structure) => structure.code === "111",
+    );
+  }
+
   return AEAT_TAX_FORM_STRUCTURES.find((structure) =>
     matchesStructure(value, structure),
   );
@@ -407,6 +444,7 @@ export function parseAeatTaxFormText(text: string): AeatTaxFormCandidate {
       modelCode: "UNKNOWN",
       status: "BLOCKED",
       isSubmitted: false,
+      hasPopulatedData: false,
       euOperationKeys: [],
       warnings: [
         "El archivo no coincide con ninguna estructura del catálogo cerrado de modelos compatibles.",
@@ -414,10 +452,41 @@ export function parseAeatTaxFormText(text: string): AeatTaxFormCandidate {
     };
   }
 
-  const yearMatch = value.match(/\bEJERCICIO\s*[:.\-]?\s*(20\d{2})\b/);
-  const periodMatch = value.match(
+  const labelledYear = value.match(/\bEJERCICIO\s*[:.\-]?\s*(20\d{2})\b/);
+  const labelledPeriod = value.match(
     /\bPERIODO\s*[:.\-]?\s*(0A|ANUAL|[1-4]T|0[1-9]|1[0-2])\b/,
   );
+  const taxIdPattern =
+    "(?:[XYZ]\\d{7}[A-Z]|\\d{8}[A-Z]|[A-Z]\\d{7}[A-Z0-9])";
+  const periodPattern = "(?:0A|ANUAL|[1-4]T|0[1-9]|1[0-2])";
+  const detectedNif = value.match(new RegExp(`\\b(${taxIdPattern})\\b`))?.[1];
+  // Los PDF impresos suelen colocar la capa cumplimentada al final del flujo
+  // de texto. Se aceptan ambos órdenes habituales, pero siempre se exige un
+  // NIF completo y los metadatos temporales propios del modelo.
+  const filledYearFirst = value.match(
+    new RegExp(`\\b(20\\d{2})\\s+(${periodPattern})\\s+(${taxIdPattern})\\b`),
+  );
+  const filledTaxIdFirst = value.match(
+    new RegExp(
+      `\\b(${taxIdPattern})\\b(?:\\s+[A-Z][A-Z ]{1,100})?\\s+(20\\d{2})\\s+(${periodPattern})\\b`,
+    ),
+  );
+  const filledAnnual = value.match(
+    new RegExp(
+      `\\b(${taxIdPattern})\\b(?:\\s+[A-Z][A-Z ]{1,100})?\\s+(20\\d{2})\\b`,
+    ),
+  );
+  const taxYear = labelledYear?.[1]
+    ? Number(labelledYear[1])
+    : filledYearFirst?.[1]
+      ? Number(filledYearFirst[1])
+      : filledTaxIdFirst?.[2]
+        ? Number(filledTaxIdFirst[2])
+        : filledAnnual?.[2]
+          ? Number(filledAnnual[2])
+          : undefined;
+  const period =
+    labelledPeriod?.[1] ?? filledYearFirst?.[2] ?? filledTaxIdFirst?.[3];
   const receiptMatch = value.match(
     /\b(?:N(?:UMERO|O)?\.?\s+DE\s+)?JUSTIFICANTE\s*[:.\-]?\s*(\d{10,16})\b/,
   );
@@ -431,11 +500,14 @@ export function parseAeatTaxFormText(text: string): AeatTaxFormCandidate {
   const needsYear = structure.periodicity !== "EVENT_DRIVEN";
   const needsPeriod = structure.periodicity === "PERIODIC";
   const metadataComplete =
-    (!needsYear || Boolean(yearMatch)) && (!needsPeriod || Boolean(periodMatch));
+    (!needsYear || Boolean(taxYear)) && (!needsPeriod || Boolean(period));
+  const hasPopulatedData = Boolean(detectedNif && metadataComplete);
   const warnings = [
     isSubmitted
       ? `Los datos leídos del modelo ${structure.code} corresponden al período indicado o, si es anual, al ejercicio de una presentación; confirma cada propuesta antes de aplicarla.`
-      : `Se reconoce la estructura del modelo ${structure.code}, pero no una presentación cumplimentada; no se propondrán respuestas a partir de una plantilla vacía.`,
+      : hasPopulatedData
+        ? `Se reconoce un modelo ${structure.code} cumplimentado, pero no se ha acreditado su presentación. Los datos visibles solo se propondrán para revisión y confirmación.`
+        : `Se reconoce la estructura del modelo ${structure.code}, pero no una presentación cumplimentada; no se propondrán respuestas a partir de una plantilla vacía.`,
   ];
   if (!metadataComplete) {
     warnings.push(
@@ -448,8 +520,10 @@ export function parseAeatTaxFormText(text: string): AeatTaxFormCandidate {
     modelCode: structure.code,
     status: isSubmitted && metadataComplete ? "RESOLVED" : "REVIEW_REQUIRED",
     isSubmitted,
-    ...(yearMatch ? { taxYear: Number(yearMatch[1]) } : {}),
-    ...(periodMatch ? { period: periodMatch[1] } : {}),
+    hasPopulatedData,
+    ...(detectedNif ? { detectedNif } : {}),
+    ...(taxYear ? { taxYear } : {}),
+    ...(period ? { period } : {}),
     ...(receiptMatch ? { receiptNumber: receiptMatch[1] } : {}),
     euOperationKeys:
       structure.code === "349" ? extractEuOperationKeys(value) : [],

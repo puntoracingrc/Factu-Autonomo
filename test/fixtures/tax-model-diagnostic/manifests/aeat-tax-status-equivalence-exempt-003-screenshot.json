@@ -1,0 +1,96 @@
+{
+  "corpusVersion": "fiscal-extractor-corpus.2026-07.v1",
+  "fixtureId": "aeat-tax-status-equivalence-exempt-003-screenshot",
+  "semanticCaseId": "aeat-tax-status-equivalence-exempt-003",
+  "parentFixtureId": null,
+  "documentType": "AEAT_TAX_STATUS_VIEW",
+  "formVersion": "SYNTHETIC_AEAT_INSPIRED_TAX_STATUS_VIEW_V1",
+  "fiscalYear": 2026,
+  "period": null,
+  "documentKind": "CURRENT_AEAT_VIEW",
+  "filingStatus": "NOT_VERIFIED",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "lifecycleLabels": [
+    "CURRENT_EVIDENCE"
+  ],
+  "stateCoverage": "FULL_CURRENT_STATE",
+  "visualVariant": "SCREENSHOT",
+  "expectedEnvelope": {
+    "isComplete": true
+  },
+  "expectedFields": [
+    {
+      "factType": "IRPF.METHOD",
+      "value": "DIRECT_SIMPLIFIED",
+      "normalizedValue": "DIRECT_SIMPLIFIED",
+      "page": 1,
+      "sourceLabel": "Método de estimación en IRPF"
+    },
+    {
+      "factType": "VAT.REGIMES",
+      "value": [
+        "EQUIVALENCE_SURCHARGE",
+        "EXEMPT"
+      ],
+      "normalizedValue": [
+        "EQUIVALENCE_SURCHARGE",
+        "EXEMPT"
+      ],
+      "page": 1,
+      "sourceLabel": "Regímenes aplicables de IVA"
+    }
+  ],
+  "expectedQuestionMappings": [
+    {
+      "questionId": "D_INCOME_TAX_REGIME",
+      "proposedAnswer": "DIRECT_SIMPLIFIED",
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    },
+    {
+      "questionId": "E_VAT_REGIMES",
+      "proposedAnswer": [
+        "EQUIVALENCE_SURCHARGE",
+        "EXEMPT"
+      ],
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    }
+  ],
+  "mustNotInfer": [
+    {
+      "code": "OFFICIAL_DOCUMENT_VALIDITY",
+      "reason": "La vista funcional sintética no es una captura ni certificado oficial."
+    }
+  ],
+  "allowAdditionalFactTypes": [],
+  "source": {
+    "kind": "SYNTHETIC_FUNCTIONAL_VIEW",
+    "authorizationRecorded": true,
+    "sha256": "059a9eddfdbc26f1e347bdac0ddfc6d332d1261450309a14e0726c20413e4add",
+    "officialReference": {
+      "url": "https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/otros-servicios-ayuda-tecnica/datos-censales.html",
+      "capturedOn": "2026-07-15",
+      "sha256": null
+    },
+    "anonymizationAudit": {
+      "textLayerChecked": true,
+      "acroFormChecked": true,
+      "metadataChecked": true,
+      "annotationsChecked": true,
+      "hiddenPagesChecked": true,
+      "qrAndBarcodeChecked": true,
+      "embeddedFilesChecked": true,
+      "originalFileNameStored": false
+    }
+  },
+  "asset": {
+    "pdfPath": "pdf/aeat-tax-status-equivalence-exempt-003-screenshot.pdf",
+    "extractedTextPath": "text/aeat-tax-status-equivalence-exempt-003-screenshot.txt"
+  },
+  "extractor": {
+    "contractVersion": "1.0.0",
+    "catalogVersion": "fiscal-document-extractors.2026-07.v2",
+    "extractorVersion": "aeat.aeat_tax_status_view.v2"
+  }
+}

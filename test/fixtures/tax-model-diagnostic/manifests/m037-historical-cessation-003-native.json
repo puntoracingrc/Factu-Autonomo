@@ -1,0 +1,129 @@
+{
+  "corpusVersion": "fiscal-extractor-corpus.2026-07.v1",
+  "fixtureId": "m037-historical-cessation-003-native",
+  "semanticCaseId": "m037-historical-cessation-003",
+  "parentFixtureId": null,
+  "documentType": "MODEL_037",
+  "formVersion": "AEAT_MODEL_037_BOE_2023_HISTORICAL",
+  "fiscalYear": 2024,
+  "period": null,
+  "documentKind": "DRAFT",
+  "filingStatus": "DRAFT",
+  "temporalScope": "HISTORICAL",
+  "lifecycleLabels": [
+    "HISTORICAL_DOCUMENT",
+    "NOT_CURRENT_CENSUS_STATUS"
+  ],
+  "stateCoverage": "HISTORICAL_ONLY",
+  "visualVariant": "NATIVE_PDF",
+  "expectedEnvelope": {
+    "isComplete": false
+  },
+  "expectedFields": [
+    {
+      "factType": "SUBJECT.TAXPAYER_TYPE",
+      "value": "NATURAL_PERSON",
+      "normalizedValue": "NATURAL_PERSON",
+      "page": 1,
+      "sourceLabel": "Tipo de contribuyente"
+    },
+    {
+      "factType": "ACTIVITY.LIST",
+      "value": [
+        {
+          "code": "651.2",
+          "description": "COMERCIO MENOR TEXTIL"
+        }
+      ],
+      "normalizedValue": [
+        {
+          "code": "651.2",
+          "description": "COMERCIO MENOR TEXTIL"
+        }
+      ],
+      "page": 3,
+      "sourceLabel": "Actividades económicas"
+    },
+    {
+      "factType": "ACTIVITY.NATURE",
+      "value": [
+        "BUSINESS"
+      ],
+      "normalizedValue": [
+        "BUSINESS"
+      ],
+      "page": 3,
+      "sourceLabel": "Sección de la actividad"
+    }
+  ],
+  "expectedQuestionMappings": [
+    {
+      "questionId": "A_INVOICING_SUBJECT",
+      "proposedAnswer": "NATURAL_PERSON",
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    },
+    {
+      "questionId": "C_ACTIVITY_KINDS",
+      "proposedAnswer": [
+        "BUSINESS"
+      ],
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    }
+  ],
+  "mustNotInfer": [
+    {
+      "code": "CURRENT_CENSUS_STATUS",
+      "reason": "El modelo 037 solo conserva evidencia histórica."
+    },
+    {
+      "code": "FUTURE_OBLIGATION",
+      "reason": "Una declaración de un período no acredita una obligación futura."
+    },
+    {
+      "code": "VERIFIED_FILING",
+      "reason": "El impreso sintético no acredita presentación ante la AEAT."
+    },
+    {
+      "code": "OFFICIAL_DOCUMENT_VALIDITY",
+      "reason": "El documento sintético carece de validez oficial."
+    },
+    {
+      "code": "ABSENCE_OUTSIDE_CAPTURE",
+      "reason": "Una captura parcial no permite inferir datos ausentes fuera de ella."
+    }
+  ],
+  "allowAdditionalFactTypes": [
+    "CENSUS.EVENT"
+  ],
+  "source": {
+    "kind": "SYNTHETIC_OFFICIAL_FORM",
+    "authorizationRecorded": true,
+    "sha256": "a4474bfbf5f9fe289e7002c2e972741559996396a06d3dd9f448a09d17ad3378",
+    "officialReference": {
+      "url": "https://www.boe.es/buscar/doc.php?id=BOE-A-2023-26632",
+      "capturedOn": "2026-07-15",
+      "sha256": null
+    },
+    "anonymizationAudit": {
+      "textLayerChecked": true,
+      "acroFormChecked": true,
+      "metadataChecked": true,
+      "annotationsChecked": true,
+      "hiddenPagesChecked": true,
+      "qrAndBarcodeChecked": true,
+      "embeddedFilesChecked": true,
+      "originalFileNameStored": false
+    }
+  },
+  "asset": {
+    "pdfPath": "pdf/m037-historical-cessation-003-native.pdf",
+    "extractedTextPath": "text/m037-historical-cessation-003-native.txt"
+  },
+  "extractor": {
+    "contractVersion": "1.0.0",
+    "catalogVersion": "fiscal-document-extractors.2026-07.v2",
+    "extractorVersion": "aeat.model.037.v2"
+  }
+}

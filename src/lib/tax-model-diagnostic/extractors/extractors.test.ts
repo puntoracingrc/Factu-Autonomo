@@ -89,6 +89,39 @@ describe("fiscal document extractor registry", () => {
 });
 
 describe("closed deterministic classification", () => {
+  it("classifies an official form title when OCR misses the NIF label", () => {
+    expect(
+      classifyFiscalDocumentText(`
+        Modelo 303 de autoliquidación del Impuesto sobre el Valor Añadido
+        Impuesto sobre el Valor Añadido
+        Autoliquidación
+      `),
+    ).toMatchObject({
+      status: "RESOLVED",
+      documentType: "MODEL_303",
+      model: "303",
+    });
+  });
+
+  it("distinguishes the printed 115 from unrelated numeric boxes", () => {
+    expect(
+      classifyFiscalDocumentText(`
+        Impuesto sobre la Renta de las Personas Físicas
+        Modelo Delegación código 100 referencia 115
+        Declaración-documento de ingreso
+        Retenciones e ingresos a cuenta
+        Número de perceptores
+        Base de las retenciones e ingresos a cuenta
+      `),
+    ).toMatchObject({ documentType: "MODEL_115", model: "115" });
+  });
+
+  it("does not classify a bare model-number mention", () => {
+    expect(
+      classifyFiscalDocumentText("Adjunto información relacionada con el modelo 303"),
+    ).toMatchObject({ status: "BLOCKED", documentType: null });
+  });
+
   it("prioritizes an AEAT activity view over the auxiliary Modelo 036 label", () => {
     const classification = classifyFiscalDocumentText(`
       Detalle de un Número de Referencia en un Ejercicio
@@ -101,6 +134,22 @@ describe("closed deterministic classification", () => {
     expect(classification).toMatchObject({
       status: "RESOLVED",
       documentType: "AEAT_ECONOMIC_ACTIVITIES_VIEW",
+      model: null,
+    });
+  });
+
+  it("prioritizes an explicit tax-status view over its Modelo 130 value", () => {
+    expect(
+      classifyFiscalDocumentText(`
+        Mi situación tributaria
+        Impuesto sobre la Renta
+        Método Estimación directa simplificada
+        Pagos fraccionados Modelo 130
+        Impuesto sobre el Valor Añadido
+        Régimen General
+      `),
+    ).toMatchObject({
+      documentType: "AEAT_TAX_STATUS_VIEW",
       model: null,
     });
   });
@@ -118,6 +167,133 @@ describe("closed deterministic classification", () => {
 });
 
 describe("first extraction block", () => {
+  it("reads the card variant of Mis actividades without inventing its section", () => {
+    const result = extractFiscalDocumentText(
+      input(`
+        Agencia Tributaria
+        Mis actividades económicas
+        Consulta de actividades y locales comunicados en el censo.
+        Actividad 1 · ACTIVA
+        SERVICIOS DE PROGRAMACION
+        Epígrafe IAE: 763 · Inicio: 01/01/2026
+        Lugar: Fuera de local determinado
+      `),
+    );
+    expect(result).toMatchObject({
+      status: "RESOLVED",
+      envelope: {
+        detectedDocumentType: "AEAT_ECONOMIC_ACTIVITIES_VIEW",
+        isComplete: true,
+      },
+    });
+    expect(result.facts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          factType: "ACTIVITY.LIST",
+          normalizedValue: [
+            {
+              code: "763",
+              description: "SERVICIOS DE PROGRAMACION",
+              state: "ACTIVE",
+              startDate: "2026-01-01",
+            },
+          ],
+        }),
+      ]),
+    );
+    expect(
+      result.questionResolutions.some(
+        (item) => item.questionId === "C_ACTIVITY_KINDS",
+      ),
+    ).toBe(false);
+  });
+
+  it("reads explicit IRPF and VAT labels from the compact tax-status view", () => {
+    const result = extractFiscalDocumentText(
+      input(`
+        Agencia Tributaria
+        Mi situación tributaria
+        Impuesto sobre la Renta
+        Método Estimación directa simplificada
+        Pagos fraccionados Modelo 130
+        Impuesto sobre el Valor Añadido
+        Régimen General
+        Periodicidad Trimestral
+        Registros y opciones
+        ROI No REDEME No SII No
+      `),
+    );
+    expect(result).toMatchObject({
+      status: "RESOLVED",
+      envelope: {
+        detectedDocumentType: "AEAT_TAX_STATUS_VIEW",
+        isComplete: true,
+      },
+    });
+    expect(
+      result.questionResolutions.find(
+        (item) => item.questionId === "D_INCOME_TAX_REGIME",
+      ),
+    ).toMatchObject({
+      proposedAnswer: "DIRECT_SIMPLIFIED",
+      confirmationRequired: true,
+    });
+    expect(
+      result.questionResolutions.find(
+        (item) => item.questionId === "E_VAT_REGIMES",
+      ),
+    ).toMatchObject({ proposedAnswer: ["GENERAL"] });
+  });
+
+  it("reads explicit model codes from the structured obligations table", () => {
+    const result = extractFiscalDocumentText(
+      input(`
+        Agencia Tributaria
+        Mis obligaciones tributarias
+        Modelo Descripción Periodicidad Estado Alta Baja
+        303 Autoliquidación IVA Trimestral ACTIVA 01/01/2025 —
+        111 Retenciones trabajo/profesionales Trimestral ACTIVA 01/02/2026 —
+        115 Retenciones arrendamientos Trimestral ACTIVA 01/02/2026 —
+      `),
+    );
+    expect(result).toMatchObject({
+      status: "RESOLVED",
+      envelope: {
+        detectedDocumentType: "AEAT_OBLIGATIONS_VIEW",
+        isComplete: true,
+      },
+    });
+    expect(
+      result.facts.find(
+        (fact) => fact.factType === "CENSUS.PERIODIC_OBLIGATIONS",
+      )?.normalizedValue,
+    ).toEqual(["111", "115", "303"]);
+  });
+
+  it("keeps a structured but unmapped obligation visible as an incomplete list", () => {
+    const result = extractFiscalDocumentText(
+      input(`
+        Mis obligaciones tributarias
+        Modelo Descripción Periodicidad Estado Alta Baja
+        130 Pago fraccionado IRPF Trimestral ACTIVA 01/01/2026 —
+        349 Operaciones intracomunitarias Variable
+        ACTIVA 01/03/2026 —
+      `),
+    );
+    expect(result.envelope).toMatchObject({
+      detectedDocumentType: "AEAT_OBLIGATIONS_VIEW",
+      isComplete: false,
+    });
+    expect(result.status).toBe("MANUAL_REVIEW");
+    expect(result.warnings.join(" ")).toContain("fila en alta");
+    expect(
+      result.questionResolutions.some(
+        (item) => item.questionId === "N_CENSUS_REVIEWED",
+      ),
+    ).toBe(false);
+  });
+
+
   it("extracts traceable current activities and keeps partial screenshots open", () => {
     const result = extractFiscalDocumentText(
       input(`
@@ -130,7 +306,7 @@ describe("first extraction block", () => {
         Fecha de inicio de la actividad 08-03-2024
       `),
     );
-    expect(result.status).toBe("RESOLVED");
+    expect(result.status).toBe("MANUAL_REVIEW");
     expect(result.envelope).toMatchObject({
       detectedDocumentType: "AEAT_ECONOMIC_ACTIVITIES_VIEW",
       isComplete: false,
@@ -210,13 +386,43 @@ describe("first extraction block", () => {
     ).toBe(true);
   });
 
-  it("never proposes census facts from an unfiled 036 template", () => {
+  it("proposes explicit fields from a filled 036 draft without claiming filing", () => {
     const result = extractFiscalDocumentText(
       input(`
         Modelo 036
         Declaración censal
         NIF 12345678Z
         Tipo de contribuyente: persona física
+        Estimación directa simplificada
+        Régimen general de IVA
+      `),
+    );
+    expect(result.status).toBe("MANUAL_REVIEW");
+    expect(result.envelope).toMatchObject({
+      documentKind: "DRAFT",
+      filingStatus: "DRAFT",
+      isComplete: false,
+    });
+    expect(result.facts.map((fact) => fact.factType)).toEqual(
+      expect.arrayContaining([
+        "SUBJECT.TAXPAYER_TYPE",
+        "IRPF.METHOD",
+        "VAT.REGIMES",
+      ]),
+    );
+    expect(
+      result.questionResolutions.every(
+        (item) => item.confirmationRequired && !item.canSkipQuestion,
+      ),
+    ).toBe(true);
+  });
+
+  it("never proposes census facts from a blank 036 template", () => {
+    const result = extractFiscalDocumentText(
+      input(`
+        Modelo 036
+        Declaración censal
+        Tipo de contribuyente
         Estimación directa simplificada
         Régimen general de IVA
       `),

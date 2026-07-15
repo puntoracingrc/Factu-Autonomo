@@ -98,6 +98,23 @@ function extractNif(lines: string[]): string | null {
   return null;
 }
 
+function extractRepeatedFormNif(lines: string[]): string | null {
+  const counts = new Map<string, number>();
+  for (const line of lines) {
+    const nif = normalizeSpanishTaxId(line);
+    if (!/^(?:[XYZ]\d{7}[A-Z]|\d{8}[A-Z]|[A-Z]\d{7}[A-Z0-9])$/.test(nif)) {
+      continue;
+    }
+    counts.set(nif, (counts.get(nif) ?? 0) + 1);
+  }
+
+  const [mostRepeated] = [...counts.entries()].sort(
+    ([leftNif, leftCount], [rightNif, rightCount]) =>
+      rightCount - leftCount || leftNif.localeCompare(rightNif),
+  )[0] ?? [null, 0];
+  return mostRepeated;
+}
+
 function parseActivityLine(line: string): FiscalActivity | null {
   const coded = line.match(
     /(?:ep[ií]grafe|grupo|c[oó]digo)(?:\s+(?:del\s+)?i\.?\s*a\.?\s*e\.?)?\s*[:\-]?\s*([A-Z0-9][A-Z0-9./\-]{0,19})(?:\s*[-–—:]\s*(.+))?$/i,
@@ -168,8 +185,25 @@ function detectDocumentKind(
   ) {
     return "AEAT_CENSUS_CERTIFICATE";
   }
-  if (/\bmodelo\s+036\b/.test(normalizedText)) return "MODEL_036";
-  if (/\bmodelo\s+037\b/.test(normalizedText)) return "MODEL_037";
+  if (
+    /\bmodelo(?:\s+|.{0,220}\b)037\b/.test(normalizedText) ||
+    (normalizedText.includes("declaracion censal simplificada") &&
+      normalizedText.includes(
+        "censo de empresarios, profesionales y retenedores",
+      ))
+  ) {
+    return "MODEL_037";
+  }
+  if (
+    /\bmodelo(?:\s+|.{0,220}\b)036\b/.test(normalizedText) ||
+    (normalizedText.includes("declaracion censal") &&
+      !normalizedText.includes("declaracion censal simplificada") &&
+      normalizedText.includes(
+        "censo de empresarios, profesionales y retenedores",
+      ))
+  ) {
+    return "MODEL_036";
+  }
   return "UNKNOWN";
 }
 
@@ -300,7 +334,24 @@ export function parseCensusCertificateText(
     .slice(0, MAX_CENSUS_LINES);
   const joined = lines.join("\n");
   const normalizedText = comparable(joined);
-  const detectedNif = extractNif(lines);
+  const documentKind = detectDocumentKind(normalizedText);
+  const labelledNif = extractNif(lines);
+  const repeatedFormNif =
+    documentKind === "MODEL_036" || documentKind === "MODEL_037"
+      ? extractRepeatedFormNif(lines)
+      : null;
+  const detectedNif =
+    repeatedFormNif ??
+    labelledNif ??
+    (documentKind === "MODEL_036" || documentKind === "MODEL_037"
+      ? (lines
+          .map((line) => normalizeSpanishTaxId(line))
+          .find((line) =>
+            /^(?:[XYZ]\d{7}[A-Z]|\d{8}[A-Z]|[A-Z]\d{7}[A-Z0-9])$/.test(
+              line,
+            ),
+          ) ?? null)
+      : null);
   const explicitTaxpayerType = detectExplicitTaxpayerType(normalizedText);
   const inferredTaxpayerType = inferTaxpayerTypeFromSpanishTaxId(detectedNif);
   const taxpayerType =
@@ -309,7 +360,6 @@ export function parseCensusCertificateText(
       : explicitTaxpayerType;
   const vat = detectVat(normalizedText);
   const activities = extractActivities(lines);
-  const documentKind = detectDocumentKind(normalizedText);
   const warnings: string[] = [];
   if (!detectedNif) {
     warnings.push(

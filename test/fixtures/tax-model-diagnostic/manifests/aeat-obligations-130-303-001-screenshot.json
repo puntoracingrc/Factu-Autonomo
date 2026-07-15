@@ -1,0 +1,89 @@
+{
+  "corpusVersion": "fiscal-extractor-corpus.2026-07.v1",
+  "fixtureId": "aeat-obligations-130-303-001-screenshot",
+  "semanticCaseId": "aeat-obligations-130-303-001",
+  "parentFixtureId": null,
+  "documentType": "AEAT_OBLIGATIONS_VIEW",
+  "formVersion": "SYNTHETIC_AEAT_INSPIRED_OBLIGATIONS_VIEW_V1",
+  "fiscalYear": 2026,
+  "period": null,
+  "documentKind": "CURRENT_AEAT_VIEW",
+  "filingStatus": "NOT_VERIFIED",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "lifecycleLabels": [
+    "CURRENT_EVIDENCE"
+  ],
+  "stateCoverage": "FULL_CURRENT_STATE",
+  "visualVariant": "SCREENSHOT",
+  "expectedEnvelope": {
+    "isComplete": true
+  },
+  "expectedFields": [
+    {
+      "factType": "CENSUS.PERIODIC_OBLIGATIONS",
+      "value": [
+        "130",
+        "303"
+      ],
+      "normalizedValue": [
+        "130",
+        "303"
+      ],
+      "page": 1,
+      "sourceLabel": "Obligaciones tributarias en alta"
+    }
+  ],
+  "expectedQuestionMappings": [
+    {
+      "questionId": "N_CENSUS_OBLIGATIONS",
+      "proposedAnswer": [
+        "130",
+        "303"
+      ],
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    },
+    {
+      "questionId": "N_CENSUS_REVIEWED",
+      "proposedAnswer": "YES",
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    }
+  ],
+  "mustNotInfer": [
+    {
+      "code": "OFFICIAL_DOCUMENT_VALIDITY",
+      "reason": "La vista funcional sintética no es una captura ni certificado oficial."
+    }
+  ],
+  "allowAdditionalFactTypes": [],
+  "source": {
+    "kind": "SYNTHETIC_FUNCTIONAL_VIEW",
+    "authorizationRecorded": true,
+    "sha256": "cf91a79bb3c4f31ce62f5fd2c4c2c7ddd9881ced6376dcd8aeab78e5674e49b7",
+    "officialReference": {
+      "url": "https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/otros-servicios-ayuda-tecnica/datos-censales.html",
+      "capturedOn": "2026-07-15",
+      "sha256": null
+    },
+    "anonymizationAudit": {
+      "textLayerChecked": true,
+      "acroFormChecked": true,
+      "metadataChecked": true,
+      "annotationsChecked": true,
+      "hiddenPagesChecked": true,
+      "qrAndBarcodeChecked": true,
+      "embeddedFilesChecked": true,
+      "originalFileNameStored": false
+    }
+  },
+  "asset": {
+    "pdfPath": "pdf/aeat-obligations-130-303-001-screenshot.pdf",
+    "extractedTextPath": "text/aeat-obligations-130-303-001-screenshot.txt"
+  },
+  "extractor": {
+    "contractVersion": "1.0.0",
+    "catalogVersion": "fiscal-document-extractors.2026-07.v2",
+    "extractorVersion": "aeat.aeat_obligations_view.v2"
+  }
+}

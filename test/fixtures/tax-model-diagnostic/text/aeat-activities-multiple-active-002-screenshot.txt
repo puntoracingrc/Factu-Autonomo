@@ -1,0 +1,15 @@
+Agencia Tributaria
+SIMULACIÓN LOCAL DEL ÁREA PERSONAL · NO EMITIDA POR LA AEAT
+ Mis actividades económicas
+Consulta de actividades y locales comunicados en el censo.
+NIF 00000030F · consulta 14/07/2026
+Actividad 1 · ACTIVA
+DISENO GRAFICO
+Epígrafe IAE: 399 · Inicio: 01/01/2025
+Lugar: Fuera de local determinado
+Actividad 2 · ACTIVA
+FORMACION NO REGLADA
+Epígrafe IAE: 826 · Inicio: 01/03/2026
+Lugar: Fuera de local determinado
+DOCUMENTO SINTÉTICO · SIN VALIDEZ
+FIXTURE pantalla_actividades_varias_02 · página 1 · NO PRESENTABLE · datos totalmente sintéticos

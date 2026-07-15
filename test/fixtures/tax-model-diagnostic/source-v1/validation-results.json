@@ -1,0 +1,253 @@
+{
+  "status": "VALIDATED_SYNTHETIC_BASE_CORPUS",
+  "errors": [],
+  "warnings": [],
+  "results": [
+    {
+      "fixtureId": "m036_alta_persona_fisica_01",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m036_modificacion_actividad_local_02",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m036_alta_roi_03",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m036_retenciones_111_115_04",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m036_baja_parcial_compleja_05",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m037_historico_alta_01",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m037_historico_modificacion_02",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m037_historico_baja_03",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m130_positivo_01",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m130_negativo_02",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m130_retenciones_03",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m130_complementaria_04",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m303_trimestral_ingresar_01",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m303_compensar_02",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m303_sin_actividad_03",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m303_intracomunitaria_04",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m303_mensual_rectificativa_05",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m390_una_actividad_01",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m390_varias_actividades_02",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m390_intra_export_03",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m390_prorrata_sectores_04",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m111_solo_trabajadores_01",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m111_solo_profesionales_02",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m111_mixto_03",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m111_negativo_complementario_04",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m115_un_arrendador_01",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m115_varios_arrendadores_02",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m115_mensual_03",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "m115_complementaria_04",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "pantalla_actividades_una_sin_local_01",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "pantalla_actividades_varias_02",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "pantalla_actividades_locales_03",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "pantalla_actividades_parcial_baja_04",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "pantalla_situacion_directa_general_01",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "pantalla_situacion_modulos_02",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "pantalla_situacion_recargo_exenta_03",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "pantalla_situacion_registros_04",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "pantalla_obligaciones_130_303_01",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "pantalla_obligaciones_303_111_115_02",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "pantalla_obligaciones_altas_bajas_03",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    },
+    {
+      "fixtureId": "pantalla_obligaciones_mensuales_04",
+      "ok": true,
+      "errors": [],
+      "warnings": []
+    }
+  ]
+}

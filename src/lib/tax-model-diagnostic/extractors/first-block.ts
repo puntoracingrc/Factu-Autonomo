@@ -49,6 +49,102 @@ interface FirstBlockInput {
   pages?: readonly { page: number; text: string }[];
 }
 
+function filledOverlayLines(pageText: string): readonly string[] {
+  const lines = pageText
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const identityIndex = lines.findIndex((line) =>
+    /^(?:[XYZ]\d{7}[A-Z]|\d{8}[A-Z]|[A-Z]\d{7}[A-Z0-9])$/i.test(line),
+  );
+  if (identityIndex < 0) return [];
+  const endIndex = lines.findIndex(
+    (line, index) =>
+      index > identityIndex &&
+      /^(?:DOCUMENTO SINTETICO|DOCUMENTO SINTÉTICO|FIXTURE\b)/i.test(line),
+  );
+  return lines.slice(identityIndex, endIndex < 0 ? lines.length : endIndex);
+}
+
+function filledOverlayPages(input: FirstBlockInput): readonly {
+  page: number;
+  lines: readonly string[];
+}[] {
+  const pages =
+    input.pages ??
+    input.text
+      .split(/\n?\f\n?/)
+      .map((text, index) => ({ page: index + 1, text }));
+  return pages
+    .map((page) => ({ page: page.page, lines: filledOverlayLines(page.text) }))
+    .filter((page) => page.lines.length > 0);
+}
+
+function overlayActivities(input: FirstBlockInput): readonly {
+  code: string;
+  description: string;
+  nature: "BUSINESS" | "PROFESSIONAL" | "ARTISTIC";
+  sourcePage: number;
+  startDate?: string;
+}[] {
+  const activities: {
+    code: string;
+    description: string;
+    nature: "BUSINESS" | "PROFESSIONAL" | "ARTISTIC";
+    sourcePage: number;
+    startDate?: string;
+  }[] = [];
+  for (const overlay of filledOverlayPages(input)) {
+    const { lines } = overlay;
+    const natureIndex = lines.findIndex((line) =>
+      /^(?:EMPRESARIAL|PROFESIONAL|ARTISTICA)$/i.test(line),
+    );
+    if (natureIndex >= 2) {
+      const description = lines[natureIndex - 2];
+      const code = lines[natureIndex - 1];
+      const date = lines
+        .slice(natureIndex + 1)
+        .find((line) => /^\d{1,2}[/.-]\d{1,2}[/.-]\d{4}$/.test(line));
+      const startDate = date
+        ? extractDateAfterLabel(`Fecha ${date}`, ["FECHA"])
+        : null;
+      if (/^\d{1,4}(?:[.,]\d{1,2})?$/.test(code) && /[A-Z]{3}/i.test(description)) {
+        activities.push({
+          code: code.replace(",", "."),
+          description,
+          nature: /^EMPRESARIAL$/i.test(lines[natureIndex])
+            ? "BUSINESS"
+            : /^ARTISTICA$/i.test(lines[natureIndex])
+              ? "ARTISTIC"
+              : "PROFESSIONAL",
+          sourcePage: overlay.page,
+          ...(startDate ? { startDate } : {}),
+        });
+      }
+    }
+    for (const line of lines) {
+      const second = line.match(
+        /^SEGUNDA ACTIVIDAD:\s*(.+?)\s*[·-]\s*IAE\s+(\d{1,4}(?:[.,]\d{1,2})?)$/i,
+      );
+      if (!second) continue;
+      activities.push({
+        code: second[2].replace(",", "."),
+        description: second[1],
+        nature: activities[0]?.nature ?? "PROFESSIONAL",
+        sourcePage: overlay.page,
+      });
+    }
+  }
+  return activities.filter(
+    (activity, index) =>
+      activities.findIndex(
+        (candidate) =>
+          candidate.code === activity.code &&
+          candidate.description === activity.description,
+      ) === index,
+  );
+}
+
 function sourcePage(
   input: FirstBlockInput,
   anchors: readonly string[] = [],
@@ -110,6 +206,7 @@ function isApparentlyFiled(text: string): boolean {
 
 function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
   const candidate = parseCensusCertificateText(input.text);
+  const structuredActivities = overlayActivities(input);
   const current = input.documentType === "CURRENT_CENSUS_CERTIFICATE";
   const historical = input.documentType === "MODEL_037";
   const temporalScope: TemporalScope = current
@@ -124,6 +221,7 @@ function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
     value: JsonValue,
     sourceLabel: string,
     effectiveFrom: string | null = candidate.documentDate ?? null,
+    sourcePageOverride: number | null = null,
   ) => {
     facts.push(
       createExtractedFact({
@@ -133,7 +231,8 @@ function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
         value,
         temporalScope,
         effectiveFrom,
-        sourcePage: sourcePage(input, factAnchors(factType)),
+        sourcePage:
+          sourcePageOverride ?? sourcePage(input, factAnchors(factType)),
         sourceLabel,
         extractionMethod: input.extractionMethod,
         extractionConfidence: current ? 0.9 : 0.78,
@@ -158,14 +257,53 @@ function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
   }[candidate.jurisdiction];
   if (territory) add("SUBJECT.TAX_TERRITORY", territory, "Territorio fiscal");
 
-  if (candidate.activities.length > 0) {
+  const activities =
+    candidate.activities.length > 0
+      ? candidate.activities.map((activity) => ({
+          ...(activity.code ? { code: activity.code } : {}),
+          description: activity.description,
+        }))
+      : structuredActivities.map((activity) => ({
+          code: activity.code,
+          description: activity.description,
+        }));
+  if (activities.length > 0) {
     add(
       "ACTIVITY.LIST",
-      candidate.activities.map((activity) => ({
-        ...(activity.code ? { code: activity.code } : {}),
-        description: activity.description,
-      })) as JsonValue,
+      activities as JsonValue,
       "Actividades económicas",
+      candidate.documentDate ?? null,
+      structuredActivities[0]?.sourcePage ?? null,
+    );
+  }
+  const activityNatures = [
+    ...new Set(structuredActivities.map((activity) => activity.nature)),
+  ];
+  if (activityNatures.length > 0) {
+    add(
+      "ACTIVITY.NATURE",
+      activityNatures,
+      "Sección de la actividad",
+      candidate.documentDate ?? null,
+      structuredActivities[0]?.sourcePage ?? null,
+    );
+  }
+  const activityDates = [
+    ...new Set(
+      structuredActivities
+        .map((activity) => activity.startDate)
+        .filter((date): date is string => Boolean(date)),
+    ),
+  ];
+  const historicalCessation =
+    historical && /\bCESE\s+TOTAL\b/i.test(input.text);
+  if (activityDates.length > 0 && !historicalCessation) {
+    add(
+      "ACTIVITY.DATES",
+      activityDates,
+      "Fecha de inicio de la actividad",
+      candidate.documentDate ?? null,
+      structuredActivities[0]?.sourcePage ?? null,
     );
   }
   const incomeTaxRegime = {
@@ -200,6 +338,7 @@ function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
   }
 
   const filed = current || isApparentlyFiled(input.text);
+  const populated = Boolean(candidate.detectedNif && facts.length > 0);
   const isComplete =
     current &&
     candidate.documentKind === "AEAT_CENSUS_CERTIFICATE" &&
@@ -207,7 +346,7 @@ function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
     (input.totalPages == null ||
       input.detectedPages?.length === input.totalPages);
   return {
-    facts: filed ? facts : [],
+    facts: filed || populated ? facts : [],
     documentKind: current
       ? "CURRENT_CERTIFICATE"
       : filed
@@ -232,14 +371,21 @@ function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
     ]),
     csvDetected: Boolean(candidate.csv),
     isComplete,
-    confidence: filed && facts.length > 0 ? (current ? 0.9 : 0.78) : 0.55,
+    confidence:
+      (filed || populated) && facts.length > 0
+        ? current
+          ? 0.9
+          : 0.74
+        : 0.55,
     warnings: [
       ...candidate.warnings,
       ...(historical
         ? ["El modelo 037 solo se conserva como evidencia histórica."]
         : []),
       ...(!current && !filed
-        ? ["No se ha acreditado que la declaración estuviera presentada."]
+        ? [
+            "No se ha acreditado que la declaración estuviera presentada; los campos visibles requieren confirmación y no describen por sí solos el censo actual.",
+          ]
         : []),
     ],
   };
@@ -288,7 +434,7 @@ function screenshotExtraction(input: FirstBlockInput): DeepTextExtraction {
       add(
         "ACTIVITY.LIST",
         active.map((row) => ({
-          section: row.section,
+          ...(row.section === "UNKNOWN" ? {} : { section: row.section }),
           code: row.code,
           description: row.description,
           state: row.state,

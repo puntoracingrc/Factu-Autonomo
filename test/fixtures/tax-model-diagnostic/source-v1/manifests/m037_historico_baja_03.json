@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m037_historico_baja_03",
+  "documentType": "AEAT_MODEL_037_HISTORICAL",
+  "displayName": "037 histórico: baja censal",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "HISTORICAL_SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2024,
+  "period": null,
+  "expectedPages": 4,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2023-26632, anexo II, modelo 037",
+    "templateStatus": "official-layout",
+    "historical": true
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000007F",
+    "taxpayerName": "HUGO SUPUESTO OCHO",
+    "cause": "BAJA",
+    "irpfMethod": "OBJECTIVE",
+    "vatRegime": "RECHARGE_EQUIVALENCE",
+    "model111": "NO",
+    "model115": "NO",
+    "activityDescription": "COMERCIO MENOR TEXTIL",
+    "epigraph": "651.2",
+    "activityType": "EMPRESARIAL",
+    "effectiveDate": "31/12/2024"
+  },
+  "expectedQuestionMappings": {
+    "CENSUS.HISTORICAL_EVENT": "BAJA",
+    "IRPF.METHOD_HISTORICAL": "OBJECTIVE",
+    "VAT.REGIME_HISTORICAL": "RECHARGE_EQUIVALENCE"
+  },
+  "mustNotInfer": [
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_PERIODIC_OBLIGATIONS",
+    "VALID_CURRENT_037_FORM",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000007F"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "HUGO SUPUESTO OCHO"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "037"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2024
+    },
+    {
+      "fieldId": "census.cause",
+      "page": 1,
+      "label": "Causas de presentación",
+      "value": "BAJA"
+    },
+    {
+      "fieldId": "irpf.method",
+      "page": 2,
+      "label": "Método de estimación en el IRPF",
+      "value": "OBJECTIVE"
+    },
+    {
+      "fieldId": "vat.regime",
+      "page": 2,
+      "label": "Regímenes aplicables",
+      "value": "RECHARGE_EQUIVALENCE"
+    },
+    {
+      "fieldId": "activity.description",
+      "page": 3,
+      "label": "Descripción de la actividad",
+      "value": "COMERCIO MENOR TEXTIL"
+    }
+  ],
+  "notes": [
+    "Documento histórico: el modelo 037 quedó suprimido en 2025."
+  ],
+  "pdfFile": "m037_historico_baja_03.pdf",
+  "sha256": "42ee2cfaa86744a04fed2929bcc6d3cf60ada2fc443587417c5e444fd3c68cbc"
+}

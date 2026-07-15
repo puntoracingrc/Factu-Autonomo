@@ -56,8 +56,7 @@ La evidencia documental incluye tipo de documento, método de extracción, campo
 | --- | --- |
 | PDF malicioso o falso tipo MIME | Comprobación de cabecera `%PDF-`, tamaño, páginas, texto máximo y `isEvalSupported=false` |
 | Imagen maliciosa o falso tipo MIME | Formatos PNG/JPG/WebP acotados, comprobación de firma y máximo de 8 MB y 8 capturas por lectura |
-| PDF de otra persona | Reconciliación exacta de NIF en el flujo PDF |
-| Captura aportada por el usuario | No se exige coincidencia de NIF; la persona confirma expresamente que contiene sus datos y asume la corrección de lo aportado |
+| PDF o captura aportados por el usuario | No se exige coincidencia de NIF. La persona confirma expresamente que contienen sus datos y asume la corrección de lo aportado; una discrepancia visible puede advertirse, pero nunca bloquea ni presupone que el documento sea de otra persona |
 | Datos extraídos incorrectos | Propuestas por campo, advertencias y confirmación explícita |
 | Fuga de documentos | Procesamiento local efímero; no se sube ni se conserva PDF, imagen, texto o nombre |
 | Inyección mediante texto | El texto no se ejecuta ni decide reglas; solo alimenta parsers locales acotados |

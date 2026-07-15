@@ -187,7 +187,10 @@
               "CURRENT_VAT_REGIME",
               "ABSENCE_OUTSIDE_CAPTURE",
               "EMPLOYEES_FROM_MODEL_111",
-              "PROFESSIONALS_FROM_MODEL_111"
+              "PROFESSIONALS_FROM_MODEL_111",
+              "VERIFIED_FILING",
+              "OFFICIAL_DOCUMENT_VALIDITY",
+              "CURRENT_RENTAL_STATUS"
             ]
           },
           "questionId": { "type": "string" },
@@ -212,7 +215,11 @@
       ],
       "properties": {
         "kind": {
-          "enum": ["SYNTHETIC_OFFICIAL_FORM", "IRREVERSIBLY_ANONYMIZED_REAL"]
+          "enum": [
+            "SYNTHETIC_OFFICIAL_FORM",
+            "SYNTHETIC_FUNCTIONAL_VIEW",
+            "IRREVERSIBLY_ANONYMIZED_REAL"
+          ]
         },
         "authorizationRecorded": { "type": "boolean" },
         "sha256": {

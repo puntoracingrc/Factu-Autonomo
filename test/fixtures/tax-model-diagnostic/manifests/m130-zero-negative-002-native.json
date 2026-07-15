@@ -1,0 +1,89 @@
+{
+  "corpusVersion": "fiscal-extractor-corpus.2026-07.v1",
+  "fixtureId": "m130-zero-negative-002-native",
+  "semanticCaseId": "m130-zero-negative-002",
+  "parentFixtureId": null,
+  "documentType": "MODEL_130",
+  "formVersion": "AEAT_MODEL_130_BOE_2015_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "2T",
+  "documentKind": "DRAFT",
+  "filingStatus": "DRAFT",
+  "temporalScope": "SPECIFIC_PERIOD",
+  "lifecycleLabels": [
+    "NOT_CURRENT_CENSUS_STATUS"
+  ],
+  "stateCoverage": "PERIOD_ONLY",
+  "visualVariant": "NATIVE_PDF",
+  "expectedEnvelope": {
+    "isComplete": false
+  },
+  "expectedFields": [
+    {
+      "factType": "IRPF.PAYMENT_130",
+      "value": {
+        "method": "DIRECT_ESTIMATION",
+        "filingStatus": "DRAFT"
+      },
+      "normalizedValue": {
+        "method": "DIRECT_ESTIMATION",
+        "filingStatus": "DRAFT"
+      },
+      "page": 1,
+      "sourceLabel": "Actividades económicas en estimación directa"
+    }
+  ],
+  "expectedQuestionMappings": [],
+  "mustNotInfer": [
+    {
+      "code": "CURRENT_CENSUS_STATUS",
+      "reason": "Una declaración concreta no acredita por sí sola la situación censal actual."
+    },
+    {
+      "code": "FUTURE_OBLIGATION",
+      "reason": "Una declaración de un período no acredita una obligación futura."
+    },
+    {
+      "code": "VERIFIED_FILING",
+      "reason": "El impreso sintético no acredita presentación ante la AEAT."
+    },
+    {
+      "code": "OFFICIAL_DOCUMENT_VALIDITY",
+      "reason": "El documento sintético carece de validez oficial."
+    },
+    {
+      "code": "ABSENCE_OUTSIDE_CAPTURE",
+      "reason": "Una captura parcial no permite inferir datos ausentes fuera de ella."
+    }
+  ],
+  "allowAdditionalFactTypes": [],
+  "source": {
+    "kind": "SYNTHETIC_OFFICIAL_FORM",
+    "authorizationRecorded": true,
+    "sha256": "7a40d2707073540343a8eed87027bd7d9923c7526bafa6ac537f8b8d6b638c82",
+    "officialReference": {
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G601.shtml",
+      "capturedOn": "2026-07-15",
+      "sha256": null
+    },
+    "anonymizationAudit": {
+      "textLayerChecked": true,
+      "acroFormChecked": true,
+      "metadataChecked": true,
+      "annotationsChecked": true,
+      "hiddenPagesChecked": true,
+      "qrAndBarcodeChecked": true,
+      "embeddedFilesChecked": true,
+      "originalFileNameStored": false
+    }
+  },
+  "asset": {
+    "pdfPath": "pdf/m130-zero-negative-002-native.pdf",
+    "extractedTextPath": "text/m130-zero-negative-002-native.txt"
+  },
+  "extractor": {
+    "contractVersion": "1.0.0",
+    "catalogVersion": "fiscal-document-extractors.2026-07.v2",
+    "extractorVersion": "aeat.model.130.v2"
+  }
+}

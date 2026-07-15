@@ -26,6 +26,19 @@ semánticos:
 Cada caso exige al menos tres variantes visuales. El plan completo reserva más
 de cien ejecuciones sin necesitar cien contribuyentes diferentes.
 
+## Paquete base importado
+
+La versión `tax_profile_corpus_v1` aporta los 41 casos semánticos base y 162
+páginas. Los originales sanitizados están en `pdf/`, sus transcripciones de
+regresión en `text/`, los manifiestos canónicos en `manifests/` y la procedencia
+del paquete en `source-v1/`. Todos los documentos son sintéticos y llevan una
+marca visible de ausencia de validez.
+
+Este paquete satisface la puerta de casos base, no la de variantes visuales. Un
+formulario sin evidencia suficiente de presentación se clasifica y se conserva
+en revisión manual; no responde automáticamente preguntas sobre la situación
+actual.
+
 ## Estructura reservada
 
 ```text
@@ -44,6 +57,8 @@ manifiesto nunca puede apuntar fuera de este árbol.
 
 1. Preferir formularios oficiales cumplimentados con datos completamente
    sintéticos.
+   Las vistas funcionales inspiradas en el área personal se etiquetan como
+   `SYNTHETIC_FUNCTIONAL_VIEW`; nunca como capturas oficiales.
 2. Un documento real necesita autorización y anonimización irreversible.
 3. No se admite ocultar texto colocando un rectángulo encima.
 4. El manifiesto debe declarar todos los campos esperados con página y etiqueta.

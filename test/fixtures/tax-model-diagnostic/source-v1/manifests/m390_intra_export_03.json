@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m390_intra_export_03",
+  "documentType": "AEAT_MODEL_390",
+  "displayName": "390 · operaciones intracomunitarias y exportaciones",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "ANNUAL",
+  "expectedPages": 9,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2026-1761, anexo IV, modelo 390",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000019L",
+    "taxpayerName": "TANIA MUESTRA VEINTE",
+    "fiscalYear": 2026,
+    "activities": [
+      {
+        "description": "COMERCIO MAYORISTA",
+        "epigraph": "612.1",
+        "activityCode": "A01"
+      }
+    ],
+    "outputBase": "120.000,00",
+    "outputVat": "25.200,00",
+    "annualTurnover": "150.000,00",
+    "intraDeliveries": "20.000,00",
+    "exports": "10.000,00"
+  },
+  "expectedQuestionMappings": {
+    "VAT.PRIOR_ANNUAL_PROFILE": true,
+    "VAT.PRIOR_ACTIVITIES": [
+      {
+        "description": "COMERCIO MAYORISTA",
+        "epigraph": "612.1",
+        "activityCode": "A01"
+      }
+    ],
+    "VAT.PRIOR_TURNOVER": "150.000,00"
+  },
+  "mustNotInfer": [
+    "CURRENT_VAT_REGIME",
+    "FUTURE_MODEL_390_OBLIGATION",
+    "CURRENT_ACTIVITY_STATUS",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000019L"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "TANIA MUESTRA VEINTE"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "390"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "ANNUAL"
+    },
+    {
+      "fieldId": "activity.list",
+      "page": 1,
+      "label": "Datos estadísticos",
+      "value": [
+        {
+          "description": "COMERCIO MAYORISTA",
+          "epigraph": "612.1",
+          "activityCode": "A01"
+        }
+      ]
+    },
+    {
+      "fieldId": "vat.annualTurnover",
+      "page": 7,
+      "label": "Volumen total de operaciones",
+      "value": "150.000,00"
+    }
+  ],
+  "notes": [
+    "Resumen anual histórico: requiere reconciliación con los 303 y con el censo."
+  ],
+  "pdfFile": "m390_intra_export_03.pdf",
+  "sha256": "552a6457a094a7ac018256d4eb8ea5ea6e373608cefbe1202dad2ead630e0224"
+}

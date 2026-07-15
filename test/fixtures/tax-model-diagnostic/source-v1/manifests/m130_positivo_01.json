@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m130_positivo_01",
+  "documentType": "AEAT_MODEL_130",
+  "displayName": "130 · resultado positivo a ingresar",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "1T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2015-1656, anexo I, modelo 130",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000008P",
+    "taxpayerName": "INES PRUEBA NUEVE",
+    "fiscalYear": 2026,
+    "period": "1T",
+    "income": "12.500,00",
+    "expenses": "5.000,00",
+    "netIncome": "7.500,00",
+    "twentyPercent": "1.500,00",
+    "priorPayments": "0,00",
+    "withholdings": "200,00",
+    "quarterPayment": "1.300,00",
+    "result": "1.300,00"
+  },
+  "expectedQuestionMappings": {
+    "IRPF.PRIOR_DIRECT_ESTIMATION_FILING": true,
+    "IRPF.PERIOD": "1T",
+    "IRPF.DECLARED_WITHHOLDINGS": "200,00"
+  },
+  "mustNotInfer": [
+    "CURRENT_MODEL_130_CENSUS",
+    "FUTURE_MODEL_130_OBLIGATION",
+    "PROFESSIONAL_WITHHOLDING_RATIO",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000008P"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "INES PRUEBA NUEVE"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "130"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "1T"
+    },
+    {
+      "fieldId": "irpf.income",
+      "page": 1,
+      "label": "Ingresos computables",
+      "value": "12.500,00"
+    },
+    {
+      "fieldId": "irpf.expenses",
+      "page": 1,
+      "label": "Gastos fiscalmente deducibles",
+      "value": "5.000,00"
+    },
+    {
+      "fieldId": "irpf.withholdings",
+      "page": 1,
+      "label": "Retenciones e ingresos a cuenta soportados",
+      "value": "200,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado de la autoliquidación",
+      "value": "1.300,00"
+    }
+  ],
+  "notes": [
+    "El importe de retenciones no permite calcular por sí solo el porcentaje de ingresos sometidos a retención."
+  ],
+  "pdfFile": "m130_positivo_01.pdf",
+  "sha256": "ed35363008935a4ed8000aa9c650ed9b130e8f7b56e53560afaff8d16f3b4dfc"
+}

@@ -36,7 +36,10 @@ export type ForbiddenInferenceCode =
   | "CURRENT_VAT_REGIME"
   | "ABSENCE_OUTSIDE_CAPTURE"
   | "EMPLOYEES_FROM_MODEL_111"
-  | "PROFESSIONALS_FROM_MODEL_111";
+  | "PROFESSIONALS_FROM_MODEL_111"
+  | "VERIFIED_FILING"
+  | "OFFICIAL_DOCUMENT_VALIDITY"
+  | "CURRENT_RENTAL_STATUS";
 
 export interface FiscalCorpusExpectedField {
   factType: string;
@@ -93,7 +96,10 @@ export interface FiscalCorpusManifest {
   mustNotInfer: readonly FiscalCorpusForbiddenInference[];
   allowAdditionalFactTypes: readonly string[];
   source: {
-    kind: "SYNTHETIC_OFFICIAL_FORM" | "IRREVERSIBLY_ANONYMIZED_REAL";
+    kind:
+      | "SYNTHETIC_OFFICIAL_FORM"
+      | "SYNTHETIC_FUNCTIONAL_VIEW"
+      | "IRREVERSIBLY_ANONYMIZED_REAL";
     authorizationRecorded: boolean;
     sha256: string;
     officialReference: {
@@ -435,7 +441,8 @@ export function validateFiscalCorpusManifest(
     });
   }
   if (
-    manifest.source.kind === "SYNTHETIC_OFFICIAL_FORM" &&
+    (manifest.source.kind === "SYNTHETIC_OFFICIAL_FORM" ||
+      manifest.source.kind === "SYNTHETIC_FUNCTIONAL_VIEW") &&
     (!manifest.source.officialReference ||
       !/^https:\/\//.test(manifest.source.officialReference.url) ||
       !/^\d{4}-\d{2}-\d{2}$/.test(
@@ -667,7 +674,24 @@ export function evaluateFiscalCorpusResult(
           resolution.canSkipQuestion &&
           resolution.temporalScope === "CURRENT_AS_OF_DATE",
       );
-    if (explicitQuestion || inferredByAbsence || inferredAsCurrent) {
+    const inferredVerifiedFiling =
+      forbidden.code === "VERIFIED_FILING" &&
+      result.envelope.filingStatus === "VERIFIED_FILED";
+    const inferredCurrentRental =
+      forbidden.code === "CURRENT_RENTAL_STATUS" &&
+      result.questionResolutions.some(
+        (resolution) =>
+          (resolution.questionId === "G_RENTS_PREMISES" ||
+            resolution.questionId === "G_RENT_WITHHOLDING") &&
+          resolution.temporalScope === "CURRENT_AS_OF_DATE",
+      );
+    if (
+      explicitQuestion ||
+      inferredByAbsence ||
+      inferredAsCurrent ||
+      inferredVerifiedFiling ||
+      inferredCurrentRental
+    ) {
       forbiddenInferenceCount += 1;
       failures.push({
         code: "FORBIDDEN_INFERENCE",

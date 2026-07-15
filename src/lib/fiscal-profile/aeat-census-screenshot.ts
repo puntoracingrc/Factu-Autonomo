@@ -16,7 +16,7 @@ export type AeatCensusScreenshotStatus =
   "RESOLVED" | "REVIEW_REQUIRED" | "BLOCKED";
 
 export interface AeatCensusActivityRow {
-  section: "BUSINESS" | "PROFESSIONAL" | "ARTISTIC";
+  section: "BUSINESS" | "PROFESSIONAL" | "ARTISTIC" | "UNKNOWN";
   code: string;
   description: string;
   state: "ACTIVE" | "INACTIVE";
@@ -108,6 +108,7 @@ export function detectAeatCensusScreenshotKind(
   if (
     (value.includes("RELACION DE ACTIVIDADES") &&
       value.includes("CENSO DE ACTIVIDADES Y LOCALES")) ||
+    value.includes("MIS ACTIVIDADES ECONOMICAS") ||
     (value.includes("IMPUESTO SOBRE ACTIVIDADES ECONOMICAS") &&
       (value.includes("ACTIVIDAD EN ALTA") ||
         value.includes("ACTIVIDAD EN BAJA"))) ||
@@ -123,7 +124,6 @@ export function detectAeatCensusScreenshotKind(
   }
   if (
     value.includes("SITUACION TRIBUTARIA") ||
-    value.includes("IMPUESTO SOBRE LA RENTA DE LAS PERSONAS FISICAS") ||
     (value.includes("IMPUESTO SOBRE EL VALOR ANADIDO") &&
       (value.includes("REGIMENES APLICABLES") ||
         value.includes("INFORMACION OBLIGACIONES")))
@@ -165,6 +165,61 @@ function parseActivities(lines: string[]): AeatCensusActivityRow[] {
       ]),
     ).values(),
   ];
+}
+
+/**
+ * La vista móvil/nueva del área personal puede presentar cada actividad como
+ * una tarjeta en vez de como una fila. En esa variante el epígrafe y el estado
+ * siguen siendo explícitos, pero la sección no siempre aparece. No se deriva
+ * la sección desde el epígrafe: se conserva como desconocida.
+ */
+function parseActivityCards(lines: string[]): AeatCensusActivityRow[] {
+  const markerIndexes = lines.flatMap((line, index) =>
+    /^ACTIVIDAD\s+\d+\s*[·.:\-]?\s*(ACTIVA|ALTA|INACTIVA|BAJA)$/.test(line)
+      ? [index]
+      : [],
+  );
+  const rows: AeatCensusActivityRow[] = [];
+  for (const [position, markerIndex] of markerIndexes.entries()) {
+    const segment = lines.slice(
+      markerIndex,
+      markerIndexes[position + 1] ?? lines.length,
+    );
+    const marker = segment[0];
+    const code = segment
+      .join(" ")
+      .match(/EPIGRAFE(?:\s+IAE)?\s*[:.\-]?\s*(\d{1,4}(?:[.,]\d{1,2})?)/)?.[1];
+    const date = segment
+      .join(" ")
+      .match(/(?:INICIO|F\.?\s*INICIO)\s*[:.\-]?\s*(\d{1,2}[/.\-]\d{1,2}[/.\-]\d{4})/)?.[1];
+    const explicitSection = segment
+      .join(" ")
+      .match(/\b(EMPRESARIAL|PROFESIONAL|ARTISTICA)\b/)?.[1];
+    const description = segment.find(
+      (line, index) =>
+        index > 0 &&
+        /[A-Z]{3}/.test(line) &&
+        !/(EPIGRAFE|INICIO|LUGAR|LOCAL|FIXTURE|DOCUMENTO SINTETICO|NO PRESENTABLE|DATOS TOTALMENTE SINTETICOS)/.test(
+          line,
+        ),
+    );
+    if (!marker || !code || !description) continue;
+    rows.push({
+      section:
+        explicitSection === "EMPRESARIAL"
+          ? "BUSINESS"
+          : explicitSection === "PROFESIONAL"
+            ? "PROFESSIONAL"
+            : explicitSection === "ARTISTICA"
+              ? "ARTISTIC"
+              : "UNKNOWN",
+      code: code.replace(",", "."),
+      description,
+      state: /(?:ACTIVA|ALTA)$/.test(marker) ? "ACTIVE" : "INACTIVE",
+      ...(toIsoDate(date) ? { startDate: toIsoDate(date) } : {}),
+    });
+  }
+  return rows;
 }
 
 function parseFragmentedActivityRows(lines: string[]): AeatCensusActivityRow[] {
@@ -319,12 +374,43 @@ function hasMarkedCode(lines: string[], code: string): boolean {
   });
 }
 
+function hasNearbyValue(
+  lines: readonly string[],
+  label: RegExp,
+  value: RegExp,
+  distance = 12,
+): boolean {
+  return lines.some((line, index) => {
+    if (!label.test(line)) return false;
+    return lines
+      .slice(index, index + distance + 1)
+      .some((candidate) => value.test(candidate));
+  });
+}
+
 function taxStatusFacts(lines: string[]) {
   const incomeCandidates: IncomeTaxRegime[] = [];
   if (hasMarkedCode(lines, "608")) incomeCandidates.push("DIRECT_NORMAL");
   if (hasMarkedCode(lines, "609")) incomeCandidates.push("DIRECT_SIMPLIFIED");
   if (hasMarkedCode(lines, "604"))
     incomeCandidates.push("OBJECTIVE_ESTIMATION");
+
+  const allText = lines.join(" ");
+  if (/METODO\s*[:.\-]?\s*ESTIMACION\s+DIRECTA\s+NORMAL\b/.test(allText)) {
+    incomeCandidates.push("DIRECT_NORMAL");
+  }
+  if (
+    /METODO\s*[:.\-]?\s*ESTIMACION\s+DIRECTA\s+SIMPLIFICADA\b/.test(
+      allText,
+    )
+  ) {
+    incomeCandidates.push("DIRECT_SIMPLIFIED");
+  }
+  if (
+    /METODO\s*[:.\-]?\s*(?:ESTIMACION\s+OBJETIVA|MODULOS)\b/.test(allText)
+  ) {
+    incomeCandidates.push("OBJECTIVE_ESTIMATION");
+  }
 
   const vatRegimes: DiagnosticVatRegime[] = [];
   const vatCodes: readonly [string, DiagnosticVatRegime][] = [
@@ -341,6 +427,57 @@ function taxStatusFacts(lines: string[]) {
     if (hasMarkedCode(lines, code)) vatRegimes.push(regime);
   }
 
+  if (
+    /REGIMEN\s*[:.\-]?\s*GENERAL\b/.test(allText) ||
+    hasNearbyValue(lines, /^REGIMEN(?:\s+ACTIVIDAD\s+\d+)?$/, /\bGENERAL$/)
+  ) {
+    vatRegimes.push("GENERAL");
+  }
+  if (
+    /REGIMEN\s*[:.\-]?\s*SIMPLIFICADO\b/.test(allText) ||
+    hasNearbyValue(
+      lines,
+      /^REGIMEN(?:\s+ACTIVIDAD\s+\d+)?$/,
+      /\bSIMPLIFICADO$/,
+    )
+  ) {
+    vatRegimes.push("SIMPLIFIED");
+  }
+  if (
+    /REGIMEN\s*[:.\-]?\s*RECARGO\s+DE\s+EQUIVALENCIA\b/.test(allText) ||
+    lines.some((line) => /^(?:RECARGO\s+DE\s+)?EQUIVALENCIA$/.test(line)) ||
+    hasNearbyValue(
+      lines,
+      /^REGIMEN(?:\s+ACTIVIDAD\s+\d+)?$/,
+      /\bRECARGO\s+DE\s+EQUIVALENCIA$/,
+    )
+  ) {
+    vatRegimes.push("EQUIVALENCE_SURCHARGE");
+  }
+  if (
+    /REGIMEN\s*[:.\-]?\s*(?:AGRICULTURA|GANADERIA|PESCA)/.test(allText) ||
+    hasNearbyValue(
+      lines,
+      /^REGIMEN(?:\s+ACTIVIDAD\s+\d+)?$/,
+      /\b(?:AGRICULTURA|GANADERIA|PESCA)/,
+    )
+  ) {
+    vatRegimes.push("AGRICULTURE_LIVESTOCK_FISHING");
+  }
+  if (
+    /REGIMEN\s*[:.\-]?\s*CRITERIO\s+DE\s+CAJA\b/.test(allText) ||
+    hasNearbyValue(
+      lines,
+      /^REGIMEN(?:\s+ACTIVIDAD\s+\d+)?$/,
+      /\bCRITERIO\s+DE\s+CAJA$/,
+    )
+  ) {
+    vatRegimes.push("CASH_ACCOUNTING");
+  }
+  if (lines.some((line) => /\bEXENTA(?:\s|$)/.test(line))) {
+    vatRegimes.push("EXEMPT");
+  }
+
   return {
     incomeCandidates: [...new Set(incomeCandidates)],
     vatRegimes: [...new Set(vatRegimes)],
@@ -348,6 +485,106 @@ function taxStatusFacts(lines: string[]) {
 }
 
 function obligationFacts(lines: string[]) {
+  const modelCode =
+    /^(035|100|111|115|123|130|131|151|180|184|190|193|200|202|216|296|303|308|309|341|347|349|369|390|714|720|721|840)$/;
+  const structuredRowStart =
+    /^(035|100|111|115|123|130|131|151|180|184|190|193|200|202|216|296|303|308|309|341|347|349|369|390|714|720|721|840)\s+(.+?)\s+(MENSUAL|TRIMESTRAL|ANUAL|VARIABLE)\b(.*)$/;
+  const structuredIndexes = lines.flatMap((line, index) =>
+    structuredRowStart.test(line) ? [index] : [],
+  );
+  const structuredRows = structuredIndexes.flatMap((index, position) => {
+    const segment = lines.slice(
+      index,
+      structuredIndexes[position + 1] ?? lines.length,
+    );
+    const start = segment[0].match(structuredRowStart);
+    const state = segment
+      .join(" ")
+      .match(/\b(ACTIVA|ALTA|INACTIVA|BAJA)\b/)?.[1];
+    return start && state
+      ? [{ model: start[1], state }]
+      : [];
+  });
+  if (structuredRows.length > 0) {
+    const activeModels = structuredRows
+      .filter((row) => row.state === "ACTIVA" || row.state === "ALTA")
+      .map((row) => row.model as TaxModelNumber)
+      .filter((model): model is TaxModelNumber =>
+        OBLIGATION_RULES.some((rule) => rule.model === model),
+      );
+    const unsupportedActiveRows = structuredRows.filter(
+      (row) =>
+        (row.state === "ACTIVA" || row.state === "ALTA") &&
+        !OBLIGATION_RULES.some((rule) => rule.model === row.model),
+    ).length;
+    return {
+      models: [...new Set(activeModels)].sort() as TaxModelNumber[],
+      activeRowCount:
+        activeModels.length + unsupportedActiveRows,
+      unknownActiveRows: unsupportedActiveRows,
+      explicitlyEmpty: false,
+    };
+  }
+
+  // PDF.js y algunos generadores de PDF entregan las celdas de la tabla como
+  // elementos consecutivos (código, descripción, periodicidad, estado...)
+  // en vez de conservar cada fila en una sola línea. Se admite esa variante
+  // únicamente dentro de una vista explícita de obligaciones y exigiendo que
+  // cada segmento tenga periodicidad y estado: un número aislado nunca basta.
+  const hasObligationsView = lines.some((line) =>
+    line.includes("OBLIGACIONES TRIBUTARIAS"),
+  );
+  const columnarRows = hasObligationsView
+    ? (() => {
+        const tableStart = Math.max(
+          lines.findIndex((line) => line === "MODELO"),
+          0,
+        );
+        const tableEnd = lines.findIndex(
+          (line, index) =>
+            index > tableStart && line.includes("DOCUMENTO SINTETICO"),
+        );
+        const tableLines = lines.slice(
+          tableStart,
+          tableEnd === -1 ? lines.length : tableEnd,
+        );
+        const indexes = tableLines.flatMap((line, index) =>
+          modelCode.test(line) ? [index] : [],
+        );
+        return indexes.flatMap((index, position) => {
+          const segment = tableLines.slice(
+            index,
+            indexes[position + 1] ?? tableLines.length,
+          );
+          const joined = segment.join(" ");
+          const periodicity = joined.match(
+            /\b(MENSUAL|TRIMESTRAL|ANUAL|VARIABLE)\b/,
+          )?.[1];
+          const state = joined.match(/\b(ACTIVA|ALTA|INACTIVA|BAJA)\b/)?.[1];
+          return periodicity && state
+            ? [{ model: tableLines[index], state }]
+            : [];
+        });
+      })()
+    : [];
+  if (columnarRows.length > 0) {
+    const activeRows = columnarRows.filter(
+      (row) => row.state === "ACTIVA" || row.state === "ALTA",
+    );
+    const activeModels = activeRows
+      .map((row) => row.model as TaxModelNumber)
+      .filter((model): model is TaxModelNumber =>
+        OBLIGATION_RULES.some((rule) => rule.model === model),
+      );
+    const unsupportedActiveRows = activeRows.length - activeModels.length;
+    return {
+      models: [...new Set(activeModels)].sort() as TaxModelNumber[],
+      activeRowCount: activeRows.length,
+      unknownActiveRows: unsupportedActiveRows,
+      explicitlyEmpty: false,
+    };
+  }
+
   const activeRows = lines.filter(
     (line) =>
       /\bALTA\b/.test(line) &&
@@ -427,6 +664,7 @@ export function parseAeatCensusScreenshotText(
     const tableActivities = uniqueActivities([
       ...primaryActivities,
       ...fragmentedActivities,
+      ...parseActivityCards(lines),
     ]);
     const detailActivity =
       tableActivities.length === 0 ? parseActivityDetail(lines) : null;
@@ -434,12 +672,14 @@ export function parseAeatCensusScreenshotText(
     const active = activities.filter((row) => row.state === "ACTIVE");
     const activityKinds = [
       ...new Set(
-        active.map<ActivityKind>((row) =>
+        active.flatMap<ActivityKind>((row) =>
           row.section === "BUSINESS"
-            ? "BUSINESS"
+            ? ["BUSINESS"]
             : row.section === "PROFESSIONAL"
-              ? "PROFESSIONAL"
-              : "OTHER",
+              ? ["PROFESSIONAL"]
+              : row.section === "ARTISTIC"
+                ? ["OTHER"]
+                : [],
         ),
       ),
     ];
@@ -464,9 +704,12 @@ export function parseAeatCensusScreenshotText(
     const isActivityList = lines.some((line) =>
       line.includes("RELACION DE ACTIVIDADES"),
     );
+    const isCardList = lines.some((line) =>
+      line.includes("MIS ACTIVIDADES ECONOMICAS"),
+    );
     const isComplete =
-      isActivityList &&
-      (hasTableHeaders || hasDocumentEnd(lines)) &&
+      ((isActivityList && (hasTableHeaders || hasDocumentEnd(lines))) ||
+        isCardList) &&
       activities.length > 0 &&
       active.length > 0;
     return {
@@ -498,8 +741,10 @@ export function parseAeatCensusScreenshotText(
     }
     const allText = lines.join(" ");
     const isComplete =
-      allText.includes("SITUACION TRIBUTARIA") &&
-      allText.includes("IMPUESTO SOBRE LA RENTA DE LAS PERSONAS FISICAS") &&
+      (allText.includes("SITUACION TRIBUTARIA") ||
+        allText.includes("MI SITUACION TRIBUTARIA")) &&
+      (allText.includes("IMPUESTO SOBRE LA RENTA DE LAS PERSONAS FISICAS") ||
+        allText.includes("IMPUESTO SOBRE LA RENTA")) &&
       allText.includes("IMPUESTO SOBRE EL VALOR ANADIDO");
     if (!isComplete) {
       warnings.push(
@@ -535,7 +780,11 @@ export function parseAeatCensusScreenshotText(
     );
   }
   const hasTableHeaders =
-    lines.some((line) => line.includes("DESCRIPCION DE LA OBLIGACION")) &&
+    (lines.some((line) => line.includes("DESCRIPCION DE LA OBLIGACION")) ||
+      lines.some(
+        (line) => line.includes("MODELO") && line.includes("DESCRIPCION"),
+      ) ||
+      lines.some((line) => line === "DESCRIPCION")) &&
     lines.some((line) => line.includes("PERIODICIDAD")) &&
     lines.some((line) => line.includes("ESTADO"));
   const hasUsableFacts =

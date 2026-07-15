@@ -1,4 +1,4 @@
-export const MAX_CENSUS_DOCUMENT_BYTES = 4 * 1024 * 1024;
+export const MAX_CENSUS_DOCUMENT_BYTES = 8 * 1024 * 1024;
 const MAX_CENSUS_DOCUMENT_PAGES = 80;
 const MAX_CENSUS_DOCUMENT_TEXT_CHARS = 250_000;
 const MAX_CENSUS_DOCUMENT_OCR_PAGES = 12;
@@ -44,6 +44,17 @@ export interface CensusDocumentReadProgress {
   status: string;
 }
 
+export interface CensusDocumentReadOptions {
+  /**
+   * Renderiza y lee visualmente el PDF aunque ya exista una capa de texto.
+   * Es necesario para impresos híbridos cuyo fondo contiene las etiquetas y
+   * cuya capa seleccionable solo contiene los valores cumplimentados.
+   */
+  forceLocalOcr?: boolean;
+  /** Conserva los valores nativos junto al OCR del impreso. */
+  mergeNativeText?: boolean;
+}
+
 function isPdf(file: File): boolean {
   return (
     file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
@@ -58,6 +69,7 @@ async function hasPdfMagicBytes(file: File): Promise<boolean> {
 export async function readCensusDocumentPages(
   file: File,
   onProgress?: (progress: CensusDocumentReadProgress) => void,
+  options: CensusDocumentReadOptions = {},
 ): Promise<CensusDocumentTextResult> {
   if (!isPdf(file)) {
     throw new CensusDocumentFileError(
@@ -68,7 +80,7 @@ export async function readCensusDocumentPages(
   if (file.size > MAX_CENSUS_DOCUMENT_BYTES) {
     throw new CensusDocumentFileError(
       "FILE_TOO_LARGE",
-      "El PDF supera el límite de 4 MB.",
+      "El PDF supera el límite de 8 MB.",
     );
   }
   if (!(await hasPdfMagicBytes(file))) {
@@ -148,7 +160,7 @@ export async function readCensusDocumentPages(
       pages.push({ page: pageNumber, text: pageParts.join("\n").trim() });
     }
     const text = parts.join("\n").trim();
-    if (text) {
+    if (text && !options.forceLocalOcr) {
       return {
         text,
         totalPages: document.numPages,
@@ -192,7 +204,9 @@ export async function readCensusDocumentPages(
           }),
       });
       await worker.setParameters({
-        tessedit_pageseg_mode: PSM.AUTO,
+        tessedit_pageseg_mode: options.forceLocalOcr
+          ? PSM.SPARSE_TEXT
+          : PSM.AUTO,
         preserve_interword_spaces: "1",
         user_defined_dpi: "180",
       });
@@ -240,7 +254,13 @@ export async function readCensusDocumentPages(
             "El PDF contiene demasiado texto para procesarlo con seguridad.",
           );
         }
-        ocrPages.push({ page: pageNumber, text: pageText });
+        const nativePageText = options.mergeNativeText
+          ? (pages[pageNumber - 1]?.text ?? "")
+          : "";
+        ocrPages.push({
+          page: pageNumber,
+          text: [pageText, nativePageText].filter(Boolean).join("\n"),
+        });
         canvas.width = 0;
         canvas.height = 0;
       }

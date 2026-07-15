@@ -1,0 +1,12 @@
+Agencia Tributaria
+SIMULACIÓN LOCAL DEL ÁREA PERSONAL · NO EMITIDA POR LA AEAT
+ Mis actividades económicas
+Consulta de actividades y locales comunicados en el censo.
+NIF 00000031P · consulta 14/07/2026
+Actividad 1 · ACTIVA
+SERVICIOS DE ARQUITECTURA
+Epígrafe IAE: 411 · Inicio: 01/01/2024
+Lugar: Local determinado
+Local: CALLE SINTETICA 10, 28080 MADRID · 80 m²
+DOCUMENTO SINTÉTICO · SIN VALIDEZ
+FIXTURE pantalla_actividades_locales_03 · página 1 · NO PRESENTABLE · datos totalmente sintéticos

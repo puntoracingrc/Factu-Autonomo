@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m390_prorrata_sectores_04",
+  "documentType": "AEAT_MODEL_390",
+  "displayName": "390 · prorrata y sectores diferenciados",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "ANNUAL",
+  "expectedPages": 9,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2026-1761, anexo IV, modelo 390",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000020C",
+    "taxpayerName": "ULISES DEMO VEINTIUNO",
+    "fiscalYear": 2026,
+    "activities": [
+      {
+        "description": "SERVICIOS SANITARIOS MIXTOS",
+        "epigraph": "839",
+        "activityCode": "A01"
+      },
+      {
+        "description": "FORMACION PROFESIONAL",
+        "epigraph": "826",
+        "activityCode": "A02"
+      }
+    ],
+    "outputBase": "90.000,00",
+    "outputVat": "12.600,00",
+    "annualTurnover": "130.000,00",
+    "prorata": {
+      "percentage": "75",
+      "sector": "SECTOR DIFERENCIADO 1"
+    }
+  },
+  "expectedQuestionMappings": {
+    "VAT.PRIOR_ANNUAL_PROFILE": true,
+    "VAT.PRIOR_ACTIVITIES": [
+      {
+        "description": "SERVICIOS SANITARIOS MIXTOS",
+        "epigraph": "839",
+        "activityCode": "A01"
+      },
+      {
+        "description": "FORMACION PROFESIONAL",
+        "epigraph": "826",
+        "activityCode": "A02"
+      }
+    ],
+    "VAT.PRIOR_TURNOVER": "130.000,00"
+  },
+  "mustNotInfer": [
+    "CURRENT_VAT_REGIME",
+    "FUTURE_MODEL_390_OBLIGATION",
+    "CURRENT_ACTIVITY_STATUS",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000020C"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "ULISES DEMO VEINTIUNO"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "390"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "ANNUAL"
+    },
+    {
+      "fieldId": "activity.list",
+      "page": 1,
+      "label": "Datos estadísticos",
+      "value": [
+        {
+          "description": "SERVICIOS SANITARIOS MIXTOS",
+          "epigraph": "839",
+          "activityCode": "A01"
+        },
+        {
+          "description": "FORMACION PROFESIONAL",
+          "epigraph": "826",
+          "activityCode": "A02"
+        }
+      ]
+    },
+    {
+      "fieldId": "vat.annualTurnover",
+      "page": 7,
+      "label": "Volumen total de operaciones",
+      "value": "130.000,00"
+    }
+  ],
+  "notes": [
+    "Resumen anual histórico: requiere reconciliación con los 303 y con el censo."
+  ],
+  "pdfFile": "m390_prorrata_sectores_04.pdf",
+  "sha256": "60ccfa11efb0906c53ca7fce6109066862911d34a79bb2d92303197e86371333"
+}
