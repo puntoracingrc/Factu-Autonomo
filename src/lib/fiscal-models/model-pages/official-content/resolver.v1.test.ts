@@ -497,18 +497,26 @@ describe("public AEAT official model content v1", () => {
           entry.code === "586" ||
           entry.code === "795" ||
           entry.code === "796" ||
-          entry.code === "797"
+          entry.code === "797" ||
+          entry.code === "798" ||
+          entry.code === "981"
             ? "HISTORICAL"
             : "UNDETERMINED",
         reviewedOn:
-          entry.code === "01" ||
-          entry.code === "05" ||
-          entry.code === "06" ||
-          EXPECTED_BATCH_16_CODES.has(entry.code) ||
-          EXPECTED_BATCH_17_CODES.has(entry.code) ||
-          EXPECTED_BATCH_18_CODES.has(entry.code)
-            ? "2026-07-14"
-            : "2026-07-13",
+          entry.code === "798" ||
+          entry.code === "981" ||
+          entry.code === "A22" ||
+          entry.code === "A23" ||
+          entry.code === "A24"
+            ? "2026-07-15"
+            : entry.code === "01" ||
+                entry.code === "05" ||
+                entry.code === "06" ||
+                EXPECTED_BATCH_16_CODES.has(entry.code) ||
+                EXPECTED_BATCH_17_CODES.has(entry.code) ||
+                EXPECTED_BATCH_18_CODES.has(entry.code)
+              ? "2026-07-14"
+              : "2026-07-13",
       });
       expect(entry.faq.length).toBeGreaterThanOrEqual(3);
       expect(Object.isFrozen(entry)).toBe(true);
@@ -571,7 +579,9 @@ describe("public AEAT official model content v1", () => {
       expect(result.data.faq.length, code).toBeGreaterThanOrEqual(6);
       expect(result.data.searchTerms.length, code).toBeGreaterThanOrEqual(3);
       expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
-      expect(result.data.lifecycleStatus, code).toBe("UNDETERMINED");
+      expect(result.data.lifecycleStatus, code).toBe(
+        code === "798" || code === "981" ? "HISTORICAL" : "UNDETERMINED",
+      );
       expect(result.data.externalNavigation, code).toBeNull();
     }
   });
@@ -784,7 +794,9 @@ describe("public AEAT official model content v1", () => {
       expect(result.data.sections.length, code).toBe(4);
       expect(result.data.searchTerms.length, code).toBeGreaterThanOrEqual(3);
       expect(result.data.applicabilityStatus, code).toBe("NOT_EVALUATED");
-      expect(result.data.lifecycleStatus, code).toBe("UNDETERMINED");
+      expect(result.data.lifecycleStatus, code).toBe(
+        code === "798" || code === "981" ? "HISTORICAL" : "UNDETERMINED",
+      );
       expect(result.data.externalNavigation, code).toBeNull();
       expect(result.data.documents, code).toEqual([]);
     }

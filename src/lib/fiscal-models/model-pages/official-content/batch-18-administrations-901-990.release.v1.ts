@@ -7,7 +7,7 @@ import {
 } from "./batch-18.release-helper.v1";
 
 export const PUBLIC_AEAT_BATCH_18_ADMINISTRATIONS_901_990_RELEASE_ID_V1 =
-  "public-aeat-official-batch-18-administrations-901-990.2026-07-14.v1" as const;
+  "public-aeat-official-batch-18-administrations-901-990.2026-07-15.v2" as const;
 
 function official(value: PublicAeatOfficialContentSourceV1) {
   return source(value);
@@ -210,6 +210,8 @@ const MODEL_980 = model({
 
 const MODEL_981 = model({
   releaseId: PUBLIC_AEAT_BATCH_18_ADMINISTRATIONS_901_990_RELEASE_ID_V1,
+  reviewedOn: "2026-07-15",
+  lifecycleStatus: "HISTORICAL",
   code: "981",
   canonicalName:
     "Suministro de información sobre la prestación por maternidad/paternidad",
@@ -243,7 +245,7 @@ const MODEL_981 = model({
   ),
   accessMethods: {
     methods: ["BROWSER_FORM", "ADMINISTRATIVE_TRANSFER"],
-    status: "SOURCE_DESCRIBED",
+    status: "SOURCE_DESCRIBED_HISTORICAL",
     sourceIds: [M981_HOME.id, M981_RECORD.id],
     semantics: "OFFICIAL_INFORMATION_ONLY",
   },

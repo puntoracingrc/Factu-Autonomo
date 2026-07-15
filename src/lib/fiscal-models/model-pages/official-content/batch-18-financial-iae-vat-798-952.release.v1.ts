@@ -7,7 +7,7 @@ import {
 } from "./batch-18.release-helper.v1";
 
 export const PUBLIC_AEAT_BATCH_18_FINANCIAL_IAE_VAT_798_952_RELEASE_ID_V1 =
-  "public-aeat-official-batch-18-financial-iae-vat-798-952.2026-07-14.v1" as const;
+  "public-aeat-official-batch-18-financial-iae-vat-798-952.2026-07-15.v2" as const;
 
 function official(value: PublicAeatOfficialContentSourceV1) {
   return source(value);
@@ -157,6 +157,8 @@ const M952_IDS = [INDEX.id, M952_HOME.id, M952_RECORD.id, RIVA.id] as const;
 
 const MODEL_798 = model({
   releaseId: PUBLIC_AEAT_BATCH_18_FINANCIAL_IAE_VAT_798_952_RELEASE_ID_V1,
+  reviewedOn: "2026-07-15",
+  lifecycleStatus: "HISTORICAL",
   code: "798",
   canonicalName:
     "Gravamen temporal de entidades de crédito y establecimientos financieros de crédito. Pago anticipado",
@@ -189,7 +191,7 @@ const MODEL_798 = model({
   ),
   accessMethods: {
     methods: ["BROWSER_FORM"],
-    status: "SOURCE_DESCRIBED",
+    status: "SOURCE_DESCRIBED_HISTORICAL",
     sourceIds: [M798_HOME.id, M798_RECORD.id],
     semantics: "OFFICIAL_INFORMATION_ONLY",
   },
