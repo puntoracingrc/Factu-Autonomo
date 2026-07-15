@@ -1,0 +1,77 @@
+name: Tax corpus and holdout validation
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/tax-corpus-holdout-validation.yml"
+      - "package.json"
+      - "scripts/validate-tax-corpus-holdout.mjs"
+      - "src/lib/tax-model-diagnostic/corpus-holdout/**"
+      - "test/fixtures/tax-model-diagnostic/corpus-holdout-v1/**"
+      - "test/fixtures/tax-model-diagnostic/manifests/**"
+      - "test/fixtures/tax-model-diagnostic/pdf/**"
+      - "test/fixtures/tax-model-diagnostic/pending29-v1/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/tax-corpus-holdout-validation.yml"
+      - "package.json"
+      - "scripts/validate-tax-corpus-holdout.mjs"
+      - "src/lib/tax-model-diagnostic/corpus-holdout/**"
+      - "test/fixtures/tax-model-diagnostic/corpus-holdout-v1/**"
+      - "test/fixtures/tax-model-diagnostic/manifests/**"
+      - "test/fixtures/tax-model-diagnostic/pdf/**"
+      - "test/fixtures/tax-model-diagnostic/pending29-v1/**"
+  workflow_dispatch:
+    inputs:
+      run_holdout:
+        description: "Run aggregate-only evaluation on the isolated holdout runner"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tax-corpus-holdout-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-corpus-validation:
+    name: Public corpus validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run fiscal:corpus:validate
+      - name: Confirm private holdout is not tracked
+        run: |
+          if git ls-files | grep -E '(^|/)(holdout-private|private-holdout)(/|$)'; then
+            echo 'Private holdout material must remain outside Git.' >&2
+            exit 1
+          fi
+
+  protected-holdout-evaluation:
+    name: Protected aggregate-only holdout evaluation
+    if: github.event_name == 'workflow_dispatch' && inputs.run_holdout
+    runs-on: [self-hosted, fiscal-holdout]
+    environment: fiscal-holdout
+    timeout-minutes: 20
+    env:
+      FISCAL_HOLDOUT_JOB: "1"
+      FISCAL_HOLDOUT_ROOT: ${{ secrets.FISCAL_HOLDOUT_ROOT }}
+      FISCAL_HOLDOUT_ACCESS_TOKEN: ${{ secrets.FISCAL_HOLDOUT_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run fiscal:corpus:validate -- --holdout --aggregate-only
