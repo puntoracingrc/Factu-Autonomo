@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,6 +7,10 @@ import ts from "typescript";
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const SOURCES_PATH = join(ROOT, "src/lib/tax-model-diagnostic/sources.ts");
 const INVENTORY_PATH = join(ROOT, "docs/fiscal/rule-inventory.json");
+const APPROVAL_HASH_REGISTRY_PATH = join(
+  ROOT,
+  "docs/fiscal/approval/fiscal-approval-registry.v1.json",
+);
 
 function sourceFile(path) {
   return ts.createSourceFile(
@@ -106,7 +110,38 @@ export function readCurrentOfficialSources() {
 }
 
 export function readCurrentRuleInventory() {
-  return JSON.parse(readFileSync(INVENTORY_PATH, "utf8"));
+  const inventory = JSON.parse(readFileSync(INVENTORY_PATH, "utf8"));
+  if (!existsSync(APPROVAL_HASH_REGISTRY_PATH)) return inventory;
+  const approvalRegistry = JSON.parse(
+    readFileSync(APPROVAL_HASH_REGISTRY_PATH, "utf8"),
+  );
+  if (
+    approvalRegistry.contractVersion !== "fiscal-approval-registry.v1" ||
+    approvalRegistry.ruleCount !== inventory.rules.length ||
+    approvalRegistry.rules.length !== inventory.rules.length
+  ) {
+    throw new Error("FISCAL_APPROVAL_REGISTRY_INCOMPLETE");
+  }
+  const approvalHashByRule = new Map(
+    approvalRegistry.rules.map((rule) => [
+      rule.ruleId,
+      rule.approvalFiscalHash,
+    ]),
+  );
+  const rules = inventory.rules.map((rule) => {
+    const approvalFiscalHash = approvalHashByRule.get(rule.ruleId);
+    if (!approvalFiscalHash) {
+      throw new Error(`MISSING_FISCAL_APPROVAL_HASH:${rule.ruleId}`);
+    }
+    return {
+      ...rule,
+      approvalFiscalHash,
+    };
+  });
+  return {
+    ...inventory,
+    rules,
+  };
 }
 
 export function sourceRuleAssociations(inventory) {

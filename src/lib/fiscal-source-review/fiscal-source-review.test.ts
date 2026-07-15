@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import approvalRegistryJson from "../../../docs/fiscal/approval/fiscal-approval-registry.v1.json";
 import inventoryJson from "../../../docs/fiscal/rule-inventory.json";
 import reviewRegistryJson from "../../../docs/fiscal/sources/review-decisions.v2.json";
 import sourceRegistryJson from "../../../docs/fiscal/sources/source-snapshot-registry.v2.json";
@@ -26,7 +27,7 @@ import {
 const sourceRegistry =
   sourceRegistryJson as unknown as FiscalSourceSnapshotRegistry;
 const emptyReviews = reviewRegistryJson as FiscalReviewRegistry;
-const inventory = inventoryJson as {
+const inventoryBase = inventoryJson as {
   rules: Array<{
     ruleId: string;
     ruleHash: string;
@@ -36,6 +37,27 @@ const inventory = inventoryJson as {
     sourceIds: string[];
   }>;
 };
+const approvalHashByRule = new Map(
+  (
+    approvalRegistryJson as {
+      rules: Array<{ ruleId: string; approvalFiscalHash: string }>;
+    }
+  ).rules.map((rule) => [rule.ruleId, rule.approvalFiscalHash]),
+);
+const inventory = {
+  ...inventoryBase,
+  rules: inventoryBase.rules.map((rule) => ({
+    ...rule,
+    approvalFiscalHash:
+      approvalHashByRule.get(rule.ruleId) ?? "MISSING_APPROVAL_FISCAL_HASH",
+  })),
+};
+
+function approvalHashForRule(rule = TAX_RULES[0]): string {
+  const hash = approvalHashByRule.get(rule.ruleId);
+  if (!hash) throw new Error(`MISSING_APPROVAL_FISCAL_HASH:${rule.ruleId}`);
+  return hash;
+}
 
 function decision(
   rule = TAX_RULES[0],
@@ -57,7 +79,7 @@ function decision(
       verificationReference: "server-trust://fiscal-professional-1/v1",
     },
     decision: "APPROVE",
-    reviewedRuleHash: rule.fiscalMetadata.ruleHash,
+    reviewedRuleHash: approvalHashForRule(rule),
     reviewedSourceHashes: rule.officialSourceIds.map((sourceId) => ({
       sourceId,
       contentHash:
@@ -314,19 +336,43 @@ describe("versioned official fiscal source snapshots", () => {
           generatedAt: "2026-07-15",
           decisions: [currentDecision],
         },
+        approvalHashForRule(rule),
       ).state,
     ).toBe("STALE_REVIEW");
   });
 });
 
 describe("fail-closed double fiscal review", () => {
+  it("can evaluate the source-linked approval hash instead of the pending technical hash", () => {
+    const rule = TAX_RULES[0];
+    const approvalHash = `fiscal-approval-rule-v1:${"a".repeat(64)}`;
+    const current = decision(rule, { reviewedRuleHash: approvalHash });
+    expect(
+      evaluateDualFiscalReview(
+        rule,
+        sourceRegistry,
+        {
+          contractVersion: "fiscal-review-registry.v2",
+          generatedAt: "2026-07-15",
+          decisions: [current],
+        },
+        approvalHash,
+      ).state,
+    ).toBe("WAITING_SECOND_REVIEW");
+  });
+
   it("never treats one approval decision as rule approval", () => {
     const rule = TAX_RULES[0];
-    const result = evaluateDualFiscalReview(rule, sourceRegistry, {
-      contractVersion: "fiscal-review-registry.v2",
-      generatedAt: "2026-07-15",
-      decisions: [decision(rule)],
-    });
+    const result = evaluateDualFiscalReview(
+      rule,
+      sourceRegistry,
+      {
+        contractVersion: "fiscal-review-registry.v2",
+        generatedAt: "2026-07-15",
+        decisions: [decision(rule)],
+      },
+      approvalHashForRule(rule),
+    );
     expect(result.state).toBe("WAITING_SECOND_REVIEW");
     expect(result.changesRuleReviewStatus).toBe(false);
     expect(rule.fiscalMetadata.review.reviewStatus).toBe(
@@ -342,11 +388,16 @@ describe("fail-closed double fiscal review", () => {
       reviewerRole: "SECOND_FISCAL_REVIEWER",
       signatureReference: "signed-review://second/reference-2",
     });
-    const result = evaluateDualFiscalReview(rule, sourceRegistry, {
-      contractVersion: "fiscal-review-registry.v2",
-      generatedAt: "2026-07-15",
-      decisions: [primary, second],
-    });
+    const result = evaluateDualFiscalReview(
+      rule,
+      sourceRegistry,
+      {
+        contractVersion: "fiscal-review-registry.v2",
+        generatedAt: "2026-07-15",
+        decisions: [primary, second],
+      },
+      approvalHashForRule(rule),
+    );
     expect(result.state).toBe("INVALID_REVIEW");
     expect(result.blockingReasons).toContain("SAME_REVIEWER_FOR_BOTH_ROLES");
   });
@@ -366,11 +417,16 @@ describe("fail-closed double fiscal review", () => {
             : source,
       ),
     });
-    const result = evaluateDualFiscalReview(rule, sourceRegistry, {
-      contractVersion: "fiscal-review-registry.v2",
-      generatedAt: "2026-07-15",
-      decisions: [stale],
-    });
+    const result = evaluateDualFiscalReview(
+      rule,
+      sourceRegistry,
+      {
+        contractVersion: "fiscal-review-registry.v2",
+        generatedAt: "2026-07-15",
+        decisions: [stale],
+      },
+      approvalHashForRule(rule),
+    );
     expect(result.state).toBe("STALE_REVIEW");
     expect(result.blockingReasons.join(" ")).toContain("STALE_RULE_HASH");
     expect(result.blockingReasons.join(" ")).toContain(
@@ -439,15 +495,22 @@ describe("fail-closed double fiscal review", () => {
       rule,
       sourceRegistry,
       technicalOnly,
+      approvalHashForRule(rule),
     );
-    const withPrimary = evaluateDualFiscalReview(rule, sourceRegistry, {
-      ...technicalOnly,
-      decisions: [technical, decision(rule)],
-    });
+    const withPrimary = evaluateDualFiscalReview(
+      rule,
+      sourceRegistry,
+      {
+        ...technicalOnly,
+        decisions: [technical, decision(rule)],
+      },
+      approvalHashForRule(rule),
+    );
     const view = buildCompactFiscalReviewView(
       rule,
       sourceRegistry,
       technicalOnly,
+      approvalHashForRule(rule),
     );
     expect(initial.state).toBe("WAITING_PRIMARY_REVIEW");
     expect(initial.validDecisionIds).toEqual([technical.decisionId]);
@@ -480,11 +543,16 @@ describe("fail-closed double fiscal review", () => {
         revocationReference: "server-revocation://decision/1",
       },
     });
-    const result = evaluateDualFiscalReview(rule, sourceRegistry, {
-      contractVersion: "fiscal-review-registry.v2",
-      generatedAt: "2026-07-16",
-      decisions: [revoked],
-    });
+    const result = evaluateDualFiscalReview(
+      rule,
+      sourceRegistry,
+      {
+        contractVersion: "fiscal-review-registry.v2",
+        generatedAt: "2026-07-16",
+        decisions: [revoked],
+      },
+      approvalHashForRule(rule),
+    );
     expect(result.state).toBe("WAITING_PRIMARY_REVIEW");
     expect(result.validDecisionIds).toEqual([]);
     expect(result.revokedDecisionIds).toEqual([revoked.decisionId]);
@@ -511,11 +579,17 @@ describe("fail-closed double fiscal review", () => {
       generatedAt: "2026-07-15",
       decisions: [primary, second],
     };
-    const result = evaluateDualFiscalReview(rule, sourceRegistry, reviews);
+    const result = evaluateDualFiscalReview(
+      rule,
+      sourceRegistry,
+      reviews,
+      approvalHashForRule(rule),
+    );
     const view = buildCompactFiscalReviewView(
       rule,
       sourceRegistry,
       reviews,
+      approvalHashForRule(rule),
     );
     expect(result.state).toBe("ELIGIBLE_FOR_MANUAL_APPROVAL");
     expect(result.changesRuleReviewStatus).toBe(false);

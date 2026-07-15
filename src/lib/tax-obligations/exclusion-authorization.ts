@@ -2,6 +2,10 @@ import {
   getTaxRule,
   taxRuleSetAuthorizationMetadata,
 } from "@/lib/tax-model-diagnostic/rules";
+import {
+  DEFAULT_FISCAL_FEATURE_FLAGS,
+  type FiscalFeatureFlags,
+} from "@/lib/fiscal-approval/contracts";
 
 import type { TaxObligationsAssessmentV1 } from "./contracts";
 import { authorizeRuleExclusion } from "./rule-exclusion-authorization";
@@ -27,8 +31,11 @@ export function isTaxObligationExclusionAuthorized(
         >)
     | null
     | undefined,
+  flags: FiscalFeatureFlags = DEFAULT_FISCAL_FEATURE_FLAGS,
 ): boolean {
   if (
+    !flags.fiscal_rules_approved_results ||
+    !flags.fiscal_rules_exclusions ||
     assessment?.ruleReviewState !== "APPROVED" ||
     assessment.resolutionState !== "RESOLVED" ||
     (assessment.fiscalYear !== 2025 && assessment.fiscalYear !== 2026) ||

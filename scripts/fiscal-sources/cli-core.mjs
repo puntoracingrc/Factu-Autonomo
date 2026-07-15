@@ -233,7 +233,7 @@ function isOfficial(authority, locator) {
   }
 }
 
-function validateDecision(decision, inventory, sourceById) {
+export function validateDecision(decision, inventory, sourceById) {
   const errors = [];
   const rule = inventory.rules.find((candidate) => candidate.ruleId === decision.ruleId);
   if (!rule) return [`${decision.decisionId}:UNKNOWN_RULE`];
@@ -286,7 +286,9 @@ function validateDecision(decision, inventory, sourceById) {
   ) {
     errors.push(`${decision.decisionId}:APPROVE_WITH_BLOCKING_FINDINGS`);
   }
-  if (decision.reviewedRuleHash !== rule.ruleHash) {
+  if (!rule.approvalFiscalHash) {
+    errors.push(`${decision.decisionId}:MISSING_APPROVAL_FISCAL_HASH`);
+  } else if (decision.reviewedRuleHash !== rule.approvalFiscalHash) {
     errors.push(`${decision.decisionId}:STALE_RULE_HASH`);
   }
   const expectedSourceIds = [...rule.sourceIds].sort();
@@ -451,6 +453,9 @@ export function validateState({
   }
   if (inventory.rules.length !== 54) errors.push("EXPECTED_54_RULES");
   for (const rule of inventory.rules) {
+    if (!rule.approvalFiscalHash) {
+      errors.push(`${rule.ruleId}:MISSING_APPROVAL_FISCAL_HASH`);
+    }
     if (rule.reviewStatus !== "PENDING_FISCAL_REVIEW") {
       errors.push(`${rule.ruleId}:RULE_NOT_PENDING`);
     }
