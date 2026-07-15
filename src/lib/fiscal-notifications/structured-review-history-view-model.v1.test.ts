@@ -265,6 +265,7 @@ describe("structured fiscal notification history view model v1", () => {
       expect.objectContaining({
         title: "Providencia de apremio AEAT",
         authority: "Agencia Estatal de Administración Tributaria",
+        documentDate: "2026-02-05",
         subjectName: "PERSONA SINTETICA",
         subjectTaxId: "12345678Z",
         pageCount: 3,
@@ -291,7 +292,9 @@ describe("structured fiscal notification history view model v1", () => {
         ],
       }),
     ]);
-    expect(JSON.stringify(result)).not.toMatch(/sha256|textSnippet|raw paragraph/i);
+    expect(JSON.stringify(result)).not.toMatch(
+      /sha256|textSnippet|raw paragraph/i,
+    );
     expect(Object.isFrozen(result)).toBe(true);
     expect(Object.isFrozen(result.entries)).toBe(true);
   });
@@ -303,6 +306,36 @@ describe("structured fiscal notification history view model v1", () => {
         "user:00000000-0000-4000-8000-000000000099",
       ),
     ).toEqual({ status: "BLOCKED", entries: [] });
+  });
+
+  it("normaliza solo una fecha documental exacta y no usa cuándo se guardó para la cronología", () => {
+    const value = workspace();
+    value.documents[0]!.issueDate = undefined;
+    value.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
+      undefined;
+    value.analysisSnapshots[0]!.structuredData.unknownFields = [
+      {
+        labelRaw: "VSR1|DATE|ISSUE_DATE|Fecha del documento",
+        valueRaw: "05/02/2026",
+        page: 1,
+        confidence: "EXACT",
+      },
+    ];
+
+    const result = projectFiscalNotificationStructuredHistoryV1(value, OWNER);
+    expect(result.status).toBe("READY");
+    if (result.status !== "READY") return;
+    expect(result.entries[0]?.documentDate).toBe("2026-02-05");
+
+    value.analysisSnapshots[0]!.structuredData.unknownFields[0]!.confidence =
+      "MEDIUM";
+    const uncertain = projectFiscalNotificationStructuredHistoryV1(
+      value,
+      OWNER,
+    );
+    expect(uncertain.status).toBe("READY");
+    if (uncertain.status !== "READY") return;
+    expect(uncertain.entries[0]?.documentDate).toBeNull();
   });
 
   it("recupera las etiquetas exactas del extractor sin duplicar referencias ni importes", () => {
@@ -378,7 +411,9 @@ describe("structured fiscal notification history view model v1", () => {
       evidenceIds: ["evidence:money", "evidence:date"],
     });
 
-    expect(projectFiscalNotificationStructuredHistoryV1(value, OWNER)).toMatchObject({
+    expect(
+      projectFiscalNotificationStructuredHistoryV1(value, OWNER),
+    ).toMatchObject({
       status: "READY",
       entries: [
         {
@@ -399,7 +434,9 @@ describe("structured fiscal notification history view model v1", () => {
   });
 
   it("presenta historial vacío cuando todavía no existe workspace", () => {
-    expect(projectFiscalNotificationStructuredHistoryV1(undefined, OWNER)).toEqual({
+    expect(
+      projectFiscalNotificationStructuredHistoryV1(undefined, OWNER),
+    ).toEqual({
       status: "READY",
       entries: [],
     });
