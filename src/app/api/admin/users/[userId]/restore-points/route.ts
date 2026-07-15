@@ -1,9 +1,6 @@
 import { NextResponse } from "next/server";
 import type { User } from "@supabase/supabase-js";
-import {
-  getAdminAccessFromRequest,
-  type AdminMfaAccess,
-} from "@/lib/admin/server-access";
+import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import {
   ADMIN_RESTORE_ENTITY_TYPES,
   appDataFromSyncRows,
@@ -66,12 +63,6 @@ function cleanId(value: unknown): string | null {
 async function requireAdmin(request: Request): Promise<AdminAuthResult> {
   const access = await getAdminAccessFromRequest(request);
   if (!access.ok) return access;
-  if (access.mfa.currentLevel !== "aal2") {
-    return {
-      ok: false,
-      response: restoreMfaRequiredResponse(access.mfa),
-    };
-  }
   const rateLimit = await checkRateLimit(
     request,
     {
@@ -97,21 +88,6 @@ async function requireAdmin(request: Request): Promise<AdminAuthResult> {
   }
 
   return { ok: true, requester: access.user, admin };
-}
-
-function restoreMfaRequiredResponse(mfa: AdminMfaAccess) {
-  return NextResponse.json(
-    {
-      code: "admin_mfa_required",
-      error:
-        "Verificación en dos pasos AAL2 requerida para gestionar copias administrativas.",
-      mfa,
-    },
-    {
-      status: 403,
-      headers: { "X-Admin-MFA-Required": "1" },
-    },
-  );
 }
 
 function restoreApplyBlockedResponse() {

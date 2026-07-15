@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GET, POST } from "./route";
-import { isAdminUser } from "@/lib/admin/access";
+import { isAdminEmail, isAdminUser } from "@/lib/admin/access";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import {
   consumeExpenseScan,
@@ -17,6 +17,7 @@ import {
 import { checkRateLimit } from "@/lib/server/rate-limit";
 
 vi.mock("@/lib/admin/access", () => ({
+  isAdminEmail: vi.fn(),
   isAdminUser: vi.fn(),
 }));
 
@@ -151,6 +152,7 @@ describe("POST /api/expenses/scan", () => {
       email: "cliente@example.com",
     } as Awaited<ReturnType<typeof getUserFromBearer>>);
     vi.mocked(isAdminUser).mockReturnValue(false);
+    vi.mocked(isAdminEmail).mockReturnValue(false);
 
     const response = await POST(scanPostRequest("token"));
 
@@ -174,6 +176,7 @@ describe("POST /api/expenses/scan", () => {
       email: "admin@example.com",
     } as Awaited<ReturnType<typeof getUserFromBearer>>);
     vi.mocked(isAdminUser).mockReturnValue(true);
+    vi.mocked(isAdminEmail).mockReturnValue(true);
 
     const response = await POST(scanPostRequest("token"));
 
@@ -187,6 +190,7 @@ describe("POST /api/expenses/scan", () => {
       },
       "admin-1",
     );
+    expect(consumeExpenseScan).not.toHaveBeenCalled();
   });
 
   it("falla cerrado en produccion antes de leer el body, cuota o proveedor IA", async () => {

@@ -37,7 +37,6 @@ import {
   PRO_EXPENSE_SCANS_PER_MONTH,
   type ScanQuota,
 } from "@/lib/billing/scan-limits";
-import { aiLearningAccountForEmail } from "@/lib/ai-learning";
 import { scanPackLabel } from "@/lib/billing/scan-packs";
 import { prepareScanFile } from "@/lib/expense-scan/prepare-scan-file";
 import {
@@ -108,13 +107,12 @@ export function ExpenseScanCard({
   const aiConsent = useAiProcessingConsent();
   const checkoutStatus = searchParams.get("checkout");
   const needsAccount = billingEnabled && !user;
-  const learningAccess = aiLearningAccountForEmail(user?.email);
   const noScansLeft =
     quota !== null &&
     quota.remaining <= 0 &&
     quota.remaining !== Number.MAX_SAFE_INTEGER;
   const unlimitedScanMode =
-    learningAccess.allowed || quota?.remainingUnits === Number.MAX_SAFE_INTEGER;
+    quota?.remainingUnits === Number.MAX_SAFE_INTEGER;
   const scanBatchLimit = unlimitedScanMode
     ? Number.MAX_SAFE_INTEGER
     : MAX_SCAN_FILES;
@@ -129,12 +127,12 @@ export function ExpenseScanCard({
   const usageLabel = useMemo(() => {
     if (!quota) return null;
     if (quota.remainingUnits === Number.MAX_SAFE_INTEGER) {
-      return "sin límite de pruebas";
+      return "sin límite";
     }
     return `${buildAiUsageMeter(quota).percentRemaining}% restante`;
   }, [quota]);
   const scanBatchHint = unlimitedScanMode
-    ? "todos los que necesites para la prueba"
+    ? "todos los que necesites"
     : `hasta ${MAX_SCAN_FILES}`;
   const preparedCount = scanQueue.filter(
     (item) => item.status === "PREPARED",
@@ -492,7 +490,7 @@ export function ExpenseScanCard({
               {loadingQuota && usageLabel ? " (actualizando…)" : null}
             </p>
           )}
-          {learningAccess.allowed ? (
+          {unlimitedScanMode ? (
             <Link
               href="/admin?seccion=aprendizaje"
               className="inline-flex text-sm font-bold text-sky-700 underline"

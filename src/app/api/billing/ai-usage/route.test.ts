@@ -66,4 +66,21 @@ describe("GET /api/billing/ai-usage", () => {
     expect(body.meter.mode).toBe("unlimited");
     expect(body.quota.remainingUnits).toBe(Number.MAX_SAFE_INTEGER);
   });
+
+  it("devuelve modo sin limite a cualquier email incluido en ADMIN_EMAILS", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    vi.stubEnv("ADMIN_EMAILS", "admin-one@example.com,admin-two@example.com");
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "admin-two",
+      email: "admin-two@example.com",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+
+    const response = await GET(request("token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(getExpenseScanQuota).not.toHaveBeenCalled();
+    expect(body.meter.mode).toBe("unlimited");
+    expect(body.quota.remainingUnits).toBe(Number.MAX_SAFE_INTEGER);
+  });
 });

@@ -139,19 +139,6 @@ function safeFactor(factor: AdminMfaFactorLike) {
   };
 }
 
-function mfaRequiredResponse() {
-  return NextResponse.json(
-    {
-      code: "admin_mfa_required",
-      error: "Verificacion en dos pasos requerida para recuperar MFA.",
-    },
-    {
-      status: 403,
-      headers: { "X-Admin-MFA-Required": "1" },
-    },
-  );
-}
-
 async function getTargetUser(
   admin: NonNullable<ReturnType<typeof getSupabaseAdmin>>,
   userId: string,
@@ -164,9 +151,6 @@ async function getTargetUser(
 async function checkAdminMfaRouteAccess(request: Request) {
   const access = await getAdminAccessFromRequest(request);
   if (!access.ok) return { ok: false as const, response: access.response };
-  if (access.mfa.currentLevel !== "aal2") {
-    return { ok: false as const, response: mfaRequiredResponse() };
-  }
 
   const rateLimit = await checkRateLimit(
     request,

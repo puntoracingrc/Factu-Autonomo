@@ -4,6 +4,10 @@ import { isBillingEnforced } from "@/lib/billing/config";
 import { getPlanLimits, type PlanId } from "@/lib/billing/plans";
 import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { consumeImportAiReview } from "@/lib/billing/scan-usage-server";
+import {
+  hasUnlimitedAiAccess,
+  unlimitedAiUsageResult,
+} from "@/lib/billing/unlimited-ai-access";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import {
   isImportAiReviewConfigured,
@@ -72,7 +76,11 @@ export async function POST(request: Request) {
     );
   }
 
-  const gate = user ? await canUseImportAi(user.id) : { allowed: true };
+  const unlimitedAccess = hasUnlimitedAiAccess(user);
+  const gate =
+    user && !unlimitedAccess
+      ? await canUseImportAi(user.id)
+      : { allowed: true };
   if (!gate.allowed) {
     return NextResponse.json({ error: gate.reason }, { status: 402 });
   }
@@ -85,7 +93,9 @@ export async function POST(request: Request) {
   }
 
   const userId = user?.id ?? "dev";
-  const usage = await consumeImportAiReview(userId);
+  const usage = unlimitedAccess
+    ? unlimitedAiUsageResult()
+    : await consumeImportAiReview(userId);
   const softUsageWarning =
     usage.allowed || usage.blockedByQuota ? undefined : usage.reason;
   if (!usage.allowed && usage.blockedByQuota) {

@@ -14,8 +14,9 @@ documentos protegidos.
 - Importaciones y restauraciones deben pasar por vista previa y resumen de
   cambios antes de aplicar datos.
 - La restauracion administrativa no se puede aplicar mientras no exista una
-  operacion transaccional o saga reanudable que exija AAL2, ligue el apply a la
-  vista previa y bloquee cualquier cambio de documentos protegidos.
+  operacion transaccional o saga reanudable que revalide la sesion admin, ligue
+  el apply a la vista previa y bloquee cualquier cambio de documentos
+  protegidos.
 - Antes de una operación delicada debe existir copia local/exportable o punto de
   recuperación.
 

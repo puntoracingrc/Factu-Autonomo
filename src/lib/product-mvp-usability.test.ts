@@ -957,7 +957,7 @@ describe("MVP usability polish", () => {
     expect(accountPageSource).toContain('id="legal-privacidad"');
   });
 
-  it("mantiene el alta de doble factor exclusivamente dentro de admin", () => {
+  it("mantiene el doble factor fuera de Cuenta y desactivado en Admin", () => {
     const accountPageSource = readFileSync(
       new URL("../app/cuenta/page.tsx", import.meta.url),
       "utf8",
@@ -974,11 +974,12 @@ describe("MVP usability polish", () => {
     expect(accountPageSource).not.toContain("AccountMfaCard");
     expect(accountPageSource).not.toContain('id="seguridad-cuenta"');
     expect(accountPageSource).not.toContain("Activar doble factor");
-    expect(adminPageSource).toContain("MFA admin");
-    expect(adminPageSource).toContain("supabase.auth.mfa.enroll");
-    expect(adminPageSource).toContain("supabase.auth.mfa.verify");
+    expect(adminPageSource).toContain("const ADMIN_MFA_UI_ENABLED = false");
     expect(adminCapabilitiesSource).toContain("adminEmailAuthorized");
-    expect(adminCapabilitiesSource).toContain("adminMfa");
+    expect(adminCapabilitiesSource).toContain(
+      "fullAdmin: adminEmailAuthorized",
+    );
+    expect(adminCapabilitiesSource).not.toContain("adminMfa");
   });
 
   it("encapsula acciones y filtros de clientes en bloques separados", () => {

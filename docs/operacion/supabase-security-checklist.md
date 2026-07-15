@@ -33,13 +33,10 @@ Ultima revision: 2026-07-15.
 - Produccion: confirmar que Vercel apunta a la ultima build de `main`.
 - CSP: revisar informes de `/api/security/csp-report`; produccion bloquea CSP
   por defecto y `SECURITY_CSP_MODE=report-only` queda como rollback temporal.
-- Admin MFA: confirmar que las cuentas admin tienen TOTP verificado y que
-  `ADMIN_MFA_REQUIRED=true` sigue activo en Vercel Production.
-- Superficie MFA: confirmar que el alta TOTP solo aparece en `/admin` para un
-  email autorizado y que `/cuenta` no ofrece controles MFA.
-- Admin recuperacion MFA: comprobar que `admin_mfa_recovery_challenges` existe,
-  no tiene permisos para `public`, `anon` ni `authenticated`, y solo se usa desde
-  servidor con `service_role`.
+- Admin: confirmar que `ADMIN_EMAILS` contiene exactamente las cuentas
+  autorizadas y que `/admin` no ofrece ni exige alta TOTP.
+- Entitlements admin: comprobar que todas las cuentas de `ADMIN_EMAILS` reciben
+  el mismo panel e IA/escaneos sin consumo de creditos.
 - WAF/bots: revisar eventos agregados en admin. Bot Protection y AI Bots estan
   activos en `Log`; no pasar a challenge/deny sin medir falsos positivos.
 
@@ -84,11 +81,9 @@ Ultima revision: 2026-07-15.
 - GitHub: Dependabot, CodeQL, secret scanning y push protection activos.
 - Leaked password protection: pendiente de confirmar manualmente en Supabase
   Auth; no se modifica con la service role de la aplicacion.
-- Admin MFA: cuenta `puntoracingrc@gmail.com` verificada con TOTP real en sesion
-  `aal2`; Vercel Production tiene `ADMIN_MFA_REQUIRED=true`.
-- Superficie MFA: el alta TOTP queda reservada a `/admin`; recuperacion por otro
-  admin disenada con codigo de email, caducidad, intentos limitados y sesion
-  admin `aal2`.
+- Admin: acceso basado en sesion autenticada y `ADMIN_EMAILS`; las cuentas
+  autorizadas comparten permisos e IA/escaneos sin consumo de creditos.
+- Superficie MFA: no se ofrece alta TOTP en `/cuenta` ni `/admin`.
 - Revisión mensual: recordatorio activo en Codex
   `revisi-n-mensual-supabase-seguridad`.
 
@@ -109,12 +104,10 @@ Ultima revision: 2026-07-15.
 - CSP rollback: usar `SECURITY_CSP_MODE=report-only` solo si login, Turnstile,
   Google, Drive, Maps, escaneo IA, PDF o admin muestran una incompatibilidad
   legitima.
-- Admin MFA required: no desactivar salvo rollback controlado; si se anade otra
-  cuenta admin, verificar TOTP real antes de depender de ella.
-- MFA de usuarios: no exponer ni activar fuera de `/admin` sin una decision de
-  producto explicita, flujo de login probado y soporte de recuperacion completo.
-- Recuperacion MFA: no quitar factores a mano sin codigo enviado al email del
-  usuario y confirmacion de identidad; dejar registro operativo de la accion.
+- Admin allowlist: no añadir una cuenta sin decision explicita de producto y
+  verificacion de que su email confirmado es correcto.
+- MFA de usuarios: no exponer ni activar sin una nueva decision de producto,
+  flujo de login probado y soporte de recuperacion completo.
 - Rate limit distribuido: si se cambia o se revierte, confirmar que la migracion
   `20260709123000_server_rate_limit_buckets.sql` existe en el proyecto correcto
   antes de mantener `SERVER_RATE_LIMIT_BACKEND=supabase`.

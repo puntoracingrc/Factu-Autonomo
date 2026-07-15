@@ -1,15 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-function jwtWithPayload(payload: Record<string, unknown>) {
-  const encode = (value: unknown) =>
-    Buffer.from(JSON.stringify(value))
-      .toString("base64url");
-  return `${encode({ alg: "none" })}.${encode(payload)}.signature`;
-}
-
-function requestWithAal(aal: string) {
+function request() {
   return new Request("https://facturacion-autonomos.app/api/admin/test", {
-    headers: { Authorization: `Bearer ${jwtWithPayload({ aal })}` },
+    headers: { Authorization: "Bearer session-token" },
   });
 }
 
@@ -20,49 +13,37 @@ describe("admin server access", () => {
     vi.unstubAllEnvs();
   });
 
-  it("allows admin without MFA when the switch is disabled", async () => {
+  it("requiere una sesion autenticada", async () => {
     vi.doMock("@/lib/billing/server-auth", () => ({
-      getUserFromBearer: vi.fn(async () => ({
-        id: "admin-1",
-        email: "admin@example.com",
-      })),
+      getUserFromBearer: vi.fn(async () => null),
     }));
-    vi.doMock("@/lib/admin/access", () => ({
-      isAdminUser: vi.fn(() => true),
-    }));
-    vi.stubEnv("ADMIN_MFA_REQUIRED", "false");
 
     const { getAdminAccessFromRequest } = await import("./server-access");
-    const result = await getAdminAccessFromRequest(requestWithAal("aal1"));
-
-    expect(result.ok).toBe(true);
-  });
-
-  it("blocks admin with aal1 when MFA is required", async () => {
-    vi.doMock("@/lib/billing/server-auth", () => ({
-      getUserFromBearer: vi.fn(async () => ({
-        id: "admin-1",
-        email: "admin@example.com",
-      })),
-    }));
-    vi.doMock("@/lib/admin/access", () => ({
-      isAdminUser: vi.fn(() => true),
-    }));
-    vi.stubEnv("ADMIN_MFA_REQUIRED", "true");
-
-    const { getAdminAccessFromRequest } = await import("./server-access");
-    const result = await getAdminAccessFromRequest(requestWithAal("aal1"));
+    const result = await getAdminAccessFromRequest(request());
 
     expect(result.ok).toBe(false);
-    if (!result.ok) {
-      expect(result.response.status).toBe(403);
-      expect(await result.response.json()).toMatchObject({
-        code: "admin_mfa_required",
-      });
-    }
+    if (!result.ok) expect(result.response.status).toBe(401);
   });
 
-  it("allows admin with aal2 when MFA is required", async () => {
+  it("rechaza una sesion cuyo email no esta autorizado", async () => {
+    vi.doMock("@/lib/billing/server-auth", () => ({
+      getUserFromBearer: vi.fn(async () => ({
+        id: "user-1",
+        email: "cliente@example.com",
+      })),
+    }));
+    vi.doMock("@/lib/admin/access", () => ({
+      isAdminUser: vi.fn(() => false),
+    }));
+
+    const { getAdminAccessFromRequest } = await import("./server-access");
+    const result = await getAdminAccessFromRequest(request());
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.response.status).toBe(403);
+  });
+
+  it("autoriza al admin por sesion y allowlist aunque quede una flag MFA obsoleta", async () => {
     vi.doMock("@/lib/billing/server-auth", () => ({
       getUserFromBearer: vi.fn(async () => ({
         id: "admin-1",
@@ -75,8 +56,9 @@ describe("admin server access", () => {
     vi.stubEnv("ADMIN_MFA_REQUIRED", "true");
 
     const { getAdminAccessFromRequest } = await import("./server-access");
-    const result = await getAdminAccessFromRequest(requestWithAal("aal2"));
+    const result = await getAdminAccessFromRequest(request());
 
     expect(result.ok).toBe(true);
+    if (result.ok) expect(result.user.id).toBe("admin-1");
   });
 });

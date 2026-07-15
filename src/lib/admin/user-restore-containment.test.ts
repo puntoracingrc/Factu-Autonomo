@@ -43,7 +43,7 @@ describe("admin user restore fail-closed containment", () => {
 
   it("mantiene la ruta sin apply por chunks ni evento posterior", () => {
     expect(routeSource).toContain('body.action === "restore"');
-    expect(routeSource).toContain('access.mfa.currentLevel !== "aal2"');
+    expect(routeSource).not.toContain("access.mfa");
     expect(routeSource).toContain("restoreApplyBlockedResponse()");
     expect(routeSource).not.toContain(".upsert(");
     expect(routeSource).not.toContain("admin_user_restore_events");
