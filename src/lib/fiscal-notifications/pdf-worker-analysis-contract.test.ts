@@ -1165,6 +1165,44 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     }
   });
 
+  it("accepts repeated historical compensation titles only for the traced annex handler", () => {
+    const historicalAnnexes = mutableAnalysis(offsetAnalysis());
+    historicalAnnexes.pageCount = 6;
+    const title = historicalAnnexes.familyAnalysis!.candidates[0]!
+      .matchedAnchors.find(
+        (anchor) => anchor.anchorId === "OFFSET_AGREEMENT_TITLE",
+      );
+    if (!title) throw new Error("Synthetic offset title anchor missing");
+    title.pageNumbers = [1, 3, 5];
+
+    expect(
+      parseFiscalNotificationPdfWorkerAnalysis(historicalAnnexes)
+        .familyAnalysis?.candidates[0]?.matchedAnchors.find(
+          (anchor) => anchor.anchorId === "OFFSET_AGREEMENT_TITLE",
+        )?.pageNumbers,
+    ).toEqual([1, 3, 5]);
+
+    const legacyHandler = mutableAnalysis(historicalAnnexes);
+    legacyHandler.familyAnalysis!.candidates[0]!.handlerVersion = "1.0.0";
+    expect(() =>
+      parseFiscalNotificationPdfWorkerAnalysis(legacyHandler),
+    ).toThrow(FiscalNotificationPdfWorkerAnalysisError);
+
+    const repeatedEnforcementTitle = mutableAnalysis();
+    repeatedEnforcementTitle.pageCount = 3;
+    const enforcementTitle = repeatedEnforcementTitle.familyAnalysis!
+      .candidates[0]!.matchedAnchors.find(
+        (anchor) => anchor.anchorId === "ENFORCEMENT_ORDER_TITLE",
+      );
+    if (!enforcementTitle) {
+      throw new Error("Synthetic enforcement title anchor missing");
+    }
+    enforcementTitle.pageNumbers = [1, 3];
+    expect(() =>
+      parseFiscalNotificationPdfWorkerAnalysis(repeatedEnforcementTitle),
+    ).toThrow(FiscalNotificationPdfWorkerAnalysisError);
+  });
+
   it("accepts a later attached title only as an incomplete candidate", () => {
     const input = Object.freeze({
       ownerScope: "worker:ephemeral",

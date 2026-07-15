@@ -794,6 +794,10 @@ function parseCandidate(
     matchedAnchors,
     missingRequiredAnchorIds,
     conflictingAnchorIds,
+    candidate.familyId === "AEAT_OFFSET_AGREEMENT_CANDIDATE" &&
+      candidate.handlerVersion === "1.1.0" &&
+      candidate.segmentationVersion === "1.1.0" &&
+      candidate.recognitionPolicyVersion === "1.3.0",
   );
   return Object.freeze({
     familyId:
@@ -1067,6 +1071,7 @@ function assertCandidateTrace(
   matchedAnchors: readonly FiscalNotificationPdfWorkerAnchor[],
   missing: readonly FiscalNotificationAnchorId[],
   conflicting: readonly FiscalNotificationAnchorId[],
+  allowsRepeatedOffsetAnnexTitles: boolean,
 ): void {
   const definition = CANDIDATE_DEFINITIONS[familyId];
   const matchedIds = new Set(matchedAnchors.map((anchor) => anchor.anchorId));
@@ -1130,6 +1135,11 @@ function assertCandidateTrace(
     (anchor) => anchor.anchorId === definition.titleAnchorId,
   );
   const titlePageNumber = familyTitle?.pageNumbers[0];
+  const hasAcceptedRepeatedOffsetAnnexTitles =
+    allowsRepeatedOffsetAnnexTitles &&
+    familyTitle !== undefined &&
+    familyTitle.pageNumbers.length > 1 &&
+    familyTitle.pageNumbers[0] === 1;
   if (
     !familyTitle ||
     (definition.minimumEngineVersion === "1.2.0" &&
@@ -1142,7 +1152,8 @@ function assertCandidateTrace(
       engineVersion !== "1.5.0") ||
     (definition.minimumEngineVersion === "1.5.0" &&
       engineVersion !== "1.5.0") ||
-    familyTitle.pageNumbers.length !== 1 ||
+    (familyTitle.pageNumbers.length !== 1 &&
+      !hasAcceptedRepeatedOffsetAnnexTitles) ||
     titlePageNumber === undefined ||
     (officialDomain &&
       (officialDomain.pageNumbers.length !== 1 ||
