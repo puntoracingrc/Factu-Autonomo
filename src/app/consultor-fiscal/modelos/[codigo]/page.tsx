@@ -42,6 +42,7 @@ export async function generateMetadata({
         "035": "Formulario 035 AEAT: alta en OSS e IOSS",
         "036": "Modelo 036 AEAT: alta, modificación y baja censal",
         "037": "Modelo 037 AEAT: modelo histórico sustituido por el 036",
+        "040": "Modelo 040 AEAT: registro de operadores de plataformas",
         "04": "Modelo 04 AEAT: IVA del 4 % para vehículos y movilidad reducida",
         "05": "Modelo 05 AEAT: beneficios en el impuesto de matriculación",
         "06": "Modelo 06 AEAT: exenciones del impuesto de matriculación",
@@ -58,6 +59,9 @@ export async function generateMetadata({
         "145": "Modelo 145 AEAT: datos para calcular la retención de la nómina",
         "149": "Modelo 149 AEAT: opción por el régimen de desplazados",
         "151": "Modelo 151 AEAT: declaración de trabajadores desplazados",
+        "172": "Modelo 172 AEAT: saldos en monedas virtuales",
+        "173": "Modelo 173 AEAT: operaciones con monedas virtuales",
+        "179": "Modelo 179 AEAT: histórico de alquileres turísticos",
         "180": "Modelo 180 AEAT: resumen anual de alquileres",
         "184": "Modelo 184 AEAT: comunidades de bienes y rentas atribuidas",
         "190": "Modelo 190 AEAT: resumen anual de retenciones",
@@ -68,6 +72,8 @@ export async function generateMetadata({
         "211": "Modelo 211 AEAT: retención en la compra a no residentes",
         "216": "Modelo 216 AEAT: retenciones por pagos a no residentes",
         "232": "Modelo 232 AEAT: operaciones vinculadas",
+        "233": "Modelo 233 AEAT: gastos de guarderías y centros infantiles",
+        "238": "Modelo 238 AEAT: información de operadores de plataformas",
         "296": "Modelo 296 AEAT: resumen anual de pagos a no residentes",
         "303": "Modelo 303 AEAT: declaración trimestral del IVA",
         "308": "Modelo 308 AEAT: devolución de IVA en casos especiales",
@@ -93,6 +99,8 @@ export async function generateMetadata({
     ? {
         "035":
           "Guía sencilla del Formulario 035: régimen de la Unión, régimen exterior, IOSS, límite de 10.000 euros, alta, cambios y cese.",
+        "040":
+          "Guía del Modelo 040: quién es operador de plataforma, sus dos registros, alta, cambios, baja, plazos y relación con el Modelo 238.",
         "100":
           "Guía sencilla del Modelo 100 para autónomos: obligación de declarar, ingresos, gastos, pagos trimestrales, retenciones, resultado y Renta WEB.",
         "111":
@@ -119,6 +127,12 @@ export async function generateMetadata({
           "Guía del Modelo 149: quién puede optar por el régimen de desplazados, comunicaciones, documentación, plazos y relación con el Modelo 151.",
         "151":
           "Guía del Modelo 151: declaración anual del régimen de desplazados, rentas, tipos, deducciones, patrimonio y presentación.",
+        "172":
+          "Guía del Modelo 172: quién lo presenta, saldos de criptomonedas, moneda fiduciaria, valoración, XML, plazo y relación con el Modelo 721.",
+        "173":
+          "Guía del Modelo 173: quién lo presenta, operaciones individuales, permutas, transferencias, valoración, XML y plazo.",
+        "179":
+          "Guía histórica del Modelo 179: último ejercicio 2023, supresión desde 2024, consultas antiguas y relación con el Modelo 238.",
         "180":
           "Guía sencilla del Modelo 180: arrendadores, referencias catastrales, relación con el Modelo 115, certificados, correcciones y presentación.",
         "184":
@@ -139,6 +153,10 @@ export async function generateMetadata({
           "Guía sencilla del Modelo 216: quién debe presentarlo, alquileres y profesionales no residentes, convenios, certificado de residencia, plazos y pago.",
         "232":
           "Guía del Modelo 232: operaciones vinculadas, valoración de mercado, límites, documentación, plazo y corrección de la declaración.",
+        "233":
+          "Guía sencilla del Modelo 233: quién lo presenta, autorizaciones, menores, meses completos, gastos, subvenciones, plazo y deducción por maternidad.",
+        "238":
+          "Guía del Modelo 238: operadores, actividades DAC7, vendedores excluidos, doble umbral, diligencia debida, datos, plazo y correcciones.",
         "296":
           "Guía sencilla del Modelo 296: perceptores no residentes, rentas exentas, TIN, relación con el Modelo 216, plazo, presentación y correcciones.",
         "303":

@@ -19,6 +19,7 @@ const focusRing =
 const practicalSubtitleByCode: Readonly<Record<string, string>> = Object.freeze(
   {
     "035": "Alta, modificación y baja en OSS e IOSS",
+    "040": "Registro censal de operadores de plataformas",
     "100": "Declaración anual de la Renta del autónomo",
     "111": "Retenciones de nóminas, facturas profesionales y otras rentas",
     "115": "Retenciones por el alquiler de locales y otros inmuebles urbanos",
@@ -33,6 +34,9 @@ const practicalSubtitleByCode: Readonly<Record<string, string>> = Object.freeze(
     "149":
       "Opción y comunicaciones del régimen especial de personas desplazadas",
     "151": "Declaración anual del régimen especial de personas desplazadas",
+    "172": "Saldos en monedas virtuales informados por custodios",
+    "173": "Operaciones con monedas virtuales informadas por proveedores",
+    "179": "Histórico · alquileres turísticos hasta el ejercicio 2023",
     "180": "Resumen anual de retenciones por alquileres urbanos",
     "184": "Rentas de comunidades de bienes y otras entidades",
     "190": "Resumen anual de retenciones de nóminas y actividades económicas",
@@ -45,6 +49,8 @@ const practicalSubtitleByCode: Readonly<Record<string, string>> = Object.freeze(
     "216": "Retenciones por pagos a personas y empresas no residentes",
     "232":
       "Operaciones vinculadas y situaciones relacionadas con jurisdicciones no cooperativas",
+    "233": "Gastos de guarderías y centros infantiles autorizados",
+    "238": "Información anual de operadores de plataformas en el marco DAC7",
     "296": "Resumen anual de rentas pagadas a no residentes",
     "303": "Autoliquidación periódica del IVA",
     "308":
