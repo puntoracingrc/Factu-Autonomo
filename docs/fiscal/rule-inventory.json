@@ -1,0 +1,2219 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": {
+    "engineVersion": "tax-model-diagnostic.engine.2026-07.v1",
+    "technicalFileHash": "sha256:ab94a4ce710271993cf53d1884c2e48be3ab4d63edde49803d96512c7ae2412c",
+    "rulesetIds": [
+      "es-common.2025.2026-07-15.v2",
+      "es-common.2026.2026-07-15.v2"
+    ]
+  },
+  "counts": {
+    "rules": 54,
+    "approvedRules": 0,
+    "resolvedRules": 0,
+    "passingExecutableSuites": 0,
+    "verifiedSourceSnapshots": 0,
+    "approvedFiscalHashes": 0,
+    "rulesWithTwoReviewers": 0,
+    "authorizedExclusions": 0
+  },
+  "rules": [
+    {
+      "ruleId": "es-common.2025.model-035",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "035",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-035.procedure",
+        "aeat.model-369.periodicity"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:cbbf41f8e572df524879095d109ff06c20e8dcc0accd37286ee6cd6242b285c9",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "035.2025.positive",
+        "035.2025.negative",
+        "035.2025.exception",
+        "035.2025.incomplete",
+        "035.2025.census-mismatch",
+        "035.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-036",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "036",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-036.modification",
+        "aeat.roi-intraeu"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:32b9c3e708a5969cc3b8af3c3c20e3eab9dab2eaf6fd1545a9b0008813ec1088",
+      "approvedRuleHash": null,
+      "numberOfConditions": 2,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "036.2025.positive",
+        "036.2025.negative",
+        "036.2025.exception",
+        "036.2025.incomplete",
+        "036.2025.census-mismatch",
+        "036.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-100",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "100",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "boe.irpf-law.article-96",
+        "aeat.renta-2025.obligation"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:45ea07f6195ac84b7373de35d90864a7461510daadf81b99567b8a1ae2c6b26d",
+      "approvedRuleHash": null,
+      "numberOfConditions": 2,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "100.2025.positive",
+        "100.2025.negative",
+        "100.2025.exception",
+        "100.2025.incomplete",
+        "100.2025.census-mismatch",
+        "100.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-111",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "111",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.withholding.111-190"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:fbf0d513a30e5e23742e5e6516a200bfbe66f4ec3046317c72066a375458a1e2",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "111.2025.positive",
+        "111.2025.negative",
+        "111.2025.exception",
+        "111.2025.incomplete",
+        "111.2025.census-mismatch",
+        "111.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-115",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "115",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.withholding.115-180"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:db13c857558c8d1cd6fd358b9b7ca61f0f32ef0420da070e70c8a4885a79eeb5",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "115.2025.positive",
+        "115.2025.negative",
+        "115.2025.exception",
+        "115.2025.incomplete",
+        "115.2025.census-mismatch",
+        "115.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-123",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "123",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.withholding.123-193"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:3fc9b018f3cb1b4b40618744a83d5fec98456931b787ce933dbacf258fbdf43a",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "123.2025.positive",
+        "123.2025.negative",
+        "123.2025.exception",
+        "123.2025.incomplete",
+        "123.2025.census-mismatch",
+        "123.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-130",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "130",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-130.instructions",
+        "aeat.irpf.installment-payments"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:9a35c43ee8d1d3340d0485cafd632a038203f7c266759c20dd50692c29393082",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 2,
+      "numberOfExclusionCandidates": 2,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "130.2025.positive",
+        "130.2025.negative",
+        "130.2025.exception",
+        "130.2025.incomplete",
+        "130.2025.census-mismatch",
+        "130.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-131",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "131",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-131.instructions",
+        "aeat.irpf.installment-payments"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:709b35ca32d8c77ce3c1a170e237bf0052024ea48f5671f32e6ddce01c164d1f",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 2,
+      "numberOfExclusionCandidates": 2,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "131.2025.positive",
+        "131.2025.negative",
+        "131.2025.exception",
+        "131.2025.incomplete",
+        "131.2025.census-mismatch",
+        "131.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-180",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "180",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.withholding.115-180"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:8e304007b01aab1be65f22804170144f3ca0325e64ac4ea60a1226dd8e009291",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "180.2025.positive",
+        "180.2025.negative",
+        "180.2025.exception",
+        "180.2025.incomplete",
+        "180.2025.census-mismatch",
+        "180.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-184",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "184",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-184.obligations"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:d47c02d91a255df542740b8d088fb86c690e0d596ba32154f1491f2fddf00a84",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "184.2025.positive",
+        "184.2025.negative",
+        "184.2025.exception",
+        "184.2025.incomplete",
+        "184.2025.census-mismatch",
+        "184.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-190",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "190",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.withholding.111-190"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:02bd0eef818868a236acdcf6a19505b40a6fcf14ef8e9ce0dcc738d59b5766a5",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "190.2025.positive",
+        "190.2025.negative",
+        "190.2025.exception",
+        "190.2025.incomplete",
+        "190.2025.census-mismatch",
+        "190.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-193",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "193",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.withholding.123-193"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:09d0cfbe64c1af488d7f6f92562ee49837ddcd6450ab2eced0804292e3379408",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "193.2025.positive",
+        "193.2025.negative",
+        "193.2025.exception",
+        "193.2025.incomplete",
+        "193.2025.census-mismatch",
+        "193.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-200",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "200",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.is.model-200.obligation"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:6c875f99082ee6ef8a569de3652b395286f2ee9581a853278e866b3833eca6e9",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 2,
+      "numberOfExclusionCandidates": 2,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "200.2025.positive",
+        "200.2025.negative",
+        "200.2025.exception",
+        "200.2025.incomplete",
+        "200.2025.census-mismatch",
+        "200.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-202",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "202",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.is.installments"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:b27c49a184a0709decee430fdc4f1c1e567c853e36f401454a10f44c950c31b1",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "202.2025.positive",
+        "202.2025.negative",
+        "202.2025.exception",
+        "202.2025.incomplete",
+        "202.2025.census-mismatch",
+        "202.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-216",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "216",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.irnr.withholding"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:b129d7df35195649d9f352977934d50f65103baed78b35fe1b637506f2809a1e",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "216.2025.positive",
+        "216.2025.negative",
+        "216.2025.exception",
+        "216.2025.incomplete",
+        "216.2025.census-mismatch",
+        "216.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-296",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "296",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.irnr.withholding"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:f406655f43621823d63c6552e3f0a7039604fc99c6ad88843c7fed0b6f3d7d44",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "296.2025.positive",
+        "296.2025.negative",
+        "296.2025.exception",
+        "296.2025.incomplete",
+        "296.2025.census-mismatch",
+        "296.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-303",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "303",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-303.instructions-2026"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:8220ac64ae7fbe0d6e01a057cdeb8bfb3da6b703f3b8056c9969b2b62d15c878",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 2,
+      "numberOfExclusionCandidates": 2,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "303.2025.positive",
+        "303.2025.negative",
+        "303.2025.exception",
+        "303.2025.incomplete",
+        "303.2025.census-mismatch",
+        "303.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-308",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "308",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-308.procedure"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:7b68fac4562cb489f19ba5ef2c8eb836c8ee8e65d1ec8ce7726a308fc653acbc",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "308.2025.positive",
+        "308.2025.negative",
+        "308.2025.exception",
+        "308.2025.incomplete",
+        "308.2025.census-mismatch",
+        "308.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-309",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "309",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-309.instructions",
+        "aeat.roi-intraeu"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:864f87e565feedf25fc1f45187a7de5d12b5304b3b034273e431d79add8e1d10",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "309.2025.positive",
+        "309.2025.negative",
+        "309.2025.exception",
+        "309.2025.incomplete",
+        "309.2025.census-mismatch",
+        "309.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-341",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "341",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-341.instructions"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:487976d8eb552836025ab4a1f2b6bd9a14ec4e732e5299ce83dff1504d396a89",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "341.2025.positive",
+        "341.2025.negative",
+        "341.2025.exception",
+        "341.2025.incomplete",
+        "341.2025.census-mismatch",
+        "341.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-347",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "347",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-347.exclusions"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:ed2007805ffb4d4da6330f30dbcac3ee4038b113f89ec424e5831e674a538a68",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 2,
+      "numberOfExclusionCandidates": 2,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "347.2025.positive",
+        "347.2025.negative",
+        "347.2025.exception",
+        "347.2025.incomplete",
+        "347.2025.census-mismatch",
+        "347.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-349",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "349",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.roi-intraeu",
+        "aeat.model-349.periodicity"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:adbf71e1314fd476a1ca62d8c805a72e8f4236d77dc4095c18defd27f5b99a7c",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 2,
+      "numberOfExclusionCandidates": 2,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "349.2025.positive",
+        "349.2025.negative",
+        "349.2025.exception",
+        "349.2025.incomplete",
+        "349.2025.census-mismatch",
+        "349.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-369",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "369",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-369.procedure",
+        "aeat.model-369.periodicity"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:837a2004998416151a8edf19d31efc714b9a6b422d22d8279a8b1c1c418a1225",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "369.2025.positive",
+        "369.2025.negative",
+        "369.2025.exception",
+        "369.2025.incomplete",
+        "369.2025.census-mismatch",
+        "369.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-390",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "390",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-390.procedure",
+        "aeat.model-390.exemptions"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:8e63984a6fbacfd990c26f6ed8f6f396b4d014649512243d7a817c6b23601b72",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "390.2025.positive",
+        "390.2025.negative",
+        "390.2025.exception",
+        "390.2025.incomplete",
+        "390.2025.census-mismatch",
+        "390.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-714",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "714",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.wealth.obligation"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:85013af2042a2daf32322dada3fc0d87dddcaa575c1dae56e035b9f4416e80af",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "714.2025.positive",
+        "714.2025.negative",
+        "714.2025.exception",
+        "714.2025.incomplete",
+        "714.2025.census-mismatch",
+        "714.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-720",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "720",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-720.frequency"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:9808529f0b602ac095ad1ff12edd61eebd9bb4e8e1104a5c12fc02c7f10b433c",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "720.2025.positive",
+        "720.2025.negative",
+        "720.2025.exception",
+        "720.2025.incomplete",
+        "720.2025.census-mismatch",
+        "720.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2025.model-721",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "721",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-721.faq"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:bcf0adb4b538a6df60e688333ebfcf65d0612c149ffa610b47b6b126b682cf9b",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "721.2025.positive",
+        "721.2025.negative",
+        "721.2025.exception",
+        "721.2025.incomplete",
+        "721.2025.census-mismatch",
+        "721.2025.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-035",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "035",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-035.procedure",
+        "aeat.model-369.periodicity"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:5f677338ec4e5931cde274677c31163b7505aa745f119c5649a190476e1d67e0",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "035.2026.positive",
+        "035.2026.negative",
+        "035.2026.exception",
+        "035.2026.incomplete",
+        "035.2026.census-mismatch",
+        "035.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-036",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "036",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-036.modification",
+        "aeat.roi-intraeu"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:50574d19f15ae1c9d6528bc9db00025cde26ddf4d69480478cbd6654a70cc445",
+      "approvedRuleHash": null,
+      "numberOfConditions": 2,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "036.2026.positive",
+        "036.2026.negative",
+        "036.2026.exception",
+        "036.2026.incomplete",
+        "036.2026.census-mismatch",
+        "036.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-100",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "100",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "boe.irpf-law.article-96",
+        "aeat.renta-2025.obligation"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:d7028f44765f35ccbc505af2ce06a9e1b1a68f7e45883bde15c77a846ba3623d",
+      "approvedRuleHash": null,
+      "numberOfConditions": 2,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "100.2026.positive",
+        "100.2026.negative",
+        "100.2026.exception",
+        "100.2026.incomplete",
+        "100.2026.census-mismatch",
+        "100.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-111",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "111",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.withholding.111-190"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:5e4316d06e0849c92001c52515e8f156741b4a262d783a45efccd165adc368c3",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "111.2026.positive",
+        "111.2026.negative",
+        "111.2026.exception",
+        "111.2026.incomplete",
+        "111.2026.census-mismatch",
+        "111.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-115",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "115",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.withholding.115-180"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:a2df004ce0c7b43ceecc886f63a22953b22c2fd7f6925b85d26cc354462b2e3e",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "115.2026.positive",
+        "115.2026.negative",
+        "115.2026.exception",
+        "115.2026.incomplete",
+        "115.2026.census-mismatch",
+        "115.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-123",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "123",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.withholding.123-193"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:c85e97a860ab6a4c4bdba6c05ea29532dc2730ae5360279120ee007247a35a14",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "123.2026.positive",
+        "123.2026.negative",
+        "123.2026.exception",
+        "123.2026.incomplete",
+        "123.2026.census-mismatch",
+        "123.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-130",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "130",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-130.instructions",
+        "aeat.irpf.installment-payments"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:b97e0591125e7aba1b302e70f3afad977099afc4da386e93e7faf88b4b61466a",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 2,
+      "numberOfExclusionCandidates": 2,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "130.2026.positive",
+        "130.2026.negative",
+        "130.2026.exception",
+        "130.2026.incomplete",
+        "130.2026.census-mismatch",
+        "130.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-131",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "131",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-131.instructions",
+        "aeat.irpf.installment-payments"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:e8fb7990b87ca02b41fca96753db2bec0e5eadd0e12939791c205eff5e37a3ae",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 2,
+      "numberOfExclusionCandidates": 2,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "131.2026.positive",
+        "131.2026.negative",
+        "131.2026.exception",
+        "131.2026.incomplete",
+        "131.2026.census-mismatch",
+        "131.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-180",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "180",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.withholding.115-180"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:8fa6359c8f8096ad9c3332d3e738a034d756e955c746d01fece6894ba4494670",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "180.2026.positive",
+        "180.2026.negative",
+        "180.2026.exception",
+        "180.2026.incomplete",
+        "180.2026.census-mismatch",
+        "180.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-184",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "184",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-184.obligations"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:0d22e3d55a70d99fd42d8deddf2da9c32e91ea0ef1604bfdd5ef979e65217a7e",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "184.2026.positive",
+        "184.2026.negative",
+        "184.2026.exception",
+        "184.2026.incomplete",
+        "184.2026.census-mismatch",
+        "184.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-190",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "190",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.withholding.111-190"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:eea71e2973d0b1c51eae36105b2f1ae01809250b3cffaab0d762d7fdd43acd9d",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "190.2026.positive",
+        "190.2026.negative",
+        "190.2026.exception",
+        "190.2026.incomplete",
+        "190.2026.census-mismatch",
+        "190.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-193",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "193",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.withholding.123-193"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:b5d3bda09744a2c2314bba9c6818f31f41d0070ea053a60dccb2d4defc1eb8fe",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "193.2026.positive",
+        "193.2026.negative",
+        "193.2026.exception",
+        "193.2026.incomplete",
+        "193.2026.census-mismatch",
+        "193.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-200",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "200",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.is.model-200.obligation"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:9cfd0677bd5f7f6c2604c28376d30893e5e1c65b5ea5a4d5bb1d16ab564f20ee",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 2,
+      "numberOfExclusionCandidates": 2,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "200.2026.positive",
+        "200.2026.negative",
+        "200.2026.exception",
+        "200.2026.incomplete",
+        "200.2026.census-mismatch",
+        "200.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-202",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "202",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.is.installments"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:e2031b29e2b36f61265bc4c4b35062d22ccde9bc754c91a93afa8504f2a4901b",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "202.2026.positive",
+        "202.2026.negative",
+        "202.2026.exception",
+        "202.2026.incomplete",
+        "202.2026.census-mismatch",
+        "202.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-216",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "216",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.irnr.withholding"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:997411f23898691b4c68afb994f4e4d9246234e08f5eb2a31cea022245378602",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "216.2026.positive",
+        "216.2026.negative",
+        "216.2026.exception",
+        "216.2026.incomplete",
+        "216.2026.census-mismatch",
+        "216.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-296",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "296",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.irnr.withholding"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:d87f8f5d93876bf78734d3cb0d244174e8d22adb926a64ca4a5a91775a2f9e81",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "296.2026.positive",
+        "296.2026.negative",
+        "296.2026.exception",
+        "296.2026.incomplete",
+        "296.2026.census-mismatch",
+        "296.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-303",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "303",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-303.instructions-2026"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:364e5ef07ff350e51a7987d8bf56a8392be17dd0a327ca9515ad5e97ad53579a",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 2,
+      "numberOfExclusionCandidates": 2,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "303.2026.positive",
+        "303.2026.negative",
+        "303.2026.exception",
+        "303.2026.incomplete",
+        "303.2026.census-mismatch",
+        "303.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-308",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "308",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-308.procedure"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:c998e1b2fc7e0936d635e7acefc70d9e9da84f7292cfb3d53adff33ac35428d4",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "308.2026.positive",
+        "308.2026.negative",
+        "308.2026.exception",
+        "308.2026.incomplete",
+        "308.2026.census-mismatch",
+        "308.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-309",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "309",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-309.instructions",
+        "aeat.roi-intraeu"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:ffa06c249b5519419b7b000fc211a1bc8e0e7a2e3326342ab2a15bf97814f3a8",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "309.2026.positive",
+        "309.2026.negative",
+        "309.2026.exception",
+        "309.2026.incomplete",
+        "309.2026.census-mismatch",
+        "309.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-341",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "341",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-341.instructions"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:fb6fbdab08f24ee031aa87651243a2e7a58d2a1bc2314a1a8567a91f8cbc5581",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "341.2026.positive",
+        "341.2026.negative",
+        "341.2026.exception",
+        "341.2026.incomplete",
+        "341.2026.census-mismatch",
+        "341.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-347",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "347",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-347.exclusions"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:136f62964b091e59f800e72677c83ad7539fef9dca5feaa7cc34126ec97101bd",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 2,
+      "numberOfExclusionCandidates": 2,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "347.2026.positive",
+        "347.2026.negative",
+        "347.2026.exception",
+        "347.2026.incomplete",
+        "347.2026.census-mismatch",
+        "347.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-349",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "349",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.roi-intraeu",
+        "aeat.model-349.periodicity"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:8c882ecd23b74a9a2c599f13310dfd297007c72261fc5ef094b83c11db9252ca",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 2,
+      "numberOfExclusionCandidates": 2,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "349.2026.positive",
+        "349.2026.negative",
+        "349.2026.exception",
+        "349.2026.incomplete",
+        "349.2026.census-mismatch",
+        "349.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-369",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "369",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-369.procedure",
+        "aeat.model-369.periodicity"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:7c9ed1cdaf3fd5792caff23c71911a42cbc461f63ab1d708bc108380003d8895",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "369.2026.positive",
+        "369.2026.negative",
+        "369.2026.exception",
+        "369.2026.incomplete",
+        "369.2026.census-mismatch",
+        "369.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-390",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "390",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-390.procedure",
+        "aeat.model-390.exemptions"
+      ],
+      "sourceSnapshotHashes": [
+        null,
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:cebb512d5f2e11136981db569d36b2dad3be4a2966c6ca76c395e26b4ae9a256",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "390.2026.positive",
+        "390.2026.negative",
+        "390.2026.exception",
+        "390.2026.incomplete",
+        "390.2026.census-mismatch",
+        "390.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-714",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "714",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.wealth.obligation"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:8fc9391e2e8de5edce5f5edbecaf13ae3f1b69b7dc6444ace550787cb4096e94",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "714.2026.positive",
+        "714.2026.negative",
+        "714.2026.exception",
+        "714.2026.incomplete",
+        "714.2026.census-mismatch",
+        "714.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-720",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "720",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-720.frequency"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:5870bb8827c5b9ae0d008f6954f348c2efe0efb04fe2b6708a56e7095772b71c",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "720.2026.positive",
+        "720.2026.negative",
+        "720.2026.exception",
+        "720.2026.incomplete",
+        "720.2026.census-mismatch",
+        "720.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    },
+    {
+      "ruleId": "es-common.2026.model-721",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "721",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "testsStatus": "NOT_IMPLEMENTED",
+      "sourceStatus": "UNVERIFIED",
+      "sourceIds": [
+        "aeat.model-721.faq"
+      ],
+      "sourceSnapshotHashes": [
+        null
+      ],
+      "ruleHash": "fiscal-rule-v1:47868e8fc8c24091fc26c50d717b14ae7ea1cd40b0be2734fdfbd524c33e1f98",
+      "approvedRuleHash": null,
+      "numberOfConditions": 1,
+      "numberOfExceptions": 1,
+      "numberOfExclusionCandidates": 1,
+      "questionIds": [],
+      "factIds": [],
+      "declaredTestCaseIds": [
+        "721.2026.positive",
+        "721.2026.negative",
+        "721.2026.exception",
+        "721.2026.incomplete",
+        "721.2026.census-mismatch",
+        "721.2026.year-boundary"
+      ],
+      "executableTestCount": 0,
+      "primaryReviewer": null,
+      "secondReviewer": null,
+      "approvalEvidenceId": null,
+      "openIssueCount": 1,
+      "exclusionAuthorized": false
+    }
+  ]
+}

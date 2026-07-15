@@ -491,7 +491,7 @@ describe("regression, temporal and release guards", () => {
     ).toBe(false);
   });
 
-  it("imports the central exclusion guard instead of duplicating it", () => {
+  it("uses the central guard and treats global approval as insufficient", () => {
     expect(
       isTaxObligationExclusionAuthorized({
         ruleReviewState: "PENDING_FISCAL_REVIEW",
@@ -509,6 +509,6 @@ describe("regression, temporal and release guards", () => {
         ruleReviewState: "APPROVED",
         resolutionState: "RESOLVED",
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 });

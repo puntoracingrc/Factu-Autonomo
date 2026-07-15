@@ -50,6 +50,10 @@ consumidores ordinarios no lo necesitan.
   `REVIEW_REQUIRED` o `UNKNOWN`;
 - estado/base de decisión, suficiencia de evidencia, motivo, evidencia
   redactada, datos pendientes y conflictos.
+- para cada propuesta `NOT_APPLICABLE`, una
+  `exclusionAuthorization` opcional y aditiva con la propuesta, el resultado
+  individual, sus bloqueos y las referencias de regla, candidato, ruleset y
+  hash fiscal.
 
 Versiones congeladas:
 
@@ -75,16 +79,29 @@ catalogVersion  = es-tax-models.2026-07.v1
 La única guarda pública que autoriza ocultar o excluir es:
 
 ```ts
-isTaxObligationExclusionAuthorized(assessment)
+isTaxObligationExclusionAuthorized(assessment);
 ```
 
-Devuelve `true` únicamente cuando coinciden simultáneamente los nombres
-canónicos del contrato:
+Los estados globales siguientes son necesarios, pero no suficientes:
 
 ```text
 ruleReviewState = APPROVED
 resolutionState = RESOLVED
 ```
+
+Además, cada exclusión propuesta debe corresponder exactamente con una regla
+y un candidato registrados en el ruleset fiscal confiable. La puerta vuelve a
+comprobar de forma individual: regla y candidato aprobados y resueltos, suite
+ejecutable `PASSING`, snapshots oficiales verificados con hash y vigencia,
+ejercicio y territorio, revisor fiscal principal y segundo revisor, hash
+fiscal aprobado idéntico al ejecutado, evidencia de aprobación firmada y
+verificada, registro completo de incidencias sin asuntos abiertos, y ausencia
+de hechos desconocidos o contradictorios.
+
+La aprobación aparente aportada por respuestas, URL, navegador, localStorage,
+assessment guardado, fixtures, mocks u overrides de desarrollo no se considera
+evidencia fiscal y bloquea la exclusión. La ausencia de cualquiera de los
+metadatos individuales también falla cerrado.
 
 Hasta entonces, «Todos» permanece disponible, los candidatos se conservan
 visibles y cualquier recomendación o modelo improbable se etiqueta como
@@ -93,10 +110,13 @@ CodeQL o un despliegue nunca sustituye la aprobación fiscal del ruleset. Una
 prueba de regresión común cubre Calendario y Modelos para impedir exclusiones
 antes de cumplir ambas condiciones.
 
-En la versión publicada actualmente, el ruleset conserva
-`ruleReviewState = PENDING_FISCAL_REVIEW`. Por ello los consumidores pueden
-integrar ya el contrato y sus vistas, pero deben mantener «Todos» como fallback
-en producción hasta recibir `APPROVED` y `RESOLVED`.
+En la versión actual, las 54 reglas conservan
+`reviewStatus = PENDING_FISCAL_REVIEW`, `resolutionStatus = OPEN`, tests
+`NOT_IMPLEMENTED`, fuentes `UNVERIFIED`, incidencias abiertas y cero hashes o
+evidencias aprobadas. Por ello existen cero exclusiones autorizadas. Los
+consumidores pueden integrar el contrato y sus vistas, pero deben mantener
+«Todos» como fallback incluso si una foto editable aparenta `APPROVED` y
+`RESOLVED`.
 
 ## Adapter de referencias de Calendar
 
@@ -116,9 +136,10 @@ El adapter debe:
    códigos;
 4. no deducir códigos por categoría, significado del título, números sueltos o
    texto sin contexto fiscal explícito;
-5. aplicar la visibilidad exclusivamente desde el estado del assessment: solo
-   un `NOT_APPLICABLE` con `evidenceSufficient = true` permite ocultar en «Mis
-   obligaciones».
+5. aplicar la visibilidad exclusivamente mediante
+   `isTaxObligationExclusionAuthorized(assessment)`: un `NOT_APPLICABLE` con
+   evidencia suficiente solo es una propuesta y no permite ocultar sin la
+   autorización individual fiscal.
 
 Con esas condiciones no es obligatorio añadir primero un campo server-side al
 evento. Un `modelCode` estructurado sigue siendo una mejora futura preferible,

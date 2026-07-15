@@ -1,0 +1,1637 @@
+{
+  "schemaVersion": 1,
+  "statusModel": [
+    "OPEN",
+    "IN_PROGRESS",
+    "READY_FOR_VERIFICATION",
+    "VERIFIED",
+    "REOPENED"
+  ],
+  "counts": {
+    "total": 54,
+    "open": 54,
+    "verified": 0
+  },
+  "issues": [
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-035",
+      "ruleId": "es-common.2025.model-035",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-036",
+      "ruleId": "es-common.2025.model-036",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-100",
+      "ruleId": "es-common.2025.model-100",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-111",
+      "ruleId": "es-common.2025.model-111",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-115",
+      "ruleId": "es-common.2025.model-115",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-123",
+      "ruleId": "es-common.2025.model-123",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-130",
+      "ruleId": "es-common.2025.model-130",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-131",
+      "ruleId": "es-common.2025.model-131",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-180",
+      "ruleId": "es-common.2025.model-180",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-184",
+      "ruleId": "es-common.2025.model-184",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-190",
+      "ruleId": "es-common.2025.model-190",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-193",
+      "ruleId": "es-common.2025.model-193",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-200",
+      "ruleId": "es-common.2025.model-200",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-202",
+      "ruleId": "es-common.2025.model-202",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-216",
+      "ruleId": "es-common.2025.model-216",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-296",
+      "ruleId": "es-common.2025.model-296",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-303",
+      "ruleId": "es-common.2025.model-303",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-308",
+      "ruleId": "es-common.2025.model-308",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-309",
+      "ruleId": "es-common.2025.model-309",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-341",
+      "ruleId": "es-common.2025.model-341",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-347",
+      "ruleId": "es-common.2025.model-347",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-349",
+      "ruleId": "es-common.2025.model-349",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-369",
+      "ruleId": "es-common.2025.model-369",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-390",
+      "ruleId": "es-common.2025.model-390",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-714",
+      "ruleId": "es-common.2025.model-714",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-720",
+      "ruleId": "es-common.2025.model-720",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2025.model-721",
+      "ruleId": "es-common.2025.model-721",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-035",
+      "ruleId": "es-common.2026.model-035",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-036",
+      "ruleId": "es-common.2026.model-036",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-100",
+      "ruleId": "es-common.2026.model-100",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-111",
+      "ruleId": "es-common.2026.model-111",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-115",
+      "ruleId": "es-common.2026.model-115",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-123",
+      "ruleId": "es-common.2026.model-123",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-130",
+      "ruleId": "es-common.2026.model-130",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-131",
+      "ruleId": "es-common.2026.model-131",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-180",
+      "ruleId": "es-common.2026.model-180",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-184",
+      "ruleId": "es-common.2026.model-184",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-190",
+      "ruleId": "es-common.2026.model-190",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-193",
+      "ruleId": "es-common.2026.model-193",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-200",
+      "ruleId": "es-common.2026.model-200",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-202",
+      "ruleId": "es-common.2026.model-202",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-216",
+      "ruleId": "es-common.2026.model-216",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-296",
+      "ruleId": "es-common.2026.model-296",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-303",
+      "ruleId": "es-common.2026.model-303",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-308",
+      "ruleId": "es-common.2026.model-308",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-309",
+      "ruleId": "es-common.2026.model-309",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-341",
+      "ruleId": "es-common.2026.model-341",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-347",
+      "ruleId": "es-common.2026.model-347",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-349",
+      "ruleId": "es-common.2026.model-349",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-369",
+      "ruleId": "es-common.2026.model-369",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-390",
+      "ruleId": "es-common.2026.model-390",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-714",
+      "ruleId": "es-common.2026.model-714",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-720",
+      "ruleId": "es-common.2026.model-720",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    },
+    {
+      "issueId": "fiscal-closure.es-common.2026.model-721",
+      "ruleId": "es-common.2026.model-721",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "severity": "BLOCKING",
+      "status": "OPEN",
+      "findings": [
+        "MISSING_EXECUTABLE_TEST_SUITE",
+        "MISSING_SOURCE_SNAPSHOT",
+        "MISSING_SOURCE_MATERIAL_VALIDITY",
+        "MISSING_PRIMARY_FISCAL_REVIEW",
+        "MISSING_SECOND_FISCAL_REVIEW",
+        "MISSING_APPROVED_RULE_HASH",
+        "UNRESOLVED_EXCLUSION_CANDIDATES",
+        "MISSING_QUESTION_FACT_RULE_MAPPING"
+      ],
+      "evidenceRequired": [
+        "Suite fiscal ejecutable y trazable",
+        "Snapshots oficiales versionados con vigencia material",
+        "Matriz pregunta-hecho-regla revisada",
+        "Revisión fiscal principal y segunda revisión",
+        "Hash fiscal aprobado y evidencia firmada"
+      ],
+      "openedAt": "2026-07-15",
+      "openedBy": "technical-audit:codex",
+      "readyForVerificationAt": null,
+      "verifiedAt": null,
+      "verifiedBy": null,
+      "resolutionEvidenceIds": []
+    }
+  ]
+}

@@ -12,6 +12,7 @@ import {
   TAX_OBLIGATIONS_STORAGE_LOCATION,
 } from "./contracts";
 import { buildTaxObligationsAssessment } from "./build-assessment";
+import { isTaxObligationExclusionAuthorized } from "./exclusion-authorization";
 import { selectStoredTaxObligationsAssessment } from "./select-stored-assessment";
 
 const GENERATED_AT = "2026-07-15T07:15:00.000Z";
@@ -92,5 +93,25 @@ describe("stored public tax obligations assessment", () => {
     expect(selectStoredTaxObligationsAssessment(session)).toBe(
       previousSnapshot,
     );
+  });
+
+  it("cargar una foto manipulada como aprobada no elude la puerta fiscal", () => {
+    const session = createTaxModelDiagnosticSession(GENERATED_AT);
+    session.profile = completeCommonTerritoryProfile();
+    session.lastResult = evaluateTaxModelDiagnostic(
+      session.profile,
+      GENERATED_AT,
+    );
+    session.publishedAssessment = buildTaxObligationsAssessment(
+      session.lastResult,
+      { ruleReviewState: "APPROVED" },
+    );
+
+    const storedAssessment = selectStoredTaxObligationsAssessment(session);
+
+    expect(storedAssessment).not.toBeNull();
+    expect(storedAssessment?.ruleReviewState).toBe("APPROVED");
+    expect(storedAssessment?.resolutionState).toBe("RESOLVED");
+    expect(isTaxObligationExclusionAuthorized(storedAssessment)).toBe(false);
   });
 });

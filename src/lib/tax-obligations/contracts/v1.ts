@@ -76,6 +76,17 @@ export interface TaxObligationEvidenceV1 {
   summary: string;
 }
 
+export interface TaxObligationExclusionAuthorizationV1 {
+  proposed: boolean;
+  authorized: boolean;
+  blockingReasons: string[];
+  ruleId: string;
+  exclusionId: string | null;
+  candidateExclusionIds: string[];
+  rulesetId: string;
+  ruleHash: string;
+}
+
 export interface TaxObligationAssessmentItemV1 {
   modelCode: TaxObligationModelCode;
   status: TaxObligationStatus;
@@ -86,6 +97,8 @@ export interface TaxObligationAssessmentItemV1 {
   evidence: TaxObligationEvidenceV1[];
   missingInformation: string[];
   conflicts: string[];
+  /** Additive v1 hardening. Missing legacy metadata always fails closed. */
+  exclusionAuthorization?: TaxObligationExclusionAuthorizationV1;
 }
 
 export interface TaxObligationsAssessmentV1 {
@@ -138,6 +151,31 @@ function isStringArray(value: unknown, maxItems = 100): value is string[] {
     Array.isArray(value) &&
     value.length <= maxItems &&
     value.every((item) => typeof item === "string" && item.length <= 1_000)
+  );
+}
+
+function isExclusionAuthorization(
+  value: unknown,
+): value is TaxObligationExclusionAuthorizationV1 {
+  return (
+    isRecord(value) &&
+    typeof value.proposed === "boolean" &&
+    typeof value.authorized === "boolean" &&
+    isStringArray(value.blockingReasons) &&
+    typeof value.ruleId === "string" &&
+    value.ruleId.length <= 300 &&
+    (value.exclusionId === null ||
+      (typeof value.exclusionId === "string" &&
+        value.exclusionId.length <= 300)) &&
+    isStringArray(value.candidateExclusionIds) &&
+    typeof value.rulesetId === "string" &&
+    value.rulesetId.length <= 300 &&
+    typeof value.ruleHash === "string" &&
+    value.ruleHash.length <= 300 &&
+    (!value.authorized ||
+      (value.proposed &&
+        value.exclusionId !== null &&
+        value.blockingReasons.length === 0))
   );
 }
 
@@ -196,6 +234,8 @@ export function isTaxObligationsAssessmentV1(
       obligation.reason.length > 2_000 ||
       !isStringArray(obligation.missingInformation) ||
       !isStringArray(obligation.conflicts) ||
+      (obligation.exclusionAuthorization !== undefined &&
+        !isExclusionAuthorization(obligation.exclusionAuthorization)) ||
       !Array.isArray(obligation.evidence) ||
       obligation.evidence.length > 100 ||
       !obligation.evidence.every(

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { evaluateTaxModelDiagnostic } from "@/lib/tax-model-diagnostic/engine";
 import {
   completeCommonTerritoryProfile,
+  REFERENCE_PROFILES,
 } from "@/lib/tax-model-diagnostic/test-fixtures";
 
 import { buildTaxObligationsAssessment } from "./build-assessment";
@@ -11,6 +12,7 @@ import {
   TAX_OBLIGATIONS_CATALOG_VERSION,
   TAX_OBLIGATIONS_CONTRACT_VERSION,
 } from "./contracts";
+import { isTaxObligationExclusionAuthorized } from "./exclusion-authorization";
 
 const GENERATED_AT = "2026-07-14T12:00:00.000Z";
 
@@ -31,7 +33,8 @@ describe("public tax obligations assessment", () => {
     );
     expect(assessment.obligations).toHaveLength(27);
     expect(
-      new Set(assessment.obligations.map((obligation) => obligation.modelCode)).size,
+      new Set(assessment.obligations.map((obligation) => obligation.modelCode))
+        .size,
     ).toBe(27);
     expect(
       assessment.obligations.every((obligation) =>
@@ -42,7 +45,7 @@ describe("public tax obligations assessment", () => {
     ).toBe(true);
   });
 
-  it("solo queda resuelto con perfil completo y reglas aprobadas", () => {
+  it("un override puede simular el estado global pero no autoriza exclusiones", () => {
     const diagnostic = evaluateTaxModelDiagnostic(
       completeCommonTerritoryProfile(),
       GENERATED_AT,
@@ -52,7 +55,38 @@ describe("public tax obligations assessment", () => {
     });
 
     expect(assessment.resolutionState).toBe("RESOLVED");
+    expect(assessment.ruleReviewState).toBe("APPROVED");
+    expect(isTaxObligationExclusionAuthorized(assessment)).toBe(false);
+    expect(
+      assessment.obligations
+        .filter((obligation) => obligation.status === "NOT_APPLICABLE")
+        .every(
+          (obligation) =>
+            obligation.exclusionAuthorization?.authorized === false &&
+            obligation.exclusionAuthorization.blockingReasons.includes(
+              "INTERNAL_OVERRIDE_NOT_AUTHORIZED",
+            ),
+        ),
+    ).toBe(true);
   });
+
+  it.each(REFERENCE_PROFILES)(
+    "autoriza cero exclusiones reales para $name",
+    ({ profile }) => {
+      const diagnostic = evaluateTaxModelDiagnostic(profile, GENERATED_AT);
+      const assessment = buildTaxObligationsAssessment(diagnostic, {
+        ruleReviewState: "APPROVED",
+      });
+
+      expect(isTaxObligationExclusionAuthorized(assessment)).toBe(false);
+      expect(
+        assessment.obligations.filter(
+          (obligation) =>
+            obligation.exclusionAuthorization?.authorized === true,
+        ),
+      ).toEqual([]);
+    },
+  );
 
   it("bloquea el consumo cuando el territorio impide emitir decisiones", () => {
     const diagnostic = evaluateTaxModelDiagnostic(
@@ -80,12 +114,20 @@ describe("public tax obligations assessment", () => {
     expect(model347).toMatchObject({
       status: "NOT_APPLICABLE",
       evidenceSufficient: true,
+      exclusionAuthorization: {
+        proposed: true,
+        authorized: false,
+        exclusionId: null,
+      },
     });
   });
 
   it("mantiene los conflictos visibles y exige revisión", () => {
     const diagnostic = evaluateTaxModelDiagnostic(
-      completeCommonTerritoryProfile({ censusReviewed: "YES", censusObligations: ["303"] }),
+      completeCommonTerritoryProfile({
+        censusReviewed: "YES",
+        censusObligations: ["303"],
+      }),
       GENERATED_AT,
     );
     const assessment = buildTaxObligationsAssessment(diagnostic);

@@ -1,10 +1,12 @@
 import type {
+  FiscalRulesetAuthorizationMetadata,
   TaxModelNumber,
   TaxRule,
   TaxRuleReviewStatus,
 } from "./contracts";
+import { buildPendingFiscalRuleMetadata } from "./fiscal-rule-metadata";
 import { TAX_MODEL_CATALOG } from "./model-catalog";
-import { hasOfficialSource } from "./sources";
+import { getOfficialSources, hasOfficialSource } from "./sources";
 
 const VERIFIED_AT = "2026-07-15";
 
@@ -60,14 +62,22 @@ function ruleTests(modelNumber: TaxModelNumber, fiscalYear: 2025 | 2026) {
   ] as const;
 }
 
-export const TAX_RULES: readonly TaxRule[] = YEARS.flatMap((fiscalYear) =>
-  BLUEPRINTS.map((blueprint) => ({
-    ruleId: `es-common.${fiscalYear}.model-${blueprint.modelNumber}`,
-    version: `es-common.${fiscalYear}.2026-07-15.v2`,
+function buildPendingRule(
+  blueprint: RuleBlueprint,
+  fiscalYear: 2025 | 2026,
+): TaxRule {
+  const ruleId = `es-common.${fiscalYear}.model-${blueprint.modelNumber}`;
+  const rulesetId = `es-common.${fiscalYear}.2026-07-15.v2`;
+  const tests = ruleTests(blueprint.modelNumber, fiscalYear);
+  const effectiveFrom = `${fiscalYear}-01-01`;
+  const effectiveTo = `${fiscalYear}-12-31`;
+  return {
+    ruleId,
+    version: rulesetId,
     fiscalYear,
     territory: "ES_COMMON" as const,
-    effectiveFrom: `${fiscalYear}-01-01`,
-    effectiveTo: `${fiscalYear}-12-31`,
+    effectiveFrom,
+    effectiveTo,
     modelNumber: blueprint.modelNumber,
     conditions: blueprint.conditions,
     exclusions: blueprint.exclusions,
@@ -76,8 +86,26 @@ export const TAX_RULES: readonly TaxRule[] = YEARS.flatMap((fiscalYear) =>
     lastVerifiedAt: VERIFIED_AT,
     reviewedBy: "fiscal-review-pending",
     reviewStatus: "PENDING_FISCAL_REVIEW" as const,
-    tests: ruleTests(blueprint.modelNumber, fiscalYear),
-  })),
+    tests,
+    fiscalMetadata: buildPendingFiscalRuleMetadata({
+      ruleId,
+      rulesetId,
+      model: blueprint.modelNumber,
+      fiscalYear,
+      territory: "ES_COMMON",
+      effectiveFrom,
+      effectiveTo,
+      conditions: blueprint.conditions,
+      exclusions: blueprint.exclusions,
+      result: blueprint.result,
+      officialSources: getOfficialSources(blueprint.officialSourceIds),
+      testCaseIds: tests,
+    }),
+  };
+}
+
+export const TAX_RULES: readonly TaxRule[] = YEARS.flatMap((fiscalYear) =>
+  BLUEPRINTS.map((blueprint) => buildPendingRule(blueprint, fiscalYear)),
 );
 
 const RULE_BY_YEAR_AND_MODEL = new Map(
@@ -109,6 +137,29 @@ export function taxRuleSetReviewState(
     : "PENDING_FISCAL_REVIEW";
 }
 
+export function taxRuleSetAuthorizationMetadata(
+  fiscalYear: 2025 | 2026,
+): FiscalRulesetAuthorizationMetadata {
+  const rules = TAX_RULES.filter((rule) => rule.fiscalYear === fiscalYear);
+  return {
+    rulesetId: taxRuleSetVersion(fiscalYear),
+    reviewStatus:
+      rules.length === TAX_MODEL_CATALOG.length &&
+      rules.every(
+        (rule) => rule.fiscalMetadata.review.reviewStatus === "APPROVED",
+      )
+        ? "APPROVED"
+        : "PENDING_FISCAL_REVIEW",
+    resolutionStatus:
+      rules.length === TAX_MODEL_CATALOG.length &&
+      rules.every(
+        (rule) => rule.fiscalMetadata.review.resolutionStatus === "RESOLVED",
+      )
+        ? "RESOLVED"
+        : "OPEN",
+  };
+}
+
 export function validateTaxRuleRegistry(
   rules: readonly TaxRule[] = TAX_RULES,
 ): string[] {
@@ -130,6 +181,19 @@ export function validateTaxRuleRegistry(
     }
     if (rule.conditions.some((condition) => rule.exclusions.includes(condition))) {
       errors.push(`${rule.ruleId}: condición y exclusión contradictorias`);
+    }
+    if (rule.fiscalMetadata.ruleId !== rule.ruleId) {
+      errors.push(`${rule.ruleId}: metadatos fiscales de otra regla`);
+    }
+    if (rule.fiscalMetadata.rulesetId !== rule.version) {
+      errors.push(`${rule.ruleId}: ruleset fiscal incoherente`);
+    }
+    if (
+      rule.fiscalMetadata.exclusionCandidates.some(
+        (candidate) => candidate.effectType !== "ADVISORY_EXCLUSION_CANDIDATE",
+      )
+    ) {
+      errors.push(`${rule.ruleId}: exclusión real activada durante revisión`);
     }
   }
   return errors;
