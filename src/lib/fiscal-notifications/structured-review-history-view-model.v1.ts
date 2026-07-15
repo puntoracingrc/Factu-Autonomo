@@ -44,6 +44,11 @@ export interface FiscalNotificationStructuredHistoryEntryV1 {
   readonly authenticityLabel: "Autenticidad no comprobada";
   readonly reviewLabel: "Datos extraídos · revisa antes de actuar";
   readonly sourceContentRetention: "NOT_RETAINED";
+  readonly originalArchive: Readonly<{
+    status: "ARCHIVED_VERIFIED";
+    driveFileId: string;
+    archivedAt: string;
+  }> | null;
 }
 
 export type FiscalNotificationStructuredHistoryViewModelV1 =
@@ -162,6 +167,21 @@ export function projectFiscalNotificationStructuredHistoryV1(
   const paymentOptions = new Map(
     workspace.paymentOptions.map((item) => [item.id, item]),
   );
+  const driveArchiveByDocumentId = new Map(
+    (workspace.driveArchives ?? []).flatMap((archive) =>
+      archive.documentIds.map(
+        (documentId) =>
+          [
+            documentId,
+            Object.freeze({
+              status: archive.archiveStatus,
+              driveFileId: archive.driveFileId,
+              archivedAt: archive.archivedAt,
+            }),
+          ] as const,
+      ),
+    ),
+  );
 
   const entries = workspace.documents
     .map((document): FiscalNotificationStructuredHistoryEntryV1 | null => {
@@ -274,6 +294,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
         authenticityLabel: "Autenticidad no comprobada" as const,
         reviewLabel: "Datos extraídos · revisa antes de actuar" as const,
         sourceContentRetention: "NOT_RETAINED" as const,
+        originalArchive: driveArchiveByDocumentId.get(document.id) ?? null,
       });
     })
     .filter((entry) => entry !== null)

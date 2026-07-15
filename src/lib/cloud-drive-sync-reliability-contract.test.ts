@@ -41,6 +41,26 @@ describe("cloud and Drive reliability contract", () => {
     expect(tokenRoute).toContain("AbortSignal.timeout");
   });
 
+  it("archiva originales fiscales solo por decisión expresa y readback SHA-256", () => {
+    const intake = source(
+      "src/components/fiscal-notifications/FiscalNotificationIntakeView.tsx",
+    );
+    const archive = source(
+      "src/lib/google-drive/fiscal-notification-original-archive.v1.ts",
+    );
+    const domain = source(
+      "src/lib/fiscal-notifications/drive-original-archive.v1.ts",
+    );
+
+    expect(intake).toContain("Archivar original en Drive");
+    expect(intake).toContain("runExclusiveDriveOperation");
+    expect(archive).toContain("verifyDriveFileHash");
+    expect(archive).toContain("SHA256_READBACK_MATCH");
+    expect(archive).toContain("Fecha pendiente");
+    expect(domain).toContain("sourceSha256");
+    expect(domain).not.toMatch(/originalFilename|rawText|accessToken/u);
+  });
+
   it("mantiene la politica en la raiz y protege sus archivos", () => {
     const agents = source("AGENTS.md");
     const codeowners = source(".github/CODEOWNERS");
@@ -55,5 +75,7 @@ describe("cloud and Drive reliability contract", () => {
     expect(codeowners).toContain("/src/lib/google-drive/**");
     expect(adr).toContain("drive.file");
     expect(adr).toContain("coincide exactamente");
+    expect(adr).toContain("Fecha pendiente");
+    expect(adr).toContain("SHA256_READBACK_MATCH");
   });
 });

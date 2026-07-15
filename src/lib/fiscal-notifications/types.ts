@@ -168,6 +168,28 @@ export type UploadedFileRecord = UploadedFileRecordBase &
       }
   );
 
+/**
+ * Enlace mínimo a un original que permanece exclusivamente en el Drive del
+ * usuario. No contiene el nombre local, el PDF, texto extraído ni una URL con
+ * credenciales. Solo se añade después de releer el archivo y verificar SHA-256.
+ */
+export interface FiscalNotificationDriveArchiveRecordV1 {
+  id: string;
+  ownerScope: string;
+  fileId: string;
+  documentIds: string[];
+  sourceSha256: string;
+  driveFileId: string;
+  driveFolderId: string;
+  documentDate: string | null;
+  archiveStatus: "ARCHIVED_VERIFIED";
+  reviewStatus: "USER_CONFIRMED";
+  verificationMethod: "SHA256_READBACK_MATCH";
+  recordVersion: 1;
+  workspaceRevision: number;
+  archivedAt: string;
+}
+
 export type PackageProcessingStatus =
   | "PENDING"
   | "EXTRACTED"
@@ -691,7 +713,8 @@ export type FiscalNotificationAuditEventType =
   | "PAYMENT_REPORTED"
   | "PAYMENT_CONFIRMED"
   | "PAYMENT_RECONCILED"
-  | "ACCOUNTING_DRAFT_CREATED";
+  | "ACCOUNTING_DRAFT_CREATED"
+  | "ORIGINAL_ARCHIVED_IN_USER_GOOGLE_DRIVE";
 
 export interface FiscalNotificationAuditEvent {
   id: string;
@@ -739,4 +762,6 @@ export interface FiscalNotificationsWorkspace {
   timeline: TimelineEvent[];
   accountingDrafts: AccountingDraftProposal[];
   auditEvents: FiscalNotificationAuditEvent[];
+  /** Ausente en expedientes V1 anteriores; equivale a ningún original archivado. */
+  driveArchives?: FiscalNotificationDriveArchiveRecordV1[];
 }

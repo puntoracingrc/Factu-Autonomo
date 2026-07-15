@@ -1,15 +1,16 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 1
-- Fecha: 2026-07-14
+- Versión: 2
+- Fecha: 2026-07-15
 
 ## Contexto
 
 La aplicación conserva datos locales y sincroniza cambios por entidad con la
-nube de la cuenta. De forma opcional, el usuario puede guardar copias JSON en
-su propio Google Drive. Son dos funciones distintas: la nube mantiene el estado
-operativo entre dispositivos y Drive conserva copias recuperables.
+nube de la cuenta. De forma opcional, el usuario puede guardar copias JSON y
+originales fiscales seleccionados expresamente en su propio Google Drive. Son
+funciones distintas: la nube mantiene el estado operativo entre dispositivos y
+Drive conserva archivos bajo custodia del usuario.
 
 Los disparadores automáticos, el botón manual, el regreso a una pestaña y la
 descarga completa pueden coincidir. También puede haber timeouts, cortes de red,
@@ -38,16 +39,16 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 
 ### Copias en Google Drive
 
-1. Drive es una copia adicional, no una segunda base de datos ni una fuente de
-   merge automático.
+1. Drive es un archivo adicional bajo custodia del usuario, no una segunda base
+   de datos ni una fuente de merge automático o de verdad fiscal.
 2. El permiso permanece limitado a `drive.file`. OAuth exige callback propio,
    `state` vigente, cuenta confirmada y origen permitido. El token temporal no
    se persiste fuera de la sesión del navegador.
 3. Solo se declara una copia válida cuando la app relee el archivo recién
    creado y su contenido coincide exactamente con el JSON exportado.
-4. La copia manual, automática y la creada al volver de OAuth comparten una
-   exclusión mutua. No pueden generar dos archivos simultáneos desde la misma
-   sesión.
+4. La copia manual, automática, la creada al volver de OAuth y el archivado de
+   originales fiscales comparten una exclusión mutua. No pueden generar dos
+   archivos simultáneos desde la misma sesión.
 5. Un fallo automático no actualiza `lastBackupAt` ni la firma de éxito y
    programa un reintento. Un timeout o token caducado queda visible y permite
    reconectar.
@@ -55,12 +56,44 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
    archivos JSON creados por la app dentro de su carpeta y con su prefijo. Un
    fallo de limpieza no invalida la copia verificada.
 
+### Originales fiscales en el Drive del usuario
+
+1. El archivado es voluntario y requiere un clic explícito por PDF. Conectar
+   Drive, seleccionar un archivo o reconocer un duplicado nunca inicia por sí
+   solo una subida.
+2. Factu analiza el PDF localmente y no lo incorpora a sus datos persistidos.
+   Tras un archivado verificado solo conserva `fileId`, `documentIds`, SHA-256,
+   identificadores opacos de Drive, fecha documental, versión, revisión humana,
+   estado y fecha de archivado. No conserva nombre local, ruta, bytes, texto,
+   token ni enlace entregado por Google.
+3. La carpeta creada por la app es `Factu - documentos oficiales`. El destino
+   se deriva únicamente de una fecha documental exacta: `AAAA/MM`. Cuando no
+   existe esa fecha, se usa `Fecha pendiente`; la fecha de selección, escaneo o
+   archivado nunca decide la carpeta.
+4. La huella se calcula antes de la subida y el archivo remoto se relee después.
+   Solo `SHA256_READBACK_MATCH` permite registrar el original como archivado.
+   Una respuesta aceptada, un identificador remoto o una comparación por nombre
+   no bastan.
+5. Los archivos y carpetas se crean con `drive.file`. La huella y la política
+   versionada se añaden como `appProperties` para recuperar idempotentemente el
+   mismo archivo si Drive aceptó la subida pero falló el commit local posterior.
+   Antes de reutilizarlo se vuelve a comprobar el contenido remoto.
+6. Si un PDF ya está registrado pero carece de archivo verificado, volver a
+   seleccionarlo ofrece «Archivar original en Drive». Si ya está archivado, se
+   rechaza como duplicado. Los escaneos históricos deben reseleccionarse porque
+   Factu no conserva sus originales.
+7. La ficha distingue «Solo ficha» de «Original en Drive». Abrir o descargar el
+   original navega al archivo del usuario; Factu no actúa como proxy ni usa el
+   PDF remoto para alterar automáticamente deudas, pagos, plazos o asientos.
+
 ## Consecuencias
 
 - La aplicación evita carreras entre sincronización manual y automática.
 - Un dispositivo puede seguir trabajando offline sin perder su cola.
 - Drive no puede mostrar una copia como válida basándose únicamente en la
   aceptación de la subida.
+- Un usuario puede archivar y recuperar sus originales sin que Factu custodie
+  el PDF ni use la fecha de escaneo como fecha documental.
 - Ningún mecanismo puede prometer disponibilidad absoluta de proveedores
   externos, pero los fallos quedan acotados, observables y reintentables.
 
@@ -75,6 +108,9 @@ deben superar:
 - `src/lib/cloud/repository.test.ts`
 - `src/lib/google-drive/operation.test.ts`
 - `src/lib/google-drive/backup.test.ts`
+- `src/lib/google-drive/fiscal-notification-original-archive.v1.test.ts`
+- `src/lib/fiscal-notifications/drive-original-archive.v1.test.ts`
+- `src/lib/fiscal-notifications/drive-original-archive-command.v1.test.ts`
 
 Una auditoría o refactor no puede retirar estas garantías sin una nueva decisión
 de producto versionada.

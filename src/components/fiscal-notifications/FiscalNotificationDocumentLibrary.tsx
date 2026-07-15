@@ -5,6 +5,8 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
+  Cloud,
+  ExternalLink,
   FileText,
   Search,
   TriangleAlert,
@@ -19,6 +21,7 @@ import {
   type FiscalNotificationDocumentLibraryLinkV1,
   type FiscalNotificationDocumentLibraryViewModelV1,
 } from "@/lib/fiscal-notifications/structured-review-document-library.v1";
+import { fiscalNotificationDriveFileHrefV1 } from "@/lib/fiscal-notifications/drive-original-archive.v1";
 import type { FiscalNotificationStructuredHistoryEntryV1 } from "@/lib/fiscal-notifications/structured-review-history-view-model.v1";
 
 type DocumentGroupOrderV1 = "FIRST_DOCUMENT" | "LATEST_DOCUMENT";
@@ -205,6 +208,8 @@ export function FiscalNotificationDocumentDetail({
           </span>
         </div>
 
+        <OriginalArchiveStatus document={document} expanded />
+
         {document.subjectName || document.subjectTaxId ? (
           <dl className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
             {document.subjectName ? (
@@ -275,7 +280,10 @@ export function FiscalNotificationDocumentDetail({
 
         <p className="mt-5 text-xs font-semibold text-slate-500">
           {document.pageCount} páginas · {formatBytes(document.byteLength)} ·
-          PDF no conservado · ficha guardada{" "}
+          {document.originalArchive
+            ? "original custodiado en tu Google Drive"
+            : "original no archivado"}
+          {" · "}ficha guardada{" "}
           {formatSavedTimestamp(document.createdAt)}
         </p>
       </Card>
@@ -445,9 +453,15 @@ function DocumentCard({
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
           <FileText aria-hidden="true" className="h-5 w-5" />
         </span>
-        <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-900">
-          Datos guardados
-        </span>
+        {document.originalArchive ? (
+          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-900">
+            Original en Drive
+          </span>
+        ) : (
+          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-900">
+            Solo ficha
+          </span>
+        )}
       </div>
       <p className="mt-4 text-xs font-bold uppercase tracking-wide text-blue-700">
         {document.documentDate
@@ -468,6 +482,55 @@ function DocumentCard({
       </div>
     </Link>
   );
+}
+
+function OriginalArchiveStatus({
+  document,
+  expanded = false,
+}: {
+  document: FiscalNotificationStructuredHistoryEntryV1;
+  expanded?: boolean;
+}) {
+  const href = document.originalArchive
+    ? fiscalNotificationDriveFileHrefV1(document.originalArchive.driveFileId)
+    : null;
+  if (!document.originalArchive) {
+    return expanded ? (
+      <div className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <p className="font-bold text-amber-950">Original no archivado</p>
+        <p className="mt-1 text-sm leading-6 text-amber-900">
+          Factu conserva esta ficha, pero no el PDF. Vuelve a seleccionar el
+          documento en el escáner para poder archivarlo voluntariamente en tu
+          Google Drive.
+        </p>
+      </div>
+    ) : null;
+  }
+  return expanded ? (
+    <div className="mt-5 flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <p className="flex items-center gap-2 font-bold text-emerald-950">
+          <Cloud aria-hidden="true" className="h-5 w-5" />
+          Original archivado en tu Google Drive
+        </p>
+        <p className="mt-1 text-sm leading-6 text-emerald-900">
+          Factu solo conserva el identificador, la huella y la verificación del
+          archivo. El original permanece bajo tu custodia.
+        </p>
+      </div>
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white transition hover:bg-emerald-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-700"
+        >
+          Abrir o descargar
+          <ExternalLink aria-hidden="true" className="h-4 w-4" />
+        </a>
+      ) : null}
+    </div>
+  ) : null;
 }
 
 function DocumentAmounts({

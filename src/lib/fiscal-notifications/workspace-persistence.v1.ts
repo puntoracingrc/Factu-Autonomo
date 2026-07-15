@@ -36,6 +36,7 @@ const COLLECTIONS = [
   "timeline",
   "accountingDrafts",
   "auditEvents",
+  "driveArchives",
 ] as const satisfies readonly (keyof FiscalNotificationsWorkspace)[];
 
 type JsonRecord = Record<string, unknown>;
@@ -170,12 +171,14 @@ function collectionContainsExactPrefix(
 ): boolean {
   for (const collection of COLLECTIONS) {
     const largerById = new Map(
-      (larger[collection] as readonly { id: string }[]).map((entry) => [
+      ((larger[collection] ?? []) as readonly { id: string }[]).map((entry) => [
         entry.id,
         entry,
       ]),
     );
-    for (const entry of smaller[collection] as readonly { id: string }[]) {
+    for (const entry of (smaller[collection] ?? []) as readonly {
+      id: string;
+    }[]) {
       const candidate = largerById.get(entry.id);
       if (!candidate || stableJson(candidate) !== stableJson(entry)) return false;
     }

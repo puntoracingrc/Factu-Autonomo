@@ -498,7 +498,8 @@ function loadGoogleIdentityServices(): Promise<void> {
   return scriptPromise;
 }
 
-async function requestDriveAccessToken(
+/** Cliente OAuth compartido por las copias JSON y los archivos creados por Factu. */
+export async function requestDriveAccessToken(
   clientId: string,
   prompt: "consent" | "" = "",
 ): Promise<string> {
@@ -563,7 +564,8 @@ async function parseDriveError(response: Response): Promise<string> {
   return `Google Drive ha rechazado la copia (${response.status}).`;
 }
 
-async function driveRequest<T>(
+/** Petición acotada y autenticada para operaciones `drive.file` de la app. */
+export async function driveRequest<T>(
   url: string,
   accessToken: string,
   init: RequestInit = {},
@@ -603,7 +605,8 @@ async function driveRequest<T>(
   }
 }
 
-async function driveFetch<T>(
+/** Variante JSON del cliente Drive compartido. */
+export async function driveFetch<T>(
   url: string,
   accessToken: string,
   init: RequestInit = {},

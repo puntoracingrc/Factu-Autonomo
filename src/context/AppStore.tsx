@@ -197,6 +197,11 @@ import {
   runSaveFiscalNotificationStructuredReviewCommandV1,
   type DurableFiscalNotificationStructuredReviewSaveResultV1,
 } from "@/lib/fiscal-notifications/structured-review-save-command.v1";
+import {
+  runFiscalNotificationDriveArchiveCommandV1,
+  type DurableFiscalNotificationDriveArchiveResultV1,
+} from "@/lib/fiscal-notifications/drive-original-archive-command.v1";
+import type { FiscalNotificationOriginalArchiveReceiptV1 } from "@/lib/fiscal-notifications/drive-original-archive.v1";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -259,6 +264,12 @@ interface AppStoreValue {
     createdAt: string;
     analysis: FiscalNotificationLocalAnalysisResult;
   }) => DurableFiscalNotificationStructuredReviewSaveResultV1;
+  archiveFiscalNotificationOriginal: (input: {
+    expected: AppData;
+    ownerScope: string;
+    receipt: FiscalNotificationOriginalArchiveReceiptV1;
+    archivedAt: string;
+  }) => DurableFiscalNotificationDriveArchiveResultV1;
   updateProfile: (profile: BusinessProfile) => void;
   addDocument: (
     doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
@@ -749,6 +760,20 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       analysis: FiscalNotificationLocalAnalysisResult;
     }): DurableFiscalNotificationStructuredReviewSaveResultV1 =>
       runSaveFiscalNotificationStructuredReviewCommandV1({
+        ...input,
+        commit: commitDurableAppData,
+      }),
+    [commitDurableAppData],
+  );
+
+  const archiveFiscalNotificationOriginal = useCallback(
+    (input: {
+      expected: AppData;
+      ownerScope: string;
+      receipt: FiscalNotificationOriginalArchiveReceiptV1;
+      archivedAt: string;
+    }): DurableFiscalNotificationDriveArchiveResultV1 =>
+      runFiscalNotificationDriveArchiveCommandV1({
         ...input,
         commit: commitDurableAppData,
       }),
@@ -2184,6 +2209,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       applyTestDocumentRetirement,
       rollbackTestDocumentRetirement,
       saveFiscalNotificationStructuredReview,
+      archiveFiscalNotificationOriginal,
       updateProfile,
       addDocument,
       issueDocument,
@@ -2245,6 +2271,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       applyTestDocumentRetirement,
       rollbackTestDocumentRetirement,
       saveFiscalNotificationStructuredReview,
+      archiveFiscalNotificationOriginal,
       updateProfile,
       addDocument,
       issueDocument,
