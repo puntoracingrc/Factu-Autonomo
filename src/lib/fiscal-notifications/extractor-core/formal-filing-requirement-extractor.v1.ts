@@ -86,11 +86,37 @@ interface ParsedRequirementV1 {
   readonly warnings: readonly string[];
 }
 
+type RequirementCandidateFamilyV1 =
+  | "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE"
+  | "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE";
+
+const REQUIREMENT_FAMILY_CONTEXT_V1 = Object.freeze({
+  AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE: Object.freeze({
+    familyId: "compliance.formal_filing_requirement" as const,
+    actSubtype:
+      "REQUERIMIENTO_FORMAL_PRESENTACION_DECLARACIONES_AUTOLIQUIDACIONES",
+    procedureType: "CONTROL_PRESENTACION_DECLARACIONES_AUTOLIQUIDACIONES",
+    requestKind: "FORMAL_FILING" as const,
+  }),
+  AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE: Object.freeze({
+    familyId: "compliance.document_request" as const,
+    actSubtype: "REQUERIMIENTO_APORTACION_DOCUMENTACION",
+    procedureType: "REQUERIMIENTO_DOCUMENTACION_TRIBUTARIA",
+    requestKind: "DOCUMENTATION" as const,
+  }),
+});
+
 const LABELS = Object.freeze({
   requirementNumber: ["numero de requerimiento", "nº de requerimiento", "referencia del requerimiento"],
   expediente: ["numero de expediente", "expediente"],
   taxId: ["n.i.f.", "nif"],
-  recipient: ["nombre y apellidos / razon social", "nombre o razon social", "destinatario"],
+  recipient: [
+    "nombre y apellidos / razon social",
+    "nombre y apellidos o razon social",
+    "nombre / razon social",
+    "nombre o razon social",
+    "destinatario",
+  ],
   reason: ["motivo del requerimiento", "motivo"],
   deadline: ["plazo para atender el requerimiento", "plazo de contestacion", "plazo"],
   responseChannel: ["canal de respuesta", "forma de contestacion", "forma de atender el requerimiento"],
@@ -100,8 +126,23 @@ const LABELS = Object.freeze({
 } as const);
 const ALL_LABEL_LITERALS = Object.freeze(Object.values(LABELS).flat());
 
-const DOCUMENTATION_HEADINGS = new Set(["documentacion requerida", "documentacion a aportar"]);
-const CONSEQUENCE_HEADINGS = new Set(["consecuencias del incumplimiento", "advertencias", "advertencia"]);
+const DOCUMENTATION_HEADINGS = new Set([
+  "documentacion requerida",
+  "documentacion a aportar",
+]);
+const DOCUMENT_REQUEST_HEADINGS = new Set([
+  ...DOCUMENTATION_HEADINGS,
+  "acuerdo",
+]);
+const CONSEQUENCE_HEADINGS = new Set([
+  "consecuencias del incumplimiento",
+  "advertencias",
+  "advertencia",
+]);
+const DOCUMENT_REQUEST_CONSEQUENCE_HEADINGS = new Set([
+  ...CONSEQUENCE_HEADINGS,
+  "informacion adicional",
+]);
 const OBLIGATION_HEADINGS = new Set([
   "declaraciones o autoliquidaciones no presentadas",
   "declaraciones y autoliquidaciones no presentadas",
@@ -112,6 +153,10 @@ const ALL_SECTION_HEADINGS = new Set([
   ...OBLIGATION_HEADINGS,
   "plazo y forma de atender el requerimiento",
   "plazo para atender el requerimiento",
+  "acuerdo",
+  "plazo",
+  "informacion adicional",
+  "normas aplicables",
   "recursos",
   "firma",
   "identificacion del documento",
@@ -126,12 +171,20 @@ export function extractFormalFilingRequirementV1(
   const segments = validateSegments(input.document, input.segments);
   const mainSegments = segments.filter((segment) => segment.segmentType === "MAIN_ADMINISTRATIVE_ACT");
   const candidateResult = extractFiscalNotificationCandidates(input.document);
-  const candidate = candidateResult.candidates.find((item) =>
-    item.familyId === "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE" &&
-    item.signalStatus === "COMPLETE_REQUIRED_ANCHORS"
+  const candidate = candidateResult.candidates.find(
+    (item) =>
+      (item.familyId === "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE" ||
+        item.familyId === "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE") &&
+      item.signalStatus === "COMPLETE_REQUIRED_ANCHORS",
   );
+  const familyContext = candidate
+    ? REQUIREMENT_FAMILY_CONTEXT_V1[
+        candidate.familyId as RequirementCandidateFamilyV1
+      ]
+    : null;
   if (
     !candidate ||
+    !familyContext ||
     candidateResult.reason !== "SUPPORTED_FAMILY_CANDIDATE" ||
     candidateResult.candidates.length !== 1 ||
     mainSegments.length === 0
@@ -148,7 +201,11 @@ export function extractFormalFilingRequirementV1(
     .filter((segment) => segment.canGenerateAdministrativeFacts)
     .flatMap((segment) => range(segment.pageFrom, segment.pageTo)));
   const lines = collectLines(input.document, factualPages);
-  const parsed = parseRequirement(input.document.documentId, lines);
+  const parsed = parseRequirement(
+    input.document.documentId,
+    lines,
+    familyContext.requestKind,
+  );
   const evidencePages = uniqueNumbers([
     ...mainSegments.flatMap((segment) => range(segment.pageFrom, segment.pageTo)),
     ...parsed.facts.obligations.map((item) => item.sourcePage),
@@ -160,8 +217,8 @@ export function extractFormalFilingRequirementV1(
     ownerScope: input.document.ownerScope,
     entityKind: "ADMINISTRATIVE_ACT",
     evidence,
-    familyId: "compliance.formal_filing_requirement",
-    actSubtype: "REQUERIMIENTO_FORMAL_PRESENTACION_DECLARACIONES_AUTOLIQUIDACIONES",
+    familyId: familyContext.familyId,
+    actSubtype: familyContext.actSubtype,
     references: Object.freeze([...parsed.references]),
     dates: Object.freeze([...parsed.dates]),
   });
@@ -170,7 +227,7 @@ export function extractFormalFilingRequirementV1(
     ownerScope: input.document.ownerScope,
     entityKind: "TAX_PROCEDURE",
     evidence,
-    procedureType: "CONTROL_PRESENTACION_DECLARACIONES_AUTOLIQUIDACIONES",
+    procedureType: familyContext.procedureType,
     referenceIds: Object.freeze([]),
     actIds: Object.freeze([actId]),
   });
@@ -194,12 +251,16 @@ export function extractFormalFilingRequirementV1(
     extractorId: "requirement",
     extractorVersion: FISCAL_NOTIFICATION_EXTRACTOR_CORE_VERSION_V1,
     status: "REVIEW_REQUIRED",
-    familyCandidates: Object.freeze([Object.freeze({
-      familyId: "compliance.formal_filing_requirement",
-      confidence: 1,
-      matchingEvidenceIds: Object.freeze(mainSegments.map((segment) => segment.segmentId)),
-      contradictoryEvidenceIds: Object.freeze([]),
-    })]),
+    familyCandidates: Object.freeze([
+      Object.freeze({
+        familyId: familyContext.familyId,
+        confidence: 1,
+        matchingEvidenceIds: Object.freeze(
+          mainSegments.map((segment) => segment.segmentId),
+        ),
+        contradictoryEvidenceIds: Object.freeze([]),
+      }),
+    ]),
     entities: Object.freeze(entities),
     references: parsed.references,
     monetaryComponents: Object.freeze([]),
@@ -218,20 +279,88 @@ export function extractFormalFilingRequirementV1(
   });
 }
 
-function parseRequirement(documentId: string, lines: readonly PrivateLineV1[]): ParsedRequirementV1 {
+function parseRequirement(
+  documentId: string,
+  lines: readonly PrivateLineV1[],
+  requestKind: "FORMAL_FILING" | "DOCUMENTATION",
+): ParsedRequirementV1 {
   const warnings: string[] = [];
-  const requirementNumber = uniqueLabelFact(lines, LABELS.requirementNumber, "Número de requerimiento", warnings, "CONFLICTING_REQUIREMENT_NUMBER");
-  const expediente = uniqueLabelFact(lines, LABELS.expediente, "Expediente", warnings, "CONFLICTING_EXPEDIENTE");
-  const taxId = uniqueLabelFact(lines, LABELS.taxId, "NIF", warnings, "CONFLICTING_TAX_ID");
-  const recipient = uniqueLabelFact(lines, LABELS.recipient, "Destinatario", warnings, "CONFLICTING_RECIPIENT");
-  const reason = uniqueLabelFact(lines, LABELS.reason, "Motivo del requerimiento", warnings, "CONFLICTING_REASON");
-  const rawDeadlineText = uniqueLabelFact(lines, LABELS.deadline, "Plazo para atender el requerimiento", warnings, "CONFLICTING_DEADLINE_TEXT");
-  const responseChannel = uniqueLabelFact(lines, LABELS.responseChannel, "Canal de respuesta", warnings, "CONFLICTING_RESPONSE_CHANNEL");
-  const csv = uniqueLabelFact(lines, LABELS.csv, "CSV", warnings, "CONFLICTING_CSV");
+  const requirementNumber = uniqueLabelFact(
+    lines,
+    requestKind === "DOCUMENTATION"
+      ? [...LABELS.requirementNumber, "referencia"]
+      : LABELS.requirementNumber,
+    "Número de requerimiento",
+    warnings,
+    "CONFLICTING_REQUIREMENT_NUMBER",
+  );
+  const expediente = uniqueLabelFact(
+    lines,
+    LABELS.expediente,
+    "Expediente",
+    warnings,
+    "CONFLICTING_EXPEDIENTE",
+  );
+  const taxId = uniqueLabelFact(
+    lines,
+    LABELS.taxId,
+    "NIF",
+    warnings,
+    "CONFLICTING_TAX_ID",
+  );
+  const recipient = uniqueLabelFact(
+    lines,
+    LABELS.recipient,
+    "Destinatario",
+    warnings,
+    "CONFLICTING_RECIPIENT",
+  );
+  const reason = uniqueLabelFact(
+    lines,
+    LABELS.reason,
+    "Motivo del requerimiento",
+    warnings,
+    "CONFLICTING_REASON",
+  );
+  const rawDeadlineText = uniqueLabelFact(
+    lines,
+    LABELS.deadline,
+    "Plazo para atender el requerimiento",
+    warnings,
+    "CONFLICTING_DEADLINE_TEXT",
+  );
+  const responseChannel = uniqueLabelFact(
+    lines,
+    LABELS.responseChannel,
+    "Canal de respuesta",
+    warnings,
+    "CONFLICTING_RESPONSE_CHANNEL",
+  );
+  const csv = uniqueLabelFact(
+    lines,
+    LABELS.csv,
+    "CSV",
+    warnings,
+    "CONFLICTING_CSV",
+  );
   const obligations = extractObligations(lines, warnings);
-  const documentationRequired = extractSectionItems(lines, DOCUMENTATION_HEADINGS, "Documentación requerida");
-  const explicitConsequences = extractSectionItems(lines, CONSEQUENCE_HEADINGS, "Consecuencias expresas");
-  if (obligations.length === 0) warnings.push("MISSING_EXPLICIT_OBLIGATION_ROWS");
+  const documentationRequired = extractSectionItems(
+    lines,
+    requestKind === "DOCUMENTATION"
+      ? DOCUMENT_REQUEST_HEADINGS
+      : DOCUMENTATION_HEADINGS,
+    "Documentación requerida",
+  );
+  const explicitConsequences = extractSectionItems(
+    lines,
+    requestKind === "DOCUMENTATION"
+      ? DOCUMENT_REQUEST_CONSEQUENCE_HEADINGS
+      : CONSEQUENCE_HEADINGS,
+    "Consecuencias expresas",
+  );
+  if (requestKind === "FORMAL_FILING" && obligations.length === 0) {
+    warnings.push("MISSING_EXPLICIT_OBLIGATION_ROWS");
+  }
   if (!rawDeadlineText) warnings.push("MISSING_EXPLICIT_RESPONSE_DEADLINE");
 
   const references: ReferenceV1[] = [];
@@ -620,6 +749,10 @@ function entityId(document: BoundedDocumentInput, kind: string, index: number): 
 export const FORMAL_FILING_REQUIREMENT_EXTRACTOR_RELEASE_V1 = Object.freeze({
   version: FORMAL_FILING_REQUIREMENT_EXTRACTOR_VERSION_V1,
   familyId: "compliance.formal_filing_requirement" as const,
+  supportedFamilyIds: Object.freeze([
+    "compliance.formal_filing_requirement",
+    "compliance.document_request",
+  ] as const),
   officialInterpretationSources: Object.freeze([
     Object.freeze({ sourceId: "aeat.procedure.G223", url: "https://sede.agenciatributaria.gob.es/Sede/procedimientos/G223.shtml" }),
     Object.freeze({ sourceId: "boe.lgt.article.123", url: "https://www.boe.es/buscar/act.php?id=BOE-A-2003-23186" }),

@@ -71,12 +71,7 @@ export interface FiscalNotificationLocalReviewResult {
     | "fiscal-notification-family-candidate-engine"
     | null;
   readonly engineVersion:
-    | "1.0.0"
-    | "1.1.0"
-    | "1.2.0"
-    | "1.3.0"
-    | "1.4.0"
-    | null;
+    "1.0.0" | "1.1.0" | "1.2.0" | "1.3.0" | "1.4.0" | "1.5.0" | null;
   readonly pageCount: number;
   readonly byteLength: number;
   readonly sha256: string;
@@ -349,12 +344,7 @@ function freezeResult(input: {
   reason: FiscalNotificationLocalReviewReason;
   engineId: "fiscal-notification-family-candidate-engine" | null;
   engineVersion:
-    | "1.0.0"
-    | "1.1.0"
-    | "1.2.0"
-    | "1.3.0"
-    | "1.4.0"
-    | null;
+    "1.0.0" | "1.1.0" | "1.2.0" | "1.3.0" | "1.4.0" | "1.5.0" | null;
   pageCount: number;
   byteLength: number;
   sha256: string;

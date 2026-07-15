@@ -60,12 +60,7 @@ export interface PersistedFiscalNotificationReviewResult {
   readonly reason: FiscalNotificationLocalReviewReason;
   readonly engineId: "fiscal-notification-family-candidate-engine" | null;
   readonly engineVersion:
-    | "1.0.0"
-    | "1.1.0"
-    | "1.2.0"
-    | "1.3.0"
-    | "1.4.0"
-    | null;
+    "1.0.0" | "1.1.0" | "1.2.0" | "1.3.0" | "1.4.0" | "1.5.0" | null;
   readonly pageCount: number;
   readonly byteLength: number;
   readonly sha256: string;
@@ -220,35 +215,41 @@ const REASONS = new Set<FiscalNotificationLocalReviewReason>([
   "TEXT_LINE_LIMIT_EXCEEDED",
   "OCR_DISABLED",
 ]);
-const ANCHOR_IDS = new Set<PersistedFiscalNotificationReviewAnchor["anchorId"]>([
-  "AEAT_AUTHORITY_LABEL",
-  "AEAT_OFFICIAL_DOMAIN_LABEL",
-  "STRUCTURAL_FIRST_PAGE_HEADER",
-  "STRUCTURAL_PRIMARY_ACT_HEADER",
-  "ENFORCEMENT_ORDER_TITLE",
-  "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
-  "ENFORCEMENT_DEBT_AMOUNT_SECTION",
-  "DEFERRAL_GRANT_TITLE",
-  "DEFERRAL_INSTALLMENT_ANNEX",
-  "DEFERRAL_INTEREST_CALCULATION",
-  "OFFSET_AGREEMENT_TITLE",
-  "OFFSET_CREDIT_AND_DEBT_ANNEX",
-  "OFFSET_AGREEMENT_NUMBER",
-  "REAL_ESTATE_SEIZURE_TITLE",
-  "FORMAL_FILING_REQUIREMENT_TITLE",
-  "FORMAL_FILING_OMITTED_RETURNS_MARKER",
-  "ROI_REGISTRATION_AGREEMENT_TITLE",
-  "DOCUMENT_IDENTIFICATION_SECTION",
-  "FORMAL_FILING_TAX_PERIOD_SECTION",
-  "REGISTRY_IDENTIFICATION_SECTION",
-  "CONFLICTING_AUTHORITY_TGSS",
-  "CONFLICTING_TERRITORY_CANARY",
-  "CONFLICTING_TERRITORY_FORAL",
-  "CONFLICTING_TERRITORY_REGIONAL",
-  "CONFLICTING_TERRITORY_CEUTA_MELILLA",
-  "CONFLICTING_AEAT_HOST_LINE",
-  "CONFLICTING_NON_DOCUMENT_GUIDE",
-]);
+const ANCHOR_IDS = new Set<PersistedFiscalNotificationReviewAnchor["anchorId"]>(
+  [
+    "AEAT_AUTHORITY_LABEL",
+    "AEAT_OFFICIAL_DOMAIN_LABEL",
+    "STRUCTURAL_FIRST_PAGE_HEADER",
+    "STRUCTURAL_PRIMARY_ACT_HEADER",
+    "ENFORCEMENT_ORDER_TITLE",
+    "ENFORCEMENT_DOCUMENT_IDENTIFICATION_SECTION",
+    "ENFORCEMENT_DEBT_AMOUNT_SECTION",
+    "DEFERRAL_GRANT_TITLE",
+    "DEFERRAL_INSTALLMENT_ANNEX",
+    "DEFERRAL_INTEREST_CALCULATION",
+    "OFFSET_AGREEMENT_TITLE",
+    "OFFSET_CREDIT_AND_DEBT_ANNEX",
+    "OFFSET_AGREEMENT_NUMBER",
+    "REAL_ESTATE_SEIZURE_TITLE",
+    "FORMAL_FILING_REQUIREMENT_TITLE",
+    "FORMAL_FILING_OMITTED_RETURNS_MARKER",
+    "DOCUMENTATION_REQUIREMENT_TITLE",
+    "DOCUMENTATION_REQUIREMENT_AGREEMENT_SECTION",
+    "DOCUMENTATION_REQUIREMENT_DEADLINE_SECTION",
+    "DOCUMENTATION_REQUIREMENT_BODY_MARKER",
+    "ROI_REGISTRATION_AGREEMENT_TITLE",
+    "DOCUMENT_IDENTIFICATION_SECTION",
+    "FORMAL_FILING_TAX_PERIOD_SECTION",
+    "REGISTRY_IDENTIFICATION_SECTION",
+    "CONFLICTING_AUTHORITY_TGSS",
+    "CONFLICTING_TERRITORY_CANARY",
+    "CONFLICTING_TERRITORY_FORAL",
+    "CONFLICTING_TERRITORY_REGIONAL",
+    "CONFLICTING_TERRITORY_CEUTA_MELILLA",
+    "CONFLICTING_AEAT_HOST_LINE",
+    "CONFLICTING_NON_DOCUMENT_GUIDE",
+  ],
+);
 const CONFLICTING_ANCHOR_IDS = new Set<
   PersistedFiscalNotificationReviewAnchor["anchorId"]
 >([
@@ -290,6 +291,15 @@ const FORMAL_FILING_REQUIRED_ANCHOR_IDS = Object.freeze([
   "AEAT_OFFICIAL_DOMAIN_LABEL",
   "FORMAL_FILING_REQUIREMENT_TITLE",
   "FORMAL_FILING_OMITTED_RETURNS_MARKER",
+  "STRUCTURAL_FIRST_PAGE_HEADER",
+] as const);
+const DOCUMENTATION_REQUIREMENT_REQUIRED_ANCHOR_IDS = Object.freeze([
+  "AEAT_OFFICIAL_DOMAIN_LABEL",
+  "DOCUMENTATION_REQUIREMENT_TITLE",
+  "DOCUMENT_IDENTIFICATION_SECTION",
+  "DOCUMENTATION_REQUIREMENT_AGREEMENT_SECTION",
+  "DOCUMENTATION_REQUIREMENT_DEADLINE_SECTION",
+  "DOCUMENTATION_REQUIREMENT_BODY_MARKER",
   "STRUCTURAL_FIRST_PAGE_HEADER",
 ] as const);
 const ROI_REGISTRATION_REQUIRED_ANCHOR_IDS = Object.freeze([
@@ -346,6 +356,15 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
     ] as const),
     minimumEngineVersion: "1.2.0" as const,
   }),
+  AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE: Object.freeze({
+    documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
+    handlerId: "aeat-documentation-requirement-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
+    titleAnchorId: "DOCUMENTATION_REQUIREMENT_TITLE" as const,
+    requiredAnchors: DOCUMENTATION_REQUIREMENT_REQUIRED_ANCHOR_IDS,
+    optionalAnchors: Object.freeze([] as const),
+    minimumEngineVersion: "1.5.0" as const,
+  }),
   AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: Object.freeze({
     documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
     handlerId: "aeat-roi-registration-agreement-candidate" as const,
@@ -367,7 +386,7 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
     readonly titleAnchorId: PersistedFiscalNotificationReviewAnchor["anchorId"];
     readonly requiredAnchors: readonly PersistedFiscalNotificationReviewAnchor["anchorId"][];
     readonly optionalAnchors: readonly PersistedFiscalNotificationReviewAnchor["anchorId"][];
-    readonly minimumEngineVersion: "1.0.0" | "1.2.0" | "1.4.0";
+    readonly minimumEngineVersion: "1.0.0" | "1.2.0" | "1.4.0" | "1.5.0";
   }
 >);
 const SIGNAL_STATUSES = new Set<
@@ -768,7 +787,8 @@ function validateResult(
           result.engineVersion !== "1.1.0" &&
           result.engineVersion !== "1.2.0" &&
           result.engineVersion !== "1.3.0" &&
-          result.engineVersion !== "1.4.0")
+          result.engineVersion !== "1.4.0" &&
+          result.engineVersion !== "1.5.0")
   ) {
     throw new RepositoryDataError(errorCode);
   }
@@ -832,7 +852,9 @@ function validateCandidate(
       : undefined;
   if (
     !definition ||
-    (engineVersion === "1.3.0" || engineVersion === "1.4.0"
+    (engineVersion === "1.3.0" ||
+    engineVersion === "1.4.0" ||
+    engineVersion === "1.5.0"
       ? candidate.segmentationVersion !== "1.1.0" ||
         candidate.recognitionPolicyVersion !== "1.3.0"
       : engineVersion === "1.2.0"
@@ -845,9 +867,13 @@ function validateCandidate(
     (definition.minimumEngineVersion === "1.2.0" &&
       engineVersion !== "1.2.0" &&
       engineVersion !== "1.3.0" &&
-      engineVersion !== "1.4.0") ||
+      engineVersion !== "1.4.0" &&
+      engineVersion !== "1.5.0") ||
     (definition.minimumEngineVersion === "1.4.0" &&
-      engineVersion !== "1.4.0") ||
+      engineVersion !== "1.4.0" &&
+      engineVersion !== "1.5.0") ||
+    (definition.minimumEngineVersion === "1.5.0" &&
+      engineVersion !== "1.5.0") ||
     candidate.documentType !== definition.documentType ||
     candidate.authoritySignal !== "AEAT_UNVERIFIED" ||
     candidate.handlerId !== definition.handlerId ||
@@ -910,7 +936,8 @@ function validateCandidate(
     (engineVersion === "1.1.0" ||
       engineVersion === "1.2.0" ||
       engineVersion === "1.3.0" ||
-      engineVersion === "1.4.0") &&
+      engineVersion === "1.4.0" ||
+      engineVersion === "1.5.0") &&
     (!titlePages ||
       titlePages.length !== 1 ||
       titlePageNumber === undefined ||
@@ -970,7 +997,8 @@ function assertCandidateTrace(
     engineVersion !== "1.1.0" &&
     engineVersion !== "1.2.0" &&
     engineVersion !== "1.3.0" &&
-    engineVersion !== "1.4.0"
+    engineVersion !== "1.4.0" &&
+    engineVersion !== "1.5.0"
   ) {
     throw new RepositoryDataError(errorCode);
   }
@@ -998,9 +1026,13 @@ function assertCandidateTrace(
     (definition.minimumEngineVersion === "1.2.0" &&
       engineVersion !== "1.2.0" &&
       engineVersion !== "1.3.0" &&
-      engineVersion !== "1.4.0") ||
+      engineVersion !== "1.4.0" &&
+      engineVersion !== "1.5.0") ||
     (definition.minimumEngineVersion === "1.4.0" &&
-      engineVersion !== "1.4.0") ||
+      engineVersion !== "1.4.0" &&
+      engineVersion !== "1.5.0") ||
+    (definition.minimumEngineVersion === "1.5.0" &&
+      engineVersion !== "1.5.0") ||
     (domainPages !== undefined &&
       (engineVersion === "1.0.0"
         ? !sameNumberList(domainPages, [1])
@@ -1011,6 +1043,7 @@ function assertCandidateTrace(
   if (
     engineVersion !== "1.3.0" &&
     engineVersion !== "1.4.0" &&
+    engineVersion !== "1.5.0" &&
     matchedAnchors.some((anchor) =>
       FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS.includes(
         anchor.anchorId as (typeof FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS)[number],

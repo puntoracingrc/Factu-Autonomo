@@ -249,7 +249,7 @@ describe("fiscal notification local review flow", () => {
       status: "REVIEW_REQUIRED",
       reason: "SUPPORTED_FAMILY_CANDIDATE",
       engineId: "fiscal-notification-family-candidate-engine",
-      engineVersion: "1.4.0",
+      engineVersion: "1.5.0",
       pageCount: 1,
       byteLength: 2_048,
       sha256: HASH,
@@ -303,6 +303,19 @@ describe("fiscal notification local review flow", () => {
     [
       [
         "AGENCIA TRIBUTARIA",
+        "www.agenciatributaria.gob.es",
+        "REQUERIMIENTO",
+        "IDENTIFICACION DEL DOCUMENTO",
+        "ACUERDO",
+        "DOCUMENTACION JUSTIFICATIVA",
+        "PLAZO",
+      ].join("\n"),
+      "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE",
+      "GENERIC_ADMINISTRATIVE_NOTICE",
+    ],
+    [
+      [
+        "AGENCIA TRIBUTARIA",
         "sede.agenciatributaria.gob.es",
         "ACUERDO DE ALTA EN EL REGISTRO DE OPERADORES INTRACOMUNITARIOS",
       ].join("\n"),
@@ -326,7 +339,7 @@ describe("fiscal notification local review flow", () => {
       const analysis = await analyzeEphemeralForTest({}, dependencies(text));
       expect(analysis).toMatchObject({
         technicalReview: {
-          engineVersion: "1.4.0",
+          engineVersion: "1.5.0",
           status: "REVIEW_REQUIRED",
           reason: "SUPPORTED_FAMILY_CANDIDATE",
           candidates: [
@@ -452,7 +465,7 @@ describe("fiscal notification local review flow", () => {
 
     expect(analysis).toMatchObject({
       technicalReview: {
-        engineVersion: "1.4.0",
+        engineVersion: "1.5.0",
         reason: "SUPPORTED_FAMILY_CANDIDATE",
         candidates: [
           expect.objectContaining({

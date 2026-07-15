@@ -4,11 +4,7 @@ import type {
 } from "./extraction-contract";
 
 export type FiscalNotificationExtractionEngineVersion =
-  | "1.0.0"
-  | "1.1.0"
-  | "1.2.0"
-  | "1.3.0"
-  | "1.4.0";
+  "1.0.0" | "1.1.0" | "1.2.0" | "1.3.0" | "1.4.0" | "1.5.0";
 
 const LEGACY_REQUIRED_ANCHORS = Object.freeze({
   AEAT_ENFORCEMENT_ORDER_CANDIDATE: Object.freeze([
@@ -41,6 +37,15 @@ const LEGACY_REQUIRED_ANCHORS = Object.freeze({
     "AEAT_OFFICIAL_DOMAIN_LABEL",
     "FORMAL_FILING_REQUIREMENT_TITLE",
     "FORMAL_FILING_OMITTED_RETURNS_MARKER",
+    "STRUCTURAL_FIRST_PAGE_HEADER",
+  ] as const),
+  AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE: Object.freeze([
+    "AEAT_OFFICIAL_DOMAIN_LABEL",
+    "DOCUMENTATION_REQUIREMENT_TITLE",
+    "DOCUMENT_IDENTIFICATION_SECTION",
+    "DOCUMENTATION_REQUIREMENT_AGREEMENT_SECTION",
+    "DOCUMENTATION_REQUIREMENT_DEADLINE_SECTION",
+    "DOCUMENTATION_REQUIREMENT_BODY_MARKER",
     "STRUCTURAL_FIRST_PAGE_HEADER",
   ] as const),
   AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: Object.freeze([
@@ -82,6 +87,14 @@ const STRUCTURAL_REQUIRED_ANCHORS = Object.freeze({
     "FORMAL_FILING_OMITTED_RETURNS_MARKER",
     "STRUCTURAL_PRIMARY_ACT_HEADER",
   ] as const),
+  AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE: Object.freeze([
+    "DOCUMENTATION_REQUIREMENT_TITLE",
+    "DOCUMENT_IDENTIFICATION_SECTION",
+    "DOCUMENTATION_REQUIREMENT_AGREEMENT_SECTION",
+    "DOCUMENTATION_REQUIREMENT_DEADLINE_SECTION",
+    "DOCUMENTATION_REQUIREMENT_BODY_MARKER",
+    "STRUCTURAL_PRIMARY_ACT_HEADER",
+  ] as const),
   AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: Object.freeze([
     "ROI_REGISTRATION_AGREEMENT_TITLE",
     "DOCUMENT_IDENTIFICATION_SECTION",
@@ -101,7 +114,9 @@ export function requiredAnchorAlternativesForEngine(
   familyId: FiscalNotificationSupportedFamilyId,
   engineVersion: FiscalNotificationExtractionEngineVersion,
 ): readonly (readonly FiscalNotificationAnchorId[])[] {
-  return engineVersion === "1.3.0" || engineVersion === "1.4.0"
+  return engineVersion === "1.3.0" ||
+    engineVersion === "1.4.0" ||
+    engineVersion === "1.5.0"
     ? Object.freeze([
         LEGACY_REQUIRED_ANCHORS[familyId],
         STRUCTURAL_REQUIRED_ANCHORS[familyId],

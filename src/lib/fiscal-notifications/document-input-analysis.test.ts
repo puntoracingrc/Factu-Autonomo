@@ -50,6 +50,71 @@ describe("fiscal notification document input analysis", () => {
     expect(JSON.stringify(first)).not.toContain("NOTIFICACIÓN");
   });
 
+  it("shows structured fields for a historical documentation requirement", async () => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input(
+        [
+          "AGENCIA TRIBUTARIA",
+          "www.agenciatributaria.gob.es",
+          "REQUERIMIENTO",
+          "IDENTIFICACIÓN DEL DOCUMENTO",
+          "Referencia: REQ-DOC-SYN-PIPELINE-001",
+          "ACUERDO",
+          "Deberá aportar la documentación que se indica a continuación",
+          "- Documentación justificativa de los datos declarados",
+          "PLAZO",
+          "Diez días hábiles desde el día siguiente a la recepción",
+          "INFORMACIÓN ADICIONAL",
+          "La falta de atención puede producir las consecuencias impresas",
+          "NORMAS APLICABLES",
+        ].join("\n"),
+      ),
+    );
+
+    expect(result.familyAnalysis).toMatchObject({
+      engineVersion: "1.5.0",
+      reason: "SUPPORTED_FAMILY_CANDIDATE",
+      candidates: [
+        expect.objectContaining({
+          familyId: "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE",
+          missingRequiredAnchorIds: [],
+        }),
+      ],
+    });
+    expect(result.verticalSliceReview).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      documents: [
+        expect.objectContaining({
+          familyId: "compliance.document_request",
+          title: "Requerimiento de documentación",
+          subtitle: "Documentación solicitada pendiente de revisión",
+          fields: expect.arrayContaining([
+            expect.objectContaining({
+              canonicalType: "ACT_ID",
+              displayValue: "REQ-DOC-SYN-PIPELINE-001",
+            }),
+            expect.objectContaining({
+              canonicalType: "RESPONSE_DEADLINE",
+              displayValue:
+                "Diez días hábiles desde el día siguiente a la recepción",
+            }),
+            expect.objectContaining({
+              canonicalType: "DOCUMENTATION_REQUIRED",
+              displayValue:
+                "Documentación justificativa de los datos declarados",
+            }),
+            expect.objectContaining({
+              canonicalType: "EXPLICIT_CONSEQUENCE",
+              displayValue:
+                "La falta de atención puede producir las consecuencias impresas",
+            }),
+          ]),
+        }),
+      ],
+      retainedSourceContent: "NONE",
+    });
+  });
+
   it("returns no family or facts for a blank bounded input", async () => {
     expect(await analyzeFiscalNotificationDocumentInput(input(""))).toEqual({
       hasText: false,

@@ -94,6 +94,7 @@ const FAMILY_LABELS = {
     "Diligencia de embargo de bienes inmuebles",
   AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE:
     "Requerimiento formal de presentación",
+  AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE: "Requerimiento de documentación",
   AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: "Acuerdo de alta en el ROI",
 } as const;
 
@@ -106,6 +107,8 @@ const FAMILY_INDICATION_LABELS = {
     "Indicios de diligencia de embargo de bienes inmuebles",
   AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE:
     "Indicios de requerimiento formal de presentación",
+  AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE:
+    "Indicios de requerimiento de documentación",
   AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE:
     "Indicios de acuerdo de alta en el ROI",
 } as const;
@@ -113,7 +116,8 @@ const FAMILY_INDICATION_LABELS = {
 function recognizedCandidateFrom(result: FiscalNotificationLocalReviewResult) {
   const candidate = result.candidates[0];
   return (result.engineVersion === "1.3.0" ||
-    result.engineVersion === "1.4.0") &&
+    result.engineVersion === "1.4.0" ||
+    result.engineVersion === "1.5.0") &&
     result.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
     result.candidates.length === 1 &&
     candidate?.recognitionPolicyVersion === "1.3.0" &&

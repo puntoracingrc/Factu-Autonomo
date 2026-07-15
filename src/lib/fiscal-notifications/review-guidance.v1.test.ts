@@ -340,6 +340,40 @@ describe("review guidance v1", () => {
     },
   );
 
+  it("projects only verified BOE context for a documentation requirement", () => {
+    const result = projectFiscalNotificationReviewGuidanceV1(
+      analysisInput({
+        engineVersion: "1.5.0",
+        candidates: [completeDocumentationRequirementCandidate()],
+      }),
+    );
+
+    expect(result).toMatchObject({
+      projectionStatus: "GUIDANCE_AVAILABLE",
+      candidateContext: {
+        familyId: "compliance.document_request",
+        classificationPolicy: "CANDIDATE_CONTEXT_ONLY",
+      },
+      legalRuleStatus: "NOT_APPLIED",
+      materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+    });
+    expect(
+      result.officialProcedureContexts.map((source) => source.sourceId),
+    ).toEqual([
+      "boe.tax.general.law",
+      "boe.tax.management_inspection.regulation",
+    ]);
+    expect(result.officialProcedureContexts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          authority: "BOE",
+          usagePolicy: "LEGAL_CONTEXT_ONLY",
+          permitsLegalRuleActivation: false,
+        }),
+      ]),
+    );
+  });
+
   it("classifies the ROI agreement without claiming current registration or VIES status", () => {
     const result = projectFiscalNotificationReviewGuidanceV1(
       analysisInput({
@@ -890,6 +924,26 @@ function completeFormalFilingCandidate(): FiscalNotificationLocalReviewCandidate
   };
 }
 
+function completeDocumentationRequirementCandidate(): FiscalNotificationLocalReviewCandidate {
+  return {
+    ...candidate(
+      "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE",
+      [
+        "AEAT_OFFICIAL_DOMAIN_LABEL",
+        "DOCUMENTATION_REQUIREMENT_TITLE",
+        "DOCUMENT_IDENTIFICATION_SECTION",
+        "DOCUMENTATION_REQUIREMENT_AGREEMENT_SECTION",
+        "DOCUMENTATION_REQUIREMENT_DEADLINE_SECTION",
+        "DOCUMENTATION_REQUIREMENT_BODY_MARKER",
+        "STRUCTURAL_FIRST_PAGE_HEADER",
+      ],
+      [],
+    ),
+    recognitionPolicyVersion: "1.3.0",
+    segmentationVersion: "1.1.0",
+  };
+}
+
 function completeRoiRegistrationCandidate(): FiscalNotificationLocalReviewCandidate {
   return {
     ...candidate(
@@ -1038,6 +1092,10 @@ function candidate(
     AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE: {
       documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
       handlerId: "aeat-formal-filing-requirement-candidate",
+    },
+    AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE: {
+      documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+      handlerId: "aeat-documentation-requirement-candidate",
     },
     AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: {
       documentType: "GENERIC_ADMINISTRATIVE_NOTICE",

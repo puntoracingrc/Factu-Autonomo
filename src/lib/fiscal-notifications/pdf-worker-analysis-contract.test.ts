@@ -317,7 +317,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
 
     expect(analysis).toMatchObject({
       familyAnalysis: {
-        engineVersion: "1.4.0",
+        engineVersion: "1.5.0",
         reason: "SUPPORTED_FAMILY_CANDIDATE",
         candidates: [
           expect.objectContaining({
@@ -346,7 +346,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
 
     expect(analysis).toMatchObject({
       familyAnalysis: {
-        engineVersion: "1.4.0",
+        engineVersion: "1.5.0",
         reason: "CONFLICTING_AUTHORITY_OR_TERRITORY",
         candidates: [
           expect.objectContaining({
@@ -488,6 +488,19 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
     [
       [
         "AGENCIA TRIBUTARIA",
+        "www.agenciatributaria.gob.es",
+        "REQUERIMIENTO",
+        "IDENTIFICACION DEL DOCUMENTO",
+        "ACUERDO",
+        "DOCUMENTACION JUSTIFICATIVA",
+        "PLAZO",
+      ].join("\n"),
+      "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE",
+      "GENERIC_ADMINISTRATIVE_NOTICE",
+    ],
+    [
+      [
+        "AGENCIA TRIBUTARIA",
         "sede.agenciatributaria.gob.es",
         "ACUERDO DE ALTA EN EL REGISTRO DE OPERADORES INTRACOMUNITARIOS",
       ].join("\n"),
@@ -511,7 +524,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       const analysis = reviewOnlyFamilyAnalysis(text);
       expect(analysis).toMatchObject({
         familyAnalysis: {
-          engineVersion: "1.4.0",
+          engineVersion: "1.5.0",
           reason: "SUPPORTED_FAMILY_CANDIDATE",
           candidates: [
             { familyId, segmentationVersion: "1.1.0", documentType },
@@ -1189,7 +1202,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
       enforcementPartyFacts: null,
     });
     expect(analysis.familyAnalysis).toMatchObject({
-      engineVersion: "1.4.0",
+      engineVersion: "1.5.0",
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       candidates: [

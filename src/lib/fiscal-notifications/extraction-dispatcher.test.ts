@@ -42,6 +42,11 @@ const FORMAL_FILING_REQUIREMENT =
   "Agencia Tributaria\nsede.agenciatributaria.gob.es\n" +
   "REQUERIMIENTO DE PRESENTACIÓN DE DECLARACIONES O AUTOLIQUIDACIONES\n" +
   "Declaraciones o autoliquidaciones no presentadas";
+const DOCUMENTATION_REQUIREMENT =
+  "Agencia Tributaria\nwww.agenciatributaria.gob.es\n" +
+  "REQUERIMIENTO\nIDENTIFICACIÓN DEL DOCUMENTO\nACUERDO\n" +
+  "Deberá aportar la documentación justificativa que se indica a continuación\n" +
+  "PLAZO\nDiez días hábiles";
 const ROI_REGISTRATION =
   "Agencia Tributaria\nsede.agenciatributaria.gob.es\n" +
   "ACUERDO DE ALTA EN EL REGISTRO DE OPERADORES INTRACOMUNITARIOS";
@@ -54,24 +59,26 @@ describe("fiscal notification extraction dispatcher", () => {
     [OFFSET_AGREEMENT, "AEAT_OFFSET_AGREEMENT_CANDIDATE"],
     [REAL_ESTATE_SEIZURE, "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE"],
     [FORMAL_FILING_REQUIREMENT, "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE"],
+    [DOCUMENTATION_REQUIREMENT, "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE"],
     [ROI_REGISTRATION, "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE"],
   ])("returns a review-only candidate for a complete supported family", (text, familyId) => {
     const result = extractFiscalNotificationCandidates(documentWith(text));
 
-    expect(result).toMatchObject({
-      engineVersion: "1.4.0",
-      status: "REVIEW_REQUIRED",
-      reason: "SUPPORTED_FAMILY_CANDIDATE",
-      selectedFamilyId: null,
-      materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
-      requiresHumanReview: true,
-      retainedSourceContent: "NONE",
-    });
-    expect(result.candidates).toHaveLength(1);
-    expect(result.candidates[0]?.familyId).toBe(familyId);
-    expect(result.candidates[0]?.segmentationVersion).toBe("1.1.0");
-    expect(JSON.stringify(result)).not.toContain(text);
-  });
+      expect(result).toMatchObject({
+        engineVersion: "1.5.0",
+        status: "REVIEW_REQUIRED",
+        reason: "SUPPORTED_FAMILY_CANDIDATE",
+        selectedFamilyId: null,
+        materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+        requiresHumanReview: true,
+        retainedSourceContent: "NONE",
+      });
+      expect(result.candidates).toHaveLength(1);
+      expect(result.candidates[0]?.familyId).toBe(familyId);
+      expect(result.candidates[0]?.segmentationVersion).toBe("1.1.0");
+      expect(JSON.stringify(result)).not.toContain(text);
+    },
+  );
 
   it.each([
     [
@@ -95,6 +102,10 @@ describe("fiscal notification extraction dispatcher", () => {
       "AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE",
     ],
     [
+      "REQUERIMIENTO\nIDENTIFICACIÓN DEL DOCUMENTO\nACUERDO\nDocumentación justificativa\nPLAZO",
+      "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE",
+    ],
+    [
       "ACUERDO DE ALTA EN EL REGISTRO DE OPERADORES INTRACOMUNITARIOS\nIDENTIFICACIÓN DEL DOCUMENTO",
       "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE",
     ],
@@ -103,7 +114,7 @@ describe("fiscal notification extraction dispatcher", () => {
     (text, familyId) => {
       const result = extractFiscalNotificationCandidates(documentWith(text));
       expect(result).toMatchObject({
-        engineVersion: "1.4.0",
+        engineVersion: "1.5.0",
         status: "REVIEW_REQUIRED",
         reason: "SUPPORTED_FAMILY_CANDIDATE",
         candidates: [
@@ -240,7 +251,7 @@ describe("fiscal notification extraction dispatcher", () => {
       ),
     );
     expect(result).toMatchObject({
-      engineVersion: "1.4.0",
+      engineVersion: "1.5.0",
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       candidates: [
@@ -361,7 +372,7 @@ describe("fiscal notification extraction dispatcher", () => {
     });
   });
 
-  it("recognizes the second closed formal-filing title without broadening requerimiento", () => {
+  it("keeps the generic requerimiento title incomplete without its closed structure", () => {
     const result = extractFiscalNotificationCandidates(
       documentWith(
         [
@@ -386,8 +397,44 @@ describe("fiscal notification extraction dispatcher", () => {
         ),
       ),
     ).toMatchObject({
-      reason: "NO_SUPPORTED_FAMILY_SIGNAL",
-      candidates: [],
+      reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
+      candidates: [
+        expect.objectContaining({
+          familyId: "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE",
+          missingRequiredAnchorIds: expect.arrayContaining([
+            "DOCUMENT_IDENTIFICATION_SECTION",
+            "DOCUMENTATION_REQUIREMENT_AGREEMENT_SECTION",
+            "DOCUMENTATION_REQUIREMENT_DEADLINE_SECTION",
+            "DOCUMENTATION_REQUIREMENT_BODY_MARKER",
+          ]),
+        }),
+      ],
+    });
+  });
+
+  it("does not recognize a documentation requirement without a literal request for documents", () => {
+    expect(
+      extractFiscalNotificationCandidates(
+        documentWith(
+          [
+            "Agencia Tributaria",
+            "www.agenciatributaria.gob.es",
+            "REQUERIMIENTO",
+            "IDENTIFICACIÓN DEL DOCUMENTO",
+            "ACUERDO",
+            "PLAZO",
+          ].join("\n"),
+        ),
+      ),
+    ).toMatchObject({
+      status: "INFORMATION_PENDING",
+      reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
+      candidates: [
+        expect.objectContaining({
+          familyId: "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE",
+          missingRequiredAnchorIds: ["DOCUMENTATION_REQUIREMENT_BODY_MARKER"],
+        }),
+      ],
     });
   });
 
@@ -416,7 +463,7 @@ describe("fiscal notification extraction dispatcher", () => {
       documentWith("Wrapper sintético", "Continuación", text),
     );
     expect(result).toMatchObject({
-      engineVersion: "1.4.0",
+      engineVersion: "1.5.0",
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       candidates: [
@@ -665,7 +712,7 @@ describe("fiscal notification extraction dispatcher", () => {
     expect(
       extractFiscalNotificationCandidates(documentWith(withoutOfficialDomain)),
     ).toMatchObject({
-      engineVersion: "1.4.0",
+      engineVersion: "1.5.0",
       status: "REVIEW_REQUIRED",
       reason: "SUPPORTED_FAMILY_CANDIDATE",
       candidates: [
@@ -744,7 +791,7 @@ describe("fiscal notification extraction dispatcher", () => {
     );
 
     expect(result).toMatchObject({
-      engineVersion: "1.4.0",
+      engineVersion: "1.5.0",
       status: "INFORMATION_PENDING",
       reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
       selectedFamilyId: null,

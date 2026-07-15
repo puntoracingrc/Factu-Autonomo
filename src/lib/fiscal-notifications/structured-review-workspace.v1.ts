@@ -1919,7 +1919,9 @@ function parseTechnicalReview(
     root.status !== "REVIEW_REQUIRED" ||
     root.reason !== "SUPPORTED_FAMILY_CANDIDATE" ||
     root.engineId !== "fiscal-notification-family-candidate-engine" ||
-    (root.engineVersion !== "1.3.0" && root.engineVersion !== "1.4.0") ||
+    (root.engineVersion !== "1.3.0" &&
+      root.engineVersion !== "1.4.0" &&
+      root.engineVersion !== "1.5.0") ||
     root.selectedFamilyId !== null ||
     root.providerCalled !== false ||
     root.requiresHumanReview !== true ||
@@ -1992,7 +1994,7 @@ function parseTechnicalReview(
     pageCount: root.pageCount as number,
     byteLength: root.byteLength as number,
     sha256: root.sha256,
-    engineVersion: root.engineVersion as "1.3.0" | "1.4.0",
+    engineVersion: root.engineVersion as "1.3.0" | "1.4.0" | "1.5.0",
     candidate:
       candidate as unknown as FiscalNotificationLocalReviewResult["candidates"][number],
   };
