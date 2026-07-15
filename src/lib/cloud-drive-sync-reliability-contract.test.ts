@@ -61,6 +61,23 @@ describe("cloud and Drive reliability contract", () => {
     expect(domain).not.toMatch(/originalFilename|rawText|accessToken/u);
   });
 
+  it("solo envía a la papelera el original exclusivo verificado y puede restaurarlo", () => {
+    const library = source(
+      "src/components/fiscal-notifications/FiscalNotificationDocumentLibrary.tsx",
+    );
+    const deletion = source(
+      "src/lib/google-drive/fiscal-notification-original-delete.v1.ts",
+    );
+
+    expect(library).toContain("trashFiscalNotificationOriginalInGoogleDriveV1");
+    expect(library).toContain("restoreFiscalNotificationOriginalInGoogleDriveV1");
+    expect(library).toContain("archive.documentIds.length === 1");
+    expect(deletion).toContain("factuSourceSha256");
+    expect(deletion).toContain("factuManaged");
+    expect(deletion).toContain("JSON.stringify({ trashed })");
+    expect(deletion).not.toMatch(/method:\s*["']DELETE["']/u);
+  });
+
   it("mantiene la politica en la raiz y protege sus archivos", () => {
     const agents = source("AGENTS.md");
     const codeowners = source(".github/CODEOWNERS");
@@ -77,5 +94,6 @@ describe("cloud and Drive reliability contract", () => {
     expect(adr).toContain("coincide exactamente");
     expect(adr).toContain("Fecha pendiente");
     expect(adr).toContain("SHA256_READBACK_MATCH");
+    expect(adr).toContain("trashed: true");
   });
 });

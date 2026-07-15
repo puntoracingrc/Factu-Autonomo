@@ -188,6 +188,10 @@ La decisión obligatoria y versionada está en
   coincidencia SHA-256 exacta. Factu no conserva PDF, nombre ni texto; guarda
   identificadores opacos, huella y estado. La ruta usa la fecha documental
   `AAAA/MM` o «Fecha pendiente», nunca la fecha de escaneo.
+- Eliminar una ficha conserva Drive por omisión. Solo una elección separada
+  puede enviar a la papelera un original exclusivo y verificado: se comprueban
+  ID, política administrada y SHA-256, se relee `trashed: true`, nunca se borra
+  permanentemente y se intenta restaurar si falla la eliminación durable local.
 - La copia manual y la automática no pueden ejecutarse a la vez. Un fallo
   automático conserva la firma pendiente y programa reintento; la retención se
   aplica después de verificar la copia nueva y nunca borra archivos ajenos.
@@ -197,6 +201,7 @@ La decisión obligatoria y versionada está en
   `sync-queue.test.ts`, `repository.test.ts`, `google-drive/operation.test.ts`
   `google-drive/backup.test.ts` y las regresiones
   `fiscal-notification-original-archive.v1.test.ts` y
+  `fiscal-notification-original-delete.v1.test.ts` y
   `drive-original-archive.v1.test.ts`.
 
 ## Fiabilidad del maestro de clientes

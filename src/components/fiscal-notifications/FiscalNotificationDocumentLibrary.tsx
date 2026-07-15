@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   ArrowLeft,
   ArrowRight,
+  CalendarDays,
   Cloud,
   ExternalLink,
   FileText,
@@ -26,6 +27,16 @@ import {
 import { fiscalNotificationDriveFileHrefV1 } from "@/lib/fiscal-notifications/drive-original-archive.v1";
 import { analyzeFiscalNotificationDocumentDeletionV1 } from "@/lib/fiscal-notifications/document-deletion.v1";
 import type { FiscalNotificationStructuredHistoryEntryV1 } from "@/lib/fiscal-notifications/structured-review-history-view-model.v1";
+import { hasUsableDriveToken } from "@/lib/google-drive/backup";
+import {
+  restoreFiscalNotificationOriginalInGoogleDriveV1,
+  trashFiscalNotificationOriginalInGoogleDriveV1,
+} from "@/lib/google-drive/fiscal-notification-original-delete.v1";
+import {
+  getGoogleDriveClientId,
+  isGoogleDriveBackupEnabled,
+} from "@/lib/google-drive/config";
+import { runExclusiveDriveOperation } from "@/lib/google-drive/operation";
 
 type DocumentGroupOrderV1 = "FIRST_DOCUMENT" | "LATEST_DOCUMENT";
 
@@ -36,8 +47,7 @@ export function FiscalNotificationDocumentLibrary({
   viewModel: FiscalNotificationDocumentLibraryViewModelV1;
   ownerScope: string;
 }) {
-  const { data, getCurrentData, deleteFiscalNotificationDocument } =
-    useAppStore();
+  const { getCurrentData, deleteFiscalNotificationDocument } = useAppStore();
   const [query, setQuery] = useState("");
   const [order, setOrder] = useState<DocumentGroupOrderV1>("FIRST_DOCUMENT");
   const [deleteDocumentId, setDeleteDocumentId] = useState<string | null>(null);
@@ -72,18 +82,6 @@ export function FiscalNotificationDocumentLibrary({
   const deleteCandidate = deleteDocumentId
     ? viewModel.documents.find((item) => item.key === deleteDocumentId) ?? null
     : null;
-  const deleteAnalysis = useMemo(
-    () =>
-      deleteDocumentId
-        ? analyzeFiscalNotificationDocumentDeletionV1({
-            workspace: data.fiscalNotificationsWorkspace,
-            ownerScope,
-            documentId: deleteDocumentId,
-          })
-        : null,
-    [data.fiscalNotificationsWorkspace, deleteDocumentId, ownerScope],
-  );
-
   function requestDelete(documentId: string): void {
     setDeleteError(null);
     setDeleteDocumentId(documentId);
@@ -95,8 +93,24 @@ export function FiscalNotificationDocumentLibrary({
     setDeleteDocumentId(null);
   }
 
-  function confirmDelete(): void {
+  async function confirmDelete(deleteDriveOriginal: boolean): Promise<void> {
     if (!deleteDocumentId || deleteBusy) return;
+    const candidate = deleteCandidate;
+    const archive = candidate?.originalArchive ?? null;
+    const canDeleteDriveOriginal =
+      archive !== null &&
+      archive.documentIds.length === 1 &&
+      archive.documentIds[0] === deleteDocumentId;
+    if (deleteDriveOriginal && !canDeleteDriveOriginal) {
+      setDeleteError(
+        "Este original también pertenece a otra ficha y no se puede eliminar desde aquí.",
+      );
+      return;
+    }
+    if (deleteDriveOriginal && !isGoogleDriveBackupEnabled()) {
+      setDeleteError("Google Drive no está disponible en esta instalación de Factu.");
+      return;
+    }
     const expected = getCurrentData();
     const currentAnalysis = analyzeFiscalNotificationDocumentDeletionV1({
       workspace: expected.fiscalNotificationsWorkspace,
@@ -108,22 +122,74 @@ export function FiscalNotificationDocumentLibrary({
       return;
     }
     setDeleteBusy(true);
+    setDeleteError(null);
+    let driveTrashChanged = false;
+    if (deleteDriveOriginal && archive) {
+      const execution = await runExclusiveDriveOperation(() =>
+        trashFiscalNotificationOriginalInGoogleDriveV1(
+          {
+            driveFileId: archive.driveFileId,
+            expectedSha256: archive.sourceSha256,
+          },
+          {
+            clientId: getGoogleDriveClientId(),
+            prompt: hasUsableDriveToken() ? "" : "consent",
+          },
+        ),
+      );
+      if (!execution.started) {
+        setDeleteBusy(false);
+        setDeleteError(
+          "Google Drive está realizando otra operación. Inténtalo de nuevo.",
+        );
+        return;
+      }
+      if (!execution.value.ok) {
+        setDeleteBusy(false);
+        setDeleteError(execution.value.error);
+        return;
+      }
+      driveTrashChanged = execution.value.changedByOperation;
+    }
+
     const result = deleteFiscalNotificationDocument({
       expected,
       ownerScope,
       documentId: deleteDocumentId,
       deletedAt: new Date().toISOString(),
     });
-    setDeleteBusy(false);
     if (result.status === "applied") {
+      setDeleteBusy(false);
       setDeleteError(null);
       setDeleteDocumentId(null);
       return;
     }
-    setDeleteError(
+    let rollbackFailed = false;
+    if (deleteDriveOriginal && archive && driveTrashChanged) {
+      const rollback = await runExclusiveDriveOperation(() =>
+        restoreFiscalNotificationOriginalInGoogleDriveV1(
+          {
+            driveFileId: archive.driveFileId,
+            expectedSha256: archive.sourceSha256,
+          },
+          {
+            clientId: getGoogleDriveClientId(),
+            prompt: "",
+          },
+        ),
+      );
+      rollbackFailed =
+        !rollback.started || (rollback.started && !rollback.value.ok);
+    }
+    setDeleteBusy(false);
+    const localError =
       result.status === "indeterminate"
         ? "No se puede confirmar si el cambio quedó guardado. Recarga antes de intentarlo otra vez."
-        : "La ficha no se ha eliminado porque los datos cambiaron o tienen dependencias que deben revisarse.",
+        : "El documento no se ha eliminado porque los datos cambiaron o tienen dependencias que deben revisarse.";
+    setDeleteError(
+      rollbackFailed
+        ? `${localError} Revisa también la papelera de Google Drive.`
+        : localError,
     );
   }
 
@@ -202,27 +268,20 @@ export function FiscalNotificationDocumentLibrary({
       ) : (
         <DocumentGroupList
           groups={groups}
-          order={order}
           onDelete={requestDelete}
         />
       )}
       <FiscalNotificationDeleteConfirmationModal
         open={deleteCandidate !== null}
-        title={deleteCandidate?.title ?? "Documento"}
-        relationCount={
-          deleteAnalysis?.status === "READY" ? deleteAnalysis.relationCount : 0
-        }
-        driveHref={
-          deleteCandidate?.originalArchive
-            ? fiscalNotificationDriveFileHrefV1(
-                deleteCandidate.originalArchive.driveFileId,
-              )
-            : null
+        hasDriveOriginal={
+          deleteCandidate?.originalArchive?.documentIds.length === 1 &&
+          deleteCandidate.originalArchive.documentIds[0] === deleteCandidate.key
         }
         busy={deleteBusy}
         error={deleteError}
         onClose={closeDelete}
-        onConfirm={confirmDelete}
+        onConfirmLocalOnly={() => void confirmDelete(false)}
+        onConfirmIncludingDrive={() => void confirmDelete(true)}
       />
     </section>
   );
@@ -505,27 +564,17 @@ function DocumentExplanationPanel({
 
 function DocumentGroupList({
   groups,
-  order,
   onDelete,
 }: {
   groups: readonly FiscalNotificationDocumentLibraryGroupV1[];
-  order: DocumentGroupOrderV1;
   onDelete: (documentId: string) => void;
 }) {
-  let previousDivider = "";
   return (
     <ol className="mt-3 space-y-3">
       {groups.map((group) => {
-        const sortingKey =
-          order === "FIRST_DOCUMENT"
-            ? group.firstDocumentChronologyKey
-            : group.latestDocumentChronologyKey;
-        const divider = formatMonthDivider(sortingKey);
-        const showDivider = divider !== previousDivider;
-        previousDivider = divider;
         return (
           <Fragment key={group.key}>
-            {showDivider ? <TimelineMonthDivider label={divider} /> : null}
+            <TimelineMonthDivider label={formatGroupMonthSequence(group)} />
             <li>
               <Card className="overflow-hidden p-4 sm:p-5">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
@@ -634,27 +683,22 @@ function DocumentCard({
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
             <FileText aria-hidden="true" className="h-5 w-5" />
           </span>
-          {document.originalArchive ? (
-            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-900">
-              Original en Drive
-            </span>
-          ) : (
-            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-900">
-              Solo ficha
-            </span>
-          )}
+          <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-bold text-blue-900">
+            {abbreviateAuthority(document.authority)}
+          </span>
         </div>
-        <p className="mt-4 text-xs font-bold uppercase tracking-wide text-blue-700">
-          {document.documentDate
-            ? `${formatDocumentDateBasis(document.documentDateBasis)} · ${formatDocumentDate(document.documentDate)}`
-            : "Fecha del documento pendiente"}
-        </p>
-        <h4 className="mt-1 line-clamp-3 text-base font-bold leading-5 text-slate-950">
+        <h4 className="mt-4 line-clamp-4 text-lg font-bold leading-6 text-slate-950">
           {document.title}
         </h4>
-        <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">
-          {document.authority}
-        </p>
+        {document.documentDate ? (
+          <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-600">
+            <CalendarDays
+              aria-hidden="true"
+              className="h-4 w-4 text-blue-600"
+            />
+            {formatDocumentDate(document.documentDate)}
+          </p>
+        ) : null}
         <div className="mt-auto pt-4">
           <DocumentAmounts document={document} />
           <p className="mt-3 text-xs font-bold text-blue-700">
@@ -1020,13 +1064,53 @@ function deletionError(
 function formatMonthDivider(value: string): string {
   const date = value.slice(0, 10);
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  if (!match) return "Sin fecha del documento";
+  if (!match) return "Fecha pendiente";
   const label = new Intl.DateTimeFormat("es-ES", {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(`${date}T00:00:00.000Z`));
   return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
+function formatGroupMonthSequence(
+  group: FiscalNotificationDocumentLibraryGroupV1,
+): string {
+  const labels = group.documents.map((document) =>
+    document.documentDate
+      ? formatMonthDivider(`${document.documentDate}T00:00:00.000Z`)
+      : "Fecha pendiente",
+  );
+  return labels
+    .filter((label, index) => labels[index - 1] !== label)
+    .join(" → ");
+}
+
+function abbreviateAuthority(value: string): string {
+  const normalized = normalizeSearch(value);
+  if (
+    normalized.includes("agencia estatal de administracion tributaria") ||
+    normalized === "agencia tributaria" ||
+    normalized === "aeat"
+  ) {
+    return "AEAT";
+  }
+  if (
+    normalized.includes("boletin oficial del estado") ||
+    normalized === "boe"
+  ) {
+    return "BOE";
+  }
+  if (normalized.includes("tesoreria general de la seguridad social")) {
+    return "TGSS";
+  }
+  const initials = value
+    .split(/\s+/u)
+    .filter((word) => !/^(?:de|del|la|las|el|los|y|e)$/iu.test(word))
+    .map((word) => word[0]?.toLocaleUpperCase("es-ES") ?? "")
+    .join("")
+    .slice(0, 8);
+  return initials || "Organismo";
 }
 
 function formatMoney(amountCents: number, currency: "EUR" | "UNKNOWN"): string {

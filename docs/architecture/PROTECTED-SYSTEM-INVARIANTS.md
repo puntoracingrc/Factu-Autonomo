@@ -97,10 +97,15 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
 - Un original fiscal exige acción expresa y coincidencia SHA-256 tras relectura.
   Factu no conserva sus bytes, texto o nombre; la carpeta usa fecha documental
   `AAAA/MM` o «Fecha pendiente», jamás la fecha de escaneo.
+- La papelera local conserva Drive por omisión. Enviar también un original a la
+  papelera remota exige una elección separada, que sea exclusivo de esa ficha,
+  coincidencia exacta de ID/política/SHA-256 y readback; nunca usa borrado
+  permanente y restaura el archivo si falla el cambio local.
 
 Regresiones mínimas: `cloud-drive-sync-reliability-contract.test.ts`,
 `sync-operation.test.ts`, `sync-queue.test.ts`, `repository.test.ts`,
-`google-drive/operation.test.ts` y `google-drive/backup.test.ts`.
+`google-drive/operation.test.ts`, `google-drive/backup.test.ts` y
+`google-drive/fiscal-notification-original-delete.v1.test.ts`.
 
 ### 6. Maestro de clientes y vínculos documentales
 

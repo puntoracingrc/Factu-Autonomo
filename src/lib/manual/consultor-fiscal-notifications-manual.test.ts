@@ -38,12 +38,15 @@ describe("manual de Notificaciones y expedientes", () => {
     const text = notificationManualText();
 
     expect(text).toContain("Documentos escaneados y expedientes");
-    expect(text).toContain("Solo ficha");
-    expect(text).toContain("Original en Drive");
+    expect(text).toContain("organismo abreviado");
+    expect(text).toContain("meses y años");
     expect(text).toContain("Fecha del primer documento");
     expect(text).toContain("Fecha del último documento");
     expect(text).toContain("de izquierda a derecha");
     expect(text).toContain("Relación detectada · revisar");
     expect(text).toContain("no inventa cuál causó a cuál");
+    expect(text).toContain("¿Eliminar este documento?");
+    expect(text).toContain("¿Quieres eliminar también el documento original");
+    expect(text).toContain("papelera de Drive");
   });
 });

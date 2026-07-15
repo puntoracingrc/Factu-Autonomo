@@ -90,6 +90,8 @@ export interface FiscalNotificationStructuredHistoryEntryV1 {
   readonly originalArchive: Readonly<{
     status: "ARCHIVED_VERIFIED";
     driveFileId: string;
+    sourceSha256: string;
+    documentIds: readonly string[];
     archivedAt: string;
   }> | null;
 }
@@ -223,6 +225,8 @@ export function projectFiscalNotificationStructuredHistoryV1(
             Object.freeze({
               status: archive.archiveStatus,
               driveFileId: archive.driveFileId,
+              sourceSha256: archive.sourceSha256,
+              documentIds: Object.freeze([...archive.documentIds]),
               archivedAt: archive.archivedAt,
             }),
           ] as const,

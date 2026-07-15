@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 2
-- Fecha: 2026-07-15
+- Versión: 3
+- Fecha: 2026-07-16
 
 ## Contexto
 
@@ -82,9 +82,19 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
    seleccionarlo ofrece «Archivar original en Drive». Si ya está archivado, se
    rechaza como duplicado. Los escaneos históricos deben reseleccionarse porque
    Factu no conserva sus originales.
-7. La ficha distingue «Solo ficha» de «Original en Drive». Abrir o descargar el
-   original navega al archivo del usuario; Factu no actúa como proxy ni usa el
+7. El detalle distingue si existe un original verificado en Drive. Abrir o
+   descargar navega al archivo del usuario; Factu no actúa como proxy ni usa el
    PDF remoto para alterar automáticamente deudas, pagos, plazos o asientos.
+8. La papelera de una ficha nunca modifica Drive por omisión. Si esa ficha es la
+   única vinculada a un original verificado, la confirmación pregunta de forma
+   separada si el usuario quiere conservarlo o enviarlo también a la papelera
+   de Google Drive. Un original compartido por varias fichas no ofrece esa
+   acción remota.
+9. La retirada remota exige otro clic explícito, el mismo bloqueo exclusivo y
+   comprobar `fileId`, PDF, política administrada y SHA-256 mediante
+   `appProperties`. Solo se usa `trashed: true`, nunca un borrado permanente. Se
+   relee el estado remoto y, si después falla el borrado durable de la ficha,
+   se intenta restaurar el original con `trashed: false` y otra relectura.
 
 ## Consecuencias
 
@@ -94,6 +104,9 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
   aceptación de la subida.
 - Un usuario puede archivar y recuperar sus originales sin que Factu custodie
   el PDF ni use la fecha de escaneo como fecha documental.
+- Borrar una ficha y retirar su original son decisiones independientes; la
+  segunda es reversible desde la papelera de Drive y nunca afecta a archivos
+  ajenos o compartidos.
 - Ningún mecanismo puede prometer disponibilidad absoluta de proveedores
   externos, pero los fallos quedan acotados, observables y reintentables.
 
@@ -109,6 +122,7 @@ deben superar:
 - `src/lib/google-drive/operation.test.ts`
 - `src/lib/google-drive/backup.test.ts`
 - `src/lib/google-drive/fiscal-notification-original-archive.v1.test.ts`
+- `src/lib/google-drive/fiscal-notification-original-delete.v1.test.ts`
 - `src/lib/fiscal-notifications/drive-original-archive.v1.test.ts`
 - `src/lib/fiscal-notifications/drive-original-archive-command.v1.test.ts`
 

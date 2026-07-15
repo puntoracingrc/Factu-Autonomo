@@ -375,6 +375,8 @@ describe("structured fiscal notification history view model v1", () => {
     expect(result.entries[0]?.originalArchive).toEqual({
       status: "ARCHIVED_VERIFIED",
       driveFileId: "drive_file_history",
+      sourceSha256: "c".repeat(64),
+      documentIds: ["document:synthetic-history"],
       archivedAt: "2026-07-15T09:00:00.000Z",
     });
     expect(JSON.stringify(result)).not.toContain("drive_folder_history");
