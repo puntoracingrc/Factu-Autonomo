@@ -1,0 +1,39 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                       349
+Declaración recapitulativa de operaciones intracomunitarias                                                                        Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen recapitulativo
+ NIF                     B22006852                         Titular / entidad                ENTIDAD SINTÉTICA 072 S.L.
+
+ Ejercicio               2026                              Periodo                          2T
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Totales
+ Operadores                                           1
+ Importe total                                        9.200,00
+
+
+
+
+                                                                                                                       CO
+                                                                                                       É            TI
+                                                                                                     T
+                                                                                                 S IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_349_incomplete_ambiguous_072__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

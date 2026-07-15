@@ -1,0 +1,125 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                               CERT-ARREND
+
+ón del arrendador                                                                                               Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de exoneración
+
+NIF                         B25412024                           Titular / entidad                ENTIDAD SINTÉTICA 115 S.L.
+Ejercicio                         2026                                                Periodo                                    N/A
+Tipo documental           SYNTHETIC COMPLEMENTA Estado esperado                    ACCEPT _WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Datos certificados
+
+Fecha de expedición                                           11/07/2026
+
+Exoneración de retención                                ACREDITADA
+
+Validez desde                                                 0101/2026
+
+Validez hasta                                             3112/2026
+
+Alcance                                                 IAE GRUPO 861 - INMUEBLES URBANOS
+
+Observaciones                                         Yálida para el arrendador identificado; comprobar comcidencia del NIF
+cv                                                                           CSV-SYN-ARR-0003
+
+cert landiord withholdng exemption complex 115 native - NO PRESENTABLE - datos intalmente sintéticos                                     NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+CERT-ARREND
+
+Ge
+
+e
+
+ficado
+
+ción di
+
+ón del arrendador
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de exoneración
+
+NIF
+
+B25412024
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 115 S.L.
+
+2026
+
+Periodo
+
+N/A
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Datos certificados
+
+Fecha de expedición
+
+11/07/2026
+
+Exoneración de retención
+
+ACREDITADA
+
+Validez desde
+
+01/01/2026
+
+Validez hasta
+
+31/12/2026
+
+Alcance
+
+IAE GRUPO 861 - INMUEBLES URBANOS
+
+Observaciones
+
+Yálida para el arrendador identificado; comprobar comcidencia del NIF
+
+csv
+
+CSV-SYN-ARR-0003
+
+co
+
+e
+
+NN
+
+KO
+
+N
+
+NN
+
+yo
+
+cert landiord withhoding exemption complex 115
+
+native
+
+NO PRESENTABLE - datos infalmente sintéticos
+
+NATIVE TEXT PDF

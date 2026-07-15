@@ -1,0 +1,75 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                             714
+Impuesto sobre el Patrimonio                                                                                             Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen patrimonial
+ NIF                     12008927Y                         Titular / entidad   PERSONA SINTÉTICA 079
+
+ Ejercicio               2025                              Periodo             ANUAL
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Liquidación
+ Patrimonio bruto                                     4.330.000,00
+ Bienes exentos                                       950.000,00
+ Deudas deducibles                                    400.000,00
+ Base imponible                                       2.980.000,00
+ Cuota a ingresar                                     19.500,00
+
+
+
+
+                                                                                                          CO
+                                                                                           É           TI
+                                                                                         T
+                                                                                  S    IN
+                                                                     T O
+                                                  M                EN
+                                              C U
+                                 DO
+
+
+
+
+model_714_complex_079__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   714
+Impuesto sobre el Patrimonio                                                                                                   Página 2
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Categorías de bienes
+  Detalle
+Categoría                                   Valor                              Exento/deuda              Computable
+Inmuebles                                   1.800.000,00                       400.000,00                1.400.000,00
+Empresa familiar exenta                     950.000,00                         950.000,00                0,00
+Valores                                     1.200.000,00                       0,00                      1.200.000,00
+Seguros y rentas                            380.000,00                         0,00                      380.000,00
+
+
+
+
+                                                                                                        CO
+                                                                                                É    TI
+                                                                                              T
+                                                                                      S     IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_714_complex_079__native - NO PRESENTABLE - datos totalmente sintéticos                                            NATIVE_TEXT_PDF
+

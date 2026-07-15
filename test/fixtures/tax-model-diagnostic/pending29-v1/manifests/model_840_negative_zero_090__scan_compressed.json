@@ -1,0 +1,111 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_840_negative_zero_090__scan_compressed",
+  "baseFixtureId": "model_840_negative_zero_090",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_MODEL_840",
+  "displayName": "840 - Declaración de alta, baja o variación en el IAE - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "CURRENT_AS_OF_EFFECTIVE_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B23432271",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 090 S.L.",
+    "document.code": "840",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "iae.action": "BAJA",
+    "iae.epigraph": "653.2",
+    "iae.activity": "Comercio menor de aparatos",
+    "iae.effectiveDate": "31/03/2026",
+    "iae.reason": "CESE"
+  },
+  "expectedQuestionMappings": {
+    "IAE.STATUS": "DEREGISTERED"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B23432271"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 090 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_840"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "840"
+    },
+    {
+      "fieldId": "iae.action",
+      "page": 1,
+      "label": "Tipo de declaración",
+      "value": "BAJA"
+    },
+    {
+      "fieldId": "iae.epigraph",
+      "page": 1,
+      "label": "Grupo o epígrafe",
+      "value": "653.2"
+    },
+    {
+      "fieldId": "iae.activity",
+      "page": 1,
+      "label": "Actividad",
+      "value": "Comercio menor de aparatos"
+    },
+    {
+      "fieldId": "iae.effectiveDate",
+      "page": 1,
+      "label": "Fecha de efectos",
+      "value": "31/03/2026"
+    },
+    {
+      "fieldId": "iae.reason",
+      "page": 1,
+      "label": "Motivo",
+      "value": "CESE"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G323.shtml",
+      "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/G323/mod840e_es_es.pdf"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_840_negative_zero_090__scan_compressed.pdf",
+  "sha256": "d00d309180d57598b847a389f1c40441524086a10ebf47bbd03c499cb7466b19"
+}

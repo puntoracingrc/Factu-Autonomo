@@ -1,0 +1,144 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                             CERT-ARREND
+
+de retención del arendador                                                                                                                         Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de exoneración
+
+NIF                             B25412024                                Titular / entidad                   ENTIDAD SINTÉTICA 115S.L.
+
+| Ejercicio            | 2026                          Periodo                  N/A
+
+Tipo documental SYNTHETIC_ COMPLEMENTA Estado esperado      — ACCEPT_WITH SYNTHETIC_LIMITATION
+|                  AY_OR_MULTI_RECORD                          |
+
+Datos certificados
+
+Fecha de expedición                                                 11/07/2026
+
+Exoneración de retención                                        ACREDITADA
+
+Validez desde                                                            01/01/2028
+
+Validez hasta                                                             31/12/2026
+
+Alcance                                                         IAE GRUPO 861 - INMUEBLES URBANOS
+
+Observaciones                         Válida para él arrendador identificado; comprobar coincidencia del NIF
+esv                                               - CSV-SYN-ARR-0003
+
+[2       _wihhohdimg     Lo        plex_115_ native - NO PRESENTABLE - datos totalmente sintéticos                                                     NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+CERT-ARREND
+
+de retención del arendador
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de exoneración
+
+T
+
+—— |
+
+B25412024
+
+== - —  —s == —!
+
+Titular / entidad
+
+“ENTIDAD SINTÉTICA 1158
+
+E
+
+AE
+
+| 2026
+
+pr
+
+Periodo
+
+—»
+
+N/A
+
+Tipo documental
+
+— SYNTHETIC_COMPLEMENTA Estado esperado
+
+| ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+A ————SSMÑG |
+
+AY_OR_MULTI_RECORD
+
+TEN
+
+—
+
+—
+
+————I—
+
+——
+
+—
+
+r——
+
+Datos certificados
+
+Fecha de expedición
+
+11/07/2025
+
+Exoneración de retención
+
+ACREDITADA
+
+Validez desde
+
+01/01/2026
+
+Validez hasta
+
+31/12/2026
+
+Alcance
+
+IAE GRUPO 861 - INMUEBLES URBANOS
+
+Observaciones
+
+Válida para él arrendador identificado; comprobar coincidencia del NIF
+
+Csv
+
+CSV-SYN-ARR-0003
+
+co
+
+N
+
+Ne
+
+se
+
+UN
+
+..
+
+cen
+
+-
+
+La
+
+115_ native - NO PRESENTABLE - datos totalmente sintélicos
+
+NATIVE _TEXT_PDF

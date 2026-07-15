@@ -1,0 +1,67 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                720
+Bienes y derechos situados en el extranjero                                                                                 Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen informativo
+ NIF                     12009266T                          Titular / entidad        PERSONA SINTÉTICA 082
+
+ Ejercicio               2025                               Periodo                  ANUAL
+
+ Tipo documental         SYNTHETIC_EMPTY_DRAFT              Estado esperado          REVIEW_OR_REJECT
+
+
+  Totales
+ Registros                                             0
+ Estado                                                BORRADOR VACÍO
+
+
+
+
+                                                                                                                CO
+                                                                                                 É           TI
+                                                                                               T
+                                                                                       S     IN
+                                                                     T O
+                                                   M               EN
+                                               C U
+                                  DO
+
+
+
+
+model_720_negative_zero_082__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                 720
+Bienes y derechos situados en el extranjero                                                                                  Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Bienes y derechos en el extranjero
+  Detalle
+Clave                    País                      Entidad/bien             Condición       Fecha         Valor   Estado
+
+
+
+
+                                                                                                         CO
+                                                                                             É        TI
+                                                                                           T
+                                                                                        SIN
+                                                                     T O
+                                                   M               EN
+                                               C U
+                                  DO
+
+
+
+
+model_720_negative_zero_082__native - NO PRESENTABLE - datos totalmente sintéticos                                    NATIVE_TEXT_PDF
+

@@ -1,0 +1,103 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                               3   8
+
+Mud de d       ón en sap                                                                                                                            Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de devolución
+
+NIF                               12005989N                                 Titular / entidad                    PERSONA SINTÉTICA 053
+Ejercicio                         2026                                                Periodo                                    2T
+Tipo documental           SYNTHETIC FILED COPY          Estado esperado                    ACCEPT WITH_SYNTHETIC LIMITATION
+
+Operación y devolución
+
+Motivo de devolución                                  RECARGO DE EQUIVALENCIA - VENTAS A VIAJEROS
+Operaciones                                              a
+
+Devolución solicitada                                   860,00
+
+Cuenta de abono                                         ES QA
+
+model_308 Rebitual 053 native - NO PRESENTARLE - datos infalmente siméticos                                                                                              NATIVE TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+308
+
+tud de d
+
+On en SEp
+
+de
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de devolución
+
+NIF
+
+12005989N
+
+Titular / entidad
+
+PERSONA SINTÉTICA 053
+
+2026
+
+Periodo
+
+2T
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC_ FILED COPY
+
+Estado esperado
+
+ACCEPT_ WITH _SYNTHETIC LIMITATION
+
+Operación y devolución
+
+Motivo de devolución
+
+RECARGO DE EQUIVALENCIA -
+
+VENTAS A VIAJEROS
+
+Operaciones
+
+a
+
+Devolución solicitada
+
+860,00
+
+Cuenta de abono
+
+pSte area een aces MOYA
+
+co
+
+O
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+modal_308
+
+tebitual 053
+
+Aative - NO PRESENTABLE - datos intalmente siméticos
+
+NATIVE TEXT_PDF

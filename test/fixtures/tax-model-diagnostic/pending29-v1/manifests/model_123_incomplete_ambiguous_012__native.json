@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_123_incomplete_ambiguous_012__native",
+  "baseFixtureId": "model_123_incomplete_ambiguous_012",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_123",
+  "displayName": "123 - Retenciones sobre determinados rendimientos del capital mobiliario - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": "2T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12001356W",
+    "taxpayer.name": "PERSONA SINTÉTICA 012",
+    "document.code": "123",
+    "document.fiscalYear": 2026,
+    "document.period": "2T",
+    "withholding.recipients": "[ILEGIBLE]",
+    "withholding.base": "9.000,00",
+    "withholding.amount": "[BORROSO]",
+    "filing.result": "[NO VISIBLE]"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.CAPITAL": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12001356W"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 012"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_123"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "123"
+    },
+    {
+      "fieldId": "withholding.recipients",
+      "page": 1,
+      "label": "Número de perceptores",
+      "value": "[ILEGIBLE]"
+    },
+    {
+      "fieldId": "withholding.base",
+      "page": 1,
+      "label": "Base",
+      "value": "9.000,00"
+    },
+    {
+      "fieldId": "withholding.amount",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "[BORROSO]"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "[NO VISIBLE]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "withholding.recipients",
+    "withholding.amount",
+    "filing.result"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientos/GH04.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_123_incomplete_ambiguous_012__native.pdf",
+  "sha256": "9d07e48cb2e1d0fdeb9b32fc1ade777416ff76cff5549685302991396a1ae73d"
+}

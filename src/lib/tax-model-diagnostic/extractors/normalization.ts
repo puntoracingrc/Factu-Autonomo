@@ -17,6 +17,19 @@ export function normalizeDocumentText(value: string): string {
     .toUpperCase();
 }
 
+/**
+ * Señales explícitas de que faltan páginas o de que un campo crítico no es
+ * legible. Son deliberadamente conservadoras: ante cualquiera de ellas la
+ * extracción puede conservar hechos visibles, pero nunca declarar el
+ * documento completo ni cerrar preguntas por ausencia.
+ */
+export function hasExplicitIncompleteEvidence(value: string): boolean {
+  const normalized = normalizeDocumentText(value);
+  return /\b(?:REVIEW[ _]+OR[ _]+REJECT|SYNTHETIC[ _]+INCOMPLETE|NO VISIBLE|ILEGIBLE|BORROSO|RECORTAD[OA]|CAPTURA PARCIAL|PAGINA(?: FINAL| ANEXA)? AUSENTE|ANEXO(?: DE [A-Z ]+)? AUSENTE|CAMPO PARCIALMENTE ILEGIBLE)\b/.test(
+    normalized,
+  );
+}
+
 export function maskSpanishTaxId(value: string | null | undefined): string | null {
   const normalized = value?.replace(/[^A-Z0-9]/gi, "").toUpperCase() ?? "";
   if (normalized.length < 5) return null;
@@ -73,7 +86,7 @@ export function extractPeriod(text: string): string | null {
   const normalized = normalizeDocumentText(text);
   return (
     normalized.match(
-      /\bPERIODO\s*[:.\-]?\s*(0A|ANUAL|[1-4]T|0[1-9]|1[0-2])\b/,
+      /\bPERIODO\s*[:.\-]?\s*(0A|ANUAL|[1-4]T|[1-3]P|0[1-9]|1[0-2])\b/,
     )?.[1] ?? null
   );
 }

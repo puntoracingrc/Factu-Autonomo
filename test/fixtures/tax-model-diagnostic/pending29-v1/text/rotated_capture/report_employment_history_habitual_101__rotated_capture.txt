@@ -1,0 +1,160 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                          TGSS-VIDA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen de vida laboral
+
+NIF                         |  120114139                             Titular / entidad                 PERSONA SINTÉTICA 101
+
+NA
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Ejercicio     2026          Periodo
+“Tipo documental SYNTHETIC FILED COPY — Estado esperado
+
+Resumen
+Fecha de emisión                                                    10/07/2026
+Días totales de alta                                                   3117
+
+report _amployment_history_ habitual 101 native - NO PRESENTABLE - datos totalmente siméticos                                                                                    MATIVE_TEXT_PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+Informe de
+
+Usa
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen de vida laboral
+
+NIF
+
+Titular / entidad
+
+—
+
+1011413
+
+a
+
+| PERSONA + SINTÉTICA 101
+
+——
+
+pp
+
+Periodo
+
+NA
+
+| Ejercicio
+
+1
+
+—
+
+=
+
+"Tipo documental SYNTHETIC FILED COPY — Estado esperado
+
+=
+
+| ACCEPT WITH_SYNTHETIC_LIMITATION
+
+Resumen
+
+Fecha de emisión
+
+- 10/07/2026
+
+Días totales de alta
+
+3.117
+
+en
+
+No
+
+KO
+
+N
+
+NN
+
+o
+
+report _amployment_history_ habitual 101 native - NO PRESENTABLE - datos totalmente siméticos
+
+NATIVE _TEXT_PDF
+
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                          TGSS-VIDA
+
+Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situaciones de alta y baja
+
+Periodos
+Regimen             Empresarsituación     —— Alta               Baja              Días
+¡RETA                                | TRABAJO AUTÓNOMO           01/02/2023                                                                 1.261
+GENERAL EMPRESA SINTÉTICA A             [01/01/2018                                   ¡31/01/2023                                   1.856
+
+report_employment_hinory ha5tual_ 101_ native - NO PRESENTABLE - datos totalmente sintéticos                                                                                    NATIVE TEXT _POF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+TGSS-VIDA
+
+no de
+
+Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situaciones de alta y baja
+
+Periodos
+
+Días
+
+| Empresarsituación
+
+Aa
+
+Baja
+
+RETA
+
+| TRABAJO AUTÓNOMO
+
+“01/02/2023
+
+1.281
+
+GENERAL
+
+EMPRESA SINTÉTICA A
+
+(01/01/2018
+
+31/01/2029
+
+1.856
+
+co
+
+E
+
+NN
+
+KO
+
+N
+
+NN
+
+ys
+
+report_employment_hinory ha5tual_ 101_ native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT_POF

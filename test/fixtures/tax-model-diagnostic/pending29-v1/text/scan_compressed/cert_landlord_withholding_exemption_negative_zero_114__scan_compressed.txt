@@ -1,0 +1,102 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                             CERT-ARREND
+
+ción de ret          del arrendador                                                                                                                                                 Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de exoneración
+
+NIF                        B25332834                          Titular / entidad                ENTIDAD SINTÉTICA 114 S.L.
+Ejercicio                         2026                                                Perlodo                                    N/A
+Tipo documental      SYNTHETIC_ FILED COPY     Estado esperado          ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Datos certificados
+
+Fecha de expedición                                    10/07/2026
+Exoneración de retención                                NO ACREDITADA
+Ejercicio consultado                                    2026
+
+sv                                                        CSV-SYN-ARR-0002
+
+cer landiord_withhokding -exemption negativa zero 114 native - NO PRESENTABLE - datos infalmente simbéticos                                     NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+CERT-ARREND
+
+Ge
+
+A
+
+icado d
+
+ción de ret
+
+del arrendador
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de exoneración
+
+NIF
+
+  B25332834
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 114 S.L.
+
+2026
+
+Periodo
+
+N/A
+
+Ejercicio
+
+Tipo documental
+
+|  SYNTHETIC_ FILED COPY
+
+Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Datos certificados
+
+Fecha de expedición
+
+10/07/2026
+
+Exoneración de retención
+
+NC ACREDITADA
+
+2026
+
+Ejercicio consultado
+
+[1
+
+CSV-5YN-ARR-0002
+
+co
+
+O
+
+Ne
+
+XO
+
+N
+
+NN
+
+yo
+
+cert landioro withhoding examption negative zaro 114
+
+native - NO PRESENTABLE - datos infalmente sintéticos
+
+NATIVE TEXT PDF

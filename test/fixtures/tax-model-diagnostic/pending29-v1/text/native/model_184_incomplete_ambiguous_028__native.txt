@@ -1,0 +1,39 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                       184
+Entidades en régimen de atribución de rentas                                                                                       Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Datos de la entidad
+ NIF                     B18522490                         Titular / entidad                ENTIDAD SINTÉTICA 028 S.L.
+
+ Ejercicio               2025                              Periodo                          ANUAL
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Entidad y actividad
+ Tipo de entidad                                      COMUNIDAD DE BIENES
+ Renta atribuible                                     38.000,00
+
+
+
+
+                                                                                                                       CO
+                                                                                                        É           TI
+                                                                                                      T
+                                                                                              S     IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_184_incomplete_ambiguous_028__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

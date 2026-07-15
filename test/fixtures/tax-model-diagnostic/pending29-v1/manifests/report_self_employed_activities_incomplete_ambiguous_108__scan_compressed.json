@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "report_self_employed_activities_incomplete_ambiguous_108__scan_compressed",
+  "baseFixtureId": "report_self_employed_activities_incomplete_ambiguous_108",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "TGSS_REPORT_SELF_EMPLOYED_ACTIVITIES",
+  "displayName": "TGSS-ACT-AUT - Informe de actividades de trabajo autónomo - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12012204V",
+    "taxpayer.name": "PERSONA SINTÉTICA 108",
+    "document.code": "TGSS-ACT-AUT",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "tgss.issueDate": "12/07/2026",
+    "tgss.activityCount": "[CAPTURA PARCIAL]",
+    "tgss.activities": [
+      [
+        "[CÓDIGO RECORTADO]",
+        "Comercio electrónico",
+        "[NO VISIBLE]",
+        "ACTIVA"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "ACTIVITY.LIST_TGSS": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "AEAT_CENSUS_ACTIVITY_EQUIVALENCE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12012204V"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 108"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "TGSS_REPORT_SELF_EMPLOYED_ACTIVITIES"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "TGSS-ACT-AUT"
+    },
+    {
+      "fieldId": "tgss.issueDate",
+      "page": 1,
+      "label": "Fecha de emisión",
+      "value": "12/07/2026"
+    },
+    {
+      "fieldId": "tgss.activityCount",
+      "page": 1,
+      "label": "Actividades comunicadas",
+      "value": "[CAPTURA PARCIAL]"
+    },
+    {
+      "fieldId": "tgss.activities",
+      "page": 1,
+      "label": "Actividades",
+      "value": [
+        [
+          "[CÓDIGO RECORTADO]",
+          "Comercio electrónico",
+          "[NO VISIBLE]",
+          "ACTIVA"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "tgss.activityCount"
+  ],
+  "sourceTemplate": {
+    "authority": "TGSS",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://portal.seg-social.gob.es/wps/portal/importass/importass/Categorias/Vida%2Blaboral%2Be%2Binformes/Informes%2Bsobre%2Btu%2Bsituacion%2Blaboral/Infor_Act_Autonomo"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/report_self_employed_activities_incomplete_ambiguous_108__scan_compressed.pdf",
+  "sha256": "075a68a1e13da1325567a55e6034690a2540e14cf6c285409c3c4d22e5019165"
+}

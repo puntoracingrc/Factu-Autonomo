@@ -1,0 +1,40 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   123
+Retenciones sobre determinados rendimientos del capital mobiliario                                                             Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Autoliquidación
+ NIF                     12001130Y                            Titular / entidad      PERSONA SINTÉTICA 010
+
+ Ejercicio               2026                                 Periodo                2T
+
+ Tipo documental         SYNTHETIC_FILED_COPY                 Estado esperado        ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Retenciones e ingresos a cuenta
+ Número de perceptores                                 0
+ Base                                                  0,00
+ Retenciones                                           0,00
+ Resultado                                             0,00
+
+
+
+
+                                                                                                                CO
+                                                                                                É            TI
+                                                                                              T
+                                                                                          S IN
+                                                                       T O
+                                                   M                 EN
+                                               C U
+                                  DO
+
+
+
+
+model_123_negative_zero_010__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+

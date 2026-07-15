@@ -1,0 +1,180 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_347_complex_067__rotated_capture",
+  "baseFixtureId": "model_347_complex_067",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_347",
+  "displayName": "347 - Declaración anual de operaciones con terceras personas - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B21610902",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 067 S.L.",
+    "document.code": "347",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "filing.complementary": "SÍ",
+    "thirdParties.records": 3,
+    "thirdParties.total": "99.000,00",
+    "thirdParties.cashCollections": "7.200,00",
+    "thirdParties.detail": [
+      [
+        "B73163594",
+        "CLIENTE A S.L.",
+        "B",
+        "48.000,00",
+        "12.000,00",
+        "12.000,00",
+        "12.000,00",
+        "12.000,00",
+        "SÍ"
+      ],
+      [
+        "B73242786",
+        "PROVEEDOR B S.A.",
+        "A",
+        "33.000,00",
+        "8.000,00",
+        "9.000,00",
+        "7.000,00",
+        "9.000,00",
+        "NO"
+      ],
+      [
+        "40000067P",
+        "ARRENDADOR C",
+        "B",
+        "18.000,00",
+        "4.500,00",
+        "4.500,00",
+        "4.500,00",
+        "4.500,00",
+        "INMUEBLE"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "THIRD_PARTIES.MODEL_347_CANDIDATE": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B21610902"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 067 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_347"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "347"
+    },
+    {
+      "fieldId": "filing.complementary",
+      "page": 1,
+      "label": "Sustitutiva",
+      "value": "SÍ"
+    },
+    {
+      "fieldId": "thirdParties.records",
+      "page": 1,
+      "label": "Número de terceros",
+      "value": 3
+    },
+    {
+      "fieldId": "thirdParties.total",
+      "page": 1,
+      "label": "Importe anual declarado",
+      "value": "99.000,00"
+    },
+    {
+      "fieldId": "thirdParties.cashCollections",
+      "page": 1,
+      "label": "Cobros en metálico",
+      "value": "7.200,00"
+    },
+    {
+      "fieldId": "thirdParties.detail",
+      "page": 2,
+      "label": "Terceros",
+      "value": [
+        [
+          "B73163594",
+          "CLIENTE A S.L.",
+          "B",
+          "48.000,00",
+          "12.000,00",
+          "12.000,00",
+          "12.000,00",
+          "12.000,00",
+          "SÍ"
+        ],
+        [
+          "B73242786",
+          "PROVEEDOR B S.A.",
+          "A",
+          "33.000,00",
+          "8.000,00",
+          "9.000,00",
+          "7.000,00",
+          "9.000,00",
+          "NO"
+        ],
+        [
+          "40000067P",
+          "ARRENDADOR C",
+          "B",
+          "18.000,00",
+          "4.500,00",
+          "4.500,00",
+          "4.500,00",
+          "4.500,00",
+          "INMUEBLE"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI27.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_347_complex_067__rotated_capture.pdf",
+  "sha256": "1d545ad1e6a57516b86bdc52125df06316216e51ad0ad5ec2aba14d7ead33b83"
+}

@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_123_negative_zero_010__native",
+  "baseFixtureId": "model_123_negative_zero_010",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_MODEL_123",
+  "displayName": "123 - Retenciones sobre determinados rendimientos del capital mobiliario - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": "2T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12001130Y",
+    "taxpayer.name": "PERSONA SINTÉTICA 010",
+    "document.code": "123",
+    "document.fiscalYear": 2026,
+    "document.period": "2T",
+    "withholding.recipients": 0,
+    "withholding.base": "0,00",
+    "withholding.amount": "0,00",
+    "filing.result": "0,00"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.CAPITAL": false
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12001130Y"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 010"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_123"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "123"
+    },
+    {
+      "fieldId": "withholding.recipients",
+      "page": 1,
+      "label": "Número de perceptores",
+      "value": 0
+    },
+    {
+      "fieldId": "withholding.base",
+      "page": 1,
+      "label": "Base",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "withholding.amount",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "0,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientos/GH04.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_123_negative_zero_010__native.pdf",
+  "sha256": "7e19fd86f986b88dc5a7e3dccc8957bf2ffcc1f7b8697567e6c37bc7a7d44b54"
+}

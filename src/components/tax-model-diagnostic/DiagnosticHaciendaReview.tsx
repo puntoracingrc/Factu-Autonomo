@@ -23,6 +23,7 @@ import {
   validateAeatScreenshotFile,
   type AeatCensusScreenshotKind,
   type AeatScreenshotOcrProgress,
+  type CensusDocumentTextResult,
 } from "@/lib/fiscal-profile";
 import type {
   Evidence,
@@ -261,6 +262,33 @@ function needsHybridPdfOcr(result: FiscalDocumentExtractionResult): boolean {
   );
 }
 
+function mergePdfOcrPasses(
+  automatic: CensusDocumentTextResult,
+  sparse: CensusDocumentTextResult,
+): CensusDocumentTextResult {
+  const pageNumbers = new Set([
+    ...automatic.pages.map((page) => page.page),
+    ...sparse.pages.map((page) => page.page),
+  ]);
+  const pages = [...pageNumbers]
+    .sort((left, right) => left - right)
+    .map((page) => ({
+      page,
+      text: [
+        automatic.pages.find((candidate) => candidate.page === page)?.text,
+        sparse.pages.find((candidate) => candidate.page === page)?.text,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    }));
+  return {
+    text: pages.map((page) => page.text).filter(Boolean).join("\n"),
+    totalPages: Math.max(automatic.totalPages, sparse.totalPages),
+    pages,
+    extractionMethod: "OCR_LOCAL",
+  };
+}
+
 function analysisLabel(result: FiscalDocumentExtractionResult): string {
   return [
     documentTypeLabel(result),
@@ -432,6 +460,39 @@ export function DiagnosticHaciendaReview({
             } catch {
               // La lectura nativa sigue siendo el resultado seguro. Un fallo
               // del OCR local no convierte el archivo en un falso positivo.
+            }
+          }
+          if (
+            document.extractionMethod === "OCR_LOCAL" &&
+            needsHybridPdfOcr(result)
+          ) {
+            try {
+              const sparseDocument = await readCensusDocumentPages(
+                file,
+                setProgress,
+                { forceLocalOcr: true },
+              );
+              const mergedDocument = mergePdfOcrPasses(
+                document,
+                sparseDocument,
+              );
+              const mergedResult = extractFiscalDocumentText({
+                documentId: nextDocumentId(),
+                text: mergedDocument.text,
+                extractionMethod: "OCR_LOCAL",
+                totalPages: mergedDocument.totalPages,
+                detectedPages: mergedDocument.pages
+                  .filter((page) => page.text.length > 0)
+                  .map((page) => page.page),
+                pages: mergedDocument.pages,
+              });
+              if (extractionQuality(mergedResult) > extractionQuality(result)) {
+                document = mergedDocument;
+                result = mergedResult;
+              }
+            } catch {
+              // Conservamos la primera lectura OCR; la segunda pasada solo
+              // mejora documentos difíciles y nunca rebaja la seguridad.
             }
           }
           nextAnalyses.push({

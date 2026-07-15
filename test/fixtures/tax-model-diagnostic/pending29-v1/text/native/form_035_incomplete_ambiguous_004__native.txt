@@ -1,0 +1,40 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                      035
+Registro censal de los regímenes especiales OSS/IOSS                                                                              Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Identificación y opción censal
+ NIF                     B16621930                          Titular / entidad              ENTIDAD SINTÉTICA 004 S.L.
+
+ Ejercicio               2026                               Periodo                        N/A
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                            REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Registro OSS/IOSS
+ Tipo de declaración                                   ALTA
+ Régimen                                               [CAMPO PARCIALMENTE ILEGIBLE]
+ Fecha de efectos                                      [NO VISIBLE]
+
+
+
+
+                                                                                                                      CO
+                                                                                                      É            TI
+                                                                                                    T
+                                                                                             S    IN
+                                                                     T O
+                                                   M               EN
+                                               C U
+                                 DO
+
+
+
+
+form_035_incomplete_ambiguous_004__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

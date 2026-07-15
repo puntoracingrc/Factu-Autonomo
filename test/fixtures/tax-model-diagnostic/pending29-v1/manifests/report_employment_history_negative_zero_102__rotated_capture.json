@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "report_employment_history_negative_zero_102__rotated_capture",
+  "baseFixtureId": "report_employment_history_negative_zero_102",
+  "semanticScenario": "negative_zero",
+  "documentType": "TGSS_REPORT_EMPLOYMENT_HISTORY",
+  "displayName": "TGSS-VIDA - Informe de vida laboral - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 2,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "HISTORICAL_AND_CURRENT",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12011526Y",
+    "taxpayer.name": "PERSONA SINTÉTICA 102",
+    "document.code": "TGSS-VIDA",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "tgss.issueDate": "10/07/2026",
+    "tgss.totalDays": "2.263",
+    "tgss.periods": [
+      [
+        "GENERAL",
+        "EMPRESA SINTÉTICA B",
+        "01/05/2020",
+        "",
+        "2.263"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "IRPF.RETA_PERIODS": []
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12011526Y"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 102"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "TGSS_REPORT_EMPLOYMENT_HISTORY"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "TGSS-VIDA"
+    },
+    {
+      "fieldId": "tgss.issueDate",
+      "page": 1,
+      "label": "Fecha de emisión",
+      "value": "10/07/2026"
+    },
+    {
+      "fieldId": "tgss.totalDays",
+      "page": 1,
+      "label": "Días totales de alta",
+      "value": "2.263"
+    },
+    {
+      "fieldId": "tgss.periods",
+      "page": 2,
+      "label": "Vida laboral",
+      "value": [
+        [
+          "GENERAL",
+          "EMPRESA SINTÉTICA B",
+          "01/05/2020",
+          "",
+          "2.263"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "TGSS",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://portal.seg-social.gob.es/wps/portal/importass/importass/Categorias/Vida%2Blaboral%2Be%2Binformes/Informes%2Bsobre%2Btu%2Bsituacion%2Blaboral/Informe%2Bde%2Btu%2Bvida%2Blaboral"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/report_employment_history_negative_zero_102__rotated_capture.pdf",
+  "sha256": "f952689e1164da4014d1d85de12bd6e6fa85bc055b1556292a7de5da3320e52d"
+}

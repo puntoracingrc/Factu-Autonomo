@@ -1,0 +1,106 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                3   9
+
+IVA - liquidación no perió                                                                 Pagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+IVA no periódico
+
+NIF                               12006667T                                 Titular / entidad                    PERSONA SINTÉTICA 059
+Ejercicio                         2026                                                Perlodo                                    ar
+Tipo documental      SYNTHETIC_COMPLEMENTA Estado esperado          ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY_OR_MULTI_RECORD
+
+Operación
+Supuestos                                              INVERSIÓN DEL SUJETO PASIVO + ADQUISICIÓN INTRACOMUNITARIA
+NIF-IVA proveedor                                       FROCDODONO?
+Base intracomunitaria                                  22-000,00
+Base inversión sujeto pasivo                              18.000,00
+Cuota total                                                8.400,00
+Resultado                                                 8.400,00
+
+model 309 complex 0659 native- NO PRESENTABLE - datos tetalmente sintéticos:                                                                        NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+309
+
+IVA
+
+liquidación no pe
+
+Pagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+IVA no periódico
+
+NIF
+
+12006667T
+
+Titular / entidad
+
+PERSONA SINTÉTICA 059
+
+2026
+
+Periodo
+
+ar
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY_OR_MULTI_RECORD
+
+Operación
+
+Supuestos
+
+INVERSIÓN DEL SUJETO PASIVO + ADQUISICIÓN INTRACOMUNITARIA
+
+NIF-I1VÁ proveedor
+
+FROCDODONO?
+
+Base intracomunitaria
+
+22-000,00
+
+Base inversión sujeto pasivo
+
+18.000,00
+
+Cuota total
+
+8.400,00
+
+Resultado
+
+8.400,00
+
+co
+
+O
+
+NN
+
+KO
+
+N
+
+NN
+
+yo
+
+model 300 complex 059
+
+ative - NO PRESENTABLE - datos tolalmente sintéticos
+
+NATIVE TEXT PDF

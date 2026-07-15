@@ -1,0 +1,102 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                           CERT-ARREND
+
+o de exoneración de retenc                                                                                                                                   Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de exoneración
+
+NIF                    825252642                      Titular / entidad             ENTIDAD SINTÉTICA 113 S.L.
+Ejercicio              2026                           Periodo                   N/A
+ Tipo documental —  SYNTHETIC FILED COPY — Estado esperado      ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Datos certificados
+
+Fecha de expedición                                             10/07/2026
+Exoneración de retención                                    - ACREDITADA
+
+Ejercicio de validez                                            2026
+
+Alcance                                                             ARRENDAMIENTO DE INMUEBLES URBANOS
+cesv                                                                   CSV-SYN-ARR-0001
+
+cen landiord_wihhalding_ exemprion habitual 113 native - NO PRESENTARLE - datos totalmente aintéticos                                                                             NATIVE TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+CERT-ARREND
+
+0 de exoneración de retenc
+
+do
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de exoneración
+
+JE Ea
+
+B25253642
+
+Titular / entidad
+
+Lo ———]
+
+ENTIDAD SINTÉTICA 113 S.L.
+
+——
+
+precie
+
+2026
+
+Periodo
+
+N/A
+
+—
+
+Estado esperado
+
+Tipo documental SYNTHETIC FILED COPY —
+
+| ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Datos certificados
+
+Fecha de expedición
+
+10/07/2026
+
+Exoneración de retención
+
+ACREDITADA
+
+Ejercicio de validez
+
+2026
+
+Alcance
+
+ARRENDAMIENTO DE INMUEBLES URBANOS
+
+csv
+
+CSV-SYN:ARR-0001
+
+co
+
+N
+
+KO
+
+N
+
+NN
+
+9
+
+cen landiord_wihhalding_ exemprion habitual 113 native - NO PRESENTARLE - datos totalmente aintéticos
+
+NATIVE TEXT_PDF

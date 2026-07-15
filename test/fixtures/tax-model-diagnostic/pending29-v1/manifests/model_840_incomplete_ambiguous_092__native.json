@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_840_incomplete_ambiguous_092__native",
+  "baseFixtureId": "model_840_incomplete_ambiguous_092",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_840",
+  "displayName": "840 - Declaración de alta, baja o variación en el IAE - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "CURRENT_AS_OF_EFFECTIVE_DATE",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "B23590656",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 092 S.L.",
+    "document.code": "840",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "iae.action": "ALTA",
+    "iae.epigraph": "[ILEGIBLE]",
+    "iae.activity": "[PÁGINA ANEXA AUSENTE]",
+    "iae.effectiveDate": "[NO VISIBLE]"
+  },
+  "expectedQuestionMappings": {
+    "IAE.STATUS": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B23590656"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 092 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_840"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "840"
+    },
+    {
+      "fieldId": "iae.action",
+      "page": 1,
+      "label": "Tipo de declaración",
+      "value": "ALTA"
+    },
+    {
+      "fieldId": "iae.epigraph",
+      "page": 1,
+      "label": "Grupo o epígrafe",
+      "value": "[ILEGIBLE]"
+    },
+    {
+      "fieldId": "iae.activity",
+      "page": 1,
+      "label": "Actividad",
+      "value": "[PÁGINA ANEXA AUSENTE]"
+    },
+    {
+      "fieldId": "iae.effectiveDate",
+      "page": 1,
+      "label": "Fecha de efectos",
+      "value": "[NO VISIBLE]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "iae.epigraph",
+    "iae.activity",
+    "iae.effectiveDate"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G323.shtml",
+      "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/G323/mod840e_es_es.pdf"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_840_incomplete_ambiguous_092__native.pdf",
+  "sha256": "ddd1050c08bd9d8a0c35be9486a2f325b53ae19c4153f87ad46aa8d1e5052e94"
+}

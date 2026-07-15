@@ -1,0 +1,230 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Impuesto sobre la Renta de las Personas Físicas
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ = NO PRESENTABLE
+
+Resumen de la declaración
+
+NIF                                    12000791N                                       Titular / entidad                       PERSONA SINTÉTICA 007                                                                                                |
+
+| Ejercicio             | 2025                             Periodo                     ANUAL
+
+Tipo documental SYNTHETIC. COMPLEMENTA | Estado esperado -        | ACCEPT_WITH_SYNTHETIC_LIMITATION ——
+|                       AY_OR_MULTI_RECOAD
+
+Datos generales
+
+Tipo de declaración                                                  CONJUNTA
+Rentas atribuidas                                                      7400.00
+Ganancias patrimoniales                                         12.800,00
+Resultado                                                                  4200.00
+
+Actividad económica
+
+Clave       Actividad ——— Método + Ingresos      Gastos      “Rendimiento    Retenciones
+
+ADN          Arquitectura      DIRECTA NORMAL — 125.000,00       62.000,00       63.000,00        10.500,00
+
+AD2          Alquiler de local CAPITAL        18.000,00       4.200,00        13.800,00       3.420,00
+            INMOBILIARIO
+
+model_100_complex_007_ mative - NO PRESENTABLE - datos totalmente siméticos                                                                                                                        MATIVE TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+100
+
+Impuesto sobre la Renta de las Personas Físicas
+
+Pp
+
+agina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ = NO PRESENTABLE
+
+Resumen de la declaración
+
+IT ——
+
+12000791N
+
+o
+
+Titular / entidad
+
+=————— Mm"
+
+|  PERSONA SINTÉTICA 007
+
+——
+
+—
+
+ee
+
+ANUAL
+
+Ejercicio
+
+rt
+
+2025
+
+Periodo
+
+——
+
+Tipo documental
+
+| SYNTMETIC_ COMPLEMENTA | Estado esperado -           | ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+—]—Ú—
+
+AY_O A_MULTI_RECORD
+
+—— al
+
+——
+
+—
+
+NIÁIAR KO Qe
+
+—
+
+—
+
+———]
+
+—
+
+Datos generales
+
+Tipo de declaración
+
+CONJUNTA
+
+Rentas atribuidas
+
+7400.00
+
+Ganancias patrimoniales
+
+12.800,00
+
+Resultado
+
+4200.00
+
+Actividad económica
+
+"
+
+—
+
+—
+
+—
+
+—
+
+—_
+
+Clave
+
+ Aevidad
+
+    —
+
+ingresos
+
+TT      -      =  ——      -—
+
+62.000,00
+
+63.000,00
+
+01
+
+ Arquitectura
+
+DIRECTA NORMAL — 125.000,00
+
+ 10-500,00
+
+AD2
+
+Alquiler de local
+
+CAPITAL
+
+18.000,00:
+
+4.200,00
+
+13.800,00
+
+3.420,00
+
+INMOBILIARIO
+
+co
+
+E
+
+No
+
+No
+
+UN
+
+wo
+
+model_100_complex_007_ mative - NO PRESENTABLE - datos totalmente siméticos
+
+NATIVE TEXT_PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Liquidación
+Resultado
+Cuota diferencial / resultado                                    4200.00
+
+model_100. complex 007 native - NO PRESENTABLE - datos totalmente sintéticos                                                                                  NATIVE TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+100
+
+impue
+
+Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Liquidación
+
+Resultado
+
+Cuota diferencial / resultado
+
+4200.00
+
+o
+
+RE
+
+NN
+
+KO
+
+N
+
+NN
+
+y
+
+model_100. complex 007 native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT_PDF

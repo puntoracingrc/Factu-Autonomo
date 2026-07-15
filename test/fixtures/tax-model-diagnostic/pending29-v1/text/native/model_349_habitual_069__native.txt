@@ -1,0 +1,68 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                              349
+Declaración recapitulativa de operaciones intracomunitarias                                                               Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen recapitulativo
+ NIF                      B21769286                         Titular / entidad   ENTIDAD SINTÉTICA 069 S.L.
+
+ Ejercicio                2026                              Periodo             2T
+
+ Tipo documental          SYNTHETIC_FILED_COPY              Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Totales
+ Operadores                                            1
+ Importe total                                         14.000,00
+
+
+
+
+                                                                                                           CO
+                                                                                           É            TI
+                                                                                         T
+                                                                                     S IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_349_habitual_069__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                          349
+Declaración recapitulativa de operaciones intracomunitarias                                                                           Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Operadores intracomunitarios
+  Detalle
+NIF-IVA                       Operador                     Clave                Importe             Ejercicio rect.   Periodo rect.
+FR000000001                   CLIENTE FRANCÉS              S                    14.000,00
+
+
+
+
+                                                                                                         CO
+                                                                                                É     TI
+                                                                                              T
+                                                                                     S      IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_349_habitual_069__native - NO PRESENTABLE - datos totalmente sintéticos                                                  NATIVE_TEXT_PDF
+

@@ -1,0 +1,106 @@
+200
+
+Página 1
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Identificación y actividad
+NIF                                819472778                                 | Titular / entidad                     ENTIDAD SINTÉTICA 040 Si                                                        —_
+"Ejercicio        2025    —_        — Periodo           [ANUAL            _        _       Ea
+“Tipo documental SYNTHETIC INCOMPLETE O Estado esperado     REVIEW_OR_REJECT
+|             |R_AMBIGUOUS COPY —      —_      o      —_      o      Y
+Entidad
+CNAE                          6202
+Actividad principal                                                    Consultoría informática
+importe neto cifra de negocios                             180.000,00
+
+NATIVE TEXT_PDF
+
+model 200 incomplete ambiguous 040 native —- HO PRESENTASLE - datos tetalmente sintéticos
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+200
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Identificación y actividad  |
+
+r
+
+———— ———]
+
+B19472778
+
+———]—J——]————][—].
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA MOS.
+
+DT
+
+———]—]Á—
+
+[—];—Ú——É ——]
+
+Ejercicio
+
+2085
+
+e
+
+Periodo
+
+—esbtdal
+
+—
+
+==
+
+—
+
+- Tipo documental
+
+SYNTHETIC_INCOMPLETE_O Estado esperado
+
+REVIEW_OR_REJECT
+
+| A_AMBIGUOUS_COPY
+
+—]]——2———
+
+—.—————
+
+—
+
+Entidad
+
+CNAE
+
+Consultoria informática
+
+- Actividad principal
+
+importe neto cifra de negocios
+
+180.000,00
+
+co
+
+Ne
+
+KO
+
+N
+
+NN
+
+y
+
+model 200 incomplete ambiguous 040 native —- HO PRESENTASLE - datos tetalmente sintéticos
+
+NATIVE TEXT_PDF

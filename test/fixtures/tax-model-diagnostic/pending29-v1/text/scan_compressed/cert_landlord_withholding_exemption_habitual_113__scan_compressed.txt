@@ -1,0 +1,109 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                             CERT-ARREND
+
+ón del arrendador                                                                                                 Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de exoneración
+
+NIF                       Be5253642                         Titular / entidad               ENTIDAD SINTÉTICA 113 S.L.
+Ejercicio                         2026                                                Periodo                                    NÍA
+Tipo documental     SYNTHETIC_ FILED COPY     Estado esperado         ACCEPT WITH_SYNTHETIC LIMITATION
+
+Datos certificados
+
+Fecha de expedición                                        10/07/2028
+
+Exoneración de retención                                ACREDITADA
+
+Ejercicio de validez                                                     2026
+
+Alcance                                    ARRENDAMIENTO DE INMUEBLES URBANOS
+csv                                       CSV-SYN-ARR-0001
+
+cert landiord withhoidng exemption habitual 113 native - NO PRESENTABLE - datos totalmente sintéticos                                           NATIVE TEXT. PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+CERT-ARREND
+
+rtifica
+
+n de
+
+ón del arrendador
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de exoneración
+
+NIF
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 113 S.L
+
+|  B25253642
+
+Ejercicio
+
+2026
+
+Periodo
+
+N/A
+
+Tipo documental
+
+| SYNTHETIC_ FILED COPY
+
+ACCEPT WITH SYNTHETIC LIMITATION
+
+Estado esperado
+
+Datos certificados
+
+10/07/2026
+
+Fecha de expedición
+
+Exoneración de retención
+
+ACREDITADA
+
+Ejercicio de validez
+
+2026
+
+Alcance
+
+ARRENDAMIENTO DE INMUEBLES URBANOS
+
+csv
+
+CSV-SYN-ARR-0001
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+cert_landiord withhoidrng exemption habitual
+
+1
+
+native - NO PRESENTABLE + datos totalments sintéticos
+
+——
+
+NATIVE TEXT PDF

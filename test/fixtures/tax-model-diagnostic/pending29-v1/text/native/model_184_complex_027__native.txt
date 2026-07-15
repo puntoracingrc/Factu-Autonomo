@@ -1,0 +1,74 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                  184
+Entidades en régimen de atribución de rentas                                                                                  Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Datos de la entidad
+ NIF                     B18443309                         Titular / entidad        ENTIDAD SINTÉTICA 027 S.L.
+
+ Ejercicio               2025                              Periodo                  ANUAL
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado          ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Entidad y actividad
+ Complementaria                                       SÍ
+ Tipo de entidad                                      SOCIEDAD CIVIL EN ATRIBUCIÓN
+ Actividades                                          Consultoría + arrendamiento
+ Renta atribuible                                     90.000,00
+ Retenciones atribuibles                              10.500,00
+
+
+
+
+                                                                                                               CO
+                                                                                                É           TI
+                                                                                              T
+                                                                                      S     IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_184_complex_027__native - NO PRESENTABLE - datos totalmente sintéticos                                           NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   184
+Entidades en régimen de atribución de rentas                                                                                   Página 2
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Miembros y rentas atribuidas
+  Detalle de miembros
+NIF                                Miembro                            Participación       Renta           Retenciones
+24000027X                          SOCIO A                            40,00%              36.000,00       4.200,00
+25000027Q                          SOCIO B                            35,00%              31.500,00       3.675,00
+26000027E                          SOCIO C                            25,00%              22.500,00       2.625,00
+
+
+
+
+                                                                                                         CO
+                                                                                           É          TI
+                                                                                         T
+                                                                                      SIN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_184_complex_027__native - NO PRESENTABLE - datos totalmente sintéticos                                            NATIVE_TEXT_PDF
+

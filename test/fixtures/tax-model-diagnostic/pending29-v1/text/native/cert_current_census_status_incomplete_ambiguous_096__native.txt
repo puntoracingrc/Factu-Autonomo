@@ -1,0 +1,42 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                            CERT-CENSO
+Certificado tributario de situación censal                                                                                         Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Certificación de situación censal
+ NIF                      12010848H                          Titular / entidad              PERSONA SINTÉTICA 096
+
+ Ejercicio                2026                               Periodo                        N/A
+
+ Tipo documental          SYNTHETIC_INCOMPLETE_O Estado esperado                            REVIEW_OR_REJECT
+                          R_AMBIGUOUS_COPY
+
+
+  Datos certificados
+ Fecha de expedición                                    12/07/2026
+ Situación                                              ALTA
+ Actividades                                            [SEGUNDA PÁGINA AUSENTE]
+ Obligaciones periódicas                                [NO VISIBLE]
+ CSV                                                    [RECORTADO]
+
+
+
+
+                                                                                                                       CO
+                                                                                                         É          TI
+                                                                                                       T
+                                                                                               S     IN
+                                                                       T O
+                                                   M                 EN
+                                               C U
+                                  DO
+
+
+
+
+cert_current_census_status_incomplete_ambiguous_096__native - NO PRESENTABLE - datos totalmente sintéticos                  NATIVE_TEXT_PDF
+

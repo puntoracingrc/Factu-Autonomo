@@ -1,0 +1,39 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   202
+Pago fraccionado del Impuesto sobre Sociedades                                                                                 Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Pago fraccionado
+ NIF                     B19631159                            Titular / entidad      ENTIDAD SINTÉTICA 042 S.L.
+
+ Ejercicio               2026                                 Periodo                2P
+
+ Tipo documental         SYNTHETIC_FILED_COPY                 Estado esperado        ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Cálculo
+ Modalidad                                             ARTÍCULO 40.2 LIS
+ Cuota último periodo                                  0,00
+ Pago fraccionado                                      0,00
+
+
+
+
+                                                                                                                CO
+                                                                                                É            TI
+                                                                                              T
+                                                                                          S IN
+                                                                       T O
+                                                   M                 EN
+                                               C U
+                                  DO
+
+
+
+
+model_202_negative_zero_042__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+

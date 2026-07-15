@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "cert_roi_negative_zero_110__native",
+  "baseFixtureId": "cert_roi_negative_zero_110",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_CERT_ROI",
+  "displayName": "CERT-ROI - Certificado de operador intracomunitario - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12012430J",
+    "taxpayer.name": "PERSONA SINTÉTICA 110",
+    "document.code": "CERT-ROI",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "certificate.issueDate": "10/07/2026",
+    "roi.status": "NO INSCRITO",
+    "certificate.csv": "CSV-SYN-ROI-0002"
+  },
+  "expectedQuestionMappings": {
+    "EU.ROI": "NOT_REGISTERED"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "ACTUAL_INTRACOMMUNITY_OPERATIONS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12012430J"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 110"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_CERT_ROI"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "CERT-ROI"
+    },
+    {
+      "fieldId": "certificate.issueDate",
+      "page": 1,
+      "label": "Fecha de expedición",
+      "value": "10/07/2026"
+    },
+    {
+      "fieldId": "roi.status",
+      "page": 1,
+      "label": "Situación en ROI",
+      "value": "NO INSCRITO"
+    },
+    {
+      "fieldId": "certificate.csv",
+      "page": 1,
+      "label": "CSV",
+      "value": "CSV-SYN-ROI-0002"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/iva/iva-quiero-certificado-IVA.html",
+      "https://sede.agenciatributaria.gob.es/Sede/certificaciones/censales.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/cert_roi_negative_zero_110__native.pdf",
+  "sha256": "adf3ca257af593d5e8af0c399b9de174d0423d423efea086bb878d62f673ce3f"
+}

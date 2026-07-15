@@ -1,0 +1,203 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                     TGSS-VIDA
+
+Informe        ida laboral                                                                                                                                                                                                                                      Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen de vida laboral
+
+NIF                              12011639G                                Titular / entidad                    PERSONA SINTÉTICA 103
+Ejercicio                   2026                                     Periodo                            N/A
+Tipo documental       SYNTHETIC_COMPLEMENTA Estado esperado              ACCEPT_WITH_SYNTHETIC LIMITATION
+
+RY_OR_MULTI_RECORD
+
+Resumen
+Fecha de emisión                                        11/07/2026
+Días totales de alta                                      3.861
+Solapamiento                                       15/06/2021 - 3006/2021
+
+report employment history complex 103 nátve - MO PRESENTASLE - datos toinimente sintéticos                                                                           NATIVE TEXT PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+TGSS-VIDA
+
+Informe
+
+ida laboral
+
+Fagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen de vida laboral
+
+NIF
+
+12011639G
+
+Titular / entidad
+
+PERSONA SINTÉTICA 103
+
+Ejercicio
+
+2026
+
+Periodo
+
+N/A
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA Estado esperado
+
+RY_OR_MULTI_RECORD
+
+Resumen
+
+Fecha de emisión
+
+11/07/2026
+
+Dias totales de alta
+
+3.861
+
+15/06/2021 - 50/06/2021
+
+Solapamiento
+
+co
+
+O
+
+NN
+
+KO
+
+N
+
+NN
+
+yo
+
+repord employment history complex 103
+
+nabve
+
+NO PA
+
+ESE
+
+Ter
+
+E
+
+NTABLE
+
+datos totalmente sintéticos
+
+NATIVE TEXT PDF
+
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                     TGSS-VIDA
+
+Informe de vida laboral                                                                                                                   Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situaciones de alta y baja
+
+Periodos
+Régimen                                Empresa situación                   Alta                                       Baja                                      Días
+GENERAL                            EMPRESA A                         01/01/2016                           31/12/2019                           1.461
+RETA                                 TRABAJO AUTÓNOMO            01/01/2020                           30/06/2021                           547
+GENERAL                          | EMPRESA B                         15062021                          31/12/2022                           5685
+RETA                                 TRABAJO AUTÓNOMO            01/01/2023                                                                   1.288
+
+report employment history complex 104 nabve - NO PAESENTABLE - datos toiaimente sintéticos                                                          NATIVE TEXT PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+TGSS-VIDA
+
+Informe:
+
+vida laboral
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situaciones de alta y baja
+
+Periodos
+
+Régimen
+
+Empresa situación
+
+Alta
+
+Baja
+
+GENERAL
+
+EMPRESA A
+
+01/01/2016
+
+31/12/2019
+
+1.461
+
+RETA
+
+TRABAJO AUTÓNOMO
+
+01/01/2020
+
+30/06/2021
+
+547
+
+GENERAL
+
+EMPRESA B
+
+15/06/2021
+
+31/12/2022
+
+565
+
+RETA
+
+TRABAJO AUTÓNOMO
+
+01/01/2023
+
+1.288
+
+co
+
+O
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+report employment history complex 103
+
+nave
+
+NO PRESENTARLE - datos tciaimente sintéticos
+
+NATIVE TEXT PDF

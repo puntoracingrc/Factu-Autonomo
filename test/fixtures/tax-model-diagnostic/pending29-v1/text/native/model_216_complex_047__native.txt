@@ -1,0 +1,44 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                    216
+Retenciones de rentas obtenidas por no residentes sin establecimiento permanente                                                Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Retenciones de no residentes
+ NIF                     12005311R                         Titular / entidad          PERSONA SINTÉTICA 047
+
+ Ejercicio               2026                              Periodo                    12
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado            ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Rentas y retenciones
+ Número de rentas                                     4
+ Tipos de renta                                       Cánones; servicios; intereses
+ Países                                               FR; DE; US
+ Rentas exentas                                       12.000,00
+ Rentas sujetas                                       35.000,00
+ Retención                                            4.375,00
+ Resultado                                            4.375,00
+
+
+
+
+                                                                                                                 CO
+                                                                                                 É            TI
+                                                                                               T
+                                                                                           S IN
+                                                                     T O
+                                                  M                EN
+                                              C U
+                                 DO
+
+
+
+
+model_216_complex_047__native - NO PRESENTABLE - datos totalmente sintéticos                                             NATIVE_TEXT_PDF
+

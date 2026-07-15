@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_840_complex_091__scan_compressed",
+  "baseFixtureId": "model_840_complex_091",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_840",
+  "displayName": "840 - Declaración de alta, baja o variación en el IAE - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 2,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "CURRENT_AS_OF_EFFECTIVE_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B23511462",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 091 S.L.",
+    "document.code": "840",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "iae.action": "VARIACIÓN",
+    "iae.epigraph": "765",
+    "iae.activity": "Espectáculos y servicios audiovisuales",
+    "iae.quotaType": "PROVINCIAL",
+    "iae.effectiveDate": "15/06/2026",
+    "iae.premises": 3,
+    "iae.surface": "365 m²",
+    "iae.premisesDetail": [
+      [
+        "CL SINTÉTICA 1",
+        "MADRID",
+        "120 m²"
+      ],
+      [
+        "CL SINTÉTICA 2",
+        "ALCALÁ",
+        "95 m²"
+      ],
+      [
+        "AV SINTÉTICA 3",
+        "GETAFE",
+        "150 m²"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "IAE.STATUS": "MODIFIED",
+    "ACTIVITY.PREMISES": 3
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B23511462"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 091 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_840"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "840"
+    },
+    {
+      "fieldId": "iae.action",
+      "page": 1,
+      "label": "Tipo de declaración",
+      "value": "VARIACIÓN"
+    },
+    {
+      "fieldId": "iae.epigraph",
+      "page": 1,
+      "label": "Grupo o epígrafe",
+      "value": "765"
+    },
+    {
+      "fieldId": "iae.activity",
+      "page": 1,
+      "label": "Actividad",
+      "value": "Espectáculos y servicios audiovisuales"
+    },
+    {
+      "fieldId": "iae.quotaType",
+      "page": 1,
+      "label": "Tipo de cuota",
+      "value": "PROVINCIAL"
+    },
+    {
+      "fieldId": "iae.effectiveDate",
+      "page": 1,
+      "label": "Fecha de efectos",
+      "value": "15/06/2026"
+    },
+    {
+      "fieldId": "iae.premises",
+      "page": 1,
+      "label": "Locales",
+      "value": 3
+    },
+    {
+      "fieldId": "iae.surface",
+      "page": 1,
+      "label": "Superficie computable",
+      "value": "365 m²"
+    },
+    {
+      "fieldId": "iae.premisesDetail",
+      "page": 2,
+      "label": "Relación de locales",
+      "value": [
+        [
+          "CL SINTÉTICA 1",
+          "MADRID",
+          "120 m²"
+        ],
+        [
+          "CL SINTÉTICA 2",
+          "ALCALÁ",
+          "95 m²"
+        ],
+        [
+          "AV SINTÉTICA 3",
+          "GETAFE",
+          "150 m²"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G323.shtml",
+      "https://sede.agenciatributaria.gob.es/static_files/Sede/Procedimiento_ayuda/G323/mod840e_es_es.pdf"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_840_complex_091__scan_compressed.pdf",
+  "sha256": "0da354bc7bf8cbb0343396128e9d11bd5da59fc650eba47b24c1a092580ffc0e"
+}

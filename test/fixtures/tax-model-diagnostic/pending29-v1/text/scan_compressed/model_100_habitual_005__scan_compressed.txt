@@ -1,0 +1,169 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                  1 00
+
+Impuesto sobre la Renta de las Personas Fisi                                                                                                          Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen de la declaración
+
+NIF                               120005650                                 Titular / entidad                    PERSONA SINTÉTICA 005
+Ejercicio                         2025                                                Periodo                                    ANUAL
+Tipo documental     SYNTHETIC FILED COPY     Estado esperado         ACCEPT WITH_SYNTHETIC LIMITATION
+
+Datos generales
+Tipo de declaración                                     INDIVIDUAL
+Resultado                                                      950,00
+
+Actividad económica
+
+Clave Actividad                        Método                           Ingresos                         Gastos                            Rendimiento                  Retenciones
+Ao!                 Consultoría informática | DIRECTA            48.000,00            168-500,00            31.500,00            4.100,00
+SIMPLIFICADA
+
+model 100_febitual DOS — mative - NO PRESENTABLE - datos intalmente sintéticos                                                                                                   NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+100
+
+Impuesto sobre la Renta de las Personas Fi
+
+Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen de la declaración
+
+NIF
+
+120005650
+
+Titular / entidad
+
+PERSONA SINTÉTICA 005
+
+| 2025
+
+Periodo
+
+ANUAL
+
+Ejercicio
+
+Tipo documental
+
+| SYNTHETIC FILED COPY
+
+Estado esperado
+
+ACCEPT_ WITH_SYNTHETIC LIMITATION
+
+Datos generales
+
+Tipo de declaración
+
+INDIVIDUAL
+
+Resultado
+
+950,00
+
+Actividad económica
+
+Clavo
+
+Actividad
+
+| Método
+
+Ingresos
+
+Gastos
+
+Rendimiento
+
+Retenciones
+
+Ao!
+
+Consultoría informática DIRECTA
+
+48.000,00
+
+16-500.00
+
+31.500,00
+
+4100.00
+
+SIMPLIFICADA
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+9
+
+modal_100
+
+rebitual 005
+
+Aative - NO PRESENTABLE - datos intalmente simjélicos
+
+NATIVE TEXT_PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                  1 00
+
+Impuesto sobre la Renta de las Personas Fisicas                                                                                                         Fagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Liquidación
+Resultado
+Cuota diferencial / resultado                           950,00
+
+model 100 Eabitual DOS — native - NO PRESENTABLE - datos infalmente sintéticos                                                                                            NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+100
+
+Impuesto sobre la Renta de las Personas Fisicas
+
+Fagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Liquidación
+
+Resultado
+
+Cuota diferencial / resultado
+
+950,00
+
+co
+
+e
+
+NN
+
+xXO
+
+N
+
+NN
+
+yo
+
+model 100 Eabitual DOS
+
+Aative - NO PRESENTABLE - datos inftalmente sintéticos
+
+NATIVE TEXT PDF

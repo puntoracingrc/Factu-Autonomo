@@ -1,0 +1,214 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Impuesto sabré la Menta de las Personas Fi
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen de la declaración
+
+NIF                              12000791N                                Titular / entidad                    PERSONA SINTÉTICA 007
+Ejercicio                   2025                                     Periodo                            ANUAL
+Tipo documental       SYNTHETIC COMPLEMENTA Estado esperado              ACCEPT_ WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Datos generales
+
+Tipo de declaración                                     CONJUNTA
+Rentas atribuidas                                        7.400,00
+Ganancias patrimoniales                               12.800,00
+Resultado                                                      4:200,00
+
+Actividad económica
+
+Clave Actividad                        Método                           Ingresos                         Gastos                            Rendimiento                  Retenciones
+AD!                        Arquitectura               DIRECTA NORMAL      125.000,00                E2.000.00                 63.000,00                 10.500,00
+AD2                               Alquiler de local             CAPITAL                       18.000,00                      4.200,00                        13.800,00                      3420.00
+
+INMOBILIARIO
+
+model 100 compiez 007 nalíve- NO PRESENTABLE - datos tetalmente sintéticos                                                                      NATIVE TEXT. PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+100
+
+Impuesto
+
+la Renta de las Personas F
+
+E
+
+ina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen de la declaración
+
+NIF
+
+12000791N
+
+Titular / entidad
+
+PERSONA SINTÉTICA 007
+
+2025
+
+Periodo
+
+ANUAL
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+ACCEPT_ WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Datos generales
+
+Tipo de declaración
+
+CONJUNTA
+
+Rentas atribuidas
+
+7.400,00
+
+Ganancias patrimoniales
+
+12.800,00
+
+Resultado
+
+4.200,00
+
+Actividad económica
+
+Clave
+
+Actividad
+
+Método
+
+Gastos
+
+Rendimiento
+
+Retenciones
+
+Ingresos
+
+ADO!
+
+Armuitectura
+
+DIRECTA NORMAL
+
+125.000,00
+
+62.000,00
+
+63.000,00
+
+10.500,00
+
+Ao2
+
+Alquiler de local
+
+CAPITAL
+
+18.000,00
+
+4.200,00
+
+13.800,00
+
+3420.00
+
+INMOBILIARIO
+
+co
+
+O
+
+NN
+
+XO
+
+N
+
+NN
+
+yo
+
+mode
+
+100 complez 007
+
+native -NO PRESENTABLE - datos tolalmente sintéticos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                1 00
+
+obre la Menta de las Personas       5                                                                                                         Fagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Liquidación
+Resultado
+Cuota diferencial / resultado                           4.200,00
+
+model_100_ compiex 007 nalive - MO PRESENTABLE - datos tolalmente siméticos                                                                    NATIVE TEXT POF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+100
+
+Impuest
+
+obre lá Renta de las Personas
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Liquidación
+
+Resultado
+
+Cuota diferencial / resultado
+
+4.200,00
+
+co
+
+<<
+
+NN
+
+KO
+
+N
+
+NN
+
+9
+
+mode
+
+1
+
+compres
+
+007
+
+live - NO PRESENTABLE - datos tolalmente
+
+intéficos
+
+NATIVE TEXT POF

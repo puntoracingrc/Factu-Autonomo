@@ -1,0 +1,206 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                               1   0
+
+Resumen ana! de reten:    es      rend:        E lr    !     manos                                                                      Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen anual
+
+NIF                            B'8126540                              Titular / entidad                  ENTIDAD SINTÉTICA 023 S.L.
+Ejercicio                   2025                                     Periodo                            ANUAL
+Tipo documental       SYNTHETIC COMPLEMENTA Estado esperado              ACCEPT WITH SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Resumen
+Sustitutiva                                                      si
+Perceptores                                                                  3
+Base total                                                 40.800,00
+Retenciones                                                   7.752,00
+
+model 180 complex 023 nalive- NO PRESENTABLE - datos tealmente sintéticos                                                                    NATIVE TEXT. PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+180
+
+Resumen anal de net
+
+e
+
+es por amendami
+
+de Inmue
+
+manos
+
+Fagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen anual
+
+NIF
+
+B'8126540
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 023 S.L.
+
+2025
+
+Periodo
+
+ANUAL
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+ACCEPT WITH SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Resumen
+
+Sustitutiva
+
+si
+
+Perceptores
+
+3
+
+Base total
+
+40.800,00
+
+Retenciones
+
+7.752,00
+
+co
+
+<<
+
+NN
+
+XO
+
+N
+
+NN
+
+yo
+
+model 180 complex 023
+
+alive - MO PRESENTABLE - datos tolalmente sintéticos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                1 80
+
+Resumen anilal de retenciones por améndamiento de inmuet      rnanos                                                                                  Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Relación de perceptores e inmuebles
+
+Detalle
+NIF                                Perceptor                       Inmueble                         Relerencia                      Base                              Retención
+B38003232                     ARRENDADOR A S.L       AY DEMO 2, MADRID        AC-SYN-0101                  24.000,00                      4.560,00
+20000023M                    ARRENDADOR               CLENSAYOS, TOLEDO RC-5YN-0102                 9.600,00                        1.824,00
+PERSONA B
+B38082426                ARRENDADOR CSL      PZ MUESTRA 1, MADRID  RC-5YN-0103             17.200,00                   1.358,00
+
+modal 180 complex 023 native- NO PRESENTABLE - datos totalmente sintéticos:                                                           NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+180
+
+Resumen anilal de retencil
+
+es por amandamiento de Inmue
+
+manos
+
+Fagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Relación de perceptores e inmuebles
+
+Detalle
+
+NIF
+
+Perceptor
+
+Inmueble
+
+Reterencia
+
+Base
+
+Retención
+
+B38009232
+
+ARRENDADOR A S.L.
+
+Av DEMO 2, MADRID
+
+RC-5YN-0101
+
+24.000,00
+
+4.560,00
+
+20000023M
+
+ARRENDADOR
+
+CL ENSAYO 8. TOLEDO
+
+RC-SYN-0102
+
+9.600,00
+
+1.824,00
+
+PERSONA B
+
+B38082426
+
+ARRENDADOR C S.L
+
+PZ MUESTRA 1, MADRID
+
+RC-5YN-0103
+
+7.200,00
+
+1.368,00
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+modal 180 complex 023
+
+nátive -NO PRESENTABLE - dasos totalmente sintéticos
+
+NATIVE TEXT_PDF

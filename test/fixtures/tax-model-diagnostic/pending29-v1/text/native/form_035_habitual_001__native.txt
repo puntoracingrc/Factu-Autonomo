@@ -1,0 +1,73 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                               035
+Registro censal de los regímenes especiales OSS/IOSS                                                                       Página 1
+
+
+                                                       FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Identificación y opción censal
+ NIF                      B16384364                          Titular / entidad   ENTIDAD SINTÉTICA 001 S.L.
+
+ Ejercicio                2026                               Periodo             N/A
+
+ Tipo documental          SYNTHETIC_FILED_COPY               Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Registro OSS/IOSS
+ Tipo de declaración                                    ALTA
+ Régimen                                                RÉGIMEN DE LA UNIÓN
+ Estado miembro de identificación                       ESPAÑA
+ Fecha de efectos                                       01/07/2026
+ Número de identificación                               EU-ES-SYN-0001
+
+
+
+
+                                                                                                            CO
+                                                                                            É            TI
+                                                                                          T
+                                                                                    S   IN
+                                                                       T O
+                                                    M                EN
+                                                C U
+                                  DO
+
+
+
+
+form_035_habitual_001__native - NO PRESENTABLE - datos totalmente sintéticos                                        NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                          035
+Registro censal de los regímenes especiales OSS/IOSS                                                                  Página 2
+
+
+                                                       FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Información complementaria
+  Datos adicionales
+ Sitio web                                              https://tienda-sintetica.example
+ Correo de contacto                                     fiscal@sintetica.example
+ Establecimientos permanentes en otros                  NINGUNO
+ Estados
+
+
+
+
+                                                                                                          CO
+                                                                                                É      TI
+                                                                                              T
+                                                                                           SIN
+                                                                      T O
+                                                    M               EN
+                                                C U
+                                  DO
+
+
+
+
+form_035_habitual_001__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

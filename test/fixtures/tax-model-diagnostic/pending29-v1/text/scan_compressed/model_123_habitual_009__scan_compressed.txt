@@ -1,0 +1,99 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                1 23
+
+al mobiliario                                                                                   Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación
+NIF                              12001017P                                Titular / entidad                    PERSONA SINTÉTICA 008
+Ejercicio                   2026                                     Periodo                            aT
+Tipo documental       SYNTHETIC_FILED COPY       Estado esperado              ACCEPT_ WITH_SYNTHETIC LIMITATION
+
+Retenciones e ingresos a cuenta
+
+Número de perceptores                                2
+
+Base                                                             6-000,00
+Retenciones                                                    1.140,00
+Resultado a ingresar                                    1.140,00
+
+model 173 febitual 009 native - NO PRESENTARLE - detos intalmente simiéticos                                                     NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+123
+
+TITHF
+
+mig
+
+5 de
+
+al mobiliario
+
+Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación
+
+NIF
+
+12001017P
+
+Titular / entidad
+
+PERSONA SINTÉTICA 008
+
+Ejercicio
+
+| 2026
+
+Periodo
+
+aT
+
+SYNTHETIC_FILED COPY
+
+ACCEPT_ WITH_SYNTHETIC LIMITATION
+
+Tipo documental
+
+Estado esperado
+
+Retenciones e ingresos a cuenta
+
+2
+
+Número de perceptores
+
+Base
+
+6.000,00
+
+Retenciones
+
+1.140,00
+
+Resultado a ingresar
+
+1.140,00
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+model 173 febitual DOS
+
+native - NO PRESENTARLE - datos intalmente simiéticos
+
+NATIVE TEXT PDF

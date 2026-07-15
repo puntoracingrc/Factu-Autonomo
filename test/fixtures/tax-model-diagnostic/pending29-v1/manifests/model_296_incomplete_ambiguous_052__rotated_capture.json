@@ -1,0 +1,99 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_296_incomplete_ambiguous_052__rotated_capture",
+  "baseFixtureId": "model_296_incomplete_ambiguous_052",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_296",
+  "displayName": "296 - Resumen anual de retenciones de no residentes - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "B20423059",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 052 S.L.",
+    "document.code": "296",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "nonresident.recipients": 2,
+    "nonresident.totalBase": "35.000,00",
+    "nonresident.totalWithholding": "3.800,00"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.NON_RESIDENTS": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B20423059"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 052 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_296"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "296"
+    },
+    {
+      "fieldId": "nonresident.recipients",
+      "page": 1,
+      "label": "Perceptores",
+      "value": 2
+    },
+    {
+      "fieldId": "nonresident.totalBase",
+      "page": 1,
+      "label": "Base total",
+      "value": "35.000,00"
+    },
+    {
+      "fieldId": "nonresident.totalWithholding",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "3.800,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI22.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_296_incomplete_ambiguous_052__rotated_capture.pdf",
+  "sha256": "dc5639ff2710dd9946a23c9fa69d696624aaac24a20e5dcc6caa64eeb4788484"
+}

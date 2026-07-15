@@ -1,0 +1,103 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Pago traccionado del Impue
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF                                819551969                                   Titular / entidad                   | ENTIDAD SINTÉTICA 041 S.L.
+
+Ejercicio     2026           Periodo       2
+“Tipo documental ——  SYNTHETIC FILED COPY — Estado esperado
+
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Cálculo
+
+Modalidad                       ARTÍCULO 40.2 LIS
+Cuota último periodo               18,000,00
+Porcentaje                                                                 18%
+
+Pago fraccionado                 “3.200,00
+
+model 202 habitual 041_ native - NO PRESENTABLE - dates totalmente sintéticos                                                                                                               NATIVE TEXT_POF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+202
+
+Pago traccionado del Impue
+
+o Sobi
+
+Ones
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+819551969
+
+Titular / entidad
+
+da aci
+
+| ENTIDAD SINTÉTICA 041 S.L.
+
+——
+
+f—————]]]Ñ —]——_—
+
+- Ejercicio
+
+12026
+
+Periodo
+
+—|
+
+2P
+
+—
+
+- Tipo documental  | SYNTHETIC_FILED_COPY  "Estado esperado
+
+|
+
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Cálculo
+
+Modalidad
+
+ARTÍCULO 40.2 LIS
+
+18.000,00
+
+Cuota último periodo
+
+Porcentaje
+
+18%
+
+Pago fraccionado
+
+3.240,60
+
+co
+
+N
+
+Ne
+
+No
+
+UN
+
+.
+
+model 202 habiual 041_ native - NO PRESENTABLE - daton totalmente sintéticos
+
+NATIVE TEXT_PDF

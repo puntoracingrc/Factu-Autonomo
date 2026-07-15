@@ -1,0 +1,232 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación OSS/IOSS
+NE           Co
+Ejercicio  2026               Periodo                        3r
+
+Tipo documental —— SYNTHETIC COMPLEMENTA Estado esperado + ACCEPT WITH_SYNTHETIC LIMITATION
+AY_OR_MULTI RECORD
+
+Titular / entidad                 | ENTIDAD SINTÉTICA 075 S.L.
+
+Régimen y totales
+
+Régimen                                                              RÉGIMEN DE LA UNIÓN
+Estados de consumo                                  4
+
+Correcciones                                         si
+
+IVA total                                               14.000,00
+
+modal 369 complex 075_ native - NO PRESENTABLE - datos totalmente sintéticos                                                                                                            MATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+369
+
+de
+
+er
+
+o
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+| Autoliguidación OSS/IOSS
+
+nm —- ——.
+
+B22244420
+
+——————
+
+Titular / entidad
+
+| “ENTIDAD SINTÉTICA 075 si
+
+ec
+
+———
+
+—————d
+
+2026
+
+Periodo
+
+3r
+
+Ejercicio
+
+E —
+
+—
+
+Tipo documental
+
+ SYNTHETIC_COMPLEMENTA | Estado esperado           “ACCEPT_WITH_SYNTHETIC_LIMITATION —
+
+|  AY_OR_MULT 1 RECORD
+
+— eel
+
+——
+
+—
+
+—_—
+
+——
+
+——]]]———]——
+
+Régimen y totales
+
+Régimen
+
+RÉGIMEN DE LA UNIÓN
+
+Estados de consumo
+
+4
+
+Correcciones
+
+si
+
+IVA total
+
+ 14.000,00
+
+o
+
+..
+
+NN
+
+o
+
+UN
+
+,
+
+modal 369 complex 075_ native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE _TEXT_PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+5 de ventanilla umic
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operaciones por Estado miembro
+
+Detalle
+
+¡Pals    =      Operación    — Base        — |"           “Cuota
+
+FR                                        | VENTAS A DISTANCIA DE        32.000,00                                20%                                      6.400,00
+BIENES                               |                                         |                                         |
+
+DE                                           SERVICIOS DIGITALES            240000                         19%                                       4.560,00
+
+IT                                     VENTAS A DISTANCIA DE       |18.000,00                            22%                                  13.960,00
+
+BIENES                               |
+
+PT                                   CORRECCIÓN PERIODO         -4,000,00                           23%                                 -920,00
+
+| ANTERIOR
+
+model 369 complex 076 native - NO PRESENTABLE - daron totalmente sintéticos                                                                                    NATIVE_TEXT_POF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+369
+
+IVA ce k
+
+gir
+
+df
+
+e ventanilla umi _c
+
+Pág
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operaciones por Estado miembro
+
+Detalle
+
+País
+
+Operación
+
+Tipo
+
+=
+
+¡Base
+
+FA.
+
+VENTAS A DISTANCIA DE
+
+12.000,00
+
+6.400,00
+
+BIENES
+
+DE
+
+SERVICIOS DIGITALES
+
+19%
+
+4.560,00
+
+| 24.000,00
+
+IT
+
+VENTAS A DISTANCIA DE
+
+18.000,00
+
+3.960,00
+
+Bi
+
+PT
+
+CORRECCIÓN PERIODO
+
+-4,000,00
+
+920,00
+
+ANTERIOR
+
+co
+
+O
+
+NN
+
+KO
+
+N
+
+NN
+
+9
+
+model 369 complex 076 _ native - NO PRESENTABLE - daros totalmente sintéticos
+
+NATIVE_TEXT_PDF

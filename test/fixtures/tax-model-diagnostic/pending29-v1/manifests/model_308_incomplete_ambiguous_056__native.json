@@ -1,0 +1,109 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_308_incomplete_ambiguous_056__native",
+  "baseFixtureId": "model_308_incomplete_ambiguous_056",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_308",
+  "displayName": "308 - Solicitud de devolución en supuestos especiales de IVA - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": "2T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12006328Y",
+    "taxpayer.name": "PERSONA SINTÉTICA 056",
+    "document.code": "308",
+    "document.fiscalYear": 2026,
+    "document.period": "2T",
+    "vat.refundReason": "[NO VISIBLE]",
+    "vat.operations": 4,
+    "vat.refundRequested": "1.250,00",
+    "bank.ibanMasked": "[PÁGINA AUSENTE]"
+  },
+  "expectedQuestionMappings": {
+    "VAT.SPECIAL_REFUND_308": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12006328Y"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 056"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_308"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "308"
+    },
+    {
+      "fieldId": "vat.refundReason",
+      "page": 1,
+      "label": "Motivo de devolución",
+      "value": "[NO VISIBLE]"
+    },
+    {
+      "fieldId": "vat.operations",
+      "page": 1,
+      "label": "Operaciones",
+      "value": 4
+    },
+    {
+      "fieldId": "vat.refundRequested",
+      "page": 1,
+      "label": "Devolución solicitada",
+      "value": "1.250,00"
+    },
+    {
+      "fieldId": "bank.ibanMasked",
+      "page": 1,
+      "label": "Cuenta de abono",
+      "value": "[PÁGINA AUSENTE]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "vat.refundReason",
+    "bank.ibanMasked"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G403.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_308_incomplete_ambiguous_056__native.pdf",
+  "sha256": "364f8667705b37c7e279a346956bfd4c11276aef99f1edd26743d7bec05e34d5"
+}

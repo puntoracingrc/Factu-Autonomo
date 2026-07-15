@@ -1,0 +1,41 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                              131
+Pago fraccionado de IRPF en estimación objetiva                                                                           Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Pago fraccionado
+ NIF                      12001469T                         Titular / entidad   PERSONA SINTÉTICA 013
+
+ Ejercicio                2026                              Periodo             1T
+
+ Tipo documental          SYNTHETIC_FILED_COPY              Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Cálculo por módulos
+ Método                                                ESTIMACIÓN OBJETIVA
+ Actividad                                             Comercio menor de pan
+ Rendimiento neto por módulos                          12.800,00
+ Porcentaje                                            4%
+ Resultado                                             512,00
+
+
+
+
+                                                                                                           CO
+                                                                                           É            TI
+                                                                                         T
+                                                                                     S IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_131_habitual_013__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+

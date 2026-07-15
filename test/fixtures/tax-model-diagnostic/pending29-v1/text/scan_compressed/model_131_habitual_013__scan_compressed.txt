@@ -1,0 +1,104 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                1 31
+
+Pago      ¡ado de IRPF er    ¡     ón objetiva                                                                                                     Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF                              12001469                                Titular / entidad                    PERSONA SINTÉTICA 013
+Ejercicio                   2026                                     Periodo                            1T
+Tipo documental       SYNTHETIC FILED COPY       Estado esperado              ACCEPT_WITH_SYNTHETIC LIMITATICN
+
+Cálculo por módulos
+
+Método                                                     ESTIMACIÓN OBJETIVA
+Actividad                                                  Comercio menor de pañ
+Rendimiento neto por módulos                        12.800,00
+
+Porcentaje                                                45%
+
+Resultado                                                 512.00
+
+model 131 habitual 019 native - NO PRESENTARLE - datos infalmente sintéticos                                                                                                                                   NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+131
+
+Pagofr
+
+¡ado de IRPF er
+
+objetiva
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF
+
+12001469T
+
+Titular / entidad
+
+PERSONA SINTÉTICA 013
+
+2026
+
+Periodo
+
+1T
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC FILED COPY
+
+Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Cálculo por módulos
+
+Método
+
+ESTIMACIÓN OBJETIVA
+
+Actividad
+
+Comercio menor de pañ
+
+Rendimiento neto por módulos
+
+12.800,00
+
+Porcentaje
+
+4%
+
+Resultado
+
+512,00
+
+co
+
+NN
+
+XO
+
+N
+
+NN
+
+yo
+
+modal 131
+
+habitual 013
+
+native - NO PRESENTABLE - datos infalmente sintéticos
+
+NATIVE TEXT PDF

@@ -75,6 +75,7 @@ function genericEnvelope(
     effectiveDate: extractDateAfterLabel(input.text, [
       "FECHA EFECTIVA",
       "FECHA DE EFECTO",
+      "FECHA DE EFECTOS",
     ]),
     receiptNumberMasked: maskReference(receipt),
     csv: csvDetected

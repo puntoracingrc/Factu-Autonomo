@@ -14,6 +14,7 @@ import type { DeepTextExtraction } from "./first-block";
 import {
   createExtractedFact,
   extractDateAfterLabel,
+  hasExplicitIncompleteEvidence,
   maskSpanishTaxId,
   normalizeDocumentText,
 } from "./normalization";
@@ -249,6 +250,7 @@ function extractSubmittedModel(
   const effectiveDate = extractDateAfterLabel(input.text, [
     "FECHA EFECTIVA",
     "FECHA DE EFECTO",
+    "FECHA DE EFECTOS",
     "FECHA DE ALTA",
     "FECHA DE BAJA",
     "FECHA DE VARIACION",
@@ -257,8 +259,7 @@ function extractSubmittedModel(
     !EVENT_MODELS.has(code) || Boolean(candidate.taxYear || effectiveDate);
   const valid =
     candidate.modelCode === code &&
-    candidate.isSubmitted &&
-    candidate.status === "RESOLVED" &&
+    (candidate.isSubmitted || candidate.hasPopulatedData) &&
     eventHasTime;
   const temporalScope: TemporalScope = ANNUAL_MODELS.has(code)
     ? "TARGET_FISCAL_YEAR"
@@ -324,33 +325,65 @@ function extractSubmittedModel(
     };
   }
 
-  add(
-    "FILING.MODEL",
-    {
-      model: code,
-      ...(candidate.taxYear ? { fiscalYear: candidate.taxYear } : {}),
-      ...(candidate.period ? { period: candidate.period } : {}),
-      status: "APPARENTLY_FILED",
-    },
-    `Modelo ${code} presentado`,
-  );
+  if (candidate.isSubmitted) {
+    add(
+      "FILING.MODEL",
+      {
+        model: code,
+        ...(candidate.taxYear ? { fiscalYear: candidate.taxYear } : {}),
+        ...(candidate.period ? { period: candidate.period } : {}),
+        status: "APPARENTLY_FILED",
+      },
+      `Modelo ${code} presentado`,
+    );
+  }
 
   if (code === "100") {
     add(
-      "PERSONAL.IRPF_RETURN",
-      { annualReturnFiled: true },
-      "Declaración anual del IRPF",
+      candidate.isSubmitted ? "PERSONAL.IRPF_RETURN" : "IRPF.PRIOR_ANNUAL_FILING",
+      candidate.isSubmitted
+        ? { annualReturnFiled: true }
+        : { documentObserved: true, officialSubmissionVerified: false },
+      "Declaración anual del IRPF observada",
     );
-    if (markedLabel(input.text, "Estimación directa simplificada")) {
+    if (
+      markedLabel(input.text, "Estimación directa simplificada") ||
+      /\bDIRECTA\b.{0,140}\bSIMPLIFICADA\b/.test(normalized)
+    ) {
       add(
         "IRPF.METHOD",
         "DIRECT_SIMPLIFIED",
         "Estimación directa simplificada",
       );
-    } else if (markedLabel(input.text, "Estimación directa normal")) {
+    } else if (
+      markedLabel(input.text, "Estimación directa normal") ||
+      /\bDIRECTA\s+NORMAL\b/.test(normalized)
+    ) {
       add("IRPF.METHOD", "DIRECT_NORMAL", "Estimación directa normal");
     } else if (markedLabel(input.text, "Estimación objetiva")) {
       add("IRPF.METHOD", "OBJECTIVE_ESTIMATION", "Estimación objetiva");
+    }
+    const activityRows = [
+      ...normalized.matchAll(
+        /\b(A\d{2})\s+(.{2,100}?)\s+(?:DIRECTA(?:\s+(?:NORMAL|SIMPLIFICADA))?|OBJETIVA|CAPITAL\s+INMOBILIARIO)\b/g,
+      ),
+    ].map((match) => ({
+      code: match[1],
+      description: match[2].trim(),
+    }));
+    if (activityRows.length > 0) {
+      add(
+        "ACTIVITY.LIST",
+        activityRows,
+        "Actividades económicas de la declaración anual",
+      );
+    }
+    if (hasPositiveLabel(input.text, ["Rentas atribuidas"])) {
+      add(
+        "ENTITY.INCOME_ATTRIBUTION",
+        { attributedIncomeDeclared: true },
+        "Rentas atribuidas declaradas en el IRPF",
+      );
     }
   }
 
@@ -358,6 +391,8 @@ function extractSubmittedModel(
     const positiveCapital =
       hasPositiveBox(input.text, ["01", "02", "03"]) ||
       hasPositiveLabel(input.text, [
+        "Perceptores",
+        "Base total",
         "Número de perceptores",
         "Número total de perceptores",
         "Base de retenciones e ingresos a cuenta",
@@ -380,7 +415,7 @@ function extractSubmittedModel(
   if (code === "151") {
     add(
       "PERSONAL.SPECIAL_ARTICLE_93",
-      { specialRegimeReturnFiled: true },
+      { documentObserved: true, officialSubmissionVerified: false },
       "Régimen especial de personas desplazadas a España",
     );
   }
@@ -388,15 +423,19 @@ function extractSubmittedModel(
   if (code === "200") {
     add(
       "COMPANY.CORPORATE_TAX",
-      { corporateTaxReturnFiled: true },
+      { documentObserved: true, officialSubmissionVerified: false },
       "Impuesto sobre Sociedades",
     );
   }
 
   if (code === "202") {
     add(
-      "COMPANY.INSTALLMENT_PAYMENT",
-      { installmentPaymentFiled: true },
+      candidate.isSubmitted
+        ? "COMPANY.INSTALLMENT_PAYMENT"
+        : "COMPANY.PRIOR_MODEL_202_FILING",
+      candidate.isSubmitted
+        ? { installmentPaymentFiled: true }
+        : { documentObserved: true, officialSubmissionVerified: false },
       "Pago fraccionado del Impuesto sobre Sociedades",
     );
   }
@@ -423,6 +462,8 @@ function extractSubmittedModel(
         "21",
       ]) ||
       hasPositiveLabel(input.text, [
+        "Perceptores",
+        "Base total",
         "Número de rentas",
         "Número de perceptores",
         "Base de retenciones e ingresos a cuenta",
@@ -448,6 +489,7 @@ function extractSubmittedModel(
         "Importe de la devolución solicitada",
         "Cantidad cuya devolución se solicita",
         "Resultado a devolver",
+        "Devolución solicitada",
       ])
     ) {
       add(
@@ -460,6 +502,9 @@ function extractSubmittedModel(
 
   if (code === "309") {
     if (
+      /\bSUPUESTOS?\b.{0,180}\b(?:ADQUISICION|ADQUISICIONES)\s+INTRACOMUNITARI/.test(
+        normalized,
+      ) ||
       hasPositiveLabel(input.text, [
         "Adquisiciones intracomunitarias de bienes",
         "Adquisición intracomunitaria de medios de transporte nuevos",
@@ -472,6 +517,9 @@ function extractSubmittedModel(
       );
     }
     if (
+      /\bSUPUESTOS?\b.{0,180}\bINVERSION\s+DEL\s+SUJETO\s+PASIVO/.test(
+        normalized,
+      ) ||
       hasPositiveLabel(input.text, [
         "Operaciones con inversión del sujeto pasivo",
         "Adquisiciones de bienes y servicios por inversión del sujeto pasivo",
@@ -486,7 +534,7 @@ function extractSubmittedModel(
   }
 
   if (code === "341") {
-    if (
+    const positiveCompensation =
       hasPositiveBox(input.text, [
         "01",
         "02",
@@ -501,16 +549,33 @@ function extractSubmittedModel(
       ]) ||
       hasPositiveLabel(input.text, [
         "Importe de las compensaciones",
+        "Compensación solicitada",
         "Importe a reintegrar",
         "Resultado a devolver",
-      ])
-    ) {
+      ]);
+    if (positiveCompensation) {
       add(
         "VAT.SPECIAL_REFUND",
         { requested: true, declarationModel: "341" },
         "Reintegro de compensaciones de agricultura, ganadería o pesca",
         "01-10",
       );
+      const activityNatures = [
+        ...(normalized.includes("HORTICOLAS") || normalized.includes("CEREAL")
+          ? (["AGRICULTURAL"] as const)
+          : []),
+        ...(normalized.includes("GANADO")
+          ? (["LIVESTOCK"] as const)
+          : []),
+        ...(normalized.includes("PESCA") ? (["FISHING"] as const) : []),
+      ];
+      if (activityNatures.length > 0) {
+        add(
+          "ACTIVITY.NATURE",
+          [...new Set(activityNatures)],
+          "Naturaleza de los productos objeto de compensación",
+        );
+      }
     }
   }
 
@@ -518,6 +583,8 @@ function extractSubmittedModel(
     const hasRecord =
       /\bCLAVE(?:\s+DE)?\s+OPERACION\s*[:.\-]?\s*[A-Z]\b/.test(normalized) ||
       hasPositiveLabel(input.text, [
+        "Número de terceros",
+        "Importe anual declarado",
         "Importe anual de las operaciones",
         "Importe total de las operaciones",
         "Número de declarados",
@@ -536,7 +603,7 @@ function extractSubmittedModel(
   if (code === "714") {
     add(
       "PERSONAL.WEALTH_TAX",
-      { wealthTaxReturnFiled: true },
+      { documentObserved: true, officialSubmissionVerified: false },
       "Impuesto sobre el Patrimonio",
     );
   }
@@ -547,9 +614,15 @@ function extractSubmittedModel(
         /\bCLAVE(?:\s+TIPO)?\s+DE\s+BIEN\s*[:.\-]?\s*([ABC])\b/g,
       ),
     ].map((match) => match[1]);
+    for (const match of normalized.matchAll(
+      /\b([CVI])\s+[A-Z]{2}\s+[A-Z][A-Z ]{2,100}?\s+(?:TITULAR|AUTORIZADO|BENEFICIARIO)\b/g,
+    )) {
+      categories.push(match[1]);
+    }
     if (
       categories.length > 0 ||
       hasPositiveLabel(input.text, [
+        "Registros",
         "Número de registros",
         "Número de bienes o derechos",
       ])
@@ -569,6 +642,7 @@ function extractSubmittedModel(
         normalized,
       ) ||
       hasPositiveLabel(input.text, [
+        "Registros",
         "Número de registros",
         "Número de monedas virtuales",
       ]);
@@ -583,16 +657,22 @@ function extractSubmittedModel(
   }
 
   if (code === "840") {
-    const action = markedLabel(input.text, "Alta")
+    const labelledAction = normalized.match(
+      /\bTIPO\s+DE\s+DECLARACION\s*[:.\-]?\s*(ALTA|VARIACION|BAJA)\b/,
+    )?.[1];
+    const action = labelledAction === "ALTA" || markedLabel(input.text, "Alta")
       ? "REGISTRATION"
-      : markedLabel(input.text, "Variación")
+      : labelledAction === "VARIACION" || markedLabel(input.text, "Variación")
         ? "MODIFICATION"
-        : markedLabel(input.text, "Baja")
+        : labelledAction === "BAJA" || markedLabel(input.text, "Baja")
           ? "DEREGISTRATION"
           : null;
     const heading = normalized.match(
-      /\b(?:GRUPO\s*\/\s*)?EPIGRAFE\s*[:.\-]?\s*([0-9]{1,4}(?:\.[0-9])?)\b/,
+      /\b(?:GRUPO\s*(?:\/|O)\s*)?EPIGRAFE\s*[:.\-]?\s*([0-9]{1,4}(?:\.[0-9])?)\b/,
     )?.[1];
+    const activityDescription = normalized.match(
+      /\bACTIVIDAD(?!\s+Y\s+EFECTOS)\s*[:.\-]?\s*(.{2,160}?)(?=\s+TIPO DE CUOTA\b|\s+MUNICIPIO\b|\s+FECHA DE EFECTOS\b|$)/,
+    )?.[1]?.trim();
     if (action && effectiveDate && heading) {
       add(
         "IAE.EVENT",
@@ -601,13 +681,24 @@ function extractSubmittedModel(
         "acción/epígrafe/fecha",
         { effectiveFrom: effectiveDate, effectiveTo: null },
       );
+      if (activityDescription && !/\[(?:NO VISIBLE|ILEGIBLE)/.test(activityDescription)) {
+        add(
+          "ACTIVITY.LIST",
+          [{ code: heading, description: activityDescription }],
+          "Actividad y epígrafe del IAE",
+          "actividad/epígrafe",
+          { effectiveFrom: effectiveDate, effectiveTo: null },
+        );
+      }
     }
   }
 
   return {
     facts,
-    documentKind: "FILED_DECLARATION_COPY",
-    filingStatus: "APPARENTLY_FILED",
+    documentKind: candidate.isSubmitted
+      ? "FILED_DECLARATION_COPY"
+      : "PREDECLARATION",
+    filingStatus: candidate.isSubmitted ? "APPARENTLY_FILED" : "NOT_VERIFIED",
     fiscalYear: candidate.taxYear ?? null,
     period: candidate.period ?? null,
     taxpayerNifMasked: taxpayerNif(input.text),
@@ -615,9 +706,20 @@ function extractSubmittedModel(
     filingDate: signals.filingDate,
     effectiveDate,
     csvDetected: signals.csvDetected,
-    isComplete: completePages(input),
+    isComplete:
+      candidate.isSubmitted &&
+      facts.length > 0 &&
+      completePages(input) &&
+      !hasExplicitIncompleteEvidence(input.text),
     confidence: facts.length > 1 ? confidence : 0.74,
-    warnings: candidate.warnings,
+    warnings: [
+      ...candidate.warnings,
+      ...(!candidate.isSubmitted
+        ? [
+            "Los campos se han leído de un impreso cumplimentado sin prueba de presentación; requieren confirmación y solo describen el periodo visible.",
+          ]
+        : []),
+    ],
   };
 }
 
@@ -660,22 +762,25 @@ function extractSupportingCertificate(
   if (
     documentType === "ROI_CERTIFICATE" &&
     candidate.documentType === "INTRACOMMUNITY_OPERATOR_CERTIFICATE" &&
-    candidate.roiRegistered === "YES"
+    candidate.roiRegistered != null
   ) {
     add(
       "EU.ROI",
-      { registered: true },
+      { registered: candidate.roiRegistered === "YES" },
       "Registro de Operadores Intracomunitarios",
     );
   }
   if (
     documentType === "LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE" &&
     candidate.documentType === "LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE" &&
-    candidate.landlordWithholdingExemption === "YES"
+    candidate.landlordWithholdingExemption != null
   ) {
     add(
       "WITHHOLDING.RENT_EXEMPTION",
-      { exemptionAccredited: true },
+      {
+        exemptionAccredited:
+          candidate.landlordWithholdingExemption === "YES",
+      },
       "Exoneración de retención del arrendador",
     );
   }
@@ -683,7 +788,7 @@ function extractSupportingCertificate(
   return {
     facts,
     documentKind: "CURRENT_CERTIFICATE",
-    filingStatus: facts.length > 0 ? "APPARENTLY_FILED" : "NOT_VERIFIED",
+    filingStatus: "NOT_VERIFIED",
     fiscalYear: null,
     period: null,
     taxpayerNifMasked: taxpayerNif(input.text),
@@ -693,7 +798,10 @@ function extractSupportingCertificate(
     csvDetected: /\b(?:CODIGO SEGURO DE VERIFICACION|CSV)\b/.test(
       normalizeDocumentText(input.text),
     ),
-    isComplete: facts.length > 0 && completePages(input),
+    isComplete:
+      facts.length > 0 &&
+      completePages(input) &&
+      !hasExplicitIncompleteEvidence(input.text),
     confidence: facts.length > 0 ? 0.91 : 0.58,
     warnings: candidate.warnings,
   };

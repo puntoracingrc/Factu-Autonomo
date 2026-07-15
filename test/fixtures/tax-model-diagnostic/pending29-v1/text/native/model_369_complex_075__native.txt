@@ -1,0 +1,77 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                             369
+IVA de los regímenes de ventanilla única OSS/IOSS                                                                        Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Autoliquidación OSS/IOSS
+ NIF                     B22244420                         Titular / entidad   ENTIDAD SINTÉTICA 075 S.L.
+
+ Ejercicio               2026                              Periodo             3T
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Régimen y totales
+ Régimen                                              RÉGIMEN DE LA UNIÓN
+ Estados de consumo                                   4
+ Correcciones                                         SÍ
+ IVA total                                            14.000,00
+
+
+
+
+                                                                                                          CO
+                                                                                          É            TI
+                                                                                        T
+                                                                                    S IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_369_complex_075__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                               369
+IVA de los regímenes de ventanilla única OSS/IOSS                                                                          Página 2
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Operaciones por Estado miembro
+  Detalle
+País                               Operación                          Base                Tipo           Cuota
+FR                                 VENTAS A DISTANCIA DE              32.000,00           20%            6.400,00
+                                   BIENES
+DE                                 SERVICIOS DIGITALES                24.000,00           19%            4.560,00
+IT                                 VENTAS A DISTANCIA DE              18.000,00           22%            3.960,00
+                                   BIENES
+PT                                 CORRECCIÓN PERIODO                 -4.000,00           23%            -920,00
+                                   ANTERIOR
+
+
+
+
+                                                                                                        CO
+                                                                                          É          TI
+                                                                                        T
+                                                                                  S   IN
+                                                                    T O
+                                                   M              EN
+                                               C U
+                                 DO
+
+
+
+
+model_369_complex_075__native - NO PRESENTABLE - datos totalmente sintéticos                                        NATIVE_TEXT_PDF
+

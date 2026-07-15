@@ -1,0 +1,116 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+Ca             120014697        - Titular / entidad PERSONA SINTÉTICA 013
+¡Ejercicio 2006             Periodo           E                                 —_    —]
+
+Tipo documental SYNTHETIC_FILED_ COPY — Estado esperado    | ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Cálculo por módulos
+
+Método                                                                       ESTIMACIÓN OBJETIVA
+Actividad Comercio menor de pan
+Rendimiento neto por módulos                                     12.800.00
+
+Porcentaje                                                                 4%
+
+Resultado                                                                512,00
+
+model 131 habitual 019 native - NO PRESENTABLE - datos totalmente sintéticos                                                                                           NATIVE TEXT_FDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+1
+
+Pago fracc:
+
+ado d
+
+APF €
+
+dar
+
+be
+
+a
+
+Pá
+
+-
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+pa
+
+| 12001469T
+
+———]
+
+Titular / entidad
+
+a
+
+| PERSONA SINTÉTICA 013
+
+——
+
+— |
+
+Ejercicio
+
+—
+
+—| 206 —
+
+Periodo
+
+NE —_
+
+—
+
+Tipo documental
+
+a SYNTHETIC_FILED_COPY     Estado esperado
+
+| ACCEPT_WITH_SYN THETIC_LIMITATION
+
+Cálculo por módulos
+
+Método
+
+ESTIMACIÓN OBJETIVA
+
+Actividad
+
+Comercio menor de pan
+
+Rendimiento neto por módulos
+
+12.800.00
+
+Porcentaje
+
+4%
+
+Resultado
+
+512,00
+
+co
+
+Ne
+
+KO
+
+N
+
+NN
+
+y
+
+model 131_habial_ 019 native - NO PRESENTABLE - datos totalmente sintáficas
+
+NATIVE TEXT PDF

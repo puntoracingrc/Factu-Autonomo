@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "report_self_employed_activities_complex_107__scan_compressed",
+  "baseFixtureId": "report_self_employed_activities_complex_107",
+  "semanticScenario": "complex",
+  "documentType": "TGSS_REPORT_SELF_EMPLOYED_ACTIVITIES",
+  "displayName": "TGSS-ACT-AUT - Informe de actividades de trabajo autónomo - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12012091L",
+    "taxpayer.name": "PERSONA SINTÉTICA 107",
+    "document.code": "TGSS-ACT-AUT",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "tgss.issueDate": "11/07/2026",
+    "tgss.activityCount": 3,
+    "tgss.activities": [
+      [
+        "6201",
+        "Programación informática",
+        "01/01/2023",
+        "ACTIVA"
+      ],
+      [
+        "4791",
+        "Comercio por Internet",
+        "15/02/2026",
+        "ACTIVA"
+      ],
+      [
+        "7022",
+        "Consultoría de gestión",
+        "01/06/2024",
+        "ACTIVA"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "ACTIVITY.LIST_TGSS": [
+      "6201",
+      "4791",
+      "7022"
+    ]
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "AEAT_CENSUS_ACTIVITY_EQUIVALENCE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12012091L"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 107"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "TGSS_REPORT_SELF_EMPLOYED_ACTIVITIES"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "TGSS-ACT-AUT"
+    },
+    {
+      "fieldId": "tgss.issueDate",
+      "page": 1,
+      "label": "Fecha de emisión",
+      "value": "11/07/2026"
+    },
+    {
+      "fieldId": "tgss.activityCount",
+      "page": 1,
+      "label": "Actividades comunicadas",
+      "value": 3
+    },
+    {
+      "fieldId": "tgss.activities",
+      "page": 1,
+      "label": "Actividades",
+      "value": [
+        [
+          "6201",
+          "Programación informática",
+          "01/01/2023",
+          "ACTIVA"
+        ],
+        [
+          "4791",
+          "Comercio por Internet",
+          "15/02/2026",
+          "ACTIVA"
+        ],
+        [
+          "7022",
+          "Consultoría de gestión",
+          "01/06/2024",
+          "ACTIVA"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "TGSS",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://portal.seg-social.gob.es/wps/portal/importass/importass/Categorias/Vida%2Blaboral%2Be%2Binformes/Informes%2Bsobre%2Btu%2Bsituacion%2Blaboral/Infor_Act_Autonomo"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/report_self_employed_activities_complex_107__scan_compressed.pdf",
+  "sha256": "65f21c630d1d99e6677d6c39a6e6785c9d8a806ddd5e53bbd9738a58186c719d"
+}

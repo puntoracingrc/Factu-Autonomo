@@ -1,0 +1,72 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                             721
+Monedas virtuales situadas en el extranjero                                                                              Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen informativo
+ NIF                     12009831J                         Titular / entidad   PERSONA SINTÉTICA 087
+
+ Ejercicio               2025                              Periodo             ANUAL
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Totales
+ Complementaria                                       SÍ
+ Registros                                            3
+ Valor total                                          228.000,00
+
+
+
+
+                                                                                                          CO
+                                                                                           É           TI
+                                                                                         T
+                                                                                  S    IN
+                                                                     T O
+                                                  M                EN
+                                              C U
+                                 DO
+
+
+
+
+model_721_complex_087__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                       721
+Monedas virtuales situadas en el extranjero                                                                                        Página 2
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Monedas virtuales en el extranjero
+  Detalle
+Moneda                       Custodio                     País                 Condición           Unidades         Valor
+BTC                          EXCHANGE A                   CH                   TITULAR             2,40000000       139.000,00
+ETH                          CUSTODIO B                   US                   BENEFICIARIO        18,00000000      54.000,00
+USDC                         CUSTODIO C                   SG                   TITULAR REAL        35000,00000000   35.000,00
+
+
+
+
+                                                                                                        CO
+                                                                                               É     TI
+                                                                                             T
+                                                                                   S       IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_721_complex_087__native - NO PRESENTABLE - datos totalmente sintéticos                                                NATIVE_TEXT_PDF
+

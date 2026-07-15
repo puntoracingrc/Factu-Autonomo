@@ -1,0 +1,44 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   131
+Pago fraccionado de IRPF en estimación objetiva                                                                                Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Pago fraccionado
+ NIF                     12001695L                         Titular / entidad         PERSONA SINTÉTICA 015
+
+ Ejercicio               2026                              Periodo                   4T
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado           ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Cálculo por módulos
+ Complementaria                                       SÍ
+ Método                                               ESTIMACIÓN OBJETIVA
+ Actividades                                          Restaurante + comercio menor
+ Rendimiento conjunto                                 43.600,00
+ Retenciones soportadas                               250,00
+ Pagos anteriores                                     1.400,00
+ Resultado                                            94,00
+
+
+
+
+                                                                                                                CO
+                                                                                                É            TI
+                                                                                              T
+                                                                                          S IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_131_complex_015__native - NO PRESENTABLE - datos totalmente sintéticos                                            NATIVE_TEXT_PDF
+

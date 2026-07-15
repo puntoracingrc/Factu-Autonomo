@@ -1,0 +1,117 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_216_incomplete_ambiguous_048__rotated_capture",
+  "baseFixtureId": "model_216_incomplete_ambiguous_048",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_216",
+  "displayName": "216 - Retenciones de rentas obtenidas por no residentes sin establecimiento permanente - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": "3T",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12005424E",
+    "taxpayer.name": "PERSONA SINTÉTICA 048",
+    "document.code": "216",
+    "document.fiscalYear": 2026,
+    "document.period": "3T",
+    "nonresident.recipients": 2,
+    "nonresident.incomeType": "[ILEGIBLE]",
+    "nonresident.country": "[NO VISIBLE]",
+    "nonresident.base": "14.000,00",
+    "filing.result": "[BORROSO]"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.NON_RESIDENTS": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12005424E"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 048"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_216"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "216"
+    },
+    {
+      "fieldId": "nonresident.recipients",
+      "page": 1,
+      "label": "Número de rentas",
+      "value": 2
+    },
+    {
+      "fieldId": "nonresident.incomeType",
+      "page": 1,
+      "label": "Tipo de renta",
+      "value": "[ILEGIBLE]"
+    },
+    {
+      "fieldId": "nonresident.country",
+      "page": 1,
+      "label": "País",
+      "value": "[NO VISIBLE]"
+    },
+    {
+      "fieldId": "nonresident.base",
+      "page": 1,
+      "label": "Base",
+      "value": "14.000,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "[BORROSO]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "nonresident.incomeType",
+    "nonresident.country",
+    "filing.result"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF05.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_216_incomplete_ambiguous_048__rotated_capture.pdf",
+  "sha256": "ef5c961e481edf24dd22412bebef4598c0396a6200cb4d362d03c7dfbc019ee2"
+}

@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_202_incomplete_ambiguous_044__scan_compressed",
+  "baseFixtureId": "model_202_incomplete_ambiguous_044",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_202",
+  "displayName": "202 - Pago fraccionado del Impuesto sobre Sociedades - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": "2P",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "B19789536",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 044 S.L.",
+    "document.code": "202",
+    "document.fiscalYear": 2026,
+    "document.period": "2P",
+    "company.paymentMethod": "[NO VISIBLE]",
+    "company.currentTaxBase": "[PÁGINA DE DATOS ADICIONALES AUSENTE]",
+    "filing.result": "6.600,00"
+  },
+  "expectedQuestionMappings": {
+    "COMPANY.PRIOR_MODEL_202_FILING": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B19789536"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 044 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_202"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "202"
+    },
+    {
+      "fieldId": "company.paymentMethod",
+      "page": 1,
+      "label": "Modalidad",
+      "value": "[NO VISIBLE]"
+    },
+    {
+      "fieldId": "company.currentTaxBase",
+      "page": 1,
+      "label": "Base imponible",
+      "value": "[PÁGINA DE DATOS ADICIONALES AUSENTE]"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "6.600,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "company.paymentMethod",
+    "company.currentTaxBase"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE00.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_202_incomplete_ambiguous_044__scan_compressed.pdf",
+  "sha256": "e282081fe4f5743544d0422314c26e989e73c50aada35835769d2583b2dee87d"
+}

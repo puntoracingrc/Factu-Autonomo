@@ -1,0 +1,161 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Identificación y actividad
+
+NIF                               |  B19235209                                  | Titular / entidad                   |  ENTIDAD SINTÉTICA 037 S.L.
+Ejercicio    CA
+Tipo documental SYNTHETIC_FILED COPY         Estado esperado                  ACCEPT_WITH_SYNTHETIC_LIMITATION
+Entidad
+CNAE                                                                6202
+Actividad principal                                                Consultoría informática
+Importe neto cifra de negocios                           285.000,00
+
+model_200_ habitual 097 _ native - NO PRESENTABLE - daron tofaimente sintéticos                                                                                                                    NATIVE TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+200
+
+mf
+
+Pp
+
+agina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+| Identificación y actividad
+
+| 819235209
+
+—
+
+——
+
+| Titular / entidad  ENTIDAD SINTÉTICA 037 S.L.
+
+dicas
+
+——]——cJ
+
+—
+
+Periodo
+
+ANUAL
+
+Ejercicio
+
+| 20205
+
+p———
+
+Tipo documental
+
+| SYNTHETIC_FILED_COPY    | Estado esperado         | ACCEPT_WITH_SYNTHETIC__LIMITATION _
+
+—
+
+Entidad
+
+CNAE
+
+6202
+
+Actividad principal
+
+Consultoría informática
+
+Importe neto cifra de negocios
+
+285.000,00
+
+O
+
+RE
+
+NN
+
+KO
+
+N
+
+NN
+
+9
+
+model_200_ habitual 097 _ native - NO PRESENTABLE - daron tofaimente sintéticos
+
+NATIVE_TEXT_PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+dades
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Liquidación
+
+Resultado fiscal
+
+Resultado contable                                                   54.000.00
+Base imponible                                                         52.000,00
+Tipo de gravamen                                                     23%
+Cuota integra                                                     11.960,00
+Resultado a ingresar               2.400,00
+
+mode 200 habilual 097 native - NO PRESENTASLE - datos torsimente sintéticos                                                                                       NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+200
+
+IMpues
+
+dades
+
+Pág
+
+e
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Liquidación
+
+Resultado fiscal
+
+54.000,00
+
+Resultado contable
+
+Base imponible
+
+52.000,00
+
+Tipo de gravamen
+
+23%
+
+Cuota integra
+
+11.960,00
+
+Resultado a ingresar
+
+3400.00
+
+co
+
+NN
+
+<O
+
+N
+
+NN
+
+y
+
+medel_200_habilual_097 native - NO PRESENTASLE - datos totalmente sintéticos
+
+NATIVE TEXT_PDF

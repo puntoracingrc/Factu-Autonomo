@@ -1,0 +1,203 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Reintegro de com
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de reintegro
+NIF             120071198 Titular / entidad         PERSONA SINTÉTICA 063
+
+Ejercicio        2026     _          Periodo            2T                                    _    —
+“Tipo documental SYNTHETIC COMPLEMENTA Estado esperado
+
+ ACCEPT_WITH_SYNTHETIC_LIMITATION —
+
+Resumen
+
+Operaciones                                                3
+Compensación solicitada                                    8.122,50
+Rectificativa                                                     si
+
+model 341 complex 063__ native - NO PRESENTABLE - datos totalmente sintéticos                                                                                         NATIVE _TEXT_POF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+341
+
+BC
+
+Un
+
+Reintegro de com
+
+1 especia
+
+grano
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de reintegro
+
+120071195
+
+———————._——
+
+—
+
+Titular / entidad
+
+— a
+
+PERSONA SINTÉTICA 063
+
+qua
+
+—i
+
+——
+
+2026
+
+Periodo
+
+—
+
+2T
+
+—
+
+Ejercicio
+
+Tipo documental
+
+| SYNTHETIC_COMPLEMENTA | Estado esperado
+
+ ACCEPT_WITH_SYNTHETIC_LIMITATION —
+
+LR
+
+paa
+
+ra
+
+Resumen
+
+Operaciones
+
+Compensación solicitada
+
+8.122,50
+
+Rectificativa
+
+si
+
+co
+
+O
+
+NN
+
+KO
+
+N
+
+NN
+
+y
+
+model 341 complex 063__ native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT_PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+aciones del regimen espacial agrano
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operaciones
+
+Detalle
+Adquirento —   NEO    — Producto     CO    +    Compensación
+ COMPRADOR A                 | B64827833                           GANADO                            32.000,00                            10,5% 3.360,00
+COMPRADOR B      B65007023         CEREAL          27.000,00          12%            3.240,00
+ COMPRADOR C                  B65086217                           PESCA                                14.500,00                              10,5%                                 11.522,50
+
+model 341 complex 063_ native - NO PRESENTABSLE - dates totalmente sintéticos                                                                                                            MATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+341
+
+AGINegr
+
+0 CON
+
+aC
+
+ones del régimen especial agrario
+
+Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operaciones
+
+Detalle
+
+Adquirento
+
+Compensación
+
+COMPRADOR A
+
+B64827823
+
+GANADO
+
+32.000,00
+
+10,5%
+
+3.360,00
+
+COMPRADOR B
+
+B65007023
+
+CEREAL
+
+12%
+
+27.000,00
+
+3.240,00
+
+COMPRADOR C
+
+B65086217
+
+PESCA
+
+14.500,00
+
+10,5%
+
+1.522,50
+
+co
+
+O
+
+NN
+
+No
+
+UN
+
+Jo
+
+NATIVE _TEXT_PDF
+
+model 341 complex 063_ native - NO PRESENTABSLE - dates totalmente sintéticos

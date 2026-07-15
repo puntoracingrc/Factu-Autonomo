@@ -1,0 +1,136 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Pagot    ionado de IRPF ar    ¡     ón objetiva
+
+131
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF
+Ejercicio
+
+Tipo documental
+
+120016951                          Titular / entidad
+2026                          Perlodo
+
+SYNTHETIC_ COMPLEMENTA Estado esperado
+
+AY _OR_MULTI_RECORD
+
+Cálculo por módulos
+
+Complementaria                                         si
+
+Método                                                     ESTIMACIÓN OBJETIVA
+Actividades                                             Restaurante + comercio menor
+Rendimiento conjunto                       43.600,00
+
+Retenciones soportadas                               250,00
+
+Pagos anteriores                                         1.400,00
+
+Resultado                                                 94,00
+
+modal 131 complex 015
+
+native NO PRESENTABLE - datos totalmente sintéticos
+
+PERSONA SINTÉTICA 015
+aT
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+131
+
+Pagot
+
+¡ado de IMPF er
+
+objetiva
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF
+
+120016951
+
+Titular / entidad
+
+PERSONA SINTÉTICA 015
+
+2026
+
+Periodo
+
+aT
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC_ COMPLEMENTA Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Cálculo por módulos
+
+Complementaria
+
+si
+
+Método
+
+ESTIMACIÓN OBJETIVA
+
+Actividades
+
+Restaurante + comercio menor
+
+Rendimiento conjunto
+
+43.600,00
+
+Retenciones soportadas
+
+250,00
+
+Pagos anteriores
+
+1.400,00
+
+Resultado
+
+94,00
+
+co
+
+e
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+modal 131 complex 015
+
+alive - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT PDF

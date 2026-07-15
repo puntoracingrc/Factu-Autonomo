@@ -1,0 +1,134 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Retenciones sobre determinad      wd                  al mobikano
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación
+NIF                       120012436                      — Titular/ entidad PERSONA SINTÉTICA 011                     —_                           E
+e             2026                        Periodo                 lar
+
+Tipo documental SYNTHETIC_COMPLEMENTA | Estado esperado        | ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+| AY_OR_MULTI RECORD
+
+Retenciones e ingresos a cuenta
+
+Declaración complementaria                                   si
+Número de perceptores                                            5
+
+Base                                                   [ 28.750.00
+Retenciones                                      | 5.462.50
+Resultado anterior                                             4.800,00
+Resultado complementario                                 662,50
+
+model_123 complex 011_ native - NO PRESENTABLE - datos moralmente sintéticos                                                                                                         NATIVE _TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+no
+
+Retenciones sobre determinad
+
+nmobikarno
+
+Pá
+
+-
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación
+
+f
+
+NIF
+
+12001243G
+
+—
+
+Titular / entidad
+
+dl —|
+
+|  PERSONA SINTÉTICA 011
+
+am ——
+
+—
+
+—É—
+
+Periodo
+
+-
+
+2026
+
+—
+
+ar
+
+==
+
+¡meva
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA | Estado esperado
+
+| ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+a m—];—— e AE
+
+| AY OA MULTI RECORD
+
+—————         —       LL,
+
+—
+
+—
+
+— ——
+
+Retenciones e ingresos a cuenta
+
+Declaración complementaria
+
+si
+
+Número de perceptores
+
+Base
+
+28.750.00
+
+Retenciones
+
+5.462.50
+
+Resultado anterior
+
+4.800,00
+
+Resultado complementario
+
+662.50
+
+O
+
+<
+
+NN
+
+e.
+
+N
+
+NN
+
+o
+
+model_123 complex 011_ native - NO PRESENTABLE - datos totalmante sintéticos
+
+NATIVE TEXT_PDF

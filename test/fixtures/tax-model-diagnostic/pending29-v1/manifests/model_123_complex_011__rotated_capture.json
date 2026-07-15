@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_123_complex_011__rotated_capture",
+  "baseFixtureId": "model_123_complex_011",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_123",
+  "displayName": "123 - Retenciones sobre determinados rendimientos del capital mobiliario - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": "4T",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12001243G",
+    "taxpayer.name": "PERSONA SINTÉTICA 011",
+    "document.code": "123",
+    "document.fiscalYear": 2026,
+    "document.period": "4T",
+    "filing.complementary": "SÍ",
+    "withholding.recipients": 5,
+    "withholding.base": "28.750,00",
+    "withholding.amount": "5.462,50",
+    "filing.previousResult": "4.800,00",
+    "filing.result": "662,50"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.CAPITAL": true,
+    "WITHHOLDING.MODEL_123_PERIOD": "4T"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12001243G"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 011"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_123"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "123"
+    },
+    {
+      "fieldId": "filing.complementary",
+      "page": 1,
+      "label": "Declaración complementaria",
+      "value": "SÍ"
+    },
+    {
+      "fieldId": "withholding.recipients",
+      "page": 1,
+      "label": "Número de perceptores",
+      "value": 5
+    },
+    {
+      "fieldId": "withholding.base",
+      "page": 1,
+      "label": "Base",
+      "value": "28.750,00"
+    },
+    {
+      "fieldId": "withholding.amount",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "5.462,50"
+    },
+    {
+      "fieldId": "filing.previousResult",
+      "page": 1,
+      "label": "Resultado anterior",
+      "value": "4.800,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado complementario",
+      "value": "662,50"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientos/GH04.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_123_complex_011__rotated_capture.pdf",
+  "sha256": "00abe435cfccebe129447f2bdeebd1cc057870b12c8d15e823b1fec41116f1a5"
+}

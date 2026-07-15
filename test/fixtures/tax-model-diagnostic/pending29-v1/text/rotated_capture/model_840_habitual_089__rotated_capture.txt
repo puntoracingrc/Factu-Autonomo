@@ -1,0 +1,111 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Declaración de IAE
+
+NIE                            823352089                               Titular / entidad                 ENTIDAD SINTÉTICA 089 S.L.
+Ejercicio          2006              ——                Periodo                            | NAO                                                  o              |
+¡Tipo documental | SYNTHETIC_ FILED COPY — Estadoesperado + ACCEPT WITH SYNTHETIC LIMITATION
+Actividad y efectos
+
+Tipo de declaración                ALTA
+
+Grupo o epigrafe                                                     8097
+
+Actividad                      Servicios de gestión administrativa
+
+Tipo de cuota                    MUNICIPAL
+
+Municipio                                                         MADRID
+
+Fecha de efectos                                                 “01012026
+
+model 840 _habínial 099 native - NO PRESENTABLE - datos totalmente sintéticos                                                                                        NATIVE _TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+840
+
+IAE
+
+Pp
+
+ta
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+| Declaración de IAE
+
+Titular / entidad
+
+E —]]—o |
+
+——— ——
+
+| ENTIDAD SINTÉTICA 089 S.L.
+
+—
+
+Ejercicio
+
+2026
+
+Periodo
+
+Sar
+
+—
+
+| N/A
+
+Tipo documental
+
+Ds
+
+| SYNTHETIC_FILED_COBY —
+
+Estado esperado
+
+| ACCEP T_MITH SYN THETIC_LIMITATION
+
+Actividad y efectos
+
+Tipo de declaración
+
+ALTA
+
+Grupo o epigrate
+
+849,7
+
+Actividad
+
+Servicios de gestión administrativa
+
+Tipo de cuota
+
+MUNICIPAL
+
+Municipio
+
+MADRID
+
+Fecha de efectos
+
+01/01/2026
+
+NE
+
+RE
+
+NN
+
+No
+
+UN
+
+Jo
+
+model_840_habimal 099 native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT PDF

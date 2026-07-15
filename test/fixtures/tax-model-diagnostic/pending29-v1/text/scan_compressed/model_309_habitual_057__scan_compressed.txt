@@ -1,0 +1,117 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                3   Le
+
+IMA + ligui    ión no periódica                                                                                                          Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+IVA no periódico
+
+NIF                              12006441 G                                Titular / entidad                    PERSONA SINTÉTICA 057
+
+Ejercicio             | 2026                            Periodo                     ar
+
+Tipo documental       SYNTHETIC_FILED COPY       Estado esperado              ACCEPT_WITH_SYNTHETIC LIMITATION
+Operación
+
+Supuesto                                                 ADQUISICIÓN INTRACOMUNITARIA EN RECARGO DE EQUIVALENCIA
+
+NIF-IVA proveedor                                       DENONDONCO!
+
+Base                                                              12.000,00
+
+Tipo                                                              21%
+
+Cuota                                                            2.520,00
+
+Resultado                                                      2.520,00
+
+model 309 febitual 057. mative - NO PRESENTARLE - datos intalmente siméticos                                                                                               NATIVE TEXT. PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+309
+
+IA
+
+liegu
+
+ión no periódica
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+IVA no periódico
+
+NIF
+
+12006441 G
+
+Titular / entidad
+
+PERSONA SINTÉTICA 057
+
+| 2026
+
+Periodo
+
+ar
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC_FILED COPY
+
+Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Operación
+
+Supuesto
+
+ADQUISICIÓN INTRACOMUNITARIA EN RECARGO DE EQUIVALENCIA
+
+NIF-IVA proveedor
+
+DENONDONCO!
+
+Base
+
+12.000,00
+
+Tipo
+
+21%
+
+Cuota
+
+2.520,00
+
+Resultado
+
+2.520,00
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+model_309
+
+vabitual 057
+
+male
+
+NO PRESENTARLE - datos intalmeme sintéticos
+
+NATIVE TEXT. PDF

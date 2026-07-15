@@ -18,6 +18,7 @@ import type { DeepTextExtraction } from "./first-block";
 import {
   createExtractedFact,
   extractDateAfterLabel,
+  hasExplicitIncompleteEvidence,
   maskSpanishTaxId,
   normalizeDocumentText,
 } from "./normalization";
@@ -263,6 +264,13 @@ function extractPerceptionKeys(text: string): readonly string[] {
   for (const pattern of patterns) {
     for (const match of normalized.matchAll(pattern)) keys.add(match[1]);
   }
+  // En listados de perceptores la clave vive en una columna de la fila.
+  // Requerimos NIF, nombre, clave y subclave para evitar letras sueltas.
+  for (const match of normalized.matchAll(
+    /\b(?:[XYZ]\d{7}[A-Z]|\d{8}[A-Z]|[A-Z]\d{7}[A-Z0-9])\b\s+[A-Z][A-Z ]{2,80}?\s+([A-L])\s+\d{2}\b/g,
+  )) {
+    keys.add(match[1]);
+  }
   return [...keys].sort();
 }
 
@@ -440,6 +448,7 @@ function extractionForSubmittedModel(
       effectiveDate: extractDateAfterLabel(input.text, [
         "FECHA EFECTIVA",
         "FECHA DE EFECTO",
+        "FECHA DE EFECTOS",
       ]),
       csvDetected: signals.csvDetected,
       isComplete: false,
@@ -565,6 +574,9 @@ function extractionForSubmittedModel(
       hasPositiveBox(input.text, ["01", "02", "03"]) ||
       overlayRentRecipients > 0 ||
       hasExplicitPositiveLabel(input.text, [
+        "Perceptores",
+        "Base total",
+        "Retenciones",
         "Número total de perceptores",
         "Número de perceptores",
         "Base de las retenciones",
@@ -788,6 +800,7 @@ function extractionForSubmittedModel(
     const effectiveDate = extractDateAfterLabel(input.text, [
       "FECHA EFECTIVA",
       "FECHA DE EFECTO",
+      "FECHA DE EFECTOS",
       "FECHA DE INICIO",
       "FECHA DE BAJA",
     ]);
@@ -861,9 +874,14 @@ function extractionForSubmittedModel(
     effectiveDate: extractDateAfterLabel(input.text, [
       "FECHA EFECTIVA",
       "FECHA DE EFECTO",
+      "FECHA DE EFECTOS",
     ]),
     csvDetected: signals.csvDetected,
-    isComplete: candidate.isSubmitted && completePages(input),
+    isComplete:
+      candidate.isSubmitted &&
+      facts.length > 0 &&
+      completePages(input) &&
+      !hasExplicitIncompleteEvidence(input.text),
     confidence: facts.length > 1 ? confidence : 0.76,
     warnings: [
       ...candidate.warnings,

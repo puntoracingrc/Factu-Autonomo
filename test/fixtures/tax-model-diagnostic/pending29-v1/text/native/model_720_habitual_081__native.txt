@@ -1,0 +1,70 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                              720
+Bienes y derechos situados en el extranjero                                                                               Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen informativo
+ NIF                      12009153W                         Titular / entidad   PERSONA SINTÉTICA 081
+
+ Ejercicio                2025                              Periodo             ANUAL
+
+ Tipo documental          SYNTHETIC_FILED_COPY              Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Totales
+ Registros                                             1
+ Categorías                                            CUENTAS
+ Valor total informado                                 86.000,00
+
+
+
+
+                                                                                                           CO
+                                                                                            É           TI
+                                                                                          T
+                                                                                   S    IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_720_habitual_081__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                     720
+Bienes y derechos situados en el extranjero                                                                                      Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Bienes y derechos en el extranjero
+  Detalle
+Clave                     País                     Entidad/bien             Condición       Fecha         Valor       Estado
+C                         FR                       BANCO SINTÉTICO          TITULAR         31/12/2025    86.000,00   ALTA
+                                                   FR
+
+
+
+
+                                                                                                            CO
+                                                                                             É           TI
+                                                                                           T
+                                                                                        SIN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_720_habitual_081__native - NO PRESENTABLE - datos totalmente sintéticos                                             NATIVE_TEXT_PDF
+

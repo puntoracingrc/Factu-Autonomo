@@ -1,0 +1,206 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Monedas vinuales situadas en el ex!
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+NIE       12009831J   —_   Titular /entidad —_   | PERSONA SINTÉTICA 087 —_    —_       —_
+¡Ejercicio 2005         —— Periodo        OCANUAL                       —_
+
+"Tipo documental SYNTHETIC_COMPLEMENTA Estado esperado ———— ACCEPT WITH SYNTHETIC LIMITATION —       o
+O YORMUTIRECORO
+Totales
+
+Complementaria               si
+
+Registros                  3
+
+Valor total                 —228.000,00
+
+model_721_compler 087 nalive - NO PRESENTASLE - datos 1otelmente sintéticos                                                                                                     MATIVE TEXT _POF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+721
+
+Monedas virtuales situadas en el ex!
+
+Yen
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen informativo
+
+NIF
+
+Lo —];];——][]]——.—i——]|
+
+12008831
+
+————|—É—
+
+Titular / entidad
+
+————
+
+| PERSONA SINTÉTICA 087
+
+o
+
+Ejercicio
+
+Te
+
+2025
+
+Periodo
+
+———Ée—ds —
+
+| ANUAL
+
+—
+
+Tipo documental
+
+— SYNTHETIC_COMPLEMENTA Estado esperado
+
+| ACCEPT_WITH_SYNTHETIC_LIMITATION ——
+
+————]——
+
+AY_OR_MULTI Y RECORD
+
+E —| a
+
+——]—|
+
+—.———
+
+——..l—
+
+— —————
+
+——
+
+—
+
+Totales
+
+Complementaria
+
+si
+
+3
+
+Registros
+
+Valor total
+
+—228.000,00
+
+CO
+
+N
+
+Ne
+
+No
+
+UN
+
+,
+
+model_721_compler 087 nalive - NO PRESENTASLE - datos 1otelmente sintéticos
+
+NATIVE TEXT_PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Monedas virtuales en el extranjero
+
+Detalle
+Moneda       Custodio     País        Condición      Unidades > Valor     '
+BTC EXCHANGE A       CH             TITULAR          2.40000000        | 139.000,00-
+ETH                                  “CUSTODIOB                    US                                    BENEFICIARIO                 | 1800000000                     54.000,00
+USDC                              ¡CUSTODIO C                    se TITULAR REAL                  35000.00000000               35.000,00
+
+model_721 complex 087 __ naiive- NO PRESENTABLE - datos totalmente sintéticos                                                                                                            NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+721
+
+h
+
+Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Monedas virtuales en el extranjero
+
+Detalle
+
+¡Moneda
+
+Custodio
+
+País
+
+Condición
+
+Valor
+
+TITULAR
+
+240000000
+
+BTC
+
+EXCHANGE A
+
+e
+
+CH
+
+|199.000,00
+
+"CUSTODIOB
+
+US
+
+BENEFICIARIO
+
+18,00000000
+
+54.000,00
+
+USDE
+
+¡cusTODIO C
+
+sa
+
+TITULAR REAL
+
+35.000,00
+
+o
+
+RE
+
+NN
+
+KO
+
+N
+
+NN
+
+os
+
+model_721 complex 087 __ naiive- NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE_TEXT_PDF

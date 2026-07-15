@@ -1,0 +1,101 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+R                          re detenrmin               ci               el             al mobi
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación
+NIF                 12001130Y                  Titular / entidad           PERSONA SINTÉTICA 010
+Ejercicio                   2026                                     Periodo                            aT
+Tipo documental       SYNTHETIC_FILED COPY       Estado esperado              ACCEPT WITH SYNTHETIC LIMITATION
+
+Retenciones e ingresos a cuenta
+
+Número de perceptores                                o
+
+Basso                                                       0,00
+Retenciones                                              0,00
+Resultado                                                 0,00
+
+model 173 negative zem (10 native - NO PRESENTABLE - datos intalmente sintéticos                                                       NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+123
+
+A
+
+re detenrmin
+
+encdimia
+
+e
+
+al mobi
+
+ano
+
+>=
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación
+
+NIF
+
+12001130Y
+
+Titular / entidad
+
+PERSONA SINTÉTICA 010
+
+Ejercicio
+
+| 2026
+
+Periodo
+
+aT
+
+Tipo documental
+
+| SYNTHETIC_FILED COPY
+
+ACCEPT WITH SYNTHETIC LIMITATION
+
+Estado esperado
+
+Retenciones e ingresos a cuenta
+
+Número de perceptores
+
+0,00
+
+Retenciones
+
+0,00
+
+Resultado
+
+0,00
+
+co
+
+<<
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+model 173 negative zem 010
+
+native
+
+NO PRESENTABLE - datos iotalmente sintáficos
+
+NATIVE TEXT PDF

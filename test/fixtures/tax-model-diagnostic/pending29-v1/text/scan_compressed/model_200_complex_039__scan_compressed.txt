@@ -1,0 +1,184 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                2   0
+
+Impuest                           edades                                                                                                                                                                                                                                                               Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Identificación y actividad
+
+NIF                            B19393586                              Titular / entidad                  ENTIDAD SINTÉTICA 039 S.L.
+Ejercicio                         2025                                                Periodo                                    ANUAL
+Tipo documental      SYNTHETIC COMPLEMENTA Estado esperado          ACCEPT_WITH_SYNTHETIC LIMITATION
+
+RY_OR_MULTI_RECORD
+
+Entidad
+Rectificativa                                              si
+CNAE                                                      6810/6201
+Actividades                                               Inmobiliaria + software
+Importe neto cifra de negocios                            1.450.000,00
+
+madel 200 complex 039 nalñe- MO PRESENTABLE - daios totalmente sintéticos                                                                         NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+200
+
+Impuesi
+
+edades
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Identificación y actividad
+
+NIF
+
+B19393586
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 039 S.L.
+
+Ejercicio
+
+2025
+
+Periodo
+
+ANUAL
+
+Tipo documental
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+RY_OR_MULTI_RECORD
+
+Entidad
+
+Rectificativa
+
+si
+
+CNAE
+
+6810/6201
+
+Inmobiliaria + software
+
+Actividades
+
+1.450.000,00
+
+Importe neto cifra de negocios
+
+co
+
+e
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+mode:
+
+200 complex 039 nalive- NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 200
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Liquidación
+
+Resultado fiscal
+
+Resultado contable                                     310.000,00
+Correcciones permanentes                            42.000,00
+Correcciones temporarias                              - 18.000,00
+Base imponible                                          334.000,00
+Tipo de gravamen                                       25%
+Cuota integra                                             83.500,00
+Pagos fraccionados                                     72.000,00
+Resultado                                                 11.500,00
+
+model 200 complex 039 native - MO PRESENTABLE - datos totalmente simiéticos:                                                           NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+200
+
+Impuesto 5
+
+edades
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Liquidación
+
+Resultado fiscal
+
+Resultado contable
+
+310.000,00
+
+Correcciones permanentes
+
+42.000,00
+
+Correcciones temporarias
+
+-15.000,00
+
+Baez imponible
+
+334.000,00
+
+Tipo de gravamen
+
+25%
+
+Cuota integra
+
+83.500,00
+
+Pagos fraccionados
+
+72.000,00
+
+Resultado
+
+11.500,00
+
+co
+
+O
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+model 200 compies 039
+
+native - NO PRESENTABLE - datos totalmente simiéticos
+
+NATIVE TEXT PDF

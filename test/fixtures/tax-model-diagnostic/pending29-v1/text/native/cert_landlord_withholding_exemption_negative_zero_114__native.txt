@@ -1,0 +1,40 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                CERT-ARREND
+Certificado de exoneración de retención del arrendador                                                                                  Página 1
+
+
+                                                       FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Certificación de exoneración
+ NIF                      B25332834                          Titular / entidad               ENTIDAD SINTÉTICA 114 S.L.
+
+ Ejercicio                2026                               Periodo                         N/A
+
+ Tipo documental          SYNTHETIC_FILED_COPY               Estado esperado                 ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Datos certificados
+ Fecha de expedición                                    10/07/2026
+ Exoneración de retención                               NO ACREDITADA
+ Ejercicio consultado                                   2026
+ CSV                                                    CSV-SYN-ARR-0002
+
+
+
+
+                                                                                                                        CO
+                                                                                                           É         TI
+                                                                                                         T
+                                                                                                 S     IN
+                                                                       T O
+                                                    M                EN
+                                                C U
+                                  DO
+
+
+
+
+cert_landlord_withholding_exemption_negative_zero_114__native - NO PRESENTABLE - datos totalmente sintéticos                     NATIVE_TEXT_PDF
+

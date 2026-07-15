@@ -1,0 +1,43 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                             151
+IRPF del régimen especial de personas desplazadas a España                                                               Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Declaración del régimen especial
+ NIF                     12002147B                         Titular / entidad   PERSONA SINTÉTICA 019
+
+ Ejercicio               2026                              Periodo             ANUAL
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Rentas y liquidación
+ Régimen especial                                     ARTÍCULO 93 LIRPF
+ Rendimientos del trabajo                             180.000,00
+ Ganancias patrimoniales                              22.000,00
+ Rentas extranjeras declaradas                        31.000,00
+ Retenciones                                          48.000,00
+ Resultado                                            7.200,00
+
+
+
+
+                                                                                                          CO
+                                                                                           É           TI
+                                                                                         T
+                                                                                  S    IN
+                                                                     T O
+                                                  M                EN
+                                              C U
+                                 DO
+
+
+
+
+model_151_complex_019__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+

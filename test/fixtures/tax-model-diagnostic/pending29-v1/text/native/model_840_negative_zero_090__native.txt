@@ -1,0 +1,41 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   840
+Declaración de alta, baja o variación en el IAE                                                                                Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Declaración de IAE
+ NIF                     B23432271                          Titular / entidad        ENTIDAD SINTÉTICA 090 S.L.
+
+ Ejercicio               2026                               Periodo                  N/A
+
+ Tipo documental         SYNTHETIC_FILED_COPY               Estado esperado          ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Actividad y efectos
+ Tipo de declaración                                   BAJA
+ Grupo o epígrafe                                      653.2
+ Actividad                                             Comercio menor de aparatos
+ Fecha de efectos                                      31/03/2026
+ Motivo                                                CESE
+
+
+
+
+                                                                                                                CO
+                                                                                                É            TI
+                                                                                              T
+                                                                                       S    IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_840_negative_zero_090__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+

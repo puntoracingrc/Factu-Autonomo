@@ -1,0 +1,74 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                             180
+Resumen anual de retenciones por arrendamiento de inmuebles urbanos                                                      Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen anual
+ NIF                     B18126540                         Titular / entidad   ENTIDAD SINTÉTICA 023 S.L.
+
+ Ejercicio               2025                              Periodo             ANUAL
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Resumen
+ Sustitutiva                                          SÍ
+ Perceptores                                          3
+ Base total                                           40.800,00
+ Retenciones                                          7.752,00
+
+
+
+
+                                                                                                          CO
+                                                                                           É           TI
+                                                                                         T
+                                                                                  S    IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_180_complex_023__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                     180
+Resumen anual de retenciones por arrendamiento de inmuebles urbanos                                                              Página 2
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Relación de perceptores e inmuebles
+  Detalle
+NIF                          Perceptor                    Inmueble              Referencia         Base        Retención
+B38003232                    ARRENDADOR A S.L.            AV DEMO 2, MADRID     RC-SYN-0101        24.000,00   4.560,00
+20000023M                    ARRENDADOR                   CL ENSAYO 8, TOLEDO   RC-SYN-0102        9.600,00    1.824,00
+                             PERSONA B
+B38082426                    ARRENDADOR C S.L.            PZ MUESTRA 1, MADRID RC-SYN-0103         7.200,00    1.368,00
+
+
+
+
+                                                                                                        CO
+                                                                                                 É   TI
+                                                                                               T
+                                                                                     S       IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_180_complex_023__native - NO PRESENTABLE - datos totalmente sintéticos                                              NATIVE_TEXT_PDF
+

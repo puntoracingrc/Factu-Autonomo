@@ -1,0 +1,113 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                1 23
+
+sobre detennmin:       ndimientos del capital mobiliario                                                                                   Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación
+NIF                              12001243G                                Titular / entidad                    PERSONA SINTÉTICA 011
+Ejercicio                   2026                                     Periodo                            ST
+Tipo documental       SYNTHETIC_COMPLEMENTA Estado esperado              ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY OR_MULTI_RECORD
+
+Retenciones e ingresos a cuenta
+
+Declaración complementaria                          Si
+Número de perceptores                                           5
+
+Base                                                       28.750,00
+Retenciones                                              5.462,50
+Resultado anterior                                      4.800,00
+Resultado complementario                            662,50
+
+modal 173 complex 011 nalve- NO PRESENTABLE - datos tealmente sintéticos:                                                                         NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+123
+
+La
+
+ne:
+
+sobre detenmin:
+
+mol mie
+
+os del capital mobiliario
+
+Pagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Autoliquidación
+
+NIF
+
+12001243G
+
+Titular / entidad
+
+PERSONA SINTÉTICA 011
+
+2026
+
+Periodo
+
+ST
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY OR_MULTI_RECORD
+
+Retenciones e ingresos a cuenta
+
+Declaración complementaria
+
+Si
+
+Número de perceptores
+
+5
+
+Base
+
+28.750,00
+
+Retenciones
+
+5.462,50
+
+Resultado anterior
+
+4.800,00
+
+Resultado complementario
+
+662,50
+
+co
+
+O
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+modal 173 complex 011
+
+native -NO PRESENTABLE - datos tofalmente sintéticos
+
+NATIVE TEXT PDF

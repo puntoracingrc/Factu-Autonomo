@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_184_incomplete_ambiguous_028__rotated_capture",
+  "baseFixtureId": "model_184_incomplete_ambiguous_028",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_184",
+  "displayName": "184 - Entidades en régimen de atribución de rentas - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "B18522490",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 028 S.L.",
+    "document.code": "184",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "entity.type": "COMUNIDAD DE BIENES",
+    "entity.totalIncome": "38.000,00"
+  },
+  "expectedQuestionMappings": {
+    "ENTITY.INCOME_ATTRIBUTION": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B18522490"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 028 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_184"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "184"
+    },
+    {
+      "fieldId": "entity.type",
+      "page": 1,
+      "label": "Tipo de entidad",
+      "value": "COMUNIDAD DE BIENES"
+    },
+    {
+      "fieldId": "entity.totalIncome",
+      "page": 1,
+      "label": "Renta atribuible",
+      "value": "38.000,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI04.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_184_incomplete_ambiguous_028__rotated_capture.pdf",
+  "sha256": "aca40e619abbc8320fe1712f9a5d2c355554f9de0f3c3dfcc01dfc1f8eab1e68"
+}

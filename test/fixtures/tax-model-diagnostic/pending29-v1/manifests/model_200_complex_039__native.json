@@ -1,0 +1,163 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_200_complex_039__native",
+  "baseFixtureId": "model_200_complex_039",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_200",
+  "displayName": "200 - Impuesto sobre Sociedades - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B19393586",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 039 S.L.",
+    "document.code": "200",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "filing.complementary": "SÍ",
+    "company.cnae": "6810 / 6201",
+    "company.activities": "Inmobiliaria + software",
+    "company.turnover": "1.450.000,00",
+    "company.accountingResult": "310.000,00",
+    "company.permanentDifferences": "42.000,00",
+    "company.temporaryDifferences": "-18.000,00",
+    "company.taxBase": "334.000,00",
+    "company.taxRate": "25%",
+    "company.taxDue": "83.500,00",
+    "company.prepayments": "72.000,00",
+    "filing.result": "11.500,00"
+  },
+  "expectedQuestionMappings": {
+    "COMPANY.CORPORATE_TAX": true,
+    "COMPANY.PRIOR_MODEL_200_FILING": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B19393586"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 039 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_200"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "200"
+    },
+    {
+      "fieldId": "filing.complementary",
+      "page": 1,
+      "label": "Rectificativa",
+      "value": "SÍ"
+    },
+    {
+      "fieldId": "company.cnae",
+      "page": 1,
+      "label": "CNAE",
+      "value": "6810 / 6201"
+    },
+    {
+      "fieldId": "company.activities",
+      "page": 1,
+      "label": "Actividades",
+      "value": "Inmobiliaria + software"
+    },
+    {
+      "fieldId": "company.turnover",
+      "page": 1,
+      "label": "Importe neto cifra de negocios",
+      "value": "1.450.000,00"
+    },
+    {
+      "fieldId": "company.accountingResult",
+      "page": 2,
+      "label": "Resultado contable",
+      "value": "310.000,00"
+    },
+    {
+      "fieldId": "company.permanentDifferences",
+      "page": 2,
+      "label": "Correcciones permanentes",
+      "value": "42.000,00"
+    },
+    {
+      "fieldId": "company.temporaryDifferences",
+      "page": 2,
+      "label": "Correcciones temporarias",
+      "value": "-18.000,00"
+    },
+    {
+      "fieldId": "company.taxBase",
+      "page": 2,
+      "label": "Base imponible",
+      "value": "334.000,00"
+    },
+    {
+      "fieldId": "company.taxRate",
+      "page": 2,
+      "label": "Tipo de gravamen",
+      "value": "25%"
+    },
+    {
+      "fieldId": "company.taxDue",
+      "page": 2,
+      "label": "Cuota íntegra",
+      "value": "83.500,00"
+    },
+    {
+      "fieldId": "company.prepayments",
+      "page": 2,
+      "label": "Pagos fraccionados",
+      "value": "72.000,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 2,
+      "label": "Resultado",
+      "value": "11.500,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE04.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/impuesto-sobre-sociedades/campana-sociedades.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_200_complex_039__native.pdf",
+  "sha256": "fa717eecda31ed972449a468e5a39ec0ba904c409e4e5b99d06e866156fbe63a"
+}

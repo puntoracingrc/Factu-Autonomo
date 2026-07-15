@@ -1,0 +1,71 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   714
+Impuesto sobre el Patrimonio                                                                                                   Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen patrimonial
+ NIF                     12008814P                            Titular / entidad      PERSONA SINTÉTICA 078
+
+ Ejercicio               2025                                 Periodo                ANUAL
+
+ Tipo documental         SYNTHETIC_FILED_COPY                 Estado esperado        ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Liquidación
+ Patrimonio bruto                                      520.000,00
+ Deudas deducibles                                     150.000,00
+ Base imponible                                        370.000,00
+ Cuota a ingresar                                      0,00
+
+
+
+
+                                                                                                                CO
+                                                                                                 É           TI
+                                                                                               T
+                                                                                       S     IN
+                                                                       T O
+                                                   M                 EN
+                                               C U
+                                  DO
+
+
+
+
+model_714_negative_zero_078__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                  714
+Impuesto sobre el Patrimonio                                                                                                  Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Categorías de bienes
+  Detalle
+Categoría                                   Valor                                    Exento/deuda         Computable
+Inmuebles                                   400.000,00                               150.000,00           250.000,00
+Cuentas                                     120.000,00                               0,00                 120.000,00
+
+
+
+
+                                                                                                          CO
+                                                                                                      ÉTI
+                                                                                                    T
+                                                                                            S     IN
+                                                                     T O
+                                                   M               EN
+                                               C U
+                                  DO
+
+
+
+
+model_714_negative_zero_078__native - NO PRESENTABLE - datos totalmente sintéticos                                     NATIVE_TEXT_PDF
+

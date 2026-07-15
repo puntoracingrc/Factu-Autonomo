@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_714_negative_zero_078__scan_compressed",
+  "baseFixtureId": "model_714_negative_zero_078",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_MODEL_714",
+  "displayName": "714 - Impuesto sobre el Patrimonio - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12008814P",
+    "taxpayer.name": "PERSONA SINTÉTICA 078",
+    "document.code": "714",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "wealth.totalAssets": "520.000,00",
+    "wealth.debts": "150.000,00",
+    "wealth.taxableBase": "370.000,00",
+    "filing.result": "0,00",
+    "wealth.assets": [
+      [
+        "Inmuebles",
+        "400.000,00",
+        "150.000,00",
+        "250.000,00"
+      ],
+      [
+        "Cuentas",
+        "120.000,00",
+        "0,00",
+        "120.000,00"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.WEALTH_TAX": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12008814P"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 078"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_714"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "714"
+    },
+    {
+      "fieldId": "wealth.totalAssets",
+      "page": 1,
+      "label": "Patrimonio bruto",
+      "value": "520.000,00"
+    },
+    {
+      "fieldId": "wealth.debts",
+      "page": 1,
+      "label": "Deudas deducibles",
+      "value": "150.000,00"
+    },
+    {
+      "fieldId": "wealth.taxableBase",
+      "page": 1,
+      "label": "Base imponible",
+      "value": "370.000,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Cuota a ingresar",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "wealth.assets",
+      "page": 2,
+      "label": "Bienes y derechos",
+      "value": [
+        [
+          "Inmuebles",
+          "400.000,00",
+          "150.000,00",
+          "250.000,00"
+        ],
+        [
+          "Cuentas",
+          "120.000,00",
+          "0,00",
+          "120.000,00"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G611.shtml",
+      "https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/Manual/Practicos/Patrimonio/Patrimonio-2025/ManualPatrimonio2025_es_es.pdf"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_714_negative_zero_078__scan_compressed.pdf",
+  "sha256": "261a641a74c0b2375c9f4745790431081398131522a5d3c63f24de3d6163bfe5"
+}

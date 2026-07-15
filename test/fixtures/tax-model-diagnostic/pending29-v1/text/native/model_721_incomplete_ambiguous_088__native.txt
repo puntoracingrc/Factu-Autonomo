@@ -1,0 +1,38 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                       721
+Monedas virtuales situadas en el extranjero                                                                                        Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen informativo
+ NIF                     12009944B                         Titular / entidad                PERSONA SINTÉTICA 088
+
+ Ejercicio               2025                              Periodo                          ANUAL
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Totales
+ Registros                                            1
+
+
+
+
+                                                                                                                       CO
+                                                                                                        É           TI
+                                                                                                      T
+                                                                                              S     IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_721_incomplete_ambiguous_088__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

@@ -1,0 +1,177 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                         71 4
+
+Impuest            al Patrimonio                                                                                                                                                                                    Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen patrimonial
+
+NIF                              12008814P                                Titular / entidad                    PERSONA SINTÉTICA 078
+
+Ejercicio             | 2025                            Periodo                     ANUAL
+
+Tipo documental       SYNTHETIC_FILED COPY       Estado esperado              ACCEPT WITH_SYNTHETIC LIMITATION
+Liquidación
+
+Patrimonio bruto                                         520.000,00
+
+Deudas deducibles                                      150.000,00
+
+Base imponible                                          370.000,00
+
+Cuota a ingresar                                         0,00
+
+model 714_ negative zen 078 nativa - NO PRESENTABLE - datos intalmente smtéticos                                                     NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+714
+
+Impiresi
+
+| Patrimonio
+
+Fagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen patrimonial
+
+NIF
+
+12008814P
+
+Titular / entidad
+
+PERSONA SINTÉTICA 078
+
+Ejercicio
+
+| 2025
+
+Periodo
+
+ANUAL
+
+SYNTHETIC_FILED COPY
+
+ACCEPT WITH SYNTHETIC LIMITATION
+
+Tipo documental
+
+Estado esperado
+
+Liquidación
+
+Patrimonio bruto
+
+520.000,00
+
+Deudas deducibles
+
+150.000,00
+
+Base imponible
+
+370.000,00
+
+Cuota a ingresar
+
+0,00
+
+co
+
+e
+
+NN
+
+KO
+
+N
+
+NN
+
+yo
+
+model 714_ negative zero
+
+B
+
+native - NO PRESENTABLE - datos iotalmente smtéticos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+re el Patrimonio
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Categorías de bienes
+
+Detalle
+Categoría                                                      Valor                                                              Exento'deuda                                               Computable
+Inmuebles                                                      400.000.00                                                     150.000.00                                                    250.000,00
+Cuentas                            120.000.00                         0,00                               120.000,00
+
+model_714_ negativa zen: 078 native - NO PRESENTABLE - datos intalmente sintéticos                                                     NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+714
+
+Impuesi
+
+re el Patrimonio
+
+Fag
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Categorías de bienes
+
+Detalle
+
+Categoría
+
+Valor
+
+Exento deuda
+
+Computable
+
+Inmuebles
+
+400.000,00
+
+150,000.00
+
+250.000,00
+
+Cuentas
+
+120.000,00
+
+0,00
+
+120.000,00
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+modal 714 negative zero
+
+B
+
+native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT PDF

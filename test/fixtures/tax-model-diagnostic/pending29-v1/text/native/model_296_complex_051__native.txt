@@ -1,0 +1,74 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                             296
+Resumen anual de retenciones de no residentes                                                                            Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen anual
+ NIF                     B20343869                         Titular / entidad   ENTIDAD SINTÉTICA 051 S.L.
+
+ Ejercicio               2025                              Periodo             ANUAL
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Totales
+ Complementaria                                       SÍ
+ Perceptores                                          3
+ Base total                                           67.000,00
+ Retenciones                                          7.180,00
+
+
+
+
+                                                                                                          CO
+                                                                                           É           TI
+                                                                                         T
+                                                                                  S    IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_296_complex_051__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                  296
+Resumen anual de retenciones de no residentes                                                                                 Página 2
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Perceptores no residentes
+  Detalle
+País                     NIF                      Perceptor                Renta           Base          Tipo   Retención
+FR                       FRSYN00002               PERCEPTOR A              CÁNONES         22.000,00     19%    4.180,00
+DE                       DESYN00003               PERCEPTOR B              INTERESES       15.000,00     0%     0,00
+                                                                           EXENTOS
+US                       USSYN00004               PERCEPTOR C              SERVICIOS       30.000,00     10%    3.000,00
+
+
+
+
+                                                                                                          CO
+                                                                                            É          TI
+                                                                                          T
+                                                                                       SIN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_296_complex_051__native - NO PRESENTABLE - datos totalmente sintéticos                                           NATIVE_TEXT_PDF
+

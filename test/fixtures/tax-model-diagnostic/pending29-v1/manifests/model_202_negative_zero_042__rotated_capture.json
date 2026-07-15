@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_202_negative_zero_042__rotated_capture",
+  "baseFixtureId": "model_202_negative_zero_042",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_MODEL_202",
+  "displayName": "202 - Pago fraccionado del Impuesto sobre Sociedades - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": "2P",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B19631159",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 042 S.L.",
+    "document.code": "202",
+    "document.fiscalYear": 2026,
+    "document.period": "2P",
+    "company.paymentMethod": "ARTÍCULO 40.2 LIS",
+    "company.lastTaxDue": "0,00",
+    "filing.result": "0,00"
+  },
+  "expectedQuestionMappings": {
+    "COMPANY.PRIOR_MODEL_202_FILING": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B19631159"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 042 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_202"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "202"
+    },
+    {
+      "fieldId": "company.paymentMethod",
+      "page": 1,
+      "label": "Modalidad",
+      "value": "ARTÍCULO 40.2 LIS"
+    },
+    {
+      "fieldId": "company.lastTaxDue",
+      "page": 1,
+      "label": "Cuota último periodo",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Pago fraccionado",
+      "value": "0,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE00.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_202_negative_zero_042__rotated_capture.pdf",
+  "sha256": "934fcb0b7fa752f98835028530535c7738d8986792b33003dd1b97f5ad4518ac"
+}

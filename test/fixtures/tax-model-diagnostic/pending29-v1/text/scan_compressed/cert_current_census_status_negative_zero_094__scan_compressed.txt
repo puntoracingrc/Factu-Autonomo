@@ -1,0 +1,105 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                            CERT-CENSO
+
+Certificado tributano de situación o    1                                                                                                 Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de situación censal
+
+NIF                              12010622E                                Titular / entidad                    PERSONA SINTÉTICA 094
+Ejercicio                   2026                                     Periodo                            NAA
+Tipo documental       SYNTHETIC_ FILED COPY       Estado esperado              ACCEPT WITH _SYNTHETIC LIMITATION
+
+Datos certificados
+
+Fecha de expedición                                        10/07/2026
+
+Situación                                                  SIN ALTA EN ACTIVIDADES ECONÓMICAS
+Actividades                                                    NINGUNA
+
+Obligaciones periódicas                                   MINGUMA
+
+esv                                                              CSV-SYN-CENSO-0002
+
+cert coment census stats negative zero 004 malve - NO PRESENTABLE - datos toialmente simbéticos                                       NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+CERT-CENSO
+
+Certificado tributano de
+
+tuación cl
+
+f
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de situación censal
+
+NIF
+
+12010622E
+
+Titular / entidad
+
+PERSONA SINTÉTICA 094
+
+Ejercicio
+
+| 2026
+
+Periodo
+
+NA
+
+Tipo documental
+
+SYNTHETIC_ FILED COPY
+
+Estado esperado
+
+ACCEPT WITH SYNTHETIC LIMITATION
+
+Datos certificados
+
+Fecha de expedición
+
+10/07/2026
+
+Situación
+
+SIN ALTA EN ACTIVIDADES ECONOMICAS
+
+Actividades
+
+NINGUNA
+
+NINGUNA
+
+Obligaciones periódicas
+
+csv
+
+CSV-5YN-CENSO-0002
+
+co
+
+Ne
+
+XO
+
+N
+
+NN
+
+yo
+
+cert coment censts status negative zero 00d
+
+Malva
+
+NO PRESENTABLE - datos tolalmente siméticos
+
+NATIVE TEXT PDF

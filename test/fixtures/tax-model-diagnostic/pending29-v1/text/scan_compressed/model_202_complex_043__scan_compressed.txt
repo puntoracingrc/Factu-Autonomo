@@ -1,0 +1,134 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+¡ado del Impu
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF                        B19710342                          Titular / entidad
+Ejercicio                         2026                                                Periodo
+
+Tipo documental     SYNTHETIC COMPLEMENTA Estado esperado
+AY _OR_MULTI_RECORDO
+
+Cálculo
+Modalidad                                                ARTÍCULO 40.3 LIS
+Base imponible del periodo                     420.000,00
+Porcentaje                                                             17%
+Bonificaciones y retenciones                            8.500,00
+Pagos anteriores                                                          42.000,00
+Pago fraccionado                                        20.900,00
+
+model 202 complex 043 nalive- MO PRESENTABLE - datos totalmente sintéticos
+
+ENTIDAD SINTÉTICA 043 S.L.
+ap
+ACCEPT WITH SYNTHETIC LIMITATION
+
+Fagina 1
+
+NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+202
+
+Pa
+
+ado del Impu
+
+aso
+
+des
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF
+
+B19710342
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 043 S.L.
+
+2026
+
+Periodo
+
+ap
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+ACCEPT WITH SYNTHETIC LIMITATION
+
+AY OR_MULTI_RECORD
+
+Cálculo
+
+Modalidad
+
+ARTÍCULO 40.3 LIS
+
+Base imponible del periodo
+
+420.000,00
+
+Porcentaje
+
+17%
+
+Bonificaciones y retenciones
+
+8.500,00
+
+Pagos anteriores
+
+42.000,00
+
+Pago fraccionado
+
+20.900,00
+
+co
+
+O
+
+N
+
+xXO
+
+N
+
+NN
+
+yo
+
+mode
+
+2
+
+o.
+
+o
+
+Ez
+
+Ss
+
+compiex 043
+
+native -NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT PI
+
+F
+
+-

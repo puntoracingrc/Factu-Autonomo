@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_347_habitual_065__rotated_capture",
+  "baseFixtureId": "model_347_habitual_065",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_MODEL_347",
+  "displayName": "347 - Declaración anual de operaciones con terceras personas - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B21452529",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 065 S.L.",
+    "document.code": "347",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "thirdParties.records": 1,
+    "thirdParties.total": "12.500,00",
+    "thirdParties.detail": [
+      [
+        "B72926025",
+        "CLIENTE PRINCIPAL S.L.",
+        "B",
+        "12.500,00",
+        "3.000,00",
+        "3.500,00",
+        "3.000,00",
+        "3.000,00",
+        "NO"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "THIRD_PARTIES.MODEL_347_CANDIDATE": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B21452529"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 065 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_347"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "347"
+    },
+    {
+      "fieldId": "thirdParties.records",
+      "page": 1,
+      "label": "Número de terceros",
+      "value": 1
+    },
+    {
+      "fieldId": "thirdParties.total",
+      "page": 1,
+      "label": "Importe anual declarado",
+      "value": "12.500,00"
+    },
+    {
+      "fieldId": "thirdParties.detail",
+      "page": 2,
+      "label": "Terceros",
+      "value": [
+        [
+          "B72926025",
+          "CLIENTE PRINCIPAL S.L.",
+          "B",
+          "12.500,00",
+          "3.000,00",
+          "3.500,00",
+          "3.000,00",
+          "3.000,00",
+          "NO"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI27.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_347_habitual_065__rotated_capture.pdf",
+  "sha256": "bd80e7787eac5aec7757ef4dd0a0b9bd58b8cfccc8c414ce293291f4bf1eabba"
+}

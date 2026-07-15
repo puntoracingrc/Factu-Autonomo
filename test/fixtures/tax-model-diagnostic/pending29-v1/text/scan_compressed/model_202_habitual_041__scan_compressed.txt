@@ -1,0 +1,105 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Pago             ado del Impué:                      dades
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF                            B19551969                              Titular / entidad                  ENTIDAD SINTÉTICA 041 S.L.
+
+Ejercicio                   2026                                     Periodo                            2P
+
+Tipo documental       SYNTHETIC_FILED COPY       Estado esperado              ACCEPT WITH_SYNTHETIC LIMITATION
+Calculo
+
+Modalidad                                                 ARTÍCULO 40.2 LIS
+
+Cuota último periodo                                    18.000,00
+
+Porcentaje                                                      18%
+
+Pago fraccionado                                        3.240,00
+
+modal 202 Rebitual Dj mative - NO PRESENTARLE - datos infalmente sintéticos                                                                                            NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+202
+
+Pago
+
+ado del Impué:
+
+dades
+
+E
+
+iña 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF
+
+B19551969
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 041 S.L.
+
+Ejercicio
+
+2026
+
+Periodo
+
+2P
+
+SYNTHETIC_FILED COPY
+
+ACCEPT WITH SYNTHETIC LIMITATION
+
+Tipo documental
+
+Estado esperado
+
+Cálculo
+
+Modalidad
+
+ARTÍCULO 40.2 LIS
+
+18.000,00
+
+Cuota último periodo
+
+Porcentaje
+
+18%
+
+Pago fraccionado
+
+3.240,00
+
+co
+
+<<
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+modal 202 Rebitual Dej
+
+native - NO PRESENTABLE - datos intalmente s
+
+téticas
+
+NATIVE TEXT PDF

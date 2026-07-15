@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_151_negative_zero_018__rotated_capture",
+  "baseFixtureId": "model_151_negative_zero_018",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_MODEL_151",
+  "displayName": "151 - IRPF del régimen especial de personas desplazadas a España - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": "ANUAL",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12002034J",
+    "taxpayer.name": "PERSONA SINTÉTICA 018",
+    "document.code": "151",
+    "document.fiscalYear": 2026,
+    "document.period": "ANUAL",
+    "specialRegime.article93": "ARTÍCULO 93 LIRPF",
+    "income.work": "45.000,00",
+    "withholding.amount": "10.800,00",
+    "filing.result": "0,00"
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.SPECIAL_ARTICLE_93": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12002034J"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 018"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_151"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "151"
+    },
+    {
+      "fieldId": "specialRegime.article93",
+      "page": 1,
+      "label": "Régimen especial",
+      "value": "ARTÍCULO 93 LIRPF"
+    },
+    {
+      "fieldId": "income.work",
+      "page": 1,
+      "label": "Rendimientos del trabajo",
+      "value": "45.000,00"
+    },
+    {
+      "fieldId": "withholding.amount",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "10.800,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "0,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G615.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/irpf/tengo-que-presentar-declaracion/regimen-fiscal-aplicable-trabajadores-desplazados/gestiones-destacadas-regimen-fiscal-trabajadores-desplazados.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_151_negative_zero_018__rotated_capture.pdf",
+  "sha256": "0448aee2ed97829a526ba59888b8ddfddeeb2a79638af57e6ee58e73c1181163"
+}

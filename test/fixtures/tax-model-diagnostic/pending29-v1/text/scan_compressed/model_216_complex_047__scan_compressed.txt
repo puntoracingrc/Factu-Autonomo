@@ -1,0 +1,129 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                2   6
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Retenciones de no residentes
+
+NIF                              12005311R                                Titular / entidad                    PERSONA SINTÉTICA 047
+Ejercicio                   2026                                     Periodo                            12
+Tipo documental       SYNTHETIC COMPLEMENTA Estado esperado              ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Rentas y retenciones
+
+Número de rentas                                       4
+
+Tipos de renta                                            Cánones; servicios; infteresas
+Paises                                                      FA: DE; US
+
+Rentas exentas                                           12.000,00
+
+Rentas sujetas                                           35.000,00
+
+Retención                                                 4.375,00
+
+Resultado                                                 4.375,00
+
+model 216 complex 047 nalve- MO PRESENTABLE - datos taalmente simiéticos                                                                                   NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+216
+
+La
+
+NIE:
+
+róntas obten
+
+==
+
+porno
+
+sin
+
+ecimiento
+
+manente
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Retenciones de no residentes
+
+NIF
+
+12005311R
+
+Titular / entidad
+
+PERSONA SINTÉTICA 047
+
+2026
+
+Periodo
+
+12
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Rentas y retenciones
+
+Número de rentas
+
+4
+
+Tipos de renta
+
+Cánones; servicios: intereses
+
+Paises
+
+FA: DE; US
+
+Rentas exentas
+
+12.000,00
+
+Rentas sujetas
+
+35.000,00
+
+Ratención
+
+4.375,00
+
+Resultado
+
+4.375,00
+
+co
+
+e
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+madel_216 complex 047
+
+native -NO PRESENTARLE - dados tolalmente sintéticos
+
+NATIVE TEXT PDF

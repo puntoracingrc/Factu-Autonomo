@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_720_negative_zero_082__rotated_capture",
+  "baseFixtureId": "model_720_negative_zero_082",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_MODEL_720",
+  "displayName": "720 - Bienes y derechos situados en el extranjero - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_EMPTY_DRAFT",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12009266T",
+    "taxpayer.name": "PERSONA SINTÉTICA 082",
+    "document.code": "720",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "foreignAssets.records": 0,
+    "filing.status": "BORRADOR VACÍO",
+    "foreignAssets.detail": []
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.FOREIGN_ASSETS": "DO_NOT_INFER_FALSE_FROM_EMPTY_DRAFT"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12009266T"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 082"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_720"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "720"
+    },
+    {
+      "fieldId": "foreignAssets.records",
+      "page": 1,
+      "label": "Registros",
+      "value": 0
+    },
+    {
+      "fieldId": "filing.status",
+      "page": 1,
+      "label": "Estado",
+      "value": "BORRADOR VACÍO"
+    },
+    {
+      "fieldId": "foreignAssets.detail",
+      "page": 2,
+      "label": "Registros",
+      "value": []
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI34.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_720_negative_zero_082__rotated_capture.pdf",
+  "sha256": "2381fd598b516374b5ff554b81ad6d58344bee77282e0b7b177caa7e7770208a"
+}

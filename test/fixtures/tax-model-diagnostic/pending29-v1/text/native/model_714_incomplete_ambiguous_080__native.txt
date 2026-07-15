@@ -1,0 +1,40 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                       714
+Impuesto sobre el Patrimonio                                                                                                       Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen patrimonial
+ NIF                     12009040G                         Titular / entidad                PERSONA SINTÉTICA 080
+
+ Ejercicio               2025                              Periodo                          ANUAL
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Liquidación
+ Patrimonio bruto                                     1.240.000,00
+ Base imponible                                       [NO VISIBLE]
+ Cuota                                                [PÁGINA AUSENTE]
+
+
+
+
+                                                                                                                       CO
+                                                                                                        É           TI
+                                                                                                      T
+                                                                                              S     IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_714_incomplete_ambiguous_080__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

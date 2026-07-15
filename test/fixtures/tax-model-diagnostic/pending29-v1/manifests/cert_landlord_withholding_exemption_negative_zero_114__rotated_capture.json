@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "cert_landlord_withholding_exemption_negative_zero_114__rotated_capture",
+  "baseFixtureId": "cert_landlord_withholding_exemption_negative_zero_114",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_CERT_LANDLORD_WITHHOLDING_EXEMPTION",
+  "displayName": "CERT-ARREND - Certificado de exoneración de retención del arrendador - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "CURRENT_AS_OF_DATE_OR_PERIOD",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B25332834",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 114 S.L.",
+    "document.code": "CERT-ARREND",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "certificate.issueDate": "10/07/2026",
+    "rentExemption.status": "NO ACREDITADA",
+    "rentExemption.validForYear": "2026",
+    "certificate.csv": "CSV-SYN-ARR-0002"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.RENT.EXEMPTION": false
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "EXEMPTION_FOR_OTHER_LANDLORDS_OR_PERIODS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B25332834"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 114 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_CERT_LANDLORD_WITHHOLDING_EXEMPTION"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "CERT-ARREND"
+    },
+    {
+      "fieldId": "certificate.issueDate",
+      "page": 1,
+      "label": "Fecha de expedición",
+      "value": "10/07/2026"
+    },
+    {
+      "fieldId": "rentExemption.status",
+      "page": 1,
+      "label": "Exoneración de retención",
+      "value": "NO ACREDITADA"
+    },
+    {
+      "fieldId": "rentExemption.validForYear",
+      "page": 1,
+      "label": "Ejercicio consultado",
+      "value": "2026"
+    },
+    {
+      "fieldId": "certificate.csv",
+      "page": 1,
+      "label": "CSV",
+      "value": "CSV-SYN-ARR-0002"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G312.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/certificaciones/censales.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/cert_landlord_withholding_exemption_negative_zero_114__rotated_capture.pdf",
+  "sha256": "96e7e64ae710038415101c7bfdd6966f2e0e6b355d4f5a717a63d7c8813998b2"
+}

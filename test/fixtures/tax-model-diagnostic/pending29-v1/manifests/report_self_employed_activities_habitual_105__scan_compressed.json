@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "report_self_employed_activities_habitual_105__scan_compressed",
+  "baseFixtureId": "report_self_employed_activities_habitual_105",
+  "semanticScenario": "habitual",
+  "documentType": "TGSS_REPORT_SELF_EMPLOYED_ACTIVITIES",
+  "displayName": "TGSS-ACT-AUT - Informe de actividades de trabajo autónomo - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12011865T",
+    "taxpayer.name": "PERSONA SINTÉTICA 105",
+    "document.code": "TGSS-ACT-AUT",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "tgss.issueDate": "10/07/2026",
+    "tgss.activityCount": 1,
+    "tgss.activities": [
+      [
+        "6202",
+        "Actividades de consultoría informática",
+        "01/03/2024",
+        "ACTIVA"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "ACTIVITY.LIST_TGSS": [
+      "6202"
+    ]
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "AEAT_CENSUS_ACTIVITY_EQUIVALENCE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12011865T"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 105"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "TGSS_REPORT_SELF_EMPLOYED_ACTIVITIES"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "TGSS-ACT-AUT"
+    },
+    {
+      "fieldId": "tgss.issueDate",
+      "page": 1,
+      "label": "Fecha de emisión",
+      "value": "10/07/2026"
+    },
+    {
+      "fieldId": "tgss.activityCount",
+      "page": 1,
+      "label": "Actividades comunicadas",
+      "value": 1
+    },
+    {
+      "fieldId": "tgss.activities",
+      "page": 1,
+      "label": "Actividades",
+      "value": [
+        [
+          "6202",
+          "Actividades de consultoría informática",
+          "01/03/2024",
+          "ACTIVA"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "TGSS",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://portal.seg-social.gob.es/wps/portal/importass/importass/Categorias/Vida%2Blaboral%2Be%2Binformes/Informes%2Bsobre%2Btu%2Bsituacion%2Blaboral/Infor_Act_Autonomo"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/report_self_employed_activities_habitual_105__scan_compressed.pdf",
+  "sha256": "6db91e04870d5873f677e1d7e723749f9f5a56764704e8cb6d7b5465606c82a1"
+}

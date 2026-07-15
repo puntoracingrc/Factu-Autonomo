@@ -1,0 +1,125 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_720_habitual_081__scan_compressed",
+  "baseFixtureId": "model_720_habitual_081",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_MODEL_720",
+  "displayName": "720 - Bienes y derechos situados en el extranjero - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12009153W",
+    "taxpayer.name": "PERSONA SINTÉTICA 081",
+    "document.code": "720",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "foreignAssets.records": 1,
+    "foreignAssets.categories": "CUENTAS",
+    "foreignAssets.totalValue": "86.000,00",
+    "foreignAssets.detail": [
+      [
+        "C",
+        "FR",
+        "BANCO SINTÉTICO FR",
+        "TITULAR",
+        "31/12/2025",
+        "86.000,00",
+        "ALTA"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.FOREIGN_ASSETS": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12009153W"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 081"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_720"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "720"
+    },
+    {
+      "fieldId": "foreignAssets.records",
+      "page": 1,
+      "label": "Registros",
+      "value": 1
+    },
+    {
+      "fieldId": "foreignAssets.categories",
+      "page": 1,
+      "label": "Categorías",
+      "value": "CUENTAS"
+    },
+    {
+      "fieldId": "foreignAssets.totalValue",
+      "page": 1,
+      "label": "Valor total informado",
+      "value": "86.000,00"
+    },
+    {
+      "fieldId": "foreignAssets.detail",
+      "page": 2,
+      "label": "Registros",
+      "value": [
+        [
+          "C",
+          "FR",
+          "BANCO SINTÉTICO FR",
+          "TITULAR",
+          "31/12/2025",
+          "86.000,00",
+          "ALTA"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI34.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_720_habitual_081__scan_compressed.pdf",
+  "sha256": "50e819f4405803e8188050af71f19bb99eddea9c94367b0452cf3cbd00787459"
+}

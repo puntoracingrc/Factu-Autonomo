@@ -1,0 +1,73 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                                 100
+Impuesto sobre la Renta de las Personas Físicas                                                                                              Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen de la declaración
+ NIF                      12000565Q                         Titular / entidad           PERSONA SINTÉTICA 005
+
+ Ejercicio                2025                              Periodo                     ANUAL
+
+ Tipo documental          SYNTHETIC_FILED_COPY              Estado esperado             ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Datos generales
+ Tipo de declaración                                   INDIVIDUAL
+ Resultado                                             950,00
+
+
+  Actividad económica
+Clave                     Actividad                Método                   Ingresos            Gastos           Rendimiento   Retenciones
+A01                       Consultoría informática DIRECTA                   48.000,00           16.500,00        31.500,00     4.100,00
+                                                  SIMPLIFICADA
+
+
+
+
+                                                                                                                   CO
+                                                                                                    É           TI
+                                                                                                  T
+                                                                                          S     IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_100_habitual_005__native - NO PRESENTABLE - datos totalmente sintéticos                                                       NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                         100
+Impuesto sobre la Renta de las Personas Físicas                                                                      Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Liquidación
+  Resultado
+ Cuota diferencial / resultado                         950,00
+
+
+
+
+                                                                                                         CO
+                                                                                           É          TI
+                                                                                         T
+                                                                                   S   IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_100_habitual_005__native - NO PRESENTABLE - datos totalmente sintéticos                                 NATIVE_TEXT_PDF
+

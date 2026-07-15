@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_349_incomplete_ambiguous_072__scan_compressed",
+  "baseFixtureId": "model_349_incomplete_ambiguous_072",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_349",
+  "displayName": "349 - Declaración recapitulativa de operaciones intracomunitarias - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": "2T",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "B22006852",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 072 S.L.",
+    "document.code": "349",
+    "document.fiscalYear": 2026,
+    "document.period": "2T",
+    "eu.operators": 1,
+    "eu.total": "9.200,00"
+  },
+  "expectedQuestionMappings": {
+    "EU.OPERATIONS": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS",
+    "CURRENT_ROI_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B22006852"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 072 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_349"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "349"
+    },
+    {
+      "fieldId": "eu.operators",
+      "page": 1,
+      "label": "Operadores",
+      "value": 1
+    },
+    {
+      "fieldId": "eu.total",
+      "page": 1,
+      "label": "Importe total",
+      "value": "9.200,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI28.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_349_incomplete_ambiguous_072__scan_compressed.pdf",
+  "sha256": "85e3da0bb690837fdc3a3f30e75f7b64441425d1d17b70e080af4e8cea8fd219"
+}

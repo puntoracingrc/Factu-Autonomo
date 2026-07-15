@@ -1,0 +1,103 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+IVA - liquidación no p
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+IVA no periódico
+
+NIF                        12006554                         Titular / entidad                PERSONA SINTÉTICA 058
+
+Ejercicio             | 2026                            Periodo                     aT
+
+Tipo documental      | SYNTHETIC_FILED_ COPY       Estado esperado              ACCEPT_WITH_SYNTHETIC LIMITATION
+Operación
+
+Supuesto                                             LIQUIDACIÓN NO PERIÓDICA
+
+Base                                                       09,00
+
+Cuota                                                      0,00
+
+Resultado                                                 0,00
+
+model 309 negativa zem 058 native- NO PRESENTABLE - datos intalmente sintéticos                                                           NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+309
+
+IVA
+
+liquidación no p
+
+Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+IVA no periódico
+
+NIF
+
+120065544
+
+Titular / entidad
+
+PERSONA SINTÉTICA 058
+
+Ejercicio
+
+2026
+
+Periodo
+
+aT
+
+SYNTHETIC_FILED COPY
+
+ACCEPT WITH SYNTHETIC LIMITATION
+
+Tipo documental
+
+Estado esperado
+
+Operación
+
+LIQUIDACIÓN NO PERIÓDICA
+
+Supuesto
+
+Base
+
+0.00
+
+Cuota
+
+0,00
+
+Resultado
+
+0,00
+
+co
+
+O
+
+NN
+
+KO
+
+N
+
+NN
+
+yo
+
+model 309 negativa zen 0586
+
+native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT Pl
+
+F
+
+=

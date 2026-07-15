@@ -87,6 +87,7 @@ function extractNif(lines: string[]): string | null {
       /n\.?\s*i\.?\s*f\.?\s+del\s+(?:titular|interesado)\s*[:\-]?\s+(?:ES\s*)?([A-Z0-9](?:[\s.\-]?[A-Z0-9]){8})/i,
       /n\.?\s*i\.?\s*f\.?\s+del\s+obligado\s*[:\-]\s*(?:ES\s*)?([A-Z0-9](?:[\s.\-]?[A-Z0-9]){8})/i,
       /(?:n\.?\s*i\.?\s*f\.?|n[uú]mero\s+de\s+identificaci[oó]n\s+fiscal)\s*[:\-]\s*(?:ES\s*)?([A-Z0-9](?:[\s.\-]?[A-Z0-9]){8})/i,
+      /^(?:n\.?\s*i\.?\s*f\.?|n[uú]mero\s+de\s+identificaci[oó]n\s+fiscal)\s+(?:ES\s*)?([A-Z0-9](?:[\s.\-]?[A-Z0-9]){8})$/i,
       /^n\.?\s*i\.?\s*f\.?\s+(?:ES\s*)?([A-Z0-9](?:[\s.\-]?[A-Z0-9]){8})$/i,
     ]
       .map((pattern) => line.match(pattern))
@@ -130,9 +131,10 @@ function parseActivityLine(line: string): FiscalActivity | null {
   const described = line.match(
     /(?:descripci[oó]n\s+de\s+la\s+actividad|actividad\s+econ[oó]mica|actividad\s+principal)\s*[:\-]\s*(.+)$/i,
   );
-  if (!described) return null;
+  const listed = line.match(/^actividades?\s*[:\-]?\s+(.+)$/i);
+  if (!described && !listed) return null;
   return {
-    description: cleanLine(described[1]),
+    description: cleanLine((described ?? listed)![1]),
     ...(/actividad\s+principal/i.test(line) ? { isPrimary: true } : {}),
   };
 }
@@ -268,6 +270,12 @@ function detectDirectTaxRegime(normalizedText: string) {
   if (normalizedText.includes("estimacion directa normal")) {
     return "DIRECT_ESTIMATION_NORMAL" as const;
   }
+  if (/\birpf\s*[:\-]?\s*directa\s+simplificada\b/.test(normalizedText)) {
+    return "DIRECT_ESTIMATION_SIMPLIFIED" as const;
+  }
+  if (/\birpf\s*[:\-]?\s*directa\s+normal\b/.test(normalizedText)) {
+    return "DIRECT_ESTIMATION_NORMAL" as const;
+  }
   return "UNKNOWN" as const;
 }
 
@@ -279,7 +287,9 @@ function detectVat(normalizedText: string) {
     normalizedText.includes("actividad exenta de iva") ||
     normalizedText.includes("sin derecho a deduccion de iva") ||
     normalizedText.includes("operaciones exentas de iva");
-  const hasGeneral = normalizedText.includes("regimen general de iva");
+  const hasGeneral =
+    normalizedText.includes("regimen general de iva") ||
+    /\biva\s*[:\-]?\s*(?:regimen\s+)?general\b/.test(normalizedText);
   const detectedRegimes = [hasProrata, hasExempt, hasGeneral].filter(
     Boolean,
   ).length;

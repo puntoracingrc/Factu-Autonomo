@@ -1,0 +1,72 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                             341
+Reintegro de compensaciones del régimen especial agrario                                                                 Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Solicitud de reintegro
+ NIF                     12007119S                         Titular / entidad   PERSONA SINTÉTICA 063
+
+ Ejercicio               2026                              Periodo             2T
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado     ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Resumen
+ Operaciones                                          3
+ Compensación solicitada                              8.122,50
+ Rectificativa                                        SÍ
+
+
+
+
+                                                                                                          CO
+                                                                                          É            TI
+                                                                                        T
+                                                                                    S IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_341_complex_063__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                     341
+Reintegro de compensaciones del régimen especial agrario                                                                         Página 2
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Operaciones
+  Detalle
+Adquirente                   NIF                          Producto             Base                %           Compensación
+COMPRADOR A                  B64927833                    GANADO               32.000,00           10,5%       3.360,00
+COMPRADOR B                  B65007023                    CEREAL               27.000,00           12%         3.240,00
+COMPRADOR C                  B65086217                    PESCA                14.500,00           10,5%       1.522,50
+
+
+
+
+                                                                                                          CO
+                                                                                               É       TI
+                                                                                             T
+                                                                                      S    IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                   DO
+
+
+
+
+model_341_complex_063__native - NO PRESENTABLE - datos totalmente sintéticos                                              NATIVE_TEXT_PDF
+

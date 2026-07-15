@@ -1,0 +1,103 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                  1 31
+
+ado de IRPF en esf        objetiva                                                                                                     Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF                 12001582K                  Titular / entidad           PERSONA SINTÉTICA 014
+Ejercicio                   2026                                     Periodo                            1T
+Tipo documental       SYNTHETIC_ FILED COPY       Estado esperado              ACCEPT WITH_SYNTHETIC LIMITATION
+
+Cálculo por módulos
+
+Método                                                     ESTIMACIÓN OBJETIVA
+Actividad                                                       Taxi
+Rendimiento neto por módulos:                           0,00
+Resultado                                                      0,00
+
+model_131 negative zen 014 nativo - NO PRESENTABLE - datos intalmente sintéticos                                                     NATIVE TEXT POF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+131
+
+Pago
+
+ado de IRPF ene
+
+objetiva
+
+Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Pago fraccionado
+
+NIF
+
+12001582K
+
+Titular / entidad
+
+PERSONA SINTÉTICA 014
+
+Ejercicio
+
+| 2026
+
+Periodo
+
+1T
+
+Tipo documental
+
+SYNTHETIC_FILED COPY
+
+ACCEPT WITH_SYNTHETIC LIMITATION
+
+Estado esperado
+
+Cálculo por módulos
+
+Método
+
+ESTIMACIÓN OBJETIVA
+
+Actividad
+
+Taxi
+
+Rendimiento neto por módulos:
+
+0,00
+
+Resultado
+
+0,00
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+modal 131
+
+negative zero
+
+1
+
+native - NO PRESENTABLE
+
+datos intalmente sintéficos
+
+NATIVE TEXT PDF

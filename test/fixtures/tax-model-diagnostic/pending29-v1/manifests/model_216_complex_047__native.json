@@ -1,0 +1,126 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_216_complex_047__native",
+  "baseFixtureId": "model_216_complex_047",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_216",
+  "displayName": "216 - Retenciones de rentas obtenidas por no residentes sin establecimiento permanente - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": "12",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12005311R",
+    "taxpayer.name": "PERSONA SINTÉTICA 047",
+    "document.code": "216",
+    "document.fiscalYear": 2026,
+    "document.period": "12",
+    "nonresident.recipients": 4,
+    "nonresident.incomeTypes": "Cánones; servicios; intereses",
+    "nonresident.countries": "FR; DE; US",
+    "nonresident.exemptBase": "12.000,00",
+    "nonresident.taxableBase": "35.000,00",
+    "nonresident.withholding": "4.375,00",
+    "filing.result": "4.375,00"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.NON_RESIDENTS": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12005311R"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 047"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_216"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "216"
+    },
+    {
+      "fieldId": "nonresident.recipients",
+      "page": 1,
+      "label": "Número de rentas",
+      "value": 4
+    },
+    {
+      "fieldId": "nonresident.incomeTypes",
+      "page": 1,
+      "label": "Tipos de renta",
+      "value": "Cánones; servicios; intereses"
+    },
+    {
+      "fieldId": "nonresident.countries",
+      "page": 1,
+      "label": "Países",
+      "value": "FR; DE; US"
+    },
+    {
+      "fieldId": "nonresident.exemptBase",
+      "page": 1,
+      "label": "Rentas exentas",
+      "value": "12.000,00"
+    },
+    {
+      "fieldId": "nonresident.taxableBase",
+      "page": 1,
+      "label": "Rentas sujetas",
+      "value": "35.000,00"
+    },
+    {
+      "fieldId": "nonresident.withholding",
+      "page": 1,
+      "label": "Retención",
+      "value": "4.375,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "4.375,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF05.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_216_complex_047__native.pdf",
+  "sha256": "e6c6a041238d2463673f6ae29af7732d80233caecde5ded2bc2cde9e263d1069"
+}

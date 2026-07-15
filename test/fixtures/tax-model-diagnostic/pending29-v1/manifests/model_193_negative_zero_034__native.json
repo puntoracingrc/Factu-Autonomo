@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_193_negative_zero_034__native",
+  "baseFixtureId": "model_193_negative_zero_034",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_MODEL_193",
+  "displayName": "193 - Resumen anual de retenciones sobre capital mobiliario - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B18997635",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 034 S.L.",
+    "document.code": "193",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "capital.recipients": 0,
+    "capital.totalIncome": "0,00",
+    "capital.totalWithholding": "0,00",
+    "capital.records": []
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.CAPITAL": false
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B18997635"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 034 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_193"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "193"
+    },
+    {
+      "fieldId": "capital.recipients",
+      "page": 1,
+      "label": "Perceptores",
+      "value": 0
+    },
+    {
+      "fieldId": "capital.totalIncome",
+      "page": 1,
+      "label": "Rendimientos",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "capital.totalWithholding",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "0,00"
+    },
+    {
+      "fieldId": "capital.records",
+      "page": 2,
+      "label": "Perceptores de capital mobiliario",
+      "value": []
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI12.shtml",
+      "https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/DR_Modelo_193_2025.pdf"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_193_negative_zero_034__native.pdf",
+  "sha256": "e1d81f7a4532be7227b411cd8a61a41c119df7a609ddb41f30447ffbcdef2a8d"
+}

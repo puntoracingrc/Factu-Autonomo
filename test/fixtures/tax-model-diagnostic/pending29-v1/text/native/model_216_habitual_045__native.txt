@@ -1,0 +1,42 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                 216
+Retenciones de rentas obtenidas por no residentes sin establecimiento permanente                                             Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Retenciones de no residentes
+ NIF                      12005085M                         Titular / entidad      PERSONA SINTÉTICA 045
+
+ Ejercicio                2026                              Periodo                3T
+
+ Tipo documental          SYNTHETIC_FILED_COPY              Estado esperado        ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Rentas y retenciones
+ Número de rentas                                      1
+ Tipo de renta                                         CÁNONES
+ País                                                  FRANCIA
+ Base                                                  10.000,00
+ Retención                                             1.900,00
+ Resultado                                             1.900,00
+
+
+
+
+                                                                                                              CO
+                                                                                              É            TI
+                                                                                            T
+                                                                                        S IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                  DO
+
+
+
+
+model_216_habitual_045__native - NO PRESENTABLE - datos totalmente sintéticos                                         NATIVE_TEXT_PDF
+

@@ -1,0 +1,141 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_190_habitual_029__scan_compressed",
+  "baseFixtureId": "model_190_habitual_029",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_MODEL_190",
+  "displayName": "190 - Resumen anual de retenciones del trabajo y actividades económicas - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B18601682",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 029 S.L.",
+    "document.code": "190",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "withholding.recipients": 2,
+    "withholding.totalIncome": "52.000,00",
+    "withholding.total": "5.550,00",
+    "withholding.records": [
+      [
+        "30000029W",
+        "TRABAJADOR UNO",
+        "A",
+        "01",
+        "28.000,00",
+        "3.100,00"
+      ],
+      [
+        "31000029P",
+        "TRABAJADOR DOS",
+        "A",
+        "01",
+        "24.000,00",
+        "2.450,00"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.EMPLOYEES": true,
+    "WITHHOLDING.PROFESSIONALS_PAID": false
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B18601682"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 029 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_190"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "190"
+    },
+    {
+      "fieldId": "withholding.recipients",
+      "page": 1,
+      "label": "Perceptores",
+      "value": 2
+    },
+    {
+      "fieldId": "withholding.totalIncome",
+      "page": 1,
+      "label": "Percepciones",
+      "value": "52.000,00"
+    },
+    {
+      "fieldId": "withholding.total",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "5.550,00"
+    },
+    {
+      "fieldId": "withholding.records",
+      "page": 2,
+      "label": "Perceptores",
+      "value": [
+        [
+          "30000029W",
+          "TRABAJADOR UNO",
+          "A",
+          "01",
+          "28.000,00",
+          "3.100,00"
+        ],
+        [
+          "31000029P",
+          "TRABAJADOR DOS",
+          "A",
+          "01",
+          "24.000,00",
+          "2.450,00"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI10.shtml",
+      "https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos_25/DISENOS_LOGICOS_190_2025.pdf"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_190_habitual_029__scan_compressed.pdf",
+  "sha256": "ad6c270eeee822cf99b8e28fb7997379b17cbcad93b0dd35f819c8a4e02fe3ab"
+}

@@ -1,0 +1,119 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+de IVA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de devolución
+
+NIF                                120062159                                   Titular / entidad                   | PERSONA SINTÉTICA 055
+Ejercicio          2026                — Periodo              a
+"Tipo documental SYNTHETIC_COMPLEMENTA Estado esperado        ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Operación y devolución
+
+Motivo de devolución                                            RECARGO DE EQUIVALENCIA + ARTÍCULO 30 BIS
+Operaciones                                                      E]
+Base acreditada                                             | 18,500.00
+Devolución solicitada                                     2.380,00
+Cuenta de abono                    Eg eee eee 00es 1299
+ Rectificativa                                    si
+
+medel_308 complex 055 native - NO PRESENTABLE - datos totalmente sintéticos                                                                                           NATIVE TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+308
+
+Solicitud d
+
+devoción er
+
+e IVA
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de devolución
+
+12006215
+
+Lai
+
+Titular / entidad
+
+a —]a————s
+
+| PERSONA SINTÉTICA 055
+
+PARA
+
+—
+
+Fa ———-
+
+Ejercicio
+
+2026
+
+| Periodo
+
+—
+
+[Tipo documental
+
+| SYNTHETIC COMPLEMENTA Estado esperado
+
+| ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+————*—o——]%ucn
+
+- AY_OR_MULTI_RECORD
+
+TE —————]“——]—úQ
+
+Operación y devolución
+
+Motivo de devolución
+
+RECARGO DE EQUIVALENCIA + ARTÍCULO 30 BIS
+
+E]
+
+Operaciones
+
+Base acreditada
+
+18,500.00
+
+Devolución solicitada
+
+2.380,00
+
+Cuenta de abono
+
+ES
+
+e. e 1299
+
+Rectificativa
+
+si
+
+CO
+
+e
+
+NN
+
+KO
+
+N
+
+NN
+
+9
+
+model_308 complex 065 native » NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT_PDF

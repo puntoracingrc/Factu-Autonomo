@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_309_habitual_057__native",
+  "baseFixtureId": "model_309_habitual_057",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_MODEL_309",
+  "displayName": "309 - IVA - liquidación no periódica - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": "3T",
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12006441G",
+    "taxpayer.name": "PERSONA SINTÉTICA 057",
+    "document.code": "309",
+    "document.fiscalYear": 2026,
+    "document.period": "3T",
+    "vat.nonPeriodicReason": "ADQUISICIÓN INTRACOMUNITARIA EN RECARGO DE EQUIVALENCIA",
+    "eu.supplierVat": "DE000000001",
+    "vat.taxableBase": "12.000,00",
+    "vat.rate": "21%",
+    "vat.taxDue": "2.520,00",
+    "filing.result": "2.520,00"
+  },
+  "expectedQuestionMappings": {
+    "VAT.NON_PERIODIC_309": true,
+    "EU.OPERATIONS": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12006441G"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 057"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_309"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "309"
+    },
+    {
+      "fieldId": "vat.nonPeriodicReason",
+      "page": 1,
+      "label": "Supuesto",
+      "value": "ADQUISICIÓN INTRACOMUNITARIA EN RECARGO DE EQUIVALENCIA"
+    },
+    {
+      "fieldId": "eu.supplierVat",
+      "page": 1,
+      "label": "NIF-IVA proveedor",
+      "value": "DE000000001"
+    },
+    {
+      "fieldId": "vat.taxableBase",
+      "page": 1,
+      "label": "Base",
+      "value": "12.000,00"
+    },
+    {
+      "fieldId": "vat.rate",
+      "page": 1,
+      "label": "Tipo",
+      "value": "21%"
+    },
+    {
+      "fieldId": "vat.taxDue",
+      "page": 1,
+      "label": "Cuota",
+      "value": "2.520,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "2.520,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G404.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-309-iva-declaracion-liquidacion-periodica_/instrucciones-modelo-309.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_309_habitual_057__native.pdf",
+  "sha256": "fbeca20b77c258dc5fe30f3a4655bca3c4f81cd7d96c9dc7cc848d0fe6753ba3"
+}

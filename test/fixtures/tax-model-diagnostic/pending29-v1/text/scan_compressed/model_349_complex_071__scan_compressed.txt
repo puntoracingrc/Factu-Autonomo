@@ -1,0 +1,190 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 349
+
+unitarias                                                                                                                            Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen recapitulativo
+
+NIF                            B21927660                              Titular / entidad                  ENTIDAD SINTÉTICA 071 S.L.
+Ejercicio                         2026                                                Periodo                                    aT
+Tipo documental           SYNTHETIC_COMPLEMENTA Estado esperado                    ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY_OR_MULTI_RECORD
+
+Totales
+Rectificaciones                                                             si
+Operadores                                                                   3
+Importe total                                                                 36.000,00
+
+modal 349 complex 071 nalve- NO PRESENTABLE - datos totalmente sintéticos                                                           NATIVE TEXT. PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+349
+
+Der
+
+capitu
+
+in
+
+unitarias
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen recapitulativo
+
+NIF
+
+B21927660
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 071 S.L.
+
+Ejercicio
+
+2026
+
+Periodo
+
+ar
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA Estado esperado
+
+AY_OR_MULTI_RECORD
+
+Totales
+
+Rectificaciones
+
+si
+
+3
+
+Operadores
+
+Importe total
+
+36.000,00
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+9
+
+modal 349 compiex 071
+
+alive - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+ación recapitulativa                   5 intracomunitarias
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operadores intracomunitarios
+
+Detalle
+HIF-IVA                        Operador                      Clave                          importe                        Ejercicio ret.                Periodo rect.
+DEeEDOOO0N0DOD!                 PROVEEDOR ALEMÁN     A                               21.000,00
+PTONO0CNONOZ                 CLIEMTE PORTUGUÉS     5                                18.500,00
+FRO00DC000O3                 CLIENTE RECTIFICADO 5                                3.500,00                     2025                          ar
+
+model 349 complex 071 _ nalíve- NO PRESENTABLE - datos tmalmente smiéficos:                                                           NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+349
+
+Dech
+
+ción recapitulabiva
+
+acomunitarias
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operadores intracomunitarios
+
+Detalle
+
+NIF-IVA
+
+Operador
+
+Clave
+
+importe
+
+Ejercicio ret.
+
+Periodo rect.
+
+DEDOO0NDDO!
+
+PROVEEDOR ALEMÁN
+
+A
+
+21.000,00
+
+PTOOGONONDOZ
+
+CLIENTE PORTUGUÉS
+
+ÉS
+
+18.500,00
+
+FROODDO0003
+
+CLIENTE RECTIFICADO 5
+
+3.500,00
+
+| 2025
+
+AT
+
+co
+
+<<
+
+Ne
+
+xXO
+
+N
+
+NN
+
+yo
+
+model 349 compte:
+
+071
+
+native - NO PRESENTABLE - datos iojalmente
+
+métcos
+
+NATIVE TEXT PDF

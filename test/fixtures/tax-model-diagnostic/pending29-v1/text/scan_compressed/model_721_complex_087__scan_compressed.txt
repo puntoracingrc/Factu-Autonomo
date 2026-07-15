@@ -1,0 +1,196 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 721
+
+Monedas viduales situadas enel      nero                                                                                                            Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen informativo
+
+NIF                              12009831                                 Titular / entidad                    PERSONA SINTÉTICA 087
+Ejercicio                   2025                                     Periodo                            ANUAL
+Tipo documental       SYNTHETIC_COMPLEMENTA Estado esperado              ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY_OR_MULTI_RECORD
+
+Totales
+Complementaria                                                           si
+Registros                                                                       3
+Valor total                                                                      228.000,00
+
+model 721 complex 087 _ native - NO PRESENTABL E - datos totalmente emtéticns:                                               NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+721
+
+Monedas viiuales situadas enel
+
+nero
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen informativo
+
+NIF
+
+12009831
+
+Titular / entidad
+
+PERSONA SINTÉTICA 087
+
+2025
+
+Periodo
+
+ANUAL
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY_OR_MULTI_RECORD
+
+Totales
+
+Complementaria
+
+si
+
+Registros
+
+3
+
+Valor total
+
+228.000,00
+
+co
+
+N
+
+KO
+
+N
+
+NN
+
+y
+
+moda
+
+2
+
+campies
+
+87
+
+nátive - NO PRESENTABLE - datos totalmente emtéticos
+
+NATIVE TEXT_FDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Monedas viiuales situadas
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Monedas virtuales en el extranjero
+
+Detalle
+Moneda                 Custodio                País                    Condición               Unidades               Valor
+BTC                     EXCHANGE A            CH                      TITULAR                 240000000               139.000,00
+ETH                     CUSTODIO E             US                       BENEFICIARIO            1800000000              54.000,00
+USDE                    CUSTODIO C             56                      TITULAR REAL           | 35000,00000000          95.000,00
+
+modal 721 complex 087 _ nalíve- NO PRESENTABLE - datos tealmente simiéticos:                                               NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+721
+
+Monedas viiuales situadas
+
+ero
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Monedas virtuales en el extranjero
+
+Detalle
+
+Moneda
+
+Custodio
+
+País
+
+Condición
+
+Unidades
+
+Valor
+
+BTC
+
+EXCHANGE A
+
+CH
+
+TITULAR
+
+240000000
+
+133,000,00
+
+ETH
+
+CUSTODIO B
+
+US
+
+BENEFICIARIO
+
+18,00000000
+
+54.000,00
+
+USDE
+
+CUSTODIO C
+
+sG
+
+TITULAR REAL
+
+3500000000000
+
+35.000,00
+
+co
+
+<<
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+modal 721 compre:
+
+De?
+
+nalve - NO PRESENTABLE - datos tojalmente simiético
+
+NATIVE TEXT_PDF

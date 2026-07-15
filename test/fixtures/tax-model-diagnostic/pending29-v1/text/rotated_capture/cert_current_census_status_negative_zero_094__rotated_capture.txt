@@ -1,0 +1,113 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                              CERT-CENSO
+Página 1
+
+Certificado tributar
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de situación censal
+NIF                   _12010622€                     - Titular /entidad
+
+Ejercicio   2026     Periodo
+"Tipo documental SYNTHETIC FILED COPY — Estado esperado
+
+ PERSONA SINTÉTICA 094
+
+NA
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Datos certificados
+Fecha de expedición                                                 10/07/2026
+Situación                                                   “SIN ALTA EN ACTIVIDADES ECONÓMICAS
+Actividades                                                       NINGUNA
+Obligaciones periódicas                                     NINGUNA
+“esv                                                  CSV-SYN-CENSO-0002
+
+Cer current census_status nagabve zero 094 native NO PRESENTABLE - datos totalmente sintélicos                                                                       MATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+t
+
+cado Iributar
+
+CERT-C De
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de situación censal
+
+LE Z£ — ——A
+
+12010622E
+
+—
+
+- Titular /entidad
+
+—
+
+| PERSONA SINTÉTICA 094
+
+a
+
+—
+
+—
+
+————
+
+—
+
+2026
+
+| Ejercicio
+
+NA
+
+| Periodo
+
+—
+
+Y |  NIA—
+
+a
+
+Tipo documental a SYNTHETIC FILED COPY — Estado esperado
+
+| ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Datos certificados
+
+10/07/2026
+
+Fecha de expedición
+
+Situación
+
+SIN ALTA EN ACTIVIDADES ECONÓMICAS
+
+Actividades
+
+NINGUNA.
+
+Obligaciones periódicas
+
+NINGUNA
+
+csv
+
+CSV-SYN-CENSO-0002
+
+co
+
+Ne
+
+Lo
+
+UN
+
+.
+
+Cer current census_status nagabve zero 094 native NO PRESENTABLE - datos totalmente sintélicos
+
+NATIVE TEXT. PDF

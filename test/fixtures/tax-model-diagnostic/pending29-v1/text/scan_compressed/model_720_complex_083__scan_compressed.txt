@@ -1,0 +1,241 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen informativo
+
+NIF
+Ejercicio
+
+Tipo documental
+
+Totales
+Complementaria
+Registros
+Categorías
+Valor total informado
+
+model_720 complex 083
+
+12009378K                                Titular / entidad                    PERSONA SINTÉTICA 083
+2025                                     Periodo                            ANUAL
+SYNTHETIC COMPLEMENTA Estado esperado              ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY_OR_MULTI_RECORD
+
+si
+
+4
+
+CUENTAS: VALORES: INMUEBLES
+594.000,00
+
+nátive - NO PRESENTABLE - datos totalmente sintéticos                                                                                       NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+0
+
+s y de
+
+situad:
+
+jero
+
+Le
+
+a!
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen informativo
+
+NIF
+
+12009378K
+
+Titular / entidad
+
+PERSONA SINTÉTICA 083
+
+Ejercicio
+
+2025
+
+Periodo
+
+ANUAL
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Tipo documental
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+AY_OR_MULTI_RECORD
+
+Totales
+
+Complementaria
+
+si
+
+4
+
+Registros
+
+Categorías
+
+CUENTAS: VALORES; INMUEBLES
+
+Valor total informado
+
+594.000,00
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+mode
+
+720 complex 083
+
+nátive - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                 720
+
+B                                                                                                                                                                                                                            Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Bienes y derechos en el extranjero
+
+Detalle
+Clave                      País                       Entidad'blen             Condición                Fecha                     Valor                      Estado
+C                           FA                         BANCO A                 TITULAR                  3112/2025                120.000,00                ALTA
+Y                        LU                      "BROKER B              TITULAR REAL         3112/2025              240.000,00              ALTA
+L                            PT                        | INMUEBLE C             COPROPIETAR 10       1508/2025                180.000.00                ALTA
+50%
+Ls]                           DE                        BANCO D AUTORIZADO            30/06/2025                54.000,00                 CANCELACIÓN
+
+model 720 complex 083 nalíve - NO PRESENTABLE - datos tealmente simiéticos:                                                                                   NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+720
+
+B
+
+sn eéle
+
+ero
+
+ro
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Bienes y derechos en el extranjero
+
+Detalle
+
+Clave
+
+País
+
+Entidad'blen
+
+Condición
+
+Fecha
+
+Valor
+
+Estado
+
+C
+
+FR
+
+BANCO A
+
+TITULAR
+
+31/12/2025
+
+120.000,00
+
+ALTA
+
+v
+
+Lu
+
+BROKER B
+
+TITULAR REAL
+
+3112/2025
+
+240.000,00
+
+ALTA
+
+L
+
+PT
+
+INMUEBLE C
+
+COPROPIETARIO
+
+1508/2025
+
+180.000,00
+
+ALTA
+
+50%
+
+DE
+
+BANCO D
+
+AUTORIZADO
+
+30/06/2025
+
+54.000,00
+
+CANCELACIÓN
+
+co
+
+e
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+model 720 complex 083
+
+native - NO PRESENTABLE - datos iojalmente simisticos
+
+NATIVE TEXT PDF

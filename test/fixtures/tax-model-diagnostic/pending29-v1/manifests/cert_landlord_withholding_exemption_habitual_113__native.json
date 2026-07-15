@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "cert_landlord_withholding_exemption_habitual_113__native",
+  "baseFixtureId": "cert_landlord_withholding_exemption_habitual_113",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_CERT_LANDLORD_WITHHOLDING_EXEMPTION",
+  "displayName": "CERT-ARREND - Certificado de exoneración de retención del arrendador - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "CURRENT_AS_OF_DATE_OR_PERIOD",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B25253642",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 113 S.L.",
+    "document.code": "CERT-ARREND",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "certificate.issueDate": "10/07/2026",
+    "rentExemption.status": "ACREDITADA",
+    "rentExemption.validForYear": "2026",
+    "rentExemption.scope": "ARRENDAMIENTO DE INMUEBLES URBANOS",
+    "certificate.csv": "CSV-SYN-ARR-0001"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.RENT.EXEMPTION": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "EXEMPTION_FOR_OTHER_LANDLORDS_OR_PERIODS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B25253642"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 113 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_CERT_LANDLORD_WITHHOLDING_EXEMPTION"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "CERT-ARREND"
+    },
+    {
+      "fieldId": "certificate.issueDate",
+      "page": 1,
+      "label": "Fecha de expedición",
+      "value": "10/07/2026"
+    },
+    {
+      "fieldId": "rentExemption.status",
+      "page": 1,
+      "label": "Exoneración de retención",
+      "value": "ACREDITADA"
+    },
+    {
+      "fieldId": "rentExemption.validForYear",
+      "page": 1,
+      "label": "Ejercicio de validez",
+      "value": "2026"
+    },
+    {
+      "fieldId": "rentExemption.scope",
+      "page": 1,
+      "label": "Alcance",
+      "value": "ARRENDAMIENTO DE INMUEBLES URBANOS"
+    },
+    {
+      "fieldId": "certificate.csv",
+      "page": 1,
+      "label": "CSV",
+      "value": "CSV-SYN-ARR-0001"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G312.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/certificaciones/censales.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/cert_landlord_withholding_exemption_habitual_113__native.pdf",
+  "sha256": "3a273d1f3917aadc9e727f33426b5acd3329163ccfbc0281034116e9c1d21652"
+}

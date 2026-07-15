@@ -19,6 +19,7 @@ import {
   extractDateAfterLabel,
   extractFiscalYear,
   extractPeriod,
+  hasExplicitIncompleteEvidence,
   maskSpanishTaxId,
   normalizeDocumentText,
 } from "./normalization";
@@ -314,17 +315,56 @@ function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
   if (incomeTaxRegime) {
     add("IRPF.METHOD", incomeTaxRegime, "Método de estimación en IRPF");
   }
-  const vatRegimes = {
+  const vatRegimes: string[] = {
     GENERAL: ["GENERAL"],
     EXEMPT: ["EXEMPT"],
     PRORATA: ["GENERAL"],
     UNKNOWN: [],
   }[candidate.vatRegime];
+  if (
+    /\bIVA\s*[:.\-]?\s*GENERAL\s*\+\s*RECARGO\s+DE\s+EQUIVALENCIA\b/.test(
+      normalizeDocumentText(input.text),
+    )
+  ) {
+    vatRegimes.push("EQUIVALENCE_SURCHARGE");
+  }
   if (vatRegimes.length > 0) {
     add("VAT.REGIMES", vatRegimes, "Régimen de IVA");
   }
   if (current) {
     add("CENSUS.CURRENT_STATUS", "REVIEWED", "Certificado de situación censal");
+    const normalizedCurrent = normalizeDocumentText(input.text);
+    const roi = normalizedCurrent.match(
+      /\bROI\s*[:.\-]?\s*(ALTA|BAJA|NO INSCRITO)\b/,
+    )?.[1];
+    if (roi) {
+      add(
+        "EU.ROI",
+        { registered: roi === "ALTA" },
+        "Registro de Operadores Intracomunitarios",
+      );
+    }
+    const sii = normalizedCurrent.match(
+      /\bSII\s*[:.\-]?\s*(INCLUIDO|EXCLUIDO|NO INCLUIDO)\b/,
+    )?.[1];
+    if (sii) {
+      add(
+        "VAT.SII",
+        { registered: sii === "INCLUIDO" },
+        "Suministro Inmediato de Información",
+      );
+    }
+    const obligations = normalizedCurrent.match(
+      /\bOBLIGACIONES\s+PERIODICAS\s*[:.\-]?\s*([0-9; ,A-Z]+?)(?:\s{2,}|\bCSV\b|$)/,
+    )?.[1];
+    const modelCodes = obligations?.match(/\b\d{3}\b/g) ?? [];
+    if (modelCodes.length > 0) {
+      add(
+        "CENSUS.PERIODIC_OBLIGATIONS",
+        [...new Set(modelCodes)],
+        "Obligaciones periódicas",
+      );
+    }
   }
   if (!current) {
     add(
@@ -337,23 +377,26 @@ function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
     );
   }
 
-  const filed = current || isApparentlyFiled(input.text);
+  // Un certificado actual acredita una foto censal, no una declaración
+  // presentada. Solo 036/037 pueden llevar aquí señales de presentación.
+  const filed = !current && isApparentlyFiled(input.text);
   const populated = Boolean(candidate.detectedNif && facts.length > 0);
   const isComplete =
     current &&
     candidate.documentKind === "AEAT_CENSUS_CERTIFICATE" &&
     facts.length > 0 &&
+    !hasExplicitIncompleteEvidence(input.text) &&
     (input.totalPages == null ||
       input.detectedPages?.length === input.totalPages);
   return {
-    facts: filed || populated ? facts : [],
+    facts: current || filed || populated ? facts : [],
     documentKind: current
       ? "CURRENT_CERTIFICATE"
       : filed
         ? "FILED_DECLARATION_COPY"
         : "DRAFT",
     filingStatus: current
-      ? "APPARENTLY_FILED"
+      ? "NOT_VERIFIED"
       : filed
         ? "APPARENTLY_FILED"
         : "DRAFT",
@@ -368,6 +411,7 @@ function censusExtraction(input: FirstBlockInput): DeepTextExtraction {
     effectiveDate: extractDateAfterLabel(input.text, [
       "FECHA EFECTIVA",
       "FECHA DE EFECTO",
+      "FECHA DE EFECTOS",
     ]),
     csvDetected: Boolean(candidate.csv),
     isComplete,
@@ -499,7 +543,8 @@ function screenshotExtraction(input: FirstBlockInput): DeepTextExtraction {
     filingDate: null,
     effectiveDate: null,
     csvDetected: false,
-    isComplete: candidate.isComplete,
+    isComplete:
+      candidate.isComplete && !hasExplicitIncompleteEvidence(input.text),
     confidence: facts.length > 0 ? 0.86 : 0.55,
     warnings: candidate.warnings,
   };
@@ -547,7 +592,9 @@ function tgssExtraction(input: FirstBlockInput): DeepTextExtraction {
     csvDetected: /\b(?:CSV|CODIGO DE VERIFICACION)\b/.test(
       normalizeDocumentText(input.text),
     ),
-    isComplete: facts.length > 0,
+    isComplete:
+      !hasExplicitIncompleteEvidence(input.text) &&
+      (facts.length > 0 || candidate.status === "REVIEW_REQUIRED"),
     confidence: facts.length > 0 ? 0.88 : 0.55,
     warnings: candidate.warnings,
   };

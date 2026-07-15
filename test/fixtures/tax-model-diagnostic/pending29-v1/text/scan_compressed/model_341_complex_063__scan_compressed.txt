@@ -1,0 +1,210 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                  3   1
+
+es del ágime         agrario                                                                            Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de reintegro
+
+NIF                              120071185                                Titular / entidad                    PERSONA SINTÉTICA 063
+
+Periodo                                    2T
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Ejercicio                         2026
+
+Tipo documental          SYNTHETIC COMPLEMENTA Estado esperado
+AY _OR_MULTI_ RECORD
+
+Resumen
+Operaciones                  3
+Comp   ón solicitad            8.122,50
+Rectificativa                  si
+
+NATIVE TEXT PDF
+
+modal 341 complex 083 nalive - MO PRESENTABLE - datos totalmente sintéticos
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+341
+
+Reint
+
+0 de com
+
+es del rágime
+
+grario
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Solicitud de reintegro
+
+NIF
+
+120071185
+
+Titular / entidad
+
+PERSONA SINTÉTICA 063
+
+Ejercicio
+
+2026
+
+Periodo
+
+2T
+
+Tipo documental
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+AY _OR_MULTI_RECORD
+
+Resumen
+
+Operaciones
+
+3
+
+C
+
+E
+
+ra
+
+Mad
+
+p
+
+8.122,50
+
+Rectificativa
+
+si
+
+co
+
+e
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+modal 341 complex 063
+
+native NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                3   1
+
+Reintegro de compe     lones del gimen especial agrario                                                                                           Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operaciones
+
+Detalle
+Adquirente                      NIF                                Producto                         Base                              E                                  Compensación
+COMPRADOR A              B64927833                    GANADO                      32.000,00                      10,5%                          3.360,00
+COMPRADOR E              B65007024                    CEREAL                       27.000,00                      12%                            3.240,00
+COMPRADOR C              B65086217                    PESCA                       14.500,00                     10,5%                         11.522,50
+
+model 341 complex 063 native - MO PRESENTABLE - datos imalmente sintéticos                                                                        NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+341
+
+Reintegro de compe
+
+5
+
+del régimen es:
+
+ag
+
+ario
+
+Pagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operaciones
+
+Detalle
+
+Adquirente
+
+NIF
+
+Producto
+
+Base
+
+Compensación
+
+COMPRADOR A
+
+B64927833
+
+GANADO
+
+32.000,00
+
+10,5%
+
+3.360,00
+
+COMPRADOR E
+
+B65007023
+
+CEREAL
+
+27.000,00
+
+12%
+
+3,240,009
+
+COMPRADOR C
+
+B65086217
+
+PESCA
+
+14.500,00
+
+10,5%
+
+1.522,50
+
+co
+
+NN
+
+XO
+
+N
+
+NN
+
+yo
+
+model 341 complex 063
+
+alive - NO PRESENTABLE - datos tolahmente sintéticos
+
+NATIVE TEXT PDF

@@ -356,17 +356,50 @@ function normalize(value: string): string {
     .toUpperCase();
 }
 
+function containsStandaloneOfficialHeaderCode(
+  value: string,
+  code: AeatSupportedTaxFormCode,
+): boolean {
+  return new RegExp(
+    `(?:^|\\s)AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA(?:(?!FACSIMIL|\\bNIF\\b).){0,180}\\b${code}\\b`,
+  ).test(value);
+}
+
 function containsModelCode(value: string, code: AeatSupportedTaxFormCode): boolean {
   return (
     new RegExp(`\\b(?:MODELO|FORMULARIO)\\s*${code}\\b`).test(value) ||
     new RegExp(`\\b(?:MODELO|FORMULARIO)\\b.{0,240}\\b${code}\\b`).test(
       value,
-    )
+    ) ||
+    containsStandaloneOfficialHeaderCode(value, code)
   );
 }
 
 function matchesStructure(value: string, structure: AeatTaxFormStructure): boolean {
   if (!containsModelCode(value, structure.code)) return false;
+  const headerTitleAliases: Readonly<
+    Partial<Record<AeatSupportedTaxFormCode, readonly string[]>>
+  > = {
+    "216": [
+      "RETENCIONES DE RENTAS OBTENIDAS POR NO RESIDENTES SIN ESTABLECIMIENTO PERMANENTE",
+    ],
+    "296": ["RESUMEN ANUAL DE RETENCIONES DE NO RESIDENTES"],
+    "308": ["SOLICITUD DE DEVOLUCION EN SUPUESTOS ESPECIALES DE IVA"],
+    "309": ["IVA - LIQUIDACION NO PERIODICA", "IVA LIQUIDACION NO PERIODICA"],
+    "369": ["IVA DE LOS REGIMENES DE VENTANILLA UNICA OSS/IOSS"],
+    "840": ["DECLARACION DE ALTA, BAJA O VARIACION EN EL IAE"],
+  };
+  if (
+    (headerTitleAliases[structure.code] ?? []).some((title) =>
+      value.slice(0, 420).includes(title),
+    )
+  ) {
+    return true;
+  }
+  // El código aislado inmediatamente después de la cabecera institucional es
+  // un campo estructurado, no un número inferido del contenido. Permite
+  // clasificar con seguridad cuando el OCR deteriora el subtítulo.
+  if (containsStandaloneOfficialHeaderCode(value, structure.code)) return true;
   if (!structure.requiredPhrases.every((phrase) => value.includes(phrase))) {
     return false;
   }
@@ -375,12 +408,111 @@ function matchesStructure(value: string, structure: AeatTaxFormStructure): boole
   );
   if (optionalGroupsMatch) return true;
 
-  // En formularios impresos el OCR puede perder el subtítulo específico,
-  // pero conservar el rótulo Modelo y su código exacto. Ese par, unido a las
-  // frases obligatorias anteriores, sigue siendo una señal estructural.
-  return new RegExp(
-    `\\b(?:MODELO|FORMULARIO)\\b.{0,240}\\b${structure.code}\\b`,
-  ).test(value);
+  // En formularios impresos el OCR puede perder el subtítulo específico. Se
+  // admite también el código aislado en la cabecera oficial de AEAT, siempre
+  // unido a las frases estructurales del formulario; un número suelto fuera
+  // de esa cabecera sigue sin ser una señal suficiente.
+  return containsModelCode(value, structure.code);
+}
+
+const OCR_STRUCTURAL_SIGNATURES: Readonly<
+  Partial<Record<AeatSupportedTaxFormCode, readonly RegExp[]>>
+> = {
+  "100": [
+    /RESUMEN DE LA DECLARACION/,
+    /ACTIVIDAD ECONOMICA/,
+    /RESULTADO/,
+  ],
+  "123": [
+    /RETENCIONES E INGRESOS A CUENTA/,
+    /(?:NUMERO DE )?PERCEPTORES/,
+    /BASE/,
+    /RETENCIONES/,
+    /RESULTADO/,
+  ],
+  "151": [
+    /DECLARACION DEL REGIMEN ESPECIAL/,
+    /RENTAS Y LIQUIDACION/,
+    /ARTICULO 93 LIRPF/,
+  ],
+  "180": [
+    /RESUMEN ANUAL/,
+    /PERCEPTORES/,
+    /BASE TOTAL/,
+    /(?:ARRENDADOR|INMUEBLE)/,
+  ],
+  "184": [
+    /ENTIDADES EN REGIMEN DE ATRIBUC/,
+    /TIPO DE ENTIDAD/,
+    /RENTA ATRIBUIBLE/,
+  ],
+  "190": [/RESUMEN ANUAL/, /TOTALES/, /PERCEPTORES/, /RETENCIONES/],
+  "193": [/RESUMEN ANUAL/, /PERCEPTORES/, /RENDIMIENTOS/, /RETENCIONES/],
+  "200": [
+    /IDENTIFICACION Y ACTIVIDAD/,
+    /CNAE/,
+    /IMPORTE NETO CIFRA DE NEGOCIOS/,
+  ],
+  "202": [
+    /PAGO FRACCIONADO/,
+    /MODALIDAD/,
+    /(?:PAGOS ANTERIORES|CUOTA ULTIMO PERIODO|RESULTADO)/,
+  ],
+  "216": [/RETENCIONES DE NO RESIDENTES/, /NUMERO DE RENTAS/, /TIPO DE RENTA/],
+  "296": [
+    /RESUMEN ANUAL DE RET[EO]NCIONES DE NO RES/,
+    /PERCEPTORES/,
+    /BASE TOTAL/,
+  ],
+  "308": [
+    /SOLICITUD DE DEVOLUCION/,
+    /MOTIVO DE DEVOLUCION/,
+    /DEVOLUCION SOLICITADA/,
+  ],
+  "309": [/IVA NO PERIODICO/, /SUPUESTO/, /(?:CUOTA|RESULTADO)/],
+  "341": [/COMPENSACION SOLICITADA/, /ADQUIRENTE/, /PRODUCTO/],
+  "347": [/RESUMEN ANUAL/, /NUMERO DE TERCEROS/, /IMPORTE ANUAL DECLARADO/],
+  "349": [/RESUMEN RECAPITULATIVO/, /OPERADORES INTRACOMUNITARIOS/, /NIF.?IVA/],
+  "369": [
+    /AUTOLI[GQ]UIDACION OSS(?:\/?[I1][O0]SS|\/[I1]I[O0]SS)?/,
+    /ESTADOS DE CONSUMO/,
+    /IVA TOTAL/,
+  ],
+  "714": [/RESUMEN PATRIMONIAL/, /PATRIMONIO BRUTO/, /(?:BASE IMPONIBLE|CUOTA)/],
+  "720": [
+    /BIEN[OE]S Y DERECHOS SITUADOS EN EL EXTRANJERO/,
+    /RESUMEN INFORMATIVO/,
+    /REGISTROS/,
+  ],
+  "721": [
+    /MONEDAS VIRTUALES SITUADAS EN EL EXTRANJERO/,
+    /RESUMEN INFORMATIVO/,
+    /REGISTROS/,
+  ],
+  "840": [/DECLARACION DE IAE/, /TIPO DE DECLARACION/, /ACTIVIDAD Y EFECTOS/],
+};
+
+function matchesOcrStructuralSignature(
+  value: string,
+  structure: AeatTaxFormStructure,
+): boolean {
+  const patterns = OCR_STRUCTURAL_SIGNATURES[structure.code];
+  if (!patterns?.every((pattern) => pattern.test(value))) return false;
+  if (
+    structure.code === "123" &&
+    /ARRENDAMIENTO|INMUEBLES URBANOS|RENDIMIENTOS DEL TRABAJO/.test(value)
+  ) {
+    return false;
+  }
+  if (
+    structure.code === "190" &&
+    /CAPITAL MOBILIARIO|ARRENDAMIENTO|NO RESIDENTES|RESUMEN ANUAL DE RET[EO]NCIONES DE NO RES/.test(
+      value,
+    )
+  ) {
+    return false;
+  }
+  return true;
 }
 
 function detectModel(value: string): AeatTaxFormStructure | undefined {
@@ -407,9 +539,37 @@ function detectModel(value: string): AeatTaxFormStructure | undefined {
     );
   }
 
-  return AEAT_TAX_FORM_STRUCTURES.find((structure) =>
+  const coded = AEAT_TAX_FORM_STRUCTURES.find((structure) =>
     matchesStructure(value, structure),
   );
+  if (coded) return coded;
+
+  // El OCR puede perder un código pequeño de la esquina. Solo entonces se
+  // admite una clasificación estructural si hay cabecera AEAT y exactamente
+  // una familia satisface todos sus títulos/apartados característicos.
+  if (!value.includes("AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA")) {
+    return undefined;
+  }
+  const structural = AEAT_TAX_FORM_STRUCTURES.filter((structure) => {
+    const candidate: AeatTaxFormStructure = structure;
+    if (matchesOcrStructuralSignature(value, candidate)) return true;
+    if (
+      candidate.code === "035" &&
+      /REGISTRO\s+OSS(?:.?[I1][O0]SS|[I1][O0]55)/.test(value) &&
+      value.includes("TIPO DE DECLARACION") &&
+      value.includes("REGIMEN") &&
+      /FECHA DE E[FL]ECTOS/.test(value)
+    ) {
+      return true;
+    }
+    return (
+      candidate.requiredPhrases.every((phrase) => value.includes(phrase)) &&
+      (candidate.requiredAnyPhraseGroups ?? []).every((group) =>
+        group.some((phrase) => value.includes(phrase)),
+      )
+    );
+  });
+  return structural.length === 1 ? structural[0] : undefined;
 }
 
 function extractEuOperationKeys(value: string): AeatEuOperationKey[] {
@@ -423,6 +583,13 @@ function extractEuOperationKeys(value: string): AeatEuOperationKey[] {
       keys.add(match[1] as AeatEuOperationKey);
     }
   }
+  // En listados recapitulativos la clave puede vivir en una columna, sin
+  // repetirse el rótulo en cada fila. Exigimos un NIF-IVA antes de la clave.
+  for (const match of value.matchAll(
+    /\b[A-Z]{2}[A-Z0-9]{5,14}\b.{2,100}?\b([EASI])\b\s+[+-]?[0-9][0-9. ]*(?:,[0-9]{1,2})?\b/g,
+  )) {
+    keys.add(match[1] as AeatEuOperationKey);
+  }
   return [...keys];
 }
 
@@ -432,6 +599,12 @@ function extractOssAction(value: string): AeatOssAction | undefined {
   if (checked("BAJA EN (?:EL )?REGIMEN")) return "DEREGISTRATION";
   if (checked("MODIFICACION")) return "MODIFICATION";
   if (checked("ALTA EN (?:EL )?REGIMEN")) return "REGISTRATION";
+  const labelled = value.match(
+    /\bTIPO\s+DE\s+DECLARACION\s*[:.\-]?\s*(ALTA|BAJA|MODIFICACION)\b/,
+  )?.[1];
+  if (labelled === "BAJA") return "DEREGISTRATION";
+  if (labelled === "MODIFICACION") return "MODIFICATION";
+  if (labelled === "ALTA") return "REGISTRATION";
   return undefined;
 }
 
@@ -454,11 +627,11 @@ export function parseAeatTaxFormText(text: string): AeatTaxFormCandidate {
 
   const labelledYear = value.match(/\bEJERCICIO\s*[:.\-]?\s*(20\d{2})\b/);
   const labelledPeriod = value.match(
-    /\bPERIODO\s*[:.\-]?\s*(0A|ANUAL|[1-4]T|0[1-9]|1[0-2])\b/,
+    /\bPERIODO\s*[:.\-]?\s*(0A|ANUAL|[1-4]T|[1-3]P|0[1-9]|1[0-2])\b/,
   );
   const taxIdPattern =
     "(?:[XYZ]\\d{7}[A-Z]|\\d{8}[A-Z]|[A-Z]\\d{7}[A-Z0-9])";
-  const periodPattern = "(?:0A|ANUAL|[1-4]T|0[1-9]|1[0-2])";
+  const periodPattern = "(?:0A|ANUAL|[1-4]T|[1-3]P|0[1-9]|1[0-2])";
   const detectedNif = value.match(new RegExp(`\\b(${taxIdPattern})\\b`))?.[1];
   // Los PDF impresos suelen colocar la capa cumplimentada al final del flujo
   // de texto. Se aceptan ambos órdenes habituales, pero siempre se exige un

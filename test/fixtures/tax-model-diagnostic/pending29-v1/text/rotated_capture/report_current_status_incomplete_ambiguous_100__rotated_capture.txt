@@ -1,0 +1,119 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                TGSS-ACTUAL
+
+nome       uación aciual del trabajador                                                                                                                              Pág
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situación laboral actual
+
+NIF                       12011300X                       | Titular / entidad               PERSONA SINTÉTICA 100
+
+"Ejercicio ————— 2026                                Periodo                        N/A
+
+Tipo documental | SYNTHETIC INCOMPLETE O Estado esperado + REVIEW OR _REJECT
+R_AMBIGUOUS_COPY
+
+Datos de afiliación
+Fecha de emisión                   [NO VISIBLE]
+NUSS/NAF                                                                 28/00000100/99
+Régimen                                                                    RETA
+Situación actual                                                        [BORROSO]
+
+report current_status_incomplete ambiguous 100 native- NO PRESENTABLE - datos totalmente sintéticos                                                                                                        NATIVE TEXT_PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+TGSS-ACTUAL
+
+nome
+
+ación actual del trabajador
+
+Página
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situación laboral actual
+
+NIF
+
+—.—
+
+| 12011300X
+
+——
+
+—]
+
+ Titular / entidad               - PERSONA SINTÉTICA 100
+
+—
+
+| Ejercicio
+
+2026
+
+Periodo
+
+—:
+
+| N/A
+
+Tipo documental | SYNTHETIC_ INCOMPLETE O Estado esperado
+
+REVIEW OR_REJECT
+
+—
+
+—
+
+|  R_AMBIGUCUS COPY
+
+—
+
+—
+
+—
+
+—.
+
+=—=
+
+—n
+
+——
+
+Datos de afiliación
+
+Fecha de emisión
+
+[NO VISIBLE]
+
+NUSSNAF
+
+28/00000100/99
+
+Régimen
+
+RETA
+
+Situación actual
+
+[BORROSO]
+
+co
+
+e
+
+NN
+
+KO
+
+N
+
+NN
+
+y
+
+report_curront_status_incomplete_ambiguous_100_ native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT_PDF

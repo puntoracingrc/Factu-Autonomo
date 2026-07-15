@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "cert_roi_incomplete_ambiguous_112__native",
+  "baseFixtureId": "cert_roi_incomplete_ambiguous_112",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_CERT_ROI",
+  "displayName": "CERT-ROI - Certificado de operador intracomunitario - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12012656D",
+    "taxpayer.name": "PERSONA SINTÉTICA 112",
+    "document.code": "CERT-ROI",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "certificate.issueDate": "[NO VISIBLE]",
+    "roi.status": "INSCRITO",
+    "roi.startDate": "[BORROSO]",
+    "certificate.csv": "[RECORTADO]"
+  },
+  "expectedQuestionMappings": {
+    "EU.ROI": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "ACTUAL_INTRACOMMUNITY_OPERATIONS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12012656D"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 112"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_CERT_ROI"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "CERT-ROI"
+    },
+    {
+      "fieldId": "certificate.issueDate",
+      "page": 1,
+      "label": "Fecha de expedición",
+      "value": "[NO VISIBLE]"
+    },
+    {
+      "fieldId": "roi.status",
+      "page": 1,
+      "label": "Situación en ROI",
+      "value": "INSCRITO"
+    },
+    {
+      "fieldId": "roi.startDate",
+      "page": 1,
+      "label": "Fecha de alta",
+      "value": "[BORROSO]"
+    },
+    {
+      "fieldId": "certificate.csv",
+      "page": 1,
+      "label": "CSV",
+      "value": "[RECORTADO]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "certificate.issueDate",
+    "roi.startDate",
+    "certificate.csv"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/iva/iva-quiero-certificado-IVA.html",
+      "https://sede.agenciatributaria.gob.es/Sede/certificaciones/censales.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/cert_roi_incomplete_ambiguous_112__native.pdf",
+  "sha256": "aebee60dd7a386184d90835bad0ca180091762f09ada4225c7284566ea7c6483"
+}

@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "form_035_negative_zero_002__scan_compressed",
+  "baseFixtureId": "form_035_negative_zero_002",
+  "semanticScenario": "negative_zero",
+  "documentType": "AEAT_FORM_035",
+  "displayName": "035 - Registro censal de los regímenes especiales OSS/IOSS - negative_zero",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 2,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "CURRENT_AS_OF_EFFECTIVE_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B16463556",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 002 S.L.",
+    "document.code": "035",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "oss.action": "BAJA",
+    "oss.regime": "RÉGIMEN DE LA UNIÓN",
+    "oss.effectiveDate": "31/03/2026",
+    "oss.cessationReason": "CESE VOLUNTARIO",
+    "oss.fixedEstablishments": "NINGUNO"
+  },
+  "expectedQuestionMappings": {
+    "ECOMMERCE.OSS_IOSS_REGISTRATION": "DEREGISTERED"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "ACTUAL_OSS_IOSS_OPERATIONS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B16463556"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 002 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_FORM_035"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "035"
+    },
+    {
+      "fieldId": "oss.action",
+      "page": 1,
+      "label": "Tipo de declaración",
+      "value": "BAJA"
+    },
+    {
+      "fieldId": "oss.regime",
+      "page": 1,
+      "label": "Régimen",
+      "value": "RÉGIMEN DE LA UNIÓN"
+    },
+    {
+      "fieldId": "oss.effectiveDate",
+      "page": 1,
+      "label": "Fecha de efectos",
+      "value": "31/03/2026"
+    },
+    {
+      "fieldId": "oss.cessationReason",
+      "page": 1,
+      "label": "Motivo",
+      "value": "CESE VOLUNTARIO"
+    },
+    {
+      "fieldId": "oss.fixedEstablishments",
+      "page": 2,
+      "label": "Establecimientos permanentes",
+      "value": "NINGUNO"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G333.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/Ayuda/035.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/form_035_negative_zero_002__scan_compressed.pdf",
+  "sha256": "6005c33c5ac14045fe49a0d40f9e3548feea752327741a1ca22bafeb6132619c"
+}

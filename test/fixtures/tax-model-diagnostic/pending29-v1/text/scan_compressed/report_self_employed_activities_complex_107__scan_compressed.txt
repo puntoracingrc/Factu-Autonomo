@@ -1,0 +1,132 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                 TGSS-ACT-AUT
+
+Informe de        des de tre                                                                                                                       Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Actividades comunicadas en trabajo autónomo
+
+NIF                  120120911                    Titular / entidad            PERSONA SINTÉTICA 107
+Ejercicio                   2026                                     Periodo                            N/A
+Tipo documental       SYNTHETIC_COMPLEMENTA Estado esperado              ACCEPT_WITH_SYNTHETIC LIMITATION
+
+AY _OR_MULTI_RECORD
+
+Resumen
+Fecha de emisión                                            11/07/2026
+Actividades comunicar:                                a
+
+Actividades
+Código                                         Descripción                                   Inicio                                           Estado
+8201                                            Programación informática                    01/01/2023                                     ACTIVA
+4791                                                 Comercio par Internet                          | 15/02/2026                                         ACTIVA
+7022                                            Consultoría de gestión                        01/06/2024                                     ACTIVA
+
+repor salf empioyed activides comples 107 natve - NO PRESENTABLE - datos totalmente aimbétices                                        NATIVE TEXT PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+TGSS-ACT-AUT
+
+Informe de
+
+des de tre
+
+10
+
+Fagina
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Actividades comunicadas en trabajo autónomo
+
+NIF
+
+120120911
+
+Titular / entidad
+
+PERSONA SINTÉTICA 107
+
+Ejercicio
+
+2026
+
+Periodo
+
+N/A
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA Estado esperado
+
+AY _OR_MULTI_RECORD
+
+Resumen
+
+Fecha de emisión
+
+11/07/2026
+
+Actividad:
+
+Cor
+
+1
+
+el:
+
+3
+
+Actividades
+
+Inicio
+
+Estado
+
+Código
+
+Descripción
+
+6201
+
+Programación informática
+
+01/01/2023
+
+ACTIVA
+
+4791
+
+Comercio par Internet
+
+15/02/2025
+
+ACTIVA
+
+7022
+
+Consultoría de gestión
+
+01/06/2024
+
+ACTIVA
+
+co
+
+O
+
+NN
+
+XO
+
+N
+
+NN
+
+yo
+
+repor salf empioyed activides comples 107 natve - NO PRESENTABLE - datos totalmente aimbétices
+
+NATIVE TEXT_PDF

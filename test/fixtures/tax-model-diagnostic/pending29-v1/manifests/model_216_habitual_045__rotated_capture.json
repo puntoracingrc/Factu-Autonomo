@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_216_habitual_045__rotated_capture",
+  "baseFixtureId": "model_216_habitual_045",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_MODEL_216",
+  "displayName": "216 - Retenciones de rentas obtenidas por no residentes sin establecimiento permanente - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": "3T",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12005085M",
+    "taxpayer.name": "PERSONA SINTÉTICA 045",
+    "document.code": "216",
+    "document.fiscalYear": 2026,
+    "document.period": "3T",
+    "nonresident.recipients": 1,
+    "nonresident.incomeType": "CÁNONES",
+    "nonresident.country": "FRANCIA",
+    "nonresident.base": "10.000,00",
+    "nonresident.withholding": "1.900,00",
+    "filing.result": "1.900,00"
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.NON_RESIDENTS": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12005085M"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 045"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_216"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "216"
+    },
+    {
+      "fieldId": "nonresident.recipients",
+      "page": 1,
+      "label": "Número de rentas",
+      "value": 1
+    },
+    {
+      "fieldId": "nonresident.incomeType",
+      "page": 1,
+      "label": "Tipo de renta",
+      "value": "CÁNONES"
+    },
+    {
+      "fieldId": "nonresident.country",
+      "page": 1,
+      "label": "País",
+      "value": "FRANCIA"
+    },
+    {
+      "fieldId": "nonresident.base",
+      "page": 1,
+      "label": "Base",
+      "value": "10.000,00"
+    },
+    {
+      "fieldId": "nonresident.withholding",
+      "page": 1,
+      "label": "Retención",
+      "value": "1.900,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "1.900,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GF05.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_216_habitual_045__rotated_capture.pdf",
+  "sha256": "0e61e8fe4856f03c6e4f8f0220d43d44a80d3cebe7d6b36af04604a180ea7fb4"
+}

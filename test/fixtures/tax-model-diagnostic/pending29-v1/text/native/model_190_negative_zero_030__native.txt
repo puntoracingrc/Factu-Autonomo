@@ -1,0 +1,68 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   190
+Resumen anual de retenciones del trabajo y actividades económicas                                                              Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen anual
+ NIF                     B18680876                            Titular / entidad      ENTIDAD SINTÉTICA 030 S.L.
+
+ Ejercicio               2025                                 Periodo                ANUAL
+
+ Tipo documental         SYNTHETIC_FILED_COPY                 Estado esperado        ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+
+  Totales
+ Perceptores                                           0
+ Percepciones                                          0,00
+ Retenciones                                           0,00
+
+
+
+
+                                                                                                                CO
+                                                                                                 É           TI
+                                                                                               T
+                                                                                       S     IN
+                                                                       T O
+                                                   M                 EN
+                                               C U
+                                  DO
+
+
+
+
+model_190_negative_zero_030__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                   190
+Resumen anual de retenciones del trabajo y actividades económicas                                                              Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Perceptores
+  Detalle por clave y subclave
+NIF                           Perceptor                    Clave                     Subclave       Percepción   Retención
+
+
+
+
+                                                                                                         CO
+                                                                                                    É TI
+                                                                                                  T
+                                                                                         S      IN
+                                                                     T O
+                                                   M               EN
+                                               C U
+                                  DO
+
+
+
+
+model_190_negative_zero_030__native - NO PRESENTABLE - datos totalmente sintéticos                                      NATIVE_TEXT_PDF
+

@@ -1,0 +1,171 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                1   4
+
+Emtida     A régimen de atribución de rentas                                                                             Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Datos de la entidad
+
+NIF                            B18284927                              Titular / entidad                  ENTIDAD SINTÉTICA 025 S.L.
+Ejercicio                   2025                                     Perlodo                            ANUAL
+Tipo documental       SYNTHETIC_FILED COPY       Estado esperado              ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Entidad y actividad
+
+Tipo de entidad                                          COMUNIDAD DE BIENES
+Actividad                                                                Alquier de local comercial
+Renta atribuible                                          44.000,00
+
+model 184 Rabitual DoS — native - NO PRESENTARLE - datos infalmente simiéticos                                                                                              NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+184
+
+Emtida
+
+rég
+
+en de atribución de rentas
+
+Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Datos de la entidad
+
+NIF
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 025 S.L.
+
+ B18284927
+
+Ejercicio
+
+2025
+
+Periodo
+
+ANUAL
+
+SYNTHETIC_FILED COPY
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Tipo documental
+
+Estado esperado
+
+Entidad y actividad
+
+COMUNIDAD DE BIENES
+
+Tipo de entidad
+
+Actividad
+
+Alquier de local comercial
+
+Renta atribuible
+
+44.000,00
+
+co
+
+Ne
+
+KO
+
+N
+
+NN
+
+9
+
+model 184 habitual 025
+
+native - NO PRESENTABLE - datos infalmente siméticos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                1 84
+
+Entidades en regimen de atribución de rentas                                                                                                            Fagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Miembros y rentas atribuidas
+
+Detalle de miembros
+
+NIF                                                   Miembro                                         Participación                                  Renta                                               Retenciones
+21000025                           COMUNERO UNO                  50,00%                               22.000,00                             1.800,00
+22000025                           COMUNERO DOS                  50.00%                               22.000,00                             1.800,00
+
+model 184 habitual Do5 — native - NO PRESENTARLE - datos infalmente simiéticos                                                                                                NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+184
+
+Entidades en ré
+
+ende atribución de rentas
+
+Fagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Miembros y rentas atribuidas
+
+Detalle de miembros
+
+NIF
+
+Miembro
+
+Participación
+
+Renta
+
+Retenciones
+
+21000025
+
+COMUNERO UNO
+
+50,00%
+
+22.000,00
+
+1.800,00
+
+220000251
+
+COMUNERO DOS
+
+50,00%
+
+22.000,00
+
+1.800,00
+
+co
+
+O
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+model 184 Rebitual D25
+
+native - NO PRESENTABLE - datos infalmente simiéticos
+
+NATIVE TEXT PDF

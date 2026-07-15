@@ -1,0 +1,73 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                               035
+Registro censal de los regímenes especiales OSS/IOSS                                                                       Página 1
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Identificación y opción censal
+ NIF                     B16542748                          Titular / entidad    ENTIDAD SINTÉTICA 003 S.L.
+
+ Ejercicio               2026                               Periodo              N/A
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA              Estado esperado      ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Registro OSS/IOSS
+ Tipo de declaración                                   MODIFICACIÓN
+ Régimen                                               RÉGIMEN DE IMPORTACIÓN - INTERMEDIARIO
+ Estado miembro de identificación                      ESPAÑA
+ Fecha de efectos                                      15/09/2026
+ Número IOSS                                           IM276SYN00099
+ NIF del intermediario                                 B83854240
+
+
+
+
+                                                                                                            CO
+                                                                                            É            TI
+                                                                                          T
+                                                                                   S    IN
+                                                                      T O
+                                                   M                EN
+                                               C U
+                                 DO
+
+
+
+
+form_035_complex_003__native - NO PRESENTABLE - datos totalmente sintéticos                                         NATIVE_TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                         035
+Registro censal de los regímenes especiales OSS/IOSS                                                                 Página 2
+
+
+                                                      FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Información complementaria
+  Datos adicionales
+ Establecimientos permanentes                          FRANCIA; PORTUGAL
+ Registros anteriores                                  DE / NL
+
+
+
+
+                                                                                                         CO
+                                                                                           É          TI
+                                                                                         T
+                                                                                   S   IN
+                                                                     T O
+                                                   M               EN
+                                               C U
+                                 DO
+
+
+
+
+form_035_complex_003__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

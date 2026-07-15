@@ -1,0 +1,41 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                               CERT-ROI
+Certificado de operador intracomunitario                                                                                            Página 1
+
+
+                                                       FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Certificación de operador intracomunitario
+ NIF                      12012656D                          Titular / entidad             PERSONA SINTÉTICA 112
+
+ Ejercicio                2026                               Periodo                       N/A
+
+ Tipo documental          SYNTHETIC_INCOMPLETE_O Estado esperado                           REVIEW_OR_REJECT
+                          R_AMBIGUOUS_COPY
+
+
+  Datos certificados
+ Fecha de expedición                                    [NO VISIBLE]
+ Situación en ROI                                       INSCRITO
+ Fecha de alta                                          [BORROSO]
+ CSV                                                    [RECORTADO]
+
+
+
+
+                                                                                                                      CO
+                                                                                                      É            TI
+                                                                                                    T
+                                                                                             S    IN
+                                                                      T O
+                                                    M               EN
+                                                C U
+                                  DO
+
+
+
+
+cert_roi_incomplete_ambiguous_112__native - NO PRESENTABLE - datos totalmente sintéticos                                     NATIVE_TEXT_PDF
+

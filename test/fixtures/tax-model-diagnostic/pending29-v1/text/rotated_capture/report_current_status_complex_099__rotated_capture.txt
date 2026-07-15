@@ -1,0 +1,133 @@
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL                                                 TGSS-ACTUAL
+
+info     de situación actual del trabajador
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situación laboral actual
+NIF
+
+12011187N             Titular / entidad        PERSONA SINTÉTICA 099
+Ejercicio                           2026                                                     Periodo                                       N/A
+Tipo documental        SYNTHETIC COMPLEMENTA Estado esperado               ACCEPT_WITH_SYNTHETIC_LIMITATION
+|                                              AY_OR_MULTI_ RECORD
+
+Datos de afiliación
+Fecha de emisión                                                      11/07/2026
+NUSS/NAF                                                                 28/00000099/99
+Situaciones actuales                                           RETA ALTA + RÉGIMEN GENERAL ALTA
+Alta RETA                                                                  15/01/2023
+Alta régimen general                                                01/06/2026
+
+report current _stalus complex 098 native - NO PRESENTABLE - datos totalmente sintéticos                                                                                                      NATIVE TEXT _PDF
+TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL
+
+into
+
+de siluación actual del trabajador
+
+e A
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Situación laboral actual
+
+NIF
+
+—]
+
+10 TIEN
+
+-
+
+=—
+
+—
+
+| Tina ln mi ——
+
+=—
+
+PERSONA SINTÉTICA 099
+
+—
+
+——
+
+2026
+
+Periodo
+
+Ejercicio
+
+——
+
+. MZ:
+
+Tipo documental
+
+SYNTHETIC_COMPLEMENTA | Estado esperado
+
+ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+: E
+
+RY_OR_MULTI_RECORD
+
+=
+
+—
+
+—
+
+—
+
+—  _—:
+
+—
+
+—
+
+—
+
+—
+
+——
+
+Datos de afiliación
+
+Fecha de emisión
+
+11/07/2028
+
+NUSS/NAF
+
+28/00000059/99
+
+Situaciones actuales
+
+RETA ALTA + RÉGIMEN GENERAL ALTA
+
+Alta RETA
+
+15/01/2023
+
+Alta régimen general
+
+01/06/2026
+
+CO
+
+NN
+
+KO
+
+N
+
+NN
+
+o
+
+report current _stalus complex 098 native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT PDF

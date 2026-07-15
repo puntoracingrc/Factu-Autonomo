@@ -1,0 +1,42 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                       216
+Retenciones de rentas obtenidas por no residentes sin establecimiento permanente                                                   Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Retenciones de no residentes
+ NIF                     12005424E                         Titular / entidad                PERSONA SINTÉTICA 048
+
+ Ejercicio               2026                              Periodo                          3T
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Rentas y retenciones
+ Número de rentas                                     2
+ Tipo de renta                                        [ILEGIBLE]
+ País                                                 [NO VISIBLE]
+ Base                                                 14.000,00
+ Resultado                                            [BORROSO]
+
+
+
+
+                                                                                                                       CO
+                                                                                                       É            TI
+                                                                                                     T
+                                                                                                 S IN
+                                                                     T O
+                                                  M                EN
+                                              C U
+                                 DO
+
+
+
+
+model_216_incomplete_ambiguous_048__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

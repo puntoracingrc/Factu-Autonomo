@@ -1,0 +1,160 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_349_complex_071__rotated_capture",
+  "baseFixtureId": "model_349_complex_071",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_349",
+  "displayName": "349 - Declaración recapitulativa de operaciones intracomunitarias - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": "3T",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B21927660",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 071 S.L.",
+    "document.code": "349",
+    "document.fiscalYear": 2026,
+    "document.period": "3T",
+    "filing.rectifications": "SÍ",
+    "eu.operators": 3,
+    "eu.total": "36.000,00",
+    "eu.records": [
+      [
+        "DE000000001",
+        "PROVEEDOR ALEMÁN",
+        "A",
+        "21.000,00",
+        "",
+        ""
+      ],
+      [
+        "PT000000002",
+        "CLIENTE PORTUGUÉS",
+        "S",
+        "18.500,00",
+        "",
+        ""
+      ],
+      [
+        "FR000000003",
+        "CLIENTE RECTIFICADO",
+        "S",
+        "-3.500,00",
+        "2025",
+        "4T"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "EU.OPERATIONS": [
+      "GOODS_ACQUIRED",
+      "SERVICES_SUPPLIED",
+      "RECTIFICATION"
+    ]
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS",
+    "CURRENT_ROI_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B21927660"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 071 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_349"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "349"
+    },
+    {
+      "fieldId": "filing.rectifications",
+      "page": 1,
+      "label": "Rectificaciones",
+      "value": "SÍ"
+    },
+    {
+      "fieldId": "eu.operators",
+      "page": 1,
+      "label": "Operadores",
+      "value": 3
+    },
+    {
+      "fieldId": "eu.total",
+      "page": 1,
+      "label": "Importe total",
+      "value": "36.000,00"
+    },
+    {
+      "fieldId": "eu.records",
+      "page": 2,
+      "label": "Operaciones",
+      "value": [
+        [
+          "DE000000001",
+          "PROVEEDOR ALEMÁN",
+          "A",
+          "21.000,00",
+          "",
+          ""
+        ],
+        [
+          "PT000000002",
+          "CLIENTE PORTUGUÉS",
+          "S",
+          "18.500,00",
+          "",
+          ""
+        ],
+        [
+          "FR000000003",
+          "CLIENTE RECTIFICADO",
+          "S",
+          "-3.500,00",
+          "2025",
+          "4T"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI28.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_349_complex_071__rotated_capture.pdf",
+  "sha256": "7659b4c9c6d32473b0a81962177e1071c5e92d22757d89939c3fb7fce74b6561"
+}

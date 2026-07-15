@@ -1,0 +1,186 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_720_complex_083__native",
+  "baseFixtureId": "model_720_complex_083",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_720",
+  "displayName": "720 - Bienes y derechos situados en el extranjero - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12009379K",
+    "taxpayer.name": "PERSONA SINTÉTICA 083",
+    "document.code": "720",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "filing.complementary": "SÍ",
+    "foreignAssets.records": 4,
+    "foreignAssets.categories": "CUENTAS; VALORES; INMUEBLES",
+    "foreignAssets.totalValue": "594.000,00",
+    "foreignAssets.detail": [
+      [
+        "C",
+        "FR",
+        "BANCO A",
+        "TITULAR",
+        "31/12/2025",
+        "120.000,00",
+        "ALTA"
+      ],
+      [
+        "V",
+        "LU",
+        "BROKER B",
+        "TITULAR REAL",
+        "31/12/2025",
+        "240.000,00",
+        "ALTA"
+      ],
+      [
+        "I",
+        "PT",
+        "INMUEBLE C",
+        "COPROPIETARIO 50%",
+        "15/08/2025",
+        "180.000,00",
+        "ALTA"
+      ],
+      [
+        "C",
+        "DE",
+        "BANCO D",
+        "AUTORIZADO",
+        "30/06/2025",
+        "54.000,00",
+        "CANCELACIÓN"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.FOREIGN_ASSETS": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12009379K"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 083"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_720"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "720"
+    },
+    {
+      "fieldId": "filing.complementary",
+      "page": 1,
+      "label": "Complementaria",
+      "value": "SÍ"
+    },
+    {
+      "fieldId": "foreignAssets.records",
+      "page": 1,
+      "label": "Registros",
+      "value": 4
+    },
+    {
+      "fieldId": "foreignAssets.categories",
+      "page": 1,
+      "label": "Categorías",
+      "value": "CUENTAS; VALORES; INMUEBLES"
+    },
+    {
+      "fieldId": "foreignAssets.totalValue",
+      "page": 1,
+      "label": "Valor total informado",
+      "value": "594.000,00"
+    },
+    {
+      "fieldId": "foreignAssets.detail",
+      "page": 2,
+      "label": "Registros",
+      "value": [
+        [
+          "C",
+          "FR",
+          "BANCO A",
+          "TITULAR",
+          "31/12/2025",
+          "120.000,00",
+          "ALTA"
+        ],
+        [
+          "V",
+          "LU",
+          "BROKER B",
+          "TITULAR REAL",
+          "31/12/2025",
+          "240.000,00",
+          "ALTA"
+        ],
+        [
+          "I",
+          "PT",
+          "INMUEBLE C",
+          "COPROPIETARIO 50%",
+          "15/08/2025",
+          "180.000,00",
+          "ALTA"
+        ],
+        [
+          "C",
+          "DE",
+          "BANCO D",
+          "AUTORIZADO",
+          "30/06/2025",
+          "54.000,00",
+          "CANCELACIÓN"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI34.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/model_720_complex_083__native.pdf",
+  "sha256": "e7945301531cca4c69b13f26abb41d408b44f7fc7f92a663c8d6751514ad6331"
+}

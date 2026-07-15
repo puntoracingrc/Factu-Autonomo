@@ -1,0 +1,40 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                       151
+IRPF del régimen especial de personas desplazadas a España                                                                         Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Declaración del régimen especial
+ NIF                     12002260D                         Titular / entidad                PERSONA SINTÉTICA 020
+
+ Ejercicio               2026                              Periodo                          ANUAL
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Rentas y liquidación
+ Régimen especial                                     [CASILLA NO VISIBLE]
+ Rendimientos del trabajo                             75.000,00
+ Resultado                                            [PÁGINA AUSENTE]
+
+
+
+
+                                                                                                                       CO
+                                                                                                        É           TI
+                                                                                                      T
+                                                                                              S     IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_151_incomplete_ambiguous_020__native - NO PRESENTABLE - datos totalmente sintéticos                                   NATIVE_TEXT_PDF
+

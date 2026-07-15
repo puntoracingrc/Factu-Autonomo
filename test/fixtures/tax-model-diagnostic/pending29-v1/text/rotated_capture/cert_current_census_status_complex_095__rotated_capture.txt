@@ -1,0 +1,159 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                               CERT-CENSO
+
+Gentificado tributa            ión censal                                                                                                                    Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de situación censal
+
+NIF                      120107350                        Titular / entidad              PERSONA SINTÉTICA 095
+Ejercicio           2026                 — Periodo                UNÍA                 :            "
+“Tipo documental ——- SYNTHETIC COMPLEMENTA Estado esperado       ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+AY_OR_MULTI_RECORD
+
+Datos certificados
+
+Fecha de expedición                                                 11/07/2026
+Situación                                                                   ALTA
+- Actividades                                Arquitectura IAE 411; comercio electrónico IAE 665
+Locales                                                                      2 locales afectos
+IRPF                                                                           DIRECTA NORMAL
+IVA                                                                    GENERAL + RECARGO DE EQUIVALENCIA
+ROI                                                   ALTA DESDE 15/02/2026
+Si                                                                               INCLUIDO
+Obligaciones periódicas                                   130; 303 MENSUAL: 114,115
+csv                                                                            CSV-SYN.CENSO-0003
+
+con_curtent census_stabus Complex 095 native -NO PRESENTABLE - datos totalmente sintéticos                                                                                            NATIVE TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+CERT-CENSO
+
+Gentificado tributa
+
+ón cé
+
+Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Certificación de situación censal
+
+A  — ——
+
+120107356
+
+—
+
+—
+
+Titular / entidad
+
+———o— a ————
+
+PERSONA SINTÉTICA 095
+
+——e=
+
+—
+
+—]]]
+
+——]——
+
+Ejercicio
+
+2026
+
+N/A
+
+=—— —
+
+— SYNTHETIC.COMPLEMENTA Estado esperado
+
+| ACCEPT_ WITH_SYNTHETIC LIMITATION -
+
+Tipo documental
+
+— <<
+
+AY_OR_MULTI_RECORD
+
+Ue
+
+E ———]-
+
+—
+
+—
+
+—
+
+—
+
+—]—]
+
+———
+
+a
+
+Datos certificados
+
+Fecha de expedición
+
+11/07/2026
+
+Situación
+
+ALTA
+
+Actividades
+
+Arquitectura IAE 411; comercio electrónico IAE 665
+
+Locales
+
+2 locales afectos
+
+IRPF
+
+DIRECTA NORMAL
+
+IVA
+
+GENERAL + RECARGO DE EQUIVALENCIA
+
+ROI
+
+ALTA DESDE 15/02/2026
+
+Si
+
+INCLUIDO
+
+Obligaciones periódicas
+
+130; 303 MENSUAL: 111,115
+
+csv
+
+CSV-SYN.CENSO-0003
+
+7
+
+E
+
+NN
+
+KO
+
+N
+
+NN
+
+o
+
+con_curtent census_stabus Complex 095 native -NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE TEXT_POF

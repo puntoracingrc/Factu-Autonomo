@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_151_incomplete_ambiguous_020__rotated_capture",
+  "baseFixtureId": "model_151_incomplete_ambiguous_020",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "AEAT_MODEL_151",
+  "displayName": "151 - IRPF del régimen especial de personas desplazadas a España - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": "ANUAL",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12002260D",
+    "taxpayer.name": "PERSONA SINTÉTICA 020",
+    "document.code": "151",
+    "document.fiscalYear": 2026,
+    "document.period": "ANUAL",
+    "specialRegime.article93": "[CASILLA NO VISIBLE]",
+    "income.work": "75.000,00",
+    "filing.result": "[PÁGINA AUSENTE]"
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.SPECIAL_ARTICLE_93": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12002260D"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 020"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_151"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "151"
+    },
+    {
+      "fieldId": "specialRegime.article93",
+      "page": 1,
+      "label": "Régimen especial",
+      "value": "[CASILLA NO VISIBLE]"
+    },
+    {
+      "fieldId": "income.work",
+      "page": 1,
+      "label": "Rendimientos del trabajo",
+      "value": "75.000,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "[PÁGINA AUSENTE]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "specialRegime.article93",
+    "filing.result"
+  ],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G615.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/irpf/tengo-que-presentar-declaracion/regimen-fiscal-aplicable-trabajadores-desplazados/gestiones-destacadas-regimen-fiscal-trabajadores-desplazados.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_151_incomplete_ambiguous_020__rotated_capture.pdf",
+  "sha256": "d2ab0479d406f98dd02170fce1b605c48bcecb419d999507fd122d3bb235c670"
+}

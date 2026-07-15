@@ -1,0 +1,102 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                  21 6
+
+Jar na resid       in establecimiento pa       be                                                                      Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Retenciones de no residentes
+
+NIF                               12005198A                                 Titular / entidad                    PERSONA SINTÉTICA 046
+Ejercicio                         2026                                                Periodo                                    aT
+Tipo documental           SYNTHETIC_ FILED COPY          Estado esperado                    ACCEPT WITH_SYNTHETIC LIMITATION
+
+Rentas y retenciones
+
+Número de rentas                                       a
+
+Basso                                                       0,00
+Retención                                                 0,00
+Resultado                                                 0,00
+
+model 216 negativa zem (46 native - NO PRESENTABLE - datos intalmente sintéticos                                                         NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+216
+
+He
+
+de rentas
+
+en
+
+Jar na resid
+
+in establecimiento pe
+
+Pagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Retenciones de no residentes
+
+NIF
+
+1200519BA
+
+Titular / entidad
+
+PERSONA SINTÉTICA 046
+
+Ejercicio
+
+| 2026
+
+Periodo
+
+ar
+
+Tipo documental
+
+SYNTHETIC_FILED COPY
+
+Estado esperado
+
+ACCEPT_ WITH SYNTHETIC LIMITATION
+
+Rentas y retenciones
+
+Número de rentas
+
+0,00
+
+Retención
+
+0,00
+
+Resultado
+
+0,00
+
+co
+
+<<
+
+N
+
+KO
+
+N
+
+NN
+
+yo
+
+model 216 negative zen 046
+
+tative
+
+NO PRESENTABLE
+
+datos intalmente sintéticos
+
+NATIVE TEXT_PDF

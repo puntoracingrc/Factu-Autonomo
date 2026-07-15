@@ -1,0 +1,108 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "report_current_status_incomplete_ambiguous_100__scan_compressed",
+  "baseFixtureId": "report_current_status_incomplete_ambiguous_100",
+  "semanticScenario": "incomplete_ambiguous",
+  "documentType": "TGSS_REPORT_CURRENT_STATUS",
+  "displayName": "TGSS-ACTUAL - Informe de situación actual del trabajador - incomplete_ambiguous",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_INCOMPLETE_OR_AMBIGUOUS_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "completeDocument": false,
+  "expectedDisposition": "REVIEW_OR_REJECT",
+  "expectedFields": {
+    "taxpayer.nif": "12011300X",
+    "taxpayer.name": "PERSONA SINTÉTICA 100",
+    "document.code": "TGSS-ACTUAL",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "tgss.issueDate": "[NO VISIBLE]",
+    "tgss.nussMasked": "28/00000100/99",
+    "tgss.regime": "RETA",
+    "tgss.status": "[BORROSO]"
+  },
+  "expectedQuestionMappings": {
+    "RETA.CURRENT_STATUS": "NEEDS_CONFIRMATION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "FULL_RETA_HISTORY"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12011300X"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 100"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "TGSS_REPORT_CURRENT_STATUS"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "TGSS-ACTUAL"
+    },
+    {
+      "fieldId": "tgss.issueDate",
+      "page": 1,
+      "label": "Fecha de emisión",
+      "value": "[NO VISIBLE]"
+    },
+    {
+      "fieldId": "tgss.nussMasked",
+      "page": 1,
+      "label": "NUSS/NAF",
+      "value": "28/00000100/99"
+    },
+    {
+      "fieldId": "tgss.regime",
+      "page": 1,
+      "label": "Régimen",
+      "value": "RETA"
+    },
+    {
+      "fieldId": "tgss.status",
+      "page": 1,
+      "label": "Situación actual",
+      "value": "[BORROSO]"
+    }
+  ],
+  "missingOrAmbiguousFields": [
+    "tgss.issueDate",
+    "tgss.status"
+  ],
+  "sourceTemplate": {
+    "authority": "TGSS",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://portal.seg-social.gob.es/wps/portal/importass/importass/Categorias/Vida%2Blaboral%2Be%2Binformes/Informes%2Bsobre%2Btu%2Bsituacion%2Blaboral/Informe%2Bde%2Bsituacion%2Blaboral%2Bactual"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "Documento deliberadamente incompleto o ambiguo para comprobar que el lector no cierre preguntas críticas.",
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/report_current_status_incomplete_ambiguous_100__scan_compressed.pdf",
+  "sha256": "d534d1c3603208cf0dfbd7b84763ddd18ce8dc3a2d86d323472293e41106f337"
+}

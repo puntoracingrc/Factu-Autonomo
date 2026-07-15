@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_190_complex_031__rotated_capture",
+  "baseFixtureId": "model_190_complex_031",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_190",
+  "displayName": "190 - Resumen anual de retenciones del trabajo y actividades económicas - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2025,
+  "period": "ANUAL",
+  "expectedPages": 2,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B18760066",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 031 S.L.",
+    "document.code": "190",
+    "document.fiscalYear": 2025,
+    "document.period": "ANUAL",
+    "filing.complementary": "SÍ",
+    "withholding.recipients": 3,
+    "withholding.totalIncome": "83.000,00",
+    "withholding.total": "12.600,00",
+    "withholding.records": [
+      [
+        "32000031Q",
+        "TRABAJADOR A",
+        "A",
+        "01",
+        "35.000,00",
+        "4.200,00"
+      ],
+      [
+        "33000031E",
+        "PROFESIONAL B",
+        "G",
+        "01",
+        "18.000,00",
+        "2.700,00"
+      ],
+      [
+        "34000031M",
+        "ADMINISTRADOR C",
+        "E",
+        "01",
+        "30.000,00",
+        "5.700,00"
+      ]
+    ]
+  },
+  "expectedQuestionMappings": {
+    "WITHHOLDING.EMPLOYEES": true,
+    "WITHHOLDING.PROFESSIONALS_PAID": true,
+    "WITHHOLDING.ADMINISTRATORS": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B18760066"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 031 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_190"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "190"
+    },
+    {
+      "fieldId": "filing.complementary",
+      "page": 1,
+      "label": "Complementaria",
+      "value": "SÍ"
+    },
+    {
+      "fieldId": "withholding.recipients",
+      "page": 1,
+      "label": "Perceptores",
+      "value": 3
+    },
+    {
+      "fieldId": "withholding.totalIncome",
+      "page": 1,
+      "label": "Percepciones",
+      "value": "83.000,00"
+    },
+    {
+      "fieldId": "withholding.total",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "12.600,00"
+    },
+    {
+      "fieldId": "withholding.records",
+      "page": 2,
+      "label": "Perceptores",
+      "value": [
+        [
+          "32000031Q",
+          "TRABAJADOR A",
+          "A",
+          "01",
+          "35.000,00",
+          "4.200,00"
+        ],
+        [
+          "33000031E",
+          "PROFESIONAL B",
+          "G",
+          "01",
+          "18.000,00",
+          "2.700,00"
+        ],
+        [
+          "34000031M",
+          "ADMINISTRADOR C",
+          "E",
+          "01",
+          "30.000,00",
+          "5.700,00"
+        ]
+      ]
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GI10.shtml",
+      "https://sede.agenciatributaria.gob.es/static_files/Sede/Disenyo_registro/DR_100_199/archivos_25/DISENOS_LOGICOS_190_2025.pdf"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_190_complex_031__rotated_capture.pdf",
+  "sha256": "fe9cbfceaf5dec71b98b2bc40344c793e32868c6ec9c95bc795a7e00e1a4cc12"
+}

@@ -1,0 +1,43 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                              309
+IVA - liquidación no periódica                                                                                            Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  IVA no periódico
+ NIF                     12006667T                         Titular / entidad    PERSONA SINTÉTICA 059
+
+ Ejercicio               2026                              Periodo              3T
+
+ Tipo documental         SYNTHETIC_COMPLEMENTA             Estado esperado      ACCEPT_WITH_SYNTHETIC_LIMITATION
+                         RY_OR_MULTI_RECORD
+
+
+  Operación
+ Supuestos                                            INVERSIÓN DEL SUJETO PASIVO + ADQUISICIÓN INTRACOMUNITARIA
+ NIF-IVA proveedor                                    FR000000002
+ Base intracomunitaria                                22.000,00
+ Base inversión sujeto pasivo                         18.000,00
+ Cuota total                                          8.400,00
+ Resultado                                            8.400,00
+
+
+
+
+                                                                                                           CO
+                                                                                           É            TI
+                                                                                         T
+                                                                                     S IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_309_complex_059__native - NO PRESENTABLE - datos totalmente sintéticos                                       NATIVE_TEXT_PDF
+

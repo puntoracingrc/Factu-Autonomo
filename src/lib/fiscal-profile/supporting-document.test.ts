@@ -68,6 +68,51 @@ describe("closed supporting-document parser", () => {
     });
   });
 
+  it("recognizes the compact headings preserved by OCR", () => {
+    expect(
+      parseSupportingDocumentText(`
+        Tesorería General de la Seguridad Social · TGSS-ACTUAL
+        Situación laboral actual · Datos de afiliación
+        Régimen RETA · Situación actual ALTA
+      `),
+    ).toMatchObject({
+      documentType: "RETA_CURRENT_STATUS_REPORT",
+      retaDuringYear: "YES",
+    });
+    expect(
+      parseSupportingDocumentText(`
+        Tesorería General de la Seguridad Social · TGSS-ACT-AUT
+        Actividades comunicadas en trabajo autónomo
+        Código Descripción Inicio Estado
+        6202 Consultoría informática 01/03/2024 ACTIVA
+      `),
+    ).toMatchObject({
+      documentType: "SELF_EMPLOYED_ACTIVITY_REPORT",
+      retaDuringYear: "YES",
+    });
+    expect(
+      parseSupportingDocumentText(`
+        Agencia Estatal de Administración Tributaria
+        Certificación de operador intracomunitario
+        Situación en ROI INSCRITO · NIF-IVA ES12345678Z
+      `),
+    ).toMatchObject({
+      documentType: "INTRACOMMUNITY_OPERATOR_CERTIFICATE",
+      roiRegistered: "YES",
+    });
+    expect(
+      parseSupportingDocumentText(`
+        Agencia Estatal de Administración Tributaria · CERT-ARREND
+        Certificación de exoneración
+        Exoneración de retención ACREDITADA
+        Alcance ARRENDAMIENTO DE INMUEBLES URBANOS
+      `),
+    ).toMatchObject({
+      documentType: "LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE",
+      landlordWithholdingExemption: "YES",
+    });
+  });
+
   it("fails closed for an unrelated document", () => {
     expect(parseSupportingDocumentText("Factura de proveedor")).toMatchObject({
       documentType: "UNKNOWN",

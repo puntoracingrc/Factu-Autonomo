@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "form_035_habitual_001__scan_compressed",
+  "baseFixtureId": "form_035_habitual_001",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_FORM_035",
+  "displayName": "035 - Registro censal de los regímenes especiales OSS/IOSS - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 2,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "CURRENT_AS_OF_EFFECTIVE_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B16384364",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 001 S.L.",
+    "document.code": "035",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "oss.action": "ALTA",
+    "oss.regime": "RÉGIMEN DE LA UNIÓN",
+    "oss.memberStateIdentification": "ESPAÑA",
+    "oss.effectiveDate": "01/07/2026",
+    "oss.registrationNumber": "EU-ES-SYN-0001",
+    "oss.webSite": "https://tienda-sintetica.example",
+    "oss.contactEmail": "fiscal@sintetica.example",
+    "oss.fixedEstablishments": "NINGUNO"
+  },
+  "expectedQuestionMappings": {
+    "ECOMMERCE.OSS_IOSS_REGISTRATION": "REGISTERED",
+    "ECOMMERCE.OSS_IOSS_REGIME": "UNION"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "ACTUAL_OSS_IOSS_OPERATIONS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B16384364"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 001 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_FORM_035"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "035"
+    },
+    {
+      "fieldId": "oss.action",
+      "page": 1,
+      "label": "Tipo de declaración",
+      "value": "ALTA"
+    },
+    {
+      "fieldId": "oss.regime",
+      "page": 1,
+      "label": "Régimen",
+      "value": "RÉGIMEN DE LA UNIÓN"
+    },
+    {
+      "fieldId": "oss.memberStateIdentification",
+      "page": 1,
+      "label": "Estado miembro de identificación",
+      "value": "ESPAÑA"
+    },
+    {
+      "fieldId": "oss.effectiveDate",
+      "page": 1,
+      "label": "Fecha de efectos",
+      "value": "01/07/2026"
+    },
+    {
+      "fieldId": "oss.registrationNumber",
+      "page": 1,
+      "label": "Número de identificación",
+      "value": "EU-ES-SYN-0001"
+    },
+    {
+      "fieldId": "oss.webSite",
+      "page": 2,
+      "label": "Sitio web",
+      "value": "https://tienda-sintetica.example"
+    },
+    {
+      "fieldId": "oss.contactEmail",
+      "page": 2,
+      "label": "Correo de contacto",
+      "value": "fiscal@sintetica.example"
+    },
+    {
+      "fieldId": "oss.fixedEstablishments",
+      "page": 2,
+      "label": "Establecimientos permanentes en otros Estados",
+      "value": "NINGUNO"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G333.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/Ayuda/035.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/form_035_habitual_001__scan_compressed.pdf",
+  "sha256": "472e86674fbe36aec8298d6d26f64fdc39a38da1435c06bd6e6ad0f4aea02418"
+}

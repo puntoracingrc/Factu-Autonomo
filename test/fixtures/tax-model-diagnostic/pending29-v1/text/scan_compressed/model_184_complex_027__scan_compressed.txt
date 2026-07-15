@@ -1,0 +1,203 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Entidades en régimen de atribución de rentas                                                                                                Página 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Datos de la entidad
+
+NIF                            B18443309                              Titular / entidad                  ENTIDAD SINTÉTICA 027 S.L.
+Ejercicio                   2025                                     Perlodo                            ANUAL
+Tipo documental       SYNTHETIC COMPLEMENTA Estado esperado              ACCEPT_WITH_SYNTHETIC LIMITATION
+
+RY_OR_MULTI_RECORD
+
+Entidad y actividad
+
+Complementaria                                         si
+
+Tipo de entidad                                          SOCIEDAD CIVIL EN ATRIBUCIÓN
+Actividades                                               Consultoria + arrendamiento
+
+Renta atribuible                                          90.000,00
+
+Retenciones atribuibles                                10.500,00
+
+model 184 complex 027 _ nalive- NO PRESENTABLE - datos tetabmente si
+
+NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+184
+
+Entidades en régimen de
+
+bución de rentas
+
+Fagina 1
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Datos de la entidad
+
+NIF
+
+B18443309
+
+Titular / entidad
+
+ENTIDAD SINTÉTICA 027 S.L.
+
+2025
+
+Periodo
+
+ANUAL
+
+Ejercicio
+
+Tipo documental
+
+SYNTHETIC COMPLEMENTA Estado esperado
+
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+RY_OR_MULTI_RECORD
+
+Entidad y actividad
+
+Complementaria
+
+si
+
+Tipo de entidad
+
+SOCIEDAD CIVIL EN ATRIBUCIÓN
+
+Actividades
+
+Consultoria + arrendamiento
+
+Renta atribuible
+
+90.000,00
+
+Retenciones atribuibles
+
+10.500,00
+
+co
+
+<<
+
+NN
+
+XO
+
+N
+
+NN
+
+9
+
+model 184 comple 127
+
+nalive - NO PRESENTABLE - datos tolalmente si
+
+Stcos
+
+NATIVE TEXT PDF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                1 84
+
+Entidades              sen de atribución de rentas                                                                                                                                                                                   Fagina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Miembros y rentas atribuidas
+
+Detalle de miembros
+
+NIF                                                   Miembro                                         Participación                                  Renta                                               Retenciones
+24000027X                                      SOCIOA                                         40.00%                                            36.000,00                                        4.200,00
+250000270                                      SOCION                                         35,00%                                            31.500,00                                         3.675,00
+26000027E                                     | SOCIO C                                         25,00%                                           | 22.500,00                                        2.625,00
+
+modal 184 complex 027 nalíve- NO PRESENTABLE - datos taalmente sintéticos:                                                               NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+184
+
+Entidades
+
+en de atribución de rentas
+
+Fágina 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Miembros y rentas atribuidas
+
+Detalle de miembros
+
+NIF
+
+Miembro
+
+Participación
+
+Renta
+
+Retenciones
+
+24000027X
+
+SOCIOA
+
+40,00%
+
+36.000,00
+
+4.200,00
+
+250000270
+
+SOCION
+
+35.00%
+
+31.500,00
+
+3.675,00
+
+26000027E
+
+SOCIO C
+
+25,00%
+
+22.500,00
+
+2.625,00
+
+co
+
+O
+
+N
+
+XO
+
+N
+
+NN
+
+yo
+
+modal 184 complex 127
+
+live - NO PRESENTABLE - datos tojalmente
+
+intéficos
+
+NATIVE TEXT PDF

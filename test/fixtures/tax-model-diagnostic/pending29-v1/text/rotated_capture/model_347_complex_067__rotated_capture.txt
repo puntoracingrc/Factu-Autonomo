@@ -1,0 +1,219 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Declaración anual de eperaciones con ter
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen anual
+| NIF                       | B21610902                          | Titular / entidad              [ ENTIDAD SINTÉTICA 067 S.L.
+Ejerelcio               2025                                Periodo                        ANUAL
+ACCEPT_WITH_SYNTHETIC LIMITATION
+
+Totales
+
+Sustitutiva                                                   si
+
+Número de terceros                                   3
+
+Importe anual declarado                                         99.000,00
+Cobros en metálico                                                   7.200,00
+
+model 347 complex 067 native + NO PRESENTABLE - datos totalmente sintéxicos                                                                                                            NATIVE TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Declaración anual de operaciones con ten
+
+Pár
+
+sar
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen anual
+
+——— | 1
+
+B21610902
+
+————
+
+Titular / entidad
+
+| ENTIDAD SINTÉTICA 067 si
+
+———————————[——|]D
+
+2025
+
+Ejercicio
+
+=——— —|
+
+“—
+
+| SYNTHETIC COMPLEMENTA | Estado esperado —
+
+ ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+| Tipo documental
+
+| AY_OR_MULTI RECORD
+
+a —J—Ñ—ll—_—_—]—E
+
+rs
+
+————      :
+
+———
+
+Totales
+
+Sustitutiva
+
+si
+
+Número de terceros
+
+Importe anual declarado
+
+99.000.00
+
+Cobros en metálico
+
+7200.00
+
+co
+
+Ne
+
+KO
+
+N
+
+NN
+
+yo
+
+model 347 complex 067 native - NO PRESENTABLE - datos jotalmente sintéticos
+
+NATIVE TEXT_POF
+
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+347
+
+Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operaciones con terceros
+
+Detalle
+NIF          Tercero Clave        Anual         hr — jar           amoo aro        "Especial
+873 163594              CLIENTE A S.L,    | B                                 48.000.00    —       12.000,00                 12.000.00                 12.000,00              y 12.000.00                si
+|B73242786           PRAOYEEDOREB A                        33.000,00            | 8.000,00              5.000,00              7.000.00              9.000,00              NO
+SA                                                                                                                                                                                                                                           |
+| 40000067P           ARRENDADOS EB                            18.000,00             |4-500,00                 4.500,00                4500.00                4.500,00                INMUEBLE
+Loy
+
+model 347 complex 067 nailve - NO PRESENTABLE - datos totalmente sintéticos                                                                                                      NATIVE TEXT_POF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+347
+
+D
+
+anua
+
+as
+
+Página 2
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Operaciones con terceros
+
+  Detalle
+
+NIF
+
+Tercero
+
+Anual
+
+ar
+
+Especial
+
+12.000,00
+
+si
+
+873162594
+
+CLIENTEASL, B
+
+48.000,00
+
+=
+
+| 12.000,00
+
+12.000,00
+
+12,000.00
+
+[873242786
+
+PROVEEDORB A
+
+39.000,00
+
+8.000,00
+
+8.000,00
+
+7.000,00
+
+9.000,00
+
+NO
+
+ARRENDADOR E
+
+14.500,00
+
+4500.00
+
+INMUEBLE
+
+40000067P
+
+18.000,00
+
+4.500,00
+
+4.500,00
+
+L
+
+—
+
+-
+
+RE
+
+N
+
+KO
+
+N
+
+NN
+
+9
+
+medel_347 complex 067 native - NÓ PRESENTABLE - dass totalmente sintéticos
+
+NATIVE TEXT_PDF

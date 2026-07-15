@@ -1,0 +1,102 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+IVA no periódico
+NIF                               |  12006554                                 | Titular / entidad                     PERSONA SINTÉTICA 058
+
+Ejercicio         2006                    Periodo               ar
+|       — — rei    ——                                          |
+Tipo documental SYNTHETIC FILED COPY     Estado esperado
+
+ACCEPT WITH_SYNTHETIC_LIMITATION
+
+Operación
+
+Supuesto                                                             - LIQUIDACIÓN NO PERIÓDICA
+Base                                                    0.00
+
+Cuota                                                         0.00
+
+Resultado                                                   0.00
+
+modal 500 negalive zero 058 nave - NO PRESENTABLE - datos totalmente sintéticos                                                                                                                                       NATIVE TEXT PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+309
+
+¡qu
+
+Pá
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+IVA no periódico
+
+NIF
+
+12006554W
+
+Titular / entidad
+
+—"].
+
+———¡—
+
+—so——|
+
+PERSONA SINTÉTICA 058
+
+——
+
+—
+
+Ejercicio
+
+2026
+
+3r
+
+—
+
+——
+
+| Tipo documental - SYNTHETIC FILED_COPY —
+
+Estado esperado
+
+| ACCEPT_WITH_SYNTHETIC_LIMITATION
+
+Operación
+
+Supuesto
+
+LIQUIDACIÓN NO PERIÓDICA
+
+Base
+
+0.00
+
+Cuota
+
+0.00
+
+Resultado
+
+0.00
+
+co
+
+Ne
+
+KO
+
+N
+
+NN
+
+o
+
+model 300 negalive zaro 058 native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE _TEXT_PDF

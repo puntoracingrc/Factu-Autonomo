@@ -1,0 +1,114 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_151_habitual_017__scan_compressed",
+  "baseFixtureId": "model_151_habitual_017",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_MODEL_151",
+  "displayName": "151 - IRPF del régimen especial de personas desplazadas a España - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": "ANUAL",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12001921S",
+    "taxpayer.name": "PERSONA SINTÉTICA 017",
+    "document.code": "151",
+    "document.fiscalYear": 2026,
+    "document.period": "ANUAL",
+    "specialRegime.article93": "ARTÍCULO 93 LIRPF",
+    "residence.startDate": "01/02/2025",
+    "income.work": "92.000,00",
+    "withholding.amount": "22.000,00",
+    "filing.result": "1.400,00"
+  },
+  "expectedQuestionMappings": {
+    "PERSONAL.SPECIAL_ARTICLE_93": true,
+    "IRPF.PRIOR_SPECIAL_REGIME_FILING": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12001921S"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 017"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_151"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "151"
+    },
+    {
+      "fieldId": "specialRegime.article93",
+      "page": 1,
+      "label": "Régimen especial",
+      "value": "ARTÍCULO 93 LIRPF"
+    },
+    {
+      "fieldId": "residence.startDate",
+      "page": 1,
+      "label": "Fecha de desplazamiento",
+      "value": "01/02/2025"
+    },
+    {
+      "fieldId": "income.work",
+      "page": 1,
+      "label": "Rendimientos del trabajo",
+      "value": "92.000,00"
+    },
+    {
+      "fieldId": "withholding.amount",
+      "page": 1,
+      "label": "Retenciones",
+      "value": "22.000,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Resultado",
+      "value": "1.400,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G615.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/irpf/tengo-que-presentar-declaracion/regimen-fiscal-aplicable-trabajadores-desplazados/gestiones-destacadas-regimen-fiscal-trabajadores-desplazados.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_151_habitual_017__scan_compressed.pdf",
+  "sha256": "cd749d23ef976454b5d971c260515214bef176cce28cef61b5f6f16dc56c60ae"
+}

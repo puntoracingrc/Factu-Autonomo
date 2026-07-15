@@ -1,0 +1,119 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_202_complex_043__scan_compressed",
+  "baseFixtureId": "model_202_complex_043",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_MODEL_202",
+  "displayName": "202 - Pago fraccionado del Impuesto sobre Sociedades - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": "3P",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_SCAN_COMPRESSED",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B19710342",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 043 S.L.",
+    "document.code": "202",
+    "document.fiscalYear": 2026,
+    "document.period": "3P",
+    "company.paymentMethod": "ARTÍCULO 40.3 LIS",
+    "company.currentTaxBase": "420.000,00",
+    "company.percentage": "17%",
+    "company.bonuses": "8.500,00",
+    "company.previousPayments": "42.000,00",
+    "filing.result": "20.900,00"
+  },
+  "expectedQuestionMappings": {
+    "COMPANY.PRIOR_MODEL_202_FILING": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B19710342"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 043 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_202"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "202"
+    },
+    {
+      "fieldId": "company.paymentMethod",
+      "page": 1,
+      "label": "Modalidad",
+      "value": "ARTÍCULO 40.3 LIS"
+    },
+    {
+      "fieldId": "company.currentTaxBase",
+      "page": 1,
+      "label": "Base imponible del periodo",
+      "value": "420.000,00"
+    },
+    {
+      "fieldId": "company.percentage",
+      "page": 1,
+      "label": "Porcentaje",
+      "value": "17%"
+    },
+    {
+      "fieldId": "company.bonuses",
+      "page": 1,
+      "label": "Bonificaciones y retenciones",
+      "value": "8.500,00"
+    },
+    {
+      "fieldId": "company.previousPayments",
+      "page": 1,
+      "label": "Pagos anteriores",
+      "value": "42.000,00"
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 1,
+      "label": "Pago fraccionado",
+      "value": "20.900,00"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GE00.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/scan_compressed/model_202_complex_043__scan_compressed.pdf",
+  "sha256": "6630d9d63207c049b19306f3852416c45d194c7d2813e4f728b4fb0edc77bdc3"
+}

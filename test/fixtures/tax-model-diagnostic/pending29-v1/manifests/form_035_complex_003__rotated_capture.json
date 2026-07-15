@@ -1,0 +1,134 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "form_035_complex_003__rotated_capture",
+  "baseFixtureId": "form_035_complex_003",
+  "semanticScenario": "complex",
+  "documentType": "AEAT_FORM_035",
+  "displayName": "035 - Registro censal de los regímenes especiales OSS/IOSS - complex",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_COMPLEMENTARY_OR_MULTI_RECORD",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 2,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "CURRENT_AS_OF_EFFECTIVE_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "B16542748",
+    "taxpayer.name": "ENTIDAD SINTÉTICA 003 S.L.",
+    "document.code": "035",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "oss.action": "MODIFICACIÓN",
+    "oss.regime": "RÉGIMEN DE IMPORTACIÓN - INTERMEDIARIO",
+    "oss.memberStateIdentification": "ESPAÑA",
+    "oss.effectiveDate": "15/09/2026",
+    "oss.registrationNumber": "IM276SYN00099",
+    "oss.intermediaryNif": "B83854240",
+    "oss.fixedEstablishments": "FRANCIA; PORTUGAL",
+    "oss.previousRegistrations": "DE / NL"
+  },
+  "expectedQuestionMappings": {
+    "ECOMMERCE.OSS_IOSS_REGISTRATION": "MODIFIED",
+    "ECOMMERCE.OSS_IOSS_REGIME": "IMPORT_INTERMEDIARY"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "ACTUAL_OSS_IOSS_OPERATIONS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "B16542748"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "ENTIDAD SINTÉTICA 003 S.L."
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_FORM_035"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "035"
+    },
+    {
+      "fieldId": "oss.action",
+      "page": 1,
+      "label": "Tipo de declaración",
+      "value": "MODIFICACIÓN"
+    },
+    {
+      "fieldId": "oss.regime",
+      "page": 1,
+      "label": "Régimen",
+      "value": "RÉGIMEN DE IMPORTACIÓN - INTERMEDIARIO"
+    },
+    {
+      "fieldId": "oss.memberStateIdentification",
+      "page": 1,
+      "label": "Estado miembro de identificación",
+      "value": "ESPAÑA"
+    },
+    {
+      "fieldId": "oss.effectiveDate",
+      "page": 1,
+      "label": "Fecha de efectos",
+      "value": "15/09/2026"
+    },
+    {
+      "fieldId": "oss.registrationNumber",
+      "page": 1,
+      "label": "Número IOSS",
+      "value": "IM276SYN00099"
+    },
+    {
+      "fieldId": "oss.intermediaryNif",
+      "page": 1,
+      "label": "NIF del intermediario",
+      "value": "B83854240"
+    },
+    {
+      "fieldId": "oss.fixedEstablishments",
+      "page": 2,
+      "label": "Establecimientos permanentes",
+      "value": "FRANCIA; PORTUGAL"
+    },
+    {
+      "fieldId": "oss.previousRegistrations",
+      "page": 2,
+      "label": "Registros anteriores",
+      "value": "DE / NL"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G333.shtml",
+      "https://sede.agenciatributaria.gob.es/Sede/Ayuda/035.html"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/form_035_complex_003__rotated_capture.pdf",
+  "sha256": "f8032df8f6946c8f3e64891f68a86e984cc283d06bd195d8b273615d89ca9709"
+}

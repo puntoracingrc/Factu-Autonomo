@@ -1,0 +1,46 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA                                                                                                       100
+Impuesto sobre la Renta de las Personas Físicas                                                                                                    Página 1
+
+
+                                                     FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+
+
+
+  Resumen de la declaración
+ NIF                     12000904X                         Titular / entidad                PERSONA SINTÉTICA 008
+
+ Ejercicio               2025                              Periodo                          ANUAL
+
+ Tipo documental         SYNTHETIC_INCOMPLETE_O Estado esperado                             REVIEW_OR_REJECT
+                         R_AMBIGUOUS_COPY
+
+
+  Datos generales
+ Tipo de declaración                                  INDIVIDUAL
+ Resultado                                            [PÁGINA FINAL AUSENTE]
+
+
+  Actividad económica
+Clave                    Actividad                Método                   Ingresos                 Gastos           Rendimiento    Retenciones
+A01                      [ANEXO DE                [NO VISIBLE]             [NO VISIBLE]             [NO VISIBLE]     [NO VISIBLE]   [NO VISIBLE]
+                         ACTIVIDAD
+                         AUSENTE]
+
+
+
+
+                                                                                                                       CO
+                                                                                                        É           TI
+                                                                                                      T
+                                                                                              S     IN
+                                                                    T O
+                                                  M               EN
+                                              C U
+                                 DO
+
+
+
+
+model_100_incomplete_ambiguous_008__native - NO PRESENTABLE - datos totalmente sintéticos                                               NATIVE_TEXT_PDF
+

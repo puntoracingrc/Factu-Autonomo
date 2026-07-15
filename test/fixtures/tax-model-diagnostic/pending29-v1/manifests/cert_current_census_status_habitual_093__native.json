@@ -1,0 +1,133 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "cert_current_census_status_habitual_093__native",
+  "baseFixtureId": "cert_current_census_status_habitual_093",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_CERT_CURRENT_CENSUS_STATUS",
+  "displayName": "CERT-CENSO - Certificado tributario de situación censal - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_TEXT_PDF",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12010509R",
+    "taxpayer.name": "PERSONA SINTÉTICA 093",
+    "document.code": "CERT-CENSO",
+    "document.fiscalYear": 2026,
+    "document.period": null,
+    "certificate.issueDate": "10/07/2026",
+    "census.status": "ALTA",
+    "census.activities": "Consultoría informática - IAE 763",
+    "irpf.method": "ESTIMACIÓN DIRECTA SIMPLIFICADA",
+    "vat.regime": "RÉGIMEN GENERAL",
+    "census.periodicObligations": "130 TRIMESTRAL; 303 TRIMESTRAL",
+    "certificate.csv": "CSV-SYN-CENSO-0001"
+  },
+  "expectedQuestionMappings": {
+    "CENSUS.CURRENT_STATUS": "ACTIVE",
+    "IRPF.METHOD": "DIRECT_SIMPLIFIED",
+    "VAT.REGIMES": [
+      "GENERAL"
+    ],
+    "CENSUS.PERIODIC_OBLIGATIONS": [
+      "130",
+      "303"
+    ]
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12010509R"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 093"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_CERT_CURRENT_CENSUS_STATUS"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "CERT-CENSO"
+    },
+    {
+      "fieldId": "certificate.issueDate",
+      "page": 1,
+      "label": "Fecha de expedición",
+      "value": "10/07/2026"
+    },
+    {
+      "fieldId": "census.status",
+      "page": 1,
+      "label": "Situación",
+      "value": "ALTA"
+    },
+    {
+      "fieldId": "census.activities",
+      "page": 1,
+      "label": "Actividades",
+      "value": "Consultoría informática - IAE 763"
+    },
+    {
+      "fieldId": "irpf.method",
+      "page": 1,
+      "label": "IRPF",
+      "value": "ESTIMACIÓN DIRECTA SIMPLIFICADA"
+    },
+    {
+      "fieldId": "vat.regime",
+      "page": 1,
+      "label": "IVA",
+      "value": "RÉGIMEN GENERAL"
+    },
+    {
+      "fieldId": "census.periodicObligations",
+      "page": 1,
+      "label": "Obligaciones periódicas",
+      "value": "130 TRIMESTRAL; 303 TRIMESTRAL"
+    },
+    {
+      "fieldId": "certificate.csv",
+      "page": 1,
+      "label": "CSV",
+      "value": "CSV-SYN-CENSO-0001"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/certificaciones/censales/certificados-trib_____de-certificados-tributarios-situacion-censal/que-certifica.html",
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G313.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/native/cert_current_census_status_habitual_093__native.pdf",
+  "sha256": "6b5c5c7da7426eafa529d13e6f75a55e98352dc71a7e9787edd6b2ac9256210e"
+}

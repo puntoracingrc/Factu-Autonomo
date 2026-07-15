@@ -1,0 +1,107 @@
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Resumen anual de retonciones de no resk
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen anual
+
+NIF          — B2042059            - Titular / entidad ENTIDAD SINTÉTICA 052 S.L.                            |
+
+Ejercicio    2005   Periodo:     | ANUAL      |
+
+'Tipodocumental — SYNTHETIC INCOMPLETE O Estadoesperado *——|REVIEWORABJECT NN
+Acc — EEE    ———___———————
+
+Totales
+
+Perceptores               2
+
+Base total                35.000,00
+
+Retenciones               “3.800,00
+
+model 296 incompiete ambiguous 052 native - NO PRESENTABLE - datos totalmente sintéticos                                                                              NATIVE _TEXT_PDF
+AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA
+
+Resumen anual de retonciones de no resk
+
+Nos
+
+_
+
+FACSIMIL SINTÉTICO - SIN VALIDEZ - NO PRESENTABLE
+
+Resumen anual
+
+NIF
+
+—]—
+
+——
+
+|    ten
+
+ ENTIDAD SINTÉTICA 052 S.L.
+
+— 520423059
+
+Ejercicio
+
+Esc
+
+e
+
+Periodo
+
+| ANUAL
+
+“—
+
+Tipo documental
+
+SYNTHETIC_INCOMPLETE_O [ Estado esperado
+
+| REVIEW_OA_REJECT
+
+—]
+
+- A AMBIGUOUS_COPY
+
+a
+
+———o——
+
+—Ñ
+
+a ——
+
+——
+
+Totales
+
+Perceptores
+
+ Base total
+
+35.000,00
+
+Retenciones
+
+3.800,00
+
+NE
+
+No
+
+KO
+
+N
+
+NN
+
+y
+
+model 296 incompiete ambiguous 052 native - NO PRESENTABLE - datos totalmente sintéticos
+
+NATIVE_TEXT_PDF

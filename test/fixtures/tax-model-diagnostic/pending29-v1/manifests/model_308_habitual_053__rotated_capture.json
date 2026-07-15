@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "2.0",
+  "generatorVersion": "tax-profile-pending29-generator/1.0.0",
+  "fixtureId": "model_308_habitual_053__rotated_capture",
+  "baseFixtureId": "model_308_habitual_053",
+  "semanticScenario": "habitual",
+  "documentType": "AEAT_MODEL_308",
+  "displayName": "308 - Solicitud de devolución en supuestos especiales de IVA - habitual",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILED_COPY",
+  "fiscalYear": 2026,
+  "period": "2T",
+  "expectedPages": 1,
+  "visualVariant": "RASTER_ROTATED_CAPTURE",
+  "temporalScope": "TARGET_FISCAL_YEAR",
+  "completeDocument": true,
+  "expectedDisposition": "ACCEPT_WITH_SYNTHETIC_LIMITATION",
+  "expectedFields": {
+    "taxpayer.nif": "12005989N",
+    "taxpayer.name": "PERSONA SINTÉTICA 053",
+    "document.code": "308",
+    "document.fiscalYear": 2026,
+    "document.period": "2T",
+    "vat.refundReason": "RECARGO DE EQUIVALENCIA - VENTAS A VIAJEROS",
+    "vat.operations": 3,
+    "vat.refundRequested": "860,00",
+    "bank.ibanMasked": "ES** **** **** **** 0012"
+  },
+  "expectedQuestionMappings": {
+    "VAT.SPECIAL_REFUND_308": true
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_SUBMISSION",
+    "FUTURE_OBLIGATION_WITHOUT_CURRENT_EVIDENCE",
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_ACTIVITY_STATUS"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "12005989N"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Titular / entidad",
+      "value": "PERSONA SINTÉTICA 053"
+    },
+    {
+      "fieldId": "document.type",
+      "page": 1,
+      "label": "Tipo documental",
+      "value": "AEAT_MODEL_308"
+    },
+    {
+      "fieldId": "document.code",
+      "page": 1,
+      "label": "Código / modelo",
+      "value": "308"
+    },
+    {
+      "fieldId": "vat.refundReason",
+      "page": 1,
+      "label": "Motivo de devolución",
+      "value": "RECARGO DE EQUIVALENCIA - VENTAS A VIAJEROS"
+    },
+    {
+      "fieldId": "vat.operations",
+      "page": 1,
+      "label": "Operaciones",
+      "value": 3
+    },
+    {
+      "fieldId": "vat.refundRequested",
+      "page": 1,
+      "label": "Devolución solicitada",
+      "value": "860,00"
+    },
+    {
+      "fieldId": "bank.ibanMasked",
+      "page": 1,
+      "label": "Cuenta de abono",
+      "value": "ES** **** **** **** 0012"
+    }
+  ],
+  "missingOrAmbiguousFields": [],
+  "sourceTemplate": {
+    "authority": "AEAT",
+    "templateStatus": "synthetic-facsimile-based-on-official-fields-and-instructions",
+    "officialSources": [
+      "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G403.shtml"
+    ],
+    "liveServiceGenerated": false
+  },
+  "notes": [
+    "El documento es un facsímil sintético y no una salida validada por el servicio oficial.",
+    "Las variantes visuales derivan del mismo caso semántico y comparten verdad esperada."
+  ],
+  "pdfFile": "pdfs/rotated_capture/model_308_habitual_053__rotated_capture.pdf",
+  "sha256": "d05c888b7cb921bf046cc337e9b244c0434ee2d508fa186f61087fd9ac628f5f"
+}
