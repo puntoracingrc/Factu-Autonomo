@@ -74,4 +74,3 @@
 - Segundo revisor fiscal: pendiente.
 - Estado: `PENDING_FISCAL_REVIEW`.
 - Resolución: `OPEN`.
-

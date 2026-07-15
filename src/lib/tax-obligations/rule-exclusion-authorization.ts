@@ -77,11 +77,7 @@ const OPEN_ISSUE_STATES = new Set([
   "REOPENED",
 ]);
 
-const STALE_SOURCE_STATES = new Set([
-  "STALE",
-  "SUPERSEDED",
-  "UNAVAILABLE",
-]);
+const STALE_SOURCE_STATES = new Set(["STALE", "SUPERSEDED", "UNAVAILABLE"]);
 
 function isIsoDate(value: string | null): value is string {
   return Boolean(value && /^\d{4}-\d{2}-\d{2}$/u.test(value));
@@ -95,25 +91,23 @@ function coversFiscalYear(
   if (!isIsoDate(effectiveFrom)) return false;
   const firstDay = `${fiscalYear}-01-01`;
   const lastDay = `${fiscalYear}-12-31`;
-  return effectiveFrom <= firstDay &&
-    (effectiveTo === null || (isIsoDate(effectiveTo) && effectiveTo >= lastDay));
+  return (
+    effectiveFrom <= firstDay &&
+    (effectiveTo === null || (isIsoDate(effectiveTo) && effectiveTo >= lastDay))
+  );
 }
 
 function hasReviewerRole(
   reviewer: TaxRule["fiscalMetadata"]["review"][
-    | "primaryFiscalReviewer"
-    | "secondFiscalReviewer"
-  ],
-  expectedRole:
-    | "PRIMARY_FISCAL_REVIEWER"
-    | "SECOND_FISCAL_REVIEWER",
+    "primaryFiscalReviewer" | "secondFiscalReviewer"],
+  expectedRole: "PRIMARY_FISCAL_REVIEWER" | "SECOND_FISCAL_REVIEWER",
 ): boolean {
   return Boolean(
     reviewer &&
-      reviewer.role === expectedRole &&
-      reviewer.reviewerId.length > 0 &&
-      reviewer.identityProvider.length > 0 &&
-      reviewer.verificationId.length > 0,
+    reviewer.role === expectedRole &&
+    reviewer.reviewerId.length > 0 &&
+    reviewer.identityProvider.length > 0 &&
+    reviewer.verificationId.length > 0,
   );
 }
 
@@ -205,19 +199,11 @@ export function authorizeRuleExclusion(
     add("TERRITORY_MISMATCH");
   }
   if (
-    !hasReviewerRole(
-      review.primaryFiscalReviewer,
-      "PRIMARY_FISCAL_REVIEWER",
-    )
+    !hasReviewerRole(review.primaryFiscalReviewer, "PRIMARY_FISCAL_REVIEWER")
   ) {
     add("PRIMARY_REVIEWER_MISSING");
   }
-  if (
-    !hasReviewerRole(
-      review.secondFiscalReviewer,
-      "SECOND_FISCAL_REVIEWER",
-    )
-  ) {
+  if (!hasReviewerRole(review.secondFiscalReviewer, "SECOND_FISCAL_REVIEWER")) {
     add("SECOND_REVIEWER_MISSING");
   }
   if (!review.approvedRuleHash) add("APPROVED_RULE_HASH_MISSING");
@@ -246,7 +232,9 @@ export function authorizeRuleExclusion(
     add("INTERNAL_OVERRIDE_NOT_AUTHORIZED");
   }
 
-  const issueById = new Map(input.issues.map((issue) => [issue.issueId, issue]));
+  const issueById = new Map(
+    input.issues.map((issue) => [issue.issueId, issue]),
+  );
   if (
     !input.issueRegistryComplete ||
     review.issueIds.some(
@@ -293,4 +281,3 @@ export function authorizeRuleExclusion(
     evidenceIds: Object.freeze([...new Set(evidenceIds)].sort()),
   });
 }
-

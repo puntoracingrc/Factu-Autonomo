@@ -552,7 +552,7 @@ function reviewPacket(rule, issue) {
     "- Resolución: `OPEN`.",
     "",
   ];
-  return `${lines.join("\n")}\n`;
+  return lines.join("\n");
 }
 
 function writeOrCheck(path, content, errors) {

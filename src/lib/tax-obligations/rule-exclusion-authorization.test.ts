@@ -12,9 +12,7 @@ import {
 
 const EVALUATED_AT = "2026-07-15T15:00:00.000Z";
 
-function reviewer(
-  role: "PRIMARY_FISCAL_REVIEWER" | "SECOND_FISCAL_REVIEWER",
-) {
+function reviewer(role: "PRIMARY_FISCAL_REVIEWER" | "SECOND_FISCAL_REVIEWER") {
   return {
     reviewerId: `reviewer:${role.toLowerCase()}`,
     role,
@@ -151,12 +149,54 @@ describe("individual fiscal rule exclusion gate", () => {
   });
 
   it.each([
-    ["PENDING_FISCAL_REVIEW", "OPEN", "PENDING_FISCAL_REVIEW", "OPEN", "NOT_IMPLEMENTED", "GLOBAL_RULESET_NOT_APPROVED"],
-    ["APPROVED", "RESOLVED", "PENDING_FISCAL_REVIEW", "OPEN", "NOT_IMPLEMENTED", "RULE_NOT_APPROVED"],
-    ["PENDING_FISCAL_REVIEW", "OPEN", "APPROVED", "RESOLVED", "PASSING", "GLOBAL_RULESET_NOT_APPROVED"],
-    ["APPROVED", "OPEN", "APPROVED", "RESOLVED", "PASSING", "GLOBAL_RULESET_NOT_RESOLVED"],
-    ["APPROVED", "RESOLVED", "APPROVED", "OPEN", "PASSING", "RULE_NOT_RESOLVED"],
-    ["APPROVED", "RESOLVED", "APPROVED", "RESOLVED", "FAILING", "TESTS_NOT_PASSING"],
+    [
+      "PENDING_FISCAL_REVIEW",
+      "OPEN",
+      "PENDING_FISCAL_REVIEW",
+      "OPEN",
+      "NOT_IMPLEMENTED",
+      "GLOBAL_RULESET_NOT_APPROVED",
+    ],
+    [
+      "APPROVED",
+      "RESOLVED",
+      "PENDING_FISCAL_REVIEW",
+      "OPEN",
+      "NOT_IMPLEMENTED",
+      "RULE_NOT_APPROVED",
+    ],
+    [
+      "PENDING_FISCAL_REVIEW",
+      "OPEN",
+      "APPROVED",
+      "RESOLVED",
+      "PASSING",
+      "GLOBAL_RULESET_NOT_APPROVED",
+    ],
+    [
+      "APPROVED",
+      "OPEN",
+      "APPROVED",
+      "RESOLVED",
+      "PASSING",
+      "GLOBAL_RULESET_NOT_RESOLVED",
+    ],
+    [
+      "APPROVED",
+      "RESOLVED",
+      "APPROVED",
+      "OPEN",
+      "PASSING",
+      "RULE_NOT_RESOLVED",
+    ],
+    [
+      "APPROVED",
+      "RESOLVED",
+      "APPROVED",
+      "RESOLVED",
+      "FAILING",
+      "TESTS_NOT_PASSING",
+    ],
   ] as const)(
     "fails closed for ruleset=%s/%s rule=%s/%s tests=%s",
     (
@@ -297,4 +337,3 @@ describe("individual fiscal rule exclusion gate", () => {
     expectBlocked(input, "EFFECTIVE_DATE_NOT_CONFIRMED");
   });
 });
-
