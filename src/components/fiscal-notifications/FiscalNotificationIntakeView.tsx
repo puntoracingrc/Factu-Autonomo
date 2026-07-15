@@ -253,6 +253,21 @@ interface FiscalNotificationBatchReview extends PendingStructuredReview {
   readonly saved: boolean;
 }
 
+interface FiscalNotificationBatchReviewSummary {
+  readonly title: string;
+  readonly pageCount: number;
+  readonly primaryAmount: {
+    readonly amountCents: number;
+    readonly currency: "EUR" | "UNKNOWN";
+  } | null;
+}
+
+interface FiscalNotificationBatchContext {
+  readonly displayName: string;
+  readonly position: number;
+  readonly total: number;
+}
+
 type ReviewPersistenceState =
   | "idle"
   | "pending"
@@ -1122,6 +1137,28 @@ function FiscalNotificationReviewWorkspace({
       filesRef.current.has(item.id),
   ).length;
   const showBatchControls = pendingCount > 0 || processing;
+  const batchReviewSummaries = new Map(
+    queue.flatMap((item) => {
+      const review = reviewsRef.current.get(item.id);
+      return review
+        ? ([[item.id, projectBatchReviewSummary(review.analysis)]] as const)
+        : [];
+    }),
+  );
+  const reviewedCount = batchReviewSummaries.size;
+  const activeBatchPosition = activeItemId
+    ? queue.findIndex((item) => item.id === activeItemId) + 1
+    : 0;
+  const activeBatchItem =
+    activeBatchPosition > 0 ? queue[activeBatchPosition - 1] ?? null : null;
+  const activeBatchContext: FiscalNotificationBatchContext | null =
+    activeBatchItem
+      ? {
+          displayName: activeBatchItem.displayName,
+          position: activeBatchPosition,
+          total: queue.length,
+        }
+      : null;
   const reviewGuidance = result
     ? projectFiscalNotificationReviewGuidanceV1({
         technicalReview: result,
@@ -1335,11 +1372,14 @@ function FiscalNotificationReviewWorkspace({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="font-bold text-slate-950">
-                  Cola preparada · {queue.length}/{FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1}
+                  {reviewedCount > 0
+                    ? `Resumen del lote · ${reviewedCount}/${queue.length} analizados`
+                    : `Cola preparada · ${queue.length}/${FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1}`}
                 </h3>
                 <p className="mt-1 text-sm text-slate-600">
-                  Puedes quitar archivos antes de analizar y abrir cada resultado
-                  después.
+                  {reviewedCount > 0
+                    ? "Cada tarjeta corresponde a un PDF. Abre una para ver su ficha completa."
+                    : "Puedes quitar archivos antes de analizar y abrir cada resultado después."}
                 </p>
               </div>
               <Button
@@ -1356,6 +1396,7 @@ function FiscalNotificationReviewWorkspace({
               {queue.map((item) => {
                 const presentation = batchStatusPresentation(item.status);
                 const hasReview = reviewsRef.current.has(item.id);
+                const summary = batchReviewSummaries.get(item.id) ?? null;
                 return (
                   <li
                     key={item.id}
@@ -1373,12 +1414,36 @@ function FiscalNotificationReviewWorkspace({
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <p className="truncate font-bold text-slate-950">
-                              {item.displayName}
-                            </p>
-                            <p className="mt-1 text-xs text-slate-500">
-                              PDF · {formatBytes(item.byteLength)}
-                            </p>
+                            {summary ? (
+                              <>
+                                <p className="font-bold text-slate-950">
+                                  {summary.title}
+                                </p>
+                                <p className="mt-1 truncate text-sm font-semibold text-slate-600">
+                                  {item.displayName}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  PDF · {summary.pageCount} página
+                                  {summary.pageCount === 1 ? "" : "s"} ·{" "}
+                                  {formatBytes(item.byteLength)}
+                                  {summary.primaryAmount
+                                    ? ` · ${formatStructuredMoney(
+                                        summary.primaryAmount.amountCents,
+                                        summary.primaryAmount.currency,
+                                      )}`
+                                    : ""}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="truncate font-bold text-slate-950">
+                                  {item.displayName}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  PDF · {formatBytes(item.byteLength)}
+                                </p>
+                              </>
+                            )}
                           </div>
                           <span
                             className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${presentation.className}`}
@@ -1407,7 +1472,9 @@ function FiscalNotificationReviewWorkspace({
                               onClick={() => showReview(item.id)}
                             >
                               <FileSearch aria-hidden="true" className="h-4 w-4" />
-                              Ver resultado
+                              {activeItemId === item.id
+                                ? "Ficha abierta"
+                                : "Ver ficha completa"}
                             </Button>
                           ) : null}
                           {item.status === "ERROR" &&
@@ -1494,6 +1561,7 @@ function FiscalNotificationReviewWorkspace({
           partyFactsReview={partyFactsReview}
           textAcquisition={textAcquisition}
           verticalSliceReview={verticalSliceReview}
+          batchContext={activeBatchContext}
         />
       ) : null}
       {reviewGuidance ? (
@@ -1625,6 +1693,7 @@ function ReviewResult({
   partyFactsReview,
   textAcquisition,
   verticalSliceReview,
+  batchContext,
 }: {
   result: FiscalNotificationLocalReviewResult;
   ephemeralMoneyFacts: AeatEnforcementMoneyFactsResult | null;
@@ -1635,6 +1704,7 @@ function ReviewResult({
   textAcquisition:
     FiscalNotificationLocalAnalysisResult["textAcquisition"] | null;
   verticalSliceReview: FiscalNotificationVerticalSliceReviewV1 | null;
+  batchContext: FiscalNotificationBatchContext | null;
 }) {
   const recognizedCandidate = recognizedCandidateFrom(result);
   const verticallyRecognized =
@@ -1681,9 +1751,11 @@ function ReviewResult({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              {recognizedCandidate || verticallyRecognized
-                ? "Resultado local"
-                : "Resultado local · pendiente de revisión"}
+              {batchContext
+                ? `Ficha seleccionada · documento ${batchContext.position} de ${batchContext.total}`
+                : recognizedCandidate || verticallyRecognized
+                  ? "Resultado local"
+                  : "Resultado local · pendiente de revisión"}
             </p>
             <h2
               id="notification-review-heading"
@@ -1694,6 +1766,11 @@ function ReviewResult({
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
               {copy.detail}
             </p>
+            {batchContext ? (
+              <p className="mt-1 max-w-3xl truncate text-xs font-semibold text-slate-500">
+                Archivo temporal: {batchContext.displayName}
+              </p>
+            ) : null}
             {textAcquisition?.mode === "LOCAL_OCR" ? (
               <p className="mt-2 text-sm font-bold text-blue-800">
                 Lectura OCR local
@@ -2433,6 +2510,65 @@ function ResultFact({ label, value }: { label: string; value: string }) {
       <dd className="mt-1 break-words font-semibold text-slate-900">{value}</dd>
     </div>
   );
+}
+
+function projectBatchReviewSummary(
+  analysis: FiscalNotificationLocalAnalysisResult,
+): FiscalNotificationBatchReviewSummary {
+  const technicalReview = analysis.technicalReview;
+  const verticalReview = analysis.ephemeralVerticalSliceReview;
+  const recognizedCandidate = recognizedCandidateFrom(technicalReview);
+  const verticalDocuments =
+    verticalReview?.status === "REVIEW_REQUIRED"
+      ? verticalReview.documents
+      : [];
+  const primaryAmount = projectBatchPrimaryAmount(
+    analysis.ephemeralEnforcementMoneyFacts,
+  );
+
+  if (verticalDocuments.length > 0) {
+    return {
+      title:
+        verticalDocuments.length === 1
+          ? verticalDocuments[0]!.title
+          : `${verticalDocuments.length} documentos reconocidos en este PDF`,
+      pageCount: technicalReview.pageCount,
+      primaryAmount,
+    };
+  }
+
+  if (recognizedCandidate) {
+    return {
+      title: FAMILY_LABELS[recognizedCandidate.familyId],
+      pageCount: technicalReview.pageCount,
+      primaryAmount,
+    };
+  }
+
+  return {
+    title:
+      technicalReview.reason === "SUPPORTED_FAMILY_CANDIDATE"
+        ? "Clasificación pendiente"
+        : REASON_COPY[technicalReview.reason].title,
+    pageCount: technicalReview.pageCount,
+    primaryAmount,
+  };
+}
+
+function projectBatchPrimaryAmount(
+  result: AeatEnforcementMoneyFactsResult | null,
+): FiscalNotificationBatchReviewSummary["primaryAmount"] {
+  if (!result || result.outcome !== "FACTS_AVAILABLE") return null;
+  const fact =
+    result.facts.find((item) => item.kind === "DOCUMENT_TOTAL") ??
+    result.facts.find((item) => item.kind === "OUTSTANDING_PRINCIPAL") ??
+    null;
+  return fact
+    ? {
+        amountCents: fact.amountCents,
+        currency: fact.currency,
+      }
+    : null;
 }
 
 function batchStatusForAnalysis(

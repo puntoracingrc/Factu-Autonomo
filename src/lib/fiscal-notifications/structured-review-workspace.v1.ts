@@ -2001,7 +2001,9 @@ function parseMoneyFacts(
     !root ||
     root.schemaVersion !== 1 ||
     root.engineId !== "aeat-enforcement-money-facts" ||
-    (root.engineVersion !== "1.0.0" && root.engineVersion !== "1.1.0") ||
+    (root.engineVersion !== "1.0.0" &&
+      root.engineVersion !== "1.1.0" &&
+      root.engineVersion !== "1.2.0") ||
     root.documentType !== "AEAT_ENFORCEMENT_ORDER" ||
     (root.status !== "REVIEW_REQUIRED" &&
       root.status !== "INFORMATION_PENDING") ||
@@ -2099,7 +2101,7 @@ function parseMoneyFacts(
   return Object.freeze({
     schemaVersion: 1,
     engineId: "aeat-enforcement-money-facts",
-    engineVersion: root.engineVersion as "1.0.0" | "1.1.0",
+    engineVersion: root.engineVersion as "1.0.0" | "1.1.0" | "1.2.0",
     documentType: "AEAT_ENFORCEMENT_ORDER",
     status: root.status as "REVIEW_REQUIRED" | "INFORMATION_PENDING",
     outcome: root.outcome as AeatEnforcementMoneyFactsResult["outcome"],

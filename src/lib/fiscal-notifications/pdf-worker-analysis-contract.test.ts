@@ -327,7 +327,7 @@ describe("fiscal notification PDF Worker safe analysis contract", () => {
         ],
       },
       enforcementMoneyFacts: {
-        engineVersion: "1.1.0",
+        engineVersion: "1.2.0",
         outcome: "FACTS_AVAILABLE",
       },
       enforcementExplicitFields: {

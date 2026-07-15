@@ -110,13 +110,58 @@ describe("AEAT enforcement explicit money facts", () => {
     }
   });
 
+  it("uses an explicit euro marker for every amount in the same printed block", () => {
+    const result = extractAeatEnforcementMoneyFacts(
+      enforcementWith(
+        [
+          "Principal pendiente: 149,55",
+          "Recargo de apremio ordinario (20 %): 29,91",
+          "Ingreso a cuenta: 0,00",
+          "Importe total: 179,46 €",
+        ].join("\n"),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      engineVersion: "1.2.0",
+      outcome: "FACTS_AVAILABLE",
+      facts: [
+        { kind: "OUTSTANDING_PRINCIPAL", amountCents: 14_955, currency: "EUR" },
+        {
+          kind: "ORDINARY_ENFORCEMENT_SURCHARGE",
+          amountCents: 2_991,
+          currency: "EUR",
+        },
+        { kind: "PAYMENT_ON_ACCOUNT", amountCents: 0, currency: "EUR" },
+        { kind: "DOCUMENT_TOTAL", amountCents: 17_946, currency: "EUR" },
+      ],
+    });
+  });
+
+  it("keeps currency pending when the whole printed block omits it", () => {
+    const result = extractAeatEnforcementMoneyFacts(
+      enforcementWith(
+        "Principal pendiente: 149,55\n" +
+          "Importe total: 179,46",
+      ),
+    );
+
+    expect(result.facts).toEqual([
+      expect.objectContaining({
+        kind: "OUTSTANDING_PRINCIPAL",
+        currency: "UNKNOWN",
+      }),
+      expect.objectContaining({ kind: "DOCUMENT_TOTAL", currency: "UNKNOWN" }),
+    ]);
+  });
+
   it("unlocks printed money facts for a closed structural signature without a URL", () => {
     const result = extractAeatEnforcementMoneyFacts(
       documentWith(`${ENFORCEMENT_STRUCTURAL_HEADER}\n${COMPLETE_MONEY_BLOCK}`),
     );
 
     expect(result).toMatchObject({
-      engineVersion: "1.1.0",
+      engineVersion: "1.2.0",
       documentType: "AEAT_ENFORCEMENT_ORDER",
       status: "REVIEW_REQUIRED",
       outcome: "FACTS_AVAILABLE",
@@ -132,7 +177,7 @@ describe("AEAT enforcement explicit money facts", () => {
     );
 
     expect(result).toMatchObject({
-      engineVersion: "1.1.0",
+      engineVersion: "1.2.0",
       outcome: "FACTS_AVAILABLE",
       issues: [],
     });
@@ -146,7 +191,7 @@ describe("AEAT enforcement explicit money facts", () => {
         enforcementWith(`Preámbulo uno\nPreámbulo dos\n${COMPLETE_MONEY_BLOCK}`),
       ),
     ).toMatchObject({
-      engineVersion: "1.1.0",
+      engineVersion: "1.2.0",
       status: "REVIEW_REQUIRED",
       outcome: "PROCESSING_BLOCKED",
       facts: [],

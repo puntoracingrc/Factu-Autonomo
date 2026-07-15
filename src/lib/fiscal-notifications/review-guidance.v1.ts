@@ -848,7 +848,8 @@ function validateMoneyEnvelope(
       kindRequired === (kind === null) ||
       seenIssues.has(identity) ||
       (code === "UNSUPPORTED_SECTION_PREAMBLE" &&
-        money.engineVersion !== "1.1.0") ||
+        money.engineVersion !== "1.1.0" &&
+        money.engineVersion !== "1.2.0") ||
       (code === "NO_AMOUNT_SECTION"
         ? pageNumbers.length !== 0
         : pageNumbers.length === 0) ||
@@ -870,7 +871,8 @@ function validateMoneyEnvelope(
     money.schemaVersion !== 1 ||
     money.engineId !== "aeat-enforcement-money-facts" ||
     (money.engineVersion !== "1.0.0" &&
-      money.engineVersion !== "1.1.0") ||
+      money.engineVersion !== "1.1.0" &&
+      money.engineVersion !== "1.2.0") ||
     money.documentType !== "AEAT_ENFORCEMENT_ORDER" ||
     !validOutcome ||
     money.selectedPaymentAmountKind !== null ||

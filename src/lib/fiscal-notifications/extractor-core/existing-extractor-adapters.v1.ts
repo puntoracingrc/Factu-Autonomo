@@ -645,7 +645,9 @@ function parseEnforcementMoneyFacts(value: unknown, pageCount: number): AeatEnfo
   ]);
   if (
     value.schemaVersion !== 1 || value.engineId !== "aeat-enforcement-money-facts" ||
-    (value.engineVersion !== "1.0.0" && value.engineVersion !== "1.1.0") ||
+    (value.engineVersion !== "1.0.0" &&
+      value.engineVersion !== "1.1.0" &&
+      value.engineVersion !== "1.2.0") ||
     (value.documentType !== null && value.documentType !== "AEAT_ENFORCEMENT_ORDER") ||
     (value.status !== "REVIEW_REQUIRED" && value.status !== "INFORMATION_PENDING") ||
     !["FACTS_AVAILABLE", "INFORMATION_PENDING", "AMBIGUOUS", "PROCESSING_BLOCKED"].includes(String(value.outcome)) ||
@@ -713,7 +715,7 @@ function parseEnforcementMoneyFacts(value: unknown, pageCount: number): AeatEnfo
   return Object.freeze({
     schemaVersion: 1,
     engineId: "aeat-enforcement-money-facts",
-    engineVersion: value.engineVersion as "1.0.0" | "1.1.0",
+    engineVersion: value.engineVersion as "1.0.0" | "1.1.0" | "1.2.0",
     documentType: value.documentType as "AEAT_ENFORCEMENT_ORDER" | null,
     status: value.status as "REVIEW_REQUIRED" | "INFORMATION_PENDING",
     outcome: value.outcome as AeatEnforcementMoneyFactsResult["outcome"],

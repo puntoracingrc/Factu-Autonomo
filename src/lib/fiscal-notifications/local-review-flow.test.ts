@@ -377,7 +377,7 @@ describe("fiscal notification local review flow", () => {
         retainedSourceContent: "NONE",
       },
       ephemeralEnforcementMoneyFacts: {
-        engineVersion: "1.1.0",
+        engineVersion: "1.2.0",
         status: "REVIEW_REQUIRED",
         outcome: "FACTS_AVAILABLE",
         selectedPaymentAmountKind: null,
@@ -462,7 +462,7 @@ describe("fiscal notification local review flow", () => {
         ],
       },
       ephemeralEnforcementMoneyFacts: {
-        engineVersion: "1.1.0",
+        engineVersion: "1.2.0",
         outcome: "FACTS_AVAILABLE",
         facts: [
           expect.objectContaining({
