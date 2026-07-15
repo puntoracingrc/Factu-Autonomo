@@ -15,9 +15,13 @@ import {
   type FiscalNotificationKnowledgeCoverageStatusV2,
 } from "@/lib/fiscal-notifications/knowledge/coverage.v2";
 import {
-  FISCAL_NOTIFICATION_OFFICIAL_SOURCES_V2,
-  type FiscalNotificationOfficialSourceIdV2,
-} from "@/lib/fiscal-notifications/knowledge/official-sources.v2";
+  FISCAL_NOTIFICATION_OFFICIAL_SOURCES_V4,
+  type FiscalNotificationOfficialSourceIdV4,
+} from "@/lib/fiscal-notifications/knowledge/official-sources.v4";
+import {
+  resolveFiscalNotificationPlainLanguageGuidanceV1,
+  type FiscalNotificationPlainLanguageGuidanceV1,
+} from "@/lib/fiscal-notifications/guide/plain-language-guidance.v1";
 
 export const FISCAL_NOTIFICATION_GUIDE_SCHEMA_VERSION_V1 = 1 as const;
 export const FISCAL_NOTIFICATION_GUIDE_RELEASE_ID_V1 =
@@ -134,12 +138,12 @@ export const FISCAL_NOTIFICATION_GUIDE_DOCUMENT_CHECKS_V1 = Object.freeze([
 ]);
 
 export interface FiscalNotificationGuideSourceV1 {
-  readonly sourceId: FiscalNotificationOfficialSourceIdV2;
+  readonly sourceId: FiscalNotificationOfficialSourceIdV4;
   readonly title: string;
   readonly authority: "AEAT" | "BOE";
   readonly sourceKind: "PROCEDURE_INFORMATION" | "LEGAL_TEXT";
   readonly canonicalUrl: string;
-  readonly urlCheckedOn: "2026-07-12" | "2026-07-13";
+  readonly urlCheckedOn: "2026-07-12" | "2026-07-13" | "2026-07-15";
   readonly verificationStatus: "OFFICIAL_URL_VERIFIED";
   readonly legalReviewStatus: "LEGAL_REVIEW_PENDING";
   readonly usagePolicy: "CONTEXT_ONLY";
@@ -170,6 +174,7 @@ export interface FiscalNotificationGuideEntryV1 {
   readonly aliases: readonly string[];
   readonly knowledgePriority: FiscalNotificationKnowledgePriorityV2;
   readonly summary: string;
+  readonly plainLanguage: FiscalNotificationPlainLanguageGuidanceV1 | null;
   readonly documentChecks: readonly string[];
   readonly possiblePrevious: readonly FiscalNotificationGuideRelatedFamilyV1[];
   readonly possibleNext: readonly FiscalNotificationGuideRelatedFamilyV1[];
@@ -198,7 +203,7 @@ export interface FiscalNotificationGuideEntryV1 {
 }
 
 const sourceById = new Map(
-  FISCAL_NOTIFICATION_OFFICIAL_SOURCES_V2.map((source) => [
+  FISCAL_NOTIFICATION_OFFICIAL_SOURCES_V4.map((source) => [
     source.id,
     source,
   ] as const),
@@ -258,7 +263,16 @@ function guideEntry(
     throw new Error("Missing fiscal notification guide coverage");
   }
 
-  const sources = Array.from(new Set(family.sourceIds)).map((sourceId) => {
+  const plainLanguage = resolveFiscalNotificationPlainLanguageGuidanceV1(
+    family.id,
+  );
+
+  const sources = Array.from(
+    new Set<FiscalNotificationOfficialSourceIdV4>([
+      ...family.sourceIds,
+      ...(plainLanguage?.sourceIds ?? []),
+    ]),
+  ).map((sourceId) => {
     const source = sourceById.get(sourceId);
     if (!source) throw new Error("Missing fiscal notification guide source");
     return Object.freeze({
@@ -284,9 +298,13 @@ function guideEntry(
     aliases: Object.freeze([
       ...category.aliases,
       ...family.id.split(/[._-]/u).filter(Boolean),
+      ...(plainLanguage?.searchTerms ?? []),
     ]),
     knowledgePriority: family.knowledgePriority,
-    summary: `El catálogo registra «${family.nameEs}» como una familia documental de ${category.label.toLocaleLowerCase("es")}. Esta ficha aporta contexto y no clasifica por sí sola un documento concreto.`,
+    summary:
+      plainLanguage?.inShort ??
+      `El catálogo registra «${family.nameEs}» como una familia documental de ${category.label.toLocaleLowerCase("es")}. Esta ficha aporta contexto y no clasifica por sí sola un documento concreto.`,
+    plainLanguage,
     documentChecks: FISCAL_NOTIFICATION_GUIDE_DOCUMENT_CHECKS_V1,
     possiblePrevious: relatedFamilies(family.id, "POSSIBLE_PREVIOUS"),
     possibleNext: relatedFamilies(family.id, "POSSIBLE_NEXT"),

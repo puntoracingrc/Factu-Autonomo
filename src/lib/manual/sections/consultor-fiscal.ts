@@ -120,5 +120,16 @@ export const consultorFiscalSection: ManualSection = {
       ],
       tip: "La biblioteca ordena y relaciona la información confirmada por el usuario; ninguna relación ejecuta por sí sola una acción fiscal o contable.",
     },
+    {
+      title: "11. Buscar qué significa una notificación",
+      paragraphs: [
+        "En **Guía de notificaciones y expedientes** puedes buscar por el nombre técnico o con palabras normales, por ejemplo **cuenta bloqueada**, **declaración omitida**, **carta de pago**, **pago rechazado**, **apremio** o **embargo**. La búsqueda se realiza en el navegador y no envía el texto escrito.",
+        "Las fichas con el distintivo **Guía explicada** empiezan por **Lo importante en 30 segundos**: qué significa, por qué suele llegar, qué conviene hacer y qué plazo debes localizar. **Entenderlo un poco mejor** contiene únicamente los matices útiles; el estado técnico y las fuentes quedan en apartados posteriores.",
+        "La primera cadena explicada cubre la entrega de una notificación, requerimientos, inicio y resultado de una comprobación, carta de pago, justificante, pago fallido, providencia de apremio y las principales diligencias de embargo. Una carta de pago no acredita el ingreso; un justificante debe identificar la operación; un pago fallido no confirma por sí solo si la deuda sigue abierta.",
+        "El conocimiento oficial está incorporado y versionado en Factu. Al escanear o buscar no se consulta la web de la AEAT, el BOE ni una IA. Puedes abrir voluntariamente las fuentes oficiales registradas para comprobar el contexto.",
+        "La guía nunca calcula un plazo desde la fecha de firma, generación, PDF o escaneo. Para actuar usa la fecha real de notificación o recepción y el plazo que conste en el documento. Tampoco paga, recurre, suspende, desembarga ni modifica una deuda automáticamente.",
+      ],
+      tip: "Lee primero el resumen. Despliega los matices y las fuentes solo cuando los necesites.",
+    },
   ],
 };

@@ -171,4 +171,15 @@ describe("manual sections", () => {
     expect(accountManual).toContain("cambio real durante la operación");
     expect(accountManual).toContain("metadatos de sincronización");
   });
+
+  it("documenta la guía sencilla de notificaciones y sus límites de plazo", () => {
+    const fiscalManual = JSON.stringify(getManualSection("consultor-fiscal"));
+
+    expect(fiscalManual).toContain("Guía de notificaciones y expedientes");
+    expect(fiscalManual).toContain("Lo importante en 30 segundos");
+    expect(fiscalManual).toContain("cuenta bloqueada");
+    expect(fiscalManual).toContain("Una carta de pago no acredita el ingreso");
+    expect(fiscalManual).toContain("no se consulta la web de la AEAT");
+    expect(fiscalManual).toContain("fecha real de notificación o recepción");
+  });
 });
