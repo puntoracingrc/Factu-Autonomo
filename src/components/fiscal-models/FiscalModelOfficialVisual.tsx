@@ -23,8 +23,8 @@ export function FiscalModelOfficialVisual({
   const mode = resolveFiscalModelOfficialVisualMode(content);
   const compact = variant === "catalog";
   const frameClassName = compact
-    ? "w-full overflow-hidden rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-950"
-    : "w-24 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 shadow-sm sm:w-40 dark:border-slate-700 dark:bg-slate-950";
+    ? "w-full self-start overflow-hidden rounded-xl border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-950"
+    : "w-24 shrink-0 self-start overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 shadow-sm sm:w-40 dark:border-slate-700 dark:bg-slate-950";
 
   if (mode === "OFFICIAL_DOCUMENT_PREVIEW" && content.thumbnail) {
     return (

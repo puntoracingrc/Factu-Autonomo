@@ -1359,7 +1359,7 @@ export function FiscalModelCatalogView({
                     )}
                   </div>
                   <div
-                    className={`mt-4 min-w-0 ${officialContent ? "grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3" : ""}`}
+                    className={`mt-4 min-w-0 ${officialContent ? "grid items-start grid-cols-[5.5rem_minmax(0,1fr)] gap-3" : ""}`}
                   >
                     {officialContent && (
                       <FiscalModelOfficialVisual
