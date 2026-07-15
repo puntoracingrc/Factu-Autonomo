@@ -10,7 +10,19 @@ import {
 } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Camera, FileText, Loader2, ScanLine, ShoppingBag } from "lucide-react";
+import {
+  Camera,
+  CheckCircle2,
+  FileText,
+  Loader2,
+  RotateCcw,
+  ScanLine,
+  ShoppingBag,
+  Trash2,
+  TriangleAlert,
+  Upload,
+  X,
+} from "lucide-react";
 import {
   AiProcessingConsentNotice,
   useAiProcessingConsent,
@@ -28,6 +40,12 @@ import {
 import { aiLearningAccountForEmail } from "@/lib/ai-learning";
 import { scanPackLabel } from "@/lib/billing/scan-packs";
 import { prepareScanFile } from "@/lib/expense-scan/prepare-scan-file";
+import {
+  enqueueExpenseScanFiles,
+  updateExpenseScanQueueItem,
+  type ExpenseScanQueueItem,
+  type ExpenseScanQueueStatus,
+} from "@/lib/expense-scan/scan-queue";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 
@@ -42,6 +60,31 @@ interface ExpenseScanCardProps {
 }
 
 const MAX_SCAN_FILES = 10;
+
+const QUEUE_STATUS_COPY: Readonly<
+  Record<ExpenseScanQueueStatus, { label: string; className: string }>
+> = {
+  PREPARED: {
+    label: "Preparado",
+    className: "border-slate-200 bg-slate-50 text-slate-700",
+  },
+  ANALYZING: {
+    label: "Analizando",
+    className: "border-blue-200 bg-blue-50 text-blue-700",
+  },
+  READ: {
+    label: "Leído",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  },
+  NEEDS_REVIEW: {
+    label: "Necesita revisión",
+    className: "border-amber-200 bg-amber-50 text-amber-800",
+  },
+  NOT_RECOGNIZED: {
+    label: "No reconocido",
+    className: "border-red-200 bg-red-50 text-red-700",
+  },
+};
 
 export function ExpenseScanCard({
   onScanned,
@@ -59,6 +102,9 @@ export function ExpenseScanCard({
   const [buyingPack, setBuyingPack] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [scanQueue, setScanQueue] = useState<
+    readonly ExpenseScanQueueItem<File>[]
+  >([]);
   const aiConsent = useAiProcessingConsent();
   const checkoutStatus = searchParams.get("checkout");
   const needsAccount = billingEnabled && !user;
@@ -74,7 +120,8 @@ export function ExpenseScanCard({
     : MAX_SCAN_FILES;
   const scanControlsDisabled =
     demoMode || scanning || noScansLeft || !aiConsent.accepted;
-  const dropDisabled = demoMode || scanning || noScansLeft;
+  const dropDisabled =
+    demoMode || scanning || noScansLeft || !aiConsent.accepted;
   const includedScanLimit =
     quota?.limit && quota.limit !== Number.MAX_SAFE_INTEGER
       ? quota.limit
@@ -89,6 +136,9 @@ export function ExpenseScanCard({
   const scanBatchHint = unlimitedScanMode
     ? "todos los que necesites para la prueba"
     : `hasta ${MAX_SCAN_FILES}`;
+  const preparedCount = scanQueue.filter(
+    (item) => item.status === "PREPARED",
+  ).length;
 
   const loadQuota = useCallback(async () => {
     if (demoMode) {
@@ -182,7 +232,7 @@ export function ExpenseScanCard({
     };
   }
 
-  async function handleFiles(fileList: FileList | null | undefined) {
+  function queueFiles(fileList: FileList | null | undefined) {
     const files = Array.from(fileList ?? []);
     if (files.length === 0) return;
     setError(null);
@@ -208,55 +258,151 @@ export function ExpenseScanCard({
       return;
     }
 
-    if (files.length > scanBatchLimit) {
-      setError(`Puedes escanear hasta ${MAX_SCAN_FILES} archivos cada vez.`);
-      if (inputRef.current) inputRef.current.value = "";
+    const result = enqueueExpenseScanFiles({
+      current: scanQueue,
+      incoming: files,
+      limit: scanBatchLimit,
+    });
+    if (result.limitExceeded) {
+      setError(
+        `La cola admite ${scanBatchHint}. Quita alguno antes de añadir más.`,
+      );
+    } else {
+      setScanQueue(result.items);
+    }
+    if (result.duplicateNames.length > 0) {
+      setWarnings([
+        `${result.duplicateNames.length} archivo${
+          result.duplicateNames.length === 1
+            ? " repetido se ha"
+            : "s repetidos se han"
+        } omitido de la cola.`,
+      ]);
+    }
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
+  async function analyzeQueuedFiles() {
+    const itemsToAnalyze = scanQueue.filter(
+      (item) => item.status === "PREPARED",
+    );
+    if (itemsToAnalyze.length === 0 || scanning) return;
+
+    setError(null);
+    setWarnings([]);
+
+    if (demoMode) {
+      setError("En modo demo no se usa IA. Registra gastos de prueba a mano.");
+      return;
+    }
+
+    if (!aiConsent.accepted) {
+      setError("Acepta primero el aviso de tratamiento con IA.");
+      return;
+    }
+
+    if (noScansLeft) {
+      setError("No te quedan escaneos disponibles.");
       return;
     }
 
     setScanning(true);
+    let activeQueueItemId: string | null = null;
 
     try {
       const allWarnings: string[] = [];
       const errors: string[] = [];
       let imported = 0;
 
-      for (const [index, file] of files.entries()) {
+      for (const [index, item] of itemsToAnalyze.entries()) {
+        activeQueueItemId = item.id;
+        setScanQueue((current) =>
+          updateExpenseScanQueueItem(current, item.id, {
+            status: "ANALYZING",
+            message: null,
+          }),
+        );
         onScanProgress?.({
           current: index + 1,
-          total: files.length,
-          fileName: file.name,
+          total: itemsToAnalyze.length,
+          fileName: item.file.name,
         });
-        const result = await scanFile(file);
+        const result = await scanFile(item.file);
         if (result.quota) setQuota(result.quota);
 
         if (!result.data) {
-          errors.push(`${file.name}: ${result.error ?? "no se pudo leer"}`);
+          const message = result.error ?? "No se pudo leer el archivo.";
+          errors.push(`${item.file.name}: ${message}`);
+          setScanQueue((current) =>
+            updateExpenseScanQueueItem(current, item.id, {
+              status: "NOT_RECOGNIZED",
+              message,
+            }),
+          );
+          activeQueueItemId = null;
           continue;
         }
 
-        if (result.data.warnings.length > 0) {
+        const data = result.data;
+        if (data.warnings.length > 0) {
           allWarnings.push(
-            ...result.data.warnings.map((warning) => `${file.name}: ${warning}`),
+            ...data.warnings.map(
+              (warning) => `${item.file.name}: ${warning}`,
+            ),
           );
         }
-        onScanned(result.data, {
-          fileName: file.name,
+        setScanQueue((current) =>
+          updateExpenseScanQueueItem(current, item.id, {
+            status: data.warnings.length > 0 ? "NEEDS_REVIEW" : "READ",
+            message:
+              data.warnings.length > 0
+                ? data.warnings.join(" · ")
+                : "Datos preparados para revisar antes de guardar.",
+          }),
+        );
+        onScanned(data, {
+          fileName: item.file.name,
           append: imported > 0,
         });
         imported += 1;
+        activeQueueItemId = null;
       }
 
       if (allWarnings.length > 0) setWarnings(allWarnings);
       if (errors.length > 0) setError(errors.join(" · "));
       if (imported > 0) markFactuFeatureUsed("expense_scan");
     } catch {
-      setError("Error de conexión. Comprueba tu internet e inténtalo de nuevo.");
+      const message =
+        "Error de conexión. Comprueba tu internet e inténtalo de nuevo.";
+      setError(message);
+      if (activeQueueItemId) {
+        setScanQueue((current) =>
+          updateExpenseScanQueueItem(current, activeQueueItemId!, {
+            status: "NOT_RECOGNIZED",
+            message,
+          }),
+        );
+      }
     } finally {
       setScanning(false);
       onScanProgress?.(null);
-      if (inputRef.current) inputRef.current.value = "";
     }
+  }
+
+  function removeQueuedFile(id: string) {
+    if (scanning) return;
+    setScanQueue((current) => current.filter((item) => item.id !== id));
+  }
+
+  function retryQueuedFile(id: string) {
+    if (scanning) return;
+    setError(null);
+    setScanQueue((current) =>
+      updateExpenseScanQueueItem(current, id, {
+        status: "PREPARED",
+        message: null,
+      }),
+    );
   }
 
   function handleDragOver(event: DragEvent<HTMLDivElement>) {
@@ -277,7 +423,7 @@ export function ExpenseScanCard({
     event.preventDefault();
     setDragActive(false);
     if (dropDisabled) return;
-    void handleFiles(event.dataTransfer.files);
+    queueFiles(event.dataTransfer.files);
   }
 
   return (
@@ -361,23 +507,41 @@ export function ExpenseScanCard({
             accept="image/jpeg,image/png,image/webp,image/*,application/pdf,.pdf"
             multiple
             className="hidden"
-            onChange={(e) => void handleFiles(e.target.files)}
+            disabled={scanControlsDisabled}
+            onChange={(event) => queueFiles(event.target.files)}
           />
 
           <div
-            className={`rounded-2xl border-2 border-dashed p-3 transition-colors ${
+            role="group"
+            aria-label="Archivos de gastos"
+            className={`rounded-2xl border-2 border-dashed p-5 text-center transition-colors ${
               dragActive
-                ? "border-blue-500 bg-white"
+                ? "border-blue-500 bg-blue-50 ring-4 ring-blue-100"
                 : "border-sky-200 bg-white/60"
             }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <Upload
+              className="mx-auto h-7 w-7 text-sky-700"
+              aria-hidden="true"
+            />
+            <p className="mt-2 font-bold text-slate-900" aria-live="polite">
+              {dragActive
+                ? "Suelta aquí las facturas y tickets"
+                : "Arrastra aquí tus facturas y tickets"}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              PDF, PNG, JPG o WebP · {scanBatchHint}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Primero prepara la cola. No analizaremos nada hasta que pulses
+              Analizar.
+            </p>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-center">
               <Button
                 variant="secondary"
-                fullWidth
                 disabled={scanControlsDisabled}
                 onClick={() => {
                   if (inputRef.current) {
@@ -402,7 +566,6 @@ export function ExpenseScanCard({
               </Button>
               <Button
                 variant="secondary"
-                fullWidth
                 disabled={scanControlsDisabled}
                 onClick={() => {
                   if (inputRef.current) {
@@ -414,15 +577,138 @@ export function ExpenseScanCard({
                 }}
               >
                 <FileText className="h-4 w-4" />
-                {noScansLeft ? "Sin escaneos" : "Imagen o PDF"}
+                {noScansLeft ? "Sin escaneos" : "Elegir archivos"}
               </Button>
             </div>
-            <p className="mt-3 text-xs text-slate-500">
-              {dragActive
-                ? "Suelta los archivos para escanearlos."
-                : `Arrastra archivos aquí o selecciona ${scanBatchHint}.`}
-            </p>
           </div>
+
+          {scanQueue.length > 0 && (
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="font-bold text-slate-900">
+                    {scanQueue.length} archivo
+                    {scanQueue.length === 1 ? "" : "s"} en la cola
+                  </p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    Puedes añadir más o quitar alguno antes de analizar.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={scanning}
+                  onClick={() => {
+                    setScanQueue([]);
+                    setError(null);
+                    setWarnings([]);
+                  }}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  Quitar todos
+                </button>
+              </div>
+
+              <ul className="mt-3 space-y-2">
+                {scanQueue.map((item) => {
+                  const status = QUEUE_STATUS_COPY[item.status];
+                  return (
+                    <li
+                      key={item.id}
+                      className="rounded-xl border border-slate-200 px-3 py-2"
+                    >
+                      <div className="flex min-w-0 flex-wrap items-center gap-2">
+                        {item.status === "ANALYZING" ? (
+                          <Loader2
+                            className="h-4 w-4 shrink-0 animate-spin text-blue-600"
+                            aria-hidden="true"
+                          />
+                        ) : item.status === "READ" ? (
+                          <CheckCircle2
+                            className="h-4 w-4 shrink-0 text-emerald-600"
+                            aria-hidden="true"
+                          />
+                        ) : item.status === "NEEDS_REVIEW" ? (
+                          <TriangleAlert
+                            className="h-4 w-4 shrink-0 text-amber-600"
+                            aria-hidden="true"
+                          />
+                        ) : item.status === "NOT_RECOGNIZED" ? (
+                          <TriangleAlert
+                            className="h-4 w-4 shrink-0 text-red-600"
+                            aria-hidden="true"
+                          />
+                        ) : (
+                          <FileText
+                            className="h-4 w-4 shrink-0 text-slate-500"
+                            aria-hidden="true"
+                          />
+                        )}
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-800">
+                          {item.file.name}
+                        </span>
+                        <span
+                          className={`rounded-full border px-2 py-1 text-xs font-bold ${status.className}`}
+                        >
+                          {status.label}
+                        </span>
+                        {item.status === "NOT_RECOGNIZED" && (
+                          <button
+                            type="button"
+                            disabled={scanning}
+                            onClick={() => retryQueuedFile(item.id)}
+                            className="inline-flex min-h-9 items-center gap-1 rounded-lg px-2 text-xs font-bold text-blue-700 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <RotateCcw
+                              className="h-3.5 w-3.5"
+                              aria-hidden="true"
+                            />
+                            Reintentar
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          disabled={scanning}
+                          onClick={() => removeQueuedFile(item.id)}
+                          aria-label={`Quitar ${item.file.name}`}
+                          className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          <X className="h-4 w-4" aria-hidden="true" />
+                        </button>
+                      </div>
+                      {item.message && (
+                        <p className="mt-1 pr-12 text-xs text-slate-600">
+                          {item.message}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {preparedCount > 0 && (
+                <Button
+                  type="button"
+                  className="mt-4"
+                  disabled={scanning || scanControlsDisabled}
+                  onClick={() => void analyzeQueuedFiles()}
+                >
+                  {scanning ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Analizando…
+                    </>
+                  ) : (
+                    <>
+                      <ScanLine className="h-4 w-4" />
+                      Analizar {preparedCount} documento
+                      {preparedCount === 1 ? "" : "s"}
+                    </>
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
 
           {noScansLeft && (
             <div className="space-y-3">
