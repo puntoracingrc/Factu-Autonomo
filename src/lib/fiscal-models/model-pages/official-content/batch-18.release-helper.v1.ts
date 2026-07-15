@@ -15,6 +15,8 @@ const LIMITATIONS =
 
 export interface PublicAeatBatch18ModelInputV1<Code extends string> {
   readonly releaseId: string;
+  readonly reviewedOn?: string;
+  readonly lifecycleStatus?: PublicAeatOfficialModelContentV1["lifecycleStatus"];
   readonly code: Code;
   readonly canonicalName: string;
   readonly summary: string;
@@ -195,8 +197,8 @@ export function definePublicAeatBatch18ModelV1<const Code extends string>(
     contentStatus: "OFFICIAL_INFORMATION",
     sourceVerificationStatus: "VERIFIED",
     applicabilityStatus: "NOT_EVALUATED",
-    lifecycleStatus: "UNDETERMINED",
-    reviewedOn: PUBLIC_AEAT_BATCH_18_REVIEWED_ON_V1,
+    lifecycleStatus: input.lifecycleStatus ?? "UNDETERMINED",
+    reviewedOn: input.reviewedOn ?? PUBLIC_AEAT_BATCH_18_REVIEWED_ON_V1,
     canonicalName: input.canonicalName,
     summary: input.summary,
     searchTerms: input.searchTerms,

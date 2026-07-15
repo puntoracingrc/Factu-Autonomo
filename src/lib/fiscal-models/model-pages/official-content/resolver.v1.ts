@@ -303,6 +303,8 @@ const EXPECTED_HISTORICAL_CODES = new Set([
   "795",
   "796",
   "797",
+  "798",
+  "981",
 ]);
 const OFFICIAL_CODE = /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/;
 const SHA256 = /^[a-f0-9]{64}$/;

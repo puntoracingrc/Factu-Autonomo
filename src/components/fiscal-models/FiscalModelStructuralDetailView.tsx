@@ -214,6 +214,26 @@ const practicalSubtitleByCode: Readonly<Record<string, string>> = Object.freeze(
     "795": "Histórico · gravamen energético 2023 y 2024",
     "796": "Histórico · pago anticipado energético 2023 y 2024",
     "797": "Histórico · antiguo gravamen temporal bancario",
+    "798": "Histórico · pago anticipado bancario de 2023 y 2024",
+    "848": "Comunicación excepcional de la cifra de negocios para el IAE",
+    "901":
+      "Certificados de eficiencia energética comunicados por Administraciones",
+    "933":
+      "Información de centros autorizados suministrada por Administraciones",
+    "952": "Modificación de la base del IVA por créditos incobrables",
+    "980": "Intereses de demora pagados por comunidades autónomas",
+    "981": "Histórico · declaración única del ejercicio 2019",
+    "990": "Información mensual restringida de Administraciones públicas",
+    "991": "Fianzas de arrendamientos informadas por Administraciones",
+    "992":
+      "Registros y autorizaciones de juego informados por Administraciones",
+    "993": "Información institucional para determinadas deducciones familiares",
+    "995": "Información urbanística suministrada por entidades locales",
+    "996": "Embargo institucional de devoluciones gestionadas por la AEAT",
+    "997": "Embargo institucional de pagos presupuestarios públicos",
+    A22: "Devolución trimestral del impuesto sobre envases de plástico",
+    A23: "Devolución trimestral del impuesto sobre gases fluorados",
+    A24: "Devolución mensual por envíos de vapeo y nicotina a la UE",
     "232":
       "Operaciones vinculadas y situaciones relacionadas con jurisdicciones no cooperativas",
     "233": "Gastos de guarderías y centros infantiles autorizados",
