@@ -11,6 +11,7 @@ export function completeCommonTerritoryProfile(
     taxpayerRole: "INDIVIDUAL_SELF_EMPLOYED",
     hasPersonalActivity: "YES",
     retaDuringYear: "YES",
+    activityStillActive: "YES",
     activityKinds: ["BUSINESS"],
     incomeTaxRegime: "DIRECT_SIMPLIFIED",
     withheldIncomePercent: 0,

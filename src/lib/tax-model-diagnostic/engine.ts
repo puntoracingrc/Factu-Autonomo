@@ -768,6 +768,7 @@ export function isProfileQuestionnaireComplete(profile: TaxpayerProfile): boolea
     profile.vatRegimes.length > 0 &&
     !unknown([
       profile.retaDuringYear,
+      profile.activityStillActive,
       profile.employees,
       profile.paidProfessionalsWithWithholding,
       profile.rentsBusinessPremises,
@@ -777,6 +778,7 @@ export function isProfileQuestionnaireComplete(profile: TaxpayerProfile): boolea
       profile.changesDuringYear,
       profile.censusReviewed,
       ...euOperations,
-    ])
+    ]) &&
+    (profile.activityStillActive !== "NO" || Boolean(profile.activityEndDate))
   );
 }

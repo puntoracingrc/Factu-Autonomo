@@ -1,6 +1,8 @@
 import {
+  TAX_MODEL_DIAGNOSTIC_ENGINE_VERSION,
   TAX_MODEL_DIAGNOSTIC_SCHEMA_VERSION,
   type ActivityKind,
+  type DiagnosticResult,
   type DiagnosticVatRegime,
   type Evidence,
   type FiscalTerritory,
@@ -11,7 +13,9 @@ import {
   type TaxModelNumber,
   type TaxpayerProfile,
   type TaxpayerRole,
+  type YesNoAnswer,
 } from "./contracts";
+import { isTaxObligationsAssessmentV1 } from "../tax-obligations/contracts";
 
 const FOUR_WAY = new Set<FourWayAnswer>([
   "YES",
@@ -19,6 +23,7 @@ const FOUR_WAY = new Set<FourWayAnswer>([
   "UNKNOWN",
   "NOT_APPLICABLE",
 ]);
+const YES_NO = new Set<YesNoAnswer>(["YES", "NO", "UNKNOWN"]);
 const TERRITORIES = new Set<FiscalTerritory>([
   "UNKNOWN",
   "ES_COMMON",
@@ -105,6 +110,43 @@ export const TAX_MODEL_NUMBERS: readonly TaxModelNumber[] = [
   "721",
 ] as const;
 const MODEL_NUMBERS = new Set<TaxModelNumber>(TAX_MODEL_NUMBERS);
+const RESULT_STATUSES = new Set([
+  "READY",
+  "NEEDS_INFORMATION",
+  "NEEDS_PROFESSIONAL_REVIEW",
+  "TERRITORY_NOT_SUPPORTED",
+]);
+const MODEL_RESULT_STATUSES = new Set([
+  "CONFIRMED_BY_CENSUS",
+  "DERIVED",
+  "CONDITIONAL",
+  "NOT_APPLICABLE",
+  "NEEDS_INFORMATION",
+  "NEEDS_PROFESSIONAL_REVIEW",
+  "CENSUS_MISMATCH",
+  "TERRITORY_NOT_SUPPORTED",
+]);
+const FILING_SUBJECTS = new Set([
+  "PERSONA_FISICA",
+  "SOCIEDAD",
+  "ENTIDAD",
+  "SOCIOS_O_COMUNEROS",
+  "POR_DETERMINAR",
+]);
+const FILING_PERIODICITIES = new Set([
+  "EVENT_DRIVEN",
+  "MONTHLY",
+  "QUARTERLY",
+  "ANNUAL",
+  "PER_OPERATION",
+  "TO_BE_CONFIRMED",
+]);
+const SOURCE_AUTHORITIES = new Set([
+  "AEAT",
+  "BOE",
+  "SEGURIDAD_SOCIAL",
+  "EU",
+]);
 
 const FOUR_WAY_FIELDS = [
   "hasPersonalActivity",
@@ -177,6 +219,100 @@ function stringArray<T extends string>(
   ))].slice(0, maximum);
 }
 
+function isBoundedStringArray(
+  value: unknown,
+  maximumItems: number,
+  maximumLength = 2_000,
+): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.length <= maximumItems &&
+    value.every(
+      (item) => typeof item === "string" && item.length <= maximumLength,
+    )
+  );
+}
+
+function isStoredDiagnosticResult(value: unknown): value is DiagnosticResult {
+  if (
+    !isRecord(value) ||
+    value.schemaVersion !== TAX_MODEL_DIAGNOSTIC_SCHEMA_VERSION ||
+    value.engineVersion !== TAX_MODEL_DIAGNOSTIC_ENGINE_VERSION ||
+    typeof value.ruleSetVersion !== "string" ||
+    value.ruleSetVersion.length > 200 ||
+    (value.fiscalYear !== 2025 && value.fiscalYear !== 2026) ||
+    typeof value.territory !== "string" ||
+    !TERRITORIES.has(value.territory as FiscalTerritory) ||
+    typeof value.generatedAt !== "string" ||
+    !Number.isFinite(Date.parse(value.generatedAt)) ||
+    typeof value.status !== "string" ||
+    !RESULT_STATUSES.has(value.status) ||
+    !Array.isArray(value.models) ||
+    value.models.length > TAX_MODEL_NUMBERS.length ||
+    !isBoundedStringArray(value.missingInformation, 100) ||
+    !isBoundedStringArray(value.discrepancies, 100) ||
+    !isBoundedStringArray(value.warnings, 100)
+  ) {
+    return false;
+  }
+
+  const seenModels = new Set<TaxModelNumber>();
+  for (const model of value.models) {
+    if (
+      !isRecord(model) ||
+      typeof model.modelNumber !== "string" ||
+      !MODEL_NUMBERS.has(model.modelNumber as TaxModelNumber) ||
+      seenModels.has(model.modelNumber as TaxModelNumber) ||
+      typeof model.filingSubject !== "string" ||
+      !FILING_SUBJECTS.has(model.filingSubject) ||
+      typeof model.status !== "string" ||
+      !MODEL_RESULT_STATUSES.has(model.status) ||
+      typeof model.periodicity !== "string" ||
+      !FILING_PERIODICITIES.has(model.periodicity) ||
+      !isBoundedStringArray(model.periods, 24, 100) ||
+      typeof model.reason !== "string" ||
+      model.reason.length > 2_000 ||
+      !isBoundedStringArray(model.evidence, 100) ||
+      !isBoundedStringArray(model.missingInformation, 100) ||
+      typeof model.confidence !== "number" ||
+      !Number.isFinite(model.confidence) ||
+      model.confidence < 0 ||
+      model.confidence > 1 ||
+      typeof model.nextAction !== "string" ||
+      model.nextAction.length > 2_000 ||
+      (model.censusMismatch !== undefined &&
+        (typeof model.censusMismatch !== "string" ||
+          model.censusMismatch.length > 2_000)) ||
+      !isBoundedStringArray(model.ruleIds, 100, 200) ||
+      !Array.isArray(model.officialSources) ||
+      model.officialSources.length > 100 ||
+      !model.officialSources.every(
+        (source) =>
+          isRecord(source) &&
+          typeof source.sourceId === "string" &&
+          source.sourceId.length <= 200 &&
+          typeof source.authority === "string" &&
+          SOURCE_AUTHORITIES.has(source.authority) &&
+          typeof source.title === "string" &&
+          source.title.length <= 500 &&
+          typeof source.url === "string" &&
+          source.url.length <= 2_000 &&
+          source.url.startsWith("https://") &&
+          typeof source.location === "string" &&
+          source.location.length <= 1_000 &&
+          (source.officialUpdatedAt === null ||
+            typeof source.officialUpdatedAt === "string") &&
+          typeof source.lastVerifiedAt === "string" &&
+          source.verificationStatus === "VERIFIED",
+      )
+    ) {
+      return false;
+    }
+    seenModels.add(model.modelNumber as TaxModelNumber);
+  }
+  return true;
+}
+
 export function createEmptyTaxpayerProfile(
   fiscalYear: 2025 | 2026 = 2026,
 ): TaxpayerProfile {
@@ -188,6 +324,7 @@ export function createEmptyTaxpayerProfile(
     hasPersonalActivity: "UNKNOWN",
     retaDuringYear: "UNKNOWN",
     activityStartDate: null,
+    activityStillActive: "UNKNOWN",
     activityEndDate: null,
     activityKinds: [],
     incomeTaxRegime: "UNKNOWN",
@@ -246,6 +383,11 @@ export function normalizeTaxpayerProfile(value: unknown): TaxpayerProfile {
   );
   profile.activityStartDate = isoDate(input.activityStartDate);
   profile.activityEndDate = isoDate(input.activityEndDate);
+  profile.activityStillActive = enumValue(
+    input.activityStillActive,
+    YES_NO,
+    profile.activityEndDate ? "NO" : "UNKNOWN",
+  );
   profile.activityKinds = stringArray(input.activityKinds, ACTIVITY_KINDS, 6);
   profile.incomeTaxRegime = enumValue(
     input.incomeTaxRegime,
@@ -361,9 +503,10 @@ export function normalizeTaxModelDiagnosticSession(
     typeof value.updatedAt === "string" && Number.isFinite(Date.parse(value.updatedAt))
       ? value.updatedAt
       : new Date(0).toISOString();
+  const profile = normalizeTaxpayerProfile(value.profile);
   return {
     schemaVersion: TAX_MODEL_DIAGNOSTIC_SCHEMA_VERSION,
-    profile: normalizeTaxpayerProfile(value.profile),
+    profile,
     evidence: normalizeEvidence(value.evidence),
     completedQuestionIds: Array.isArray(value.completedQuestionIds)
       ? [...new Set(
@@ -377,5 +520,11 @@ export function normalizeTaxModelDiagnosticSession(
         ? value.currentSection.slice(0, 20)
         : "A",
     updatedAt,
+    ...(isStoredDiagnosticResult(value.lastResult)
+      ? { lastResult: value.lastResult }
+      : {}),
+    ...(isTaxObligationsAssessmentV1(value.publishedAssessment)
+      ? { publishedAssessment: value.publishedAssessment }
+      : {}),
   };
 }

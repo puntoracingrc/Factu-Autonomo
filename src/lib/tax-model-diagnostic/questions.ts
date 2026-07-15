@@ -153,24 +153,40 @@ export const DIAGNOSTIC_QUESTIONS: readonly DiagnosticQuestion[] = [
     required: false,
   }),
   question({
+    questionId: "B_ACTIVITY_ACTIVE",
+    sectionId: "B",
+    field: "activityStillActive",
+    kind: "CHOICE",
+    label: "¿La actividad sigue activa actualmente?",
+    explanation:
+      "Indica expresamente si la actividad continúa o si ya se dio de baja.",
+    why: "Una fecha vacía no permite saber si la actividad sigue activa o si falta responder.",
+    affectedModels: ["036", "111", "115", "130", "131", "303"],
+    example: "Marca «Sí, sigue activa» si continúas trabajando; marca «No, ya cesó» si te diste de baja.",
+    supportingDocument: "Situación censal actual o 036 de baja con fecha de efecto.",
+    options: [
+      { value: "YES", label: "Sí, sigue activa" },
+      { value: "NO", label: "No, ya cesó" },
+    ],
+  }),
+  question({
     questionId: "B_END_DATE",
     sectionId: "B",
     field: "activityEndDate",
     kind: "DATE",
-    label: "¿Cuándo cesó la actividad, si cesó?",
+    label: "¿Desde qué fecha cesó la actividad?",
     explanation: "El cese puede cerrar obligaciones periódicas y exigir una modificación censal.",
     why: "Evita mostrar períodos posteriores al cese como si siguieran activos.",
     affectedModels: ["036", "111", "115", "130", "131", "303"],
     example: "Un cese el 30 de junio limita normalmente el análisis a los dos primeros trimestres.",
     supportingDocument: "036 de baja o situación censal posterior.",
-    required: false,
   }),
   fourWay({
     questionId: "B_RETA",
     sectionId: "B",
     field: "retaDuringYear",
-    label: "¿Estuviste de alta en RETA en algún momento del ejercicio?",
-    explanation: "Basta un período de alta para que pueda existir obligación anual de IRPF.",
+    label: "¿Estuviste dado de alta como autónomo en la Seguridad Social (RETA) al menos un día del ejercicio elegido?",
+    explanation: "RETA significa Régimen Especial de Trabajadores Autónomos. Responde «Sí» aunque después te dieras de baja durante ese mismo año.",
     why: "Afecta a una obligación personal, incluso si la actividad duró poco.",
     affectedModels: ["100"],
     example: "Alta de enero a marzo y baja el resto del año.",
@@ -188,12 +204,22 @@ export const DIAGNOSTIC_QUESTIONS: readonly DiagnosticQuestion[] = [
     example: "Servicios profesionales y una tienda online pueden convivir.",
     supportingDocument: "Relación actual de actividades y epígrafes IAE.",
     options: [
-      { value: "PROFESSIONAL", label: "Profesional" },
-      { value: "BUSINESS", label: "Empresarial" },
+      {
+        value: "PROFESSIONAL",
+        label: "Profesional",
+        description:
+          "Ej.: arquitecto, abogado, diseñador, consultor o sanitario.",
+      },
+      {
+        value: "BUSINESS",
+        label: "Empresarial",
+        description:
+          "Ej.: comercio, construcción, hostelería, transporte o taller.",
+      },
       { value: "AGRICULTURE", label: "Agrícola" },
       { value: "LIVESTOCK", label: "Ganadera" },
       { value: "FORESTRY", label: "Forestal" },
-      { value: "OTHER", label: "Otra o no lo sé" },
+      { value: "OTHER", label: "Otra actividad" },
     ],
   }),
   question({
@@ -252,21 +278,133 @@ export const DIAGNOSTIC_QUESTIONS: readonly DiagnosticQuestion[] = [
       { value: "OTHER_SPECIAL", label: "Otro régimen o no lo sé" },
     ],
   }),
-  fourWay({ questionId: "E_REDEME", sectionId: "E", field: "redeme", label: "¿Estuviste inscrito en REDEME?", explanation: "REDEME suele implicar liquidación mensual.", why: "Afecta a periodicidad y revisión del resumen anual.", affectedModels: ["303", "390"], example: "Inscripción en el registro de devolución mensual.", supportingDocument: "Situación censal o acuerdo de inscripción." }),
-  fourWay({ questionId: "E_SII", sectionId: "E", field: "sii", label: "¿Llevaste los libros de IVA mediante SII?", explanation: "El SII modifica obligaciones informativas y periodicidad.", why: "Puede excluir el 347 y el 390.", affectedModels: ["303", "347", "390"], example: "Envío electrónico casi inmediato de registros de facturación.", supportingDocument: "Situación censal y configuración SII." }),
+  fourWay({
+    questionId: "E_REDEME",
+    sectionId: "E",
+    field: "redeme",
+    label:
+      "¿Estuviste inscrito en el Registro de Devolución Mensual del IVA (REDEME)?",
+    explanation:
+      "Es un registro al que hay que solicitar el alta y que permite pedir cada mes la devolución del IVA, sin esperar al final del año. No es lo mismo que obtener un resultado a devolver en un modelo 303 normal.",
+    why: "Puede cambiar la presentación del IVA a mensual y obliga normalmente a usar el SII.",
+    affectedModels: ["303", "390"],
+    example:
+      "Marca «Sí» solo si solicitaste el alta y apareces incluido en REDEME en tu situación censal o tienes el acuerdo de inscripción.",
+    supportingDocument: "Situación censal o acuerdo de inscripción en REDEME.",
+  }),
+  fourWay({
+    questionId: "E_SII",
+    sectionId: "E",
+    field: "sii",
+    label:
+      "¿Enviabas a Hacienda los datos de tus facturas mediante el SII?",
+    explanation:
+      "El SII (Suministro Inmediato de Información) es el sistema con el que tú, tu asesoría o tu programa envía electrónicamente a la AEAT los registros de las facturas casi en tiempo real para llevar allí los libros de IVA. No es simplemente hacer facturas con un programa.",
+    why: "Puede cambiar la periodicidad del IVA y evitar los modelos 347 y 390.",
+    affectedModels: ["303", "347", "390"],
+    example:
+      "Marca «Sí» si tu asesoría o software te confirma que presenta los libros de IVA por SII.",
+    supportingDocument: "Situación censal y configuración o justificantes del SII.",
+  }),
   fourWay({ questionId: "E_LARGE_COMPANY", sectionId: "E", field: "largeCompany", label: "¿Tenías condición de gran empresa?", explanation: "La condición censal puede cambiar la periodicidad a mensual.", why: "Afecta a IVA y retenciones.", affectedModels: ["111", "115", "123", "216", "303"], example: "La cifra relevante y su fecha deben constar en el censo.", supportingDocument: "Situación censal actual." }),
   fourWay({ questionId: "E_390_EXEMPT", sectionId: "E", field: "vatAnnualSummaryExempt", label: "¿Consta que estás exonerado de presentar el resumen anual de IVA?", explanation: "Presentar 303 no implica siempre presentar 390.", why: "Evita añadir automáticamente el resumen anual.", affectedModels: ["390"], example: "Determinados liquidadores trimestrales o sujetos en SII pueden estar exonerados.", supportingDocument: "Instrucciones del ejercicio y situación censal.", applicability: "Cuando existe autoliquidación periódica de IVA." }),
-  fourWay({ questionId: "E_REVERSE_CHARGE", sectionId: "E", field: "reverseChargeTransactions", label: "¿Tuviste operaciones con inversión del sujeto pasivo?", explanation: "Algunas compras o entregas cambian quién declara el IVA.", why: "Puede afectar al 303 o al 309.", affectedModels: ["303", "309"], example: "Un servicio recibido de un proveedor extranjero.", supportingDocument: "Facturas recibidas y libro de IVA." }),
-  fourWay({ questionId: "E_SPECIAL_REFUND", sectionId: "E", field: "specialVatRefundSituation", label: "¿Tuviste alguna devolución o compensación especial de IVA?", explanation: "Los modelos 308 y 341 solo cubren supuestos específicos.", why: "No deben añadirse por el mero hecho de presentar IVA.", affectedModels: ["308", "341"], example: "Reintegro de compensaciones en el régimen agrario.", supportingDocument: "Justificante de la operación y régimen aplicable." }),
+  fourWay({
+    questionId: "E_REVERSE_CHARGE",
+    sectionId: "E",
+    field: "reverseChargeTransactions",
+    label:
+      "¿Tuviste alguna factura en la que el destinatario debía declarar el IVA (inversión del sujeto pasivo)?",
+    explanation:
+      "Normalmente quien vende añade el IVA a la factura. En una inversión del sujeto pasivo ocurre al revés: la factura suele venir sin IVA y quien compra o recibe el servicio debe declararlo. La propia factura puede incluir la frase «inversión del sujeto pasivo».",
+    why: "Puede afectar al modelo 303 o exigir una declaración no periódica mediante el 309.",
+    affectedModels: ["303", "309"],
+    example:
+      "Puede ocurrir al recibir ciertos servicios de proveedores extranjeros o en determinadas operaciones de construcción.",
+    supportingDocument:
+      "Facturas emitidas o recibidas que indiquen «inversión del sujeto pasivo» y libro de IVA.",
+  }),
+  fourWay({
+    questionId: "E_SPECIAL_REFUND",
+    sectionId: "E",
+    field: "specialVatRefundSituation",
+    label:
+      "¿Solicitaste una devolución especial de IVA distinta de la devolución normal del modelo 303?",
+    explanation:
+      "Se refiere a casos poco habituales de los modelos 308 o 341, no a que un 303 corriente te saliera a devolver. Entre ellos están ciertas devoluciones del recargo de equivalencia, algunos vehículos de transporte o las compensaciones agrarias por exportaciones y ventas a otros países de la UE.",
+    why: "Estos modelos solo se añaden cuando existe uno de sus casos especiales; no por presentar IVA normalmente.",
+    affectedModels: ["308", "341"],
+    example:
+      "Marca «Sí» si presentaste o debías presentar un modelo 308 o 341, o tu asesoría te confirmó uno de estos supuestos.",
+    supportingDocument:
+      "Modelo 308 o 341, justificante de la operación y régimen de IVA aplicable.",
+  }),
   fourWay({ questionId: "F_EMPLOYEES", sectionId: "F", field: "employees", label: "¿Pagaste nóminas o retribuciones de trabajo?", explanation: "Quien paga la renta y practica la retención presenta el modelo.", why: "Activa retenciones periódicas y resumen anual.", affectedModels: ["111", "190"], example: "Una nómina pagada durante un solo trimestre.", supportingDocument: "Nóminas y resumen de trabajadores." }),
   fourWay({ questionId: "F_PROFESSIONALS", sectionId: "F", field: "paidProfessionalsWithWithholding", label: "¿Pagaste facturas de profesionales con retención?", explanation: "Se pregunta por facturas recibidas, no por tus facturas emitidas.", why: "El pagador que retiene puede presentar 111 y 190.", affectedModels: ["111", "190"], example: "Factura de asesoría con retención de IRPF.", supportingDocument: "Facturas recibidas y justificantes de pago." }),
   fourWay({ questionId: "F_OTHER_WITHHOLDING", sectionId: "F", field: "otherIrpfWithholdingPayments", label: "¿Pagaste otras rentas sujetas a retención de trabajo o actividad?", explanation: "Incluye premios y ciertos rendimientos de actividades económicas.", why: "Completa el análisis del retenedor.", affectedModels: ["111", "190"], example: "Un premio sujeto a retención.", supportingDocument: "Libro de retenciones y justificantes." }),
   fourWay({ questionId: "G_RENTS_PREMISES", sectionId: "G", field: "rentsBusinessPremises", label: "¿Alquilaste un local, oficina, despacho, nave u otro inmueble urbano para la actividad?", explanation: "No todos los alquileres generan retención.", why: "Es la puerta para analizar 115 y 180.", affectedModels: ["115", "180"], example: "Despacho alquilado a un propietario residente.", supportingDocument: "Contrato y facturas de alquiler." }),
   fourWay({ questionId: "G_RENT_WITHHOLDING", sectionId: "G", field: "rentSubjectToWithholding", label: "¿La renta estaba sujeta a retención?", explanation: "Debe comprobarse en la factura y en las excepciones oficiales.", why: "Sin retención aplicable no se concluye 115.", affectedModels: ["115", "180"], example: "La factura separa base, IVA y retención.", supportingDocument: "Factura reciente del arrendador.", applicability: "Solo si existe alquiler de inmueble urbano." }),
-  fourWay({ questionId: "G_LANDLORD_EXEMPTION", sectionId: "G", field: "landlordWithholdingExemption", label: "¿El arrendador acreditó una exoneración de retención?", explanation: "La exoneración debe acreditarse; no se presume.", why: "Puede excluir 115 y 180 pese a existir alquiler.", affectedModels: ["115", "180"], example: "Certificado vigente del arrendador.", supportingDocument: "Certificado de exoneración y fecha de vigencia.", applicability: "Solo si hay alquiler." }),
-  fourWay({ questionId: "H_CAPITAL", sectionId: "H", field: "paidCapitalIncome", label: "¿Pagaste intereses u otros rendimientos de capital sujetos a retención?", explanation: "Hay excepciones y modelos específicos según la renta.", why: "Permite analizar 123 y 193 sin confundirlos con cualquier pago financiero.", affectedModels: ["123", "193"], example: "Intereses pagados por un préstamo privado.", supportingDocument: "Contrato, liquidación y certificado de retenciones." }),
-  fourWay({ questionId: "H_NON_RESIDENT", sectionId: "H", field: "paidNonResidentIncome", label: "¿Pagaste rentas a una persona o empresa no residente?", explanation: "Una factura extranjera no genera automáticamente el modelo 216.", why: "Hay que conocer país, renta, establecimiento y convenio.", affectedModels: ["216", "296"], example: "Cánones pagados a una empresa no residente.", supportingDocument: "Factura, certificado de residencia y convenio aplicable." }),
-  fourWay({ questionId: "H_NON_RESIDENT_CONFIRMED", sectionId: "H", field: "nonResidentWithholdingConfirmed", label: "¿Está confirmado que debías declarar esa renta como retenedor en España?", explanation: "Esta confirmación exige revisar la renta y el convenio.", why: "Evita añadir 216 por cualquier proveedor extranjero.", affectedModels: ["216", "296"], example: "Revisión profesional con certificado de residencia fiscal.", supportingDocument: "Certificado fiscal y análisis del convenio.", applicability: "Solo si pagaste rentas a no residentes." }),
+  fourWay({
+    questionId: "G_LANDLORD_EXEMPTION",
+    sectionId: "G",
+    field: "landlordWithholdingExemption",
+    label:
+      "¿El propietario que te alquila el local te entregó un certificado para no retenerle parte del alquiler?",
+    explanation:
+      "El arrendador es la persona o empresa que te cobra el alquiler. Normalmente, si alquilas un local para tu negocio, descuentas una retención en la factura y la ingresas a Hacienda mediante el modelo 115. En algunos casos el propietario puede entregarte un certificado de la AEAT que indica que está exonerado; entonces no se practica esa retención.",
+    why: "Un certificado válido puede hacer que no correspondan los modelos 115 y 180 aunque exista un alquiler.",
+    affectedModels: ["115", "180"],
+    example:
+      "Marca «Sí» solo si el propietario te entregó el certificado vigente; que la factura venga sin retención no basta por sí solo.",
+    supportingDocument:
+      "Certificado de exoneración de retención del arrendador y su vigencia.",
+    applicability: "Solo si hay alquiler.",
+  }),
+  fourWay({
+    questionId: "H_CAPITAL",
+    sectionId: "H",
+    field: "paidCapitalIncome",
+    label:
+      "¿Tu negocio pagó intereses, dividendos u otra renta financiera con retención?",
+    explanation:
+      "Se pregunta por dinero que tú o tu empresa pagaste a otra persona o entidad y del que descontaste una parte para ingresarla en Hacienda. No se refiere a los intereses que tú cobraste, ni a cualquier comisión o cuota bancaria.",
+    why: "Sirve para comprobar si corresponden el modelo 123 y su resumen anual, el 193.",
+    affectedModels: ["123", "193"],
+    example:
+      "Por ejemplo, intereses pagados a una persona que prestó dinero al negocio o dividendos pagados por una sociedad.",
+    supportingDocument:
+      "Contrato o acuerdo, justificante del pago y certificado o detalle de la retención.",
+  }),
+  fourWay({
+    questionId: "H_NON_RESIDENT",
+    sectionId: "H",
+    field: "paidNonResidentIncome",
+    label:
+      "¿Tu negocio pagó a una persona o empresa cuya residencia fiscal estaba fuera de España?",
+    explanation:
+      "Se pregunta por pagos hechos por tu actividad a alguien que tributa como no residente en España, por ejemplo por servicios, intereses, alquileres o derechos de uso. Tener una factura extranjera no significa automáticamente que debas presentar un modelo de retenciones.",
+    why: "Según el tipo de pago, el país y el convenio fiscal, pueden corresponder los modelos 216 y 296.",
+    affectedModels: ["216", "296"],
+    example:
+      "Por ejemplo, pagar derechos de uso de una marca a una empresa residente fiscal en otro país.",
+    supportingDocument:
+      "Factura o contrato y certificado de residencia fiscal de quien cobró.",
+  }),
+  fourWay({
+    questionId: "H_NON_RESIDENT_CONFIRMED",
+    sectionId: "H",
+    field: "nonResidentWithholdingConfirmed",
+    label:
+      "¿Está confirmado que ese pago debía declararse en España en los modelos 216 y 296?",
+    explanation:
+      "No todos los pagos a proveedores extranjeros se incluyen. Hay que comprobar qué se pagó, dónde reside fiscalmente quien cobró, si opera mediante un establecimiento en España y qué dice el convenio entre ambos países.",
+    why: "Evita añadir estos modelos solo porque el proveedor sea extranjero.",
+    affectedModels: ["216", "296"],
+    example:
+      "Marca «Sí» si lo confirma tu asesoría o una revisión del certificado de residencia y del convenio fiscal; si todavía no se ha revisado, marca «No lo sé».",
+    supportingDocument:
+      "Certificado de residencia fiscal, factura o contrato y revisión del convenio aplicable.",
+    applicability: "Solo si pagaste rentas a no residentes.",
+  }),
   fourWay({ questionId: "I_EU_GOODS_SALES", sectionId: "I", field: "euGoodsSales", label: "¿Vendiste bienes a empresas de otros países de la UE?", explanation: "Bienes y servicios tienen reglas distintas.", why: "Puede afectar ROI, 349 e IVA.", affectedModels: ["036", "303", "349"], example: "Mercancía enviada desde España a una empresa francesa.", supportingDocument: "Facturas, transporte y validación VIES." }),
   fourWay({ questionId: "I_EU_GOODS_PURCHASES", sectionId: "I", field: "euGoodsPurchases", label: "¿Compraste bienes a empresas de otros países de la UE?", explanation: "La adquisición puede exigir autorrepercusión y declaración recapitulativa.", why: "Afecta 303 o 309 y 349.", affectedModels: ["303", "309", "349"], example: "Compra de mercancía a un proveedor alemán.", supportingDocument: "Factura y libro de IVA." }),
   fourWay({ questionId: "I_EU_SERVICES_SALES", sectionId: "I", field: "euServicesSales", label: "¿Prestaste servicios a empresas de otros países de la UE?", explanation: "Hay que confirmar localización y NIF-IVA del cliente.", why: "Puede afectar ROI, 349 e IVA.", affectedModels: ["036", "303", "349"], example: "Consultoría B2B a una empresa italiana con VAT válido.", supportingDocument: "Factura y consulta VIES." }),
@@ -274,13 +412,55 @@ export const DIAGNOSTIC_QUESTIONS: readonly DiagnosticQuestion[] = [
   fourWay({ questionId: "I_ROI", sectionId: "I", field: "roiRegistered", label: "¿Estabas dado de alta efectivamente en ROI y tenías NIF-IVA válido?", explanation: "Solicitar el alta no equivale siempre a estar incluido.", why: "Detecta discrepancias censales y no genera 349 sin operaciones.", affectedModels: ["036", "349"], example: "El NIF aparece como válido en VIES en la fecha de la operación.", supportingDocument: "Situación censal y consulta VIES." }),
   fourWay({ questionId: "J_EU_CONSUMERS", sectionId: "J", field: "euConsumerSales", label: "¿Vendiste bienes o servicios a consumidores de otros países europeos?", explanation: "B2C puede activar reglas de destino y ventanilla única.", why: "Es la puerta para analizar 035 y 369.", affectedModels: ["035", "369"], example: "Descargas o suscripciones vendidas a particulares franceses.", supportingDocument: "Ventas por país de consumo y tipo de cliente." }),
   fourWay({ questionId: "J_OSS", sectionId: "J", field: "ossRegistered", label: "¿Estabas acogido a OSS o IOSS?", explanation: "La inscripción y el régimen concreto deben estar confirmados.", why: "Distingue la declaración 369 de posibles obligaciones fuera de España.", affectedModels: ["035", "369"], example: "Alta en régimen de la Unión mediante formulario 035.", supportingDocument: "Justificante 035 y declaraciones 369 previas.", applicability: "Solo si hubo ventas a consumidores europeos." }),
-  fourWay({ questionId: "K_THRESHOLD", sectionId: "K", field: "thirdPartyThresholdExceeded", label: "¿Superaste el umbral anual por algún cliente o proveedor?", explanation: "Debe calcularse por persona o entidad y según la regla del ejercicio.", why: "Es un indicio para el 347, no una conclusión automática.", affectedModels: ["347"], example: "Suma anual de operaciones con un proveedor por encima del umbral oficial.", supportingDocument: "Libro mayor o listado anual por tercero." }),
-  fourWay({ questionId: "K_ALL_EXCLUDED", sectionId: "K", field: "thirdPartyOperationsAllExcluded", label: "¿Todas esas operaciones ya estaban excluidas del 347?", explanation: "Retenciones, operaciones UE, SII y otros supuestos pueden excluir información.", why: "Evita declarar dos veces o incluir operaciones no declarables.", affectedModels: ["347"], example: "Operaciones ya informadas en 349 o durante todo el año por SII.", supportingDocument: "Desglose por tipo de operación y modelos informativos." }),
+  fourWay({
+    questionId: "K_THRESHOLD",
+    sectionId: "K",
+    field: "thirdPartyThresholdExceeded",
+    label:
+      "¿Al sumar todo el año, superaste 3.005,06 € (IVA incluido) con algún mismo cliente o proveedor?",
+    explanation:
+      "Suma por separado todas las facturas del año de cada cliente y de cada proveedor. No hace falta que una sola factura supere el límite: cuenta el total acumulado con la misma persona o empresa.",
+    why: "Superar ese total es el primer paso para comprobar si corresponde el modelo 347, pero todavía hay que revisar sus exclusiones.",
+    affectedModels: ["347"],
+    example:
+      "Cuatro facturas de 900 € al mismo cliente suman 3.600 €: ese cliente supera el límite.",
+    supportingDocument:
+      "Listado anual de facturas e importes, agrupado por NIF de cada cliente y proveedor.",
+  }),
+  fourWay({
+    questionId: "K_ALL_EXCLUDED",
+    sectionId: "K",
+    field: "thirdPartyOperationsAllExcluded",
+    label:
+      "¿Todas las operaciones que superaron ese límite estaban excluidas del modelo 347?",
+    explanation:
+      "Algunas operaciones no se repiten en el 347 porque ya se informan a Hacienda por otra vía, como determinadas retenciones u operaciones intracomunitarias, o porque llevaste los libros de IVA por SII durante todo el año. Responde «Sí» solo si todas las operaciones que superaron el límite están excluidas; si queda alguna que no lo esté, responde «No».",
+    why: "Evita declarar dos veces la misma información y también evita descartar el 347 cuando solo una parte está excluida.",
+    affectedModels: ["347"],
+    example:
+      "Si un proveedor supera el límite pero todas sus facturas ya se informaron en un modelo específico, puede estar excluido; si otro cliente no lo está, la respuesta global es «No».",
+    supportingDocument:
+      "Listado agrupado por cliente y proveedor, modelos informativos presentados y situación SII del año completo.",
+  }),
   fourWay({ questionId: "L_COMPANY_INSTALLMENTS", sectionId: "L", field: "companyInstallmentPayments", label: "¿La sociedad debía efectuar pagos fraccionados del Impuesto sobre Sociedades?", explanation: "El modelo 202 tiene excepciones y modalidades propias.", why: "No se añade automáticamente a toda sociedad.", affectedModels: ["202"], example: "Revisión de cifra de negocios, tipo y modalidad del artículo 40 LIS.", supportingDocument: "Modelo 200 anterior, cifra de negocios y situación censal.", applicability: "Solo cuando factura una sociedad." }),
   fourWay({ questionId: "L_ATTRIBUTION_THRESHOLD", sectionId: "L", field: "attributionEntityIncomeAboveThreshold", label: "¿La entidad en atribución ejerció actividad económica o superó el umbral anual de rentas?", explanation: "La entidad y sus miembros tienen obligaciones separadas.", why: "Determina la posible declaración informativa 184.", affectedModels: ["184"], example: "Una comunidad de bienes que explota un negocio.", supportingDocument: "Ingresos de la entidad y contrato de constitución.", applicability: "Solo para comunidad de bienes o sociedad civil en atribución." }),
   fourWay({ questionId: "M_FOREIGN_ASSETS", sectionId: "M", field: "foreignAssetsPotentiallyReportable", label: "¿Tuviste bienes o derechos en el extranjero que podrían superar los límites informativos?", explanation: "Es una obligación personal separada y con categorías específicas.", why: "Permite señalar el 720 para revisión sin confundirlo con la actividad.", affectedModels: ["720"], example: "Cuentas o inmuebles en el extranjero.", supportingDocument: "Certificados bancarios y titularidad por bloques de bienes." }),
   fourWay({ questionId: "M_FOREIGN_CRYPTO", sectionId: "M", field: "foreignCryptoPotentiallyReportable", label: "¿Tuviste monedas virtuales custodiadas en el extranjero potencialmente declarables?", explanation: "Importan custodio, localización y valor, no solo poseer criptoactivos.", why: "Permite señalar el 721 como revisión personal.", affectedModels: ["721"], example: "Saldo en un custodio extranjero al cierre del ejercicio.", supportingDocument: "Extractos del custodio y valoración." }),
-  fourWay({ questionId: "M_WEALTH", sectionId: "M", field: "wealthTaxPotentiallyApplicable", label: "¿Tu patrimonio podría obligarte a presentar el Impuesto sobre el Patrimonio?", explanation: "Los límites y bonificaciones dependen también de la comunidad autónoma.", why: "Separa el 714 de las obligaciones de la actividad.", affectedModels: ["714"], example: "Patrimonio elevado o cuota resultante según residencia autonómica.", supportingDocument: "Inventario patrimonial y residencia fiscal autonómica." }),
+  fourWay({
+    questionId: "M_WEALTH",
+    sectionId: "M",
+    field: "wealthTaxPotentiallyApplicable",
+    label:
+      "¿A 31 de diciembre tenías bienes y derechos personales de valor elevado que pudieran obligarte a presentar Patrimonio (modelo 714)?",
+    explanation:
+      "Este impuesto no mira lo que facturaste durante el año, sino lo que poseías al terminarlo: inmuebles, dinero en cuentas, inversiones, participaciones, vehículos y otros bienes, teniendo en cuenta las deudas y las exenciones. Como orientación, puede haber obligación si el cálculo da una cuota a pagar o si el valor bruto de todos tus bienes y derechos supera 2.000.000 €. El mínimo exento general es 700.000 € y la vivienda habitual tiene una exención estatal de hasta 300.000 €, pero la comunidad autónoma puede cambiar límites y bonificaciones.",
+    why: "Permite avisar de una posible obligación personal del modelo 714 sin confundirla con los impuestos de la actividad.",
+    affectedModels: ["714"],
+    example:
+      "Para saberlo, revisa tu última declaración de Patrimonio o suma el valor de tus bienes a 31 de diciembre y comprueba las reglas de tu comunidad. Marca «Sí» si ya presentaste el 714 o puedes estar cerca de los límites; marca «No lo sé» si todavía no has hecho ese cálculo.",
+    supportingDocument:
+      "Último modelo 714, datos fiscales, saldos bancarios, inversiones, inmuebles, participaciones, deudas y comunidad autónoma de residencia.",
+  }),
   fourWay({ questionId: "N_CHANGES", sectionId: "N", field: "changesDuringYear", label: "¿Hubo altas, bajas o cambios relevantes durante el ejercicio?", explanation: "Incluye actividad, local, trabajadores, alquiler, UE, régimen o sujeto que factura.", why: "Puede exigir una modificación censal con fecha de efecto.", affectedModels: ["036"], example: "Primer trabajador, nuevo local o inicio de operaciones UE.", supportingDocument: "Situación censal actual y justificantes de cada cambio." }),
   fourWay({ questionId: "N_CENSUS_REVIEWED", sectionId: "N", field: "censusReviewed", label: "¿Has revisado una situación censal actual para este ejercicio?", explanation: "Una lista vacía confirmada no significa lo mismo que no haber consultado el censo.", why: "Permite comparar obligaciones derivadas y censales sin convertir la falta de documento en una discrepancia.", affectedModels: ["111", "115", "123", "130", "131", "216", "303"], example: "Descargas un certificado de situación censal vigente y compruebas sus obligaciones periódicas.", supportingDocument: "Certificado de situación censal actual de la AEAT." }),
   question({ questionId: "N_CENSUS_OBLIGATIONS", sectionId: "N", field: "censusObligations", kind: "MULTI_CHOICE", label: "¿Qué obligaciones periódicas figuran en el censo revisado?", explanation: "Marca únicamente códigos que aparezcan expresamente; si no figura ninguno, usa el botón de lista vacía confirmada.", why: "El cruce detecta altas pendientes, obligaciones antiguas o datos que requieren comprobar su fecha de efecto.", affectedModels: ["111", "115", "123", "130", "131", "216", "303"], example: "El certificado muestra 130 y 303, pero no 115.", supportingDocument: "Apartado de obligaciones periódicas del certificado censal.", options: [
@@ -327,6 +507,9 @@ export function isQuestionApplicable(
 ): boolean {
   if (item.questionId === "A_PERSONAL_ACTIVITY") {
     return profile.invoicingSubject !== "NATURAL_PERSON";
+  }
+  if (item.questionId === "B_END_DATE") {
+    return profile.activityStillActive === "NO";
   }
   if (item.questionId === "D_WITHHELD_PERCENT") {
     return profile.activityKinds.some((kind) =>

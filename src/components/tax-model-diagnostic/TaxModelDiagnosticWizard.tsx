@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,6 +19,7 @@ import type {
   TaxpayerProfile,
 } from "@/lib/tax-model-diagnostic/contracts";
 import { evaluateTaxModelDiagnostic } from "@/lib/tax-model-diagnostic/engine";
+import { buildTaxObligationsAssessment } from "@/lib/tax-obligations";
 import {
   createTaxModelDiagnosticSession,
   normalizeTaxModelDiagnosticSession,
@@ -128,6 +129,7 @@ function profileSummary(profile: TaxpayerProfile) {
 
 export function TaxModelDiagnosticWizard() {
   const { data, ready, updateProfile } = useAppStore();
+  const firstQuestionRef = useRef<HTMLDivElement>(null);
   const [session, setSession] = useState<TaxModelDiagnosticSession | null>(
     null,
   );
@@ -139,10 +141,11 @@ export function TaxModelDiagnosticWizard() {
 
   useEffect(() => {
     if (!ready || session) return;
-    setSession(
+    const storedSession =
       normalizeTaxModelDiagnosticSession(data.profile.taxModelDiagnostic) ??
-        createTaxModelDiagnosticSession(new Date().toISOString()),
-    );
+      createTaxModelDiagnosticSession(new Date().toISOString());
+    setSession(storedSession);
+    setResult(storedSession.lastResult ?? null);
   }, [data.profile.taxModelDiagnostic, ready, session]);
 
   const applicableQuestions = useMemo(
@@ -198,6 +201,13 @@ export function TaxModelDiagnosticWizard() {
     value: QuestionValue,
   ) {
     const now = new Date().toISOString();
+    const clearsEndDate =
+      field === "activityStillActive" && value === "YES";
+    const nextProfile = {
+      ...activeSession.profile,
+      [field]: value,
+      ...(clearsEndDate ? { activityEndDate: null } : {}),
+    } as TaxpayerProfile;
     const nextEvidence: Evidence = {
       evidenceId: `question:${questionId}`,
       type: "USER_ANSWER",
@@ -210,13 +220,23 @@ export function TaxModelDiagnosticWizard() {
     };
     persist({
       ...activeSession,
-      profile: { ...activeSession.profile, [field]: value } as TaxpayerProfile,
+      profile: nextProfile,
       evidence: [
-        ...activeSession.evidence.filter((item) => item.field !== field),
+        ...activeSession.evidence.filter(
+          (item) =>
+            item.field !== field &&
+            (!clearsEndDate || item.field !== "activityEndDate"),
+        ),
         nextEvidence,
       ],
       completedQuestionIds: [
-        ...new Set([...activeSession.completedQuestionIds, questionId]),
+        ...new Set([
+          ...activeSession.completedQuestionIds.filter(
+            (completedQuestionId) =>
+              !clearsEndDate || completedQuestionId !== "B_END_DATE",
+          ),
+          questionId,
+        ]),
       ],
       updatedAt: now,
     });
@@ -260,7 +280,15 @@ export function TaxModelDiagnosticWizard() {
       updatedAt: new Date().toISOString(),
     });
     setShowReview(false);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        firstQuestionRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+        firstQuestionRef.current?.focus({ preventScroll: true });
+      });
+    });
   }
 
   function generateResult() {
@@ -270,10 +298,12 @@ export function TaxModelDiagnosticWizard() {
       activeSession.profile,
       generatedAt,
     );
+    const publishedAssessment = buildTaxObligationsAssessment(nextResult);
     setResult(nextResult);
     persist({
       ...activeSession,
       lastResult: nextResult,
+      publishedAssessment,
       updatedAt: generatedAt,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -421,24 +451,30 @@ export function TaxModelDiagnosticWizard() {
               {section.description}
             </p>
           </div>
-          {sectionQuestions.map((question) => (
-            <DiagnosticQuestionField
+          {sectionQuestions.map((question, questionIndex) => (
+            <div
               key={question.questionId}
-              question={question}
-              profile={activeSession.profile}
-              completed={activeSession.completedQuestionIds.includes(
-                question.questionId,
-              )}
-              documentValidated={activeSession.evidence.some(
-                (item) =>
-                  item.field === question.field &&
-                  item.userConfirmed &&
-                  item.type !== "USER_ANSWER",
-              )}
-              onAnswer={(value) =>
-                updateAnswer(question.questionId, question.field, value)
-              }
-            />
+              ref={questionIndex === 0 ? firstQuestionRef : undefined}
+              tabIndex={questionIndex === 0 ? -1 : undefined}
+              className={questionIndex === 0 ? "scroll-mt-24 outline-none" : undefined}
+            >
+              <DiagnosticQuestionField
+                question={question}
+                profile={activeSession.profile}
+                completed={activeSession.completedQuestionIds.includes(
+                  question.questionId,
+                )}
+                documentValidated={activeSession.evidence.some(
+                  (item) =>
+                    item.field === question.field &&
+                    item.userConfirmed &&
+                    item.type !== "USER_ANSWER",
+                )}
+                onAnswer={(value) =>
+                  updateAnswer(question.questionId, question.field, value)
+                }
+              />
+            </div>
           ))}
           {sectionQuestions.length === 0 && (
             <Card className="dark:bg-slate-900 dark:text-slate-200">
