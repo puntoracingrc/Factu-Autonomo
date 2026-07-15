@@ -450,6 +450,35 @@ describe("storage", () => {
     vi.stubGlobal("window", {});
   });
 
+  it("rehidrata únicamente preferencias manuales de modelos válidas", () => {
+    const valid = normalizeLoadedData({
+      ...EMPTY_DATA,
+      profile: {
+        ...EMPTY_DATA.profile,
+        fiscalAdvisoryModelPreferences: {
+          schemaVersion: 1,
+          manualModelCodes: ["036", "303"],
+        },
+      },
+    });
+    expect(valid.profile.fiscalAdvisoryModelPreferences).toEqual({
+      schemaVersion: 1,
+      manualModelCodes: ["036", "303"],
+    });
+
+    const malformed = normalizeLoadedData({
+      ...EMPTY_DATA,
+      profile: {
+        ...EMPTY_DATA.profile,
+        fiscalAdvisoryModelPreferences: {
+          schemaVersion: 1,
+          manualModelCodes: [" 303"],
+        },
+      },
+    });
+    expect(malformed.profile.fiscalAdvisoryModelPreferences).toBeUndefined();
+  });
+
   it("rehidrata el expediente fiscal estructurado sin retener contenido fuente", () => {
     const workspace = emptyFiscalNotificationsWorkspace();
     const normalized = normalizeLoadedData({

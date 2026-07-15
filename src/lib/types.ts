@@ -1,6 +1,7 @@
 import type { BusinessFiscalProfile } from "./fiscal-profile/types";
 import type { TaxModelDiagnosticSession } from "./tax-model-diagnostic/contracts";
 import type { FiscalNotificationsWorkspace } from "./fiscal-notifications/types";
+import type { FiscalAdvisoryModelPreferencesV1 } from "./fiscal-advisory-models/preferences";
 
 export type DocumentType = "factura" | "presupuesto" | "recibo";
 
@@ -1153,6 +1154,8 @@ export interface BusinessProfile {
   fiscalProfile?: BusinessFiscalProfile;
   /** Cuestionario confirmado para orientar los modelos tributarios. */
   taxModelDiagnostic?: TaxModelDiagnosticSession;
+  /** Selección manual de fichas; organiza la vista y nunca confirma obligaciones. */
+  fiscalAdvisoryModelPreferences?: FiscalAdvisoryModelPreferencesV1;
   /** % IRPF estimado sobre el beneficio (modelo 130 orientativo) */
   irpfPercent?: number;
   /** Días de validez aplicados por defecto a presupuestos nuevos; 0 desactiva la fecha automática. */

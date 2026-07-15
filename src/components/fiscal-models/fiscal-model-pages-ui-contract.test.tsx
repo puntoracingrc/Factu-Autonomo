@@ -50,6 +50,11 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(browser).not.toContain("pattern=");
     expect(browser).not.toContain("autoCapitalize=");
     expect(browser).not.toContain(">Buscar<");
+    expect(browser).toContain('mineLabel="Mis modelos"');
+    expect(browser).toContain("personalization.manualModelCodes.length");
+    expect(browser).toContain('href="/consultor-fiscal/diagnostico"');
+    expect(browser).toContain("personalization.status === \"ALL_ONLY\"");
+    expect(browser).toContain("Organiza las fichas sin modificar ni confirmar");
     expect(catalog).toContain("Algunas fichas siguen en preparación");
     expect(catalog).toContain("Revisión pendiente");
     expect(catalog).not.toContain("Ficha estructural");
@@ -58,6 +63,8 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(catalog).toContain("href={detailHref}");
     expect(catalog).toContain("Ver ficha");
     expect(catalog).toContain("getFiscalModelDocumentTitle(page.code)");
+    expect(catalog).toContain("FiscalModelManualSelectionAction");
+    expect(catalog).toContain("data-fiscal-model-code={page.code}");
     expect(catalog + browser).not.toMatch(/\b(?:AVAILABLE|CURRENT|APPROVED)\b/);
   });
 
@@ -74,7 +81,7 @@ describe("fiscal model structural review pages UI contract", () => {
     const catalog = source("./FiscalModelCatalogView.tsx");
     const browser = source("./FiscalModelCatalogBrowser.tsx");
     expect(catalog).toContain(
-      "No encontramos fichas que coincidan con la búsqueda.",
+      "No encontramos fichas que coincidan con esta vista o búsqueda.",
     );
     expect(catalog).toContain(
       "Prueba con un código, un impuesto o una palabra del nombre oficial.",
@@ -85,9 +92,8 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(browser).toContain("Escribe hasta 80 caracteres");
     expect(browser).toContain("usa un solo código de modelo");
     expect(browser).toContain("aria-invalid={blocked}");
-    expect(browser).toContain(
-      'aria-errormessage={blocked ? "buscar-modelo-error"',
-    );
+    expect(browser).toContain("aria-errormessage=");
+    expect(browser).toContain('blocked ? "buscar-modelo-error" : undefined');
     expect(browser).toContain('id="buscar-modelo-error"');
   });
 
@@ -448,8 +454,17 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(production).not.toMatch(
       /localStorage|sessionStorage|supabase|stripe|openai|anthropic/i,
     );
-    expect(production).not.toMatch(
-      /fiscal-notifications|AppStore|tax-engine|taxes\.ts/i,
+    expect(production).not.toMatch(/fiscal-notifications|tax-engine|taxes\.ts/i);
+    const fiscalModelCore = [
+      source(
+        "../../lib/fiscal-models/model-pages/public-review-route-manifest.v1.ts",
+      ),
+      source("../../lib/fiscal-models/model-pages/public-review-catalog.v1.ts"),
+      source("../../lib/fiscal-models/model-pages/public-review-search.v2.ts"),
+    ].join("\n");
+    expect(fiscalModelCore).not.toMatch(/AppStore|BusinessProfile/);
+    expect(source("./FiscalModelCatalogBrowser.tsx")).toContain(
+      'import { useAppStore } from "@/context/AppStore"',
     );
     expect(production).not.toMatch(/from\s+["'][^"']*fiscal-calendar/i);
     expect(production).not.toMatch(/tenantId|userId|BusinessProfile/);

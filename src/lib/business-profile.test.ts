@@ -108,6 +108,29 @@ describe("business profile document data", () => {
     ]);
   });
 
+  it("normaliza la selección manual de modelos sin convertirla en obligación", () => {
+    const normalized = normalizeBusinessProfileForSave({
+      ...DEFAULT_PROFILE,
+      fiscalAdvisoryModelPreferences: {
+        schemaVersion: 1,
+        manualModelCodes: ["036", "303"],
+      },
+    });
+    expect(normalized.fiscalAdvisoryModelPreferences).toEqual({
+      schemaVersion: 1,
+      manualModelCodes: ["036", "303"],
+    });
+
+    const malformed = normalizeBusinessProfileForSave({
+      ...DEFAULT_PROFILE,
+      fiscalAdvisoryModelPreferences: {
+        schemaVersion: 1,
+        manualModelCodes: ["303", "303"],
+      },
+    });
+    expect(malformed.fiscalAdvisoryModelPreferences).toBeUndefined();
+  });
+
   it("avisa de datos necesarios para documentos completos", () => {
     const labels = businessProfileMissingDocumentLabels(DEFAULT_PROFILE);
     const labelsWithCommercialName = businessProfileMissingDocumentLabels({
