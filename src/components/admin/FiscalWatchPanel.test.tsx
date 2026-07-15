@@ -51,6 +51,16 @@ describe("FiscalWatchPanel UI contract", () => {
     expect(source).not.toContain("Cambios por revisar");
   });
 
+  it("muestra las fichas candidatas sin afirmar que el modelo haya cambiado", () => {
+    expect(source).toContain("Fichas candidatas a revisar");
+    expect(source).toContain(
+      "Modelos o formularios mencionados explícitamente",
+    );
+    expect(source).toContain("confirman por sí solas un cambio del modelo");
+    expect(source).toContain("safeModelCodes");
+    expect(source).toContain("MODEL_CODE_PATTERN");
+  });
+
   it("es responsive, evita overflow y sanea los avisos", () => {
     expect(source).toContain("min-w-0 overflow-hidden");
     expect(source).toContain("grid-cols-1 gap-3 sm:grid-cols-3");

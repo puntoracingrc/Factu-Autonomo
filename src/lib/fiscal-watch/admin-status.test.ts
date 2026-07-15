@@ -100,10 +100,59 @@ describe("buildFiscalWatchAdminStatus", () => {
         sourceLabel: "BOE",
         sourceUrl: "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2026-1",
         detectedAt: "2026-07-13T08:58:00.000Z",
+        modelCodes: [],
+        modelHintsTruncated: false,
       },
     ]);
     expect(serialized).not.toContain("secret-body-value");
     expect(serialized).not.toContain("must-never-be-exposed");
+  });
+
+  it("expone únicamente pistas de modelos con marcadores internos válidos", () => {
+    const base = issue(43, "fiscal-watch:unreviewed");
+    const status = build({
+      unreviewedIssues: [
+        {
+          ...base,
+          body:
+            `${base.body}\n` +
+            "<!-- fiscal-watch-model-hint:v1:01C -->\n" +
+            "<!-- fiscal-watch-model-hint:v1:303 -->\n" +
+            "Modelo 999 sin marcador interno",
+        },
+      ],
+    });
+
+    expect(status.sourcesValid).toBe(true);
+    expect(status.issues[0]).toMatchObject({
+      modelCodes: ["01C", "303"],
+      modelHintsTruncated: false,
+    });
+    expect(JSON.stringify(status)).not.toContain("Modelo 999");
+  });
+
+  it("falla cerrado ante pistas duplicadas, desordenadas o manipuladas", () => {
+    const base = issue(44, "fiscal-watch:unreviewed");
+    for (const markers of [
+      ["303", "303"],
+      ["390", "303"],
+      ["999", "<script>"],
+    ]) {
+      const status = build({
+        unreviewedIssues: [
+          {
+            ...base,
+            body: `${base.body}\n${markers
+              .map((code) => `<!-- fiscal-watch-model-hint:v1:${code} -->`)
+              .join("\n")}`,
+          },
+        ],
+      });
+
+      expect(status.sourcesValid).toBe(false);
+      expect(status.level).toBe("action");
+      expect(status.issues).toEqual([]);
+    }
   });
 
   it("marca ámbar una línea base pendiente sin confundirla con un cambio", () => {

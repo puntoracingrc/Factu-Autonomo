@@ -68,6 +68,9 @@ function issueFixture(label: string) {
     user: { login: "github-actions[bot]", type: "Bot" },
     body:
       `${marker}\nFuente oficial: https://sede.agenciatributaria.gob.es/Sede/todas-noticias.html\n` +
+      (label === "fiscal-watch:unreviewed"
+        ? "<!-- fiscal-watch-model-hint:v1:303 -->\n"
+        : "") +
       "raw-secret-body",
   };
 }
@@ -207,6 +210,8 @@ describe("GET /api/admin/fiscal-watch", () => {
       sourceLabel: "Agencia Tributaria",
       sourceUrl:
         "https://sede.agenciatributaria.gob.es/Sede/todas-noticias.html",
+      modelCodes: ["303"],
+      modelHintsTruncated: false,
     });
     expect(serialized).not.toContain("raw-secret-body");
     expect(serialized).not.toContain("private-hash-never-returned");

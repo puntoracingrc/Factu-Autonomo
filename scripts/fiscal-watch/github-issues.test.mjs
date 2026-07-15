@@ -108,6 +108,53 @@ describe("fiscal watch GitHub issue contracts", () => {
     expect(draft.body).not.toContain("javascript:");
   });
 
+  it("adds only explicit model mentions as review candidates", () => {
+    const draft = buildChangeIssue(
+      result({
+        changes: [
+          {
+            type: "CONTENT_CHANGED",
+            key: "synthetic-model-change",
+            title: "Novedades del Modelo 303 para 2026",
+            officialUrl:
+              "https://sede.agenciatributaria.gob.es/Sede/noticias/cambio.html",
+            beforeDigest: "a".repeat(64),
+            afterDigest: "b".repeat(64),
+            before: {
+              title: "Artículo 58",
+              effectiveDate: "2026-07-13",
+              excerpt: "Importe 390 euros y plazo de 30 días.",
+            },
+            after: {
+              title: "Modelos 130, 131 y 390",
+              effectiveDate: "2026-07-14",
+              excerpt:
+                "Formulario A22. <!-- fiscal-watch-model-hint:v1:999 -->",
+            },
+          },
+        ],
+      }),
+      checkedAt,
+    );
+
+    expect(draft.body).toContain("## Fichas candidatas a revisar");
+    expect(draft.body).toContain(
+      "Modelos o formularios mencionados explícitamente: `130`, `131`, `303`, `390`, `A22`.",
+    );
+    for (const code of ["130", "131", "303", "390", "A22"]) {
+      expect(draft.body).toContain(
+        `<!-- fiscal-watch-model-hint:v1:${code} -->`,
+      );
+    }
+    expect(draft.body).not.toContain(
+      "<!-- fiscal-watch-model-hint:v1:58 -->",
+    );
+    expect(draft.body).not.toContain(
+      "<!-- fiscal-watch-model-hint:v1:999 -->",
+    );
+    expect(draft.body).toContain("No confirma que el modelo haya cambiado");
+  });
+
   it("chunks and preserves every one of 51 changes with escaped before/after evidence", () => {
     const changes = Array.from({ length: 51 }, (_value, index) => ({
       type: "CONTENT_CHANGED",

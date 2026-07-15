@@ -2,10 +2,13 @@ import { createHash } from "node:crypto";
 import { gunzipSync, gzipSync } from "node:zlib";
 
 import { FiscalWatchError, validateOfficialSourceUrl } from "./core.mjs";
+import { extractFiscalWatchModelHints } from "./model-hints.mjs";
 
 const SOURCE_MARKER = "fiscal-watch-source-state:v1";
 const CHANGE_MARKER = "fiscal-watch-change:v1";
 const BASELINE_MARKER = "fiscal-watch-baseline:v1";
+const MODEL_HINT_MARKER = "fiscal-watch-model-hint:v1";
+const MODEL_HINTS_TRUNCATED_MARKER = "fiscal-watch-model-hints-truncated:v1";
 const STATE_BLOCK = /```fiscal-watch-state-v1\n([A-Za-z0-9_-]+)\n```/;
 const MAX_ISSUE_BODY_CODE_POINTS = 60_000;
 const MAX_GITHUB_RESPONSE_BYTES = 2 * 1024 * 1024;
@@ -43,6 +46,29 @@ function sourceMarker(sourceId) {
 
 function changeMarker(sourceId, fingerprint) {
   return `<!-- ${CHANGE_MARKER}:${sourceId}:${fingerprint} -->`;
+}
+
+function modelHintMarker(code) {
+  return `<!-- ${MODEL_HINT_MARKER}:${code} -->`;
+}
+
+function buildModelHintRows(modelHints) {
+  if (modelHints.codes.length === 0) return [];
+  const codes = modelHints.codes.map((code) => `\`${code}\``).join(", ");
+  return [
+    "## Fichas candidatas a revisar",
+    "",
+    `Modelos o formularios mencionados explícitamente: ${codes}.`,
+    ...(modelHints.truncated
+      ? [
+          "",
+          "La fuente contiene más referencias explícitas que el límite visible. Revisa el documento oficial completo.",
+        ]
+      : []),
+    "",
+    "> Esta lista se obtiene mecánicamente de menciones literales. No confirma que el modelo haya cambiado, vaya a cambiar, esté vigente ni sea aplicable.",
+    "",
+  ];
 }
 
 export function encodeSourceState(state) {
@@ -144,6 +170,7 @@ function evidenceLine(label, evidence) {
 
 function buildChangeIssueChunk(result, checkedAt, changes, chunkIndex, chunkCount) {
   const fingerprint = createChangeFingerprint(result.sourceId, changes);
+  const modelHints = extractFiscalWatchModelHints(changes);
   const rows = changes.map((change) => {
     const label = CHANGE_LABELS[change.type] ?? "Cambio técnico detectado";
     const title = sanitizeMarkdownText(change.title, 240);
@@ -159,11 +186,16 @@ function buildChangeIssueChunk(result, checkedAt, changes, chunkIndex, chunkCoun
   });
   const body = [
     changeMarker(result.sourceId, fingerprint),
+    ...modelHints.codes.map(modelHintMarker),
+    ...(modelHints.truncated
+      ? [`<!-- ${MODEL_HINTS_TRUNCATED_MARKER} -->`]
+      : []),
     "## Cambios oficiales pendientes de revisión humana",
     "",
     `Fuente monitorizada: [${sanitizeMarkdownText(result.label, 160)}](<${officialMarkdownUrl(result.officialPageUrl, "page")}>)`,
     `Detectado: \`${checkedAt}\``,
     "",
+    ...buildModelHintRows(modelHints),
     ...rows,
     "",
     "> Detección mecánica, no interpretación jurídica. No confirma vigencia, aplicabilidad, fechas, modelos afectados ni obligaciones. Una persona debe revisar la fuente oficial antes de cambiar Calendar, Modelos o cálculos fiscales.",
