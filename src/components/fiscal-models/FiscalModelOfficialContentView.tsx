@@ -19,6 +19,7 @@ import { MODEL_030_GUIDE_V1 } from "./model-030-guide.v1";
 import { MODEL_035_GUIDE_V1 } from "./model-035-guide.v1";
 import { MODEL_036_GUIDE_V1 } from "./model-036-guide.v1";
 import { MODEL_037_GUIDE_V1 } from "./model-037-guide.v1";
+import { MODEL_040_GUIDE_V1 } from "./model-040-guide.v1";
 import { MODEL_04_GUIDE_V1 } from "./model-04-guide.v1";
 import { MODEL_05_GUIDE_V1 } from "./model-05-guide.v1";
 import { MODEL_06_GUIDE_V1 } from "./model-06-guide.v1";
@@ -35,6 +36,9 @@ import { MODEL_143_GUIDE_V1 } from "./model-143-guide.v1";
 import { MODEL_145_GUIDE_V1 } from "./model-145-guide.v1";
 import { MODEL_149_GUIDE_V1 } from "./model-149-guide.v1";
 import { MODEL_151_GUIDE_V1 } from "./model-151-guide.v1";
+import { MODEL_172_GUIDE_V1 } from "./model-172-guide.v1";
+import { MODEL_173_GUIDE_V1 } from "./model-173-guide.v1";
+import { MODEL_179_GUIDE_V1 } from "./model-179-guide.v1";
 import { MODEL_180_GUIDE_V1 } from "./model-180-guide.v1";
 import { MODEL_184_GUIDE_V1 } from "./model-184-guide.v1";
 import { MODEL_190_GUIDE_V1 } from "./model-190-guide.v1";
@@ -45,6 +49,8 @@ import { MODEL_210_GUIDE_V1 } from "./model-210-guide.v1";
 import { MODEL_211_GUIDE_V1 } from "./model-211-guide.v1";
 import { MODEL_216_GUIDE_V1 } from "./model-216-guide.v1";
 import { MODEL_232_GUIDE_V1 } from "./model-232-guide.v1";
+import { MODEL_233_GUIDE_V1 } from "./model-233-guide.v1";
+import { MODEL_238_GUIDE_V1 } from "./model-238-guide.v1";
 import { MODEL_296_GUIDE_V1 } from "./model-296-guide.v1";
 import { MODEL_303_GUIDE_V1 } from "./model-303-guide.v1";
 import { MODEL_308_GUIDE_V1 } from "./model-308-guide.v1";
@@ -131,6 +137,12 @@ export function FiscalModelOfficialContentView({
   if (content.code === "037") {
     return (
       <FiscalModelPracticalGuide content={content} guide={MODEL_037_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "040") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_040_GUIDE_V1} />
     );
   }
 
@@ -230,6 +242,24 @@ export function FiscalModelOfficialContentView({
     );
   }
 
+  if (content.code === "172") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_172_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "173") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_173_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "179") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_179_GUIDE_V1} />
+    );
+  }
+
   if (content.code === "180") {
     return (
       <FiscalModelPracticalGuide content={content} guide={MODEL_180_GUIDE_V1} />
@@ -287,6 +317,18 @@ export function FiscalModelOfficialContentView({
   if (content.code === "232") {
     return (
       <FiscalModelPracticalGuide content={content} guide={MODEL_232_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "233") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_233_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "238") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_238_GUIDE_V1} />
     );
   }
 

@@ -35,6 +35,12 @@ const practicalCatalogLabels: Readonly<
     "Registro censal",
     "Operaciones B2C",
   ],
+  "040": [
+    "Obligaciones informativas sectoriales",
+    "Operadores de plataformas",
+    "Registro censal",
+    "DAC7",
+  ],
   "100": [
     "Esencial para autónomos",
     "Anual",
@@ -43,8 +49,18 @@ const practicalCatalogLabels: Readonly<
   ],
   "111": ["Frecuente si pagas retenciones", "Trimestral o mensual", "IRPF"],
   "115": ["Si alquilas un local", "Trimestral o mensual", "Retenciones"],
-  "121": ["Deducciones familiares", "Cesión del derecho", "Solo no declarantes", "Caso excepcional"],
-  "122": ["Deducciones familiares", "Regularización", "Solo no declarantes", "Resultado a ingresar"],
+  "121": [
+    "Deducciones familiares",
+    "Cesión del derecho",
+    "Solo no declarantes",
+    "Caso excepcional",
+  ],
+  "122": [
+    "Deducciones familiares",
+    "Regularización",
+    "Solo no declarantes",
+    "Resultado a ingresar",
+  ],
   "123": [
     "Dividendos e intereses",
     "Trimestral o mensual",
@@ -58,8 +74,18 @@ const practicalCatalogLabels: Readonly<
     "Estimación directa",
   ],
   "131": ["Solo módulos", "IRPF", "Trimestral", "Revisión anual"],
-  "140": ["Deducción por maternidad", "Abono anticipado", "IRPF", "Hijos menores de 3 años"],
-  "143": ["Deducciones familiares", "Abono anticipado", "IRPF", "Familia y discapacidad"],
+  "140": [
+    "Deducción por maternidad",
+    "Abono anticipado",
+    "IRPF",
+    "Hijos menores de 3 años",
+  ],
+  "143": [
+    "Deducciones familiares",
+    "Abono anticipado",
+    "IRPF",
+    "Familia y discapacidad",
+  ],
   "145": [
     "Si tienes empleados",
     "Nóminas",
@@ -77,6 +103,24 @@ const practicalCatalogLabels: Readonly<
     "Régimen de desplazados",
     "Declaración anual",
     "IRPF",
+  ],
+  "172": [
+    "Obligaciones informativas sectoriales",
+    "Criptomonedas",
+    "Saldos",
+    "Custodios",
+  ],
+  "173": [
+    "Obligaciones informativas sectoriales",
+    "Criptomonedas",
+    "Operaciones",
+    "Servicio web XML",
+  ],
+  "179": [
+    "Obligaciones informativas sectoriales",
+    "Histórico",
+    "No vigente desde 2024",
+    "Relacionado con 238",
   ],
   "180": ["Anual", "Relacionado con 115", "Declaración informativa"],
   "184": [
@@ -124,6 +168,18 @@ const practicalCatalogLabels: Readonly<
     "Autónomo societario y empresas",
     "Operaciones vinculadas",
     "Informativa",
+    "Anual",
+  ],
+  "233": [
+    "Obligaciones informativas sectoriales",
+    "Guarderías y centros infantiles",
+    "Anual",
+    "No la presentan los padres",
+  ],
+  "238": [
+    "Obligaciones informativas sectoriales",
+    "Operadores de plataformas",
+    "DAC7",
     "Anual",
   ],
   "296": ["Anual", "No residentes", "Informativa", "Relacionado con 216"],
@@ -211,6 +267,14 @@ const practicalCatalogLabels: Readonly<
 };
 
 const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
+  "040":
+    "Alta, modificación y baja de operadores de plataformas en sus dos registros específicos. No es el Modelo 04 y no lo presenta el vendedor.",
+  "172":
+    "Declaración anual de custodios sujetos en España sobre saldos en monedas virtuales y determinados saldos fiduciarios de terceros.",
+  "173":
+    "Declaración anual de proveedores sobre adquisiciones, ventas, permutas, transferencias y otras operaciones con monedas virtuales.",
+  "179":
+    "Ficha histórica de la declaración sobre cesiones de viviendas turísticas, no vigente desde el ejercicio 2024 y relacionada con el Modelo 238.",
   "308":
     "Solicitud especial de devolución de IVA para determinados comercios en recargo de equivalencia, transportistas en régimen simplificado y ventas ocasionales de medios de transporte nuevos.",
   "341":
@@ -237,6 +301,10 @@ const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
     "Declaración del IRNR para rentas obtenidas en España por no residentes sin establecimiento permanente.",
   "211":
     "Retención del 3 % que practica quien compra un inmueble a una persona no residente sin establecimiento permanente.",
+  "233":
+    "Declaración anual de guarderías y centros infantiles autorizados sobre menores y gastos de custodia. No la presentan los progenitores.",
+  "238":
+    "Información anual que comunican determinados operadores de plataformas sobre vendedores y actividades pertinentes en el marco DAC7.",
   "714":
     "Declaración del Impuesto sobre el Patrimonio cuando existe cuota o se supera el límite bruto establecido.",
   "718":
@@ -335,144 +403,144 @@ export function FiscalModelCatalogView({
         focusedCardId={focusedCardId}
       >
         <section aria-labelledby="catalogo-modelos-title" className="space-y-4">
-        <div className="flex items-center gap-2">
-          <BookOpenCheck
-            className="h-5 w-5 text-blue-700 dark:text-blue-300"
-            aria-hidden="true"
-          />
-          <h2
-            id="catalogo-modelos-title"
-            className="text-xl font-bold text-slate-950 dark:text-slate-100"
+          <div className="flex items-center gap-2">
+            <BookOpenCheck
+              className="h-5 w-5 text-blue-700 dark:text-blue-300"
+              aria-hidden="true"
+            />
+            <h2
+              id="catalogo-modelos-title"
+              className="text-xl font-bold text-slate-950 dark:text-slate-100"
+            >
+              Fichas registradas
+            </h2>
+          </div>
+
+          <Card
+            id="modelos-aeat-sin-resultados"
+            className="dark:border-slate-700 dark:bg-slate-900"
+            hidden={result.total !== 0}
           >
-            Fichas registradas
-          </h2>
-        </div>
+            <p className="font-semibold text-slate-900 dark:text-slate-100">
+              No encontramos fichas que coincidan con esta vista o búsqueda.
+            </p>
+            <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              Prueba con un código, un impuesto o una palabra del nombre oficial.
+            </p>
+          </Card>
 
-        <Card
-          id="modelos-aeat-sin-resultados"
-          className="dark:border-slate-700 dark:bg-slate-900"
-          hidden={result.total !== 0}
-        >
-          <p className="font-semibold text-slate-900 dark:text-slate-100">
-            No encontramos fichas que coincidan con esta vista o búsqueda.
-          </p>
-          <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-            Prueba con un código, un impuesto o una palabra del nombre oficial.
-          </p>
-        </Card>
-
-        <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {pages.map((page) => {
-            const fromCalendar = page.catalogCardId === focusedCardId;
-            const detailHref = fromCalendar
-              ? calendarNavigation!.detailHref
-              : page.href;
-            const officialContent =
-              officialContentByCode.get(page.code) ?? null;
-            const historical =
-              page.lifecycleStatus === "HISTORICAL" ||
-              officialContent?.lifecycleStatus === "HISTORICAL";
-            const practicalLabels = practicalCatalogLabels[page.code] ?? [];
-            return (
-              <Card
-                key={page.code}
-                id={page.catalogCardId}
-                data-fiscal-model-card="true"
-                data-fiscal-model-code={page.code}
-                tabIndex={fromCalendar ? -1 : undefined}
-                hidden={!matchingIds.has(page.catalogCardId)}
-                className={`flex min-w-0 scroll-mt-6 flex-col dark:border-slate-700 dark:bg-slate-900 ${
-                  historical
-                    ? "border-rose-200 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-950/30"
-                    : ""
-                }`}
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <span className="rounded-xl bg-blue-100 px-3 py-1.5 font-mono text-lg font-black text-blue-900 dark:bg-blue-950 dark:text-blue-100">
-                    {page.code}
-                  </span>
-                  {(historical || !officialContent) && (
-                    <span
-                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
-                        historical
-                          ? "bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-100"
-                          : "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100"
-                      }`}
-                    >
-                      {historical && (
-                        <History className="h-3.5 w-3.5" aria-hidden="true" />
-                      )}
-                      {historical
-                        ? "Histórico · no vigente"
-                        : "Revisión pendiente"}
+          <div className="grid min-w-0 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {pages.map((page) => {
+              const fromCalendar = page.catalogCardId === focusedCardId;
+              const detailHref = fromCalendar
+                ? calendarNavigation!.detailHref
+                : page.href;
+              const officialContent =
+                officialContentByCode.get(page.code) ?? null;
+              const historical =
+                page.lifecycleStatus === "HISTORICAL" ||
+                officialContent?.lifecycleStatus === "HISTORICAL";
+              const practicalLabels = practicalCatalogLabels[page.code] ?? [];
+              return (
+                <Card
+                  key={page.code}
+                  id={page.catalogCardId}
+                  data-fiscal-model-card="true"
+                  data-fiscal-model-code={page.code}
+                  tabIndex={fromCalendar ? -1 : undefined}
+                  hidden={!matchingIds.has(page.catalogCardId)}
+                  className={`flex min-w-0 scroll-mt-6 flex-col dark:border-slate-700 dark:bg-slate-900 ${
+                    historical
+                      ? "border-rose-200 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-950/30"
+                      : ""
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="rounded-xl bg-blue-100 px-3 py-1.5 font-mono text-lg font-black text-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                      {page.code}
                     </span>
-                  )}
-                </div>
-                <div
-                  className={`mt-4 min-w-0 ${officialContent ? "grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3" : ""}`}
-                >
-                  {officialContent && (
-                    <FiscalModelOfficialVisual
-                      content={officialContent}
-                      variant="catalog"
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <h3 className="break-words text-lg font-bold text-slate-950 dark:text-slate-100">
-                      {getFiscalModelDocumentTitle(page.code)}
-                    </h3>
-                    <p className="mt-1 break-words text-sm font-semibold leading-6 text-slate-800 dark:text-slate-200">
-                      {officialContent?.canonicalName ?? page.canonicalName}
-                    </p>
-                    {officialContent && practicalLabels.length > 0 ? (
-                      <>
-                        <p className="mt-2 break-words text-sm leading-6 text-slate-600 dark:text-slate-300">
-                          {practicalCatalogSummaries[page.code] ??
-                            officialContent.summary}
-                        </p>
-                        <ul
-                          className="mt-3 flex flex-wrap gap-2"
-                          aria-label={`Características de ${getFiscalModelDocumentTitle(page.code)}`}
-                        >
-                          {practicalLabels.map((label) => (
-                            <li
-                              key={label}
-                              className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
-                            >
-                              {label}
-                            </li>
-                          ))}
-                        </ul>
-                      </>
-                    ) : null}
+                    {(historical || !officialContent) && (
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
+                          historical
+                            ? "bg-rose-100 text-rose-900 dark:bg-rose-950 dark:text-rose-100"
+                            : "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100"
+                        }`}
+                      >
+                        {historical && (
+                          <History className="h-3.5 w-3.5" aria-hidden="true" />
+                        )}
+                        {historical
+                          ? "Histórico · no vigente"
+                          : "Revisión pendiente"}
+                      </span>
+                    )}
                   </div>
-                </div>
-                <div className="flex-1" />
-                <FiscalModelManualSelectionAction modelCode={page.code} />
-                {fromCalendar && (
-                  <Link
-                    href={calendarNavigation!.returnHref}
-                    className={`mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950 ${focusRing}`}
+                  <div
+                    className={`mt-4 min-w-0 ${officialContent ? "grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3" : ""}`}
                   >
-                    <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                    Volver al Calendario
+                    {officialContent && (
+                      <FiscalModelOfficialVisual
+                        content={officialContent}
+                        variant="catalog"
+                      />
+                    )}
+                    <div className="min-w-0">
+                      <h3 className="break-words text-lg font-bold text-slate-950 dark:text-slate-100">
+                        {getFiscalModelDocumentTitle(page.code)}
+                      </h3>
+                      <p className="mt-1 break-words text-sm font-semibold leading-6 text-slate-800 dark:text-slate-200">
+                        {officialContent?.canonicalName ?? page.canonicalName}
+                      </p>
+                      {officialContent && practicalLabels.length > 0 ? (
+                        <>
+                          <p className="mt-2 break-words text-sm leading-6 text-slate-600 dark:text-slate-300">
+                            {practicalCatalogSummaries[page.code] ??
+                              officialContent.summary}
+                          </p>
+                          <ul
+                            className="mt-3 flex flex-wrap gap-2"
+                            aria-label={`Características de ${getFiscalModelDocumentTitle(page.code)}`}
+                          >
+                            {practicalLabels.map((label) => (
+                              <li
+                                key={label}
+                                className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200"
+                              >
+                                {label}
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="flex-1" />
+                  <FiscalModelManualSelectionAction modelCode={page.code} />
+                  {fromCalendar && (
+                    <Link
+                      href={calendarNavigation!.returnHref}
+                      className={`mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl px-3 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950 ${focusRing}`}
+                    >
+                      <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                      Volver al Calendario
+                    </Link>
+                  )}
+                  <Link
+                    href={detailHref}
+                    className={`mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-blue-200 bg-white px-4 text-center font-semibold text-blue-800 transition-colors hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-950 ${focusRing}`}
+                  >
+                    Ver ficha
+                    <span className="sr-only">
+                      {" "}
+                      de {getFiscalModelDocumentTitle(page.code)}
+                    </span>
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
                   </Link>
-                )}
-                <Link
-                  href={detailHref}
-                  className={`mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-blue-200 bg-white px-4 text-center font-semibold text-blue-800 transition-colors hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-950 ${focusRing}`}
-                >
-                  Ver ficha
-                  <span className="sr-only">
-                    {" "}
-                    de {getFiscalModelDocumentTitle(page.code)}
-                  </span>
-                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </Card>
-            );
-          })}
-        </div>
+                </Card>
+              );
+            })}
+          </div>
         </section>
 
         <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
