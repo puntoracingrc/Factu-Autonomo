@@ -43,6 +43,12 @@ const practicalCatalogLabels: Readonly<
   ],
   "111": ["Frecuente si pagas retenciones", "Trimestral o mensual", "IRPF"],
   "115": ["Si alquilas un local", "Trimestral o mensual", "Retenciones"],
+  "123": [
+    "Dividendos e intereses",
+    "Trimestral o mensual",
+    "Retenciones",
+    "Frecuente en sociedades",
+  ],
   "130": [
     "Frecuente para autónomos",
     "IRPF",
@@ -50,6 +56,12 @@ const practicalCatalogLabels: Readonly<
     "Estimación directa",
   ],
   "131": ["Solo módulos", "IRPF", "Trimestral", "Revisión anual"],
+  "145": [
+    "Si tienes empleados",
+    "Nóminas",
+    "No se presenta a la AEAT",
+    "Datos del trabajador",
+  ],
   "180": ["Anual", "Relacionado con 115", "Declaración informativa"],
   "184": [
     "Comunidades de bienes",
@@ -58,6 +70,12 @@ const practicalCatalogLabels: Readonly<
     "Relacionado con Renta",
   ],
   "190": ["Anual", "Relacionado con 111", "Declaración informativa"],
+  "193": [
+    "Anual",
+    "Declaración informativa",
+    "Relacionado con 123",
+    "Rentas del capital",
+  ],
   "200": [
     "Autónomo societario y empresas",
     "Anual",
@@ -122,6 +140,15 @@ const practicalCatalogLabels: Readonly<
   ],
 };
 
+const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
+  "123":
+    "Ingreso periódico de determinadas retenciones sobre dividendos, intereses y otras rentas del capital.",
+  "145":
+    "Datos personales y familiares del trabajador para calcular la retención de su nómina. Se entrega al pagador.",
+  "193":
+    "Resumen anual de determinadas rentas y retenciones declaradas mediante el Modelo 123.",
+};
+
 export function FiscalModelCatalogView({
   result,
   pages,
@@ -151,8 +178,10 @@ export function FiscalModelCatalogView({
         content
           ? [
               ...content.searchTerms,
+              ...(practicalCatalogLabels[page.code] ?? []),
               content.canonicalName,
               content.summary,
+              practicalCatalogSummaries[page.code] ?? "",
               ...content.sections.flatMap((section) => [
                 section.title,
                 ...section.items.flatMap((item) => [item.heading, item.text]),
@@ -300,7 +329,8 @@ export function FiscalModelCatalogView({
                     {officialContent && practicalLabels.length > 0 ? (
                       <>
                         <p className="mt-2 break-words text-sm leading-6 text-slate-600 dark:text-slate-300">
-                          {officialContent.summary}
+                          {practicalCatalogSummaries[page.code] ??
+                            officialContent.summary}
                         </p>
                         <ul
                           className="mt-3 flex flex-wrap gap-2"

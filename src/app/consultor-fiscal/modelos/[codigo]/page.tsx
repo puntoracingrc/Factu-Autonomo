@@ -48,11 +48,14 @@ export async function generateMetadata({
         "100": "Modelo 100 AEAT: declaración de la Renta del autónomo",
         "111": "Modelo 111 AEAT: retenciones de nóminas y profesionales",
         "115": "Modelo 115 AEAT: retención del alquiler de un local",
+        "123": "Modelo 123 AEAT: retenciones sobre dividendos e intereses",
         "130": "Modelo 130 AEAT: pago trimestral del IRPF",
         "131": "Modelo 131 AEAT: pago trimestral por módulos",
+        "145": "Modelo 145 AEAT: datos para calcular la retención de la nómina",
         "180": "Modelo 180 AEAT: resumen anual de alquileres",
         "184": "Modelo 184 AEAT: comunidades de bienes y rentas atribuidas",
         "190": "Modelo 190 AEAT: resumen anual de retenciones",
+        "193": "Modelo 193 AEAT: resumen anual de dividendos e intereses",
         "200": "Modelo 200 AEAT: Impuesto sobre Sociedades",
         "202": "Modelo 202 AEAT: pagos a cuenta de Sociedades",
         "216": "Modelo 216 AEAT: retenciones por pagos a no residentes",
@@ -82,16 +85,22 @@ export async function generateMetadata({
           "Guía sencilla del Modelo 111: quién debe presentarlo, retenciones de empleados y facturas profesionales, tipos, plazos, pago y corrección de errores.",
         "115":
           "Guía sencilla del Modelo 115: quién debe presentarlo, alquileres sujetos, excepciones, base, tipo del 19 %, plazos y pago.",
+        "123":
+          "Guía sencilla del Modelo 123: quién debe presentarlo, dividendos, préstamos de socios, otras rentas del capital, tipos, plazos y pago.",
         "130":
           "Guía sencilla del Modelo 130: quién debe presentarlo, regla del 70 %, cálculo acumulado, gastos, retenciones, plazos y presentación.",
         "131":
           "Guía sencilla del Modelo 131: quién puede tributar por módulos, cálculo, límites de 2026, porcentajes, plazos y presentación.",
+        "145":
+          "Guía sencilla del Modelo 145: quién lo rellena, a quién se entrega, datos familiares, cambios, conservación y relación con los Modelos 111 y 190.",
         "180":
           "Guía sencilla del Modelo 180: arrendadores, referencias catastrales, relación con el Modelo 115, certificados, correcciones y presentación.",
         "184":
           "Guía sencilla del Modelo 184: quién debe presentarlo, límite de 3.000 euros, socios, reparto de rentas, plazo y relación con el Modelo 100.",
         "190":
           "Guía sencilla del Modelo 190: trabajadores, profesionales, claves, relación con el Modelo 111, certificados, correcciones y presentación.",
+        "193":
+          "Guía sencilla del Modelo 193: perceptores, dividendos, intereses, claves, relación con el Modelo 123, plazo, presentación y correcciones.",
         "200":
           "Guía del Modelo 200: quién lo presenta, resultado contable, ajustes fiscales, tipos del ejercicio 2025, plazos, Sociedades WEB y correcciones.",
         "202":
