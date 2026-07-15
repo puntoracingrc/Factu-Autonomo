@@ -38,7 +38,7 @@ export interface FiscalCalendarEventObligationDecision {
 }
 
 export interface FiscalCalendarObligationView {
-  status: "ALL_ONLY" | "PERSONALIZED";
+  status: "ALL_ONLY" | "ORIENTATIVE" | "PERSONALIZED";
   fallbackReason: FiscalCalendarObligationFallbackReason | null;
   decisions: readonly FiscalCalendarEventObligationDecision[];
   visibleEventIds: ReadonlySet<string>;
@@ -63,17 +63,11 @@ function eventYearInMadrid(event: FiscalCalendarEvent): number | null {
   return Number.isInteger(year) ? year : null;
 }
 
-function fallbackReason(
+function allOnlyFallbackReason(
   session: TaxModelDiagnosticSession | null | undefined,
 ): FiscalCalendarObligationFallbackReason | null {
   const assessment = selectStoredTaxObligationsAssessment(session);
   if (!assessment) return "NO_PUBLISHED_ASSESSMENT";
-  if (assessment.ruleReviewState !== "APPROVED") {
-    return "RULES_PENDING_REVIEW";
-  }
-  if (assessment.resolutionState !== "RESOLVED") {
-    return "ASSESSMENT_NOT_RESOLVED";
-  }
   if (
     assessment.profile.state !== "COMPLETE" ||
     assessment.profile.missingInformation.length > 0 ||
@@ -83,6 +77,23 @@ function fallbackReason(
   }
   if (assessment.territory !== "ES_COMMON") {
     return "UNSUPPORTED_TERRITORY";
+  }
+  if (assessment.resolutionState === "BLOCKED") {
+    return "ASSESSMENT_NOT_RESOLVED";
+  }
+  return null;
+}
+
+function orientativeReason(
+  assessment: NonNullable<
+    ReturnType<typeof selectStoredTaxObligationsAssessment>
+  >,
+): FiscalCalendarObligationFallbackReason | null {
+  if (assessment.ruleReviewState !== "APPROVED") {
+    return "RULES_PENDING_REVIEW";
+  }
+  if (assessment.resolutionState !== "RESOLVED") {
+    return "ASSESSMENT_NOT_RESOLVED";
   }
   return null;
 }
@@ -121,6 +132,7 @@ function decisionForEvent({
   fiscalYear,
   obligations,
   manualModelCodes,
+  allowSafeExclusion,
 }: {
   event: FiscalCalendarEvent;
   fiscalYear: number;
@@ -139,6 +151,7 @@ function decisionForEvent({
     }
   >;
   manualModelCodes: ReadonlySet<string>;
+  allowSafeExclusion: boolean;
 }): FiscalCalendarEventObligationDecision {
   const base = {
     eventId: event.id,
@@ -172,7 +185,11 @@ function decisionForEvent({
     };
   }
   if (canonicalCodes.length !== 1) {
-    return { ...base, reason: "MULTIPLE_EXPLICIT_MODELS" };
+    return {
+      ...base,
+      manuallySelected,
+      reason: "MULTIPLE_EXPLICIT_MODELS",
+    };
   }
 
   const modelCode = canonicalCodes[0];
@@ -194,6 +211,7 @@ function decisionForEvent({
     return {
       ...identified,
       requiresConfirmation:
+        !allowSafeExclusion ||
         obligation.decisionState !== "CONFIRMED" ||
         !obligation.evidenceSufficient ||
         obligation.missingInformation.length > 0 ||
@@ -215,6 +233,9 @@ function decisionForEvent({
   if (!safeExclusion) {
     return { ...identified, reason: "NOT_APPLICABLE_UNCONFIRMED" };
   }
+  if (!allowSafeExclusion) {
+    return { ...identified, reason: "NOT_APPLICABLE_UNCONFIRMED" };
+  }
   return {
     ...identified,
     visibleInMyObligations: selectedManually,
@@ -225,7 +246,8 @@ function decisionForEvent({
 
 /**
  * Builds a local, read-only Calendar view from the immutable assessment.
- * It never infers an obligation and only hides a safely excluded single model.
+ * It never infers an obligation. The orientative mode never hides events; the
+ * approved mode only hides a safely excluded single model.
  */
 export function buildFiscalCalendarObligationView({
   events,
@@ -236,11 +258,13 @@ export function buildFiscalCalendarObligationView({
   session: TaxModelDiagnosticSession | null | undefined;
   manualModelCodes?: readonly string[];
 }): FiscalCalendarObligationView {
-  const reason = fallbackReason(session);
+  const reason = allOnlyFallbackReason(session);
   if (reason) return fallbackView(events, reason);
 
   const assessment = selectStoredTaxObligationsAssessment(session);
   if (!assessment) return fallbackView(events, "NO_PUBLISHED_ASSESSMENT");
+  const pendingReason = orientativeReason(assessment);
+  const isOrientative = pendingReason !== null;
   const obligations = new Map(
     assessment.obligations.map((obligation) => [
       obligation.modelCode,
@@ -260,6 +284,7 @@ export function buildFiscalCalendarObligationView({
       fiscalYear: assessment.fiscalYear,
       obligations,
       manualModelCodes: manual,
+      allowSafeExclusion: !isOrientative,
     }),
   );
   const visible = decisions
@@ -273,8 +298,8 @@ export function buildFiscalCalendarObligationView({
     .map((decision) => decision.eventId);
 
   return Object.freeze({
-    status: "PERSONALIZED",
-    fallbackReason: null,
+    status: isOrientative ? "ORIENTATIVE" : "PERSONALIZED",
+    fallbackReason: pendingReason,
     decisions: Object.freeze(decisions),
     visibleEventIds: frozenSet(visible),
     reviewEventIds: frozenSet(review),

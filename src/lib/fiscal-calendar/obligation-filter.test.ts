@@ -88,14 +88,6 @@ describe("buildFiscalCalendarObligationView", () => {
   it.each([
     [undefined, "NO_PUBLISHED_ASSESSMENT"],
     [
-      assessment([], { ruleReviewState: "PENDING_FISCAL_REVIEW" }),
-      "RULES_PENDING_REVIEW",
-    ],
-    [
-      assessment([], { resolutionState: "MANUAL_REVIEW" }),
-      "ASSESSMENT_NOT_RESOLVED",
-    ],
-    [
       assessment([], {
         profile: {
           state: "INCOMPLETE",
@@ -106,6 +98,10 @@ describe("buildFiscalCalendarObligationView", () => {
       "PROFILE_NOT_COMPLETE",
     ],
     [assessment([], { territory: "ES_CANARY" }), "UNSUPPORTED_TERRITORY"],
+    [
+      assessment([], { resolutionState: "BLOCKED" }),
+      "ASSESSMENT_NOT_RESOLVED",
+    ],
   ] as const)("mantiene Todos con fallback %s", (stored, reason) => {
     const events = [event("a", "Modelo 303")];
     const result = buildFiscalCalendarObligationView({
@@ -117,6 +113,120 @@ describe("buildFiscalCalendarObligationView", () => {
     expect(result.fallbackReason).toBe(reason);
     expect([...result.visibleEventIds]).toEqual(["a"]);
     expect(result.excludedCount).toBe(0);
+  });
+
+  it.each([
+    [
+      assessment([], { ruleReviewState: "PENDING_FISCAL_REVIEW" }),
+      "RULES_PENDING_REVIEW",
+    ],
+    [
+      assessment([], { resolutionState: "MANUAL_REVIEW" }),
+      "ASSESSMENT_NOT_RESOLVED",
+    ],
+  ] as const)(
+    "habilita la vista orientativa conservadora con %s",
+    (stored, reason) => {
+      const events = [event("a", "Modelo 303")];
+      const result = buildFiscalCalendarObligationView({
+        events,
+        session: session(stored),
+      });
+
+      expect(result.status).toBe("ORIENTATIVE");
+      expect(result.fallbackReason).toBe(reason);
+      expect([...result.visibleEventIds]).toEqual(["a"]);
+      expect([...result.reviewEventIds]).toEqual(["a"]);
+      expect(result.excludedCount).toBe(0);
+    },
+  );
+
+  it("mantiene todos los eventos por confirmar en la vista orientativa", () => {
+    const events = [
+      event("required", "Modelo 130"),
+      event("not-applicable", "Modelo 303"),
+      event("review", "Modelo 349"),
+      event("unknown", "Modelo 347"),
+      event("none", "Pago trimestral"),
+      event("multiple", "Modelos 303 y 390"),
+    ];
+    const result = buildFiscalCalendarObligationView({
+      events,
+      session: session(
+        assessment(
+          [
+            obligation("130", "REQUIRED"),
+            obligation("303", "NOT_APPLICABLE"),
+            obligation("349", "REVIEW_REQUIRED"),
+            obligation("347", "UNKNOWN"),
+          ],
+          { ruleReviewState: "PENDING_FISCAL_REVIEW" },
+        ),
+      ),
+    });
+
+    expect(result.status).toBe("ORIENTATIVE");
+    expect([...result.visibleEventIds]).toEqual(events.map(({ id }) => id));
+    expect([...result.reviewEventIds]).toEqual(events.map(({ id }) => id));
+    expect(result.excludedCount).toBe(0);
+    expect(result.decisions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          eventId: "required",
+          modelCode: "130",
+          reason: "REQUIRED",
+          requiresConfirmation: true,
+          visibleInMyObligations: true,
+        }),
+        expect.objectContaining({
+          eventId: "not-applicable",
+          modelCode: "303",
+          reason: "NOT_APPLICABLE_UNCONFIRMED",
+          requiresConfirmation: true,
+          visibleInMyObligations: true,
+        }),
+      ]),
+    );
+  });
+
+  it("prioriza el fallback seguro si el perfil o territorio no son utilizables", () => {
+    const pending = assessment([], {
+      ruleReviewState: "PENDING_FISCAL_REVIEW",
+      resolutionState: "MANUAL_REVIEW",
+    });
+    const incomplete = buildFiscalCalendarObligationView({
+      events: [event("profile", "Modelo 303")],
+      session: session({
+        ...pending,
+        profile: {
+          state: "INCOMPLETE",
+          missingInformation: ["fixture"],
+          conflicts: [],
+        },
+      }),
+    });
+    const unsupported = buildFiscalCalendarObligationView({
+      events: [event("territory", "Modelo 303")],
+      session: session({ ...pending, territory: "ES_CANARY" }),
+    });
+    const conflicted = buildFiscalCalendarObligationView({
+      events: [event("conflicted", "Modelo 303")],
+      session: session({
+        ...pending,
+        profile: {
+          state: "CONFLICTED",
+          missingInformation: [],
+          conflicts: ["fixture contradictorio"],
+        },
+      }),
+    });
+
+    expect(incomplete.status).toBe("ALL_ONLY");
+    expect(incomplete.fallbackReason).toBe("PROFILE_NOT_COMPLETE");
+    expect(conflicted.status).toBe("ALL_ONLY");
+    expect(conflicted.fallbackReason).toBe("PROFILE_NOT_COMPLETE");
+    expect(unsupported.status).toBe("ALL_ONLY");
+    expect(unsupported.fallbackReason).toBe("UNSUPPORTED_TERRITORY");
   });
 
   it("oculta solo NOT_APPLICABLE con evidencia suficiente", () => {
@@ -262,6 +372,30 @@ describe("buildFiscalCalendarObligationView", () => {
       manuallySelected: true,
     });
     expect([...result.manuallySelectedEventIds]).toEqual(["manual"]);
+  });
+
+  it("conserva la selección manual en un evento con varios modelos", () => {
+    const result = buildFiscalCalendarObligationView({
+      events: [event("multiple-manual", "Modelos 303 y 390")],
+      session: session(
+        assessment(
+          [
+            obligation("303", "NOT_APPLICABLE"),
+            obligation("390", "REVIEW_REQUIRED"),
+          ],
+          { ruleReviewState: "PENDING_FISCAL_REVIEW" },
+        ),
+      ),
+      manualModelCodes: ["303"],
+    });
+
+    expect(result.decisions[0]).toMatchObject({
+      reason: "MULTIPLE_EXPLICIT_MODELS",
+      manuallySelected: true,
+      visibleInMyObligations: true,
+      requiresConfirmation: true,
+    });
+    expect([...result.manuallySelectedEventIds]).toEqual(["multiple-manual"]);
   });
 
   it("no aplica una foto de otro ejercicio ni cruza mal el año de Madrid", () => {
