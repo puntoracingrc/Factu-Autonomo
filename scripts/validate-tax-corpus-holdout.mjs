@@ -3,28 +3,30 @@
 import { resolve } from "node:path";
 import {
   REQUIRED_TAX_CORPUS_FAMILIES,
-  loadPrivateHoldoutCorpus,
+  loadEngineeringHoldoutCorpus,
+  loadIndependentHoldoutCorpus,
   loadPublicTaxCorpus,
 } from "../src/lib/tax-model-diagnostic/corpus-holdout/current-corpus.mjs";
 import {
-  assertHoldoutExecutionPolicy,
+  assertIndependentHoldoutExecutionPolicy,
   summarizeTaxCorpusValidation,
 } from "../src/lib/tax-model-diagnostic/corpus-holdout/runtime.mjs";
 
 const args = new Set(process.argv.slice(2));
-const holdoutRequested = args.has("--holdout");
+const independentHoldoutRequested = args.has("--independent-holdout");
 const aggregateOnly = args.has("--aggregate-only");
 const repositoryRoot = resolve(process.cwd());
-const holdoutRoot = process.env.FISCAL_HOLDOUT_ROOT
-  ? resolve(process.env.FISCAL_HOLDOUT_ROOT)
+const independentHoldoutRoot = process.env.FISCAL_INDEPENDENT_HOLDOUT_ROOT
+  ? resolve(process.env.FISCAL_INDEPENDENT_HOLDOUT_ROOT)
   : undefined;
 
 const SAFE_ERRORS = new Set([
-  "HOLDOUT_REQUIRES_AGGREGATE_ONLY",
-  "HOLDOUT_JOB_NOT_AUTHORIZED",
-  "HOLDOUT_ACCESS_TOKEN_MISSING",
-  "HOLDOUT_CORPUS_EMPTY",
-  "HOLDOUT_ROOT_MUST_BE_EXTERNAL",
+  "INDEPENDENT_HOLDOUT_REQUIRES_AGGREGATE_ONLY",
+  "INDEPENDENT_HOLDOUT_JOB_NOT_AUTHORIZED",
+  "INDEPENDENT_HOLDOUT_ACCESS_TOKEN_MISSING",
+  "INDEPENDENT_HOLDOUT_CORPUS_EMPTY",
+  "INDEPENDENT_HOLDOUT_ROOT_MUST_BE_EXTERNAL",
+  "CORPUS_CREATED_AT_MISSING",
   "CORPUS_SYMLINK_FORBIDDEN",
   "CORPUS_ASSET_PATH_ESCAPE",
   "PENDING29_FAMILY_NOT_MAPPED",
@@ -32,23 +34,28 @@ const SAFE_ERRORS = new Set([
 
 async function main() {
   const publicRecords = await loadPublicTaxCorpus(repositoryRoot);
-  let privateRecords = [];
-  if (holdoutRequested) {
-    assertHoldoutExecutionPolicy({
+  const engineeringRecords = await loadEngineeringHoldoutCorpus(repositoryRoot);
+  let independentRecords = [];
+  if (independentHoldoutRequested) {
+    assertIndependentHoldoutExecutionPolicy({
       requested: true,
       aggregateOnly,
-      jobEnabled: process.env.FISCAL_HOLDOUT_JOB,
-      accessToken: process.env.FISCAL_HOLDOUT_ACCESS_TOKEN,
+      jobEnabled: process.env.FISCAL_INDEPENDENT_HOLDOUT_JOB,
+      accessToken: process.env.FISCAL_INDEPENDENT_HOLDOUT_ACCESS_TOKEN,
       repositoryRoot,
-      holdoutRoot,
+      holdoutRoot: independentHoldoutRoot,
     });
-    privateRecords = await loadPrivateHoldoutCorpus(holdoutRoot);
-    if (privateRecords.length === 0) throw new Error("HOLDOUT_CORPUS_EMPTY");
+    independentRecords = await loadIndependentHoldoutCorpus(
+      independentHoldoutRoot,
+    );
+    if (independentRecords.length === 0) {
+      throw new Error("INDEPENDENT_HOLDOUT_CORPUS_EMPTY");
+    }
   }
   const report = summarizeTaxCorpusValidation(
-    [...publicRecords, ...privateRecords],
+    [...publicRecords, ...engineeringRecords, ...independentRecords],
     REQUIRED_TAX_CORPUS_FAMILIES,
-    { holdoutEvaluated: holdoutRequested },
+    { independentHoldoutEvaluated: independentHoldoutRequested },
   );
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   if (!report.valid) process.exitCode = 1;

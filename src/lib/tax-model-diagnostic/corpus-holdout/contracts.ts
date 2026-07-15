@@ -1,69 +1,108 @@
 import type { FiscalDocumentType, JsonValue } from "../extractors/contracts";
 
 export const TAX_CORPUS_MANIFEST_VERSION =
-  "tax-corpus-document.2026-07.v1" as const;
+  "tax-corpus-document.2026-07.v2" as const;
 export const TAX_CORPUS_REPORT_VERSION =
-  "tax-corpus-validation-report.2026-07.v1" as const;
+  "tax-corpus-validation-report.2026-07.v2" as const;
 
-export type TaxCorpusSourceClass =
+export type CorpusSourceClass =
   | "SYNTHETIC"
   | "OFFICIAL_GENERATED"
   | "REAL_ANONYMIZED"
-  | "HOLDOUT";
+  | "ENGINEERING_HOLDOUT"
+  | "INDEPENDENT_HOLDOUT";
 
-export type TaxCorpusAdmissionStatus = "PENDING" | "ADMITTED" | "REJECTED";
-export type TaxCorpusStorageScope = "PUBLIC" | "PRIVATE_HOLDOUT";
+export type TaxCorpusSourceClass = CorpusSourceClass;
+export type TaxCorpusStorageScope =
+  "PUBLIC" | "ENGINEERING_HOLDOUT" | "PRIVATE_INDEPENDENT_HOLDOUT";
 export type TaxCorpusDeliveryMode = "NATIVE" | "OCR";
+export type TaxCorpusGenerationChannel =
+  | "SYNTHETIC_FIXTURE"
+  | "OFFICIAL_SERVICE"
+  | "REAL_SUBMISSION"
+  | "ENGINEERING_PIPELINE"
+  | "INDEPENDENT_OFFICIAL"
+  | "INDEPENDENT_REAL";
+export type TaxCorpusExpectedDecision = "ADMIT" | "MANUAL_REVIEW" | "REJECT";
 
 export interface TaxCorpusExpectedField {
   fieldId: string;
   expectedValue: JsonValue;
 }
 
-export interface TaxCorpusAnonymizationReview {
-  visibleLayerChecked: boolean;
-  hiddenTextChecked: boolean;
-  metadataChecked: boolean;
-  acroFormChecked: boolean;
-  xfaChecked: boolean;
-  annotationsChecked: boolean;
-  attachmentsChecked: boolean;
-  qrChecked: boolean;
-  barcodeChecked: boolean;
-  fileNameChecked: boolean;
-  automatedScanPassed: boolean;
-  humanReviewCompleted: boolean;
-}
-
-export interface TaxCorpusDocumentManifest {
-  manifestVersion: typeof TAX_CORPUS_MANIFEST_VERSION;
-  fixtureId: string;
-  family: FiscalDocumentType;
-  fiscalYear: number;
-  layoutVersion: string;
-  sourceClass: TaxCorpusSourceClass;
-  expectedFields: readonly TaxCorpusExpectedField[];
-  forbiddenInferences: readonly string[];
-  sha256: string;
-  admissionStatus: TaxCorpusAdmissionStatus;
-  anonymizationVerified: boolean;
-  holdoutMembership: boolean;
-  completeDocument: boolean;
+export interface TaxCorpusExtractionExpected {
+  classification: FiscalDocumentType;
   deliveryMode: TaxCorpusDeliveryMode;
-  assetFile: string;
-  containsRealPersonalData: boolean;
-  authorizationRecorded: boolean;
-  officialGenerationVerified: boolean;
-  anonymizationReview: TaxCorpusAnonymizationReview | null;
+  fields: readonly TaxCorpusExpectedField[];
   missingFields: readonly string[];
 }
 
+export interface TaxCorpusVerificationEvidence {
+  consentRecorded: boolean | null;
+  provenanceRecorded: boolean | null;
+  officialGenerationVerified: boolean | null;
+  visibleLayerChecked: boolean | null;
+  hiddenTextChecked: boolean | null;
+  acroFormChecked: boolean | null;
+  xfaChecked: boolean | null;
+  metadataChecked: boolean | null;
+  annotationsChecked: boolean | null;
+  optionalLayersChecked: boolean | null;
+  attachmentsChecked: boolean | null;
+  scriptsChecked: boolean | null;
+  qrChecked: boolean | null;
+  barcodeChecked: boolean | null;
+  fileNameChecked: boolean | null;
+  piiScanPassed: boolean | null;
+  anonymizationReviewPassed: boolean | null;
+  layoutClassified: boolean | null;
+  automatedScanPassed: boolean | null;
+  humanReviewCompleted: boolean | null;
+  reviewerId: string | null;
+  reviewedAt: string | null;
+}
+
+/**
+ * Canonical admission manifest. The twenty fields below are the stable corpus
+ * contract; the remaining transport fields keep assets verifiable without
+ * placing private documents or fixture-specific paths in reports.
+ */
+export interface CorpusDocument {
+  manifestVersion: typeof TAX_CORPUS_MANIFEST_VERSION;
+  fixtureId: string;
+  family: FiscalDocumentType;
+  documentType: FiscalDocumentType;
+  fiscalYear: number;
+  period: string | null;
+  layoutVersion: string;
+  generationChannel: TaxCorpusGenerationChannel;
+  sourceClass: CorpusSourceClass;
+  extractionExpected: TaxCorpusExtractionExpected;
+  prohibitedInferences: readonly string[];
+  expectedDecision: TaxCorpusExpectedDecision;
+  sha256: string;
+  admitted: boolean;
+  incomplete: boolean;
+  holdout: boolean;
+  anonymizationVerified: boolean;
+  verificationEvidence: TaxCorpusVerificationEvidence;
+  duplicateOf: string | null;
+  createdAt: string;
+  admittedAt: string | null;
+
+  assetFile: string;
+  containsRealPersonalData: boolean;
+}
+
+export type TaxCorpusDocumentManifest = CorpusDocument;
+
 export interface TaxCorpusManifestRecord {
-  manifest: TaxCorpusDocumentManifest;
+  manifest: CorpusDocument;
   storageScope: TaxCorpusStorageScope;
   actualSha256: string;
 }
 
+/** Evidence collected before an admission decision is allowed. */
 export interface TaxCorpusAdmissionInspection {
   parseable: boolean;
   encrypted: boolean;
@@ -72,10 +111,27 @@ export interface TaxCorpusAdmissionInspection {
   unexpectedHiddenLayerCount: number;
   piiFindingCount: number;
   actualSha256: string;
+  consentRecorded: boolean;
+  provenanceRecorded: boolean;
+  visibleLayerChecked: boolean;
+  hiddenTextChecked: boolean;
+  acroFormChecked: boolean;
+  xfaChecked: boolean;
+  metadataChecked: boolean;
+  annotationsChecked: boolean;
+  optionalLayersChecked: boolean;
+  attachmentsChecked: boolean;
+  scriptsChecked: boolean;
+  qrChecked: boolean;
+  barcodeChecked: boolean;
+  fileNameChecked: boolean;
+  anonymizationVerified: boolean;
+  layoutClassified: boolean;
+  manualReviewCompleted: boolean;
 }
 
 export interface TaxCorpusAdmissionDecision {
-  outcome: "ADMIT" | "QUARANTINE" | "REJECT";
+  outcome: TaxCorpusExpectedDecision;
   blockingCodes: readonly string[];
   warningCodes: readonly string[];
 }
@@ -86,23 +142,31 @@ export interface TaxCorpusValidationReport {
   manifestCount: number;
   familyCount: number;
   missingFamilies: readonly FiscalDocumentType[];
-  sourceClassCounts: Readonly<Record<TaxCorpusSourceClass, number>>;
-  admissionCounts: Readonly<Record<TaxCorpusAdmissionStatus, number>>;
+  sourceClassCounts: Readonly<Record<CorpusSourceClass, number>>;
   fiscalYears: readonly number[];
+  fiscalYearCount: number;
   layoutCount: number;
   nativeCount: number;
   ocrCount: number;
   incompleteCount: number;
-  knownMissingFieldCount: number;
+  expectedFieldCount: number;
+  prohibitedInferenceCount: number;
   duplicateFixtureIdCount: number;
   duplicateSha256Count: number;
+  duplicateReferenceCount: number;
   invalidManifestCount: number;
+  admissionAnomalyCount: number;
   holdoutContaminationCount: number;
-  anonymizationFailureCount: number;
+  anonymizationAnomalyCount: number;
   hashMismatchCount: number;
-  officialGeneratedAvailable: boolean;
-  realAnonymizedAvailable: boolean;
-  holdoutEvaluated: boolean;
+  admittedCount: number;
+  officialGeneratedCount: number;
+  realDocumentCount: number;
+  engineeringHoldoutCount: number;
+  independentHoldoutCount: number;
+  engineeringHoldoutAvailable: boolean;
+  independentHoldoutAvailable: boolean;
+  independentHoldoutEvaluated: boolean;
   aggregateOnly: true;
 }
 
@@ -110,25 +174,30 @@ export interface TaxCorpusMetricSample {
   family: FiscalDocumentType;
   fiscalYear: number;
   layoutVersion: string;
+  sourceClass: CorpusSourceClass;
   deliveryMode: TaxCorpusDeliveryMode;
-  recognized: boolean;
+  expectedClassification: FiscalDocumentType;
+  actualClassification: FiscalDocumentType | null;
   expectedFieldCount: number;
   correctFieldCount: number;
   falsePositiveCount: number;
-  forbiddenInferenceCount: number;
+  falseNegativeCount: number;
+  prohibitedInferenceCount: number;
   sentToReview: boolean;
 }
 
 export interface TaxCorpusMetricReport {
   sampleCount: number;
-  recognitionRate: number;
-  fieldPrecision: number;
+  classificationAccuracy: number;
+  fieldAccuracy: number;
   falsePositiveCount: number;
-  forbiddenInferenceCount: number;
+  falseNegativeCount: number;
+  prohibitedInferenceCount: number;
   reviewRate: number;
 }
 
 export interface TaxCorpusMetricGroupReport extends TaxCorpusMetricReport {
-  dimension: "FAMILY" | "DELIVERY_MODE" | "FISCAL_YEAR" | "LAYOUT";
+  dimension:
+    "FAMILY" | "DELIVERY_MODE" | "FISCAL_YEAR" | "LAYOUT" | "SOURCE_CLASS";
   key: string;
 }

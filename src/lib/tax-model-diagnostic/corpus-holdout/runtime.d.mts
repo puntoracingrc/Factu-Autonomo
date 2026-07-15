@@ -29,7 +29,7 @@ export function evaluateTaxCorpusAdmission(
 export function summarizeTaxCorpusValidation(
   records: readonly TaxCorpusManifestRecord[],
   requiredFamilies: readonly FiscalDocumentType[],
-  options?: { holdoutEvaluated?: boolean },
+  options?: { independentHoldoutEvaluated?: boolean },
 ): TaxCorpusValidationReport;
 
 export function summarizeTaxCorpusMetrics(
@@ -40,7 +40,7 @@ export function summarizeTaxCorpusMetricsByDimension(
   samples: readonly TaxCorpusMetricSample[],
 ): readonly TaxCorpusMetricGroupReport[];
 
-export function assertHoldoutExecutionPolicy(input: {
+export function assertIndependentHoldoutExecutionPolicy(input: {
   requested: boolean;
   aggregateOnly: boolean;
   jobEnabled: string | undefined;
@@ -49,17 +49,20 @@ export function assertHoldoutExecutionPolicy(input: {
   holdoutRoot: string | undefined;
 }): Readonly<{
   allowed: boolean;
-  code: "NOT_REQUESTED" | "AUTHORIZED_AGGREGATE_JOB";
+  code: "NOT_REQUESTED" | "AUTHORIZED_AGGREGATE_INDEPENDENT_HOLDOUT_JOB";
 }>;
 
+export const assertHoldoutExecutionPolicy: typeof assertIndependentHoldoutExecutionPolicy;
+
 export const TAX_CORPUS_RUNTIME_CONSTANTS: Readonly<{
-  manifestVersion: "tax-corpus-document.2026-07.v1";
-  reportVersion: "tax-corpus-validation-report.2026-07.v1";
+  manifestVersion: "tax-corpus-document.2026-07.v2";
+  reportVersion: "tax-corpus-validation-report.2026-07.v2";
   sourceClasses: readonly [
     "SYNTHETIC",
     "OFFICIAL_GENERATED",
     "REAL_ANONYMIZED",
-    "HOLDOUT",
+    "ENGINEERING_HOLDOUT",
+    "INDEPENDENT_HOLDOUT",
   ];
 }>;
 

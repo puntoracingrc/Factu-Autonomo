@@ -1,5 +1,6 @@
 export * from "./contracts";
 export {
+  assertIndependentHoldoutExecutionPolicy,
   assertHoldoutExecutionPolicy,
   evaluateTaxCorpusAdmission,
   summarizeTaxCorpusMetrics,

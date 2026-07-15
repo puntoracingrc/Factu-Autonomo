@@ -73,18 +73,94 @@ function expectedFieldsFromCurrent(manifest) {
 }
 
 function expectedFieldsFromPending(manifest) {
-  return Object.entries(manifest.expectedFields).map(([fieldId, expectedValue]) => ({
-    fieldId,
-    expectedValue,
-  }));
+  return Object.entries(manifest.expectedFields).map(
+    ([fieldId, expectedValue]) => ({
+      fieldId,
+      expectedValue,
+    }),
+  );
 }
 
-function explicitMissingFields(completeDocument, missingFields) {
-  if (completeDocument) return [];
+function explicitMissingFields(incomplete, missingFields) {
+  if (!incomplete) return [];
   const normalized = [...new Set(missingFields.filter(Boolean))];
   return normalized.length > 0
     ? normalized
     : ["UNKNOWN_FIELDS_OUTSIDE_DOCUMENT_SCOPE"];
+}
+
+function syntheticVerificationEvidence() {
+  return {
+    consentRecorded: null,
+    provenanceRecorded: null,
+    officialGenerationVerified: null,
+    visibleLayerChecked: null,
+    hiddenTextChecked: null,
+    acroFormChecked: null,
+    xfaChecked: null,
+    metadataChecked: null,
+    annotationsChecked: null,
+    optionalLayersChecked: null,
+    attachmentsChecked: null,
+    scriptsChecked: null,
+    qrChecked: null,
+    barcodeChecked: null,
+    fileNameChecked: null,
+    piiScanPassed: null,
+    anonymizationReviewPassed: null,
+    layoutClassified: null,
+    automatedScanPassed: null,
+    humanReviewCompleted: null,
+    reviewerId: null,
+    reviewedAt: null,
+  };
+}
+
+function syntheticManifest({
+  fixtureId,
+  family,
+  fiscalYear,
+  period,
+  layoutVersion,
+  fields,
+  prohibitedInferences,
+  sourceSha256,
+  incomplete,
+  deliveryMode,
+  assetFile,
+  missingFields,
+  createdAt,
+}) {
+  return {
+    manifestVersion: "tax-corpus-document.2026-07.v2",
+    fixtureId,
+    family,
+    documentType: family,
+    fiscalYear,
+    period: period ?? null,
+    layoutVersion,
+    generationChannel: "SYNTHETIC_FIXTURE",
+    sourceClass: "SYNTHETIC",
+    extractionExpected: {
+      classification: family,
+      deliveryMode,
+      fields,
+      missingFields: explicitMissingFields(incomplete, missingFields),
+    },
+    prohibitedInferences,
+    expectedDecision: incomplete ? "MANUAL_REVIEW" : "ADMIT",
+    sha256: sourceSha256,
+    admitted: true,
+    incomplete,
+    holdout: false,
+    anonymizationVerified: false,
+    verificationEvidence: syntheticVerificationEvidence(),
+    duplicateOf: null,
+    createdAt,
+    admittedAt: null,
+    assetFile,
+    containsRealPersonalData: false,
+  };
 }
 
 async function currentCorpusRecords(repositoryRoot) {
@@ -96,29 +172,27 @@ async function currentCorpusRecords(repositoryRoot) {
       const source = await json(path);
       const assetPath = join(root, source.asset.pdfPath);
       const bytes = await readFile(assetPath);
-      const completeDocument = source.expectedEnvelope.isComplete === true;
-      const manifest = {
-        manifestVersion: "tax-corpus-document.2026-07.v1",
+      const incomplete = source.expectedEnvelope.isComplete !== true;
+      const createdAt = source.source?.officialReference?.capturedOn;
+      if (typeof createdAt !== "string")
+        throw new Error("CORPUS_CREATED_AT_MISSING");
+      const manifest = syntheticManifest({
         fixtureId: source.fixtureId,
         family: source.documentType,
         fiscalYear: source.fiscalYear,
+        period: source.period,
         layoutVersion: source.formVersion,
-        sourceClass: "SYNTHETIC",
-        expectedFields: expectedFieldsFromCurrent(source),
-        forbiddenInferences: source.mustNotInfer.map((inference) => inference.code),
-        sha256: source.source.sha256,
-        admissionStatus: "ADMITTED",
-        anonymizationVerified: false,
-        holdoutMembership: false,
-        completeDocument,
+        fields: expectedFieldsFromCurrent(source),
+        prohibitedInferences: source.mustNotInfer.map(
+          (inference) => inference.code,
+        ),
+        sourceSha256: source.source.sha256,
+        incomplete,
         deliveryMode: "NATIVE",
         assetFile: basename(assetPath),
-        containsRealPersonalData: false,
-        authorizationRecorded: false,
-        officialGenerationVerified: false,
-        anonymizationReview: null,
-        missingFields: explicitMissingFields(completeDocument, []),
-      };
+        missingFields: [],
+        createdAt,
+      });
       return { manifest, storageScope: "PUBLIC", actualSha256: sha256(bytes) };
     }),
   );
@@ -129,6 +203,10 @@ async function pending29Records(repositoryRoot) {
     repositoryRoot,
     "test/fixtures/tax-model-diagnostic/pending29-v1",
   );
+  const corpusManifest = await json(join(root, "corpus-manifest.json"));
+  if (typeof corpusManifest.createdAt !== "string") {
+    throw new Error("CORPUS_CREATED_AT_MISSING");
+  }
   const paths = await filesBelow(join(root, "manifests"), ".json");
   return Promise.all(
     paths.map(async (path) => {
@@ -137,33 +215,23 @@ async function pending29Records(repositoryRoot) {
       if (!family) throw new Error("PENDING29_FAMILY_NOT_MAPPED");
       const assetPath = join(root, source.pdfFile);
       const bytes = await readFile(assetPath);
-      const completeDocument = source.completeDocument === true;
-      const manifest = {
-        manifestVersion: "tax-corpus-document.2026-07.v1",
+      const incomplete = source.completeDocument !== true;
+      const manifest = syntheticManifest({
         fixtureId: source.fixtureId,
         family,
         fiscalYear: source.fiscalYear,
+        period: source.period,
         layoutVersion: `SYNTHETIC_PENDING29_2_0_${source.fiscalYear}`,
-        sourceClass: "SYNTHETIC",
-        expectedFields: expectedFieldsFromPending(source),
-        forbiddenInferences: [...source.mustNotInfer],
-        sha256: source.sha256,
-        admissionStatus: "ADMITTED",
-        anonymizationVerified: false,
-        holdoutMembership: false,
-        completeDocument,
+        fields: expectedFieldsFromPending(source),
+        prohibitedInferences: [...source.mustNotInfer],
+        sourceSha256: source.sha256,
+        incomplete,
         deliveryMode:
           source.visualVariant === "NATIVE_TEXT_PDF" ? "NATIVE" : "OCR",
         assetFile: basename(assetPath),
-        containsRealPersonalData: false,
-        authorizationRecorded: false,
-        officialGenerationVerified: false,
-        anonymizationReview: null,
-        missingFields: explicitMissingFields(
-          completeDocument,
-          source.missingOrAmbiguousFields ?? [],
-        ),
-      };
+        missingFields: source.missingOrAmbiguousFields ?? [],
+        createdAt: corpusManifest.createdAt,
+      });
       return { manifest, storageScope: "PUBLIC", actualSha256: sha256(bytes) };
     }),
   );
@@ -199,7 +267,7 @@ export async function loadPublicTaxCorpus(repositoryRoot = process.cwd()) {
   const root = resolve(repositoryRoot);
   const admittedPublicRoot = join(
     root,
-    "test/fixtures/tax-model-diagnostic/corpus-holdout-v1/public",
+    "test/fixtures/tax-model-diagnostic/corpus-holdout-v2/public",
   );
   return [
     ...(await currentCorpusRecords(root)),
@@ -208,6 +276,16 @@ export async function loadPublicTaxCorpus(repositoryRoot = process.cwd()) {
   ];
 }
 
-export async function loadPrivateHoldoutCorpus(holdoutRoot) {
-  return explicitRecords(resolve(holdoutRoot), "PRIVATE_HOLDOUT");
+export async function loadEngineeringHoldoutCorpus(
+  repositoryRoot = process.cwd(),
+) {
+  const root = join(
+    resolve(repositoryRoot),
+    "test/fixtures/tax-model-diagnostic/corpus-holdout-v2/engineering",
+  );
+  return explicitRecords(root, "ENGINEERING_HOLDOUT");
+}
+
+export async function loadIndependentHoldoutCorpus(holdoutRoot) {
+  return explicitRecords(resolve(holdoutRoot), "PRIVATE_INDEPENDENT_HOLDOUT");
 }

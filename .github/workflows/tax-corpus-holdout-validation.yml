@@ -24,8 +24,8 @@ on:
       - "test/fixtures/tax-model-diagnostic/pending29-v1/**"
   workflow_dispatch:
     inputs:
-      run_holdout:
-        description: "Run aggregate-only evaluation on the isolated holdout runner"
+      run_independent_holdout:
+        description: "Run aggregate-only evaluation on the isolated independent holdout runner"
         required: true
         default: false
         type: boolean
@@ -50,23 +50,27 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run fiscal:corpus:validate
-      - name: Confirm private holdout is not tracked
+      - name: Confirm real and independent holdout material is not tracked
         run: |
-          if git ls-files | grep -E '(^|/)(holdout-private|private-holdout)(/|$)'; then
-            echo 'Private holdout material must remain outside Git.' >&2
+          if git ls-files test/fixtures/tax-model-diagnostic | grep -E '(^|/)(real-anonymized|independent-holdout|holdout-private|private-holdout)(/|$)'; then
+            echo 'Real and independent holdout material must remain outside Git.' >&2
+            exit 1
+          fi
+          if git grep -l -E '"sourceClass"[[:space:]]*:[[:space:]]*"(REAL_ANONYMIZED|INDEPENDENT_HOLDOUT)"' -- test/fixtures/tax-model-diagnostic; then
+            echo 'Tracked fixture manifests cannot admit real or independent holdout documents.' >&2
             exit 1
           fi
 
-  protected-holdout-evaluation:
-    name: Protected aggregate-only holdout evaluation
-    if: github.event_name == 'workflow_dispatch' && inputs.run_holdout
-    runs-on: [self-hosted, fiscal-holdout]
-    environment: fiscal-holdout
+  protected-independent-holdout-evaluation:
+    name: Protected aggregate-only independent holdout evaluation
+    if: github.event_name == 'workflow_dispatch' && inputs.run_independent_holdout
+    runs-on: [self-hosted, fiscal-independent-holdout]
+    environment: fiscal-independent-holdout
     timeout-minutes: 20
     env:
-      FISCAL_HOLDOUT_JOB: "1"
-      FISCAL_HOLDOUT_ROOT: ${{ secrets.FISCAL_HOLDOUT_ROOT }}
-      FISCAL_HOLDOUT_ACCESS_TOKEN: ${{ secrets.FISCAL_HOLDOUT_ACCESS_TOKEN }}
+      FISCAL_INDEPENDENT_HOLDOUT_JOB: "1"
+      FISCAL_INDEPENDENT_HOLDOUT_ROOT: ${{ secrets.FISCAL_INDEPENDENT_HOLDOUT_ROOT }}
+      FISCAL_INDEPENDENT_HOLDOUT_ACCESS_TOKEN: ${{ secrets.FISCAL_INDEPENDENT_HOLDOUT_ACCESS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -74,4 +78,4 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - run: npm run fiscal:corpus:validate -- --holdout --aggregate-only
+      - run: npm run fiscal:corpus:validate -- --independent-holdout --aggregate-only

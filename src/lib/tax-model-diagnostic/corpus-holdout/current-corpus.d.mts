@@ -7,6 +7,10 @@ export function loadPublicTaxCorpus(
   repositoryRoot?: string,
 ): Promise<readonly TaxCorpusManifestRecord[]>;
 
-export function loadPrivateHoldoutCorpus(
+export function loadEngineeringHoldoutCorpus(
+  repositoryRoot?: string,
+): Promise<readonly TaxCorpusManifestRecord[]>;
+
+export function loadIndependentHoldoutCorpus(
   holdoutRoot: string,
 ): Promise<readonly TaxCorpusManifestRecord[]>;
