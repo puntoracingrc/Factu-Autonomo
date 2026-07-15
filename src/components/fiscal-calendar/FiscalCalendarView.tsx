@@ -100,11 +100,11 @@ function safeErrorMessage(value: unknown): string {
 function obligationFallbackMessage(view: FiscalCalendarObligationView): string {
   switch (view.fallbackReason) {
     case "RULES_PENDING_REVIEW":
-      return "Las reglas del diagnóstico siguen en revisión fiscal. Hasta que estén aprobadas, se muestran todos los vencimientos.";
+      return "La recomendación es orientativa y las reglas siguen en revisión fiscal. Puedes consultar todos los vencimientos en «Todos».";
     case "ASSESSMENT_NOT_RESOLVED":
-      return "El diagnóstico todavía necesita revisión o más información. Hasta resolverlo, se muestran todos los vencimientos.";
+      return "El diagnóstico todavía necesita revisión o más información. La vista orientativa conserva «Todos» como listado completo.";
     case "PROFILE_NOT_COMPLETE":
-      return "Faltan datos o existen conflictos en el perfil fiscal. Hasta completarlo, se muestran todos los vencimientos.";
+      return "Faltan datos o existen conflictos en el perfil fiscal. La vista orientativa los mantiene por confirmar y «Todos» conserva el calendario completo.";
     case "UNSUPPORTED_TERRITORY":
       return "El diagnóstico no puede personalizar este territorio con seguridad. Se muestran todos los vencimientos.";
     case "NO_PUBLISHED_ASSESSMENT":
@@ -404,10 +404,13 @@ export function FiscalCalendarView({
         obligationView.visibleEventIds.has(event.id),
       );
     }
-    return events;
+    return events.filter((event) =>
+      obligationView.recommendedEventIds.has(event.id),
+    );
   }, [
     effectiveScope,
     events,
+    obligationView.recommendedEventIds,
     obligationView.status,
     obligationView.visibleEventIds,
   ]);
@@ -554,8 +557,8 @@ export function FiscalCalendarView({
             </p>
             <p className="mt-2">
               «Mis obligaciones» organiza los eventos mediante la última foto
-              guardada de tu diagnóstico fiscal. Mientras sus reglas sigan en
-              revisión, no se oculta ningún vencimiento.
+              guardada de tu diagnóstico fiscal. «Todos» conserva siempre el
+              calendario completo.
             </p>
           </div>
         </div>
@@ -580,7 +583,9 @@ export function FiscalCalendarView({
               mineLabel="Mis obligaciones"
               mineCount={
                 personalizationAvailable
-                  ? obligationView.visibleEventIds.size
+                  ? obligationView.status === "ORIENTATIVE"
+                    ? obligationView.recommendedEventIds.size
+                    : obligationView.visibleEventIds.size
                   : 0
               }
               allCount={events.length}
@@ -619,13 +624,11 @@ export function FiscalCalendarView({
                     aria-hidden="true"
                   />
                   <p>
-                    <strong>Vista orientativa.</strong>{" "}
-                    {obligationView.fallbackReason === "RULES_PENDING_REVIEW"
-                      ? "Las reglas del diagnóstico siguen pendientes de revisión fiscal."
-                      : "El diagnóstico todavía necesita revisión o más información."}{" "}
-                    Los avisos que podrían afectarte se destacan y quedan
-                    marcados «por confirmar», pero se conservan todos y no se
-                    excluye ninguno. Revisa o actualiza tu foto en{" "}
+                    <strong>Calendario recomendado orientativo.</strong>{" "}
+                    Muestra los modelos probablemente necesarios, posibles,
+                    pendientes de información y los que hayas añadido. La
+                    vista «Todos» conserva siempre el calendario completo.
+                    Revisa o actualiza tu foto en{" "}
                     <Link
                       href="/consultor-fiscal/diagnostico"
                       className="font-bold underline underline-offset-2 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
@@ -835,7 +838,7 @@ export function FiscalCalendarView({
                   {visibleEvents.length === 1 ? "" : "s"}
                   {effectiveScope === "MINE" &&
                   obligationView.status === "ORIENTATIVE"
-                    ? ` · ${orientationPriorityEventIds.size} relacionados destacados · sin exclusiones · ${visibleReviewCount} por confirmar`
+                    ? ` · ${orientationPriorityEventIds.size} relacionados destacados · ${visibleReviewCount} por confirmar · Todos sigue disponible`
                     : effectiveScope === "MINE"
                       ? ` · ${obligationView.excludedCount} no aplicables ocultos · ${visibleReviewCount} por confirmar`
                       : ""}

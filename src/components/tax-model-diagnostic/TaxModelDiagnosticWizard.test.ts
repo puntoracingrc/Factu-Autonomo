@@ -119,24 +119,22 @@ describe("tax model diagnostic UI contract", () => {
       "Siguiente paso",
       "Fuentes oficiales y trazabilidad",
       "Sujeto:",
+      "Comprueba estas posibles excepciones",
+      "Añadir manualmente",
     ]) {
       expect(results).toContain(copy);
     }
   });
 
-  it("mantiene visibles los modelos improbables mientras falta aprobación fiscal", () => {
-    expect(results).toContain("isTaxObligationExclusionAuthorized");
-    expect(results).toContain(
-      "Resultado orientativo · pendiente de revisión fiscal",
-    );
-    expect(results).toContain(
-      "Modelos improbables · pendientes de revisión fiscal",
-    );
-    expect(results).toContain("No se ha");
-    expect(results).toContain("eliminado ni excluido ninguno");
-    expect(results).toContain(
-      "ninguna mejora del OCR, del corpus o de las pruebas técnicas",
-    );
-    expect(results).toContain("autoriza una exclusión");
+  it("consume los cinco estados orientativos sin bloquear por revisión fiscal", () => {
+    expect(results).toContain("TAX_MODEL_RECOMMENDATION_LABELS");
+    expect(results).toContain("Probablemente necesarios");
+    expect(results).toContain("Podrían ser necesarios");
+    expect(results).toContain("Falta información");
+    expect(results).toContain("Añadidos por ti");
+    expect(results).toContain("Probablemente no necesarios");
+    expect(results).toContain("TAX_MODEL_RECOMMENDATION_DISCLAIMER");
+    expect(results).not.toContain("isTaxObligationExclusionAuthorized");
+    expect(results).not.toContain("obligación confirmada");
   });
 });

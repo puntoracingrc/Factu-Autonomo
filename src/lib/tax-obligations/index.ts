@@ -8,4 +8,5 @@ export {
   type ExclusionAuthorizationResult,
 } from "./rule-exclusion-authorization";
 export { selectStoredTaxObligationsAssessment } from "./select-stored-assessment";
+export * from "./recommendations";
 export * from "./contracts";

@@ -24,6 +24,11 @@ import {
   type FiscalModelPersonalizationV1,
 } from "@/lib/fiscal-advisory-models";
 import {
+  TAX_MODEL_RECOMMENDATION_LABELS,
+  type TaxModelRecommendationItemV1,
+  type TaxModelRecommendationStatus,
+} from "@/lib/tax-obligations";
+import {
   filterPublicAeatModelSearchEntriesInteractiveV2,
   getFiscalModelCatalogFocusPresentationV1,
   type PublicAeatModelSearchEntryV2,
@@ -43,6 +48,7 @@ interface PersonalizationContextValue {
   assessmentCodes: ReadonlySet<string>;
   reviewCodes: ReadonlySet<string>;
   manualCodes: ReadonlySet<string>;
+  recommendationsByCode: ReadonlyMap<string, TaxModelRecommendationItemV1>;
   toggleManualModel: (modelCode: string, selected: boolean) => void;
 }
 
@@ -62,11 +68,13 @@ function fallbackMessage(
 ): string {
   switch (personalization.fallbackReason) {
     case "RULES_PENDING_REVIEW":
-      return "Las reglas del diagnóstico siguen en revisión fiscal. Hasta que estén aprobadas, el catálogo completo permanece visible.";
+      return "Tu selección orientativa aún puede necesitar ajustes. El catálogo completo permanece visible.";
     case "ASSESSMENT_NOT_RESOLVED":
       return "El diagnóstico todavía necesita revisión o más información. Hasta resolverlo, el catálogo completo permanece visible.";
     case "PROFILE_NOT_COMPLETE":
-      return "Faltan datos o existen conflictos en el perfil fiscal. Hasta completarlo, el catálogo completo permanece visible.";
+      return "Faltan datos o existen contradicciones. El motor los mostrará como información pendiente sin convertirlos en una respuesta negativa.";
+    case "UNSUPPORTED_TERRITORY":
+      return "Este diagnóstico todavía no cubre tu territorio. El catálogo completo permanece disponible.";
     case "INVALID_CATALOG":
       return "No se ha podido validar la vista personalizada. El catálogo completo se mantiene visible de forma segura.";
     case "NO_PUBLISHED_ASSESSMENT":
@@ -108,7 +116,7 @@ export function FiscalModelCatalogBrowser({
     ],
   );
   const personalizationEnabled =
-    ready && personalization.status === "PERSONALIZED";
+    ready && personalization.status !== "ALL_ONLY";
   const effectiveScope: AdvisoryScope = personalizationEnabled
     ? requestedScope
     : "ALL";
@@ -166,6 +174,12 @@ export function FiscalModelCatalogBrowser({
       assessmentCodes: new Set(personalization.assessmentModelCodes),
       reviewCodes: new Set(personalization.reviewModelCodes),
       manualCodes: new Set(personalization.manualModelCodes),
+      recommendationsByCode: new Map(
+        personalization.recommendations.map((recommendation) => [
+          recommendation.modelCode,
+          recommendation,
+        ]),
+      ),
       toggleManualModel,
     }),
     [personalization, personalizationEnabled, toggleManualModel],
@@ -384,11 +398,15 @@ export function FiscalModelCatalogBrowser({
                   </div>
                 </div>
               ) : (
-                <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  Reúne los modelos del diagnóstico y los que añadas
-                  manualmente. Los casos dudosos siguen visibles para que los
-                  confirmes.
-                </p>
+                <div className="space-y-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  <p>
+                    «Mis modelos» reúne los probablemente necesarios, los
+                    posibles, los que necesitan información y los que añadas.
+                  </p>
+                  <p className="font-semibold text-slate-700 dark:text-slate-200">
+                    «Todos los modelos» permanece siempre disponible.
+                  </p>
+                </div>
               )}
             </div>
           </div>
@@ -410,21 +428,42 @@ export function FiscalModelManualSelectionAction({
   const fromAssessment = context.assessmentCodes.has(modelCode);
   const needsReview = context.reviewCodes.has(modelCode);
   const manuallySelected = context.manualCodes.has(modelCode);
+  const recommendation = context.recommendationsByCode.get(modelCode);
+  const displayStatus: TaxModelRecommendationStatus | null = manuallySelected
+    ? "MANUALLY_SELECTED"
+    : recommendation?.recommendationStatus ?? null;
+  const statusClasses: Record<TaxModelRecommendationStatus, string> = {
+    LIKELY_REQUIRED:
+      "bg-emerald-100 text-emerald-950 dark:bg-emerald-950 dark:text-emerald-100",
+    POSSIBLY_REQUIRED:
+      "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100",
+    UNLIKELY_REQUIRED:
+      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
+    NEEDS_INFORMATION:
+      "bg-orange-100 text-orange-950 dark:bg-orange-950 dark:text-orange-100",
+    MANUALLY_SELECTED:
+      "bg-blue-100 text-blue-950 dark:bg-blue-950 dark:text-blue-100",
+  };
 
   return (
     <div className="mt-3 space-y-2">
-      {fromAssessment && (
+      {displayStatus && (
         <p
-          className={`rounded-lg px-2.5 py-1.5 text-center text-xs font-bold ${
-            needsReview
-              ? "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100"
-              : "bg-blue-100 text-blue-950 dark:bg-blue-950 dark:text-blue-100"
-          }`}
+          className={`rounded-lg px-2.5 py-1.5 text-center text-xs font-bold ${statusClasses[displayStatus]}`}
         >
-          {needsReview
-            ? "Confirmar en el diagnóstico"
-            : "Incluido por tu diagnóstico"}
+          {TAX_MODEL_RECOMMENDATION_LABELS[displayStatus]}
         </p>
+      )}
+      {recommendation && (
+        <div className="space-y-1 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+          <p>{recommendation.reason}</p>
+          {needsReview && recommendation.missingInformation.length > 0 && (
+            <p>
+              <strong>Falta:</strong>{" "}
+              {recommendation.missingInformation.join(" · ")}
+            </p>
+          )}
+        </div>
       )}
       <button
         type="button"
@@ -442,7 +481,11 @@ export function FiscalModelManualSelectionAction({
           className={`h-4 w-4 ${manuallySelected ? "fill-current" : ""}`}
           aria-hidden="true"
         />
-        {manuallySelected ? "Quitar de Mis modelos" : "Añadir a Mis modelos"}
+        {manuallySelected
+          ? "Quitar selección manual"
+          : fromAssessment
+            ? "Añadir también manualmente"
+            : "Añadir a Mis modelos"}
       </button>
     </div>
   );

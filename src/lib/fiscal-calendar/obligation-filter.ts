@@ -1,9 +1,11 @@
 import type { TaxModelDiagnosticSession } from "@/lib/tax-model-diagnostic/contracts";
 import {
+  buildTaxModelRecommendationsV1,
   isTaxObligationExclusionAuthorized,
   normalizeTaxObligationModelCode,
   selectStoredTaxObligationsAssessment,
   type TaxObligationModelCode,
+  type TaxModelRecommendationStatus,
 } from "@/lib/tax-obligations";
 
 import { extractFiscalCalendarModelCodes } from "./model-reference-links";
@@ -35,6 +37,7 @@ export interface FiscalCalendarEventObligationDecision {
   requiresConfirmation: boolean;
   manuallySelected: boolean;
   modelCode: TaxObligationModelCode | null;
+  recommendationStatus: TaxModelRecommendationStatus | null;
   reason: FiscalCalendarEventObligationReason;
 }
 
@@ -43,6 +46,7 @@ export interface FiscalCalendarObligationView {
   fallbackReason: FiscalCalendarObligationFallbackReason | null;
   decisions: readonly FiscalCalendarEventObligationDecision[];
   visibleEventIds: ReadonlySet<string>;
+  recommendedEventIds: ReadonlySet<string>;
   reviewEventIds: ReadonlySet<string>;
   manuallySelectedEventIds: ReadonlySet<string>;
   excludedCount: number;
@@ -69,13 +73,6 @@ function allOnlyFallbackReason(
 ): FiscalCalendarObligationFallbackReason | null {
   const assessment = selectStoredTaxObligationsAssessment(session);
   if (!assessment) return "NO_PUBLISHED_ASSESSMENT";
-  if (
-    assessment.profile.state !== "COMPLETE" ||
-    assessment.profile.missingInformation.length > 0 ||
-    assessment.profile.conflicts.length > 0
-  ) {
-    return "PROFILE_NOT_COMPLETE";
-  }
   if (assessment.territory !== "ES_COMMON") {
     return "UNSUPPORTED_TERRITORY";
   }
@@ -91,6 +88,13 @@ function orientativeReason(
   >,
 ): FiscalCalendarObligationFallbackReason | null {
   if (isTaxObligationExclusionAuthorized(assessment)) return null;
+  if (
+    assessment.profile.state !== "COMPLETE" ||
+    assessment.profile.missingInformation.length > 0 ||
+    assessment.profile.conflicts.length > 0
+  ) {
+    return "PROFILE_NOT_COMPLETE";
+  }
   if (assessment.ruleReviewState !== "APPROVED") {
     return "RULES_PENDING_REVIEW";
   }
@@ -112,6 +116,7 @@ function fallbackView(
       requiresConfirmation: false,
       manuallySelected: false,
       modelCode: null,
+      recommendationStatus: null,
       reason: "FALLBACK_ALL",
     }),
   );
@@ -120,6 +125,7 @@ function fallbackView(
     fallbackReason: reason,
     decisions: Object.freeze(decisions),
     visibleEventIds: frozenSet(events.map((event) => event.id)),
+    recommendedEventIds: frozenSet(events.map((event) => event.id)),
     reviewEventIds: frozenSet([]),
     manuallySelectedEventIds: frozenSet([]),
     excludedCount: 0,
@@ -139,6 +145,10 @@ function decisionForEvent({
     TaxObligationModelCode,
     {
       status: "REQUIRED" | "NOT_APPLICABLE" | "REVIEW_REQUIRED" | "UNKNOWN";
+      recommendationStatus: Exclude<
+        TaxModelRecommendationStatus,
+        "MANUALLY_SELECTED"
+      >;
       decisionState:
         | "CONFIRMED"
         | "PROVISIONAL"
@@ -158,6 +168,7 @@ function decisionForEvent({
     requiresConfirmation: true,
     manuallySelected: false,
     modelCode: null,
+    recommendationStatus: null,
   };
   const candidates = extractFiscalCalendarModelCodes(
     `${event.title}\n${event.description}`,
@@ -206,9 +217,15 @@ function decisionForEvent({
   if (!obligation) {
     return { ...identified, reason: "MODEL_MISSING_FROM_ASSESSMENT" };
   }
-  if (obligation.status === "REQUIRED") {
+  const withRecommendation = {
+    ...identified,
+    recommendationStatus: selectedManually
+      ? ("MANUALLY_SELECTED" as const)
+      : obligation.recommendationStatus,
+  };
+  if (obligation.recommendationStatus === "LIKELY_REQUIRED") {
     return {
-      ...identified,
+      ...withRecommendation,
       requiresConfirmation:
         !allowSafeExclusion ||
         obligation.decisionState !== "CONFIRMED" ||
@@ -218,11 +235,11 @@ function decisionForEvent({
       reason: "REQUIRED",
     };
   }
-  if (obligation.status === "REVIEW_REQUIRED") {
-    return { ...identified, reason: "REVIEW_REQUIRED" };
+  if (obligation.recommendationStatus === "POSSIBLY_REQUIRED") {
+    return { ...withRecommendation, reason: "REVIEW_REQUIRED" };
   }
-  if (obligation.status === "UNKNOWN") {
-    return { ...identified, reason: "UNKNOWN" };
+  if (obligation.recommendationStatus === "NEEDS_INFORMATION") {
+    return { ...withRecommendation, reason: "UNKNOWN" };
   }
 
   const safeExclusion =
@@ -230,13 +247,13 @@ function decisionForEvent({
     obligation.missingInformation.length === 0 &&
     obligation.conflicts.length === 0;
   if (!safeExclusion) {
-    return { ...identified, reason: "NOT_APPLICABLE_UNCONFIRMED" };
+    return { ...withRecommendation, reason: "NOT_APPLICABLE_UNCONFIRMED" };
   }
   if (!allowSafeExclusion) {
-    return { ...identified, reason: "NOT_APPLICABLE_UNCONFIRMED" };
+    return { ...withRecommendation, reason: "NOT_APPLICABLE_UNCONFIRMED" };
   }
   return {
-    ...identified,
+    ...withRecommendation,
     visibleInMyObligations: selectedManually,
     requiresConfirmation: selectedManually,
     reason: "NOT_APPLICABLE_CONFIRMED",
@@ -265,10 +282,25 @@ export function buildFiscalCalendarObligationView({
   const pendingReason = orientativeReason(assessment);
   const exclusionAuthorized =
     isTaxObligationExclusionAuthorized(assessment);
+  const recommendationSnapshot = buildTaxModelRecommendationsV1({
+    assessment,
+    manualModelCodes,
+  });
+  const recommendations = new Map(
+    recommendationSnapshot.recommendations.map((recommendation) => [
+      recommendation.modelCode,
+      recommendation,
+    ]),
+  );
   const obligations = new Map(
     assessment.obligations.map((obligation) => [
       obligation.modelCode,
-      obligation,
+      {
+        ...obligation,
+        recommendationStatus:
+          recommendations.get(obligation.modelCode)
+            ?.engineRecommendationStatus ?? "NEEDS_INFORMATION",
+      },
     ]),
   );
   const manual = new Set(
@@ -296,12 +328,21 @@ export function buildFiscalCalendarObligationView({
   const manuallySelected = decisions
     .filter((decision) => decision.manuallySelected)
     .map((decision) => decision.eventId);
+  const recommended = decisions
+    .filter(
+      (decision) =>
+        decision.manuallySelected ||
+        (decision.reason !== "NOT_APPLICABLE_CONFIRMED" &&
+          decision.reason !== "NOT_APPLICABLE_UNCONFIRMED"),
+    )
+    .map((decision) => decision.eventId);
 
   return Object.freeze({
     status: exclusionAuthorized ? "PERSONALIZED" : "ORIENTATIVE",
     fallbackReason: pendingReason,
     decisions: Object.freeze(decisions),
     visibleEventIds: frozenSet(visible),
+    recommendedEventIds: frozenSet(recommended),
     reviewEventIds: frozenSet(review),
     manuallySelectedEventIds: frozenSet(manuallySelected),
     excludedCount: decisions.length - visible.length,

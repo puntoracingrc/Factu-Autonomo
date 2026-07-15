@@ -33,9 +33,8 @@ function session(
 }
 
 describe("fiscal model personalization", () => {
-  it("falls back to the complete catalog for every unapproved boundary", () => {
+  it("uses pending and incomplete assessments for orientative recommendations", () => {
     const cases = [
-      { session: undefined, reason: "NO_PUBLISHED_ASSESSMENT" },
       {
         session: session({ ruleReviewState: "PENDING_FISCAL_REVIEW" }),
         reason: "RULES_PENDING_REVIEW",
@@ -62,12 +61,26 @@ describe("fiscal model personalization", () => {
         availableModelCodes,
       });
       expect(result).toMatchObject({
-        status: "ALL_ONLY",
+        status: "ORIENTATIVE",
         fallbackReason: item.reason,
-        visibleModelCodes: availableModelCodes,
+        visibleModelCodes: ["303"],
         manualModelCodes: ["303"],
       });
     }
+  });
+
+  it("keeps Todos as the only safe view before a result exists", () => {
+    const result = buildFiscalModelPersonalizationV1({
+      session: undefined,
+      preferences: { schemaVersion: 1, manualModelCodes: ["303"] },
+      availableModelCodes,
+    });
+    expect(result).toMatchObject({
+      status: "ALL_ONLY",
+      fallbackReason: "NO_PUBLISHED_ASSESSMENT",
+      visibleModelCodes: availableModelCodes,
+      manualModelCodes: ["303"],
+    });
   });
 
   it("keeps the complete catalog until individual exclusions are authorized", () => {
@@ -125,14 +138,16 @@ describe("fiscal model personalization", () => {
     });
 
     expect(result).toMatchObject({
-      status: "ALL_ONLY",
-      fallbackReason: "ASSESSMENT_NOT_RESOLVED",
-      visibleModelCodes: availableModelCodes,
-      assessmentModelCodes: [],
-      reviewModelCodes: [],
+      status: "ORIENTATIVE",
+      fallbackReason: null,
+      visibleModelCodes: ["036", "130", "303", "390", "A22"],
+      assessmentModelCodes: ["036", "130", "390"],
+      reviewModelCodes: ["130", "390"],
+      unlikelyModelCodes: ["111"],
       manualModelCodes: ["303", "A22"],
     });
-    expect(result.visibleModelCodes).toContain("111");
+    expect(result.allModelCodes).toContain("111");
+    expect(result.visibleModelCodes).not.toContain("111");
     expect(Object.isFrozen(result)).toBe(true);
     expect(Object.isFrozen(result.visibleModelCodes)).toBe(true);
   });

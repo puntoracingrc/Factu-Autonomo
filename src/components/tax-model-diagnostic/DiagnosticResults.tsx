@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -8,8 +7,14 @@ import {
   ExternalLink,
   Printer,
   SearchCheck,
+  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useAppStore } from "@/context/AppStore";
+import {
+  normalizeFiscalAdvisoryModelPreferencesV1,
+  setManualFiscalAdvisoryModelSelectionV1,
+} from "@/lib/fiscal-advisory-models";
 import type {
   DiagnosticResult,
   ModelResult,
@@ -17,31 +22,13 @@ import type {
 import { getTaxModelCatalogEntry } from "@/lib/tax-model-diagnostic/model-catalog";
 import {
   buildTaxObligationsAssessment,
-  isTaxObligationExclusionAuthorized,
+  buildTaxModelRecommendationsV1,
+  TAX_MODEL_RECOMMENDATION_DISCLAIMER,
+  TAX_MODEL_RECOMMENDATION_LABELS,
+  TAX_OBLIGATION_MODEL_CODES,
+  type TaxModelRecommendationItemV1,
+  type TaxModelRecommendationStatus,
 } from "@/lib/tax-obligations";
-
-function statusLabel(
-  status: ModelResult["status"],
-  exclusionAuthorized: boolean,
-): string {
-  const labels: Record<ModelResult["status"], string> = {
-    CONFIRMED_BY_CENSUS: "Confirmado también por el censo",
-    DERIVED: "Obligación derivada",
-    CONDITIONAL: "Condicional",
-    NOT_APPLICABLE: exclusionAuthorized
-      ? "No aplicable con los datos confirmados"
-      : "Probablemente no aplicable · pendiente de revisión fiscal",
-    NEEDS_INFORMATION: "Faltan datos",
-    NEEDS_PROFESSIONAL_REVIEW: "Revisión profesional",
-    CENSUS_MISMATCH: "Discrepancia con el censo",
-    TERRITORY_NOT_SUPPORTED: "Territorio no soportado",
-  };
-  return labels[status];
-}
-
-function isRequired(result: ModelResult): boolean {
-  return result.status === "CONFIRMED_BY_CENSUS" || result.status === "DERIVED";
-}
 
 function filingSubjectLabel(subject: ModelResult["filingSubject"]): string {
   const labels: Record<ModelResult["filingSubject"], string> = {
@@ -68,19 +55,40 @@ function periodicityLabel(periodicity: ModelResult["periodicity"]): string {
 
 function ResultCard({
   result,
-  exclusionAuthorized,
+  recommendation,
+  onToggleManual,
 }: {
   result: ModelResult;
-  exclusionAuthorized: boolean;
+  recommendation: TaxModelRecommendationItemV1;
+  onToggleManual: (modelCode: string, selected: boolean) => void;
 }) {
   const catalog = getTaxModelCatalogEntry(result.modelNumber);
-  const required = isRequired(result);
+  const status = recommendation.recommendationStatus;
+  const statusClasses: Record<TaxModelRecommendationStatus, string> = {
+    LIKELY_REQUIRED:
+      "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20",
+    POSSIBLY_REQUIRED:
+      "border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20",
+    UNLIKELY_REQUIRED:
+      "border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900",
+    NEEDS_INFORMATION:
+      "border-orange-200 bg-orange-50/50 dark:border-orange-900 dark:bg-orange-950/20",
+    MANUALLY_SELECTED:
+      "border-blue-200 bg-blue-50/50 dark:border-blue-900 dark:bg-blue-950/20",
+  };
+  const statusTextClasses: Record<TaxModelRecommendationStatus, string> = {
+    LIKELY_REQUIRED: "text-emerald-700 dark:text-emerald-300",
+    POSSIBLY_REQUIRED: "text-amber-800 dark:text-amber-300",
+    UNLIKELY_REQUIRED: "text-slate-600 dark:text-slate-300",
+    NEEDS_INFORMATION: "text-orange-800 dark:text-orange-300",
+    MANUALLY_SELECTED: "text-blue-700 dark:text-blue-300",
+  };
   return (
-    <article className={`rounded-2xl border p-5 ${required ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900 dark:bg-emerald-950/20" : "border-amber-200 bg-amber-50/50 dark:border-amber-900 dark:bg-amber-950/20"}`}>
+    <article className={`rounded-2xl border p-5 ${statusClasses[status]}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className={`text-xs font-extrabold uppercase tracking-wide ${required ? "text-emerald-700 dark:text-emerald-300" : "text-amber-800 dark:text-amber-300"}`}>
-            {statusLabel(result.status, exclusionAuthorized)}
+          <p className={`text-xs font-extrabold uppercase tracking-wide ${statusTextClasses[status]}`}>
+            {TAX_MODEL_RECOMMENDATION_LABELS[status]}
           </p>
           <h3 className="mt-1 text-xl font-bold text-slate-950 dark:text-white">
             Modelo {result.modelNumber} · {catalog.name}
@@ -136,6 +144,40 @@ function ResultCard({
         </p>
       )}
 
+      {recommendation.possibleExceptions.length > 0 && (
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
+          <h4 className="font-bold text-slate-950 dark:text-white">
+            Comprueba estas posibles excepciones
+          </h4>
+          <ul className="mt-1 list-disc pl-5 text-sm leading-6 text-slate-700 dark:text-slate-200">
+            {recommendation.possibleExceptions.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <Button
+        type="button"
+        variant="secondary"
+        className="mt-4"
+        aria-pressed={recommendation.manuallySelected}
+        onClick={() =>
+          onToggleManual(
+            result.modelNumber,
+            !recommendation.manuallySelected,
+          )
+        }
+      >
+        <Star
+          className={`h-4 w-4 ${recommendation.manuallySelected ? "fill-current" : ""}`}
+          aria-hidden="true"
+        />
+        {recommendation.manuallySelected
+          ? "Quitar selección manual"
+          : "Añadir manualmente"}
+      </Button>
+
       <details className="mt-4 text-sm">
         <summary className="cursor-pointer font-bold text-blue-700 dark:text-blue-300">Fuentes oficiales y trazabilidad</summary>
         <div className="mt-2 space-y-2">
@@ -158,15 +200,53 @@ export function DiagnosticResults({
   result: DiagnosticResult;
   onEdit: () => void;
 }) {
-  const [showExcluded, setShowExcluded] = useState(false);
+  const { data, ready, updateProfile } = useAppStore();
   const assessment = buildTaxObligationsAssessment(result);
-  const exclusionAuthorized =
-    isTaxObligationExclusionAuthorized(assessment);
-  const required = result.models.filter(isRequired);
-  const review = result.models.filter(
-    (model) => !isRequired(model) && model.status !== "NOT_APPLICABLE",
+  const preferences = normalizeFiscalAdvisoryModelPreferencesV1(
+    data.profile.fiscalAdvisoryModelPreferences,
   );
-  const excluded = result.models.filter((model) => model.status === "NOT_APPLICABLE");
+  const recommendationSnapshot = buildTaxModelRecommendationsV1({
+    assessment,
+    manualModelCodes: preferences?.manualModelCodes ?? [],
+  });
+  const recommendationsByCode = new Map(
+    recommendationSnapshot.recommendations.map((recommendation) => [
+      recommendation.modelCode,
+      recommendation,
+    ]),
+  );
+  const groups: readonly {
+    status: TaxModelRecommendationStatus;
+    title: string;
+  }[] = [
+    { status: "LIKELY_REQUIRED", title: "Probablemente necesarios" },
+    { status: "POSSIBLY_REQUIRED", title: "Podrían ser necesarios" },
+    { status: "NEEDS_INFORMATION", title: "Falta información" },
+    { status: "MANUALLY_SELECTED", title: "Añadidos por ti" },
+    { status: "UNLIKELY_REQUIRED", title: "Probablemente no necesarios" },
+  ];
+  const counts = new Map<TaxModelRecommendationStatus, number>();
+  for (const recommendation of recommendationSnapshot.recommendations) {
+    counts.set(
+      recommendation.recommendationStatus,
+      (counts.get(recommendation.recommendationStatus) ?? 0) + 1,
+    );
+  }
+
+  function toggleManualModel(modelCode: string, selected: boolean) {
+    if (!ready) return;
+    const next = setManualFiscalAdvisoryModelSelectionV1({
+      current: data.profile.fiscalAdvisoryModelPreferences,
+      modelCode,
+      selected,
+      allowedModelCodes: TAX_OBLIGATION_MODEL_CODES,
+    });
+    if (!next) return;
+    updateProfile({
+      ...data.profile,
+      fiscalAdvisoryModelPreferences: next,
+    });
+  }
 
   return (
     <section aria-labelledby="resultado-modelos" aria-live="polite" className="space-y-6 print:text-black">
@@ -174,19 +254,13 @@ export function DiagnosticResults({
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-sm font-bold uppercase tracking-wide text-blue-300">
-              {exclusionAuthorized
-                ? "Resultado personalizado"
-                : "Resultado orientativo · pendiente de revisión fiscal"}{" "}
-              · ejercicio {result.fiscalYear}
+              Resultado orientativo · ejercicio {result.fiscalYear}
             </p>
-            <h2 id="resultado-modelos" className="mt-2 text-2xl font-extrabold sm:text-3xl">Tus posibles obligaciones tributarias</h2>
+            <h2 id="resultado-modelos" className="mt-2 text-2xl font-extrabold sm:text-3xl">Tus modelos orientativos</h2>
             <p className="mt-3 max-w-3xl leading-7 text-slate-300">
-              {required.length} modelos recomendados, {review.length} pendientes
-              de completar o revisar y {excluded.length}{" "}
-              {exclusionAuthorized
-                ? "exclusiones explícitas"
-                : "modelos considerados improbables, todavía sin excluir"}
-              .
+              {counts.get("LIKELY_REQUIRED") ?? 0} probablemente necesarios, {" "}
+              {counts.get("POSSIBLY_REQUIRED") ?? 0} posibles y {" "}
+              {counts.get("NEEDS_INFORMATION") ?? 0} pendientes de información.
             </p>
           </div>
           <div className="flex flex-wrap gap-2 print:hidden">
@@ -198,16 +272,11 @@ export function DiagnosticResults({
         </div>
       </div>
 
-      <div role="status" className="rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm leading-6 text-amber-950 dark:border-amber-900 dark:bg-amber-950/30 dark:text-amber-100">
+      <div role="note" className="rounded-2xl border border-blue-200 bg-blue-50 p-5 text-sm leading-6 text-blue-950 dark:border-blue-900 dark:bg-blue-950/30 dark:text-blue-100">
         <div className="flex gap-3">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
           <div>
-            <p className="font-bold">No sustituye la revisión de un profesional ni una comunicación de la AEAT.</p>
-            <p>
-              {exclusionAuthorized
-                ? "El ruleset y este resultado cumplen la doble aprobación necesaria para aplicar exclusiones justificadas."
-                : "Las reglas están pendientes de aprobación fiscal formal. Todos los candidatos se conservan visibles y ninguna mejora del OCR, del corpus o de las pruebas técnicas autoriza una exclusión."}
-            </p>
+            <p>{TAX_MODEL_RECOMMENDATION_DISCLAIMER}</p>
           </div>
         </div>
       </div>
@@ -225,58 +294,39 @@ export function DiagnosticResults({
         </div>
       )}
 
-      {required.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="flex items-center gap-2 text-xl font-bold text-slate-950 dark:text-white"><CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden="true" /> Modelos derivados</h3>
-          {required.map((model) => <ResultCard key={model.modelNumber} result={model} exclusionAuthorized={exclusionAuthorized} />)}
-        </div>
-      )}
-
-      {review.length > 0 && (
-        <div className="space-y-4">
-          <h3 className="flex items-center gap-2 text-xl font-bold text-slate-950 dark:text-white"><AlertTriangle className="h-6 w-6 text-amber-600" aria-hidden="true" /> Completar o revisar</h3>
-          {review.map((model) => <ResultCard key={model.modelNumber} result={model} exclusionAuthorized={exclusionAuthorized} />)}
-        </div>
-      )}
-
-      {excluded.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
-          {exclusionAuthorized ? (
-            <Button type="button" variant="ghost" onClick={() => setShowExcluded((current) => !current)} aria-expanded={showExcluded}>
-              {showExcluded ? "Ocultar" : "Mostrar"} {excluded.length} modelos no aplicables
-            </Button>
-          ) : (
-            <div>
-              <h3 className="font-bold text-slate-950 dark:text-white">
-                Modelos improbables · pendientes de revisión fiscal
-              </h3>
-              <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                Se muestran para que puedas revisar la explicación. No se ha
-                eliminado ni excluido ninguno.
-              </p>
-            </div>
-          )}
-          {(exclusionAuthorized ? showExcluded : true) && (
-            <div className="mt-4 space-y-3">
-              {excluded.map((model) => {
-                const catalog = getTaxModelCatalogEntry(model.modelNumber);
-                return (
-                  <div key={model.modelNumber} className="rounded-xl bg-slate-50 p-4 text-sm dark:bg-slate-800">
-                    <p className="font-bold text-slate-950 dark:text-white">Modelo {model.modelNumber} · {catalog.name}</p>
-                    <p className="mt-1 leading-6 text-slate-600 dark:text-slate-300">{model.reason}</p>
-                    {!exclusionAuthorized && (
-                      <p className="mt-2 font-semibold text-amber-800 dark:text-amber-200">
-                        Recomendación orientativa: conservar y confirmar con la
-                        revisión fiscal del ruleset.
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+      {groups.map((group) => {
+        const models = result.models.filter(
+          (model) =>
+            recommendationsByCode.get(model.modelNumber)
+              ?.recommendationStatus === group.status,
+        );
+        if (models.length === 0) return null;
+        return (
+          <div key={group.status} className="space-y-4">
+            <h3 className="flex items-center gap-2 text-xl font-bold text-slate-950 dark:text-white">
+              {group.status === "LIKELY_REQUIRED" ? (
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden="true" />
+              ) : (
+                <AlertTriangle className="h-6 w-6 text-amber-600" aria-hidden="true" />
+              )}
+              {group.title}
+            </h3>
+            {models.map((model) => {
+              const recommendation = recommendationsByCode.get(
+                model.modelNumber,
+              );
+              return recommendation ? (
+                <ResultCard
+                  key={model.modelNumber}
+                  result={model}
+                  recommendation={recommendation}
+                  onToggleManual={toggleManualModel}
+                />
+              ) : null;
+            })}
+          </div>
+        );
+      })}
     </section>
   );
 }

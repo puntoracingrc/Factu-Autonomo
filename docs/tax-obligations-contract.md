@@ -11,12 +11,14 @@ de cada ruleset se comunica separadamente mediante `ruleReviewState`.
 
 ```ts
 import {
+  buildTaxModelRecommendationsV1,
   isTaxObligationExclusionAuthorized,
   normalizeTaxObligationModelCode,
   selectStoredTaxObligationsAssessment,
   type TaxObligationsAssessmentV1,
   type TaxObligationAssessmentItemV1,
   type TaxObligationModelCode,
+  type TaxModelRecommendationsV1,
 } from "@/lib/tax-obligations";
 ```
 
@@ -36,6 +38,33 @@ usuario confirma y genera un resultado nuevo.
 
 `buildTaxObligationsAssessment(result)` es el export del productor; los
 consumidores ordinarios no lo necesitan.
+
+## Recomendación orientativa v1
+
+`buildTaxModelRecommendationsV1({ assessment, manualModelCodes })` es una
+proyección pura, versionada y server-safe de la foto persistida. No importa
+reglas internas y no depende de que el ruleset esté fiscalmente aprobado.
+
+```text
+contractVersion = 1.0.0
+recommendationStatus =
+  LIKELY_REQUIRED | POSSIBLY_REQUIRED | UNLIKELY_REQUIRED |
+  NEEDS_INFORMATION | MANUALLY_SELECTED
+```
+
+Cada entrada conserva el código canónico, el estado del motor aunque exista
+selección manual, el motivo, las respuestas o documentos usados, la
+información pendiente, las contradicciones y las excepciones conocidas de la
+regla. `PENDING_FISCAL_REVIEW` y `MANUAL_REVIEW` no bloquean esta recomendación
+orientativa.
+
+La recomendación y la autorización de exclusión son conceptos separados:
+
+- `recommendationStatus` organiza Resultados, «Mis modelos» y el calendario
+  recomendado;
+- `authorizedFiscalExclusion` solo puede proceder de
+  `isTaxObligationExclusionAuthorized()` y permanece apagado mientras no se
+  cumpla toda la puerta fiscal.
 
 ## Forma estable
 
@@ -71,8 +100,8 @@ catalogVersion  = es-tax-models.2026-07.v1
   pendientes y confianza suficiente;
 - el normalizador rechaza códigos desconocidos, texto libre, arrays y códigos
   concatenados;
-- versión incompatible, fallo de carga, ausencia de foto, `MANUAL_REVIEW` o
-  `BLOCKED` conservan la vista completa como fallback;
+- versión incompatible, fallo de carga, ausencia de foto o `BLOCKED` conservan
+  la vista completa como fallback;
 - una selección manual del usuario puede complementar una vista, pero nunca
   muta ni confirma una decisión del Motor.
 
@@ -103,12 +132,14 @@ assessment guardado, fixtures, mocks u overrides de desarrollo no se considera
 evidencia fiscal y bloquea la exclusión. La ausencia de cualquiera de los
 metadatos individuales también falla cerrado.
 
-Hasta entonces, «Todos» permanece disponible, los candidatos se conservan
-visibles y cualquier recomendación o modelo improbable se etiqueta como
-pendiente de revisión fiscal. Aprobar OCR, extractores, corpus, fixtures, CI,
-CodeQL o un despliegue nunca sustituye la aprobación fiscal del ruleset. Una
-prueba de regresión común cubre Calendario y Modelos para impedir exclusiones
-antes de cumplir ambas condiciones.
+Hasta entonces, «Todos» permanece siempre disponible. Las vistas orientativas
+pueden ordenar o mostrar los modelos probablemente necesarios, posibles,
+pendientes de información y añadidos por el usuario, pero no eliminan modelos
+del catálogo ni convierten esa organización en una exclusión fiscal. Aprobar
+OCR, extractores, corpus, fixtures, CI, CodeQL o un despliegue nunca sustituye
+la aprobación fiscal del ruleset. Una prueba de regresión común cubre
+Calendario y Modelos para impedir exclusiones antes de cumplir ambas
+condiciones.
 
 En la versión actual, las 54 reglas conservan
 `reviewStatus = PENDING_FISCAL_REVIEW`, `resolutionStatus = OPEN`, tests
