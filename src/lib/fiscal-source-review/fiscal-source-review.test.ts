@@ -3,15 +3,17 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import inventoryJson from "../../../docs/fiscal/rule-inventory.json";
-import reviewRegistryJson from "../../../docs/fiscal/sources/review-records.v1.json";
-import sourceRegistryJson from "../../../docs/fiscal/sources/source-snapshot-registry.v1.json";
+import reviewRegistryJson from "../../../docs/fiscal/sources/review-decisions.v2.json";
+import sourceRegistryJson from "../../../docs/fiscal/sources/source-snapshot-registry.v2.json";
 import { TAX_RULES } from "../tax-model-diagnostic/rules";
 import type {
   FiscalReviewRegistry,
-  FiscalRuleReviewRecord,
+  FiscalRuleReviewDecision,
+  FiscalSourceSnapshot,
   FiscalSourceSnapshotRegistry,
 } from "./contracts";
 import {
+  computeNormalizedContentHash,
   computeSourceRegistryHash,
   diffFiscalSourceRegistries,
   validateFiscalSourceState,
@@ -35,42 +37,88 @@ const inventory = inventoryJson as {
   }>;
 };
 
-function review(
+function decision(
   rule = TAX_RULES[0],
-  overrides: Partial<FiscalRuleReviewRecord> = {},
-): FiscalRuleReviewRecord {
+  overrides: Partial<FiscalRuleReviewDecision> = {},
+): FiscalRuleReviewDecision {
   const sourceById = new Map(
     sourceRegistry.sources.map((source) => [source.sourceId, source]),
   );
   return {
-    reviewId: `${rule.ruleId}.primary.v1`,
+    decisionId: `${rule.ruleId}.primary.v1`,
     ruleId: rule.ruleId,
     reviewerId: "fiscal-professional-1",
     reviewerRole: "PRIMARY_FISCAL_REVIEWER",
+    reviewerTrust: {
+      status: "SERVER_VERIFIED",
+      subjectType: "FISCAL_PROFESSIONAL",
+      identityProvider: "server-fiscal-identity",
+      verifiedAt: "2026-07-15T11:55:00Z",
+      verificationReference: "server-trust://fiscal-professional-1/v1",
+    },
     decision: "APPROVE",
     reviewedRuleHash: rule.fiscalMetadata.ruleHash,
     reviewedSourceHashes: rule.officialSourceIds.map((sourceId) => ({
       sourceId,
-      snapshotHash: sourceById.get(sourceId)?.snapshotHash ?? "sha256:missing",
+      contentHash:
+        sourceById.get(sourceId)?.contentHash ?? "sha256:missing",
+      normalizedContentHash:
+        sourceById.get(sourceId)?.normalizedContentHash ?? "sha256:missing",
     })),
     findings: [],
     incidentIds: [],
     signatureReference: "signed-review://primary/reference-1",
     recordedAt: "2026-07-15T12:00:00Z",
-    origin: "HUMAN_SIGNED_FISCAL_REVIEW",
+    origin: "HUMAN_FISCAL_PROFESSIONAL",
+    revocation: {
+      status: "ACTIVE",
+      revokedAt: null,
+      reason: null,
+      revocationReference: null,
+    },
     ...overrides,
   };
 }
 
+function registryWith(sources: readonly FiscalSourceSnapshot[]) {
+  const unsigned = {
+    contractVersion: sourceRegistry.contractVersion,
+    generatedAt: "2026-07-16",
+    sourceCount: sources.length,
+    sources,
+  };
+  return {
+    ...unsigned,
+    registryHash: computeSourceRegistryHash(unsigned),
+  } satisfies FiscalSourceSnapshotRegistry;
+}
+
+function validationContext() {
+  return {
+    rootDirectory: process.cwd(),
+    expectedSourceIds: sourceRegistry.sources.map((source) => source.sourceId),
+    expectedRuleSourceIds: new Map(
+      inventory.rules.map((rule) => [rule.ruleId, rule.sourceIds]),
+    ),
+    expectedRuleStates: inventory.rules,
+  };
+}
+
 describe("versioned official fiscal source snapshots", () => {
-  it("registers every current source with immutable bytes and pending validity", () => {
-    expect(sourceRegistry.contractVersion).toBe("fiscal-source-registry.v1");
+  it("registers every current source with raw and normalized hashes, history and pending validity", () => {
+    expect(sourceRegistry.contractVersion).toBe("fiscal-source-registry.v2");
     expect(sourceRegistry.sourceCount).toBe(29);
     expect(sourceRegistry.sources).toHaveLength(29);
     expect(
       sourceRegistry.sources.every(
         (source) =>
-          source.snapshotHash.startsWith("sha256:") &&
+          source.contentHash.startsWith("sha256:") &&
+          source.normalizedContentHash.startsWith("sha256:") &&
+          source.previousSnapshotHash === null &&
+          source.changeDetected === false &&
+          source.changeSummary.status === "INITIAL_CAPTURE" &&
+          source.changeSummary.nature === "INITIAL" &&
+          source.changeSummary.requiresFiscalReview === false &&
           source.technicalHashStatus === "VALID" &&
           (source.captureScope === "FULL_DOCUMENT" ||
             source.captureScope === "LOCATOR_FRAGMENT") &&
@@ -83,22 +131,19 @@ describe("versioned official fiscal source snapshots", () => {
     for (const source of sourceRegistry.sources) {
       const bytes = readFileSync(source.snapshotPath);
       expect(bytes.byteLength).toBe(source.contentLength);
+      expect(computeNormalizedContentHash(bytes, source.contentType)).toBe(
+        source.normalizedContentHash,
+      );
     }
   });
 
   it("validates hashes, source-rule links and all fail-closed fiscal states", () => {
-    const ruleSourceIds = new Map(
-      inventory.rules.map((rule) => [rule.ruleId, rule.sourceIds]),
-    );
     expect(
-      validateFiscalSourceState(sourceRegistry, emptyReviews, {
-        rootDirectory: process.cwd(),
-        expectedSourceIds: sourceRegistry.sources.map(
-          (source) => source.sourceId,
-        ),
-        expectedRuleSourceIds: ruleSourceIds,
-        expectedRuleStates: inventory.rules,
-      }),
+      validateFiscalSourceState(
+        sourceRegistry,
+        emptyReviews,
+        validationContext(),
+      ),
     ).toEqual([]);
     expect(inventory.rules).toHaveLength(54);
     expect(
@@ -109,83 +154,178 @@ describe("versioned official fiscal source snapshots", () => {
           rule.exclusionAuthorized === false,
       ),
     ).toBe(true);
+    expect(emptyReviews.decisions).toEqual([]);
   });
 
-  it("detects added, modified and removed sources and names impacted rules", () => {
+  it("rejects inconsistent snapshot history instead of treating it as reviewed", () => {
+    const current = sourceRegistry.sources[0];
+    const malformed = registryWith(
+      sourceRegistry.sources.map((source) =>
+        source.sourceId === current.sourceId
+          ? {
+              ...source,
+              previousSnapshotHash: current.contentHash,
+              changeDetected: false,
+              changeSummary: {
+                status: "INITIAL_CAPTURE" as const,
+                nature: "INITIAL" as const,
+                requiresFiscalReview: false,
+                changedFields: [],
+              },
+            }
+          : source,
+      ),
+    );
+    expect(
+      validateFiscalSourceState(
+        malformed,
+        emptyReviews,
+        validationContext(),
+      ),
+    ).toContain(`${current.sourceId}:INCONSISTENT_CHANGE_HISTORY`);
+  });
+
+  it("distinguishes new, modified and removed sources but always requires fiscal review", () => {
     const [removed, modified] = sourceRegistry.sources;
-    const candidateWithoutHash = {
-      contractVersion: sourceRegistry.contractVersion,
-      generatedAt: "2026-07-16",
-      sourceCount: sourceRegistry.sourceCount,
-      sources: [
-        ...sourceRegistry.sources.slice(1).map((source) =>
-          source.sourceId === modified.sourceId
-            ? { ...source, snapshotHash: "sha256:changed" as const }
-            : source,
-        ),
-        {
-          ...removed,
-          sourceId: "aeat.new-official-source",
-          affectedRuleIds: [TAX_RULES[0].ruleId],
-        },
-      ],
-    };
-    const candidate: FiscalSourceSnapshotRegistry = {
-      ...candidateWithoutHash,
-      registryHash: computeSourceRegistryHash(candidateWithoutHash),
-    };
+    const candidate = registryWith([
+      ...sourceRegistry.sources.slice(1).map((source) =>
+        source.sourceId === modified.sourceId
+          ? { ...source, contentHash: "sha256:changed" as const }
+          : source,
+      ),
+      {
+        ...removed,
+        sourceId: "aeat.new-official-source",
+        affectedRuleIds: [TAX_RULES[0].ruleId],
+      },
+    ]);
     const report = diffFiscalSourceRegistries(
       sourceRegistry,
       candidate,
       emptyReviews,
     );
-    expect(report.status).toBe("CHANGED");
-    expect(report.changes.map((change) => change.changeType)).toEqual([
-      "REMOVED",
-      "MODIFIED",
-      "NEW",
-    ]);
-    expect(report.affectedRuleIds.length).toBeGreaterThan(0);
+    expect(report.status).toBe("CHANGED_REQUIRES_FISCAL_REVIEW");
+    expect(new Set(report.changes.map((change) => change.changeType))).toEqual(
+      new Set(["NEW", "MODIFIED", "REMOVED"]),
+    );
+    expect(
+      report.changes.every(
+        (change) =>
+          change.reviewRequirement === "REQUIRES_FISCAL_REVIEW" &&
+          change.changeSummary.toLowerCase().includes("requiere revisión fiscal"),
+      ),
+    ).toBe(true);
+    expect(report.automaticallyIrrelevantChanges).toEqual([]);
   });
 
-  it("marks signed recommendations for invalidation after source drift", () => {
-    const rule = TAX_RULES[0];
-    const record = review(rule);
-    const sourceId = rule.officialSourceIds[0];
-    const candidateWithoutHash = {
-      contractVersion: sourceRegistry.contractVersion,
-      generatedAt: "2026-07-16",
-      sourceCount: sourceRegistry.sourceCount,
-      sources: sourceRegistry.sources.map((source) =>
-        source.sourceId === sourceId
-          ? { ...source, snapshotHash: "sha256:changed" as const }
-          : source,
-      ),
-    };
+  it("classifies normalized-equal byte drift as technical without declaring it irrelevant", () => {
+    const source = sourceRegistry.sources[0];
     const report = diffFiscalSourceRegistries(
       sourceRegistry,
+      registryWith(
+        sourceRegistry.sources.map((candidate) =>
+          candidate.sourceId === source.sourceId
+            ? { ...candidate, contentHash: "sha256:technical" as const }
+            : candidate,
+        ),
+      ),
+      emptyReviews,
+    );
+    expect(report.changes[0].changeNature).toBe("TECHNICAL");
+    expect(report.changes[0].reviewRequirement).toBe(
+      "REQUIRES_FISCAL_REVIEW",
+    );
+    expect(report.automaticallyIrrelevantChanges).toEqual([]);
+  });
+
+  it("classifies declared material drift and indeterminate normalized drift separately", () => {
+    const source = sourceRegistry.sources[0];
+    const material = diffFiscalSourceRegistries(
+      sourceRegistry,
+      registryWith(
+        sourceRegistry.sources.map((candidate) =>
+          candidate.sourceId === source.sourceId
+            ? { ...candidate, materialScope: `${candidate.materialScope} changed` }
+            : candidate,
+        ),
+      ),
+      emptyReviews,
+    );
+    const indeterminate = diffFiscalSourceRegistries(
+      sourceRegistry,
+      registryWith(
+        sourceRegistry.sources.map((candidate) =>
+          candidate.sourceId === source.sourceId
+            ? {
+                ...candidate,
+                contentHash: "sha256:raw-changed" as const,
+                normalizedContentHash: "sha256:normalized-changed" as const,
+              }
+            : candidate,
+        ),
+      ),
+      emptyReviews,
+    );
+    expect(material.changes[0].changeNature).toBe("MATERIAL");
+    expect(indeterminate.changes[0].changeNature).toBe("INDETERMINATE");
+  });
+
+  it("identifies active decisions to revoke and approvals to invalidate after source drift", () => {
+    const rule = TAX_RULES[0];
+    const currentDecision = decision(rule);
+    const sourceId = rule.officialSourceIds[0];
+    const report = diffFiscalSourceRegistries(
+      sourceRegistry,
+      registryWith(
+        sourceRegistry.sources.map((source) =>
+          source.sourceId === sourceId
+            ? {
+                ...source,
+                normalizedContentHash: "sha256:changed" as const,
+              }
+            : source,
+        ),
+      ),
       {
-        ...candidateWithoutHash,
-        registryHash: computeSourceRegistryHash(candidateWithoutHash),
-      },
-      {
-        contractVersion: "fiscal-review-registry.v1",
+        contractVersion: "fiscal-review-registry.v2",
         generatedAt: "2026-07-15",
-        records: [record],
+        decisions: [currentDecision],
       },
     );
-    expect(report.reviewIdsToInvalidate).toEqual([record.reviewId]);
+    expect(report.decisionIdsToRevoke).toEqual([
+      currentDecision.decisionId,
+    ]);
     expect(report.ruleApprovalsToInvalidate).toEqual([rule.ruleId]);
+    expect(
+      evaluateDualFiscalReview(
+        rule,
+        registryWith(
+          sourceRegistry.sources.map((source) =>
+            source.sourceId === sourceId
+              ? {
+                  ...source,
+                  normalizedContentHash: "sha256:changed" as const,
+                }
+              : source,
+          ),
+        ),
+        {
+          contractVersion: "fiscal-review-registry.v2",
+          generatedAt: "2026-07-15",
+          decisions: [currentDecision],
+        },
+      ).state,
+    ).toBe("STALE_REVIEW");
   });
 });
 
 describe("fail-closed double fiscal review", () => {
-  it("never treats one approval recommendation as rule approval", () => {
+  it("never treats one approval decision as rule approval", () => {
     const rule = TAX_RULES[0];
     const result = evaluateDualFiscalReview(rule, sourceRegistry, {
-      contractVersion: "fiscal-review-registry.v1",
+      contractVersion: "fiscal-review-registry.v2",
       generatedAt: "2026-07-15",
-      records: [review(rule)],
+      decisions: [decision(rule)],
     });
     expect(result.state).toBe("WAITING_SECOND_REVIEW");
     expect(result.changesRuleReviewStatus).toBe(false);
@@ -194,81 +334,126 @@ describe("fail-closed double fiscal review", () => {
     );
   });
 
-  it("rejects the same person in both reviewer roles", () => {
+  it("rejects the same person in both active reviewer roles", () => {
     const rule = TAX_RULES[0];
-    const primary = review(rule);
-    const second = review(rule, {
-      reviewId: `${rule.ruleId}.second.v1`,
+    const primary = decision(rule);
+    const second = decision(rule, {
+      decisionId: `${rule.ruleId}.second.v1`,
       reviewerRole: "SECOND_FISCAL_REVIEWER",
       signatureReference: "signed-review://second/reference-2",
     });
     const result = evaluateDualFiscalReview(rule, sourceRegistry, {
-      contractVersion: "fiscal-review-registry.v1",
+      contractVersion: "fiscal-review-registry.v2",
       generatedAt: "2026-07-15",
-      records: [primary, second],
+      decisions: [primary, second],
     });
     expect(result.state).toBe("INVALID_REVIEW");
     expect(result.blockingReasons).toContain("SAME_REVIEWER_FOR_BOTH_ROLES");
   });
 
-  it("rejects duplicate reviewer roles and approval recommendations with blockers", () => {
+  it("invalidates stale rule, raw source and normalized source hashes", () => {
     const rule = TAX_RULES[0];
-    const first = review(rule);
-    const duplicate = review(rule, {
-      reviewId: `${rule.ruleId}.primary.v2`,
-      reviewerId: "fiscal-professional-2",
-      findings: [
-        {
-          findingId: "finding.blocking",
-          severity: "BLOCKING",
-          summary: "Excepción fiscal sin resolver",
-        },
-      ],
-      signatureReference: "signed-review://primary/reference-2",
-    });
-    const result = evaluateDualFiscalReview(rule, sourceRegistry, {
-      contractVersion: "fiscal-review-registry.v1",
-      generatedAt: "2026-07-15",
-      records: [first, duplicate],
-    });
-    expect(result.state).toBe("INVALID_REVIEW");
-    expect(result.blockingReasons.join(" ")).toContain(
-      "APPROVE_WITH_BLOCKING_FINDINGS",
-    );
-  });
-
-  it("invalidates stale rule and source hashes", () => {
-    const rule = TAX_RULES[0];
-    const stale = review(rule, {
+    const stale = decision(rule, {
       reviewedRuleHash: "fiscal-rule-v1:stale",
-      reviewedSourceHashes: review(rule).reviewedSourceHashes.map(
+      reviewedSourceHashes: decision(rule).reviewedSourceHashes.map(
         (source, index) =>
-          index === 0 ? { ...source, snapshotHash: "sha256:stale" } : source,
+          index === 0
+            ? {
+                ...source,
+                contentHash: "sha256:stale",
+                normalizedContentHash: "sha256:stale-normalized",
+              }
+            : source,
       ),
     });
     const result = evaluateDualFiscalReview(rule, sourceRegistry, {
-      contractVersion: "fiscal-review-registry.v1",
+      contractVersion: "fiscal-review-registry.v2",
       generatedAt: "2026-07-15",
-      records: [stale],
+      decisions: [stale],
     });
     expect(result.state).toBe("STALE_REVIEW");
     expect(result.blockingReasons.join(" ")).toContain("STALE_RULE_HASH");
-    expect(result.blockingReasons.join(" ")).toContain("STALE_SOURCE_HASH");
+    expect(result.blockingReasons.join(" ")).toContain(
+      "STALE_SOURCE_CONTENT_HASH",
+    );
+    expect(result.blockingReasons.join(" ")).toContain(
+      "STALE_SOURCE_NORMALIZED_HASH",
+    );
   });
 
-  it("requires distinct signed human reviews and still only becomes manually eligible", () => {
+  it("requires server-verified fiscal identity and blocks technical, user or Codex substitutes", () => {
+    for (const origin of [
+      "CODEX_AUTOMATIC_REVIEW",
+      "TECHNICAL_REVIEW",
+      "USER_CONFIRMATION",
+    ]) {
+      const malformed = {
+        ...decision(),
+        decisionId: `malformed.${origin}`,
+        origin,
+        reviewerTrust: {
+          ...decision().reviewerTrust,
+          status: "UNVERIFIED",
+        },
+      } as unknown as FiscalRuleReviewDecision;
+      const errors = validateFiscalSourceState(
+        sourceRegistry,
+        {
+          contractVersion: "fiscal-review-registry.v2",
+          generatedAt: "2026-07-15",
+          decisions: [malformed],
+        },
+        validationContext(),
+      );
+      expect(errors).toContain(
+        `${malformed.decisionId}:AUTOMATED_OR_NON_FISCAL_REVIEW_FORBIDDEN`,
+      );
+      expect(errors).toContain(
+        `${malformed.decisionId}:SERVER_VERIFIED_FISCAL_IDENTITY_REQUIRED`,
+      );
+    }
+  });
+
+  it("ignores revoked decisions and records them separately", () => {
     const rule = TAX_RULES[0];
-    const primary = review(rule);
-    const second = review(rule, {
-      reviewId: `${rule.ruleId}.second.v1`,
+    const revoked = decision(rule, {
+      revocation: {
+        status: "REVOKED",
+        revokedAt: "2026-07-16T09:00:00Z",
+        reason: "La fuente oficial ha cambiado",
+        revocationReference: "server-revocation://decision/1",
+      },
+    });
+    const result = evaluateDualFiscalReview(rule, sourceRegistry, {
+      contractVersion: "fiscal-review-registry.v2",
+      generatedAt: "2026-07-16",
+      decisions: [revoked],
+    });
+    expect(result.state).toBe("WAITING_PRIMARY_REVIEW");
+    expect(result.validDecisionIds).toEqual([]);
+    expect(result.revokedDecisionIds).toEqual([revoked.decisionId]);
+  });
+
+  it("requires two distinct current decisions and still only becomes manually eligible", () => {
+    const rule = TAX_RULES[0];
+    const primary = decision(rule);
+    const second = decision(rule, {
+      decisionId: `${rule.ruleId}.second.v1`,
       reviewerId: "fiscal-professional-2",
       reviewerRole: "SECOND_FISCAL_REVIEWER",
+      reviewerTrust: {
+        status: "SERVER_VERIFIED",
+        subjectType: "FISCAL_PROFESSIONAL",
+        identityProvider: "server-fiscal-identity",
+        verifiedAt: "2026-07-15T12:05:00Z",
+        verificationReference: "server-trust://fiscal-professional-2/v1",
+      },
       signatureReference: "signed-review://second/reference-2",
     });
     const reviews: FiscalReviewRegistry = {
-      contractVersion: "fiscal-review-registry.v1",
+      contractVersion: "fiscal-review-registry.v2",
       generatedAt: "2026-07-15",
-      records: [primary, second],
+      decisions: [primary, second],
     };
     const result = evaluateDualFiscalReview(rule, sourceRegistry, reviews);
     const view = buildCompactFiscalReviewView(
@@ -279,41 +464,21 @@ describe("fail-closed double fiscal review", () => {
     expect(result.state).toBe("ELIGIBLE_FOR_MANUAL_APPROVAL");
     expect(result.changesRuleReviewStatus).toBe(false);
     expect(view.automaticApproval).toBe(false);
-    expect(view.availableDecisions).toEqual([
+    expect(view.availableActions).toEqual([
       "APPROVE",
       "REJECT",
       "REQUEST_CHANGES",
+      "REVOKE_DECISION",
     ]);
     expect(view.conditions).toEqual(rule.conditions);
     expect(view.exceptions).toEqual(rule.exclusions);
     expect(view.sources).toHaveLength(rule.officialSourceIds.length);
-  });
-
-  it("blocks records that claim an automated origin", () => {
-    const malformed = {
-      ...review(),
-      origin: "CODEX_AUTOMATIC_REVIEW",
-    } as unknown as FiscalRuleReviewRecord;
-    const ruleSourceIds = new Map(
-      inventory.rules.map((rule) => [rule.ruleId, rule.sourceIds]),
+    expect(view.decisions).toHaveLength(2);
+    expect(view.hashes.sourceContentHashes).toHaveLength(
+      rule.officialSourceIds.length,
     );
-    expect(
-      validateFiscalSourceState(
-        sourceRegistry,
-        {
-          contractVersion: "fiscal-review-registry.v1",
-          generatedAt: "2026-07-15",
-          records: [malformed],
-        },
-        {
-          rootDirectory: process.cwd(),
-          expectedSourceIds: sourceRegistry.sources.map(
-            (source) => source.sourceId,
-          ),
-          expectedRuleSourceIds: ruleSourceIds,
-          expectedRuleStates: inventory.rules,
-        },
-      ),
-    ).toContain(`${malformed.reviewId}:AUTOMATED_REVIEW_FORBIDDEN`);
+    expect(view.hashes.sourceNormalizedHashes).toHaveLength(
+      rule.officialSourceIds.length,
+    );
   });
 });

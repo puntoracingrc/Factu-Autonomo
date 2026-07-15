@@ -10,8 +10,10 @@ import { dirname, join, relative, resolve } from "node:path";
 
 import {
   diffRegistries,
+  normalizedContentHash,
   registryHash,
   sha256,
+  snapshotChangeMetadata,
   validateState,
 } from "./cli-core.mjs";
 import {
@@ -24,9 +26,9 @@ import {
 const DEFAULT_DIRECTORY = join(ROOT, "docs/fiscal/sources");
 const DEFAULT_REGISTRY = join(
   DEFAULT_DIRECTORY,
-  "source-snapshot-registry.v1.json",
+  "source-snapshot-registry.v2.json",
 );
-const DEFAULT_REVIEWS = join(DEFAULT_DIRECTORY, "review-records.v1.json");
+const DEFAULT_REVIEWS = join(DEFAULT_DIRECTORY, "review-decisions.v2.json");
 
 function option(name, fallback = null) {
   const index = process.argv.indexOf(name);
@@ -132,10 +134,17 @@ async function runPool(items, concurrency, worker) {
 async function snapshot() {
   const retrievedAt = option("--retrieved-at", new Date().toISOString().slice(0, 10));
   const outputDirectory = resolve(option("--output", DEFAULT_DIRECTORY));
-  const registryPath = join(outputDirectory, "source-snapshot-registry.v1.json");
+  const registryPath = join(outputDirectory, "source-snapshot-registry.v2.json");
   if (existsSync(registryPath) && !process.argv.includes("--force")) {
     throw new Error(`REGISTRY_EXISTS:${registryPath}:use --force or --output`);
   }
+  const previousRegistry =
+    existsSync(registryPath) && !process.argv.includes("--reset-history")
+      ? readJson(registryPath)
+      : null;
+  const previousById = new Map(
+    (previousRegistry?.sources ?? []).map((source) => [source.sourceId, source]),
+  );
   const sources = readCurrentOfficialSources();
   const inventory = readCurrentRuleInventory();
   const associations = sourceRuleAssociations(inventory);
@@ -152,7 +161,13 @@ async function snapshot() {
     );
     mkdirSync(dirname(absoluteSnapshotPath), { recursive: true });
     writeFileSync(absoluteSnapshotPath, selected.bytes);
-    return {
+    const contentHash = sha256(selected.bytes);
+    const currentNormalizedContentHash = normalizedContentHash(
+      selected.bytes,
+      captured.contentType,
+    );
+    const previous = previousById.get(source.sourceId);
+    const currentForDiff = {
       sourceId: source.sourceId,
       authority: source.authority,
       title: source.title,
@@ -166,7 +181,8 @@ async function snapshot() {
         effectiveTo: null,
         basis: "PENDING_FISCAL_REVIEW",
       },
-      snapshotHash: sha256(selected.bytes),
+      contentHash,
+      normalizedContentHash: currentNormalizedContentHash,
       contentLength: selected.bytes.byteLength,
       contentType: captured.contentType,
       captureScope: selected.captureScope,
@@ -176,9 +192,13 @@ async function snapshot() {
       verificationStatus: "PENDING_FISCAL_REVIEW",
       technicalHashStatus: "VALID",
     };
+    return {
+      ...currentForDiff,
+      ...snapshotChangeMetadata(previous, currentForDiff),
+    };
   });
   const unsigned = {
-    contractVersion: "fiscal-source-registry.v1",
+    contractVersion: "fiscal-source-registry.v2",
     generatedAt: retrievedAt,
     sourceCount: records.length,
     sources: records,
@@ -204,7 +224,7 @@ function validate() {
     associations: sourceRuleAssociations(inventory),
   });
   const summary = {
-    contractVersion: "fiscal-source-validation.v1",
+    contractVersion: "fiscal-source-validation.v2",
     status: errors.length === 0 ? "PASS" : "FAIL",
     sourceCount: currentSources.length,
     ruleCount: inventory.rules.length,
@@ -223,7 +243,7 @@ function validate() {
     authorizedExclusions: inventory.rules.filter(
       (rule) => rule.exclusionAuthorized,
     ).length,
-    reviewRecords: readJson(reviewsPath).records.length,
+    reviewDecisions: readJson(reviewsPath).decisions.length,
     errors,
   };
   process.stdout.write(`${JSON.stringify(summary, null, 2)}\n`);
@@ -242,7 +262,10 @@ function diff() {
   const output = option("--report");
   if (output) writeJson(resolve(output), report);
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
-  if (process.argv.includes("--fail-on-change") && report.status === "CHANGED") {
+  if (
+    process.argv.includes("--fail-on-change") &&
+    report.status === "CHANGED_REQUIRES_FISCAL_REVIEW"
+  ) {
     process.exitCode = 2;
   }
 }

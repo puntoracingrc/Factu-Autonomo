@@ -4,10 +4,10 @@ import { resolve } from "node:path";
 
 import type {
   FiscalReviewRegistry,
-  FiscalRuleReviewRecord,
+  FiscalRuleReviewDecision,
   FiscalSourceDiffEntry,
   FiscalSourceDiffReport,
-  FiscalSourceSnapshotRecord,
+  FiscalSourceSnapshot,
   FiscalSourceSnapshotRegistry,
 } from "./contracts";
 import {
@@ -27,6 +27,40 @@ function sha256(value: string | Uint8Array): `sha256:${string}` {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
+function isTextualContent(contentType: string): boolean {
+  const normalized = contentType.toLowerCase();
+  return (
+    normalized.startsWith("text/") ||
+    normalized.includes("html") ||
+    normalized.includes("xml") ||
+    normalized.includes("json")
+  );
+}
+
+export function normalizeSnapshotContent(
+  bytes: Uint8Array,
+  contentType: string,
+): string | Uint8Array {
+  if (!isTextualContent(contentType)) return bytes;
+  return new TextDecoder()
+    .decode(bytes)
+    .replace(/^\uFEFF/, "")
+    .normalize("NFC")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .replace(/>\s+</g, "><")
+    .trim();
+}
+
+export function computeNormalizedContentHash(
+  bytes: Uint8Array,
+  contentType: string,
+): `sha256:${string}` {
+  return sha256(normalizeSnapshotContent(bytes, contentType));
+}
+
 export function canonicalizeSourceRegistry(
   registry: Omit<FiscalSourceSnapshotRegistry, "registryHash">,
 ): string {
@@ -38,6 +72,10 @@ export function canonicalizeSourceRegistry(
       .map((source) => ({
         ...source,
         affectedRuleIds: sorted(source.affectedRuleIds),
+        changeSummary: {
+          ...source.changeSummary,
+          changedFields: sorted(source.changeSummary.changedFields),
+        },
       }))
       .sort((left, right) => compareText(left.sourceId, right.sourceId)),
   });
@@ -51,8 +89,61 @@ export function computeSourceRegistryHash(
 
 export function sourceRecordMap(
   registry: FiscalSourceSnapshotRegistry,
-): ReadonlyMap<string, FiscalSourceSnapshotRecord> {
+): ReadonlyMap<string, FiscalSourceSnapshot> {
   return new Map(registry.sources.map((source) => [source.sourceId, source]));
+}
+
+const COMPARED_SOURCE_FIELDS = [
+  "authority",
+  "title",
+  "officialLocator",
+  "finalOfficialLocator",
+  "declaredOfficialUpdatedAt",
+  "materialValidity",
+  "contentHash",
+  "normalizedContentHash",
+  "contentLength",
+  "contentType",
+  "captureScope",
+  "materialScope",
+  "affectedRuleIds",
+  "verificationStatus",
+] as const satisfies readonly (keyof FiscalSourceSnapshot)[];
+
+const MATERIAL_SOURCE_FIELDS = new Set<keyof FiscalSourceSnapshot>([
+  "authority",
+  "officialLocator",
+  "materialValidity",
+  "materialScope",
+  "affectedRuleIds",
+  "verificationStatus",
+]);
+
+function classifyChange(
+  previous: FiscalSourceSnapshot,
+  current: FiscalSourceSnapshot,
+  changedFields: readonly (keyof FiscalSourceSnapshot)[],
+): FiscalSourceDiffEntry["changeNature"] {
+  if (changedFields.some((field) => MATERIAL_SOURCE_FIELDS.has(field))) {
+    return "MATERIAL";
+  }
+  if (
+    previous.contentHash !== current.contentHash &&
+    previous.normalizedContentHash === current.normalizedContentHash
+  ) {
+    return "TECHNICAL";
+  }
+  return "INDETERMINATE";
+}
+
+function summarizeChange(
+  changeType: FiscalSourceDiffEntry["changeType"],
+  nature: FiscalSourceDiffEntry["changeNature"],
+  fields: readonly string[],
+): string {
+  if (changeType === "NEW") return "Nueva fuente: requiere revisión fiscal.";
+  if (changeType === "REMOVED") return "Fuente retirada: requiere revisión fiscal.";
+  return `Fuente modificada (${nature.toLowerCase()}): ${fields.join(", ")}. Requiere revisión fiscal.`;
 }
 
 export function diffFiscalSourceRegistries(
@@ -67,42 +158,42 @@ export function diffFiscalSourceRegistries(
   for (const source of candidate.sources) {
     const previous = baselineById.get(source.sourceId);
     if (!previous) {
+      const changedFields = ["source"];
+      const changeNature = "INDETERMINATE" as const;
       changes.push({
         sourceId: source.sourceId,
         changeType: "NEW",
-        changedFields: ["source"],
+        changeNature,
+        reviewRequirement: "REQUIRES_FISCAL_REVIEW",
+        changeSummary: summarizeChange("NEW", changeNature, changedFields),
+        changedFields,
         affectedRuleIds: sorted(source.affectedRuleIds),
       });
       continue;
     }
 
-    const changedFields = [
-      "authority",
-      "officialLocator",
-      "finalOfficialLocator",
-      "declaredOfficialUpdatedAt",
-      "materialValidity",
-      "snapshotHash",
-      "contentLength",
-      "contentType",
-      "captureScope",
-      "materialScope",
-      "affectedRuleIds",
-      "verificationStatus",
-    ].filter(
+    const changedFields = COMPARED_SOURCE_FIELDS.filter(
       (field) =>
-        JSON.stringify(previous[field as keyof FiscalSourceSnapshotRecord]) !==
-        JSON.stringify(source[field as keyof FiscalSourceSnapshotRecord]),
+        JSON.stringify(previous[field]) !== JSON.stringify(source[field]),
     );
-
     if (changedFields.length > 0) {
+      const changeNature = classifyChange(previous, source, changedFields);
       changes.push({
         sourceId: source.sourceId,
         changeType: "MODIFIED",
+        changeNature,
+        reviewRequirement: "REQUIRES_FISCAL_REVIEW",
+        changeSummary: summarizeChange(
+          "MODIFIED",
+          changeNature,
+          changedFields,
+        ),
         changedFields,
         affectedRuleIds: sorted([
-          ...previous.affectedRuleIds,
-          ...source.affectedRuleIds,
+          ...new Set([
+            ...previous.affectedRuleIds,
+            ...source.affectedRuleIds,
+          ]),
         ]),
       });
     }
@@ -110,10 +201,15 @@ export function diffFiscalSourceRegistries(
 
   for (const source of baseline.sources) {
     if (!candidateById.has(source.sourceId)) {
+      const changedFields = ["source"];
+      const changeNature = "INDETERMINATE" as const;
       changes.push({
         sourceId: source.sourceId,
         changeType: "REMOVED",
-        changedFields: ["source"],
+        changeNature,
+        reviewRequirement: "REQUIRES_FISCAL_REVIEW",
+        changeSummary: summarizeChange("REMOVED", changeNature, changedFields),
+        changedFields,
         affectedRuleIds: sorted(source.affectedRuleIds),
       });
     }
@@ -124,34 +220,33 @@ export function diffFiscalSourceRegistries(
     [...new Set(changes.flatMap((change) => change.affectedRuleIds))],
   );
   const affectedRuleSet = new Set(affectedRuleIds);
-  const reviewIdsToInvalidate = sorted(
-    reviewRegistry.records
-      .filter((record) => affectedRuleSet.has(record.ruleId))
-      .map((record) => record.reviewId),
+  const affectedActiveDecisions = reviewRegistry.decisions.filter(
+    (decision) =>
+      decision.revocation.status === "ACTIVE" &&
+      affectedRuleSet.has(decision.ruleId),
   );
-  const ruleApprovalsToInvalidate = sorted(
-    [...
-      new Set(
-        reviewRegistry.records
-          .filter(
-            (record) =>
-              record.decision === "APPROVE" &&
-              affectedRuleSet.has(record.ruleId),
-          )
-          .map((record) => record.ruleId),
-      ),
-    ],
+  const decisionIdsToRevoke = sorted(
+    affectedActiveDecisions.map((decision) => decision.decisionId),
   );
+  const ruleApprovalsToInvalidate = sorted([
+    ...new Set(
+      affectedActiveDecisions
+        .filter((decision) => decision.decision === "APPROVE")
+        .map((decision) => decision.ruleId),
+    ),
+  ]);
 
   return {
-    contractVersion: "fiscal-source-diff.v1",
+    contractVersion: "fiscal-source-diff.v2",
     baselineRegistryHash: baseline.registryHash,
     candidateRegistryHash: candidate.registryHash,
-    status: changes.length === 0 ? "CLEAN" : "CHANGED",
+    status:
+      changes.length === 0 ? "CLEAN" : "CHANGED_REQUIRES_FISCAL_REVIEW",
     changes,
     affectedRuleIds,
-    reviewIdsToInvalidate,
+    decisionIdsToRevoke,
     ruleApprovalsToInvalidate,
+    automaticallyIrrelevantChanges: [],
   };
 }
 
@@ -171,7 +266,9 @@ export interface FiscalSourceValidationContext {
 function officialHostname(authority: string, locator: string): boolean {
   try {
     const hostname = new URL(locator).hostname.toLowerCase();
-    if (authority === "BOE") return hostname === "www.boe.es" || hostname === "boe.es";
+    if (authority === "BOE") {
+      return hostname === "www.boe.es" || hostname === "boe.es";
+    }
     if (authority === "AEAT") {
       return (
         hostname === "sede.agenciatributaria.gob.es" ||
@@ -188,57 +285,109 @@ function officialHostname(authority: string, locator: string): boolean {
   }
 }
 
-function validateReviewRecord(
-  record: FiscalRuleReviewRecord,
+function validateTrust(decision: FiscalRuleReviewDecision): string[] {
+  const errors: string[] = [];
+  const prefix = decision.decisionId;
+  const trust = decision.reviewerTrust;
+  if (decision.origin !== "HUMAN_FISCAL_PROFESSIONAL") {
+    errors.push(`${prefix}:AUTOMATED_OR_NON_FISCAL_REVIEW_FORBIDDEN`);
+  }
+  if (
+    !trust ||
+    trust.status !== "SERVER_VERIFIED" ||
+    trust.subjectType !== "FISCAL_PROFESSIONAL" ||
+    !trust.identityProvider?.trim() ||
+    !trust.verifiedAt ||
+    !trust.verificationReference?.trim()
+  ) {
+    errors.push(`${prefix}:SERVER_VERIFIED_FISCAL_IDENTITY_REQUIRED`);
+  }
+  return errors;
+}
+
+function validateRevocation(decision: FiscalRuleReviewDecision): string[] {
+  if (!decision.revocation) {
+    return [`${decision.decisionId}:INVALID_REVOCATION_STATUS`];
+  }
+  if (decision.revocation.status === "ACTIVE") {
+    if (
+      decision.revocation.revokedAt !== null ||
+      decision.revocation.reason !== null ||
+      decision.revocation.revocationReference !== null
+    ) {
+      return [`${decision.decisionId}:INVALID_ACTIVE_REVOCATION`];
+    }
+    return [];
+  }
+  if (
+    !decision.revocation.revokedAt ||
+    !decision.revocation.reason.trim() ||
+    !decision.revocation.revocationReference.trim()
+  ) {
+    return [`${decision.decisionId}:INCOMPLETE_REVOCATION`];
+  }
+  return [];
+}
+
+function validateReviewDecision(
+  decision: FiscalRuleReviewDecision,
   rules: FiscalSourceValidationContext["expectedRuleStates"],
-  sourceById: ReadonlyMap<string, FiscalSourceSnapshotRecord>,
+  sourceById: ReadonlyMap<string, FiscalSourceSnapshot>,
   ruleSourceIds: ReadonlyMap<string, readonly string[]>,
 ): string[] {
   const errors: string[] = [];
-  const rule = rules.find((candidate) => candidate.ruleId === record.ruleId);
-  if (!rule) return [`${record.reviewId}:UNKNOWN_RULE`];
+  const rule = rules.find((candidate) => candidate.ruleId === decision.ruleId);
+  if (!rule) return [`${decision.decisionId}:UNKNOWN_RULE`];
   if (
-    record.reviewerRole !== "PRIMARY_FISCAL_REVIEWER" &&
-    record.reviewerRole !== "SECOND_FISCAL_REVIEWER"
+    decision.reviewerRole !== "PRIMARY_FISCAL_REVIEWER" &&
+    decision.reviewerRole !== "SECOND_FISCAL_REVIEWER"
   ) {
-    errors.push(`${record.reviewId}:INVALID_REVIEWER_ROLE`);
-  }
-  if (
-    record.decision !== "APPROVE" &&
-    record.decision !== "REJECT" &&
-    record.decision !== "REQUEST_CHANGES"
-  ) {
-    errors.push(`${record.reviewId}:INVALID_REVIEW_DECISION`);
-  }
-  if (!record.reviewerId.trim()) {
-    errors.push(`${record.reviewId}:MISSING_REVIEWER_ID`);
-  }
-  if (record.origin !== "HUMAN_SIGNED_FISCAL_REVIEW") {
-    errors.push(`${record.reviewId}:AUTOMATED_REVIEW_FORBIDDEN`);
-  }
-  if (!record.signatureReference.trim()) {
-    errors.push(`${record.reviewId}:MISSING_SIGNATURE_REFERENCE`);
+    errors.push(`${decision.decisionId}:INVALID_REVIEWER_ROLE`);
   }
   if (
-    record.decision === "APPROVE" &&
-    record.findings.some((finding) => finding.severity === "BLOCKING")
+    decision.decision !== "APPROVE" &&
+    decision.decision !== "REJECT" &&
+    decision.decision !== "REQUEST_CHANGES"
   ) {
-    errors.push(`${record.reviewId}:APPROVE_WITH_BLOCKING_FINDINGS`);
+    errors.push(`${decision.decisionId}:INVALID_REVIEW_DECISION`);
   }
-  if (record.reviewedRuleHash !== rule.ruleHash) {
-    errors.push(`${record.reviewId}:STALE_RULE_HASH`);
+  if (!decision.reviewerId?.trim()) {
+    errors.push(`${decision.decisionId}:MISSING_REVIEWER_ID`);
   }
-  const expectedSources = sorted(ruleSourceIds.get(record.ruleId) ?? []);
+  errors.push(...validateTrust(decision), ...validateRevocation(decision));
+  if (!decision.signatureReference?.trim()) {
+    errors.push(`${decision.decisionId}:MISSING_SIGNATURE_REFERENCE`);
+  }
+  if (
+    decision.decision === "APPROVE" &&
+    decision.findings?.some((finding) => finding.severity === "BLOCKING")
+  ) {
+    errors.push(`${decision.decisionId}:APPROVE_WITH_BLOCKING_FINDINGS`);
+  }
+  if (decision.reviewedRuleHash !== rule.ruleHash) {
+    errors.push(`${decision.decisionId}:STALE_RULE_HASH`);
+  }
+  const expectedSources = sorted(ruleSourceIds.get(decision.ruleId) ?? []);
   const reviewedSources = sorted(
-    record.reviewedSourceHashes.map((source) => source.sourceId),
+    decision.reviewedSourceHashes.map((source) => source.sourceId),
   );
   if (JSON.stringify(expectedSources) !== JSON.stringify(reviewedSources)) {
-    errors.push(`${record.reviewId}:INCOMPLETE_SOURCE_SET`);
+    errors.push(`${decision.decisionId}:INCOMPLETE_SOURCE_SET`);
   }
-  for (const reviewedSource of record.reviewedSourceHashes) {
+  for (const reviewedSource of decision.reviewedSourceHashes) {
     const current = sourceById.get(reviewedSource.sourceId);
-    if (!current || current.snapshotHash !== reviewedSource.snapshotHash) {
-      errors.push(`${record.reviewId}:STALE_SOURCE_HASH:${reviewedSource.sourceId}`);
+    if (!current || current.contentHash !== reviewedSource.contentHash) {
+      errors.push(
+        `${decision.decisionId}:STALE_SOURCE_CONTENT_HASH:${reviewedSource.sourceId}`,
+      );
+    }
+    if (
+      !current ||
+      current.normalizedContentHash !== reviewedSource.normalizedContentHash
+    ) {
+      errors.push(
+        `${decision.decisionId}:STALE_SOURCE_NORMALIZED_HASH:${reviewedSource.sourceId}`,
+      );
     }
   }
   return errors;
@@ -270,8 +419,13 @@ export function validateFiscalSourceState(
   }
 
   const sourceIds = registry.sources.map((source) => source.sourceId);
-  if (new Set(sourceIds).size !== sourceIds.length) errors.push("DUPLICATE_SOURCE_ID");
-  if (JSON.stringify(sorted(sourceIds)) !== JSON.stringify(sorted(context.expectedSourceIds))) {
+  if (new Set(sourceIds).size !== sourceIds.length) {
+    errors.push("DUPLICATE_SOURCE_ID");
+  }
+  if (
+    JSON.stringify(sorted(sourceIds)) !==
+    JSON.stringify(sorted(context.expectedSourceIds))
+  ) {
     errors.push("SOURCE_SET_MISMATCH");
   }
 
@@ -298,6 +452,34 @@ export function validateFiscalSourceState(
     ) {
       errors.push(`${source.sourceId}:PREMATURE_MATERIAL_VALIDITY`);
     }
+    if (
+      source.previousSnapshotHash === null &&
+      (source.changeDetected ||
+        source.changeSummary.status !== "INITIAL_CAPTURE" ||
+        source.changeSummary.nature !== "INITIAL" ||
+        source.changeSummary.requiresFiscalReview ||
+        source.changeSummary.changedFields.length > 0)
+    ) {
+      errors.push(`${source.sourceId}:INVALID_INITIAL_CHANGE_HISTORY`);
+    }
+    if (source.previousSnapshotHash !== null) {
+      const validChangedHistory =
+        source.changeDetected &&
+        source.changeSummary.status === "CHANGED" &&
+        source.changeSummary.nature !== "INITIAL" &&
+        source.changeSummary.nature !== "NONE" &&
+        source.changeSummary.requiresFiscalReview &&
+        source.changeSummary.changedFields.length > 0;
+      const validUnchangedHistory =
+        !source.changeDetected &&
+        source.changeSummary.status === "UNCHANGED" &&
+        source.changeSummary.nature === "NONE" &&
+        !source.changeSummary.requiresFiscalReview &&
+        source.changeSummary.changedFields.length === 0;
+      if (!validChangedHistory && !validUnchangedHistory) {
+        errors.push(`${source.sourceId}:INCONSISTENT_CHANGE_HISTORY`);
+      }
+    }
     const snapshotPath = resolve(context.rootDirectory, source.snapshotPath);
     let bytes: Buffer;
     try {
@@ -309,8 +491,14 @@ export function validateFiscalSourceState(
     if (bytes.byteLength !== source.contentLength) {
       errors.push(`${source.sourceId}:CONTENT_LENGTH_MISMATCH`);
     }
-    if (sha256(bytes) !== source.snapshotHash) {
-      errors.push(`${source.sourceId}:SNAPSHOT_HASH_MISMATCH`);
+    if (sha256(bytes) !== source.contentHash) {
+      errors.push(`${source.sourceId}:CONTENT_HASH_MISMATCH`);
+    }
+    if (
+      computeNormalizedContentHash(bytes, source.contentType) !==
+      source.normalizedContentHash
+    ) {
+      errors.push(`${source.sourceId}:NORMALIZED_CONTENT_HASH_MISMATCH`);
     }
   }
 
@@ -338,12 +526,16 @@ export function validateFiscalSourceState(
     errors.push("EXPECTED_54_RULES");
   }
 
-  const reviewIds = reviewRegistry.records.map((record) => record.reviewId);
-  if (new Set(reviewIds).size !== reviewIds.length) errors.push("DUPLICATE_REVIEW_ID");
-  for (const record of reviewRegistry.records) {
+  const decisionIds = reviewRegistry.decisions.map(
+    (decision) => decision.decisionId,
+  );
+  if (new Set(decisionIds).size !== decisionIds.length) {
+    errors.push("DUPLICATE_REVIEW_DECISION_ID");
+  }
+  for (const decision of reviewRegistry.decisions) {
     errors.push(
-      ...validateReviewRecord(
-        record,
+      ...validateReviewDecision(
+        decision,
         context.expectedRuleStates,
         sourceById,
         context.expectedRuleSourceIds,
@@ -351,23 +543,25 @@ export function validateFiscalSourceState(
     );
   }
   for (const rule of context.expectedRuleStates) {
-    const records = reviewRegistry.records.filter(
-      (record) => record.ruleId === rule.ruleId,
+    const activeDecisions = reviewRegistry.decisions.filter(
+      (decision) =>
+        decision.ruleId === rule.ruleId &&
+        decision.revocation.status === "ACTIVE",
     );
-    const primaryRecords = records.filter(
-      (record) => record.reviewerRole === "PRIMARY_FISCAL_REVIEWER",
+    const primaryDecisions = activeDecisions.filter(
+      (decision) => decision.reviewerRole === "PRIMARY_FISCAL_REVIEWER",
     );
-    const secondRecords = records.filter(
-      (record) => record.reviewerRole === "SECOND_FISCAL_REVIEWER",
+    const secondDecisions = activeDecisions.filter(
+      (decision) => decision.reviewerRole === "SECOND_FISCAL_REVIEWER",
     );
-    if (primaryRecords.length > 1) {
+    if (primaryDecisions.length > 1) {
       errors.push(`${rule.ruleId}:MULTIPLE_PRIMARY_REVIEWS`);
     }
-    if (secondRecords.length > 1) {
+    if (secondDecisions.length > 1) {
       errors.push(`${rule.ruleId}:MULTIPLE_SECOND_REVIEWS`);
     }
-    const primary = primaryRecords[0];
-    const second = secondRecords[0];
+    const primary = primaryDecisions[0];
+    const second = secondDecisions[0];
     if (primary && second && primary.reviewerId === second.reviewerId) {
       errors.push(`${rule.ruleId}:SAME_REVIEWER_FOR_BOTH_ROLES`);
     }

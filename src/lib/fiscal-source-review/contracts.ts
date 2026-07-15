@@ -4,14 +4,15 @@ import type {
 } from "@/lib/tax-model-diagnostic/contracts";
 
 export const FISCAL_SOURCE_REGISTRY_VERSION =
-  "fiscal-source-registry.v1" as const;
+  "fiscal-source-registry.v2" as const;
 export const FISCAL_REVIEW_REGISTRY_VERSION =
-  "fiscal-review-registry.v1" as const;
+  "fiscal-review-registry.v2" as const;
 
 export type FiscalSourceRegistryVersion =
   typeof FISCAL_SOURCE_REGISTRY_VERSION;
 export type FiscalReviewRegistryVersion =
   typeof FISCAL_REVIEW_REGISTRY_VERSION;
+export type Sha256Hash = `sha256:${string}`;
 
 export type FiscalSourceVerificationStatus =
   | "PENDING_FISCAL_REVIEW"
@@ -27,7 +28,21 @@ export interface FiscalSourceMaterialValidity {
   basis: "PENDING_FISCAL_REVIEW" | "SIGNED_FISCAL_REVIEW";
 }
 
-export interface FiscalSourceSnapshotRecord {
+export type FiscalSourceChangeNature =
+  | "INITIAL"
+  | "NONE"
+  | "MATERIAL"
+  | "TECHNICAL"
+  | "INDETERMINATE";
+
+export interface FiscalSourceChangeSummary {
+  status: "INITIAL_CAPTURE" | "UNCHANGED" | "CHANGED";
+  nature: FiscalSourceChangeNature;
+  requiresFiscalReview: boolean;
+  changedFields: readonly string[];
+}
+
+export interface FiscalSourceSnapshot {
   sourceId: string;
   authority: "AEAT" | "BOE" | "SEGURIDAD_SOCIAL" | "EU";
   title: string;
@@ -36,7 +51,11 @@ export interface FiscalSourceSnapshotRecord {
   retrievedAt: string;
   declaredOfficialUpdatedAt: string | null;
   materialValidity: FiscalSourceMaterialValidity;
-  snapshotHash: `sha256:${string}`;
+  contentHash: Sha256Hash;
+  normalizedContentHash: Sha256Hash;
+  previousSnapshotHash: Sha256Hash | null;
+  changeDetected: boolean;
+  changeSummary: FiscalSourceChangeSummary;
   contentLength: number;
   contentType: string;
   captureScope: "FULL_DOCUMENT" | "LOCATOR_FRAGMENT";
@@ -50,12 +69,12 @@ export interface FiscalSourceSnapshotRecord {
 export interface FiscalSourceSnapshotRegistry {
   contractVersion: FiscalSourceRegistryVersion;
   generatedAt: string;
-  registryHash: `sha256:${string}`;
+  registryHash: Sha256Hash;
   sourceCount: number;
-  sources: readonly FiscalSourceSnapshotRecord[];
+  sources: readonly FiscalSourceSnapshot[];
 }
 
-export type FiscalReviewDecision =
+export type FiscalReviewDecisionValue =
   | "APPROVE"
   | "REJECT"
   | "REQUEST_CHANGES";
@@ -66,31 +85,56 @@ export interface FiscalReviewFinding {
   summary: string;
 }
 
-export interface FiscalRuleReviewRecord {
-  reviewId: string;
+export interface FiscalReviewerServerTrust {
+  status: "SERVER_VERIFIED" | "UNVERIFIED" | "REVOKED";
+  subjectType: "FISCAL_PROFESSIONAL";
+  identityProvider: string;
+  verifiedAt: string | null;
+  verificationReference: string | null;
+}
+
+export type FiscalReviewRevocation =
+  | {
+      status: "ACTIVE";
+      revokedAt: null;
+      reason: null;
+      revocationReference: null;
+    }
+  | {
+      status: "REVOKED";
+      revokedAt: string;
+      reason: string;
+      revocationReference: string;
+    };
+
+export interface FiscalRuleReviewDecision {
+  decisionId: string;
   ruleId: string;
   reviewerId: string;
   reviewerRole: Extract<
     FiscalReviewerRole,
     "PRIMARY_FISCAL_REVIEWER" | "SECOND_FISCAL_REVIEWER"
   >;
-  decision: FiscalReviewDecision;
+  reviewerTrust: FiscalReviewerServerTrust;
+  decision: FiscalReviewDecisionValue;
   reviewedRuleHash: string;
   reviewedSourceHashes: readonly {
     sourceId: string;
-    snapshotHash: `sha256:${string}`;
+    contentHash: Sha256Hash;
+    normalizedContentHash: Sha256Hash;
   }[];
   findings: readonly FiscalReviewFinding[];
   incidentIds: readonly string[];
   signatureReference: string;
   recordedAt: string;
-  origin: "HUMAN_SIGNED_FISCAL_REVIEW";
+  origin: "HUMAN_FISCAL_PROFESSIONAL";
+  revocation: FiscalReviewRevocation;
 }
 
 export interface FiscalReviewRegistry {
   contractVersion: FiscalReviewRegistryVersion;
   generatedAt: string;
-  records: readonly FiscalRuleReviewRecord[];
+  decisions: readonly FiscalRuleReviewDecision[];
 }
 
 export type FiscalDualReviewState =
@@ -105,8 +149,9 @@ export type FiscalDualReviewState =
 export interface FiscalDualReviewEvaluation {
   ruleId: string;
   state: FiscalDualReviewState;
-  validReviewIds: readonly string[];
-  invalidReviewIds: readonly string[];
+  validDecisionIds: readonly string[];
+  invalidDecisionIds: readonly string[];
+  revokedDecisionIds: readonly string[];
   blockingReasons: readonly string[];
   changesRuleReviewStatus: false;
   sourceStatus: FiscalSourceStatus;
@@ -115,20 +160,28 @@ export interface FiscalDualReviewEvaluation {
 export interface FiscalSourceDiffEntry {
   sourceId: string;
   changeType: "NEW" | "MODIFIED" | "REMOVED";
+  changeNature: Exclude<FiscalSourceChangeNature, "INITIAL" | "NONE">;
+  reviewRequirement: "REQUIRES_FISCAL_REVIEW";
+  changeSummary: string;
   changedFields: readonly string[];
   affectedRuleIds: readonly string[];
 }
 
 export interface FiscalSourceDiffReport {
-  contractVersion: "fiscal-source-diff.v1";
+  contractVersion: "fiscal-source-diff.v2";
   baselineRegistryHash: string;
   candidateRegistryHash: string;
-  status: "CLEAN" | "CHANGED";
+  status: "CLEAN" | "CHANGED_REQUIRES_FISCAL_REVIEW";
   changes: readonly FiscalSourceDiffEntry[];
   affectedRuleIds: readonly string[];
-  reviewIdsToInvalidate: readonly string[];
+  decisionIdsToRevoke: readonly string[];
   ruleApprovalsToInvalidate: readonly string[];
+  automaticallyIrrelevantChanges: readonly [];
 }
+
+export type FiscalReviewAction =
+  | FiscalReviewDecisionValue
+  | "REVOKE_DECISION";
 
 export interface CompactFiscalReviewView {
   ruleId: string;
@@ -140,16 +193,34 @@ export interface CompactFiscalReviewView {
   sources: readonly {
     sourceId: string;
     title: string;
+    officialLocator: string;
     materialScope: string;
-    snapshotHash: string;
+    affectedRuleIds: readonly string[];
+    materialValidity: FiscalSourceMaterialValidity;
+    contentHash: string;
+    normalizedContentHash: string;
+    previousSnapshotHash: string | null;
+    changeDetected: boolean;
+    changeSummary: FiscalSourceChangeSummary;
     verificationStatus: FiscalSourceVerificationStatus;
+  }[];
+  decisions: readonly {
+    decisionId: string;
+    reviewerId: string;
+    reviewerRole: FiscalRuleReviewDecision["reviewerRole"];
+    decision: FiscalReviewDecisionValue;
+    trustStatus: FiscalReviewerServerTrust["status"];
+    revocationStatus: FiscalReviewRevocation["status"];
+    reviewedRuleHash: string;
+    recordedAt: string;
   }[];
   incidents: readonly string[];
   hashes: {
     ruleHash: string;
-    sourceHashes: readonly string[];
+    sourceContentHashes: readonly string[];
+    sourceNormalizedHashes: readonly string[];
   };
   reviewState: FiscalDualReviewState;
-  availableDecisions: readonly FiscalReviewDecision[];
+  availableActions: readonly FiscalReviewAction[];
   automaticApproval: false;
 }

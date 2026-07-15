@@ -45,4 +45,5 @@ jobs:
       - run: >-
           npx vitest run
           src/lib/fiscal-source-review/fiscal-source-review.test.ts
+          scripts/fiscal-sources/cli-core.test.mjs
           src/components/admin/FiscalRuleReviewCompactView.test.ts

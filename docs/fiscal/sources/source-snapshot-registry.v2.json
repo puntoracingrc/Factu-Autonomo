@@ -1,5 +1,5 @@
 {
-  "contractVersion": "fiscal-source-registry.v1",
+  "contractVersion": "fiscal-source-registry.v2",
   "generatedAt": "2026-07-15",
   "sourceCount": 29,
   "sources": [
@@ -17,7 +17,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:1298817e95c3792a49341e4170ee9b383978213625fb13b1bc9c83e5795c45d4",
+      "contentHash": "sha256:1298817e95c3792a49341e4170ee9b383978213625fb13b1bc9c83e5795c45d4",
+      "normalizedContentHash": "sha256:0155a7ae067424bf0fd58a473d48cc40d710cd0df1025e7f4a400941fdbaf02c",
       "contentLength": 9891,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -30,7 +31,15 @@
         "es-common.2026.model-296"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.irpf.installment-payments",
@@ -46,7 +55,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:b8642da797346d7131afe211247ff417fdc5853a1af6f3afd20e924090af9997",
+      "contentHash": "sha256:b8642da797346d7131afe211247ff417fdc5853a1af6f3afd20e924090af9997",
+      "normalizedContentHash": "sha256:c0b9ba1b62126fffc78a519c954b816a8f89187a41a6650e541cece4ee090ac4",
       "contentLength": 21422,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -59,7 +69,15 @@
         "es-common.2026.model-131"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.is.installments",
@@ -75,7 +93,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:7b3223cdde5e4fef2a35abaccae493c4a590742d4de67daeeceeed6fe80cc844",
+      "contentHash": "sha256:7b3223cdde5e4fef2a35abaccae493c4a590742d4de67daeeceeed6fe80cc844",
+      "normalizedContentHash": "sha256:da36ce116887612769e9a9ada94dded07618188ca817a055ed728224a5724ce8",
       "contentLength": 7769,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -86,7 +105,15 @@
         "es-common.2026.model-202"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.is.model-200.obligation",
@@ -102,7 +129,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:dfe6ffae8638ee7c51c918a4646b2c1fd93c9373b510bc3a30b808ceb4e2f16b",
+      "contentHash": "sha256:dfe6ffae8638ee7c51c918a4646b2c1fd93c9373b510bc3a30b808ceb4e2f16b",
+      "normalizedContentHash": "sha256:6afe6001b7b25b3a5657a9da270e770739bbcf1202813b88cbe7e4e12ffe75b4",
       "contentLength": 12563,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -113,7 +141,15 @@
         "es-common.2026.model-200"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-035.procedure",
@@ -129,7 +165,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:1adc450e5585ad9fa8d606f5e95fc31ca6e31bf90bdbf6f93f41859dd49e78b3",
+      "contentHash": "sha256:1adc450e5585ad9fa8d606f5e95fc31ca6e31bf90bdbf6f93f41859dd49e78b3",
+      "normalizedContentHash": "sha256:36d61afe1adc89bbbad29e61983b52500be881c1e46140cbd681d6b0829f13c1",
       "contentLength": 19640,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -140,7 +177,15 @@
         "es-common.2026.model-035"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-036.modification",
@@ -156,7 +201,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:a4d1170590f0a88d25e9f252941d8cf501b651d47120a280133c3396a2b60c81",
+      "contentHash": "sha256:a4d1170590f0a88d25e9f252941d8cf501b651d47120a280133c3396a2b60c81",
+      "normalizedContentHash": "sha256:0ec2af244579f05585d15b9995d331176da693439b916241221cda0a2baa84f9",
       "contentLength": 21842,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -167,7 +213,15 @@
         "es-common.2026.model-036"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-130.instructions",
@@ -183,7 +237,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:6fed37aee78a49bbd6263af771b7b1780e5a59e529e10924fce3fffb07c29913",
+      "contentHash": "sha256:6fed37aee78a49bbd6263af771b7b1780e5a59e529e10924fce3fffb07c29913",
+      "normalizedContentHash": "sha256:185babce86bff0f8689ff96ffc31f163ec2877eb23b2066f07d7f002935b66a0",
       "contentLength": 40060,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -194,7 +249,15 @@
         "es-common.2026.model-130"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-131.instructions",
@@ -210,7 +273,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:0e11545090f133d97b1d84fd42b8006b26a0cab1780529d2105c48d34c27327c",
+      "contentHash": "sha256:0e11545090f133d97b1d84fd42b8006b26a0cab1780529d2105c48d34c27327c",
+      "normalizedContentHash": "sha256:190411168484a7131675e6aa00521735f89fb7c12b8c5902faf42d132bd6ee9f",
       "contentLength": 43884,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -221,7 +285,15 @@
         "es-common.2026.model-131"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-184.obligations",
@@ -237,7 +309,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:0790981d03ccaef07c77dbcb257cb50283ee9ca9e37d00e0d735d02e79d03b7a",
+      "contentHash": "sha256:0790981d03ccaef07c77dbcb257cb50283ee9ca9e37d00e0d735d02e79d03b7a",
+      "normalizedContentHash": "sha256:9c3de3235b56842d4ac8bec5f554cfd903a8fe01216e057619406422fbec693a",
       "contentLength": 21011,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -248,7 +321,15 @@
         "es-common.2026.model-184"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-303.instructions-2026",
@@ -264,7 +345,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:e4e5204da9d059119b11094df9c9864120da337bd47dc4cbe06fa05ffc45b603",
+      "contentHash": "sha256:e4e5204da9d059119b11094df9c9864120da337bd47dc4cbe06fa05ffc45b603",
+      "normalizedContentHash": "sha256:b806836ec69807ffaf407c49d4c1dd7f28f5aad0461ed1caf0447804ea802e38",
       "contentLength": 109982,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -275,7 +357,15 @@
         "es-common.2026.model-303"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-308.procedure",
@@ -291,7 +381,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:97f911d4dac1b4f473ee6c7ba534a5d0d3cfbaad31ddee6577c34abc866d13c8",
+      "contentHash": "sha256:97f911d4dac1b4f473ee6c7ba534a5d0d3cfbaad31ddee6577c34abc866d13c8",
+      "normalizedContentHash": "sha256:01dc766d37cb10c3e5de94b6a6e9c730accf4b7a800c68cd001befefb934e3bb",
       "contentLength": 17593,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -302,7 +393,15 @@
         "es-common.2026.model-308"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-309.instructions",
@@ -318,7 +417,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:f612c64781f74ed9192700cc222493e08e1b05b7e821420248e99e7d21c6fb59",
+      "contentHash": "sha256:f612c64781f74ed9192700cc222493e08e1b05b7e821420248e99e7d21c6fb59",
+      "normalizedContentHash": "sha256:e41731d40811faa2815d132a621037b2aba2933061f5b3586ea233b67748c32f",
       "contentLength": 18880,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -329,7 +429,15 @@
         "es-common.2026.model-309"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-341.instructions",
@@ -345,7 +453,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:4a0a0063b1d00a746f2ba523b102856a365edfaeea644c5ffd6905086071d3df",
+      "contentHash": "sha256:4a0a0063b1d00a746f2ba523b102856a365edfaeea644c5ffd6905086071d3df",
+      "normalizedContentHash": "sha256:820f780d56883e917276a24925905a941de396f6a79f74251386d45e9aec7af9",
       "contentLength": 9721,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -356,7 +465,15 @@
         "es-common.2026.model-341"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-347.exclusions",
@@ -372,7 +489,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:dda27b1e35e2f71322f21b16b0c43813ebdecf97574ca6e1edc659e0d79990dc",
+      "contentHash": "sha256:dda27b1e35e2f71322f21b16b0c43813ebdecf97574ca6e1edc659e0d79990dc",
+      "normalizedContentHash": "sha256:381d974573a581f72dd7c4a2e47a471fd64bca1128e93a22c6d56747d9962206",
       "contentLength": 16250,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -383,7 +501,15 @@
         "es-common.2026.model-347"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-349.periodicity",
@@ -399,7 +525,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:c7812f7f68c1ed32900397a9d861b740990536a4c2d09dd9bf3a6450691e2d61",
+      "contentHash": "sha256:c7812f7f68c1ed32900397a9d861b740990536a4c2d09dd9bf3a6450691e2d61",
+      "normalizedContentHash": "sha256:b7b9aef33780881e9d4de73c89d71bd36e8777d14617866f8deea5902630cfdc",
       "contentLength": 8226,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -410,7 +537,15 @@
         "es-common.2026.model-349"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-369.periodicity",
@@ -426,7 +561,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:e87843b4e46fa5b05ff23a5281b0ac4806c3fd3543169f0df33a23eaed7ed848",
+      "contentHash": "sha256:e87843b4e46fa5b05ff23a5281b0ac4806c3fd3543169f0df33a23eaed7ed848",
+      "normalizedContentHash": "sha256:f5e7564781db1213c336929ef64e440147a15f7e93f3a24d6b84d8ea3fbc1f23",
       "contentLength": 29772,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -439,7 +575,15 @@
         "es-common.2026.model-369"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-369.procedure",
@@ -455,7 +599,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:3b7bddc6116e09f26d8514bcd09b805cd70f15c0fdf043bd317510cba34a5919",
+      "contentHash": "sha256:3b7bddc6116e09f26d8514bcd09b805cd70f15c0fdf043bd317510cba34a5919",
+      "normalizedContentHash": "sha256:e41fa12c81bca67602970509163938f29ac58490929da570b12e0deb68b8d3d4",
       "contentLength": 20876,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -466,7 +611,15 @@
         "es-common.2026.model-369"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-390.exemptions",
@@ -482,7 +635,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:d370da03479d4a7c324b3058c89e34441c3b11ec6813417f4747ecb844aa6743",
+      "contentHash": "sha256:d370da03479d4a7c324b3058c89e34441c3b11ec6813417f4747ecb844aa6743",
+      "normalizedContentHash": "sha256:fbcae42cea3910d77da5def199acf5e7db35cc7dcde108fe1d64be8b4ee287e4",
       "contentLength": 10341,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -493,7 +647,15 @@
         "es-common.2026.model-390"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-390.procedure",
@@ -509,7 +671,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:5535f689bebbe3f126c48f5c31cd7cfbb9f3a74347ea85b2cf376962ea242063",
+      "contentHash": "sha256:5535f689bebbe3f126c48f5c31cd7cfbb9f3a74347ea85b2cf376962ea242063",
+      "normalizedContentHash": "sha256:2d80119c8ee3b1e039bc95e7bc08df3057c80d17d47e9cdb8eeeb3983f4317c2",
       "contentLength": 25629,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -520,7 +683,15 @@
         "es-common.2026.model-390"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-720.frequency",
@@ -536,7 +707,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:e9070efe02fafb578290d7d70f810cc03f6cae8035b24b230121a44a0a9d38ae",
+      "contentHash": "sha256:e9070efe02fafb578290d7d70f810cc03f6cae8035b24b230121a44a0a9d38ae",
+      "normalizedContentHash": "sha256:770014a427e21e7ead2914d1242c095a61c38a67791f8977eb951548f9f1b61c",
       "contentLength": 25351,
       "contentType": "text/html;charset=UTF-8",
       "captureScope": "FULL_DOCUMENT",
@@ -547,7 +719,15 @@
         "es-common.2026.model-720"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.model-721.faq",
@@ -563,7 +743,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:7948d1ee046a4c80bcc5c5d6436345825868df91a3a684565affb77b26296bab",
+      "contentHash": "sha256:7948d1ee046a4c80bcc5c5d6436345825868df91a3a684565affb77b26296bab",
+      "normalizedContentHash": "sha256:2b1964fb522cc878cb876f5e7905649e853bdd72ede7bb8adeff884b3680b162",
       "contentLength": 21961,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -574,7 +755,15 @@
         "es-common.2026.model-721"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.models.catalog",
@@ -590,7 +779,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:afcdabfbf137a734a06f7e8026af54cfae63d1cd8e78dd6a8d8f8c8deff00983",
+      "contentHash": "sha256:afcdabfbf137a734a06f7e8026af54cfae63d1cd8e78dd6a8d8f8c8deff00983",
+      "normalizedContentHash": "sha256:3cf64f2e06cde2bc9367ee136578acef7e81438b1644c539e05ef3e80daf2e6e",
       "contentLength": 75734,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -598,7 +788,15 @@
       "materialScope": "Índice oficial de modelos y procedimientos",
       "affectedRuleIds": [],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.renta-2025.obligation",
@@ -614,7 +812,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:139539210497bb17f8a852eecfa0691885e23dcd4a173badb271ffc7294e2955",
+      "contentHash": "sha256:139539210497bb17f8a852eecfa0691885e23dcd4a173badb271ffc7294e2955",
+      "normalizedContentHash": "sha256:241c10810448aadee215d0f851d730491d95a0c97859759955ca50d1f9995bd9",
       "contentLength": 18104,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -625,7 +824,15 @@
         "es-common.2026.model-100"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.roi-intraeu",
@@ -641,7 +848,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:0b9113e654ec68b82bd7772e8d69768b9616c38573dbca62a626b771ba371d45",
+      "contentHash": "sha256:0b9113e654ec68b82bd7772e8d69768b9616c38573dbca62a626b771ba371d45",
+      "normalizedContentHash": "sha256:9f8eaf00356d4f4663eabc77b21ce0821d656f3bd561633cd39f6a502de6aa6e",
       "contentLength": 13951,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -656,7 +864,15 @@
         "es-common.2026.model-349"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.wealth.obligation",
@@ -672,7 +888,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:eb4c18a0e842e0db96934cbc454e132cb9eef7b615f17c918890dd4719ed6203",
+      "contentHash": "sha256:eb4c18a0e842e0db96934cbc454e132cb9eef7b615f17c918890dd4719ed6203",
+      "normalizedContentHash": "sha256:66d47b0a0c46f2f968613b3ab7fe5fb53160ebf648746398660d1dae8808b1a2",
       "contentLength": 8444,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -683,7 +900,15 @@
         "es-common.2026.model-714"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.withholding.111-190",
@@ -699,7 +924,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:de9095c3d3ce654414a9ac00703e971d3a1ec72e0a6dc4dc2b089b801c321be9",
+      "contentHash": "sha256:de9095c3d3ce654414a9ac00703e971d3a1ec72e0a6dc4dc2b089b801c321be9",
+      "normalizedContentHash": "sha256:f59390c236964cab3926dbd7a31fe914e92339352ff65d30684232a80bc67c0c",
       "contentLength": 9496,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -712,7 +938,15 @@
         "es-common.2026.model-190"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.withholding.115-180",
@@ -728,7 +962,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:2e5fd7a83743f84bb88bc6924e2ccd3754b9ffee9eb3e316cb4856f86833321f",
+      "contentHash": "sha256:2e5fd7a83743f84bb88bc6924e2ccd3754b9ffee9eb3e316cb4856f86833321f",
+      "normalizedContentHash": "sha256:02b50035f0ea73be9de5a748199347d0247eec2217802819912fae052678802e",
       "contentLength": 9852,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -741,7 +976,15 @@
         "es-common.2026.model-180"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "aeat.withholding.123-193",
@@ -757,7 +1000,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:3c7da0c931afd3c7747a026e2bbb1bedfbbe01c3f2e0a11528c1a54875b50202",
+      "contentHash": "sha256:3c7da0c931afd3c7747a026e2bbb1bedfbbe01c3f2e0a11528c1a54875b50202",
+      "normalizedContentHash": "sha256:c87f71805b3b0694227a54413222fbb5597328bcd177fd2a513dfadb1ea24312",
       "contentLength": 9212,
       "contentType": "text/html",
       "captureScope": "FULL_DOCUMENT",
@@ -770,7 +1014,15 @@
         "es-common.2026.model-193"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     },
     {
       "sourceId": "boe.irpf-law.article-96",
@@ -786,7 +1038,8 @@
         "effectiveTo": null,
         "basis": "PENDING_FISCAL_REVIEW"
       },
-      "snapshotHash": "sha256:1545c554cdcf9391b5b93219a200f4770a50b0f43cd1bff4b36a2e1f35667e4f",
+      "contentHash": "sha256:1545c554cdcf9391b5b93219a200f4770a50b0f43cd1bff4b36a2e1f35667e4f",
+      "normalizedContentHash": "sha256:9adfe280611d780c621c79c25984b674183cea5681b3741effdb63f991ee9237",
       "contentLength": 14673,
       "contentType": "text/html; charset=UTF-8",
       "captureScope": "LOCATOR_FRAGMENT",
@@ -797,8 +1050,16 @@
         "es-common.2026.model-100"
       ],
       "verificationStatus": "PENDING_FISCAL_REVIEW",
-      "technicalHashStatus": "VALID"
+      "technicalHashStatus": "VALID",
+      "previousSnapshotHash": null,
+      "changeDetected": false,
+      "changeSummary": {
+        "status": "INITIAL_CAPTURE",
+        "nature": "INITIAL",
+        "requiresFiscalReview": false,
+        "changedFields": []
+      }
     }
   ],
-  "registryHash": "sha256:b26f7133e640d968227d661ab4aa981b4a3f41d443b9a4e39fe4605ab933c84d"
+  "registryHash": "sha256:822fcec482ddb13357ac3ec1e135d9fd3a5c12b7fe0673d43c14258e063cfaf1"
 }

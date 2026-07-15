@@ -1,17 +1,18 @@
 import type {
   CompactFiscalReviewView,
-  FiscalReviewDecision,
+  FiscalReviewAction,
 } from "@/lib/fiscal-source-review";
 
 interface FiscalRuleReviewCompactViewProps {
   view: CompactFiscalReviewView;
-  onDecision?: (decision: FiscalReviewDecision) => void;
+  onDecision?: (decision: FiscalReviewAction) => void;
 }
 
-const DECISION_LABELS: Record<FiscalReviewDecision, string> = {
+const DECISION_LABELS: Record<FiscalReviewAction, string> = {
   APPROVE: "Aprobar revisión",
   REJECT: "Rechazar",
   REQUEST_CHANGES: "Solicitar cambios",
+  REVOKE_DECISION: "Revocar decisión",
 };
 
 export function FiscalRuleReviewCompactView({
@@ -44,10 +45,39 @@ export function FiscalRuleReviewCompactView({
         <ul>
           {view.sources.map((source) => (
             <li key={source.sourceId}>
-              {source.title} · {source.materialScope} · {source.snapshotHash}
+              <strong>{source.title}</strong>
+              <dl>
+                <dt>Localizador oficial</dt>
+                <dd>{source.officialLocator}</dd>
+                <dt>Ámbito material</dt>
+                <dd>{source.materialScope}</dd>
+                <dt>Reglas afectadas</dt>
+                <dd>{source.affectedRuleIds.join(", ")}</dd>
+                <dt>Validez material</dt>
+                <dd>{source.materialValidity.status}</dd>
+                <dt>Estado</dt>
+                <dd>{source.verificationStatus}</dd>
+                <dt>Cambio</dt>
+                <dd>
+                  {source.changeSummary.status} · {source.changeSummary.nature}
+                </dd>
+              </dl>
             </li>
           ))}
         </ul>
+        <h3>Decisiones fiscales</h3>
+        {view.decisions.length === 0 ? (
+          <p>Sin decisiones fiscales registradas.</p>
+        ) : (
+          <ul>
+            {view.decisions.map((decision) => (
+              <li key={decision.decisionId}>
+                {decision.reviewerRole} · {decision.decision} · identidad{" "}
+                {decision.trustStatus} · {decision.revocationStatus}
+              </li>
+            ))}
+          </ul>
+        )}
         <h3>Incidencias</h3>
         {view.incidents.length === 0 ? (
           <p>Sin incidencias registradas.</p>
@@ -59,13 +89,22 @@ export function FiscalRuleReviewCompactView({
       <details>
         <summary>Hashes revisados</summary>
         <p>Regla: {view.hashes.ruleHash}</p>
+        <h3>Contenido exacto</h3>
         <ul>
-          {view.hashes.sourceHashes.map((hash) => <li key={hash}>{hash}</li>)}
+          {view.hashes.sourceContentHashes.map((hash) => (
+            <li key={`content-${hash}`}>{hash}</li>
+          ))}
+        </ul>
+        <h3>Contenido normalizado</h3>
+        <ul>
+          {view.hashes.sourceNormalizedHashes.map((hash) => (
+            <li key={`normalized-${hash}`}>{hash}</li>
+          ))}
         </ul>
       </details>
 
       <footer aria-label="Decisión de la revisión fiscal">
-        {view.availableDecisions.map((decision) => (
+        {view.availableActions.map((decision) => (
           <button
             key={decision}
             type="button"

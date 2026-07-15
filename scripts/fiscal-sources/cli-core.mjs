@@ -6,6 +6,34 @@ export function sha256(value) {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }
 
+function isTextualContent(contentType) {
+  const normalized = contentType.toLowerCase();
+  return (
+    normalized.startsWith("text/") ||
+    normalized.includes("html") ||
+    normalized.includes("xml") ||
+    normalized.includes("json")
+  );
+}
+
+export function normalizeSnapshotContent(bytes, contentType) {
+  if (!isTextualContent(contentType)) return bytes;
+  return new TextDecoder()
+    .decode(bytes)
+    .replace(/^\uFEFF/, "")
+    .normalize("NFC")
+    .replace(/\r\n?/g, "\n")
+    .split("\n")
+    .map((line) => line.trimEnd())
+    .join("\n")
+    .replace(/>\s+</g, "><")
+    .trim();
+}
+
+export function normalizedContentHash(bytes, contentType) {
+  return sha256(normalizeSnapshotContent(bytes, contentType));
+}
+
 export function canonicalRegistry(registry) {
   return JSON.stringify({
     contractVersion: registry.contractVersion,
@@ -15,6 +43,10 @@ export function canonicalRegistry(registry) {
       .map((source) => ({
         ...source,
         affectedRuleIds: [...source.affectedRuleIds].sort(),
+        changeSummary: {
+          ...source.changeSummary,
+          changedFields: [...source.changeSummary.changedFields].sort(),
+        },
       }))
       .sort((left, right) => left.sourceId.localeCompare(right.sourceId)),
   });
@@ -22,6 +54,82 @@ export function canonicalRegistry(registry) {
 
 export function registryHash(registry) {
   return sha256(canonicalRegistry(registry));
+}
+
+const COMPARED_FIELDS = [
+  "authority",
+  "title",
+  "officialLocator",
+  "finalOfficialLocator",
+  "declaredOfficialUpdatedAt",
+  "materialValidity",
+  "contentHash",
+  "normalizedContentHash",
+  "contentLength",
+  "contentType",
+  "captureScope",
+  "materialScope",
+  "affectedRuleIds",
+  "verificationStatus",
+];
+
+const MATERIAL_FIELDS = new Set([
+  "authority",
+  "officialLocator",
+  "materialValidity",
+  "materialScope",
+  "affectedRuleIds",
+  "verificationStatus",
+]);
+
+export function classifySourceChange(previous, current, changedFields) {
+  if (changedFields.some((field) => MATERIAL_FIELDS.has(field))) {
+    return "MATERIAL";
+  }
+  if (
+    previous.contentHash !== current.contentHash &&
+    previous.normalizedContentHash === current.normalizedContentHash
+  ) {
+    return "TECHNICAL";
+  }
+  return "INDETERMINATE";
+}
+
+export function snapshotChangeMetadata(previous, current) {
+  if (!previous) {
+    return {
+      previousSnapshotHash: null,
+      changeDetected: false,
+      changeSummary: {
+        status: "INITIAL_CAPTURE",
+        nature: "INITIAL",
+        requiresFiscalReview: false,
+        changedFields: [],
+      },
+    };
+  }
+  const changedFields = COMPARED_FIELDS.filter(
+    (field) => JSON.stringify(previous[field]) !== JSON.stringify(current[field]),
+  );
+  const changeDetected = changedFields.length > 0;
+  return {
+    previousSnapshotHash: previous.contentHash,
+    changeDetected,
+    changeSummary: {
+      status: changeDetected ? "CHANGED" : "UNCHANGED",
+      nature: changeDetected
+        ? classifySourceChange(previous, current, changedFields)
+        : "NONE",
+      requiresFiscalReview: changeDetected,
+      changedFields,
+    },
+  };
+}
+
+function summary(changeType, nature, changedFields) {
+  if (changeType === "NEW") return "Nueva fuente: requiere revisión fiscal.";
+  if (changeType === "REMOVED") return "Fuente retirada: requiere revisión fiscal.";
+  return `Fuente modificada (${nature.toLowerCase()}): ${changedFields.join(", ")}. Requiere revisión fiscal.`;
 }
 
 export function diffRegistries(baseline, candidate, reviews) {
@@ -32,20 +140,6 @@ export function diffRegistries(baseline, candidate, reviews) {
     candidate.sources.map((source) => [source.sourceId, source]),
   );
   const changes = [];
-  const comparedFields = [
-    "authority",
-    "officialLocator",
-    "finalOfficialLocator",
-    "declaredOfficialUpdatedAt",
-    "materialValidity",
-    "snapshotHash",
-    "contentLength",
-    "contentType",
-    "captureScope",
-    "materialScope",
-    "affectedRuleIds",
-    "verificationStatus",
-  ];
 
   for (const source of candidate.sources) {
     const previous = baselineById.get(source.sourceId);
@@ -53,18 +147,25 @@ export function diffRegistries(baseline, candidate, reviews) {
       changes.push({
         sourceId: source.sourceId,
         changeType: "NEW",
+        changeNature: "INDETERMINATE",
+        reviewRequirement: "REQUIRES_FISCAL_REVIEW",
+        changeSummary: summary("NEW", "INDETERMINATE", ["source"]),
         changedFields: ["source"],
         affectedRuleIds: [...source.affectedRuleIds].sort(),
       });
       continue;
     }
-    const changedFields = comparedFields.filter(
+    const changedFields = COMPARED_FIELDS.filter(
       (field) => JSON.stringify(previous[field]) !== JSON.stringify(source[field]),
     );
     if (changedFields.length > 0) {
+      const changeNature = classifySourceChange(previous, source, changedFields);
       changes.push({
         sourceId: source.sourceId,
         changeType: "MODIFIED",
+        changeNature,
+        reviewRequirement: "REQUIRES_FISCAL_REVIEW",
+        changeSummary: summary("MODIFIED", changeNature, changedFields),
         changedFields,
         affectedRuleIds: [
           ...new Set([...previous.affectedRuleIds, ...source.affectedRuleIds]),
@@ -77,6 +178,9 @@ export function diffRegistries(baseline, candidate, reviews) {
       changes.push({
         sourceId: source.sourceId,
         changeType: "REMOVED",
+        changeNature: "INDETERMINATE",
+        reviewRequirement: "REQUIRES_FISCAL_REVIEW",
+        changeSummary: summary("REMOVED", "INDETERMINATE", ["source"]),
         changedFields: ["source"],
         affectedRuleIds: [...source.affectedRuleIds].sort(),
       });
@@ -87,29 +191,32 @@ export function diffRegistries(baseline, candidate, reviews) {
     ...new Set(changes.flatMap((change) => change.affectedRuleIds)),
   ].sort();
   const affectedRules = new Set(affectedRuleIds);
-  const reviewIdsToInvalidate = reviews.records
-    .filter((review) => affectedRules.has(review.ruleId))
-    .map((review) => review.reviewId)
+  const affectedActiveDecisions = reviews.decisions.filter(
+    (decision) =>
+      decision.revocation.status === "ACTIVE" &&
+      affectedRules.has(decision.ruleId),
+  );
+  const decisionIdsToRevoke = affectedActiveDecisions
+    .map((decision) => decision.decisionId)
     .sort();
   const ruleApprovalsToInvalidate = [
     ...new Set(
-      reviews.records
-        .filter(
-          (review) =>
-            review.decision === "APPROVE" && affectedRules.has(review.ruleId),
-        )
-        .map((review) => review.ruleId),
+      affectedActiveDecisions
+        .filter((decision) => decision.decision === "APPROVE")
+        .map((decision) => decision.ruleId),
     ),
   ].sort();
   return {
-    contractVersion: "fiscal-source-diff.v1",
+    contractVersion: "fiscal-source-diff.v2",
     baselineRegistryHash: baseline.registryHash,
     candidateRegistryHash: candidate.registryHash,
-    status: changes.length === 0 ? "CLEAN" : "CHANGED",
+    status:
+      changes.length === 0 ? "CLEAN" : "CHANGED_REQUIRES_FISCAL_REVIEW",
     changes,
     affectedRuleIds,
-    reviewIdsToInvalidate,
+    decisionIdsToRevoke,
     ruleApprovalsToInvalidate,
+    automaticallyIrrelevantChanges: [],
   };
 }
 
@@ -126,6 +233,90 @@ function isOfficial(authority, locator) {
   }
 }
 
+function validateDecision(decision, inventory, sourceById) {
+  const errors = [];
+  const rule = inventory.rules.find((candidate) => candidate.ruleId === decision.ruleId);
+  if (!rule) return [`${decision.decisionId}:UNKNOWN_RULE`];
+  if (decision.origin !== "HUMAN_FISCAL_PROFESSIONAL") {
+    errors.push(`${decision.decisionId}:AUTOMATED_OR_NON_FISCAL_REVIEW_FORBIDDEN`);
+  }
+  if (
+    decision.reviewerRole !== "PRIMARY_FISCAL_REVIEWER" &&
+    decision.reviewerRole !== "SECOND_FISCAL_REVIEWER"
+  ) {
+    errors.push(`${decision.decisionId}:INVALID_REVIEWER_ROLE`);
+  }
+  if (
+    !["APPROVE", "REJECT", "REQUEST_CHANGES"].includes(decision.decision)
+  ) {
+    errors.push(`${decision.decisionId}:INVALID_REVIEW_DECISION`);
+  }
+  if (!decision.reviewerId?.trim()) {
+    errors.push(`${decision.decisionId}:MISSING_REVIEWER_ID`);
+  }
+  if (
+    decision.reviewerTrust?.status !== "SERVER_VERIFIED" ||
+    decision.reviewerTrust?.subjectType !== "FISCAL_PROFESSIONAL" ||
+    !decision.reviewerTrust?.identityProvider?.trim() ||
+    !decision.reviewerTrust?.verifiedAt ||
+    !decision.reviewerTrust?.verificationReference?.trim()
+  ) {
+    errors.push(`${decision.decisionId}:SERVER_VERIFIED_FISCAL_IDENTITY_REQUIRED`);
+  }
+  if (!decision.signatureReference?.trim()) {
+    errors.push(`${decision.decisionId}:MISSING_SIGNATURE_REFERENCE`);
+  }
+  if (
+    decision.decision === "APPROVE" &&
+    decision.findings?.some((finding) => finding.severity === "BLOCKING")
+  ) {
+    errors.push(`${decision.decisionId}:APPROVE_WITH_BLOCKING_FINDINGS`);
+  }
+  if (decision.reviewedRuleHash !== rule.ruleHash) {
+    errors.push(`${decision.decisionId}:STALE_RULE_HASH`);
+  }
+  const expectedSourceIds = [...rule.sourceIds].sort();
+  const reviewedSourceIds = decision.reviewedSourceHashes
+    .map((source) => source.sourceId)
+    .sort();
+  if (JSON.stringify(expectedSourceIds) !== JSON.stringify(reviewedSourceIds)) {
+    errors.push(`${decision.decisionId}:INCOMPLETE_SOURCE_SET`);
+  }
+  for (const reviewedSource of decision.reviewedSourceHashes) {
+    const current = sourceById.get(reviewedSource.sourceId);
+    if (current?.contentHash !== reviewedSource.contentHash) {
+      errors.push(
+        `${decision.decisionId}:STALE_SOURCE_CONTENT_HASH:${reviewedSource.sourceId}`,
+      );
+    }
+    if (current?.normalizedContentHash !== reviewedSource.normalizedContentHash) {
+      errors.push(
+        `${decision.decisionId}:STALE_SOURCE_NORMALIZED_HASH:${reviewedSource.sourceId}`,
+      );
+    }
+  }
+  if (decision.revocation?.status === "ACTIVE") {
+    if (
+      decision.revocation.revokedAt !== null ||
+      decision.revocation.reason !== null ||
+      decision.revocation.revocationReference !== null
+    ) {
+      errors.push(`${decision.decisionId}:INVALID_ACTIVE_REVOCATION`);
+    }
+  } else if (decision.revocation?.status === "REVOKED") {
+    if (
+      !decision.revocation.revokedAt ||
+      !decision.revocation.reason?.trim() ||
+      !decision.revocation.revocationReference?.trim()
+    ) {
+      errors.push(`${decision.decisionId}:INCOMPLETE_REVOCATION`);
+    }
+  } else {
+    errors.push(`${decision.decisionId}:INVALID_REVOCATION_STATUS`);
+  }
+  return errors;
+}
+
 export function validateState({
   root,
   registry,
@@ -135,10 +326,10 @@ export function validateState({
   associations,
 }) {
   const errors = [];
-  if (registry.contractVersion !== "fiscal-source-registry.v1") {
+  if (registry.contractVersion !== "fiscal-source-registry.v2") {
     errors.push("INVALID_SOURCE_REGISTRY_VERSION");
   }
-  if (reviews.contractVersion !== "fiscal-review-registry.v1") {
+  if (reviews.contractVersion !== "fiscal-review-registry.v2") {
     errors.push("INVALID_REVIEW_REGISTRY_VERSION");
   }
   if (registry.sourceCount !== registry.sources.length) {
@@ -184,13 +375,43 @@ export function validateState({
     ) {
       errors.push(`${source.sourceId}:PREMATURE_MATERIAL_VALIDITY`);
     }
+    if (
+      source.previousSnapshotHash === null &&
+      (source.changeDetected ||
+        source.changeSummary.status !== "INITIAL_CAPTURE" ||
+        source.changeSummary.nature !== "INITIAL" ||
+        source.changeSummary.requiresFiscalReview ||
+        source.changeSummary.changedFields.length > 0)
+    ) {
+      errors.push(`${source.sourceId}:INVALID_INITIAL_CHANGE_HISTORY`);
+    }
+    if (source.previousSnapshotHash !== null) {
+      const validChangedHistory =
+        source.changeDetected &&
+        source.changeSummary.status === "CHANGED" &&
+        !["INITIAL", "NONE"].includes(source.changeSummary.nature) &&
+        source.changeSummary.requiresFiscalReview &&
+        source.changeSummary.changedFields.length > 0;
+      const validUnchangedHistory =
+        !source.changeDetected &&
+        source.changeSummary.status === "UNCHANGED" &&
+        source.changeSummary.nature === "NONE" &&
+        !source.changeSummary.requiresFiscalReview &&
+        source.changeSummary.changedFields.length === 0;
+      if (!validChangedHistory && !validUnchangedHistory) {
+        errors.push(`${source.sourceId}:INCONSISTENT_CHANGE_HISTORY`);
+      }
+    }
     try {
       const bytes = readFileSync(resolve(root, source.snapshotPath));
       if (bytes.byteLength !== source.contentLength) {
         errors.push(`${source.sourceId}:CONTENT_LENGTH_MISMATCH`);
       }
-      if (sha256(bytes) !== source.snapshotHash) {
-        errors.push(`${source.sourceId}:SNAPSHOT_HASH_MISMATCH`);
+      if (sha256(bytes) !== source.contentHash) {
+        errors.push(`${source.sourceId}:CONTENT_HASH_MISMATCH`);
+      }
+      if (normalizedContentHash(bytes, source.contentType) !== source.normalizedContentHash) {
+        errors.push(`${source.sourceId}:NORMALIZED_CONTENT_HASH_MISMATCH`);
       }
     } catch {
       errors.push(`${source.sourceId}:SNAPSHOT_MISSING`);
@@ -231,82 +452,35 @@ export function validateState({
       }
     }
   }
-  const reviewIds = reviews.records.map((review) => review.reviewId);
-  if (new Set(reviewIds).size !== reviewIds.length) {
-    errors.push("DUPLICATE_REVIEW_ID");
+  const decisionIds = reviews.decisions.map((decision) => decision.decisionId);
+  if (new Set(decisionIds).size !== decisionIds.length) {
+    errors.push("DUPLICATE_REVIEW_DECISION_ID");
   }
-  for (const review of reviews.records) {
-    const rule = inventory.rules.find((candidate) => candidate.ruleId === review.ruleId);
-    if (!rule) {
-      errors.push(`${review.reviewId}:UNKNOWN_RULE`);
-      continue;
-    }
-    if (review.origin !== "HUMAN_SIGNED_FISCAL_REVIEW") {
-      errors.push(`${review.reviewId}:AUTOMATED_REVIEW_FORBIDDEN`);
-    }
-    if (
-      review.reviewerRole !== "PRIMARY_FISCAL_REVIEWER" &&
-      review.reviewerRole !== "SECOND_FISCAL_REVIEWER"
-    ) {
-      errors.push(`${review.reviewId}:INVALID_REVIEWER_ROLE`);
-    }
-    if (
-      review.decision !== "APPROVE" &&
-      review.decision !== "REJECT" &&
-      review.decision !== "REQUEST_CHANGES"
-    ) {
-      errors.push(`${review.reviewId}:INVALID_REVIEW_DECISION`);
-    }
-    if (!review.reviewerId?.trim()) {
-      errors.push(`${review.reviewId}:MISSING_REVIEWER_ID`);
-    }
-    if (!review.signatureReference?.trim()) {
-      errors.push(`${review.reviewId}:MISSING_SIGNATURE_REFERENCE`);
-    }
-    if (
-      review.decision === "APPROVE" &&
-      review.findings?.some((finding) => finding.severity === "BLOCKING")
-    ) {
-      errors.push(`${review.reviewId}:APPROVE_WITH_BLOCKING_FINDINGS`);
-    }
-    if (review.reviewedRuleHash !== rule.ruleHash) {
-      errors.push(`${review.reviewId}:STALE_RULE_HASH`);
-    }
-    const expectedSourceIds = [...rule.sourceIds].sort();
-    const reviewedSourceIds = review.reviewedSourceHashes
-      .map((source) => source.sourceId)
-      .sort();
-    if (JSON.stringify(expectedSourceIds) !== JSON.stringify(reviewedSourceIds)) {
-      errors.push(`${review.reviewId}:INCOMPLETE_SOURCE_SET`);
-    }
-    for (const reviewedSource of review.reviewedSourceHashes) {
-      if (
-        sourceById.get(reviewedSource.sourceId)?.snapshotHash !==
-        reviewedSource.snapshotHash
-      ) {
-        errors.push(`${review.reviewId}:STALE_SOURCE_HASH:${reviewedSource.sourceId}`);
-      }
-    }
+  for (const decision of reviews.decisions) {
+    errors.push(...validateDecision(decision, inventory, sourceById));
   }
   for (const rule of inventory.rules) {
-    const ruleReviews = reviews.records.filter(
-      (review) => review.ruleId === rule.ruleId,
+    const activeDecisions = reviews.decisions.filter(
+      (decision) =>
+        decision.ruleId === rule.ruleId && decision.revocation.status === "ACTIVE",
     );
-    const primaryReviews = ruleReviews.filter(
-      (review) => review.reviewerRole === "PRIMARY_FISCAL_REVIEWER",
+    const primaryDecisions = activeDecisions.filter(
+      (decision) => decision.reviewerRole === "PRIMARY_FISCAL_REVIEWER",
     );
-    const secondReviews = ruleReviews.filter(
-      (review) => review.reviewerRole === "SECOND_FISCAL_REVIEWER",
+    const secondDecisions = activeDecisions.filter(
+      (decision) => decision.reviewerRole === "SECOND_FISCAL_REVIEWER",
     );
-    if (primaryReviews.length > 1) {
+    if (primaryDecisions.length > 1) {
       errors.push(`${rule.ruleId}:MULTIPLE_PRIMARY_REVIEWS`);
     }
-    if (secondReviews.length > 1) {
+    if (secondDecisions.length > 1) {
       errors.push(`${rule.ruleId}:MULTIPLE_SECOND_REVIEWS`);
     }
-    const primary = primaryReviews[0];
-    const second = secondReviews[0];
-    if (primary && second && primary.reviewerId === second.reviewerId) {
+    if (
+      primaryDecisions[0] &&
+      secondDecisions[0] &&
+      primaryDecisions[0].reviewerId === secondDecisions[0].reviewerId
+    ) {
       errors.push(`${rule.ruleId}:SAME_REVIEWER_FOR_BOTH_ROLES`);
     }
   }

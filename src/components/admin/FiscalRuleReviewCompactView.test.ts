@@ -8,13 +8,18 @@ const source = readFileSync(
 );
 
 describe("FiscalRuleReviewCompactView contract", () => {
-  it("shows compact evidence and all three human decisions", () => {
+  it("shows compact evidence, trust, hashes and all review actions", () => {
     expect(source).toContain("Condiciones y excepciones");
     expect(source).toContain("Pruebas, fuentes e incidencias");
     expect(source).toContain("Hashes revisados");
     expect(source).toContain('APPROVE: "Aprobar revisión"');
     expect(source).toContain('REJECT: "Rechazar"');
     expect(source).toContain('REQUEST_CHANGES: "Solicitar cambios"');
+    expect(source).toContain('REVOKE_DECISION: "Revocar decisión"');
+    expect(source).toContain("sourceContentHashes");
+    expect(source).toContain("sourceNormalizedHashes");
+    expect(source).toContain("decision.trustStatus");
+    expect(source).toContain("decision.revocationStatus");
     expect(source).toContain(
       "La revisión nunca aprueba automáticamente la regla.",
     );
