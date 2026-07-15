@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "pantalla_actividades_una_sin_local_01",
+  "documentType": "AEAT_SCREEN_ECONOMIC_ACTIVITIES",
+  "displayName": "Pantalla · una actividad activa sin local",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_PORTAL_SCREEN",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT-inspired synthetic UI",
+    "reference": "Simulación de pantallas de Mis datos censales",
+    "templateStatus": "synthetic-interface",
+    "notOfficialScreenshot": true
+  },
+  "expectedFields": {
+    "screenType": "ACTIVITIES",
+    "taxpayerNif": "00000029Y",
+    "taxpayerName": "DIANA ENSAYO TREINTA",
+    "consultationDate": "14/07/2026",
+    "activities": [
+      {
+        "description": "SERVICIOS DE PROGRAMACION",
+        "epigraph": "763",
+        "status": "ACTIVA",
+        "startDate": "01/01/2026",
+        "place": "Fuera de local determinado"
+      }
+    ]
+  },
+  "expectedQuestionMappings": {
+    "ACTIVITY.LIST": [
+      {
+        "description": "SERVICIOS DE PROGRAMACION",
+        "epigraph": "763",
+        "status": "ACTIVA",
+        "startDate": "01/01/2026",
+        "place": "Fuera de local determinado"
+      }
+    ],
+    "ACTIVITY.SOURCE_COMPLETENESS": "COMPLETE_SYNTHETIC_VIEW"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_CERTIFICATE",
+    "CURRENT_STATUS_BEYOND_CONSULTATION_DATE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000029Y"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "DIANA ENSAYO TREINTA"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "activity.list",
+      "page": 1,
+      "label": "Mis actividades económicas",
+      "value": [
+        {
+          "description": "SERVICIOS DE PROGRAMACION",
+          "epigraph": "763",
+          "status": "ACTIVA",
+          "startDate": "01/01/2026",
+          "place": "Fuera de local determinado"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Pantalla sintética; no es una captura oficial ni contiene autenticación."
+  ],
+  "pdfFile": "pantalla_actividades_una_sin_local_01.pdf",
+  "sha256": "b992704ca7777d4ce51d77dd94ce3c30e223de553e8ba8cae7fde56cf5bd1aa3"
+}

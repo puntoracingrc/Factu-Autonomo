@@ -42,6 +42,12 @@ npm run build
 
 Además deben revisarse visualmente la primera pregunta, el paso de confirmación, un resultado completo, un resultado incompleto y un territorio bloqueado.
 
+El corpus sintético v1 añade 41 documentos base, 162 páginas y 41 manifiestos.
+La validación de esquema y huellas, la evaluación funcional del extractor y la
+auditoría visual de todas las páginas son puertas distintas. Las variantes
+visuales derivadas continúan siendo una puerta adicional y no deben confundirse
+con los 41 casos semánticos base.
+
 ## Despliegue y rollback
 
 - Flag público: `NEXT_PUBLIC_TAX_MODEL_DIAGNOSTIC_ENABLED`.

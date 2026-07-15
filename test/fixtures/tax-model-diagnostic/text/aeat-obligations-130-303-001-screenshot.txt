@@ -1,0 +1,26 @@
+Agencia Tributaria
+SIMULACIÓN LOCAL DEL ÁREA PERSONAL · NO EMITIDA POR LA AEAT
+ Mis obligaciones tributarias
+Relación de obligaciones periódicas, periodicidad y estado.
+NIF 00000037Z · consulta 14/07/2026
+Obligaciones vigentes e históricas
+Modelo
+Descripción
+Periodicidad
+Estado
+Alta
+Baja
+130
+Pago fraccionado IRPF
+Trimestral
+ACTIVA
+01/01/2026
+—
+303
+Autoliquidación IVA
+Trimestral
+ACTIVA
+01/01/2026
+—
+DOCUMENTO SINTÉTICO · SIN VALIDEZ
+FIXTURE pantalla_obligaciones_130_303_01 · página 1 · NO PRESENTABLE · datos totalmente sintéticos

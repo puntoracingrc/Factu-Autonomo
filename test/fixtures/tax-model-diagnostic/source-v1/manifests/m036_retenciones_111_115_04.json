@@ -1,0 +1,176 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m036_retenciones_111_115_04",
+  "documentType": "AEAT_MODEL_036",
+  "displayName": "Modificación: alta en retenciones modelos 111 y 115",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 12,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT/BOE",
+    "reference": "Modelo 036 vigente, ejemplar para el interesado",
+    "templateStatus": "official-layout",
+    "validationStatus": "not server-validated"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000003A",
+    "taxpayerName": "DARIO MUESTRA CUATRO",
+    "filingDate": "15/01/2026",
+    "cause": "MODIFICACION",
+    "modificationType": "WITHHOLDINGS_CHANGE",
+    "activities": [
+      {
+        "description": "SERVICIOS DE ARQUITECTURA",
+        "epigraph": "411",
+        "activityType": "PROFESIONAL",
+        "activityCode": "M7111",
+        "effectiveDate": "01/01/2024",
+        "municipality": "SEVILLA",
+        "province": "SEVILLA",
+        "premises": {
+          "street": "AVENIDA DEMO",
+          "number": "22",
+          "postalCode": "41080",
+          "municipality": "SEVILLA",
+          "province": "SEVILLA",
+          "surface": "80"
+        }
+      }
+    ],
+    "irpf": {
+      "method": "DIRECT_NORMAL",
+      "paymentsModel": "130",
+      "effectiveDate": "01/01/2024"
+    },
+    "vat": {
+      "taxableInSpain": true,
+      "regimes": [
+        "GENERAL"
+      ],
+      "effectiveDate": "01/01/2024",
+      "roi": "NO",
+      "redeme": false,
+      "sii": false
+    },
+    "withholdings": {
+      "model111": "ALTA",
+      "model115": "ALTA",
+      "model123": "NO",
+      "effectiveDate": "01/02/2026"
+    }
+  },
+  "expectedQuestionMappings": {
+    "SUBJECT.TAXPAYER_TYPE": "PERSONA_FISICA",
+    "CENSUS.CURRENT_STATUS": "PROPOSED_FROM_CENSUS_EVENT",
+    "ACTIVITY.LIST": [
+      {
+        "description": "SERVICIOS DE ARQUITECTURA",
+        "epigraph": "411",
+        "activityType": "PROFESIONAL",
+        "activityCode": "M7111",
+        "effectiveDate": "01/01/2024",
+        "municipality": "SEVILLA",
+        "province": "SEVILLA",
+        "premises": {
+          "street": "AVENIDA DEMO",
+          "number": "22",
+          "postalCode": "41080",
+          "municipality": "SEVILLA",
+          "province": "SEVILLA",
+          "surface": "80"
+        }
+      }
+    ],
+    "IRPF.METHOD": "DIRECT_NORMAL",
+    "VAT.REGIMES": [
+      "GENERAL"
+    ]
+  },
+  "mustNotInfer": [
+    "CURRENT_CENSUS_STATUS_WITHOUT_RECONCILIATION",
+    "FUTURE_OPERATIONS",
+    "ACTUAL_FILING_STATUS",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000003A"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "DARIO MUESTRA CUATRO"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "036"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "census.cause",
+      "page": 1,
+      "label": "Causa de presentación",
+      "value": "MODIFICACION"
+    },
+    {
+      "fieldId": "activity.list",
+      "page": 4,
+      "label": "Declaración de actividades económicas y locales",
+      "value": [
+        {
+          "description": "SERVICIOS DE ARQUITECTURA",
+          "epigraph": "411",
+          "activityType": "PROFESIONAL",
+          "activityCode": "M7111",
+          "effectiveDate": "01/01/2024",
+          "municipality": "SEVILLA",
+          "province": "SEVILLA",
+          "premises": {
+            "street": "AVENIDA DEMO",
+            "number": "22",
+            "postalCode": "41080",
+            "municipality": "SEVILLA",
+            "province": "SEVILLA",
+            "surface": "80"
+          }
+        }
+      ]
+    },
+    {
+      "fieldId": "irpf.method",
+      "page": 6,
+      "label": "Método de estimación en el IRPF",
+      "value": "DIRECT_NORMAL"
+    },
+    {
+      "fieldId": "vat.regimes",
+      "page": 5,
+      "label": "Regímenes aplicables",
+      "value": [
+        "GENERAL"
+      ]
+    }
+  ],
+  "notes": [
+    "El 036 representa un evento censal, no una fotografía completa salvo reconciliación con fuentes posteriores."
+  ],
+  "pdfFile": "m036_retenciones_111_115_04.pdf",
+  "sha256": "0f8c9a6885c02ff405401fca579533f3a984a43ad949f39d3de2488c1f18c4ac"
+}

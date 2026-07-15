@@ -1,0 +1,104 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m037_historico_modificacion_02",
+  "documentType": "AEAT_MODEL_037_HISTORICAL",
+  "displayName": "037 histórico: modificación de IVA y retenciones",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "HISTORICAL_SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2024,
+  "period": null,
+  "expectedPages": 4,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2023-26632, anexo II, modelo 037",
+    "templateStatus": "official-layout",
+    "historical": true
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000006Y",
+    "taxpayerName": "GEMA CASO SIETE",
+    "cause": "MODIFICACION",
+    "modificationY": [
+      0.454,
+      0.472
+    ],
+    "irpfMethod": "DIRECT_SIMPLIFIED",
+    "vatRegime": "GENERAL",
+    "model111": "ALTA",
+    "model115": "ALTA",
+    "activityDescription": "ASESORIA DE EMPRESAS",
+    "epigraph": "799",
+    "activityType": "PROFESIONAL",
+    "effectiveDate": "01/04/2024"
+  },
+  "expectedQuestionMappings": {
+    "CENSUS.HISTORICAL_EVENT": "MODIFICACION",
+    "IRPF.METHOD_HISTORICAL": "DIRECT_SIMPLIFIED",
+    "VAT.REGIME_HISTORICAL": "GENERAL"
+  },
+  "mustNotInfer": [
+    "CURRENT_CENSUS_STATUS",
+    "CURRENT_PERIODIC_OBLIGATIONS",
+    "VALID_CURRENT_037_FORM",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000006Y"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "GEMA CASO SIETE"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "037"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2024
+    },
+    {
+      "fieldId": "census.cause",
+      "page": 1,
+      "label": "Causas de presentación",
+      "value": "MODIFICACION"
+    },
+    {
+      "fieldId": "irpf.method",
+      "page": 2,
+      "label": "Método de estimación en el IRPF",
+      "value": "DIRECT_SIMPLIFIED"
+    },
+    {
+      "fieldId": "vat.regime",
+      "page": 2,
+      "label": "Regímenes aplicables",
+      "value": "GENERAL"
+    },
+    {
+      "fieldId": "activity.description",
+      "page": 3,
+      "label": "Descripción de la actividad",
+      "value": "ASESORIA DE EMPRESAS"
+    }
+  ],
+  "notes": [
+    "Documento histórico: el modelo 037 quedó suprimido en 2025."
+  ],
+  "pdfFile": "m037_historico_modificacion_02.pdf",
+  "sha256": "5e060b8ed42645a9d39103b6fb52bbf986a6a43662af565ae20e42890347fe17"
+}

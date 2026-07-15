@@ -1,0 +1,106 @@
+{
+  "corpusVersion": "fiscal-extractor-corpus.2026-07.v1",
+  "fixtureId": "aeat-activities-multiple-active-002-screenshot",
+  "semanticCaseId": "aeat-activities-multiple-active-002",
+  "parentFixtureId": null,
+  "documentType": "AEAT_ECONOMIC_ACTIVITIES_VIEW",
+  "formVersion": "SYNTHETIC_AEAT_INSPIRED_ACTIVITIES_VIEW_V1",
+  "fiscalYear": 2026,
+  "period": null,
+  "documentKind": "CURRENT_AEAT_VIEW",
+  "filingStatus": "NOT_VERIFIED",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "lifecycleLabels": [
+    "CURRENT_EVIDENCE"
+  ],
+  "stateCoverage": "FULL_CURRENT_STATE",
+  "visualVariant": "SCREENSHOT",
+  "expectedEnvelope": {
+    "isComplete": true
+  },
+  "expectedFields": [
+    {
+      "factType": "ACTIVITY.LIST",
+      "value": [
+        {
+          "code": "399",
+          "description": "DISENO GRAFICO",
+          "state": "ACTIVE",
+          "startDate": "2025-01-01"
+        },
+        {
+          "code": "826",
+          "description": "FORMACION NO REGLADA",
+          "state": "ACTIVE",
+          "startDate": "2026-03-01"
+        }
+      ],
+      "normalizedValue": [
+        {
+          "code": "399",
+          "description": "DISENO GRAFICO",
+          "state": "ACTIVE",
+          "startDate": "2025-01-01"
+        },
+        {
+          "code": "826",
+          "description": "FORMACION NO REGLADA",
+          "state": "ACTIVE",
+          "startDate": "2026-03-01"
+        }
+      ],
+      "page": 1,
+      "sourceLabel": "Relación de actividades"
+    },
+    {
+      "factType": "ACTIVITY.DATES",
+      "value": [
+        "2025-01-01",
+        "2026-03-01"
+      ],
+      "normalizedValue": [
+        "2025-01-01",
+        "2026-03-01"
+      ],
+      "page": 1,
+      "sourceLabel": "F. Inicio"
+    }
+  ],
+  "expectedQuestionMappings": [],
+  "mustNotInfer": [
+    {
+      "code": "OFFICIAL_DOCUMENT_VALIDITY",
+      "reason": "La vista funcional sintética no es una captura ni certificado oficial."
+    }
+  ],
+  "allowAdditionalFactTypes": [],
+  "source": {
+    "kind": "SYNTHETIC_FUNCTIONAL_VIEW",
+    "authorizationRecorded": true,
+    "sha256": "e64f6689b10dfceba7df6300d7772a58d0e9c7877269d0480ddc5a19b1154a97",
+    "officialReference": {
+      "url": "https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/otros-servicios-ayuda-tecnica/datos-censales.html",
+      "capturedOn": "2026-07-15",
+      "sha256": null
+    },
+    "anonymizationAudit": {
+      "textLayerChecked": true,
+      "acroFormChecked": true,
+      "metadataChecked": true,
+      "annotationsChecked": true,
+      "hiddenPagesChecked": true,
+      "qrAndBarcodeChecked": true,
+      "embeddedFilesChecked": true,
+      "originalFileNameStored": false
+    }
+  },
+  "asset": {
+    "pdfPath": "pdf/aeat-activities-multiple-active-002-screenshot.pdf",
+    "extractedTextPath": "text/aeat-activities-multiple-active-002-screenshot.txt"
+  },
+  "extractor": {
+    "contractVersion": "1.0.0",
+    "catalogVersion": "fiscal-document-extractors.2026-07.v2",
+    "extractorVersion": "aeat.aeat_economic_activities_view.v2"
+  }
+}

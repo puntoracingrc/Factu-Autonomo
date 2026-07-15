@@ -1,0 +1,106 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "pantalla_actividades_varias_02",
+  "documentType": "AEAT_SCREEN_ECONOMIC_ACTIVITIES",
+  "displayName": "Pantalla · varias actividades activas",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_PORTAL_SCREEN",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT-inspired synthetic UI",
+    "reference": "Simulación de pantallas de Mis datos censales",
+    "templateStatus": "synthetic-interface",
+    "notOfficialScreenshot": true
+  },
+  "expectedFields": {
+    "screenType": "ACTIVITIES",
+    "taxpayerNif": "00000030F",
+    "taxpayerName": "ELOY CASO TREINTA Y UNO",
+    "consultationDate": "14/07/2026",
+    "activities": [
+      {
+        "description": "DISENO GRAFICO",
+        "epigraph": "399",
+        "status": "ACTIVA",
+        "startDate": "01/01/2025"
+      },
+      {
+        "description": "FORMACION NO REGLADA",
+        "epigraph": "826",
+        "status": "ACTIVA",
+        "startDate": "01/03/2026"
+      }
+    ]
+  },
+  "expectedQuestionMappings": {
+    "ACTIVITY.LIST": [
+      {
+        "description": "DISENO GRAFICO",
+        "epigraph": "399",
+        "status": "ACTIVA",
+        "startDate": "01/01/2025"
+      },
+      {
+        "description": "FORMACION NO REGLADA",
+        "epigraph": "826",
+        "status": "ACTIVA",
+        "startDate": "01/03/2026"
+      }
+    ],
+    "ACTIVITY.SOURCE_COMPLETENESS": "COMPLETE_SYNTHETIC_VIEW"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_CERTIFICATE",
+    "CURRENT_STATUS_BEYOND_CONSULTATION_DATE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000030F"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "ELOY CASO TREINTA Y UNO"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "activity.list",
+      "page": 1,
+      "label": "Mis actividades económicas",
+      "value": [
+        {
+          "description": "DISENO GRAFICO",
+          "epigraph": "399",
+          "status": "ACTIVA",
+          "startDate": "01/01/2025"
+        },
+        {
+          "description": "FORMACION NO REGLADA",
+          "epigraph": "826",
+          "status": "ACTIVA",
+          "startDate": "01/03/2026"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Pantalla sintética; no es una captura oficial ni contiene autenticación."
+  ],
+  "pdfFile": "pantalla_actividades_varias_02.pdf",
+  "sha256": "ca05004efd1a2d7c532e369fb9c00e8aa1c338f37833de990b2e743fb79fcb2d"
+}

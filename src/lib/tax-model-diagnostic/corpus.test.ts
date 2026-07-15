@@ -255,6 +255,18 @@ describe("fiscal extractor corpus contract", () => {
     );
   });
 
+  it("keeps synthetic functional views distinct from official screenshots", () => {
+    const manifest = baseManifest({
+      documentType: "AEAT_TAX_STATUS_VIEW",
+      formVersion: "SYNTHETIC_AEAT_INSPIRED_VIEW_V1",
+      source: {
+        ...baseManifest().source,
+        kind: "SYNTHETIC_FUNCTIONAL_VIEW",
+      },
+    });
+    expect(validateFiscalCorpusManifest(manifest)).toEqual([]);
+  });
+
   it("requires partial captures to fail closed", () => {
     const manifest = baseManifest({
       documentType: "AEAT_ECONOMIC_ACTIVITIES_VIEW",

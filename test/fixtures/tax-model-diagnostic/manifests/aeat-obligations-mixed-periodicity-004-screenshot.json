@@ -1,0 +1,102 @@
+{
+  "corpusVersion": "fiscal-extractor-corpus.2026-07.v1",
+  "fixtureId": "aeat-obligations-mixed-periodicity-004-screenshot",
+  "semanticCaseId": "aeat-obligations-mixed-periodicity-004",
+  "parentFixtureId": null,
+  "documentType": "AEAT_OBLIGATIONS_VIEW",
+  "formVersion": "SYNTHETIC_AEAT_INSPIRED_OBLIGATIONS_VIEW_V1",
+  "fiscalYear": 2026,
+  "period": null,
+  "documentKind": "CURRENT_AEAT_VIEW",
+  "filingStatus": "NOT_VERIFIED",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "lifecycleLabels": [
+    "CURRENT_EVIDENCE"
+  ],
+  "stateCoverage": "PARTIAL_CURRENT_STATE",
+  "visualVariant": "SCREENSHOT",
+  "expectedEnvelope": {
+    "isComplete": false
+  },
+  "expectedFields": [
+    {
+      "factType": "CENSUS.PERIODIC_OBLIGATIONS",
+      "value": [
+        "111",
+        "115",
+        "303"
+      ],
+      "normalizedValue": [
+        "111",
+        "115",
+        "303"
+      ],
+      "page": 1,
+      "sourceLabel": "Obligaciones tributarias en alta"
+    }
+  ],
+  "expectedQuestionMappings": [
+    {
+      "questionId": "N_CENSUS_OBLIGATIONS",
+      "proposedAnswer": [
+        "111",
+        "115",
+        "303"
+      ],
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    },
+    {
+      "questionId": "G_RENTS_PREMISES",
+      "proposedAnswer": "YES",
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    },
+    {
+      "questionId": "G_RENT_WITHHOLDING",
+      "proposedAnswer": "YES",
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    }
+  ],
+  "mustNotInfer": [
+    {
+      "code": "OFFICIAL_DOCUMENT_VALIDITY",
+      "reason": "La vista funcional sintética no es una captura ni certificado oficial."
+    },
+    {
+      "code": "ABSENCE_OUTSIDE_CAPTURE",
+      "reason": "Una captura parcial no permite inferir datos ausentes fuera de ella."
+    }
+  ],
+  "allowAdditionalFactTypes": [],
+  "source": {
+    "kind": "SYNTHETIC_FUNCTIONAL_VIEW",
+    "authorizationRecorded": true,
+    "sha256": "cddda27208c30cf052ba83ef9f57247da735d405d3ae5607fe4eb4c3267dfa1e",
+    "officialReference": {
+      "url": "https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/otros-servicios-ayuda-tecnica/datos-censales.html",
+      "capturedOn": "2026-07-15",
+      "sha256": null
+    },
+    "anonymizationAudit": {
+      "textLayerChecked": true,
+      "acroFormChecked": true,
+      "metadataChecked": true,
+      "annotationsChecked": true,
+      "hiddenPagesChecked": true,
+      "qrAndBarcodeChecked": true,
+      "embeddedFilesChecked": true,
+      "originalFileNameStored": false
+    }
+  },
+  "asset": {
+    "pdfPath": "pdf/aeat-obligations-mixed-periodicity-004-screenshot.pdf",
+    "extractedTextPath": "text/aeat-obligations-mixed-periodicity-004-screenshot.txt"
+  },
+  "extractor": {
+    "contractVersion": "1.0.0",
+    "catalogVersion": "fiscal-document-extractors.2026-07.v2",
+    "extractorVersion": "aeat.aeat_obligations_view.v2"
+  }
+}

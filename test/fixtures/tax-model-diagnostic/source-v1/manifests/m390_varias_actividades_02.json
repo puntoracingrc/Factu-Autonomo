@@ -1,0 +1,122 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m390_varias_actividades_02",
+  "documentType": "AEAT_MODEL_390",
+  "displayName": "390 · varias actividades",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "ANNUAL",
+  "expectedPages": 9,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2026-1761, anexo IV, modelo 390",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000018H",
+    "taxpayerName": "SERGIO FICTICIO DIECINUEVE",
+    "fiscalYear": 2026,
+    "activities": [
+      {
+        "description": "DISENO GRAFICO",
+        "epigraph": "399",
+        "activityCode": "A01"
+      },
+      {
+        "description": "FORMACION NO REGLADA",
+        "epigraph": "826",
+        "activityCode": "A02"
+      }
+    ],
+    "outputBase": "72.000,00",
+    "outputVat": "15.120,00",
+    "annualTurnover": "72.000,00"
+  },
+  "expectedQuestionMappings": {
+    "VAT.PRIOR_ANNUAL_PROFILE": true,
+    "VAT.PRIOR_ACTIVITIES": [
+      {
+        "description": "DISENO GRAFICO",
+        "epigraph": "399",
+        "activityCode": "A01"
+      },
+      {
+        "description": "FORMACION NO REGLADA",
+        "epigraph": "826",
+        "activityCode": "A02"
+      }
+    ],
+    "VAT.PRIOR_TURNOVER": "72.000,00"
+  },
+  "mustNotInfer": [
+    "CURRENT_VAT_REGIME",
+    "FUTURE_MODEL_390_OBLIGATION",
+    "CURRENT_ACTIVITY_STATUS",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000018H"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "SERGIO FICTICIO DIECINUEVE"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "390"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "ANNUAL"
+    },
+    {
+      "fieldId": "activity.list",
+      "page": 1,
+      "label": "Datos estadísticos",
+      "value": [
+        {
+          "description": "DISENO GRAFICO",
+          "epigraph": "399",
+          "activityCode": "A01"
+        },
+        {
+          "description": "FORMACION NO REGLADA",
+          "epigraph": "826",
+          "activityCode": "A02"
+        }
+      ]
+    },
+    {
+      "fieldId": "vat.annualTurnover",
+      "page": 7,
+      "label": "Volumen total de operaciones",
+      "value": "72.000,00"
+    }
+  ],
+  "notes": [
+    "Resumen anual histórico: requiere reconciliación con los 303 y con el censo."
+  ],
+  "pdfFile": "m390_varias_actividades_02.pdf",
+  "sha256": "9984c4c27ac4b11d56cfa8fad86460963a2ed18f9376829b077d56f0f8ea51a6"
+}

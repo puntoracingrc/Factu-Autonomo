@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "pantalla_situacion_recargo_exenta_03",
+  "documentType": "AEAT_SCREEN_TAX_STATUS",
+  "displayName": "Pantalla · recargo de equivalencia y actividad exenta",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_PORTAL_SCREEN",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT-inspired synthetic UI",
+    "reference": "Simulación de pantallas de Mis datos censales",
+    "templateStatus": "synthetic-interface",
+    "notOfficialScreenshot": true
+  },
+  "expectedFields": {
+    "screenType": "TAX_STATUS",
+    "taxpayerNif": "00000035N",
+    "taxpayerName": "JULIA MUESTRA TREINTA Y SEIS",
+    "consultationDate": "14/07/2026",
+    "irpf": {
+      "Método": "Estimación directa simplificada",
+      "Pagos fraccionados": "Modelo 130"
+    },
+    "vat": {
+      "Régimen actividad 1": "Recargo de equivalencia",
+      "Régimen actividad 2": "Exenta sin 303 periódico"
+    },
+    "registries": {
+      "ROI": "No",
+      "REDEME": "No",
+      "SII": "No"
+    }
+  },
+  "expectedQuestionMappings": {
+    "IRPF.STATUS": {
+      "Método": "Estimación directa simplificada",
+      "Pagos fraccionados": "Modelo 130"
+    },
+    "VAT.STATUS": {
+      "Régimen actividad 1": "Recargo de equivalencia",
+      "Régimen actividad 2": "Exenta sin 303 periódico"
+    },
+    "REGISTRIES.STATUS": {
+      "ROI": "No",
+      "REDEME": "No",
+      "SII": "No"
+    }
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_CERTIFICATE",
+    "CHANGES_AFTER_CONSULTATION_DATE",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000035N"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "JULIA MUESTRA TREINTA Y SEIS"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "irpf.status",
+      "page": 1,
+      "label": "Impuesto sobre la Renta",
+      "value": {
+        "Método": "Estimación directa simplificada",
+        "Pagos fraccionados": "Modelo 130"
+      }
+    },
+    {
+      "fieldId": "vat.status",
+      "page": 1,
+      "label": "Impuesto sobre el Valor Añadido",
+      "value": {
+        "Régimen actividad 1": "Recargo de equivalencia",
+        "Régimen actividad 2": "Exenta sin 303 periódico"
+      }
+    },
+    {
+      "fieldId": "registries.status",
+      "page": 1,
+      "label": "Registros y opciones",
+      "value": {
+        "ROI": "No",
+        "REDEME": "No",
+        "SII": "No"
+      }
+    }
+  ],
+  "notes": [
+    "Pantalla sintética inspirada en la estructura funcional descrita por la AEAT."
+  ],
+  "pdfFile": "pantalla_situacion_recargo_exenta_03.pdf",
+  "sha256": "a5aa72ee656fe283225e34f553fcf7bb06e1f9dfbb6d44fc82a6181021b127d5"
+}

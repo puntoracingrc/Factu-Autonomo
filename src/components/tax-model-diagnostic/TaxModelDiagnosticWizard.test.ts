@@ -72,6 +72,9 @@ describe("tax model diagnostic UI contract", () => {
       "Los datos que confirmes se sumarán a los que ya",
     );
     expect(hacienda).toContain('extractionMethod: "OCR_LOCAL"');
+    expect(hacienda).toContain("needsHybridPdfOcr");
+    expect(hacienda).toContain("forceLocalOcr: true");
+    expect(hacienda).toContain("mergeNativeText: true");
     expect(hacienda).toContain("extractionProposals");
     expect(hacienda).toContain("accent-emerald-600");
     expect(hacienda).toContain("fiscal-document-");

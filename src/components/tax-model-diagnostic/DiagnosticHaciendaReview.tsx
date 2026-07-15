@@ -237,6 +237,30 @@ function analysisStatus(
   return "REVIEW_REQUIRED";
 }
 
+function extractionQuality(result: FiscalDocumentExtractionResult): number {
+  const statusScore = {
+    BLOCKED: 0,
+    UNSUPPORTED_DOCUMENT: 1,
+    MANUAL_REVIEW: 2,
+    RESOLVED: 3,
+  }[result.status];
+  return (
+    statusScore * 10_000 +
+    (result.envelope.detectedDocumentType ? 1_000 : 0) +
+    result.facts.length * 100 +
+    result.questionResolutions.length * 10 +
+    Math.round(result.envelope.overallConfidence * 9)
+  );
+}
+
+function needsHybridPdfOcr(result: FiscalDocumentExtractionResult): boolean {
+  return (
+    result.status === "BLOCKED" ||
+    result.status === "UNSUPPORTED_DOCUMENT" ||
+    result.facts.length === 0
+  );
+}
+
 function analysisLabel(result: FiscalDocumentExtractionResult): string {
   return [
     documentTypeLabel(result),
@@ -318,7 +342,7 @@ export function DiagnosticHaciendaReview({
     for (const file of nextFiles) {
       if (isPdf(file)) {
         if (file.size > MAX_CENSUS_DOCUMENT_BYTES) {
-          throw new Error(`El PDF «${file.name}» supera el límite de 4 MB.`);
+          throw new Error(`El PDF «${file.name}» supera el límite de 8 MB.`);
         }
       } else {
         validateAeatScreenshotFile(file);
@@ -370,8 +394,8 @@ export function DiagnosticHaciendaReview({
     try {
       for (const file of nextFiles.filter(isPdf)) {
         try {
-          const document = await readCensusDocumentPages(file, setProgress);
-          const result = extractFiscalDocumentText({
+          let document = await readCensusDocumentPages(file, setProgress);
+          let result = extractFiscalDocumentText({
             documentId: nextDocumentId(),
             text: document.text,
             extractionMethod: document.extractionMethod,
@@ -381,6 +405,35 @@ export function DiagnosticHaciendaReview({
               .map((page) => page.page),
             pages: document.pages,
           });
+          if (
+            document.extractionMethod === "PDF_NATIVE_TEXT" &&
+            needsHybridPdfOcr(result)
+          ) {
+            try {
+              const hybridDocument = await readCensusDocumentPages(
+                file,
+                setProgress,
+                { forceLocalOcr: true, mergeNativeText: true },
+              );
+              const hybridResult = extractFiscalDocumentText({
+                documentId: nextDocumentId(),
+                text: hybridDocument.text,
+                extractionMethod: "OCR_LOCAL",
+                totalPages: hybridDocument.totalPages,
+                detectedPages: hybridDocument.pages
+                  .filter((page) => page.text.length > 0)
+                  .map((page) => page.page),
+                pages: hybridDocument.pages,
+              });
+              if (extractionQuality(hybridResult) > extractionQuality(result)) {
+                document = hybridDocument;
+                result = hybridResult;
+              }
+            } catch {
+              // La lectura nativa sigue siendo el resultado seguro. Un fallo
+              // del OCR local no convierte el archivo en un falso positivo.
+            }
+          }
           nextAnalyses.push({
             fileName: file.name,
             label: analysisLabel(result),

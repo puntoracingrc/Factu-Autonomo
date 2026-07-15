@@ -1,0 +1,137 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "pantalla_obligaciones_altas_bajas_03",
+  "documentType": "AEAT_SCREEN_PERIODIC_OBLIGATIONS",
+  "displayName": "Pantalla · obligaciones activas e inactivas",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_PORTAL_SCREEN",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT-inspired synthetic UI",
+    "reference": "Simulación de pantallas de Mis datos censales",
+    "templateStatus": "synthetic-interface",
+    "notOfficialScreenshot": true
+  },
+  "expectedFields": {
+    "screenType": "OBLIGATIONS",
+    "taxpayerNif": "00000039Q",
+    "taxpayerName": "NURIA SUPUESTO CUARENTA",
+    "consultationDate": "14/07/2026",
+    "obligations": [
+      {
+        "model": "130",
+        "description": "Pago fraccionado IRPF",
+        "periodicity": "Trimestral",
+        "status": "ACTIVA",
+        "startDate": "01/01/2024"
+      },
+      {
+        "model": "115",
+        "description": "Retenciones arrendamientos",
+        "periodicity": "Trimestral",
+        "status": "BAJA",
+        "startDate": "01/01/2024",
+        "endDate": "31/03/2026"
+      },
+      {
+        "model": "349",
+        "description": "Operaciones intracomunitarias",
+        "periodicity": "Variable",
+        "status": "ACTIVA",
+        "startDate": "01/03/2026"
+      }
+    ]
+  },
+  "expectedQuestionMappings": {
+    "CENSUS.PERIODIC_OBLIGATIONS": [
+      {
+        "model": "130",
+        "description": "Pago fraccionado IRPF",
+        "periodicity": "Trimestral",
+        "status": "ACTIVA",
+        "startDate": "01/01/2024"
+      },
+      {
+        "model": "115",
+        "description": "Retenciones arrendamientos",
+        "periodicity": "Trimestral",
+        "status": "BAJA",
+        "startDate": "01/01/2024",
+        "endDate": "31/03/2026"
+      },
+      {
+        "model": "349",
+        "description": "Operaciones intracomunitarias",
+        "periodicity": "Variable",
+        "status": "ACTIVA",
+        "startDate": "01/03/2026"
+      }
+    ]
+  },
+  "mustNotInfer": [
+    "ACTUAL_FILING_COMPLIANCE",
+    "FUTURE_OPERATIONS",
+    "VALID_OFFICIAL_CERTIFICATE",
+    "CHANGES_AFTER_CONSULTATION_DATE"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000039Q"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "NURIA SUPUESTO CUARENTA"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "census.periodicObligations",
+      "page": 1,
+      "label": "Mis obligaciones tributarias",
+      "value": [
+        {
+          "model": "130",
+          "description": "Pago fraccionado IRPF",
+          "periodicity": "Trimestral",
+          "status": "ACTIVA",
+          "startDate": "01/01/2024"
+        },
+        {
+          "model": "115",
+          "description": "Retenciones arrendamientos",
+          "periodicity": "Trimestral",
+          "status": "BAJA",
+          "startDate": "01/01/2024",
+          "endDate": "31/03/2026"
+        },
+        {
+          "model": "349",
+          "description": "Operaciones intracomunitarias",
+          "periodicity": "Variable",
+          "status": "ACTIVA",
+          "startDate": "01/03/2026"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "La pantalla indica obligaciones censadas, no confirma que todas las declaraciones se hayan presentado."
+  ],
+  "pdfFile": "pantalla_obligaciones_altas_bajas_03.pdf",
+  "sha256": "824f3d3ba12e7a9f880d35b2d59d79ab5d9c757e9bd8aac5b9b36d5a86d274f7"
+}

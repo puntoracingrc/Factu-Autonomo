@@ -186,7 +186,7 @@ export function extractFiscalDocumentText(
     catalogVersion: FISCAL_DOCUMENT_EXTRACTOR_CATALOG_VERSION,
     status: hasHardFailure
       ? "BLOCKED"
-      : facts.length > 0
+      : facts.length > 0 && envelope.isComplete
         ? "RESOLVED"
         : "MANUAL_REVIEW",
     envelope: {

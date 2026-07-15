@@ -12,6 +12,7 @@
     "test": "vitest run",
     "fixtures:tax-corpus:validate": "node scripts/validate-tax-model-diagnostic-corpus.mjs",
     "fixtures:tax-corpus:validate-complete": "node scripts/validate-tax-model-diagnostic-corpus.mjs --require-assets",
+    "fixtures:tax-corpus:ocr-text": "node scripts/generate-tax-corpus-ocr-text.mjs",
     "fixtures:tax-corpus:visual-variants": "python3 scripts/generate-tax-corpus-visual-variants.py",
     "fixtures:tax-corpus:audit-pdf": "python3 scripts/audit-tax-corpus-pdf.py",
     "fixtures:invoices:validate": "node scripts/validate-invoice-fixtures.mjs",
@@ -316,6 +317,7 @@
     "uuid": "^14.0.0"
   },
   "devDependencies": {
+    "@napi-rs/canvas": "^0.1.100",
     "@tailwindcss/postcss": "^4",
     "@tesseract.js-data/spa": "^1.0.0",
     "@types/node": "^20",

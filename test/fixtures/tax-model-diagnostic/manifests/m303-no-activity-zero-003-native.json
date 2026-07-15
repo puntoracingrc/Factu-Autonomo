@@ -1,0 +1,89 @@
+{
+  "corpusVersion": "fiscal-extractor-corpus.2026-07.v1",
+  "fixtureId": "m303-no-activity-zero-003-native",
+  "semanticCaseId": "m303-no-activity-zero-003",
+  "parentFixtureId": null,
+  "documentType": "MODEL_303",
+  "formVersion": "AEAT_MODEL_303_BOE_2026",
+  "fiscalYear": 2026,
+  "period": "3T",
+  "documentKind": "DRAFT",
+  "filingStatus": "DRAFT",
+  "temporalScope": "SPECIFIC_PERIOD",
+  "lifecycleLabels": [
+    "NOT_CURRENT_CENSUS_STATUS"
+  ],
+  "stateCoverage": "PERIOD_ONLY",
+  "visualVariant": "NATIVE_PDF",
+  "expectedEnvelope": {
+    "isComplete": false
+  },
+  "expectedFields": [
+    {
+      "factType": "VAT.FILING_303",
+      "value": {
+        "periodicVatReturnObserved": true,
+        "filingStatus": "DRAFT"
+      },
+      "normalizedValue": {
+        "periodicVatReturnObserved": true,
+        "filingStatus": "DRAFT"
+      },
+      "page": 1,
+      "sourceLabel": "IVA · Autoliquidación"
+    }
+  ],
+  "expectedQuestionMappings": [],
+  "mustNotInfer": [
+    {
+      "code": "CURRENT_CENSUS_STATUS",
+      "reason": "Una declaración concreta no acredita por sí sola la situación censal actual."
+    },
+    {
+      "code": "FUTURE_OBLIGATION",
+      "reason": "Una declaración de un período no acredita una obligación futura."
+    },
+    {
+      "code": "VERIFIED_FILING",
+      "reason": "El impreso sintético no acredita presentación ante la AEAT."
+    },
+    {
+      "code": "OFFICIAL_DOCUMENT_VALIDITY",
+      "reason": "El documento sintético carece de validez oficial."
+    },
+    {
+      "code": "ABSENCE_OUTSIDE_CAPTURE",
+      "reason": "Una captura parcial no permite inferir datos ausentes fuera de ella."
+    }
+  ],
+  "allowAdditionalFactTypes": [],
+  "source": {
+    "kind": "SYNTHETIC_OFFICIAL_FORM",
+    "authorizationRecorded": true,
+    "sha256": "c9a43f5addf2c4002284eba36769ff749278d9bd82d599dbe930b503f69a41db",
+    "officialReference": {
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G414.shtml",
+      "capturedOn": "2026-07-15",
+      "sha256": null
+    },
+    "anonymizationAudit": {
+      "textLayerChecked": true,
+      "acroFormChecked": true,
+      "metadataChecked": true,
+      "annotationsChecked": true,
+      "hiddenPagesChecked": true,
+      "qrAndBarcodeChecked": true,
+      "embeddedFilesChecked": true,
+      "originalFileNameStored": false
+    }
+  },
+  "asset": {
+    "pdfPath": "pdf/m303-no-activity-zero-003-native.pdf",
+    "extractedTextPath": "text/m303-no-activity-zero-003-native.txt"
+  },
+  "extractor": {
+    "contractVersion": "1.0.0",
+    "catalogVersion": "fiscal-document-extractors.2026-07.v2",
+    "extractorVersion": "aeat.model.303.v2"
+  }
+}

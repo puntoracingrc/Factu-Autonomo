@@ -1,6 +1,18 @@
 # Plan — diagnóstico de modelos tributarios
 
-Estado: en ejecución. Propietario: agente principal. Actualizado: 2026-07-14.
+Estado: en ejecución. Propietario: agente principal. Actualizado: 2026-07-15.
+
+## Punto de control — corpus sintético v1
+
+- [x] Importar 41 documentos base sintéticos con manifiestos, huellas y
+  procedencia reproducible.
+- [x] Validar estructuralmente 41/41 y auditar visualmente las 162 páginas.
+- [x] Añadir regresión funcional 41/41 e inferencias expresamente prohibidas.
+- [x] Clasificar por estructura los modelos 036, 037 histórico, 111, 115, 130,
+  303 y 390, además de las tres vistas censales actuales.
+- [ ] Generar y aprobar las variantes visuales derivadas del corpus base.
+- [ ] Congelar el contrato público y aprobar fiscalmente las reglas antes de
+  liberar la integración de Calendar o Modelos AEAT.
 
 ## Contexto recopilado
 

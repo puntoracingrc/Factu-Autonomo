@@ -77,7 +77,8 @@ for (const name of manifestFiles) {
   manifests.push(manifest);
 
   if (
-    manifest.source.kind === "SYNTHETIC_OFFICIAL_FORM" &&
+    (manifest.source.kind === "SYNTHETIC_OFFICIAL_FORM" ||
+      manifest.source.kind === "SYNTHETIC_FUNCTIONAL_VIEW") &&
     manifest.source.officialReference === null
   ) {
     errors.push(

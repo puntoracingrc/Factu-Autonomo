@@ -1,0 +1,99 @@
+{
+  "corpusVersion": "fiscal-extractor-corpus.2026-07.v1",
+  "fixtureId": "aeat-activities-with-premises-003-screenshot",
+  "semanticCaseId": "aeat-activities-with-premises-003",
+  "parentFixtureId": null,
+  "documentType": "AEAT_ECONOMIC_ACTIVITIES_VIEW",
+  "formVersion": "SYNTHETIC_AEAT_INSPIRED_ACTIVITIES_VIEW_V1",
+  "fiscalYear": 2026,
+  "period": null,
+  "documentKind": "CURRENT_AEAT_VIEW",
+  "filingStatus": "NOT_VERIFIED",
+  "temporalScope": "CURRENT_AS_OF_DATE",
+  "lifecycleLabels": [
+    "CURRENT_EVIDENCE"
+  ],
+  "stateCoverage": "FULL_CURRENT_STATE",
+  "visualVariant": "SCREENSHOT",
+  "expectedEnvelope": {
+    "isComplete": true
+  },
+  "expectedFields": [
+    {
+      "factType": "ACTIVITY.LIST",
+      "value": [
+        {
+          "code": "411",
+          "description": "SERVICIOS DE ARQUITECTURA",
+          "state": "ACTIVE",
+          "startDate": "2024-01-01"
+        }
+      ],
+      "normalizedValue": [
+        {
+          "code": "411",
+          "description": "SERVICIOS DE ARQUITECTURA",
+          "state": "ACTIVE",
+          "startDate": "2024-01-01"
+        }
+      ],
+      "page": 1,
+      "sourceLabel": "Relación de actividades"
+    },
+    {
+      "factType": "ACTIVITY.DATES",
+      "value": [
+        "2024-01-01"
+      ],
+      "normalizedValue": [
+        "2024-01-01"
+      ],
+      "page": 1,
+      "sourceLabel": "F. Inicio"
+    }
+  ],
+  "expectedQuestionMappings": [
+    {
+      "questionId": "B_START_DATE",
+      "proposedAnswer": "2024-01-01",
+      "canSkipQuestion": false,
+      "confirmationRequired": true
+    }
+  ],
+  "mustNotInfer": [
+    {
+      "code": "OFFICIAL_DOCUMENT_VALIDITY",
+      "reason": "La vista funcional sintética no es una captura ni certificado oficial."
+    }
+  ],
+  "allowAdditionalFactTypes": [],
+  "source": {
+    "kind": "SYNTHETIC_FUNCTIONAL_VIEW",
+    "authorizationRecorded": true,
+    "sha256": "14f26774ba4e712bafa3a349c460ba25a7e00ad04c41eb2990d1ca302271cd80",
+    "officialReference": {
+      "url": "https://sede.agenciatributaria.gob.es/Sede/ayuda/consultas-informaticas/otros-servicios-ayuda-tecnica/datos-censales.html",
+      "capturedOn": "2026-07-15",
+      "sha256": null
+    },
+    "anonymizationAudit": {
+      "textLayerChecked": true,
+      "acroFormChecked": true,
+      "metadataChecked": true,
+      "annotationsChecked": true,
+      "hiddenPagesChecked": true,
+      "qrAndBarcodeChecked": true,
+      "embeddedFilesChecked": true,
+      "originalFileNameStored": false
+    }
+  },
+  "asset": {
+    "pdfPath": "pdf/aeat-activities-with-premises-003-screenshot.pdf",
+    "extractedTextPath": "text/aeat-activities-with-premises-003-screenshot.txt"
+  },
+  "extractor": {
+    "contractVersion": "1.0.0",
+    "catalogVersion": "fiscal-document-extractors.2026-07.v2",
+    "extractorVersion": "aeat.aeat_economic_activities_view.v2"
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "pantalla_actividades_parcial_baja_04",
+  "documentType": "AEAT_SCREEN_ECONOMIC_ACTIVITIES",
+  "displayName": "Pantalla · captura parcial con actividad de baja",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_PORTAL_SCREEN",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT-inspired synthetic UI",
+    "reference": "Simulación de pantallas de Mis datos censales",
+    "templateStatus": "synthetic-interface",
+    "notOfficialScreenshot": true
+  },
+  "expectedFields": {
+    "screenType": "ACTIVITIES",
+    "taxpayerNif": "00000032D",
+    "taxpayerName": "GONZALO PRUEBA TREINTA Y TRES",
+    "consultationDate": "14/07/2026",
+    "partialCapture": true,
+    "activities": [
+      {
+        "description": "COMERCIO MENOR TEXTIL",
+        "epigraph": "651.2",
+        "status": "BAJA",
+        "startDate": "01/01/2022",
+        "endDate": "31/12/2025"
+      }
+    ]
+  },
+  "expectedQuestionMappings": {
+    "ACTIVITY.LIST": [
+      {
+        "description": "COMERCIO MENOR TEXTIL",
+        "epigraph": "651.2",
+        "status": "BAJA",
+        "startDate": "01/01/2022",
+        "endDate": "31/12/2025"
+      }
+    ],
+    "ACTIVITY.SOURCE_COMPLETENESS": "PARTIAL"
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_CERTIFICATE",
+    "CURRENT_STATUS_BEYOND_CONSULTATION_DATE",
+    "ABSENCE_OF_OTHER_ACTIVITIES"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000032D"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "GONZALO PRUEBA TREINTA Y TRES"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "activity.list",
+      "page": 1,
+      "label": "Mis actividades económicas",
+      "value": [
+        {
+          "description": "COMERCIO MENOR TEXTIL",
+          "epigraph": "651.2",
+          "status": "BAJA",
+          "startDate": "01/01/2022",
+          "endDate": "31/12/2025"
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Pantalla sintética; no es una captura oficial ni contiene autenticación."
+  ],
+  "pdfFile": "pantalla_actividades_parcial_baja_04.pdf",
+  "sha256": "dbe23430e3718e3b754daa17cc7735e160b2e29b61ab7907267d2df6a0246cfe"
+}

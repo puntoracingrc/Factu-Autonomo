@@ -1,0 +1,105 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m303_trimestral_ingresar_01",
+  "documentType": "AEAT_MODEL_303",
+  "displayName": "303 · trimestral a ingresar",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "1T",
+  "expectedPages": 6,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2026-1761, anexo III, modelo 303",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000012N",
+    "taxpayerName": "MARTA DEMO TRECE",
+    "fiscalYear": 2026,
+    "period": "1T",
+    "general": {
+      "base21": "10.000,00",
+      "outputVat21": "2.100,00",
+      "deductible": "1.250,00",
+      "generalResult": "850,00"
+    },
+    "result": "850,00"
+  },
+  "expectedQuestionMappings": {
+    "VAT.PRIOR_PERIODIC_FILING": true,
+    "VAT.PERIODICITY_EVIDENCE": "QUARTERLY",
+    "VAT.DECLARED_OPERATIONS": {}
+  },
+  "mustNotInfer": [
+    "CURRENT_VAT_REGIME",
+    "CURRENT_ROI_STATUS",
+    "FUTURE_MODEL_303_OBLIGATION",
+    "MODEL_390_OBLIGATION",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000012N"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "MARTA DEMO TRECE"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "303"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "1T"
+    },
+    {
+      "fieldId": "vat.general",
+      "page": 1,
+      "label": "Régimen general",
+      "value": {
+        "base21": "10.000,00",
+        "outputVat21": "2.100,00",
+        "deductible": "1.250,00",
+        "generalResult": "850,00"
+      }
+    },
+    {
+      "fieldId": "vat.additionalInfo",
+      "page": 3,
+      "label": "Información adicional",
+      "value": {}
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 3,
+      "label": "Resultado",
+      "value": "850,00"
+    }
+  ],
+  "notes": [
+    "El modelo acredita operaciones declaradas en el periodo, no la situación censal actual."
+  ],
+  "pdfFile": "m303_trimestral_ingresar_01.pdf",
+  "sha256": "326e7d28b961ba7adebb790558bfc4ac3a1a87b863b2dcf326d498d6051e06dc"
+}

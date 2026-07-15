@@ -20,9 +20,9 @@ Canarias, Navarra, País Vasco, Ceuta, Melilla y no residentes fallan cerrado: n
 ## Flujo de uso
 
 1. La persona responde los bloques A–N. `No lo sé` es una respuesta explícita y nunca se convierte en `No`.
-2. Opcionalmente añade un certificado de situación censal o modelo 036 con texto nativo, o capturas de «Mis actividades económicas», «Mi situación tributaria» y «Mis obligaciones» de la AEAT.
-3. Los PDFs y las capturas se procesan localmente y no se conservan. Una captura parcial puede proponer los campos leídos sin exigir que se aporten los tres apartados.
-4. Revisa cada propuesta documental y confirma vigencia y campos elegidos. En la vía de capturas se confía en la declaración del usuario y no se bloquea por NIF.
+2. Opcionalmente arrastra a un único contenedor los PDF y capturas que tenga. El lector reconoce formularios fiscales acotados y las vistas «Mis actividades económicas», «Mi situación tributaria» y «Mis obligaciones» de la AEAT.
+3. La persona decide cuándo iniciar el análisis. Los archivos se procesan localmente y no se conservan. Una captura parcial puede proponer los campos leídos sin exigir que se aporten los tres apartados.
+4. Revisa cada propuesta documental y confirma vigencia y campos elegidos. Se confía en la declaración del usuario y no se bloquea por NIF.
 5. Confirma expresamente el conjunto de respuestas.
 6. El motor puro genera una decisión por cada código, separando sujeto, estado, motivo, evidencia, datos pendientes, períodos, próxima acción y fuentes.
 
@@ -38,3 +38,16 @@ Canarias, Navarra, País Vasco, Ceuta, Melilla y no residentes fallan cerrado: n
 - `TERRITORY_NOT_SUPPORTED`: no existe un ruleset territorial compatible.
 
 Las reglas están en estado `PENDING_FISCAL_REVIEW`. El flag de producción debe permanecer cerrado hasta que todas las reglas del ejercicio estén aprobadas y el QA de dominio de producción sea verde.
+
+## Corpus sintético v1
+
+El corpus versionado incorpora 41 documentos base y 162 páginas para los
+modelos 036, 037 histórico, 111, 115, 130, 303 y 390, además de las tres vistas
+censales actuales. Todos muestran la marca «DOCUMENTO SINTÉTICO · SIN
+VALIDEZ», tienen manifiesto, huella SHA-256 y evidencia esperada.
+
+Los formularios se clasifican por estructura, no por el nombre del archivo. Si
+el propio documento no acredita una presentación, el lector conserva el
+resultado en revisión manual: no convierte un borrador o una declaración
+histórica en situación censal vigente. Las vistas censales actuales sí pueden
+proponer hechos visibles, siempre sujetos a confirmación humana.

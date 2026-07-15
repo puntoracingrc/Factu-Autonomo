@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "pantalla_situacion_directa_general_01",
+  "documentType": "AEAT_SCREEN_TAX_STATUS",
+  "displayName": "Pantalla · estimación directa e IVA general",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_PORTAL_SCREEN",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 1,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT-inspired synthetic UI",
+    "reference": "Simulación de pantallas de Mis datos censales",
+    "templateStatus": "synthetic-interface",
+    "notOfficialScreenshot": true
+  },
+  "expectedFields": {
+    "screenType": "TAX_STATUS",
+    "taxpayerNif": "00000033X",
+    "taxpayerName": "HELENA EJEMPLO TREINTA Y CUATRO",
+    "consultationDate": "14/07/2026",
+    "irpf": {
+      "Método": "Estimación directa simplificada",
+      "Pagos fraccionados": "Modelo 130"
+    },
+    "vat": {
+      "Régimen": "General",
+      "Periodicidad": "Trimestral"
+    },
+    "registries": {
+      "ROI": "No",
+      "REDEME": "No",
+      "SII": "No"
+    }
+  },
+  "expectedQuestionMappings": {
+    "IRPF.STATUS": {
+      "Método": "Estimación directa simplificada",
+      "Pagos fraccionados": "Modelo 130"
+    },
+    "VAT.STATUS": {
+      "Régimen": "General",
+      "Periodicidad": "Trimestral"
+    },
+    "REGISTRIES.STATUS": {
+      "ROI": "No",
+      "REDEME": "No",
+      "SII": "No"
+    }
+  },
+  "mustNotInfer": [
+    "VALID_OFFICIAL_CERTIFICATE",
+    "CHANGES_AFTER_CONSULTATION_DATE",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000033X"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "HELENA EJEMPLO TREINTA Y CUATRO"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "irpf.status",
+      "page": 1,
+      "label": "Impuesto sobre la Renta",
+      "value": {
+        "Método": "Estimación directa simplificada",
+        "Pagos fraccionados": "Modelo 130"
+      }
+    },
+    {
+      "fieldId": "vat.status",
+      "page": 1,
+      "label": "Impuesto sobre el Valor Añadido",
+      "value": {
+        "Régimen": "General",
+        "Periodicidad": "Trimestral"
+      }
+    },
+    {
+      "fieldId": "registries.status",
+      "page": 1,
+      "label": "Registros y opciones",
+      "value": {
+        "ROI": "No",
+        "REDEME": "No",
+        "SII": "No"
+      }
+    }
+  ],
+  "notes": [
+    "Pantalla sintética inspirada en la estructura funcional descrita por la AEAT."
+  ],
+  "pdfFile": "pantalla_situacion_directa_general_01.pdf",
+  "sha256": "d7627c7840e09d41f8c974e1b5a8485e4f09dfe19de247040338a08f1dc659bf"
+}

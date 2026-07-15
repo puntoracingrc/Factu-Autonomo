@@ -1,0 +1,125 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m303_mensual_rectificativa_05",
+  "documentType": "AEAT_MODEL_303",
+  "displayName": "303 · mensual rectificativa con varias operaciones",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": "01",
+  "expectedPages": 6,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "BOE/AEAT",
+    "reference": "BOE-A-2026-1761, anexo III, modelo 303",
+    "templateStatus": "official-layout"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000016Q",
+    "taxpayerName": "QUIM PRUEBA DIECISIETE",
+    "fiscalYear": 2026,
+    "period": "01",
+    "general": {
+      "base21": "30.000,00",
+      "outputVat21": "6.300,00",
+      "deductible": "4.900,00",
+      "generalResult": "1.400,00"
+    },
+    "additionalInfo": {
+      "intraDeliveries": "3.000,00",
+      "exports": "2.000,00",
+      "nonLocated": "1.500,00",
+      "reverseChargeOps": "750,00"
+    },
+    "result": "250,00",
+    "rectificative": true,
+    "previousReceipt": "3032026SYN00005",
+    "redeme": true,
+    "sii": true
+  },
+  "expectedQuestionMappings": {
+    "VAT.PRIOR_PERIODIC_FILING": true,
+    "VAT.PERIODICITY_EVIDENCE": "MONTHLY",
+    "VAT.DECLARED_OPERATIONS": {
+      "intraDeliveries": "3.000,00",
+      "exports": "2.000,00",
+      "nonLocated": "1.500,00",
+      "reverseChargeOps": "750,00"
+    }
+  },
+  "mustNotInfer": [
+    "CURRENT_VAT_REGIME",
+    "CURRENT_ROI_STATUS",
+    "FUTURE_MODEL_303_OBLIGATION",
+    "MODEL_390_OBLIGATION",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000016Q"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "QUIM PRUEBA DIECISIETE"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "303"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "document.period",
+      "page": 1,
+      "label": "Periodo",
+      "value": "01"
+    },
+    {
+      "fieldId": "vat.general",
+      "page": 1,
+      "label": "Régimen general",
+      "value": {
+        "base21": "30.000,00",
+        "outputVat21": "6.300,00",
+        "deductible": "4.900,00",
+        "generalResult": "1.400,00"
+      }
+    },
+    {
+      "fieldId": "vat.additionalInfo",
+      "page": 3,
+      "label": "Información adicional",
+      "value": {
+        "intraDeliveries": "3.000,00",
+        "exports": "2.000,00",
+        "nonLocated": "1.500,00",
+        "reverseChargeOps": "750,00"
+      }
+    },
+    {
+      "fieldId": "filing.result",
+      "page": 3,
+      "label": "Resultado",
+      "value": "250,00"
+    }
+  ],
+  "notes": [
+    "El modelo acredita operaciones declaradas en el periodo, no la situación censal actual."
+  ],
+  "pdfFile": "m303_mensual_rectificativa_05.pdf",
+  "sha256": "802d3ea04abfa7b2def13c95389ed1d5379e01029e41d0603673bdfb4fa1fae4"
+}

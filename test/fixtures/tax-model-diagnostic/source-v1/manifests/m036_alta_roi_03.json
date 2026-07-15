@@ -1,0 +1,148 @@
+{
+  "schemaVersion": "1.0",
+  "generatorVersion": "tax-profile-corpus-generator/1.0.0",
+  "fixtureId": "m036_alta_roi_03",
+  "documentType": "AEAT_MODEL_036",
+  "displayName": "Modificación: alta en Registro de Operadores Intracomunitarios",
+  "synthetic": true,
+  "notValidForFiling": true,
+  "containsRealPersonalData": false,
+  "documentKind": "SYNTHETIC_FILLED_OFFICIAL_LAYOUT",
+  "fiscalYear": 2026,
+  "period": null,
+  "expectedPages": 12,
+  "visualVariant": "NATIVE_PDF_WITH_SYNTHETIC_TEXT_LAYER",
+  "sourceTemplate": {
+    "authority": "AEAT/BOE",
+    "reference": "Modelo 036 vigente, ejemplar para el interesado",
+    "templateStatus": "official-layout",
+    "validationStatus": "not server-validated"
+  },
+  "expectedFields": {
+    "taxpayerNif": "00000002W",
+    "taxpayerName": "CARLA FICTICIA TRES",
+    "filingDate": "15/01/2026",
+    "cause": "MODIFICACION",
+    "modificationType": "ROI_REGISTRATION",
+    "activities": [
+      {
+        "description": "CONSULTORIA INFORMATICA",
+        "epigraph": "763",
+        "activityType": "PROFESIONAL",
+        "activityCode": "J6202",
+        "effectiveDate": "01/01/2025",
+        "municipality": "VALENCIA",
+        "province": "VALENCIA"
+      }
+    ],
+    "irpf": {
+      "method": "DIRECT_SIMPLIFIED",
+      "paymentsModel": "130",
+      "effectiveDate": "01/01/2025"
+    },
+    "vat": {
+      "taxableInSpain": true,
+      "regimes": [
+        "GENERAL"
+      ],
+      "effectiveDate": "01/01/2025",
+      "roi": "ALTA",
+      "roiEffectiveDate": "01/03/2026",
+      "redeme": false,
+      "sii": false
+    },
+    "withholdings": {}
+  },
+  "expectedQuestionMappings": {
+    "SUBJECT.TAXPAYER_TYPE": "PERSONA_FISICA",
+    "CENSUS.CURRENT_STATUS": "PROPOSED_FROM_CENSUS_EVENT",
+    "ACTIVITY.LIST": [
+      {
+        "description": "CONSULTORIA INFORMATICA",
+        "epigraph": "763",
+        "activityType": "PROFESIONAL",
+        "activityCode": "J6202",
+        "effectiveDate": "01/01/2025",
+        "municipality": "VALENCIA",
+        "province": "VALENCIA"
+      }
+    ],
+    "IRPF.METHOD": "DIRECT_SIMPLIFIED",
+    "VAT.REGIMES": [
+      "GENERAL"
+    ]
+  },
+  "mustNotInfer": [
+    "CURRENT_CENSUS_STATUS_WITHOUT_RECONCILIATION",
+    "FUTURE_OPERATIONS",
+    "ACTUAL_FILING_STATUS",
+    "VALID_AEAT_SUBMISSION"
+  ],
+  "fieldEvidence": [
+    {
+      "fieldId": "taxpayer.nif",
+      "page": 1,
+      "label": "NIF",
+      "value": "00000002W"
+    },
+    {
+      "fieldId": "taxpayer.name",
+      "page": 1,
+      "label": "Apellidos y nombre / Razón social",
+      "value": "CARLA FICTICIA TRES"
+    },
+    {
+      "fieldId": "document.model",
+      "page": 1,
+      "label": "Modelo",
+      "value": "036"
+    },
+    {
+      "fieldId": "document.fiscalYear",
+      "page": 1,
+      "label": "Ejercicio",
+      "value": 2026
+    },
+    {
+      "fieldId": "census.cause",
+      "page": 1,
+      "label": "Causa de presentación",
+      "value": "MODIFICACION"
+    },
+    {
+      "fieldId": "activity.list",
+      "page": 4,
+      "label": "Declaración de actividades económicas y locales",
+      "value": [
+        {
+          "description": "CONSULTORIA INFORMATICA",
+          "epigraph": "763",
+          "activityType": "PROFESIONAL",
+          "activityCode": "J6202",
+          "effectiveDate": "01/01/2025",
+          "municipality": "VALENCIA",
+          "province": "VALENCIA"
+        }
+      ]
+    },
+    {
+      "fieldId": "irpf.method",
+      "page": 6,
+      "label": "Método de estimación en el IRPF",
+      "value": "DIRECT_SIMPLIFIED"
+    },
+    {
+      "fieldId": "vat.regimes",
+      "page": 5,
+      "label": "Regímenes aplicables",
+      "value": [
+        "GENERAL"
+      ]
+    }
+  ],
+  "notes": [
+    "El 036 representa un evento censal, no una fotografía completa salvo reconciliación con fuentes posteriores."
+  ],
+  "pdfFile": "m036_alta_roi_03.pdf",
+  "sha256": "194f11424f0d78010681738693ce1672cfb362d12a0c53be55d7d2f68176f414"
+}
