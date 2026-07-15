@@ -98,11 +98,15 @@ describe("multipage fiscal notification segmenter v1", () => {
   it("segments every implemented seizure title as a separate main administrative act", async () => {
     const titles = [
       "diligencia de embargo de cuentas bancarias",
+      "diligencia de embargo de vehiculos",
       "diligencia de embargo de creditos comerciales o arrendaticios",
       "diligencia de embargo de sueldos salarios o pensiones",
+      "diligencia de embargo de valores",
       "diligencia de embargo de cobros mediante terminal de punto de venta",
+      "diligencia de embargo de intereses, rentas y frutos de toda especie",
       "diligencia de embargo de devoluciones tributarias",
       "diligencia de embargo de bienes inmuebles",
+      "reiteracion de embargo de creditos",
       "levantamiento de diligencia de embargo",
       "contestacion a diligencia de embargo",
       "justificante de ingreso de diligencia de embargo",

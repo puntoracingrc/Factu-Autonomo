@@ -56,7 +56,7 @@ describe("fiscal notification document input analysis", () => {
       pageCount: 1,
       verticalSliceReview: {
         schemaVersion: 1,
-        reviewVersion: "1.0.0",
+        reviewVersion: "1.1.0",
         status: "INFORMATION_PENDING",
         documents: [],
         sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",

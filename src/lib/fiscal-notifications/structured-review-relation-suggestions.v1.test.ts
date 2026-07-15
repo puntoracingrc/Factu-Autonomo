@@ -209,7 +209,8 @@ function configureSeizureAndFollowUp(
   followUpSubtype:
     | "seizure.release"
     | "seizure.third_party_response"
-    | "seizure.third_party_payment",
+    | "seizure.third_party_payment"
+    | "seizure.compliance_reiteration",
 ): void {
   input.documents[0]!.documentType = "AEAT_SEIZURE_ORDER";
   input.documents[0]!.documentSubtype = "seizure.bank_account";
@@ -315,9 +316,40 @@ describe("structured review relation suggestions v1", () => {
   });
 
   it.each([
+    "seizure.movable_asset",
+    "seizure.securities_or_financial_assets",
+    "seizure.business_income_or_rents",
+  ] as const)("types the expanded %s order as an exact enforcement edge", (subtype) => {
+    const input = workspace();
+    configureEnforcementAndSeizure(input);
+    input.documents[1]!.documentSubtype = subtype;
+    replaceReferencePair(
+      input,
+      "LIQUIDATION_KEY",
+      "LQ-SYNTH-EXPANDED-001",
+      "LQ-SYNTH-EXPANDED-001",
+      "expanded-enforcement",
+    );
+
+    const result = appendStructuredReviewRelationSuggestionsV1({
+      ownerScope: OWNER,
+      workspace: input,
+      createdAt: NOW,
+    });
+
+    expect(result.status).toBe("APPLIED");
+    expect(result.workspace.relations).toContainEqual(expect.objectContaining({
+      relationType: "ENFORCES",
+      confidenceBand: "EXACT",
+      status: "SYSTEM_CONFIRMED_EXACT",
+    }));
+  });
+
+  it.each([
     ["seizure.third_party_response", "RESPONDS_TO_SEIZURE"],
     ["seizure.third_party_payment", "TRANSFERS_SEIZED_FUNDS"],
     ["seizure.release", "RELEASES_SEIZURE"],
+    ["seizure.compliance_reiteration", "CONTINUES"],
   ] as const)(
     "types %s by the exact cited seizure order",
     (followUpSubtype, relationType) => {

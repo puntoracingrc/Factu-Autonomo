@@ -40,4 +40,17 @@ describe("administrative domain relationship v1", () => {
     expect(output.matchingEvidence).toEqual(["reference-synthetic-1"]);
     expect(Object.isFrozen(output.matchingEvidence)).toBe(true);
   });
+
+  it("represents an exact documentary continuation without applying an effect", () => {
+    expect(createRelationshipV1(relationship({
+      relationType: "CONTINUES",
+      ruleId: "seizure-follow-up.explicit-reiteration.v1",
+      explanation: "La reiteración cita la diligencia anterior.",
+    }))).toMatchObject({
+      relationType: "CONTINUES",
+      confidenceLevel: "EXACT",
+      createdAutomatically: true,
+      userConfirmed: false,
+    });
+  });
 });

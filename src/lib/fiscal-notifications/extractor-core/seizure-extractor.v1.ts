@@ -42,7 +42,7 @@ import {
   assertExactDataRecordV1,
 } from "./shared.v1";
 
-export const SEIZURE_EXTRACTOR_VERSION_V1 = "1.0.0" as const;
+export const SEIZURE_EXTRACTOR_VERSION_V1 = "1.1.0" as const;
 
 export const SEIZURE_EXTRACTOR_LIMITS_V1 = Object.freeze({
   maxLines: 10_000,
@@ -54,23 +54,29 @@ export const SEIZURE_EXTRACTOR_LIMITS_V1 = Object.freeze({
 
 export type SeizureDocumentKindV1 =
   | "SEIZURE_ORDER"
+  | "SEIZURE_REITERATION"
   | "SEIZURE_RELEASE"
   | "THIRD_PARTY_RESPONSE"
   | "THIRD_PARTY_PAYMENT";
 
 export type SeizureSubtypeV1 =
   | "BANK_ACCOUNT"
+  | "MOVABLE_PROPERTY"
   | "COMMERCIAL_OR_RENT_CREDIT"
   | "WAGES_OR_PENSIONS"
+  | "SECURITIES_OR_FINANCIAL_ASSETS"
   | "TPV_RECEIPTS"
+  | "BUSINESS_INCOME_OR_RENTS"
   | "CASH_REFUND_OR_PUBLIC_CREDIT"
   | "REAL_ESTATE"
+  | "COMPLIANCE_REITERATION"
   | "RELEASE"
   | "THIRD_PARTY_RESPONSE"
   | "THIRD_PARTY_PAYMENT";
 
 export type SeizurePrintedStateV1 =
   | "SEIZURE_ORDER_RECORDED_REVIEW_REQUIRED"
+  | "SEIZURE_REITERATION_RECORDED_REVIEW_REQUIRED"
   | "RELEASE_RECORDED_REVIEW_REQUIRED"
   | "THIRD_PARTY_RESPONSE_RECORDED_REVIEW_REQUIRED"
   | "THIRD_PARTY_PAYMENT_RECORDED_REVIEW_REQUIRED";
@@ -78,7 +84,10 @@ export type SeizurePrintedStateV1 =
 export type SeizureRecipientRoleV1 =
   | "DEBTOR"
   | "FINANCIAL_ENTITY"
+  | "SECURITIES_DEPOSITARY"
+  | "ASSET_HOLDER_OR_DEPOSITARY"
   | "COMMERCIAL_OR_RENT_PAYER"
+  | "ACTIVITY_OR_RENT_PAYER"
   | "EMPLOYER_OR_PENSION_PAYER"
   | "PAYMENT_SERVICE_PROVIDER"
   | "GARNISHED_THIRD_PARTY"
@@ -125,6 +134,12 @@ export type SeizureSpecificFieldIdV1 =
   | "FINANCIAL_ENTITY"
   | "MASKED_ACCOUNT"
   | "ACCOUNT_OR_DEPOSIT"
+  | "ASSET_DESCRIPTION"
+  | "VEHICLE_REGISTRATION"
+  | "VEHICLE_IDENTIFICATION_NUMBER"
+  | "MOVABLE_PROPERTY_REGISTRY"
+  | "POSSESSOR_OR_DEPOSITARY"
+  | "DEPOSIT_INSTRUCTIONS"
   | "PAYER"
   | "CREDIT_DEBTOR"
   | "CONTRACT_OR_INVOICE"
@@ -132,10 +147,17 @@ export type SeizureSpecificFieldIdV1 =
   | "PROHIBITION_TO_PAY_DEBTOR"
   | "REMUNERATION_TYPE"
   | "PRINTED_WITHHOLDING_LIMIT"
+  | "SECURITIES_DEPOSITARY"
+  | "SECURITY_OR_FINANCIAL_ASSET"
+  | "SECURITY_ACCOUNT"
+  | "SECURITY_QUANTITY"
+  | "DISPOSAL_RESTRICTION"
   | "PAYMENT_SERVICE_PROVIDER"
   | "TERMINAL_OR_MERCHANT"
   | "COLLECTION_FLOW"
   | "PRINTED_PERCENTAGE"
+  | "ACTIVITY_OR_RENT_PAYER"
+  | "INCOME_OR_RENT_SOURCE"
   | "PROPERTY_HOLDER"
   | "PROPERTY_ADDRESS"
   | "CADASTRAL_REFERENCE"
@@ -151,7 +173,8 @@ export type SeizureSpecificFieldIdV1 =
   | "RELATIONSHIP_TO_DEBTOR"
   | "CREDIT_OR_BALANCE_EXISTS"
   | "THIRD_PARTY_RESPONSE"
-  | "TRANSFER_RECEIPT";
+  | "TRANSFER_RECEIPT"
+  | "REITERATION_REASON";
 
 export interface SeizureSpecificFactV1 extends SeizureTextFactV1 {
   readonly fieldId: SeizureSpecificFieldIdV1;
@@ -182,6 +205,7 @@ export interface SeizureFactsV1 {
   readonly releaseDate: SeizureDateFactV1 | null;
   readonly responseDate: SeizureDateFactV1 | null;
   readonly paymentDate: SeizureDateFactV1 | null;
+  readonly reiterationDate: SeizureDateFactV1 | null;
   readonly rawResponseDeadline: SeizureTextFactV1 | null;
   readonly instructions: SeizureTextFactV1 | null;
   readonly printedResources: SeizureTextFactV1 | null;
@@ -227,17 +251,29 @@ interface ParsedSeizureV1 extends RecognitionV1 {
 const TITLE_DEFINITIONS = Object.freeze([
   title("diligencia de embargo de cuentas bancarias", "SEIZURE_ORDER", "BANK_ACCOUNT", "seizure.bank_account"),
   title("diligencia de embargo de cuentas en entidades de credito", "SEIZURE_ORDER", "BANK_ACCOUNT", "seizure.bank_account"),
+  title("diligencia de embargo de vehiculos", "SEIZURE_ORDER", "MOVABLE_PROPERTY", "seizure.movable_asset"),
+  title("diligencia de embargo de bienes muebles", "SEIZURE_ORDER", "MOVABLE_PROPERTY", "seizure.movable_asset"),
+  title("diligencia de embargo de bienes muebles y semovientes", "SEIZURE_ORDER", "MOVABLE_PROPERTY", "seizure.movable_asset"),
   title("diligencia de embargo de creditos comerciales o arrendaticios", "SEIZURE_ORDER", "COMMERCIAL_OR_RENT_CREDIT", "seizure.commercial_credits"),
   title("diligencia de embargo de creditos comerciales", "SEIZURE_ORDER", "COMMERCIAL_OR_RENT_CREDIT", "seizure.commercial_credits"),
   title("diligencia de embargo de creditos arrendaticios", "SEIZURE_ORDER", "COMMERCIAL_OR_RENT_CREDIT", "seizure.commercial_credits"),
   title("diligencia de embargo de sueldos, salarios o pensiones", "SEIZURE_ORDER", "WAGES_OR_PENSIONS", "seizure.wages_or_pensions"),
   title("diligencia de embargo de sueldos salarios o pensiones", "SEIZURE_ORDER", "WAGES_OR_PENSIONS", "seizure.wages_or_pensions"),
   title("diligencia de embargo de sueldos y salarios", "SEIZURE_ORDER", "WAGES_OR_PENSIONS", "seizure.wages_or_pensions"),
+  title("diligencia de embargo de valores", "SEIZURE_ORDER", "SECURITIES_OR_FINANCIAL_ASSETS", "seizure.securities_or_financial_assets"),
+  title("diligencia de embargo de valores mobiliarios", "SEIZURE_ORDER", "SECURITIES_OR_FINANCIAL_ASSETS", "seizure.securities_or_financial_assets"),
+  title("diligencia de embargo de valores y activos financieros", "SEIZURE_ORDER", "SECURITIES_OR_FINANCIAL_ASSETS", "seizure.securities_or_financial_assets"),
   title("diligencia de embargo de cobros mediante terminal de punto de venta", "SEIZURE_ORDER", "TPV_RECEIPTS", "seizure.tpv_receipts"),
   title("diligencia de embargo de tpv", "SEIZURE_ORDER", "TPV_RECEIPTS", "seizure.tpv_receipts"),
+  title("diligencia de embargo de intereses rentas y frutos de toda especie", "SEIZURE_ORDER", "BUSINESS_INCOME_OR_RENTS", "seizure.business_income_or_rents"),
+  title("diligencia de embargo de intereses, rentas y frutos de toda especie", "SEIZURE_ORDER", "BUSINESS_INCOME_OR_RENTS", "seizure.business_income_or_rents"),
+  title("diligencia de embargo de ingresos de actividad o rentas", "SEIZURE_ORDER", "BUSINESS_INCOME_OR_RENTS", "seizure.business_income_or_rents"),
   title("diligencia de embargo de dinero efectivo devoluciones o creditos frente a la administracion", "SEIZURE_ORDER", "CASH_REFUND_OR_PUBLIC_CREDIT", "seizure.cash_or_refund"),
   title("diligencia de embargo de devoluciones tributarias", "SEIZURE_ORDER", "CASH_REFUND_OR_PUBLIC_CREDIT", "seizure.cash_or_refund"),
   title("diligencia de embargo de bienes inmuebles", "SEIZURE_ORDER", "REAL_ESTATE", "seizure.real_estate"),
+  title("reiteracion de diligencia de embargo", "SEIZURE_REITERATION", "COMPLIANCE_REITERATION", "seizure.compliance_reiteration"),
+  title("reiteracion de embargo de creditos", "SEIZURE_REITERATION", "COMPLIANCE_REITERATION", "seizure.compliance_reiteration"),
+  title("reiteracion para el ingreso de embargo", "SEIZURE_REITERATION", "COMPLIANCE_REITERATION", "seizure.compliance_reiteration"),
   title("levantamiento de diligencia de embargo", "SEIZURE_RELEASE", "RELEASE", "seizure.release"),
   title("orden de levantamiento de embargo", "SEIZURE_RELEASE", "RELEASE", "seizure.release"),
   title("justificante de contestacion a diligencia de embargo", "THIRD_PARTY_RESPONSE", "THIRD_PARTY_RESPONSE", "seizure.third_party_response"),
@@ -264,6 +300,7 @@ const LABELS = Object.freeze({
   releaseDate: ["fecha de efecto del levantamiento", "fecha del levantamiento"],
   responseDate: ["fecha de contestacion", "fecha de presentacion de la contestacion"],
   paymentDate: ["fecha del ingreso", "fecha de pago"],
+  reiterationDate: ["fecha de la reiteracion", "fecha del requerimiento reiterado"],
   responseDeadline: ["plazo de contestacion", "fecha limite de contestacion", "plazo para contestar"],
   instructions: ["instrucciones", "forma de contestacion", "forma de ingreso"],
   resources: ["recursos que proceden", "recursos", "impugnacion"],
@@ -287,6 +324,12 @@ const SPECIFIC_LABELS = Object.freeze({
   FINANCIAL_ENTITY: ["entidad financiera", "entidad de credito"],
   MASKED_ACCOUNT: ["iban", "cuenta bancaria", "numero de cuenta"],
   ACCOUNT_OR_DEPOSIT: ["cuenta o deposito", "tipo de cuenta", "deposito"],
+  ASSET_DESCRIPTION: ["descripcion del bien", "bien mueble embargado", "vehiculo embargado"],
+  VEHICLE_REGISTRATION: ["matricula", "matricula del vehiculo"],
+  VEHICLE_IDENTIFICATION_NUMBER: ["numero de bastidor", "bastidor"],
+  MOVABLE_PROPERTY_REGISTRY: ["registro de bienes muebles", "registro del bien"],
+  POSSESSOR_OR_DEPOSITARY: ["poseedor o depositario", "depositario", "poseedor del bien"],
+  DEPOSIT_INSTRUCTIONS: ["instrucciones de deposito", "lugar de deposito", "deposito del bien"],
   PAYER: ["pagador", "empleador", "arrendatario"],
   CREDIT_DEBTOR: ["deudor del credito"],
   CONTRACT_OR_INVOICE: ["contrato o factura", "factura", "contrato"],
@@ -294,10 +337,17 @@ const SPECIFIC_LABELS = Object.freeze({
   PROHIBITION_TO_PAY_DEBTOR: ["prohibicion de pago al deudor", "instruccion de no pagar al deudor"],
   REMUNERATION_TYPE: ["tipo de retribucion", "clase de salario", "pension"],
   PRINTED_WITHHOLDING_LIMIT: ["limite de retencion", "limites aplicables"],
+  SECURITIES_DEPOSITARY: ["entidad depositaria", "depositario de los valores"],
+  SECURITY_OR_FINANCIAL_ASSET: ["valor o activo financiero", "valores embargados", "activo financiero"],
+  SECURITY_ACCOUNT: ["cuenta de valores", "cuenta de deposito de valores"],
+  SECURITY_QUANTITY: ["numero de valores", "cantidad de valores", "numero de titulos"],
+  DISPOSAL_RESTRICTION: ["prohibicion de disponer", "restriccion de transmision", "retencion de valores"],
   PAYMENT_SERVICE_PROVIDER: ["proveedor de servicios de pago", "entidad adquirente"],
   TERMINAL_OR_MERCHANT: ["terminal o comercio", "numero de terminal", "comercio"],
   COLLECTION_FLOW: ["flujo de cobros", "operaciones de cobro"],
   PRINTED_PERCENTAGE: ["porcentaje a retener", "porcentaje"],
+  ACTIVITY_OR_RENT_PAYER: ["pagador de la actividad o renta", "pagador de la renta", "arrendatario o pagador"],
+  INCOME_OR_RENT_SOURCE: ["origen del ingreso o renta", "actividad o renta", "concepto de la renta"],
   PROPERTY_HOLDER: ["titular del inmueble", "titular"],
   PROPERTY_ADDRESS: ["direccion del inmueble", "domicilio del inmueble"],
   CADASTRAL_REFERENCE: ["referencia catastral"],
@@ -314,6 +364,7 @@ const SPECIFIC_LABELS = Object.freeze({
   CREDIT_OR_BALANCE_EXISTS: ["existencia de credito o saldo", "existe credito o saldo"],
   THIRD_PARTY_RESPONSE: ["respuesta del tercero", "contestacion"],
   TRANSFER_RECEIPT: ["numero de justificante", "justificante del ingreso"],
+  REITERATION_REASON: ["motivo de la reiteracion", "incumplimiento indicado", "actuacion reiterada"],
 } as const satisfies Readonly<Record<SeizureSpecificFieldIdV1, readonly string[]>>);
 
 const ALL_LABELS = Object.freeze([
@@ -566,6 +617,7 @@ function parseSeizure(
   const releaseDate = uniqueDateFact(lines, LABELS.releaseDate, "Fecha del levantamiento", warnings, "CONFLICTING_RELEASE_DATE");
   const responseDate = uniqueDateFact(lines, LABELS.responseDate, "Fecha de contestación", warnings, "CONFLICTING_RESPONSE_DATE");
   const paymentDate = uniqueDateFact(lines, LABELS.paymentDate, "Fecha del ingreso", warnings, "CONFLICTING_PAYMENT_DATE");
+  const reiterationDate = uniqueDateFact(lines, LABELS.reiterationDate, "Fecha de la reiteración", warnings, "CONFLICTING_REITERATION_DATE");
   const rawResponseDeadline = uniqueTextFact(lines, LABELS.responseDeadline, "Plazo de contestación", warnings, "CONFLICTING_RESPONSE_DEADLINE");
   const instructions = uniqueTextFact(lines, LABELS.instructions, "Instrucciones", warnings, "CONFLICTING_INSTRUCTIONS");
   const printedResources = uniqueTextFact(lines, LABELS.resources, "Recursos impresos", warnings, "CONFLICTING_PRINTED_RESOURCES");
@@ -620,6 +672,7 @@ function parseSeizure(
   addDate(dates, documentId, releaseDate, "RELEASE_DATE");
   addDate(dates, documentId, responseDate, "ACTION_DATE");
   addDate(dates, documentId, paymentDate, "PAYMENT_DATE");
+  addDate(dates, documentId, reiterationDate, "ACTION_DATE");
   if (rawResponseDeadline) {
     dates.push(createProceduralDateV1({
       proceduralDateId: `${stablePrefix(documentId)}-date-response-deadline`,
@@ -666,6 +719,7 @@ function parseSeizure(
       releaseDate,
       responseDate,
       paymentDate,
+      reiterationDate,
       rawResponseDeadline,
       instructions,
       printedResources,
@@ -971,7 +1025,10 @@ function partyRoleForRecipient(role: SeizureRecipientRoleV1): PartyRoleV1 | null
   switch (role) {
     case "DEBTOR": return "PRIMARY_DEBTOR";
     case "FINANCIAL_ENTITY": return "FINANCIAL_ENTITY";
+    case "SECURITIES_DEPOSITARY": return "FINANCIAL_ENTITY";
+    case "ASSET_HOLDER_OR_DEPOSITARY": return "GARNISHED_THIRD_PARTY";
     case "COMMERCIAL_OR_RENT_PAYER": return "PAYER";
+    case "ACTIVITY_OR_RENT_PAYER": return "PAYER";
     case "EMPLOYER_OR_PENSION_PAYER": return "PAYER";
     case "PAYMENT_SERVICE_PROVIDER": return "FINANCIAL_ENTITY";
     case "GARNISHED_THIRD_PARTY": return "GARNISHED_THIRD_PARTY";
@@ -986,9 +1043,13 @@ function recipientRoleForSubtype(
   if (!recipientPrinted) return "UNKNOWN";
   switch (subtype) {
     case "BANK_ACCOUNT": return "FINANCIAL_ENTITY";
+    case "MOVABLE_PROPERTY": return "ASSET_HOLDER_OR_DEPOSITARY";
     case "COMMERCIAL_OR_RENT_CREDIT": return "COMMERCIAL_OR_RENT_PAYER";
     case "WAGES_OR_PENSIONS": return "EMPLOYER_OR_PENSION_PAYER";
+    case "SECURITIES_OR_FINANCIAL_ASSETS": return "SECURITIES_DEPOSITARY";
     case "TPV_RECEIPTS": return "PAYMENT_SERVICE_PROVIDER";
+    case "BUSINESS_INCOME_OR_RENTS": return "ACTIVITY_OR_RENT_PAYER";
+    case "COMPLIANCE_REITERATION": return "GARNISHED_THIRD_PARTY";
     case "THIRD_PARTY_RESPONSE":
     case "THIRD_PARTY_PAYMENT": return "GARNISHED_THIRD_PARTY";
     case "CASH_REFUND_OR_PUBLIC_CREDIT":
@@ -1000,6 +1061,7 @@ function recipientRoleForSubtype(
 function printedStateFor(kind: SeizureDocumentKindV1): SeizurePrintedStateV1 {
   switch (kind) {
     case "SEIZURE_ORDER": return "SEIZURE_ORDER_RECORDED_REVIEW_REQUIRED";
+    case "SEIZURE_REITERATION": return "SEIZURE_REITERATION_RECORDED_REVIEW_REQUIRED";
     case "SEIZURE_RELEASE": return "RELEASE_RECORDED_REVIEW_REQUIRED";
     case "THIRD_PARTY_RESPONSE": return "THIRD_PARTY_RESPONSE_RECORDED_REVIEW_REQUIRED";
     case "THIRD_PARTY_PAYMENT": return "THIRD_PARTY_PAYMENT_RECORDED_REVIEW_REQUIRED";
@@ -1083,6 +1145,7 @@ function emptyOutput(
       releaseDate: null,
       responseDate: null,
       paymentDate: null,
+      reiterationDate: null,
       rawResponseDeadline: null,
       instructions: null,
       printedResources: null,
@@ -1140,11 +1203,15 @@ export const SEIZURE_EXTRACTOR_RELEASE_V1 = Object.freeze({
   version: SEIZURE_EXTRACTOR_VERSION_V1,
   familyIds: Object.freeze([
     "seizure.bank_account",
+    "seizure.movable_asset",
     "seizure.commercial_credits",
     "seizure.wages_or_pensions",
+    "seizure.securities_or_financial_assets",
     "seizure.tpv_receipts",
+    "seizure.business_income_or_rents",
     "seizure.cash_or_refund",
     "seizure.real_estate",
+    "seizure.compliance_reiteration",
     "seizure.release",
     "seizure.third_party_response",
     "seizure.third_party_payment",

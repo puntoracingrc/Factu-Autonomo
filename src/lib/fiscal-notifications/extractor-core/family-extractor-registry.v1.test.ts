@@ -57,11 +57,15 @@ describe("family to reusable extractor registry v1", () => {
     expect(resolveFamilyExtractorBindingV1("payment.failed_or_reversed")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     for (const familyId of [
       "seizure.bank_account",
+      "seizure.movable_asset",
       "seizure.commercial_credits",
       "seizure.wages_or_pensions",
+      "seizure.securities_or_financial_assets",
       "seizure.tpv_receipts",
+      "seizure.business_income_or_rents",
       "seizure.cash_or_refund",
       "seizure.real_estate",
+      "seizure.compliance_reiteration",
       "seizure.release",
       "seizure.third_party_response",
       "seizure.third_party_payment",

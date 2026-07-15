@@ -23,7 +23,7 @@ import type {
 } from "./extractor-core/vertical-slice-orchestrator.v1";
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1 =
-  "1.0.0" as const;
+  "1.1.0" as const;
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1 =
   Object.freeze({
@@ -78,6 +78,12 @@ const DETAIL_CANONICAL_TYPES = Object.freeze([
   "THIRD_PARTY_TAX_ID",
   "FINANCIAL_ENTITY",
   "ACCOUNT_OR_DEPOSIT",
+  "ASSET_DESCRIPTION",
+  "VEHICLE_REGISTRATION",
+  "VEHICLE_IDENTIFICATION_NUMBER",
+  "MOVABLE_PROPERTY_REGISTRY",
+  "POSSESSOR_OR_DEPOSITARY",
+  "DEPOSIT_INSTRUCTIONS",
   "PAYER",
   "CREDIT_DEBTOR",
   "CONTRACT_OR_INVOICE",
@@ -85,10 +91,17 @@ const DETAIL_CANONICAL_TYPES = Object.freeze([
   "PROHIBITION_TO_PAY_DEBTOR",
   "REMUNERATION_TYPE",
   "PRINTED_WITHHOLDING_LIMIT",
+  "SECURITIES_DEPOSITARY",
+  "SECURITY_OR_FINANCIAL_ASSET",
+  "SECURITY_ACCOUNT",
+  "SECURITY_QUANTITY",
+  "DISPOSAL_RESTRICTION",
   "PAYMENT_SERVICE_PROVIDER",
   "TERMINAL_OR_MERCHANT",
   "COLLECTION_FLOW",
   "PRINTED_PERCENTAGE",
+  "ACTIVITY_OR_RENT_PAYER",
+  "INCOME_OR_RENT_SOURCE",
   "PROPERTY_HOLDER",
   "PROPERTY_ADDRESS",
   "CADASTRAL_REFERENCE",
@@ -105,6 +118,7 @@ const DETAIL_CANONICAL_TYPES = Object.freeze([
   "CREDIT_OR_BALANCE_EXISTS",
   "THIRD_PARTY_RESPONSE",
   "TRANSFER_RECEIPT",
+  "REITERATION_REASON",
 ] as const);
 
 export type FiscalNotificationVerticalSliceCanonicalFieldTypeV1 =
@@ -172,11 +186,15 @@ const FAMILY_TITLE: Readonly<
   "payment.receipt": "Justificante de pago",
   "payment.failed_or_reversed": "Incidencia de pago",
   "seizure.bank_account": "Diligencia de embargo de cuenta bancaria",
+  "seizure.movable_asset": "Diligencia de embargo de vehículo o bien mueble",
   "seizure.commercial_credits": "Diligencia de embargo de créditos comerciales o arrendaticios",
   "seizure.wages_or_pensions": "Diligencia de embargo de sueldos, salarios o pensiones",
+  "seizure.securities_or_financial_assets": "Diligencia de embargo de valores o activos financieros",
   "seizure.tpv_receipts": "Diligencia de embargo de cobros mediante TPV",
+  "seizure.business_income_or_rents": "Diligencia de embargo de ingresos de actividad o rentas",
   "seizure.cash_or_refund": "Diligencia de embargo de efectivo, devoluciones o créditos públicos",
   "seizure.real_estate": "Diligencia de embargo de inmueble",
+  "seizure.compliance_reiteration": "Reiteración de diligencia de embargo",
   "seizure.release": "Levantamiento de embargo",
   "seizure.third_party_response": "Contestación a diligencia de embargo",
   "seizure.third_party_payment": "Ingreso efectuado por tercero retenedor",
@@ -277,6 +295,12 @@ const SEIZURE_SPECIFIC_LABEL: Readonly<Record<SeizureSpecificFieldIdV1, string>>
   FINANCIAL_ENTITY: "Entidad financiera",
   MASKED_ACCOUNT: "Cuenta enmascarada",
   ACCOUNT_OR_DEPOSIT: "Cuenta o depósito",
+  ASSET_DESCRIPTION: "Descripción del bien",
+  VEHICLE_REGISTRATION: "Matrícula",
+  VEHICLE_IDENTIFICATION_NUMBER: "Número de bastidor",
+  MOVABLE_PROPERTY_REGISTRY: "Registro de Bienes Muebles",
+  POSSESSOR_OR_DEPOSITARY: "Poseedor o depositario",
+  DEPOSIT_INSTRUCTIONS: "Instrucciones de depósito",
   PAYER: "Pagador",
   CREDIT_DEBTOR: "Deudor del crédito",
   CONTRACT_OR_INVOICE: "Contrato o factura",
@@ -284,10 +308,17 @@ const SEIZURE_SPECIFIC_LABEL: Readonly<Record<SeizureSpecificFieldIdV1, string>>
   PROHIBITION_TO_PAY_DEBTOR: "Prohibición de pago al deudor",
   REMUNERATION_TYPE: "Tipo de retribución",
   PRINTED_WITHHOLDING_LIMIT: "Límite de retención impreso",
+  SECURITIES_DEPOSITARY: "Entidad depositaria de los valores",
+  SECURITY_OR_FINANCIAL_ASSET: "Valor o activo financiero",
+  SECURITY_ACCOUNT: "Cuenta de valores",
+  SECURITY_QUANTITY: "Cantidad de valores",
+  DISPOSAL_RESTRICTION: "Restricción de disposición impresa",
   PAYMENT_SERVICE_PROVIDER: "Proveedor de servicios de pago",
   TERMINAL_OR_MERCHANT: "Terminal o comercio",
   COLLECTION_FLOW: "Flujo de cobros",
   PRINTED_PERCENTAGE: "Porcentaje impreso",
+  ACTIVITY_OR_RENT_PAYER: "Pagador de la actividad o renta",
+  INCOME_OR_RENT_SOURCE: "Origen del ingreso o renta",
   PROPERTY_HOLDER: "Titular del inmueble",
   PROPERTY_ADDRESS: "Dirección del inmueble",
   CADASTRAL_REFERENCE: "Referencia catastral",
@@ -304,6 +335,7 @@ const SEIZURE_SPECIFIC_LABEL: Readonly<Record<SeizureSpecificFieldIdV1, string>>
   CREDIT_OR_BALANCE_EXISTS: "Existencia de crédito o saldo",
   THIRD_PARTY_RESPONSE: "Respuesta del tercero",
   TRANSFER_RECEIPT: "Justificante del ingreso",
+  REITERATION_REASON: "Motivo indicado para la reiteración",
 });
 
 const FAMILY_IDS = new Set<FiscalNotificationDocumentFamilyIdV3>(
@@ -865,6 +897,7 @@ function notificationStateLabel(state: NotificationEnvelopeStateV1): string {
 function seizureStateLabel(state: SeizurePrintedStateV1 | null): string {
   const labels: Readonly<Record<SeizurePrintedStateV1, string>> = Object.freeze({
     SEIZURE_ORDER_RECORDED_REVIEW_REQUIRED: "Diligencia de embargo registrada",
+    SEIZURE_REITERATION_RECORDED_REVIEW_REQUIRED: "Reiteración de embargo registrada",
     RELEASE_RECORDED_REVIEW_REQUIRED: "Levantamiento de embargo registrado",
     THIRD_PARTY_RESPONSE_RECORDED_REVIEW_REQUIRED: "Contestación de tercero registrada",
     THIRD_PARTY_PAYMENT_RECORDED_REVIEW_REQUIRED: "Ingreso de tercero registrado",
@@ -876,7 +909,10 @@ function seizureRecipientRoleLabel(role: SeizureRecipientRoleV1): string {
   const labels: Readonly<Record<SeizureRecipientRoleV1, string>> = Object.freeze({
     DEBTOR: "Deudor",
     FINANCIAL_ENTITY: "Entidad financiera destinataria",
+    SECURITIES_DEPOSITARY: "Entidad depositaria de valores",
+    ASSET_HOLDER_OR_DEPOSITARY: "Poseedor o depositario del bien",
     COMMERCIAL_OR_RENT_PAYER: "Pagador comercial o arrendaticio",
+    ACTIVITY_OR_RENT_PAYER: "Pagador de la actividad o renta",
     EMPLOYER_OR_PENSION_PAYER: "Empleador o pagador de pensión",
     PAYMENT_SERVICE_PROVIDER: "Proveedor de servicios de pago",
     GARNISHED_THIRD_PARTY: "Tercero obligado por el embargo",

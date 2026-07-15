@@ -15,11 +15,15 @@ const DOCUMENT_ID = "document:synthetic-seizure-extractor";
 
 const SUBTYPE_CASES = [
   ["DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS", "BANK_ACCOUNT", "seizure.bank_account"],
+  ["DILIGENCIA DE EMBARGO DE VEHÍCULOS", "MOVABLE_PROPERTY", "seizure.movable_asset"],
   ["DILIGENCIA DE EMBARGO DE CRÉDITOS COMERCIALES O ARRENDATICIOS", "COMMERCIAL_OR_RENT_CREDIT", "seizure.commercial_credits"],
   ["DILIGENCIA DE EMBARGO DE SUELDOS, SALARIOS O PENSIONES", "WAGES_OR_PENSIONS", "seizure.wages_or_pensions"],
+  ["DILIGENCIA DE EMBARGO DE VALORES", "SECURITIES_OR_FINANCIAL_ASSETS", "seizure.securities_or_financial_assets"],
   ["DILIGENCIA DE EMBARGO DE COBROS MEDIANTE TERMINAL DE PUNTO DE VENTA", "TPV_RECEIPTS", "seizure.tpv_receipts"],
+  ["DILIGENCIA DE EMBARGO DE INTERESES, RENTAS Y FRUTOS DE TODA ESPECIE", "BUSINESS_INCOME_OR_RENTS", "seizure.business_income_or_rents"],
   ["DILIGENCIA DE EMBARGO DE DEVOLUCIONES TRIBUTARIAS", "CASH_REFUND_OR_PUBLIC_CREDIT", "seizure.cash_or_refund"],
   ["DILIGENCIA DE EMBARGO DE BIENES INMUEBLES", "REAL_ESTATE", "seizure.real_estate"],
+  ["REITERACIÓN DE EMBARGO DE CRÉDITOS", "COMPLIANCE_REITERATION", "seizure.compliance_reiteration"],
   ["LEVANTAMIENTO DE DILIGENCIA DE EMBARGO", "RELEASE", "seizure.release"],
   ["CONTESTACIÓN A DILIGENCIA DE EMBARGO", "THIRD_PARTY_RESPONSE", "seizure.third_party_response"],
   ["JUSTIFICANTE DE INGRESO DE DILIGENCIA DE EMBARGO", "THIRD_PARTY_PAYMENT", "seizure.third_party_payment"],
@@ -261,6 +265,103 @@ describe("common seizure extractor v1", () => {
       );
       expect(output.permitsPaymentAction).toBe(false);
       expect(output.permitsDeadlineCreation).toBe(false);
+    }
+  });
+
+  it("extracts the closed movable-property, securities, income and reiteration fields as visible review data", () => {
+    const cases = [
+      {
+        title: "DILIGENCIA DE EMBARGO DE VEHÍCULOS",
+        lines: [
+          "Destinatario: DEPOSITARIO SINTÉTICO",
+          "Descripción del bien: VEHÍCULO SINTÉTICO",
+          "Matrícula: 0000-SYN",
+          "Número de bastidor: VIN-SYN-001",
+          "Registro de Bienes Muebles: REGISTRO-SYN-001",
+          "Poseedor o depositario: DEPOSITARIO SINTÉTICO",
+          "Instrucciones de depósito: DEPÓSITO INDICADO EN EL DOCUMENTO",
+        ],
+        expectedFamily: "seizure.movable_asset",
+        expectedRole: "ASSET_HOLDER_OR_DEPOSITARY",
+        expectedFields: [
+          "ASSET_DESCRIPTION",
+          "VEHICLE_REGISTRATION",
+          "VEHICLE_IDENTIFICATION_NUMBER",
+          "MOVABLE_PROPERTY_REGISTRY",
+          "POSSESSOR_OR_DEPOSITARY",
+          "DEPOSIT_INSTRUCTIONS",
+        ],
+      },
+      {
+        title: "DILIGENCIA DE EMBARGO DE VALORES",
+        lines: [
+          "Destinatario: ENTIDAD DEPOSITARIA SINTÉTICA",
+          "Entidad depositaria: ENTIDAD DEPOSITARIA SINTÉTICA",
+          "Valor o activo financiero: PARTICIPACIÓN SINTÉTICA",
+          "Cuenta de valores: CUENTA-SYN-001",
+          "Número de valores: 25",
+          "Prohibición de disponer: RETENCIÓN IMPRESA SINTÉTICA",
+        ],
+        expectedFamily: "seizure.securities_or_financial_assets",
+        expectedRole: "SECURITIES_DEPOSITARY",
+        expectedFields: [
+          "SECURITIES_DEPOSITARY",
+          "SECURITY_OR_FINANCIAL_ASSET",
+          "SECURITY_ACCOUNT",
+          "SECURITY_QUANTITY",
+          "DISPOSAL_RESTRICTION",
+        ],
+      },
+      {
+        title: "DILIGENCIA DE EMBARGO DE INTERESES, RENTAS Y FRUTOS DE TODA ESPECIE",
+        lines: [
+          "Destinatario: PAGADOR SINTÉTICO",
+          "Pagador de la actividad o renta: PAGADOR SINTÉTICO",
+          "Origen del ingreso o renta: ARRENDAMIENTO SINTÉTICO",
+          "Periodicidad: MENSUAL",
+          "Prohibición de pago al deudor: INSTRUCCIÓN IMPRESA SINTÉTICA",
+        ],
+        expectedFamily: "seizure.business_income_or_rents",
+        expectedRole: "ACTIVITY_OR_RENT_PAYER",
+        expectedFields: [
+          "ACTIVITY_OR_RENT_PAYER",
+          "INCOME_OR_RENT_SOURCE",
+          "CREDIT_PAYMENT_PERIODICITY",
+          "PROHIBITION_TO_PAY_DEBTOR",
+        ],
+      },
+      {
+        title: "REITERACIÓN DE EMBARGO DE CRÉDITOS",
+        lines: [
+          "Destinatario: TERCERO SINTÉTICO",
+          "Fecha de la reiteración: 09/03/2026",
+          "Motivo de la reiteración: FALTA DE CONTESTACIÓN INDICADA EN EL DOCUMENTO",
+        ],
+        expectedFamily: "seizure.compliance_reiteration",
+        expectedRole: "GARNISHED_THIRD_PARTY",
+        expectedFields: ["REITERATION_REASON"],
+      },
+    ] as const;
+
+    for (const item of cases) {
+      const output = extractSeizureV1({
+        document: document(page(
+          item.title,
+          "Número de diligencia: EMB-SYN-EXPANSION",
+          "Deudor: DEUDOR SINTÉTICO",
+          ...item.lines,
+        )),
+        segments: [segment(item.title)],
+      });
+      expect(output.familyCandidates[0]?.familyId).toBe(item.expectedFamily);
+      expect(output.seizureFacts.recipientRole).toBe(item.expectedRole);
+      expect(output.seizureFacts.specificFacts.map((fact) => fact.fieldId)).toEqual(
+        expect.arrayContaining([...item.expectedFields]),
+      );
+      expect(output.permitsDebtCreation).toBe(false);
+      expect(output.permitsDeadlineCreation).toBe(false);
+      expect(output.permitsPaymentAction).toBe(false);
+      expect(output.permitsAccountingAction).toBe(false);
     }
   });
 
@@ -510,14 +611,19 @@ describe("common seizure extractor v1", () => {
     }));
   });
 
-  it("publishes the nine review-only families and official context without enabling actions", () => {
+  it("publishes the thirteen review-only families and official context without enabling actions", () => {
+    expect(SEIZURE_EXTRACTOR_RELEASE_V1.version).toBe("1.1.0");
     expect(SEIZURE_EXTRACTOR_RELEASE_V1.familyIds).toEqual([
       "seizure.bank_account",
+      "seizure.movable_asset",
       "seizure.commercial_credits",
       "seizure.wages_or_pensions",
+      "seizure.securities_or_financial_assets",
       "seizure.tpv_receipts",
+      "seizure.business_income_or_rents",
       "seizure.cash_or_refund",
       "seizure.real_estate",
+      "seizure.compliance_reiteration",
       "seizure.release",
       "seizure.third_party_response",
       "seizure.third_party_payment",

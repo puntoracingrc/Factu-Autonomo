@@ -17,7 +17,7 @@ import {
   assertExactDataRecordV1,
 } from "./shared.v1";
 
-export const DOCUMENT_SEGMENTER_VERSION_V1 = "1.0.0" as const;
+export const DOCUMENT_SEGMENTER_VERSION_V1 = "1.1.0" as const;
 export const DOCUMENT_SEGMENTER_LIMITS_V1 = Object.freeze({
   maxLinesPerPage: 2_000,
   maxLinesTotal: 20_000,
@@ -126,17 +126,29 @@ const CLOSED_ASSESSMENT_MAIN_ACT_TITLES = Object.freeze([
 export const CLOSED_SEIZURE_MAIN_ACT_TITLES_V1 = Object.freeze([
   "diligencia de embargo de cuentas bancarias",
   "diligencia de embargo de cuentas en entidades de credito",
+  "diligencia de embargo de vehiculos",
+  "diligencia de embargo de bienes muebles",
+  "diligencia de embargo de bienes muebles y semovientes",
   "diligencia de embargo de creditos comerciales o arrendaticios",
   "diligencia de embargo de creditos comerciales",
   "diligencia de embargo de creditos arrendaticios",
   "diligencia de embargo de sueldos, salarios o pensiones",
   "diligencia de embargo de sueldos salarios o pensiones",
   "diligencia de embargo de sueldos y salarios",
+  "diligencia de embargo de valores",
+  "diligencia de embargo de valores mobiliarios",
+  "diligencia de embargo de valores y activos financieros",
   "diligencia de embargo de cobros mediante terminal de punto de venta",
   "diligencia de embargo de tpv",
+  "diligencia de embargo de intereses rentas y frutos de toda especie",
+  "diligencia de embargo de intereses, rentas y frutos de toda especie",
+  "diligencia de embargo de ingresos de actividad o rentas",
   "diligencia de embargo de dinero efectivo devoluciones o creditos frente a la administracion",
   "diligencia de embargo de devoluciones tributarias",
   "diligencia de embargo de bienes inmuebles",
+  "reiteracion de diligencia de embargo",
+  "reiteracion de embargo de creditos",
+  "reiteracion para el ingreso de embargo",
   "levantamiento de diligencia de embargo",
   "orden de levantamiento de embargo",
   "justificante de contestacion a diligencia de embargo",

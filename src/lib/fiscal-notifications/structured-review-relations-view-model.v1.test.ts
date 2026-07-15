@@ -205,6 +205,7 @@ describe("structured review relations view model v1", () => {
     ["RESPONDS_TO_SEIZURE", "Contestación vinculada a diligencia de embargo", "no convierte al tercero en deudor", "Contestación a la diligencia"],
     ["TRANSFERS_SEIZED_FUNDS", "Ingreso de tercero vinculado a diligencia de embargo", "no marca automáticamente la deuda como pagada", "Ingreso del tercero retenedor"],
     ["RELEASES_SEIZURE", "Levantamiento vinculado a diligencia de embargo", "no se infiere automáticamente", "Levantamiento de la diligencia"],
+    ["CONTINUES", "Reiteración vinculada a diligencia de embargo", "no confirma por sí sola", "Reiteración de la diligencia"],
   ] as const)(
     "explains the exact %s edge without applying an operational effect",
     (relationType, title, explanationFragment, linkLabel) => {

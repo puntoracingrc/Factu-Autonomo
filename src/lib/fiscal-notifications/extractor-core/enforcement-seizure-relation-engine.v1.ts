@@ -20,7 +20,7 @@ import {
   assertExactDataRecordV1,
 } from "./shared.v1";
 
-export const ENFORCEMENT_SEIZURE_RELATION_ENGINE_VERSION_V1 = "1.0.0" as const;
+export const ENFORCEMENT_SEIZURE_RELATION_ENGINE_VERSION_V1 = "1.1.0" as const;
 
 export type EnforcementSeizureMatchKeyV1 =
   | "DEBT_KEY"
@@ -179,8 +179,9 @@ export function linkEnforcementToSeizureV1(
 }
 
 /**
- * Relates a response, third-party transfer or release to the exact seizure
- * order it cites. It never marks the seizure as currently active or released.
+ * Relates a reiteration, response, third-party transfer or release to the exact
+ * seizure order it cites. It never marks the seizure as currently active or
+ * released.
  */
 export function linkSeizureFollowUpV1(
   input: LinkSeizureFollowUpInputV1,
@@ -205,6 +206,7 @@ export function linkSeizureFollowUpV1(
     });
   }
   if (![
+    "SEIZURE_REITERATION",
     "SEIZURE_RELEASE",
     "THIRD_PARTY_RESPONSE",
     "THIRD_PARTY_PAYMENT",
@@ -274,6 +276,15 @@ function followUpRelationSpec(
   explanation: string;
 }> {
   switch (followUp.seizureFacts.documentKind) {
+    case "SEIZURE_REITERATION":
+      return Object.freeze({
+        source: followUpAct,
+        target: baseConstraint,
+        relationType: "CONTINUES",
+        ruleId: "seizure-follow-up.explicit-reiteration.v1",
+        explanation:
+          "La reiteración cita de forma explícita la diligencia anterior; se conserva como continuación documental sin confirmar vigencia, deuda o saldo.",
+      });
     case "SEIZURE_RELEASE": {
       const release = uniqueEntity<AssetConstraintV1>(
         followUp.entities,
@@ -535,6 +546,7 @@ export const ENFORCEMENT_SEIZURE_RELATION_ENGINE_RELEASE_V1 = Object.freeze({
   ] as const),
   amountOnlyRelationPolicy: "PROHIBITED",
   followUpTypes: Object.freeze([
+    "SEIZURE_REITERATION",
     "SEIZURE_RELEASE",
     "THIRD_PARTY_RESPONSE",
     "THIRD_PARTY_PAYMENT",

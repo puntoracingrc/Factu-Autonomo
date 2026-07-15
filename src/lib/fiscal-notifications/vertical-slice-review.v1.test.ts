@@ -76,11 +76,15 @@ function document(text: string): BoundedDocumentInput {
 describe("fiscal notification vertical-slice review v1", () => {
   it.each([
     ["DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS", "Diligencia de embargo de cuenta bancaria"],
+    ["DILIGENCIA DE EMBARGO DE VEHÍCULOS", "Diligencia de embargo de vehículo o bien mueble"],
     ["DILIGENCIA DE EMBARGO DE CRÉDITOS COMERCIALES O ARRENDATICIOS", "Diligencia de embargo de créditos comerciales o arrendaticios"],
     ["DILIGENCIA DE EMBARGO DE SUELDOS, SALARIOS O PENSIONES", "Diligencia de embargo de sueldos, salarios o pensiones"],
+    ["DILIGENCIA DE EMBARGO DE VALORES", "Diligencia de embargo de valores o activos financieros"],
     ["DILIGENCIA DE EMBARGO DE COBROS MEDIANTE TERMINAL DE PUNTO DE VENTA", "Diligencia de embargo de cobros mediante TPV"],
+    ["DILIGENCIA DE EMBARGO DE INTERESES, RENTAS Y FRUTOS DE TODA ESPECIE", "Diligencia de embargo de ingresos de actividad o rentas"],
     ["DILIGENCIA DE EMBARGO DE DEVOLUCIONES TRIBUTARIAS", "Diligencia de embargo de efectivo, devoluciones o créditos públicos"],
     ["DILIGENCIA DE EMBARGO DE BIENES INMUEBLES", "Diligencia de embargo de inmueble"],
+    ["REITERACIÓN DE EMBARGO DE CRÉDITOS", "Reiteración de diligencia de embargo"],
     ["LEVANTAMIENTO DE DILIGENCIA DE EMBARGO", "Levantamiento de embargo"],
     ["CONTESTACIÓN A DILIGENCIA DE EMBARGO", "Contestación a diligencia de embargo"],
     ["JUSTIFICANTE DE INGRESO DE DILIGENCIA DE EMBARGO", "Ingreso efectuado por tercero retenedor"],
@@ -274,6 +278,57 @@ describe("fiscal notification vertical-slice review v1", () => {
     ]));
     expect(JSON.stringify(review)).not.toContain("ES00 0000 0000 0000 1234");
     expect(JSON.stringify(review)).not.toContain(BANK_SEIZURE);
+  });
+
+  it("shows the exact securities facts instead of a generic possible family", async () => {
+    const review = projectFiscalNotificationVerticalSliceReviewV1(
+      await analyzeFiscalNotificationVerticalSliceV1(document([
+        "Agencia Tributaria",
+        "sede.agenciatributaria.gob.es",
+        "DILIGENCIA DE EMBARGO DE VALORES",
+        "Número de diligencia: EMB-SYN-VALUES-001",
+        "Deudor: PERSONA DEUDORA SINTÉTICA",
+        "Destinatario: ENTIDAD DEPOSITARIA SINTÉTICA",
+        "Entidad depositaria: ENTIDAD DEPOSITARIA SINTÉTICA",
+        "Valor o activo financiero: PARTICIPACIÓN SINTÉTICA",
+        "Cuenta de valores: CUENTA-SYN-001",
+        "Número de valores: 25",
+        "Prohibición de disponer: RETENCIÓN IMPRESA SINTÉTICA",
+        "Fecha del embargo: 05/03/2026",
+      ].join("\n"))),
+    );
+
+    expect(review.documents).toEqual([
+      expect.objectContaining({
+        familyId: "seizure.securities_or_financial_assets",
+        title: "Diligencia de embargo de valores o activos financieros",
+        subtitle: "Diligencia de embargo registrada",
+      }),
+    ]);
+    expect(review.documents[0]?.fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        canonicalType: "SEIZURE_RECIPIENT_ROLE",
+        displayValue: "Entidad depositaria de valores",
+      }),
+      expect.objectContaining({
+        canonicalType: "SECURITIES_DEPOSITARY",
+        displayValue: "ENTIDAD DEPOSITARIA SINTÉTICA",
+      }),
+      expect.objectContaining({
+        canonicalType: "SECURITY_OR_FINANCIAL_ASSET",
+        displayValue: "PARTICIPACIÓN SINTÉTICA",
+      }),
+      expect.objectContaining({
+        canonicalType: "SECURITY_QUANTITY",
+        displayValue: "25",
+      }),
+      expect.objectContaining({
+        semantic: "DATE",
+        canonicalType: "SEIZURE_DATE",
+        normalizedValue: "2026-03-05",
+      }),
+    ]));
+    expect(review.documents[0]?.title).not.toMatch(/posible/iu);
   });
 
   it("returns an empty information-pending review for unsupported content", async () => {
