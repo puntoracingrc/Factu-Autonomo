@@ -13,9 +13,7 @@ export const metadata: Metadata = {
 };
 
 interface FiscalNotificationsPageProps {
-  readonly searchParams: Promise<
-    Record<string, string | string[] | undefined>
-  >;
+  readonly searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 function FiscalNotificationAnalyzerSection() {
@@ -25,10 +23,26 @@ function FiscalNotificationAnalyzerSection() {
 export default async function FiscalNotificationsPage({
   searchParams,
 }: FiscalNotificationsPageProps) {
-  const requestedGuideFamily = (await searchParams).guia;
-  const guideSelection = resolveFiscalNotificationGuideSelectionV1(
-    requestedGuideFamily,
-  );
+  const resolvedSearchParams = await searchParams;
+  const requestedDocument = resolvedSearchParams.documento;
+  const selectedDocumentId =
+    typeof requestedDocument === "string" &&
+    requestedDocument.length > 0 &&
+    requestedDocument.length <= 160 &&
+    !/[\u0000-\u001f\u007f]/.test(requestedDocument)
+      ? requestedDocument
+      : requestedDocument === undefined
+        ? undefined
+        : "invalid-document-id";
+  if (selectedDocumentId !== undefined) {
+    return (
+      <FiscalNotificationIntakeView selectedDocumentId={selectedDocumentId} />
+    );
+  }
+
+  const requestedGuideFamily = resolvedSearchParams.guia;
+  const guideSelection =
+    resolveFiscalNotificationGuideSelectionV1(requestedGuideFamily);
 
   return (
     <>
@@ -50,11 +64,19 @@ export default async function FiscalNotificationsPage({
         </a>
       </nav>
 
-      <section id="analizar-documento" className="scroll-mt-6" aria-label="Analizar documento">
+      <section
+        id="analizar-documento"
+        className="scroll-mt-6"
+        aria-label="Analizar documento"
+      >
         <FiscalNotificationAnalyzerSection />
       </section>
 
-      <section id="guia-notificaciones" className="scroll-mt-6" aria-label="Guía de notificaciones">
+      <section
+        id="guia-notificaciones"
+        className="scroll-mt-6"
+        aria-label="Guía de notificaciones"
+      >
         <FiscalNotificationGuideView selection={guideSelection} />
       </section>
     </>

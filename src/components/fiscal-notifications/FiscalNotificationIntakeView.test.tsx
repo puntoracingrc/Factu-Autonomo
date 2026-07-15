@@ -10,6 +10,9 @@ function compact(value: string): string {
 }
 
 const componentSource = readSource("./FiscalNotificationIntakeView.tsx");
+const documentLibraryComponentSource = readSource(
+  "./FiscalNotificationDocumentLibrary.tsx",
+);
 const pageSource = readSource(
   "../../app/consultor-fiscal/notificaciones/page.tsx",
 );
@@ -47,10 +50,13 @@ const partyFactsViewModelSource = readSource(
 const relationsViewModelSource = readSource(
   "../../lib/fiscal-notifications/structured-review-relations-view-model.v1.ts",
 );
+const documentLibraryViewModelSource = readSource(
+  "../../lib/fiscal-notifications/structured-review-document-library.v1.ts",
+);
 const manualSource = readSource(
   "../../lib/manual/sections/consultor-fiscal.ts",
 );
-const surfaceSource = `${componentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}\n${verticalSlicePanelSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}\n${partyFactsPanelSource}\n${partyFactsViewModelSource}\n${relationsViewModelSource}`;
+const surfaceSource = `${componentSource}\n${documentLibraryComponentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}\n${verticalSlicePanelSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}\n${partyFactsPanelSource}\n${partyFactsViewModelSource}\n${relationsViewModelSource}\n${documentLibraryViewModelSource}`;
 
 describe("contrato de interfaz de Notificaciones y expedientes", () => {
   it("obtiene el ámbito exclusivamente de la cuenta canónica confirmada", () => {
@@ -92,11 +98,15 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
 
     const reviewResultContract = flowSource.slice(
-      flowSource.indexOf("export interface FiscalNotificationLocalReviewResult"),
+      flowSource.indexOf(
+        "export interface FiscalNotificationLocalReviewResult",
+      ),
       flowSource.indexOf("/** @internal Test seam"),
     );
     expect(reviewResultContract).toContain("readonly sha256: string");
-    expect(reviewResultContract).toContain('readonly retainedSourceContent: "NONE"');
+    expect(reviewResultContract).toContain(
+      'readonly retainedSourceContent: "NONE"',
+    );
     expect(reviewResultContract).not.toMatch(
       /readonly\s+(?:file|filename|bytes|text|pages|documentInput)\b/i,
     );
@@ -105,8 +115,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       componentSource.indexOf("interface PendingStructuredReview"),
       componentSource.indexOf("type ReviewPersistenceState"),
     );
-    expect(pendingStructuredReviewContract).toContain("readonly reviewId: string");
-    expect(pendingStructuredReviewContract).toContain("readonly createdAt: string");
+    expect(pendingStructuredReviewContract).toContain(
+      "readonly reviewId: string",
+    );
+    expect(pendingStructuredReviewContract).toContain(
+      "readonly createdAt: string",
+    );
     expect(pendingStructuredReviewContract).toContain(
       "readonly analysis: FiscalNotificationLocalAnalysisResult",
     );
@@ -127,19 +141,14 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(workspace).toContain("const controller = controllerRef.current");
     expect(workspace).toContain("controllerRef.current = null");
     expect(workspace).toContain("controller?.abort()");
-    expect(workspace).toContain("fileInputRef.current.value = \"\"");
+    expect(workspace).toContain('fileInputRef.current.value = ""');
     expect(workspace).toContain("[ownerScope]");
     expect(workspace).toContain("saveOperationRef.current = null");
-    expect(workspace).toContain(
-      "projectFiscalNotificationStructuredHistoryV1(",
-    );
-    expect(workspace).toContain("projectStructuredReviewRelationsV1(");
+    expect(workspace).toContain("projectFiscalNotificationDocumentLibraryV1(");
     expect(workspace).toContain("data.fiscalNotificationsWorkspace");
 
     expect(componentSource).toContain("controller.signal.aborted ||");
-    expect(componentSource).toContain(
-      "controllerRef.current !== controller",
-    );
+    expect(componentSource).toContain("controllerRef.current !== controller");
   });
 
   it("encadena lector PDF, OCR local y reglas deterministas sin proveedor", () => {
@@ -158,18 +167,16 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "projectFiscalNotificationPdfWorkerAnalysis",
     );
     expect(workerSource).not.toContain("pages: documentInput.pages");
-    expect(workerContractSource).toContain(
-      'retainedSourceContent: "NONE"',
-    );
+    expect(workerContractSource).toContain('retainedSourceContent: "NONE"');
     expect(flowSource).toContain("recognizeFiscalNotificationPdfLocally");
     expect(localOcrSource).toContain('createWorker("spa", OEM.LSTM_ONLY');
-    expect(localOcrSource).toContain('workerPath: "/ocr/tesseract-worker.min.js"');
+    expect(localOcrSource).toContain(
+      'workerPath: "/ocr/tesseract-worker.min.js"',
+    );
     expect(localOcrSource).toContain('retainedSourceContent: "NONE"');
     expect(localOcrSource).not.toMatch(/fetch\s*\(|axios|openai/i);
     expect(flowSource).toContain("PRODUCTION_DEPENDENCIES");
-    expect(flowSource).toContain(
-      "FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM",
-    );
+    expect(flowSource).toContain("FISCAL_NOTIFICATION_LOCAL_REVIEW_TEST_SEAM");
     expect(flowSource).toContain('| "OCR_DISABLED";');
     expect(flowSource).toContain("parseFiscalNotificationLocalOcrResult(");
     expect(flowSource).toContain('mode: "LOCAL_OCR" as const');
@@ -183,17 +190,15 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       'import { useAppStore } from "@/context/AppStore"',
     );
+    expect(componentSource).toContain("ready: appStoreReady");
     expect(componentSource).toContain(
-      "ready: appStoreReady",
+      "saveFiscalNotificationStructuredReview,",
     );
-    expect(componentSource).toContain("saveFiscalNotificationStructuredReview,");
     expect(componentSource).toContain("if (!appStoreReady)");
     expect(componentSource).toContain(
-      "projectFiscalNotificationStructuredHistoryV1(",
+      "projectFiscalNotificationDocumentLibraryV1(",
     );
-    expect(componentSource).toContain(
-      "data.fiscalNotificationsWorkspace",
-    );
+    expect(componentSource).toContain("data.fiscalNotificationsWorkspace");
     expect(componentSource).toContain(
       "saveFiscalNotificationStructuredReview({",
     );
@@ -206,7 +211,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
   it("guarda solo por acción explícita una ficha estructurada", () => {
     expect(componentSource).toContain("Guardar datos en mi cuenta");
     expect(componentSource).toContain("onClick={() => void onSave()}");
-    expect(componentSource).toContain("saveFiscalNotificationStructuredReview({");
+    expect(componentSource).toContain(
+      "saveFiscalNotificationStructuredReview({",
+    );
     expect(componentSource).toContain("expected: data");
     expect(componentSource).toContain("ownerScope,");
     expect(componentSource).toMatch(/reviewId:\s*[A-Za-z0-9_]+\.reviewId/);
@@ -281,17 +288,13 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "ephemeralEnforcementMoneyFacts: ephemeralMoneyFacts",
     );
-    expect(componentSource).toContain(
-      "documentTypeRecognized={",
-    );
+    expect(componentSource).toContain("documentTypeRecognized={");
 
     const resultIndex = componentSource.indexOf("<ReviewResult");
     const stepsIndex = componentSource.indexOf(
       "recognizedCandidateFrom(result) !== null",
     );
-    const persistenceIndex = componentSource.indexOf(
-      "<ReviewPersistencePanel",
-    );
+    const persistenceIndex = componentSource.indexOf("<ReviewPersistencePanel");
     expect(resultIndex).toBeGreaterThan(-1);
     expect(stepsIndex).toBeGreaterThan(resultIndex);
     expect(persistenceIndex).toBeGreaterThan(stepsIndex);
@@ -323,77 +326,71 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(writeFlow).toContain('write.status === "indeterminate"');
     expect(writeFlow).toContain('write.reason === "no_structured_facts"');
     expect(writeFlow).toContain('write.reason === "invalid_structured_review"');
-    expect(
-      componentSource.match(/set[A-Za-z0-9_]+\("saved"\)/g),
-    ).toHaveLength(1);
+    expect(componentSource.match(/set[A-Za-z0-9_]+\("saved"\)/g)).toHaveLength(
+      1,
+    );
     expect(componentSource).toContain('const successful = state === "saved"');
     expect(componentSource).toContain(
       "Ficha guardada en los datos de tu cuenta.",
     );
-    expect(componentSource).toContain(
-      "No se ha guardado una tarjeta vacía",
-    );
+    expect(componentSource).toContain("No se ha guardado una tarjeta vacía");
     expect(componentSource).toContain(
       "No se puede confirmar el estado de la escritura",
     );
   });
 
-  it("muestra el expediente validado con datos exactos sin exponer la huella", () => {
-    expect(componentSource).toContain("Mis notificaciones guardadas");
-    expect(componentSource).toContain(
-      "const entries = viewModel.entries",
+  it("muestra la biblioteca y cada ficha con datos exactos sin exponer la huella", () => {
+    expect(documentLibraryComponentSource).toContain(
+      "Documentos escaneados y expedientes",
     );
-    expect(componentSource).toContain("entries.map((entry)");
-    expect(componentSource).toContain("entry.createdAt");
-    expect(componentSource).toContain("entry.subjectName");
-    expect(componentSource).toContain("entry.subjectTaxId");
-    expect(componentSource).toContain("entry.money.map((fact)");
-    expect(componentSource).toContain("entry.references");
-    expect(componentSource).toContain("entry.printedDates");
-    expect(componentSource).toContain("entry.installments");
-    expect(componentSource).toContain("installment.amountCents");
-    expect(componentSource).toContain("installment.dueDate");
-    expect(componentSource).not.toContain("Huella local");
-    expect(componentSource).not.toMatch(/\.sha256(?:\.|\[|\s|\})/);
-    expect(componentSource).not.toMatch(
+    expect(documentLibraryComponentSource).toContain(
+      "group.documents.map((document, index)",
+    );
+    expect(documentLibraryComponentSource).toContain("document.createdAt");
+    expect(documentLibraryComponentSource).toContain("document.subjectName");
+    expect(documentLibraryComponentSource).toContain("document.subjectTaxId");
+    expect(documentLibraryComponentSource).toContain("document.money");
+    expect(documentLibraryComponentSource).toContain("document.references");
+    expect(documentLibraryComponentSource).toContain("document.printedDates");
+    expect(documentLibraryComponentSource).toContain("document.installments");
+    expect(documentLibraryComponentSource).toContain("installment.amountCents");
+    expect(documentLibraryComponentSource).toContain("installment.dueDate");
+    expect(documentLibraryComponentSource).not.toContain("Huella local");
+    expect(documentLibraryComponentSource).not.toMatch(
+      /\.sha256(?:\.|\[|\s|\})/,
+    );
+    expect(documentLibraryComponentSource).not.toMatch(
       />\s*\{[^}]*\b(?:reviewId|ownerScope)\b[^}]*\}\s*</,
     );
-    expect(componentSource).toContain("key={entry.key}");
-    expect(componentSource).not.toMatch(/\bentry\.ownerScope\b/);
-    expect(compact(componentSource)).toContain(
-      "Conservan los campos que aceptaste guardar, pero nunca el PDF, su nombre ni el texto completo.",
+    expect(documentLibraryComponentSource).toContain("key={document.key}");
+    expect(documentLibraryComponentSource).not.toMatch(
+      /\bdocument\.ownerScope\b/,
     );
-    expect(componentSource).toContain("entry.authenticityLabel");
-    expect(componentSource).toContain("PDF no conservado");
+    expect(documentLibraryComponentSource).toContain("PDF no conservado");
   });
 
-  it("muestra relaciones exactas tipadas sin aplicar sus efectos", () => {
-    expect(componentSource).toContain("Cronología del expediente");
-    expect(componentSource).toContain("StructuredReviewCaseTimelines");
-    expect(componentSource).toContain(
-      "La secuencia describe cómo se relacionan los actos",
+  it("muestra relaciones exactas con tarjetas iguales y navegación a la ficha", () => {
+    expect(documentLibraryComponentSource).toContain(
+      "Documentos del mismo expediente",
     );
-    expect(componentSource).toMatch(
-      /sin\s+decidir saldos, pagos ni el estado jurídico actual/,
+    expect(documentLibraryComponentSource).toContain(
+      "Cómo se relaciona con los demás",
     );
-    expect(componentSource).toContain("Relaciones entre documentos");
-    expect(componentSource).toContain(
+    expect(documentLibraryViewModelSource).toContain(
       "projectStructuredReviewRelationsV1(",
     );
-    expect(componentSource).toContain(
-      "data.fiscalNotificationsWorkspace",
-    );
+    expect(componentSource).toContain("data.fiscalNotificationsWorkspace");
     expect(relationsViewModelSource).toContain(
       "Documentos relacionados por referencia",
     );
     expect(relationsViewModelSource).toContain("Relación detectada · revisar");
-    expect(componentSource).toContain("entry.documents.map((document)");
-    expect(componentSource).toContain("entry.matches.map((match)");
-    expect(componentSource).toContain("Mismo valor impreso");
-    expect(componentSource).toContain(
-      "Mismo identificador, con formato distinto",
+    expect(documentLibraryComponentSource).toContain(
+      "h-[16rem] w-[18rem] min-w-[18rem]",
     );
-    expect(componentSource).toContain("{entry.explanation}");
+    expect(documentLibraryComponentSource).toContain("{link.explanation}");
+    expect(documentLibraryComponentSource).toContain(
+      "?documento=${encodeURIComponent(documentId)}",
+    );
     expect(relationsViewModelSource).toContain(
       "no demuestra por sí sola cuál originó a la otra",
     );
@@ -409,17 +406,13 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(relationsViewModelSource).toContain(
       "no marca automáticamente la deuda como pagada",
     );
-    expect(relationsViewModelSource).toContain(
-      "no se infiere automáticamente",
-    );
-    expect(relationsViewModelSource).toContain(
-      "Expediente relacionado",
-    );
+    expect(relationsViewModelSource).toContain("no se infiere automáticamente");
+    expect(relationsViewModelSource).toContain("Expediente relacionado");
     expect(relationsViewModelSource).toContain(
       "Referencias exactas · efectos por revisar",
     );
-    expect(componentSource).toContain(
-      "sin cambiar saldos",
+    expect(relationsViewModelSource).toContain(
+      "no marca automáticamente la deuda como pagada",
     );
     expect(componentSource).not.toMatch(
       /relación confirmada|pago confirmado|expediente cerrado/iu,
@@ -458,7 +451,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       'materializationPolicy: "PROHIBITED_UNTIL_REVIEW"',
     );
     expect(componentSource).not.toMatch(/alta actual confirmada|VIES válido/iu);
-    expect(componentSource).not.toMatch(/Posible (?:providencia|concesión|diligencia|requerimiento|acuerdo)/u);
+    expect(componentSource).not.toMatch(
+      /Posible (?:providencia|concesión|diligencia|requerimiento|acuerdo)/u,
+    );
   });
 
   it("prohíbe red, API y acceso directo al almacenamiento del navegador", () => {
@@ -561,18 +556,15 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     ]) {
       expect(compact(componentSource)).toContain(expected);
     }
-    expect(componentSource).toContain(
-      'result.outcome !== "FACTS_AVAILABLE"',
-    );
-    expect(componentSource).toContain(
-      'currency === "EUR"',
-    );
+    expect(componentSource).toContain('result.outcome !== "FACTS_AVAILABLE"');
+    expect(componentSource).toContain('currency === "EUR"');
     expect(componentSource).toContain("BigInt(amountCents)");
     expect(componentSource).not.toMatch(
       /(?:amountCents|ephemeralMoneyFacts)[^\n]{0,120}\?\?\s*0/,
     );
-    expect(componentSource.match(/setEphemeralMoneyFacts\(null\)/g)?.length)
-      .toBeGreaterThanOrEqual(3);
+    expect(
+      componentSource.match(/setEphemeralMoneyFacts\(null\)/g)?.length,
+    ).toBeGreaterThanOrEqual(3);
 
     const saveStart = componentSource.indexOf(
       "saveFiscalNotificationStructuredReview({",
@@ -584,7 +576,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
   });
 
   it("muestra los datos exactos de una concesión y su calendario de cuotas", () => {
-    const copy = compact(componentSource);
+    const copy = compact(
+      `${componentSource}\n${documentLibraryComponentSource}`,
+    );
     for (const expected of [
       "Concesión de aplazamiento o fraccionamiento",
       "Cuotas, importes y vencimientos leídos literalmente de los anexos de la concesión.",
@@ -593,7 +587,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "Importe de deuda impreso",
       "Fecha de intereses impresa",
       "Vencimiento impreso",
-      "Calendario de cuotas",
+      "Cuotas y vencimientos",
       "Son datos impresos guardados para consulta.",
     ]) {
       expect(copy).toContain(expected);
@@ -605,16 +599,16 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(
       componentSource.match(/setEphemeralDeferralFacts\(null\)/g)?.length,
     ).toBeGreaterThanOrEqual(3);
-    expect(componentSource).toContain(
-      'result.outcome === "AMBIGUOUS"',
-    );
+    expect(componentSource).toContain('result.outcome === "AMBIGUOUS"');
     expect(copy).toContain(
       "No se ha marcado ninguna cuota como pagada ni se ha creado un gasto o asiento.",
     );
   });
 
   it("muestra referencias, importes y efectos exactos del acuerdo de compensación", () => {
-    const copy = compact(componentSource);
+    const copy = compact(
+      `${componentSource}\n${documentLibraryComponentSource}`,
+    );
     for (const expected of [
       "Acuerdo de compensación de oficio",
       "Acuerdo de compensación solicitado",
@@ -641,7 +635,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(
       componentSource.match(/setEphemeralOffsetFacts\(null\)/g)?.length,
     ).toBeGreaterThanOrEqual(3);
-    expect(componentSource).toContain("OFFSET_EFFECT_LABELS[debt.effectMeaning]");
+    expect(componentSource).toContain(
+      "OFFSET_EFFECT_LABELS[debt.effectMeaning]",
+    );
     expect(componentSource).not.toMatch(
       /(?:remainingAfterOffset|compensatedAmount)[^\n]{0,120}\?\?\s*0/,
     );
@@ -670,12 +666,17 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     const submitStartFlow = componentSource.slice(
       componentSource.indexOf("async function handleSubmit"),
-      componentSource.indexOf("try {", componentSource.indexOf("async function handleSubmit")),
+      componentSource.indexOf(
+        "try {",
+        componentSource.indexOf("async function handleSubmit"),
+      ),
     );
     for (const flow of [fileChangeFlow, cancelFlow, submitStartFlow]) {
       expect(flow).toContain("setExplicitFieldsReview(null)");
     }
-    expect(componentSource.match(/setExplicitFieldsReview\(null\)/g)).toHaveLength(3);
+    expect(
+      componentSource.match(/setExplicitFieldsReview\(null\)/g),
+    ).toHaveLength(3);
     expect(componentSource).toContain(
       "<FiscalNotificationExplicitFieldsReview",
     );
@@ -737,7 +738,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "setPartyFactsReview(nextPartyFactsReview)",
     );
-    expect(componentSource.match(/setPartyFactsReview\(null\)/g)).toHaveLength(3);
+    expect(componentSource.match(/setPartyFactsReview\(null\)/g)).toHaveLength(
+      3,
+    );
     expect(componentSource).toContain("<FiscalNotificationPartyFactsReview");
     expect(componentSource).toContain("viewModel={partyFactsReview}");
 
@@ -748,8 +751,10 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(pendingContract).toContain(
       "readonly analysis: FiscalNotificationLocalAnalysisResult",
     );
-    expect(componentSource).toContain('label="Obligado al pago"');
-    expect(componentSource).toContain('label="NIF impreso"');
+    expect(documentLibraryComponentSource).toContain(
+      'label="Obligado al pago"',
+    );
+    expect(documentLibraryComponentSource).toContain('label="NIF impreso"');
     expect(partyFactsViewModelSource).toContain("Obligado al pago");
     expect(partyFactsPanelSource).not.toMatch(/posible|podr[ií]a ser/iu);
     expect(partyFactsPanelSource).not.toMatch(
@@ -791,9 +796,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       'aria-labelledby="notification-review-heading"',
     );
-    expect(componentSource).toContain(
-      'id="notification-review-heading"',
-    );
+    expect(componentSource).toContain('id="notification-review-heading"');
     expect(componentSource).toContain('type="submit"');
     expect(componentSource).toContain('type="button"');
     expect(componentSource).toContain("sm:flex-row");
@@ -807,7 +810,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "setVerticalSliceReview(nextAnalysis.ephemeralVerticalSliceReview ?? null)",
     );
     expect(componentSource).toContain(
-      '<FiscalNotificationVerticalSliceReview review={verticalSliceReview} />',
+      "<FiscalNotificationVerticalSliceReview review={verticalSliceReview} />",
     );
     expect(componentSource).toContain(
       'verticalSliceReview?.status === "REVIEW_REQUIRED"',
@@ -820,9 +823,11 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
   });
 
   it("solo añade el guardado estructurado seguro y no ofrece acciones fiscales", () => {
-    const controls = [...componentSource.matchAll(
-      /<(?:Button|ButtonLink|button|Link)\b[\s\S]*?<\/(?:Button|ButtonLink|button|Link)>/g,
-    )]
+    const controls = [
+      ...componentSource.matchAll(
+        /<(?:Button|ButtonLink|button|Link)\b[\s\S]*?<\/(?:Button|ButtonLink|button|Link)>/g,
+      ),
+    ]
       .map((match) => compact(match[0]))
       .join("\n");
 

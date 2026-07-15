@@ -22,6 +22,10 @@ import {
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { FiscalNotificationExplicitFieldsReview } from "@/components/fiscal-notifications/FiscalNotificationExplicitFieldsReview";
+import {
+  FiscalNotificationDocumentDetail,
+  FiscalNotificationDocumentLibrary,
+} from "@/components/fiscal-notifications/FiscalNotificationDocumentLibrary";
 import { FiscalNotificationPartyFactsReview } from "@/components/fiscal-notifications/FiscalNotificationPartyFactsReview";
 import { FiscalNotificationReviewSteps } from "@/components/fiscal-notifications/FiscalNotificationReviewSteps";
 import { FiscalNotificationVerticalSliceReview } from "@/components/fiscal-notifications/FiscalNotificationVerticalSliceReview";
@@ -55,30 +59,18 @@ import {
   type FiscalNotificationPdfErrorCode,
 } from "@/lib/fiscal-notifications/pdf-text-layer-parser";
 import { projectFiscalNotificationReviewGuidanceV1 } from "@/lib/fiscal-notifications/review-guidance.v1";
-import {
-  projectFiscalNotificationStructuredHistoryV1,
-  type FiscalNotificationStructuredHistoryEntryV1,
-  type FiscalNotificationStructuredHistoryViewModelV1,
-} from "@/lib/fiscal-notifications/structured-review-history-view-model.v1";
-import {
-  projectStructuredReviewRelationsV1,
-  type StructuredReviewCaseTimelineV1,
-  type StructuredReviewRelationEntryV1,
-  type StructuredReviewRelationsViewModelV1,
-} from "@/lib/fiscal-notifications/structured-review-relations-view-model.v1";
+import { projectFiscalNotificationDocumentLibraryV1 } from "@/lib/fiscal-notifications/structured-review-document-library.v1";
 import type { FiscalNotificationVerticalSliceReviewV1 } from "@/lib/fiscal-notifications/vertical-slice-review.v1";
 
 const FAMILY_LABELS = {
   AEAT_ENFORCEMENT_ORDER_CANDIDATE: "Providencia de apremio",
-  AEAT_DEFERRAL_GRANT_CANDIDATE:
-    "Concesión de aplazamiento o fraccionamiento",
+  AEAT_DEFERRAL_GRANT_CANDIDATE: "Concesión de aplazamiento o fraccionamiento",
   AEAT_OFFSET_AGREEMENT_CANDIDATE: "Acuerdo de compensación",
   AEAT_REAL_ESTATE_SEIZURE_CANDIDATE:
     "Diligencia de embargo de bienes inmuebles",
   AEAT_FORMAL_FILING_REQUIREMENT_CANDIDATE:
     "Requerimiento formal de presentación",
-  AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE:
-    "Acuerdo de alta en el ROI",
+  AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: "Acuerdo de alta en el ROI",
 } as const;
 
 const FAMILY_INDICATION_LABELS = {
@@ -177,13 +169,11 @@ const REASON_COPY: Readonly<
   },
   NORMALIZED_TEXT_LIMIT_EXCEEDED: {
     title: "Texto normalizado demasiado grande",
-    detail:
-      "El documento supera los límites seguros del analizador local.",
+    detail: "El documento supera los límites seguros del analizador local.",
   },
   TEXT_LINE_LIMIT_EXCEEDED: {
     title: "Demasiadas líneas de texto",
-    detail:
-      "El documento supera los límites seguros del analizador local.",
+    detail: "El documento supera los límites seguros del analizador local.",
   },
   OCR_DISABLED: {
     title: "OCR pendiente",
@@ -230,7 +220,11 @@ type ReviewPersistenceState =
   | "blocked"
   | "indeterminate";
 
-export function FiscalNotificationIntakeView() {
+export function FiscalNotificationIntakeView({
+  selectedDocumentId,
+}: {
+  selectedDocumentId?: string;
+} = {}) {
   const { authReady, user, emailConfirmed } = useCloudSync();
   const ownerScope =
     authReady && user && emailConfirmed ? `user:${user.id}` : null;
@@ -238,27 +232,37 @@ export function FiscalNotificationIntakeView() {
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6">
       <PageHeader
-        title="Notificaciones y expedientes"
-        subtitle="Comprende una comunicación administrativa sin enviarla fuera de tu navegador."
+        title={
+          selectedDocumentId
+            ? "Ficha de notificación"
+            : "Notificaciones y expedientes"
+        }
+        subtitle={
+          selectedDocumentId
+            ? "Datos, importes, fechas y relaciones conservados en tu cuenta."
+            : "Comprende una comunicación administrativa sin enviarla fuera de tu navegador."
+        }
       />
 
-      <div className="mb-6 grid gap-3 md:grid-cols-3">
-        <InfoTile
-          icon={ShieldCheck}
-          title="Lectura local"
-          detail="El PDF, su texto y su nombre no se suben ni se guardan."
-        />
-        <InfoTile
-          icon={FileSearch}
-          title="Datos exactos visibles"
-          detail="Muestra y puede guardar importes, referencias, fechas y sujeto cuando constan expresamente."
-        />
-        <InfoTile
-          icon={LockKeyhole}
-          title="Sin efectos fiscales"
-          detail="No crea deudas, plazos, pagos, gastos ni asientos."
-        />
-      </div>
+      {!selectedDocumentId ? (
+        <div className="mb-6 grid gap-3 md:grid-cols-3">
+          <InfoTile
+            icon={ShieldCheck}
+            title="Lectura local"
+            detail="El PDF, su texto y su nombre no se suben ni se guardan."
+          />
+          <InfoTile
+            icon={FileSearch}
+            title="Datos exactos visibles"
+            detail="Muestra y puede guardar importes, referencias, fechas y sujeto cuando constan expresamente."
+          />
+          <InfoTile
+            icon={LockKeyhole}
+            title="Sin efectos fiscales"
+            detail="No crea deudas, plazos, pagos, gastos ni asientos."
+          />
+        </div>
+      ) : null}
 
       {!authReady ? (
         <Card role="status" aria-live="polite">
@@ -289,6 +293,12 @@ export function FiscalNotificationIntakeView() {
             </div>
           </div>
         </Card>
+      ) : selectedDocumentId ? (
+        <FiscalNotificationDocumentDetail
+          key={ownerScope}
+          ownerScope={ownerScope}
+          documentId={selectedDocumentId}
+        />
       ) : (
         <FiscalNotificationReviewWorkspace
           key={ownerScope}
@@ -296,40 +306,42 @@ export function FiscalNotificationIntakeView() {
         />
       )}
 
-      <Card className="mt-6 bg-slate-50">
-        <h2 className="font-bold text-slate-900">Alcance de esta versión</h2>
-        <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
-          <li>
-            Reconoce la familia documental de providencia de apremio, concesión
-            de aplazamiento o fraccionamiento, diligencia de embargo de bienes
-            inmuebles, requerimiento formal de presentación y acuerdo de alta
-            en el ROI. No confirma por sí sola el organismo emisor ni la
-            autenticidad.
-          </li>
-          <li>
-            Un acuerdo de alta en el ROI describe el documento analizado: no
-            demuestra que el alta siga vigente ni valida el estado en VIES.
-          </li>
-          <li>
-            El nombre, el NIF, los importes, los valores exactos de referencia
-            y las fechas impresas pueden guardarse en una ficha estructurada
-            mediante una acción explícita. El PDF, su nombre y el texto completo
-            no se conservan.
-          </li>
-          <li>
-            Una fecha impresa se presenta como tal: no se convierte por sí sola
-            en fecha de notificación o vencimiento ni activa una acción.
-          </li>
-          <li>
-            No consulta automáticamente sedes oficiales, no ejecuta OCR remoto
-            y no utiliza IA.
-          </li>
-        </ul>
-        <p className="mt-3 text-sm font-semibold text-slate-700">
-          Esta herramienta no sustituye la revisión de un asesor ni confirma la
-          validez jurídica del documento.
-        </p>
-      </Card>
+      {!selectedDocumentId ? (
+        <Card className="mt-6 bg-slate-50">
+          <h2 className="font-bold text-slate-900">Alcance de esta versión</h2>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+            <li>
+              Reconoce la familia documental de providencia de apremio,
+              concesión de aplazamiento o fraccionamiento, diligencia de embargo
+              de bienes inmuebles, requerimiento formal de presentación y
+              acuerdo de alta en el ROI. No confirma por sí sola el organismo
+              emisor ni la autenticidad.
+            </li>
+            <li>
+              Un acuerdo de alta en el ROI describe el documento analizado: no
+              demuestra que el alta siga vigente ni valida el estado en VIES.
+            </li>
+            <li>
+              El nombre, el NIF, los importes, los valores exactos de referencia
+              y las fechas impresas pueden guardarse en una ficha estructurada
+              mediante una acción explícita. El PDF, su nombre y el texto
+              completo no se conservan.
+            </li>
+            <li>
+              Una fecha impresa se presenta como tal: no se convierte por sí
+              sola en fecha de notificación o vencimiento ni activa una acción.
+            </li>
+            <li>
+              No consulta automáticamente sedes oficiales, no ejecuta OCR remoto
+              y no utiliza IA.
+            </li>
+          </ul>
+          <p className="mt-3 text-sm font-semibold text-slate-700">
+            Esta herramienta no sustituye la revisión de un asesor ni confirma
+            la validez jurídica del documento.
+          </p>
+        </Card>
+      ) : null}
     </div>
   );
 }
@@ -348,8 +360,9 @@ function FiscalNotificationReviewWorkspace({
   const controllerRef = useRef<AbortController | null>(null);
   const processingRef = useRef(false);
   const saveOperationRef = useRef<symbol | null>(null);
-  const [selectedFile, setSelectedFile] =
-    useState<SelectedFileSummary | null>(null);
+  const [selectedFile, setSelectedFile] = useState<SelectedFileSummary | null>(
+    null,
+  );
   const [processing, setProcessing] = useState(false);
   const [result, setResult] =
     useState<FiscalNotificationLocalReviewResult | null>(null);
@@ -373,17 +386,9 @@ function FiscalNotificationReviewWorkspace({
     useState<PendingStructuredReview | null>(null);
   const [persistenceState, setPersistenceState] =
     useState<ReviewPersistenceState>("idle");
-  const history = useMemo(
+  const documentLibrary = useMemo(
     () =>
-      projectFiscalNotificationStructuredHistoryV1(
-        data.fiscalNotificationsWorkspace,
-        ownerScope,
-      ),
-    [data.fiscalNotificationsWorkspace, ownerScope],
-  );
-  const relations = useMemo(
-    () =>
-      projectStructuredReviewRelationsV1(
+      projectFiscalNotificationDocumentLibraryV1(
         data.fiscalNotificationsWorkspace,
         ownerScope,
       ),
@@ -497,10 +502,7 @@ function FiscalNotificationReviewWorkspace({
           file,
           signal: controller.signal,
         });
-      if (
-        controller.signal.aborted ||
-        controllerRef.current !== controller
-      ) {
+      if (controller.signal.aborted || controllerRef.current !== controller) {
         return;
       }
       const nextResult = nextAnalysis.technicalReview;
@@ -531,10 +533,7 @@ function FiscalNotificationReviewWorkspace({
       });
       setPersistenceState("pending");
     } catch (caught) {
-      if (
-        controller.signal.aborted ||
-        controllerRef.current !== controller
-      ) {
+      if (controller.signal.aborted || controllerRef.current !== controller) {
         return;
       }
       setError(safeAnalysisError(caught));
@@ -608,8 +607,8 @@ function FiscalNotificationReviewWorkspace({
                 Analizar una notificación
               </h2>
               <p className="mt-1 text-sm leading-6 text-slate-600">
-                Admite PDF con texto o escaneado, hasta 4 MB y 80 páginas. Si
-                es una imagen, ejecuta OCR en este navegador sin subirla.
+                Admite PDF con texto o escaneado, hasta 4 MB y 80 páginas. Si es
+                una imagen, ejecuta OCR en este navegador sin subirla.
               </p>
             </div>
           </div>
@@ -693,7 +692,11 @@ function FiscalNotificationReviewWorkspace({
               {processing ? "Analizando localmente…" : "Analizar documento"}
             </Button>
             {processing ? (
-              <Button type="button" variant="secondary" onClick={cancelAnalysis}>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={cancelAnalysis}
+              >
                 <X aria-hidden="true" className="h-5 w-5" />
                 Cancelar
               </Button>
@@ -734,9 +737,9 @@ function FiscalNotificationReviewWorkspace({
           onSave={saveStructuredReview}
         />
       ) : null}
-      <StructuredReviewCaseTimelines viewModel={relations} />
-      <StructuredReviewRelations viewModel={relations} />
-      <StructuredReviewHistory viewModel={history} />
+      <div id="documentos-guardados" className="scroll-mt-6">
+        <FiscalNotificationDocumentLibrary viewModel={documentLibrary} />
+      </div>
     </>
   );
 }
@@ -816,434 +819,6 @@ function ReviewPersistencePanel({
   );
 }
 
-function StructuredReviewCaseTimelines({
-  viewModel,
-}: {
-  viewModel: StructuredReviewRelationsViewModelV1;
-}) {
-  if (viewModel.status === "BLOCKED") return null;
-  const timelines = viewModel.timelines;
-  return (
-    <Card className="mt-6" aria-labelledby="notification-timeline-heading">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2
-            id="notification-timeline-heading"
-            className="text-lg font-bold text-slate-950"
-          >
-            Cronología del expediente
-          </h2>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
-            Ordena documentos vinculados por referencias administrativas
-            exactas. La secuencia describe cómo se relacionan los actos, sin
-            decidir saldos, pagos ni el estado jurídico actual.
-          </p>
-        </div>
-        <span className="text-xs font-semibold text-slate-500">
-          {timelines.length}{" "}
-          {timelines.length === 1 ? "expediente" : "expedientes"}
-        </span>
-      </div>
-
-      {timelines.length === 0 ? (
-        <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-          Todavía no hay una cadena exacta entre providencia, embargo y
-          documentos posteriores. Las fichas independientes siguen visibles
-          en el historial.
-        </p>
-      ) : (
-        <ol className="mt-4 space-y-5">
-          {timelines.map((timeline) => (
-            <StructuredReviewCaseTimeline
-              key={timeline.key}
-              timeline={timeline}
-            />
-          ))}
-        </ol>
-      )}
-    </Card>
-  );
-}
-
-function StructuredReviewCaseTimeline({
-  timeline,
-}: {
-  timeline: StructuredReviewCaseTimelineV1;
-}) {
-  const titleById = new Map(
-    timeline.steps.map((step) => [step.id, step.title] as const),
-  );
-  return (
-    <li className="rounded-2xl border border-indigo-200 bg-indigo-50/30 p-4 sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <h3 className="text-base font-bold text-slate-950">{timeline.title}</h3>
-        <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
-          {timeline.statusLabel}
-        </span>
-      </div>
-
-      <ol className="mt-4 space-y-3">
-        {timeline.steps.map((step) => (
-          <li key={step.id} className="flex gap-3">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-700 text-xs font-bold text-white">
-              {step.position}
-            </span>
-            <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3">
-              <p className="font-bold text-slate-950">{step.title}</p>
-              <p className="mt-1 text-xs text-slate-500">
-                Ficha guardada {formatReviewTimestamp(step.createdAt)}
-              </p>
-            </div>
-          </li>
-        ))}
-      </ol>
-
-      <ul className="mt-4 space-y-3">
-        {timeline.links.map((link) => (
-          <li
-            key={link.key}
-            className="rounded-xl border border-indigo-100 bg-white p-4"
-          >
-            <p className="text-xs font-bold uppercase tracking-wide text-indigo-800">
-              {link.label}
-            </p>
-            <p className="mt-1 text-sm font-bold text-slate-900">
-              {titleById.get(link.earlierDocumentId)} →{" "}
-              {titleById.get(link.laterDocumentId)}
-            </p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              {link.explanation}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </li>
-  );
-}
-
-function StructuredReviewRelations({
-  viewModel,
-}: {
-  viewModel: StructuredReviewRelationsViewModelV1;
-}) {
-  if (viewModel.status === "BLOCKED") {
-    return (
-      <Card className="mt-6 border-amber-200 bg-amber-50" role="alert">
-        <div className="flex items-start gap-3">
-          <TriangleAlert
-            aria-hidden="true"
-            className="mt-0.5 h-5 w-5 shrink-0 text-amber-700"
-          />
-          <div>
-            <h2 className="font-bold text-amber-950">
-              Relaciones no disponibles
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-amber-900">
-              El expediente no supera la validación de integridad para esta
-              cuenta. No se muestran ni se recalculan relaciones parciales.
-            </p>
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
-  const entries = viewModel.entries;
-  return (
-    <Card className="mt-6" aria-labelledby="notification-relations-heading">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2
-            id="notification-relations-heading"
-            className="text-lg font-bold text-slate-950"
-          >
-            Relaciones entre documentos
-          </h2>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
-            Detecta identificadores administrativos que coinciden en dos
-            fichas guardadas. Cuando el tipo y la referencia exacta lo
-            permiten, muestra la relación concreta sin cambiar saldos,
-            estados, pagos ni deudas.
-          </p>
-        </div>
-        <span className="text-xs font-semibold text-slate-500">
-          {entries.length} {entries.length === 1 ? "relación" : "relaciones"}
-        </span>
-      </div>
-
-      {entries.length === 0 ? (
-        <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-          Todavía no hay dos fichas guardadas que compartan una referencia
-          exacta de expediente, liquidación, deuda, notificación o registro.
-        </p>
-      ) : (
-        <ol className="mt-4 space-y-4">
-          {entries.map((entry) => (
-            <StructuredReviewRelationItem key={entry.key} entry={entry} />
-          ))}
-        </ol>
-      )}
-    </Card>
-  );
-}
-
-function StructuredReviewRelationItem({
-  entry,
-}: {
-  entry: StructuredReviewRelationEntryV1;
-}) {
-  return (
-    <li className="rounded-2xl border border-blue-200 bg-blue-50/40 p-4 sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <h3 className="text-base font-bold text-slate-950">{entry.title}</h3>
-        <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
-          {entry.statusLabel}
-        </span>
-      </div>
-
-      <ul className="mt-4 grid gap-3 sm:grid-cols-2">
-        {entry.documents.map((document) => (
-          <li
-            key={document.id}
-            className="rounded-xl border border-slate-200 bg-white p-4"
-          >
-            <p className="font-bold text-slate-900">{document.title}</p>
-            <p className="mt-1 text-xs text-slate-500">
-              Guardado {formatReviewTimestamp(document.createdAt)}
-            </p>
-          </li>
-        ))}
-      </ul>
-
-      <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-        {entry.matches.map((match) => (
-          <div
-            key={`${match.label}:${match.value}`}
-            className="rounded-xl border border-blue-100 bg-white p-4"
-          >
-            <dt className="text-xs font-bold uppercase tracking-wide text-blue-800">
-              {match.label}
-            </dt>
-            <dd className="mt-1 break-all font-bold text-blue-950">
-              {match.value}
-            </dd>
-            <dd className="mt-1 text-xs text-slate-500">
-              {match.issuer} ·{" "}
-              {match.matchMode === "EXACT_PRINTED"
-                ? "Mismo valor impreso"
-                : "Mismo identificador, con formato distinto"}
-            </dd>
-          </div>
-        ))}
-      </dl>
-
-      <p className="mt-4 text-sm leading-6 text-slate-700">
-        {entry.explanation}
-      </p>
-    </li>
-  );
-}
-
-function StructuredReviewHistory({
-  viewModel,
-}: {
-  viewModel: FiscalNotificationStructuredHistoryViewModelV1;
-}) {
-  if (viewModel.status === "BLOCKED") {
-    return (
-      <Card className="mt-6 border-amber-200 bg-amber-50" role="alert">
-        <div className="flex items-start gap-3">
-          <TriangleAlert
-            aria-hidden="true"
-            className="mt-0.5 h-5 w-5 shrink-0 text-amber-700"
-          />
-          <div>
-            <h2 className="font-bold text-amber-950">
-              Expediente estructurado no disponible
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-amber-900">
-              Los datos guardados no superan la validación de integridad para
-              esta cuenta. No se han sustituido, reinterpretado ni borrado.
-            </p>
-          </div>
-        </div>
-      </Card>
-    );
-  }
-
-  const entries = viewModel.entries;
-  return (
-    <Card className="mt-6" aria-labelledby="notification-structured-history">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h2
-            id="notification-structured-history"
-            className="text-lg font-bold text-slate-950"
-          >
-            Mis notificaciones guardadas
-          </h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            Fichas estructuradas separadas por cuenta y disponibles para copia
-            de seguridad y sincronización.
-          </p>
-          <p className="mt-1 max-w-3xl text-xs leading-5 text-slate-500">
-            Conservan los campos que aceptaste guardar, pero nunca el PDF, su
-            nombre ni el texto completo.
-          </p>
-        </div>
-        <span className="text-xs font-semibold text-slate-500">
-          {entries.length} {entries.length === 1 ? "ficha" : "fichas"}
-        </span>
-      </div>
-
-      {entries.length === 0 ? (
-        <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-          Aún no has guardado ninguna ficha estructurada en esta cuenta.
-        </p>
-      ) : (
-        <ol className="mt-4 space-y-4">
-          {entries.map((entry) => (
-            <StructuredReviewHistoryItem key={entry.key} entry={entry} />
-          ))}
-        </ol>
-      )}
-    </Card>
-  );
-}
-
-function StructuredReviewHistoryItem({
-  entry,
-}: {
-  entry: FiscalNotificationStructuredHistoryEntryV1;
-}) {
-  return (
-    <li className="rounded-2xl border border-slate-200 p-4 sm:p-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-            Guardado {formatReviewTimestamp(entry.createdAt)}
-          </p>
-          <h3 className="mt-1 text-lg font-bold text-slate-950">
-            {entry.title}
-          </h3>
-          <p className="mt-1 text-sm font-semibold text-slate-600">
-            {entry.authority}
-          </p>
-        </div>
-        <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
-          {entry.reviewLabel}
-        </span>
-      </div>
-
-      {entry.subjectName || entry.subjectTaxId ? (
-        <dl className="mt-4 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
-          {entry.subjectName ? (
-            <ResultFact label="Obligado al pago" value={entry.subjectName} />
-          ) : null}
-          {entry.subjectTaxId ? (
-            <ResultFact label="NIF impreso" value={entry.subjectTaxId} />
-          ) : null}
-        </dl>
-      ) : null}
-
-      {entry.money.length > 0 ? (
-        <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {entry.money.map((fact) => (
-            <div
-              key={fact.key}
-              className="rounded-xl border border-blue-100 bg-blue-50 p-4"
-            >
-              <dt className="text-xs font-bold uppercase tracking-wide text-blue-800">
-                {fact.label}
-              </dt>
-              <dd className="mt-1 text-lg font-bold text-blue-950">
-                {formatStructuredMoney(fact.amountCents, fact.currency)}
-              </dd>
-              {fact.sourceReference ? (
-                <dd className="mt-1 break-all text-xs font-semibold text-blue-800">
-                  Referencia: {fact.sourceReference}
-                </dd>
-              ) : null}
-            </div>
-          ))}
-        </dl>
-      ) : null}
-
-      {entry.installments.length > 0 ? (
-        <section className="mt-4" aria-label="Cuotas impresas guardadas">
-          <h4 className="font-bold text-slate-950">Calendario de cuotas</h4>
-          <ol className="mt-3 grid gap-3 lg:grid-cols-2">
-            {entry.installments.map((installment) => (
-              <li
-                key={installment.key}
-                className="rounded-xl border border-blue-100 bg-blue-50 p-4"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wide text-blue-800">
-                      {installment.label}
-                    </p>
-                    <p className="mt-1 text-lg font-bold text-blue-950">
-                      {installment.amountCents === null
-                        ? "Importe no impreso"
-                        : formatStructuredMoney(installment.amountCents, "EUR")}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-bold uppercase tracking-wide text-blue-800">
-                      Vencimiento impreso
-                    </p>
-                    <p className="mt-1 font-bold text-blue-950">
-                      {installment.dueDate
-                        ? formatCalendarDate(installment.dueDate)
-                        : "No impreso"}
-                    </p>
-                  </div>
-                </div>
-                {installment.components.length > 1 ? (
-                  <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-blue-100 pt-3 text-xs">
-                    {installment.components.map((component) => (
-                      <ResultFact
-                        key={`${component.label}:${component.amountCents}`}
-                        label={component.label}
-                        value={formatStructuredMoney(
-                          component.amountCents,
-                          "EUR",
-                        )}
-                      />
-                    ))}
-                  </dl>
-                ) : null}
-              </li>
-            ))}
-          </ol>
-          <p className="mt-2 text-xs leading-5 text-slate-500">
-            Son datos impresos guardados para consulta. Ninguna cuota se marca
-            como pagada y no se crea automáticamente un gasto o asiento.
-          </p>
-        </section>
-      ) : null}
-
-      {entry.references.length > 0 || entry.printedDates.length > 0 ? (
-        <dl className="mt-4 grid gap-x-6 gap-y-3 border-t border-slate-200 pt-4 sm:grid-cols-2">
-          {[...entry.references, ...entry.printedDates].map((fact) => (
-            <ResultFact
-              key={`${fact.label}:${fact.value}`}
-              label={fact.label}
-              value={fact.value}
-            />
-          ))}
-        </dl>
-      ) : null}
-
-      <p className="mt-4 text-xs font-semibold text-slate-500">
-        {entry.authenticityLabel} · {entry.pageCount} páginas ·{" "}
-        {formatBytes(entry.byteLength)} · PDF no conservado
-      </p>
-    </li>
-  );
-}
-
 function InfoTile({
   icon: Icon,
   title,
@@ -1278,7 +853,8 @@ function ReviewResult({
   ephemeralOffsetFacts: AeatOffsetAgreementFactsResultV1 | null;
   explicitFieldsReview: ExplicitFieldsReviewViewModelV2 | null;
   partyFactsReview: PartyFactsReviewViewModelV1 | null;
-  textAcquisition: FiscalNotificationLocalAnalysisResult["textAcquisition"] | null;
+  textAcquisition:
+    FiscalNotificationLocalAnalysisResult["textAcquisition"] | null;
   verticalSliceReview: FiscalNotificationVerticalSliceReviewV1 | null;
 }) {
   const recognizedCandidate = recognizedCandidateFrom(result);
@@ -1288,19 +864,18 @@ function ReviewResult({
   const primaryVerticalDocument = verticallyRecognized
     ? verticalSliceReview.documents[0]!
     : null;
-  const copy =
-    primaryVerticalDocument
-      ? {
-          title:
-            verticalSliceReview!.documents.length === 1
-              ? primaryVerticalDocument.title
-              : `${verticalSliceReview!.documents.length} documentos reconocidos`,
-          detail:
-            verticalSliceReview!.documents.length === 1
-              ? primaryVerticalDocument.subtitle
-              : "El PDF contiene varios actos cubiertos que se han separado para revisarlos.",
-        }
-      : result.reason === "SUPPORTED_FAMILY_CANDIDATE" && !recognizedCandidate
+  const copy = primaryVerticalDocument
+    ? {
+        title:
+          verticalSliceReview!.documents.length === 1
+            ? primaryVerticalDocument.title
+            : `${verticalSliceReview!.documents.length} documentos reconocidos`,
+        detail:
+          verticalSliceReview!.documents.length === 1
+            ? primaryVerticalDocument.subtitle
+            : "El PDF contiene varios actos cubiertos que se han separado para revisarlos.",
+      }
+    : result.reason === "SUPPORTED_FAMILY_CANDIDATE" && !recognizedCandidate
       ? {
           title: "Clasificación pendiente",
           detail:
@@ -1320,15 +895,14 @@ function ReviewResult({
           recognizedCandidate || verticallyRecognized
             ? "border-emerald-200"
             : result.candidates.length > 0
-            ? "border-amber-200"
-            : "border-blue-200"
+              ? "border-amber-200"
+              : "border-blue-200"
         }
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-              {recognizedCandidate
-                || verticallyRecognized
+              {recognizedCandidate || verticallyRecognized
                 ? "Resultado local"
                 : "Resultado local · pendiente de revisión"}
             </p>
@@ -1379,7 +953,9 @@ function ReviewResult({
           </div>
         ) : result.candidates.length ? (
           <div className="mt-5 space-y-3">
-            <h3 className="font-bold text-slate-900">Coincidencias documentales</h3>
+            <h3 className="font-bold text-slate-900">
+              Coincidencias documentales
+            </h3>
             {result.candidates.map((candidate) => (
               <article
                 key={candidate.familyId}
@@ -1462,13 +1038,10 @@ function ReviewResult({
         ) : null}
 
         <div className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-          <ShieldCheck
-            aria-hidden="true"
-            className="mt-0.5 h-5 w-5 shrink-0"
-          />
+          <ShieldCheck aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
           <p>
-            El análisis se ha realizado en este navegador. No se ha llamado a
-            un proveedor y el texto no se conserva. Si eliges guardar, solo se
+            El análisis se ha realizado en este navegador. No se ha llamado a un
+            proveedor y el texto no se conserva. Si eliges guardar, solo se
             mantienen los campos estructurados mostrados y su procedencia; no
             existe ninguna acción automática pendiente.
           </p>
@@ -1508,9 +1081,7 @@ function EphemeralMoneyFactsPanel({
         role={result.outcome === "INFORMATION_PENDING" ? "status" : "alert"}
       >
         <h3 className="font-bold text-amber-950">{copy.title}</h3>
-        <p className="mt-1 text-sm leading-6 text-amber-900">
-          {copy.detail}
-        </p>
+        <p className="mt-1 text-sm leading-6 text-amber-900">{copy.detail}</p>
       </div>
     );
   }
@@ -1613,8 +1184,8 @@ function DeferralGrantFactsPanel({
           Datos del aplazamiento todavía pendientes
         </h3>
         <p className="mt-1 text-sm leading-6 text-amber-900">
-          El documento es una concesión de aplazamiento o fraccionamiento,
-          pero esta copia no contiene un cuadro de cuotas completo que pueda
+          El documento es una concesión de aplazamiento o fraccionamiento, pero
+          esta copia no contiene un cuadro de cuotas completo que pueda
           mostrarse como datos estructurados.
         </p>
       </div>
@@ -1638,8 +1209,8 @@ function DeferralGrantFactsPanel({
             Concesión de aplazamiento o fraccionamiento
           </h3>
           <p className="mt-1 text-sm leading-6 text-blue-900">
-            Cuotas, importes y vencimientos leídos literalmente de los anexos
-            de la concesión.
+            Cuotas, importes y vencimientos leídos literalmente de los anexos de
+            la concesión.
           </p>
         </div>
         <span className="inline-flex w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-950">
@@ -1876,7 +1447,8 @@ function OffsetAgreementFactsPanel({
           </p>
         </div>
         <span className="inline-flex w-fit rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-950">
-          {result.credits.length} {result.credits.length === 1 ? "crédito" : "créditos"}
+          {result.credits.length}{" "}
+          {result.credits.length === 1 ? "crédito" : "créditos"}
           {" · "}
           {result.debts.length} {result.debts.length === 1 ? "deuda" : "deudas"}
         </span>
@@ -1884,9 +1456,9 @@ function OffsetAgreementFactsPanel({
 
       {result.outcome === "AMBIGUOUS" ? (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
-          Hay alguna fila incompleta o un código de efecto sin texto explicativo.
-          Se muestran los valores exactos que sí constan, sin completar ni
-          corregir los demás.
+          Hay alguna fila incompleta o un código de efecto sin texto
+          explicativo. Se muestran los valores exactos que sí constan, sin
+          completar ni corregir los demás.
         </div>
       ) : null}
 
@@ -1939,19 +1511,31 @@ function OffsetAgreementFactsPanel({
               />
               <ResultFact
                 label="Crédito"
-                value={formatStructuredMoney(credit.creditAmount.amountCents, "EUR")}
+                value={formatStructuredMoney(
+                  credit.creditAmount.amountCents,
+                  "EUR",
+                )}
               />
               <ResultFact
                 label="Intereses de demora"
-                value={formatStructuredMoney(credit.delayInterest.amountCents, "EUR")}
+                value={formatStructuredMoney(
+                  credit.delayInterest.amountCents,
+                  "EUR",
+                )}
               />
               <ResultFact
                 label="Total del crédito"
-                value={formatStructuredMoney(credit.totalCredit.amountCents, "EUR")}
+                value={formatStructuredMoney(
+                  credit.totalCredit.amountCents,
+                  "EUR",
+                )}
               />
               <ResultFact
                 label="Aplicado a compensar"
-                value={formatStructuredMoney(credit.compensatedAmount.amountCents, "EUR")}
+                value={formatStructuredMoney(
+                  credit.compensatedAmount.amountCents,
+                  "EUR",
+                )}
               />
             </dl>
           </article>
@@ -1979,36 +1563,60 @@ function OffsetAgreementFactsPanel({
               </span>
             </div>
             <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <ResultFact label="Fecha de efectos" value={debt.effectDate.printedValue} />
+              <ResultFact
+                label="Fecha de efectos"
+                value={debt.effectDate.printedValue}
+              />
               <ResultFact
                 label="Principal pendiente"
-                value={formatStructuredMoney(debt.principalPending.amountCents, "EUR")}
+                value={formatStructuredMoney(
+                  debt.principalPending.amountCents,
+                  "EUR",
+                )}
               />
               <ResultFact
                 label="Recargo ejecutivo"
-                value={formatStructuredMoney(debt.enforcementSurcharge.amountCents, "EUR")}
+                value={formatStructuredMoney(
+                  debt.enforcementSurcharge.amountCents,
+                  "EUR",
+                )}
               />
               {debt.delayInterest ? (
                 <ResultFact
                   label="Intereses de demora"
-                  value={formatStructuredMoney(debt.delayInterest.amountCents, "EUR")}
+                  value={formatStructuredMoney(
+                    debt.delayInterest.amountCents,
+                    "EUR",
+                  )}
                 />
               ) : null}
               <ResultFact
                 label="Ingresos a cuenta"
-                value={formatStructuredMoney(debt.paymentsOnAccount.amountCents, "EUR")}
+                value={formatStructuredMoney(
+                  debt.paymentsOnAccount.amountCents,
+                  "EUR",
+                )}
               />
               <ResultFact
                 label="Total antes de compensar"
-                value={formatStructuredMoney(debt.totalBeforeOffset.amountCents, "EUR")}
+                value={formatStructuredMoney(
+                  debt.totalBeforeOffset.amountCents,
+                  "EUR",
+                )}
               />
               <ResultFact
                 label="Importe compensado"
-                value={formatStructuredMoney(debt.compensatedAmount.amountCents, "EUR")}
+                value={formatStructuredMoney(
+                  debt.compensatedAmount.amountCents,
+                  "EUR",
+                )}
               />
               <ResultFact
                 label="Pendiente después de compensar"
-                value={formatStructuredMoney(debt.remainingAfterOffset.amountCents, "EUR")}
+                value={formatStructuredMoney(
+                  debt.remainingAfterOffset.amountCents,
+                  "EUR",
+                )}
               />
             </dl>
             <p className="mt-4 rounded-xl bg-slate-50 p-3 text-sm font-semibold text-slate-800">
@@ -2026,13 +1634,7 @@ function OffsetAgreementFactsPanel({
   );
 }
 
-function DeferralFactCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function DeferralFactCard({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-xl border border-blue-100 bg-white p-4">
       <dt className="text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -2082,19 +1684,5 @@ function formatStructuredMoney(
     .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   const decimalPart = (cents % hundred).toString().padStart(2, "0");
   const value = `${integerPart},${decimalPart}`;
-  return currency === "EUR"
-    ? `${value} €`
-    : `${value} · moneda no confirmada`;
-}
-
-function formatReviewTimestamp(value: string): string {
-  return new Intl.DateTimeFormat("es-ES", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
-
-function formatCalendarDate(value: string): string {
-  const [year, month, day] = value.split("-");
-  return year && month && day ? `${day}/${month}/${year}` : value;
+  return currency === "EUR" ? `${value} €` : `${value} · moneda no confirmada`;
 }

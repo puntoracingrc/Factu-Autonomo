@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
 
 describe("FiscalNotificationsPage", () => {
-  it("separa el analizador local y la guía buscable sin abrir rutas anidadas", () => {
+  it("separa analizador, biblioteca y guía sin abrir rutas anidadas", () => {
     expect(source).toContain("return <FiscalNotificationIntakeView />");
     expect(source).toContain("<FiscalNotificationAnalyzerSection />");
     expect(source).toContain(
@@ -15,12 +15,21 @@ describe("FiscalNotificationsPage", () => {
     expect(source).toContain('id="analizar-documento"');
     expect(source).toContain('id="guia-notificaciones"');
     expect(source).not.toContain("/consultor-fiscal/notificaciones/[familyId]");
+    expect(source).toContain("resolvedSearchParams.documento");
+    expect(source).toContain(
+      "<FiscalNotificationIntakeView selectedDocumentId={selectedDocumentId} />",
+    );
+    expect(source).not.toContain(
+      "/consultor-fiscal/notificaciones/documentos/",
+    );
   });
 
   it("resuelve ?guia de forma exacta y fail-closed", () => {
-    expect(source).toContain("const requestedGuideFamily = (await searchParams).guia");
     expect(source).toContain(
-      "resolveFiscalNotificationGuideSelectionV1(\n    requestedGuideFamily",
+      "const requestedGuideFamily = resolvedSearchParams.guia",
+    );
+    expect(source).toContain(
+      "resolveFiscalNotificationGuideSelectionV1(requestedGuideFamily)",
     );
     expect(source).toContain('export const dynamic = "force-dynamic"');
     expect(source).toContain(
