@@ -82,6 +82,9 @@ export function buildFiscalModelPersonalizationV1({
 
   if (invalidCatalog) return allOnly("INVALID_CATALOG");
   if (!assessment) return allOnly("NO_PUBLISHED_ASSESSMENT");
+  if (assessment.profile.state !== "COMPLETE") {
+    return allOnly("PROFILE_NOT_COMPLETE");
+  }
   if (!isTaxObligationExclusionAuthorized(assessment)) {
     return allOnly(
       assessment.ruleReviewState !== "APPROVED"
@@ -89,10 +92,6 @@ export function buildFiscalModelPersonalizationV1({
         : "ASSESSMENT_NOT_RESOLVED",
     );
   }
-  if (assessment.profile.state !== "COMPLETE") {
-    return allOnly("PROFILE_NOT_COMPLETE");
-  }
-
   const assessmentCodes = new Set<string>();
   const reviewCodes = new Set<string>();
   for (const obligation of assessment.obligations) {

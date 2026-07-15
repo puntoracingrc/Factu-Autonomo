@@ -11,6 +11,7 @@ import {
   TAX_OBLIGATIONS_CATALOG_VERSION,
   TAX_OBLIGATIONS_CONTRACT_VERSION,
 } from "./contracts";
+import { isTaxObligationExclusionAuthorized } from "./exclusion-authorization";
 
 const GENERATED_AT = "2026-07-14T12:00:00.000Z";
 
@@ -42,7 +43,7 @@ describe("public tax obligations assessment", () => {
     ).toBe(true);
   });
 
-  it("solo queda resuelto con perfil completo y reglas aprobadas", () => {
+  it("un override puede simular el estado global pero no autoriza exclusiones", () => {
     const diagnostic = evaluateTaxModelDiagnostic(
       completeCommonTerritoryProfile(),
       GENERATED_AT,
@@ -52,6 +53,19 @@ describe("public tax obligations assessment", () => {
     });
 
     expect(assessment.resolutionState).toBe("RESOLVED");
+    expect(assessment.ruleReviewState).toBe("APPROVED");
+    expect(isTaxObligationExclusionAuthorized(assessment)).toBe(false);
+    expect(
+      assessment.obligations
+        .filter((obligation) => obligation.status === "NOT_APPLICABLE")
+        .every(
+          (obligation) =>
+            obligation.exclusionAuthorization?.authorized === false &&
+            obligation.exclusionAuthorization.blockingReasons.includes(
+              "INTERNAL_OVERRIDE_NOT_AUTHORIZED",
+            ),
+        ),
+    ).toBe(true);
   });
 
   it("bloquea el consumo cuando el territorio impide emitir decisiones", () => {
@@ -80,6 +94,11 @@ describe("public tax obligations assessment", () => {
     expect(model347).toMatchObject({
       status: "NOT_APPLICABLE",
       evidenceSufficient: true,
+      exclusionAuthorization: {
+        proposed: true,
+        authorized: false,
+        exclusionId: null,
+      },
     });
   });
 

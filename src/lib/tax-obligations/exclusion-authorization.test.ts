@@ -16,7 +16,7 @@ const approvalMatrix = [
   ["PENDING_FISCAL_REVIEW", "BLOCKED", false],
   ["APPROVED", "MANUAL_REVIEW", false],
   ["APPROVED", "BLOCKED", false],
-  ["APPROVED", "RESOLVED", true],
+  ["APPROVED", "RESOLVED", false],
 ] as const satisfies readonly (readonly [
   TaxObligationsRuleReviewState,
   TaxObligationsResolutionState,
@@ -91,7 +91,7 @@ const calendarEvent: FiscalCalendarEvent = {
 
 describe("tax obligation exclusion authorization", () => {
   it.each(approvalMatrix)(
-    "requires APPROVED + RESOLVED (%s + %s)",
+    "does not trust assessment-level approval (%s + %s)",
     (ruleReviewState, resolutionState, expected) => {
       expect(
         isTaxObligationExclusionAuthorized({
@@ -102,8 +102,8 @@ describe("tax obligation exclusion authorization", () => {
     },
   );
 
-  it.each(approvalMatrix.filter(([, , allowed]) => !allowed))(
-    "keeps Calendar and Models complete before double approval (%s + %s)",
+  it.each(approvalMatrix)(
+    "keeps Calendar and Models complete before individual approval (%s + %s)",
     (ruleReviewState, resolutionState) => {
       const storedSession = session(
         assessment(ruleReviewState, resolutionState),

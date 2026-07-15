@@ -229,7 +229,7 @@ describe("buildFiscalCalendarObligationView", () => {
     expect(unsupported.fallbackReason).toBe("UNSUPPORTED_TERRITORY");
   });
 
-  it("oculta solo NOT_APPLICABLE con evidencia suficiente", () => {
+  it("no oculta NOT_APPLICABLE sin autorización fiscal individual", () => {
     const events = [
       event("required", "Modelo 130"),
       event("excluded", "Modelo 303"),
@@ -250,15 +250,12 @@ describe("buildFiscalCalendarObligationView", () => {
       ),
     });
 
-    expect(result.status).toBe("PERSONALIZED");
-    expect([...result.visibleEventIds]).toEqual([
-      "required",
-      "unsafe",
-      "review",
-      "unknown",
-    ]);
-    expect(result.excludedCount).toBe(1);
+    expect(result.status).toBe("ORIENTATIVE");
+    expect([...result.visibleEventIds]).toEqual(events.map(({ id }) => id));
+    expect(result.excludedCount).toBe(0);
     expect([...result.reviewEventIds]).toEqual([
+      "required",
+      "excluded",
       "unsafe",
       "review",
       "unknown",
@@ -337,8 +334,8 @@ describe("buildFiscalCalendarObligationView", () => {
 
     expect(result.decisions[0]).toMatchObject({
       modelCode: "303",
-      visibleInMyObligations: false,
-      reason: "NOT_APPLICABLE_CONFIRMED",
+      visibleInMyObligations: true,
+      reason: "NOT_APPLICABLE_UNCONFIRMED",
     });
   });
 
@@ -352,8 +349,8 @@ describe("buildFiscalCalendarObligationView", () => {
 
     expect(result.decisions[0]).toMatchObject({
       modelCode: "036",
-      visibleInMyObligations: false,
-      reason: "NOT_APPLICABLE_CONFIRMED",
+      visibleInMyObligations: true,
+      reason: "NOT_APPLICABLE_UNCONFIRMED",
     });
   });
 

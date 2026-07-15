@@ -3,7 +3,11 @@ import type {
   ModelResult,
   ModelResultStatus,
 } from "@/lib/tax-model-diagnostic/contracts";
-import { taxRuleSetReviewState } from "@/lib/tax-model-diagnostic/rules";
+import {
+  getTaxRule,
+  taxRuleSetAuthorizationMetadata,
+  taxRuleSetReviewState,
+} from "@/lib/tax-model-diagnostic/rules";
 
 import {
   TAX_OBLIGATIONS_CATALOG_VERSION,
@@ -16,6 +20,7 @@ import {
   type TaxObligationsAssessmentV1,
   type TaxObligationsRuleReviewState,
 } from "./contracts";
+import { authorizeRuleExclusion } from "./rule-exclusion-authorization";
 
 function publicStatus(result: ModelResult): TaxObligationStatus {
   switch (result.status) {
@@ -80,7 +85,15 @@ function decisionMetadata(
   }
 }
 
-function buildItem(result: ModelResult): TaxObligationAssessmentItemV1 {
+function buildItem(
+  result: ModelResult,
+  context: {
+    fiscalYear: 2025 | 2026;
+    territory: DiagnosticResult["territory"];
+    evaluatedAt: string;
+    internalOverrideRequested: boolean;
+  },
+): TaxObligationAssessmentItemV1 {
   const modelCode = normalizeTaxObligationModelCode(result.modelNumber);
   if (!modelCode) {
     throw new Error(`Código de modelo no canónico: ${result.modelNumber}`);
@@ -88,6 +101,39 @@ function buildItem(result: ModelResult): TaxObligationAssessmentItemV1 {
   const status = publicStatus(result);
   const decision = decisionMetadata(result.status);
   const conflicts = result.censusMismatch ? [result.censusMismatch] : [];
+  const rule = getTaxRule(context.fiscalYear, result.modelNumber);
+  const candidateEvaluations =
+    status === "NOT_APPLICABLE"
+      ? rule.fiscalMetadata.exclusionCandidates.map((candidate) =>
+          authorizeRuleExclusion({
+            ruleset: taxRuleSetAuthorizationMetadata(context.fiscalYear),
+            rule,
+            exclusionCandidate: candidate,
+            targetFiscalYear: context.fiscalYear,
+            targetTerritory: context.territory,
+            ruleHash: rule.fiscalMetadata.ruleHash,
+            approvalEvidence: null,
+            issues: rule.fiscalMetadata.review.issueIds.map((issueId) => ({
+              issueId,
+              status: "OPEN",
+            })),
+            issueRegistryComplete: true,
+            facts: {
+              hasUnknownRequiredFacts: result.missingInformation.length > 0,
+              hasContradictoryFacts: conflicts.length > 0,
+            },
+            internalOverrideRequested: context.internalOverrideRequested,
+            evaluatedAt: context.evaluatedAt,
+          }),
+        )
+      : [];
+  const blockingReasons = [
+    ...new Set(
+      candidateEvaluations.flatMap((evaluation) =>
+        [...evaluation.blockingReasons],
+      ),
+    ),
+  ];
   return {
     modelCode,
     status,
@@ -110,6 +156,33 @@ function buildItem(result: ModelResult): TaxObligationAssessmentItemV1 {
     })),
     missingInformation: [...result.missingInformation],
     conflicts,
+    ...(status === "NOT_APPLICABLE"
+      ? {
+          exclusionAuthorization: {
+            proposed: true,
+            // The engine does not yet map a result branch to one exact
+            // exclusion candidate. Until that matrix exists, no candidate can
+            // become an executable exclusion even if a synthetic gate passes.
+            authorized: false,
+            blockingReasons: [
+              ...blockingReasons,
+              ...(blockingReasons.includes(
+                "EXCLUSION_EFFECT_NOT_EXECUTABLE",
+              )
+                ? []
+                : ["EXCLUSION_CANDIDATE_NOT_MAPPED"]),
+            ],
+            ruleId: rule.ruleId,
+            exclusionId: null,
+            candidateExclusionIds:
+              rule.fiscalMetadata.exclusionCandidates.map(
+                (candidate) => candidate.exclusionId,
+              ),
+            rulesetId: rule.fiscalMetadata.rulesetId,
+            ruleHash: rule.fiscalMetadata.ruleHash,
+          },
+        }
+      : {}),
   };
 }
 
@@ -127,7 +200,14 @@ export function buildTaxObligationsAssessment(
         ? "INCOMPLETE"
         : "COMPLETE";
 
-  const obligations = result.models.map(buildItem);
+  const obligations = result.models.map((model) =>
+    buildItem(model, {
+      fiscalYear: result.fiscalYear,
+      territory: result.territory,
+      evaluatedAt: result.generatedAt,
+      internalOverrideRequested: options.ruleReviewState !== undefined,
+    }),
+  );
   const ruleReviewState =
     options.ruleReviewState ?? taxRuleSetReviewState(result.fiscalYear);
   const blocked =

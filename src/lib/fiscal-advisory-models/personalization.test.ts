@@ -70,7 +70,7 @@ describe("fiscal model personalization", () => {
     }
   });
 
-  it("combines required, unresolved and manual codes without hiding uncertain models", () => {
+  it("keeps the complete catalog until individual exclusions are authorized", () => {
     const result = buildFiscalModelPersonalizationV1({
       session: session({
         obligations: [
@@ -125,14 +125,14 @@ describe("fiscal model personalization", () => {
     });
 
     expect(result).toMatchObject({
-      status: "PERSONALIZED",
-      fallbackReason: null,
-      visibleModelCodes: ["036", "130", "303", "390", "A22"],
-      assessmentModelCodes: ["036", "130", "390"],
-      reviewModelCodes: ["130", "390"],
+      status: "ALL_ONLY",
+      fallbackReason: "ASSESSMENT_NOT_RESOLVED",
+      visibleModelCodes: availableModelCodes,
+      assessmentModelCodes: [],
+      reviewModelCodes: [],
       manualModelCodes: ["303", "A22"],
     });
-    expect(result.visibleModelCodes).not.toContain("111");
+    expect(result.visibleModelCodes).toContain("111");
     expect(Object.isFrozen(result)).toBe(true);
     expect(Object.isFrozen(result.visibleModelCodes)).toBe(true);
   });
