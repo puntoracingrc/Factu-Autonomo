@@ -19,6 +19,9 @@ const pageSource = readSource(
 const flowSource = readSource(
   "../../lib/fiscal-notifications/local-review-flow.ts",
 );
+const batchIntakeSource = readSource(
+  "../../lib/fiscal-notifications/batch-intake.v1.ts",
+);
 const workerSource = readSource(
   "../../lib/fiscal-notifications/pdf-text-layer.worker.ts",
 );
@@ -56,7 +59,7 @@ const documentLibraryViewModelSource = readSource(
 const manualSource = readSource(
   "../../lib/manual/sections/consultor-fiscal.ts",
 );
-const surfaceSource = `${componentSource}\n${documentLibraryComponentSource}\n${pageSource}\n${flowSource}\n${guidanceSource}\n${reviewStepsSource}\n${verticalSlicePanelSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}\n${partyFactsPanelSource}\n${partyFactsViewModelSource}\n${relationsViewModelSource}\n${documentLibraryViewModelSource}`;
+const surfaceSource = `${componentSource}\n${documentLibraryComponentSource}\n${pageSource}\n${flowSource}\n${batchIntakeSource}\n${guidanceSource}\n${reviewStepsSource}\n${verticalSlicePanelSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}\n${partyFactsPanelSource}\n${partyFactsViewModelSource}\n${relationsViewModelSource}\n${documentLibraryViewModelSource}`;
 
 describe("contrato de interfaz de Notificaciones y expedientes", () => {
   it("obtiene el ámbito exclusivamente de la cuenta canónica confirmada", () => {
@@ -74,28 +77,31 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain("ownerScope={ownerScope}");
     expect(componentSource).toContain("Cuenta confirmada necesaria");
     expect(componentSource).not.toMatch(/profile\.(?:nif|name)|data\.profile/);
-    expect(componentSource).not.toMatch(/(?:file|selectedFile)\.name/);
+    const ownerResolution = componentSource.slice(
+      componentSource.indexOf("export function FiscalNotificationIntakeView"),
+      componentSource.indexOf("function FiscalNotificationReviewWorkspace"),
+    );
+    expect(ownerResolution).not.toMatch(/(?:file|selectedFile)\.name/);
   });
 
-  it("no conserva File, nombre, bytes ni texto del documento en estado React", () => {
-    const selectedFileContract = componentSource.slice(
-      componentSource.indexOf("interface SelectedFileSummary"),
+  it("mantiene el File solo en una referencia efímera y nunca persiste nombre, bytes o texto", () => {
+    const batchItemContract = componentSource.slice(
+      componentSource.indexOf("interface FiscalNotificationBatchItem"),
       componentSource.indexOf("export function FiscalNotificationIntakeView"),
     );
-    expect(selectedFileContract).toContain("readonly byteLength: number");
-    expect(selectedFileContract).toContain("readonly mimeType: string");
-    expect(selectedFileContract).not.toMatch(
-      /\b(?:file|name|filename|bytes|text|pages|documentInput)\b/i,
-    );
+    expect(batchItemContract).toContain("readonly byteLength: number");
+    expect(batchItemContract).toContain("readonly displayName: string");
+    expect(batchItemContract).toContain("readonly sha256: string");
+    expect(batchItemContract).not.toMatch(/\b(?:bytes|text|pages|documentInput)\b/i);
 
     expect(componentSource).not.toMatch(/useState\s*<\s*File\b/);
-    expect(componentSource).not.toContain("setSelectedFile(file)");
+    expect(componentSource).toContain("const filesRef = useRef(new Map<string, File>())");
+    expect(componentSource).toContain("filesRef.current.clear()");
+    expect(componentSource).toContain("filesRef.current.delete(id)");
     expect(componentSource).toContain(
-      "file ? { byteLength: file.size, mimeType: file.type } : null",
+      "El nombre solo se muestra mientras el documento está en esta cola",
     );
-    expect(componentSource).toContain(
-      "No mostramos ni conservamos el nombre del archivo",
-    );
+    expect(compact(componentSource)).toContain("El PDF, su nombre y el texto no se guardan");
 
     const reviewResultContract = flowSource.slice(
       flowSource.indexOf(
@@ -222,44 +228,32 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toMatch(/`review:\$\{/);
     expect(componentSource).toContain("new Date().toISOString()");
 
-    const analysisStart = componentSource.indexOf("const nextAnalysis =");
-    const analysisEnd = componentSource.indexOf(
-      "} catch (caught)",
-      analysisStart,
-    );
-    const analysisSuccess = componentSource.slice(analysisStart, analysisEnd);
-    expect(analysisStart).toBeGreaterThan(-1);
-    expect(analysisEnd).toBeGreaterThan(analysisStart);
-    expect(analysisSuccess).toContain(
+    expect(componentSource).toContain(
       "await analyzeFiscalNotificationLocallyWithEphemeralFacts",
     );
-    expect(analysisSuccess).toContain(
-      "const nextResult = nextAnalysis.technicalReview",
-    );
-    expect(analysisSuccess).toContain("setResult(nextResult)");
-    expect(analysisSuccess).toContain(
+    expect(componentSource).toContain("setResult(nextAnalysis.technicalReview)");
+    expect(componentSource).toContain(
       "nextAnalysis.ephemeralEnforcementMoneyFacts",
     );
-    expect(analysisSuccess).toContain(
+    expect(componentSource).toContain(
       "nextAnalysis.ephemeralEnforcementExplicitFields",
     );
-    expect(analysisSuccess).toContain(
+    expect(componentSource).toContain(
       "nextAnalysis.ephemeralEnforcementPartyFacts",
     );
-    expect(analysisSuccess).toContain(
+    expect(componentSource).toContain(
       "nextAnalysis.ephemeralDeferralGrantFacts",
     );
-    expect(analysisSuccess).toContain(
+    expect(componentSource).toContain(
       "projectExplicitFieldsReviewViewModelV2(",
     );
-    expect(analysisSuccess).toContain(
-      "setExplicitFieldsReview(nextExplicitFieldsReview)",
+    expect(componentSource).toContain("analysis: nextAnalysis");
+    expect(componentSource).toContain("reviewsRef.current.set(id, review)");
+    const analyzeQueue = componentSource.slice(
+      componentSource.indexOf("async function analyzeQueue"),
+      componentSource.indexOf("function handleDragEnter"),
     );
-    expect(analysisSuccess).toContain(
-      "setPartyFactsReview(nextPartyFactsReview)",
-    );
-    expect(analysisSuccess).toContain("analysis: nextAnalysis");
-    expect(analysisSuccess).not.toContain(
+    expect(analyzeQueue).not.toContain(
       "saveFiscalNotificationStructuredReview",
     );
 
@@ -491,8 +485,10 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     for (const expected of [
       "El PDF, su texto y su nombre no se suben ni se guardan.",
       "Muestra y puede guardar importes, referencias, fechas y sujeto cuando constan expresamente.",
-      "Admite PDF con texto o escaneado, hasta 4 MB y 80 páginas. Si es una imagen, ejecuta OCR en este navegador sin subirla.",
-      "No mostramos ni conservamos el nombre del archivo. El PDF y el texto desaparecen; solo se guardan los campos estructurados que aceptes conservar.",
+      "Prepara un lote de hasta {FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1} PDF, revísalo y pulsa una sola vez Analizar.",
+      "El nombre solo se muestra mientras el documento está en esta cola.",
+      "El PDF, su nombre y el texto no se guardan; únicamente se conservan los campos estructurados que aceptes.",
+      "Una huella SHA-256 local impide añadir otra vez el mismo contenido.",
       "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias, fechas y sujeto identificado.",
       "Guarda únicamente campos estructurados visibles y su procedencia: nunca conserva el PDF, su nombre ni el texto completo.",
       "No se ha enviado a ningún proveedor y debes revisarlo manualmente.",
@@ -564,7 +560,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(
       componentSource.match(/setEphemeralMoneyFacts\(null\)/g)?.length,
-    ).toBeGreaterThanOrEqual(3);
+    ).toBeGreaterThanOrEqual(1);
 
     const saveStart = componentSource.indexOf(
       "saveFiscalNotificationStructuredReview({",
@@ -598,7 +594,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(
       componentSource.match(/setEphemeralDeferralFacts\(null\)/g)?.length,
-    ).toBeGreaterThanOrEqual(3);
+    ).toBeGreaterThanOrEqual(1);
     expect(componentSource).toContain('result.outcome === "AMBIGUOUS"');
     expect(copy).toContain(
       "No se ha marcado ninguna cuota como pagada ni se ha creado un gasto o asiento.",
@@ -634,7 +630,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(
       componentSource.match(/setEphemeralOffsetFacts\(null\)/g)?.length,
-    ).toBeGreaterThanOrEqual(3);
+    ).toBeGreaterThanOrEqual(1);
     expect(componentSource).toContain(
       "OFFSET_EFFECT_LABELS[debt.effectMeaning]",
     );
@@ -653,30 +649,11 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "nextAnalysis.ephemeralEnforcementExplicitFields",
     );
-    expect(componentSource).toContain(
-      "setExplicitFieldsReview(nextExplicitFieldsReview)",
-    );
-    const fileChangeFlow = componentSource.slice(
-      componentSource.indexOf("function handleFileChange"),
-      componentSource.indexOf("function cancelAnalysis"),
-    );
-    const cancelFlow = componentSource.slice(
-      componentSource.indexOf("function cancelAnalysis"),
-      componentSource.indexOf("async function handleSubmit"),
-    );
-    const submitStartFlow = componentSource.slice(
-      componentSource.indexOf("async function handleSubmit"),
-      componentSource.indexOf(
-        "try {",
-        componentSource.indexOf("async function handleSubmit"),
-      ),
-    );
-    for (const flow of [fileChangeFlow, cancelFlow, submitStartFlow]) {
-      expect(flow).toContain("setExplicitFieldsReview(null)");
-    }
     expect(
       componentSource.match(/setExplicitFieldsReview\(null\)/g),
-    ).toHaveLength(3);
+    ).toHaveLength(1);
+    expect(componentSource).toContain("function clearReviewDisplay()");
+    expect(componentSource).toContain("filesRef.current.clear()");
     expect(componentSource).toContain(
       "<FiscalNotificationExplicitFieldsReview",
     );
@@ -735,12 +712,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "nextAnalysis.ephemeralEnforcementPartyFacts",
     );
-    expect(componentSource).toContain(
-      "setPartyFactsReview(nextPartyFactsReview)",
-    );
-    expect(componentSource.match(/setPartyFactsReview\(null\)/g)).toHaveLength(
-      3,
-    );
+    expect(componentSource.match(/setPartyFactsReview\(null\)/g)).toHaveLength(1);
     expect(componentSource).toContain("<FiscalNotificationPartyFactsReview");
     expect(componentSource).toContain("viewModel={partyFactsReview}");
 
@@ -783,13 +755,19 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain('id="fiscal-notification-file"');
     expect(componentSource).toContain('type="file"');
     expect(componentSource).toContain('accept="application/pdf,.pdf"');
+    expect(componentSource).toContain("multiple");
     expect(componentSource).toContain('className="hidden"');
     expect(componentSource).toContain("tabIndex={-1}");
     expect(componentSource).toContain('aria-hidden="true"');
     expect(componentSource).toContain(
       "onClick={() => fileInputRef.current?.click()}",
     );
-    expect(componentSource).toContain("Seleccionar PDF");
+    expect(componentSource).toContain("Elegir varios PDF");
+    expect(componentSource).toContain('data-drop-zone="FISCAL_NOTIFICATION_FILES"');
+    expect(componentSource).toContain("onDragEnter={handleDragEnter}");
+    expect(componentSource).toContain("onDrop={handleDrop}");
+    expect(componentSource).toContain("Quitar todos");
+    expect(componentSource).toContain("Reintentar");
     expect(componentSource).toContain(
       'aria-describedby="fiscal-notification-file-help"',
     );
@@ -797,12 +775,43 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       'aria-labelledby="notification-review-heading"',
     );
     expect(componentSource).toContain('id="notification-review-heading"');
-    expect(componentSource).toContain('type="submit"');
     expect(componentSource).toContain('type="button"');
     expect(componentSource).toContain("sm:flex-row");
     expect(componentSource).toContain("md:grid-cols-3");
     expect(componentSource).toContain("sm:grid-cols-2");
     expect(componentSource).not.toMatch(/w-\[(?:4|5|6|7|8|9)\d{2}px\]/);
+  });
+
+  it("compone un lote de diez, no autoanaliza y rechaza duplicados por contenido", () => {
+    expect(batchIntakeSource).toContain(
+      "FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1 = 10",
+    );
+    expect(batchIntakeSource).toContain(
+      'globalThis.crypto.subtle.digest("SHA-256", bytes)',
+    );
+    expect(batchIntakeSource).toContain(
+      "parseFiscalNotificationsWorkspaceForPersistenceV1(",
+    );
+    expect(componentSource).toContain(
+      "readPersistedFiscalNotificationHashesV1(",
+    );
+    expect(componentSource).toContain("ya estaba escaneado");
+    expect(componentSource).toContain("duplicado dentro del lote");
+    expect(componentSource).toContain('status: "PREPARED" as const');
+    expect(compact(componentSource)).toContain(
+      "no se analizan hasta que tú pulses el botón",
+    );
+    expect(componentSource).toContain("onClick={() => void analyzeQueue()}");
+    expect(componentSource).not.toContain("void analyzeQueue(accepted");
+    for (const status of [
+      "Preparado",
+      "Analizando",
+      "Leído",
+      "Necesita revisión",
+      "No reconocido",
+    ]) {
+      expect(componentSource).toContain(status);
+    }
   });
 
   it("prioriza el tipo exacto y los campos del extractor reutilizable", () => {
@@ -831,7 +840,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       .map((match) => compact(match[0]))
       .join("\n");
 
-    expect(controls).toContain("Analizar documento");
+    expect(controls).toContain("Analizar ${pendingCount} documento");
     expect(controls).toContain("Cancelar");
     expect(controls).toContain("Guardar datos en mi cuenta");
     expect(controls).not.toMatch(
