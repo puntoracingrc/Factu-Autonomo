@@ -11,6 +11,7 @@ de cada ruleset se comunica separadamente mediante `ruleReviewState`.
 
 ```ts
 import {
+  isTaxObligationExclusionAuthorized,
   normalizeTaxObligationModelCode,
   selectStoredTaxObligationsAssessment,
   type TaxObligationsAssessmentV1,
@@ -70,6 +71,27 @@ catalogVersion  = es-tax-models.2026-07.v1
   `BLOCKED` conservan la vista completa como fallback;
 - una selección manual del usuario puede complementar una vista, pero nunca
   muta ni confirma una decisión del Motor.
+
+La única guarda pública que autoriza ocultar o excluir es:
+
+```ts
+isTaxObligationExclusionAuthorized(assessment)
+```
+
+Devuelve `true` únicamente cuando coinciden simultáneamente los nombres
+canónicos del contrato:
+
+```text
+ruleReviewState = APPROVED
+resolutionState = RESOLVED
+```
+
+Hasta entonces, «Todos» permanece disponible, los candidatos se conservan
+visibles y cualquier recomendación o modelo improbable se etiqueta como
+pendiente de revisión fiscal. Aprobar OCR, extractores, corpus, fixtures, CI,
+CodeQL o un despliegue nunca sustituye la aprobación fiscal del ruleset. Una
+prueba de regresión común cubre Calendario y Modelos para impedir exclusiones
+antes de cumplir ambas condiciones.
 
 En la versión publicada actualmente, el ruleset conserva
 `ruleReviewState = PENDING_FISCAL_REVIEW`. Por ello los consumidores pueden

@@ -123,4 +123,20 @@ describe("tax model diagnostic UI contract", () => {
       expect(results).toContain(copy);
     }
   });
+
+  it("mantiene visibles los modelos improbables mientras falta aprobación fiscal", () => {
+    expect(results).toContain("isTaxObligationExclusionAuthorized");
+    expect(results).toContain(
+      "Resultado orientativo · pendiente de revisión fiscal",
+    );
+    expect(results).toContain(
+      "Modelos improbables · pendientes de revisión fiscal",
+    );
+    expect(results).toContain("No se ha");
+    expect(results).toContain("eliminado ni excluido ninguno");
+    expect(results).toContain(
+      "ninguna mejora del OCR, del corpus o de las pruebas técnicas",
+    );
+    expect(results).toContain("autoriza una exclusión");
+  });
 });
