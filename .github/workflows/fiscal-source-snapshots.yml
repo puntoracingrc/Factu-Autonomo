@@ -1,0 +1,48 @@
+name: Fiscal source snapshot validation
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/fiscal-source-review/**"
+      - "src/components/admin/FiscalRuleReviewCompactView*"
+      - "scripts/fiscal-sources/**"
+      - "docs/fiscal/sources/**"
+      - "package.json"
+      - ".github/workflows/fiscal-source-snapshots.yml"
+  push:
+    branches:
+      - main
+      - agent/fiscal-source-snapshots-review
+    paths:
+      - "src/lib/fiscal-source-review/**"
+      - "src/components/admin/FiscalRuleReviewCompactView*"
+      - "scripts/fiscal-sources/**"
+      - "docs/fiscal/sources/**"
+      - "package.json"
+      - ".github/workflows/fiscal-source-snapshots.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fiscal-source-snapshots-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run fiscal:sources:validate
+      - run: npm run fiscal:sources:diff
+      - run: npm run fiscal:rules:check
+      - run: >-
+          npx vitest run
+          src/lib/fiscal-source-review/fiscal-source-review.test.ts
+          src/components/admin/FiscalRuleReviewCompactView.test.ts
