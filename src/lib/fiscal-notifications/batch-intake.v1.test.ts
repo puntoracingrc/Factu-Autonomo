@@ -118,6 +118,34 @@ describe("fiscal notification batch intake v1", () => {
       sha256: [],
     });
   });
+
+  it("admits the first PDF only when the workspace is genuinely absent", () => {
+    expect(readPersistedFiscalNotificationHashesV1(undefined, OWNER)).toEqual({
+      status: "BLOCKED",
+      sha256: [],
+    });
+    expect(
+      readPersistedFiscalNotificationHashesV1(undefined, OWNER, {
+        allowAbsentWorkspace: true,
+      }),
+    ).toEqual({ status: "READY", sha256: [] });
+    expect(
+      readPersistedFiscalNotificationHashesV1(null, OWNER, {
+        allowAbsentWorkspace: true,
+      }),
+    ).toEqual({ status: "READY", sha256: [] });
+
+    expect(
+      readPersistedFiscalNotificationHashesV1({}, OWNER, {
+        allowAbsentWorkspace: true,
+      }),
+    ).toEqual({ status: "BLOCKED", sha256: [] });
+    expect(
+      readPersistedFiscalNotificationHashesV1(undefined, " user:batch-intake", {
+        allowAbsentWorkspace: true,
+      }),
+    ).toEqual({ status: "BLOCKED", sha256: [] });
+  });
 });
 
 function pdfBytes(): Uint8Array<ArrayBuffer> {

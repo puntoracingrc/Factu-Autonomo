@@ -806,6 +806,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "readPersistedFiscalNotificationHashesV1(",
     );
+    expect(componentSource).toContain(
+      'entry.collection === "fiscalNotificationsWorkspace"',
+    );
+    expect(componentSource).toContain(
+      "allowAbsentWorkspace: !fiscalNotificationsWorkspaceWasQuarantined",
+    );
     expect(componentSource).toContain("ya estaba escaneado");
     expect(componentSource).toContain("duplicado dentro del lote");
     expect(componentSource).toContain('status: "PREPARED" as const');
@@ -814,6 +820,10 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(componentSource).toContain("onClick={() => void analyzeQueue()}");
     expect(componentSource).not.toContain("void analyzeQueue(accepted");
+    expect(componentSource).toContain(
+      "const showBatchControls = pendingCount > 0 || processing;",
+    );
+    expect(componentSource).toContain("{showBatchControls ? (");
     for (const status of [
       "Preparado",
       "Analizando",
