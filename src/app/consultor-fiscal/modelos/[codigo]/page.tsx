@@ -204,6 +204,39 @@ export async function generateMetadata({
         "593": "Modelo 593 AEAT: impuesto sobre residuos",
         "595": "Modelo 595 AEAT: suministros de carbón",
         "596": "Modelo 596 AEAT: Impuesto Especial sobre el Carbón",
+        "600": "Modelo 600 AEAT: ITP y Actos Jurídicos Documentados",
+        "602": "Modelo 602 AEAT: tasa administrativa de juego",
+        "604": "Modelo 604 AEAT: Impuesto sobre Transacciones Financieras",
+        "610":
+          "Modelo 610 AEAT: documentos negociados por entidades colaboradoras",
+        "611": "Modelo 611 AEAT: resumen anual del Modelo 610",
+        "615": "Modelo 615 AEAT: documentos con función de giro",
+        "616": "Modelo 616 AEAT: resumen anual del Modelo 615",
+        "620": "Modelo 620 AEAT: ITP de vehículos usados",
+        "630": "Modelo 630 AEAT: AJD de letras y documentos mercantiles",
+        "650": "Modelo 650 AEAT: Impuesto sobre Sucesiones",
+        "651": "Modelo 651 AEAT: Impuesto sobre Donaciones",
+        "655": "Modelo 655 AEAT: extinción de usufructo",
+        "681":
+          "Modelo 681 AEAT: tasa de residuos radiactivos del sistema eléctrico",
+        "682": "Modelo 682 AEAT: tasa de centrales nucleares",
+        "683": "Modelo 683 AEAT: fabricación de combustible nuclear",
+        "684": "Modelo 684 AEAT: retirada de residuos radiactivos",
+        "685": "Modelo 685 AEAT: apuestas y combinaciones aleatorias",
+        "695": "Modelo 695 AEAT: devolución de la tasa judicial",
+        "696": "Modelo 696 AEAT: tasa judicial",
+        "763": "Modelo 763 AEAT: Impuesto sobre Actividades de Juego",
+        "770":
+          "Modelo 770 AEAT: regularización especial de intereses y recargos",
+        "771": "Modelo 771 AEAT: cuota de regularización especial",
+        "780": "Modelo 780 AEAT: impuesto financiero vigente",
+        "781": "Modelo 781 AEAT: pago fraccionado del impuesto financiero",
+        "791": "Modelo 791 AEAT: oposiciones y tasa de examen",
+        "792": "Modelo 792 AEAT: aportación anual a RTVE",
+        "793": "Modelo 793 AEAT: pagos a cuenta de la aportación a RTVE",
+        "795": "Modelo 795 AEAT histórico: gravamen energético 2023 y 2024",
+        "796": "Modelo 796 AEAT histórico: pago energético 2023 y 2024",
+        "797": "Modelo 797 AEAT histórico: antiguo gravamen bancario",
         "232": "Modelo 232 AEAT: operaciones vinculadas",
         "233": "Modelo 233 AEAT: gastos de guarderías y centros infantiles",
         "238": "Modelo 238 AEAT: información de operadores de plataformas",
@@ -540,6 +573,66 @@ export async function generateMetadata({
           "Guía del Modelo 595: relación informativa de suministros de carbón, operadores, destinatarios, cantidades y correcciones.",
         "596":
           "Guía del Modelo 596: autoliquidación del Impuesto Especial sobre el Carbón, operaciones sujetas, autoconsumo, exenciones y cuota.",
+        "600":
+          "Guía del Modelo 600: competencia estatal o autonómica, transmisiones, operaciones societarias, AJD, sujeto pasivo, plazo y documentación.",
+        "602":
+          "Guía del Modelo 602: tasa administrativa de juego, solicitantes, actuaciones, devengo, pago y diferencia con los Modelos 685 y 763.",
+        "604":
+          "Guía del Modelo 604: impuesto mensual del 0,2 % sobre determinadas acciones, anexo previo, plazo, exenciones y correcciones.",
+        "610":
+          "Guía del Modelo 610: AJD de documentos negociados por entidades colaboradoras y conciliación con el Modelo 611.",
+        "611":
+          "Guía del Modelo 611: resumen informativo anual sin nuevo pago, campaña, conciliación y correcciones.",
+        "615":
+          "Guía del Modelo 615: documentos con función de giro, autorización, pago en metálico y relación con el Modelo 616.",
+        "616":
+          "Guía del Modelo 616: resumen anual informativo de los documentos del Modelo 615, plazo y corrección.",
+        "620":
+          "Guía del Modelo 620: comprador, competencia territorial, vehículos usados, valor, plazo y cambio de titularidad.",
+        "630":
+          "Guía del Modelo 630: AJD complementario de letras y documentos mercantiles, competencia y formulario PDF.",
+        "650":
+          "Guía del Modelo 650: herencias, cada heredero, competencia territorial, seis meses, prórroga y documentación.",
+        "651":
+          "Guía del Modelo 651: donaciones, donatario, competencia territorial, plazo estatal y efectos del donante.",
+        "655":
+          "Guía del Modelo 655: usufructo, nuda propiedad, causa de extinción, modelo previo y competencia territorial.",
+        "681":
+          "Guía del Modelo 681: tasa mensual del sistema eléctrico para gestión de residuos radiactivos.",
+        "682":
+          "Guía del Modelo 682: tasa mensual de centrales nucleares, combustible gastado, residuos, plazo y cese.",
+        "683":
+          "Guía del Modelo 683: tasa anual de instalaciones de fabricación de combustible nuclear.",
+        "684":
+          "Guía del Modelo 684: retirada de residuos radiactivos de otras instalaciones, ENRESA y plazo de 60 días.",
+        "685":
+          "Guía del Modelo 685: apuestas y promociones, competencia, periodo 0A y plazo de 30 días.",
+        "695":
+          "Guía del Modelo 695: devolución parcial del 60 % o 20 % de determinadas tasas judiciales.",
+        "696":
+          "Guía del Modelo 696: tasa judicial de personas jurídicas, exenciones, STC 140/2016 y correcciones.",
+        "763":
+          "Guía del Modelo 763: impuesto trimestral de operadores estatales de juego, modalidades y territorio.",
+        "770":
+          "Guía del Modelo 770: regularización voluntaria especial, intereses, recargos, artículo 252 LGT y límites.",
+        "771":
+          "Guía del Modelo 771: cuota principal solo cuando no existe modelo electrónico ordinario y relación con el 770.",
+        "780":
+          "Guía del Modelo 780: impuesto financiero vigente, septiembre, base liquidable, escala, Modelo 781 y territorio.",
+        "781":
+          "Guía del Modelo 781: pago fraccionado del 40 %, febrero, cuota positiva y deducción en el Modelo 780.",
+        "791":
+          "Guía del Modelo 791: inscripción en oposiciones AEAT, convocatoria, tasa, exenciones y registro.",
+        "792":
+          "Guía del Modelo 792: aportación anual a RTVE, febrero, tipos del 3 % y 1,5 %, deducción y pagos 793.",
+        "793":
+          "Guía del Modelo 793: pagos del 25 % en abril, julio y octubre a cuenta de la aportación audiovisual.",
+        "795":
+          "Modelo 795 histórico: gravamen temporal energético de 2023 y 2024, consultas y correcciones; no vigente en 2025/2026.",
+        "796":
+          "Modelo 796 histórico: pago anticipado energético de 2023 y 2024; no existe pago actual.",
+        "797":
+          "Modelo 797 histórico: antiguo gravamen temporal bancario, distinto de los actuales Modelos 780 y 781.",
         "232":
           "Guía del Modelo 232: operaciones vinculadas, valoración de mercado, límites, documentación, plazo y corrección de la declaración.",
         "233":
