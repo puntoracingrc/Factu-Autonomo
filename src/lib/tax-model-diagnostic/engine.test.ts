@@ -120,4 +120,127 @@ describe("tax model diagnostic engine", () => {
       .toBe("DERIVED");
     expect(result.discrepancies).toEqual([]);
   });
+
+  it("no descarta la Renta por no haber actividad personal ni RETA", () => {
+    const result = evaluateTaxModelDiagnostic(
+      completeCommonTerritoryProfile({
+        invoicingSubject: "COMPANY",
+        taxpayerRole: "CORPORATE_SELF_EMPLOYED",
+        hasPersonalActivity: "NO",
+        retaDuringYear: "NO",
+      }),
+      GENERATED_AT,
+    );
+
+    expect(result.models.find((model) => model.modelNumber === "100")?.status)
+      .toBe("NEEDS_INFORMATION");
+  });
+
+  it("no convierte un régimen especial de IVA sin identificar en un 303", () => {
+    const result = evaluateTaxModelDiagnostic(
+      completeCommonTerritoryProfile({ vatRegimes: ["OTHER_SPECIAL"] }),
+      GENERATED_AT,
+    );
+
+    expect(result.models.find((model) => model.modelNumber === "303")?.status)
+      .toBe("NEEDS_INFORMATION");
+    expect(result.models.find((model) => model.modelNumber === "390")?.status)
+      .toBe("NEEDS_INFORMATION");
+  });
+
+  it("eleva el conflicto entre SII y una exoneración 390 negada", () => {
+    const result = evaluateTaxModelDiagnostic(
+      completeCommonTerritoryProfile({ sii: "YES", vatAnnualSummaryExempt: "NO" }),
+      GENERATED_AT,
+    );
+
+    expect(result.models.find((model) => model.modelNumber === "390")?.status)
+      .toBe("CENSUS_MISMATCH");
+  });
+
+  it("no usa REDEME o SII para hacer mensuales las retenciones", () => {
+    const result = evaluateTaxModelDiagnostic(
+      completeCommonTerritoryProfile({
+        employees: "YES",
+        rentsBusinessPremises: "YES",
+        rentSubjectToWithholding: "YES",
+        landlordWithholdingExemption: "NO",
+        redeme: "YES",
+        sii: "YES",
+        vatAnnualSummaryExempt: "YES",
+      }),
+      GENERATED_AT,
+    );
+
+    expect(result.models.find((model) => model.modelNumber === "111")?.periodicity)
+      .toBe("QUARTERLY");
+    expect(result.models.find((model) => model.modelNumber === "115")?.periodicity)
+      .toBe("QUARTERLY");
+  });
+
+  it("no inventa la periodicidad del 349", () => {
+    const result = evaluateTaxModelDiagnostic(
+      completeCommonTerritoryProfile({ euServicesSales: "YES", roiRegistered: "YES" }),
+      GENERATED_AT,
+    );
+    const model349 = result.models.find((model) => model.modelNumber === "349");
+
+    expect(model349?.status).toBe("DERIVED");
+    expect(model349?.periodicity).toBe("TO_BE_CONFIRMED");
+    expect(model349?.periods).toEqual([]);
+  });
+
+  it("mantiene el 369 mientras el alta OSS/IOSS siga vigente aunque no haya ventas", () => {
+    const result = evaluateTaxModelDiagnostic(
+      completeCommonTerritoryProfile({ euConsumerSales: "NO", ossRegistered: "YES" }),
+      GENERATED_AT,
+    );
+
+    expect(result.models.find((model) => model.modelNumber === "369")?.status)
+      .toBe("DERIVED");
+  });
+
+  it("no excluye el 347 por SII sin confirmar que cubrió todo el ejercicio", () => {
+    const result = evaluateTaxModelDiagnostic(
+      completeCommonTerritoryProfile({
+        sii: "YES",
+        vatAnnualSummaryExempt: "YES",
+        thirdPartyThresholdExceeded: "YES",
+        thirdPartyOperationsAllExcluded: "NO",
+      }),
+      GENERATED_AT,
+    );
+
+    expect(result.models.find((model) => model.modelNumber === "347")?.status)
+      .toBe("DERIVED");
+  });
+
+  it("no elige entre 130 y 131 solo por indicar atribución de rentas", () => {
+    const result = evaluateTaxModelDiagnostic(
+      completeCommonTerritoryProfile({
+        invoicingSubject: "COMMUNITY_OF_PROPERTY",
+        taxpayerRole: "PARTNER_OR_COMMUNITY_MEMBER",
+        incomeTaxRegime: "ENTITY_ATTRIBUTION",
+      }),
+      GENERATED_AT,
+    );
+
+    expect(result.models.find((model) => model.modelNumber === "130")?.status)
+      .toBe("NEEDS_INFORMATION");
+    expect(result.models.find((model) => model.modelNumber === "131")?.status)
+      .toBe("NEEDS_INFORMATION");
+  });
+
+  it("no aplica un único 70 % a actividades profesionales y agrarias mezcladas", () => {
+    const result = evaluateTaxModelDiagnostic(
+      completeCommonTerritoryProfile({
+        activityKinds: ["PROFESSIONAL", "AGRICULTURE"],
+        withheldIncomePercent: 80,
+      }),
+      GENERATED_AT,
+    );
+
+    expect(result.models.find((model) => model.modelNumber === "130")?.status)
+      .toBe("NEEDS_INFORMATION");
+  });
 });

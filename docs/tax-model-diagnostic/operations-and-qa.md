@@ -57,4 +57,8 @@ con los 41 casos semánticos base.
 - Rollback inmediato: cerrar el flag; la navegación vuelve al catálogo completo de modelos.
 - Rollback de código: revertir los commits de la feature. El bloque persistido es opcional y las versiones incompatibles fallan cerrado.
 
-Calendar y Modelos AEAT no deben iniciar su integración hasta recibir un aviso posterior que incluya SHA de `main`, export/shape definitivos, versiones, archivos compartidos y confirmación de Production Domain Wait/Assign/Verify verde.
+Calendar y Modelos AEAT ya disponen de integraciones fail-closed. Deben mantener
+`Todos` como vista efectiva y deshabilitar la personalización mientras el
+assessment no sea `APPROVED` y `RESOLVED`. La autorización posterior debe
+incluir SHA de `main`, versions exactas, aprobación fiscal nominal y Production
+Domain Wait/Assign/Verify verde.

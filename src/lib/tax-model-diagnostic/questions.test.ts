@@ -165,4 +165,15 @@ describe("diagnostic question tree", () => {
     expect(wealth?.explanation).toContain("comunidad autónoma");
     expect(wealth?.example).toContain("Para saberlo");
   });
+
+  it("pregunta siempre por OSS/IOSS porque un alta anterior puede seguir vigente", () => {
+    const oss = DIAGNOSTIC_QUESTIONS.find(
+      (question) => question.questionId === "J_OSS",
+    );
+    const profile = createEmptyTaxpayerProfile();
+    profile.euConsumerSales = "NO";
+
+    expect(isQuestionApplicable(oss!, profile)).toBe(true);
+    expect(oss?.explanation).toContain("períodos sin operaciones");
+  });
 });
