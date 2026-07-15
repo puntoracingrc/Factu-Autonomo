@@ -278,6 +278,9 @@ describe("fiscal model structural review pages UI contract", () => {
 
     expect(catalog).toContain("officialContentByCode");
     expect(catalog).toContain("FiscalModelOfficialVisual");
+    expect(catalog).toContain(
+      '"grid items-start grid-cols-[5.5rem_minmax(0,1fr)] gap-3"',
+    );
     expect(catalog).toContain("content.searchTerms");
     expect(catalog).toContain("content.summary");
     expect(catalog).toContain("content.faq.flatMap");
@@ -286,6 +289,9 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(detail).toContain("FiscalModelOfficialVisual");
     expect(officialVisual).toContain("content.thumbnail.publicHref");
     expect(officialVisual).toContain("content.thumbnail.alt");
+    expect(officialVisual).toContain(
+      '"w-full self-start overflow-hidden rounded-xl',
+    );
     expect(officialVisualPolicy).toContain('link.category !== "PROCEDURE"');
     expect(officialVisualPolicy).toContain('source.kind === "PROCEDURE_HOME"');
     expect(officialVisualPolicy).toContain(
