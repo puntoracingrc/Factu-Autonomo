@@ -24,7 +24,13 @@ export interface FiscalRuleHashInput {
 }
 
 function sorted(values: readonly string[]): string[] {
-  return [...values].sort((left, right) => left.localeCompare(right));
+  return [...values].sort((left, right) =>
+    left < right ? -1 : left > right ? 1 : 0,
+  );
+}
+
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 /**
@@ -57,9 +63,7 @@ export function canonicalizeFiscalRuleDecision(
         exceptionIds: sorted(candidate.exceptionIds),
         sourceIds: sorted(candidate.sourceIds),
       }))
-      .sort((left, right) =>
-        left.exclusionId.localeCompare(right.exclusionId),
-      ),
+      .sort((left, right) => compareText(left.exclusionId, right.exclusionId)),
     sources: [...input.sourceSnapshots]
       .map((source) => ({
         sourceId: source.sourceId,
@@ -70,7 +74,7 @@ export function canonicalizeFiscalRuleDecision(
         snapshotHash: source.snapshotHash,
         materialScope: source.materialScope,
       }))
-      .sort((left, right) => left.sourceId.localeCompare(right.sourceId)),
+      .sort((left, right) => compareText(left.sourceId, right.sourceId)),
   });
 }
 
@@ -79,4 +83,3 @@ export function computeFiscalRuleHash(input: FiscalRuleHashInput): string {
     canonicalizeFiscalRuleDecision(input),
   )}`;
 }
-
