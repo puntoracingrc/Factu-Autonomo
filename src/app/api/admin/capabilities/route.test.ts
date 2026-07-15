@@ -26,7 +26,33 @@ describe("GET /api/admin/capabilities", () => {
     expect(response.status).toBe(401);
   });
 
-  it("distingue admin completo de aprendizaje IA", async () => {
+  it.each(["admin-one@example.com", "admin-two@example.com"])(
+    "da los mismos permisos completos e IA ilimitada a %s",
+    async (email) => {
+      vi.stubEnv(
+        "ADMIN_EMAILS",
+        "admin-one@example.com,admin-two@example.com",
+      );
+      vi.mocked(getUserFromBearer).mockResolvedValue({
+        id: email,
+        email,
+      } as Awaited<ReturnType<typeof getUserFromBearer>>);
+
+      const response = await GET(request());
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body).toMatchObject({
+        fullAdmin: true,
+        adminEmailAuthorized: true,
+        aiLearning: true,
+        learningLabel: "admin",
+      });
+      expect(body).not.toHaveProperty("adminMfa");
+    },
+  );
+
+  it("conserva aprendizaje IA sin conceder admin completo", async () => {
     vi.mocked(getUserFromBearer).mockResolvedValue({
       id: "user-empresa",
       email: "persianasalmar@gmail.com",
@@ -38,6 +64,7 @@ describe("GET /api/admin/capabilities", () => {
     expect(response.status).toBe(200);
     expect(body).toMatchObject({
       fullAdmin: false,
+      adminEmailAuthorized: false,
       aiLearning: true,
       learningLabel: "persianas_almar",
     });

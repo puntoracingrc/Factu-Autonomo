@@ -105,7 +105,8 @@ describe("admin user MFA recovery route", () => {
     vi.unstubAllEnvs();
   });
 
-  it("requiere sesion admin aal2", async () => {
+  it("requiere una sesion incluida en la allowlist admin", async () => {
+    vi.mocked(isAdminUser).mockReturnValue(false);
     const response = await GET(request("GET", undefined, "aal1"), params());
 
     expect(response.status).toBe(403);

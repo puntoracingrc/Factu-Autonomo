@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { isAdminUser } from "@/lib/admin/access";
-import { adminMfaAccessFromAuthorization } from "@/lib/admin/server-access";
 import { aiLearningAccountForEmail } from "@/lib/ai-learning";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import {
@@ -27,13 +26,11 @@ export async function GET(request: Request) {
 
   const learning = aiLearningAccountForEmail(user.email);
   const adminEmailAuthorized = isAdminUser(user);
-  const adminMfa = adminMfaAccessFromAuthorization(authorization);
 
   return NextResponse.json({
-    fullAdmin: adminEmailAuthorized && (!adminMfa.required || adminMfa.satisfied),
+    fullAdmin: adminEmailAuthorized,
     adminEmailAuthorized,
-    adminMfa,
-    aiLearning: learning.allowed,
-    learningLabel: learning.label,
+    aiLearning: adminEmailAuthorized || learning.allowed,
+    learningLabel: adminEmailAuthorized ? "admin" : learning.label,
   });
 }

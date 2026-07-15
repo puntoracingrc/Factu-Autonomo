@@ -12,14 +12,14 @@ No contiene credenciales, tokens, IPs ni datos de usuarios.
 
 La aplicacion combina controles en navegador, servidor, Supabase, Vercel y
 GitHub. Las capas principales son autenticacion, aislamiento RLS por usuario,
-MFA obligatorio para administradores, CSP en bloqueo, limites distribuidos,
+allowlist de administradores en servidor, CSP en bloqueo, limites distribuidos,
 webhooks firmados, WAF, deteccion de abuso y un despliegue que no llega al
 dominio hasta superar las pruebas.
 
-El registro, la demo y la primera factura no tienen pasos nuevos. El alta y la
-validacion MFA pertenecen exclusivamente al area administrativa. Las
-protecciones adicionales actuan en segundo plano y solo frenan una peticion
-cuando supera limites de seguridad o consumo.
+El registro, la demo y la primera factura no tienen pasos nuevos. El area
+administrativa usa la sesion normal y una allowlist de emails configurada solo
+en servidor. Las protecciones adicionales actuan en segundo plano y solo frenan
+una peticion cuando supera limites de seguridad o consumo.
 
 ## Infraestructura y navegador
 
@@ -53,12 +53,13 @@ cuando supera limites de seguridad o consumo.
 - Las operaciones sensibles requieren email confirmado.
 - Los administradores se definen mediante `ADMIN_EMAILS` de servidor; no hay un
   admin fijo de produccion dentro del codigo.
-- Las APIs admin completas exigen TOTP y nivel de sesion `aal2`.
-- El alta y la validacion TOTP se muestran solo dentro de `/admin`, despues de
-  comprobar en servidor que el email pertenece a `ADMIN_EMAILS`.
-- La recuperacion de un factor perdido requiere otro admin en `aal2`, codigo
-  enviado al email verificado, confirmacion manual, caducidad, limite de
-  intentos y registro operativo.
+- Las APIs admin exigen una sesion autenticada cuyo email pertenezca a
+  `ADMIN_EMAILS`; las dos cuentas declaradas reciben el mismo alcance.
+- El producto no exige ni ofrece alta TOTP para entrar en Admin. Los factores
+  antiguos no amplian ni reducen permisos.
+- Las cuentas admin tienen IA y escaneos sin consumo de creditos. Los rate
+  limits tecnicos permanecen para contener bucles o automatizaciones
+  accidentales.
 
 ## Datos y Supabase
 
@@ -74,10 +75,8 @@ cuando supera limites de seguridad o consumo.
   dias de logs.
 - El panel admin permite crear copias privadas y revisar una vista previa, pero
   la aplicacion de restauraciones esta bloqueada de forma fail-closed. Un
-  acceso a este perimetro exige AAL2 incluso si la flag MFA global esta
-  desactivada; un intento de apply responde despues sin leer ni mutar los datos
-  hasta existir una transaccion/RPC o saga reanudable con rollback y evidencia
-  indivisible.
+  intento de apply responde sin leer ni mutar los datos hasta existir una
+  transaccion/RPC o saga reanudable con rollback y evidencia indivisible.
 
 ## APIs, archivos y servicios externos
 
@@ -132,7 +131,7 @@ distinguir bots de usuarios legitimos.
 
 Admin concentra la informacion operativa en secciones separadas:
 
-- Seguridad: MFA, abuso/scraping, alertas programadas y WAF.
+- Seguridad: acceso allowlisted, abuso/scraping, alertas programadas y WAF.
 - Supabase: usuarios activos, sincronizacion, crecimiento y salud de datos.
 - Vercel: consumo Pro, despliegue, dominio y estado del firewall.
 - Errores: eventos tecnicos recientes y rutas afectadas.
@@ -177,12 +176,12 @@ Cuando aparezca un aviso rojo:
 
 - Registro y login: sin pasos adicionales fuera del CAPTCHA ya integrado.
 - Demo y primera factura: sin pasos adicionales.
-- MFA: reservado al area administrativa; Cuenta no ofrece alta TOTP.
+- Admin: usa la sesion normal y `ADMIN_EMAILS`; no ofrece alta TOTP.
 - Google, Drive, Stripe y Supabase Auth: mismo flujo visible.
 - Un archivo demasiado grande muestra un error antes de consumir recursos.
 - Un `429` solo aparece cuando se supera un limite de seguridad o consumo.
-- Las cuentas admin conservan capacidad superior para trabajos masivos
-  autorizados.
+- Las cuentas admin conservan IA y escaneos ilimitados, con rate limits de
+  contencion para trabajos masivos autorizados.
 
 ## Limites y decisiones pendientes
 

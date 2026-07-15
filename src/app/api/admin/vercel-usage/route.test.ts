@@ -25,7 +25,6 @@ describe("GET /api/admin/vercel-usage", () => {
     vi.mocked(getAdminAccessFromRequest).mockResolvedValue({
       ok: true,
       user: { id: "admin-1", email: "admin@example.com" },
-      mfa: { required: true, satisfied: true, currentLevel: "aal2" },
     } as Awaited<ReturnType<typeof getAdminAccessFromRequest>>);
     vi.mocked(checkRateLimit).mockResolvedValue({
       allowed: true,

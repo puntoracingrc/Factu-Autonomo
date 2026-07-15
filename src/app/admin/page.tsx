@@ -74,6 +74,8 @@ type AdminSection =
 
 type OperationsSection = Exclude<AdminSection, "usuarios" | "aprendizaje">;
 
+const ADMIN_MFA_UI_ENABLED = false;
+
 interface AdminCapabilitiesResponse {
   fullAdmin?: boolean;
   adminEmailAuthorized?: boolean;
@@ -1730,7 +1732,7 @@ function UserAdminCard({
       </div>
 
       <UserRestorePanel user={user} />
-      <UserMfaRecoveryPanel user={user} />
+      {ADMIN_MFA_UI_ENABLED && <UserMfaRecoveryPanel user={user} />}
 
       <div className="grid gap-3 lg:grid-cols-[1fr_auto_auto_auto] lg:items-end">
         <label className="space-y-1 text-sm font-bold text-slate-700">
@@ -4175,7 +4177,9 @@ export default function AdminPage() {
         </Card>
       )}
 
-      {capabilities?.adminEmailAuthorized && capabilities.adminMfa && (
+      {ADMIN_MFA_UI_ENABLED &&
+        capabilities?.adminEmailAuthorized &&
+        capabilities.adminMfa && (
         <AdminMfaPanel
           adminMfa={capabilities.adminMfa}
           onChanged={() => setCapabilitiesRefreshKey((value) => value + 1)}

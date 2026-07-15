@@ -5,6 +5,10 @@ import { isBillingEnforced } from "@/lib/billing/config";
 import { getPlanLimits, type PlanId } from "@/lib/billing/plans";
 import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { consumeFiscalAiFallback } from "@/lib/billing/scan-usage-server";
+import {
+  hasUnlimitedAiAccess,
+  unlimitedAiUsageResult,
+} from "@/lib/billing/unlimited-ai-access";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
 import {
@@ -180,7 +184,8 @@ export async function POST(request: Request) {
       });
     }
 
-    if (!(await canUseFiscalAi(user.id))) {
+    const unlimitedAccess = hasUnlimitedAiAccess(user);
+    if (!unlimitedAccess && !(await canUseFiscalAi(user.id))) {
       return json({
         data: localWithWarning(
           localResult,
@@ -198,7 +203,9 @@ export async function POST(request: Request) {
       });
     }
 
-    const usage = await consumeFiscalAiFallback(user.id);
+    const usage = unlimitedAccess
+      ? unlimitedAiUsageResult()
+      : await consumeFiscalAiFallback(user.id);
     if (!usage.allowed) {
       return json({
         data: localWithWarning(

@@ -4,6 +4,10 @@ import { isBillingEnforced } from "@/lib/billing/config";
 import { getPlanLimits, type PlanId } from "@/lib/billing/plans";
 import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { consumeAddressAutofill } from "@/lib/billing/scan-usage-server";
+import {
+  hasUnlimitedAiAccess,
+  unlimitedAiUsageResult,
+} from "@/lib/billing/unlimited-ai-access";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import {
   checkRateLimit,
@@ -55,7 +59,11 @@ export async function POST(request: Request) {
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  const gate = user ? await canUseAddressAutofill(user.id) : { allowed: true };
+  const unlimitedAccess = hasUnlimitedAiAccess(user);
+  const gate =
+    user && !unlimitedAccess
+      ? await canUseAddressAutofill(user.id)
+      : { allowed: true };
   if (!gate.allowed) {
     return NextResponse.json({ error: gate.reason }, { status: 402 });
   }
@@ -64,7 +72,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ quota: null });
   }
 
-  const usage = await consumeAddressAutofill(user.id);
+  const usage = unlimitedAccess
+    ? unlimitedAiUsageResult()
+    : await consumeAddressAutofill(user.id);
   if (!usage.allowed) {
     return NextResponse.json(
       { error: usage.reason, quota: usage.quota },

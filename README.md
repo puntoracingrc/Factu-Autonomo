@@ -29,7 +29,7 @@ Programa de facturación **sencillo** para autónomos. Funciona en **PC, iPhone 
 Puedes empezar sin cuenta y guardar los datos **en tu dispositivo**. Al crear
 una cuenta con nube activa, la app sincroniza cada usuario de forma aislada con
 Supabase y permite copias adicionales en Google Drive. La cuenta incluye
-confirmacion de email, recuperacion de contraseña y MFA opcional.
+confirmacion de email y recuperacion de contraseña.
 
 ## Tecnología
 

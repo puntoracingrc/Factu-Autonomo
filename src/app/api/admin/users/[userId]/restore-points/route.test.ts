@@ -79,28 +79,7 @@ describe("admin user restore points route", () => {
     expect(getSupabaseAdmin).not.toHaveBeenCalled();
   });
 
-  it("exige AAL2 en todo el perímetro aunque la flag MFA global esté desactivada", async () => {
-    vi.stubEnv("ADMIN_MFA_REQUIRED", "false");
-    const from = vi.fn();
-    const getUserById = vi.fn();
-    vi.mocked(getSupabaseAdmin).mockReturnValue({
-      auth: { admin: { getUserById } },
-      from,
-    } as never);
-
-    const response = await GET(request(undefined, "aal1"), params);
-    const body = await response.json();
-
-    expect(response.status).toBe(403);
-    expect(response.headers.get("X-Admin-MFA-Required")).toBe("1");
-    expect(body).toMatchObject({ code: "admin_mfa_required" });
-    expect(getSupabaseAdmin).not.toHaveBeenCalled();
-    expect(getUserById).not.toHaveBeenCalled();
-    expect(from).not.toHaveBeenCalled();
-  });
-
-  it("bloquea el apply con AAL2 antes de leer o mutar datos", async () => {
-    vi.stubEnv("ADMIN_MFA_REQUIRED", "false");
+  it("bloquea el apply para una sesion admin antes de leer o mutar datos", async () => {
     const from = vi.fn();
     const getUserById = vi.fn();
     vi.mocked(getSupabaseAdmin).mockReturnValue({
@@ -109,7 +88,7 @@ describe("admin user restore points route", () => {
     } as never);
 
     const response = await POST(
-      request({ action: "restore", restorePointId: "restore-1" }),
+      request({ action: "restore", restorePointId: "restore-1" }, "aal1"),
       params,
     );
     const body = await response.json();
@@ -126,7 +105,7 @@ describe("admin user restore points route", () => {
     expect(from).not.toHaveBeenCalled();
   });
 
-  it("permite crear una copia con AAL2 sin mutar sync_entities", async () => {
+  it("permite crear una copia a una sesion admin sin mutar sync_entities", async () => {
     const syncBuilder = asyncBuilder({ data: [], error: null });
     const restorePointBuilder = asyncBuilder({
       data: {
@@ -157,11 +136,14 @@ describe("admin user restore points route", () => {
     } as never);
 
     const response = await POST(
-      request({
-        action: "create",
-        label: "Copia soporte admin",
-        reason: "Diagnóstico sintético",
-      }),
+      request(
+        {
+          action: "create",
+          label: "Copia soporte admin",
+          reason: "Diagnóstico sintético",
+        },
+        "aal1",
+      ),
       params,
     );
     const body = await response.json();
