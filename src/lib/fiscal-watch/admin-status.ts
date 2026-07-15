@@ -10,6 +10,8 @@ export interface FiscalWatchAdminIssue {
   sourceLabel: string | null;
   sourceUrl: string | null;
   detectedAt: string;
+  modelCodes: string[];
+  modelHintsTruncated: boolean;
 }
 
 export interface FiscalWatchAdminStatus {
@@ -45,10 +47,16 @@ const MAX_ISSUES_PER_LABEL = 20;
 const MAX_ISSUE_BODY_LENGTH = 65_536;
 const STALE_AFTER_MS = 36 * 60 * 60_000;
 const FUTURE_CLOCK_SKEW_MS = 5 * 60_000;
+const MAX_MODEL_HINTS = 80;
 const CHANGE_ISSUE_MARKER =
   /<!-- fiscal-watch-change:v1:[a-z0-9-]+:[a-f0-9]{32} -->/g;
 const BASELINE_ISSUE_MARKER =
   /<!-- fiscal-watch-baseline:v1:[A-Za-z0-9._-]+:[A-Za-z0-9._-]+ -->/g;
+const MODEL_HINT_MARKER =
+  /<!-- fiscal-watch-model-hint:v1:(A\d{2}|\d{2,3}[A-Z]?) -->/g;
+const MODEL_HINT_MARKER_PREFIX = "<!-- fiscal-watch-model-hint:v1:";
+const MODEL_HINTS_TRUNCATED_MARKER =
+  /<!-- fiscal-watch-model-hints-truncated:v1 -->/g;
 
 const WORKFLOW_STATUSES = new Set([
   "queued",
@@ -90,6 +98,12 @@ interface NormalizedWorkflow {
 interface NormalizedIssues {
   valid: boolean;
   issues: FiscalWatchAdminIssue[];
+}
+
+interface NormalizedModelHints {
+  valid: boolean;
+  codes: string[];
+  truncated: boolean;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -204,6 +218,37 @@ function normalizedLabels(value: unknown): string[] | null {
   return labels;
 }
 
+function normalizeModelHints(
+  body: string | null,
+  kind: FiscalWatchIssueKind,
+): NormalizedModelHints {
+  if (!body) return { valid: true, codes: [], truncated: false };
+  MODEL_HINT_MARKER.lastIndex = 0;
+  MODEL_HINTS_TRUNCATED_MARKER.lastIndex = 0;
+  const codes = [...body.matchAll(MODEL_HINT_MARKER)].map(
+    (match) => match[1],
+  );
+  const markerPrefixCount = body.split(MODEL_HINT_MARKER_PREFIX).length - 1;
+  const truncatedMarkers = [
+    ...body.matchAll(MODEL_HINTS_TRUNCATED_MARKER),
+  ];
+  const uniqueSorted = [...new Set(codes)].sort();
+  const valid =
+    codes.length <= MAX_MODEL_HINTS &&
+    markerPrefixCount === codes.length &&
+    truncatedMarkers.length <= 1 &&
+    codes.length === uniqueSorted.length &&
+    codes.every((code, index) => code === uniqueSorted[index]) &&
+    (truncatedMarkers.length === 0 || codes.length === MAX_MODEL_HINTS) &&
+    (kind === "change" ||
+      (codes.length === 0 && truncatedMarkers.length === 0));
+  return {
+    valid,
+    codes: valid ? uniqueSorted : [],
+    truncated: valid && truncatedMarkers.length === 1,
+  };
+}
+
 function normalizeWorkflow(value: unknown): NormalizedWorkflow {
   const record = asRecord(value);
   const rows = record?.workflow_runs;
@@ -297,6 +342,10 @@ function normalizeIssues(
     const updatedAt = isoTimestamp(issue?.updated_at);
     const labels = normalizedLabels(issue?.labels);
     const body = issue?.body;
+    const modelHints = normalizeModelHints(
+      typeof body === "string" ? body : null,
+      kind,
+    );
     const author = asRecord(issue?.user);
     const markerPattern =
       kind === "change" ? CHANGE_ISSUE_MARKER : BASELINE_ISSUE_MARKER;
@@ -320,7 +369,8 @@ function normalizeIssues(
       (body !== null && typeof body !== "string") ||
       (typeof body === "string" &&
         Array.from(body).length > MAX_ISSUE_BODY_LENGTH) ||
-      markers.length !== 1
+      markers.length !== 1 ||
+      !modelHints.valid
     ) {
       return { valid: false, issues: [] };
     }
@@ -335,6 +385,8 @@ function normalizeIssues(
       sourceLabel: source.label,
       sourceUrl: source.url,
       detectedAt,
+      modelCodes: modelHints.codes,
+      modelHintsTruncated: modelHints.truncated,
     });
   }
 

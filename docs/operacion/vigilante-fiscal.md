@@ -74,6 +74,12 @@ oficial, pruebas y revisión fiscal correspondiente.
 El panel solo muestra títulos breves y metadatos públicos saneados. Los botones
 abren el Issue, la ejecución de GitHub o la URL oficial exacta. No expone cuerpos
 de estado, hashes, cabeceras, credenciales ni datos de usuarios.
+Cuando el título o la evidencia pública dicen literalmente «Modelo», «Modelos»,
+«Formulario» o «Formularios» seguidos de códigos acotados, el aviso y Admin los
+muestran como **fichas candidatas a revisar**. Los años, artículos, importes,
+plazos, procedimientos y números aislados no se convierten en códigos. La pista
+es mecánica y no confirma que el modelo haya cambiado, vaya a cambiar, esté
+vigente o sea aplicable.
 Las lecturas públicas de GitHub usan una caché compartida de quince minutos; la
 respuesta autenticada de Admin sigue siendo privada y `no-store`.
 
@@ -85,6 +91,8 @@ respuesta autenticada de Admin sigue siendo privada y `no-store`.
 - detectar cambios del horizonte futuro en calendarios completos;
 - conservar identificadores oficiales, títulos y evidencia pública anterior y
   posterior para que una persona determine los modelos afectados;
+- señalar códigos de modelo mencionados explícitamente como candidatos de
+  revisión, sin deducirlos de texto libre ni completar rangos o códigos;
 - crear avisos deduplicados y trazables a la fuente original.
 
 ## Qué exige revisión humana

@@ -33,6 +33,8 @@ const OFFICIAL_SOURCE_LABELS = new Map([
   ["sede.agenciatributaria.gob.es", "Agencia Tributaria"],
   ["www2.agenciatributaria.gob.es", "Agencia Tributaria · INFORMA"],
 ]);
+const MODEL_CODE_PATTERN = /^(?:A\d{2}|\d{2,3}[A-Z]?)$/;
+const MAX_MODEL_HINTS = 80;
 
 function cleanText(value: unknown, maxLength: number): string | null {
   if (typeof value !== "string") return null;
@@ -62,6 +64,25 @@ function safeDateTime(value: unknown): string {
 function safeCount(value: unknown): number | null {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
     ? value
+    : null;
+}
+
+function safeModelCodes(value: unknown): string[] | null {
+  if (!Array.isArray(value) || value.length > MAX_MODEL_HINTS) return null;
+  const codes: string[] = [];
+  for (const candidate of value) {
+    if (
+      typeof candidate !== "string" ||
+      !MODEL_CODE_PATTERN.test(candidate) ||
+      codes.includes(candidate)
+    ) {
+      return null;
+    }
+    codes.push(candidate);
+  }
+  const sorted = [...codes].sort();
+  return codes.every((code, index) => code === sorted[index])
+    ? codes
     : null;
 }
 
@@ -124,6 +145,8 @@ interface DisplayIssue {
   issueUrl: string;
   source: { label: string; url: string } | null;
   detectedAt: string;
+  modelCodes: string[];
+  modelHintsTruncated: boolean;
 }
 
 function displayIssue(value: FiscalWatchAdminIssue): DisplayIssue | null {
@@ -138,6 +161,14 @@ function displayIssue(value: FiscalWatchAdminIssue): DisplayIssue | null {
   }
   const issueUrl = exactGithubUrl(value.url, "issue", number);
   if (!issueUrl) return null;
+  const modelCodes = safeModelCodes(value.modelCodes);
+  if (
+    !modelCodes ||
+    typeof value.modelHintsTruncated !== "boolean" ||
+    (value.modelHintsTruncated && modelCodes.length !== MAX_MODEL_HINTS)
+  ) {
+    return null;
+  }
   const detectedTimestamp = Date.parse(value.detectedAt);
   if (!Number.isFinite(detectedTimestamp)) return null;
   return {
@@ -147,6 +178,8 @@ function displayIssue(value: FiscalWatchAdminIssue): DisplayIssue | null {
     issueUrl,
     source: officialSource(value.sourceUrl),
     detectedAt: new Date(detectedTimestamp).toISOString(),
+    modelCodes,
+    modelHintsTruncated: value.modelHintsTruncated,
   };
 }
 
@@ -210,6 +243,36 @@ function IssueCard({ issue }: { issue: DisplayIssue }) {
           <p className="mt-1 break-words text-xs text-slate-600 dark:text-slate-300">
             Detectado: {safeDateTime(issue.detectedAt)}
           </p>
+          {issue.modelCodes.length > 0 && (
+            <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/80 p-3 dark:border-blue-900/70 dark:bg-blue-950/35">
+              <p className="text-xs font-black uppercase tracking-wide text-blue-900 dark:text-blue-100">
+                Fichas candidatas a revisar
+              </p>
+              <div
+                className="mt-2 flex flex-wrap gap-2"
+                aria-label="Modelos o formularios mencionados explícitamente"
+              >
+                {issue.modelCodes.map((code) => (
+                  <span
+                    key={code}
+                    className="inline-flex rounded-full bg-blue-100 px-2.5 py-1 font-mono text-xs font-black text-blue-900 dark:bg-blue-900/70 dark:text-blue-100"
+                  >
+                    {code}
+                  </span>
+                ))}
+              </div>
+              {issue.modelHintsTruncated && (
+                <p className="mt-2 text-xs font-bold text-blue-900 dark:text-blue-100">
+                  Hay más referencias en la fuente oficial; examina el aviso
+                  completo.
+                </p>
+              )}
+              <p className="mt-2 text-xs leading-5 text-blue-900 dark:text-blue-100">
+                Son menciones literales detectadas automáticamente; no
+                confirman por sí solas un cambio del modelo.
+              </p>
+            </div>
+          )}
         </div>
         <a
           href={issue.issueUrl}
