@@ -504,6 +504,156 @@ const practicalCatalogLabels: Readonly<
     "Trimestral",
     "Hasta el día 20",
   ],
+  "546": [
+    "Gasóleo bonificado",
+    "Entidades emisoras",
+    "Trimestral",
+    "Hasta el día 20",
+  ],
+  "547": [
+    "Gasóleo bonificado",
+    "Abonos a detallistas",
+    "Trimestral",
+    "Hasta el día 20",
+  ],
+  "548": [
+    "Impuestos Especiales",
+    "Depositarios autorizados",
+    "Mensual",
+    "Operaciones por cuenta ajena",
+  ],
+  "553": [
+    "Vino y bebidas fermentadas",
+    "SILICIE",
+    "Trimestral",
+    "Formulario 2025+",
+  ],
+  "559": [
+    "Alcohol",
+    "Destilación artesanal",
+    "Tarifa 1 y 2",
+    "Plazos especiales",
+  ],
+  "560": ["Electricidad", "Autoliquidación", "CIE", "Tipo revisable"],
+  "561": ["Cerveza", "Impuestos Especiales", "Autoliquidación", "Grado Plato"],
+  "562": [
+    "Productos intermedios",
+    "Tranquilos y espumosos",
+    "Autoliquidación",
+    "Impuestos Especiales",
+  ],
+  "563": [
+    "Alcohol y bebidas derivadas",
+    "Autoliquidación",
+    "Litros de alcohol puro",
+    "Impuestos Especiales",
+  ],
+  "566": [
+    "Tabaco",
+    "Autoliquidación",
+    "Labores y epígrafes",
+    "Impuestos Especiales",
+  ],
+  "568": [
+    "Medios de transporte",
+    "Reventa profesional",
+    "Envío fuera del territorio",
+    "Antes de cuatro años",
+  ],
+  "571": [
+    "Hidrocarburos",
+    "Reconocimiento previo",
+    "Devolución",
+    "No es el 572",
+  ],
+  "572": [
+    "Hidrocarburos",
+    "Solicitud de devolución",
+    "Trimestral",
+    "Relacionado con 571",
+  ],
+  "573": [
+    "Cigarrillos electrónicos",
+    "Mensual",
+    "Vigente desde abril de 2025",
+    "Impuesto especial",
+  ],
+  "576": ["Carburantes", "Devolución", "Uso profesional", "Transporte"],
+  "581": ["Hidrocarburos", "Autoliquidación", "Por establecimiento", "Vigente"],
+  "582": [
+    "Histórico",
+    "Hidrocarburos",
+    "Periodos anteriores a 2019",
+    "No vigente en 2026",
+  ],
+  "583": [
+    "Producción eléctrica",
+    "Pagos fraccionados",
+    "Autoliquidación anual",
+    "Noviembre",
+  ],
+  "584": [
+    "Energía nuclear",
+    "Producción",
+    "Combustible gastado",
+    "Residuos radiactivos",
+  ],
+  "585": [
+    "Energía nuclear",
+    "Almacenamiento centralizado",
+    "Combustible gastado",
+    "Residuos radiactivos",
+  ],
+  "586": [
+    "Histórico",
+    "Gases fluorados",
+    "Hasta agosto de 2022",
+    "No vigente en 2026",
+  ],
+  "587": [
+    "Gases fluorados",
+    "Trimestral",
+    "Rectificativa desde julio de 2026",
+    "Autoliquidación",
+  ],
+  "588": [
+    "Producción eléctrica",
+    "Cese anticipado",
+    "Noviembre",
+    "Relacionado con 583",
+  ],
+  "589": ["Extracción", "Gas y petróleo", "Pago en octubre", "Anual en abril"],
+  "590": ["Hidrocarburos", "Exportación", "Devolución", "Aduanas"],
+  "591": [
+    "Producción eléctrica",
+    "Pagadores",
+    "Informativa anual",
+    "Diciembre",
+  ],
+  "592": [
+    "Plástico no reciclado",
+    "Vigente desde 2023",
+    "Autoliquidación",
+    "Envases",
+  ],
+  "593": [
+    "Residuos",
+    "Vigente desde 2023",
+    "Gestión territorial",
+    "Vertedero e incineración",
+  ],
+  "595": [
+    "Carbón",
+    "Relación de suministros",
+    "Declaración informativa",
+    "Operadores",
+  ],
+  "596": [
+    "Carbón",
+    "Autoliquidación",
+    "Impuestos Especiales",
+    "Suministro o autoconsumo",
+  ],
   "232": [
     "Autónomo societario y empresas",
     "Operaciones vinculadas",
@@ -776,6 +926,64 @@ const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
     "Información trimestral de pagos mediante cheques y tarjetas de gasóleo bonificado.",
   "545":
     "Información trimestral de carburantes suministrados bajo beneficios de relaciones internacionales.",
+  "546":
+    "Información trimestral de cheques-tarjeta de gasóleo bonificado emitidos o gestionados por entidades autorizadas.",
+  "547":
+    "Información trimestral de abonos realizados a detallistas de gasóleo bonificado por entidades emisoras de medios de pago.",
+  "548":
+    "Declaración mensual de cuotas repercutidas por depositarios autorizados en operaciones por cuenta ajena, sin incluir electricidad.",
+  "553":
+    "Operaciones y existencias de determinados establecimientos de vino y bebidas fermentadas, coordinadas con SILICIE y con flujo separado desde 2025.",
+  "559":
+    "Autoliquidación especial de destilación artesanal y régimen de cosechero, con reglas distintas para Tarifa 1 y Tarifa 2.",
+  "560":
+    "Autoliquidación del Impuesto Especial sobre la Electricidad por contribuyentes inscritos, no por consumidores ordinarios.",
+  "561":
+    "Autoliquidación del Impuesto sobre la Cerveza por operadores autorizados.",
+  "562":
+    "Autoliquidación del Impuesto sobre Productos Intermedios tranquilos y espumosos.",
+  "563": "Autoliquidación del Impuesto sobre el Alcohol y Bebidas Derivadas.",
+  "566": "Autoliquidación de los Impuestos sobre las Labores del Tabaco.",
+  "568":
+    "Solicitud de devolución para revendedores profesionales que envían definitivamente un medio de transporte fuera del territorio antes de cuatro años.",
+  "571":
+    "Reconocimiento previo del derecho a determinadas devoluciones del Impuesto sobre Hidrocarburos.",
+  "572":
+    "Solicitud trimestral de devolución de determinadas cuotas del Impuesto sobre Hidrocarburos.",
+  "573":
+    "Autoliquidación mensual del impuesto sobre líquidos para cigarrillos electrónicos y otros productos del tabaco, exigible desde abril de 2025.",
+  "576":
+    "Solicitud de devolución por determinados usos profesionales de gasóleo.",
+  "581":
+    "Autoliquidación vigente del Impuesto sobre Hidrocarburos por establecimiento.",
+  "582":
+    "Modelo histórico trimestral por establecimiento, limitado a periodos anteriores a 2019.",
+  "583":
+    "Pagos fraccionados y autoliquidación anual del impuesto sobre el valor de la producción eléctrica.",
+  "584":
+    "Autoliquidación por producción de combustible nuclear gastado y residuos radiactivos.",
+  "585":
+    "Autoliquidación por almacenamiento centralizado de combustible nuclear gastado y residuos radiactivos.",
+  "586":
+    "Declaración histórica de gases fluorados, limitada a operaciones realizadas hasta el 31 de agosto de 2022.",
+  "587":
+    "Autoliquidación vigente de gases fluorados, con rectificativa para periodos iniciados desde julio de 2026.",
+  "588":
+    "Autoliquidación especial de producción eléctrica por determinados ceses anticipados.",
+  "589":
+    "Pago fraccionado y autoliquidación anual de la extracción de gas, petróleo y condensados.",
+  "590":
+    "Solicitud de devolución de hidrocarburos en determinados envíos y exportaciones acreditados.",
+  "591":
+    "Información anual de pagos realizados a contribuyentes del impuesto sobre la producción eléctrica.",
+  "592":
+    "Autoliquidación vigente desde 2023 sobre envases de plástico no reutilizables.",
+  "593":
+    "Autoliquidación vigente desde 2023 sobre depósito, incineración y coincineración de residuos, con gestión territorial.",
+  "595":
+    "Relación informativa de suministros de carbón realizada por operadores obligados.",
+  "596":
+    "Autoliquidación del Impuesto Especial sobre el Carbón por operaciones sujetas y autoconsumos.",
   "040":
     "Alta, modificación y baja de operadores de plataformas en sus dos registros específicos. No es el Modelo 04 y no lo presenta el vendedor.",
   "172":
