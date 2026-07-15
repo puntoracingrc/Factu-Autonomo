@@ -45,6 +45,10 @@ const practicalSubtitleByCode: Readonly<Record<string, string>> = Object.freeze(
       "Devolución del IVA español a empresarios establecidos fuera de la Unión Europea",
     "369": "Declaración del IVA de OSS e IOSS",
     "390": "Resumen anual del IVA",
+    "714": "Impuesto sobre el Patrimonio",
+    "718": "Impuesto Temporal de Solidaridad de las Grandes Fortunas",
+    "720": "Bienes y derechos situados en el extranjero",
+    "721": "Criptomonedas custodiadas en el extranjero",
     "840": "Alta, variación y baja en el Impuesto sobre Actividades Económicas",
   },
 );

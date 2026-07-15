@@ -132,6 +132,34 @@ const practicalCatalogLabels: Readonly<
     "OSS e IOSS",
   ],
   "390": ["Anual", "IVA", "Puede estar exonerado"],
+  "714": [
+    "Patrimonio y activos internacionales",
+    "Patrimonio personal",
+    "Anual",
+    "Reglas autonómicas",
+    "Solo si existe obligación",
+  ],
+  "718": [
+    "Patrimonio y activos internacionales",
+    "Grandes fortunas",
+    "Patrimonio personal",
+    "Julio",
+    "Avanzado",
+  ],
+  "720": [
+    "Patrimonio y activos internacionales",
+    "Bienes en el extranjero",
+    "Declaración informativa",
+    "Enero a marzo",
+    "Solo si se superan límites",
+  ],
+  "721": [
+    "Patrimonio y activos internacionales",
+    "Criptomonedas",
+    "Custodia extranjera",
+    "Declaración informativa",
+    "Enero a marzo",
+  ],
   "840": [
     "Normalmente no para autónomos",
     "IAE",
@@ -147,6 +175,14 @@ const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
     "Datos personales y familiares del trabajador para calcular la retención de su nómina. Se entrega al pagador.",
   "193":
     "Resumen anual de determinadas rentas y retenciones declaradas mediante el Modelo 123.",
+  "714":
+    "Declaración del Impuesto sobre el Patrimonio cuando existe cuota o se supera el límite bruto establecido.",
+  "718":
+    "Impuesto estatal complementario del Patrimonio para determinados patrimonios netos elevados.",
+  "720":
+    "Declaración informativa sobre determinadas cuentas, inversiones, seguros e inmuebles situados en el extranjero.",
+  "721":
+    "Declaración informativa sobre criptomonedas custodiadas por determinados proveedores situados en el extranjero.",
 };
 
 export function FiscalModelCatalogView({

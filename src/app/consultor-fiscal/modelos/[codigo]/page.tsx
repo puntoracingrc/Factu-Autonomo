@@ -70,6 +70,10 @@ export async function generateMetadata({
           "Modelo 361 AEAT: devolución del IVA a empresas de fuera de la UE",
         "369": "Modelo 369 AEAT: declaración de IVA OSS e IOSS",
         "390": "Modelo 390 AEAT: resumen anual del IVA",
+        "714": "Modelo 714 AEAT: Impuesto sobre el Patrimonio",
+        "718": "Modelo 718 AEAT: Impuesto de Grandes Fortunas",
+        "720": "Modelo 720 AEAT: bienes y derechos en el extranjero",
+        "721": "Modelo 721 AEAT: criptomonedas en el extranjero",
         "840": "Modelo 840 AEAT: alta, variación y baja en el IAE",
       }[codigo]
     : undefined;
@@ -127,6 +131,14 @@ export async function generateMetadata({
           "Guía sencilla del Modelo 369: quién lo presenta, periodos, países de consumo, tipos de IVA, declaraciones sin actividad, pago y correcciones.",
         "390":
           "Guía sencilla del Modelo 390: quién debe presentarlo, exoneraciones, relación con el Modelo 303, plazo, comprobaciones y trámite oficial.",
+        "714":
+          "Guía sencilla del Modelo 714: obligación de declarar, límite de dos millones, mínimo exento, vivienda, bienes empresariales y presentación.",
+        "718":
+          "Guía sencilla del Modelo 718: quién debe presentarlo, patrimonio superior a tres millones, mínimo exento, escala, Patrimonio y plazo.",
+        "720":
+          "Guía sencilla del Modelo 720: cuentas, inversiones e inmuebles en el extranjero, límite de 50.000 euros, nueva presentación y plazo.",
+        "721":
+          "Guía sencilla del Modelo 721: custodia extranjera, autocustodia, límite de 50.000 euros, valoración, nueva presentación y plazo.",
         "840":
           "Guía sencilla del Modelo 840: quién debe presentarlo, exención de autónomos, límite de un millón, epígrafes, plazos, pago y relación con el Modelo 036.",
       }[codigo]

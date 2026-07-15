@@ -46,6 +46,10 @@ import { MODEL_360_GUIDE_V1 } from "./model-360-guide.v1";
 import { MODEL_361_GUIDE_V1 } from "./model-361-guide.v1";
 import { MODEL_369_GUIDE_V1 } from "./model-369-guide.v1";
 import { MODEL_390_GUIDE_V1 } from "./model-390-guide.v1";
+import { MODEL_714_GUIDE_V1 } from "./model-714-guide.v1";
+import { MODEL_718_GUIDE_V1 } from "./model-718-guide.v1";
+import { MODEL_720_GUIDE_V1 } from "./model-720-guide.v1";
+import { MODEL_721_GUIDE_V1 } from "./model-721-guide.v1";
 import { MODEL_840_GUIDE_V1 } from "./model-840-guide.v1";
 
 const focusRing =
@@ -279,6 +283,30 @@ export function FiscalModelOfficialContentView({
   if (content.code === "390") {
     return (
       <FiscalModelPracticalGuide content={content} guide={MODEL_390_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "714") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_714_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "718") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_718_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "720") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_720_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "721") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_721_GUIDE_V1} />
     );
   }
 
