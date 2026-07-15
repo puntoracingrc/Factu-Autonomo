@@ -42,7 +42,8 @@ export async function generateMetadata({
         "035": "Formulario 035 AEAT: alta en OSS e IOSS",
         "036": "Modelo 036 AEAT: alta, modificación y baja censal",
         "037": "Modelo 037 AEAT: modelo histórico sustituido por el 036",
-        "038": "Modelo 038 AEAT: operaciones de entidades inscritas en Registros públicos",
+        "038":
+          "Modelo 038 AEAT: operaciones de entidades inscritas en Registros públicos",
         "039": "Modelo 039 AEAT: grupo de entidades de IVA",
         "040": "Modelo 040 AEAT: registro de operadores de plataformas",
         "043": "Modelo 043 AEAT: tasa sobre el juego del bingo",
@@ -72,7 +73,8 @@ export async function generateMetadata({
         "146": "Modelo 146 AEAT: pensionistas con varios pagadores",
         "147": "Modelo 147 AEAT: trabajador desplazado y retenciones",
         "149": "Modelo 149 AEAT: opción por el régimen de desplazados",
-        "150": "Modelo 150 AEAT histórico: régimen de desplazados anterior a 2015",
+        "150":
+          "Modelo 150 AEAT histórico: régimen de desplazados anterior a 2015",
         "151": "Modelo 151 AEAT: declaración de trabajadores desplazados",
         "156": "Modelo 156 AEAT: resumen anual de cotizaciones",
         "159": "Modelo 159 AEAT: consumo anual de energía eléctrica",
@@ -109,6 +111,36 @@ export async function generateMetadata({
         "216": "Modelo 216 AEAT: retenciones por pagos a no residentes",
         "217": "Modelo 217 AEAT: gravamen especial SOCIMI del 19 %",
         "220": "Modelo 220 AEAT: consolidación fiscal de Sociedades",
+        "221": "Modelo 221 AEAT: activos por impuesto diferido",
+        "222": "Modelo 222 AEAT: pagos de grupos fiscales",
+        "226": "Modelo 226 AEAT: régimen opcional para no residentes UE/EEE",
+        "228": "Modelo 228 AEAT: reinversión en vivienda habitual",
+        "230": "Modelo 230 AEAT: retenciones mensuales de loterías",
+        "231": "Modelo 231 AEAT: información país por país CBC/DAC4",
+        "234": "Modelo 234 AEAT: mecanismos transfronterizos DAC6",
+        "235": "Modelo 235 AEAT: actualización trimestral DAC6",
+        "236": "Modelo 236 AEAT: utilización de mecanismos DAC6",
+        "237": "Modelo 237 AEAT: gravamen SOCIMI del 15 %",
+        "239": "Modelo 239 AEAT pendiente de activación: elusión CRS",
+        "240": "Modelo 240 AEAT: comunicación del Impuesto Complementario",
+        "241": "Modelo 241 AEAT: declaración GIR/DAC9 de grandes grupos",
+        "242": "Modelo 242 AEAT: autoliquidación del Impuesto Complementario",
+        "247": "Modelo 247 AEAT: trabajador desplazado al extranjero",
+        "270": "Modelo 270 AEAT: resumen anual de premios de loterías",
+        "280": "Modelo 280 AEAT: Planes de Ahorro a Largo Plazo",
+        "281": "Modelo 281 AEAT: comercio de bienes ZEC",
+        "282": "Modelo 282 AEAT: ayudas del REF de Canarias",
+        "283": "Modelo 283 AEAT: ayudas fiscales de Illes Balears",
+        "289": "Modelo 289 AEAT: cuentas financieras CRS",
+        "290": "Modelo 290 AEAT: cuentas FATCA",
+        "291": "Modelo 291 AEAT: transición al Modelo 196",
+        "294": "Modelo 294 AEAT: operaciones transfronterizas en IIC",
+        "295": "Modelo 295 AEAT: posiciones transfronterizas en IIC",
+        "318": "Modelo 318 AEAT: regularización territorial del IVA",
+        "319": "Modelo 319 AEAT: pago anticipado de carburantes en 2026",
+        "322": "Modelo 322 AEAT: IVA mensual de grupos de entidades",
+        "345": "Modelo 345 AEAT: planes de pensiones y previsión social",
+        "346": "Modelo 346 AEAT: subvenciones e indemnizaciones agrarias",
         "232": "Modelo 232 AEAT: operaciones vinculadas",
         "233": "Modelo 233 AEAT: gastos de guarderías y centros infantiles",
         "238": "Modelo 238 AEAT: información de operadores de plataformas",
@@ -265,6 +297,66 @@ export async function generateMetadata({
           "Guía del Modelo 217: gravamen especial SOCIMI del 19 %, acuerdo de distribución, perceptores y plazo de dos meses.",
         "220":
           "Guía del Modelo 220: grupo fiscal, entidad representante, eliminaciones, incorporaciones, pagos 222, Sociedades WEB y correcciones.",
+        "221":
+          "Guía del Modelo 221: activos fiscales diferidos convertibles, ejercicios 2008–2015, tipo del 1,5 %, plazo y correcciones.",
+        "222":
+          "Guía del Modelo 222: pagos fraccionados de grupos fiscales, modalidades 40.2 y 40.3, abril, octubre y diciembre.",
+        "226":
+          "Guía del Modelo 226: régimen opcional para personas no residentes UE/EEE, requisitos, documentos, plazo y posible devolución.",
+        "228":
+          "Guía del Modelo 228: reinversión de vivienda habitual por no residentes, documentos, plazo de tres meses y relación con 210 y 211.",
+        "230":
+          "Guía del Modelo 230: retenciones mensuales sobre determinados premios, parte exenta, 20 %, premios compartidos y resumen 270.",
+        "231":
+          "Guía del Modelo 231 CBC/DAC4: grupos con más de 750 millones, comunicación previa, datos por país y plazo de doce meses.",
+        "234":
+          "Guía del Modelo 234: comunicación inicial DAC6, intermediarios, señas distintivas, secreto profesional y plazo de 30 días.",
+        "235":
+          "Guía del Modelo 235: actualización trimestral de mecanismos DAC6 comercializables y referencia del Modelo 234.",
+        "236":
+          "Guía del Modelo 236: utilización anual en España de mecanismos DAC6, referencia y plazo de octubre a diciembre.",
+        "237":
+          "Guía del Modelo 237: gravamen del 15 % sobre beneficios no distribuidos por SOCIMI y plazo de dos meses desde el acuerdo.",
+        "239":
+          "Modelo 239 pendiente de activación internacional: mecanismos de elusión CRS, estructuras opacas, AMAC y normativa oficial.",
+        "240":
+          "Guía del Modelo 240: comunicación de la entidad declarante del Impuesto Complementario, grandes grupos y primera campaña.",
+        "241":
+          "Guía del Modelo 241: declaración informativa GIR/DAC9 de grandes grupos, servicio web, formulario y primeros plazos.",
+        "242":
+          "Guía del Modelo 242: autoliquidación del Impuesto Complementario, tipo mínimo global, plazos y presentación por lotes.",
+        "247":
+          "Guía del Modelo 247: trabajador por cuenta ajena desplazado al extranjero, documentación, retenciones y diferencia con 147 y 030.",
+        "270":
+          "Guía del Modelo 270: resumen anual de premios y retenciones, fichero, conciliación con el 230 y correcciones.",
+        "280":
+          "Guía del Modelo 280: SIALP y CIALP, entidades declarantes, permanencia y plazo especial durante febrero.",
+        "281":
+          "Guía del Modelo 281: operaciones trimestrales ZEC sin tránsito por Canarias, libro registro, formulario y fichero.",
+        "282":
+          "Guía del Modelo 282: ayudas fiscales del REF de Canarias, beneficiarios, categorías, límites y plazo ligado a Renta o Sociedades.",
+        "283":
+          "Guía del Modelo 283: ayudas fiscales del régimen balear, beneficiarios, límites y plazo ligado a Renta o Sociedades.",
+        "289":
+          "Guía del Modelo 289 CRS: instituciones financieras, cuentas reportables, TIN, servicio web, mensajes y plazo anual.",
+        "290":
+          "Guía del Modelo 290 FATCA: cuentas de personas estadounidenses, US TIN, servicio web, plazo y correcciones.",
+        "291":
+          "Guía histórica reciente del Modelo 291: cuentas de no residentes y transición de la información 2026 al Modelo 196 mensual.",
+        "294":
+          "Guía del Modelo 294: operaciones de clientes extranjeros en IIC españolas, cuenta global, fichero y plazo hasta 31 de marzo.",
+        "295":
+          "Guía del Modelo 295: posiciones a 31 de diciembre de clientes extranjeros en IIC españolas y relación con el 294.",
+        "318":
+          "Guía del Modelo 318: regularización territorial del IVA entre Estado y Haciendas forales antes de la actividad habitual.",
+        "319":
+          "Guía del Modelo 319 nuevo en 2026: pago anticipado de IVA antes de extraer determinados carburantes de depósitos fiscales.",
+        "322":
+          "Guía del Modelo 322: autoliquidación mensual individual de cada entidad de un grupo de IVA y relación con el 353.",
+        "345":
+          "Guía del Modelo 345: planes de pensiones y otros sistemas de previsión, entidades declarantes, aportaciones y plazo anual.",
+        "346":
+          "Guía del Modelo 346: ayudas agrarias informadas por entidades pagadoras, datos, correcciones y plazo sujeto a revisión anual.",
         "232":
           "Guía del Modelo 232: operaciones vinculadas, valoración de mercado, límites, documentación, plazo y corrección de la declaración.",
         "233":
