@@ -266,6 +266,7 @@ describe("structured fiscal notification history view model v1", () => {
         title: "Providencia de apremio AEAT",
         authority: "Agencia Estatal de Administración Tributaria",
         documentDate: "2026-02-05",
+        documentDateBasis: "Fecha de emision",
         subjectName: "PERSONA SINTETICA",
         subjectTaxId: "12345678Z",
         pageCount: 3,
@@ -281,6 +282,40 @@ describe("structured fiscal notification history view model v1", () => {
         ],
         printedDates: [
           { label: "Fecha de emisión impresa", value: "05/02/2026" },
+        ],
+        orderedFacts: [
+          {
+            key: "reference:liquidation",
+            semantic: "REFERENCE",
+            label: "Clave de liquidación",
+            value: "LQ-SYNTH-081",
+            pageNumber: 1,
+            sourceReference: null,
+          },
+          {
+            key: "reference:csv",
+            semantic: "REFERENCE",
+            label: "Código Seguro de Verificación (CSV)",
+            value: "CSV-SYNTH-081",
+            pageNumber: 1,
+            sourceReference: null,
+          },
+          {
+            key: "money:principal",
+            semantic: "MONEY",
+            label: "Principal pendiente impreso",
+            value: "1.234,56 €",
+            pageNumber: 2,
+            sourceReference: null,
+          },
+          {
+            key: "evidence:date",
+            semantic: "DATE",
+            label: "Fecha de emisión impresa",
+            value: "05/02/2026",
+            pageNumber: 3,
+            sourceReference: null,
+          },
         ],
         money: [
           {
@@ -363,6 +398,7 @@ describe("structured fiscal notification history view model v1", () => {
     expect(result.status).toBe("READY");
     if (result.status !== "READY") return;
     expect(result.entries[0]?.documentDate).toBe("2026-02-05");
+    expect(result.entries[0]?.documentDateBasis).toBe("Fecha de emision");
 
     value.analysisSnapshots[0]!.structuredData.unknownFields[0]!.confidence =
       "MEDIUM";
@@ -373,6 +409,63 @@ describe("structured fiscal notification history view model v1", () => {
     expect(uncertain.status).toBe("READY");
     if (uncertain.status !== "READY") return;
     expect(uncertain.entries[0]?.documentDate).toBeNull();
+    expect(uncertain.entries[0]?.documentDateBasis).toBeNull();
+  });
+
+  it("usa firma, acto o notificación exactos como respaldo sin recurrir a la fecha de escaneo", () => {
+    const signature = workspace();
+    signature.documents[0]!.issueDate = undefined;
+    signature.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
+      undefined;
+    signature.documents[0]!.signatureDate = "2026-02-06";
+    expect(
+      projectFiscalNotificationStructuredHistoryV1(signature, OWNER),
+    ).toMatchObject({
+      status: "READY",
+      entries: [
+        { documentDate: "2026-02-06", documentDateBasis: "Fecha de firma" },
+      ],
+    });
+
+    const action = workspace();
+    action.documents[0]!.issueDate = undefined;
+    action.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
+      undefined;
+    action.analysisSnapshots[0]!.structuredData.unknownFields = [
+      {
+        labelRaw: "VSR1|DATE|ACTION_DATE|Fecha del acuerdo",
+        valueRaw: "07/02/2026",
+        page: 1,
+        confidence: "EXACT",
+      },
+    ];
+    expect(
+      projectFiscalNotificationStructuredHistoryV1(action, OWNER),
+    ).toMatchObject({
+      status: "READY",
+      entries: [
+        { documentDate: "2026-02-07", documentDateBasis: "Fecha del acto" },
+      ],
+    });
+
+    const notified = workspace();
+    notified.documents[0]!.issueDate = undefined;
+    notified.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
+      undefined;
+    notified.analysisSnapshots[0]!.structuredData.unknownFields = [];
+    notified.documents[0]!.notificationDates.effectiveAt =
+      "2026-02-08T08:30:00.000Z";
+    expect(
+      projectFiscalNotificationStructuredHistoryV1(notified, OWNER),
+    ).toMatchObject({
+      status: "READY",
+      entries: [
+        {
+          documentDate: "2026-02-08",
+          documentDateBasis: "Fecha de notificacion",
+        },
+      ],
+    });
   });
 
   it("recupera las etiquetas exactas del extractor sin duplicar referencias ni importes", () => {
@@ -414,6 +507,28 @@ describe("structured fiscal notification history view model v1", () => {
     );
     expect(result.entries[0]?.printedDates).toEqual([
       { label: "Fecha exacta de emisión", value: "05/02/2026" },
+    ]);
+    expect(result.entries[0]?.orderedFacts).toEqual([
+      expect.objectContaining({
+        label: "Clave exacta",
+        value: "LQ-SYNTH-081",
+        pageNumber: 1,
+      }),
+      expect.objectContaining({
+        label: "Código Seguro de Verificación (CSV)",
+        value: "CSV-SYNTH-081",
+        pageNumber: 1,
+      }),
+      expect.objectContaining({
+        label: "Principal exacto",
+        value: "1.234,56 €",
+        pageNumber: 2,
+      }),
+      expect.objectContaining({
+        label: "Fecha exacta de emisión",
+        value: "05/02/2026",
+        pageNumber: 3,
+      }),
     ]);
   });
 
