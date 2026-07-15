@@ -7,7 +7,7 @@ import {
 export const AEAT_OFFSET_AGREEMENT_FACTS_SCHEMA_VERSION_V1 = 1 as const;
 export const AEAT_OFFSET_AGREEMENT_FACTS_ENGINE_ID_V1 =
   "aeat-offset-agreement-explicit-facts" as const;
-export const AEAT_OFFSET_AGREEMENT_FACTS_ENGINE_VERSION_V1 = "1.0.0" as const;
+export const AEAT_OFFSET_AGREEMENT_FACTS_ENGINE_VERSION_V1 = "1.1.0" as const;
 
 export const AEAT_OFFSET_AGREEMENT_FACTS_LIMITS_V1 = Object.freeze({
   maxLinesPerPage: 5_000,
@@ -43,6 +43,7 @@ export type AeatOffsetAgreementFactsIssueCodeV1 =
   | "MULTIPLE_DISTINCT_SUBJECT_VALUES"
   | "MULTIPLE_DISTINCT_AGREEMENT_VALUES"
   | "MULTIPLE_DISTINCT_REQUEST_DATES"
+  | "MULTIPLE_DISTINCT_SIGNATURE_DATES"
   | "RESOURCE_LIMIT_EXCEEDED"
   | "UNSUPPORTED_TEXT_STATE";
 
@@ -89,6 +90,7 @@ export interface AeatOffsetAgreementHeaderFactsV1 {
   readonly subjectTaxId: AeatOffsetTextFactV1 | null;
   readonly agreementNumber: AeatOffsetTextFactV1 | null;
   readonly requestDate: AeatOffsetPrintedDateFactV1 | null;
+  readonly signatureDate: AeatOffsetPrintedDateFactV1 | null;
 }
 
 export interface AeatOffsetCreditFactV1 {
@@ -128,7 +130,7 @@ export interface AeatOffsetDebtFactV1 {
 export interface AeatOffsetAgreementFactsResultV1 {
   readonly schemaVersion: 1;
   readonly engineId: "aeat-offset-agreement-explicit-facts";
-  readonly engineVersion: "1.0.0";
+  readonly engineVersion: "1.1.0";
   readonly documentType: "AEAT_OFFSET_AGREEMENT" | null;
   readonly agreementMode: AeatOffsetAgreementModeV1 | null;
   readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";
@@ -205,6 +207,25 @@ const DEBT_REFERENCE_ROW =
 const IDENTIFIER = /^[A-Z0-9][A-Z0-9./_-]*$/u;
 const TAX_ID = /^[A-Z0-9][A-Z0-9 -]{7,15}$/u;
 const CONTROL_CHARACTER = /[\u0000-\u001f\u007f-\u009f]/u;
+const SIGNATURE_INTRO = /documento\s+firmado\s+electr[oó]nicamente/iu;
+const SPANISH_SIGNATURE_DATE = new RegExp(
+  String.raw`(?:administrador(?:a)?|jefe|director(?:a)?|delegad[oa])[^\d]{0,160}(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})`,
+  "iu",
+);
+const SPANISH_MONTHS = Object.freeze({
+  enero: 1,
+  febrero: 2,
+  marzo: 3,
+  abril: 4,
+  mayo: 5,
+  junio: 6,
+  julio: 7,
+  agosto: 8,
+  septiembre: 9,
+  octubre: 10,
+  noviembre: 11,
+  diciembre: 12,
+} as const);
 
 const REQUESTED_TITLE =
   "acuerdo de compensacion a instancia del obligado al pago";
@@ -259,6 +280,7 @@ export function extractAeatOffsetAgreementFactsV1(
   const subjectTaxIds: ScalarObservation[] = [];
   const agreementNumbers: ScalarObservation[] = [];
   const requestDates: DateObservation[] = [];
+  const signatureDates: DateObservation[] = [];
   const credits: AeatOffsetCreditFactV1[] = [];
   const parsedDebts: Array<{
     readonly pending: PendingDebt;
@@ -279,6 +301,12 @@ export function extractAeatOffsetAgreementFactsV1(
       return blockedResult(page.pageNumber);
     }
     collectEffectStatements(page.text, page.pageNumber, effectStatements);
+    collectSignatureDateObservations(
+      page.text,
+      page.pageNumber,
+      signatureDates,
+      issues,
+    );
 
     for (const rawLine of lines) {
       assertNotAborted(input.signal);
@@ -445,6 +473,11 @@ export function extractAeatOffsetAgreementFactsV1(
       issues,
     ),
     requestDate: uniqueDateFact(requestDates, issues),
+    signatureDate: uniqueDateFact(
+      signatureDates,
+      issues,
+      "MULTIPLE_DISTINCT_SIGNATURE_DATES",
+    ),
   };
   const ambiguous = issues.some((item) =>
     [
@@ -458,6 +491,7 @@ export function extractAeatOffsetAgreementFactsV1(
       "MULTIPLE_DISTINCT_SUBJECT_VALUES",
       "MULTIPLE_DISTINCT_AGREEMENT_VALUES",
       "MULTIPLE_DISTINCT_REQUEST_DATES",
+      "MULTIPLE_DISTINCT_SIGNATURE_DATES",
       "UNSUPPORTED_TEXT_STATE",
     ].includes(item.code),
   );
@@ -466,7 +500,8 @@ export function extractAeatOffsetAgreementFactsV1(
       header.subjectName ||
         header.subjectTaxId ||
         header.agreementNumber ||
-        header.requestDate,
+        header.requestDate ||
+        header.signatureDate,
     ) ||
     credits.length > 0 ||
     debts.length > 0;
@@ -644,6 +679,34 @@ function collectHeaderObservation(
   }
 }
 
+function collectSignatureDateObservations(
+  pageText: string,
+  pageNumber: number,
+  target: DateObservation[],
+  issues: AeatOffsetAgreementFactsIssueV1[],
+): void {
+  const intro = SIGNATURE_INTRO.exec(pageText);
+  if (!intro) return;
+  const boundedTail = pageText.slice(intro.index, intro.index + 600);
+  const match = SPANISH_SIGNATURE_DATE.exec(boundedTail);
+  if (!match) return;
+  const day = Number(match[1]);
+  const monthName = (match[2] ?? "").toLowerCase() as keyof typeof SPANISH_MONTHS;
+  const month = SPANISH_MONTHS[monthName];
+  const year = Number(match[3]);
+  if (!month || !isCalendarDate(year, month, day)) {
+    issues.push(issue("INVALID_PRINTED_DATE", [pageNumber], null, null));
+    return;
+  }
+  target.push(
+    Object.freeze({
+      printedValue: `${String(day).padStart(2, "0")}-${String(month).padStart(2, "0")}-${String(year).padStart(4, "0")}`,
+      calendarDate: `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
+      pageNumber,
+    }),
+  );
+}
+
 function collectEffectStatements(
   pageText: string,
   pageNumber: number,
@@ -815,12 +878,7 @@ function parsePrintedDate(
   const day = Number(match[1]);
   const month = Number(match[3]);
   const year = Number(match[4]);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
+  if (!isCalendarDate(year, month, day)) {
     return null;
   }
   return Object.freeze({
@@ -828,6 +886,15 @@ function parsePrintedDate(
     calendarDate: `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
     pageNumber,
   });
+}
+
+function isCalendarDate(year: number, month: number, day: number): boolean {
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
 }
 
 function parseIdentifierObservation(
@@ -904,6 +971,9 @@ function uniqueTextFact(
 function uniqueDateFact(
   observations: readonly DateObservation[],
   issues: AeatOffsetAgreementFactsIssueV1[],
+  conflictCode:
+    | "MULTIPLE_DISTINCT_REQUEST_DATES"
+    | "MULTIPLE_DISTINCT_SIGNATURE_DATES" = "MULTIPLE_DISTINCT_REQUEST_DATES",
 ): AeatOffsetPrintedDateFactV1 | null {
   if (observations.length === 0) return null;
   const byValue = new Map<string, DateObservation[]>();
@@ -915,7 +985,7 @@ function uniqueDateFact(
   if (byValue.size !== 1) {
     issues.push(
       issue(
-        "MULTIPLE_DISTINCT_REQUEST_DATES",
+        conflictCode,
         observations.map((item) => item.pageNumber),
         null,
         null,
@@ -923,8 +993,11 @@ function uniqueDateFact(
     );
     return null;
   }
-  const first = [...byValue.values()][0]?.[0];
-  return first ? dateFact(first) : null;
+  const same = [...byValue.values()][0] ?? [];
+  const first = same[0];
+  return first
+    ? dateFact(first, same.map((item) => item.pageNumber))
+    : null;
 }
 
 function textFact(
@@ -957,11 +1030,14 @@ function moneyFact(
   });
 }
 
-function dateFact(value: DateObservation): AeatOffsetPrintedDateFactV1 {
+function dateFact(
+  value: DateObservation,
+  pageNumbers: readonly number[] = [value.pageNumber],
+): AeatOffsetPrintedDateFactV1 {
   return Object.freeze({
     printedValue: value.printedValue,
     calendarDate: value.calendarDate,
-    pageNumbers: Object.freeze([value.pageNumber]),
+    pageNumbers: Object.freeze([...new Set(pageNumbers)].sort((a, b) => a - b)),
     extractionMethod: "RULE",
     assertionType: "EXPLICIT_IN_DOCUMENT",
     dateMeaning: "PRINTED_LABEL_ONLY",
@@ -1024,6 +1100,7 @@ function emptyHeader(): AeatOffsetAgreementHeaderFactsV1 {
     subjectTaxId: null,
     agreementNumber: null,
     requestDate: null,
+    signatureDate: null,
   });
 }
 

@@ -44,6 +44,7 @@ const OFFSET_TEXT = [
   "DETALLE DE EFECTOS",
   "(1) EFECTOS DE LA COMPENSACIÓN",
   "EL IMPORTE DE LA DEUDA QUE FIGURA EN LA COLUMNA TOTAL PENDIENTE ANTES DE COMPENSAR HA QUEDADO EXTINGUIDO EN PERIODO VOLUNTARIO DE INGRESO.",
+  "Documento firmado electrónicamente por la Administradora, 30 de julio de 2026.",
 ].join("\n");
 
 function source(): BoundedDocumentInput {
@@ -142,6 +143,8 @@ describe("structured offset review workspace v1", () => {
       documentType: "AEAT_OFFSET_AGREEMENT",
       documentSubtype: "REQUESTED",
       titleRaw: "Acuerdo de compensación solicitado AEAT",
+      issueDate: "2026-07-30",
+      signatureDate: "2026-07-30",
       subjectParty: {
         displayName: "PERSONA SINTÉTICA",
         taxIdNormalized: "X0000000T",
@@ -187,6 +190,10 @@ describe("structured offset review workspace v1", () => {
           valueRaw: "05/01/2026",
         }),
         expect.objectContaining({
+          labelRaw: "PRINTED_SIGNATURE_DATE",
+          valueRaw: "30-07-2026",
+        }),
+        expect.objectContaining({
           labelRaw: "OFFSET_EFFECT_MEANING",
           valueRaw: "Deuda totalmente extinguida en período voluntario",
         }),
@@ -230,6 +237,7 @@ describe("structured offset review workspace v1", () => {
     expect(history.status).toBe("READY");
     expect(history.entries[0]).toMatchObject({
       title: "Acuerdo de compensación solicitado AEAT",
+      documentDate: "2026-07-30",
       subjectName: "PERSONA SINTÉTICA",
       subjectTaxId: "X0000000T",
       references: expect.arrayContaining([
@@ -258,6 +266,14 @@ describe("structured offset review workspace v1", () => {
           sourceReference: "DEUDA-0131",
         }),
       ]),
+      explanation: expect.objectContaining({
+        ruleId: "aeat.offset-agreement.explanation",
+        status: "EXPLAINED",
+        result: expect.stringContaining("queda totalmente extinguida"),
+        nextStep: expect.objectContaining({ status: "NO_PAYMENT_SHOWN" }),
+        deadline: expect.objectContaining({ status: "MISSING_RECEIPT_DATE" }),
+        networkPolicy: "NO_NETWORK",
+      }),
     });
   });
 
