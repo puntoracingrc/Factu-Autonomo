@@ -370,7 +370,49 @@ function syncPayloadToItem(payload: unknown): ExpenseInboxItem | null {
     scanPayload: mapExpenseInboxScanPayload(source.scanPayload),
     scanError:
       typeof source.scanError === "string" ? source.scanError : undefined,
+    canRetry: status === "error",
     createdAt,
+  };
+}
+
+interface SyncExpenseInboxItemRecord {
+  payload: Record<string, unknown>;
+  row: ExpenseInboxItemRow;
+}
+
+function syncPayloadToItemRow(input: {
+  payload: unknown;
+  userId: string;
+  entityId: string;
+}): SyncExpenseInboxItemRecord | null {
+  if (!input.payload || typeof input.payload !== "object") return null;
+  const payload = input.payload as Record<string, unknown>;
+  const item = syncPayloadToItem(payload);
+  const aliasToken =
+    typeof payload.aliasToken === "string" ? payload.aliasToken : "";
+  if (!item || item.id !== input.entityId || !aliasToken) return null;
+
+  return {
+    payload,
+    row: {
+      id: item.id,
+      user_id: input.userId,
+      alias_token: aliasToken,
+      from_email: item.fromEmail ?? null,
+      from_name: item.fromName ?? null,
+      subject: item.subject ?? null,
+      received_at: item.receivedAt,
+      attachment_filename: item.attachmentFilename,
+      attachment_content_type: item.attachmentContentType,
+      attachment_size: item.attachmentSize,
+      attachment_hash: item.attachmentHash,
+      status: item.status,
+      scan_payload: item.scanPayload ?? null,
+      scan_error: item.scanError ?? null,
+      source_email_id: null,
+      source_attachment_id: null,
+      created_at: item.createdAt,
+    },
   };
 }
 
@@ -643,12 +685,36 @@ async function getExpenseInboxItemFromSyncEntities(
   return syncPayloadToItem((data as { payload?: unknown } | null)?.payload);
 }
 
+async function getExpenseInboxItemRecordFromSyncEntities(
+  userId: string,
+  itemId: string,
+): Promise<SyncExpenseInboxItemRecord | null> {
+  const admin = ensureAdmin();
+  const { data, error } = await admin
+    .from("sync_entities")
+    .select("entity_id, payload")
+    .eq("user_id", userId)
+    .eq("entity_type", ITEM_ENTITY_TYPE)
+    .eq("entity_id", itemId)
+    .eq("deleted", false)
+    .maybeSingle();
+
+  if (error) throw error;
+  const source = data as { entity_id?: unknown; payload?: unknown } | null;
+  if (typeof source?.entity_id !== "string") return null;
+  return syncPayloadToItemRow({
+    payload: source.payload,
+    userId,
+    entityId: source.entity_id,
+  });
+}
+
 async function updateExpenseInboxItemStatusInSyncEntities(input: {
   userId: string;
   itemId: string;
   status: Extract<ExpenseInboxItemStatus, "processed" | "ignored">;
 }): Promise<void> {
-  const current = await getExpenseInboxItemFromSyncEntities(
+  const current = await getExpenseInboxItemRecordFromSyncEntities(
     input.userId,
     input.itemId,
   );
@@ -662,7 +728,7 @@ async function updateExpenseInboxItemStatusInSyncEntities(input: {
       entity_type: ITEM_ENTITY_TYPE,
       entity_id: input.itemId,
       payload: {
-        ...current,
+        ...current.payload,
         status: input.status,
         processedAt: input.status === "processed" ? now : undefined,
         ignoredAt: input.status === "ignored" ? now : undefined,
@@ -681,10 +747,17 @@ async function hasDuplicateAttachmentInSyncEntities(
   userId: string,
   hash: string,
 ): Promise<boolean> {
+  return Boolean(await findExistingAttachmentInSyncEntities(userId, hash));
+}
+
+async function findExistingAttachmentInSyncEntities(
+  userId: string,
+  hash: string,
+): Promise<ExistingInboxAttachment | null> {
   const admin = ensureAdmin();
   const { data, error } = await admin
     .from("sync_entities")
-    .select("entity_id")
+    .select("entity_id, payload")
     .eq("user_id", userId)
     .eq("entity_type", ITEM_ENTITY_TYPE)
     .eq("deleted", false)
@@ -693,7 +766,19 @@ async function hasDuplicateAttachmentInSyncEntities(
     .maybeSingle();
 
   if (error) throw error;
-  return Boolean(data);
+  const source = data as { entity_id?: unknown; payload?: unknown } | null;
+  if (typeof source?.entity_id !== "string") return null;
+  const record = syncPayloadToItemRow({
+    payload: source.payload,
+    userId,
+    entityId: source.entity_id,
+  });
+  if (!record) return null;
+  return {
+    id: record.row.id,
+    status: record.row.status,
+    scanError: record.row.scan_error ?? undefined,
+  };
 }
 
 async function insertInboxItemInSyncEntities(input: {
@@ -1007,7 +1092,20 @@ export async function listExpenseInboxItems(
     }
     throw error;
   }
-  return ((data ?? []) as unknown as ExpenseInboxItemRow[]).map(mapItem);
+  const primaryItems = ((data ?? []) as unknown as ExpenseInboxItemRow[]).map(
+    mapItem,
+  );
+  const compatibilityItems = await listExpenseInboxItemsFromSyncEntities(
+    userId,
+    status,
+  );
+  const itemsById = new Map(
+    compatibilityItems.map((item) => [item.id, item] as const),
+  );
+  for (const item of primaryItems) itemsById.set(item.id, item);
+  return [...itemsById.values()]
+    .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+    .slice(0, 30);
 }
 
 export async function getExpenseInboxItem(
@@ -1046,7 +1144,9 @@ export async function getExpenseInboxItem(
     }
     throw error;
   }
-  return data ? mapItem(data as unknown as ExpenseInboxItemRow) : null;
+  return data
+    ? mapItem(data as unknown as ExpenseInboxItemRow)
+    : getExpenseInboxItemFromSyncEntities(userId, itemId);
 }
 
 export async function updateExpenseInboxItemStatus(input: {
@@ -1060,19 +1160,19 @@ export async function updateExpenseInboxItemStatus(input: {
     input.status === "processed"
       ? { status: input.status, processed_at: now, updated_at: now }
       : { status: input.status, ignored_at: now, updated_at: now };
-  const { error } = await admin
+  const { data, error } = await admin
     .from("expense_inbox_items")
     .update(patch)
     .eq("user_id", input.userId)
-    .eq("id", input.itemId);
+    .eq("id", input.itemId)
+    .select("id")
+    .maybeSingle();
 
-  if (error) {
-    if (isMissingInboxTableError(error)) {
-      await updateExpenseInboxItemStatusInSyncEntities(input);
-      return;
-    }
+  if (error && !isMissingInboxTableError(error)) {
     throw error;
   }
+  if (data) return;
+  await updateExpenseInboxItemStatusInSyncEntities(input);
 }
 
 async function resolveUserFromRecipients(
@@ -1148,13 +1248,11 @@ async function findExistingAttachment(
 
   if (error) {
     if (isMissingInboxTableError(error)) {
-      return (await hasDuplicateAttachmentInSyncEntities(userId, hash))
-        ? { id: "sync-entity", status: "duplicate" }
-        : null;
+      return findExistingAttachmentInSyncEntities(userId, hash);
     }
     throw error;
   }
-  if (!data) return null;
+  if (!data) return findExistingAttachmentInSyncEntities(userId, hash);
   const row = data as { id?: unknown; status?: unknown; scan_error?: unknown };
   if (typeof row.id !== "string" || typeof row.status !== "string") return null;
   return {
@@ -1244,6 +1342,45 @@ async function claimInboxItemRetry(input: {
   if (error && isMissingRetryMetadataError(error)) {
     ({ data, error } = await claim(false));
   }
+  if (error && isMissingInboxTableError(error)) {
+    return claimInboxItemRetryInSyncEntities(input);
+  }
+  if (error) throw error;
+  if (data) return true;
+  return claimInboxItemRetryInSyncEntities(input);
+}
+
+async function claimInboxItemRetryInSyncEntities(input: {
+  userId: string;
+  itemId: string;
+}): Promise<boolean> {
+  const current = await getExpenseInboxItemRecordFromSyncEntities(
+    input.userId,
+    input.itemId,
+  );
+  if (!current || current.row.status !== "error") return false;
+
+  const admin = ensureAdmin();
+  const now = new Date().toISOString();
+  const { data, error } = await admin
+    .from("sync_entities")
+    .update({
+      payload: {
+        ...current.payload,
+        status: "processing",
+        scanError: null,
+        updatedAt: now,
+      },
+      updated_at: now,
+    })
+    .eq("user_id", input.userId)
+    .eq("entity_type", ITEM_ENTITY_TYPE)
+    .eq("entity_id", input.itemId)
+    .eq("deleted", false)
+    .eq("payload->>status", "error")
+    .select("entity_id")
+    .maybeSingle();
+
   if (error) throw error;
   return Boolean(data);
 }
@@ -1256,7 +1393,7 @@ async function finishInboxItemRetry(input: {
   scanError?: string;
 }): Promise<void> {
   const admin = ensureAdmin();
-  const { error } = await admin
+  const { data, error } = await admin
     .from("expense_inbox_items")
     .update({
       status: input.status,
@@ -1266,8 +1403,53 @@ async function finishInboxItemRetry(input: {
     })
     .eq("user_id", input.userId)
     .eq("id", input.itemId)
-    .eq("status", "processing");
+    .eq("status", "processing")
+    .select("id")
+    .maybeSingle();
+  if (error && !isMissingInboxTableError(error)) throw error;
+  if (data) return;
+  await finishInboxItemRetryInSyncEntities(input);
+}
+
+async function finishInboxItemRetryInSyncEntities(input: {
+  userId: string;
+  itemId: string;
+  status: Extract<ExpenseInboxItemStatus, "pending" | "error">;
+  scanPayload?: unknown;
+  scanError?: string;
+}): Promise<void> {
+  const current = await getExpenseInboxItemRecordFromSyncEntities(
+    input.userId,
+    input.itemId,
+  );
+  if (!current || current.row.status !== "processing") {
+    throw new Error("El reintento del buzón ya no está activo.");
+  }
+
+  const admin = ensureAdmin();
+  const now = new Date().toISOString();
+  const { data, error } = await admin
+    .from("sync_entities")
+    .update({
+      payload: {
+        ...current.payload,
+        status: input.status,
+        scanPayload: input.scanPayload ?? null,
+        scanError: input.scanError ?? null,
+        updatedAt: now,
+      },
+      updated_at: now,
+    })
+    .eq("user_id", input.userId)
+    .eq("entity_type", ITEM_ENTITY_TYPE)
+    .eq("entity_id", input.itemId)
+    .eq("deleted", false)
+    .eq("payload->>status", "processing")
+    .select("entity_id")
+    .maybeSingle();
+
   if (error) throw error;
+  if (!data) throw new Error("No se pudo confirmar el reintento del buzón.");
 }
 
 async function saveAttachmentFailure(input: {
@@ -1535,13 +1717,32 @@ export async function retryExpenseInboxItem(input: {
   if (error && isMissingRetryMetadataError(error)) {
     ({ data, error } = await selectRow(false));
   }
-  if (error) throw error;
-  if (!data) throw new Error("No encuentro esa factura del buzón.");
-  const row = {
-    source_email_id: null,
-    source_attachment_id: null,
-    ...(data as object),
-  } as ExpenseInboxItemRow;
+  let row: ExpenseInboxItemRow | null = null;
+  if (error && isMissingInboxTableError(error)) {
+    row = (
+      await getExpenseInboxItemRecordFromSyncEntities(
+        input.userId,
+        input.itemId,
+      )
+    )?.row ?? null;
+  } else {
+    if (error) throw error;
+    if (data) {
+      row = {
+        source_email_id: null,
+        source_attachment_id: null,
+        ...(data as object),
+      } as ExpenseInboxItemRow;
+    } else {
+      row = (
+        await getExpenseInboxItemRecordFromSyncEntities(
+          input.userId,
+          input.itemId,
+        )
+      )?.row ?? null;
+    }
+  }
+  if (!row) throw new Error("No encuentro esa factura del buzón.");
   if (row.status !== "error") {
     throw new Error("Esta factura ya no necesita reintento.");
   }
