@@ -165,7 +165,9 @@ const FAMILY_TITLE: Readonly<
   "notification.delivery_attempt": "Aviso o intento de notificación",
   "notification.publication_or_appearance": "Publicación o comparecencia para notificación",
   "notification.dehu_envelope": "Sobre o acuse de notificación electrónica",
-  "compliance.formal_filing_requirement": "Requerimiento formal de presentación",
+  "compliance.formal_filing_requirement":
+    "Requerimiento formal de presentación",
+  "compliance.document_request": "Requerimiento de documentación",
   "assessment.allegations_and_proposal": "Propuesta de liquidación provisional",
   "assessment.final_provisional_assessment": "Liquidación provisional",
   "payment.payment_form": "Carta o documento de pago",
@@ -460,6 +462,8 @@ export class FiscalNotificationVerticalSliceReviewErrorV1 extends Error {
 function projectRequirement(
   output: NonNullable<FiscalNotificationVerticalSliceAnalysisV1["extractions"]["formalFilingRequirement"]>,
 ) {
+  const documentationRequest =
+    output.familyCandidates[0]?.familyId === "compliance.document_request";
   const fields = commonFields(output);
   addStatus(fields, "Requerimiento pendiente de revisión", pagesForOutput(output));
   addTextFact(fields, "REASON", "Motivo", output.requirementFacts.reason);
@@ -479,7 +483,20 @@ function projectRequirement(
     addTextFact(fields, "DOCUMENTATION_REQUIRED", `Documentación ${index + 1}`, item),
   );
   output.requirementFacts.explicitConsequences.forEach((item, index) =>
-    addTextFact(fields, "EXPLICIT_CONSEQUENCE", `Consecuencia indicada ${index + 1}`, item),
+    addTextFact(
+      fields,
+      "EXPLICIT_CONSEQUENCE",
+      `Consecuencia indicada ${index + 1}`,
+      item,
+    ),
+  );
+  return documentProjection(
+    "requirement",
+    output,
+    fields,
+    documentationRequest
+      ? "Documentación solicitada pendiente de revisión"
+      : "Requerimiento formal de presentación",
   );
   return documentProjection("requirement", output, fields, "Requerimiento formal de presentación");
 }

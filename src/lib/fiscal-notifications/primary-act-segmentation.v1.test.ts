@@ -125,9 +125,19 @@ describe("fiscal notification primary-act segmentation v1", () => {
     });
   });
 
-  it("does not register a broad requerimiento or a narrative mention", () => {
+  it("registers the exact documentation-requirement title only", () => {
+    expect(
+      segmentFiscalNotificationPrimaryActsV1([page(1, "requerimiento")]),
+    ).toMatchObject({
+      outcome: "PRIMARY_TITLE",
+      segments: [
+        expect.objectContaining({
+          familyId: "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE",
+          titleAnchorId: "DOCUMENTATION_REQUIREMENT_TITLE",
+        }),
+      ],
+    });
     for (const title of [
-      "requerimiento",
       "este texto explica un requerimiento de presentacion de declaraciones o autoliquidaciones",
       "acuerdo relativo al registro de operadores intracomunitarios",
       "solicitud de compensacion",

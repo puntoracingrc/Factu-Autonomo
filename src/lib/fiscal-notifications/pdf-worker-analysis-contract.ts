@@ -73,7 +73,7 @@ export interface FiscalNotificationPdfWorkerCandidate {
 export interface FiscalNotificationPdfWorkerFamilyAnalysis {
   readonly schemaVersion: 1;
   readonly engineId: "fiscal-notification-family-candidate-engine";
-  readonly engineVersion: "1.1.0" | "1.2.0" | "1.3.0" | "1.4.0";
+  readonly engineVersion: "1.1.0" | "1.2.0" | "1.3.0" | "1.4.0" | "1.5.0";
   readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING";
   readonly reason: FiscalNotificationExtractionReason;
   readonly candidates: readonly FiscalNotificationPdfWorkerCandidate[];
@@ -228,6 +228,10 @@ const ANCHOR_IDS = new Set<FiscalNotificationAnchorId>([
   "REAL_ESTATE_SEIZURE_TITLE",
   "FORMAL_FILING_REQUIREMENT_TITLE",
   "FORMAL_FILING_OMITTED_RETURNS_MARKER",
+  "DOCUMENTATION_REQUIREMENT_TITLE",
+  "DOCUMENTATION_REQUIREMENT_AGREEMENT_SECTION",
+  "DOCUMENTATION_REQUIREMENT_DEADLINE_SECTION",
+  "DOCUMENTATION_REQUIREMENT_BODY_MARKER",
   "ROI_REGISTRATION_AGREEMENT_TITLE",
   "DOCUMENT_IDENTIFICATION_SECTION",
   "FORMAL_FILING_TAX_PERIOD_SECTION",
@@ -303,6 +307,15 @@ const FORMAL_FILING_REQUIRED_ANCHORS = Object.freeze([
   "FORMAL_FILING_OMITTED_RETURNS_MARKER",
   "STRUCTURAL_FIRST_PAGE_HEADER",
 ] as const);
+const DOCUMENTATION_REQUIREMENT_REQUIRED_ANCHORS = Object.freeze([
+  "AEAT_OFFICIAL_DOMAIN_LABEL",
+  "DOCUMENTATION_REQUIREMENT_TITLE",
+  "DOCUMENT_IDENTIFICATION_SECTION",
+  "DOCUMENTATION_REQUIREMENT_AGREEMENT_SECTION",
+  "DOCUMENTATION_REQUIREMENT_DEADLINE_SECTION",
+  "DOCUMENTATION_REQUIREMENT_BODY_MARKER",
+  "STRUCTURAL_FIRST_PAGE_HEADER",
+] as const);
 const ROI_REGISTRATION_REQUIRED_ANCHORS = Object.freeze([
   "AEAT_OFFICIAL_DOMAIN_LABEL",
   "ROI_REGISTRATION_AGREEMENT_TITLE",
@@ -357,6 +370,15 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
     ] as const),
     minimumEngineVersion: "1.2.0" as const,
   }),
+  AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE: Object.freeze({
+    documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
+    handlerId: "aeat-documentation-requirement-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
+    titleAnchorId: "DOCUMENTATION_REQUIREMENT_TITLE" as const,
+    requiredAnchors: DOCUMENTATION_REQUIREMENT_REQUIRED_ANCHORS,
+    optionalAnchors: Object.freeze([] as const),
+    minimumEngineVersion: "1.5.0" as const,
+  }),
   AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: Object.freeze({
     documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
     handlerId: "aeat-roi-registration-agreement-candidate" as const,
@@ -378,7 +400,7 @@ const CANDIDATE_DEFINITIONS = Object.freeze({
     readonly titleAnchorId: FiscalNotificationAnchorId;
     readonly requiredAnchors: readonly FiscalNotificationAnchorId[];
     readonly optionalAnchors: readonly FiscalNotificationAnchorId[];
-    readonly minimumEngineVersion: "1.1.0" | "1.2.0" | "1.4.0";
+    readonly minimumEngineVersion: "1.1.0" | "1.2.0" | "1.4.0" | "1.5.0";
   }
 >);
 const CONFLICTING_ANCHORS = new Set<FiscalNotificationAnchorId>([
@@ -625,7 +647,8 @@ function parseFamilyAnalysis(
     (family.engineVersion !== "1.1.0" &&
       family.engineVersion !== "1.2.0" &&
       family.engineVersion !== "1.3.0" &&
-      family.engineVersion !== "1.4.0") ||
+      family.engineVersion !== "1.4.0" &&
+      family.engineVersion !== "1.5.0") ||
     (family.status !== "REVIEW_REQUIRED" &&
       family.status !== "INFORMATION_PENDING") ||
     !REASONS.has(family.reason as FiscalNotificationExtractionReason) ||
@@ -703,7 +726,9 @@ function parseCandidate(
       : undefined;
   if (
     !definition ||
-    (engineVersion === "1.3.0" || engineVersion === "1.4.0"
+    (engineVersion === "1.3.0" ||
+    engineVersion === "1.4.0" ||
+    engineVersion === "1.5.0"
       ? candidate.segmentationVersion !== "1.1.0" ||
         candidate.recognitionPolicyVersion !== "1.3.0"
       : engineVersion === "1.2.0"
@@ -714,9 +739,13 @@ function parseCandidate(
     (definition.minimumEngineVersion === "1.2.0" &&
       engineVersion !== "1.2.0" &&
       engineVersion !== "1.3.0" &&
-      engineVersion !== "1.4.0") ||
+      engineVersion !== "1.4.0" &&
+      engineVersion !== "1.5.0") ||
     (definition.minimumEngineVersion === "1.4.0" &&
-      engineVersion !== "1.4.0") ||
+      engineVersion !== "1.4.0" &&
+      engineVersion !== "1.5.0") ||
+    (definition.minimumEngineVersion === "1.5.0" &&
+      engineVersion !== "1.5.0") ||
     candidate.documentType !== definition.documentType ||
     candidate.authoritySignal !== "AEAT_UNVERIFIED" ||
     candidate.handlerId !== definition.handlerId ||
@@ -1076,6 +1105,7 @@ function assertCandidateTrace(
     !sameStringSet(expectedMissing, [...missingSet]) ||
     (engineVersion !== "1.3.0" &&
       engineVersion !== "1.4.0" &&
+      engineVersion !== "1.5.0" &&
       matchedAnchors.some((anchor) =>
         FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS.includes(
           anchor.anchorId as (typeof FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS)[number],
@@ -1105,9 +1135,13 @@ function assertCandidateTrace(
     (definition.minimumEngineVersion === "1.2.0" &&
       engineVersion !== "1.2.0" &&
       engineVersion !== "1.3.0" &&
-      engineVersion !== "1.4.0") ||
+      engineVersion !== "1.4.0" &&
+      engineVersion !== "1.5.0") ||
     (definition.minimumEngineVersion === "1.4.0" &&
-      engineVersion !== "1.4.0") ||
+      engineVersion !== "1.4.0" &&
+      engineVersion !== "1.5.0") ||
+    (definition.minimumEngineVersion === "1.5.0" &&
+      engineVersion !== "1.5.0") ||
     familyTitle.pageNumbers.length !== 1 ||
     titlePageNumber === undefined ||
     (officialDomain &&

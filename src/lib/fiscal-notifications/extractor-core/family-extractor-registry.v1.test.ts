@@ -25,6 +25,7 @@ describe("family to reusable extractor registry v1", () => {
   it.each([
     ["notification.dehu_envelope", "notification-envelope"],
     ["compliance.formal_filing_requirement", "requirement"],
+    ["compliance.document_request", "requirement"],
     ["assessment.final_provisional_assessment", "assessment"],
     ["collection.deferral_grant", "deferral"],
     ["collection.offset_ex_officio", "compensation"],
@@ -42,19 +43,61 @@ describe("family to reusable extractor registry v1", () => {
   });
 
   it("marks only executable review-only adapters complete, never by taxonomy alone", () => {
-    expect(resolveFamilyExtractorBindingV1("notification.delivery_attempt")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("notification.publication_or_appearance")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("notification.dehu_envelope")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("collection.enforcement_order")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("collection.deferral_grant")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("collection.offset_requested")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("collection.offset_ex_officio")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("compliance.formal_filing_requirement")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("assessment.allegations_and_proposal")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("assessment.final_provisional_assessment")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("payment.payment_form")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("payment.receipt")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(resolveFamilyExtractorBindingV1("payment.failed_or_reversed")?.implementationStatus).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("notification.delivery_attempt")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("notification.publication_or_appearance")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("notification.dehu_envelope")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("collection.enforcement_order")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("collection.deferral_grant")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("collection.offset_requested")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("collection.offset_ex_officio")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("compliance.formal_filing_requirement")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("compliance.document_request")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("assessment.allegations_and_proposal")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("assessment.final_provisional_assessment")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("payment.payment_form")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("payment.receipt")?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+    expect(
+      resolveFamilyExtractorBindingV1("payment.failed_or_reversed")
+        ?.implementationStatus,
+    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
     for (const familyId of [
       "seizure.bank_account",
       "seizure.commercial_credits",

@@ -15,6 +15,7 @@ import {
 } from "./input-contract";
 import {
   AEAT_DEFERRAL_PRIMARY_TITLE_V1,
+  AEAT_DOCUMENTATION_REQUIREMENT_PRIMARY_TITLE_V1,
   AEAT_ENFORCEMENT_PRIMARY_TITLE_V1,
   AEAT_FORMAL_FILING_REQUIREMENT_PRIMARY_TITLE_V1,
   AEAT_OFFSET_AGREEMENT_PRIMARY_TITLE_V1,
@@ -238,6 +239,53 @@ const FORMAL_FILING_REQUIRED_ANCHORS = Object.freeze([
   },
 ] satisfies readonly ClosedTextAnchorDefinition[]);
 
+const DOCUMENTATION_REQUIREMENT_REQUIRED_ANCHORS = Object.freeze([
+  {
+    anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL",
+    matchMode: "TITLE_PAGE_LINE_EXACT",
+    literals: [
+      "sede.agenciatributaria.gob.es",
+      "https://sede.agenciatributaria.gob.es",
+      "www.agenciatributaria.es",
+      "http://www.agenciatributaria.es",
+      "https://www.agenciatributaria.es",
+      "www.agenciatributaria.gob.es",
+      "http://www.agenciatributaria.gob.es",
+      "https://www.agenciatributaria.gob.es",
+    ],
+  },
+  {
+    anchorId: AEAT_DOCUMENTATION_REQUIREMENT_PRIMARY_TITLE_V1.titleAnchorId,
+    matchMode: AEAT_DOCUMENTATION_REQUIREMENT_PRIMARY_TITLE_V1.matchMode,
+    literals: AEAT_DOCUMENTATION_REQUIREMENT_PRIMARY_TITLE_V1.literals,
+  },
+  {
+    anchorId: "DOCUMENT_IDENTIFICATION_SECTION",
+    matchMode: "LINE_EXACT",
+    literals: ["identificacion del documento"],
+  },
+  {
+    anchorId: "DOCUMENTATION_REQUIREMENT_AGREEMENT_SECTION",
+    matchMode: "LINE_EXACT",
+    literals: ["acuerdo"],
+  },
+  {
+    anchorId: "DOCUMENTATION_REQUIREMENT_DEADLINE_SECTION",
+    matchMode: "LINE_EXACT",
+    literals: ["plazo"],
+  },
+  {
+    anchorId: "DOCUMENTATION_REQUIREMENT_BODY_MARKER",
+    matchMode: "TITLE_PAGE_TOKEN_SEQUENCE",
+    literals: [
+      "debera aportar la documentacion",
+      "documentacion que se indica a continuacion",
+      "documentacion justificativa",
+      "documentacion correspondientes",
+    ],
+  },
+] satisfies readonly ClosedTextAnchorDefinition[]);
+
 const ROI_REGISTRATION_REQUIRED_ANCHORS = Object.freeze([
   ...COMMON_REQUIRED_AUTHORITY_ANCHORS,
   {
@@ -449,6 +497,22 @@ function evaluateSegmentCandidate(
         handlerVersion: "1.0.0",
       },
       FORMAL_FILING_OPTIONAL_ANCHORS,
+      segmentationVersion,
+    );
+  }
+  if (segment.familyId === "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE") {
+    return evaluateFamilyCandidate(
+      segmentIndex,
+      signal,
+      DOCUMENTATION_REQUIREMENT_REQUIRED_ANCHORS,
+      segment.titleAnchorId,
+      {
+        familyId: "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE",
+        documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+        handlerId: "aeat-documentation-requirement-candidate",
+        handlerVersion: "1.0.0",
+      },
+      [],
       segmentationVersion,
     );
   }

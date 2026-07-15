@@ -34,6 +34,24 @@ const COMPLETE_REQUIREMENT = [
   "Código Seguro de Verificación (CSV): CSV-SYN-001",
 ].join("\n");
 
+const COMPLETE_DOCUMENTATION_REQUIREMENT = [
+  "Agencia Tributaria",
+  "www.agenciatributaria.gob.es",
+  "REQUERIMIENTO",
+  "IDENTIFICACIÓN DEL DOCUMENTO",
+  "Referencia: REQ-DOC-SYN-001",
+  "N.I.F.: 12345678Z",
+  "Nombre / Razón social: PERSONA SINTÉTICA",
+  "ACUERDO",
+  "Deberá aportar la documentación que se indica a continuación",
+  "- Documentación justificativa de los datos declarados",
+  "PLAZO",
+  "Diez días hábiles desde el día siguiente a la recepción",
+  "INFORMACIÓN ADICIONAL",
+  "La falta de atención puede producir las consecuencias indicadas en el documento",
+  "NORMAS APLICABLES",
+].join("\n");
+
 function document(
   ...pagesOrSignal: readonly (string | AbortSignal)[]
 ): BoundedDocumentInput {
@@ -141,6 +159,69 @@ describe("formal filing requirement extractor v1", () => {
       permitsAutomaticFamilyConfirmation: false,
     });
     expect(output.monetaryComponents).toEqual([]);
+  });
+
+  it("extracts a closed documentation requirement as its own review-only family", () => {
+    const output = extractFormalFilingRequirementV1({
+      document: document(COMPLETE_DOCUMENTATION_REQUIREMENT),
+      segments: [segment("MAIN_ADMINISTRATIVE_ACT", 1)],
+    });
+
+    expect(output).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyCandidates: [
+        expect.objectContaining({
+          familyId: "compliance.document_request",
+          confidence: 1,
+        }),
+      ],
+      requirementFacts: {
+        requirementNumber: { printedValue: "REQ-DOC-SYN-001" },
+        taxId: { printedValue: "12345678Z" },
+        recipient: { printedValue: "PERSONA SINTÉTICA" },
+        rawDeadlineText: {
+          printedValue:
+            "Diez días hábiles desde el día siguiente a la recepción",
+        },
+      },
+    });
+    expect(output.requirementFacts.documentationRequired).toEqual([
+      expect.objectContaining({
+        printedValue:
+          "Deberá aportar la documentación que se indica a continuación",
+      }),
+      expect.objectContaining({
+        printedValue: "Documentación justificativa de los datos declarados",
+      }),
+    ]);
+    expect(output.requirementFacts.explicitConsequences).toEqual([
+      expect.objectContaining({
+        printedValue:
+          "La falta de atención puede producir las consecuencias indicadas en el documento",
+      }),
+    ]);
+    expect(output.references).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          referenceType: "ACT_ID",
+          rawValue: "REQ-DOC-SYN-001",
+        }),
+      ]),
+    );
+    expect(output.proceduralDates).toEqual([
+      expect.objectContaining({
+        dateType: "RESPONSE_DEADLINE",
+        legallyComputed: false,
+      }),
+    ]);
+    expect(output.warnings).not.toContain("MISSING_EXPLICIT_OBLIGATION_ROWS");
+    expect(output).toMatchObject({
+      materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+      permitsAccountingAction: false,
+    });
   });
 
   it("keeps model, year and period as explicit row combinations without a cross-product", () => {

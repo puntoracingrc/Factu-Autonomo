@@ -69,6 +69,7 @@ type SupportedGuidanceFamilyId = Extract<
   | "collection.offset_resolution"
   | "seizure.real_estate"
   | "compliance.formal_filing_requirement"
+  | "compliance.document_request"
   | "registry.tax_registration_resolution"
 >;
 
@@ -81,8 +82,8 @@ export interface FiscalNotificationOfficialProcedureContextV1 {
   readonly sourceId: FiscalNotificationOfficialSourceIdV2;
   readonly title: string;
   readonly canonicalUrl: string;
-  readonly authority: "AEAT";
-  readonly usagePolicy: "PROCEDURE_CONTEXT_ONLY";
+  readonly authority: "AEAT" | "BOE";
+  readonly usagePolicy: "PROCEDURE_CONTEXT_ONLY" | "LEGAL_CONTEXT_ONLY";
   readonly legalReviewStatus: "LEGAL_REVIEW_PENDING";
   readonly permitsLegalRuleActivation: false;
 }
@@ -229,6 +230,10 @@ const ANCHOR_IDS = new Set([
   "REAL_ESTATE_SEIZURE_TITLE",
   "FORMAL_FILING_REQUIREMENT_TITLE",
   "FORMAL_FILING_OMITTED_RETURNS_MARKER",
+  "DOCUMENTATION_REQUIREMENT_TITLE",
+  "DOCUMENTATION_REQUIREMENT_AGREEMENT_SECTION",
+  "DOCUMENTATION_REQUIREMENT_DEADLINE_SECTION",
+  "DOCUMENTATION_REQUIREMENT_BODY_MARKER",
   "ROI_REGISTRATION_AGREEMENT_TITLE",
   "DOCUMENT_IDENTIFICATION_SECTION",
   "FORMAL_FILING_TAX_PERIOD_SECTION",
@@ -340,6 +345,19 @@ const FAMILY_CONTEXT = Object.freeze({
     ] as const),
     minimumEngineVersion: "1.2.0" as const,
     sourceIds: Object.freeze(["aeat.compliance.omitted_return"] as const),
+  }),
+  AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE: Object.freeze({
+    familyId: "compliance.document_request" as const,
+    documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
+    handlerId: "aeat-documentation-requirement-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
+    titleAnchorId: "DOCUMENTATION_REQUIREMENT_TITLE" as const,
+    optionalAnchorIds: Object.freeze([] as const),
+    minimumEngineVersion: "1.5.0" as const,
+    sourceIds: Object.freeze([
+      "boe.tax.general.law",
+      "boe.tax.management_inspection.regulation",
+    ] as const),
   }),
   AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE: Object.freeze({
     familyId: "registry.tax_registration_resolution" as const,
@@ -572,13 +590,16 @@ function validateCandidate(
     engineVersionValue === "1.1.0" ||
     engineVersionValue === "1.2.0" ||
     engineVersionValue === "1.3.0" ||
-    engineVersionValue === "1.4.0"
+    engineVersionValue === "1.4.0" ||
+    engineVersionValue === "1.5.0"
       ? (engineVersionValue as FiscalNotificationExtractionEngineVersion)
       : null;
   if (
     !definition ||
     !engineVersion ||
-    (engineVersionValue === "1.3.0" || engineVersionValue === "1.4.0"
+    (engineVersionValue === "1.3.0" ||
+    engineVersionValue === "1.4.0" ||
+    engineVersionValue === "1.5.0"
       ? candidate.segmentationVersion !== "1.1.0" ||
         candidate.recognitionPolicyVersion !== "1.3.0"
       : engineVersionValue === "1.2.0"
@@ -591,9 +612,13 @@ function validateCandidate(
     (definition.minimumEngineVersion === "1.2.0" &&
       engineVersionValue !== "1.2.0" &&
       engineVersionValue !== "1.3.0" &&
-      engineVersionValue !== "1.4.0") ||
+      engineVersionValue !== "1.4.0" &&
+      engineVersionValue !== "1.5.0") ||
     (definition.minimumEngineVersion === "1.4.0" &&
-      engineVersionValue !== "1.4.0")
+      engineVersionValue !== "1.4.0" &&
+      engineVersionValue !== "1.5.0") ||
+    (definition.minimumEngineVersion === "1.5.0" &&
+      engineVersionValue !== "1.5.0")
   ) {
     return null;
   }
@@ -664,7 +689,8 @@ function validateCandidate(
         : engineVersionValue === "1.1.0" ||
             engineVersionValue === "1.2.0" ||
             engineVersionValue === "1.3.0" ||
-            engineVersionValue === "1.4.0"
+            engineVersionValue === "1.4.0" ||
+            engineVersionValue === "1.5.0"
           ? titlePages.length !== 1 || !sameNumberList(domainPages, titlePages)
           : true)) ||
     (structuralPages !== undefined &&
@@ -677,6 +703,7 @@ function validateCandidate(
       !sameNumberList(conflictingHostPages, titlePages)) ||
     (engineVersionValue !== "1.3.0" &&
       engineVersionValue !== "1.4.0" &&
+      engineVersionValue !== "1.5.0" &&
       validatedAnchors.some((anchor) =>
         FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS.includes(
           anchor.anchorId as (typeof FISCAL_NOTIFICATION_V13_ONLY_ANCHOR_IDS)[number],
@@ -685,7 +712,8 @@ function validateCandidate(
     ((engineVersionValue === "1.1.0" ||
       engineVersionValue === "1.2.0" ||
       engineVersionValue === "1.3.0" ||
-      engineVersionValue === "1.4.0") &&
+      engineVersionValue === "1.4.0" ||
+      engineVersionValue === "1.5.0") &&
       (titlePages.length !== 1 ||
         titlePageNumber === undefined ||
         (domainPages !== undefined &&
@@ -987,7 +1015,8 @@ function validEngineForReason(
           engineVersion === "1.1.0" ||
           engineVersion === "1.2.0" ||
           engineVersion === "1.3.0" ||
-          engineVersion === "1.4.0");
+          engineVersion === "1.4.0" ||
+          engineVersion === "1.5.0");
 }
 
 function validReviewSemantics(
@@ -1100,9 +1129,12 @@ function resolveCandidateContext(candidate: FiscalNotificationLocalReviewCandida
     const source = resolveFiscalNotificationOfficialSourceV2(sourceId);
     if (
       !source ||
-      source.authority !== "AEAT" ||
       source.authorityLevel !== "OFFICIAL_PRIMARY" ||
-      source.sourceKind !== "PROCEDURE_INFORMATION" ||
+      !(
+        (source.authority === "AEAT" &&
+          source.sourceKind === "PROCEDURE_INFORMATION") ||
+        (source.authority === "BOE" && source.sourceKind === "LEGAL_TEXT")
+      ) ||
       source.verificationStatus !== "OFFICIAL_URL_VERIFIED" ||
       source.usagePolicy !== "CONTEXT_ONLY" ||
       source.legalReviewStatus !== "LEGAL_REVIEW_PENDING" ||
@@ -1117,8 +1149,11 @@ function resolveCandidateContext(candidate: FiscalNotificationLocalReviewCandida
         sourceId: source.id,
         title: source.title,
         canonicalUrl: source.canonicalUrl,
-        authority: "AEAT" as const,
-        usagePolicy: "PROCEDURE_CONTEXT_ONLY" as const,
+        authority: source.authority,
+        usagePolicy:
+          source.sourceKind === "LEGAL_TEXT"
+            ? ("LEGAL_CONTEXT_ONLY" as const)
+            : ("PROCEDURE_CONTEXT_ONLY" as const),
         legalReviewStatus: "LEGAL_REVIEW_PENDING" as const,
         permitsLegalRuleActivation: false as const,
       }),

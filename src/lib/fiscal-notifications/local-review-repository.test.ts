@@ -176,6 +176,40 @@ function structuralOffsetCandidate() {
   };
 }
 
+function documentationRequirementCandidate() {
+  return {
+    familyId: "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE",
+    recognitionPolicyVersion: "1.3.0",
+    segmentationVersion: "1.1.0",
+    documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+    authoritySignal: "AEAT_UNVERIFIED",
+    handlerId: "aeat-documentation-requirement-candidate",
+    handlerVersion: "1.0.0",
+    signalStatus: "COMPLETE_REQUIRED_ANCHORS",
+    matchedAnchors: [
+      { anchorId: "AEAT_OFFICIAL_DOMAIN_LABEL", pageNumbers: [1] },
+      { anchorId: "DOCUMENTATION_REQUIREMENT_TITLE", pageNumbers: [1] },
+      { anchorId: "DOCUMENT_IDENTIFICATION_SECTION", pageNumbers: [1] },
+      {
+        anchorId: "DOCUMENTATION_REQUIREMENT_AGREEMENT_SECTION",
+        pageNumbers: [1],
+      },
+      {
+        anchorId: "DOCUMENTATION_REQUIREMENT_DEADLINE_SECTION",
+        pageNumbers: [1],
+      },
+      {
+        anchorId: "DOCUMENTATION_REQUIREMENT_BODY_MARKER",
+        pageNumbers: [1],
+      },
+      { anchorId: "STRUCTURAL_PRIMARY_ACT_HEADER", pageNumbers: [1] },
+    ],
+    missingRequiredAnchorIds: [] as string[],
+    conflictingAnchorIds: [] as string[],
+    requiresHumanReview: true,
+  };
+}
+
 function r1Candidate(
   familyId:
     | "AEAT_REAL_ESTATE_SEIZURE_CANDIDATE"
@@ -803,6 +837,50 @@ describe("fiscal notification safe local review repository", () => {
     await expect(
       repository(new MemoryStorage()).append(
         appendInput("review-offset-relabelled-130", { result: relabelled }),
+      ),
+    ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
+  });
+
+  it("persists documentation requirements only under engine 1.5", async () => {
+    const result = reviewResult({
+      engineVersion: "1.5.0",
+      candidates: [documentationRequirementCandidate()],
+    });
+    const storage = new MemoryStorage();
+
+    await expect(
+      repository(storage).append(
+        appendInput("review-documentation-requirement-150", { result }),
+      ),
+    ).resolves.toMatchObject({ status: "applied" });
+    expect(repository(storage).load()).toMatchObject({
+      status: "loaded",
+      snapshot: {
+        reviews: [
+          {
+            result: {
+              engineVersion: "1.5.0",
+              candidates: [
+                {
+                  familyId: "AEAT_DOCUMENTATION_REQUIREMENT_CANDIDATE",
+                  handlerId: "aeat-documentation-requirement-candidate",
+                },
+              ],
+              materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+              retainedSourceContent: "NONE",
+            },
+          },
+        ],
+      },
+    });
+
+    const relabelled = structuredClone(result);
+    relabelled.engineVersion = "1.4.0";
+    await expect(
+      repository(new MemoryStorage()).append(
+        appendInput("review-documentation-requirement-relabelled-140", {
+          result: relabelled,
+        }),
       ),
     ).resolves.toEqual({ status: "blocked", reason: "INVALID_INPUT" });
   });
