@@ -18,8 +18,11 @@ export type FiscalModelGuideInternalHrefV1 =
   | "/consultor-fiscal/modelos/128"
   | "/consultor-fiscal/modelos/130"
   | "/consultor-fiscal/modelos/131"
+  | "/consultor-fiscal/modelos/172"
+  | "/consultor-fiscal/modelos/173"
   | "/consultor-fiscal/modelos/180"
   | "/consultor-fiscal/modelos/184"
+  | "/consultor-fiscal/modelos/189"
   | "/consultor-fiscal/modelos/190"
   | "/consultor-fiscal/modelos/193"
   | "/consultor-fiscal/modelos/194"
@@ -40,6 +43,10 @@ export type FiscalModelGuideInternalHrefV1 =
   | "/consultor-fiscal/modelos/369"
   | "/consultor-fiscal/modelos/390"
   | "/consultor-fiscal/modelos/576"
+  | "/consultor-fiscal/modelos/714"
+  | "/consultor-fiscal/modelos/718"
+  | "/consultor-fiscal/modelos/720"
+  | "/consultor-fiscal/modelos/721"
   | "/consultor-fiscal/modelos/840"
   | "/consultor-fiscal/modelos/848";
 
@@ -77,6 +84,10 @@ export interface FiscalModelPracticalGuideV1 {
     | "361"
     | "369"
     | "390"
+    | "714"
+    | "718"
+    | "720"
+    | "721"
     | "840";
   readonly effectiveYear?: number;
   readonly taxPeriodYear?: number;
