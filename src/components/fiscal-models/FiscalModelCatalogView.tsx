@@ -384,6 +384,126 @@ const practicalCatalogLabels: Readonly<
     "Plazo a verificar",
     "Informativa",
   ],
+  "353": ["Grupo de IVA", "Mensual", "Modelo agregado", "Relacionado con 322"],
+  "364": [
+    "IVA institucional",
+    "OTAN",
+    "Reembolso",
+    "No lo presenta el proveedor",
+  ],
+  "365": ["IVA institucional", "OTAN", "Exención previa", "Solicitud"],
+  "368": ["Histórico", "MOSS", "Sustituido por 035 y 369", "No vigente"],
+  "379": [
+    "CESOP",
+    "Pagos transfronterizos",
+    "Trimestral",
+    "Proveedores de pago",
+  ],
+  "380": ["IVA", "Operación asimilada", "Regímenes suspensivos", "Sectorial"],
+  "381": ["IVA institucional", "Fuerzas armadas UE", "Reembolso", "Defensa"],
+  "410": [
+    "Entidades de crédito",
+    "Pago a cuenta",
+    "Depósitos",
+    "Relacionado con 411",
+  ],
+  "411": [
+    "Entidades de crédito",
+    "Autoliquidación anual",
+    "Depósitos",
+    "Relacionado con 410",
+  ],
+  "430": ["Aseguradoras", "Mensual", "Primas de seguros", "Autoliquidación"],
+  "480": ["Aseguradoras", "Anual", "Primas de seguros", "Resumen"],
+  "490": ["Grandes empresas", "Servicios digitales", "Trimestral", "3 %"],
+  "504": [
+    "Impuestos Especiales",
+    "Movimientos UE",
+    "Solicitud",
+    "Relacionado con 505",
+  ],
+  "505": [
+    "Impuestos Especiales",
+    "Autorización administrativa",
+    "No se presenta sola",
+    "Relacionado con 504",
+  ],
+  "506": [
+    "Impuestos Especiales",
+    "Devolución",
+    "Depósito fiscal",
+    "Trimestral",
+  ],
+  "507": [
+    "Impuestos Especiales",
+    "Envíos garantizados",
+    "EMCS",
+    "Vigente desde 2023",
+  ],
+  "508": [
+    "Impuestos Especiales",
+    "Ventas a distancia",
+    "Devolución",
+    "Trimestral",
+  ],
+  "510": [
+    "Impuestos Especiales",
+    "Recepciones UE",
+    "Declaración de operaciones",
+    "EMCS",
+  ],
+  "512": ["Hidrocarburos", "Tarifa segunda", "50.000 litros", "Anual"],
+  "515": [
+    "Marcas fiscales",
+    "Tabaco",
+    "Solicitud electrónica",
+    "Operadores autorizados",
+  ],
+  "517": [
+    "Marcas fiscales",
+    "Bebidas derivadas",
+    "Precintas",
+    "Operadores autorizados",
+  ],
+  "518": [
+    "Alcohol",
+    "Declaración previa",
+    "Un día hábil",
+    "Relacionado con 519 y 520",
+  ],
+  "519": [
+    "Alcohol",
+    "Incidencia inmediata",
+    "Comunicación",
+    "Relacionado con 518",
+  ],
+  "520": [
+    "Alcohol",
+    "Resultado final",
+    "Día de finalización",
+    "Relacionado con 518",
+  ],
+  "521": ["Alcohol vínico", "Materias primas", "Trimestral", "Artículo 89"],
+  "522": [
+    "Biocarburantes",
+    "Vigencia conflictiva",
+    "Artículo derogado",
+    "Consulta obligatoria",
+  ],
+  "523": [
+    "Alcohol",
+    "Beneficio de devolución",
+    "Reconocimiento previo",
+    "Relacionado con 524",
+  ],
+  "524": ["Alcohol", "Devolución", "Trimestral", "Relacionado con 523"],
+  "544": ["Gasóleo bonificado", "Pagos", "Trimestral", "Hasta el día 20"],
+  "545": [
+    "Relaciones internacionales",
+    "Carburantes",
+    "Trimestral",
+    "Hasta el día 20",
+  ],
   "232": [
     "Autónomo societario y empresas",
     "Operaciones vinculadas",
@@ -600,6 +720,62 @@ const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
     "Información anual de aportaciones y partícipes de sistemas de previsión social.",
   "346":
     "Información anual de ayudas agrarias comunicada por las entidades pagadoras.",
+  "353": "Autoliquidación mensual agregada del IVA de un grupo de entidades.",
+  "364":
+    "Solicitud institucional de reembolso de IVA para OTAN, cuarteles generales y Estados parte.",
+  "365": "Reconocimiento previo de exenciones de IVA en el ámbito OTAN.",
+  "368":
+    "Modelo histórico MOSS, sustituido desde julio de 2021 por el Formulario 035 y el Modelo 369.",
+  "379":
+    "Información trimestral CESOP comunicada por proveedores de servicios de pago.",
+  "380":
+    "IVA de determinadas operaciones asimiladas a importaciones y salidas de regímenes suspensivos.",
+  "381":
+    "Reembolso institucional de IVA a fuerzas armadas de otro Estado miembro en actividades de defensa de la UE.",
+  "410":
+    "Pago a cuenta del impuesto sobre depósitos presentado por entidades de crédito.",
+  "411":
+    "Autoliquidación anual del impuesto sobre depósitos de las entidades de crédito.",
+  "430": "Autoliquidación mensual del Impuesto sobre las Primas de Seguros.",
+  "480":
+    "Resumen anual de bases y cuotas del Impuesto sobre las Primas de Seguros.",
+  "490":
+    "Autoliquidación trimestral del impuesto del 3 % sobre determinados servicios digitales.",
+  "504":
+    "Solicitud vigente para determinados movimientos UE de productos sujetos a Impuestos Especiales.",
+  "505":
+    "Autorización administrativa emitida tras una solicitud 504; no tiene presentación independiente.",
+  "506":
+    "Solicitud trimestral de devolución por introducción de productos en depósito fiscal.",
+  "507":
+    "Solicitud vigente de devolución en envíos garantizados, regulada por la Orden HFP/626/2023.",
+  "508":
+    "Solicitud trimestral de devolución en ventas a distancia de productos sujetos a Impuestos Especiales.",
+  "510":
+    "Declaración de determinadas recepciones UE de productos sujetos a Impuestos Especiales.",
+  "512":
+    "Relación anual de destinatarios que alcanzan 50.000 litros de productos de tarifa segunda.",
+  "515":
+    "Solicitud electrónica de marcas fiscales para todas las labores del tabaco comprendidas.",
+  "517": "Solicitud de marcas fiscales para alcohol y bebidas derivadas.",
+  "518":
+    "Declaración de trabajo presentada al menos un día hábil antes de comenzar.",
+  "519":
+    "Comunicación inmediata de incidencias durante una operación de trabajo.",
+  "520":
+    "Resultado final presentado el día en que termina el periodo de actividad.",
+  "521":
+    "Relación trimestral de materias primas para alcohol vínico, azúcares, isoglucosa y melazas.",
+  "522":
+    "Parte histórico de determinados biocarburantes con una contradicción oficial de vigencia pendiente de aclarar.",
+  "523":
+    "Reconocimiento previo de determinados beneficios de devolución sobre alcohol y bebidas alcohólicas.",
+  "524":
+    "Solicitud trimestral de devolución por determinados usos de alcohol y bebidas alcohólicas.",
+  "544":
+    "Información trimestral de pagos mediante cheques y tarjetas de gasóleo bonificado.",
+  "545":
+    "Información trimestral de carburantes suministrados bajo beneficios de relaciones internacionales.",
   "040":
     "Alta, modificación y baja de operadores de plataformas en sus dos registros específicos. No es el Modelo 04 y no lo presenta el vendedor.",
   "172":
