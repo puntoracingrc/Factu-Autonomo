@@ -292,14 +292,12 @@ describe("MVP usability polish", () => {
 
     expect(accountPageSource).toContain("AccountSection");
     expect(accountPageSource).toContain("Acceso");
-    expect(accountPageSource).toContain("Seguridad");
     expect(accountPageSource).toContain("Plan");
     expect(accountPageSource).toContain("Sincronización");
     expect(accountPageSource).toContain("Copias");
     expect(accountPageSource).toContain("Importación");
     expect(accountPageSource).toContain("Legal");
     expect(accountPageSource).toContain('id="sincronizacion-cuenta"');
-    expect(accountPageSource).toContain('id="seguridad-cuenta"');
     expect(accountPageSource).toContain('id="copias-cuenta"');
     expect(accountPageSource).not.toContain("Cuenta y nube");
   });
@@ -938,14 +936,12 @@ describe("MVP usability polish", () => {
     expect(accountPageSource).toContain("Opciones de cuenta");
     expect(accountPageSource).toContain("flex flex-wrap gap-2");
     expect(accountPageSource).toContain("#inicio-sesion");
-    expect(accountPageSource).toContain("#seguridad-cuenta");
     expect(accountPageSource).toContain("#plan-cuenta");
     expect(accountPageSource).toContain("#sincronizacion-cuenta");
     expect(accountPageSource).toContain("#copias-cuenta");
     expect(accountPageSource).toContain("#importar-datos");
     expect(accountPageSource).toContain("#legal-privacidad");
     expect(accountPageSource).toContain("Acceso");
-    expect(accountPageSource).toContain("Seguridad");
     expect(accountPageSource).toContain("Sincronización");
     expect(accountPageSource).toContain("Copias");
     expect(accountPageSource).toContain("Importación");
@@ -954,7 +950,6 @@ describe("MVP usability polish", () => {
     expect(accountPageSource).not.toContain("ManualHelpLink");
     expect(accountPageSource).not.toContain("InstallAppCard");
     expect(accountPageSource).toContain('id="plan-cuenta"');
-    expect(accountPageSource).toContain('id="seguridad-cuenta"');
     expect(accountPageSource).toContain('id="sincronizacion-cuenta"');
     expect(accountPageSource).toContain('id="copias-cuenta"');
     expect(accountPageSource).toContain('id="importar-datos"');
@@ -962,26 +957,28 @@ describe("MVP usability polish", () => {
     expect(accountPageSource).toContain('id="legal-privacidad"');
   });
 
-  it("ofrece doble factor opcional sin meter friccion al registro", () => {
+  it("mantiene el alta de doble factor exclusivamente dentro de admin", () => {
     const accountPageSource = readFileSync(
       new URL("../app/cuenta/page.tsx", import.meta.url),
       "utf8",
     );
-    const accountMfaSource = readFileSync(
-      new URL("../components/cloud/AccountMfaCard.tsx", import.meta.url),
+    const adminPageSource = readFileSync(
+      new URL("../app/admin/page.tsx", import.meta.url),
       "utf8",
     );
-    const cloudAccountSource = readFileSync(
-      new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
+    const adminCapabilitiesSource = readFileSync(
+      new URL("../app/api/admin/capabilities/route.ts", import.meta.url),
       "utf8",
     );
 
-    expect(accountPageSource).toContain("<AccountMfaCard />");
-    expect(accountMfaSource).toContain("Activar doble factor");
-    expect(accountMfaSource).toContain("Añadir dispositivo de respaldo");
-    expect(accountMfaSource).toContain("tendrá que ayudarte soporte");
-    expect(cloudAccountSource).not.toContain("Activar doble factor");
-    expect(cloudAccountSource).not.toContain("Código de 6 dígitos");
+    expect(accountPageSource).not.toContain("AccountMfaCard");
+    expect(accountPageSource).not.toContain('id="seguridad-cuenta"');
+    expect(accountPageSource).not.toContain("Activar doble factor");
+    expect(adminPageSource).toContain("MFA admin");
+    expect(adminPageSource).toContain("supabase.auth.mfa.enroll");
+    expect(adminPageSource).toContain("supabase.auth.mfa.verify");
+    expect(adminCapabilitiesSource).toContain("adminEmailAuthorized");
+    expect(adminCapabilitiesSource).toContain("adminMfa");
   });
 
   it("encapsula acciones y filtros de clientes en bloques separados", () => {
