@@ -1,12 +1,22 @@
 import type { AdministrativeMoneyKind } from "./administrative-domain";
+import {
+  explainFiscalNotificationDocumentV1,
+  type FiscalNotificationDocumentExplanationV1,
+} from "./structured-document-explanation.v1";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
+import type {
+  AdministrativeDocumentType,
+  ExternalReferenceType,
+} from "./types";
 
 export interface FiscalNotificationStructuredHistoryMoneyV1 {
   readonly key: string;
   readonly label: string;
+  readonly kind: AdministrativeMoneyKind;
   readonly amountCents: number;
   readonly currency: "EUR" | "UNKNOWN";
   readonly sourceReference: string | null;
+  readonly sourceReferenceType: ExternalReferenceType | null;
 }
 
 export interface FiscalNotificationStructuredHistoryFactV1 {
@@ -29,6 +39,8 @@ export interface FiscalNotificationStructuredHistoryInstallmentV1 {
 
 export interface FiscalNotificationStructuredHistoryEntryV1 {
   readonly key: string;
+  readonly documentType: AdministrativeDocumentType;
+  readonly documentSubtype: string | null;
   readonly title: string;
   readonly authority: string;
   readonly documentDate: string | null;
@@ -41,6 +53,7 @@ export interface FiscalNotificationStructuredHistoryEntryV1 {
   readonly printedDates: readonly FiscalNotificationStructuredHistoryFactV1[];
   readonly money: readonly FiscalNotificationStructuredHistoryMoneyV1[];
   readonly installments: readonly FiscalNotificationStructuredHistoryInstallmentV1[];
+  readonly explanation: FiscalNotificationDocumentExplanationV1;
   readonly authenticityLabel: "Autenticidad no comprobada";
   readonly reviewLabel: "Datos extraídos · revisa antes de actuar";
   readonly sourceContentRetention: "NOT_RETAINED";
@@ -201,21 +214,26 @@ export function projectFiscalNotificationStructuredHistoryV1(
         }),
       );
       const money = (domain?.moneyFacts ?? []).map((fact) =>
-        Object.freeze({
-          key: fact.id,
-          label:
-            fact.evidenceIds
-              .map((id) => verticalFieldsByEvidence.get(id))
-              .find((metadata) => metadata?.semantic === "MONEY")?.label ??
-            MONEY_LABELS[fact.kind],
-          amountCents: fact.amountCents,
-          currency: fact.currency,
-          sourceReference: fact.sourceActRefId
-            ? (references.get(fact.sourceActRefId)?.rawValue ?? null)
-            : null,
-        }),
+        {
+          const sourceReference = fact.sourceActRefId
+            ? references.get(fact.sourceActRefId)
+            : undefined;
+          return Object.freeze({
+            key: fact.id,
+            label:
+              fact.evidenceIds
+                .map((id) => verticalFieldsByEvidence.get(id))
+                .find((metadata) => metadata?.semantic === "MONEY")?.label ??
+              MONEY_LABELS[fact.kind],
+            kind: fact.kind,
+            amountCents: fact.amountCents,
+            currency: fact.currency,
+            sourceReference: sourceReference?.rawValue ?? null,
+            sourceReferenceType: sourceReference?.referenceType ?? null,
+          });
+        },
       );
-      const documentReferences = document.referenceIds
+      const documentReferences = deduplicateFacts(document.referenceIds
         .map((id) => references.get(id))
         .filter((item) => item !== undefined)
         .map((item) =>
@@ -229,8 +247,8 @@ export function projectFiscalNotificationStructuredHistoryV1(
               "Referencia impresa",
             value: item.rawValue,
           }),
-        );
-      const printedDates = snapshot.structuredData.unknownFields.flatMap(
+        ));
+      const explanationFacts = snapshot.structuredData.unknownFields.flatMap(
         (field) => {
           const metadata = parseVerticalFieldLabel(field.labelRaw);
           if (
@@ -250,6 +268,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
           ];
         },
       );
+      const printedDates = deduplicateFacts(explanationFacts);
       const installments = snapshot.structuredData.paymentOptionIds
         .map((id) => paymentOptions.get(id))
         .filter((item) => item !== undefined)
@@ -276,9 +295,22 @@ export function projectFiscalNotificationStructuredHistoryV1(
         snapshotIssueDate: snapshot.structuredData.documentFields.issueDate,
         unknownFields: snapshot.structuredData.unknownFields,
       });
+      const receiptDate =
+        normalizeCalendarDate(document.notificationDates.accessedAt?.slice(0, 10)) ??
+        normalizeCalendarDate(document.notificationDates.effectiveAt?.slice(0, 10));
+      const explanation = explainFiscalNotificationDocumentV1({
+        documentType: document.documentType,
+        documentSubtype: document.documentSubtype ?? null,
+        documentDate,
+        receiptDate,
+        facts: explanationFacts,
+        money,
+      });
 
       return Object.freeze({
         key: document.id,
+        documentType: document.documentType,
+        documentSubtype: document.documentSubtype ?? null,
         title: document.titleRaw,
         authority: authority.nameRaw,
         documentDate,
@@ -291,6 +323,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
         printedDates: Object.freeze(printedDates),
         money: Object.freeze(money),
         installments: Object.freeze(installments),
+        explanation,
         authenticityLabel: "Autenticidad no comprobada" as const,
         reviewLabel: "Datos extraídos · revisa antes de actuar" as const,
         sourceContentRetention: "NOT_RETAINED" as const,
@@ -308,6 +341,17 @@ export function projectFiscalNotificationStructuredHistoryV1(
     status: "READY",
     entries: Object.freeze(entries),
   });
+}
+
+function deduplicateFacts<T extends FiscalNotificationStructuredHistoryFactV1>(
+  facts: readonly T[],
+): readonly T[] {
+  const unique = new Map<string, T>();
+  for (const fact of facts) {
+    const key = `${fact.label}\u0000${fact.value}`;
+    if (!unique.has(key)) unique.set(key, fact);
+  }
+  return Object.freeze([...unique.values()]);
 }
 
 interface ExplicitDocumentDateInputV1 {
@@ -351,12 +395,12 @@ function normalizeCalendarDate(value: string | undefined): string | null {
   const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   if (iso) return isValidCalendarDate(...toDateParts(iso)) ? value : null;
 
-  const spanish = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  const spanish = /^(\d{2})([-/])(\d{2})\2(\d{4})$/.exec(value);
   if (!spanish) return null;
-  const normalized = `${spanish[3]}-${spanish[2]}-${spanish[1]}`;
+  const normalized = `${spanish[4]}-${spanish[3]}-${spanish[1]}`;
   return isValidCalendarDate(
+    Number(spanish[4]),
     Number(spanish[3]),
-    Number(spanish[2]),
     Number(spanish[1]),
   )
     ? normalized

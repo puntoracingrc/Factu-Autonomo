@@ -48,6 +48,7 @@ ACUERDO DE COMPENSACIÓN A INSTANCIA DEL OBLIGADO AL PAGO
 DETALLE DE EFECTOS
 (1) EFECTOS DE LA COMPENSACIÓN
 EL IMPORTE DE LA DEUDA QUE FIGURA EN LA COLUMNA TOTAL PENDIENTE ANTES DE COMPENSAR HA QUEDADO EXTINGUIDO EN PERIODO VOLUNTARIO DE INGRESO.
+Documento firmado electrónicamente por la Administradora, 30 de julio de 2014.
 `;
 
 const EX_OFFICIO_PAGE = `
@@ -104,6 +105,11 @@ describe("AEAT offset agreement explicit facts v1", () => {
     expect(result.header.subjectTaxId?.printedValue).toBe("X0000000T");
     expect(result.header.agreementNumber?.printedValue).toBe("ACUERDO-0001");
     expect(result.header.requestDate?.calendarDate).toBe("2026-01-05");
+    expect(result.header.signatureDate).toMatchObject({
+      printedValue: "30-07-2014",
+      calendarDate: "2014-07-30",
+      pageNumbers: [1],
+    });
     expect(result.credits).toHaveLength(1);
     expect(result.credits[0]).toMatchObject({
       reference: { printedValue: "CREDITO-0001" },
@@ -151,6 +157,36 @@ describe("AEAT offset agreement explicit facts v1", () => {
       effectMeaning: "PARTIALLY_EXTINGUISHED_IN_ENFORCEMENT",
     });
     expect(result.issues).toEqual([]);
+  });
+
+  it("deduplicates the same signature date printed on the agreement and annex", () => {
+    const result = extractAeatOffsetAgreementFactsV1(
+      frozenInput([
+        REQUESTED_PAGE,
+        "Documento firmado electrónicamente por el Administrador, 30 de julio de 2014.",
+      ]),
+    );
+
+    expect(result.header.signatureDate).toMatchObject({
+      calendarDate: "2014-07-30",
+      pageNumbers: [1, 2],
+    });
+    expect(result.issues).toEqual([]);
+  });
+
+  it("fails closed when two distinct signature dates are printed", () => {
+    const result = extractAeatOffsetAgreementFactsV1(
+      frozenInput([
+        REQUESTED_PAGE,
+        "Documento firmado electrónicamente por el Administrador, 31 de julio de 2014.",
+      ]),
+    );
+
+    expect(result.header.signatureDate).toBeNull();
+    expect(result.outcome).toBe("AMBIGUOUS");
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({ code: "MULTIPLE_DISTINCT_SIGNATURE_DATES" }),
+    );
   });
 
   it("does not confuse a request or generic procedure mention with an agreement", () => {

@@ -14,6 +14,9 @@ import { searchFiscalNotificationGuideV1 } from "@/lib/fiscal-notifications/guid
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
+const explainedGuideCount = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.filter(
+  (entry) => entry.plainLanguage,
+).length;
 
 function resultLabel(total: number, query: string): string {
   if (!query) return `${total} tipos documentales registrados`;
@@ -65,12 +68,12 @@ export function FiscalNotificationGuideView({
           </p>
         </div>
         <h2 className="mt-2 text-2xl font-bold text-slate-950 sm:text-3xl dark:text-slate-100">
-          Guía de notificaciones
+          Guía de notificaciones y expedientes
         </h2>
         <p className="mt-1 max-w-3xl text-base leading-7 text-slate-600 dark:text-slate-300">
-          Busca un tipo de comunicación o procedimiento y consulta la cobertura,
-          las relaciones posibles y las fuentes oficiales registradas. La
-          búsqueda se ejecuta en este navegador y no envía lo que escribes.
+          Busca qué significa un documento, por qué suele llegar, qué conviene
+          hacer y qué plazo debes localizar. La búsqueda se ejecuta en este
+          navegador y no envía lo que escribes.
         </p>
       </header>
 
@@ -85,14 +88,13 @@ export function FiscalNotificationGuideView({
           />
           <div className="min-w-0">
             <h3 className="font-bold text-amber-950 dark:text-amber-100">
-              Guía en revisión, sin acciones automáticas
+              Te lo explicamos; tú decides qué hacer
             </h3>
             <p className="mt-1 text-sm leading-6 text-amber-900 dark:text-amber-200">
-              Los {FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.length} tipos son
-              encontrables, pero ninguna ficha activa una regla jurídica ni
-              confirma pagos, deudas, plazos o relaciones. El contenido impreso
-              del documento concreto prevalece sobre el contexto general de
-              AEAT o BOE.
+              Ya hay {explainedGuideCount} tipos con explicación sencilla y los {" "}
+              {FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.length} se pueden buscar. La
+              guía no paga, recurre ni cambia datos por sí sola: primero te ayuda
+              a entender el documento y deja visibles las fuentes oficiales.
             </p>
           </div>
         </div>
@@ -223,15 +225,17 @@ export function FiscalNotificationGuideView({
                     <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-900 dark:bg-blue-950 dark:text-blue-100">
                       {entry.categoryLabel}
                     </span>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${entry.coverage.status === "PARTIAL_REVIEW_ONLY" ? "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-100" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
-                      {entry.coverage.status === "PARTIAL_REVIEW_ONLY" ? "Cobertura parcial" : "En preparación"}
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${entry.plainLanguage ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
+                      {entry.plainLanguage ? "Guía explicada" : "En preparación"}
                     </span>
                   </div>
                   <h5 className="mt-4 break-words text-lg font-bold text-slate-950 dark:text-slate-100">
                     {entry.nameEs}
                   </h5>
                   <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    {entry.sources.length} {entry.sources.length === 1 ? "fuente oficial registrada" : "fuentes oficiales registradas"} · revisión jurídica pendiente
+                    {entry.plainLanguage
+                      ? entry.summary
+                      : `${entry.sources.length} ${entry.sources.length === 1 ? "fuente oficial registrada" : "fuentes oficiales registradas"}`}
                   </p>
                   <div className="flex-1" />
                   <Link

@@ -504,6 +504,190 @@ const practicalCatalogLabels: Readonly<
     "Trimestral",
     "Hasta el día 20",
   ],
+  "546": [
+    "Gasóleo bonificado",
+    "Entidades emisoras",
+    "Trimestral",
+    "Hasta el día 20",
+  ],
+  "547": [
+    "Gasóleo bonificado",
+    "Abonos a detallistas",
+    "Trimestral",
+    "Hasta el día 20",
+  ],
+  "548": [
+    "Impuestos Especiales",
+    "Depositarios autorizados",
+    "Mensual",
+    "Operaciones por cuenta ajena",
+  ],
+  "553": [
+    "Vino y bebidas fermentadas",
+    "SILICIE",
+    "Trimestral",
+    "Formulario 2025+",
+  ],
+  "559": [
+    "Alcohol",
+    "Destilación artesanal",
+    "Tarifa 1 y 2",
+    "Plazos especiales",
+  ],
+  "560": ["Electricidad", "Autoliquidación", "CIE", "Tipo revisable"],
+  "561": ["Cerveza", "Impuestos Especiales", "Autoliquidación", "Grado Plato"],
+  "562": [
+    "Productos intermedios",
+    "Tranquilos y espumosos",
+    "Autoliquidación",
+    "Impuestos Especiales",
+  ],
+  "563": [
+    "Alcohol y bebidas derivadas",
+    "Autoliquidación",
+    "Litros de alcohol puro",
+    "Impuestos Especiales",
+  ],
+  "566": [
+    "Tabaco",
+    "Autoliquidación",
+    "Labores y epígrafes",
+    "Impuestos Especiales",
+  ],
+  "568": [
+    "Medios de transporte",
+    "Reventa profesional",
+    "Envío fuera del territorio",
+    "Antes de cuatro años",
+  ],
+  "571": [
+    "Hidrocarburos",
+    "Reconocimiento previo",
+    "Devolución",
+    "No es el 572",
+  ],
+  "572": [
+    "Hidrocarburos",
+    "Solicitud de devolución",
+    "Trimestral",
+    "Relacionado con 571",
+  ],
+  "573": [
+    "Cigarrillos electrónicos",
+    "Mensual",
+    "Vigente desde abril de 2025",
+    "Impuesto especial",
+  ],
+  "576": ["Carburantes", "Devolución", "Uso profesional", "Transporte"],
+  "581": ["Hidrocarburos", "Autoliquidación", "Por establecimiento", "Vigente"],
+  "582": [
+    "Histórico",
+    "Hidrocarburos",
+    "Periodos anteriores a 2019",
+    "No vigente en 2026",
+  ],
+  "583": [
+    "Producción eléctrica",
+    "Pagos fraccionados",
+    "Autoliquidación anual",
+    "Noviembre",
+  ],
+  "584": [
+    "Energía nuclear",
+    "Producción",
+    "Combustible gastado",
+    "Residuos radiactivos",
+  ],
+  "585": [
+    "Energía nuclear",
+    "Almacenamiento centralizado",
+    "Combustible gastado",
+    "Residuos radiactivos",
+  ],
+  "586": [
+    "Histórico",
+    "Gases fluorados",
+    "Hasta agosto de 2022",
+    "No vigente en 2026",
+  ],
+  "587": [
+    "Gases fluorados",
+    "Trimestral",
+    "Rectificativa desde julio de 2026",
+    "Autoliquidación",
+  ],
+  "588": [
+    "Producción eléctrica",
+    "Cese anticipado",
+    "Noviembre",
+    "Relacionado con 583",
+  ],
+  "589": ["Extracción", "Gas y petróleo", "Pago en octubre", "Anual en abril"],
+  "590": ["Hidrocarburos", "Exportación", "Devolución", "Aduanas"],
+  "591": [
+    "Producción eléctrica",
+    "Pagadores",
+    "Informativa anual",
+    "Diciembre",
+  ],
+  "592": [
+    "Plástico no reciclado",
+    "Vigente desde 2023",
+    "Autoliquidación",
+    "Envases",
+  ],
+  "593": [
+    "Residuos",
+    "Vigente desde 2023",
+    "Gestión territorial",
+    "Vertedero e incineración",
+  ],
+  "595": [
+    "Carbón",
+    "Relación de suministros",
+    "Declaración informativa",
+    "Operadores",
+  ],
+  "596": [
+    "Carbón",
+    "Autoliquidación",
+    "Impuestos Especiales",
+    "Suministro o autoconsumo",
+  ],
+  "600": ["ITP y AJD", "Competencia territorial", "30 días hábiles"],
+  "602": ["Juego", "Tasa administrativa", "No periódica"],
+  "604": ["Transacciones financieras", "Mensual", "0,2 %", "Anexo previo"],
+  "610": ["Documentos mercantiles", "Entidades colaboradoras", "AJD"],
+  "611": ["Informativa anual", "No genera pago", "Relacionado con 610"],
+  "615": ["Documentos mercantiles", "Función de giro", "AJD"],
+  "616": ["Informativa anual", "No genera pago", "Relacionado con 615"],
+  "620": ["Vehículos usados", "Comprador", "Competencia territorial"],
+  "630": ["Letras de cambio", "AJD", "Competencia territorial"],
+  "650": ["Herencias", "Seis meses", "Competencia territorial"],
+  "651": ["Donaciones", "Donatario", "30 días hábiles"],
+  "655": ["Usufructo", "Nuda propiedad", "Competencia territorial"],
+  "681": ["Sector eléctrico", "Residuos radiactivos", "Mensual"],
+  "682": ["Centrales nucleares", "Residuos radiactivos", "Mensual"],
+  "683": ["Combustible nuclear", "Anual", "Muy especializado"],
+  "684": ["Residuos radiactivos", "ENRESA", "60 días"],
+  "685": ["Apuestas", "Promociones", "Periodo 0A", "30 días"],
+  "695": ["Tasa judicial", "Devolución parcial", "60 % o 20 %"],
+  "696": ["Tasa judicial", "Personas jurídicas", "Revisar exenciones"],
+  "763": ["Operadores de juego", "Trimestral", "Sectorial"],
+  "770": ["Alta complejidad", "Intereses y recargos", "Artículo 252 LGT"],
+  "771": ["Alta complejidad", "Cuota principal", "Solo sin modelo ordinario"],
+  "780": ["Entidades financieras", "Impuesto vigente", "Septiembre"],
+  "781": ["Entidades financieras", "Pago fraccionado", "40 %", "Febrero"],
+  "791": ["Empleo público", "Oposiciones AEAT", "No tributario"],
+  "792": ["Servicios audiovisuales", "Anual", "Febrero"],
+  "793": [
+    "Servicios audiovisuales",
+    "Pagos a cuenta",
+    "Abril, julio y octubre",
+  ],
+  "795": ["Histórico", "Energía", "2023 y 2024"],
+  "796": ["Histórico", "Pago anticipado", "2023 y 2024"],
+  "797": ["Histórico", "Entidades financieras", "Relacionado con 780 y 781"],
   "232": [
     "Autónomo societario y empresas",
     "Operaciones vinculadas",
@@ -776,6 +960,122 @@ const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
     "Información trimestral de pagos mediante cheques y tarjetas de gasóleo bonificado.",
   "545":
     "Información trimestral de carburantes suministrados bajo beneficios de relaciones internacionales.",
+  "546":
+    "Información trimestral de cheques-tarjeta de gasóleo bonificado emitidos o gestionados por entidades autorizadas.",
+  "547":
+    "Información trimestral de abonos realizados a detallistas de gasóleo bonificado por entidades emisoras de medios de pago.",
+  "548":
+    "Declaración mensual de cuotas repercutidas por depositarios autorizados en operaciones por cuenta ajena, sin incluir electricidad.",
+  "553":
+    "Operaciones y existencias de determinados establecimientos de vino y bebidas fermentadas, coordinadas con SILICIE y con flujo separado desde 2025.",
+  "559":
+    "Autoliquidación especial de destilación artesanal y régimen de cosechero, con reglas distintas para Tarifa 1 y Tarifa 2.",
+  "560":
+    "Autoliquidación del Impuesto Especial sobre la Electricidad por contribuyentes inscritos, no por consumidores ordinarios.",
+  "561":
+    "Autoliquidación del Impuesto sobre la Cerveza por operadores autorizados.",
+  "562":
+    "Autoliquidación del Impuesto sobre Productos Intermedios tranquilos y espumosos.",
+  "563": "Autoliquidación del Impuesto sobre el Alcohol y Bebidas Derivadas.",
+  "566": "Autoliquidación de los Impuestos sobre las Labores del Tabaco.",
+  "568":
+    "Solicitud de devolución para revendedores profesionales que envían definitivamente un medio de transporte fuera del territorio antes de cuatro años.",
+  "571":
+    "Reconocimiento previo del derecho a determinadas devoluciones del Impuesto sobre Hidrocarburos.",
+  "572":
+    "Solicitud trimestral de devolución de determinadas cuotas del Impuesto sobre Hidrocarburos.",
+  "573":
+    "Autoliquidación mensual del impuesto sobre líquidos para cigarrillos electrónicos y otros productos del tabaco, exigible desde abril de 2025.",
+  "576":
+    "Solicitud de devolución por determinados usos profesionales de gasóleo.",
+  "581":
+    "Autoliquidación vigente del Impuesto sobre Hidrocarburos por establecimiento.",
+  "582":
+    "Modelo histórico trimestral por establecimiento, limitado a periodos anteriores a 2019.",
+  "583":
+    "Pagos fraccionados y autoliquidación anual del impuesto sobre el valor de la producción eléctrica.",
+  "584":
+    "Autoliquidación por producción de combustible nuclear gastado y residuos radiactivos.",
+  "585":
+    "Autoliquidación por almacenamiento centralizado de combustible nuclear gastado y residuos radiactivos.",
+  "586":
+    "Declaración histórica de gases fluorados, limitada a operaciones realizadas hasta el 31 de agosto de 2022.",
+  "587":
+    "Autoliquidación vigente de gases fluorados, con rectificativa para periodos iniciados desde julio de 2026.",
+  "588":
+    "Autoliquidación especial de producción eléctrica por determinados ceses anticipados.",
+  "589":
+    "Pago fraccionado y autoliquidación anual de la extracción de gas, petróleo y condensados.",
+  "590":
+    "Solicitud de devolución de hidrocarburos en determinados envíos y exportaciones acreditados.",
+  "591":
+    "Información anual de pagos realizados a contribuyentes del impuesto sobre la producción eléctrica.",
+  "592":
+    "Autoliquidación vigente desde 2023 sobre envases de plástico no reutilizables.",
+  "593":
+    "Autoliquidación vigente desde 2023 sobre depósito, incineración y coincineración de residuos, con gestión territorial.",
+  "595":
+    "Relación informativa de suministros de carbón realizada por operadores obligados.",
+  "596":
+    "Autoliquidación del Impuesto Especial sobre el Carbón por operaciones sujetas y autoconsumos.",
+  "600":
+    "Autoliquidación general de ITP y AJD en los supuestos de competencia estatal.",
+  "602":
+    "Tasa asociada a determinados trámites administrativos estatales en materia de juego.",
+  "604":
+    "Autoliquidación mensual del impuesto sobre determinadas adquisiciones de acciones españolas.",
+  "610":
+    "Ingreso del AJD sobre determinados documentos negociados por entidades colaboradoras.",
+  "611":
+    "Resumen anual de los documentos y cuotas declarados mediante el Modelo 610.",
+  "615":
+    "Ingreso del AJD sobre determinados documentos con función de giro o endosables a la orden.",
+  "616":
+    "Resumen anual de los documentos y cuotas declarados mediante el Modelo 615.",
+  "620":
+    "Autoliquidación de ITP por determinados medios de transporte usados adquiridos entre particulares.",
+  "630":
+    "Pago en metálico del AJD correspondiente a determinadas letras y documentos mercantiles.",
+  "650":
+    "Autoliquidación del impuesto correspondiente a herencias, legados y seguros por fallecimiento.",
+  "651":
+    "Autoliquidación del impuesto correspondiente a donaciones y otras adquisiciones gratuitas inter vivos.",
+  "655":
+    "Autoliquidación por consolidación de la plena propiedad al extinguirse un usufructo.",
+  "681":
+    "Tasa sectorial vinculada a la financiación de determinados servicios de gestión de residuos radiactivos.",
+  "682":
+    "Tasa por la gestión de combustible nuclear gastado y residuos generados en centrales nucleares.",
+  "683":
+    "Tasa anual por residuos derivados de la fabricación de elementos combustibles nucleares.",
+  "684":
+    "Tasa por la gestión de residuos radiactivos generados en otras instalaciones.",
+  "685":
+    "Autoliquidación estatal de determinadas apuestas y combinaciones aleatorias promocionales.",
+  "695":
+    "Solicitud de devolución parcial de una tasa judicial por terminación del litigio o acumulación.",
+  "696":
+    "Autoliquidación de la tasa judicial de determinadas personas jurídicas y actuaciones procesales.",
+  "763":
+    "Autoliquidación trimestral del impuesto sobre actividades de juego de operadores estatales.",
+  "770":
+    "Intereses y recargos de una regularización voluntaria especial del artículo 252 LGT.",
+  "771":
+    "Cuota principal de una regularización especial cuando no existe modelo electrónico ordinario.",
+  "780":
+    "Autoliquidación anual del impuesto vigente sobre el margen de intereses y comisiones.",
+  "781":
+    "Pago fraccionado del impuesto sobre el margen de intereses y comisiones.",
+  "791":
+    "Solicitud electrónica de admisión a procesos selectivos de la AEAT y tasa de examen.",
+  "792":
+    "Autoliquidación anual de la aportación a RTVE de determinados prestadores audiovisuales.",
+  "793":
+    "Pagos de abril, julio y octubre a cuenta de la aportación audiovisual a RTVE.",
+  "795": "Modelo histórico del gravamen temporal energético de 2023 y 2024.",
+  "796": "Pago anticipado histórico del gravamen energético de 2023 y 2024.",
+  "797":
+    "Modelo histórico del antiguo gravamen bancario, relacionado con los actuales 780 y 781.",
   "040":
     "Alta, modificación y baja de operadores de plataformas en sus dos registros específicos. No es el Modelo 04 y no lo presenta el vendedor.",
   "172":

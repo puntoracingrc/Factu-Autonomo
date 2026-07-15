@@ -68,6 +68,27 @@ const manualSource = readSource(
 const surfaceSource = `${componentSource}\n${documentLibraryComponentSource}\n${pageSource}\n${flowSource}\n${batchIntakeSource}\n${guidanceSource}\n${reviewStepsSource}\n${verticalSlicePanelSource}\n${explicitFieldsPanelSource}\n${explicitFieldsViewModelSource}\n${partyFactsPanelSource}\n${partyFactsViewModelSource}\n${relationsViewModelSource}\n${documentLibraryViewModelSource}`;
 
 describe("contrato de interfaz de Notificaciones y expedientes", () => {
+  it("explica la ficha con conocimiento local antes del detalle técnico", () => {
+    expect(documentLibraryComponentSource).toContain(
+      "Qué te está diciendo este documento",
+    );
+    expect(documentLibraryComponentSource).toContain(
+      "Por qué lo has recibido",
+    );
+    expect(documentLibraryComponentSource).toContain(
+      "Qué tienes que hacer",
+    );
+    expect(documentLibraryComponentSource).toContain(
+      "Fuentes oficiales que ya conoce el motor",
+    );
+    expect(documentLibraryComponentSource).toContain(
+      "Ver importes, referencias y datos extraídos",
+    );
+    expect(compact(documentLibraryComponentSource)).toContain(
+      "No se consulta internet al escanear",
+    );
+  });
+
   it("obtiene el ámbito exclusivamente de la cuenta canónica confirmada", () => {
     expect(componentSource).toContain(
       'import { useCloudSync } from "@/context/CloudSyncContext"',
