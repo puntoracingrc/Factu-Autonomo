@@ -193,6 +193,139 @@ export type TaxRuleReviewStatus =
   | "APPROVED"
   | "RETIRED";
 
+export type FiscalReviewStatus =
+  | "PENDING_FISCAL_REVIEW"
+  | "IN_REVIEW"
+  | "APPROVED"
+  | "REJECTED";
+
+export type FiscalResolutionStatus =
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "RESOLVED"
+  | "REOPENED";
+
+export type FiscalTestsStatus =
+  | "NOT_IMPLEMENTED"
+  | "INCOMPLETE"
+  | "FAILING"
+  | "PASSING";
+
+export type FiscalSourceStatus =
+  | "UNVERIFIED"
+  | "VERIFIED"
+  | "STALE"
+  | "SUPERSEDED"
+  | "UNAVAILABLE";
+
+export type FiscalIssueStatus =
+  | "OPEN"
+  | "IN_PROGRESS"
+  | "READY_FOR_VERIFICATION"
+  | "VERIFIED"
+  | "REOPENED";
+
+export type FiscalReviewerRole =
+  | "PRIMARY_FISCAL_REVIEWER"
+  | "SECOND_FISCAL_REVIEWER"
+  | "TECHNICAL_REVIEWER";
+
+export interface FiscalReviewerIdentity {
+  reviewerId: string;
+  role: FiscalReviewerRole;
+  identityProvider: string;
+  verificationId: string;
+}
+
+export interface FiscalRuleReviewMetadata {
+  reviewStatus: FiscalReviewStatus;
+  resolutionStatus: FiscalResolutionStatus;
+  testsStatus: FiscalTestsStatus;
+  sourceStatus: FiscalSourceStatus;
+  issueIds: readonly string[];
+  primaryFiscalReviewer: FiscalReviewerIdentity | null;
+  secondFiscalReviewer: FiscalReviewerIdentity | null;
+  technicalReviewer: FiscalReviewerIdentity | null;
+  reviewedAt: string | null;
+  resolvedAt: string | null;
+  approvedAt: string | null;
+  approvedRuleHash: string | null;
+  approvalEvidenceId: string | null;
+  approvalEvidenceVerified: boolean;
+  approvalEvidenceOrigin: "SIGNED_FISCAL_ARTIFACT" | null;
+  comments: readonly string[];
+}
+
+export interface FiscalSourceSnapshot {
+  sourceId: string;
+  authority: OfficialSource["authority"];
+  title: string;
+  officialLocator: string;
+  sourceType: "OFFICIAL_REFERENCE";
+  publishedAt: string | null;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
+  retrievedAt: string | null;
+  snapshotHash: string | null;
+  materialScope: string | null;
+  status: FiscalSourceStatus;
+  supersedesSourceId: string | null;
+  verifiedBy: FiscalReviewerIdentity | null;
+  verifiedAt: string | null;
+}
+
+export type FiscalExclusionEffectType =
+  | "ADVISORY_EXCLUSION_CANDIDATE"
+  | "EXCLUDE_MODEL";
+
+export interface FiscalExclusionCandidate {
+  exclusionId: string;
+  description: string;
+  effectType: FiscalExclusionEffectType;
+  model: TaxModelNumber;
+  conditions: readonly string[];
+  exceptionIds: readonly string[];
+  reviewStatus: FiscalReviewStatus;
+  resolutionStatus: FiscalResolutionStatus;
+  sourceIds: readonly string[];
+  testCaseIds: readonly string[];
+}
+
+export interface FiscalRuleMetadata {
+  ruleId: string;
+  rulesetId: string;
+  model: TaxModelNumber;
+  fiscalYear: 2025 | 2026;
+  territory: "ES_COMMON";
+  effectiveFrom: string;
+  effectiveTo: string | null;
+  review: FiscalRuleReviewMetadata;
+  sourceSnapshots: readonly FiscalSourceSnapshot[];
+  ruleHash: string;
+  exclusionCandidates: readonly FiscalExclusionCandidate[];
+  testCaseIds: readonly string[];
+  questionIds: readonly string[];
+  factIds: readonly string[];
+}
+
+export interface FiscalRulesetAuthorizationMetadata {
+  rulesetId: string;
+  reviewStatus: FiscalReviewStatus;
+  resolutionStatus: FiscalResolutionStatus;
+}
+
+export interface FiscalApprovalEvidence {
+  evidenceId: string;
+  ruleHash: string;
+  verified: boolean;
+  origin: "SIGNED_FISCAL_ARTIFACT" | "INTERNAL_OVERRIDE";
+}
+
+export interface FiscalIssueReference {
+  issueId: string;
+  status: FiscalIssueStatus;
+}
+
 export interface TaxRule {
   ruleId: string;
   version: string;
@@ -209,6 +342,7 @@ export interface TaxRule {
   reviewedBy: string;
   reviewStatus: TaxRuleReviewStatus;
   tests: readonly string[];
+  fiscalMetadata: FiscalRuleMetadata;
 }
 
 export type ModelResultStatus =
