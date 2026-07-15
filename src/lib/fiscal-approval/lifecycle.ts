@@ -2,17 +2,33 @@ import type {
   FiscalIssueStatus,
   FiscalResolutionStatus,
   FiscalReviewStatus,
+  TaxRule,
 } from "@/lib/tax-model-diagnostic/contracts";
+import type {
+  FiscalReviewRegistry,
+  FiscalRuleReviewDecision,
+  FiscalSourceSnapshotRegistry,
+} from "@/lib/fiscal-source-review/contracts";
+import {
+  computeSourceRegistryHash,
+  sourceRecordMap,
+} from "@/lib/fiscal-source-review/core";
+import { evaluateDualFiscalReview } from "@/lib/fiscal-source-review/review";
+import { sha256Hex } from "@/lib/document-integrity/snapshot-hash";
 
 import type {
   FiscalApprovalHistoryEntry,
+  FiscalApprovalIssueRegistrySnapshot,
   FiscalApprovalInvalidationReason,
   FiscalApprovalSignatureEvidence,
   FiscalIssueTransition,
   FiscalRuleApprovalProjection,
   FiscalRuleMaterialSnapshot,
 } from "./contracts";
-import { FISCAL_APPROVAL_CONTRACT_VERSION } from "./contracts";
+import {
+  FISCAL_APPROVAL_CONTRACT_VERSION,
+  FISCAL_ISSUE_REGISTRY_CONTRACT_VERSION,
+} from "./contracts";
 import { computeFiscalApprovalRuleHash } from "./canonical-hash";
 
 const RULE_TRANSITIONS: Readonly<
@@ -55,6 +71,129 @@ function sourceHashes(snapshot: FiscalRuleMaterialSnapshot): readonly string[] {
     (source) =>
       `${source.sourceId}:${source.contentHash}:${source.normalizedContentHash}`,
   );
+}
+
+function sourceById(snapshot: FiscalRuleMaterialSnapshot) {
+  return new Map(
+    snapshot.materialSources.map((source) => [source.sourceId, source]),
+  );
+}
+
+function canonicalIssueRegistry(input: {
+  ruleId: string;
+  fiscalHash: string;
+  registryComplete: boolean;
+  issues: FiscalApprovalIssueRegistrySnapshot["issues"];
+}): string {
+  return JSON.stringify({
+    contractVersion: FISCAL_ISSUE_REGISTRY_CONTRACT_VERSION,
+    ruleId: input.ruleId,
+    fiscalHash: input.fiscalHash,
+    registryComplete: input.registryComplete,
+    issues: [...input.issues]
+      .map((issue) => ({
+        issueId: issue.issueId,
+        status: issue.status,
+        evidenceReferences: sorted(issue.evidenceReferences),
+        verifiedBy: issue.verifiedBy,
+      }))
+      .sort((left, right) => compareText(left.issueId, right.issueId)),
+  });
+}
+
+export function buildFiscalApprovalIssueRegistry(input: {
+  ruleId: string;
+  fiscalHash: string;
+  registryComplete: boolean;
+  issues: FiscalApprovalIssueRegistrySnapshot["issues"];
+}): FiscalApprovalIssueRegistrySnapshot {
+  const issues = input.issues.map((issue) =>
+    Object.freeze({
+      ...issue,
+      evidenceReferences: Object.freeze(sorted(issue.evidenceReferences)),
+    }),
+  );
+  return Object.freeze({
+    contractVersion: FISCAL_ISSUE_REGISTRY_CONTRACT_VERSION,
+    ruleId: input.ruleId,
+    fiscalHash: input.fiscalHash,
+    registryComplete: input.registryComplete,
+    issues: Object.freeze(issues),
+    registryHash: `sha256:${sha256Hex(
+      canonicalIssueRegistry({ ...input, issues }),
+    )}`,
+  });
+}
+
+function issueRegistryErrors(
+  registry: FiscalApprovalIssueRegistrySnapshot,
+  snapshot: FiscalRuleMaterialSnapshot,
+  rule: TaxRule,
+): string[] {
+  const errors: string[] = [];
+  const expectedHash = `sha256:${sha256Hex(canonicalIssueRegistry(registry))}`;
+  if (registry.contractVersion !== FISCAL_ISSUE_REGISTRY_CONTRACT_VERSION) {
+    errors.push("ISSUE_REGISTRY_CONTRACT_INVALID");
+  }
+  if (!registry.registryComplete) errors.push("ISSUE_REGISTRY_INCOMPLETE");
+  if (registry.ruleId !== snapshot.ruleId) {
+    errors.push("ISSUE_REGISTRY_RULE_ID_MISMATCH");
+  }
+  if (registry.fiscalHash !== snapshot.fiscalHash) {
+    errors.push("ISSUE_REGISTRY_FISCAL_HASH_MISMATCH");
+  }
+  if (registry.registryHash !== expectedHash) {
+    errors.push("ISSUE_REGISTRY_HASH_MISMATCH");
+  }
+  const duplicateIds = registry.issues.filter(
+    (issue, index, entries) =>
+      entries.findIndex((candidate) => candidate.issueId === issue.issueId) !==
+      index,
+  );
+  if (duplicateIds.length > 0) errors.push("ISSUE_REGISTRY_DUPLICATE_IDS");
+  const canonicalIssueIds = rule.fiscalMetadata.review.issueIds;
+  const registryIssueIds = registry.issues.map((issue) => issue.issueId);
+  if (
+    new Set(canonicalIssueIds).size !== canonicalIssueIds.length ||
+    !sameStrings(canonicalIssueIds, registryIssueIds)
+  ) {
+    errors.push("ISSUE_REGISTRY_CANONICAL_SET_MISMATCH");
+  }
+  for (const issue of registry.issues) {
+    if (issue.status !== "VERIFIED") {
+      errors.push(`${issue.issueId}:ISSUE_NOT_VERIFIED`);
+    }
+    if (!issue.verifiedBy?.trim() || issue.evidenceReferences.length === 0) {
+      errors.push(`${issue.issueId}:ISSUE_VERIFICATION_EVIDENCE_REQUIRED`);
+    }
+  }
+  return errors;
+}
+
+function assertProjectionMatchesSnapshot(
+  projection: FiscalRuleApprovalProjection,
+  snapshot: FiscalRuleMaterialSnapshot,
+): void {
+  if (projection.ruleId !== snapshot.ruleId) {
+    throw new Error("FISCAL_APPROVAL_RULE_ID_MISMATCH");
+  }
+}
+
+function assertCurrentMaterialSnapshot(
+  snapshot: FiscalRuleMaterialSnapshot,
+): void {
+  if (snapshot.materialSources.length === 0) {
+    throw new Error("FISCAL_MATERIAL_SOURCES_REQUIRED");
+  }
+  if (
+    new Set(snapshot.materialSources.map((source) => source.sourceId)).size !==
+    snapshot.materialSources.length
+  ) {
+    throw new Error("FISCAL_MATERIAL_SOURCE_IDS_MUST_BE_UNIQUE");
+  }
+  if (snapshot.fiscalHash !== computeFiscalApprovalRuleHash(snapshot)) {
+    throw new Error("FISCAL_SNAPSHOT_HASH_MISMATCH");
+  }
 }
 
 export function transitionFiscalRuleReviewStatus(
@@ -131,6 +270,25 @@ export function detectFiscalApprovalInvalidation(
   } else if (!sameStrings(sourceHashes(previous), sourceHashes(current))) {
     reasons.push("SOURCE_HASH_CHANGED");
   }
+  const previousSources = sourceById(previous);
+  for (const source of current.materialSources) {
+    const previousSource = previousSources.get(source.sourceId);
+    if (!previousSource) continue;
+    if (
+      previousSource.verificationStatus ===
+        "VERIFIED_BY_TWO_FISCAL_REVIEWERS" &&
+      source.verificationStatus !== "VERIFIED_BY_TWO_FISCAL_REVIEWERS"
+    ) {
+      reasons.push("SOURCE_VERIFICATION_DOWNGRADED");
+    }
+    if (
+      previousSource.materialValidityStatus === "VERIFIED" &&
+      (source.materialValidityStatus !== "VERIFIED" ||
+        source.materialValidityBasis !== "SIGNED_FISCAL_REVIEW")
+    ) {
+      reasons.push("MATERIAL_VALIDITY_DOWNGRADED");
+    }
+  }
   if (previous.fiscalYear !== current.fiscalYear) {
     reasons.push("FISCAL_YEAR_CHANGED");
   }
@@ -140,7 +298,7 @@ export function detectFiscalApprovalInvalidation(
   if (previous.materialTestHash !== current.materialTestHash) {
     reasons.push("MATERIAL_TEST_CHANGED");
   }
-  return Object.freeze(reasons);
+  return Object.freeze([...new Set(reasons)]);
 }
 
 export function emptyFiscalApprovalProjection(
@@ -169,6 +327,8 @@ export function startFiscalRuleReview(input: {
   occurredAt: string;
   eventId: string;
 }): FiscalRuleApprovalProjection {
+  assertProjectionMatchesSnapshot(input.projection, input.snapshot);
+  assertCurrentMaterialSnapshot(input.snapshot);
   const nextReviewStatus = transitionFiscalRuleReviewStatus(
     input.projection.reviewStatus,
     "IN_REVIEW",
@@ -202,6 +362,8 @@ export function rejectFiscalRuleProjection(input: {
   reasonCodes: readonly string[];
   decisionIds: readonly string[];
 }): FiscalRuleApprovalProjection {
+  assertProjectionMatchesSnapshot(input.projection, input.snapshot);
+  assertCurrentMaterialSnapshot(input.snapshot);
   if (input.reasonCodes.length === 0 || input.decisionIds.length === 0) {
     throw new Error("REJECTION_EVIDENCE_REQUIRED");
   }
@@ -280,39 +442,139 @@ function activeSignatureErrors(
   return [...new Set(errors)].sort(compareText);
 }
 
+function approvalSourceErrors(input: {
+  rule: TaxRule;
+  snapshot: FiscalRuleMaterialSnapshot;
+  sourceRegistry: FiscalSourceSnapshotRegistry;
+}): string[] {
+  const errors: string[] = [];
+  const unsignedRegistry: Omit<FiscalSourceSnapshotRegistry, "registryHash"> = {
+    contractVersion: input.sourceRegistry.contractVersion,
+    generatedAt: input.sourceRegistry.generatedAt,
+    sourceCount: input.sourceRegistry.sourceCount,
+    sources: input.sourceRegistry.sources,
+  };
+  if (
+    computeSourceRegistryHash(unsignedRegistry) !==
+    input.sourceRegistry.registryHash
+  ) {
+    errors.push("SOURCE_REGISTRY_HASH_MISMATCH");
+  }
+  if (input.rule.ruleId !== input.snapshot.ruleId) {
+    errors.push("TAX_RULE_SNAPSHOT_ID_MISMATCH");
+  }
+  if (!sameStrings(input.rule.officialSourceIds, sourceSet(input.snapshot))) {
+    errors.push("TAX_RULE_SOURCE_SET_MISMATCH");
+  }
+  const currentSources = sourceRecordMap(input.sourceRegistry);
+  for (const materialSource of input.snapshot.materialSources) {
+    const current = currentSources.get(materialSource.sourceId);
+    if (!current) {
+      errors.push(`${materialSource.sourceId}:SOURCE_SNAPSHOT_MISSING`);
+      continue;
+    }
+    if (
+      current.contentHash !== materialSource.contentHash ||
+      current.normalizedContentHash !== materialSource.normalizedContentHash
+    ) {
+      errors.push(`${materialSource.sourceId}:SOURCE_SNAPSHOT_HASH_MISMATCH`);
+    }
+    if (
+      current.verificationStatus !==
+        "VERIFIED_BY_TWO_FISCAL_REVIEWERS" ||
+      current.materialValidity.status !== "VERIFIED" ||
+      current.materialValidity.basis !== "SIGNED_FISCAL_REVIEW"
+    ) {
+      errors.push(`${materialSource.sourceId}:SOURCE_SNAPSHOT_NOT_VERIFIED`);
+    }
+  }
+  return errors;
+}
+
+function signatureFromValidatedDecision(
+  decision: FiscalRuleReviewDecision,
+  snapshot: FiscalRuleMaterialSnapshot,
+): FiscalApprovalSignatureEvidence {
+  return Object.freeze({
+    decisionId: decision.decisionId,
+    reviewerId: decision.reviewerId,
+    reviewerRole: decision.reviewerRole as
+      | "PRIMARY_FISCAL_REVIEWER"
+      | "SECOND_FISCAL_REVIEWER",
+    reviewedRuleHash: decision.reviewedRuleHash,
+    reviewedSourceHashes: Object.freeze(
+      snapshot.materialSources.map((source) => Object.freeze({ ...source })),
+    ),
+    signatureReference: decision.signatureReference,
+    evidenceReferences: Object.freeze(
+      sorted([decision.signatureReference, ...decision.incidentIds]),
+    ),
+    signedAt: decision.recordedAt,
+    revokedAt: null,
+    revocationReason: null,
+  });
+}
+
 export function approveFiscalRuleProjection(input: {
   projection: FiscalRuleApprovalProjection;
   snapshot: FiscalRuleMaterialSnapshot;
-  signatures: readonly FiscalApprovalSignatureEvidence[];
-  verifiedIssueIds: readonly string[];
-  requiredIssueIds: readonly string[];
-  evidenceReferences: readonly string[];
+  rule: TaxRule;
+  sourceRegistry: FiscalSourceSnapshotRegistry;
+  reviewRegistry: FiscalReviewRegistry;
+  issueRegistry: FiscalApprovalIssueRegistrySnapshot;
   occurredAt: string;
   eventId: string;
 }): FiscalRuleApprovalProjection {
+  assertProjectionMatchesSnapshot(input.projection, input.snapshot);
+  assertCurrentMaterialSnapshot(input.snapshot);
   if (input.projection.reviewStatus !== "IN_REVIEW") {
     throw new Error("RULE_MUST_BE_IN_REVIEW");
   }
-  const errors = activeSignatureErrors(input.snapshot, input.signatures);
-  if (
-    input.snapshot.fiscalHash !==
-    computeFiscalApprovalRuleHash(input.snapshot)
-  ) {
-    errors.push("FISCAL_SNAPSHOT_HASH_MISMATCH");
+  if (input.projection.reviewedFiscalHash !== input.snapshot.fiscalHash) {
+    throw new Error("FISCAL_APPROVAL_REVIEW_SNAPSHOT_MISMATCH");
   }
-  if (!sameStrings(input.verifiedIssueIds, input.requiredIssueIds)) {
-    errors.push("ALL_FISCAL_ISSUES_MUST_BE_VERIFIED");
+  const sourceErrors = approvalSourceErrors(input);
+  const evaluation = evaluateDualFiscalReview(
+    input.rule,
+    input.sourceRegistry,
+    input.reviewRegistry,
+    input.snapshot.fiscalHash,
+  );
+  if (evaluation.state !== "ELIGIBLE_FOR_MANUAL_APPROVAL") {
+    sourceErrors.push(`DUAL_FISCAL_REVIEW_${evaluation.state}`);
   }
-  if (input.evidenceReferences.length === 0) {
+  sourceErrors.push(...evaluation.blockingReasons);
+  const validDecisionIds = new Set(evaluation.validDecisionIds);
+  const validatedDecisions = input.reviewRegistry.decisions.filter(
+    (decision) =>
+      validDecisionIds.has(decision.decisionId) &&
+      (decision.reviewerRole === "PRIMARY_FISCAL_REVIEWER" ||
+        decision.reviewerRole === "SECOND_FISCAL_REVIEWER"),
+  );
+  const signatures = validatedDecisions.map((decision) =>
+    signatureFromValidatedDecision(decision, input.snapshot),
+  );
+  const errors = [
+    ...sourceErrors,
+    ...activeSignatureErrors(input.snapshot, signatures),
+    ...issueRegistryErrors(input.issueRegistry, input.snapshot, input.rule),
+  ];
+  const evidenceReferences = sorted([
+    ...signatures.map((signature) => signature.signatureReference),
+    ...input.issueRegistry.issues.flatMap(
+      (issue) => issue.evidenceReferences,
+    ),
+  ]);
+  if (evidenceReferences.length === 0) {
     errors.push("APPROVAL_EVIDENCE_REQUIRED");
   }
   if (errors.length > 0) {
     throw new Error(`FISCAL_APPROVAL_BLOCKED:${errors.sort(compareText).join(",")}`);
   }
-  const primary = input.signatures.find(
+  const primary = signatures.find(
     (signature) => signature.reviewerRole === "PRIMARY_FISCAL_REVIEWER",
   )!;
-  const second = input.signatures.find(
+  const second = signatures.find(
     (signature) => signature.reviewerRole === "SECOND_FISCAL_REVIEWER",
   )!;
   const historyEntry: FiscalApprovalHistoryEntry = Object.freeze({
@@ -337,8 +599,8 @@ export function approveFiscalRuleProjection(input: {
     reviewedFiscalHash: input.snapshot.fiscalHash,
     primaryDecisionId: primary.decisionId,
     secondDecisionId: second.decisionId,
-    signatures: Object.freeze([...input.signatures]),
-    evidenceReferences: Object.freeze(sorted(input.evidenceReferences)),
+    signatures: Object.freeze(signatures),
+    evidenceReferences: Object.freeze(evidenceReferences),
     invalidatedAt: null,
     invalidationReasons: Object.freeze([]),
     history: Object.freeze([...input.projection.history, historyEntry]),
@@ -349,14 +611,56 @@ export function invalidateFiscalApproval(input: {
   projection: FiscalRuleApprovalProjection;
   previous: FiscalRuleMaterialSnapshot;
   current: FiscalRuleMaterialSnapshot;
+  rule: TaxRule;
+  sourceRegistry: FiscalSourceSnapshotRegistry;
+  currentReviewRegistry: FiscalReviewRegistry;
   occurredAt: string;
   eventId: string;
 }): FiscalRuleApprovalProjection {
-  const reasons = detectFiscalApprovalInvalidation(
+  assertProjectionMatchesSnapshot(input.projection, input.previous);
+  assertProjectionMatchesSnapshot(input.projection, input.current);
+  assertCurrentMaterialSnapshot(input.previous);
+  assertCurrentMaterialSnapshot(input.current);
+  const reasons = [...detectFiscalApprovalInvalidation(
     input.previous,
     input.current,
+  )];
+  const requiredReviewDecisionIds = [
+    input.projection.primaryDecisionId,
+    input.projection.secondDecisionId,
+  ].filter((decisionId): decisionId is string => decisionId !== null);
+  const currentEvaluation = evaluateDualFiscalReview(
+    input.rule,
+    input.sourceRegistry,
+    input.currentReviewRegistry,
+    input.current.fiscalHash,
   );
+  const currentActiveReviewDecisionIds = currentEvaluation.validDecisionIds;
+  if (
+    (requiredReviewDecisionIds.length > 0 &&
+      currentEvaluation.state !== "ELIGIBLE_FOR_MANUAL_APPROVAL") ||
+    requiredReviewDecisionIds.some(
+      (decisionId) => !currentActiveReviewDecisionIds.includes(decisionId),
+    ) ||
+    input.projection.signatures.some(
+      (signature) => signature.revokedAt !== null,
+    )
+  ) {
+    reasons.push("FISCAL_REVIEW_REVOKED");
+  }
+  if (
+    requiredReviewDecisionIds.length > 0 &&
+    approvalSourceErrors({
+      rule: input.rule,
+      snapshot: input.current,
+      sourceRegistry: input.sourceRegistry,
+    }).length > 0
+  ) {
+    reasons.push("SOURCE_VERIFICATION_DOWNGRADED");
+  }
   if (reasons.length === 0) return input.projection;
+
+  const uniqueReasons = Object.freeze([...new Set(reasons)]);
 
   const decisionIds = input.projection.signatures.map(
     (signature) => signature.decisionId,
@@ -379,7 +683,7 @@ export function invalidateFiscalApproval(input: {
     previousResolutionStatus: input.projection.resolutionStatus,
     nextResolutionStatus: "OPEN",
     fiscalHash: input.current.fiscalHash,
-    reasonCodes: reasons,
+    reasonCodes: uniqueReasons,
     decisionIds: Object.freeze(sorted(decisionIds)),
   });
 
@@ -394,7 +698,7 @@ export function invalidateFiscalApproval(input: {
     evidenceReferences: Object.freeze([]),
     authorizedExclusionIds: Object.freeze([]),
     invalidatedAt: input.occurredAt,
-    invalidationReasons: reasons,
+    invalidationReasons: uniqueReasons,
     history: Object.freeze([...input.projection.history, historyEntry]),
   });
 }

@@ -141,6 +141,17 @@ describe("fiscal approval CLI core", () => {
     expect(new Set(bundle.rules.map((rule) => rule.fiscalYear))).toEqual(
       new Set([2025, 2026]),
     );
+    expect(
+      bundle.rules.every(
+        (rule) =>
+          rule.differencesAgainstOtherYear.fiscalReviewConclusion ===
+            "NOT_ASSESSED" &&
+          [
+            "NO_YEAR_SPECIFIC_DIFFERENCE_CODED",
+            "CODED_DIFFERENCES_FOUND",
+          ].includes(rule.differencesAgainstOtherYear.status),
+      ),
+    ).toBe(true);
   });
 
   it("changes approval hashes when a linked B snapshot hash changes", () => {

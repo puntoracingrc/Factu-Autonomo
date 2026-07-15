@@ -9,7 +9,11 @@ import {
 } from "./contracts";
 import { buildFiscalRuntimeState } from "./feature-flags";
 
-/** Runtime kill switch: no migration, deploy or stored assessment rewrite. */
+/**
+ * Builds a fail-closed rollback plan. Applying it without a new deployment is
+ * only possible after wiring a proven runtime flag provider; this pure layer
+ * does not pretend that provider already exists.
+ */
 export function rollbackFiscalRuntime(input: {
   currentFlags: FiscalFeatureFlags;
   occurredAt: string;
@@ -36,6 +40,9 @@ export function rollbackFiscalRuntime(input: {
     effectiveMode: runtime.fiscalMode,
     exclusionsEnabled: false,
     allModelsAvailable: true,
+    applicationStatus: "PLAN_ONLY",
+    runtimeFlagProvider: "NOT_CONFIGURED",
+    deployRequirement: "PROVIDER_DEPENDENT",
     auditEvent: Object.freeze({
       eventType: "FISCAL_FLAGS_ROLLBACK",
       occurredAt: input.occurredAt,

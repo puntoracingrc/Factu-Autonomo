@@ -142,9 +142,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2026.model-036",
@@ -275,9 +290,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2025.model-100",
@@ -408,9 +438,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2026.model-100",
@@ -541,9 +586,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2025.model-111",
@@ -658,9 +718,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2026.model-111",
@@ -775,9 +850,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2025.model-115",
@@ -892,9 +982,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2026.model-115",
@@ -1009,9 +1114,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2025.model-130",
@@ -1147,9 +1267,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2026.model-130",
@@ -1285,9 +1420,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2025.model-131",
@@ -1423,9 +1573,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2026.model-131",
@@ -1561,9 +1726,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2025.model-180",
@@ -1678,9 +1858,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2026.model-180",
@@ -1795,9 +1990,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2025.model-190",
@@ -1912,9 +2122,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2026.model-190",
@@ -2029,9 +2254,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2025.model-303",
@@ -2152,9 +2392,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2026.model-303",
@@ -2275,9 +2530,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2025.model-347",
@@ -2398,9 +2668,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2026.model-347",
@@ -2521,9 +2806,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2025.model-349",
@@ -2659,9 +2959,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2026.model-349",
@@ -2797,9 +3112,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2025.model-390",
@@ -2929,9 +3259,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     },
     {
       "ruleId": "es-common.2026.model-390",
@@ -3061,9 +3406,24 @@
         "signedEvidence": [],
         "approved": false
       },
-      "differencesAgainstOtherYear": [
-        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
-      ]
+      "differencesAgainstOtherYear": {
+        "status": "CODED_DIFFERENCES_FOUND",
+        "codedDifferenceFields": [
+          "EFFECTIVEFROM",
+          "EFFECTIVETO"
+        ],
+        "comparedFields": [
+          "conditions",
+          "exceptions",
+          "decision",
+          "sourceIds",
+          "factIds",
+          "questionIds",
+          "effectiveFrom",
+          "effectiveTo"
+        ],
+        "fiscalReviewConclusion": "NOT_ASSESSED"
+      }
     }
   ]
 }

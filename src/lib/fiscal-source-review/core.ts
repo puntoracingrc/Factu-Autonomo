@@ -257,7 +257,7 @@ export interface FiscalSourceValidationContext {
   expectedRuleStates: readonly {
     ruleId: string;
     ruleHash: string;
-    approvalFiscalHash?: string | null;
+    approvalFiscalHash: string;
     reviewStatus: string;
     resolutionStatus: string;
     exclusionAuthorized: boolean;
@@ -379,10 +379,7 @@ function validateReviewDecision(
   ) {
     errors.push(`${decision.decisionId}:APPROVE_WITH_BLOCKING_FINDINGS`);
   }
-  if (
-    decision.reviewedRuleHash !==
-    (rule.approvalFiscalHash ?? rule.ruleHash)
-  ) {
+  if (decision.reviewedRuleHash !== rule.approvalFiscalHash) {
     errors.push(`${decision.decisionId}:STALE_RULE_HASH`);
   }
   const expectedSources = sorted(ruleSourceIds.get(decision.ruleId) ?? []);
@@ -530,6 +527,9 @@ export function validateFiscalSourceState(
   }
 
   for (const rule of context.expectedRuleStates) {
+    if (!rule.approvalFiscalHash) {
+      errors.push(`${rule.ruleId}:MISSING_APPROVAL_FISCAL_HASH`);
+    }
     if (rule.reviewStatus !== "PENDING_FISCAL_REVIEW") {
       errors.push(`${rule.ruleId}:RULE_NOT_PENDING`);
     }

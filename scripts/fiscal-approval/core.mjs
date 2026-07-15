@@ -360,23 +360,41 @@ export function buildFiscalReadiness(state) {
 }
 
 function yearDifference(current, other) {
-  if (!other) return ["COUNTERPART_YEAR_RULE_MISSING"];
-  const differences = [];
-  for (const field of [
+  const comparedFields = [
     "conditions",
     "exceptions",
     "decision",
     "sourceIds",
-  ]) {
+    "factIds",
+    "questionIds",
+    "effectiveFrom",
+    "effectiveTo",
+  ];
+  if (!other) {
+    return {
+      status: "COUNTERPART_YEAR_RULE_MISSING",
+      codedDifferenceFields: [],
+      comparedFields,
+      fiscalReviewConclusion: "NOT_ASSESSED",
+    };
+  }
+  const differences = [];
+  for (const field of comparedFields) {
     if (
       JSON.stringify(current[field]) !== JSON.stringify(other[field])
     ) {
       differences.push(field.toUpperCase());
     }
   }
-  return differences.length === 0
-    ? ["NO_MATERIAL_RULE_DIFFERENCE_RECORDED"]
-    : differences;
+  return {
+    status:
+      differences.length === 0
+        ? "NO_YEAR_SPECIFIC_DIFFERENCE_CODED"
+        : "CODED_DIFFERENCES_FOUND",
+    codedDifferenceFields: differences,
+    comparedFields,
+    fiscalReviewConclusion: "NOT_ASSESSED",
+  };
 }
 
 export function buildFiscalReviewBundle(state, batchId) {
@@ -418,14 +436,22 @@ export function buildFiscalReviewBundle(state, batchId) {
         conditions: blueprint.conditions,
         exceptions: blueprint.exceptions,
         decision: blueprint.decision,
-        sourceIds: blueprint.sourceIds,
+        sourceIds: rule.sourceIds,
+        factIds: rule.factIds,
+        questionIds: rule.questionIds,
+        effectiveFrom: rule.effectiveFrom,
+        effectiveTo: rule.effectiveTo,
       };
       const otherComparable = otherBlueprint
         ? {
             conditions: otherBlueprint.conditions,
             exceptions: otherBlueprint.exceptions,
             decision: otherBlueprint.decision,
-            sourceIds: otherBlueprint.sourceIds,
+            sourceIds: otherYear.sourceIds,
+            factIds: otherYear.factIds,
+            questionIds: otherYear.questionIds,
+            effectiveFrom: otherYear.effectiveFrom,
+            effectiveTo: otherYear.effectiveTo,
           }
         : null;
       return {
@@ -575,6 +601,15 @@ export function validateReviewBundle(bundle) {
     )
   ) {
     errors.push("MODEL_036_NOT_CENSUS_ACTION");
+  }
+  if (
+    bundle.rules.some(
+      (rule) =>
+        rule.differencesAgainstOtherYear.fiscalReviewConclusion !==
+        "NOT_ASSESSED",
+    )
+  ) {
+    errors.push("YEAR_DIFFERENCE_MISREPRESENTS_FISCAL_REVIEW");
   }
   return errors;
 }

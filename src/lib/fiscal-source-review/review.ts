@@ -83,7 +83,7 @@ export function evaluateDualFiscalReview(
   rule: TaxRule,
   sourceRegistry: FiscalSourceSnapshotRegistry,
   reviewRegistry: FiscalReviewRegistry,
-  expectedRuleHash: string = rule.fiscalMetadata.ruleHash,
+  expectedApprovalFiscalHash: string,
 ): FiscalDualReviewEvaluation {
   const ruleDecisions = reviewRegistry.decisions.filter(
     (decision) => decision.ruleId === rule.ruleId,
@@ -96,18 +96,29 @@ export function evaluateDualFiscalReview(
   );
   const invalid = active.filter(
     (decision) =>
-      currentDecisionErrors(decision, rule, sourceRegistry, expectedRuleHash)
-        .length > 0,
+      currentDecisionErrors(
+        decision,
+        rule,
+        sourceRegistry,
+        expectedApprovalFiscalHash,
+      ).length > 0,
   );
   const valid = active.filter(
     (decision) =>
-      currentDecisionErrors(decision, rule, sourceRegistry, expectedRuleHash)
-        .length === 0,
+      currentDecisionErrors(
+        decision,
+        rule,
+        sourceRegistry,
+        expectedApprovalFiscalHash,
+      ).length === 0,
   );
   const blockingReasons = invalid.flatMap((decision) =>
-    currentDecisionErrors(decision, rule, sourceRegistry, expectedRuleHash).map(
-      (error) => `${decision.decisionId}:${error}`,
-    ),
+    currentDecisionErrors(
+      decision,
+      rule,
+      sourceRegistry,
+      expectedApprovalFiscalHash,
+    ).map((error) => `${decision.decisionId}:${error}`),
   );
   const primaryDecisions = valid.filter(
     (decision) => decision.reviewerRole === "PRIMARY_FISCAL_REVIEWER",
@@ -178,14 +189,14 @@ export function buildCompactFiscalReviewView(
   rule: TaxRule,
   sourceRegistry: FiscalSourceSnapshotRegistry,
   reviewRegistry: FiscalReviewRegistry,
-  expectedRuleHash: string = rule.fiscalMetadata.ruleHash,
+  expectedApprovalFiscalHash: string,
 ): CompactFiscalReviewView {
   const sourceById = sourceRecordMap(sourceRegistry);
   const evaluation = evaluateDualFiscalReview(
     rule,
     sourceRegistry,
     reviewRegistry,
-    expectedRuleHash,
+    expectedApprovalFiscalHash,
   );
   const ruleDecisions = reviewRegistry.decisions.filter(
     (decision) => decision.ruleId === rule.ruleId,
@@ -229,7 +240,7 @@ export function buildCompactFiscalReviewView(
     })),
     incidents: [...new Set(incidents)].sort(compareText),
     hashes: {
-      ruleHash: expectedRuleHash,
+      ruleHash: expectedApprovalFiscalHash,
       sourceContentHashes: rule.officialSourceIds.map(
         (sourceId) => sourceById.get(sourceId)?.contentHash ?? "MISSING",
       ),

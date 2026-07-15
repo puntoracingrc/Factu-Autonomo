@@ -6,6 +6,8 @@ import type {
 
 export const FISCAL_APPROVAL_CONTRACT_VERSION =
   "fiscal-approval.v1" as const;
+export const FISCAL_ISSUE_REGISTRY_CONTRACT_VERSION =
+  "fiscal-issue-registry.v1" as const;
 
 export const FISCAL_FEATURE_FLAG_NAMES = [
   "fiscal_rules_shadow_mode",
@@ -34,6 +36,9 @@ export type FiscalApprovalInvalidationReason =
   | "EXCEPTION_CHANGED"
   | "SOURCE_SET_CHANGED"
   | "SOURCE_HASH_CHANGED"
+  | "SOURCE_VERIFICATION_DOWNGRADED"
+  | "MATERIAL_VALIDITY_DOWNGRADED"
+  | "FISCAL_REVIEW_REVOKED"
   | "FISCAL_YEAR_CHANGED"
   | "TERRITORY_CHANGED"
   | "MATERIAL_TEST_CHANGED";
@@ -132,6 +137,22 @@ export interface FiscalIssueTransition {
   verifiedBy: string | null;
 }
 
+export interface FiscalApprovalIssueRecord {
+  issueId: string;
+  status: FiscalIssueStatus;
+  evidenceReferences: readonly string[];
+  verifiedBy: string | null;
+}
+
+export interface FiscalApprovalIssueRegistrySnapshot {
+  contractVersion: typeof FISCAL_ISSUE_REGISTRY_CONTRACT_VERSION;
+  ruleId: string;
+  fiscalHash: string;
+  registryComplete: boolean;
+  issues: readonly FiscalApprovalIssueRecord[];
+  registryHash: `sha256:${string}`;
+}
+
 export interface FiscalRollbackAuditEvent {
   eventType: "FISCAL_FLAGS_ROLLBACK";
   occurredAt: string;
@@ -147,6 +168,9 @@ export interface FiscalRollbackResult {
   effectiveMode: "ORIENTATIVE";
   exclusionsEnabled: false;
   allModelsAvailable: true;
+  applicationStatus: "PLAN_ONLY";
+  runtimeFlagProvider: "NOT_CONFIGURED";
+  deployRequirement: "PROVIDER_DEPENDENT";
   auditEvent: FiscalRollbackAuditEvent;
 }
 

@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import type {
+  FiscalReviewRegistry,
+  FiscalRuleReviewDecision,
+  FiscalSourceSnapshotRegistry,
+  FiscalSourceVerificationStatus,
+} from "@/lib/fiscal-source-review/contracts";
+import { computeSourceRegistryHash } from "@/lib/fiscal-source-review/core";
+import type { TaxRule } from "@/lib/tax-model-diagnostic/contracts";
 import { TAX_RULES } from "@/lib/tax-model-diagnostic/rules";
 import type { TaxObligationsAssessmentV1 } from "@/lib/tax-obligations/contracts";
 
@@ -13,7 +21,6 @@ import type {
 import {
   DEFAULT_FISCAL_FEATURE_FLAGS,
   FISCAL_FEATURE_FLAG_NAMES,
-  type FiscalApprovalSignatureEvidence,
   type FiscalFeatureFlags,
 } from "./contracts";
 import { authorizeDocumentAutoConfirmation } from "./document-auto-confirmation";
@@ -25,6 +32,7 @@ import {
 } from "./feature-flags";
 import {
   approveFiscalRuleProjection,
+  buildFiscalApprovalIssueRegistry,
   detectFiscalApprovalInvalidation,
   emptyFiscalApprovalProjection,
   invalidateFiscalApproval,
@@ -66,21 +74,179 @@ const MATERIAL_INPUT: FiscalApprovalHashInput = {
   materialTestHash: `sha256:${"3".repeat(64)}`,
 };
 
-function signature(
+function syntheticRule(material: FiscalApprovalHashInput): TaxRule {
+  return {
+    ...TAX_RULES[0],
+    ruleId: material.ruleId,
+    modelNumber: material.model,
+    fiscalYear: material.fiscalYear,
+    territory: material.territory,
+    conditions: material.conditions,
+    exclusions: material.exceptions,
+    officialSourceIds: material.materialSources.map(
+      (source) => source.sourceId,
+    ),
+    fiscalMetadata: {
+      ...TAX_RULES[0].fiscalMetadata,
+      review: {
+        ...TAX_RULES[0].fiscalMetadata.review,
+        issueIds: ["synthetic.issue"],
+      },
+    },
+  } as TaxRule;
+}
+
+function syntheticSourceRegistry(
+  material: FiscalApprovalHashInput,
+  verificationOverride?: "PENDING_FISCAL_REVIEW" | "STALE",
+): FiscalSourceSnapshotRegistry {
+  const sources = material.materialSources.map((source) => ({
+    sourceId: source.sourceId,
+    authority: "AEAT" as const,
+    title: `Synthetic source ${source.sourceId}`,
+    officialLocator: `https://example.invalid/${source.sourceId}`,
+    finalOfficialLocator: `https://example.invalid/${source.sourceId}`,
+    retrievedAt: "2026-07-15T00:00:00.000Z",
+    declaredOfficialUpdatedAt: null,
+    materialValidity: {
+      status: verificationOverride ? ("UNVERIFIED" as const) : ("VERIFIED" as const),
+      effectiveFrom: source.effectiveFrom,
+      effectiveTo: source.effectiveTo,
+      basis: verificationOverride
+        ? ("PENDING_FISCAL_REVIEW" as const)
+        : ("SIGNED_FISCAL_REVIEW" as const),
+    },
+    contentHash: source.contentHash as `sha256:${string}`,
+    normalizedContentHash:
+      source.normalizedContentHash as `sha256:${string}`,
+    previousSnapshotHash: null,
+    changeDetected: false,
+    changeSummary: {
+      status: "INITIAL_CAPTURE" as const,
+      nature: "INITIAL" as const,
+      requiresFiscalReview: false,
+      changedFields: [],
+    },
+    contentLength: 1,
+    contentType: "text/html",
+    captureScope: "LOCATOR_FRAGMENT" as const,
+    snapshotPath: `test-only/${source.sourceId}`,
+    materialScope: source.materialScope,
+    affectedRuleIds: [material.ruleId],
+    verificationStatus:
+      (verificationOverride ??
+        "VERIFIED_BY_TWO_FISCAL_REVIEWERS") as FiscalSourceVerificationStatus,
+    technicalHashStatus: "VALID" as const,
+  }));
+  const unsigned = {
+    contractVersion: "fiscal-source-registry.v2" as const,
+    generatedAt: "2026-07-15T00:00:00.000Z",
+    sourceCount: sources.length,
+    sources,
+  };
+  return {
+    ...unsigned,
+    registryHash: computeSourceRegistryHash(unsigned),
+  };
+}
+
+function reviewDecision(
+  material: FiscalApprovalHashInput,
   role: "PRIMARY_FISCAL_REVIEWER" | "SECOND_FISCAL_REVIEWER",
   reviewerId: string,
-): FiscalApprovalSignatureEvidence {
+  overrides: Partial<FiscalRuleReviewDecision> = {},
+): FiscalRuleReviewDecision {
   return {
     decisionId: `synthetic.${role}`,
+    ruleId: material.ruleId,
     reviewerId,
     reviewerRole: role,
-    reviewedRuleHash: computeFiscalApprovalRuleHash(MATERIAL_INPUT),
-    reviewedSourceHashes: MATERIAL_INPUT.materialSources,
+    reviewerTrust: {
+      status: "SERVER_VERIFIED",
+      subjectType: "FISCAL_PROFESSIONAL",
+      identityProvider: "test-only-fiscal-identity",
+      verifiedAt: "2026-07-15T00:00:00.000Z",
+      verificationReference: `test-only-trust:${reviewerId}`,
+    },
+    decision: "APPROVE",
+    reviewedRuleHash: computeFiscalApprovalRuleHash(material),
+    reviewedSourceHashes: material.materialSources.map((source) => ({
+      sourceId: source.sourceId,
+      contentHash: source.contentHash as `sha256:${string}`,
+      normalizedContentHash:
+        source.normalizedContentHash as `sha256:${string}`,
+    })),
+    findings: [],
+    incidentIds: ["synthetic.issue"],
     signatureReference: `test-only-signature:${role}`,
-    evidenceReferences: [`test-only-evidence:${role}`],
-    signedAt: "2026-07-15T00:00:00.000Z",
-    revokedAt: null,
-    revocationReason: null,
+    recordedAt: "2026-07-15T00:00:00.000Z",
+    origin: "HUMAN_FISCAL_PROFESSIONAL",
+    revocation: {
+      status: "ACTIVE",
+      revokedAt: null,
+      reason: null,
+      revocationReference: null,
+    },
+    ...overrides,
+  };
+}
+
+function approvalFixture(
+  material: FiscalApprovalHashInput = MATERIAL_INPUT,
+  options: {
+    sameReviewer?: boolean;
+    sourceVerification?: "PENDING_FISCAL_REVIEW" | "STALE";
+    secondRevoked?: boolean;
+    registryComplete?: boolean;
+  } = {},
+) {
+  const snapshot = buildFiscalRuleMaterialSnapshot(material);
+  const primary = reviewDecision(
+    material,
+    "PRIMARY_FISCAL_REVIEWER",
+    "primary-test-only",
+  );
+  const second = reviewDecision(
+    material,
+    "SECOND_FISCAL_REVIEWER",
+    options.sameReviewer ? "primary-test-only" : "second-test-only",
+    options.secondRevoked
+      ? {
+          revocation: {
+            status: "REVOKED",
+            revokedAt: "2026-07-15T00:30:00.000Z",
+            reason: "test-only revocation",
+            revocationReference: "test-only-revocation:second",
+          },
+        }
+      : {},
+  );
+  const reviewRegistry: FiscalReviewRegistry = {
+    contractVersion: "fiscal-review-registry.v2",
+    generatedAt: "2026-07-15T00:30:00.000Z",
+    decisions: [primary, second],
+  };
+  return {
+    snapshot,
+    rule: syntheticRule(material),
+    sourceRegistry: syntheticSourceRegistry(
+      material,
+      options.sourceVerification,
+    ),
+    reviewRegistry,
+    issueRegistry: buildFiscalApprovalIssueRegistry({
+      ruleId: material.ruleId,
+      fiscalHash: snapshot.fiscalHash,
+      registryComplete: options.registryComplete ?? true,
+      issues: [
+        {
+          issueId: "synthetic.issue",
+          status: "VERIFIED",
+          evidenceReferences: ["test-only-issue-evidence"],
+          verifiedBy: "test-only-issue-verifier",
+        },
+      ],
+    }),
   };
 }
 
@@ -195,7 +361,11 @@ describe("fiscal approval canonical hash and lifecycle", () => {
   });
 
   it("requires two distinct, current, evidenced signatures before synthetic approval", () => {
-    const snapshot = buildFiscalRuleMaterialSnapshot(MATERIAL_INPUT);
+    const fixture = approvalFixture();
+    const sameReviewer = approvalFixture(MATERIAL_INPUT, {
+      sameReviewer: true,
+    });
+    const snapshot = fixture.snapshot;
     const inReview = startFiscalRuleReview({
       projection: emptyFiscalApprovalProjection(snapshot.ruleId),
       snapshot,
@@ -206,28 +376,22 @@ describe("fiscal approval canonical hash and lifecycle", () => {
       approveFiscalRuleProjection({
         projection: inReview,
         snapshot,
-        signatures: [
-          signature("PRIMARY_FISCAL_REVIEWER", "same-reviewer"),
-          signature("SECOND_FISCAL_REVIEWER", "same-reviewer"),
-        ],
-        requiredIssueIds: ["synthetic.issue"],
-        verifiedIssueIds: ["synthetic.issue"],
-        evidenceReferences: ["test-only-approval-evidence"],
+        rule: sameReviewer.rule,
+        sourceRegistry: sameReviewer.sourceRegistry,
+        reviewRegistry: sameReviewer.reviewRegistry,
+        issueRegistry: sameReviewer.issueRegistry,
         occurredAt: "2026-07-15T01:00:00.000Z",
         eventId: "synthetic.approval",
       }),
-    ).toThrow("DISTINCT_FISCAL_REVIEWERS_REQUIRED");
+    ).toThrow("DUAL_FISCAL_REVIEW_INVALID_REVIEW");
 
     const approved = approveFiscalRuleProjection({
       projection: inReview,
       snapshot,
-      signatures: [
-        signature("PRIMARY_FISCAL_REVIEWER", "primary-test-only"),
-        signature("SECOND_FISCAL_REVIEWER", "second-test-only"),
-      ],
-      requiredIssueIds: ["synthetic.issue"],
-      verifiedIssueIds: ["synthetic.issue"],
-      evidenceReferences: ["test-only-approval-evidence"],
+      rule: fixture.rule,
+      sourceRegistry: fixture.sourceRegistry,
+      reviewRegistry: fixture.reviewRegistry,
+      issueRegistry: fixture.issueRegistry,
       occurredAt: "2026-07-15T01:00:00.000Z",
       eventId: "synthetic.approval",
     });
@@ -238,9 +402,182 @@ describe("fiscal approval canonical hash and lifecycle", () => {
     });
   });
 
+  it("re-evaluates current fiscal decisions, source trust and the canonical issue registry at approval time", () => {
+    const valid = approvalFixture();
+    const inReview = startFiscalRuleReview({
+      projection: emptyFiscalApprovalProjection(valid.snapshot.ruleId),
+      snapshot: valid.snapshot,
+      occurredAt: "2026-07-15T00:00:00.000Z",
+      eventId: "synthetic.revalidation-start",
+    });
+    const pendingSource = approvalFixture(MATERIAL_INPUT, {
+      sourceVerification: "PENDING_FISCAL_REVIEW",
+    });
+    expect(() =>
+      approveFiscalRuleProjection({
+        projection: inReview,
+        snapshot: valid.snapshot,
+        rule: pendingSource.rule,
+        sourceRegistry: pendingSource.sourceRegistry,
+        reviewRegistry: pendingSource.reviewRegistry,
+        issueRegistry: pendingSource.issueRegistry,
+        occurredAt: "2026-07-15T01:00:00.000Z",
+        eventId: "synthetic.pending-source-approval",
+      }),
+    ).toThrow("SOURCE_SNAPSHOT_NOT_VERIFIED");
+
+    const revokedReview = approvalFixture(MATERIAL_INPUT, {
+      secondRevoked: true,
+    });
+    expect(() =>
+      approveFiscalRuleProjection({
+        projection: inReview,
+        snapshot: valid.snapshot,
+        rule: revokedReview.rule,
+        sourceRegistry: revokedReview.sourceRegistry,
+        reviewRegistry: revokedReview.reviewRegistry,
+        issueRegistry: revokedReview.issueRegistry,
+        occurredAt: "2026-07-15T01:00:00.000Z",
+        eventId: "synthetic.revoked-review-approval",
+      }),
+    ).toThrow("DUAL_FISCAL_REVIEW_WAITING_SECOND_REVIEW");
+
+    const incompleteIssues = approvalFixture(MATERIAL_INPUT, {
+      registryComplete: false,
+    });
+    expect(() =>
+      approveFiscalRuleProjection({
+        projection: inReview,
+        snapshot: valid.snapshot,
+        rule: incompleteIssues.rule,
+        sourceRegistry: incompleteIssues.sourceRegistry,
+        reviewRegistry: incompleteIssues.reviewRegistry,
+        issueRegistry: incompleteIssues.issueRegistry,
+        occurredAt: "2026-07-15T01:00:00.000Z",
+        eventId: "synthetic.incomplete-issues-approval",
+      }),
+    ).toThrow("ISSUE_REGISTRY_INCOMPLETE");
+
+    const emptyButSelfDeclaredComplete = buildFiscalApprovalIssueRegistry({
+      ruleId: valid.snapshot.ruleId,
+      fiscalHash: valid.snapshot.fiscalHash,
+      registryComplete: true,
+      issues: [],
+    });
+    expect(() =>
+      approveFiscalRuleProjection({
+        projection: inReview,
+        snapshot: valid.snapshot,
+        rule: valid.rule,
+        sourceRegistry: valid.sourceRegistry,
+        reviewRegistry: valid.reviewRegistry,
+        issueRegistry: emptyButSelfDeclaredComplete,
+        occurredAt: "2026-07-15T01:00:00.000Z",
+        eventId: "synthetic.empty-issues-approval",
+      }),
+    ).toThrow("ISSUE_REGISTRY_CANONICAL_SET_MISMATCH");
+
+    expect(() =>
+      approveFiscalRuleProjection({
+        projection: inReview,
+        snapshot: valid.snapshot,
+        rule: valid.rule,
+        sourceRegistry: valid.sourceRegistry,
+        reviewRegistry: valid.reviewRegistry,
+        issueRegistry: {
+          ...valid.issueRegistry,
+          issues: [],
+        },
+        occurredAt: "2026-07-15T01:00:00.000Z",
+        eventId: "synthetic.tampered-issues-approval",
+      }),
+    ).toThrow("ISSUE_REGISTRY_HASH_MISMATCH");
+  });
+
+  it("requires review start to bind the matching rule and a recomputed material hash", () => {
+    const snapshot = buildFiscalRuleMaterialSnapshot(MATERIAL_INPUT);
+    expect(() =>
+      startFiscalRuleReview({
+        projection: emptyFiscalApprovalProjection("synthetic.other.rule"),
+        snapshot,
+        occurredAt: "2026-07-15T00:00:00.000Z",
+        eventId: "synthetic.mismatched-start",
+      }),
+    ).toThrow("FISCAL_APPROVAL_RULE_ID_MISMATCH");
+    expect(() =>
+      startFiscalRuleReview({
+        projection: emptyFiscalApprovalProjection(snapshot.ruleId),
+        snapshot: {
+          ...snapshot,
+          fiscalHash: `fiscal-approval-rule-v1:${"f".repeat(64)}`,
+        },
+        occurredAt: "2026-07-15T00:00:00.000Z",
+        eventId: "synthetic.tampered-start",
+      }),
+    ).toThrow("FISCAL_SNAPSHOT_HASH_MISMATCH");
+    const sourceLess = buildFiscalRuleMaterialSnapshot({
+      ...MATERIAL_INPUT,
+      materialSources: [],
+    });
+    expect(() =>
+      startFiscalRuleReview({
+        projection: emptyFiscalApprovalProjection(sourceLess.ruleId),
+        snapshot: sourceLess,
+        occurredAt: "2026-07-15T00:00:00.000Z",
+        eventId: "synthetic.source-less-start",
+      }),
+    ).toThrow("FISCAL_MATERIAL_SOURCES_REQUIRED");
+  });
+
+  it("blocks approval when fiscal material changes after review start until invalidated", () => {
+    const reviewed = buildFiscalRuleMaterialSnapshot(MATERIAL_INPUT);
+    const changedMaterial: FiscalApprovalHashInput = {
+      ...MATERIAL_INPUT,
+      conditions: [...MATERIAL_INPUT.conditions, "changed-after-review-start"],
+    };
+    const changed = buildFiscalRuleMaterialSnapshot(changedMaterial);
+    const changedFixture = approvalFixture(changedMaterial);
+    const inReview = startFiscalRuleReview({
+      projection: emptyFiscalApprovalProjection(reviewed.ruleId),
+      snapshot: reviewed,
+      occurredAt: "2026-07-15T00:00:00.000Z",
+      eventId: "synthetic.review-start-before-change",
+    });
+
+    expect(() =>
+      approveFiscalRuleProjection({
+        projection: inReview,
+        snapshot: changed,
+        rule: changedFixture.rule,
+        sourceRegistry: changedFixture.sourceRegistry,
+        reviewRegistry: changedFixture.reviewRegistry,
+        issueRegistry: changedFixture.issueRegistry,
+        occurredAt: "2026-07-15T01:00:00.000Z",
+        eventId: "synthetic.approval-after-change",
+      }),
+    ).toThrow("FISCAL_APPROVAL_REVIEW_SNAPSHOT_MISMATCH");
+
+    const invalidated = invalidateFiscalApproval({
+      projection: inReview,
+      previous: reviewed,
+      current: changed,
+      rule: changedFixture.rule,
+      sourceRegistry: changedFixture.sourceRegistry,
+      currentReviewRegistry: changedFixture.reviewRegistry,
+      occurredAt: "2026-07-15T01:30:00.000Z",
+      eventId: "synthetic.invalidate-after-change",
+    });
+    expect(invalidated).toMatchObject({
+      reviewStatus: "PENDING_FISCAL_REVIEW",
+      resolutionStatus: "OPEN",
+      reviewedFiscalHash: null,
+    });
+  });
+
   it("invalidates approvals, signatures, resolution and exclusions on material drift without deleting history", () => {
-    const previous = buildFiscalRuleMaterialSnapshot(MATERIAL_INPUT);
-    const current = buildFiscalRuleMaterialSnapshot({
+    const fixture = approvalFixture();
+    const previous = fixture.snapshot;
+    const currentMaterial: FiscalApprovalHashInput = {
       ...MATERIAL_INPUT,
       conditions: [...MATERIAL_INPUT.conditions, "new-condition"],
       exceptions: [...MATERIAL_INPUT.exceptions, "new-exception"],
@@ -248,7 +585,9 @@ describe("fiscal approval canonical hash and lifecycle", () => {
         { ...MATERIAL_INPUT.materialSources[0], contentHash: `sha256:${"4".repeat(64)}` },
       ],
       materialTestHash: `sha256:${"5".repeat(64)}`,
-    });
+    };
+    const currentFixture = approvalFixture(currentMaterial);
+    const current = currentFixture.snapshot;
     const inReview = startFiscalRuleReview({
       projection: emptyFiscalApprovalProjection(previous.ruleId),
       snapshot: previous,
@@ -258,13 +597,10 @@ describe("fiscal approval canonical hash and lifecycle", () => {
     const approved = approveFiscalRuleProjection({
       projection: inReview,
       snapshot: previous,
-      signatures: [
-        signature("PRIMARY_FISCAL_REVIEWER", "primary-test-only"),
-        signature("SECOND_FISCAL_REVIEWER", "second-test-only"),
-      ],
-      requiredIssueIds: ["synthetic.issue"],
-      verifiedIssueIds: ["synthetic.issue"],
-      evidenceReferences: ["test-only-approval-evidence"],
+      rule: fixture.rule,
+      sourceRegistry: fixture.sourceRegistry,
+      reviewRegistry: fixture.reviewRegistry,
+      issueRegistry: fixture.issueRegistry,
       occurredAt: "2026-07-15T01:00:00.000Z",
       eventId: "synthetic.approval",
     });
@@ -276,6 +612,9 @@ describe("fiscal approval canonical hash and lifecycle", () => {
       projection: withExclusion,
       previous,
       current,
+      rule: currentFixture.rule,
+      sourceRegistry: currentFixture.sourceRegistry,
+      currentReviewRegistry: currentFixture.reviewRegistry,
       occurredAt: "2026-07-15T02:00:00.000Z",
       eventId: "synthetic.invalidation",
     });
@@ -302,6 +641,77 @@ describe("fiscal approval canonical hash and lifecycle", () => {
       "RULE_APPROVED",
       "APPROVAL_INVALIDATED",
     ]);
+  });
+
+  it("invalidates source trust downgrades and review revocation even when material hashes stay equal", () => {
+    const fixture = approvalFixture();
+    const inReview = startFiscalRuleReview({
+      projection: emptyFiscalApprovalProjection(fixture.snapshot.ruleId),
+      snapshot: fixture.snapshot,
+      occurredAt: "2026-07-15T00:00:00.000Z",
+      eventId: "synthetic.trust-review-start",
+    });
+    const approved = approveFiscalRuleProjection({
+      projection: inReview,
+      snapshot: fixture.snapshot,
+      rule: fixture.rule,
+      sourceRegistry: fixture.sourceRegistry,
+      reviewRegistry: fixture.reviewRegistry,
+      issueRegistry: fixture.issueRegistry,
+      occurredAt: "2026-07-15T01:00:00.000Z",
+      eventId: "synthetic.trust-approval",
+    });
+    const downgraded = buildFiscalRuleMaterialSnapshot({
+      ...MATERIAL_INPUT,
+      materialSources: MATERIAL_INPUT.materialSources.map((source) => ({
+        ...source,
+        verificationStatus: "STALE",
+        materialValidityStatus: "STALE",
+        materialValidityBasis: "PENDING_FISCAL_REVIEW",
+      })),
+    });
+    expect(downgraded.fiscalHash).toBe(fixture.snapshot.fiscalHash);
+    expect(
+      detectFiscalApprovalInvalidation(fixture.snapshot, downgraded),
+    ).toEqual(
+      expect.arrayContaining([
+        "SOURCE_VERIFICATION_DOWNGRADED",
+        "MATERIAL_VALIDITY_DOWNGRADED",
+      ]),
+    );
+    const sourceInvalidated = invalidateFiscalApproval({
+      projection: approved,
+      previous: fixture.snapshot,
+      current: downgraded,
+      rule: fixture.rule,
+      sourceRegistry: fixture.sourceRegistry,
+      currentReviewRegistry: fixture.reviewRegistry,
+      occurredAt: "2026-07-15T02:00:00.000Z",
+      eventId: "synthetic.source-downgrade",
+    });
+    expect(sourceInvalidated.invalidationReasons).toEqual(
+      expect.arrayContaining([
+        "SOURCE_VERIFICATION_DOWNGRADED",
+        "MATERIAL_VALIDITY_DOWNGRADED",
+      ]),
+    );
+
+    const reviewInvalidated = invalidateFiscalApproval({
+      projection: approved,
+      previous: fixture.snapshot,
+      current: fixture.snapshot,
+      rule: fixture.rule,
+      sourceRegistry: fixture.sourceRegistry,
+      currentReviewRegistry: approvalFixture(MATERIAL_INPUT, {
+        secondRevoked: true,
+      }).reviewRegistry,
+      occurredAt: "2026-07-15T02:00:00.000Z",
+      eventId: "synthetic.review-revocation",
+    });
+    expect(reviewInvalidated.invalidationReasons).toContain(
+      "FISCAL_REVIEW_REVOKED",
+    );
+    expect(reviewInvalidated.reviewStatus).toBe("PENDING_FISCAL_REVIEW");
   });
 
   it.each([
@@ -469,6 +879,9 @@ describe("fiscal flags, shadow, document confirmation and rollback", () => {
       effectiveMode: "ORIENTATIVE",
       exclusionsEnabled: false,
       allModelsAvailable: true,
+      applicationStatus: "PLAN_ONLY",
+      runtimeFlagProvider: "NOT_CONFIGURED",
+      deployRequirement: "PROVIDER_DEPENDENT",
       auditEvent: {
         fallbackAllModels: "ENABLED",
         preservesAssessmentHistory: true,

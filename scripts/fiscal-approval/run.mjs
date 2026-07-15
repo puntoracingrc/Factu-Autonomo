@@ -164,7 +164,9 @@ function rollbackValidate() {
       allModelsFallback: "ENABLED",
       preservesAssessmentHistory: true,
       preservesApprovalAudit: true,
-      deployRequired: false,
+      runtimeFlagProvider: "NOT_CONFIGURED",
+      deployRequirement: "PROVIDER_DEPENDENT",
+      applicationStatus: "PLAN_ONLY",
     },
   );
 }
