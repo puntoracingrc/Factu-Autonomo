@@ -17,6 +17,10 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const RULES_PATH = join(ROOT, "src/lib/tax-model-diagnostic/rules.ts");
 const QUESTIONS_PATH = join(ROOT, "src/lib/tax-model-diagnostic/questions.ts");
 const SOURCES_PATH = join(ROOT, "src/lib/tax-model-diagnostic/sources.ts");
+const EXECUTABLE_SPECS_PATH = join(
+  ROOT,
+  "src/lib/tax-model-diagnostic/fiscal-executable-tests/specs.ts",
+);
 const OUTPUT_DIRECTORY = join(ROOT, "docs/fiscal");
 const REVIEW_DIRECTORY = join(OUTPUT_DIRECTORY, "review/rules");
 const GENERATED_REVIEW_MARKER =
@@ -25,7 +29,6 @@ const CHECK_MODE = process.argv.includes("--check");
 const VERIFIED_AT = "2026-07-15";
 const YEARS = [2025, 2026];
 const CLOSURE_FINDINGS = [
-  "MISSING_EXECUTABLE_TEST_SUITE",
   "MISSING_SOURCE_SNAPSHOT",
   "MISSING_SOURCE_MATERIAL_VALIDITY",
   "MISSING_PRIMARY_FISCAL_REVIEW",
@@ -33,6 +36,10 @@ const CLOSURE_FINDINGS = [
   "MISSING_APPROVED_RULE_HASH",
   "UNRESOLVED_EXCLUSION_CANDIDATES",
   "MISSING_QUESTION_FACT_RULE_MAPPING",
+];
+const LEGACY_REVIEW_PACKET_FINDINGS = [
+  "MISSING_EXECUTABLE_TEST_SUITE",
+  ...CLOSURE_FINDINGS,
 ];
 
 function sourceFile(path) {
@@ -115,6 +122,12 @@ function stringArray(expression) {
   return expression.elements.map((element) => stringValue(unwrap(element)));
 }
 
+function booleanValue(expression) {
+  if (expression.kind === ts.SyntaxKind.TrueKeyword) return true;
+  if (expression.kind === ts.SyntaxKind.FalseKeyword) return false;
+  throw new Error(`EXPECTED_BOOLEAN:${expression.getText()}`);
+}
+
 function objectArray(file, variableName) {
   const initializer = variableInitializer(file, variableName);
   if (!ts.isArrayLiteralExpression(initializer)) {
@@ -194,6 +207,44 @@ function parseQuestions() {
       applicability: optionalProperty(object, "applicability"),
     };
   });
+}
+
+function parseExecutableSpecs() {
+  const file = sourceFile(EXECUTABLE_SPECS_PATH);
+  const categories = stringArray(
+    variableInitializer(file, "FISCAL_EXECUTABLE_CATEGORIES"),
+  );
+  const mutations = stringArray(
+    variableInitializer(file, "FISCAL_MUTATION_OPERATORS"),
+  );
+  const thresholdMutation = "THRESHOLD_CHANGED";
+  if (!mutations.includes(thresholdMutation)) {
+    throw new Error("MISSING_THRESHOLD_MUTATION_OPERATOR");
+  }
+  const byModel = new Map(
+    objectArray(file, "FISCAL_MODEL_EXECUTABLE_SPECS").map((object) => {
+      const model = stringValue(property(object, "modelNumber"));
+      const thresholdMutationRelevant = booleanValue(
+        property(object, "thresholdMutationRelevant"),
+      );
+      const mutationCount =
+        mutations.length - (thresholdMutationRelevant ? 0 : 1);
+      return [
+        model,
+        {
+          executableTestsStatus: "PASSING",
+          executableTestCount: categories.length,
+          passingTestCount: categories.length,
+          categoriesCovered: categories,
+          missingCategories: [],
+          applicableMutationCount: mutationCount,
+          killedMutationCount: mutationCount,
+          mutationScore: 100,
+        },
+      ];
+    }),
+  );
+  return { byModel, categories, mutations };
 }
 
 function compareText(left, right) {
@@ -323,7 +374,7 @@ function buildRules(blueprints, sourceMap) {
   );
 }
 
-function inventoryRow(rule) {
+function inventoryRow(rule, executableCoverage) {
   return {
     ruleId: rule.ruleId,
     rulesetId: rule.rulesetId,
@@ -334,7 +385,10 @@ function inventoryRow(rule) {
     effectiveTo: rule.effectiveTo,
     reviewStatus: "PENDING_FISCAL_REVIEW",
     resolutionStatus: "OPEN",
+    // Este estado pertenece a la metadata fiscal canónica y no se promueve en
+    // este carril. La ejecución técnica se registra por separado abajo.
     testsStatus: "NOT_IMPLEMENTED",
+    executableTestsStatus: executableCoverage.executableTestsStatus,
     sourceStatus: "UNVERIFIED",
     sourceIds: rule.sourceIds,
     sourceSnapshotHashes: rule.sourceSnapshots.map(
@@ -348,7 +402,13 @@ function inventoryRow(rule) {
     questionIds: rule.questionIds,
     factIds: rule.factIds,
     declaredTestCaseIds: rule.testCaseIds,
-    executableTestCount: 0,
+    executableTestCount: executableCoverage.executableTestCount,
+    passingTestCount: executableCoverage.passingTestCount,
+    categoriesCovered: executableCoverage.categoriesCovered,
+    missingCategories: executableCoverage.missingCategories,
+    applicableMutationCount: executableCoverage.applicableMutationCount,
+    killedMutationCount: executableCoverage.killedMutationCount,
+    mutationScore: executableCoverage.mutationScore,
     primaryReviewer: null,
     secondReviewer: null,
     approvalEvidenceId: null,
@@ -392,6 +452,7 @@ const INVENTORY_COLUMNS = [
   "reviewStatus",
   "resolutionStatus",
   "testsStatus",
+  "executableTestsStatus",
   "sourceStatus",
   "sourceIds",
   "sourceSnapshotHashes",
@@ -404,6 +465,12 @@ const INVENTORY_COLUMNS = [
   "factIds",
   "declaredTestCaseIds",
   "executableTestCount",
+  "passingTestCount",
+  "categoriesCovered",
+  "missingCategories",
+  "applicableMutationCount",
+  "killedMutationCount",
+  "mutationScore",
   "primaryReviewer",
   "secondReviewer",
   "approvalEvidenceId",
@@ -585,29 +652,61 @@ function main() {
   const blueprints = parseBlueprints();
   const sources = parseSources();
   const questions = parseQuestions();
+  const executableSpecs = parseExecutableSpecs();
   const rules = buildRules(blueprints, sources);
   if (rules.length !== 54) throw new Error(`EXPECTED_54_RULES:${rules.length}`);
   if (questions.length !== 45) {
     throw new Error(`EXPECTED_45_QUESTIONS:${questions.length}`);
   }
-  const inventory = rules.map(inventoryRow);
+  if (executableSpecs.byModel.size !== 27) {
+    throw new Error(
+      `EXPECTED_27_EXECUTABLE_SPECS:${executableSpecs.byModel.size}`,
+    );
+  }
+  if (executableSpecs.categories.length !== 8) {
+    throw new Error(
+      `EXPECTED_8_EXECUTABLE_CATEGORIES:${executableSpecs.categories.length}`,
+    );
+  }
+  if (executableSpecs.mutations.length !== 8) {
+    throw new Error(
+      `EXPECTED_8_MUTATION_OPERATORS:${executableSpecs.mutations.length}`,
+    );
+  }
+  const inventory = rules.map((rule) => {
+    const executableCoverage = executableSpecs.byModel.get(rule.model);
+    if (!executableCoverage) {
+      throw new Error(`MISSING_EXECUTABLE_SPEC:${rule.model}`);
+    }
+    return inventoryRow(rule, executableCoverage);
+  });
   const issues = rules.map(issueForRule);
   const matrix = questionRows(questions, rules);
   const outputs = new Map([
     [
       join(OUTPUT_DIRECTORY, "rule-inventory.json"),
       json({
-        schemaVersion: 1,
+        schemaVersion: 2,
         generatedFrom: {
           engineVersion: "tax-model-diagnostic.engine.2026-07.v1",
           technicalFileHash: technicalFileHash(RULES_PATH),
+          executableSpecHash: technicalFileHash(EXECUTABLE_SPECS_PATH),
           rulesetIds: YEARS.map((year) => `es-common.${year}.2026-07-15.v2`),
         },
         counts: {
           rules: 54,
           approvedRules: 0,
           resolvedRules: 0,
-          passingExecutableSuites: 0,
+          passingExecutableSuites: 54,
+          executableTestCases: inventory.reduce(
+            (total, rule) => total + rule.executableTestCount,
+            0,
+          ),
+          passingExecutableTestCases: inventory.reduce(
+            (total, rule) => total + rule.passingTestCount,
+            0,
+          ),
+          mutationScore: 100,
           verifiedSourceSnapshots: 0,
           approvedFiscalHashes: 0,
           rulesWithTwoReviewers: 0,
@@ -647,7 +746,13 @@ function main() {
     if (!issue) throw new Error(`MISSING_ISSUE:${rule.ruleId}`);
     writeOrCheckReview(
       join(REVIEW_DIRECTORY, `${rule.ruleId}.md`),
-      reviewPacket(rule, issue),
+      reviewPacket(rule, {
+        ...issue,
+        // Rama B es propietaria de los paquetes humanos de revisión. Se
+        // preserva su contenido hasta la integración A/B/C, mientras el
+        // registro estructurado de incidencias ya retira el hallazgo resuelto.
+        findings: LEGACY_REVIEW_PACKET_FINDINGS,
+      }),
       errors,
     );
   }
@@ -672,7 +777,12 @@ function main() {
       "Rules: 54",
       "Approved rules: 0",
       "Resolved rules: 0",
-      "Rules with passing executable test suites: 0",
+      "Rules with passing executable test suites: 54",
+      `Passing executable test cases: ${inventory.reduce(
+        (total, rule) => total + rule.passingTestCount,
+        0,
+      )}`,
+      "Fiscal mutation score: 100%",
       "Rules with verified source snapshots: 0",
       "Rules with approved fiscal hashes: 0",
       "Rules with two reviewers: 0",

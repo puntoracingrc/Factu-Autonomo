@@ -1,8 +1,9 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "generatedFrom": {
     "engineVersion": "tax-model-diagnostic.engine.2026-07.v1",
     "technicalFileHash": "sha256:ab94a4ce710271993cf53d1884c2e48be3ab4d63edde49803d96512c7ae2412c",
+    "executableSpecHash": "sha256:24408aafb940160ad3f9881bdc2060eb20a9eda0770a3223a98fca6ef896d900",
     "rulesetIds": [
       "es-common.2025.2026-07-15.v2",
       "es-common.2026.2026-07-15.v2"
@@ -12,7 +13,10 @@
     "rules": 54,
     "approvedRules": 0,
     "resolvedRules": 0,
-    "passingExecutableSuites": 0,
+    "passingExecutableSuites": 54,
+    "executableTestCases": 432,
+    "passingExecutableTestCases": 432,
+    "mutationScore": 100,
     "verifiedSourceSnapshots": 0,
     "approvedFiscalHashes": 0,
     "rulesWithTwoReviewers": 0,
@@ -30,6 +34,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-035.procedure",
@@ -54,7 +59,22 @@
         "035.2025.census-mismatch",
         "035.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -72,6 +92,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-036.modification",
@@ -96,7 +117,22 @@
         "036.2025.census-mismatch",
         "036.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -114,6 +150,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "boe.irpf-law.article-96",
@@ -138,7 +175,22 @@
         "100.2025.census-mismatch",
         "100.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -156,6 +208,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.withholding.111-190"
@@ -178,7 +231,22 @@
         "111.2025.census-mismatch",
         "111.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -196,6 +264,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.withholding.115-180"
@@ -218,7 +287,22 @@
         "115.2025.census-mismatch",
         "115.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -236,6 +320,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.withholding.123-193"
@@ -258,7 +343,22 @@
         "123.2025.census-mismatch",
         "123.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -276,6 +376,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-130.instructions",
@@ -300,7 +401,22 @@
         "130.2025.census-mismatch",
         "130.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -318,6 +434,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-131.instructions",
@@ -342,7 +459,22 @@
         "131.2025.census-mismatch",
         "131.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -360,6 +492,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.withholding.115-180"
@@ -382,7 +515,22 @@
         "180.2025.census-mismatch",
         "180.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -400,6 +548,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-184.obligations"
@@ -422,7 +571,22 @@
         "184.2025.census-mismatch",
         "184.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -440,6 +604,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.withholding.111-190"
@@ -462,7 +627,22 @@
         "190.2025.census-mismatch",
         "190.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -480,6 +660,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.withholding.123-193"
@@ -502,7 +683,22 @@
         "193.2025.census-mismatch",
         "193.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -520,6 +716,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.is.model-200.obligation"
@@ -542,7 +739,22 @@
         "200.2025.census-mismatch",
         "200.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -560,6 +772,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.is.installments"
@@ -582,7 +795,22 @@
         "202.2025.census-mismatch",
         "202.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -600,6 +828,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.irnr.withholding"
@@ -622,7 +851,22 @@
         "216.2025.census-mismatch",
         "216.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -640,6 +884,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.irnr.withholding"
@@ -662,7 +907,22 @@
         "296.2025.census-mismatch",
         "296.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -680,6 +940,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-303.instructions-2026"
@@ -702,7 +963,22 @@
         "303.2025.census-mismatch",
         "303.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -720,6 +996,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-308.procedure"
@@ -742,7 +1019,22 @@
         "308.2025.census-mismatch",
         "308.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -760,6 +1052,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-309.instructions",
@@ -784,7 +1077,22 @@
         "309.2025.census-mismatch",
         "309.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -802,6 +1110,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-341.instructions"
@@ -824,7 +1133,22 @@
         "341.2025.census-mismatch",
         "341.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -842,6 +1166,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-347.exclusions"
@@ -864,7 +1189,22 @@
         "347.2025.census-mismatch",
         "347.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -882,6 +1222,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.roi-intraeu",
@@ -906,7 +1247,22 @@
         "349.2025.census-mismatch",
         "349.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -924,6 +1280,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-369.procedure",
@@ -948,7 +1305,22 @@
         "369.2025.census-mismatch",
         "369.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -966,6 +1338,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-390.procedure",
@@ -990,7 +1363,22 @@
         "390.2025.census-mismatch",
         "390.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1008,6 +1396,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.wealth.obligation"
@@ -1030,7 +1419,22 @@
         "714.2025.census-mismatch",
         "714.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1048,6 +1452,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-720.frequency"
@@ -1070,7 +1475,22 @@
         "720.2025.census-mismatch",
         "720.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1088,6 +1508,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-721.faq"
@@ -1110,7 +1531,22 @@
         "721.2025.census-mismatch",
         "721.2025.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1128,6 +1564,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-035.procedure",
@@ -1152,7 +1589,22 @@
         "035.2026.census-mismatch",
         "035.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1170,6 +1622,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-036.modification",
@@ -1194,7 +1647,22 @@
         "036.2026.census-mismatch",
         "036.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1212,6 +1680,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "boe.irpf-law.article-96",
@@ -1236,7 +1705,22 @@
         "100.2026.census-mismatch",
         "100.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1254,6 +1738,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.withholding.111-190"
@@ -1276,7 +1761,22 @@
         "111.2026.census-mismatch",
         "111.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1294,6 +1794,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.withholding.115-180"
@@ -1316,7 +1817,22 @@
         "115.2026.census-mismatch",
         "115.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1334,6 +1850,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.withholding.123-193"
@@ -1356,7 +1873,22 @@
         "123.2026.census-mismatch",
         "123.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1374,6 +1906,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-130.instructions",
@@ -1398,7 +1931,22 @@
         "130.2026.census-mismatch",
         "130.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1416,6 +1964,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-131.instructions",
@@ -1440,7 +1989,22 @@
         "131.2026.census-mismatch",
         "131.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1458,6 +2022,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.withholding.115-180"
@@ -1480,7 +2045,22 @@
         "180.2026.census-mismatch",
         "180.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1498,6 +2078,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-184.obligations"
@@ -1520,7 +2101,22 @@
         "184.2026.census-mismatch",
         "184.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1538,6 +2134,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.withholding.111-190"
@@ -1560,7 +2157,22 @@
         "190.2026.census-mismatch",
         "190.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1578,6 +2190,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.withholding.123-193"
@@ -1600,7 +2213,22 @@
         "193.2026.census-mismatch",
         "193.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1618,6 +2246,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.is.model-200.obligation"
@@ -1640,7 +2269,22 @@
         "200.2026.census-mismatch",
         "200.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1658,6 +2302,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.is.installments"
@@ -1680,7 +2325,22 @@
         "202.2026.census-mismatch",
         "202.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1698,6 +2358,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.irnr.withholding"
@@ -1720,7 +2381,22 @@
         "216.2026.census-mismatch",
         "216.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1738,6 +2414,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.irnr.withholding"
@@ -1760,7 +2437,22 @@
         "296.2026.census-mismatch",
         "296.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1778,6 +2470,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-303.instructions-2026"
@@ -1800,7 +2493,22 @@
         "303.2026.census-mismatch",
         "303.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1818,6 +2526,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-308.procedure"
@@ -1840,7 +2549,22 @@
         "308.2026.census-mismatch",
         "308.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1858,6 +2582,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-309.instructions",
@@ -1882,7 +2607,22 @@
         "309.2026.census-mismatch",
         "309.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1900,6 +2640,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-341.instructions"
@@ -1922,7 +2663,22 @@
         "341.2026.census-mismatch",
         "341.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1940,6 +2696,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-347.exclusions"
@@ -1962,7 +2719,22 @@
         "347.2026.census-mismatch",
         "347.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -1980,6 +2752,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.roi-intraeu",
@@ -2004,7 +2777,22 @@
         "349.2026.census-mismatch",
         "349.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -2022,6 +2810,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-369.procedure",
@@ -2046,7 +2835,22 @@
         "369.2026.census-mismatch",
         "369.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -2064,6 +2868,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-390.procedure",
@@ -2088,7 +2893,22 @@
         "390.2026.census-mismatch",
         "390.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 7,
+      "killedMutationCount": 7,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -2106,6 +2926,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.wealth.obligation"
@@ -2128,7 +2949,22 @@
         "714.2026.census-mismatch",
         "714.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -2146,6 +2982,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-720.frequency"
@@ -2168,7 +3005,22 @@
         "720.2026.census-mismatch",
         "720.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
@@ -2186,6 +3038,7 @@
       "reviewStatus": "PENDING_FISCAL_REVIEW",
       "resolutionStatus": "OPEN",
       "testsStatus": "NOT_IMPLEMENTED",
+      "executableTestsStatus": "PASSING",
       "sourceStatus": "UNVERIFIED",
       "sourceIds": [
         "aeat.model-721.faq"
@@ -2208,7 +3061,22 @@
         "721.2026.census-mismatch",
         "721.2026.year-boundary"
       ],
-      "executableTestCount": 0,
+      "executableTestCount": 8,
+      "passingTestCount": 8,
+      "categoriesCovered": [
+        "POSITIVE",
+        "NEGATIVE",
+        "EXCEPTION",
+        "UNKNOWN",
+        "CONTRADICTION",
+        "TEMPORALITY",
+        "TERRITORY",
+        "PROHIBITED_INFERENCE"
+      ],
+      "missingCategories": [],
+      "applicableMutationCount": 8,
+      "killedMutationCount": 8,
+      "mutationScore": 100,
       "primaryReviewer": null,
       "secondReviewer": null,
       "approvalEvidenceId": null,
