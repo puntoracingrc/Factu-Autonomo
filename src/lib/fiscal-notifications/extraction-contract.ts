@@ -74,7 +74,7 @@ export interface FiscalNotificationFamilyCandidate {
     | "aeat-real-estate-seizure-candidate"
     | "aeat-formal-filing-requirement-candidate"
     | "aeat-roi-registration-agreement-candidate";
-  readonly handlerVersion: "1.0.0";
+  readonly handlerVersion: "1.0.0" | "1.1.0";
   readonly signalStatus: FiscalNotificationCandidateSignalStatus;
   readonly matchedAnchors: readonly FiscalNotificationAnchorEvidence[];
   readonly missingRequiredAnchorIds: readonly FiscalNotificationAnchorId[];

@@ -1944,6 +1944,7 @@ function parseTechnicalReview(
           familyId: "AEAT_ENFORCEMENT_ORDER_CANDIDATE",
           documentType: "AEAT_ENFORCEMENT_ORDER",
           handlerId: "aeat-enforcement-order-candidate",
+          handlerVersions: ["1.0.0"],
           requiredAnchorIds: ENFORCEMENT_REQUIRED_ANCHOR_IDS,
         }
       : family === "DEFERRAL"
@@ -1951,12 +1952,14 @@ function parseTechnicalReview(
             familyId: "AEAT_DEFERRAL_GRANT_CANDIDATE",
             documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT",
             handlerId: "aeat-deferral-grant-candidate",
+            handlerVersions: ["1.0.0"],
             requiredAnchorIds: DEFERRAL_REQUIRED_ANCHOR_IDS,
           }
         : {
             familyId: "AEAT_OFFSET_AGREEMENT_CANDIDATE",
             documentType: "AEAT_OFFSET_AGREEMENT",
             handlerId: "aeat-offset-agreement-candidate",
+            handlerVersions: ["1.0.0", "1.1.0"],
             requiredAnchorIds: [
               OFFSET_LEGACY_REQUIRED_ANCHOR_IDS,
               OFFSET_STRUCTURAL_REQUIRED_ANCHOR_IDS,
@@ -1971,7 +1974,10 @@ function parseTechnicalReview(
     candidate.documentType !== expected.documentType ||
     candidate.authoritySignal !== "AEAT_UNVERIFIED" ||
     candidate.handlerId !== expected.handlerId ||
-    candidate.handlerVersion !== "1.0.0" ||
+    typeof candidate.handlerVersion !== "string" ||
+    !expected.handlerVersions.some(
+      (version) => version === candidate.handlerVersion,
+    ) ||
     candidate.signalStatus !== "COMPLETE_REQUIRED_ANCHORS" ||
     candidate.requiresHumanReview !== true ||
     !validateTechnicalCandidateArrays(

@@ -289,6 +289,7 @@ const FAMILY_CONTEXT = Object.freeze({
     familyId: "collection.enforcement_order" as const,
     documentType: "AEAT_ENFORCEMENT_ORDER" as const,
     handlerId: "aeat-enforcement-order-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
     titleAnchorId: "ENFORCEMENT_ORDER_TITLE" as const,
     optionalAnchorIds: Object.freeze([] as const),
     minimumEngineVersion: "1.0.0" as const,
@@ -298,6 +299,7 @@ const FAMILY_CONTEXT = Object.freeze({
     familyId: "collection.deferral_grant" as const,
     documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT" as const,
     handlerId: "aeat-deferral-grant-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
     titleAnchorId: "DEFERRAL_GRANT_TITLE" as const,
     optionalAnchorIds: Object.freeze([] as const),
     minimumEngineVersion: "1.0.0" as const,
@@ -307,6 +309,7 @@ const FAMILY_CONTEXT = Object.freeze({
     familyId: "collection.offset_resolution" as const,
     documentType: "AEAT_OFFSET_AGREEMENT" as const,
     handlerId: "aeat-offset-agreement-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0", "1.1.0"] as const),
     titleAnchorId: "OFFSET_AGREEMENT_TITLE" as const,
     optionalAnchorIds: Object.freeze(["DOCUMENT_IDENTIFICATION_SECTION"] as const),
     minimumEngineVersion: "1.4.0" as const,
@@ -319,6 +322,7 @@ const FAMILY_CONTEXT = Object.freeze({
     familyId: "seizure.real_estate" as const,
     documentType: "AEAT_SEIZURE_ORDER" as const,
     handlerId: "aeat-real-estate-seizure-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
     titleAnchorId: "REAL_ESTATE_SEIZURE_TITLE" as const,
     optionalAnchorIds: Object.freeze(["DOCUMENT_IDENTIFICATION_SECTION"] as const),
     minimumEngineVersion: "1.2.0" as const,
@@ -328,6 +332,7 @@ const FAMILY_CONTEXT = Object.freeze({
     familyId: "compliance.formal_filing_requirement" as const,
     documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
     handlerId: "aeat-formal-filing-requirement-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
     titleAnchorId: "FORMAL_FILING_REQUIREMENT_TITLE" as const,
     optionalAnchorIds: Object.freeze([
       "DOCUMENT_IDENTIFICATION_SECTION",
@@ -340,6 +345,7 @@ const FAMILY_CONTEXT = Object.freeze({
     familyId: "registry.tax_registration_resolution" as const,
     documentType: "GENERIC_ADMINISTRATIVE_NOTICE" as const,
     handlerId: "aeat-roi-registration-agreement-candidate" as const,
+    handlerVersions: Object.freeze(["1.0.0"] as const),
     titleAnchorId: "ROI_REGISTRATION_AGREEMENT_TITLE" as const,
     optionalAnchorIds: Object.freeze([
       "DOCUMENT_IDENTIFICATION_SECTION",
@@ -716,7 +722,9 @@ function validateCandidate(
     candidate.documentType !== definition.documentType ||
     candidate.authoritySignal !== "AEAT_UNVERIFIED" ||
     candidate.handlerId !== definition.handlerId ||
-    candidate.handlerVersion !== "1.0.0" ||
+    !definition.handlerVersions.some(
+      (version) => version === candidate.handlerVersion,
+    ) ||
     !SIGNAL_STATES.has(candidate.signalStatus as string) ||
     candidate.signalStatus !== expectedSignal ||
     candidate.requiresHumanReview !== true ||
@@ -747,7 +755,8 @@ function validateCandidate(
     documentType: definition.documentType,
     authoritySignal: "AEAT_UNVERIFIED",
     handlerId: definition.handlerId,
-    handlerVersion: "1.0.0",
+    handlerVersion:
+      candidate.handlerVersion as FiscalNotificationLocalReviewCandidate["handlerVersion"],
     signalStatus:
       candidate.signalStatus as FiscalNotificationLocalReviewCandidate["signalStatus"],
     matchedAnchors: Object.freeze(validatedAnchors),
@@ -1067,7 +1076,9 @@ function resolveCandidateContext(candidate: FiscalNotificationLocalReviewCandida
     !recognitionContractIsValid ||
     candidate.documentType !== definition.documentType ||
     candidate.handlerId !== definition.handlerId ||
-    candidate.handlerVersion !== "1.0.0" ||
+    !definition.handlerVersions.some(
+      (version) => version === candidate.handlerVersion,
+    ) ||
     definition.sourceIds.some((sourceId) => !family.sourceIds.includes(sourceId)) ||
     family.knowledgeUsage !== "CONTEXT_ONLY" ||
     family.printedDocumentPolicy !== "EXTRACT_EXACTLY_THEN_REQUIRE_REVIEW" ||

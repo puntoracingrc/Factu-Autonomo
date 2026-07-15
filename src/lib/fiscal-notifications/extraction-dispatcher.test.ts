@@ -155,6 +155,79 @@ describe("fiscal notification extraction dispatcher", () => {
     });
   });
 
+  it("keeps historical compensation Annex I and II in the same reviewed act", () => {
+    const result = extractFiscalNotificationCandidates(
+      documentWith(
+        [
+          "Agencia Tributaria",
+          "www.agenciatributaria.es",
+          "ACUERDO DE COMPENSACIÓN A INSTANCIA DEL OBLIGADO AL PAGO",
+          "IDENTIFICACIÓN DEL DOCUMENTO",
+          "Número de acuerdo de compensación: ACUERDO-SINTETICO-1",
+        ].join("\n"),
+        "RECURSOS Y RECLAMACIONES",
+        [
+          "ANEXO I",
+          "ACUERDO DE COMPENSACIÓN A INSTANCIA DEL OBLIGADO AL PAGO",
+          "CRÉDITO Y DEUDAS",
+        ].join("\n"),
+        "Continuación de la tabla sintética",
+        [
+          "ANEXO II",
+          "ACUERDO DE COMPENSACIÓN A INSTANCIA DEL OBLIGADO AL PAGO",
+          "DETALLE DE EFECTOS",
+        ].join("\n"),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      reason: "SUPPORTED_FAMILY_CANDIDATE",
+      candidates: [
+        {
+          familyId: "AEAT_OFFSET_AGREEMENT_CANDIDATE",
+          handlerVersion: "1.1.0",
+          signalStatus: "COMPLETE_REQUIRED_ANCHORS",
+          missingRequiredAnchorIds: [],
+        },
+      ],
+    });
+    expect(result.candidates[0]?.matchedAnchors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          anchorId: "OFFSET_CREDIT_AND_DEBT_ANNEX",
+          pageNumbers: [3],
+        }),
+      ]),
+    );
+  });
+
+  it("does not cross a repeated compensation title without an exact annex heading", () => {
+    const result = extractFiscalNotificationCandidates(
+      documentWith(
+        [
+          "Agencia Tributaria",
+          "www.agenciatributaria.es",
+          "ACUERDO DE COMPENSACIÓN A INSTANCIA DEL OBLIGADO AL PAGO",
+          "Número de acuerdo de compensación: ACUERDO-SINTETICO-2",
+        ].join("\n"),
+        [
+          "ACUERDO DE COMPENSACIÓN A INSTANCIA DEL OBLIGADO AL PAGO",
+          "CRÉDITO Y DEUDAS",
+        ].join("\n"),
+      ),
+    );
+
+    expect(result).toMatchObject({
+      reason: "PARTIAL_SUPPORTED_FAMILY_SIGNAL",
+      candidates: [
+        expect.objectContaining({
+          handlerVersion: "1.1.0",
+          missingRequiredAnchorIds: ["OFFSET_CREDIT_AND_DEBT_ANNEX"],
+        }),
+      ],
+    });
+  });
+
   it("does not borrow the formal-filing marker from another page", () => {
     const result = extractFiscalNotificationCandidates(
       documentWith(
