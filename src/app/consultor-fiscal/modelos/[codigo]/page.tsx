@@ -173,6 +173,70 @@ export async function generateMetadata({
         "524": "Modelo 524 AEAT: devolución de impuestos sobre alcohol",
         "544": "Modelo 544 AEAT: pagos de gasóleo bonificado",
         "545": "Modelo 545 AEAT: suministros para relaciones internacionales",
+        "546": "Modelo 546 AEAT: cheques-tarjeta de gasóleo bonificado",
+        "547": "Modelo 547 AEAT: abonos a detallistas de gasóleo bonificado",
+        "548": "Modelo 548 AEAT: cuotas repercutidas por depositarios",
+        "553": "Modelo 553 AEAT: operaciones de vino y SILICIE",
+        "559": "Modelo 559 AEAT: destilación artesanal",
+        "560": "Modelo 560 AEAT: Impuesto Especial sobre la Electricidad",
+        "561": "Modelo 561 AEAT: Impuesto sobre la Cerveza",
+        "562": "Modelo 562 AEAT: productos intermedios",
+        "563": "Modelo 563 AEAT: alcohol y bebidas derivadas",
+        "566": "Modelo 566 AEAT: labores del tabaco",
+        "568": "Modelo 568 AEAT: devolución por medios de transporte",
+        "571": "Modelo 571 AEAT: reconocimiento de devolución de hidrocarburos",
+        "572": "Modelo 572 AEAT: devolución de hidrocarburos",
+        "573": "Modelo 573 AEAT: cigarrillos electrónicos desde 2025",
+        "576": "Modelo 576 AEAT: devolución por gasóleo profesional",
+        "581": "Modelo 581 AEAT: autoliquidación de hidrocarburos",
+        "582": "Modelo 582 AEAT histórico: periodos anteriores a 2019",
+        "583": "Modelo 583 AEAT: producción de energía eléctrica",
+        "584": "Modelo 584 AEAT: producción de residuos nucleares",
+        "585": "Modelo 585 AEAT: almacenamiento nuclear centralizado",
+        "586":
+          "Modelo 586 AEAT histórico: gases fluorados hasta agosto de 2022",
+        "587": "Modelo 587 AEAT: impuesto sobre gases fluorados",
+        "588": "Modelo 588 AEAT: cese de producción eléctrica",
+        "589": "Modelo 589 AEAT: extracción de gas y petróleo",
+        "590": "Modelo 590 AEAT: devolución de hidrocarburos",
+        "591": "Modelo 591 AEAT: pagos a productores eléctricos",
+        "592": "Modelo 592 AEAT: impuesto sobre envases de plástico",
+        "593": "Modelo 593 AEAT: impuesto sobre residuos",
+        "595": "Modelo 595 AEAT: suministros de carbón",
+        "596": "Modelo 596 AEAT: Impuesto Especial sobre el Carbón",
+        "600": "Modelo 600 AEAT: ITP y Actos Jurídicos Documentados",
+        "602": "Modelo 602 AEAT: tasa administrativa de juego",
+        "604": "Modelo 604 AEAT: Impuesto sobre Transacciones Financieras",
+        "610":
+          "Modelo 610 AEAT: documentos negociados por entidades colaboradoras",
+        "611": "Modelo 611 AEAT: resumen anual del Modelo 610",
+        "615": "Modelo 615 AEAT: documentos con función de giro",
+        "616": "Modelo 616 AEAT: resumen anual del Modelo 615",
+        "620": "Modelo 620 AEAT: ITP de vehículos usados",
+        "630": "Modelo 630 AEAT: AJD de letras y documentos mercantiles",
+        "650": "Modelo 650 AEAT: Impuesto sobre Sucesiones",
+        "651": "Modelo 651 AEAT: Impuesto sobre Donaciones",
+        "655": "Modelo 655 AEAT: extinción de usufructo",
+        "681":
+          "Modelo 681 AEAT: tasa de residuos radiactivos del sistema eléctrico",
+        "682": "Modelo 682 AEAT: tasa de centrales nucleares",
+        "683": "Modelo 683 AEAT: fabricación de combustible nuclear",
+        "684": "Modelo 684 AEAT: retirada de residuos radiactivos",
+        "685": "Modelo 685 AEAT: apuestas y combinaciones aleatorias",
+        "695": "Modelo 695 AEAT: devolución de la tasa judicial",
+        "696": "Modelo 696 AEAT: tasa judicial",
+        "763": "Modelo 763 AEAT: Impuesto sobre Actividades de Juego",
+        "770":
+          "Modelo 770 AEAT: regularización especial de intereses y recargos",
+        "771": "Modelo 771 AEAT: cuota de regularización especial",
+        "780": "Modelo 780 AEAT: impuesto financiero vigente",
+        "781": "Modelo 781 AEAT: pago fraccionado del impuesto financiero",
+        "791": "Modelo 791 AEAT: oposiciones y tasa de examen",
+        "792": "Modelo 792 AEAT: aportación anual a RTVE",
+        "793": "Modelo 793 AEAT: pagos a cuenta de la aportación a RTVE",
+        "795": "Modelo 795 AEAT histórico: gravamen energético 2023 y 2024",
+        "796": "Modelo 796 AEAT histórico: pago energético 2023 y 2024",
+        "797": "Modelo 797 AEAT histórico: antiguo gravamen bancario",
         "232": "Modelo 232 AEAT: operaciones vinculadas",
         "233": "Modelo 233 AEAT: gastos de guarderías y centros infantiles",
         "238": "Modelo 238 AEAT: información de operadores de plataformas",
@@ -449,6 +513,126 @@ export async function generateMetadata({
           "Guía del Modelo 544: relación trimestral de pagos mediante cheques y tarjetas de gasóleo bonificado.",
         "545":
           "Guía del Modelo 545: suministros trimestrales de carburantes bajo beneficios de relaciones internacionales.",
+        "546":
+          "Guía del Modelo 546: entidades emisoras, cheques-tarjeta de gasóleo bonificado, periodicidad trimestral, plazo y control SIANE.",
+        "547":
+          "Guía del Modelo 547: entidades emisoras que abonan a detallistas de gasóleo bonificado, plazo trimestral y diferencias con el 546.",
+        "548":
+          "Guía del Modelo 548: cuotas repercutidas por depositarios autorizados en operaciones por cuenta ajena, presentación mensual y exclusión de electricidad.",
+        "553":
+          "Guía del Modelo 553: operaciones y existencias de vino y bebidas fermentadas, flujo 2025 y siguientes y coordinación con SILICIE.",
+        "559":
+          "Guía del Modelo 559: destilación artesanal, Tarifa 1 y Tarifa 2, actividad, plazos especiales y relación RBRC.",
+        "560":
+          "Guía del Modelo 560: contribuyentes del Impuesto Especial sobre la Electricidad, CIE, periodos, tipos, reducciones y correcciones.",
+        "561":
+          "Guía del Modelo 561: autoliquidación del Impuesto sobre la Cerveza, operadores, clasificación, grados Plato y plazos.",
+        "562":
+          "Guía del Modelo 562: autoliquidación de productos intermedios tranquilos y espumosos, clasificación, territorio y plazos.",
+        "563":
+          "Guía del Modelo 563: autoliquidación de alcohol y bebidas derivadas, operadores, litros de alcohol puro, tipos y plazos.",
+        "566":
+          "Guía del Modelo 566: autoliquidación de labores del tabaco, operadores, epígrafes, unidades, tipos y marcas fiscales.",
+        "568":
+          "Guía del Modelo 568: devolución para revendedores profesionales que envían definitivamente medios de transporte antes de cuatro años.",
+        "571":
+          "Guía del Modelo 571: reconocimiento previo del derecho a determinadas devoluciones del Impuesto sobre Hidrocarburos.",
+        "572":
+          "Guía del Modelo 572: solicitud trimestral de devolución de hidrocarburos, beneficiarios, cantidades y reconocimiento previo.",
+        "573":
+          "Guía del Modelo 573: autoliquidación mensual del impuesto exigible desde abril de 2025 sobre líquidos para cigarrillos electrónicos y otros productos.",
+        "576":
+          "Guía del Modelo 576: devolución por determinados usos profesionales de gasóleo, inscripción, vehículos, consumos y límites.",
+        "581":
+          "Guía del Modelo 581: autoliquidación vigente del Impuesto sobre Hidrocarburos por establecimiento y periodo.",
+        "582":
+          "Guía histórica del Modelo 582: declaración trimestral por establecimiento limitada a periodos anteriores a 2019.",
+        "583":
+          "Guía del Modelo 583: pagos fraccionados de mayo, septiembre, noviembre y febrero y autoliquidación anual en noviembre.",
+        "584":
+          "Guía del Modelo 584: producción de combustible nuclear gastado y residuos radiactivos, magnitudes, pagos y autoliquidación.",
+        "585":
+          "Guía del Modelo 585: almacenamiento centralizado de combustible nuclear gastado y residuos, operador, inventario y cuota.",
+        "586":
+          "Guía histórica del Modelo 586: declaración de gases fluorados limitada a operaciones realizadas hasta el 31 de agosto de 2022.",
+        "587":
+          "Guía del Modelo 587: impuesto sobre gases fluorados y autoliquidación rectificativa para periodos iniciados desde julio de 2026.",
+        "588":
+          "Guía del Modelo 588: autoliquidación por determinados ceses anticipados de producción eléctrica y conciliación con el 583.",
+        "589":
+          "Guía del Modelo 589: extracción de gas, petróleo y condensados, pago fraccionado de octubre y autoliquidación anual de abril.",
+        "590":
+          "Guía del Modelo 590: devolución de hidrocarburos por determinados envíos o exportaciones y documentación aduanera.",
+        "591":
+          "Guía del Modelo 591: información anual presentada por quienes pagan a contribuyentes del impuesto sobre la producción eléctrica.",
+        "592":
+          "Guía del Modelo 592: impuesto sobre envases de plástico no reutilizables, plástico no reciclado, importaciones, exenciones y libros.",
+        "593":
+          "Guía del Modelo 593: impuesto sobre depósito e incineración de residuos, contribuyentes, territorio, clasificación, tarifas y plazos.",
+        "595":
+          "Guía del Modelo 595: relación informativa de suministros de carbón, operadores, destinatarios, cantidades y correcciones.",
+        "596":
+          "Guía del Modelo 596: autoliquidación del Impuesto Especial sobre el Carbón, operaciones sujetas, autoconsumo, exenciones y cuota.",
+        "600":
+          "Guía del Modelo 600: competencia estatal o autonómica, transmisiones, operaciones societarias, AJD, sujeto pasivo, plazo y documentación.",
+        "602":
+          "Guía del Modelo 602: tasa administrativa de juego, solicitantes, actuaciones, devengo, pago y diferencia con los Modelos 685 y 763.",
+        "604":
+          "Guía del Modelo 604: impuesto mensual del 0,2 % sobre determinadas acciones, anexo previo, plazo, exenciones y correcciones.",
+        "610":
+          "Guía del Modelo 610: AJD de documentos negociados por entidades colaboradoras y conciliación con el Modelo 611.",
+        "611":
+          "Guía del Modelo 611: resumen informativo anual sin nuevo pago, campaña, conciliación y correcciones.",
+        "615":
+          "Guía del Modelo 615: documentos con función de giro, autorización, pago en metálico y relación con el Modelo 616.",
+        "616":
+          "Guía del Modelo 616: resumen anual informativo de los documentos del Modelo 615, plazo y corrección.",
+        "620":
+          "Guía del Modelo 620: comprador, competencia territorial, vehículos usados, valor, plazo y cambio de titularidad.",
+        "630":
+          "Guía del Modelo 630: AJD complementario de letras y documentos mercantiles, competencia y formulario PDF.",
+        "650":
+          "Guía del Modelo 650: herencias, cada heredero, competencia territorial, seis meses, prórroga y documentación.",
+        "651":
+          "Guía del Modelo 651: donaciones, donatario, competencia territorial, plazo estatal y efectos del donante.",
+        "655":
+          "Guía del Modelo 655: usufructo, nuda propiedad, causa de extinción, modelo previo y competencia territorial.",
+        "681":
+          "Guía del Modelo 681: tasa mensual del sistema eléctrico para gestión de residuos radiactivos.",
+        "682":
+          "Guía del Modelo 682: tasa mensual de centrales nucleares, combustible gastado, residuos, plazo y cese.",
+        "683":
+          "Guía del Modelo 683: tasa anual de instalaciones de fabricación de combustible nuclear.",
+        "684":
+          "Guía del Modelo 684: retirada de residuos radiactivos de otras instalaciones, ENRESA y plazo de 60 días.",
+        "685":
+          "Guía del Modelo 685: apuestas y promociones, competencia, periodo 0A y plazo de 30 días.",
+        "695":
+          "Guía del Modelo 695: devolución parcial del 60 % o 20 % de determinadas tasas judiciales.",
+        "696":
+          "Guía del Modelo 696: tasa judicial de personas jurídicas, exenciones, STC 140/2016 y correcciones.",
+        "763":
+          "Guía del Modelo 763: impuesto trimestral de operadores estatales de juego, modalidades y territorio.",
+        "770":
+          "Guía del Modelo 770: regularización voluntaria especial, intereses, recargos, artículo 252 LGT y límites.",
+        "771":
+          "Guía del Modelo 771: cuota principal solo cuando no existe modelo electrónico ordinario y relación con el 770.",
+        "780":
+          "Guía del Modelo 780: impuesto financiero vigente, septiembre, base liquidable, escala, Modelo 781 y territorio.",
+        "781":
+          "Guía del Modelo 781: pago fraccionado del 40 %, febrero, cuota positiva y deducción en el Modelo 780.",
+        "791":
+          "Guía del Modelo 791: inscripción en oposiciones AEAT, convocatoria, tasa, exenciones y registro.",
+        "792":
+          "Guía del Modelo 792: aportación anual a RTVE, febrero, tipos del 3 % y 1,5 %, deducción y pagos 793.",
+        "793":
+          "Guía del Modelo 793: pagos del 25 % en abril, julio y octubre a cuenta de la aportación audiovisual.",
+        "795":
+          "Modelo 795 histórico: gravamen temporal energético de 2023 y 2024, consultas y correcciones; no vigente en 2025/2026.",
+        "796":
+          "Modelo 796 histórico: pago anticipado energético de 2023 y 2024; no existe pago actual.",
+        "797":
+          "Modelo 797 histórico: antiguo gravamen temporal bancario, distinto de los actuales Modelos 780 y 781.",
         "232":
           "Guía del Modelo 232: operaciones vinculadas, valoración de mercado, límites, documentación, plazo y corrección de la declaración.",
         "233":

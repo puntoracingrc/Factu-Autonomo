@@ -77,6 +77,31 @@ describe("fiscal notification guide search v1", () => {
     );
   });
 
+  it("finds explained families using everyday language", () => {
+    const blockedAccount = searchFiscalNotificationGuideV1(
+      FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1,
+      "cuenta bloqueada",
+    );
+    const omittedReturn = searchFiscalNotificationGuideV1(
+      FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1,
+      "declaracion omitida",
+    );
+    expect(blockedAccount.status).toBe("READY");
+    expect(omittedReturn.status).toBe("READY");
+    if (
+      blockedAccount.status !== "READY" ||
+      omittedReturn.status !== "READY"
+    ) {
+      throw new Error("Expected ready everyday-language searches");
+    }
+    expect(blockedAccount.entries.map((entry) => entry.familyId)).toContain(
+      "seizure.bank_account",
+    );
+    expect(omittedReturn.entries.map((entry) => entry.familyId)).toContain(
+      "compliance.informal_missing_return_notice",
+    );
+  });
+
   it("returns all 87 entries for an empty query without mutating the input", () => {
     const input = [...FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1];
     const before = input.map((entry) => entry.familyId);

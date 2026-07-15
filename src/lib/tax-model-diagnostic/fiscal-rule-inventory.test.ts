@@ -4,18 +4,27 @@ import { readFileSync, readdirSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import {
+  FISCAL_EXECUTABLE_RULE_SUITES,
+  mutationScoreForSuite,
+} from "./fiscal-executable-tests/harness";
 import { DIAGNOSTIC_QUESTIONS } from "./questions";
 import { TAX_RULES } from "./rules";
 
 interface InventoryDocument {
   generatedFrom: {
     technicalFileHash: string;
+    executableSpecHash: string;
   };
   counts: {
     rules: number;
     approvedRules: number;
     resolvedRules: number;
     passingExecutableSuites: number;
+    executableTestCases: number;
+    passingExecutableTestCases: number;
+    mutationScore: number;
+    safetyCriticalMutationScore: number;
     verifiedSourceSnapshots: number;
     approvedFiscalHashes: number;
     rulesWithTwoReviewers: number;
@@ -27,7 +36,17 @@ interface InventoryDocument {
     reviewStatus: string;
     resolutionStatus: string;
     testsStatus: string;
+    executableTestsStatus: string;
     executableTestCount: number;
+    passingTestCount: number;
+    categoriesCovered: string[];
+    missingCategories: string[];
+    mutationCount: number;
+    killedMutationCount: number;
+    mutationScore: number;
+    safetyCriticalMutationCount: number;
+    safetyCriticalKilledMutationCount: number;
+    safetyCriticalMutationScore: number;
     exclusionAuthorized: boolean;
   }>;
 }
@@ -59,12 +78,27 @@ describe("generated fiscal closure inventory", () => {
     const technicalHash = `sha256:${createHash("sha256")
       .update(readFileSync(new URL("./rules.ts", import.meta.url)))
       .digest("hex")}`;
+    const executableSpecHash = `sha256:${createHash("sha256")
+      .update(
+        readFileSync(
+          new URL(
+            "./fiscal-executable-tests/specs.ts",
+            import.meta.url,
+          ),
+        ),
+      )
+      .digest("hex")}`;
     expect(inventory.generatedFrom.technicalFileHash).toBe(technicalHash);
+    expect(inventory.generatedFrom.executableSpecHash).toBe(executableSpecHash);
     expect(inventory.counts).toEqual({
       rules: 54,
       approvedRules: 0,
       resolvedRules: 0,
-      passingExecutableSuites: 0,
+      passingExecutableSuites: 54,
+      executableTestCases: 540,
+      passingExecutableTestCases: 540,
+      mutationScore: 100,
+      safetyCriticalMutationScore: 100,
       verifiedSourceSnapshots: 0,
       approvedFiscalHashes: 0,
       rulesWithTwoReviewers: 0,
@@ -72,6 +106,11 @@ describe("generated fiscal closure inventory", () => {
     });
     expect(inventory.rules).toHaveLength(TAX_RULES.length);
     for (const rule of TAX_RULES) {
+      const suite = FISCAL_EXECUTABLE_RULE_SUITES.find(
+        (candidate) => candidate.ruleId === rule.ruleId,
+      );
+      expect(suite).toBeDefined();
+      const mutation = mutationScoreForSuite(suite!);
       expect(
         inventory.rules.find((entry) => entry.ruleId === rule.ruleId),
       ).toMatchObject({
@@ -79,7 +118,28 @@ describe("generated fiscal closure inventory", () => {
         reviewStatus: "PENDING_FISCAL_REVIEW",
         resolutionStatus: "OPEN",
         testsStatus: "NOT_IMPLEMENTED",
-        executableTestCount: 0,
+        executableTestsStatus: "PASSING",
+        executableTestCount: 10,
+        passingTestCount: 10,
+        categoriesCovered: [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY",
+        ],
+        missingCategories: [],
+        mutationCount: mutation.total,
+        killedMutationCount: mutation.killed,
+        mutationScore: 100,
+        safetyCriticalMutationCount: mutation.safetyCriticalTotal,
+        safetyCriticalKilledMutationCount: mutation.safetyCriticalKilled,
+        safetyCriticalMutationScore: 100,
         exclusionAuthorized: false,
       });
     }
@@ -92,7 +152,7 @@ describe("generated fiscal closure inventory", () => {
       issues.issues.every(
         (issue) =>
           issue.status === "OPEN" &&
-          issue.findings.includes("MISSING_EXECUTABLE_TEST_SUITE") &&
+          !issue.findings.includes("MISSING_EXECUTABLE_TEST_SUITE") &&
           issue.findings.includes("MISSING_QUESTION_FACT_RULE_MAPPING"),
       ),
     ).toBe(true);
@@ -123,6 +183,12 @@ describe("generated fiscal closure inventory", () => {
     );
     expect(output).toContain("Inventory drift: CLEAN");
     expect(output).toContain("Authorized exclusions: 0");
+    expect(output).toContain("Rules with passing executable test suites: 54");
+    expect(output).toContain("Passing executable test cases: 540");
+    expect(output).toContain("Fiscal mutation score: 100%");
+    expect(output).toContain(
+      "Safety-critical fiscal mutation score: 100%",
+    );
     expect(output).toContain('Fallback "Todos": ENABLED');
   });
 });

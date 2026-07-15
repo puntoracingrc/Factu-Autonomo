@@ -48,6 +48,17 @@ describe("FiscalNotificationGuideView UI contract", () => {
     );
   });
 
+  it("shows a concise progressive explanation before technical detail", () => {
+    expect(detailSource).toContain("Lo importante en 30 segundos");
+    expect(detailSource).toContain("Qué significa");
+    expect(detailSource).toContain("Por qué suele llegar");
+    expect(detailSource).toContain("Qué conviene hacer");
+    expect(detailSource).toContain("Entenderlo un poco mejor");
+    expect(detailSource).toContain("Estado técnico de esta ficha");
+    expect(viewSource).toContain("Guía explicada");
+    expect(viewSource).toContain("Te lo explicamos; tú decides qué hacer");
+  });
+
   it("does not add persistence, runtime fetching, AI or fiscal side effects", () => {
     expect(combinedSource).not.toMatch(/\bfetch\s*\(/);
     expect(combinedSource).not.toMatch(/localStorage|sessionStorage|indexedDB/i);
