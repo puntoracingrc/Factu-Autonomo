@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { evaluateTaxModelDiagnostic } from "@/lib/tax-model-diagnostic/engine";
 import {
   completeCommonTerritoryProfile,
+  REFERENCE_PROFILES,
 } from "@/lib/tax-model-diagnostic/test-fixtures";
 
 import { buildTaxObligationsAssessment } from "./build-assessment";
@@ -32,7 +33,8 @@ describe("public tax obligations assessment", () => {
     );
     expect(assessment.obligations).toHaveLength(27);
     expect(
-      new Set(assessment.obligations.map((obligation) => obligation.modelCode)).size,
+      new Set(assessment.obligations.map((obligation) => obligation.modelCode))
+        .size,
     ).toBe(27);
     expect(
       assessment.obligations.every((obligation) =>
@@ -67,6 +69,24 @@ describe("public tax obligations assessment", () => {
         ),
     ).toBe(true);
   });
+
+  it.each(REFERENCE_PROFILES)(
+    "autoriza cero exclusiones reales para $name",
+    ({ profile }) => {
+      const diagnostic = evaluateTaxModelDiagnostic(profile, GENERATED_AT);
+      const assessment = buildTaxObligationsAssessment(diagnostic, {
+        ruleReviewState: "APPROVED",
+      });
+
+      expect(isTaxObligationExclusionAuthorized(assessment)).toBe(false);
+      expect(
+        assessment.obligations.filter(
+          (obligation) =>
+            obligation.exclusionAuthorization?.authorized === true,
+        ),
+      ).toEqual([]);
+    },
+  );
 
   it("bloquea el consumo cuando el territorio impide emitir decisiones", () => {
     const diagnostic = evaluateTaxModelDiagnostic(
@@ -104,7 +124,10 @@ describe("public tax obligations assessment", () => {
 
   it("mantiene los conflictos visibles y exige revisión", () => {
     const diagnostic = evaluateTaxModelDiagnostic(
-      completeCommonTerritoryProfile({ censusReviewed: "YES", censusObligations: ["303"] }),
+      completeCommonTerritoryProfile({
+        censusReviewed: "YES",
+        censusObligations: ["303"],
+      }),
       GENERATED_AT,
     );
     const assessment = buildTaxObligationsAssessment(diagnostic);
