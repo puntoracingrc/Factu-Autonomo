@@ -41,7 +41,10 @@ const practicalSubtitleByCode: Readonly<Record<string, string>> = Object.freeze(
       "Operaciones vinculadas y situaciones relacionadas con jurisdicciones no cooperativas",
     "296": "Resumen anual de rentas pagadas a no residentes",
     "303": "Autoliquidación periódica del IVA",
+    "308":
+      "Devolución especial de IVA para comercio, transporte y medios de transporte nuevos",
     "309": "IVA no periódico para operaciones especiales",
+    "341": "Reintegro de compensaciones del régimen especial agrario",
     "347": "Declaración anual de operaciones con clientes y proveedores",
     "349": "Operaciones con empresas y profesionales de la Unión Europea",
     "360": "Devolución del IVA soportado en otros países de la Unión Europea",

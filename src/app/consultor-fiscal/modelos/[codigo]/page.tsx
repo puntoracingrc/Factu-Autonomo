@@ -66,7 +66,9 @@ export async function generateMetadata({
         "232": "Modelo 232 AEAT: operaciones vinculadas",
         "296": "Modelo 296 AEAT: resumen anual de pagos a no residentes",
         "303": "Modelo 303 AEAT: declaración trimestral del IVA",
+        "308": "Modelo 308 AEAT: devolución de IVA en casos especiales",
         "309": "Modelo 309 AEAT: IVA no periódico",
+        "341": "Modelo 341 AEAT: compensaciones del régimen agrario",
         "347": "Modelo 347 AEAT: operaciones con clientes y proveedores",
         "349": "Modelo 349 AEAT: operaciones intracomunitarias",
         "360": "Modelo 360 AEAT: devolución del IVA soportado en la UE",
@@ -129,8 +131,12 @@ export async function generateMetadata({
           "Guía sencilla del Modelo 296: perceptores no residentes, rentas exentas, TIN, relación con el Modelo 216, plazo, presentación y correcciones.",
         "303":
           "Guía sencilla del Modelo 303: quién debe presentarlo, IVA repercutido y deducible, resultados, plazos, Pre303 y corrección de errores.",
+        "308":
+          "Guía sencilla del Modelo 308: tax free y recargo de equivalencia, vehículos de transportistas, medios de transporte nuevos, plazos y presentación.",
         "309":
           "Guía sencilla del Modelo 309: quién debe presentarlo, recargo de equivalencia, actividades exentas, adquisiciones intracomunitarias, plazos y pago.",
+        "341":
+          "Guía sencilla del Modelo 341: quién puede solicitarlo, exportaciones, operaciones intracomunitarias, porcentajes del 12 % y 10,5 %, plazos y presentación.",
         "347":
           "Guía sencilla del Modelo 347: quién debe presentarlo, límite de 3.005,06 euros, operaciones incluidas y excluidas, trimestres y presentación.",
         "349":
