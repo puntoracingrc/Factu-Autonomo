@@ -1,4 +1,7 @@
-import type { AdministrativeMoneyKind } from "./administrative-domain";
+import type {
+  AdministrativeMoneyFact,
+  AdministrativeMoneyKind,
+} from "./administrative-domain";
 import {
   explainFiscalNotificationDocumentV1,
   type FiscalNotificationDocumentExplanationV1,
@@ -6,7 +9,10 @@ import {
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
 import type {
   AdministrativeDocumentType,
+  ExternalReference,
   ExternalReferenceType,
+  FieldEvidence,
+  UnknownExtractedField,
 } from "./types";
 
 export interface FiscalNotificationStructuredHistoryMoneyV1 {
@@ -22,6 +28,23 @@ export interface FiscalNotificationStructuredHistoryMoneyV1 {
 export interface FiscalNotificationStructuredHistoryFactV1 {
   readonly label: string;
   readonly value: string;
+}
+
+export interface FiscalNotificationStructuredHistoryOrderedFactV1 {
+  readonly key: string;
+  readonly semantic:
+    | "REFERENCE"
+    | "MONEY"
+    | "DATE"
+    | "PARTY"
+    | "STATUS"
+    | "DETAIL"
+    | "OBLIGATION"
+    | "MASKED_VALUE";
+  readonly label: string;
+  readonly value: string;
+  readonly pageNumber: number;
+  readonly sourceReference: string | null;
 }
 
 export interface FiscalNotificationStructuredHistoryInstallmentComponentV1 {
@@ -44,6 +67,12 @@ export interface FiscalNotificationStructuredHistoryEntryV1 {
   readonly title: string;
   readonly authority: string;
   readonly documentDate: string | null;
+  readonly documentDateBasis:
+    | "Fecha de emision"
+    | "Fecha de firma"
+    | "Fecha del acto"
+    | "Fecha de notificacion"
+    | null;
   readonly createdAt: string;
   readonly pageCount: number;
   readonly byteLength: number;
@@ -51,6 +80,7 @@ export interface FiscalNotificationStructuredHistoryEntryV1 {
   readonly subjectTaxId: string | null;
   readonly references: readonly FiscalNotificationStructuredHistoryFactV1[];
   readonly printedDates: readonly FiscalNotificationStructuredHistoryFactV1[];
+  readonly orderedFacts: readonly FiscalNotificationStructuredHistoryOrderedFactV1[];
   readonly money: readonly FiscalNotificationStructuredHistoryMoneyV1[];
   readonly installments: readonly FiscalNotificationStructuredHistoryInstallmentV1[];
   readonly explanation: FiscalNotificationDocumentExplanationV1;
@@ -174,6 +204,10 @@ export function projectFiscalNotificationStructuredHistoryV1(
   const references = new Map(
     workspace.references.map((item) => [item.id, item]),
   );
+  const evidence = new Map(workspace.evidence.map((item) => [item.id, item]));
+  const evidenceOrder = new Map(
+    workspace.evidence.map((item, index) => [item.id, index]),
+  );
   const snapshots = new Map(
     workspace.analysisSnapshots.map((item) => [item.id, item]),
   );
@@ -290,14 +324,31 @@ export function projectFiscalNotificationStructuredHistoryV1(
           }),
         );
 
-      const documentDate = selectExplicitDocumentDate({
+      const selectedDocumentDate = selectExplicitDocumentDate({
         documentIssueDate: document.issueDate,
+        documentSignatureDate: document.signatureDate,
+        documentEffectiveNotificationDate:
+          document.notificationDates.effectiveAt?.slice(0, 10) ??
+          document.notificationDates.accessedAt?.slice(0, 10),
         snapshotIssueDate: snapshot.structuredData.documentFields.issueDate,
+        snapshotEffectiveNotificationDate:
+          snapshot.structuredData.documentFields.effectiveNotificationDate,
         unknownFields: snapshot.structuredData.unknownFields,
       });
+      const documentDate = selectedDocumentDate?.value ?? null;
       const receiptDate =
         normalizeCalendarDate(document.notificationDates.accessedAt?.slice(0, 10)) ??
         normalizeCalendarDate(document.notificationDates.effectiveAt?.slice(0, 10));
+      const orderedFacts = projectOrderedFacts({
+        references: document.referenceIds
+          .map((id) => references.get(id))
+          .filter((item) => item !== undefined),
+        moneyFacts: domain?.moneyFacts ?? [],
+        unknownFields: snapshot.structuredData.unknownFields,
+        referencesById: references,
+        evidenceById: evidence,
+        evidenceOrder,
+      });
       const explanation = explainFiscalNotificationDocumentV1({
         documentType: document.documentType,
         documentSubtype: document.documentSubtype ?? null,
@@ -314,6 +365,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
         title: document.titleRaw,
         authority: authority.nameRaw,
         documentDate,
+        documentDateBasis: selectedDocumentDate?.basis ?? null,
         createdAt: document.createdAt,
         pageCount: file.pageCount,
         byteLength: file.fileSize,
@@ -321,6 +373,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
         subjectTaxId: document.subjectParty?.taxIdNormalized ?? null,
         references: Object.freeze(documentReferences),
         printedDates: Object.freeze(printedDates),
+        orderedFacts,
         money: Object.freeze(money),
         installments: Object.freeze(installments),
         explanation,
@@ -356,7 +409,10 @@ function deduplicateFacts<T extends FiscalNotificationStructuredHistoryFactV1>(
 
 interface ExplicitDocumentDateInputV1 {
   readonly documentIssueDate?: string;
+  readonly documentSignatureDate?: string;
+  readonly documentEffectiveNotificationDate?: string;
   readonly snapshotIssueDate?: string;
+  readonly snapshotEffectiveNotificationDate?: string;
   readonly unknownFields: readonly {
     readonly labelRaw: string;
     readonly valueRaw: string;
@@ -364,18 +420,42 @@ interface ExplicitDocumentDateInputV1 {
   }[];
 }
 
+interface SelectedDocumentDateV1 {
+  readonly value: string;
+  readonly basis:
+    | "Fecha de emision"
+    | "Fecha de firma"
+    | "Fecha del acto"
+    | "Fecha de notificacion";
+}
+
 function selectExplicitDocumentDate(
   input: ExplicitDocumentDateInputV1,
-): string | null {
+): SelectedDocumentDateV1 | null {
   for (const value of [input.documentIssueDate, input.snapshotIssueDate]) {
     const normalized = normalizeCalendarDate(value);
-    if (normalized) return normalized;
+    if (normalized) {
+      return Object.freeze({ value: normalized, basis: "Fecha de emision" });
+    }
+  }
+  const normalizedSignature = normalizeCalendarDate(
+    input.documentSignatureDate,
+  );
+  if (normalizedSignature) {
+    return Object.freeze({
+      value: normalizedSignature,
+      basis: "Fecha de firma",
+    });
   }
 
   const datedFields = input.unknownFields.filter(
     (field) => field.confidence === "EXACT",
   );
-  for (const preferredKind of ["ISSUE_DATE", "SIGNATURE_DATE"] as const) {
+  for (const [preferredKind, basis] of [
+    ["ISSUE_DATE", "Fecha de emision"],
+    ["SIGNATURE_DATE", "Fecha de firma"],
+    ["ACTION_DATE", "Fecha del acto"],
+  ] as const) {
     const field = datedFields.find((candidate) => {
       const metadata = parseVerticalFieldLabel(candidate.labelRaw);
       if (metadata?.semantic === "DATE") {
@@ -384,10 +464,193 @@ function selectExplicitDocumentDate(
       return candidate.labelRaw === `PRINTED_${preferredKind}`;
     });
     const normalized = normalizeCalendarDate(field?.valueRaw);
-    if (normalized) return normalized;
+    if (normalized) return Object.freeze({ value: normalized, basis });
+  }
+
+  for (const value of [
+    input.snapshotEffectiveNotificationDate,
+    input.documentEffectiveNotificationDate,
+  ]) {
+    const normalized = normalizeCalendarDate(value);
+    if (normalized) {
+      return Object.freeze({
+        value: normalized,
+        basis: "Fecha de notificacion",
+      });
+    }
+  }
+  const notificationField = datedFields.find((candidate) => {
+    const metadata = parseVerticalFieldLabel(candidate.labelRaw);
+    return (
+      metadata?.semantic === "DATE" &&
+      metadata.canonicalType === "EFFECTIVE_NOTIFICATION_DATE"
+    );
+  });
+  const notificationDate = normalizeCalendarDate(notificationField?.valueRaw);
+  if (notificationDate) {
+    return Object.freeze({
+      value: notificationDate,
+      basis: "Fecha de notificacion",
+    });
   }
 
   return null;
+}
+
+function projectOrderedFacts(input: {
+  readonly references: readonly ExternalReference[];
+  readonly moneyFacts: readonly AdministrativeMoneyFact[];
+  readonly unknownFields: readonly UnknownExtractedField[];
+  readonly referencesById: ReadonlyMap<string, ExternalReference>;
+  readonly evidenceById: ReadonlyMap<string, FieldEvidence>;
+  readonly evidenceOrder: ReadonlyMap<string, number>;
+}): readonly FiscalNotificationStructuredHistoryOrderedFactV1[] {
+  const candidates: Array<
+    FiscalNotificationStructuredHistoryOrderedFactV1 & { readonly order: number }
+  > = [];
+  const firstEvidence = (ids: readonly string[]): FieldEvidence | undefined =>
+    ids.map((id) => input.evidenceById.get(id)).find((item) => item !== undefined);
+  const firstOrder = (ids: readonly string[]): number =>
+    Math.min(
+      ...ids.map((id) => input.evidenceOrder.get(id) ?? Number.MAX_SAFE_INTEGER),
+    );
+  const verticalMetadataByEvidence = new Map(
+    input.unknownFields.flatMap((field) => {
+      const metadata = parseVerticalFieldLabel(field.labelRaw);
+      return metadata && field.evidenceId
+        ? [[field.evidenceId, metadata] as const]
+        : [];
+    }),
+  );
+  const verticalFieldByEvidence = new Map(
+    input.unknownFields.flatMap((field) =>
+      field.evidenceId ? [[field.evidenceId, field] as const] : [],
+    ),
+  );
+
+  for (const reference of input.references) {
+    const source = firstEvidence(reference.occurrenceIds);
+    if (!source) continue;
+    candidates.push({
+      key: reference.id,
+      semantic: "REFERENCE",
+      label:
+        reference.occurrenceIds
+          .map((id) => verticalMetadataByEvidence.get(id))
+          .find((metadata) => metadata?.semantic === "REFERENCE")?.label ??
+        REFERENCE_LABELS[reference.referenceType] ??
+        "Referencia impresa",
+      value: reference.rawValue,
+      pageNumber: source.pageNumber,
+      sourceReference: null,
+      order: firstOrder(reference.occurrenceIds),
+    });
+  }
+
+  for (const fact of input.moneyFacts) {
+    const source = firstEvidence(fact.evidenceIds);
+    if (!source) continue;
+    const sourceField = fact.evidenceIds
+      .map((id) => verticalFieldByEvidence.get(id))
+      .find((field) => parseVerticalFieldLabel(field?.labelRaw ?? "")?.semantic === "MONEY");
+    const sourceReference = fact.sourceActRefId
+      ? input.referencesById.get(fact.sourceActRefId)?.rawValue ?? null
+      : null;
+    candidates.push({
+      key: fact.id,
+      semantic: "MONEY",
+      label:
+        fact.evidenceIds
+          .map((id) => verticalMetadataByEvidence.get(id))
+          .find((metadata) => metadata?.semantic === "MONEY")?.label ??
+        MONEY_LABELS[fact.kind],
+      value:
+        sourceField?.valueRaw ??
+        formatOrderedMoney(fact.amountCents, fact.currency),
+      pageNumber: source.pageNumber,
+      sourceReference,
+      order: firstOrder(fact.evidenceIds),
+    });
+  }
+
+  input.unknownFields.forEach((fact, index) => {
+    const metadata = parseVerticalFieldLabel(fact.labelRaw);
+    if (
+      metadata?.semantic === "MONEY" ||
+      metadata?.semantic === "REFERENCE"
+    ) {
+      return;
+    }
+    const sourceOrder = fact.evidenceId
+      ? input.evidenceOrder.get(fact.evidenceId) ?? Number.MAX_SAFE_INTEGER
+      : Number.MAX_SAFE_INTEGER - input.unknownFields.length + index;
+    candidates.push({
+      key: fact.evidenceId ?? `printed:${fact.page}:${index}`,
+      semantic: orderedSemantic(metadata?.semantic, fact.labelRaw),
+      label: metadata?.label ?? DATE_LABELS[fact.labelRaw] ?? "Dato impreso",
+      value: fact.valueRaw,
+      pageNumber: fact.page,
+      sourceReference: null,
+      order: sourceOrder,
+    });
+  });
+
+  const unique = new Map<string, (typeof candidates)[number]>();
+  candidates
+    .sort(
+      (left, right) =>
+        left.pageNumber - right.pageNumber ||
+        left.order - right.order ||
+        left.key.localeCompare(right.key),
+    )
+    .forEach((fact) => {
+      const key = `${fact.pageNumber}\u0000${fact.label}\u0000${fact.value}`;
+      if (!unique.has(key)) unique.set(key, fact);
+    });
+  return Object.freeze(
+    [...unique.values()].map((fact) =>
+      Object.freeze({
+        key: fact.key,
+        semantic: fact.semantic,
+        label: fact.label,
+        value: fact.value,
+        pageNumber: fact.pageNumber,
+        sourceReference: fact.sourceReference,
+      }),
+    ),
+  );
+}
+
+function orderedSemantic(
+  semantic: string | undefined,
+  legacyLabel: string,
+): FiscalNotificationStructuredHistoryOrderedFactV1["semantic"] {
+  if (
+    semantic === "REFERENCE" ||
+    semantic === "MONEY" ||
+    semantic === "DATE" ||
+    semantic === "PARTY" ||
+    semantic === "STATUS" ||
+    semantic === "DETAIL" ||
+    semantic === "OBLIGATION" ||
+    semantic === "MASKED_VALUE"
+  ) {
+    return semantic;
+  }
+  return legacyLabel.includes("DATE") ? "DATE" : "DETAIL";
+}
+
+function formatOrderedMoney(
+  amountCents: number,
+  currency: "EUR" | "UNKNOWN",
+): string {
+  const absoluteCents = Math.abs(amountCents);
+  const whole = Math.floor(absoluteCents / 100)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const decimals = String(absoluteCents % 100).padStart(2, "0");
+  const amount = `${amountCents < 0 ? "-" : ""}${whole},${decimals}`;
+  return currency === "EUR" ? `${amount} €` : `${amount} · moneda no indicada`;
 }
 
 function normalizeCalendarDate(value: string | undefined): string | null {

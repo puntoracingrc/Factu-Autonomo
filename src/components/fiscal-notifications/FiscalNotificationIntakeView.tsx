@@ -1589,7 +1589,10 @@ function FiscalNotificationReviewWorkspace({
         />
       ) : null}
       <div id="documentos-guardados" className="scroll-mt-6">
-        <FiscalNotificationDocumentLibrary viewModel={documentLibrary} />
+        <FiscalNotificationDocumentLibrary
+          viewModel={documentLibrary}
+          ownerScope={ownerScope}
+        />
       </div>
     </>
   );

@@ -9,8 +9,10 @@ import {
   ExternalLink,
   FileText,
   Search,
+  Trash2,
   TriangleAlert,
 } from "lucide-react";
+import { FiscalNotificationDeleteConfirmationModal } from "@/components/fiscal-notifications/FiscalNotificationDeleteConfirmationModal";
 import { Card } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
@@ -22,17 +24,25 @@ import {
   type FiscalNotificationDocumentLibraryViewModelV1,
 } from "@/lib/fiscal-notifications/structured-review-document-library.v1";
 import { fiscalNotificationDriveFileHrefV1 } from "@/lib/fiscal-notifications/drive-original-archive.v1";
+import { analyzeFiscalNotificationDocumentDeletionV1 } from "@/lib/fiscal-notifications/document-deletion.v1";
 import type { FiscalNotificationStructuredHistoryEntryV1 } from "@/lib/fiscal-notifications/structured-review-history-view-model.v1";
 
 type DocumentGroupOrderV1 = "FIRST_DOCUMENT" | "LATEST_DOCUMENT";
 
 export function FiscalNotificationDocumentLibrary({
   viewModel,
+  ownerScope,
 }: {
   viewModel: FiscalNotificationDocumentLibraryViewModelV1;
+  ownerScope: string;
 }) {
+  const { data, getCurrentData, deleteFiscalNotificationDocument } =
+    useAppStore();
   const [query, setQuery] = useState("");
   const [order, setOrder] = useState<DocumentGroupOrderV1>("FIRST_DOCUMENT");
+  const [deleteDocumentId, setDeleteDocumentId] = useState<string | null>(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const groups = useMemo(() => {
     if (viewModel.status === "BLOCKED") return [];
@@ -59,6 +69,63 @@ export function FiscalNotificationDocumentLibrary({
         );
       });
   }, [order, query, viewModel]);
+  const deleteCandidate = deleteDocumentId
+    ? viewModel.documents.find((item) => item.key === deleteDocumentId) ?? null
+    : null;
+  const deleteAnalysis = useMemo(
+    () =>
+      deleteDocumentId
+        ? analyzeFiscalNotificationDocumentDeletionV1({
+            workspace: data.fiscalNotificationsWorkspace,
+            ownerScope,
+            documentId: deleteDocumentId,
+          })
+        : null,
+    [data.fiscalNotificationsWorkspace, deleteDocumentId, ownerScope],
+  );
+
+  function requestDelete(documentId: string): void {
+    setDeleteError(null);
+    setDeleteDocumentId(documentId);
+  }
+
+  function closeDelete(): void {
+    if (deleteBusy) return;
+    setDeleteError(null);
+    setDeleteDocumentId(null);
+  }
+
+  function confirmDelete(): void {
+    if (!deleteDocumentId || deleteBusy) return;
+    const expected = getCurrentData();
+    const currentAnalysis = analyzeFiscalNotificationDocumentDeletionV1({
+      workspace: expected.fiscalNotificationsWorkspace,
+      ownerScope,
+      documentId: deleteDocumentId,
+    });
+    if (currentAnalysis.status !== "READY") {
+      setDeleteError(deletionError(currentAnalysis.status));
+      return;
+    }
+    setDeleteBusy(true);
+    const result = deleteFiscalNotificationDocument({
+      expected,
+      ownerScope,
+      documentId: deleteDocumentId,
+      deletedAt: new Date().toISOString(),
+    });
+    setDeleteBusy(false);
+    if (result.status === "applied") {
+      setDeleteError(null);
+      setDeleteDocumentId(null);
+      return;
+    }
+    setDeleteError(
+      result.status === "indeterminate"
+        ? "No se puede confirmar si el cambio quedó guardado. Recarga antes de intentarlo otra vez."
+        : "La ficha no se ha eliminado porque los datos cambiaron o tienen dependencias que deben revisarse.",
+    );
+  }
 
   if (viewModel.status === "BLOCKED") {
     return <BlockedLibrary />;
@@ -133,8 +200,30 @@ export function FiscalNotificationDocumentLibrary({
           No hay documentos que coincidan con la búsqueda.
         </Card>
       ) : (
-        <DocumentGroupList groups={groups} order={order} />
+        <DocumentGroupList
+          groups={groups}
+          order={order}
+          onDelete={requestDelete}
+        />
       )}
+      <FiscalNotificationDeleteConfirmationModal
+        open={deleteCandidate !== null}
+        title={deleteCandidate?.title ?? "Documento"}
+        relationCount={
+          deleteAnalysis?.status === "READY" ? deleteAnalysis.relationCount : 0
+        }
+        driveHref={
+          deleteCandidate?.originalArchive
+            ? fiscalNotificationDriveFileHrefV1(
+                deleteCandidate.originalArchive.driveFileId,
+              )
+            : null
+        }
+        busy={deleteBusy}
+        error={deleteError}
+        onClose={closeDelete}
+        onConfirm={confirmDelete}
+      />
     </section>
   );
 }
@@ -193,8 +282,8 @@ export function FiscalNotificationDocumentDetail({
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
               {document.documentDate
-                ? `Fecha del documento · ${formatDocumentDate(document.documentDate)}`
-                : "Fecha del documento no disponible"}
+                ? `${formatDocumentDateBasis(document.documentDateBasis)} · ${formatDocumentDate(document.documentDate)} · usada para ordenar`
+                : "Fecha pendiente · esta ficha se ordena al final"}
             </p>
             <h2 className="mt-1 text-2xl font-bold text-slate-950">
               {document.title}
@@ -225,15 +314,14 @@ export function FiscalNotificationDocumentDetail({
 
         <details className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <summary className="cursor-pointer font-bold text-slate-900">
-            Ver importes, referencias y datos extraídos
+            Ver datos tal como aparecen en el documento
           </summary>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Estos son los valores técnicos que sostienen la explicación. Se
-            muestran para comprobarlos, no como tarea pendiente ni como una
-            deuda creada por Factu.
+            Los valores se presentan por página y en el orden en que fueron
+            leídos, para poder compararlos con el PDF sin saltar entre bloques.
           </p>
 
-          <DocumentAmounts document={document} expanded />
+          <DocumentFactsInSourceOrder document={document} />
 
           {document.installments.length > 0 ? (
           <section className="mt-5" aria-label="Cuotas y vencimientos impresos">
@@ -278,17 +366,6 @@ export function FiscalNotificationDocumentDetail({
           </section>
           ) : null}
 
-          {document.references.length > 0 || document.printedDates.length > 0 ? (
-            <dl className="mt-5 grid gap-x-6 gap-y-3 border-t border-slate-200 pt-5 sm:grid-cols-2">
-              {[...document.references, ...document.printedDates].map((fact) => (
-                <Fact
-                  key={`${fact.label}:${fact.value}`}
-                  label={fact.label}
-                  value={fact.value}
-                />
-              ))}
-            </dl>
-          ) : null}
         </details>
 
         <p className="mt-5 text-xs font-semibold text-slate-500">
@@ -399,7 +476,7 @@ function DocumentExplanationPanel({
       {explanation.officialSources.length > 0 ? (
         <details className="rounded-xl border border-slate-200 p-4">
           <summary className="cursor-pointer text-sm font-bold text-slate-800">
-            Fuentes oficiales que ya conoce el motor
+            Fuentes oficiales en las que se basa nuestro escáner
           </summary>
           <ul className="mt-3 space-y-2 text-sm">
             {explanation.officialSources.map((source) => (
@@ -416,9 +493,9 @@ function DocumentExplanationPanel({
             ))}
           </ul>
           <p className="mt-3 text-xs leading-5 text-slate-500">
-            Estas fuentes se incorporaron al conocimiento local. No se consulta
-            internet al escanear y ninguna fuente sustituye lo que dice el
-            documento.
+            Estas fuentes están incorporadas y versionadas en el conocimiento
+            local del motor. Al escanear no se consulta internet, la AEAT, el
+            BOE ni una IA. Ninguna fuente sustituye lo que dice el documento.
           </p>
         </details>
       ) : null}
@@ -429,9 +506,11 @@ function DocumentExplanationPanel({
 function DocumentGroupList({
   groups,
   order,
+  onDelete,
 }: {
   groups: readonly FiscalNotificationDocumentLibraryGroupV1[];
   order: DocumentGroupOrderV1;
+  onDelete: (documentId: string) => void;
 }) {
   let previousDivider = "";
   return (
@@ -470,7 +549,7 @@ function DocumentGroupList({
                     </span>
                   ) : null}
                 </div>
-                <DocumentFlow group={group} />
+                <DocumentFlow group={group} onDelete={onDelete} />
               </Card>
             </li>
           </Fragment>
@@ -483,9 +562,11 @@ function DocumentGroupList({
 function DocumentFlow({
   group,
   selectedDocumentId,
+  onDelete,
 }: {
   group: FiscalNotificationDocumentLibraryGroupV1;
   selectedDocumentId?: string;
+  onDelete?: (documentId: string) => void;
 }) {
   return (
     <div
@@ -504,6 +585,7 @@ function DocumentFlow({
                 <DocumentCard
                   document={document}
                   selected={document.key === selectedDocumentId}
+                  onDelete={onDelete}
                 />
               </li>
               {next ? (
@@ -533,50 +615,121 @@ function DocumentFlow({
 function DocumentCard({
   document,
   selected,
+  onDelete,
 }: {
   document: FiscalNotificationStructuredHistoryEntryV1;
   selected: boolean;
+  onDelete?: (documentId: string) => void;
 }) {
   return (
-    <Link
-      href={documentDetailHref(document.key)}
-      aria-current={selected ? "page" : undefined}
-      className={`flex h-[16rem] w-[18rem] min-w-[18rem] flex-col overflow-hidden rounded-2xl border bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-        selected ? "border-blue-500 ring-2 ring-blue-200" : "border-slate-200"
-      }`}
-    >
-      <div className="flex items-start justify-between gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
-          <FileText aria-hidden="true" className="h-5 w-5" />
-        </span>
-        {document.originalArchive ? (
-          <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-900">
-            Original en Drive
+    <div className="relative h-[16rem] w-[18rem] min-w-[18rem]">
+      <Link
+        href={documentDetailHref(document.key)}
+        aria-current={selected ? "page" : undefined}
+        className={`flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-white p-4 pr-12 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+          selected ? "border-blue-500 ring-2 ring-blue-200" : "border-slate-200"
+        }`}
+      >
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+            <FileText aria-hidden="true" className="h-5 w-5" />
           </span>
-        ) : (
-          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-900">
-            Solo ficha
-          </span>
-        )}
-      </div>
-      <p className="mt-4 text-xs font-bold uppercase tracking-wide text-blue-700">
-        {document.documentDate
-          ? formatDocumentDate(document.documentDate)
-          : "Sin fecha impresa"}
-      </p>
-      <h4 className="mt-1 line-clamp-3 text-base font-bold leading-5 text-slate-950">
-        {document.title}
-      </h4>
-      <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">
-        {document.authority}
-      </p>
-      <div className="mt-auto pt-4">
-        <DocumentAmounts document={document} />
-        <p className="mt-3 text-xs font-bold text-blue-700">
-          Abrir ficha completa →
+          {document.originalArchive ? (
+            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-900">
+              Original en Drive
+            </span>
+          ) : (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-900">
+              Solo ficha
+            </span>
+          )}
+        </div>
+        <p className="mt-4 text-xs font-bold uppercase tracking-wide text-blue-700">
+          {document.documentDate
+            ? `${formatDocumentDateBasis(document.documentDateBasis)} · ${formatDocumentDate(document.documentDate)}`
+            : "Fecha del documento pendiente"}
         </p>
-      </div>
-    </Link>
+        <h4 className="mt-1 line-clamp-3 text-base font-bold leading-5 text-slate-950">
+          {document.title}
+        </h4>
+        <p className="mt-2 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">
+          {document.authority}
+        </p>
+        <div className="mt-auto pt-4">
+          <DocumentAmounts document={document} />
+          <p className="mt-3 text-xs font-bold text-blue-700">
+            Abrir ficha completa →
+          </p>
+        </div>
+      </Link>
+      {onDelete ? (
+        <button
+          type="button"
+          aria-label={`Eliminar de Factu la ficha ${document.title}`}
+          title="Eliminar ficha de Factu"
+          className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 shadow-sm transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+          onClick={() => onDelete(document.key)}
+        >
+          <Trash2 aria-hidden="true" className="h-4 w-4" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+function DocumentFactsInSourceOrder({
+  document,
+}: {
+  document: FiscalNotificationStructuredHistoryEntryV1;
+}) {
+  const pages = new Map<
+    number,
+    FiscalNotificationStructuredHistoryEntryV1["orderedFacts"]
+  >();
+  for (const fact of document.orderedFacts) {
+    pages.set(fact.pageNumber, [...(pages.get(fact.pageNumber) ?? []), fact]);
+  }
+  if (pages.size === 0) {
+    return (
+      <p className="mt-4 rounded-xl bg-white p-4 text-sm text-slate-600">
+        Este documento no contiene datos estructurados guardados para mostrar.
+      </p>
+    );
+  }
+  return (
+    <div className="mt-4 space-y-4">
+      {[...pages.entries()].map(([pageNumber, facts]) => (
+        <section
+          key={pageNumber}
+          aria-label={`Datos extraídos de la página ${pageNumber}`}
+          className="overflow-hidden rounded-xl border border-slate-200 bg-white"
+        >
+          <h3 className="border-b border-slate-200 bg-slate-100 px-4 py-2 text-sm font-bold text-slate-800">
+            Página {pageNumber}
+          </h3>
+          <dl className="divide-y divide-slate-100">
+            {facts.map((fact) => (
+              <div
+                key={fact.key}
+                className="grid gap-1 px-4 py-3 sm:grid-cols-[minmax(11rem,0.45fr)_minmax(0,1fr)] sm:gap-4"
+              >
+                <dt className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  {fact.label}
+                </dt>
+                <dd className="min-w-0 break-words font-semibold text-slate-950">
+                  {fact.value}
+                  {fact.sourceReference ? (
+                    <span className="mt-1 block break-all text-xs font-medium text-slate-500">
+                      Referencia: {fact.sourceReference}
+                    </span>
+                  ) : null}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ))}
+    </div>
   );
 }
 
@@ -837,6 +990,31 @@ function normalizeSearch(value: string): string {
 function formatDocumentDate(value: string): string {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
   return match ? `${match[3]}/${match[2]}/${match[1]}` : value;
+}
+
+function formatDocumentDateBasis(
+  value: FiscalNotificationStructuredHistoryEntryV1["documentDateBasis"],
+): string {
+  switch (value) {
+    case "Fecha de emision":
+      return "Fecha de emisión";
+    case "Fecha de firma":
+      return "Fecha de firma";
+    case "Fecha del acto":
+      return "Fecha del acto";
+    case "Fecha de notificacion":
+      return "Fecha de notificación";
+    default:
+      return "Fecha del documento";
+  }
+}
+
+function deletionError(
+  status: "BLOCKED" | "NOT_FOUND",
+): string {
+  return status === "NOT_FOUND"
+    ? "La ficha ya no existe en esta cuenta. Recarga la página."
+    : "Esta ficha tiene datos operativos dependientes o no supera la validación. No se ha eliminado nada.";
 }
 
 function formatMonthDivider(value: string): string {

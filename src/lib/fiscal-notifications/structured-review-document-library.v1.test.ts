@@ -20,6 +20,7 @@ function document(
     title,
     authority: "Agencia Estatal de Administración Tributaria",
     documentDate,
+    documentDateBasis: "Fecha de emision",
     createdAt,
     pageCount: 2,
     byteLength: 2_048,
@@ -27,6 +28,7 @@ function document(
     subjectTaxId: null,
     references: Object.freeze([]),
     printedDates: Object.freeze([]),
+    orderedFacts: Object.freeze([]),
     money: Object.freeze([]),
     installments: Object.freeze([]),
     explanation: explainFiscalNotificationDocumentV1({

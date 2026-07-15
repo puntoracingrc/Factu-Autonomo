@@ -13,6 +13,9 @@ const componentSource = readSource("./FiscalNotificationIntakeView.tsx");
 const documentLibraryComponentSource = readSource(
   "./FiscalNotificationDocumentLibrary.tsx",
 );
+const documentDeleteModalSource = readSource(
+  "./FiscalNotificationDeleteConfirmationModal.tsx",
+);
 const pageSource = readSource(
   "../../app/consultor-fiscal/notificaciones/page.tsx",
 );
@@ -56,6 +59,12 @@ const relationsViewModelSource = readSource(
 const documentLibraryViewModelSource = readSource(
   "../../lib/fiscal-notifications/structured-review-document-library.v1.ts",
 );
+const documentDeletionSource = readSource(
+  "../../lib/fiscal-notifications/document-deletion.v1.ts",
+);
+const documentDeletionCommandSource = readSource(
+  "../../lib/fiscal-notifications/document-deletion-command.v1.ts",
+);
 const driveArchiveDomainSource = readSource(
   "../../lib/fiscal-notifications/drive-original-archive.v1.ts",
 );
@@ -79,14 +88,44 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "Qué tienes que hacer",
     );
     expect(documentLibraryComponentSource).toContain(
-      "Fuentes oficiales que ya conoce el motor",
+      "Fuentes oficiales en las que se basa nuestro escáner",
     );
     expect(documentLibraryComponentSource).toContain(
-      "Ver importes, referencias y datos extraídos",
+      "Ver datos tal como aparecen en el documento",
     );
     expect(compact(documentLibraryComponentSource)).toContain(
-      "No se consulta internet al escanear",
+      "Al escanear no se consulta internet, la AEAT, el BOE ni una IA",
     );
+    expect(documentLibraryComponentSource).toContain(
+      "Datos extraídos de la página ${pageNumber}",
+    );
+  });
+
+  it("elimina solo la ficha local tras confirmación y mantiene Drive independiente", () => {
+    expect(documentLibraryComponentSource).toContain(
+      "Eliminar ficha de Factu",
+    );
+    expect(documentLibraryComponentSource).toContain(
+      "deleteFiscalNotificationDocument({",
+    );
+    expect(documentDeleteModalSource).toContain(
+      "Google Drive es independiente",
+    );
+    expect(compact(documentDeleteModalSource)).toContain(
+      "Esta acción no elimina, mueve ni modifica ningún archivo de tu Google Drive",
+    );
+    expect(documentDeletionSource).toContain(
+      'drivePolicy: "PRESERVE_USER_DRIVE_ORIGINAL"',
+    );
+    expect(documentDeletionSource).toContain(
+      "driveFileIdsPreserved",
+    );
+    expect(documentDeletionCommandSource).toContain(
+      "fiscalNotificationsWorkspace: prepared.workspace",
+    );
+    expect(
+      `${documentDeletionSource}\n${documentDeletionCommandSource}`,
+    ).not.toMatch(/fetch\s*\(|googleapis|drive\.files\.(?:delete|update)|trashDrive/iu);
   });
 
   it("obtiene el ámbito exclusivamente de la cuenta canónica confirmada", () => {
@@ -376,7 +415,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(documentLibraryComponentSource).toContain("document.subjectTaxId");
     expect(documentLibraryComponentSource).toContain("document.money");
     expect(documentLibraryComponentSource).toContain("document.references");
-    expect(documentLibraryComponentSource).toContain("document.printedDates");
+    expect(documentLibraryComponentSource).toContain("document.orderedFacts");
     expect(documentLibraryComponentSource).toContain("document.installments");
     expect(documentLibraryComponentSource).toContain("installment.amountCents");
     expect(documentLibraryComponentSource).toContain("installment.dueDate");
