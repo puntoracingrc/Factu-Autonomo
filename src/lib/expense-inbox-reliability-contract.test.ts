@@ -75,6 +75,11 @@ describe("expense inbox reliability contract", () => {
     expect(server).toContain("providerAttachmentId");
     expect(server).toContain("isMissingRetryMetadataError");
     expect(server).toContain("includeRetryMetadata");
+    expect(server).toContain("canRetry: status === \"error\"");
+    expect(server).toContain("findExistingAttachmentInSyncEntities");
+    expect(server).toContain("claimInboxItemRetryInSyncEntities");
+    expect(server).toContain("finishInboxItemRetryInSyncEntities");
+    expect(server).toContain("getExpenseInboxItemRecordFromSyncEntities");
     expect(card).toContain("Reintentar análisis");
     expect(card).toContain("Comprar {scanPackLabel()}");
     expect(card).toContain('usageMode === "empty"');
@@ -126,6 +131,7 @@ describe("expense inbox reliability contract", () => {
     expect(adr).toContain("cdn.resend.app");
     expect(adr).toContain("HTTP 500");
     expect(adr).toContain("attachment_hash");
+    expect(adr).toContain("reintento con `sync_entities`");
     expect(codeowners).toContain(
       "/docs/architecture/ADR-0004-expense-inbox-email-reliability.md",
     );

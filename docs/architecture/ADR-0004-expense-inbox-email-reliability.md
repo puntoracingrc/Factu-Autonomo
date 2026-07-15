@@ -1,7 +1,7 @@
 # ADR-0004 - Fiabilidad del buzón de gastos por email
 
 - Estado: aceptada
-- Versión: 3
+- Versión: 4
 - Fecha: 2026-07-15
 - Ámbito: recepción de facturas de proveedores por email mediante Resend
 
@@ -97,6 +97,12 @@ de host exacta, HTTPS y las restricciones SSRF. No se siguen redirecciones.
 17. El botón de compra solo aparece ante un error de cuota vigente y nunca para
     una cuenta cuyo medidor actual sea ilimitado. El reintento vuelve a evaluar
     la cuota en servidor; la UI no concede saldo ni altera la suscripción.
+18. Las entradas creadas antes de disponer de `expense_inbox_items` permanecen
+    visibles, deduplicadas y reintentables desde `sync_entities`. Si ambos
+    almacenamientos conviven, la fila de la tabla específica prevalece para el
+    mismo ID y el registro de compatibilidad conserva su ID, alias, hash y
+    estado. Un cambio de esquema no puede convertir un error recuperable en un
+    duplicado opaco ni ocultarlo de la lista.
 
 ## Pruebas y despliegue
 
@@ -105,9 +111,9 @@ autenticación de usuario, se elimina firma o límite, se deja de devolver 500,
 se pierde deduplicación, el reclamo atómico del error, se relaja la resolución
 de alias activos o desaparece el historial de retirada. También cubre la copia
 idempotente, el remitente alineado, la confirmación `delivered`, el bloqueo de
-bucles y el cierre `processed`/`ignored`. La prueba de descarga reproduce el
-host real `cdn.resend.app` y mantiene casos adversariales para dominios
-imitadores.
+bucles, el cierre `processed`/`ignored` y la compatibilidad de lectura y
+reintento con `sync_entities`. La prueba de descarga reproduce el host real
+`cdn.resend.app` y mantiene casos adversariales para dominios imitadores.
 
 Antes de fusionar se ejecutan pruebas dirigidas, lint, typecheck y la suite CI.
 Tras fusionar, `Production Domain` debe asignar y verificar
