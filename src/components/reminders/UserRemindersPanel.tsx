@@ -15,6 +15,7 @@ import {
   pendingUserReminders,
   resolveReminderHref,
 } from "@/lib/user-reminders";
+import { consumeFiscalCalendarReminderDraft } from "@/lib/fiscal-calendar/reminder-draft";
 import { formatShortDate } from "@/lib/calculations";
 import { filterDocumentsByQuery, sortDocumentsByNewest } from "@/lib/documents";
 import {
@@ -77,6 +78,10 @@ export function UserRemindersPanel() {
   const [sentToOffice, setSentToOffice] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [voiceHint, setVoiceHint] = useState<string | null>(null);
+  const [calendarDraftNotice, setCalendarDraftNotice] = useState<
+    string | null
+  >(null);
+  const initialRouteHandled = useRef(false);
 
   const pending = useMemo(
     () => pendingUserReminders(data.userReminders),
@@ -98,8 +103,48 @@ export function UserRemindersPanel() {
   );
 
   useEffect(() => {
+    if (initialRouteHandled.current) return;
+    initialRouteHandled.current = true;
     if (window.location.hash !== "#nuevo-recordatorio") return;
     setShowForm(true);
+    const originValues = new URLSearchParams(window.location.search).getAll(
+      "origen",
+    );
+    const fromFiscalCalendar =
+      originValues.length === 1 && originValues[0] === "calendario";
+    if (fromFiscalCalendar) {
+      setTarget("self");
+      setLinkMode("none");
+      setGenerateCustomerMode("none");
+      setSelectedCustomerId(null);
+      setSelectedDocumentId("");
+      setSentToOffice(false);
+      setVoiceHint(null);
+      try {
+        const result = consumeFiscalCalendarReminderDraft(
+          window.sessionStorage,
+        );
+        if (result.ok) {
+          setText(result.draft.text);
+          setFormError(null);
+          setCalendarDraftNotice(
+            "Borrador preparado desde el calendario fiscal. Revísalo antes de guardarlo.",
+          );
+        } else {
+          setText("");
+          setCalendarDraftNotice(null);
+          setFormError(
+            "No hemos podido recuperar el borrador del calendario. Vuelve al calendario e inténtalo de nuevo.",
+          );
+        }
+      } catch {
+        setText("");
+        setCalendarDraftNotice(null);
+        setFormError(
+          "No hemos podido recuperar el borrador del calendario. Vuelve al calendario e inténtalo de nuevo.",
+        );
+      }
+    }
     window.requestAnimationFrame(() => {
       document
         .getElementById("nuevo-recordatorio")
@@ -118,6 +163,7 @@ export function UserRemindersPanel() {
     setTarget("self");
     setFormError(null);
     setVoiceHint(null);
+    setCalendarDraftNotice(null);
   }
 
   function openForm(nextTarget: "self" | "office") {
@@ -126,6 +172,7 @@ export function UserRemindersPanel() {
     setSentToOffice(false);
     setFormError(null);
     setVoiceHint(null);
+    setCalendarDraftNotice(null);
     window.requestAnimationFrame(() => {
       document
         .getElementById("nuevo-recordatorio")
@@ -141,6 +188,7 @@ export function UserRemindersPanel() {
     setSelectedDocumentId("");
     setFormError(null);
     setVoiceHint(null);
+    setCalendarDraftNotice(null);
     setSentToOffice(false);
   }
 
@@ -176,6 +224,7 @@ export function UserRemindersPanel() {
     setSentToOffice(false);
     setFormError(null);
     setVoiceHint("He limpiado el recordatorio. Puedes empezar de nuevo.");
+    setCalendarDraftNotice(null);
   }
 
   function applyVoiceIntent(intent: ReminderVoiceIntent) {
@@ -307,11 +356,14 @@ export function UserRemindersPanel() {
         <Button
           type="button"
           id="nuevo-recordatorio"
-          onClick={() =>
-            showForm && target === "self"
-              ? setShowForm(false)
-              : openForm("self")
-          }
+          onClick={() => {
+            if (showForm && target === "self") {
+              setShowForm(false);
+              setCalendarDraftNotice(null);
+              return;
+            }
+            openForm("self");
+          }}
         >
           <Plus className="h-4 w-4" />
           Nuevo recordatorio
@@ -322,6 +374,15 @@ export function UserRemindersPanel() {
         <p className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
           Enviado a oficina. Si hay nube activa, se sincronizará con el otro
           dispositivo.
+        </p>
+      ) : null}
+
+      {calendarDraftNotice ? (
+        <p
+          className="mb-4 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-100"
+          role="status"
+        >
+          {calendarDraftNotice}
         </p>
       ) : null}
 
@@ -510,7 +571,10 @@ export function UserRemindersPanel() {
             ) : null}
 
             {formError ? (
-              <p className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+              <p
+                className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900"
+                role="alert"
+              >
                 {formError}
               </p>
             ) : null}
