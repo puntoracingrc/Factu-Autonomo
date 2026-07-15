@@ -27,7 +27,6 @@ const PERIODIC_VAT_REGIMES = new Set<DiagnosticVatRegime>([
   "GENERAL",
   "SIMPLIFIED",
   "CASH_ACCOUNTING",
-  "OTHER_SPECIAL",
 ]);
 
 type ResultInput = Pick<
@@ -118,6 +117,14 @@ function periodicityAndPeriods(
       profile.redeme === "YES" ||
       profile.sii === "YES");
   return monthly
+    ? { periodicity: "MONTHLY", periods: activeMonths(profile) }
+    : { periodicity: "QUARTERLY", periods: activeQuarters(profile) };
+}
+
+function withholdingPeriodicityAndPeriods(
+  profile: TaxpayerProfile,
+): Pick<ModelResult, "periodicity" | "periods"> {
+  return profile.largeCompany === "YES"
     ? { periodicity: "MONTHLY", periods: activeMonths(profile) }
     : { periodicity: "QUARTERLY", periods: activeQuarters(profile) };
 }
@@ -319,13 +326,13 @@ function result100(profile: TaxpayerProfile): ModelResult {
   return buildResult(profile, {
     modelNumber: "100",
     filingSubject: "PERSONA_FISICA",
-    status: "NOT_APPLICABLE",
-    periods: [],
+    status: "NEEDS_INFORMATION",
+    periods: ["ANUAL"],
     periodicity: "ANNUAL",
-    reason: "No se ha identificado actividad personal ni alta en RETA dentro del alcance analizado.",
+    reason: "No se ha identificado actividad personal ni alta en RETA, pero el cuestionario no analiza todas las demás causas personales que pueden obligar a presentar la Renta.",
     evidenceFields: ["sujeto que factura", "RETA"],
-    missingInformation: [],
-    nextAction: "Las demás rentas personales quedan fuera de este descarte de actividad.",
+    missingInformation: ["Rendimientos del trabajo, capital, ganancias y demás circunstancias personales del ejercicio."],
+    nextAction: "Revisar por separado la obligación anual completa de IRPF; no ocultar el modelo 100 con este perfil.",
   });
 }
 
@@ -341,7 +348,24 @@ function relevantRetentionExceptionKinds(profile: TaxpayerProfile): boolean {
   );
 }
 
+function mixesProfessionalAndAgrarianRetentionBases(
+  profile: TaxpayerProfile,
+): boolean {
+  const hasProfessional = profile.activityKinds.includes("PROFESSIONAL");
+  const hasAgrarian = profile.activityKinds.some(
+    (kind) =>
+      kind === "AGRICULTURE" || kind === "LIVESTOCK" || kind === "FORESTRY",
+  );
+  return hasProfessional && hasAgrarian;
+}
+
 function result130(profile: TaxpayerProfile): ModelResult {
+  if (profile.incomeTaxRegime === "ENTITY_ATTRIBUTION") {
+    return buildResult(profile, {
+      modelNumber: "130", filingSubject: "SOCIOS_O_COMUNEROS", status: "NEEDS_INFORMATION", periods: activeQuarters(profile), periodicity: "QUARTERLY",
+      reason: "En una entidad en atribución los pagos fraccionados corresponden a los socios o comuneros, pero falta conocer el método aplicable a la actividad atribuida.", missingInformation: ["Método de estimación de la actividad atribuida y porcentaje de participación."], nextAction: "Confirmar si la actividad atribuida está en estimación directa u objetiva antes de elegir 130 o 131.",
+    });
+  }
   if (!hasPersonalActivity(profile)) {
     return buildResult(profile, {
       modelNumber: "130", filingSubject: "PERSONA_FISICA", status: "NOT_APPLICABLE", periods: [], periodicity: "QUARTERLY",
@@ -368,6 +392,12 @@ function result130(profile: TaxpayerProfile): ModelResult {
     });
   }
   if (relevantRetentionExceptionKinds(profile)) {
+    if (mixesProfessionalAndAgrarianRetentionBases(profile)) {
+      return buildResult(profile, {
+        modelNumber: "130", filingSubject: "PERSONA_FISICA", status: "NEEDS_INFORMATION", periods: activeQuarters(profile), periodicity: "QUARTERLY",
+        reason: "El porcentaje único no permite comprobar por separado la excepción de actividades profesionales y la de explotaciones agrícolas, ganaderas o forestales.", missingInformation: ["Ingresos y retenciones separados por cada clase de actividad o explotación."], nextAction: "Calcular el 70 % con la base correspondiente a cada actividad antes de excluir el modelo.",
+      });
+    }
     if (profile.withheldIncomePercent === null) {
       return buildResult(profile, {
         modelNumber: "130", filingSubject: "PERSONA_FISICA", status: "NEEDS_INFORMATION", periods: activeQuarters(profile), periodicity: "QUARTERLY",
@@ -388,6 +418,12 @@ function result130(profile: TaxpayerProfile): ModelResult {
 }
 
 function result131(profile: TaxpayerProfile): ModelResult {
+  if (profile.incomeTaxRegime === "ENTITY_ATTRIBUTION") {
+    return buildResult(profile, {
+      modelNumber: "131", filingSubject: "SOCIOS_O_COMUNEROS", status: "NEEDS_INFORMATION", periods: activeQuarters(profile), periodicity: "QUARTERLY",
+      reason: "La atribución de rentas no identifica por sí sola si la actividad atribuida utiliza estimación objetiva.", missingInformation: ["Método de estimación de la actividad atribuida y porcentaje de participación."], nextAction: "Confirmar el régimen de la actividad de la entidad antes de elegir 130 o 131.",
+    });
+  }
   if (!hasPersonalActivity(profile) || profile.incomeTaxRegime !== "OBJECTIVE_ESTIMATION") {
     return buildResult(profile, {
       modelNumber: "131", filingSubject: "PERSONA_FISICA", status: "NOT_APPLICABLE", periods: [], periodicity: "QUARTERLY",
@@ -424,6 +460,15 @@ function result303(profile: TaxpayerProfile): ModelResult {
       reason: "No se ha confirmado el tratamiento de IVA de las actividades.", missingInformation: ["Régimen de IVA por actividad."], nextAction: "Confirmar el régimen en el censo y revisar actividades exentas por servicio concreto.",
     });
   }
+  if (
+    profile.vatRegimes.includes("OTHER_SPECIAL") &&
+    !profile.vatRegimes.some((regime) => PERIODIC_VAT_REGIMES.has(regime))
+  ) {
+    return buildResult(profile, {
+      modelNumber: "303", filingSubject: filingSubjectForActivity(profile), status: "NEEDS_INFORMATION", periods: activeQuarters(profile), periodicity: "TO_BE_CONFIRMED",
+      reason: "Se ha indicado otro régimen especial de IVA, pero no se ha identificado cuál es ni si utiliza el modelo 303.", missingInformation: ["Nombre exacto del régimen especial y obligación censal asociada."], nextAction: "Consultar la situación censal antes de añadir u ocultar el modelo 303.",
+    });
+  }
   if (!profile.vatRegimes.some((regime) => PERIODIC_VAT_REGIMES.has(regime))) {
     return buildResult(profile, {
       modelNumber: "303", filingSubject: filingSubjectForActivity(profile), status: "NOT_APPLICABLE", periods: [], periodicity: "QUARTERLY",
@@ -440,11 +485,17 @@ function result390(profile: TaxpayerProfile, vat303: ModelResult): ModelResult {
   if (vat303.status === "NOT_APPLICABLE") {
     return buildResult(profile, { modelNumber: "390", filingSubject: filingSubjectForActivity(profile), status: "NOT_APPLICABLE", periods: [], periodicity: "ANNUAL", reason: "No se ha determinado obligación periódica de IVA que resumir.", evidenceFields: ["resultado 303"], missingInformation: [], nextAction: "Sin acción salvo que exista otro régimen o sector." });
   }
-  if (profile.sii === "YES" || profile.vatAnnualSummaryExempt === "YES") {
-    return buildResult(profile, { modelNumber: "390", filingSubject: filingSubjectForActivity(profile), status: "NOT_APPLICABLE", periods: [], periodicity: "ANNUAL", reason: profile.sii === "YES" ? "El usuario confirma SII, supuesto que debe contrastarse con la exoneración del ejercicio." : "El usuario confirma una exoneración del resumen anual.", evidenceFields: ["SII", "exoneración 390"], missingInformation: [], nextAction: "Conservar evidencia de la exoneración y completar la información adicional exigida en el último 303 si procede." });
+  if (vat303.status === "NEEDS_INFORMATION") {
+    return buildResult(profile, { modelNumber: "390", filingSubject: filingSubjectForActivity(profile), status: "NEEDS_INFORMATION", periods: ["ANUAL"], periodicity: "ANNUAL", reason: "No se puede decidir el resumen anual mientras no esté identificado el régimen y la obligación periódica de IVA.", missingInformation: ["Resultado del modelo 303 y condiciones de exoneración del 390."], nextAction: "Confirmar primero el régimen de IVA y después la exoneración anual." });
   }
-  if (profile.vatAnnualSummaryExempt === "UNKNOWN" || profile.sii === "UNKNOWN") {
-    return buildResult(profile, { modelNumber: "390", filingSubject: filingSubjectForActivity(profile), status: "NEEDS_INFORMATION", periods: ["ANUAL"], periodicity: "ANNUAL", reason: "No se ha comprobado expresamente si aplica una exoneración del resumen anual.", missingInformation: ["SII y condiciones de exoneración del ejercicio."], nextAction: "Contrastar las instrucciones del 390 del ejercicio." });
+  if (profile.vatAnnualSummaryExempt === "YES") {
+    return buildResult(profile, { modelNumber: "390", filingSubject: filingSubjectForActivity(profile), status: "NOT_APPLICABLE", periods: [], periodicity: "ANNUAL", reason: "El usuario confirma una exoneración del resumen anual.", evidenceFields: ["exoneración 390"], missingInformation: [], nextAction: "Conservar evidencia de la exoneración y completar la información adicional exigida en el último 303 si procede." });
+  }
+  if (profile.sii === "YES" && profile.vatAnnualSummaryExempt === "NO") {
+    return buildResult(profile, { modelNumber: "390", filingSubject: filingSubjectForActivity(profile), status: "CENSUS_MISMATCH", periods: ["ANUAL"], periodicity: "ANNUAL", reason: "Las respuestas sobre SII y exoneración del 390 se contradicen y no permiten decidir con seguridad.", evidenceFields: ["SII", "exoneración 390"], missingInformation: ["Período exacto de inclusión en SII y causa de la respuesta sobre el 390."], nextAction: "Contrastar el censo y las instrucciones del ejercicio antes de presentar u ocultar el 390.", censusMismatch: "SII confirmado con exoneración del 390 negada." });
+  }
+  if (profile.vatAnnualSummaryExempt === "UNKNOWN") {
+    return buildResult(profile, { modelNumber: "390", filingSubject: filingSubjectForActivity(profile), status: "NEEDS_INFORMATION", periods: ["ANUAL"], periodicity: "ANNUAL", reason: "No se ha comprobado expresamente si aplica una exoneración del resumen anual.", missingInformation: ["Condiciones de exoneración del 390 durante el ejercicio completo."], nextAction: "Contrastar las instrucciones del 390 del ejercicio." });
   }
   return buildResult(profile, { modelNumber: "390", filingSubject: filingSubjectForActivity(profile), status: "DERIVED", periods: ["ANUAL"], periodicity: "ANNUAL", reason: "Existe autoliquidación periódica de IVA y no se ha indicado exoneración.", evidenceFields: ["resultado 303", "exoneración 390"], missingInformation: [], nextAction: "Preparar el resumen anual con la versión del ejercicio." });
 }
@@ -472,7 +523,7 @@ function withholdingPair(
   reason: string,
 ): [ModelResult, ModelResult] {
   if (trigger === "YES") {
-    const periodic = buildResult(profile, { modelNumber: periodicModel, filingSubject: subject, status: "DERIVED", ...periodicityAndPeriods(profile), reason, evidenceFields: [reason], missingInformation: [], nextAction: "Preparar las autoliquidaciones de los períodos con rentas satisfechas." });
+    const periodic = buildResult(profile, { modelNumber: periodicModel, filingSubject: subject, status: "DERIVED", ...withholdingPeriodicityAndPeriods(profile), reason, evidenceFields: [reason], missingInformation: [], nextAction: "Preparar las autoliquidaciones de los períodos con rentas satisfechas." });
     const annual = buildResult(profile, { modelNumber: annualModel, filingSubject: subject, status: "DERIVED", periods: ["ANUAL"], periodicity: "ANNUAL", reason: `${reason} Debe revisarse también el resumen anual.`, evidenceFields: [reason], missingInformation: [], nextAction: "Preparar el resumen anual de perceptores." });
     return [periodic, annual];
   }
@@ -509,7 +560,7 @@ function resultCapitalPair(profile: TaxpayerProfile): [ModelResult, ModelResult]
   const subject = filingSubjectForActivity(profile);
   if (profile.paidCapitalIncome === "YES") {
     return [
-      buildResult(profile, { modelNumber: "123", filingSubject: subject, status: "NEEDS_PROFESSIONAL_REVIEW", periods: activeQuarters(profile), periodicity: "TO_BE_CONFIRMED", reason: "Se pagaron rendimientos de capital, pero falta clasificar si corresponden al 123 u otro modelo específico.", evidenceFields: ["rendimientos de capital"], missingInformation: ["Clase de renta y modelo específico aplicable."], nextAction: "Clasificar la renta antes de presentar." }),
+      buildResult(profile, { modelNumber: "123", filingSubject: subject, status: "NEEDS_PROFESSIONAL_REVIEW", ...withholdingPeriodicityAndPeriods(profile), reason: "Se pagaron rendimientos de capital, pero falta clasificar si corresponden al 123 u otro modelo específico.", evidenceFields: ["rendimientos de capital"], missingInformation: ["Clase de renta y modelo específico aplicable."], nextAction: "Clasificar la renta antes de presentar." }),
       buildResult(profile, { modelNumber: "193", filingSubject: subject, status: "NEEDS_PROFESSIONAL_REVIEW", periods: ["ANUAL"], periodicity: "ANNUAL", reason: "El resumen anual depende de la clasificación de los rendimientos de capital.", evidenceFields: ["rendimientos de capital"], missingInformation: ["Perceptores, clase de renta y exclusiones 188/194/196."], nextAction: "Revisar el resumen informativo correcto." }),
     ];
   }
@@ -525,7 +576,7 @@ function resultNonResidentPair(profile: TaxpayerProfile): [ModelResult, ModelRes
   if (profile.paidNonResidentIncome === "YES") {
     if (profile.nonResidentWithholdingConfirmed === "YES") {
       return [
-        buildResult(profile, { modelNumber: "216", filingSubject: subject, status: "NEEDS_PROFESSIONAL_REVIEW", ...periodicityAndPeriods(profile), reason: "Se ha confirmado una posible obligación como retenedor de rentas de no residentes, sujeta a revisión de renta y convenio.", evidenceFields: ["pago a no residente", "retención confirmada"], missingInformation: ["País, clase de renta, certificado de residencia y convenio."], nextAction: "Validar el tratamiento antes de presentar el 216." }),
+        buildResult(profile, { modelNumber: "216", filingSubject: subject, status: "NEEDS_PROFESSIONAL_REVIEW", ...withholdingPeriodicityAndPeriods(profile), reason: "Se ha confirmado una posible obligación como retenedor de rentas de no residentes, sujeta a revisión de renta y convenio.", evidenceFields: ["pago a no residente", "retención confirmada"], missingInformation: ["País, clase de renta, certificado de residencia y convenio."], nextAction: "Validar el tratamiento antes de presentar el 216." }),
         buildResult(profile, { modelNumber: "296", filingSubject: subject, status: "NEEDS_PROFESSIONAL_REVIEW", periods: ["ANUAL"], periodicity: "ANNUAL", reason: "La posible obligación periódica puede requerir resumen anual.", evidenceFields: ["pago a no residente"], missingInformation: ["Detalle anual por perceptor y exclusiones."], nextAction: "Validar el resumen anual correcto." }),
       ];
     }
@@ -542,7 +593,7 @@ function result349(profile: TaxpayerProfile): ModelResult {
   const operations = [profile.euGoodsSales, profile.euGoodsPurchases, profile.euServicesSales, profile.euServicesPurchases];
   if (yes(operations)) {
     const roiMismatch = profile.roiRegistered !== "YES";
-    return buildResult(profile, { modelNumber: "349", filingSubject: filingSubjectForActivity(profile), status: roiMismatch ? "CENSUS_MISMATCH" : "DERIVED", ...periodicityAndPeriods(profile, false), reason: roiMismatch ? "Hay operaciones intracomunitarias, pero no está confirmada el alta efectiva en ROI." : "Se han confirmado operaciones intracomunitarias comprendidas en el análisis.", evidenceFields: ["operaciones UE", "ROI"], missingInformation: [], nextAction: roiMismatch ? "Revisar ROI/VIES y la modificación censal sin omitir la clasificación de las operaciones." : "Preparar la recapitulación de los períodos con operaciones.", ...(roiMismatch ? { censusMismatch: "Operaciones UE sin alta ROI confirmada." } : {}) });
+    return buildResult(profile, { modelNumber: "349", filingSubject: filingSubjectForActivity(profile), status: roiMismatch ? "CENSUS_MISMATCH" : "DERIVED", periods: [], periodicity: "TO_BE_CONFIRMED", reason: roiMismatch ? "Hay operaciones intracomunitarias, pero no está confirmada el alta efectiva en ROI." : "Se han confirmado operaciones intracomunitarias comprendidas en el análisis; la periodicidad depende del volumen y del período concreto.", evidenceFields: ["operaciones UE", "ROI"], missingInformation: roiMismatch ? [] : ["Importe de operaciones por mes y trimestre para fijar la periodicidad."], nextAction: roiMismatch ? "Revisar ROI/VIES y la modificación censal sin omitir la clasificación de las operaciones." : "Calcular la periodicidad y preparar los períodos con operaciones.", ...(roiMismatch ? { censusMismatch: "Operaciones UE sin alta ROI confirmada." } : {}) });
   }
   if (unknown(operations)) {
     return buildResult(profile, { modelNumber: "349", filingSubject: filingSubjectForActivity(profile), status: "NEEDS_INFORMATION", periods: [], periodicity: "TO_BE_CONFIRMED", reason: "No están confirmadas todas las clases de operaciones intracomunitarias.", missingInformation: ["Ventas y compras de bienes y servicios por país y NIF-IVA."], nextAction: "Revisar facturas UE y validaciones VIES." });
@@ -552,10 +603,10 @@ function result349(profile: TaxpayerProfile): ModelResult {
 
 function resultOssPair(profile: TaxpayerProfile): [ModelResult, ModelResult] {
   const subject = filingSubjectForActivity(profile);
-  if (profile.euConsumerSales === "YES" && profile.ossRegistered === "YES") {
+  if (profile.ossRegistered === "YES") {
     return [
       buildResult(profile, { modelNumber: "035", filingSubject: subject, status: "CONDITIONAL", periods: ["SEGÚN_ALTA_O_CAMBIO"], periodicity: "EVENT_DRIVEN", reason: "Se utiliza OSS/IOSS; el 035 corresponde a altas, modificaciones o bajas, no a cada período sin cambios.", evidenceFields: ["ventas B2C UE", "OSS/IOSS"], missingInformation: ["Régimen concreto y cambios durante el año."], nextAction: "Comprobar si hubo alta, modificación o baja que comunicar." }),
-      buildResult(profile, { modelNumber: "369", filingSubject: subject, status: "DERIVED", periods: activeQuarters(profile), periodicity: "TO_BE_CONFIRMED", reason: "Se confirmaron ventas B2C europeas y alta en un régimen OSS/IOSS.", evidenceFields: ["ventas B2C UE", "OSS/IOSS"], missingInformation: ["Régimen concreto y países de consumo para fijar periodicidad."], nextAction: "Preparar la declaración del régimen y períodos aplicables." }),
+      buildResult(profile, { modelNumber: "369", filingSubject: subject, status: "DERIVED", periods: [], periodicity: "TO_BE_CONFIRMED", reason: "Se confirmó el alta en un régimen OSS/IOSS. Mientras siga vigente, el 369 se presenta incluso en períodos sin operaciones incluidas.", evidenceFields: ["OSS/IOSS"], missingInformation: ["Régimen concreto para distinguir periodicidad mensual o trimestral y fecha de baja, si existe."], nextAction: "Preparar la declaración del régimen para todos los períodos de alta, incluidos los períodos sin operaciones." }),
     ];
   }
   if (profile.euConsumerSales === "YES") {
@@ -564,14 +615,16 @@ function resultOssPair(profile: TaxpayerProfile): [ModelResult, ModelResult] {
       buildResult(profile, { modelNumber: "369", filingSubject: subject, status: "NEEDS_INFORMATION", periods: [], periodicity: "TO_BE_CONFIRMED", reason: "El 369 depende de la adhesión efectiva a un régimen OSS/IOSS.", missingInformation: ["Justificante de alta y régimen."], nextAction: "No presentar 369 automáticamente sin confirmar el alta." }),
     ];
   }
-  const status: ModelResultStatus = profile.euConsumerSales === "UNKNOWN" ? "NEEDS_INFORMATION" : "NOT_APPLICABLE";
-  return ["035", "369"].map((modelNumber) => buildResult(profile, { modelNumber: modelNumber as "035" | "369", filingSubject: subject, status, periods: [], periodicity: modelNumber === "035" ? "EVENT_DRIVEN" : "TO_BE_CONFIRMED", reason: status === "NEEDS_INFORMATION" ? "No se sabe si hubo ventas a consumidores europeos." : "No se declararon ventas B2C europeas.", evidenceFields: status === "NOT_APPLICABLE" ? ["ventas B2C a consumidores europeos"] : [], missingInformation: status === "NEEDS_INFORMATION" ? ["Ventas B2C por país."] : [], nextAction: status === "NEEDS_INFORMATION" ? "Revisar ventas online y servicios digitales." : "Sin acción." })) as [ModelResult, ModelResult];
+  if (profile.ossRegistered === "UNKNOWN") {
+    return ["035", "369"].map((modelNumber) => buildResult(profile, { modelNumber: modelNumber as "035" | "369", filingSubject: subject, status: "NEEDS_INFORMATION", periods: [], periodicity: modelNumber === "035" ? "EVENT_DRIVEN" : "TO_BE_CONFIRMED", reason: "No está confirmado si existe o existió un alta OSS/IOSS durante el ejercicio.", missingInformation: ["Justificante 035, régimen y fechas de alta o baja."], nextAction: "Consultar el registro OSS/IOSS antes de ocultar estos modelos." })) as [ModelResult, ModelResult];
+  }
+  return ["035", "369"].map((modelNumber) => buildResult(profile, { modelNumber: modelNumber as "035" | "369", filingSubject: subject, status: "NOT_APPLICABLE", periods: [], periodicity: modelNumber === "035" ? "EVENT_DRIVEN" : "TO_BE_CONFIRMED", reason: "No hubo ventas B2C europeas y se ha negado expresamente el alta en OSS/IOSS.", evidenceFields: ["ventas B2C a consumidores europeos", "OSS/IOSS"], missingInformation: [], nextAction: "Sin acción con los datos actuales." })) as [ModelResult, ModelResult];
 }
 
 function result347(profile: TaxpayerProfile): ModelResult {
   const subject = filingSubjectForActivity(profile);
-  if (profile.sii === "YES" || profile.thirdPartyOperationsAllExcluded === "YES") {
-    return buildResult(profile, { modelNumber: "347", filingSubject: subject, status: "NOT_APPLICABLE", periods: [], periodicity: "ANNUAL", reason: profile.sii === "YES" ? "Se ha confirmado SII durante el ejercicio, supuesto excluido del 347 que debe contrastarse temporalmente." : "El usuario confirma que todas las operaciones por encima del umbral están excluidas.", evidenceFields: ["SII", "exclusiones 347"], missingInformation: [], nextAction: "Conservar el desglose que acredita la exclusión." });
+  if (profile.thirdPartyOperationsAllExcluded === "YES") {
+    return buildResult(profile, { modelNumber: "347", filingSubject: subject, status: "NOT_APPLICABLE", periods: [], periodicity: "ANNUAL", reason: "El usuario confirma que todas las operaciones por encima del umbral están excluidas, incluido el requisito temporal del SII si esa fuera la causa.", evidenceFields: ["exclusiones 347"], missingInformation: [], nextAction: "Conservar el desglose que acredita la exclusión." });
   }
   if (profile.thirdPartyThresholdExceeded === "YES" && profile.thirdPartyOperationsAllExcluded === "NO") {
     return buildResult(profile, { modelNumber: "347", filingSubject: subject, status: "DERIVED", periods: ["ANUAL"], periodicity: "ANNUAL", reason: "Se superó el umbral por tercero y no se han declarado exclusiones para todas las operaciones.", evidenceFields: ["importe por tercero", "exclusiones"], missingInformation: [], nextAction: "Preparar el detalle trimestral/anual conforme al diseño del ejercicio." });

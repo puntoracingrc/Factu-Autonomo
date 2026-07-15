@@ -313,15 +313,15 @@ export const DIAGNOSTIC_QUESTIONS: readonly DiagnosticQuestion[] = [
     sectionId: "E",
     field: "reverseChargeTransactions",
     label:
-      "¿Tuviste alguna factura en la que el destinatario debía declarar el IVA (inversión del sujeto pasivo)?",
+      "¿Recibiste alguna factura en la que tú debías declarar el IVA por inversión del sujeto pasivo?",
     explanation:
-      "Normalmente quien vende añade el IVA a la factura. En una inversión del sujeto pasivo ocurre al revés: la factura suele venir sin IVA y quien compra o recibe el servicio debe declararlo. La propia factura puede incluir la frase «inversión del sujeto pasivo».",
+      "Normalmente quien vende añade el IVA a la factura. En una inversión del sujeto pasivo ocurre al revés: la factura recibida suele venir sin IVA y quien compra o recibe el servicio —tú en este caso— debe declararlo. La propia factura puede incluir la frase «inversión del sujeto pasivo». No marques «Sí» solo porque tú emitieras una factura de este tipo a un cliente.",
     why: "Puede afectar al modelo 303 o exigir una declaración no periódica mediante el 309.",
     affectedModels: ["303", "309"],
     example:
       "Puede ocurrir al recibir ciertos servicios de proveedores extranjeros o en determinadas operaciones de construcción.",
     supportingDocument:
-      "Facturas emitidas o recibidas que indiquen «inversión del sujeto pasivo» y libro de IVA.",
+      "Facturas recibidas que indiquen «inversión del sujeto pasivo» y libro de IVA.",
   }),
   fourWay({
     questionId: "E_SPECIAL_REFUND",
@@ -411,7 +411,7 @@ export const DIAGNOSTIC_QUESTIONS: readonly DiagnosticQuestion[] = [
   fourWay({ questionId: "I_EU_SERVICES_PURCHASES", sectionId: "I", field: "euServicesPurchases", label: "¿Recibiste servicios de empresas de otros países de la UE?", explanation: "Incluye publicidad, software, comisiones y alojamiento web.", why: "Puede existir inversión del sujeto pasivo y 349.", affectedModels: ["303", "309", "349"], example: "Publicidad facturada por una plataforma irlandesa.", supportingDocument: "Facturas de plataformas y suscripciones." }),
   fourWay({ questionId: "I_ROI", sectionId: "I", field: "roiRegistered", label: "¿Estabas dado de alta efectivamente en ROI y tenías NIF-IVA válido?", explanation: "Solicitar el alta no equivale siempre a estar incluido.", why: "Detecta discrepancias censales y no genera 349 sin operaciones.", affectedModels: ["036", "349"], example: "El NIF aparece como válido en VIES en la fecha de la operación.", supportingDocument: "Situación censal y consulta VIES." }),
   fourWay({ questionId: "J_EU_CONSUMERS", sectionId: "J", field: "euConsumerSales", label: "¿Vendiste bienes o servicios a consumidores de otros países europeos?", explanation: "B2C puede activar reglas de destino y ventanilla única.", why: "Es la puerta para analizar 035 y 369.", affectedModels: ["035", "369"], example: "Descargas o suscripciones vendidas a particulares franceses.", supportingDocument: "Ventas por país de consumo y tipo de cliente." }),
-  fourWay({ questionId: "J_OSS", sectionId: "J", field: "ossRegistered", label: "¿Estabas acogido a OSS o IOSS?", explanation: "La inscripción y el régimen concreto deben estar confirmados.", why: "Distingue la declaración 369 de posibles obligaciones fuera de España.", affectedModels: ["035", "369"], example: "Alta en régimen de la Unión mediante formulario 035.", supportingDocument: "Justificante 035 y declaraciones 369 previas.", applicability: "Solo si hubo ventas a consumidores europeos." }),
+  fourWay({ questionId: "J_OSS", sectionId: "J", field: "ossRegistered", label: "¿Estabas acogido a OSS o IOSS durante el ejercicio?", explanation: "OSS e IOSS son regímenes de ventanilla única para declarar en España el IVA de determinadas ventas a consumidores de otros países. Si el alta seguía vigente, el modelo 369 se presenta también en períodos sin operaciones incluidas.", why: "La inscripción efectiva determina el 369 aunque en el período concreto no haya ventas; el 035 comunica altas, cambios y bajas.", affectedModels: ["035", "369"], example: "Alta en el régimen de la Unión mediante formulario 035, sin haber comunicado todavía la baja.", supportingDocument: "Justificante 035, fecha de alta o baja y declaraciones 369 previas.", applicability: "Se pregunta siempre porque un alta anterior puede seguir vigente aunque no hubiera ventas en este ejercicio." }),
   fourWay({
     questionId: "K_THRESHOLD",
     sectionId: "K",
@@ -543,10 +543,6 @@ export function isQuestionApplicable(
       profile.euServicesSales,
       profile.euServicesPurchases,
     ].some((value) => value === "UNKNOWN");
-  }
-  if (item.questionId === "J_OSS") {
-    return profile.euConsumerSales !== "NO" &&
-      profile.euConsumerSales !== "NOT_APPLICABLE";
   }
   if (item.questionId === "L_COMPANY_INSTALLMENTS") {
     return profile.invoicingSubject === "COMPANY";

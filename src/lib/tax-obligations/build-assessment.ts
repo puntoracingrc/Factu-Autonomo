@@ -3,6 +3,7 @@ import type {
   ModelResult,
   ModelResultStatus,
 } from "@/lib/tax-model-diagnostic/contracts";
+import { taxRuleSetReviewState } from "@/lib/tax-model-diagnostic/rules";
 
 import {
   TAX_OBLIGATIONS_CATALOG_VERSION,
@@ -128,7 +129,7 @@ export function buildTaxObligationsAssessment(
 
   const obligations = result.models.map(buildItem);
   const ruleReviewState =
-    options.ruleReviewState ?? "PENDING_FISCAL_REVIEW";
+    options.ruleReviewState ?? taxRuleSetReviewState(result.fiscalYear);
   const blocked =
     result.status === "TERRITORY_NOT_SUPPORTED" || result.models.length === 0;
   const needsManualReview =

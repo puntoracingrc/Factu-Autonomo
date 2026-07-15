@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import { TAX_MODEL_CATALOG } from "./model-catalog";
-import { TAX_RULES, validateTaxRuleRegistry } from "./rules";
+import {
+  TAX_RULES,
+  taxRuleSetReviewState,
+  validateTaxRuleRegistry,
+} from "./rules";
 
 describe("tax rule registry", () => {
   it("cubre todos los modelos en ambos ejercicios sin errores", () => {
@@ -44,5 +48,9 @@ describe("tax rule registry", () => {
       ]),
     );
   });
-});
 
+  it("mantiene el ruleset cerrado mientras falte la aprobación nominal", () => {
+    expect(taxRuleSetReviewState(2025)).toBe("PENDING_FISCAL_REVIEW");
+    expect(taxRuleSetReviewState(2026)).toBe("PENDING_FISCAL_REVIEW");
+  });
+});

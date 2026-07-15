@@ -37,7 +37,12 @@ Canarias, Navarra, País Vasco, Ceuta, Melilla y no residentes fallan cerrado: n
 - `CENSUS_MISMATCH`: hechos y situación censal confirmada no concuerdan.
 - `TERRITORY_NOT_SUPPORTED`: no existe un ruleset territorial compatible.
 
-Las reglas están en estado `PENDING_FISCAL_REVIEW`. El flag de producción debe permanecer cerrado hasta que todas las reglas del ejercicio estén aprobadas y el QA de dominio de producción sea verde.
+Las reglas están en estado `PENDING_FISCAL_REVIEW`. La revisión técnica de
+fuentes del ruleset v2 está documentada en
+`fiscal-source-review-2026-07-15.md`, pero todavía requiere aprobación nominal
+de un profesional fiscal. Las vistas personalizadas de Calendar y Modelos deben
+permanecer cerradas hasta que todas las reglas del ejercicio estén aprobadas y
+el QA de dominio de producción sea verde.
 
 ## Corpus sintético v1
 
