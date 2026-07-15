@@ -120,20 +120,21 @@ describe("contrato de interfaz del calendario fiscal", () => {
     expect(componentSource).toContain('groupLabel="Elegir vista del calendario"');
     expect(componentSource).toContain("mineDisabled={!personalizationAvailable}");
     expect(componentSource).toContain("Abrir diagnóstico");
-    expect(componentSource).toContain("Vista orientativa.");
+    expect(componentSource).toContain("Calendario recomendado orientativo.");
     expect(componentSource).toContain("Puede afectarte · por confirmar");
     expect(componentSource).toContain("Relacionado · por confirmar");
     expect(componentSource).toContain("orientationHighlighted");
     expect(componentSource).toContain(
       "orientationPriorityEventIds.has(event.id)",
     );
-    expect(componentSource).toContain("se conservan todos");
-    expect(componentSource).toContain("sin exclusiones");
+    expect(componentSource).toContain(
+      "vista «Todos» conserva siempre el calendario completo",
+    );
     expect(componentSource).toContain('obligationView.status === "ORIENTATIVE"');
     expect(componentSource).toContain("orientationPriorityEventIds");
     expect(componentSource).toContain("relacionados destacados");
     expect(componentSource).toContain(
-      'obligationView.fallbackReason === "RULES_PENDING_REVIEW"',
+      "obligationView.recommendedEventIds.has(event.id)",
     );
     expect(componentSource).not.toContain("relacionados primero");
     expect(componentSource).toContain("Por confirmar");

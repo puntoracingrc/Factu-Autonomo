@@ -97,6 +97,8 @@ export interface TaxObligationAssessmentItemV1 {
   evidence: TaxObligationEvidenceV1[];
   missingInformation: string[];
   conflicts: string[];
+  /** Plain-language rule exceptions retained in the persisted assessment. */
+  possibleExceptions?: string[];
   /** Additive v1 hardening. Missing legacy metadata always fails closed. */
   exclusionAuthorization?: TaxObligationExclusionAuthorizationV1;
 }
@@ -234,6 +236,8 @@ export function isTaxObligationsAssessmentV1(
       obligation.reason.length > 2_000 ||
       !isStringArray(obligation.missingInformation) ||
       !isStringArray(obligation.conflicts) ||
+      (obligation.possibleExceptions !== undefined &&
+        !isStringArray(obligation.possibleExceptions)) ||
       (obligation.exclusionAuthorization !== undefined &&
         !isExclusionAuthorization(obligation.exclusionAuthorization)) ||
       !Array.isArray(obligation.evidence) ||

@@ -103,7 +103,7 @@ describe("tax obligation exclusion authorization", () => {
   );
 
   it.each(approvalMatrix)(
-    "keeps Calendar and Models complete before individual approval (%s + %s)",
+    "keeps Calendar complete and Modelos orientative before individual approval (%s + %s)",
     (ruleReviewState, resolutionState) => {
       const storedSession = session(
         assessment(ruleReviewState, resolutionState),
@@ -123,8 +123,15 @@ describe("tax obligation exclusion authorization", () => {
       expect(calendar.decisions[0]).toMatchObject({
         visibleInMyObligations: true,
       });
-      expect(models.status).toBe("ALL_ONLY");
-      expect(models.visibleModelCodes).toEqual(["303", "390"]);
+      expect(models.allModelCodes).toEqual(["303", "390"]);
+      if (resolutionState === "BLOCKED") {
+        expect(models.status).toBe("ALL_ONLY");
+        expect(models.visibleModelCodes).toEqual(["303", "390"]);
+      } else {
+        expect(models.status).toBe("ORIENTATIVE");
+        expect(models.visibleModelCodes).toEqual([]);
+        expect(models.unlikelyModelCodes).toEqual(["303"]);
+      }
     },
   );
 });

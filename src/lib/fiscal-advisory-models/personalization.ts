@@ -1,7 +1,9 @@
 import type { TaxModelDiagnosticSession } from "@/lib/tax-model-diagnostic/contracts";
 import {
+  buildTaxModelRecommendationsV1,
   isTaxObligationExclusionAuthorized,
   selectStoredTaxObligationsAssessment,
+  type TaxModelRecommendationItemV1,
 } from "@/lib/tax-obligations";
 import { normalizeFiscalAdvisoryModelPreferencesV1 } from "./preferences";
 
@@ -10,25 +12,30 @@ export type FiscalModelPersonalizationFallbackReasonV1 =
   | "NO_PUBLISHED_ASSESSMENT"
   | "RULES_PENDING_REVIEW"
   | "ASSESSMENT_NOT_RESOLVED"
-  | "PROFILE_NOT_COMPLETE";
+  | "PROFILE_NOT_COMPLETE"
+  | "UNSUPPORTED_TERRITORY";
 
 export type FiscalModelPersonalizationV1 = Readonly<{
-  status: "ALL_ONLY" | "PERSONALIZED";
+  status: "ALL_ONLY" | "ORIENTATIVE" | "PERSONALIZED";
   fallbackReason: FiscalModelPersonalizationFallbackReasonV1 | null;
   allModelCodes: readonly string[];
   visibleModelCodes: readonly string[];
   assessmentModelCodes: readonly string[];
   reviewModelCodes: readonly string[];
+  unlikelyModelCodes: readonly string[];
   manualModelCodes: readonly string[];
+  recommendations: readonly TaxModelRecommendationItemV1[];
 }>;
 
 function frozenResult(
-  value: Omit<FiscalModelPersonalizationV1, "allModelCodes" | "visibleModelCodes" | "assessmentModelCodes" | "reviewModelCodes" | "manualModelCodes"> & {
+  value: Omit<FiscalModelPersonalizationV1, "allModelCodes" | "visibleModelCodes" | "assessmentModelCodes" | "reviewModelCodes" | "unlikelyModelCodes" | "manualModelCodes" | "recommendations"> & {
     allModelCodes: string[];
     visibleModelCodes: string[];
     assessmentModelCodes: string[];
     reviewModelCodes: string[];
+    unlikelyModelCodes: string[];
     manualModelCodes: string[];
+    recommendations: TaxModelRecommendationItemV1[];
   },
 ): FiscalModelPersonalizationV1 {
   return Object.freeze({
@@ -37,7 +44,9 @@ function frozenResult(
     visibleModelCodes: Object.freeze([...value.visibleModelCodes]),
     assessmentModelCodes: Object.freeze([...value.assessmentModelCodes]),
     reviewModelCodes: Object.freeze([...value.reviewModelCodes]),
+    unlikelyModelCodes: Object.freeze([...value.unlikelyModelCodes]),
     manualModelCodes: Object.freeze([...value.manualModelCodes]),
+    recommendations: Object.freeze([...value.recommendations]),
   });
 }
 
@@ -77,37 +86,42 @@ export function buildFiscalModelPersonalizationV1({
       visibleModelCodes: allModelCodes,
       assessmentModelCodes: [],
       reviewModelCodes: [],
+      unlikelyModelCodes: [],
       manualModelCodes,
+      recommendations: [],
     });
 
   if (invalidCatalog) return allOnly("INVALID_CATALOG");
   if (!assessment) return allOnly("NO_PUBLISHED_ASSESSMENT");
-  if (assessment.profile.state !== "COMPLETE") {
-    return allOnly("PROFILE_NOT_COMPLETE");
+  if (
+    assessment.territory !== "ES_COMMON" ||
+    assessment.resolutionState === "BLOCKED"
+  ) {
+    return allOnly("UNSUPPORTED_TERRITORY");
   }
-  if (!isTaxObligationExclusionAuthorized(assessment)) {
-    return allOnly(
-      assessment.ruleReviewState !== "APPROVED"
-        ? "RULES_PENDING_REVIEW"
-        : "ASSESSMENT_NOT_RESOLVED",
-    );
-  }
+  const exclusionAuthorized = isTaxObligationExclusionAuthorized(assessment);
+  const recommendationSnapshot = buildTaxModelRecommendationsV1({
+    assessment,
+    manualModelCodes,
+  });
   const assessmentCodes = new Set<string>();
   const reviewCodes = new Set<string>();
-  for (const obligation of assessment.obligations) {
-    if (!uniqueCodes.has(obligation.modelCode)) continue;
-    if (obligation.status === "REQUIRED") {
-      assessmentCodes.add(obligation.modelCode);
+  const unlikelyCodes = new Set<string>();
+  const recommendations = recommendationSnapshot.recommendations.filter(
+    (item) => uniqueCodes.has(item.modelCode),
+  );
+  for (const recommendation of recommendations) {
+    const status = recommendation.engineRecommendationStatus;
+    if (status === "UNLIKELY_REQUIRED") {
+      unlikelyCodes.add(recommendation.modelCode);
       continue;
     }
+    assessmentCodes.add(recommendation.modelCode);
     if (
-      obligation.status === "REVIEW_REQUIRED" ||
-      obligation.status === "UNKNOWN" ||
-      (obligation.status === "NOT_APPLICABLE" &&
-        !obligation.evidenceSufficient)
+      status === "POSSIBLY_REQUIRED" ||
+      status === "NEEDS_INFORMATION"
     ) {
-      assessmentCodes.add(obligation.modelCode);
-      reviewCodes.add(obligation.modelCode);
+      reviewCodes.add(recommendation.modelCode);
     }
   }
 
@@ -115,14 +129,23 @@ export function buildFiscalModelPersonalizationV1({
   const inCatalogOrder = (codes: Set<string>) =>
     allModelCodes.filter((code) => codes.has(code));
   return frozenResult({
-    status: "PERSONALIZED",
-    fallbackReason: null,
+    status: exclusionAuthorized ? "PERSONALIZED" : "ORIENTATIVE",
+    fallbackReason:
+      assessment.profile.state !== "COMPLETE"
+        ? "PROFILE_NOT_COMPLETE"
+        : assessment.ruleReviewState !== "APPROVED"
+          ? "RULES_PENDING_REVIEW"
+          : assessment.resolutionState !== "RESOLVED"
+            ? "ASSESSMENT_NOT_RESOLVED"
+            : null,
     allModelCodes,
     visibleModelCodes: inCatalogOrder(visibleCodes),
     assessmentModelCodes: inCatalogOrder(assessmentCodes),
     reviewModelCodes: inCatalogOrder(reviewCodes),
+    unlikelyModelCodes: inCatalogOrder(unlikelyCodes),
     manualModelCodes: allModelCodes.filter((code) =>
       manualModelCodes.includes(code),
     ),
+    recommendations,
   });
 }

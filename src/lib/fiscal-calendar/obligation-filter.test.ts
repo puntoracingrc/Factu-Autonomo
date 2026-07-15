@@ -87,16 +87,6 @@ function session(
 describe("buildFiscalCalendarObligationView", () => {
   it.each([
     [undefined, "NO_PUBLISHED_ASSESSMENT"],
-    [
-      assessment([], {
-        profile: {
-          state: "INCOMPLETE",
-          missingInformation: ["fixture"],
-          conflicts: [],
-        },
-      }),
-      "PROFILE_NOT_COMPLETE",
-    ],
     [assessment([], { territory: "ES_CANARY" }), "UNSUPPORTED_TERRITORY"],
     [
       assessment([], { resolutionState: "BLOCKED" }),
@@ -123,6 +113,16 @@ describe("buildFiscalCalendarObligationView", () => {
     [
       assessment([], { resolutionState: "MANUAL_REVIEW" }),
       "ASSESSMENT_NOT_RESOLVED",
+    ],
+    [
+      assessment([obligation("303", "UNKNOWN")], {
+        profile: {
+          state: "INCOMPLETE",
+          missingInformation: ["fixture"],
+          conflicts: [],
+        },
+      }),
+      "PROFILE_NOT_COMPLETE",
     ],
   ] as const)(
     "habilita la vista orientativa conservadora con %s",
@@ -167,6 +167,13 @@ describe("buildFiscalCalendarObligationView", () => {
 
     expect(result.status).toBe("ORIENTATIVE");
     expect([...result.visibleEventIds]).toEqual(events.map(({ id }) => id));
+    expect([...result.recommendedEventIds]).toEqual([
+      "required",
+      "review",
+      "unknown",
+      "none",
+      "multiple",
+    ]);
     expect([...result.reviewEventIds]).toEqual(events.map(({ id }) => id));
     expect(result.excludedCount).toBe(0);
     expect(result.decisions).toEqual(
@@ -189,8 +196,8 @@ describe("buildFiscalCalendarObligationView", () => {
     );
   });
 
-  it("prioriza el fallback seguro si el perfil o territorio no son utilizables", () => {
-    const pending = assessment([], {
+  it("mantiene recomendaciones con datos incompletos y limita el fallback al territorio", () => {
+    const pending = assessment([obligation("303", "UNKNOWN")], {
       ruleReviewState: "PENDING_FISCAL_REVIEW",
       resolutionState: "MANUAL_REVIEW",
     });
@@ -221,9 +228,9 @@ describe("buildFiscalCalendarObligationView", () => {
       }),
     });
 
-    expect(incomplete.status).toBe("ALL_ONLY");
+    expect(incomplete.status).toBe("ORIENTATIVE");
     expect(incomplete.fallbackReason).toBe("PROFILE_NOT_COMPLETE");
-    expect(conflicted.status).toBe("ALL_ONLY");
+    expect(conflicted.status).toBe("ORIENTATIVE");
     expect(conflicted.fallbackReason).toBe("PROFILE_NOT_COMPLETE");
     expect(unsupported.status).toBe("ALL_ONLY");
     expect(unsupported.fallbackReason).toBe("UNSUPPORTED_TERRITORY");

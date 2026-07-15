@@ -550,8 +550,9 @@ export function TaxModelDiagnosticWizard() {
               sé».
             </label>
             <p className="mt-3 text-sm leading-6 text-amber-900 dark:text-amber-200">
-              El resultado es orientativo, no presenta declaraciones ni modifica
-              tu censo. Las reglas siguen pendientes de revisión fiscal formal.
+              El resultado es orientativo, no presenta declaraciones ni
+              modifica tu censo. Podrás corregir respuestas y ajustar tu
+              selección después.
             </p>
           </div>
           <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">

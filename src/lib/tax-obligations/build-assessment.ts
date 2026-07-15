@@ -156,6 +156,7 @@ function buildItem(
     })),
     missingInformation: [...result.missingInformation],
     conflicts,
+    possibleExceptions: [...rule.exclusions],
     ...(status === "NOT_APPLICABLE"
       ? {
           exclusionAuthorization: {
