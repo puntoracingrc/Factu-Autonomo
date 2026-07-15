@@ -320,6 +320,24 @@ describe("versioned official fiscal source snapshots", () => {
 });
 
 describe("fail-closed double fiscal review", () => {
+  it("can evaluate the source-linked approval hash instead of the pending technical hash", () => {
+    const rule = TAX_RULES[0];
+    const approvalHash = `fiscal-approval-rule-v1:${"a".repeat(64)}`;
+    const current = decision(rule, { reviewedRuleHash: approvalHash });
+    expect(
+      evaluateDualFiscalReview(
+        rule,
+        sourceRegistry,
+        {
+          contractVersion: "fiscal-review-registry.v2",
+          generatedAt: "2026-07-15",
+          decisions: [current],
+        },
+        approvalHash,
+      ).state,
+    ).toBe("WAITING_SECOND_REVIEW");
+  });
+
   it("never treats one approval decision as rule approval", () => {
     const rule = TAX_RULES[0];
     const result = evaluateDualFiscalReview(rule, sourceRegistry, {

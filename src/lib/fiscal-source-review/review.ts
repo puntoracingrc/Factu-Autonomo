@@ -17,6 +17,7 @@ function currentDecisionErrors(
   decision: FiscalRuleReviewDecision,
   rule: TaxRule,
   sourceRegistry: FiscalSourceSnapshotRegistry,
+  expectedRuleHash: string,
 ): string[] {
   const errors: string[] = [];
   const trust = decision.reviewerTrust;
@@ -55,7 +56,7 @@ function currentDecisionErrors(
   ) {
     errors.push("APPROVE_WITH_BLOCKING_FINDINGS");
   }
-  if (decision.reviewedRuleHash !== rule.fiscalMetadata.ruleHash) {
+  if (decision.reviewedRuleHash !== expectedRuleHash) {
     errors.push("STALE_RULE_HASH");
   }
   const sourceById = sourceRecordMap(sourceRegistry);
@@ -82,6 +83,7 @@ export function evaluateDualFiscalReview(
   rule: TaxRule,
   sourceRegistry: FiscalSourceSnapshotRegistry,
   reviewRegistry: FiscalReviewRegistry,
+  expectedRuleHash: string = rule.fiscalMetadata.ruleHash,
 ): FiscalDualReviewEvaluation {
   const ruleDecisions = reviewRegistry.decisions.filter(
     (decision) => decision.ruleId === rule.ruleId,
@@ -94,14 +96,16 @@ export function evaluateDualFiscalReview(
   );
   const invalid = active.filter(
     (decision) =>
-      currentDecisionErrors(decision, rule, sourceRegistry).length > 0,
+      currentDecisionErrors(decision, rule, sourceRegistry, expectedRuleHash)
+        .length > 0,
   );
   const valid = active.filter(
     (decision) =>
-      currentDecisionErrors(decision, rule, sourceRegistry).length === 0,
+      currentDecisionErrors(decision, rule, sourceRegistry, expectedRuleHash)
+        .length === 0,
   );
   const blockingReasons = invalid.flatMap((decision) =>
-    currentDecisionErrors(decision, rule, sourceRegistry).map(
+    currentDecisionErrors(decision, rule, sourceRegistry, expectedRuleHash).map(
       (error) => `${decision.decisionId}:${error}`,
     ),
   );
@@ -174,12 +178,14 @@ export function buildCompactFiscalReviewView(
   rule: TaxRule,
   sourceRegistry: FiscalSourceSnapshotRegistry,
   reviewRegistry: FiscalReviewRegistry,
+  expectedRuleHash: string = rule.fiscalMetadata.ruleHash,
 ): CompactFiscalReviewView {
   const sourceById = sourceRecordMap(sourceRegistry);
   const evaluation = evaluateDualFiscalReview(
     rule,
     sourceRegistry,
     reviewRegistry,
+    expectedRuleHash,
   );
   const ruleDecisions = reviewRegistry.decisions.filter(
     (decision) => decision.ruleId === rule.ruleId,
@@ -223,7 +229,7 @@ export function buildCompactFiscalReviewView(
     })),
     incidents: [...new Set(incidents)].sort(compareText),
     hashes: {
-      ruleHash: rule.fiscalMetadata.ruleHash,
+      ruleHash: expectedRuleHash,
       sourceContentHashes: rule.officialSourceIds.map(
         (sourceId) => sourceById.get(sourceId)?.contentHash ?? "MISSING",
       ),

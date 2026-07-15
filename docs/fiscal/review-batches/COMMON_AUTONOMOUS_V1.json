@@ -1,0 +1,3069 @@
+{
+  "contractVersion": "fiscal-review-bundle.v1",
+  "batchId": "COMMON_AUTONOMOUS_V1",
+  "status": "PREPARED_NOT_APPROVED",
+  "purpose": "Compact technical packet for two independent fiscal professionals",
+  "fiscalYears": [
+    2025,
+    2026
+  ],
+  "territory": "ES_COMMON",
+  "modelCount": 12,
+  "ruleCount": 24,
+  "approvalCount": 0,
+  "authorizedExclusionCount": 0,
+  "rules": [
+    {
+      "ruleId": "es-common.2025.model-036",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "036",
+      "modelRole": "CENSUS_ACTION",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "conditions": [
+        "Alta, baja o modificación censal",
+        "Inicio de operaciones intracomunitarias o cambio de obligación"
+      ],
+      "exceptions": [
+        "No se ha producido ningún cambio censal"
+      ],
+      "decision": "Declaración censal por evento y fecha de efecto",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2025.model-036.exclusion-1",
+          "description": "No se ha producido ningún cambio censal",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.model-036.modification",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/guia-practica-cumplimentacion-modelo-censal-036/capitulo-01-cuestiones-generales/plazos-presentacion/declaracion-modificacion-modelo-036.html",
+          "materialScope": "Cambios censales y plazos de presentación",
+          "contentHash": "sha256:a4d1170590f0a88d25e9f252941d8cf501b651d47120a280133c3396a2b60c81",
+          "normalizedContentHash": "sha256:0ec2af244579f05585d15b9995d331176da693439b916241221cda0a2baa84f9",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.roi-intraeu",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/iva/iva-operaciones-comercio-exterior/identificacion-realizar-operaciones-otros-empresarios-ue.html",
+          "materialScope": "Operaciones que exigen NIF-IVA, modelo 036 y relación con el 349",
+          "contentHash": "sha256:0b9113e654ec68b82bd7772e8d69768b9616c38573dbca62a626b771ba371d45",
+          "normalizedContentHash": "sha256:9f8eaf00356d4f4663eabc77b21ce0821d656f3bd561633cd39f6a502de6aa6e",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:79d2a8f1399f70e838ba28d4eefd109251f3b918387dcb3d86cc9bb4dc47a7aa",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2025.model-036",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:32b9c3e708a5969cc3b8af3c3c20e3eab9dab2eaf6fd1545a9b0008813ec1088",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:b05e75a68bbf157ab7a983c13b451b17c7ddac747d06bc31862c0381af0ce4ab",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2026.model-036",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "036",
+      "modelRole": "CENSUS_ACTION",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "conditions": [
+        "Alta, baja o modificación censal",
+        "Inicio de operaciones intracomunitarias o cambio de obligación"
+      ],
+      "exceptions": [
+        "No se ha producido ningún cambio censal"
+      ],
+      "decision": "Declaración censal por evento y fecha de efecto",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2026.model-036.exclusion-1",
+          "description": "No se ha producido ningún cambio censal",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.model-036.modification",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/guia-practica-cumplimentacion-modelo-censal-036/capitulo-01-cuestiones-generales/plazos-presentacion/declaracion-modificacion-modelo-036.html",
+          "materialScope": "Cambios censales y plazos de presentación",
+          "contentHash": "sha256:a4d1170590f0a88d25e9f252941d8cf501b651d47120a280133c3396a2b60c81",
+          "normalizedContentHash": "sha256:0ec2af244579f05585d15b9995d331176da693439b916241221cda0a2baa84f9",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.roi-intraeu",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/iva/iva-operaciones-comercio-exterior/identificacion-realizar-operaciones-otros-empresarios-ue.html",
+          "materialScope": "Operaciones que exigen NIF-IVA, modelo 036 y relación con el 349",
+          "contentHash": "sha256:0b9113e654ec68b82bd7772e8d69768b9616c38573dbca62a626b771ba371d45",
+          "normalizedContentHash": "sha256:9f8eaf00356d4f4663eabc77b21ce0821d656f3bd561633cd39f6a502de6aa6e",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:f99bd4a9b51ca025b9a3acffdf17402eaa8be4ed316f1241f6a2f3ba9a39c25c",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2026.model-036",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:50574d19f15ae1c9d6528bc9db00025cde26ddf4d69480478cbd6654a70cc445",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:d5062e2915d6f429b0d86f04a559053ae3df11af5074199485ede28d49b0c0e1",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2025.model-100",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "100",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "conditions": [
+        "Persona física contribuyente por IRPF",
+        "Alta en RETA en cualquier momento del ejercicio u otra causa de obligación"
+      ],
+      "exceptions": [
+        "El sujeto analizado es solo una entidad y no se analiza a una persona"
+      ],
+      "decision": "Declaración anual personal",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2025.model-100.exclusion-1",
+          "description": "El sujeto analizado es solo una entidad y no se analiza a una persona",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "boe.irpf-law.article-96",
+          "authority": "BOE",
+          "officialLocator": "https://www.boe.es/buscar/act.php?id=BOE-A-2006-20764#a96",
+          "materialScope": "Artículo 96, obligación de declarar",
+          "contentHash": "sha256:1545c554cdcf9391b5b93219a200f4770a50b0f43cd1bff4b36a2e1f35667e4f",
+          "normalizedContentHash": "sha256:9adfe280611d780c621c79c25984b674183cea5681b3741effdb63f991ee9237",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.renta-2025.obligation",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/Ayuda/25Presentacion/100/2.html",
+          "materialScope": "Contribuyentes obligados; alta en RETA durante el período",
+          "contentHash": "sha256:139539210497bb17f8a852eecfa0691885e23dcd4a173badb271ffc7294e2955",
+          "normalizedContentHash": "sha256:241c10810448aadee215d0f851d730491d95a0c97859759955ca50d1f9995bd9",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:87ffb38eb33bd059c133e7d7a89a7ab42528fff4f6420197c00063b7cecd4a67",
+        "mutationCount": 12,
+        "killedMutationCount": 12,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2025.model-100",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:45ea07f6195ac84b7373de35d90864a7461510daadf81b99567b8a1ae2c6b26d",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:3c9dc2e29d3d8236800d76d09715905b4ad9a2ccfc6a7a390024046f18f9097d",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2026.model-100",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "100",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "conditions": [
+        "Persona física contribuyente por IRPF",
+        "Alta en RETA en cualquier momento del ejercicio u otra causa de obligación"
+      ],
+      "exceptions": [
+        "El sujeto analizado es solo una entidad y no se analiza a una persona"
+      ],
+      "decision": "Declaración anual personal",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2026.model-100.exclusion-1",
+          "description": "El sujeto analizado es solo una entidad y no se analiza a una persona",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "boe.irpf-law.article-96",
+          "authority": "BOE",
+          "officialLocator": "https://www.boe.es/buscar/act.php?id=BOE-A-2006-20764#a96",
+          "materialScope": "Artículo 96, obligación de declarar",
+          "contentHash": "sha256:1545c554cdcf9391b5b93219a200f4770a50b0f43cd1bff4b36a2e1f35667e4f",
+          "normalizedContentHash": "sha256:9adfe280611d780c621c79c25984b674183cea5681b3741effdb63f991ee9237",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.renta-2025.obligation",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/Ayuda/25Presentacion/100/2.html",
+          "materialScope": "Contribuyentes obligados; alta en RETA durante el período",
+          "contentHash": "sha256:139539210497bb17f8a852eecfa0691885e23dcd4a173badb271ffc7294e2955",
+          "normalizedContentHash": "sha256:241c10810448aadee215d0f851d730491d95a0c97859759955ca50d1f9995bd9",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:624bead557fb65a649ded9f7977d988db8d1799b67edb29f01d3143a1898406c",
+        "mutationCount": 12,
+        "killedMutationCount": 12,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2026.model-100",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:d7028f44765f35ccbc505af2ce06a9e1b1a68f7e45883bde15c77a846ba3623d",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:c66b50ff2a5b892c5f2e9e497463372d39448c9ae594675be8bd29829a373fe0",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2025.model-111",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "111",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "conditions": [
+        "Pago de rendimientos de trabajo o actividades económicas sujetos a retención"
+      ],
+      "exceptions": [
+        "No se satisfizo ninguna renta comprendida"
+      ],
+      "decision": "Autoliquidación de retenciones del pagador",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2025.model-111.exclusion-1",
+          "description": "No se satisfizo ninguna renta comprendida",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.withholding.111-190",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/7-otras-obligaciones-fiscales-retenciones/7_2-retenciones-ingresos-cuenta-rendimientos.html",
+          "materialScope": "Personas obligadas, modelo periódico 111 y resumen 190",
+          "contentHash": "sha256:de9095c3d3ce654414a9ac00703e971d3a1ec72e0a6dc4dc2b089b801c321be9",
+          "normalizedContentHash": "sha256:f59390c236964cab3926dbd7a31fe914e92339352ff65d30684232a80bc67c0c",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:2a21565ca1dfbb5bf4eb0e4254931af0e4178dfdf0efef2b9ef5297e9d9f7c3d",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2025.model-111",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:fbf0d513a30e5e23742e5e6516a200bfbe66f4ec3046317c72066a375458a1e2",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:a88be828545109e25878d6031b66aa9dfbe2353ab2c43b21a0a7bbff4ecc6272",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2026.model-111",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "111",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "conditions": [
+        "Pago de rendimientos de trabajo o actividades económicas sujetos a retención"
+      ],
+      "exceptions": [
+        "No se satisfizo ninguna renta comprendida"
+      ],
+      "decision": "Autoliquidación de retenciones del pagador",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2026.model-111.exclusion-1",
+          "description": "No se satisfizo ninguna renta comprendida",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.withholding.111-190",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/7-otras-obligaciones-fiscales-retenciones/7_2-retenciones-ingresos-cuenta-rendimientos.html",
+          "materialScope": "Personas obligadas, modelo periódico 111 y resumen 190",
+          "contentHash": "sha256:de9095c3d3ce654414a9ac00703e971d3a1ec72e0a6dc4dc2b089b801c321be9",
+          "normalizedContentHash": "sha256:f59390c236964cab3926dbd7a31fe914e92339352ff65d30684232a80bc67c0c",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:ab93b9f366d469d00435682bf763a8d0e4e1501ba438fae70319bdc886a3d329",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2026.model-111",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:5e4316d06e0849c92001c52515e8f156741b4a262d783a45efccd165adc368c3",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:6c60333b0e20f0e16dcdaa26491a2a46121b1955c1c2cb5dbc0e3c805aa13a8e",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2025.model-115",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "115",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "conditions": [
+        "Pago de alquiler o subarrendamiento urbano sujeto a retención"
+      ],
+      "exceptions": [
+        "Exoneración u otra excepción acreditada"
+      ],
+      "decision": "Autoliquidación de retenciones por alquiler",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2025.model-115.exclusion-1",
+          "description": "Exoneración u otra excepción acreditada",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.withholding.115-180",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/7-otras-obligaciones-fiscales-retenciones/7_3-retenciones-arrendamiento-bienes-inmuebles-180.html",
+          "materialScope": "Rentas de inmuebles urbanos, excepciones y resumen anual",
+          "contentHash": "sha256:2e5fd7a83743f84bb88bc6924e2ccd3754b9ffee9eb3e316cb4856f86833321f",
+          "normalizedContentHash": "sha256:02b50035f0ea73be9de5a748199347d0247eec2217802819912fae052678802e",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:c2f73441a4c9ba1849706f2add60f11ea7efb21c58b99806b6f4b808c9ddba73",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2025.model-115",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:db13c857558c8d1cd6fd358b9b7ca61f0f32ef0420da070e70c8a4885a79eeb5",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:6a943e6394943b7b50daa89abed6065e9e59572b78652306bcd0b36257ef56d9",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2026.model-115",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "115",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "conditions": [
+        "Pago de alquiler o subarrendamiento urbano sujeto a retención"
+      ],
+      "exceptions": [
+        "Exoneración u otra excepción acreditada"
+      ],
+      "decision": "Autoliquidación de retenciones por alquiler",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2026.model-115.exclusion-1",
+          "description": "Exoneración u otra excepción acreditada",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.withholding.115-180",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/7-otras-obligaciones-fiscales-retenciones/7_3-retenciones-arrendamiento-bienes-inmuebles-180.html",
+          "materialScope": "Rentas de inmuebles urbanos, excepciones y resumen anual",
+          "contentHash": "sha256:2e5fd7a83743f84bb88bc6924e2ccd3754b9ffee9eb3e316cb4856f86833321f",
+          "normalizedContentHash": "sha256:02b50035f0ea73be9de5a748199347d0247eec2217802819912fae052678802e",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:9185252f673c8c5077bc60cf94a4ee381cdc492317b1729b77082ef8f533d9e6",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2026.model-115",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:a2df004ce0c7b43ceecc886f63a22953b22c2fd7f6925b85d26cc354462b2e3e",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:8163d28f5759575b1798778861e291d58d57ed71e05608aab9c6a77dba74eb62",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2025.model-130",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "130",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "conditions": [
+        "Persona física o miembro de entidad en atribución en estimación directa"
+      ],
+      "exceptions": [
+        "Estimación objetiva",
+        "Excepción del 70 % aplicable a la clase de actividad"
+      ],
+      "decision": "Pago fraccionado de IRPF en estimación directa",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2025.model-130.exclusion-1",
+          "description": "Estimación objetiva",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        },
+        {
+          "exclusionId": "es-common.2025.model-130.exclusion-2",
+          "description": "Excepción del 70 % aplicable a la clase de actividad",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.model-130.instructions",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-130-irpf______esionales-estimacion-directa-fraccionado_/instrucciones.html",
+          "materialScope": "Apartados I y II; excepción del 70 % e inicio de actividad",
+          "contentHash": "sha256:6fed37aee78a49bbd6263af771b7b1780e5a59e529e10924fce3fffb07c29913",
+          "normalizedContentHash": "sha256:185babce86bff0f8689ff96ffc31f163ec2877eb23b2066f07d7f002935b66a0",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.irpf.installment-payments",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/pagos-fraccionados.html",
+          "materialScope": "Obligados y excepción del 70 % por clase de actividad",
+          "contentHash": "sha256:b8642da797346d7131afe211247ff417fdc5853a1af6f3afd20e924090af9997",
+          "normalizedContentHash": "sha256:c0b9ba1b62126fffc78a519c954b816a8f89187a41a6650e541cece4ee090ac4",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:7b1cf77b7f9f813087034a1c852726c653e76cbb9df3d550d19619e7cbc5096e",
+        "mutationCount": 12,
+        "killedMutationCount": 12,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2025.model-130",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:9a35c43ee8d1d3340d0485cafd632a038203f7c266759c20dd50692c29393082",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:e512893eea265e9a46057c8fde9a76476d002dc38cf05b50e453a8c899dc15f9",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2026.model-130",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "130",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "conditions": [
+        "Persona física o miembro de entidad en atribución en estimación directa"
+      ],
+      "exceptions": [
+        "Estimación objetiva",
+        "Excepción del 70 % aplicable a la clase de actividad"
+      ],
+      "decision": "Pago fraccionado de IRPF en estimación directa",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2026.model-130.exclusion-1",
+          "description": "Estimación objetiva",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        },
+        {
+          "exclusionId": "es-common.2026.model-130.exclusion-2",
+          "description": "Excepción del 70 % aplicable a la clase de actividad",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.model-130.instructions",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-130-irpf______esionales-estimacion-directa-fraccionado_/instrucciones.html",
+          "materialScope": "Apartados I y II; excepción del 70 % e inicio de actividad",
+          "contentHash": "sha256:6fed37aee78a49bbd6263af771b7b1780e5a59e529e10924fce3fffb07c29913",
+          "normalizedContentHash": "sha256:185babce86bff0f8689ff96ffc31f163ec2877eb23b2066f07d7f002935b66a0",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.irpf.installment-payments",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/pagos-fraccionados.html",
+          "materialScope": "Obligados y excepción del 70 % por clase de actividad",
+          "contentHash": "sha256:b8642da797346d7131afe211247ff417fdc5853a1af6f3afd20e924090af9997",
+          "normalizedContentHash": "sha256:c0b9ba1b62126fffc78a519c954b816a8f89187a41a6650e541cece4ee090ac4",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:4ff493e354c148a85f8a7878eea0ad2aac5983056717d171bf5437388ebc647f",
+        "mutationCount": 12,
+        "killedMutationCount": 12,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2026.model-130",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:b97e0591125e7aba1b302e70f3afad977099afc4da386e93e7faf88b4b61466a",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:c8c7e112eea6b7b1a459a0d3802dca759081296cd1d06519f5e2b8c5387e47fe",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2025.model-131",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "131",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "conditions": [
+        "Persona física o miembro de entidad en atribución en estimación objetiva"
+      ],
+      "exceptions": [
+        "Estimación directa",
+        "Excepción del 70 % agraria, ganadera o forestal cuando proceda"
+      ],
+      "decision": "Pago fraccionado de IRPF en estimación objetiva",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2025.model-131.exclusion-1",
+          "description": "Estimación directa",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        },
+        {
+          "exclusionId": "es-common.2025.model-131.exclusion-2",
+          "description": "Excepción del 70 % agraria, ganadera o forestal cuando proceda",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.model-131.instructions",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-131-irpf______sionales-estimacion-objetiva-fraccionado_/instrucciones.html",
+          "materialScope": "Actividades en estimación objetiva y excepciones agrarias",
+          "contentHash": "sha256:0e11545090f133d97b1d84fd42b8006b26a0cab1780529d2105c48d34c27327c",
+          "normalizedContentHash": "sha256:190411168484a7131675e6aa00521735f89fb7c12b8c5902faf42d132bd6ee9f",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.irpf.installment-payments",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/pagos-fraccionados.html",
+          "materialScope": "Obligados y excepción del 70 % por clase de actividad",
+          "contentHash": "sha256:b8642da797346d7131afe211247ff417fdc5853a1af6f3afd20e924090af9997",
+          "normalizedContentHash": "sha256:c0b9ba1b62126fffc78a519c954b816a8f89187a41a6650e541cece4ee090ac4",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:bfa400188a444c9f882f53fe2424c358ee3fb3102a58d50461dd6af0a812c5ba",
+        "mutationCount": 12,
+        "killedMutationCount": 12,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2025.model-131",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:709b35ca32d8c77ce3c1a170e237bf0052024ea48f5671f32e6ddce01c164d1f",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:51c1ad5a4b945ea30f870fb7405878a432d99abd60269a3842edfb2fe6a06b83",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2026.model-131",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "131",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "conditions": [
+        "Persona física o miembro de entidad en atribución en estimación objetiva"
+      ],
+      "exceptions": [
+        "Estimación directa",
+        "Excepción del 70 % agraria, ganadera o forestal cuando proceda"
+      ],
+      "decision": "Pago fraccionado de IRPF en estimación objetiva",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2026.model-131.exclusion-1",
+          "description": "Estimación directa",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        },
+        {
+          "exclusionId": "es-common.2026.model-131.exclusion-2",
+          "description": "Excepción del 70 % agraria, ganadera o forestal cuando proceda",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.model-131.instructions",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/impuesto-sobre-renta-personas-fisicas/modelo-131-irpf______sionales-estimacion-objetiva-fraccionado_/instrucciones.html",
+          "materialScope": "Actividades en estimación objetiva y excepciones agrarias",
+          "contentHash": "sha256:0e11545090f133d97b1d84fd42b8006b26a0cab1780529d2105c48d34c27327c",
+          "normalizedContentHash": "sha256:190411168484a7131675e6aa00521735f89fb7c12b8c5902faf42d132bd6ee9f",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.irpf.installment-payments",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/irpf/retenciones-ingresos-cuenta-pagos-fraccionados/pagos-fraccionados.html",
+          "materialScope": "Obligados y excepción del 70 % por clase de actividad",
+          "contentHash": "sha256:b8642da797346d7131afe211247ff417fdc5853a1af6f3afd20e924090af9997",
+          "normalizedContentHash": "sha256:c0b9ba1b62126fffc78a519c954b816a8f89187a41a6650e541cece4ee090ac4",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:d1d038b0db66a4c3eaf852518a5a258d4c0b69f970ced2db438f288f6078327b",
+        "mutationCount": 12,
+        "killedMutationCount": 12,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2026.model-131",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:e8fb7990b87ca02b41fca96753db2bec0e5eadd0e12939791c205eff5e37a3ae",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:bdd216258b550f29b56a35f316b9c63dd2e7e8ecfee9427733c3bba3017bb334",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2025.model-180",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "180",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "conditions": [
+        "Retenciones por alquiler declarables durante el ejercicio"
+      ],
+      "exceptions": [
+        "No hubo rentas sujetas al resumen"
+      ],
+      "decision": "Resumen anual de retenciones por alquiler",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2025.model-180.exclusion-1",
+          "description": "No hubo rentas sujetas al resumen",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.withholding.115-180",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/7-otras-obligaciones-fiscales-retenciones/7_3-retenciones-arrendamiento-bienes-inmuebles-180.html",
+          "materialScope": "Rentas de inmuebles urbanos, excepciones y resumen anual",
+          "contentHash": "sha256:2e5fd7a83743f84bb88bc6924e2ccd3754b9ffee9eb3e316cb4856f86833321f",
+          "normalizedContentHash": "sha256:02b50035f0ea73be9de5a748199347d0247eec2217802819912fae052678802e",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:187cd7f471527fc1a521f02d06c751edc6f7eb644c75766ddd41810068d15ceb",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2025.model-180",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:8e304007b01aab1be65f22804170144f3ca0325e64ac4ea60a1226dd8e009291",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:b8c324e150981294a5b5f6bfb1ccd897335a08eba43edfeaecc5886ea05a7448",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2026.model-180",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "180",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "conditions": [
+        "Retenciones por alquiler declarables durante el ejercicio"
+      ],
+      "exceptions": [
+        "No hubo rentas sujetas al resumen"
+      ],
+      "decision": "Resumen anual de retenciones por alquiler",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2026.model-180.exclusion-1",
+          "description": "No hubo rentas sujetas al resumen",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.withholding.115-180",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/7-otras-obligaciones-fiscales-retenciones/7_3-retenciones-arrendamiento-bienes-inmuebles-180.html",
+          "materialScope": "Rentas de inmuebles urbanos, excepciones y resumen anual",
+          "contentHash": "sha256:2e5fd7a83743f84bb88bc6924e2ccd3754b9ffee9eb3e316cb4856f86833321f",
+          "normalizedContentHash": "sha256:02b50035f0ea73be9de5a748199347d0247eec2217802819912fae052678802e",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:9f9e57d43690549515615818cd9907e4c29838cc0a63159231b5b4fdd6ca6442",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2026.model-180",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:8fa6359c8f8096ad9c3332d3e738a034d756e955c746d01fece6894ba4494670",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:724439cd231821270257e5dc3c46dbb4c615e1f7f046afdd75e69c8ab759a06f",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2025.model-190",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "190",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "conditions": [
+        "Retenciones de trabajo o actividades económicas durante el ejercicio"
+      ],
+      "exceptions": [
+        "No hubo rentas comprendidas"
+      ],
+      "decision": "Resumen anual del retenedor",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2025.model-190.exclusion-1",
+          "description": "No hubo rentas comprendidas",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.withholding.111-190",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/7-otras-obligaciones-fiscales-retenciones/7_2-retenciones-ingresos-cuenta-rendimientos.html",
+          "materialScope": "Personas obligadas, modelo periódico 111 y resumen 190",
+          "contentHash": "sha256:de9095c3d3ce654414a9ac00703e971d3a1ec72e0a6dc4dc2b089b801c321be9",
+          "normalizedContentHash": "sha256:f59390c236964cab3926dbd7a31fe914e92339352ff65d30684232a80bc67c0c",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:732d740a0531c84b203b49563b3b6a63845acba4f6b9bbfc8880471a8342437b",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2025.model-190",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:02bd0eef818868a236acdcf6a19505b40a6fcf14ef8e9ce0dcc738d59b5766a5",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:94e5b96aaf1308367beffb77b66f70b520daea3346912c85ca8d5fc3bbacd018",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2026.model-190",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "190",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "conditions": [
+        "Retenciones de trabajo o actividades económicas durante el ejercicio"
+      ],
+      "exceptions": [
+        "No hubo rentas comprendidas"
+      ],
+      "decision": "Resumen anual del retenedor",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2026.model-190.exclusion-1",
+          "description": "No hubo rentas comprendidas",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.withholding.111-190",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/folleto-actividades-economicas/7-otras-obligaciones-fiscales-retenciones/7_2-retenciones-ingresos-cuenta-rendimientos.html",
+          "materialScope": "Personas obligadas, modelo periódico 111 y resumen 190",
+          "contentHash": "sha256:de9095c3d3ce654414a9ac00703e971d3a1ec72e0a6dc4dc2b089b801c321be9",
+          "normalizedContentHash": "sha256:f59390c236964cab3926dbd7a31fe914e92339352ff65d30684232a80bc67c0c",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:f1e4b67e3f0741ad0c6a597646f3817c96bdedb1738ecd7bcea1ce03d7e988a1",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2026.model-190",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:eea71e2973d0b1c51eae36105b2f1ae01809250b3cffaab0d762d7fdd43acd9d",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:46a4be16bd6f35b9e3e8ad232ab6c35fc08ee93fe8842e4d7c3652e979efcb86",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2025.model-303",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "303",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "conditions": [
+        "Sujeto con autoliquidación periódica de IVA"
+      ],
+      "exceptions": [
+        "Solo operaciones exentas/no sujetas sin obligación periódica",
+        "Solo recargo de equivalencia o régimen agrario sin otro hecho"
+      ],
+      "decision": "Autoliquidación periódica de IVA",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2025.model-303.exclusion-1",
+          "description": "Solo operaciones exentas/no sujetas sin obligación periódica",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        },
+        {
+          "exclusionId": "es-common.2025.model-303.exclusion-2",
+          "description": "Solo recargo de equivalencia o régimen agrario sin otro hecho",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.model-303.instructions-2026",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-303-iva-autoliquidacion_/instrucciones-2026.html",
+          "materialScope": "Obligados, período y regímenes declarados",
+          "contentHash": "sha256:e4e5204da9d059119b11094df9c9864120da337bd47dc4cbe06fa05ffc45b603",
+          "normalizedContentHash": "sha256:b806836ec69807ffaf407c49d4c1dd7f28f5aad0461ed1caf0447804ea802e38",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:c584e857f4332f57bff9e197d58fbd69ba035b5d30f12b6726b822e529c7a403",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2025.model-303",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:8220ac64ae7fbe0d6e01a057cdeb8bfb3da6b703f3b8056c9969b2b62d15c878",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:d9f89b984c89e07c4ae4a0561887c241bca4220409a67db408281395eb9e4a26",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2026.model-303",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "303",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "conditions": [
+        "Sujeto con autoliquidación periódica de IVA"
+      ],
+      "exceptions": [
+        "Solo operaciones exentas/no sujetas sin obligación periódica",
+        "Solo recargo de equivalencia o régimen agrario sin otro hecho"
+      ],
+      "decision": "Autoliquidación periódica de IVA",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2026.model-303.exclusion-1",
+          "description": "Solo operaciones exentas/no sujetas sin obligación periódica",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        },
+        {
+          "exclusionId": "es-common.2026.model-303.exclusion-2",
+          "description": "Solo recargo de equivalencia o régimen agrario sin otro hecho",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.model-303.instructions-2026",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-303-iva-autoliquidacion_/instrucciones-2026.html",
+          "materialScope": "Obligados, período y regímenes declarados",
+          "contentHash": "sha256:e4e5204da9d059119b11094df9c9864120da337bd47dc4cbe06fa05ffc45b603",
+          "normalizedContentHash": "sha256:b806836ec69807ffaf407c49d4c1dd7f28f5aad0461ed1caf0447804ea802e38",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:b7afe718f086acaafc9f4c5047c2228ec0a3fc62e8b24d56feaaa82b899cc18d",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2026.model-303",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:364e5ef07ff350e51a7987d8bf56a8392be17dd0a327ca9515ad5e97ad53579a",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:9ecbd8e9c35a750fb53445ff32efadfdf614a1be170e3394dd6d04b6b351a2c8",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2025.model-347",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "347",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "conditions": [
+        "Operaciones por tercero por encima del umbral versionado"
+      ],
+      "exceptions": [
+        "Operaciones excluidas",
+        "SII durante todo el ejercicio u otra exclusión del sujeto"
+      ],
+      "decision": "Declaración informativa anual de terceros",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2025.model-347.exclusion-1",
+          "description": "Operaciones excluidas",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        },
+        {
+          "exclusionId": "es-common.2025.model-347.exclusion-2",
+          "description": "SII durante todo el ejercicio u otra exclusión del sujeto",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.model-347.exclusions",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-347-decla_____racion-anual-operaciones-personas_/excluidos-obligacion-presentar-modelo-347.html",
+          "materialScope": "Artículos 31 y 32 RGAT; umbral, SII y operaciones excluidas",
+          "contentHash": "sha256:dda27b1e35e2f71322f21b16b0c43813ebdecf97574ca6e1edc659e0d79990dc",
+          "normalizedContentHash": "sha256:381d974573a581f72dd7c4a2e47a471fd64bca1128e93a22c6d56747d9962206",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:6a6dad60c4c8438864b9d37959c818ed81ee3fd4cb6fe07da4f9a3a5d34f869e",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2025.model-347",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:ed2007805ffb4d4da6330f30dbcac3ee4038b113f89ec424e5831e674a538a68",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:cf263db34f77f1c5da142410dfae7441b9a15d6060ca0b304767dc397b0f4ddd",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2026.model-347",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "347",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "conditions": [
+        "Operaciones por tercero por encima del umbral versionado"
+      ],
+      "exceptions": [
+        "Operaciones excluidas",
+        "SII durante todo el ejercicio u otra exclusión del sujeto"
+      ],
+      "decision": "Declaración informativa anual de terceros",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2026.model-347.exclusion-1",
+          "description": "Operaciones excluidas",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        },
+        {
+          "exclusionId": "es-common.2026.model-347.exclusion-2",
+          "description": "SII durante todo el ejercicio u otra exclusión del sujeto",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.model-347.exclusions",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-347-decla_____racion-anual-operaciones-personas_/excluidos-obligacion-presentar-modelo-347.html",
+          "materialScope": "Artículos 31 y 32 RGAT; umbral, SII y operaciones excluidas",
+          "contentHash": "sha256:dda27b1e35e2f71322f21b16b0c43813ebdecf97574ca6e1edc659e0d79990dc",
+          "normalizedContentHash": "sha256:381d974573a581f72dd7c4a2e47a471fd64bca1128e93a22c6d56747d9962206",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:72979be86a4b1560709e1395d3ef70a062e99f3ad7091405b929215e9a450a1b",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2026.model-347",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:136f62964b091e59f800e72677c83ad7539fef9dca5feaa7cc34126ec97101bd",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:90f8249a4fcf1e0cf8f484e6858e1fcf8ffb2720059d38a551b61c8ffbba9ab3",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2025.model-349",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "349",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "conditions": [
+        "Operaciones intracomunitarias comprendidas realizadas en el período"
+      ],
+      "exceptions": [
+        "Alta en ROI sin operaciones",
+        "Operaciones excluidas del concepto informable"
+      ],
+      "decision": "Declaración recapitulativa con periodicidad mensual o trimestral por confirmar",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2025.model-349.exclusion-1",
+          "description": "Alta en ROI sin operaciones",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        },
+        {
+          "exclusionId": "es-common.2025.model-349.exclusion-2",
+          "description": "Operaciones excluidas del concepto informable",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.roi-intraeu",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/iva/iva-operaciones-comercio-exterior/identificacion-realizar-operaciones-otros-empresarios-ue.html",
+          "materialScope": "Operaciones que exigen NIF-IVA, modelo 036 y relación con el 349",
+          "contentHash": "sha256:0b9113e654ec68b82bd7772e8d69768b9616c38573dbca62a626b771ba371d45",
+          "normalizedContentHash": "sha256:9f8eaf00356d4f4663eabc77b21ce0821d656f3bd561633cd39f6a502de6aa6e",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.model-349.periodicity",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/declaraciones-informativas/modelo-349-decla_____n-recapitulativa-operaciones-intracomunitarias_/nota-informativa.html",
+          "materialScope": "Periodicidad mensual o trimestral desde 2020",
+          "contentHash": "sha256:c7812f7f68c1ed32900397a9d861b740990536a4c2d09dd9bf3a6450691e2d61",
+          "normalizedContentHash": "sha256:b7b9aef33780881e9d4de73c89d71bd36e8777d14617866f8deea5902630cfdc",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:08ac3a96aebae92b8e6a766a6a34e70b775ca2906c1561fe3794d197fa409af8",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2025.model-349",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:adbf71e1314fd476a1ca62d8c805a72e8f4236d77dc4095c18defd27f5b99a7c",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:ff7b4cbf7644399ba01a8a2da3e51816f6fafaaa48126d29e81dd17a07089b30",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2026.model-349",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "349",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "conditions": [
+        "Operaciones intracomunitarias comprendidas realizadas en el período"
+      ],
+      "exceptions": [
+        "Alta en ROI sin operaciones",
+        "Operaciones excluidas del concepto informable"
+      ],
+      "decision": "Declaración recapitulativa con periodicidad mensual o trimestral por confirmar",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2026.model-349.exclusion-1",
+          "description": "Alta en ROI sin operaciones",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        },
+        {
+          "exclusionId": "es-common.2026.model-349.exclusion-2",
+          "description": "Operaciones excluidas del concepto informable",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.roi-intraeu",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/iva/iva-operaciones-comercio-exterior/identificacion-realizar-operaciones-otros-empresarios-ue.html",
+          "materialScope": "Operaciones que exigen NIF-IVA, modelo 036 y relación con el 349",
+          "contentHash": "sha256:0b9113e654ec68b82bd7772e8d69768b9616c38573dbca62a626b771ba371d45",
+          "normalizedContentHash": "sha256:9f8eaf00356d4f4663eabc77b21ce0821d656f3bd561633cd39f6a502de6aa6e",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.model-349.periodicity",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/impuestos-tasas/declaraciones-informativas/modelo-349-decla_____n-recapitulativa-operaciones-intracomunitarias_/nota-informativa.html",
+          "materialScope": "Periodicidad mensual o trimestral desde 2020",
+          "contentHash": "sha256:c7812f7f68c1ed32900397a9d861b740990536a4c2d09dd9bf3a6450691e2d61",
+          "normalizedContentHash": "sha256:b7b9aef33780881e9d4de73c89d71bd36e8777d14617866f8deea5902630cfdc",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:568759d3817478ba0ed62f3a88fc7170090670ba60663bdcbe18fb009a98e334",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2026.model-349",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:8c882ecd23b74a9a2c599f13310dfd297007c72261fc5ef094b83c11db9252ca",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:26ebde634b956363bb6ac054ab3eaf0f4f2a75dc13399ccc657dbeeaa6d59c76",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2025.model-390",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "390",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2025-01-01",
+      "effectiveTo": "2025-12-31",
+      "conditions": [
+        "Autoliquidaciones periódicas de IVA y ausencia de exoneración"
+      ],
+      "exceptions": [
+        "Exoneración del resumen anual aplicable al ejercicio"
+      ],
+      "decision": "Resumen anual de IVA",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2025.model-390.exclusion-1",
+          "description": "Exoneración del resumen anual aplicable al ejercicio",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.model-390.procedure",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G412.shtml",
+          "materialScope": "Información e instrucciones por ejercicio; exoneraciones",
+          "contentHash": "sha256:5535f689bebbe3f126c48f5c31cd7cfbb9f3a74347ea85b2cf376962ea242063",
+          "normalizedContentHash": "sha256:2d80119c8ee3b1e039bc95e7bc08df3057c80d17d47e9cdb8eeeb3983f4317c2",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.model-390.exemptions",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/manual-gran-empresa/se-declara-volumen-operaciones/obligados-presentar-modelo-303/exonerados-presentacion-modelo-390.html",
+          "materialScope": "Exoneración por SII y otros supuestos",
+          "contentHash": "sha256:d370da03479d4a7c324b3058c89e34441c3b11ec6813417f4747ecb844aa6743",
+          "normalizedContentHash": "sha256:fbcae42cea3910d77da5def199acf5e7db35cc7dcde108fe1d64be8b4ee287e4",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:fda8acf736638f8379a8fc97c77b621b4218ee8aed9ee79bff6e14b4866f37c3",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2025.model-390",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:8e63984a6fbacfd990c26f6ed8f6f396b4d014649512243d7a817c6b23601b72",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:bdd70a2731ab65fdb69ff2e34a2308958d016079bdbdb0fbb1b089b9a3a3943c",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    },
+    {
+      "ruleId": "es-common.2026.model-390",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "390",
+      "modelRole": "RETURN_OR_INFORMATION_MODEL",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2026-01-01",
+      "effectiveTo": "2026-12-31",
+      "conditions": [
+        "Autoliquidaciones periódicas de IVA y ausencia de exoneración"
+      ],
+      "exceptions": [
+        "Exoneración del resumen anual aplicable al ejercicio"
+      ],
+      "decision": "Resumen anual de IVA",
+      "exclusionCandidates": [
+        {
+          "exclusionId": "es-common.2026.model-390.exclusion-1",
+          "description": "Exoneración del resumen anual aplicable al ejercicio",
+          "status": "ADVISORY_ONLY_PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "facts": [],
+      "questions": [],
+      "sources": [
+        {
+          "sourceId": "aeat.model-390.procedure",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G412.shtml",
+          "materialScope": "Información e instrucciones por ejercicio; exoneraciones",
+          "contentHash": "sha256:5535f689bebbe3f126c48f5c31cd7cfbb9f3a74347ea85b2cf376962ea242063",
+          "normalizedContentHash": "sha256:2d80119c8ee3b1e039bc95e7bc08df3057c80d17d47e9cdb8eeeb3983f4317c2",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.model-390.exemptions",
+          "authority": "AEAT",
+          "officialLocator": "https://sede.agenciatributaria.gob.es/Sede/ayuda/manuales-videos-folletos/manuales-practicos/manual-gran-empresa/se-declara-volumen-operaciones/obligados-presentar-modelo-303/exonerados-presentacion-modelo-390.html",
+          "materialScope": "Exoneración por SII y otros supuestos",
+          "contentHash": "sha256:d370da03479d4a7c324b3058c89e34441c3b11ec6813417f4747ecb844aa6743",
+          "normalizedContentHash": "sha256:fbcae42cea3910d77da5def199acf5e7db35cc7dcde108fe1d64be8b4ee287e4",
+          "materialValidity": {
+            "status": "UNVERIFIED",
+            "effectiveFrom": null,
+            "effectiveTo": null,
+            "basis": "PENDING_FISCAL_REVIEW"
+          },
+          "verificationStatus": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "technicalTests": {
+        "executableStatus": "PASSING",
+        "executableTestCount": 10,
+        "passingTestCount": 10,
+        "categoriesCovered": [
+          "POSITIVE",
+          "NEGATIVE",
+          "EXCEPTION",
+          "UNKNOWN",
+          "CONTRADICTION",
+          "TEMPORAL",
+          "TERRITORY",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY"
+        ],
+        "materialTestHash": "sha256:ff54433ea26a72716e704914ba94a1376dec4aa4936765d3b5231146e6eaeaf6",
+        "mutationCount": 10,
+        "killedMutationCount": 10,
+        "mutationScore": 100,
+        "safetyCriticalMutationScore": 100
+      },
+      "incidents": [
+        {
+          "issueId": "fiscal-closure.es-common.2026.model-390",
+          "severity": "BLOCKING",
+          "status": "OPEN",
+          "historicalFindings": [
+            "MISSING_SOURCE_SNAPSHOT",
+            "MISSING_SOURCE_MATERIAL_VALIDITY",
+            "MISSING_PRIMARY_FISCAL_REVIEW",
+            "MISSING_SECOND_FISCAL_REVIEW",
+            "MISSING_APPROVED_RULE_HASH",
+            "UNRESOLVED_EXCLUSION_CANDIDATES",
+            "MISSING_QUESTION_FACT_RULE_MAPPING"
+          ],
+          "evidenceRequired": [
+            "Suite fiscal ejecutable y trazable",
+            "Snapshots oficiales versionados con vigencia material",
+            "Matriz pregunta-hecho-regla revisada",
+            "Revisión fiscal principal y segunda revisión",
+            "Hash fiscal aprobado y evidencia firmada"
+          ],
+          "openedAt": "2026-07-15",
+          "openedBy": "technical-audit:codex",
+          "openedByMeaning": "HISTORICAL_TECHNICAL_AUDIT_METADATA_NOT_FISCAL_REVIEW_OR_SIGNATURE",
+          "currentTechnicalAssessment": {
+            "sourceSnapshot": "PRESENT_HASHED_PENDING_FISCAL_VERIFICATION",
+            "materialValidity": "UNVERIFIED",
+            "executableTests": "PASSING",
+            "issueRemainsOpen": true
+          },
+          "readyForVerificationAt": null,
+          "verifiedAt": null,
+          "verifiedBy": null,
+          "resolutionEvidenceIds": []
+        }
+      ],
+      "hashes": {
+        "pendingRuleHash": "fiscal-rule-v1:cebb512d5f2e11136981db569d36b2dad3be4a2966c6ca76c395e26b4ae9a256",
+        "approvalFiscalHash": "fiscal-approval-rule-v1:cd629ad5f0d3d8fb69ecf1bca617cba0b1a8067641c9f22289cdb2921876702f",
+        "approvedRuleHash": null
+      },
+      "review": {
+        "reviewStatus": "PENDING_FISCAL_REVIEW",
+        "resolutionStatus": "OPEN",
+        "primaryFiscalReviewer": null,
+        "secondFiscalReviewer": null,
+        "signedEvidence": [],
+        "approved": false
+      },
+      "differencesAgainstOtherYear": [
+        "NO_MATERIAL_RULE_DIFFERENCE_RECORDED"
+      ]
+    }
+  ]
+}

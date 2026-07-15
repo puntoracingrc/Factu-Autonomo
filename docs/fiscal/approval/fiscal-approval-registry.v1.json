@@ -1,0 +1,1666 @@
+{
+  "contractVersion": "fiscal-approval-registry.v1",
+  "ruleCount": 54,
+  "materialSourceReferenceCount": 72,
+  "missingMaterialSourceHashCount": 0,
+  "approvedRuleCount": 0,
+  "authorizedExclusionCount": 0,
+  "rules": [
+    {
+      "ruleId": "es-common.2025.model-035",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "035",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:cbbf41f8e572df524879095d109ff06c20e8dcc0accd37286ee6cd6242b285c9",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:58a7fb102179d846cf17bbf526598486e61cae17c0b690591a71f895287a61cf",
+      "materialTestHash": "sha256:d0f0cbdfb6382f7905b6a3fe46caeedbcdf7b6fa8cad4d62db9f0af1b3e9d73f",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-035.procedure",
+          "contentHash": "sha256:1adc450e5585ad9fa8d606f5e95fc31ca6e31bf90bdbf6f93f41859dd49e78b3",
+          "normalizedContentHash": "sha256:36d61afe1adc89bbbad29e61983b52500be881c1e46140cbd681d6b0829f13c1",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Comunicaciones censales de los regímenes de ventanilla única",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.model-369.periodicity",
+          "contentHash": "sha256:e87843b4e46fa5b05ff23a5281b0ac4806c3fd3543169f0df33a23eaed7ed848",
+          "normalizedContentHash": "sha256:f5e7564781db1213c336929ef64e440147a15f7e93f3a24d6b84d8ea3fbc1f23",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Periodicidad y declaración sin operaciones mientras el alta siga vigente",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-036",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "036",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:32b9c3e708a5969cc3b8af3c3c20e3eab9dab2eaf6fd1545a9b0008813ec1088",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:b05e75a68bbf157ab7a983c13b451b17c7ddac747d06bc31862c0381af0ce4ab",
+      "materialTestHash": "sha256:79d2a8f1399f70e838ba28d4eefd109251f3b918387dcb3d86cc9bb4dc47a7aa",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-036.modification",
+          "contentHash": "sha256:a4d1170590f0a88d25e9f252941d8cf501b651d47120a280133c3396a2b60c81",
+          "normalizedContentHash": "sha256:0ec2af244579f05585d15b9995d331176da693439b916241221cda0a2baa84f9",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Cambios censales y plazos de presentación",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.roi-intraeu",
+          "contentHash": "sha256:0b9113e654ec68b82bd7772e8d69768b9616c38573dbca62a626b771ba371d45",
+          "normalizedContentHash": "sha256:9f8eaf00356d4f4663eabc77b21ce0821d656f3bd561633cd39f6a502de6aa6e",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Operaciones que exigen NIF-IVA, modelo 036 y relación con el 349",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-100",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "100",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:45ea07f6195ac84b7373de35d90864a7461510daadf81b99567b8a1ae2c6b26d",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:3c9dc2e29d3d8236800d76d09715905b4ad9a2ccfc6a7a390024046f18f9097d",
+      "materialTestHash": "sha256:87ffb38eb33bd059c133e7d7a89a7ab42528fff4f6420197c00063b7cecd4a67",
+      "materialSources": [
+        {
+          "sourceId": "boe.irpf-law.article-96",
+          "contentHash": "sha256:1545c554cdcf9391b5b93219a200f4770a50b0f43cd1bff4b36a2e1f35667e4f",
+          "normalizedContentHash": "sha256:9adfe280611d780c621c79c25984b674183cea5681b3741effdb63f991ee9237",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Artículo 96, obligación de declarar",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.renta-2025.obligation",
+          "contentHash": "sha256:139539210497bb17f8a852eecfa0691885e23dcd4a173badb271ffc7294e2955",
+          "normalizedContentHash": "sha256:241c10810448aadee215d0f851d730491d95a0c97859759955ca50d1f9995bd9",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Contribuyentes obligados; alta en RETA durante el período",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-111",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "111",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:fbf0d513a30e5e23742e5e6516a200bfbe66f4ec3046317c72066a375458a1e2",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:a88be828545109e25878d6031b66aa9dfbe2353ab2c43b21a0a7bbff4ecc6272",
+      "materialTestHash": "sha256:2a21565ca1dfbb5bf4eb0e4254931af0e4178dfdf0efef2b9ef5297e9d9f7c3d",
+      "materialSources": [
+        {
+          "sourceId": "aeat.withholding.111-190",
+          "contentHash": "sha256:de9095c3d3ce654414a9ac00703e971d3a1ec72e0a6dc4dc2b089b801c321be9",
+          "normalizedContentHash": "sha256:f59390c236964cab3926dbd7a31fe914e92339352ff65d30684232a80bc67c0c",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Personas obligadas, modelo periódico 111 y resumen 190",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-115",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "115",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:db13c857558c8d1cd6fd358b9b7ca61f0f32ef0420da070e70c8a4885a79eeb5",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:6a943e6394943b7b50daa89abed6065e9e59572b78652306bcd0b36257ef56d9",
+      "materialTestHash": "sha256:c2f73441a4c9ba1849706f2add60f11ea7efb21c58b99806b6f4b808c9ddba73",
+      "materialSources": [
+        {
+          "sourceId": "aeat.withholding.115-180",
+          "contentHash": "sha256:2e5fd7a83743f84bb88bc6924e2ccd3754b9ffee9eb3e316cb4856f86833321f",
+          "normalizedContentHash": "sha256:02b50035f0ea73be9de5a748199347d0247eec2217802819912fae052678802e",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Rentas de inmuebles urbanos, excepciones y resumen anual",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-123",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "123",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:3fc9b018f3cb1b4b40618744a83d5fec98456931b787ce933dbacf258fbdf43a",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:390ee21f24365178af7e0bdb632528ec2596604482e0745c012b63e55e584467",
+      "materialTestHash": "sha256:5ae7c942073a1785eec17c8561859f52e3e9ee3c0fc8e42d7982f0c329155204",
+      "materialSources": [
+        {
+          "sourceId": "aeat.withholding.123-193",
+          "contentHash": "sha256:3c7da0c931afd3c7747a026e2bbb1bedfbbe01c3f2e0a11528c1a54875b50202",
+          "normalizedContentHash": "sha256:c87f71805b3b0694227a54413222fbb5597328bcd177fd2a513dfadb1ea24312",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligados, ingreso periódico y excepciones del resumen anual",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-130",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "130",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:9a35c43ee8d1d3340d0485cafd632a038203f7c266759c20dd50692c29393082",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:e512893eea265e9a46057c8fde9a76476d002dc38cf05b50e453a8c899dc15f9",
+      "materialTestHash": "sha256:7b1cf77b7f9f813087034a1c852726c653e76cbb9df3d550d19619e7cbc5096e",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-130.instructions",
+          "contentHash": "sha256:6fed37aee78a49bbd6263af771b7b1780e5a59e529e10924fce3fffb07c29913",
+          "normalizedContentHash": "sha256:185babce86bff0f8689ff96ffc31f163ec2877eb23b2066f07d7f002935b66a0",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Apartados I y II; excepción del 70 % e inicio de actividad",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.irpf.installment-payments",
+          "contentHash": "sha256:b8642da797346d7131afe211247ff417fdc5853a1af6f3afd20e924090af9997",
+          "normalizedContentHash": "sha256:c0b9ba1b62126fffc78a519c954b816a8f89187a41a6650e541cece4ee090ac4",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligados y excepción del 70 % por clase de actividad",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-131",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "131",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:709b35ca32d8c77ce3c1a170e237bf0052024ea48f5671f32e6ddce01c164d1f",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:51c1ad5a4b945ea30f870fb7405878a432d99abd60269a3842edfb2fe6a06b83",
+      "materialTestHash": "sha256:bfa400188a444c9f882f53fe2424c358ee3fb3102a58d50461dd6af0a812c5ba",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-131.instructions",
+          "contentHash": "sha256:0e11545090f133d97b1d84fd42b8006b26a0cab1780529d2105c48d34c27327c",
+          "normalizedContentHash": "sha256:190411168484a7131675e6aa00521735f89fb7c12b8c5902faf42d132bd6ee9f",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Actividades en estimación objetiva y excepciones agrarias",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.irpf.installment-payments",
+          "contentHash": "sha256:b8642da797346d7131afe211247ff417fdc5853a1af6f3afd20e924090af9997",
+          "normalizedContentHash": "sha256:c0b9ba1b62126fffc78a519c954b816a8f89187a41a6650e541cece4ee090ac4",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligados y excepción del 70 % por clase de actividad",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-180",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "180",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:8e304007b01aab1be65f22804170144f3ca0325e64ac4ea60a1226dd8e009291",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:b8c324e150981294a5b5f6bfb1ccd897335a08eba43edfeaecc5886ea05a7448",
+      "materialTestHash": "sha256:187cd7f471527fc1a521f02d06c751edc6f7eb644c75766ddd41810068d15ceb",
+      "materialSources": [
+        {
+          "sourceId": "aeat.withholding.115-180",
+          "contentHash": "sha256:2e5fd7a83743f84bb88bc6924e2ccd3754b9ffee9eb3e316cb4856f86833321f",
+          "normalizedContentHash": "sha256:02b50035f0ea73be9de5a748199347d0247eec2217802819912fae052678802e",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Rentas de inmuebles urbanos, excepciones y resumen anual",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-184",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "184",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:d47c02d91a255df542740b8d088fb86c690e0d596ba32154f1491f2fddf00a84",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:ba3c88a715e53424dbc37c37632c0f6702a6834d0449415c599879d24e15af71",
+      "materialTestHash": "sha256:0d358d0112ac7c08681fd4fc5ac67aa009bd700eabe3f21ff4ea80100199baae",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-184.obligations",
+          "contentHash": "sha256:0790981d03ccaef07c77dbcb257cb50283ee9ca9e37d00e0d735d02e79d03b7a",
+          "normalizedContentHash": "sha256:9c3de3235b56842d4ac8bec5f554cfd903a8fe01216e057619406422fbec693a",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Actividad económica, umbral de rentas y modelo 184",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-190",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "190",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:02bd0eef818868a236acdcf6a19505b40a6fcf14ef8e9ce0dcc738d59b5766a5",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:94e5b96aaf1308367beffb77b66f70b520daea3346912c85ca8d5fc3bbacd018",
+      "materialTestHash": "sha256:732d740a0531c84b203b49563b3b6a63845acba4f6b9bbfc8880471a8342437b",
+      "materialSources": [
+        {
+          "sourceId": "aeat.withholding.111-190",
+          "contentHash": "sha256:de9095c3d3ce654414a9ac00703e971d3a1ec72e0a6dc4dc2b089b801c321be9",
+          "normalizedContentHash": "sha256:f59390c236964cab3926dbd7a31fe914e92339352ff65d30684232a80bc67c0c",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Personas obligadas, modelo periódico 111 y resumen 190",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-193",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "193",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:09d0cfbe64c1af488d7f6f92562ee49837ddcd6450ab2eced0804292e3379408",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:6c86818c586d036c0bb5015d26724cfa01ae805d68daa142183fdffc99a05c8d",
+      "materialTestHash": "sha256:7466ceeda5bcba53c06664fde1129b9e913d2cb2a778ff72a0130f155c2bf494",
+      "materialSources": [
+        {
+          "sourceId": "aeat.withholding.123-193",
+          "contentHash": "sha256:3c7da0c931afd3c7747a026e2bbb1bedfbbe01c3f2e0a11528c1a54875b50202",
+          "normalizedContentHash": "sha256:c87f71805b3b0694227a54413222fbb5597328bcd177fd2a513dfadb1ea24312",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligados, ingreso periódico y excepciones del resumen anual",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-200",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "200",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:6c875f99082ee6ef8a569de3652b395286f2ee9581a853278e866b3833eca6e9",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:4196f442ce9293abd1a2aab3d965a20bf2ea687d3a0cd5d9047dbd36f99aa568",
+      "materialTestHash": "sha256:0fcca3f2094b972f48a283375975cdfa7835904ad81c1d63e9ecd73c00779842",
+      "materialSources": [
+        {
+          "sourceId": "aeat.is.model-200.obligation",
+          "contentHash": "sha256:dfe6ffae8638ee7c51c918a4646b2c1fd93c9373b510bc3a30b808ceb4e2f16b",
+          "normalizedContentHash": "sha256:6afe6001b7b25b3a5657a9da270e770739bbcf1202813b88cbe7e4e12ffe75b4",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Contribuyentes obligados y excepciones de entidades parcialmente exentas",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-202",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "202",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:b27c49a184a0709decee430fdc4f1c1e567c853e36f401454a10f44c950c31b1",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:7dd9548daff28b3af5705a0fde69dded7ef1f7fabee5fa11501e03ac211c1535",
+      "materialTestHash": "sha256:405cf9098278ff465f274b8b9efa3630ac76c13307722282519f1c05f3292760",
+      "materialSources": [
+        {
+          "sourceId": "aeat.is.installments",
+          "contentHash": "sha256:7b3223cdde5e4fef2a35abaccae493c4a590742d4de67daeeceeed6fe80cc844",
+          "normalizedContentHash": "sha256:da36ce116887612769e9a9ada94dded07618188ca817a055ed728224a5724ce8",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligación, excepciones y períodos de pago",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-216",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "216",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:b129d7df35195649d9f352977934d50f65103baed78b35fe1b637506f2809a1e",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:55ba5bff07a3aec9e780be608e4f0b4d4c0af542bb405d6bdfc17060ea5f7558",
+      "materialTestHash": "sha256:ab856e0153b1d4aeb57eb2bedd1e1c2c93d0b864bb37609059d24db988229d4b",
+      "materialSources": [
+        {
+          "sourceId": "aeat.irnr.withholding",
+          "contentHash": "sha256:1298817e95c3792a49341e4170ee9b383978213625fb13b1bc9c83e5795c45d4",
+          "normalizedContentHash": "sha256:0155a7ae067424bf0fd58a473d48cc40d710cd0df1025e7f4a400941fdbaf02c",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Modelos 216 y 296 y supuestos exceptuados",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-296",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "296",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:f406655f43621823d63c6552e3f0a7039604fc99c6ad88843c7fed0b6f3d7d44",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:be0c50754c39a3951d7048de06e7e51dce751ecdc63d2de89524c62c5ee0a028",
+      "materialTestHash": "sha256:ce05ebe74c36ba69caf47bf904a993f05894b0b7c576bbc7366ae78fe953b801",
+      "materialSources": [
+        {
+          "sourceId": "aeat.irnr.withholding",
+          "contentHash": "sha256:1298817e95c3792a49341e4170ee9b383978213625fb13b1bc9c83e5795c45d4",
+          "normalizedContentHash": "sha256:0155a7ae067424bf0fd58a473d48cc40d710cd0df1025e7f4a400941fdbaf02c",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Modelos 216 y 296 y supuestos exceptuados",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-303",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "303",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:8220ac64ae7fbe0d6e01a057cdeb8bfb3da6b703f3b8056c9969b2b62d15c878",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:d9f89b984c89e07c4ae4a0561887c241bca4220409a67db408281395eb9e4a26",
+      "materialTestHash": "sha256:c584e857f4332f57bff9e197d58fbd69ba035b5d30f12b6726b822e529c7a403",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-303.instructions-2026",
+          "contentHash": "sha256:e4e5204da9d059119b11094df9c9864120da337bd47dc4cbe06fa05ffc45b603",
+          "normalizedContentHash": "sha256:b806836ec69807ffaf407c49d4c1dd7f28f5aad0461ed1caf0447804ea802e38",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligados, período y regímenes declarados",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-308",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "308",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:7b68fac4562cb489f19ba5ef2c8eb836c8ee8e65d1ec8ce7726a308fc653acbc",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:ce95346530198da4e968d7ef0677da6ab39a3b64354c1e20283a300f2a40a74e",
+      "materialTestHash": "sha256:f85980fe14d48f5816e0e3e179bc81b7c9320c3a4349cc43f8b715b0e20a549c",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-308.procedure",
+          "contentHash": "sha256:97f911d4dac1b4f473ee6c7ba534a5d0d3cfbaad31ddee6577c34abc866d13c8",
+          "normalizedContentHash": "sha256:01dc766d37cb10c3e5de94b6a6e9c730accf4b7a800c68cd001befefb934e3bb",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Supuestos específicos cubiertos por el modelo 308",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-309",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "309",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:864f87e565feedf25fc1f45187a7de5d12b5304b3b034273e431d79add8e1d10",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:58f55f64c73c947b5e2b0757819fca81db322166cee9e4ae848e30adfa700931",
+      "materialTestHash": "sha256:da0f3cdf8beeb43e0f0613b9eeb29bd17d564fde08b11ce222da4213c893ce00",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-309.instructions",
+          "contentHash": "sha256:f612c64781f74ed9192700cc222493e08e1b05b7e821420248e99e7d21c6fb59",
+          "normalizedContentHash": "sha256:e41731d40811faa2815d132a621037b2aba2933061f5b3586ea233b67748c32f",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligados y operaciones no periódicas declarables",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.roi-intraeu",
+          "contentHash": "sha256:0b9113e654ec68b82bd7772e8d69768b9616c38573dbca62a626b771ba371d45",
+          "normalizedContentHash": "sha256:9f8eaf00356d4f4663eabc77b21ce0821d656f3bd561633cd39f6a502de6aa6e",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Operaciones que exigen NIF-IVA, modelo 036 y relación con el 349",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-341",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "341",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:487976d8eb552836025ab4a1f2b6bd9a14ec4e732e5299ce83dff1504d396a89",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:2d59d723b8268fadae235f282133be7a9641f6121ba382761ecc3a22f0c13409",
+      "materialTestHash": "sha256:91bee3c492569297f795dae557a4b1b47c7701741615b0985d10e48d63edcbf0",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-341.instructions",
+          "contentHash": "sha256:4a0a0063b1d00a746f2ba523b102856a365edfaeea644c5ffd6905086071d3df",
+          "normalizedContentHash": "sha256:820f780d56883e917276a24925905a941de396f6a79f74251386d45e9aec7af9",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Reintegro de compensaciones del régimen agrario",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-347",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "347",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:ed2007805ffb4d4da6330f30dbcac3ee4038b113f89ec424e5831e674a538a68",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:cf263db34f77f1c5da142410dfae7441b9a15d6060ca0b304767dc397b0f4ddd",
+      "materialTestHash": "sha256:6a6dad60c4c8438864b9d37959c818ed81ee3fd4cb6fe07da4f9a3a5d34f869e",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-347.exclusions",
+          "contentHash": "sha256:dda27b1e35e2f71322f21b16b0c43813ebdecf97574ca6e1edc659e0d79990dc",
+          "normalizedContentHash": "sha256:381d974573a581f72dd7c4a2e47a471fd64bca1128e93a22c6d56747d9962206",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Artículos 31 y 32 RGAT; umbral, SII y operaciones excluidas",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-349",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "349",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:adbf71e1314fd476a1ca62d8c805a72e8f4236d77dc4095c18defd27f5b99a7c",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:ff7b4cbf7644399ba01a8a2da3e51816f6fafaaa48126d29e81dd17a07089b30",
+      "materialTestHash": "sha256:08ac3a96aebae92b8e6a766a6a34e70b775ca2906c1561fe3794d197fa409af8",
+      "materialSources": [
+        {
+          "sourceId": "aeat.roi-intraeu",
+          "contentHash": "sha256:0b9113e654ec68b82bd7772e8d69768b9616c38573dbca62a626b771ba371d45",
+          "normalizedContentHash": "sha256:9f8eaf00356d4f4663eabc77b21ce0821d656f3bd561633cd39f6a502de6aa6e",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Operaciones que exigen NIF-IVA, modelo 036 y relación con el 349",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.model-349.periodicity",
+          "contentHash": "sha256:c7812f7f68c1ed32900397a9d861b740990536a4c2d09dd9bf3a6450691e2d61",
+          "normalizedContentHash": "sha256:b7b9aef33780881e9d4de73c89d71bd36e8777d14617866f8deea5902630cfdc",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Periodicidad mensual o trimestral desde 2020",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-369",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "369",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:837a2004998416151a8edf19d31efc714b9a6b422d22d8279a8b1c1c418a1225",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:c108cde01d5cf8035f977bdf246237b3159d948a490a0a8c4e38674ca72bf5cb",
+      "materialTestHash": "sha256:70f8c1bd6adb68df9e61fab99f153449666ab72429de14941990cee5d8fef3de",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-369.procedure",
+          "contentHash": "sha256:3b7bddc6116e09f26d8514bcd09b805cd70f15c0fdf043bd317510cba34a5919",
+          "normalizedContentHash": "sha256:e41fa12c81bca67602970509163938f29ac58490929da570b12e0deb68b8d3d4",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Regímenes de la Unión, exterior e importación",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.model-369.periodicity",
+          "contentHash": "sha256:e87843b4e46fa5b05ff23a5281b0ac4806c3fd3543169f0df33a23eaed7ed848",
+          "normalizedContentHash": "sha256:f5e7564781db1213c336929ef64e440147a15f7e93f3a24d6b84d8ea3fbc1f23",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Periodicidad y declaración sin operaciones mientras el alta siga vigente",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-390",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "390",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:8e63984a6fbacfd990c26f6ed8f6f396b4d014649512243d7a817c6b23601b72",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:bdd70a2731ab65fdb69ff2e34a2308958d016079bdbdb0fbb1b089b9a3a3943c",
+      "materialTestHash": "sha256:fda8acf736638f8379a8fc97c77b621b4218ee8aed9ee79bff6e14b4866f37c3",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-390.procedure",
+          "contentHash": "sha256:5535f689bebbe3f126c48f5c31cd7cfbb9f3a74347ea85b2cf376962ea242063",
+          "normalizedContentHash": "sha256:2d80119c8ee3b1e039bc95e7bc08df3057c80d17d47e9cdb8eeeb3983f4317c2",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Información e instrucciones por ejercicio; exoneraciones",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.model-390.exemptions",
+          "contentHash": "sha256:d370da03479d4a7c324b3058c89e34441c3b11ec6813417f4747ecb844aa6743",
+          "normalizedContentHash": "sha256:fbcae42cea3910d77da5def199acf5e7db35cc7dcde108fe1d64be8b4ee287e4",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Exoneración por SII y otros supuestos",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-714",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "714",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:85013af2042a2daf32322dada3fc0d87dddcaa575c1dae56e035b9f4416e80af",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:4c5b3f5b9f8a47320a23577cc1611f8b77706750f9b3cec1664605606fd642a6",
+      "materialTestHash": "sha256:04873f39a135439183eb672d4bb7ee3e17276baf26567039a027857898d56858",
+      "materialSources": [
+        {
+          "sourceId": "aeat.wealth.obligation",
+          "contentHash": "sha256:eb4c18a0e842e0db96934cbc454e132cb9eef7b615f17c918890dd4719ed6203",
+          "normalizedContentHash": "sha256:66d47b0a0c46f2f968613b3ab7fe5fb53160ebf648746398660d1dae8808b1a2",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Límites estatales, reglas autonómicas y obligación de presentar",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-720",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "720",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:9808529f0b602ac095ad1ff12edd61eebd9bb4e8e1104a5c12fc02c7f10b433c",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:f54eb9917f1c6dd348463b210a3673e6c528803a371c8aa99cbe4b9eb1645869",
+      "materialTestHash": "sha256:d8fb8f688f09a0ecae7bd43c88130c70d432b0626ba35e248b3cf8c34663f1f9",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-720.frequency",
+          "contentHash": "sha256:e9070efe02fafb578290d7d70f810cc03f6cae8035b24b230121a44a0a9d38ae",
+          "normalizedContentHash": "sha256:770014a427e21e7ead2914d1242c095a61c38a67791f8977eb951548f9f1b61c",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Nueva presentación y variación de saldos",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2025.model-721",
+      "rulesetId": "es-common.2025.2026-07-15.v2",
+      "model": "721",
+      "fiscalYear": 2025,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:bcf0adb4b538a6df60e688333ebfcf65d0612c149ffa610b47b6b126b682cf9b",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:f01f6cf9d0faf85c1812fb55ca370e74bdb860b5f7bcfdcd6be76093575daf51",
+      "materialTestHash": "sha256:948461663b5b6105cf695685fc4dffe9d9239035c70afd2bd5653629af9d0692",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-721.faq",
+          "contentHash": "sha256:7948d1ee046a4c80bcc5c5d6436345825868df91a3a684565affb77b26296bab",
+          "normalizedContentHash": "sha256:2b1964fb522cc878cb876f5e7905649e853bdd72ede7bb8adeff884b3680b162",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Custodia en el extranjero, umbrales y obligación",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-035",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "035",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:5f677338ec4e5931cde274677c31163b7505aa745f119c5649a190476e1d67e0",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:882a65fee7d3aaacd769d4a416a1dc7ddb6cc2bd29574d12d4416cde7fd31576",
+      "materialTestHash": "sha256:72f46e0f8484a0221f2ff31ddc1a4e74d532e67bc2ca025572b519b97f753d7b",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-035.procedure",
+          "contentHash": "sha256:1adc450e5585ad9fa8d606f5e95fc31ca6e31bf90bdbf6f93f41859dd49e78b3",
+          "normalizedContentHash": "sha256:36d61afe1adc89bbbad29e61983b52500be881c1e46140cbd681d6b0829f13c1",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Comunicaciones censales de los regímenes de ventanilla única",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.model-369.periodicity",
+          "contentHash": "sha256:e87843b4e46fa5b05ff23a5281b0ac4806c3fd3543169f0df33a23eaed7ed848",
+          "normalizedContentHash": "sha256:f5e7564781db1213c336929ef64e440147a15f7e93f3a24d6b84d8ea3fbc1f23",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Periodicidad y declaración sin operaciones mientras el alta siga vigente",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-036",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "036",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:50574d19f15ae1c9d6528bc9db00025cde26ddf4d69480478cbd6654a70cc445",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:d5062e2915d6f429b0d86f04a559053ae3df11af5074199485ede28d49b0c0e1",
+      "materialTestHash": "sha256:f99bd4a9b51ca025b9a3acffdf17402eaa8be4ed316f1241f6a2f3ba9a39c25c",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-036.modification",
+          "contentHash": "sha256:a4d1170590f0a88d25e9f252941d8cf501b651d47120a280133c3396a2b60c81",
+          "normalizedContentHash": "sha256:0ec2af244579f05585d15b9995d331176da693439b916241221cda0a2baa84f9",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Cambios censales y plazos de presentación",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.roi-intraeu",
+          "contentHash": "sha256:0b9113e654ec68b82bd7772e8d69768b9616c38573dbca62a626b771ba371d45",
+          "normalizedContentHash": "sha256:9f8eaf00356d4f4663eabc77b21ce0821d656f3bd561633cd39f6a502de6aa6e",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Operaciones que exigen NIF-IVA, modelo 036 y relación con el 349",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-100",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "100",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:d7028f44765f35ccbc505af2ce06a9e1b1a68f7e45883bde15c77a846ba3623d",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:c66b50ff2a5b892c5f2e9e497463372d39448c9ae594675be8bd29829a373fe0",
+      "materialTestHash": "sha256:624bead557fb65a649ded9f7977d988db8d1799b67edb29f01d3143a1898406c",
+      "materialSources": [
+        {
+          "sourceId": "boe.irpf-law.article-96",
+          "contentHash": "sha256:1545c554cdcf9391b5b93219a200f4770a50b0f43cd1bff4b36a2e1f35667e4f",
+          "normalizedContentHash": "sha256:9adfe280611d780c621c79c25984b674183cea5681b3741effdb63f991ee9237",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Artículo 96, obligación de declarar",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.renta-2025.obligation",
+          "contentHash": "sha256:139539210497bb17f8a852eecfa0691885e23dcd4a173badb271ffc7294e2955",
+          "normalizedContentHash": "sha256:241c10810448aadee215d0f851d730491d95a0c97859759955ca50d1f9995bd9",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Contribuyentes obligados; alta en RETA durante el período",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-111",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "111",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:5e4316d06e0849c92001c52515e8f156741b4a262d783a45efccd165adc368c3",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:6c60333b0e20f0e16dcdaa26491a2a46121b1955c1c2cb5dbc0e3c805aa13a8e",
+      "materialTestHash": "sha256:ab93b9f366d469d00435682bf763a8d0e4e1501ba438fae70319bdc886a3d329",
+      "materialSources": [
+        {
+          "sourceId": "aeat.withholding.111-190",
+          "contentHash": "sha256:de9095c3d3ce654414a9ac00703e971d3a1ec72e0a6dc4dc2b089b801c321be9",
+          "normalizedContentHash": "sha256:f59390c236964cab3926dbd7a31fe914e92339352ff65d30684232a80bc67c0c",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Personas obligadas, modelo periódico 111 y resumen 190",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-115",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "115",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:a2df004ce0c7b43ceecc886f63a22953b22c2fd7f6925b85d26cc354462b2e3e",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:8163d28f5759575b1798778861e291d58d57ed71e05608aab9c6a77dba74eb62",
+      "materialTestHash": "sha256:9185252f673c8c5077bc60cf94a4ee381cdc492317b1729b77082ef8f533d9e6",
+      "materialSources": [
+        {
+          "sourceId": "aeat.withholding.115-180",
+          "contentHash": "sha256:2e5fd7a83743f84bb88bc6924e2ccd3754b9ffee9eb3e316cb4856f86833321f",
+          "normalizedContentHash": "sha256:02b50035f0ea73be9de5a748199347d0247eec2217802819912fae052678802e",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Rentas de inmuebles urbanos, excepciones y resumen anual",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-123",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "123",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:c85e97a860ab6a4c4bdba6c05ea29532dc2730ae5360279120ee007247a35a14",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:9681045b47351c04d01ebf12d10a8248c90b7598c22eb80539e2b7761398e6b6",
+      "materialTestHash": "sha256:3c1948e2e5a4f23788fcc48a0f5d56cb62f78ba1a907e47f7af31fa11a2c6617",
+      "materialSources": [
+        {
+          "sourceId": "aeat.withholding.123-193",
+          "contentHash": "sha256:3c7da0c931afd3c7747a026e2bbb1bedfbbe01c3f2e0a11528c1a54875b50202",
+          "normalizedContentHash": "sha256:c87f71805b3b0694227a54413222fbb5597328bcd177fd2a513dfadb1ea24312",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligados, ingreso periódico y excepciones del resumen anual",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-130",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "130",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:b97e0591125e7aba1b302e70f3afad977099afc4da386e93e7faf88b4b61466a",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:c8c7e112eea6b7b1a459a0d3802dca759081296cd1d06519f5e2b8c5387e47fe",
+      "materialTestHash": "sha256:4ff493e354c148a85f8a7878eea0ad2aac5983056717d171bf5437388ebc647f",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-130.instructions",
+          "contentHash": "sha256:6fed37aee78a49bbd6263af771b7b1780e5a59e529e10924fce3fffb07c29913",
+          "normalizedContentHash": "sha256:185babce86bff0f8689ff96ffc31f163ec2877eb23b2066f07d7f002935b66a0",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Apartados I y II; excepción del 70 % e inicio de actividad",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.irpf.installment-payments",
+          "contentHash": "sha256:b8642da797346d7131afe211247ff417fdc5853a1af6f3afd20e924090af9997",
+          "normalizedContentHash": "sha256:c0b9ba1b62126fffc78a519c954b816a8f89187a41a6650e541cece4ee090ac4",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligados y excepción del 70 % por clase de actividad",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-131",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "131",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:e8fb7990b87ca02b41fca96753db2bec0e5eadd0e12939791c205eff5e37a3ae",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:bdd216258b550f29b56a35f316b9c63dd2e7e8ecfee9427733c3bba3017bb334",
+      "materialTestHash": "sha256:d1d038b0db66a4c3eaf852518a5a258d4c0b69f970ced2db438f288f6078327b",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-131.instructions",
+          "contentHash": "sha256:0e11545090f133d97b1d84fd42b8006b26a0cab1780529d2105c48d34c27327c",
+          "normalizedContentHash": "sha256:190411168484a7131675e6aa00521735f89fb7c12b8c5902faf42d132bd6ee9f",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Actividades en estimación objetiva y excepciones agrarias",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.irpf.installment-payments",
+          "contentHash": "sha256:b8642da797346d7131afe211247ff417fdc5853a1af6f3afd20e924090af9997",
+          "normalizedContentHash": "sha256:c0b9ba1b62126fffc78a519c954b816a8f89187a41a6650e541cece4ee090ac4",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligados y excepción del 70 % por clase de actividad",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-180",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "180",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:8fa6359c8f8096ad9c3332d3e738a034d756e955c746d01fece6894ba4494670",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:724439cd231821270257e5dc3c46dbb4c615e1f7f046afdd75e69c8ab759a06f",
+      "materialTestHash": "sha256:9f9e57d43690549515615818cd9907e4c29838cc0a63159231b5b4fdd6ca6442",
+      "materialSources": [
+        {
+          "sourceId": "aeat.withholding.115-180",
+          "contentHash": "sha256:2e5fd7a83743f84bb88bc6924e2ccd3754b9ffee9eb3e316cb4856f86833321f",
+          "normalizedContentHash": "sha256:02b50035f0ea73be9de5a748199347d0247eec2217802819912fae052678802e",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Rentas de inmuebles urbanos, excepciones y resumen anual",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-184",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "184",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:0d22e3d55a70d99fd42d8deddf2da9c32e91ea0ef1604bfdd5ef979e65217a7e",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:fd0ccafb9c8f9aa55279ad4c6f606ce59767aa6b9e63b7a0a66b48a50e65efff",
+      "materialTestHash": "sha256:e48b6e6814016bc6826390d080567f8439f67e278b4cf9f146978b8f58de6813",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-184.obligations",
+          "contentHash": "sha256:0790981d03ccaef07c77dbcb257cb50283ee9ca9e37d00e0d735d02e79d03b7a",
+          "normalizedContentHash": "sha256:9c3de3235b56842d4ac8bec5f554cfd903a8fe01216e057619406422fbec693a",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Actividad económica, umbral de rentas y modelo 184",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-190",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "190",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:eea71e2973d0b1c51eae36105b2f1ae01809250b3cffaab0d762d7fdd43acd9d",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:46a4be16bd6f35b9e3e8ad232ab6c35fc08ee93fe8842e4d7c3652e979efcb86",
+      "materialTestHash": "sha256:f1e4b67e3f0741ad0c6a597646f3817c96bdedb1738ecd7bcea1ce03d7e988a1",
+      "materialSources": [
+        {
+          "sourceId": "aeat.withholding.111-190",
+          "contentHash": "sha256:de9095c3d3ce654414a9ac00703e971d3a1ec72e0a6dc4dc2b089b801c321be9",
+          "normalizedContentHash": "sha256:f59390c236964cab3926dbd7a31fe914e92339352ff65d30684232a80bc67c0c",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Personas obligadas, modelo periódico 111 y resumen 190",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-193",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "193",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:b5d3bda09744a2c2314bba9c6818f31f41d0070ea053a60dccb2d4defc1eb8fe",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:68b100c0f303fe1a1eae00dba9f71e554b35afe2e06e2e6ad17b2d9c8c4409d0",
+      "materialTestHash": "sha256:178220f14989be45d3d231bd180126aadde2b8a56baf230d00b32b6949328293",
+      "materialSources": [
+        {
+          "sourceId": "aeat.withholding.123-193",
+          "contentHash": "sha256:3c7da0c931afd3c7747a026e2bbb1bedfbbe01c3f2e0a11528c1a54875b50202",
+          "normalizedContentHash": "sha256:c87f71805b3b0694227a54413222fbb5597328bcd177fd2a513dfadb1ea24312",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligados, ingreso periódico y excepciones del resumen anual",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-200",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "200",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:9cfd0677bd5f7f6c2604c28376d30893e5e1c65b5ea5a4d5bb1d16ab564f20ee",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:c09e6da401336d3b1ba4bee63e926751a1dfd2ad15445dc6ae72143b39817996",
+      "materialTestHash": "sha256:e81de8c847e2e05e2cf2432cb10bb16339c91d4087c5a8d36b27b02141df44c0",
+      "materialSources": [
+        {
+          "sourceId": "aeat.is.model-200.obligation",
+          "contentHash": "sha256:dfe6ffae8638ee7c51c918a4646b2c1fd93c9373b510bc3a30b808ceb4e2f16b",
+          "normalizedContentHash": "sha256:6afe6001b7b25b3a5657a9da270e770739bbcf1202813b88cbe7e4e12ffe75b4",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Contribuyentes obligados y excepciones de entidades parcialmente exentas",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-202",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "202",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:e2031b29e2b36f61265bc4c4b35062d22ccde9bc754c91a93afa8504f2a4901b",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:b2e2768d89144f580c341c89107613174c725fce275ebc3202c0018ad2d38d1b",
+      "materialTestHash": "sha256:ef792e08ff42ff36072c3794ff4a3f600576d4edc2f2ca44095a4f1699fe1478",
+      "materialSources": [
+        {
+          "sourceId": "aeat.is.installments",
+          "contentHash": "sha256:7b3223cdde5e4fef2a35abaccae493c4a590742d4de67daeeceeed6fe80cc844",
+          "normalizedContentHash": "sha256:da36ce116887612769e9a9ada94dded07618188ca817a055ed728224a5724ce8",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligación, excepciones y períodos de pago",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-216",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "216",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:997411f23898691b4c68afb994f4e4d9246234e08f5eb2a31cea022245378602",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:efb37320ce69c157e365af3bdcfd2dbe25ef7d10262e885f18169d87e30a7443",
+      "materialTestHash": "sha256:f7860fc7b920d1b64eb11034ed777fda75d2bcaf82aaad50568e64b6fc0a6edc",
+      "materialSources": [
+        {
+          "sourceId": "aeat.irnr.withholding",
+          "contentHash": "sha256:1298817e95c3792a49341e4170ee9b383978213625fb13b1bc9c83e5795c45d4",
+          "normalizedContentHash": "sha256:0155a7ae067424bf0fd58a473d48cc40d710cd0df1025e7f4a400941fdbaf02c",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Modelos 216 y 296 y supuestos exceptuados",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-296",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "296",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:d87f8f5d93876bf78734d3cb0d244174e8d22adb926a64ca4a5a91775a2f9e81",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:970cd99620decf6f4afc8096fd7291d887625fd5400aa0a09436689dcf1eb7fe",
+      "materialTestHash": "sha256:106efce206e4c4cc7378c26d5697d09e8f230abcc75d9b339f959f372b44ada0",
+      "materialSources": [
+        {
+          "sourceId": "aeat.irnr.withholding",
+          "contentHash": "sha256:1298817e95c3792a49341e4170ee9b383978213625fb13b1bc9c83e5795c45d4",
+          "normalizedContentHash": "sha256:0155a7ae067424bf0fd58a473d48cc40d710cd0df1025e7f4a400941fdbaf02c",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Modelos 216 y 296 y supuestos exceptuados",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-303",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "303",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:364e5ef07ff350e51a7987d8bf56a8392be17dd0a327ca9515ad5e97ad53579a",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:9ecbd8e9c35a750fb53445ff32efadfdf614a1be170e3394dd6d04b6b351a2c8",
+      "materialTestHash": "sha256:b7afe718f086acaafc9f4c5047c2228ec0a3fc62e8b24d56feaaa82b899cc18d",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-303.instructions-2026",
+          "contentHash": "sha256:e4e5204da9d059119b11094df9c9864120da337bd47dc4cbe06fa05ffc45b603",
+          "normalizedContentHash": "sha256:b806836ec69807ffaf407c49d4c1dd7f28f5aad0461ed1caf0447804ea802e38",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligados, período y regímenes declarados",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-308",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "308",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:c998e1b2fc7e0936d635e7acefc70d9e9da84f7292cfb3d53adff33ac35428d4",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:3d105060c9f2648ba1fd342937bfbfb38b1cdc2b18a7e879aa7a76e6be9d3ffc",
+      "materialTestHash": "sha256:88c6bcc021f3c42a912436749f30d520c22f149b54c5df42927da52ec396b1a1",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-308.procedure",
+          "contentHash": "sha256:97f911d4dac1b4f473ee6c7ba534a5d0d3cfbaad31ddee6577c34abc866d13c8",
+          "normalizedContentHash": "sha256:01dc766d37cb10c3e5de94b6a6e9c730accf4b7a800c68cd001befefb934e3bb",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Supuestos específicos cubiertos por el modelo 308",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-309",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "309",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:ffa06c249b5519419b7b000fc211a1bc8e0e7a2e3326342ab2a15bf97814f3a8",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:11ca1a4e342fd127283c25e9a9a1f3adb465b5d111aa1c970b097d29167077a6",
+      "materialTestHash": "sha256:7faf8f2c7cc8eb204d7ec5acfdc9c3b859ba2b9bae549dc7d386416de0e9d976",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-309.instructions",
+          "contentHash": "sha256:f612c64781f74ed9192700cc222493e08e1b05b7e821420248e99e7d21c6fb59",
+          "normalizedContentHash": "sha256:e41731d40811faa2815d132a621037b2aba2933061f5b3586ea233b67748c32f",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Obligados y operaciones no periódicas declarables",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.roi-intraeu",
+          "contentHash": "sha256:0b9113e654ec68b82bd7772e8d69768b9616c38573dbca62a626b771ba371d45",
+          "normalizedContentHash": "sha256:9f8eaf00356d4f4663eabc77b21ce0821d656f3bd561633cd39f6a502de6aa6e",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Operaciones que exigen NIF-IVA, modelo 036 y relación con el 349",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-341",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "341",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:fb6fbdab08f24ee031aa87651243a2e7a58d2a1bc2314a1a8567a91f8cbc5581",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:f49428731122f502df0b6dbd31b3ece66f5f9be3ddef157df7612f4eafd7057d",
+      "materialTestHash": "sha256:6c14ad9745171b48e890ff1d2d036f2fc71f5f34d1559ae60734a4a63078b995",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-341.instructions",
+          "contentHash": "sha256:4a0a0063b1d00a746f2ba523b102856a365edfaeea644c5ffd6905086071d3df",
+          "normalizedContentHash": "sha256:820f780d56883e917276a24925905a941de396f6a79f74251386d45e9aec7af9",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Reintegro de compensaciones del régimen agrario",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-347",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "347",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:136f62964b091e59f800e72677c83ad7539fef9dca5feaa7cc34126ec97101bd",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:90f8249a4fcf1e0cf8f484e6858e1fcf8ffb2720059d38a551b61c8ffbba9ab3",
+      "materialTestHash": "sha256:72979be86a4b1560709e1395d3ef70a062e99f3ad7091405b929215e9a450a1b",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-347.exclusions",
+          "contentHash": "sha256:dda27b1e35e2f71322f21b16b0c43813ebdecf97574ca6e1edc659e0d79990dc",
+          "normalizedContentHash": "sha256:381d974573a581f72dd7c4a2e47a471fd64bca1128e93a22c6d56747d9962206",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Artículos 31 y 32 RGAT; umbral, SII y operaciones excluidas",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-349",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "349",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:8c882ecd23b74a9a2c599f13310dfd297007c72261fc5ef094b83c11db9252ca",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:26ebde634b956363bb6ac054ab3eaf0f4f2a75dc13399ccc657dbeeaa6d59c76",
+      "materialTestHash": "sha256:568759d3817478ba0ed62f3a88fc7170090670ba60663bdcbe18fb009a98e334",
+      "materialSources": [
+        {
+          "sourceId": "aeat.roi-intraeu",
+          "contentHash": "sha256:0b9113e654ec68b82bd7772e8d69768b9616c38573dbca62a626b771ba371d45",
+          "normalizedContentHash": "sha256:9f8eaf00356d4f4663eabc77b21ce0821d656f3bd561633cd39f6a502de6aa6e",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Operaciones que exigen NIF-IVA, modelo 036 y relación con el 349",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.model-349.periodicity",
+          "contentHash": "sha256:c7812f7f68c1ed32900397a9d861b740990536a4c2d09dd9bf3a6450691e2d61",
+          "normalizedContentHash": "sha256:b7b9aef33780881e9d4de73c89d71bd36e8777d14617866f8deea5902630cfdc",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Periodicidad mensual o trimestral desde 2020",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-369",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "369",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:7c9ed1cdaf3fd5792caff23c71911a42cbc461f63ab1d708bc108380003d8895",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:e2335cbb1db9a15660c2f7b873b6bba4c88d878c81f15541be1e5fec2bdf36dd",
+      "materialTestHash": "sha256:421d9cdd28e6dc4506d53d1747fb3d88c85803a8bb0f8c1bc33cc1da5f96112d",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-369.procedure",
+          "contentHash": "sha256:3b7bddc6116e09f26d8514bcd09b805cd70f15c0fdf043bd317510cba34a5919",
+          "normalizedContentHash": "sha256:e41fa12c81bca67602970509163938f29ac58490929da570b12e0deb68b8d3d4",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Regímenes de la Unión, exterior e importación",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.model-369.periodicity",
+          "contentHash": "sha256:e87843b4e46fa5b05ff23a5281b0ac4806c3fd3543169f0df33a23eaed7ed848",
+          "normalizedContentHash": "sha256:f5e7564781db1213c336929ef64e440147a15f7e93f3a24d6b84d8ea3fbc1f23",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Periodicidad y declaración sin operaciones mientras el alta siga vigente",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-390",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "390",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:cebb512d5f2e11136981db569d36b2dad3be4a2966c6ca76c395e26b4ae9a256",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:cd629ad5f0d3d8fb69ecf1bca617cba0b1a8067641c9f22289cdb2921876702f",
+      "materialTestHash": "sha256:ff54433ea26a72716e704914ba94a1376dec4aa4936765d3b5231146e6eaeaf6",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-390.procedure",
+          "contentHash": "sha256:5535f689bebbe3f126c48f5c31cd7cfbb9f3a74347ea85b2cf376962ea242063",
+          "normalizedContentHash": "sha256:2d80119c8ee3b1e039bc95e7bc08df3057c80d17d47e9cdb8eeeb3983f4317c2",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Información e instrucciones por ejercicio; exoneraciones",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        },
+        {
+          "sourceId": "aeat.model-390.exemptions",
+          "contentHash": "sha256:d370da03479d4a7c324b3058c89e34441c3b11ec6813417f4747ecb844aa6743",
+          "normalizedContentHash": "sha256:fbcae42cea3910d77da5def199acf5e7db35cc7dcde108fe1d64be8b4ee287e4",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Exoneración por SII y otros supuestos",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-714",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "714",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:8fc9391e2e8de5edce5f5edbecaf13ae3f1b69b7dc6444ace550787cb4096e94",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:2c4766859f06b3b75ffaf2cafd57cca058526fb3e282aeb91abf7cf9986c3443",
+      "materialTestHash": "sha256:d3fc6ef9edde7cba920ced68eac3fd3983db91873a57e5789971be3fd1dbdd8f",
+      "materialSources": [
+        {
+          "sourceId": "aeat.wealth.obligation",
+          "contentHash": "sha256:eb4c18a0e842e0db96934cbc454e132cb9eef7b615f17c918890dd4719ed6203",
+          "normalizedContentHash": "sha256:66d47b0a0c46f2f968613b3ab7fe5fb53160ebf648746398660d1dae8808b1a2",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Límites estatales, reglas autonómicas y obligación de presentar",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-720",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "720",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:5870bb8827c5b9ae0d008f6954f348c2efe0efb04fe2b6708a56e7095772b71c",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:c282ae496d6bc938bc6d477e93c29deefda0682e16e8d477fe123229fa54caf8",
+      "materialTestHash": "sha256:1f0f9aba05c3f756f0a65abb3bb0426ac9cd7796b2f6c01ab59bdde4492a5335",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-720.frequency",
+          "contentHash": "sha256:e9070efe02fafb578290d7d70f810cc03f6cae8035b24b230121a44a0a9d38ae",
+          "normalizedContentHash": "sha256:770014a427e21e7ead2914d1242c095a61c38a67791f8977eb951548f9f1b61c",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Nueva presentación y variación de saldos",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    },
+    {
+      "ruleId": "es-common.2026.model-721",
+      "rulesetId": "es-common.2026.2026-07-15.v2",
+      "model": "721",
+      "fiscalYear": 2026,
+      "territory": "ES_COMMON",
+      "pendingRuleHash": "fiscal-rule-v1:47868e8fc8c24091fc26c50d717b14ae7ea1cd40b0be2734fdfbd524c33e1f98",
+      "approvalFiscalHash": "fiscal-approval-rule-v1:adbd8b6ded375fd240c86f09de65248cf1ef2d4a23e99a52d510f51f7722f469",
+      "materialTestHash": "sha256:4694429904b1727d8b292dbc6700071673237af5c9ee275857cfaaec97f21bb8",
+      "materialSources": [
+        {
+          "sourceId": "aeat.model-721.faq",
+          "contentHash": "sha256:7948d1ee046a4c80bcc5c5d6436345825868df91a3a684565affb77b26296bab",
+          "normalizedContentHash": "sha256:2b1964fb522cc878cb876f5e7905649e853bdd72ede7bb8adeff884b3680b162",
+          "effectiveFrom": null,
+          "effectiveTo": null,
+          "materialScope": "Custodia en el extranjero, umbrales y obligación",
+          "verificationStatus": "PENDING_FISCAL_REVIEW",
+          "materialValidityStatus": "UNVERIFIED",
+          "materialValidityBasis": "PENDING_FISCAL_REVIEW"
+        }
+      ],
+      "reviewStatus": "PENDING_FISCAL_REVIEW",
+      "resolutionStatus": "OPEN",
+      "approvedRuleHash": null,
+      "authorizedExclusionIds": []
+    }
+  ]
+}

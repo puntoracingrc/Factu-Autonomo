@@ -1,0 +1,45 @@
+name: Fiscal approval readiness
+
+on:
+  pull_request:
+    paths:
+      - "src/lib/fiscal-approval/**"
+      - "src/lib/tax-obligations/**"
+      - "src/lib/tax-model-diagnostic/**"
+      - "src/lib/fiscal-source-review/**"
+      - "scripts/fiscal-approval/**"
+      - "docs/fiscal/**"
+      - "package.json"
+      - ".github/workflows/fiscal-approval-readiness.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/lib/fiscal-approval/**"
+      - "src/lib/tax-obligations/**"
+      - "src/lib/tax-model-diagnostic/**"
+      - "src/lib/fiscal-source-review/**"
+      - "scripts/fiscal-approval/**"
+      - "docs/fiscal/**"
+      - "package.json"
+      - ".github/workflows/fiscal-approval-readiness.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run fiscal:readiness
+      - run: npm run fiscal:review-bundle -- --batch COMMON_AUTONOMOUS_V1 --check
+      - run: npm run fiscal:approval:validate
+      - run: npm run fiscal:shadow:validate
+      - run: npm run fiscal:rollback:validate
+      - run: npm test -- --run src/lib/fiscal-approval/fiscal-approval.test.ts scripts/fiscal-approval/core.test.mjs src/lib/tax-obligations/exclusion-authorization.test.ts

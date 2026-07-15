@@ -257,6 +257,7 @@ export interface FiscalSourceValidationContext {
   expectedRuleStates: readonly {
     ruleId: string;
     ruleHash: string;
+    approvalFiscalHash?: string | null;
     reviewStatus: string;
     resolutionStatus: string;
     exclusionAuthorized: boolean;
@@ -378,7 +379,10 @@ function validateReviewDecision(
   ) {
     errors.push(`${decision.decisionId}:APPROVE_WITH_BLOCKING_FINDINGS`);
   }
-  if (decision.reviewedRuleHash !== rule.ruleHash) {
+  if (
+    decision.reviewedRuleHash !==
+    (rule.approvalFiscalHash ?? rule.ruleHash)
+  ) {
     errors.push(`${decision.decisionId}:STALE_RULE_HASH`);
   }
   const expectedSources = sorted(ruleSourceIds.get(decision.ruleId) ?? []);

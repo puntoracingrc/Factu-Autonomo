@@ -233,7 +233,7 @@ function isOfficial(authority, locator) {
   }
 }
 
-function validateDecision(decision, inventory, sourceById) {
+export function validateDecision(decision, inventory, sourceById) {
   const errors = [];
   const rule = inventory.rules.find((candidate) => candidate.ruleId === decision.ruleId);
   if (!rule) return [`${decision.decisionId}:UNKNOWN_RULE`];
@@ -286,7 +286,10 @@ function validateDecision(decision, inventory, sourceById) {
   ) {
     errors.push(`${decision.decisionId}:APPROVE_WITH_BLOCKING_FINDINGS`);
   }
-  if (decision.reviewedRuleHash !== rule.ruleHash) {
+  if (
+    decision.reviewedRuleHash !==
+    (rule.approvalFiscalHash ?? rule.ruleHash)
+  ) {
     errors.push(`${decision.decisionId}:STALE_RULE_HASH`);
   }
   const expectedSourceIds = [...rule.sourceIds].sort();
