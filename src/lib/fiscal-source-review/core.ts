@@ -289,18 +289,31 @@ function validateTrust(decision: FiscalRuleReviewDecision): string[] {
   const errors: string[] = [];
   const prefix = decision.decisionId;
   const trust = decision.reviewerTrust;
-  if (decision.origin !== "HUMAN_FISCAL_PROFESSIONAL") {
+  const technical = decision.reviewerRole === "TECHNICAL_REVIEWER";
+  const expectedOrigin = technical
+    ? "HUMAN_TECHNICAL_REVIEWER"
+    : "HUMAN_FISCAL_PROFESSIONAL";
+  const expectedSubject = technical
+    ? "TECHNICAL_REVIEWER"
+    : "FISCAL_PROFESSIONAL";
+  if (
+    decision.origin !== "HUMAN_FISCAL_PROFESSIONAL" &&
+    decision.origin !== "HUMAN_TECHNICAL_REVIEWER"
+  ) {
     errors.push(`${prefix}:AUTOMATED_OR_NON_FISCAL_REVIEW_FORBIDDEN`);
+  }
+  if (decision.origin !== expectedOrigin) {
+    errors.push(`${prefix}:REVIEWER_IDENTITY_ROLE_MISMATCH`);
   }
   if (
     !trust ||
     trust.status !== "SERVER_VERIFIED" ||
-    trust.subjectType !== "FISCAL_PROFESSIONAL" ||
+    trust.subjectType !== expectedSubject ||
     !trust.identityProvider?.trim() ||
     !trust.verifiedAt ||
     !trust.verificationReference?.trim()
   ) {
-    errors.push(`${prefix}:SERVER_VERIFIED_FISCAL_IDENTITY_REQUIRED`);
+    errors.push(`${prefix}:SERVER_VERIFIED_REVIEWER_IDENTITY_REQUIRED`);
   }
   return errors;
 }
@@ -340,7 +353,8 @@ function validateReviewDecision(
   if (!rule) return [`${decision.decisionId}:UNKNOWN_RULE`];
   if (
     decision.reviewerRole !== "PRIMARY_FISCAL_REVIEWER" &&
-    decision.reviewerRole !== "SECOND_FISCAL_REVIEWER"
+    decision.reviewerRole !== "SECOND_FISCAL_REVIEWER" &&
+    decision.reviewerRole !== "TECHNICAL_REVIEWER"
   ) {
     errors.push(`${decision.decisionId}:INVALID_REVIEWER_ROLE`);
   }

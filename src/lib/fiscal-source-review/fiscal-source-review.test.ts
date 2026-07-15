@@ -409,9 +409,65 @@ describe("fail-closed double fiscal review", () => {
         `${malformed.decisionId}:AUTOMATED_OR_NON_FISCAL_REVIEW_FORBIDDEN`,
       );
       expect(errors).toContain(
-        `${malformed.decisionId}:SERVER_VERIFIED_FISCAL_IDENTITY_REQUIRED`,
+        `${malformed.decisionId}:SERVER_VERIFIED_REVIEWER_IDENTITY_REQUIRED`,
       );
     }
+  });
+
+  it("records a server-verified technical decision without substituting either fiscal reviewer", () => {
+    const rule = TAX_RULES[0];
+    const technical = decision(rule, {
+      decisionId: `${rule.ruleId}.technical.v1`,
+      reviewerId: "technical-reviewer-1",
+      reviewerRole: "TECHNICAL_REVIEWER",
+      reviewerTrust: {
+        status: "SERVER_VERIFIED",
+        subjectType: "TECHNICAL_REVIEWER",
+        identityProvider: "server-technical-identity",
+        verifiedAt: "2026-07-15T10:00:00Z",
+        verificationReference: "server-trust://technical-reviewer-1/v1",
+      },
+      origin: "HUMAN_TECHNICAL_REVIEWER",
+      signatureReference: "signed-review://technical/reference-1",
+    });
+    const technicalOnly: FiscalReviewRegistry = {
+      contractVersion: "fiscal-review-registry.v2",
+      generatedAt: "2026-07-15",
+      decisions: [technical],
+    };
+    const initial = evaluateDualFiscalReview(
+      rule,
+      sourceRegistry,
+      technicalOnly,
+    );
+    const withPrimary = evaluateDualFiscalReview(rule, sourceRegistry, {
+      ...technicalOnly,
+      decisions: [technical, decision(rule)],
+    });
+    const view = buildCompactFiscalReviewView(
+      rule,
+      sourceRegistry,
+      technicalOnly,
+    );
+    expect(initial.state).toBe("WAITING_PRIMARY_REVIEW");
+    expect(initial.validDecisionIds).toEqual([technical.decisionId]);
+    expect(withPrimary.state).toBe("WAITING_SECOND_REVIEW");
+    expect(view.decisions).toContainEqual(
+      expect.objectContaining({
+        decisionId: technical.decisionId,
+        reviewerRole: "TECHNICAL_REVIEWER",
+        decision: "APPROVE",
+      }),
+    );
+    expect(
+      validateFiscalSourceState(
+        sourceRegistry,
+        technicalOnly,
+        validationContext(),
+      ),
+    ).toEqual([]);
+    expect(initial.state).not.toBe("ELIGIBLE_FOR_MANUAL_APPROVAL");
+    expect(withPrimary.state).not.toBe("ELIGIBLE_FOR_MANUAL_APPROVAL");
   });
 
   it("ignores revoked decisions and records them separately", () => {

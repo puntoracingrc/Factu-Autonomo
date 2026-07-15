@@ -20,18 +20,31 @@ function currentDecisionErrors(
 ): string[] {
   const errors: string[] = [];
   const trust = decision.reviewerTrust;
-  if (decision.origin !== "HUMAN_FISCAL_PROFESSIONAL") {
+  const technical = decision.reviewerRole === "TECHNICAL_REVIEWER";
+  const expectedOrigin = technical
+    ? "HUMAN_TECHNICAL_REVIEWER"
+    : "HUMAN_FISCAL_PROFESSIONAL";
+  const expectedSubject = technical
+    ? "TECHNICAL_REVIEWER"
+    : "FISCAL_PROFESSIONAL";
+  if (
+    decision.origin !== "HUMAN_FISCAL_PROFESSIONAL" &&
+    decision.origin !== "HUMAN_TECHNICAL_REVIEWER"
+  ) {
     errors.push("AUTOMATED_OR_NON_FISCAL_REVIEW_FORBIDDEN");
+  }
+  if (decision.origin !== expectedOrigin) {
+    errors.push("REVIEWER_IDENTITY_ROLE_MISMATCH");
   }
   if (
     !trust ||
     trust.status !== "SERVER_VERIFIED" ||
-    trust.subjectType !== "FISCAL_PROFESSIONAL" ||
+    trust.subjectType !== expectedSubject ||
     !trust.identityProvider.trim() ||
     !trust.verifiedAt ||
     !trust.verificationReference?.trim()
   ) {
-    errors.push("SERVER_VERIFIED_FISCAL_IDENTITY_REQUIRED");
+    errors.push("SERVER_VERIFIED_REVIEWER_IDENTITY_REQUIRED");
   }
   if (!decision.signatureReference.trim()) {
     errors.push("MISSING_SIGNATURE_REFERENCE");

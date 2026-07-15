@@ -237,12 +237,26 @@ function validateDecision(decision, inventory, sourceById) {
   const errors = [];
   const rule = inventory.rules.find((candidate) => candidate.ruleId === decision.ruleId);
   if (!rule) return [`${decision.decisionId}:UNKNOWN_RULE`];
-  if (decision.origin !== "HUMAN_FISCAL_PROFESSIONAL") {
+  const technical = decision.reviewerRole === "TECHNICAL_REVIEWER";
+  const expectedOrigin = technical
+    ? "HUMAN_TECHNICAL_REVIEWER"
+    : "HUMAN_FISCAL_PROFESSIONAL";
+  const expectedSubject = technical
+    ? "TECHNICAL_REVIEWER"
+    : "FISCAL_PROFESSIONAL";
+  if (
+    decision.origin !== "HUMAN_FISCAL_PROFESSIONAL" &&
+    decision.origin !== "HUMAN_TECHNICAL_REVIEWER"
+  ) {
     errors.push(`${decision.decisionId}:AUTOMATED_OR_NON_FISCAL_REVIEW_FORBIDDEN`);
+  }
+  if (decision.origin !== expectedOrigin) {
+    errors.push(`${decision.decisionId}:REVIEWER_IDENTITY_ROLE_MISMATCH`);
   }
   if (
     decision.reviewerRole !== "PRIMARY_FISCAL_REVIEWER" &&
-    decision.reviewerRole !== "SECOND_FISCAL_REVIEWER"
+    decision.reviewerRole !== "SECOND_FISCAL_REVIEWER" &&
+    decision.reviewerRole !== "TECHNICAL_REVIEWER"
   ) {
     errors.push(`${decision.decisionId}:INVALID_REVIEWER_ROLE`);
   }
@@ -256,12 +270,12 @@ function validateDecision(decision, inventory, sourceById) {
   }
   if (
     decision.reviewerTrust?.status !== "SERVER_VERIFIED" ||
-    decision.reviewerTrust?.subjectType !== "FISCAL_PROFESSIONAL" ||
+    decision.reviewerTrust?.subjectType !== expectedSubject ||
     !decision.reviewerTrust?.identityProvider?.trim() ||
     !decision.reviewerTrust?.verifiedAt ||
     !decision.reviewerTrust?.verificationReference?.trim()
   ) {
-    errors.push(`${decision.decisionId}:SERVER_VERIFIED_FISCAL_IDENTITY_REQUIRED`);
+    errors.push(`${decision.decisionId}:SERVER_VERIFIED_REVIEWER_IDENTITY_REQUIRED`);
   }
   if (!decision.signatureReference?.trim()) {
     errors.push(`${decision.decisionId}:MISSING_SIGNATURE_REFERENCE`);

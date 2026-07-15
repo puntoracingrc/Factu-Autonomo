@@ -87,7 +87,7 @@ export interface FiscalReviewFinding {
 
 export interface FiscalReviewerServerTrust {
   status: "SERVER_VERIFIED" | "UNVERIFIED" | "REVOKED";
-  subjectType: "FISCAL_PROFESSIONAL";
+  subjectType: "FISCAL_PROFESSIONAL" | "TECHNICAL_REVIEWER";
   identityProvider: string;
   verifiedAt: string | null;
   verificationReference: string | null;
@@ -111,10 +111,7 @@ export interface FiscalRuleReviewDecision {
   decisionId: string;
   ruleId: string;
   reviewerId: string;
-  reviewerRole: Extract<
-    FiscalReviewerRole,
-    "PRIMARY_FISCAL_REVIEWER" | "SECOND_FISCAL_REVIEWER"
-  >;
+  reviewerRole: FiscalReviewerRole;
   reviewerTrust: FiscalReviewerServerTrust;
   decision: FiscalReviewDecisionValue;
   reviewedRuleHash: string;
@@ -127,7 +124,7 @@ export interface FiscalRuleReviewDecision {
   incidentIds: readonly string[];
   signatureReference: string;
   recordedAt: string;
-  origin: "HUMAN_FISCAL_PROFESSIONAL";
+  origin: "HUMAN_FISCAL_PROFESSIONAL" | "HUMAN_TECHNICAL_REVIEWER";
   revocation: FiscalReviewRevocation;
 }
 
