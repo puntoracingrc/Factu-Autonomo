@@ -1,0 +1,100 @@
+import type { FiscalModelPracticalGuideV1 } from "./fiscal-model-practical-guide.types";
+
+export const MODEL_194_GUIDE_V1 = {
+  code: "194",
+  editorialCategory: "Retenciones e información financiera especializada",
+  taxPeriodYear: 2025,
+  filingYear: 2026,
+  lastVerifiedAt: "2026-07-15",
+  requiresAnnualReview: true,
+  intro: [
+    "El Modelo 194 es el resumen anual informativo de determinadas rentas y retenciones derivadas de la transmisión, amortización, reembolso, canje o conversión de activos representativos de la captación y utilización de capitales ajenos.",
+    "Lo presenta la entidad pagadora o intermediaria obligada a informar. La persona inversora o titular del activo figura como perceptor, pero normalmente no presenta el 194 por su inversión. Los ingresos periódicos relacionados se realizan mediante el Modelo 124.",
+  ],
+  notices: [
+    { title: "No duplica el pago del Modelo 124", paragraphs: ["El 194 detalla anualmente lo informado e ingresado por periodos. Una corrección anual no rectifica por sí sola una autoliquidación 124 equivocada."] },
+    { title: "Campaña versionada", paragraphs: ["Para la información del ejercicio 2025, el plazo publicado fue del 1 de enero al 2 de febrero de 2026. Debe revisarse para cada ejercicio."] },
+  ],
+  actions: [
+    { label: "Abrir gestiones oficiales del Modelo 194", sourceId: "aeat.model-194.procedure-home.2026-07-08", primary: true },
+    { label: "Consultar ayuda de presentación", sourceId: "aeat.model-194.file-upload-help.2026-04-22", primary: true },
+    { label: "Consultar los plazos oficiales", href: "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-194-decla_____n-utilizacion-capitales-anual/plazos-presentacion.html" },
+  ],
+  quickSummaryTitle: "El Modelo 194 en pocas palabras",
+  quickFacts: [
+    { label: "Qué es", value: "Una declaración informativa anual; no vuelve a ingresar las retenciones." },
+    { label: "Quién lo presenta", value: "La entidad obligada a informar, no el titular ordinario del activo." },
+    { label: "Operaciones", value: "Transmisión, amortización, reembolso, canje o conversión de activos de deuda." },
+    { label: "Relación periódica", value: "Modelo 124." },
+    { label: "Plazo general", value: "Durante enero del año siguiente, verificando la campaña concreta." },
+    { label: "Campaña 2025", value: "Del 1 de enero al 2 de febrero de 2026, como referencia versionada." },
+  ],
+  sections: [
+    { id: "model-194-roles", title: "Quién informa y quién es perceptor", cards: [
+      { title: "Declarante", paragraphs: ["La entidad emisora, pagadora, depositaria o intermediaria presenta cuando la normativa le atribuye la obligación de información."] },
+      { title: "Perceptor", paragraphs: ["La persona o entidad titular del activo aparece en el registro con sus datos y los importes correspondientes; normalmente no presenta el modelo."] },
+    ] },
+    { id: "model-194-content", title: "Contenido anual y conciliación", cards: [
+      { title: "Detalle por operación", paragraphs: ["Identificación del activo, clase de operación, importes y demás campos del diseño vigente."] },
+      { title: "Detalle por perceptor", paragraphs: ["NIF, residencia y datos exigidos para explicar quién obtuvo la renta y qué retención se practicó."] },
+      { title: "Totales de los periodos", paragraphs: ["Los registros anuales deben poder conciliarse con los Modelos 124 presentados y corregidos."], links: [{ label: "Ver Modelo 124", href: "/consultor-fiscal/modelos/124" }] },
+    ] },
+    { id: "model-194-neighbours", title: "Límites frente a otros modelos", cards: [
+      { title: "Modelo 193", paragraphs: ["Resume otras rentas del capital mobiliario, como determinados dividendos e intereses."], links: [{ label: "Ver Modelo 193", href: "/consultor-fiscal/modelos/193" }] },
+      { title: "Modelo 198", paragraphs: ["Informa de otras operaciones anuales con activos financieros y valores mobiliarios."], links: [{ label: "Ver Modelo 198", href: "/consultor-fiscal/modelos/198" }] },
+    ] },
+  ],
+  fillingTitle: "Cómo preparar el Modelo 194",
+  fillingSteps: [
+    { title: "1. Reúne los Modelos 124", paragraphs: ["Incluye todos los periodos, correcciones y justificantes del ejercicio."] },
+    { title: "2. Inventaría activos y operaciones", paragraphs: ["Distingue transmisión, amortización, reembolso, canje y conversión."] },
+    { title: "3. Valida perceptores", paragraphs: ["Comprueba identidad, residencia y titularidad sin completar datos desconocidos por inferencia."] },
+    { title: "4. Aplica el diseño del ejercicio", paragraphs: ["Usa las claves y campos vigentes, no un PDF histórico de otra campaña."] },
+    { title: "5. Concilia y presenta", paragraphs: ["Explica cualquier diferencia y conserva la respuesta oficial de la AEAT."] },
+  ],
+  afterTitle: "Qué ocurre después",
+  afterSteps: [
+    { title: "Registros aceptados", description: "Comprueba el resultado y corrige los registros rechazados." },
+    { title: "Certificados", description: "Facilita al perceptor la información que corresponda." },
+    { title: "Coherencia anual", description: "Revisa también cualquier Modelo 124 afectado por una corrección." },
+  ],
+  comparison: {
+    title: "Modelo 194 y Modelo 124",
+    current: { title: "Modelo 194", description: "Detalle anual informativo de perceptores y operaciones con activos de deuda." },
+    related: { title: "Modelo 124", description: "Autoliquidación periódica que ingresa las retenciones relacionadas.", href: "/consultor-fiscal/modelos/124", label: "Ver Modelo 124" },
+    additional: [
+      { title: "Modelo 193", description: "Resumen anual de otras rentas del capital mobiliario.", href: "/consultor-fiscal/modelos/193", label: "Ver Modelo 193" },
+      { title: "Modelo 198", description: "Otras operaciones anuales con activos financieros y valores.", href: "/consultor-fiscal/modelos/198", label: "Ver Modelo 198" },
+    ],
+    conclusion: "El 124 ingresa por periodos; el 194 identifica anualmente los activos, operaciones y perceptores.",
+  },
+  pdfNotice: ["El diseño de registro enlazado corresponde al ejercicio que indica su título. Es documentación técnica y no una declaración presentada."],
+  documents: [{ label: "Descargar diseño de registro del Modelo 194 · ejercicio 2024", sourceId: "aeat.model-194.register-design-pdf.2025-01-02" }],
+  officialLinks: [{ label: "Ficha del procedimiento", sourceId: "aeat.model-194.procedure-record.2026-07-08" }],
+  legalLinks: [
+    { label: "Orden de 18 de noviembre de 1999", sourceId: "boe.model-194.order-1999-11-18" },
+    { label: "Orden HAC/1504/2024", sourceId: "boe.model-194.order-hac-1504-2024" },
+  ],
+  faq: [
+    { question: "¿Qué es el Modelo 194?", answer: "La declaración informativa anual de determinadas rentas y retenciones derivadas de operaciones con activos de deuda." },
+    { question: "¿Quién lo presenta?", answer: "La entidad obligada a informar, no la persona inversora por el mero hecho de ser titular." },
+    { question: "¿Vuelve a ingresar las retenciones?", answer: "No. Los ingresos periódicos relacionados se realizan mediante el Modelo 124." },
+    { question: "¿Qué operaciones aparecen?", answer: "Transmisión, amortización, reembolso, canje y conversión de activos incluidos." },
+    { question: "¿Cuándo se presenta?", answer: "Con carácter general durante enero del año siguiente, revisando siempre el calendario oficial." },
+    { question: "¿Qué plazo tuvo el ejercicio 2025?", answer: "La campaña publicada fue del 1 de enero al 2 de febrero de 2026." },
+    { question: "¿Qué diferencia hay con el 193?", answer: "El 194 se centra en operaciones sobre activos de deuda; el 193 cubre otras rentas del capital mobiliario." },
+    { question: "¿Qué diferencia hay con el 198?", answer: "El 198 informa de otras operaciones con activos financieros y valores mobiliarios." },
+    { question: "¿El diseño de 2024 vale para cualquier ejercicio?", answer: "No. Debe utilizarse el diseño publicado para el ejercicio declarado." },
+    { question: "¿Una validación equivale a presentar?", answer: "No. Solo la respuesta oficial tras el envío acredita el resultado de la presentación." },
+    { question: "¿Cómo se corrige un error?", answer: "Se corrige el registro anual y se revisan los Modelos 124 relacionados cuando sea necesario." },
+    { question: "¿Factu almacena datos de perceptores?", answer: "No en esta ficha. El contenido es público e informativo y no envía datos a la AEAT." },
+  ],
+  sourceIds: [
+    "aeat.model-194.procedure-home.2026-07-08",
+    "aeat.model-194.procedure-record.2026-07-08",
+    "aeat.model-194.file-upload-help.2026-04-22",
+    "aeat.model-194.register-design-pdf.2025-01-02",
+    "boe.model-194.order-1999-11-18",
+    "boe.model-194.order-hac-1504-2024",
+  ],
+} as const satisfies FiscalModelPracticalGuideV1;

@@ -186,6 +186,11 @@ export function FiscalModelPracticalGuide({
         <h2 id={`model-${guide.code}-introduction`} className="sr-only">
           Introducción al {getFiscalModelDocumentTitle(guide.code)}
         </h2>
+        {guide.editorialCategory ? (
+          <p className="w-fit rounded-full bg-blue-100 px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-blue-900 dark:bg-blue-950 dark:text-blue-100">
+            {guide.editorialCategory}
+          </p>
+        ) : null}
         {guide.intro.map((paragraph) => (
           <p
             key={paragraph}

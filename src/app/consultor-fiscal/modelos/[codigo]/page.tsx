@@ -49,9 +49,13 @@ export async function generateMetadata({
         "100": "Modelo 100 AEAT: declaración de la Renta del autónomo",
         "111": "Modelo 111 AEAT: retenciones de nóminas y profesionales",
         "115": "Modelo 115 AEAT: retención del alquiler de un local",
+        "117": "Modelo 117 AEAT: retenciones sobre fondos de inversión",
         "121": "Modelo 121 AEAT: cesión de deducciones familiares",
         "122": "Modelo 122 AEAT: regularización de deducciones familiares",
         "123": "Modelo 123 AEAT: retenciones sobre dividendos e intereses",
+        "124": "Modelo 124 AEAT: retenciones sobre activos de deuda",
+        "126": "Modelo 126 AEAT: retenciones sobre cuentas financieras",
+        "128": "Modelo 128 AEAT: retenciones sobre seguros y capitalización",
         "130": "Modelo 130 AEAT: pago trimestral del IRPF",
         "131": "Modelo 131 AEAT: pago trimestral por módulos",
         "140": "Modelo 140 AEAT: abono anticipado por maternidad",
@@ -64,8 +68,12 @@ export async function generateMetadata({
         "179": "Modelo 179 AEAT: histórico de alquileres turísticos",
         "180": "Modelo 180 AEAT: resumen anual de alquileres",
         "184": "Modelo 184 AEAT: comunidades de bienes y rentas atribuidas",
+        "187": "Modelo 187 AEAT: operaciones con fondos de inversión",
+        "188": "Modelo 188 AEAT: resumen anual de seguros y capitalización",
         "190": "Modelo 190 AEAT: resumen anual de retenciones",
         "193": "Modelo 193 AEAT: resumen anual de dividendos e intereses",
+        "194": "Modelo 194 AEAT: resumen anual de activos de deuda",
+        "196": "Modelo 196 AEAT: información mensual de cuentas financieras",
         "200": "Modelo 200 AEAT: Impuesto sobre Sociedades",
         "202": "Modelo 202 AEAT: pagos a cuenta de Sociedades",
         "210": "Modelo 210 AEAT: declaración de no residentes",
@@ -107,12 +115,20 @@ export async function generateMetadata({
           "Guía sencilla del Modelo 111: quién debe presentarlo, retenciones de empleados y facturas profesionales, tipos, plazos, pago y corrección de errores.",
         "115":
           "Guía sencilla del Modelo 115: quién debe presentarlo, alquileres sujetos, excepciones, base, tipo del 19 %, plazos y pago.",
+        "117":
+          "Guía del Modelo 117: quién retiene en fondos de inversión, transmisiones, reembolsos, tipo orientativo de 2026, plazos y relación con el Modelo 187.",
         "121":
           "Guía del Modelo 121: quién puede ceder determinadas deducciones familiares, requisitos para no declarantes, plazo, presentación y relación con Renta.",
         "122":
           "Guía del Modelo 122: regularización de deducciones familiares cobradas en exceso por no declarantes, cálculo, plazo, pago y relación con Renta.",
         "123":
           "Guía sencilla del Modelo 123: quién debe presentarlo, dividendos, préstamos de socios, otras rentas del capital, tipos, plazos y pago.",
+        "124":
+          "Guía del Modelo 124: retenciones sobre transmisión, amortización, reembolso, canje o conversión de activos de deuda y relación con el Modelo 194.",
+        "126":
+          "Guía del Modelo 126: quién presenta las retenciones sobre rendimientos de cuentas financieras, periodicidad y relación con el Modelo 196.",
+        "128":
+          "Guía del Modelo 128: retenciones sobre operaciones de capitalización y seguros de vida o invalidez, plazos y relación con el Modelo 188.",
         "130":
           "Guía sencilla del Modelo 130: quién debe presentarlo, regla del 70 %, cálculo acumulado, gastos, retenciones, plazos y presentación.",
         "131":
@@ -137,10 +153,18 @@ export async function generateMetadata({
           "Guía sencilla del Modelo 180: arrendadores, referencias catastrales, relación con el Modelo 115, certificados, correcciones y presentación.",
         "184":
           "Guía sencilla del Modelo 184: quién debe presentarlo, límite de 3.000 euros, socios, reparto de rentas, plazo y relación con el Modelo 100.",
+        "187":
+          "Guía del Modelo 187: quién informa sobre fondos de inversión, operaciones, perceptores, plazo anual y conciliación con el Modelo 117.",
+        "188":
+          "Guía del Modelo 188: resumen anual de capitalización y seguros de vida o invalidez, perceptores, plazo y relación con el Modelo 128.",
         "190":
           "Guía sencilla del Modelo 190: trabajadores, profesionales, claves, relación con el Modelo 111, certificados, correcciones y presentación.",
         "193":
           "Guía sencilla del Modelo 193: perceptores, dividendos, intereses, claves, relación con el Modelo 123, plazo, presentación y correcciones.",
+        "194":
+          "Guía del Modelo 194: resumen anual de operaciones con activos de deuda, perceptores, plazo, presentación y relación con el Modelo 124.",
+        "196":
+          "Guía del Modelo 196: declaración mensual de cuentas desde 2026, entidades obligadas, contenido de diciembre, A0, A1, A2 y servicio web.",
         "200":
           "Guía del Modelo 200: quién lo presenta, resultado contable, ajustes fiscales, tipos del ejercicio 2025, plazos, Sociedades WEB y correcciones.",
         "202":

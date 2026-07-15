@@ -1,0 +1,97 @@
+import type { FiscalModelPracticalGuideV1 } from "./fiscal-model-practical-guide.types";
+
+export const MODEL_124_GUIDE_V1 = {
+  code: "124",
+  editorialCategory: "Retenciones e información financiera especializada",
+  effectiveYear: 2026,
+  lastVerifiedAt: "2026-07-15",
+  requiresAnnualReview: true,
+  intro: [
+    "El Modelo 124 es la autoliquidación periódica para determinadas retenciones e ingresos a cuenta sobre rentas derivadas de transmitir, amortizar, reembolsar, canjear o convertir activos que representan la captación y utilización de capitales ajenos.",
+    "Lo presenta quien satisface la renta o interviene como retenedor. La persona que posee el bono, obligación u otro activo y percibe el rendimiento normalmente no presenta el 124 por esa percepción. El detalle anual se informa mediante el Modelo 194.",
+  ],
+  notices: [
+    { title: "No confundir rendimiento con la operación sobre el activo", paragraphs: ["El Modelo 124 se centra en rentas derivadas de transmisión, amortización, reembolso, canje o conversión. Otros intereses o rendimientos pueden corresponder al Modelo 123."] },
+    { title: "Referencia de 2026 revisable", paragraphs: ["El 19 % es una orientación general para determinados rendimientos en 2026. La base, el tipo, la residencia y las excepciones deben comprobarse en cada operación."] },
+  ],
+  actions: [
+    { label: "Abrir gestiones oficiales del Modelo 124", sourceId: "aeat.model-124.procedure-home.2026-02-13", primary: true },
+    { label: "Consultar la guía censal oficial", sourceId: "aeat.model-124.census-guide.2026-03-26", primary: true },
+    { label: "Consultar la ficha del procedimiento", sourceId: "aeat.model-124.procedure-record.2026-06-09" },
+  ],
+  quickSummaryTitle: "El Modelo 124 en pocas palabras",
+  quickFacts: [
+    { label: "Qué es", value: "Una autoliquidación periódica de determinadas retenciones sobre activos de deuda." },
+    { label: "Quién lo presenta", value: "El pagador o intermediario obligado a retener, no el inversor ordinario." },
+    { label: "Operaciones", value: "Transmisión, amortización, reembolso, canje o conversión de activos representativos de capitales ajenos." },
+    { label: "Periodicidad", value: "Normalmente trimestral; mensual para obligados con esa periodicidad." },
+    { label: "Resumen anual", value: "Modelo 194." },
+    { label: "Referencia 2026", value: "Orientación general del 19 %, siempre sujeta a revisión del supuesto." },
+  ],
+  sections: [
+    { id: "model-124-roles", title: "Quién presenta y quién percibe", cards: [
+      { title: "Retenedor", paragraphs: ["La entidad emisora, pagadora o intermediaria presenta cuando la normativa le atribuye el ingreso a cuenta."] },
+      { title: "Titular del activo", paragraphs: ["Recibe el rendimiento o contraprestación y soporta la retención cuando proceda, pero normalmente no presenta el modelo."] },
+    ], note: "Un mismo instrumento puede generar pagos de distinta naturaleza. Primero se clasifica la renta y después se elige el modelo." },
+    { id: "model-124-operations", title: "Operaciones sobre activos de deuda", cards: [
+      { title: "Amortización o reembolso", paragraphs: ["Cancelación total o parcial del activo con devolución del capital y, en su caso, una renta sometida a retención."] },
+      { title: "Transmisión", paragraphs: ["Venta o cesión del activo cuando la operación y la renta quedan dentro del ámbito del modelo."] },
+      { title: "Canje o conversión", paragraphs: ["Sustitución del activo por otro instrumento o valor; exige revisar valoración, renta y obligación de retener."] },
+    ] },
+    { id: "model-124-boundaries", title: "Modelos que delimitan el ámbito", cards: [
+      { title: "Modelo 123", paragraphs: ["Determinados intereses y otras rentas del capital mobiliario no ligadas a las operaciones específicas del 124."], links: [{ label: "Ver Modelo 123", href: "/consultor-fiscal/modelos/123" }] },
+      { title: "Modelo 194", paragraphs: ["Detalle anual de las rentas y retenciones relacionadas con los periodos 124."], links: [{ label: "Ver Modelo 194", href: "/consultor-fiscal/modelos/194" }] },
+      { title: "Modelo 198", paragraphs: ["Otras operaciones con activos financieros y valores mobiliarios."], links: [{ label: "Ver Modelo 198", href: "/consultor-fiscal/modelos/198" }] },
+    ] },
+  ],
+  fillingTitle: "Cómo preparar el Modelo 124",
+  fillingSteps: [
+    { title: "1. Identifica el activo", paragraphs: ["Documenta emisor, instrumento, titularidad y naturaleza de capital ajeno."] },
+    { title: "2. Clasifica la operación", paragraphs: ["Distingue transmisión, amortización, reembolso, canje o conversión."] },
+    { title: "3. Determina retenedor y periodo", paragraphs: ["Comprueba quién ingresa y cuándo nace la retención."] },
+    { title: "4. Calcula con norma vigente", paragraphs: ["Revisa base, tipo de 2026, residencia y excepciones sin reutilizar reglas de otro ejercicio."] },
+    { title: "5. Concilia con el 194", paragraphs: ["Conserva el detalle por perceptor y operación para el resumen anual."] },
+  ],
+  afterTitle: "Qué ocurre después",
+  afterSteps: [
+    { title: "Justificante", description: "Conserva la presentación y el pago o reconocimiento de deuda." },
+    { title: "Registro anual", description: "Acumula perceptores y operaciones para el Modelo 194." },
+    { title: "Correcciones", description: "Mantén coherentes la autoliquidación periódica y el resumen anual." },
+  ],
+  comparison: {
+    title: "Modelo 124 y Modelo 194",
+    current: { title: "Modelo 124", description: "Ingreso periódico de retenciones sobre determinadas operaciones con activos de deuda." },
+    related: { title: "Modelo 194", description: "Resumen anual informativo con el detalle por perceptor y operación.", href: "/consultor-fiscal/modelos/194", label: "Ver Modelo 194" },
+    additional: [{ title: "Modelo 198", description: "Información anual sobre otras operaciones con activos financieros y valores.", href: "/consultor-fiscal/modelos/198", label: "Ver Modelo 198" }],
+    conclusion: "El 124 ingresa la retención por periodos; el 194 documenta anualmente a quién y por qué se practicó.",
+  },
+  pdfNotice: ["La AEAT enlaza un diseño vigente en hoja de cálculo. El PDF de 2008 registrado es histórico y no debe utilizarse como formulario actual."],
+  documents: [],
+  officialLinks: [
+    { label: "Diseños de registro de los modelos 100 al 199", sourceId: "aeat.models-100-199.register-designs.2026-07-08" },
+    { label: "Ayuda para consultar declaraciones", sourceId: "aeat.declarations-query-help.2026-05-07" },
+  ],
+  legalLinks: [{ label: "Orden EHA/3435/2007", sourceId: "boe.order-eha-3435-2007" }],
+  faq: [
+    { question: "¿Qué es el Modelo 124?", answer: "Una autoliquidación de retenciones sobre determinadas rentas derivadas de operaciones con activos representativos de capitales ajenos." },
+    { question: "¿Quién lo presenta?", answer: "El pagador o intermediario obligado a retener, no el titular del activo por el mero hecho de cobrar." },
+    { question: "¿Qué operaciones menciona la AEAT?", answer: "Transmisión, amortización, reembolso, canje y conversión." },
+    { question: "¿Cualquier interés va en el 124?", answer: "No. Determinados intereses pueden corresponder al 123; el 124 se vincula a operaciones concretas sobre activos." },
+    { question: "¿Cuál es el tipo en 2026?", answer: "El 19 % es una referencia general para determinados supuestos, pero debe revisarse la operación completa." },
+    { question: "¿Es trimestral o mensual?", answer: "Normalmente trimestral; determinados obligados presentan mensualmente." },
+    { question: "¿Qué relación tiene con el 194?", answer: "El 124 ingresa por periodos y el 194 informa anualmente de perceptores y operaciones." },
+    { question: "¿Qué diferencia hay con el 198?", answer: "El 198 cubre otras operaciones con activos financieros y valores no incluidas en el resumen específico del 194." },
+    { question: "¿El PDF antiguo es el modelo vigente?", answer: "No. Es un diseño histórico de 2008; debe utilizarse la documentación vigente enlazada por la AEAT." },
+    { question: "¿La AEAT permite presentación por lotes?", answer: "Sí. La página oficial ofrece presentación individual, por lotes y consulta." },
+    { question: "¿Cómo se corrige un error?", answer: "Debe revisarse el periodo afectado y la conciliación posterior con el Modelo 194." },
+    { question: "¿Factu calcula o presenta el 124?", answer: "No. La ficha es informativa y solo enlaza a fuentes oficiales." },
+  ],
+  sourceIds: [
+    "aeat.model-124.procedure-home.2026-02-13",
+    "aeat.model-124.procedure-record.2026-06-09",
+    "aeat.model-124.census-guide.2026-03-26",
+    "aeat.models-100-199.register-designs.2026-07-08",
+    "aeat.declarations-query-help.2026-05-07",
+    "boe.order-eha-3435-2007",
+  ],
+} as const satisfies FiscalModelPracticalGuideV1;
