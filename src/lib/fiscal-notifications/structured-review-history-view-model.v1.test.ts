@@ -271,6 +271,7 @@ describe("structured fiscal notification history view model v1", () => {
         pageCount: 3,
         byteLength: 8_192,
         sourceContentRetention: "NOT_RETAINED",
+        originalArchive: null,
         references: [
           { label: "Clave de liquidación", value: "LQ-SYNTH-081" },
           {
@@ -306,6 +307,40 @@ describe("structured fiscal notification history view model v1", () => {
         "user:00000000-0000-4000-8000-000000000099",
       ),
     ).toEqual({ status: "BLOCKED", entries: [] });
+  });
+
+  it("expone únicamente el estado y el identificador seguro del original en Drive", () => {
+    const value = workspace();
+    value.revision = 2;
+    value.updatedAt = "2026-07-15T09:00:00.000Z";
+    value.driveArchives = [
+      {
+        id: `drive-archive:${"c".repeat(64)}`,
+        ownerScope: OWNER,
+        fileId: "file:synthetic-history",
+        documentIds: ["document:synthetic-history"],
+        sourceSha256: "c".repeat(64),
+        driveFileId: "drive_file_history",
+        driveFolderId: "drive_folder_history",
+        documentDate: "2026-02-05",
+        archiveStatus: "ARCHIVED_VERIFIED",
+        reviewStatus: "USER_CONFIRMED",
+        verificationMethod: "SHA256_READBACK_MATCH",
+        recordVersion: 1,
+        workspaceRevision: 2,
+        archivedAt: "2026-07-15T09:00:00.000Z",
+      },
+    ];
+
+    const result = projectFiscalNotificationStructuredHistoryV1(value, OWNER);
+
+    expect(result.status).toBe("READY");
+    expect(result.entries[0]?.originalArchive).toEqual({
+      status: "ARCHIVED_VERIFIED",
+      driveFileId: "drive_file_history",
+      archivedAt: "2026-07-15T09:00:00.000Z",
+    });
+    expect(JSON.stringify(result)).not.toContain("drive_folder_history");
   });
 
   it("normaliza solo una fecha documental exacta y no usa cuándo se guardó para la cronología", () => {

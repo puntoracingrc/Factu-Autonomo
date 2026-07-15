@@ -56,6 +56,12 @@ const relationsViewModelSource = readSource(
 const documentLibraryViewModelSource = readSource(
   "../../lib/fiscal-notifications/structured-review-document-library.v1.ts",
 );
+const driveArchiveDomainSource = readSource(
+  "../../lib/fiscal-notifications/drive-original-archive.v1.ts",
+);
+const driveArchiveUploadSource = readSource(
+  "../../lib/google-drive/fiscal-notification-original-archive.v1.ts",
+);
 const manualSource = readSource(
   "../../lib/manual/sections/consultor-fiscal.ts",
 );
@@ -98,10 +104,14 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain("const filesRef = useRef(new Map<string, File>())");
     expect(componentSource).toContain("filesRef.current.clear()");
     expect(componentSource).toContain("filesRef.current.delete(id)");
+    expect(componentSource).toContain("archiveFilesRef.current.clear()");
+    expect(componentSource).toContain("archiveFilesRef.current.delete(id)");
     expect(componentSource).toContain(
       "El nombre solo se muestra mientras el documento está en esta cola",
     );
-    expect(compact(componentSource)).toContain("El PDF, su nombre y el texto no se guardan");
+    expect(compact(componentSource)).toContain(
+      "Factu no guarda el PDF, su nombre ni el texto",
+    );
 
     const reviewResultContract = flowSource.slice(
       flowSource.indexOf(
@@ -360,7 +370,8 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(documentLibraryComponentSource).not.toMatch(
       /\bdocument\.ownerScope\b/,
     );
-    expect(documentLibraryComponentSource).toContain("PDF no conservado");
+    expect(documentLibraryComponentSource).toContain("original no archivado");
+    expect(documentLibraryComponentSource).toContain("Original en Drive");
   });
 
   it("muestra relaciones exactas con tarjetas iguales y navegación a la ficha", () => {
@@ -483,12 +494,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
   it("explica con precisión OCR, alcance y persistencia estructurada opcional", () => {
     const copy = compact(componentSource);
     for (const expected of [
-      "El PDF, su texto y su nombre no se suben ni se guardan.",
+      "El análisis es local. El PDF solo sale del navegador si eliges archivarlo en tu Drive.",
       "Muestra y puede guardar importes, referencias, fechas y sujeto cuando constan expresamente.",
       "Prepara un lote de hasta {FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1} PDF, revísalo y pulsa una sola vez Analizar.",
       "El nombre solo se muestra mientras el documento está en esta cola.",
-      "El PDF, su nombre y el texto no se guardan; únicamente se conservan los campos estructurados que aceptes.",
-      "Una huella SHA-256 local impide añadir otra vez el mismo contenido.",
+      "Factu no guarda el PDF, su nombre ni el texto; únicamente conserva los campos estructurados que aceptes.",
+      "Una huella SHA-256 local impide duplicarlo.",
       "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias, fechas y sujeto identificado.",
       "Guarda únicamente campos estructurados visibles y su procedencia: nunca conserva el PDF, su nombre ni el texto completo.",
       "No se ha enviado a ningún proveedor y debes revisarlo manualmente.",
@@ -812,6 +823,52 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     ]) {
       expect(componentSource).toContain(status);
     }
+  });
+
+  it("ofrece archivar voluntariamente un duplicado registrado sin custodiar el PDF", () => {
+    expect(componentSource).toContain(
+      "inspectFiscalNotificationDriveArchiveCandidateV1(",
+    );
+    expect(componentSource).toContain('inspection.status === "READY_TO_ARCHIVE"');
+    expect(componentSource).toContain("Archivar original en Drive");
+    expect(componentSource).toContain("Conectar Drive y archivar");
+    expect(compact(componentSource)).toContain(
+      "Nada se sube hasta que pulses el botón",
+    );
+    expect(componentSource).toContain('status: "ARCHIVING"');
+    expect(componentSource).toContain("runExclusiveDriveOperation(() =>");
+    expect(componentSource).toContain(
+      "uploadFiscalNotificationOriginalToGoogleDriveV1(",
+    );
+    expect(componentSource).toContain("archiveFiscalNotificationOriginal({");
+    expect(componentSource).toContain("Fecha pendiente");
+    expect(componentSource).toContain("driveArchiveDatePath");
+
+    const admission = componentSource.slice(
+      componentSource.indexOf("async function addFiles"),
+      componentSource.indexOf("function removeItem"),
+    );
+    expect(admission).not.toContain(
+      "uploadFiscalNotificationOriginalToGoogleDriveV1(",
+    );
+    expect(driveArchiveDomainSource).toContain(
+      'verification: "SHA256_READBACK_MATCH"',
+    );
+    expect(driveArchiveUploadSource).toContain(
+      "verifyDriveFileHash(",
+    );
+    expect(driveArchiveUploadSource).toContain(
+      "FISCAL_NOTIFICATION_DRIVE_ARCHIVE_PENDING_FOLDER_V1",
+    );
+    expect(driveArchiveUploadSource).not.toMatch(
+      /originalFilename|localFilename|rawText|documentText/u,
+    );
+    expect(compact(manualSource)).toContain(
+      "Factu - documentos oficiales/AAAA/MM",
+    );
+    expect(compact(manualSource)).toContain(
+      "conectar Drive más tarde no puede recuperarlos automáticamente",
+    );
   });
 
   it("prioriza el tipo exacto y los campos del extractor reutilizable", () => {

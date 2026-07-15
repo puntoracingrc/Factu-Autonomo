@@ -418,8 +418,26 @@ const OPTIONAL_ISO_DATE_OR_TIMESTAMP_FIELDS: Readonly<
 
 const WORKSPACE_KEYS = new Set<string>([
   "schemaVersion", "workspaceId", "ownerScope", "revision", "createdAt", "updatedAt",
-  ...COLLECTIONS,
+  ...COLLECTIONS, "driveArchives",
 ]);
+const DRIVE_ARCHIVE_KEYS = new Set([
+  "id",
+  "ownerScope",
+  "fileId",
+  "documentIds",
+  "sourceSha256",
+  "driveFileId",
+  "driveFolderId",
+  "documentDate",
+  "archiveStatus",
+  "reviewStatus",
+  "verificationMethod",
+  "recordVersion",
+  "workspaceRevision",
+  "archivedAt",
+]);
+const SHA256_HEX = /^[0-9a-f]{64}$/u;
+const GOOGLE_DRIVE_ID = /^[A-Za-z0-9_-]{1,160}$/u;
 const MAX_INTEGRITY_ISSUES = 512;
 const NESTED_BUDGET_ABORT = Symbol("NESTED_BUDGET_ABORT");
 const ARRAY_LIMIT_EXCEEDED = Symbol("ARRAY_LIMIT_EXCEEDED");
@@ -834,6 +852,7 @@ const ENTITY_ENUM_FIELDS: Readonly<
       "PAYMENT_CONFIRMED",
       "PAYMENT_RECONCILED",
       "ACCOUNTING_DRAFT_CREATED",
+      "ORIGINAL_ARCHIVED_IN_USER_GOOGLE_DRIVE",
     ]),
     entityType: new Set([
       "PACKAGE",
@@ -874,6 +893,10 @@ const AUDIT_METADATA_SCHEMAS: Readonly<
   PAYMENT_CONFIRMED: { sequence: "NON_NEGATIVE_INTEGER" },
   PAYMENT_RECONCILED: { sequence: "NON_NEGATIVE_INTEGER" },
   ACCOUNTING_DRAFT_CREATED: { componentCount: "NON_NEGATIVE_INTEGER" },
+  ORIGINAL_ARCHIVED_IN_USER_GOOGLE_DRIVE: {
+    archiveRecordVersion: "NON_NEGATIVE_INTEGER",
+    archivedDocumentCount: "NON_NEGATIVE_INTEGER",
+  },
 };
 
 const AUDIT_EVENT_ENTITY_TYPES = Object.freeze({
@@ -889,6 +912,7 @@ const AUDIT_EVENT_ENTITY_TYPES = Object.freeze({
   PAYMENT_CONFIRMED: "INSTALLMENT",
   PAYMENT_RECONCILED: "INSTALLMENT",
   ACCOUNTING_DRAFT_CREATED: "ACCOUNTING_DRAFT",
+  ORIGINAL_ARCHIVED_IN_USER_GOOGLE_DRIVE: "DOCUMENT",
 } as const);
 
 const UNSAFE_AUDIT_STRING_PREFIXES = [
@@ -1065,6 +1089,53 @@ export function validateFiscalNotificationsWorkspaceIntegrity(
       }
       const frozenEntities = Object.freeze(entitySnapshots);
       sanitizedWorkspace[collection] = frozenEntities;
+    }
+    if (workspaceRecord.driveArchives !== undefined) {
+      const archiveLength = boundedDataArrayLength(
+        workspaceRecord.driveArchives,
+        FISCAL_NOTIFICATION_INPUT_LIMITS.maxCollectionItems,
+      );
+      if (archiveLength === ARRAY_LIMIT_EXCEEDED) {
+        return invalid(
+          "COLLECTION_LIMIT_EXCEEDED",
+          "workspace.driveArchives",
+        );
+      }
+      if (archiveLength === null) {
+        return invalid("INVALID_WORKSPACE", "workspace.driveArchives");
+      }
+      workspaceItemCount += archiveLength;
+      if (
+        workspaceItemCount >
+        FISCAL_NOTIFICATION_INPUT_LIMITS.maxWorkspaceEntities
+      ) {
+        return invalid("COLLECTION_LIMIT_EXCEEDED", "workspace.collections");
+      }
+      const archives = snapshotDataArrayAtLength(
+        workspaceRecord.driveArchives,
+        archiveLength,
+      );
+      if (!archives) {
+        return invalid("INVALID_WORKSPACE", "workspace.driveArchives");
+      }
+      const snapshots: Record<string, unknown>[] = [];
+      for (let index = 0; index < archives.length; index += 1) {
+        const archive = snapshotDataRecord(archives[index]);
+        const path = `workspace.driveArchives[${index}]`;
+        if (!archive) {
+          addIssue("INVALID_WORKSPACE", path);
+          continue;
+        }
+        validateDriveArchiveStructure(
+          archive,
+          path,
+          addIssue,
+          consumeNested,
+          consumeText,
+        );
+        snapshots.push(archive);
+      }
+      sanitizedWorkspace.driveArchives = Object.freeze(snapshots);
     }
   } catch (error) {
     if (error === NESTED_BUDGET_ABORT) return freezeIntegrityResult(issues);
@@ -1280,6 +1351,61 @@ export function validateFiscalNotificationsWorkspaceIntegrity(
       }
     }
   };
+
+  const seenDriveArchiveIds = new Set<string>();
+  const seenDriveArchiveFileIds = new Set<string>();
+  const seenDriveArchiveHashes = new Set<string>();
+  const seenGoogleDriveFileIds = new Set<string>();
+  for (
+    let index = 0;
+    index < (workspace.driveArchives ?? []).length;
+    index += 1
+  ) {
+    const item = workspace.driveArchives![index]!;
+    const path = `workspace.driveArchives[${index}]`;
+    if (item.ownerScope !== expectedOwnerScope) {
+      addIssue("OWNER_SCOPE_MISMATCH", `${path}.ownerScope`);
+    }
+    if (seenDriveArchiveIds.has(item.id)) {
+      addIssue("DUPLICATE_ID", `${path}.id`);
+    }
+    seenDriveArchiveIds.add(item.id);
+    if (
+      seenDriveArchiveFileIds.has(item.fileId) ||
+      seenDriveArchiveHashes.has(item.sourceSha256) ||
+      seenGoogleDriveFileIds.has(item.driveFileId)
+    ) {
+      addIssue("DUPLICATE_ID", `${path}.fileId`);
+    }
+    seenDriveArchiveFileIds.add(item.fileId);
+    seenDriveArchiveHashes.add(item.sourceSha256);
+    seenGoogleDriveFileIds.add(item.driveFileId);
+    requireRequiredRef("files", item.fileId, `${path}.fileId`);
+    const sourceFile = filesById.get(item.fileId);
+    if (sourceFile && sourceFile.sha256 !== item.sourceSha256) {
+      addIssue("DANGLING_REFERENCE", `${path}.sourceSha256`);
+    }
+    const documentIds = requireRefs(
+      "documents",
+      item.documentIds,
+      `${path}.documentIds`,
+    );
+    for (
+      let documentIndex = 0;
+      documentIds && documentIndex < documentIds.length;
+      documentIndex += 1
+    ) {
+      if (documentsById.get(documentIds[documentIndex]!)?.fileId !== item.fileId) {
+        addIssue(
+          "DANGLING_REFERENCE",
+          `${path}.documentIds[${documentIndex}]`,
+        );
+      }
+    }
+    if (item.workspaceRevision > workspace.revision) {
+      addIssue("INVALID_WORKSPACE", `${path}.workspaceRevision`);
+    }
+  }
 
   for (let index = 0; index < workspace.packages.length; index += 1) {
     const item = workspace.packages[index]!;
@@ -3085,6 +3211,115 @@ function appendIntegrityIssue(
   path: string,
 ): void {
   if (issues.length < MAX_INTEGRITY_ISSUES) issues.push({ code, path });
+}
+
+function validateDriveArchiveStructure(
+  value: Record<string, unknown>,
+  path: string,
+  addIssue: (code: WorkspaceIntegrityIssueCode, path: string) => void,
+  consumeNested: (length: number, path: string) => boolean,
+  consumeText: (value: unknown, path: string) => boolean,
+): void {
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== "string" || !DRIVE_ARCHIVE_KEYS.has(key)) {
+      addIssue("INVALID_WORKSPACE", `${path}.$unknown`);
+      return;
+    }
+  }
+  for (const field of ["id", "ownerScope", "fileId"] as const) {
+    try {
+      if (field === "ownerScope") {
+        assertBoundedOwnerScope(value[field], `${path}.${field}`);
+      } else {
+        assertBoundedId(value[field], `${path}.${field}`);
+      }
+      consumeText(value[field], `${path}.${field}`);
+    } catch (error) {
+      if (error === NESTED_BUDGET_ABORT) throw error;
+      addIssue("INVALID_WORKSPACE", `${path}.${field}`);
+    }
+  }
+  if (
+    typeof value.sourceSha256 !== "string" ||
+    !SHA256_HEX.test(value.sourceSha256)
+  ) {
+    addIssue("INVALID_WORKSPACE", `${path}.sourceSha256`);
+  } else {
+    consumeText(value.sourceSha256, `${path}.sourceSha256`);
+  }
+  for (const field of ["driveFileId", "driveFolderId"] as const) {
+    if (typeof value[field] !== "string" || !GOOGLE_DRIVE_ID.test(value[field])) {
+      addIssue("INVALID_WORKSPACE", `${path}.${field}`);
+    } else {
+      consumeText(value[field], `${path}.${field}`);
+    }
+  }
+  const documentIds = snapshotDataArray(
+    value.documentIds,
+    FISCAL_NOTIFICATION_INPUT_LIMITS.maxCollectionItems,
+  );
+  if (documentIds === ARRAY_LIMIT_EXCEEDED) {
+    addIssue("COLLECTION_LIMIT_EXCEEDED", `${path}.documentIds`);
+  } else if (!documentIds || documentIds.length === 0) {
+    addIssue("INVALID_WORKSPACE", `${path}.documentIds`);
+  } else {
+    consumeNested(documentIds.length, `${path}.documentIds`);
+    const seen = new Set<string>();
+    for (let index = 0; index < documentIds.length; index += 1) {
+      const id = documentIds[index];
+      try {
+        assertBoundedId(id, `${path}.documentIds[${index}]`);
+        consumeText(id, `${path}.documentIds[${index}]`);
+        if (seen.has(id)) throw new Error("DUPLICATE_DOCUMENT_ID");
+        seen.add(id);
+      } catch (error) {
+        if (error === NESTED_BUDGET_ABORT) throw error;
+        addIssue("INVALID_WORKSPACE", `${path}.documentIds[${index}]`);
+      }
+    }
+  }
+  if (
+    value.documentDate !== null &&
+    (typeof value.documentDate !== "string" ||
+      !/^\d{4}-\d{2}-\d{2}$/u.test(value.documentDate) ||
+      !isIsoDateOrTimestamp(value.documentDate))
+  ) {
+    addIssue("INVALID_WORKSPACE", `${path}.documentDate`);
+  } else if (typeof value.documentDate === "string") {
+    consumeText(value.documentDate, `${path}.documentDate`);
+  }
+  if (value.archiveStatus !== "ARCHIVED_VERIFIED") {
+    addIssue("INVALID_WORKSPACE", `${path}.archiveStatus`);
+  }
+  if (value.reviewStatus !== "USER_CONFIRMED") {
+    addIssue("INVALID_WORKSPACE", `${path}.reviewStatus`);
+  }
+  if (value.verificationMethod !== "SHA256_READBACK_MATCH") {
+    addIssue("INVALID_WORKSPACE", `${path}.verificationMethod`);
+  }
+  for (const field of [
+    "archiveStatus",
+    "reviewStatus",
+    "verificationMethod",
+  ] as const) {
+    if (typeof value[field] === "string") {
+      consumeText(value[field], `${path}.${field}`);
+    }
+  }
+  if (value.recordVersion !== 1) {
+    addIssue("INVALID_WORKSPACE", `${path}.recordVersion`);
+  }
+  if (
+    !Number.isSafeInteger(value.workspaceRevision) ||
+    Number(value.workspaceRevision) < 1
+  ) {
+    addIssue("INVALID_WORKSPACE", `${path}.workspaceRevision`);
+  }
+  if (!isIsoTimestamp(value.archivedAt)) {
+    addIssue("INVALID_WORKSPACE", `${path}.archivedAt`);
+  } else {
+    consumeText(value.archivedAt, `${path}.archivedAt`);
+  }
 }
 
 function isIsoTimestamp(value: unknown): value is string {

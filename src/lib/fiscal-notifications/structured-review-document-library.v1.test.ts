@@ -29,6 +29,7 @@ function document(
     authenticityLabel: "Autenticidad no comprobada",
     reviewLabel: "Datos extraídos · revisa antes de actuar",
     sourceContentRetention: "NOT_RETAINED",
+    originalArchive: null,
   });
 }
 

@@ -82,13 +82,17 @@ Regresiones mínimas: `expense-inbox-reliability-contract.test.ts`,
 
 Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
 
-- La nube de Factu es el estado operativo sincronizado. Drive es una copia JSON
-  adicional y nunca sustituye ni confirma el estado vivo.
+- La nube de Factu es el estado operativo sincronizado. Drive conserva copias
+  JSON y originales archivados voluntariamente bajo custodia del usuario; nunca
+  sustituye ni confirma el estado vivo.
 - Subir, descargar, mezclar y reparar comparten exclusión mutua liberada en
   `finally`; un fallo conserva la cola local y permite reintentar.
 - Aislamiento por usuario, CAS e integridad fiscal continúan fail-closed.
 - Drive usa `drive.file`, compara por readback exacto antes de confirmar y solo
   después aplica retención. Manual, automático y callback no se solapan.
+- Un original fiscal exige acción expresa y coincidencia SHA-256 tras relectura.
+  Factu no conserva sus bytes, texto o nombre; la carpeta usa fecha documental
+  `AAAA/MM` o «Fecha pendiente», jamás la fecha de escaneo.
 
 Regresiones mínimas: `cloud-drive-sync-reliability-contract.test.ts`,
 `sync-operation.test.ts`, `sync-queue.test.ts`, `repository.test.ts`,

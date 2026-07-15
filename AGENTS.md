@@ -161,8 +161,9 @@ La decisión obligatoria y versionada está en
 [`docs/architecture/ADR-0005-cloud-and-drive-sync-reliability.md`](docs/architecture/ADR-0005-cloud-and-drive-sync-reliability.md).
 
 - La nube de Factu es la sincronización operativa entre dispositivos; Google
-  Drive es únicamente una copia JSON adicional. Drive nunca sustituye, mezcla
-  ni confirma el estado vivo de la cuenta.
+  Drive solo conserva copias JSON y originales archivados voluntariamente bajo
+  custodia del usuario. Drive nunca sustituye, mezcla ni confirma el estado vivo
+  de la cuenta.
 - Subida, descarga, mezcla, descarga completa y reparación comparten una única
   exclusión mutua por cliente. El bloqueo siempre se libera con `finally`; un
   fallo o excepción previa no puede dejar inservibles ni el reintento
@@ -177,6 +178,10 @@ La decisión obligatoria y versionada está en
 - Drive usa solo `drive.file`, callback propio con `state`, token temporal en
   sesión y destinos oficiales de Google. Una copia solo se marca válida tras
   releer el archivo recién creado y comparar exactamente el JSON exportado.
+- Un original fiscal solo se archiva tras un clic explícito, relectura remota y
+  coincidencia SHA-256 exacta. Factu no conserva PDF, nombre ni texto; guarda
+  identificadores opacos, huella y estado. La ruta usa la fecha documental
+  `AAAA/MM` o «Fecha pendiente», nunca la fecha de escaneo.
 - La copia manual y la automática no pueden ejecutarse a la vez. Un fallo
   automático conserva la firma pendiente y programa reintento; la retención se
   aplica después de verificar la copia nueva y nunca borra archivos ajenos.
@@ -184,7 +189,9 @@ La decisión obligatoria y versionada está en
   almacenamiento, AppStore, Supabase o restauraciones debe ejecutar
   `cloud-drive-sync-reliability-contract.test.ts`, `sync-operation.test.ts`,
   `sync-queue.test.ts`, `repository.test.ts`, `google-drive/operation.test.ts`
-  y `google-drive/backup.test.ts`.
+  `google-drive/backup.test.ts` y las regresiones
+  `fiscal-notification-original-archive.v1.test.ts` y
+  `drive-original-archive.v1.test.ts`.
 
 ## Fiabilidad del maestro de clientes
 
