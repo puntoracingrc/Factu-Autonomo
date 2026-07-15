@@ -5,15 +5,59 @@ import {
   buildPrivateExpenseInboxAliasToken,
   classifyExpenseInboxDelivery,
   extractExpenseInboxAliasToken,
+  isExpenseInboxQuotaError,
   isSupportedExpenseInboxAttachment,
   nextFriendlyExpenseInboxAliasCounter,
   normalizeExpenseInboxAliasBase,
   normalizeExpenseInboxInboundPayload,
   normalizeResendReceivedEmailMetadata,
   resolveExpenseInboxAttachmentMimeType,
+  shouldRetryExpenseInboxItem,
 } from "./expense-inbox";
 
 describe("expense inbox", () => {
+  it("reconoce únicamente errores que permiten comprar saldo IA", () => {
+    expect(
+      isExpenseInboxQuotaError(
+        "Has usado los 150 escaneos incluidos este mes.",
+      ),
+    ).toBe(true);
+    expect(isExpenseInboxQuotaError("No quedan escaneos IA disponibles.")).toBe(
+      true,
+    );
+    expect(isExpenseInboxQuotaError("El PDF supera el límite.")).toBe(false);
+  });
+
+  it("solo reabre automáticamente el mismo registro si falló por cuota", () => {
+    expect(
+      shouldRetryExpenseInboxItem({
+        status: "error",
+        scanError: "Has usado los 150 escaneos incluidos este mes.",
+        explicitRetry: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldRetryExpenseInboxItem({
+        status: "error",
+        scanError: "El proveedor no respondió.",
+        explicitRetry: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldRetryExpenseInboxItem({
+        status: "error",
+        scanError: "El proveedor no respondió.",
+        explicitRetry: true,
+      }),
+    ).toBe(true);
+    expect(
+      shouldRetryExpenseInboxItem({
+        status: "pending",
+        explicitRetry: true,
+      }),
+    ).toBe(false);
+  });
+
   it("construye y lee direcciones de buzón de gastos", () => {
     const address = buildExpenseInboxAddress(
       "abc123def456",

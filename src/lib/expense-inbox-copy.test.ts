@@ -23,6 +23,7 @@ describe("expense inbox company copy", () => {
     });
 
     expect(copy).toMatchObject({
+      from: "Factu - Facturación Autónomos <hola@mail.facturacion-autonomos.app>",
       to: "empresa@example.com",
       subject: "Copia: Factura 2026/14",
       attachments: [{ filename: "factura.pdf", content: "ZmFjdHVyYQ==" }],

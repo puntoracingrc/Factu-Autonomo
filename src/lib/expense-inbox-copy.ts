@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { getEmailFromAddressForDomain } from "@/lib/email/config";
 import type { SendEmailInput, SendEmailResult } from "@/lib/email/send";
 import type { ExpenseInboxAttachmentInput } from "@/lib/expense-inbox";
 
@@ -124,6 +125,7 @@ export function buildExpenseInboxCopyEmail(input: {
   ].join("\n\n");
 
   return {
+    from: getEmailFromAddressForDomain(input.inboxDomain),
     to: recipient,
     subject: safeSubject(input.originalSubject),
     text,

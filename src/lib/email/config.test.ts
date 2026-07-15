@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getEmailFromAddress } from "./config";
+import {
+  getEmailFromAddress,
+  getEmailFromAddressForDomain,
+} from "./config";
 
 const ORIGINAL_ENV = { ...process.env };
 
@@ -29,6 +32,17 @@ describe("email config", () => {
     process.env.NEXT_PUBLIC_VERIFACTU_DEVELOPER_EMAIL = "";
 
     expect(getEmailFromAddress()).toBe(
+      "Factu - Facturación Autónomos <hola@mail.facturacion-autonomos.app>",
+    );
+  });
+
+  it("alinea la copia del buzón con su dominio verificado", () => {
+    expect(
+      getEmailFromAddressForDomain("mail.facturacion-autonomos.app."),
+    ).toBe(
+      "Factu - Facturación Autónomos <hola@mail.facturacion-autonomos.app>",
+    );
+    expect(getEmailFromAddressForDomain("dominio inválido")).toBe(
       "Factu - Facturación Autónomos <hola@mail.facturacion-autonomos.app>",
     );
   });

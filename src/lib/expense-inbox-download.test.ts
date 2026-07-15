@@ -3,6 +3,7 @@ import {
   assertAllowedResendDownloadUrl,
   downloadResendAttachment,
   ExpenseInboxDownloadError,
+  listRecentResendReceivedEmails,
   MAX_RESEND_ATTACHMENT_BYTES,
   MAX_RESEND_ATTACHMENTS_PER_EMAIL,
   splitResendAttachmentBatch,
@@ -89,6 +90,59 @@ describe("expense inbox attachment download boundaries", () => {
     expect(MAX_RESEND_ATTACHMENTS_PER_EMAIL).toBe(10);
     expect(batch.selected).toEqual(attachments.slice(0, 10));
     expect(batch.overflow).toEqual(attachments.slice(10));
+  });
+
+  it("lista solo metadatos acotados para recuperar un error antiguo", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          object: "list",
+          data: [
+            {
+              id: "email_123",
+              to: ["gastos-pa-123@mail.facturacion-autonomos.app"],
+              from: "Proveedor <facturas@proveedor.test>",
+              created_at: "2026-07-15T10:00:00.000Z",
+              subject: "Factura 123",
+              attachments: [
+                {
+                  id: "att_123",
+                  filename: "factura.pdf",
+                  content_type: "application/pdf",
+                  size: 1234,
+                },
+              ],
+            },
+            { id: "incompleto" },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    await expect(
+      listRecentResendReceivedEmails({
+        apiKey: "synthetic-test-key",
+        fetchImpl,
+      }),
+    ).resolves.toEqual([
+      {
+        id: "email_123",
+        to: ["gastos-pa-123@mail.facturacion-autonomos.app"],
+        from: "Proveedor <facturas@proveedor.test>",
+        createdAt: "2026-07-15T10:00:00.000Z",
+        subject: "Factura 123",
+        attachments: [
+          {
+            id: "att_123",
+            filename: "factura.pdf",
+            contentType: "application/pdf",
+            size: 1234,
+          },
+        ],
+      },
+    ]);
+    expect(fetchImpl.mock.calls[0]?.[1]).toMatchObject({ redirect: "manual" });
   });
 
   it("rechaza el tamaño declarado por el webhook antes de llamar a Resend", async () => {

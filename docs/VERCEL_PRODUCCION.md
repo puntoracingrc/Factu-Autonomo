@@ -55,7 +55,7 @@ Copia desde tu `.env.local` (Production + Preview):
 | `GOOGLE_MAPS_API_KEY` | opcional: Google Geocoding para completar códigos postales desde dirección + ciudad |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | opcional: Google Places en navegador para sugerir direcciones. Debe estar restringida por dominio y APIs de Google Maps/Places |
 | `RESEND_API_KEY` | clave Resend (emails bienvenida) |
-| `EMAIL_FROM` | `Factu - Facturación Autónomos <info@facturacion-autonomos.app>` |
+| `EMAIL_FROM` | `Factu - Facturación Autónomos <hola@mail.facturacion-autonomos.app>` (subdominio verificado en Resend) |
 | `NEXT_PUBLIC_VERIFACTU_DEVELOPER_EMAIL` | `info@facturacion-autonomos.app` |
 | `SERVER_RATE_LIMIT_BACKEND` | `supabase` tras aplicar/verificar la migracion distribuida |
 | `SERVER_RATE_LIMIT_SALT` | secreto aleatorio exclusivo; no usar URL, email ni otra clave |
