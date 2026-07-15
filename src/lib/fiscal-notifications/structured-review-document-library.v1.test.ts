@@ -5,6 +5,7 @@ import {
 } from "./structured-review-document-library.v1";
 import type { FiscalNotificationStructuredHistoryEntryV1 } from "./structured-review-history-view-model.v1";
 import type { StructuredReviewRelationsViewModelV1 } from "./structured-review-relations-view-model.v1";
+import { explainFiscalNotificationDocumentV1 } from "./structured-document-explanation.v1";
 
 function document(
   id: string,
@@ -14,6 +15,8 @@ function document(
 ): FiscalNotificationStructuredHistoryEntryV1 {
   return Object.freeze({
     key: id,
+    documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+    documentSubtype: null,
     title,
     authority: "Agencia Estatal de Administración Tributaria",
     documentDate,
@@ -26,6 +29,14 @@ function document(
     printedDates: Object.freeze([]),
     money: Object.freeze([]),
     installments: Object.freeze([]),
+    explanation: explainFiscalNotificationDocumentV1({
+      documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+      documentSubtype: null,
+      documentDate,
+      receiptDate: null,
+      facts: [],
+      money: [],
+    }),
     authenticityLabel: "Autenticidad no comprobada",
     reviewLabel: "Datos extraídos · revisa antes de actuar",
     sourceContentRetention: "NOT_RETAINED",

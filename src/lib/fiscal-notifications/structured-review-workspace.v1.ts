@@ -1439,6 +1439,14 @@ export function appendAeatOffsetStructuredReviewV1(
       "request-date",
     );
   }
+  if (facts.header.signatureDate) {
+    addUnknownDate(
+      "PRINTED_SIGNATURE_DATE",
+      "Fecha de firma impresa",
+      facts.header.signatureDate,
+      "signature-date",
+    );
+  }
 
   for (let index = 0; index < facts.credits.length; index += 1) {
     const credit = facts.credits[index]!;
@@ -1690,6 +1698,12 @@ export function appendAeatOffsetStructuredReviewV1(
         ? "ACUERDO DE COMPENSACION SOLICITADO AEAT"
         : "ACUERDO DE COMPENSACION DE OFICIO AEAT",
     authorityId: ids.authority,
+    ...(facts.header.signatureDate
+      ? {
+          issueDate: facts.header.signatureDate.calendarDate,
+          signatureDate: facts.header.signatureDate.calendarDate,
+        }
+      : {}),
     notificationDates: {},
     ...(facts.header.subjectName || facts.header.subjectTaxId
       ? {
@@ -1750,6 +1764,9 @@ export function appendAeatOffsetStructuredReviewV1(
           facts.agreementMode === "REQUESTED"
             ? "Acuerdo de compensación solicitado AEAT"
             : "Acuerdo de compensación de oficio AEAT",
+        ...(facts.header.signatureDate
+          ? { issueDate: facts.header.signatureDate.calendarDate }
+          : {}),
       },
     },
     plainLanguageExplanation: [

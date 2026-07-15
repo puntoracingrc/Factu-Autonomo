@@ -221,9 +221,21 @@ export function FiscalNotificationDocumentDetail({
           </dl>
         ) : null}
 
-        <DocumentAmounts document={document} expanded />
+        <DocumentExplanationPanel explanation={document.explanation} />
 
-        {document.installments.length > 0 ? (
+        <details className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <summary className="cursor-pointer font-bold text-slate-900">
+            Ver importes, referencias y datos extraídos
+          </summary>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Estos son los valores técnicos que sostienen la explicación. Se
+            muestran para comprobarlos, no como tarea pendiente ni como una
+            deuda creada por Factu.
+          </p>
+
+          <DocumentAmounts document={document} expanded />
+
+          {document.installments.length > 0 ? (
           <section className="mt-5" aria-label="Cuotas y vencimientos impresos">
             <h3 className="font-bold text-slate-950">Cuotas y vencimientos</h3>
             <ol className="mt-3 grid gap-3 lg:grid-cols-2">
@@ -264,19 +276,20 @@ export function FiscalNotificationDocumentDetail({
               como pagada y no se crea automáticamente un gasto o asiento.
             </p>
           </section>
-        ) : null}
+          ) : null}
 
-        {document.references.length > 0 || document.printedDates.length > 0 ? (
-          <dl className="mt-5 grid gap-x-6 gap-y-3 border-t border-slate-200 pt-5 sm:grid-cols-2">
-            {[...document.references, ...document.printedDates].map((fact) => (
-              <Fact
-                key={`${fact.label}:${fact.value}`}
-                label={fact.label}
-                value={fact.value}
-              />
-            ))}
-          </dl>
-        ) : null}
+          {document.references.length > 0 || document.printedDates.length > 0 ? (
+            <dl className="mt-5 grid gap-x-6 gap-y-3 border-t border-slate-200 pt-5 sm:grid-cols-2">
+              {[...document.references, ...document.printedDates].map((fact) => (
+                <Fact
+                  key={`${fact.label}:${fact.value}`}
+                  label={fact.label}
+                  value={fact.value}
+                />
+              ))}
+            </dl>
+          ) : null}
+        </details>
 
         <p className="mt-5 text-xs font-semibold text-slate-500">
           {document.pageCount} páginas · {formatBytes(document.byteLength)} ·
@@ -327,6 +340,89 @@ export function FiscalNotificationDocumentDetail({
         </Card>
       ) : null}
     </div>
+  );
+}
+
+function DocumentExplanationPanel({
+  explanation,
+}: {
+  explanation: FiscalNotificationStructuredHistoryEntryV1["explanation"];
+}) {
+  return (
+    <section className="mt-5 space-y-4" aria-labelledby="document-meaning-heading">
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+        <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">
+          Qué te está diciendo este documento
+        </p>
+        <h3 id="document-meaning-heading" className="mt-1 text-lg font-bold text-emerald-950">
+          {explanation.whatItIs}
+        </h3>
+        <dl className="mt-4 grid gap-4 md:grid-cols-2">
+          <Fact label="Por qué lo has recibido" value={explanation.whyReceived} />
+          <Fact label="Resultado" value={explanation.result} />
+        </dl>
+      </div>
+
+      {explanation.keyFacts.length > 0 ? (
+        <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {explanation.keyFacts.map((fact) => (
+            <div key={`${fact.label}:${fact.value}`} className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+              <dt className="text-xs font-bold uppercase tracking-wide text-blue-800">
+                {fact.label}
+              </dt>
+              <dd className="mt-1 text-lg font-bold text-blue-950">{fact.value}</dd>
+              {fact.basis === "CALCULATED_FROM_PRINTED_VALUES" ? (
+                <dd className="mt-1 text-xs text-blue-800">
+                  Calculado únicamente con cifras impresas en el documento
+                </dd>
+              ) : null}
+            </div>
+          ))}
+        </dl>
+      ) : null}
+
+      <div className="grid gap-3 lg:grid-cols-2">
+        <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-indigo-800">
+            Qué tienes que hacer
+          </p>
+          <p className="mt-1 font-bold text-indigo-950">{explanation.nextStep.title}</p>
+          <p className="mt-2 text-sm leading-6 text-indigo-900">{explanation.nextStep.detail}</p>
+        </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-amber-800">Plazo</p>
+          <p className="mt-1 font-bold text-amber-950">{explanation.deadline.title}</p>
+          <p className="mt-2 text-sm leading-6 text-amber-900">{explanation.deadline.detail}</p>
+        </div>
+      </div>
+
+      {explanation.officialSources.length > 0 ? (
+        <details className="rounded-xl border border-slate-200 p-4">
+          <summary className="cursor-pointer text-sm font-bold text-slate-800">
+            Fuentes oficiales que ya conoce el motor
+          </summary>
+          <ul className="mt-3 space-y-2 text-sm">
+            {explanation.officialSources.map((source) => (
+              <li key={source.id}>
+                <a
+                  href={source.canonicalUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-blue-700 hover:underline"
+                >
+                  {source.authority} · {source.title}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            Estas fuentes se incorporaron al conocimiento local. No se consulta
+            internet al escanear y ninguna fuente sustituye lo que dice el
+            documento.
+          </p>
+        </details>
+      ) : null}
+    </section>
   );
 }
 

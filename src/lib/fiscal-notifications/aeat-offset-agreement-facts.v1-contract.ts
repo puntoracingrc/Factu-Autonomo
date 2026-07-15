@@ -54,6 +54,7 @@ const HEADER_KEYS = new Set([
   "subjectTaxId",
   "agreementNumber",
   "requestDate",
+  "signatureDate",
 ]);
 const CREDIT_KEYS = new Set([
   "reference",
@@ -130,6 +131,7 @@ const ISSUE_CODES = new Set<AeatOffsetAgreementFactsIssueCodeV1>([
   "MULTIPLE_DISTINCT_SUBJECT_VALUES",
   "MULTIPLE_DISTINCT_AGREEMENT_VALUES",
   "MULTIPLE_DISTINCT_REQUEST_DATES",
+  "MULTIPLE_DISTINCT_SIGNATURE_DATES",
   "RESOURCE_LIMIT_EXCEEDED",
   "UNSUPPORTED_TEXT_STATE",
 ]);
@@ -304,6 +306,10 @@ function parseHeader(
       header.requestDate === null
         ? null
         : parseDateFact(header.requestDate, pageCount),
+    signatureDate:
+      header.signatureDate === null
+        ? null
+        : parseDateFact(header.signatureDate, pageCount),
   });
 }
 
