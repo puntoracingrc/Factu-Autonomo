@@ -111,15 +111,31 @@ describe("contrato de interfaz del calendario fiscal", () => {
     expect(componentSource).not.toMatch(/modelos\/\$\{/);
   });
 
-  it("integra Mis obligaciones con fallback seguro y conserva Todos", () => {
+  it("integra Mis obligaciones con orientación segura y conserva Todos", () => {
     expect(componentSource).toContain("buildFiscalCalendarObligationView");
     expect(componentSource).toContain(
       "normalizeFiscalAdvisoryModelPreferencesV1",
     );
     expect(componentSource).toContain('mineLabel="Mis obligaciones"');
     expect(componentSource).toContain('groupLabel="Elegir vista del calendario"');
-    expect(componentSource).toContain("mineDisabled={!personalizationEnabled}");
+    expect(componentSource).toContain("mineDisabled={!personalizationAvailable}");
     expect(componentSource).toContain("Abrir diagnóstico");
+    expect(componentSource).toContain("Vista orientativa.");
+    expect(componentSource).toContain("Puede afectarte · por confirmar");
+    expect(componentSource).toContain("Relacionado · por confirmar");
+    expect(componentSource).toContain("orientationHighlighted");
+    expect(componentSource).toContain(
+      "orientationPriorityEventIds.has(event.id)",
+    );
+    expect(componentSource).toContain("se conservan todos");
+    expect(componentSource).toContain("sin exclusiones");
+    expect(componentSource).toContain('obligationView.status === "ORIENTATIVE"');
+    expect(componentSource).toContain("orientationPriorityEventIds");
+    expect(componentSource).toContain("relacionados destacados");
+    expect(componentSource).toContain(
+      'obligationView.fallbackReason === "RULES_PENDING_REVIEW"',
+    );
+    expect(componentSource).not.toContain("relacionados primero");
     expect(componentSource).toContain("Por confirmar");
     expect(componentSource).toContain("Coincide con tu diagnóstico");
     expect(componentSource).toContain("no aplicables ocultos");

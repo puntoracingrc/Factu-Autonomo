@@ -191,17 +191,25 @@ function EventCard({
   categoryLabel,
   modelLinks,
   obligationDecision,
+  orientationHighlighted,
   onCreateReminder,
 }: {
   event: FiscalCalendarEvent;
   categoryLabel: string;
   modelLinks: ReadonlyMap<string, FiscalCalendarModelPageLink>;
   obligationDecision?: FiscalCalendarEventObligationDecision;
+  orientationHighlighted: boolean;
   onCreateReminder: (event: FiscalCalendarEvent) => void;
 }) {
   return (
     <li>
-      <Card className="flex h-full flex-col border-slate-200/80 dark:border-slate-700 dark:bg-slate-900">
+      <Card
+        className={`flex h-full flex-col dark:bg-slate-900 ${
+          orientationHighlighted
+            ? "border-amber-300 bg-amber-50/40 ring-1 ring-amber-200 dark:border-amber-700 dark:bg-amber-950/20 dark:ring-amber-900"
+            : "border-slate-200/80 dark:border-slate-700"
+        }`}
+      >
         <div className="flex flex-wrap items-center gap-2 text-xs font-bold uppercase tracking-wide">
           <span className="rounded-full bg-blue-50 px-2.5 py-1 text-blue-700 dark:bg-blue-950 dark:text-blue-200">
             {categoryLabel}
@@ -236,7 +244,17 @@ function EventCard({
               Añadido por ti
             </span>
           ) : null}
-          {obligationDecision?.requiresConfirmation ? (
+          {obligationDecision?.reason === "REQUIRED" &&
+          obligationDecision.requiresConfirmation ? (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+              Puede afectarte · por confirmar
+            </span>
+          ) : orientationHighlighted &&
+            obligationDecision?.requiresConfirmation ? (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+              Relacionado · por confirmar
+            </span>
+          ) : obligationDecision?.requiresConfirmation ? (
             <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-900 dark:bg-amber-950 dark:text-amber-100">
               Por confirmar
             </span>
@@ -349,20 +367,6 @@ export function FiscalCalendarView({
       }),
     [appData.profile.taxModelDiagnostic, events, manualModelCodes],
   );
-  const personalizationEnabled =
-    appReady && obligationView.status === "PERSONALIZED";
-  const effectiveScope: AdvisoryScope = personalizationEnabled
-    ? requestedScope
-    : "ALL";
-  const visibleEvents = useMemo(
-    () =>
-      effectiveScope === "MINE"
-        ? events.filter((event) =>
-            obligationView.visibleEventIds.has(event.id),
-          )
-        : events,
-    [effectiveScope, events, obligationView.visibleEventIds],
-  );
   const obligationDecisions = useMemo(
     () =>
       new Map(
@@ -373,6 +377,40 @@ export function FiscalCalendarView({
       ),
     [obligationView.decisions],
   );
+  const orientationPriorityEventIds = useMemo(
+    () =>
+      new Set(
+        obligationView.decisions
+          .filter(
+            (decision) =>
+              decision.manuallySelected ||
+              decision.reason === "REQUIRED" ||
+              decision.reason === "REVIEW_REQUIRED" ||
+              decision.reason === "UNKNOWN",
+          )
+          .map((decision) => decision.eventId),
+      ),
+    [obligationView.decisions],
+  );
+  const personalizationAvailable =
+    appReady && obligationView.status !== "ALL_ONLY";
+  const effectiveScope: AdvisoryScope = personalizationAvailable
+    ? requestedScope
+    : "ALL";
+  const visibleEvents = useMemo(() => {
+    if (effectiveScope === "ALL") return events;
+    if (obligationView.status === "PERSONALIZED") {
+      return events.filter((event) =>
+        obligationView.visibleEventIds.has(event.id),
+      );
+    }
+    return events;
+  }, [
+    effectiveScope,
+    events,
+    obligationView.status,
+    obligationView.visibleEventIds,
+  ]);
   const visibleReviewCount =
     effectiveScope === "MINE"
       ? visibleEvents.filter((event) =>
@@ -515,9 +553,9 @@ export function FiscalCalendarView({
               no determinan qué modelos debe presentar cada contribuyente.
             </p>
             <p className="mt-2">
-              «Mis obligaciones» solo organiza los eventos mediante el último
-              diagnóstico fiscal confirmado. Los casos dudosos permanecen
-              visibles para que puedas revisarlos.
+              «Mis obligaciones» organiza los eventos mediante la última foto
+              guardada de tu diagnóstico fiscal. Mientras sus reglas sigan en
+              revisión, no se oculta ningún vencimiento.
             </p>
           </div>
         </div>
@@ -541,12 +579,12 @@ export function FiscalCalendarView({
               groupLabel="Elegir vista del calendario"
               mineLabel="Mis obligaciones"
               mineCount={
-                personalizationEnabled
+                personalizationAvailable
                   ? obligationView.visibleEventIds.size
                   : 0
               }
               allCount={events.length}
-              mineDisabled={!personalizationEnabled}
+              mineDisabled={!personalizationAvailable}
             />
             {!appReady ? (
               <p
@@ -570,6 +608,31 @@ export function FiscalCalendarView({
                     >
                       Abrir diagnóstico
                     </Link>
+                  </p>
+                </div>
+              </div>
+            ) : obligationView.status === "ORIENTATIVE" ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+                <div className="flex items-start gap-2">
+                  <CircleAlert
+                    className="mt-1 h-4 w-4 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <p>
+                    <strong>Vista orientativa.</strong>{" "}
+                    {obligationView.fallbackReason === "RULES_PENDING_REVIEW"
+                      ? "Las reglas del diagnóstico siguen pendientes de revisión fiscal."
+                      : "El diagnóstico todavía necesita revisión o más información."}{" "}
+                    Los avisos que podrían afectarte se destacan y quedan
+                    marcados «por confirmar», pero se conservan todos y no se
+                    excluye ninguno. Revisa o actualiza tu foto en{" "}
+                    <Link
+                      href="/consultor-fiscal/diagnostico"
+                      className="font-bold underline underline-offset-2 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                    >
+                      Diagnóstico fiscal
+                    </Link>
+                    .
                   </p>
                 </div>
               </div>
@@ -770,9 +833,12 @@ export function FiscalCalendarView({
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   {visibleEvents.length} resultado
                   {visibleEvents.length === 1 ? "" : "s"}
-                  {effectiveScope === "MINE"
-                    ? ` · ${obligationView.excludedCount} no aplicables ocultos · ${visibleReviewCount} por confirmar`
-                    : ""}
+                  {effectiveScope === "MINE" &&
+                  obligationView.status === "ORIENTATIVE"
+                    ? ` · ${orientationPriorityEventIds.size} relacionados destacados · sin exclusiones · ${visibleReviewCount} por confirmar`
+                    : effectiveScope === "MINE"
+                      ? ` · ${obligationView.excludedCount} no aplicables ocultos · ${visibleReviewCount} por confirmar`
+                      : ""}
                 </p>
               </div>
               {loading ? (
@@ -794,6 +860,11 @@ export function FiscalCalendarView({
                     effectiveScope === "MINE"
                       ? obligationDecisions.get(event.id)
                       : undefined
+                  }
+                  orientationHighlighted={
+                    effectiveScope === "MINE" &&
+                    obligationView.status === "ORIENTATIVE" &&
+                    orientationPriorityEventIds.has(event.id)
                   }
                   onCreateReminder={prepareReminder}
                 />
