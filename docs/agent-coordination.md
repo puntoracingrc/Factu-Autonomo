@@ -4,8 +4,8 @@
 
 ## Reserva activa — motor de expedientes tributarios F0/F1
 
-La rama `agent/tax-procedure-master-phase0-v1`, basada en
-`origin/main@7a9c6f7282a7f0bff5c6952879e310b41ccd2581`, trabaja únicamente en el
+La rama `agent/tax-procedure-master-phase0-v1`, rebasada sobre
+`origin/main@9ffd0f38bc28f1dd28fed2b78601fc5c3357f91d`, trabaja únicamente en el
 Motor 2 de notificaciones y expedientes tributarios.
 
 Perímetro de este lote:
