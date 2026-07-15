@@ -1,0 +1,369 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://facturacion-autonomos.app/schemas/tax-real-variant-manifest.2026-07.v1.json",
+  "title": "Tax document real variant manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifestVersion",
+    "fixtureId",
+    "family",
+    "authority",
+    "territory",
+    "modelNumber",
+    "documentName",
+    "fiscalYear",
+    "period",
+    "layoutVersion",
+    "extractorVersionExpected",
+    "sourceClass",
+    "sourceGenerationMethod",
+    "authorizationRecorded",
+    "officialSourceReferences",
+    "documentKind",
+    "filingStatus",
+    "temporalScope",
+    "completeDocument",
+    "expectedPageCount",
+    "observedPageCount",
+    "visualVariant",
+    "fileCharacteristics",
+    "expectedClassification",
+    "expectedFields",
+    "expectedQuestionMappings",
+    "fieldEvidence",
+    "forbiddenInferences",
+    "expectedWarnings",
+    "expectedOutcome",
+    "privacyReview",
+    "sha256",
+    "sourceReviewedAt",
+    "reviewers",
+    "notes"
+  ],
+  "properties": {
+    "manifestVersion": { "const": "tax-real-variant-manifest.2026-07.v1" },
+    "fixtureId": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{2,127}$" },
+    "family": {
+      "enum": [
+        "MODEL_035",
+        "MODEL_036",
+        "MODEL_037",
+        "MODEL_100",
+        "MODEL_111",
+        "MODEL_115",
+        "MODEL_123",
+        "MODEL_130",
+        "MODEL_131",
+        "MODEL_151",
+        "MODEL_180",
+        "MODEL_184",
+        "MODEL_190",
+        "MODEL_193",
+        "MODEL_200",
+        "MODEL_202",
+        "MODEL_216",
+        "MODEL_296",
+        "MODEL_303",
+        "MODEL_308",
+        "MODEL_309",
+        "MODEL_341",
+        "MODEL_347",
+        "MODEL_349",
+        "MODEL_369",
+        "MODEL_390",
+        "MODEL_714",
+        "MODEL_720",
+        "MODEL_721",
+        "MODEL_840",
+        "CURRENT_CENSUS_CERTIFICATE",
+        "AEAT_ECONOMIC_ACTIVITIES_VIEW",
+        "AEAT_TAX_STATUS_VIEW",
+        "AEAT_OBLIGATIONS_VIEW",
+        "TGSS_CURRENT_STATUS_REPORT",
+        "TGSS_EMPLOYMENT_HISTORY",
+        "TGSS_SELF_EMPLOYED_ACTIVITIES",
+        "ROI_CERTIFICATE",
+        "LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE"
+      ]
+    },
+    "authority": { "enum": ["AEAT", "TGSS"] },
+    "territory": { "const": "ES_COMMON" },
+    "modelNumber": { "type": ["string", "null"], "pattern": "^[0-9]{3}$" },
+    "documentName": { "type": "string", "minLength": 3 },
+    "fiscalYear": {
+      "type": ["integer", "null"],
+      "minimum": 2000,
+      "maximum": 2100
+    },
+    "period": {
+      "type": ["string", "null"],
+      "pattern": "^(0A|ANUAL|[1-4]T|0[1-9]|1[0-2])$"
+    },
+    "layoutVersion": {
+      "type": "string",
+      "pattern": "^[A-Z0-9][A-Z0-9_.-]{2,127}$"
+    },
+    "extractorVersionExpected": { "type": "string", "minLength": 3 },
+    "sourceClass": {
+      "enum": ["SYNTHETIC", "OFFICIAL_SYNTHETIC", "REAL_ANONYMIZED", "HOLDOUT"]
+    },
+    "sourceGenerationMethod": { "type": "string", "minLength": 3 },
+    "authorizationRecorded": { "type": "boolean" },
+    "officialSourceReferences": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "format": "uri", "pattern": "^https://" }
+    },
+    "documentKind": {
+      "enum": [
+        "FILED_COPY",
+        "DRAFT",
+        "PREDECLARATION",
+        "CERTIFICATE",
+        "CURRENT_SCREEN",
+        "FULL_SCREEN_CAPTURE",
+        "PARTIAL_SCREEN_CAPTURE",
+        "SUPPORTING_DOCUMENT"
+      ]
+    },
+    "filingStatus": { "enum": ["FILED", "DRAFT", "NOT_APPLICABLE", "UNKNOWN"] },
+    "temporalScope": {
+      "enum": ["CURRENT_AS_OF_DATE", "FISCAL_YEAR", "PERIOD", "HISTORICAL"]
+    },
+    "completeDocument": { "type": "boolean" },
+    "expectedPageCount": { "type": "integer", "minimum": 1 },
+    "observedPageCount": { "type": "integer", "minimum": 1 },
+    "visualVariant": {
+      "enum": [
+        "NATIVE",
+        "SCAN_300_DPI",
+        "SCAN_200_DPI",
+        "SCAN_150_DPI",
+        "COMPRESSION_MODERATE",
+        "COMPRESSION_STRONG",
+        "ROTATION_SMALL",
+        "ROTATION_90",
+        "PHOTOGRAPHED_PERSPECTIVE",
+        "UNEVEN_LIGHTING",
+        "PARTIAL_CROP",
+        "GRAYSCALE",
+        "MONOCHROME"
+      ]
+    },
+    "fileCharacteristics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nativeText",
+        "acroForm",
+        "xfa",
+        "embeddedFonts",
+        "digitalSignature",
+        "qrOrBarcode",
+        "rotation",
+        "pageSizes",
+        "encrypted"
+      ],
+      "properties": {
+        "nativeText": { "type": "boolean" },
+        "acroForm": { "type": "boolean" },
+        "xfa": { "type": "boolean" },
+        "embeddedFonts": { "type": "boolean" },
+        "digitalSignature": { "type": "boolean" },
+        "qrOrBarcode": { "type": "boolean" },
+        "rotation": { "enum": [0, 90, 180, 270] },
+        "pageSizes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string" }
+        },
+        "encrypted": { "const": false }
+      }
+    },
+    "expectedClassification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family",
+        "authority",
+        "fiscalYear",
+        "period",
+        "layoutVersion"
+      ],
+      "properties": {
+        "family": { "$ref": "#/$defs/family" },
+        "authority": { "enum": ["AEAT", "TGSS"] },
+        "fiscalYear": { "type": ["integer", "null"] },
+        "period": { "type": ["string", "null"] },
+        "layoutVersion": { "type": "string" }
+      }
+    },
+    "expectedFields": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fieldEvidence" }
+    },
+    "expectedQuestionMappings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "questionId",
+          "proposedAnswer",
+          "canSkipQuestion",
+          "confirmationRequired"
+        ],
+        "properties": {
+          "questionId": { "type": "string", "minLength": 1 },
+          "proposedAnswer": {},
+          "canSkipQuestion": { "type": "boolean" },
+          "confirmationRequired": { "type": "boolean" }
+        }
+      }
+    },
+    "fieldEvidence": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fieldEvidence" }
+    },
+    "forbiddenInferences": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "expectedWarnings": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "expectedOutcome": { "enum": ["ACCEPT", "ACCEPT_WITH_REVIEW", "REJECT"] },
+    "privacyReview": { "$ref": "#/$defs/privacyReview" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "sourceReviewedAt": { "type": "string", "format": "date" },
+    "reviewers": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "notes": { "type": "array", "items": { "type": "string" } }
+  },
+  "$defs": {
+    "family": {
+      "enum": [
+        "MODEL_035",
+        "MODEL_036",
+        "MODEL_037",
+        "MODEL_100",
+        "MODEL_111",
+        "MODEL_115",
+        "MODEL_123",
+        "MODEL_130",
+        "MODEL_131",
+        "MODEL_151",
+        "MODEL_180",
+        "MODEL_184",
+        "MODEL_190",
+        "MODEL_193",
+        "MODEL_200",
+        "MODEL_202",
+        "MODEL_216",
+        "MODEL_296",
+        "MODEL_303",
+        "MODEL_308",
+        "MODEL_309",
+        "MODEL_341",
+        "MODEL_347",
+        "MODEL_349",
+        "MODEL_369",
+        "MODEL_390",
+        "MODEL_714",
+        "MODEL_720",
+        "MODEL_721",
+        "MODEL_840",
+        "CURRENT_CENSUS_CERTIFICATE",
+        "AEAT_ECONOMIC_ACTIVITIES_VIEW",
+        "AEAT_TAX_STATUS_VIEW",
+        "AEAT_OBLIGATIONS_VIEW",
+        "TGSS_CURRENT_STATUS_REPORT",
+        "TGSS_EMPLOYMENT_HISTORY",
+        "TGSS_SELF_EMPLOYED_ACTIVITIES",
+        "ROI_CERTIFICATE",
+        "LANDLORD_WITHHOLDING_EXEMPTION_CERTIFICATE"
+      ]
+    },
+    "coordinates": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["x", "y", "width", "height"],
+      "properties": {
+        "x": { "type": "number", "minimum": 0 },
+        "y": { "type": "number", "minimum": 0 },
+        "width": { "type": "number", "exclusiveMinimum": 0 },
+        "height": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "fieldEvidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fieldId",
+        "page",
+        "label",
+        "boxNumber",
+        "coordinates",
+        "expectedRawValue",
+        "expectedNormalizedValue",
+        "critical"
+      ],
+      "properties": {
+        "fieldId": { "type": "string", "minLength": 1 },
+        "page": { "type": "integer", "minimum": 1 },
+        "label": { "type": "string" },
+        "boxNumber": { "type": ["string", "null"] },
+        "coordinates": { "$ref": "#/$defs/coordinates" },
+        "expectedRawValue": {},
+        "expectedNormalizedValue": {},
+        "critical": { "type": "boolean" }
+      }
+    },
+    "privacyReview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "automatedScanVersion",
+        "automatedScanPassed",
+        "humanVisualReviewCompleted",
+        "humanReviewerId",
+        "reviewedAt",
+        "textLayerChecked",
+        "ocrLayerChecked",
+        "metadataChecked",
+        "acroFormChecked",
+        "xfaChecked",
+        "annotationsChecked",
+        "embeddedFilesChecked",
+        "qrAndBarcodeChecked",
+        "fileNameChecked",
+        "hiddenContentChecked"
+      ],
+      "properties": {
+        "automatedScanVersion": { "type": "string", "minLength": 1 },
+        "automatedScanPassed": { "type": "boolean" },
+        "humanVisualReviewCompleted": { "type": "boolean" },
+        "humanReviewerId": { "type": ["string", "null"] },
+        "reviewedAt": { "type": ["string", "null"] },
+        "textLayerChecked": { "type": "boolean" },
+        "ocrLayerChecked": { "type": "boolean" },
+        "metadataChecked": { "type": "boolean" },
+        "acroFormChecked": { "type": "boolean" },
+        "xfaChecked": { "type": "boolean" },
+        "annotationsChecked": { "type": "boolean" },
+        "embeddedFilesChecked": { "type": "boolean" },
+        "qrAndBarcodeChecked": { "type": "boolean" },
+        "fileNameChecked": { "type": "boolean" },
+        "hiddenContentChecked": { "type": "boolean" }
+      }
+    }
+  }
+}
