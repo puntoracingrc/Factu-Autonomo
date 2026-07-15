@@ -160,6 +160,7 @@ describe("structured review relations view model v1", () => {
 
     expect(result).toEqual({
       status: "READY",
+      timelines: [],
       entries: [
         expect.objectContaining({
           title: "Documentos relacionados por referencia",
@@ -200,13 +201,13 @@ describe("structured review relations view model v1", () => {
   });
 
   it.each([
-    ["ENFORCES", "Embargo vinculado a providencia de apremio", "ni modifica ningún saldo"],
-    ["RESPONDS_TO_SEIZURE", "Contestación vinculada a diligencia de embargo", "no convierte al tercero en deudor"],
-    ["TRANSFERS_SEIZED_FUNDS", "Ingreso de tercero vinculado a diligencia de embargo", "no marca automáticamente la deuda como pagada"],
-    ["RELEASES_SEIZURE", "Levantamiento vinculado a diligencia de embargo", "no se infiere automáticamente"],
+    ["ENFORCES", "Embargo vinculado a providencia de apremio", "ni modifica ningún saldo", "Ejecución mediante embargo"],
+    ["RESPONDS_TO_SEIZURE", "Contestación vinculada a diligencia de embargo", "no convierte al tercero en deudor", "Contestación a la diligencia"],
+    ["TRANSFERS_SEIZED_FUNDS", "Ingreso de tercero vinculado a diligencia de embargo", "no marca automáticamente la deuda como pagada", "Ingreso del tercero retenedor"],
+    ["RELEASES_SEIZURE", "Levantamiento vinculado a diligencia de embargo", "no se infiere automáticamente", "Levantamiento de la diligencia"],
   ] as const)(
     "explains the exact %s edge without applying an operational effect",
-    (relationType, title, explanationFragment) => {
+    (relationType, title, explanationFragment, linkLabel) => {
       const source = workspace();
       source.relations.push({
         id: `relation:typed:${relationType}`,
@@ -242,8 +243,91 @@ describe("structured review relations view model v1", () => {
           requiresHumanReview: true,
         }),
       ]);
+      expect(result.timelines).toEqual([
+        {
+          key: "timeline:document:0:document:1",
+          title: "Expediente relacionado · 2 documentos",
+          statusLabel: "Referencias exactas · efectos por revisar",
+          steps: [
+            {
+              id: "document:0",
+              title: "Providencia de apremio 1",
+              createdAt: "2026-07-14T11:00:00.000Z",
+              position: 1,
+            },
+            {
+              id: "document:1",
+              title: "Providencia de apremio 2",
+              createdAt: "2026-07-14T11:10:00.000Z",
+              position: 2,
+            },
+          ],
+          links: [
+            expect.objectContaining({
+              key: `relation:typed:${relationType}`,
+              earlierDocumentId: "document:0",
+              laterDocumentId: "document:1",
+              label: linkLabel,
+              explanation: expect.stringContaining(explanationFragment),
+            }),
+          ],
+          requiresHumanReview: true,
+        },
+      ]);
+      expect(Object.isFrozen(result.timelines)).toBe(true);
+      expect(Object.isFrozen(result.timelines[0]?.steps)).toBe(true);
     },
   );
+
+  it("blocks a contradictory exact cycle instead of inventing a chronology", () => {
+    const source = workspace();
+    source.relations.push(
+      {
+        id: "relation:cycle:forward",
+        ownerScope: OWNER,
+        sourceDocumentId: "document:1",
+        targetDocumentId: "document:0",
+        relationType: "ENFORCES",
+        confidenceBand: "EXACT",
+        score: 100,
+        evidence: {
+          matchingReferenceTypes: ["LIQUIDATION_KEY"],
+          matchingAmountTypes: [],
+          matchingDates: [],
+          differences: [],
+        },
+        algorithmVersion:
+          STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+        status: "SYSTEM_CONFIRMED_EXACT",
+        createdAt: NOW,
+      },
+      {
+        id: "relation:cycle:reverse",
+        ownerScope: OWNER,
+        sourceDocumentId: "document:0",
+        targetDocumentId: "document:1",
+        relationType: "ENFORCES",
+        confidenceBand: "EXACT",
+        score: 100,
+        evidence: {
+          matchingReferenceTypes: ["LIQUIDATION_KEY"],
+          matchingAmountTypes: [],
+          matchingDates: [],
+          differences: [],
+        },
+        algorithmVersion:
+          STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+        status: "SYSTEM_CONFIRMED_EXACT",
+        createdAt: NOW,
+      },
+    );
+
+    expect(projectStructuredReviewRelationsV1(source, OWNER)).toEqual({
+      status: "BLOCKED",
+      entries: [],
+      timelines: [],
+    });
+  });
 
   it("blocks another owner and hides rejected or unrelated algorithms", () => {
     const source = workspace();
@@ -268,13 +352,14 @@ describe("structured review relations view model v1", () => {
     expect(projectStructuredReviewRelationsV1(source, OWNER)).toEqual({
       status: "READY",
       entries: [],
+      timelines: [],
     });
     expect(
       projectStructuredReviewRelationsV1(
         source,
         "user:00000000-0000-4000-8000-000000000099",
       ),
-    ).toEqual({ status: "BLOCKED", entries: [] });
+    ).toEqual({ status: "BLOCKED", entries: [], timelines: [] });
   });
 
   it("does not revive a relation rejected by the user", () => {
@@ -302,6 +387,7 @@ describe("structured review relations view model v1", () => {
     expect(projectStructuredReviewRelationsV1(source, OWNER)).toEqual({
       status: "READY",
       entries: [],
+      timelines: [],
     });
   });
 });

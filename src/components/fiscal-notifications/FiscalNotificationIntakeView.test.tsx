@@ -368,6 +368,14 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
   });
 
   it("muestra relaciones exactas tipadas sin aplicar sus efectos", () => {
+    expect(componentSource).toContain("Cronología del expediente");
+    expect(componentSource).toContain("StructuredReviewCaseTimelines");
+    expect(componentSource).toContain(
+      "La secuencia describe cómo se relacionan los actos",
+    );
+    expect(componentSource).toMatch(
+      /sin\s+decidir saldos, pagos ni el estado jurídico actual/,
+    );
     expect(componentSource).toContain("Relaciones entre documentos");
     expect(componentSource).toContain(
       "projectStructuredReviewRelationsV1(",
@@ -403,6 +411,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(relationsViewModelSource).toContain(
       "no se infiere automáticamente",
+    );
+    expect(relationsViewModelSource).toContain(
+      "Expediente relacionado",
+    );
+    expect(relationsViewModelSource).toContain(
+      "Referencias exactas · efectos por revisar",
     );
     expect(componentSource).toContain(
       "sin cambiar saldos",

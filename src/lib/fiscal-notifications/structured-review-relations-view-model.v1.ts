@@ -39,14 +39,40 @@ export interface StructuredReviewRelationEntryV1 {
   readonly requiresHumanReview: true;
 }
 
+export interface StructuredReviewCaseTimelineStepV1 {
+  readonly id: string;
+  readonly title: string;
+  readonly createdAt: string;
+  readonly position: number;
+}
+
+export interface StructuredReviewCaseTimelineLinkV1 {
+  readonly key: string;
+  readonly earlierDocumentId: string;
+  readonly laterDocumentId: string;
+  readonly label: string;
+  readonly explanation: string;
+}
+
+export interface StructuredReviewCaseTimelineV1 {
+  readonly key: string;
+  readonly title: string;
+  readonly statusLabel: "Referencias exactas · efectos por revisar";
+  readonly steps: readonly StructuredReviewCaseTimelineStepV1[];
+  readonly links: readonly StructuredReviewCaseTimelineLinkV1[];
+  readonly requiresHumanReview: true;
+}
+
 export type StructuredReviewRelationsViewModelV1 =
   | {
       readonly status: "READY";
       readonly entries: readonly StructuredReviewRelationEntryV1[];
+      readonly timelines: readonly StructuredReviewCaseTimelineV1[];
     }
   | {
       readonly status: "BLOCKED";
       readonly entries: readonly [];
+      readonly timelines: readonly [];
     };
 
 const REFERENCE_LABELS: Readonly<Partial<Record<ExternalReferenceType, string>>> = {
@@ -67,7 +93,11 @@ export function projectStructuredReviewRelationsV1(
   ownerScope: string,
 ): StructuredReviewRelationsViewModelV1 {
   if (value === undefined || value === null) {
-    return Object.freeze({ status: "READY", entries: Object.freeze([]) });
+    return Object.freeze({
+      status: "READY",
+      entries: Object.freeze([]),
+      timelines: Object.freeze([]),
+    });
   }
   const workspace = parseFiscalNotificationsWorkspaceForPersistenceV1(
     value,
@@ -77,6 +107,7 @@ export function projectStructuredReviewRelationsV1(
     return Object.freeze({
       status: "BLOCKED",
       entries: Object.freeze([]) as readonly [],
+      timelines: Object.freeze([]) as readonly [],
     });
   }
 
@@ -135,10 +166,227 @@ export function projectStructuredReviewRelationsV1(
     const rightDate = right.documents[1].createdAt;
     return rightDate.localeCompare(leftDate) || left.key.localeCompare(right.key);
   });
+  const timelines = buildCaseTimelines(entries);
+  if (!timelines) {
+    return Object.freeze({
+      status: "BLOCKED",
+      entries: Object.freeze([]) as readonly [],
+      timelines: Object.freeze([]) as readonly [],
+    });
+  }
   return Object.freeze({
     status: "READY",
     entries: Object.freeze(entries),
+    timelines,
   });
+}
+
+type ExactTimelineRelationTypeV1 =
+  | "ENFORCES"
+  | "RESPONDS_TO_SEIZURE"
+  | "TRANSFERS_SEIZED_FUNDS"
+  | "RELEASES_SEIZURE";
+
+interface TimelineEdgeV1 {
+  readonly entry: StructuredReviewRelationEntryV1;
+  readonly relationType: ExactTimelineRelationTypeV1;
+  readonly earlierDocumentId: string;
+  readonly laterDocumentId: string;
+}
+
+function buildCaseTimelines(
+  entries: readonly StructuredReviewRelationEntryV1[],
+): readonly StructuredReviewCaseTimelineV1[] | null {
+  const edges = entries.flatMap((entry): TimelineEdgeV1[] =>
+    isExactTimelineRelation(entry.relationType)
+      ? [
+          {
+            entry,
+            relationType: entry.relationType,
+            earlierDocumentId: entry.documents[1].id,
+            laterDocumentId: entry.documents[0].id,
+          },
+        ]
+      : [],
+  );
+  if (edges.length === 0) return Object.freeze([]);
+
+  const documents = new Map<string, StructuredReviewRelationDocumentV1>();
+  const parent = new Map<string, string>();
+  const rank = new Map<string, number>();
+  for (const edge of edges) {
+    for (const document of edge.entry.documents) {
+      documents.set(document.id, document);
+      if (!parent.has(document.id)) {
+        parent.set(document.id, document.id);
+        rank.set(document.id, 0);
+      }
+    }
+    union(parent, rank, edge.earlierDocumentId, edge.laterDocumentId);
+  }
+
+  const edgesByRoot = new Map<string, TimelineEdgeV1[]>();
+  for (const edge of edges) {
+    const root = findRoot(parent, edge.earlierDocumentId);
+    const current = edgesByRoot.get(root) ?? [];
+    current.push(edge);
+    edgesByRoot.set(root, current);
+  }
+
+  const timelines: StructuredReviewCaseTimelineV1[] = [];
+  for (const componentEdges of edgesByRoot.values()) {
+    const documentIds = new Set<string>();
+    const outgoing = new Map<string, TimelineEdgeV1[]>();
+    const indegree = new Map<string, number>();
+    for (const edge of componentEdges) {
+      documentIds.add(edge.earlierDocumentId);
+      documentIds.add(edge.laterDocumentId);
+      outgoing.set(edge.earlierDocumentId, [
+        ...(outgoing.get(edge.earlierDocumentId) ?? []),
+        edge,
+      ]);
+      indegree.set(
+        edge.laterDocumentId,
+        (indegree.get(edge.laterDocumentId) ?? 0) + 1,
+      );
+      if (!indegree.has(edge.earlierDocumentId)) {
+        indegree.set(edge.earlierDocumentId, 0);
+      }
+    }
+
+    const ready = [...documentIds]
+      .filter((id) => indegree.get(id) === 0)
+      .sort((left, right) => compareTimelineDocuments(documents, left, right));
+    const orderedIds: string[] = [];
+    while (ready.length > 0) {
+      const current = ready.shift()!;
+      orderedIds.push(current);
+      const nextEdges = [...(outgoing.get(current) ?? [])].sort((left, right) =>
+        left.laterDocumentId.localeCompare(right.laterDocumentId),
+      );
+      for (const edge of nextEdges) {
+        const nextIndegree = (indegree.get(edge.laterDocumentId) ?? 0) - 1;
+        indegree.set(edge.laterDocumentId, nextIndegree);
+        if (nextIndegree === 0) {
+          ready.push(edge.laterDocumentId);
+          ready.sort((left, right) =>
+            compareTimelineDocuments(documents, left, right),
+          );
+        }
+      }
+    }
+    if (orderedIds.length !== documentIds.size) return null;
+
+    const steps = orderedIds.map((id, index) => {
+      const document = documents.get(id)!;
+      return Object.freeze({
+        id,
+        title: document.title,
+        createdAt: document.createdAt,
+        position: index + 1,
+      });
+    });
+    const links = componentEdges
+      .map((edge) =>
+        Object.freeze({
+          key: edge.entry.key,
+          earlierDocumentId: edge.earlierDocumentId,
+          laterDocumentId: edge.laterDocumentId,
+          label: timelineLinkLabel(edge.relationType),
+          explanation: edge.entry.explanation,
+        }),
+      )
+      .sort((left, right) => left.key.localeCompare(right.key));
+    timelines.push(
+      Object.freeze({
+        key: `timeline:${orderedIds.join(":")}`,
+        title: `Expediente relacionado · ${steps.length} documentos`,
+        statusLabel: "Referencias exactas · efectos por revisar" as const,
+        steps: Object.freeze(steps),
+        links: Object.freeze(links),
+        requiresHumanReview: true as const,
+      }),
+    );
+  }
+
+  timelines.sort((left, right) => left.key.localeCompare(right.key));
+  return Object.freeze(timelines);
+}
+
+function isExactTimelineRelation(
+  relationType: DocumentRelationType,
+): relationType is ExactTimelineRelationTypeV1 {
+  return (
+    relationType === "ENFORCES" ||
+    relationType === "RESPONDS_TO_SEIZURE" ||
+    relationType === "TRANSFERS_SEIZED_FUNDS" ||
+    relationType === "RELEASES_SEIZURE"
+  );
+}
+
+function timelineLinkLabel(relationType: ExactTimelineRelationTypeV1): string {
+  switch (relationType) {
+    case "ENFORCES":
+      return "Ejecución mediante embargo";
+    case "RESPONDS_TO_SEIZURE":
+      return "Contestación a la diligencia";
+    case "TRANSFERS_SEIZED_FUNDS":
+      return "Ingreso del tercero retenedor";
+    case "RELEASES_SEIZURE":
+      return "Levantamiento de la diligencia";
+  }
+}
+
+function compareTimelineDocuments(
+  documents: ReadonlyMap<string, StructuredReviewRelationDocumentV1>,
+  leftId: string,
+  rightId: string,
+): number {
+  const left = documents.get(leftId);
+  const right = documents.get(rightId);
+  return (
+    (left?.createdAt ?? "").localeCompare(right?.createdAt ?? "") ||
+    leftId.localeCompare(rightId)
+  );
+}
+
+function findRoot(parent: Map<string, string>, value: string): string {
+  let root = value;
+  while ((parent.get(root) ?? root) !== root) {
+    root = parent.get(root)!;
+  }
+  let current = value;
+  while ((parent.get(current) ?? current) !== root) {
+    const next = parent.get(current)!;
+    parent.set(current, root);
+    current = next;
+  }
+  return root;
+}
+
+function union(
+  parent: Map<string, string>,
+  rank: Map<string, number>,
+  left: string,
+  right: string,
+): void {
+  const leftRoot = findRoot(parent, left);
+  const rightRoot = findRoot(parent, right);
+  if (leftRoot === rightRoot) return;
+  const leftRank = rank.get(leftRoot) ?? 0;
+  const rightRank = rank.get(rightRoot) ?? 0;
+  if (leftRank < rightRank) {
+    parent.set(leftRoot, rightRoot);
+    return;
+  }
+  if (rightRank < leftRank) {
+    parent.set(rightRoot, leftRoot);
+    return;
+  }
+  const root = leftRoot.localeCompare(rightRoot) <= 0 ? leftRoot : rightRoot;
+  const child = root === leftRoot ? rightRoot : leftRoot;
+  parent.set(child, root);
+  rank.set(root, leftRank + 1);
 }
 
 function relationPresentation(relationType: DocumentRelationType): Readonly<{
