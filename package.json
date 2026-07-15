@@ -20,6 +20,7 @@
     "fixtures:tax-corpus:audit-pdf": "python3 scripts/audit-tax-corpus-pdf.py",
     "fixtures:tax-real-variants:validate": "node scripts/validate-tax-real-variants.mjs",
     "fixtures:tax-real-variants:require-real": "node scripts/validate-tax-real-variants.mjs --require-real --require-holdout",
+    "fiscal:corpus:validate": "node scripts/validate-tax-corpus-holdout.mjs",
     "fiscal:rules:generate": "node scripts/generate-fiscal-rule-inventory.mjs",
     "fiscal:rules:check": "node scripts/generate-fiscal-rule-inventory.mjs --check",
     "fixtures:invoices:validate": "node scripts/validate-invoice-fixtures.mjs",
