@@ -24,6 +24,7 @@ interface InventoryDocument {
     executableTestCases: number;
     passingExecutableTestCases: number;
     mutationScore: number;
+    safetyCriticalMutationScore: number;
     verifiedSourceSnapshots: number;
     approvedFiscalHashes: number;
     rulesWithTwoReviewers: number;
@@ -40,9 +41,12 @@ interface InventoryDocument {
     passingTestCount: number;
     categoriesCovered: string[];
     missingCategories: string[];
-    applicableMutationCount: number;
+    mutationCount: number;
     killedMutationCount: number;
     mutationScore: number;
+    safetyCriticalMutationCount: number;
+    safetyCriticalKilledMutationCount: number;
+    safetyCriticalMutationScore: number;
     exclusionAuthorized: boolean;
   }>;
 }
@@ -91,9 +95,10 @@ describe("generated fiscal closure inventory", () => {
       approvedRules: 0,
       resolvedRules: 0,
       passingExecutableSuites: 54,
-      executableTestCases: 432,
-      passingExecutableTestCases: 432,
+      executableTestCases: 540,
+      passingExecutableTestCases: 540,
       mutationScore: 100,
+      safetyCriticalMutationScore: 100,
       verifiedSourceSnapshots: 0,
       approvedFiscalHashes: 0,
       rulesWithTwoReviewers: 0,
@@ -114,22 +119,27 @@ describe("generated fiscal closure inventory", () => {
         resolutionStatus: "OPEN",
         testsStatus: "NOT_IMPLEMENTED",
         executableTestsStatus: "PASSING",
-        executableTestCount: 8,
-        passingTestCount: 8,
+        executableTestCount: 10,
+        passingTestCount: 10,
         categoriesCovered: [
           "POSITIVE",
           "NEGATIVE",
           "EXCEPTION",
           "UNKNOWN",
           "CONTRADICTION",
-          "TEMPORALITY",
+          "TEMPORAL",
           "TERRITORY",
-          "PROHIBITED_INFERENCE",
+          "MULTI_ACTIVITY",
+          "INFERENCE_FORBIDDEN",
+          "BOUNDARY",
         ],
         missingCategories: [],
-        applicableMutationCount: mutation.total,
+        mutationCount: mutation.total,
         killedMutationCount: mutation.killed,
         mutationScore: 100,
+        safetyCriticalMutationCount: mutation.safetyCriticalTotal,
+        safetyCriticalKilledMutationCount: mutation.safetyCriticalKilled,
+        safetyCriticalMutationScore: 100,
         exclusionAuthorized: false,
       });
     }
@@ -174,8 +184,11 @@ describe("generated fiscal closure inventory", () => {
     expect(output).toContain("Inventory drift: CLEAN");
     expect(output).toContain("Authorized exclusions: 0");
     expect(output).toContain("Rules with passing executable test suites: 54");
-    expect(output).toContain("Passing executable test cases: 432");
+    expect(output).toContain("Passing executable test cases: 540");
     expect(output).toContain("Fiscal mutation score: 100%");
+    expect(output).toContain(
+      "Safety-critical fiscal mutation score: 100%",
+    );
     expect(output).toContain('Fallback "Todos": ENABLED');
   });
 });

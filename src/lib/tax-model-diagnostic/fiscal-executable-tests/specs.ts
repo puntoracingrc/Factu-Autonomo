@@ -11,27 +11,94 @@ export const FISCAL_EXECUTABLE_CATEGORIES = [
   "EXCEPTION",
   "UNKNOWN",
   "CONTRADICTION",
-  "TEMPORALITY",
+  "TEMPORAL",
   "TERRITORY",
-  "PROHIBITED_INFERENCE",
+  "MULTI_ACTIVITY",
+  "INFERENCE_FORBIDDEN",
+  "BOUNDARY",
 ] as const;
 
 export type FiscalExecutableCategory =
   (typeof FISCAL_EXECUTABLE_CATEGORIES)[number];
 
 export const FISCAL_MUTATION_OPERATORS = [
-  "AND_TO_OR",
   "CONDITION_INVERTED",
   "EXCEPTION_REMOVED",
+  "AND_TO_OR",
+  "OR_TO_AND",
   "FISCAL_YEAR_CHANGED",
   "TERRITORY_CHANGED",
   "UNKNOWN_TO_FALSE",
+  "UNKNOWN_TO_TRUE",
   "CONTRADICTION_IGNORED",
+  "REQUIRED_CONDITION_REMOVED",
   "THRESHOLD_CHANGED",
+  "HISTORICAL_TO_CURRENT",
+  "SUBJECT_SWAPPED",
+  "CROSS_MODEL_RULE",
 ] as const;
 
 export type FiscalMutationOperator =
   (typeof FISCAL_MUTATION_OPERATORS)[number];
+
+export const FISCAL_SAFETY_CRITICAL_MUTATIONS = [
+  "FISCAL_YEAR_CHANGED",
+  "TERRITORY_CHANGED",
+  "UNKNOWN_TO_FALSE",
+  "UNKNOWN_TO_TRUE",
+  "CONTRADICTION_IGNORED",
+  "HISTORICAL_TO_CURRENT",
+  "SUBJECT_SWAPPED",
+  "CROSS_MODEL_RULE",
+] as const satisfies readonly FiscalMutationOperator[];
+
+export type FiscalPredicateConditionMode = "ALL" | "ANY";
+export type FiscalPredicateSubject = "PERSON" | "ENTITY" | "ANY";
+
+export const FISCAL_ANY_CONDITION_MODELS = ["036"] as const satisfies readonly TaxModelNumber[];
+export const FISCAL_PERSON_SUBJECT_MODELS = [
+  "100",
+  "130",
+  "131",
+  "714",
+  "720",
+  "721",
+] as const satisfies readonly TaxModelNumber[];
+export const FISCAL_ENTITY_SUBJECT_MODELS = [
+  "184",
+  "200",
+  "202",
+] as const satisfies readonly TaxModelNumber[];
+
+export function conditionModeForModel(
+  modelNumber: TaxModelNumber,
+): FiscalPredicateConditionMode {
+  return FISCAL_ANY_CONDITION_MODELS.includes(
+    modelNumber as (typeof FISCAL_ANY_CONDITION_MODELS)[number],
+  )
+    ? "ANY"
+    : "ALL";
+}
+
+export function expectedSubjectForModel(
+  modelNumber: TaxModelNumber,
+): FiscalPredicateSubject {
+  if (
+    FISCAL_PERSON_SUBJECT_MODELS.includes(
+      modelNumber as (typeof FISCAL_PERSON_SUBJECT_MODELS)[number],
+    )
+  ) {
+    return "PERSON";
+  }
+  if (
+    FISCAL_ENTITY_SUBJECT_MODELS.includes(
+      modelNumber as (typeof FISCAL_ENTITY_SUBJECT_MODELS)[number],
+    )
+  ) {
+    return "ENTITY";
+  }
+  return "ANY";
+}
 
 export interface FiscalScenarioTemplate {
   factory: FiscalProfileFactoryName;
@@ -420,10 +487,18 @@ export function mutationOperatorsForSpec(
   spec: FiscalModelExecutableSpec,
   conditionCount: number,
 ): readonly FiscalMutationOperator[] {
+  const conditionMode = conditionModeForModel(spec.modelNumber);
+  const expectedSubject = expectedSubjectForModel(spec.modelNumber);
   return FISCAL_MUTATION_OPERATORS.filter(
     (operator) =>
       (operator !== "THRESHOLD_CHANGED" ||
         spec.thresholdExceptionAt !== null) &&
-      (operator !== "AND_TO_OR" || conditionCount > 1),
+      (operator !== "AND_TO_OR" ||
+        (conditionMode === "ALL" && conditionCount > 1)) &&
+      (operator !== "OR_TO_AND" ||
+        (conditionMode === "ANY" && conditionCount > 1)) &&
+      (operator !== "REQUIRED_CONDITION_REMOVED" ||
+        conditionMode === "ALL") &&
+      (operator !== "SUBJECT_SWAPPED" || expectedSubject !== "ANY"),
   );
 }

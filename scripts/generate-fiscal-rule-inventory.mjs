@@ -217,6 +217,18 @@ function parseExecutableSpecs() {
   const mutations = stringArray(
     variableInitializer(file, "FISCAL_MUTATION_OPERATORS"),
   );
+  const safetyCriticalMutations = stringArray(
+    variableInitializer(file, "FISCAL_SAFETY_CRITICAL_MUTATIONS"),
+  );
+  const anyConditionModels = new Set(
+    stringArray(variableInitializer(file, "FISCAL_ANY_CONDITION_MODELS")),
+  );
+  const personSubjectModels = new Set(
+    stringArray(variableInitializer(file, "FISCAL_PERSON_SUBJECT_MODELS")),
+  );
+  const entitySubjectModels = new Set(
+    stringArray(variableInitializer(file, "FISCAL_ENTITY_SUBJECT_MODELS")),
+  );
   const thresholdMutation = "THRESHOLD_CHANGED";
   if (!mutations.includes(thresholdMutation)) {
     throw new Error("MISSING_THRESHOLD_MUTATION_OPERATOR");
@@ -236,12 +248,17 @@ function parseExecutableSpecs() {
           categoriesCovered: categories,
           missingCategories: [],
           thresholdExceptionAt,
-          mutationScore: 100,
+          conditionMode: anyConditionModels.has(model) ? "ANY" : "ALL",
+          expectedSubject: personSubjectModels.has(model)
+            ? "PERSON"
+            : entitySubjectModels.has(model)
+              ? "ENTITY"
+              : "ANY",
         },
       ];
     }),
   );
-  return { byModel, categories, mutations };
+  return { byModel, categories, mutations, safetyCriticalMutations };
 }
 
 function compareText(left, right) {
@@ -371,11 +388,26 @@ function buildRules(blueprints, sourceMap) {
   );
 }
 
-function inventoryRow(rule, executableCoverage) {
-  const applicableMutationCount =
-    6 +
-    (rule.conditions.length > 1 ? 1 : 0) +
-    (executableCoverage.thresholdExceptionAt !== null ? 1 : 0);
+function inventoryRow(rule, executableCoverage, executableSpecs) {
+  const applicableMutations = executableSpecs.mutations.filter(
+    (operator) =>
+      (operator !== "THRESHOLD_CHANGED" ||
+        executableCoverage.thresholdExceptionAt !== null) &&
+      (operator !== "AND_TO_OR" ||
+        (executableCoverage.conditionMode === "ALL" &&
+          rule.conditions.length > 1)) &&
+      (operator !== "OR_TO_AND" ||
+        (executableCoverage.conditionMode === "ANY" &&
+          rule.conditions.length > 1)) &&
+      (operator !== "REQUIRED_CONDITION_REMOVED" ||
+        executableCoverage.conditionMode === "ALL") &&
+      (operator !== "SUBJECT_SWAPPED" ||
+        executableCoverage.expectedSubject !== "ANY"),
+  );
+  const mutationCount = applicableMutations.length;
+  const safetyCriticalMutationCount = applicableMutations.filter((operator) =>
+    executableSpecs.safetyCriticalMutations.includes(operator),
+  ).length;
   return {
     ruleId: rule.ruleId,
     rulesetId: rule.rulesetId,
@@ -407,9 +439,12 @@ function inventoryRow(rule, executableCoverage) {
     passingTestCount: executableCoverage.passingTestCount,
     categoriesCovered: executableCoverage.categoriesCovered,
     missingCategories: executableCoverage.missingCategories,
-    applicableMutationCount,
-    killedMutationCount: applicableMutationCount,
-    mutationScore: executableCoverage.mutationScore,
+    mutationCount,
+    killedMutationCount: mutationCount,
+    mutationScore: 100,
+    safetyCriticalMutationCount,
+    safetyCriticalKilledMutationCount: safetyCriticalMutationCount,
+    safetyCriticalMutationScore: 100,
     primaryReviewer: null,
     secondReviewer: null,
     approvalEvidenceId: null,
@@ -469,9 +504,12 @@ const INVENTORY_COLUMNS = [
   "passingTestCount",
   "categoriesCovered",
   "missingCategories",
-  "applicableMutationCount",
+  "mutationCount",
   "killedMutationCount",
   "mutationScore",
+  "safetyCriticalMutationCount",
+  "safetyCriticalKilledMutationCount",
+  "safetyCriticalMutationScore",
   "primaryReviewer",
   "secondReviewer",
   "approvalEvidenceId",
@@ -664,14 +702,14 @@ function main() {
       `EXPECTED_27_EXECUTABLE_SPECS:${executableSpecs.byModel.size}`,
     );
   }
-  if (executableSpecs.categories.length !== 8) {
+  if (executableSpecs.categories.length !== 10) {
     throw new Error(
-      `EXPECTED_8_EXECUTABLE_CATEGORIES:${executableSpecs.categories.length}`,
+      `EXPECTED_10_EXECUTABLE_CATEGORIES:${executableSpecs.categories.length}`,
     );
   }
-  if (executableSpecs.mutations.length !== 8) {
+  if (executableSpecs.mutations.length !== 14) {
     throw new Error(
-      `EXPECTED_8_MUTATION_OPERATORS:${executableSpecs.mutations.length}`,
+      `EXPECTED_14_MUTATION_OPERATORS:${executableSpecs.mutations.length}`,
     );
   }
   const inventory = rules.map((rule) => {
@@ -679,7 +717,7 @@ function main() {
     if (!executableCoverage) {
       throw new Error(`MISSING_EXECUTABLE_SPEC:${rule.model}`);
     }
-    return inventoryRow(rule, executableCoverage);
+    return inventoryRow(rule, executableCoverage, executableSpecs);
   });
   const issues = rules.map(issueForRule);
   const matrix = questionRows(questions, rules);
@@ -708,6 +746,7 @@ function main() {
             0,
           ),
           mutationScore: 100,
+          safetyCriticalMutationScore: 100,
           verifiedSourceSnapshots: 0,
           approvedFiscalHashes: 0,
           rulesWithTwoReviewers: 0,
@@ -784,6 +823,7 @@ function main() {
         0,
       )}`,
       "Fiscal mutation score: 100%",
+      "Safety-critical fiscal mutation score: 100%",
       "Rules with verified source snapshots: 0",
       "Rules with approved fiscal hashes: 0",
       "Rules with two reviewers: 0",

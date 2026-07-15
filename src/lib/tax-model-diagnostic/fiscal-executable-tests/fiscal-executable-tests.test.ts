@@ -11,26 +11,40 @@ import { FISCAL_PROFILE_FACTORY_NAMES } from "./profile-factories";
 import {
   FISCAL_EXECUTABLE_CATEGORIES,
   FISCAL_MODEL_EXECUTABLE_SPECS,
+  FISCAL_MUTATION_OPERATORS,
 } from "./specs";
 
 describe("fiscal executable rule suites", () => {
   it("provides every requested reusable profile factory", () => {
     expect(FISCAL_PROFILE_FACTORY_NAMES).toEqual(
       expect.arrayContaining([
+        "NATURAL_PERSON",
+        "COMPANY",
+        "ATTRIBUTION_ENTITY",
+        "CORPORATE_SELF_EMPLOYED",
+        "COLLABORATING_SELF_EMPLOYED",
         "PROFESSIONAL",
         "BUSINESS",
+        "DIRECT_NORMAL",
+        "DIRECT_SIMPLIFIED",
         "MODULES",
+        "VAT_GENERAL",
+        "VAT_SIMPLIFIED",
         "EXEMPT_ACTIVITY",
         "EQUIVALENCE_SURCHARGE",
+        "AGRICULTURE_LIVESTOCK_FISHING",
         "WORKERS",
         "PAID_PROFESSIONALS",
         "RENT",
+        "RENT_EXEMPT",
         "EU_OPERATIONS",
+        "ROI",
         "OSS_IOSS",
-        "COMPANY",
-        "ATTRIBUTION_ENTITY",
+        "NON_RESIDENT_PAYMENTS",
+        "MULTI_ACTIVITY",
         "UNKNOWN_FACTS",
         "CONTRADICTORY_FACTS",
+        "MID_YEAR_CHANGE",
       ]),
     );
   });
@@ -41,6 +55,13 @@ describe("fiscal executable rule suites", () => {
     expect(
       new Set(FISCAL_EXECUTABLE_RULE_SUITES.map((suite) => suite.ruleId)),
     ).toEqual(new Set(TAX_RULES.map((rule) => rule.ruleId)));
+    expect(
+      new Set(
+        FISCAL_EXECUTABLE_RULE_SUITES.flatMap(
+          (suite) => suite.mutationOperators,
+        ),
+      ),
+    ).toEqual(new Set(FISCAL_MUTATION_OPERATORS));
   });
 
   it.each(FISCAL_EXECUTABLE_RULE_SUITES)(
@@ -62,11 +83,11 @@ describe("fiscal executable rule suites", () => {
         "FALSE",
       );
       expect(
-        byCategory.get("PROHIBITED_INFERENCE")?.predicateFacts
+        byCategory.get("INFERENCE_FORBIDDEN")?.predicateFacts
           .prohibitedInferenceEvidence,
       ).toBe(true);
       expect(
-        byCategory.get("PROHIBITED_INFERENCE")?.predicateFacts.conditions[0],
+        byCategory.get("INFERENCE_FORBIDDEN")?.predicateFacts.conditions[0],
       ).toBe("FALSE");
       expect(byCategory.get("CONTRADICTION")?.profile).toMatchObject({
         activityStillActive: "YES",
@@ -79,6 +100,16 @@ describe("fiscal executable rule suites", () => {
       expect(
         byCategory.get("CONTRADICTION")?.predicateFacts.hasContradiction,
       ).toBe(true);
+      for (const testCase of suite.cases) {
+        expect(testCase.testCaseId).toBe(testCase.caseId);
+        expect(testCase.inputFacts).toBe(testCase.profile);
+        expect(testCase.territory).toBe(testCase.profile.territory);
+        expect(testCase.expectedAuthorizedExclusions).toBe(0);
+        expect(testCase.expectedBlockingReasons.length).toBeGreaterThan(0);
+        expect(testCase.expectedExplanationCodes.length).toBeGreaterThan(0);
+        expect(testCase.sourceIds.length).toBeGreaterThan(0);
+        expect(testCase.tags).toContain(testCase.category);
+      }
     },
   );
 
@@ -104,11 +135,15 @@ describe("fiscal executable rule suites", () => {
 
       it("kills every applicable fiscal mutation", () => {
         const mutation = mutationScoreForSuite(suite);
-        expect(mutation.total).toBeGreaterThanOrEqual(6);
+        expect(mutation.total).toBeGreaterThanOrEqual(9);
         expect(mutation.invalidBaselineOperators).toEqual([]);
         expect(mutation.survivedOperators).toEqual([]);
         expect(mutation.killed).toBe(mutation.total);
-        expect(mutation.score).toBe(100);
+        expect(mutation.score).toBeGreaterThanOrEqual(85);
+        expect(mutation.safetyCriticalKilled).toBe(
+          mutation.safetyCriticalTotal,
+        );
+        expect(mutation.safetyCriticalScore).toBe(100);
       });
     });
   }

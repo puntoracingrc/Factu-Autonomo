@@ -26,10 +26,13 @@ import {
 import {
   FISCAL_EXECUTABLE_CATEGORIES,
   FISCAL_MODEL_EXECUTABLE_SPECS,
+  FISCAL_SAFETY_CRITICAL_MUTATIONS,
   type FiscalExecutableCategory,
   type FiscalModelExecutableSpec,
   type FiscalMutationOperator,
   type FiscalScenarioTemplate,
+  conditionModeForModel,
+  expectedSubjectForModel,
   mutationOperatorsForSpec,
 } from "./specs";
 
@@ -58,21 +61,36 @@ export const REQUIRED_PENDING_BLOCKING_REASONS = [
   "INTERNAL_OVERRIDE_NOT_AUTHORIZED",
 ] as const satisfies readonly ExclusionAuthorizationBlockingReason[];
 
-export interface FiscalExecutableCase {
+export interface FiscalRuleTestCase {
+  testCaseId: string;
   caseId: string;
   ruleId: string;
   modelNumber: TaxModelNumber;
   fiscalYear: 2025 | 2026;
+  territory: TaxpayerProfile["territory"];
   category: FiscalExecutableCategory;
+  inputFacts: TaxpayerProfile;
   profile: TaxpayerProfile;
+  expectedRecommendation: ModelResultStatus | null;
   expectedTargetStatus: ModelResultStatus | null;
   expectedReasonIncludes: string | null;
+  expectedModels: readonly TaxModelNumber[];
+  expectedImprobableModels: readonly TaxModelNumber[];
+  forbiddenInferenceModels: readonly TaxModelNumber[];
+  expectedExclusionCandidates: readonly string[];
+  expectedAuthorizedExclusions: 0;
+  expectedBlockingReasons: readonly ExclusionAuthorizationBlockingReason[];
+  expectedExplanationCodes: readonly string[];
+  sourceIds: readonly string[];
+  tags: readonly string[];
   hasUnknownRequiredFacts: boolean;
   hasContradictoryFacts: boolean;
   predicateDefinition: FiscalDecisionPredicateDefinition;
   predicateFacts: FiscalDecisionPredicateFacts;
   expectedPredicateDecision: FiscalPredicateDecision;
 }
+
+export type FiscalExecutableCase = FiscalRuleTestCase;
 
 export interface FiscalExecutableRuleSuite {
   ruleId: string;
@@ -90,8 +108,14 @@ export interface FiscalExecutableObservation {
   targetPresent: boolean;
   targetStatus: ModelResultStatus | null;
   targetReason: string | null;
+  targetEvidence: readonly string[];
+  targetMissingInformation: readonly string[];
   targetRuleIds: readonly string[];
+  recommendedModelCodes: readonly string[];
   candidateModelCodes: readonly string[];
+  improbableModelCodes: readonly string[];
+  exclusionCandidateIds: readonly string[];
+  sourceIds: readonly string[];
   excludedModelCodes: readonly string[];
   gateBlockingReasons: readonly ExclusionAuthorizationBlockingReason[];
   authorizedExclusionCount: number;
@@ -115,18 +139,59 @@ function caseFromScenario(
   } = {},
 ): FiscalExecutableCase {
   const ruleId = `es-common.${fiscalYear}.model-${spec.modelNumber}`;
+  const rule = getTaxRule(fiscalYear, spec.modelNumber);
+  const profile = buildFiscalTestProfile(scenario.factory, fiscalYear, {
+    ...scenario.overrides,
+    ...extraOverrides,
+  });
+  const expectedBlockingReasons = [
+    ...REQUIRED_PENDING_BLOCKING_REASONS,
+    ...(facts.unknown === true ? ["UNKNOWN_FACTS" as const] : []),
+    ...(facts.contradictory === true
+      ? ["CONTRADICTORY_FACTS" as const]
+      : []),
+    ...(profile.territory !== "ES_COMMON"
+      ? ["TERRITORY_MISMATCH" as const]
+      : []),
+  ];
+  const testCaseId = `${ruleId}.${category.toLowerCase()}`;
   return {
-    caseId: `${ruleId}.${category.toLowerCase()}`,
+    testCaseId,
+    caseId: testCaseId,
     ruleId,
     modelNumber: spec.modelNumber,
     fiscalYear,
+    territory: profile.territory,
     category,
-    profile: buildFiscalTestProfile(scenario.factory, fiscalYear, {
-      ...scenario.overrides,
-      ...extraOverrides,
-    }),
+    inputFacts: profile,
+    profile,
+    expectedRecommendation: scenario.expectedStatus,
     expectedTargetStatus: scenario.expectedStatus,
     expectedReasonIncludes: scenario.reasonIncludes,
+    expectedModels: [spec.modelNumber],
+    expectedImprobableModels:
+      scenario.expectedStatus === "NOT_APPLICABLE"
+        ? [spec.modelNumber]
+        : [],
+    forbiddenInferenceModels:
+      category === "INFERENCE_FORBIDDEN" ? [spec.modelNumber] : [],
+    expectedExclusionCandidates:
+      rule.fiscalMetadata.exclusionCandidates.map(
+        (candidate) => candidate.exclusionId,
+      ),
+    expectedAuthorizedExclusions: 0,
+    expectedBlockingReasons,
+    expectedExplanationCodes:
+      profile.territory === "ES_COMMON"
+        ? ["TARGET_REASON_MATCH", "RULE_TRACEABILITY"]
+        : ["UNSUPPORTED_TERRITORY"],
+    sourceIds: rule.officialSourceIds,
+    tags: [
+      "FISCAL_EXECUTABLE",
+      category,
+      `MODEL_${spec.modelNumber}`,
+      `YEAR_${fiscalYear}`,
+    ],
     hasUnknownRequiredFacts: facts.unknown === true,
     hasContradictoryFacts: facts.contradictory === true,
     predicateDefinition,
@@ -151,23 +216,33 @@ function predicateFacts(
   definition: FiscalDecisionPredicateDefinition,
   category: FiscalExecutableCategory,
 ): FiscalDecisionPredicateFacts {
-  const firstCondition: FiscalPredicateFact =
-    category === "NEGATIVE" || category === "PROHIBITED_INFERENCE"
-      ? "FALSE"
-      : category === "UNKNOWN"
-        ? "UNKNOWN"
-        : "TRUE";
+  const negative =
+    category === "NEGATIVE" || category === "INFERENCE_FORBIDDEN";
+  const unknown = category === "UNKNOWN";
+  const conditions =
+    definition.conditionMode === "ANY" && (negative || unknown)
+      ? predicateConditions(
+          definition.conditionCount,
+          unknown ? "UNKNOWN" : "FALSE",
+        ).map((condition, index) =>
+          index === 0 ? condition : "FALSE",
+        )
+      : predicateConditions(
+          definition.conditionCount,
+          negative ? "FALSE" : unknown ? "UNKNOWN" : "TRUE",
+        );
   return {
     fiscalYear: definition.fiscalYear,
     territory: category === "TERRITORY" ? "ES_CANARY" : "ES_COMMON",
-    conditions: predicateConditions(
-      definition.conditionCount,
-      firstCondition,
-    ),
+    modelNumber: definition.modelNumber,
+    subject:
+      definition.expectedSubject === "ENTITY" ? "ENTITY" : "PERSON",
+    conditions,
     exceptionApplies: category === "EXCEPTION" ? "TRUE" : "FALSE",
     hasContradiction: category === "CONTRADICTION",
     thresholdValue: null,
-    prohibitedInferenceEvidence: category === "PROHIBITED_INFERENCE",
+    historicalEvidenceOnly: false,
+    prohibitedInferenceEvidence: category === "INFERENCE_FORBIDDEN",
   };
 }
 
@@ -177,9 +252,11 @@ const EXPECTED_PREDICATE_DECISIONS = {
   EXCEPTION: "NOT_APPLICABLE",
   UNKNOWN: "UNKNOWN",
   CONTRADICTION: "CONTRADICTION",
-  TEMPORALITY: "CANDIDATE",
+  TEMPORAL: "CANDIDATE",
   TERRITORY: "BLOCKED",
-  PROHIBITED_INFERENCE: "NOT_APPLICABLE",
+  MULTI_ACTIVITY: "CANDIDATE",
+  INFERENCE_FORBIDDEN: "NOT_APPLICABLE",
+  BOUNDARY: "CANDIDATE",
 } as const satisfies Record<
   FiscalExecutableCategory,
   FiscalPredicateDecision
@@ -245,17 +322,28 @@ function casesForSpec(
       },
       { contradictory: true },
     ),
-    build("TEMPORALITY", spec.positive, {
+    build("TEMPORAL", spec.positive, {
       activityStartDate: `${fiscalYear}-04-01`,
       activityEndDate: `${fiscalYear}-09-30`,
       activityStillActive: "NO",
     }),
     {
       ...territory,
+      expectedRecommendation: null,
       expectedTargetStatus: null,
       expectedReasonIncludes: null,
+      expectedModels: [],
+      expectedImprobableModels: [],
+      forbiddenInferenceModels: [],
     },
-    build("PROHIBITED_INFERENCE", spec.prohibitedInference),
+    build("MULTI_ACTIVITY", spec.positive, {
+      activityKinds: ["PROFESSIONAL", "BUSINESS"],
+    }),
+    build("INFERENCE_FORBIDDEN", spec.prohibitedInference),
+    build("BOUNDARY", spec.positive, {
+      activityStartDate: `${fiscalYear}-01-01`,
+      withheldIncomePercent: spec.thresholdExceptionAt,
+    }),
   ];
 }
 
@@ -266,6 +354,8 @@ export const FISCAL_EXECUTABLE_RULE_SUITES: readonly FiscalExecutableRuleSuite[]
       const predicateDefinition = buildFiscalDecisionPredicateDefinition(
         rule,
         spec.thresholdExceptionAt,
+        conditionModeForModel(spec.modelNumber),
+        expectedSubjectForModel(spec.modelNumber),
       );
       return {
         ruleId: rule.ruleId,
@@ -331,10 +421,24 @@ export function executeFiscalCase(
     targetPresent: Boolean(target),
     targetStatus: target?.status ?? null,
     targetReason: target?.reason ?? null,
+    targetEvidence: target?.evidence ?? [],
+    targetMissingInformation: target?.missingInformation ?? [],
     targetRuleIds: target?.ruleIds ?? [],
+    recommendedModelCodes: diagnostic.models
+      .filter(
+        (model) =>
+          model.status === "DERIVED" ||
+          model.status === "CONFIRMED_BY_CENSUS",
+      )
+      .map((model) => model.modelNumber),
     candidateModelCodes: assessment.obligations.map(
       (obligation) => obligation.modelCode,
     ),
+    improbableModelCodes: diagnostic.models
+      .filter((model) => model.status === "NOT_APPLICABLE")
+      .map((model) => model.modelNumber),
+    exclusionCandidateIds: gateResults.map((result) => result.exclusionId),
+    sourceIds: target?.officialSources.map((source) => source.sourceId) ?? [],
     excludedModelCodes: assessment.obligations
       .filter(
         (obligation) => obligation.exclusionAuthorization?.authorized === true,
@@ -374,6 +478,9 @@ export function validateFiscalCaseObservation(
   if (observation.targetStatus !== testCase.expectedTargetStatus) {
     add("UNEXPECTED_RECOMMENDATION");
   }
+  if (testCase.expectedRecommendation !== testCase.expectedTargetStatus) {
+    add("TEST_CASE_RECOMMENDATION_ALIAS_MISMATCH");
+  }
   if (observation.predicateDecision !== testCase.expectedPredicateDecision) {
     add("PREDICATE_DECISION_MISMATCH");
   }
@@ -401,6 +508,12 @@ export function validateFiscalCaseObservation(
     if (!observation.targetRuleIds.includes(expectedRuleId)) {
       add("RULE_TRACEABILITY_MISSING");
     }
+    if (
+      observation.targetEvidence.length === 0 &&
+      observation.targetMissingInformation.length === 0
+    ) {
+      add("USED_FACTS_NOT_REPORTED");
+    }
   } else {
     if (observation.candidateModelCodes.length !== 0) {
       add("UNSUPPORTED_TERRITORY_EMITTED_CANDIDATES");
@@ -408,6 +521,37 @@ export function validateFiscalCaseObservation(
     if (observation.resolutionState !== "BLOCKED") {
       add("UNSUPPORTED_TERRITORY_NOT_BLOCKED");
     }
+  }
+
+  for (const model of testCase.expectedModels) {
+    if (!observation.candidateModelCodes.includes(model)) {
+      add(`EXPECTED_MODEL_MISSING_${model}`);
+    }
+  }
+  for (const model of testCase.expectedImprobableModels) {
+    if (!observation.improbableModelCodes.includes(model)) {
+      add(`IMPROBABLE_MODEL_NOT_IDENTIFIED_${model}`);
+    }
+  }
+  for (const model of testCase.forbiddenInferenceModels) {
+    if (observation.recommendedModelCodes.includes(model)) {
+      add(`FORBIDDEN_INFERENCE_EMITTED_${model}`);
+    }
+  }
+  if (
+    new Set(observation.exclusionCandidateIds).size !==
+      new Set(testCase.expectedExclusionCandidates).size ||
+    testCase.expectedExclusionCandidates.some(
+      (candidate) => !observation.exclusionCandidateIds.includes(candidate),
+    )
+  ) {
+    add("EXCLUSION_CANDIDATES_MISMATCH");
+  }
+  if (
+    testCase.profile.territory === "ES_COMMON" &&
+    testCase.sourceIds.some((sourceId) => !observation.sourceIds.includes(sourceId))
+  ) {
+    add("OFFICIAL_SOURCE_TRACEABILITY_MISSING");
   }
 
   if (observation.ruleReviewState !== "PENDING_FISCAL_REVIEW") {
@@ -419,12 +563,35 @@ export function validateFiscalCaseObservation(
   if (observation.excludedModelCodes.length !== 0) {
     add("MODEL_EXCLUDED_WHILE_PENDING");
   }
-  if (observation.authorizedExclusionCount !== 0) {
+  if (
+    observation.authorizedExclusionCount !==
+    testCase.expectedAuthorizedExclusions
+  ) {
     add("EXCLUSION_AUTHORIZED_WHILE_PENDING");
   }
-  for (const reason of REQUIRED_PENDING_BLOCKING_REASONS) {
+  for (const reason of testCase.expectedBlockingReasons) {
     if (!observation.gateBlockingReasons.includes(reason)) {
       add(`MISSING_BLOCKER_${reason}`);
+    }
+  }
+  for (const explanationCode of testCase.expectedExplanationCodes) {
+    if (
+      explanationCode === "TARGET_REASON_MATCH" &&
+      !testCase.expectedReasonIncludes
+    ) {
+      add("EXPLANATION_CODE_WITHOUT_REASON");
+    }
+    if (
+      explanationCode === "RULE_TRACEABILITY" &&
+      observation.targetRuleIds.length === 0
+    ) {
+      add("EXPLANATION_RULE_TRACEABILITY_MISSING");
+    }
+    if (
+      explanationCode === "UNSUPPORTED_TERRITORY" &&
+      observation.resolutionState !== "BLOCKED"
+    ) {
+      add("EXPLANATION_UNSUPPORTED_TERRITORY_MISSING");
     }
   }
   if (
@@ -449,18 +616,41 @@ export function validateFiscalCaseObservation(
   return errors;
 }
 
-const MUTATION_CASES = {
-  AND_TO_OR: "NEGATIVE",
-  CONDITION_INVERTED: "NEGATIVE",
-  EXCEPTION_REMOVED: "EXCEPTION",
-  FISCAL_YEAR_CHANGED: "TEMPORALITY",
-  TERRITORY_CHANGED: "TERRITORY",
-  UNKNOWN_TO_FALSE: "UNKNOWN",
-  CONTRADICTION_IGNORED: "CONTRADICTION",
-} as const satisfies Record<
-  Exclude<FiscalMutationOperator, "THRESHOLD_CHANGED">,
-  FiscalExecutableCategory
->;
+function suiteCase(
+  suite: FiscalExecutableRuleSuite,
+  category: FiscalExecutableCategory,
+): FiscalExecutableCase {
+  const testCase = suite.cases.find(
+    (candidate) => candidate.category === category,
+  );
+  if (!testCase) throw new Error(`MISSING_MUTATION_CASE:${category}`);
+  return testCase;
+}
+
+function completePredicateFacts(
+  suite: FiscalExecutableRuleSuite,
+  overrides: Partial<FiscalDecisionPredicateFacts> = {},
+): FiscalDecisionPredicateFacts {
+  return {
+    fiscalYear: suite.fiscalYear,
+    territory: "ES_COMMON",
+    modelNumber: suite.modelNumber,
+    subject:
+      suite.predicateDefinition.expectedSubject === "ENTITY"
+        ? "ENTITY"
+        : "PERSON",
+    conditions: predicateConditions(
+      suite.predicateDefinition.conditionCount,
+      "TRUE",
+    ),
+    exceptionApplies: "FALSE",
+    hasContradiction: false,
+    thresholdValue: null,
+    historicalEvidenceOnly: false,
+    prohibitedInferenceEvidence: false,
+    ...overrides,
+  };
+}
 
 function mutationProbe(
   suite: FiscalExecutableRuleSuite,
@@ -469,43 +659,97 @@ function mutationProbe(
   facts: FiscalDecisionPredicateFacts;
   expected: FiscalPredicateDecision;
 } {
-  if (operator === "THRESHOLD_CHANGED") {
-    const threshold = suite.predicateDefinition.thresholdExceptionAt;
-    if (threshold === null) {
-      throw new Error(`THRESHOLD_MUTATION_NOT_APPLICABLE:${suite.ruleId}`);
+  switch (operator) {
+    case "CONDITION_INVERTED":
+    case "AND_TO_OR":
+    case "REQUIRED_CONDITION_REMOVED": {
+      const testCase = suiteCase(suite, "NEGATIVE");
+      return {
+        facts: testCase.predicateFacts,
+        expected: testCase.expectedPredicateDecision,
+      };
     }
-    return {
-      facts: {
-        fiscalYear: suite.fiscalYear,
-        territory: "ES_COMMON",
-        conditions: predicateConditions(
-          suite.predicateDefinition.conditionCount,
-          "TRUE",
-        ),
-        exceptionApplies: "FALSE",
-        hasContradiction: false,
-        thresholdValue: threshold,
-        prohibitedInferenceEvidence: false,
-      },
-      expected: "NOT_APPLICABLE",
-    };
+    case "OR_TO_AND":
+      return {
+        facts: completePredicateFacts(suite, {
+          conditions: [
+            "TRUE",
+            ...Array.from<FiscalPredicateFact>({
+              length: suite.predicateDefinition.conditionCount - 1,
+            }).fill("FALSE"),
+          ],
+        }),
+        expected: "CANDIDATE",
+      };
+    case "EXCEPTION_REMOVED": {
+      const testCase = suiteCase(suite, "EXCEPTION");
+      return {
+        facts: testCase.predicateFacts,
+        expected: testCase.expectedPredicateDecision,
+      };
+    }
+    case "FISCAL_YEAR_CHANGED": {
+      const testCase = suiteCase(suite, "TEMPORAL");
+      return {
+        facts: testCase.predicateFacts,
+        expected: testCase.expectedPredicateDecision,
+      };
+    }
+    case "TERRITORY_CHANGED": {
+      const testCase = suiteCase(suite, "TERRITORY");
+      return {
+        facts: testCase.predicateFacts,
+        expected: testCase.expectedPredicateDecision,
+      };
+    }
+    case "UNKNOWN_TO_FALSE":
+    case "UNKNOWN_TO_TRUE": {
+      const testCase = suiteCase(suite, "UNKNOWN");
+      return {
+        facts: testCase.predicateFacts,
+        expected: testCase.expectedPredicateDecision,
+      };
+    }
+    case "CONTRADICTION_IGNORED": {
+      const testCase = suiteCase(suite, "CONTRADICTION");
+      return {
+        facts: testCase.predicateFacts,
+        expected: testCase.expectedPredicateDecision,
+      };
+    }
+    case "THRESHOLD_CHANGED": {
+      const threshold = suite.predicateDefinition.thresholdExceptionAt;
+      if (threshold === null) {
+        throw new Error(`THRESHOLD_MUTATION_NOT_APPLICABLE:${suite.ruleId}`);
+      }
+      return {
+        facts: completePredicateFacts(suite, { thresholdValue: threshold }),
+        expected: "NOT_APPLICABLE",
+      };
+    }
+    case "HISTORICAL_TO_CURRENT":
+      return {
+        facts: completePredicateFacts(suite, {
+          historicalEvidenceOnly: true,
+        }),
+        expected: "BLOCKED",
+      };
+    case "SUBJECT_SWAPPED":
+    case "CROSS_MODEL_RULE":
+      return {
+        facts: completePredicateFacts(suite),
+        expected: "CANDIDATE",
+      };
   }
-
-  const category = MUTATION_CASES[operator];
-  const testCase = suite.cases.find(
-    (candidate) => candidate.category === category,
-  );
-  if (!testCase) throw new Error(`MISSING_MUTATION_CASE:${category}`);
-  return {
-    facts: testCase.predicateFacts,
-    expected: testCase.expectedPredicateDecision,
-  };
 }
 
 export interface FiscalMutationScore {
   killed: number;
   total: number;
   score: number;
+  safetyCriticalKilled: number;
+  safetyCriticalTotal: number;
+  safetyCriticalScore: number;
   survivedOperators: readonly FiscalMutationOperator[];
   invalidBaselineOperators: readonly FiscalMutationOperator[];
 }
@@ -521,6 +765,8 @@ export function mutationScoreForSuite(
   const survivedOperators: FiscalMutationOperator[] = [];
   const invalidBaselineOperators: FiscalMutationOperator[] = [];
   let killed = 0;
+  let safetyCriticalKilled = 0;
+  let safetyCriticalTotal = 0;
 
   for (const operator of suite.mutationOperators) {
     const probe = mutationProbe(suite, operator);
@@ -537,8 +783,17 @@ export function mutationScoreForSuite(
       probe.facts,
       operator,
     );
-    if (mutant !== probe.expected) killed += 1;
+    const mutantKilled = mutant !== probe.expected;
+    if (mutantKilled) killed += 1;
     else survivedOperators.push(operator);
+    if (
+      FISCAL_SAFETY_CRITICAL_MUTATIONS.includes(
+        operator as (typeof FISCAL_SAFETY_CRITICAL_MUTATIONS)[number],
+      )
+    ) {
+      safetyCriticalTotal += 1;
+      if (mutantKilled) safetyCriticalKilled += 1;
+    }
   }
 
   const total = suite.mutationOperators.length;
@@ -546,6 +801,12 @@ export function mutationScoreForSuite(
     killed,
     total,
     score: total === 0 ? 0 : Math.round((killed / total) * 100),
+    safetyCriticalKilled,
+    safetyCriticalTotal,
+    safetyCriticalScore:
+      safetyCriticalTotal === 0
+        ? 100
+        : Math.round((safetyCriticalKilled / safetyCriticalTotal) * 100),
     survivedOperators,
     invalidBaselineOperators,
   };
