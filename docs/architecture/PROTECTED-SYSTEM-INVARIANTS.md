@@ -72,8 +72,12 @@ Contrato: [ADR-0004](ADR-0004-expense-inbox-email-reliability.md).
   redirecciones ni exposición de secretos o datos personales en logs.
 - Los replays son idempotentes. Regenerar el correo activa un alias nuevo y
   retira para siempre el anterior.
-- Guardar o descartar cierra la entrada; una copia fallida a la empresa nunca
-  convierte un fallo parcial en éxito silencioso.
+- Un error se reanaliza sobre el mismo registro con la cuota vigente y hash
+  exacto; no duplica la factura. La compra de saldo no aparece a cuentas
+  ilimitadas.
+- Guardar o descartar cierra la entrada. La copia usa el subdominio autenticado
+  y solo `delivered` confirma éxito; un fallo nunca se convierte en éxito
+  silencioso.
 
 Regresiones mínimas: `expense-inbox-reliability-contract.test.ts`,
 `expense-inbox-copy.test.ts` y `expense-inbox-download.test.ts`.

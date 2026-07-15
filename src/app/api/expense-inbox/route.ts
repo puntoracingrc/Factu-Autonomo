@@ -7,6 +7,7 @@ import {
   getExpenseInboxDeliveryStatus,
   getExpenseInboxItem,
   listExpenseInboxItems,
+  retryExpenseInboxItem,
   rotateExpenseInboxAlias,
   updateExpenseInboxItemStatus,
 } from "@/lib/expense-inbox-server";
@@ -109,9 +110,9 @@ export async function PATCH(request: Request) {
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   const bodyResult = await readJsonBody<{
-      action?: unknown;
-      id?: unknown;
-      status?: unknown;
+    action?: unknown;
+    id?: unknown;
+    status?: unknown;
   }>(request, {
     maxBytes: 8 * 1024,
     invalidMessage: "Petición de buzón no válida.",
@@ -142,6 +143,30 @@ export async function PATCH(request: Request) {
       const alias = await rotateExpenseInboxAlias(user.id);
       const deliveryStatus = await getExpenseInboxDeliveryStatus();
       return NextResponse.json({ alias, deliveryStatus });
+    }
+
+    if (body.action === "retry") {
+      const id = typeof body.id === "string" ? body.id : "";
+      if (!id) {
+        return NextResponse.json(
+          { error: "Falta el identificador de la factura." },
+          { status: 400 },
+        );
+      }
+      const retryRateLimit = await checkRateLimit(
+        request,
+        {
+          namespace: "expense_inbox_retry",
+          limit: 12,
+          windowMs: 60 * 60_000,
+        },
+        user.id,
+      );
+      if (!retryRateLimit.allowed) {
+        return rateLimitExceededResponse(retryRateLimit);
+      }
+      const item = await retryExpenseInboxItem({ userId: user.id, itemId: id });
+      return NextResponse.json({ item });
     }
 
     const id = typeof body.id === "string" ? body.id : "";

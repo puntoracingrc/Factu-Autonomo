@@ -36,7 +36,11 @@ describe("expense inbox reliability contract", () => {
     expect(route).toContain("{ status: 500 }");
     expect(route).toContain("providerHostname: error.providerHostname");
     expect(route).not.toContain("download_url");
-    expect(server).toContain("hasDuplicateAttachment(input.userId, hash)");
+    expect(server).toContain("findExistingAttachment(input.userId, hash)");
+    expect(server).toContain("claimInboxItemRetry");
+    expect(server).toContain('.eq("status", "error")');
+    expect(server).toContain("shouldRetryExpenseInboxItem");
+    expect(server).toContain("allowAnyErrorRetry: true");
     expect(server).toContain('error.code === "23505"');
     expect(server).toContain('return "duplicate"');
   });
@@ -51,6 +55,32 @@ describe("expense inbox reliability contract", () => {
     expect(copy).toContain("expense-inbox-copy-v1/");
     expect(copy).toContain("normalizeExpenseInboxCopyRecipient");
     expect(copy).toContain("emailDomain(email) === normalizedInboxDomain");
+    expect(copy).toContain("getEmailFromAddressForDomain(input.inboxDomain)");
+    expect(server).toContain("getEmailDeliveryStatus");
+    expect(server).toContain('delivery.state !== "delivered"');
+  });
+
+  it("permite recuperar el mismo adjunto con la cuota vigente sin duplicarlo", () => {
+    const route = source("src/app/api/expense-inbox/route.ts");
+    const server = source("src/lib/expense-inbox-server.ts");
+    const card = source("src/components/expenses/ExpenseInboxCard.tsx");
+    const migration = source(
+      "supabase/migrations/20260715131500_expense_inbox_retry_metadata.sql",
+    );
+
+    expect(route).toContain('body.action === "retry"');
+    expect(route).toContain('namespace: "expense_inbox_retry"');
+    expect(server).toContain("retryExpenseInboxItem");
+    expect(server).toContain("attachmentHash(downloaded.buffer)");
+    expect(server).toContain("providerAttachmentId");
+    expect(server).toContain("isMissingRetryMetadataError");
+    expect(server).toContain("includeRetryMetadata");
+    expect(card).toContain("Reintentar análisis");
+    expect(card).toContain("Comprar {scanPackLabel()}");
+    expect(card).toContain('usageMode === "empty"');
+    expect(card).not.toContain('usageMode !== "unlimited"');
+    expect(migration).toContain("source_email_id");
+    expect(migration).toContain("source_attachment_id");
   });
 
   it("cierra guardados y descartes sin volver a crear el gasto", () => {

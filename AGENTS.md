@@ -142,9 +142,15 @@ La decisión obligatoria y versionada está en
   seguro: nunca URL firmada, remitente, destinatario, asunto, contenido, API
   key o secreto de webhook.
 - La copia opcional usa exclusivamente el email válido de Datos de empresa y
-  sale desde el proveedor autenticado de la app con clave idempotente estable;
+  sale desde el subdominio autenticado de Resend con clave idempotente estable;
   nunca depende de un reenvío SMTP externo ni puede apuntar al propio dominio
-  del buzón. Un fallo confirmado mantiene el webhook reintentable.
+  del buzón. La aceptación del envío no basta: solo `delivered` confirma la
+  copia y cualquier estado pendiente o fallido mantiene el webhook reintentable.
+- Un adjunto en `error` se puede reanalizar con la cuota vigente reclamando el
+  mismo registro; jamás se duplica. Los IDs opacos del proveedor no salen al
+  cliente y los bytes recuperados deben coincidir con el hash almacenado. Una
+  cuenta ilimitada no ve compra de saldo; una limitada solo la ve en errores de
+  cuota reales.
 - Guardar un gasto cierra su entrada como `processed` y descartarlo la cierra
   como `ignored`. La lista solo muestra estados abiertos. El gasto conserva el
   ID opaco de origen para que un fallo posterior de cierre nunca cree otro

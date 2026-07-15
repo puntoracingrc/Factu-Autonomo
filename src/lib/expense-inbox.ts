@@ -33,6 +33,9 @@ export interface ExpenseInboxAttachmentInput {
   data?: string | null;
   url?: string | null;
   size?: number | null;
+  /** Opaque Resend identifiers. They are stored server-side and never exposed. */
+  providerEmailId?: string | null;
+  providerAttachmentId?: string | null;
 }
 
 export interface ExpenseInboxInboundEmail {
@@ -71,7 +74,29 @@ export interface ExpenseInboxItem {
   status: ExpenseInboxItemStatus;
   scanPayload?: ExpenseScanPayload;
   scanError?: string;
+  canRetry?: boolean;
   createdAt: string;
+}
+
+export function isExpenseInboxQuotaError(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  const normalized = value.toLowerCase();
+  return (
+    normalized.includes("escaneos incluidos") ||
+    normalized.includes("unidades ia incluidas") ||
+    normalized.includes("no quedan escaneos ia")
+  );
+}
+
+export function shouldRetryExpenseInboxItem(input: {
+  status: ExpenseInboxItemStatus;
+  scanError?: string;
+  explicitRetry: boolean;
+}): boolean {
+  return (
+    input.status === "error" &&
+    (input.explicitRetry || isExpenseInboxQuotaError(input.scanError))
+  );
 }
 
 function cleanMxHost(host: string): string {

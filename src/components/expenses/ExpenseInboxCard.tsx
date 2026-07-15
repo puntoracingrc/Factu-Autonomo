@@ -9,12 +9,14 @@ import {
   Inbox,
   Loader2,
   RefreshCw,
+  ShoppingBag,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { expenseInboxItemVatView } from "@/components/expenses/expense-vat-ui";
 import { useCloudSync } from "@/context/CloudSyncContext";
+import { useBilling } from "@/context/BillingContext";
 import { formatShortDate } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { closeExpenseInboxItemLocally } from "@/lib/expense-inbox-lifecycle";
@@ -23,6 +25,8 @@ import type {
   ExpenseInboxDeliveryStatus,
   ExpenseInboxItem,
 } from "@/lib/expense-inbox";
+import { isExpenseInboxQuotaError } from "@/lib/expense-inbox";
+import { scanPackLabel } from "@/lib/billing/scan-packs";
 
 interface ExpenseInboxResponse {
   alias?: {
@@ -50,6 +54,7 @@ async function currentAuthHeaders(): Promise<HeadersInit> {
 
 export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean }) {
   const { user } = useCloudSync();
+  const { checkoutScanPack } = useBilling();
   const [address, setAddress] = useState("");
   const [items, setItems] = useState<ExpenseInboxItem[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
@@ -57,11 +62,14 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
   const [deliveryStatus, setDeliveryStatus] =
     useState<ExpenseInboxDeliveryStatus | null>(null);
   const [usageLabel, setUsageLabel] = useState<string | null>(null);
+  const [usageMode, setUsageMode] = useState<AiUsageMeter["mode"] | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [rotatingAddress, setRotatingAddress] = useState(false);
   const [discardingId, setDiscardingId] = useState<string | null>(null);
+  const [retryingId, setRetryingId] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [buyingPack, setBuyingPack] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const loadInbox = useCallback(async () => {
@@ -72,6 +80,7 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
       setCopyRecipient(null);
       setDeliveryStatus(null);
       setUsageLabel(null);
+      setUsageMode(null);
       return;
     }
 
@@ -95,6 +104,7 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
           ? `IA ${percentRemaining}% restante`
           : null,
       );
+      setUsageMode(usageBody?.meter?.mode ?? null);
 
       if (!response.ok) {
         setError(body.error ?? "No se pudo cargar el buzón.");
@@ -186,6 +196,45 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
     } finally {
       setDiscardingId(null);
     }
+  }
+
+  async function retryItem(item: ExpenseInboxItem) {
+    setRetryingId(item.id);
+    setError(null);
+    try {
+      const headers = await currentAuthHeaders();
+      const response = await fetch("/api/expense-inbox", {
+        method: "PATCH",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "retry", id: item.id }),
+      });
+      const body = (await response.json().catch(() => ({}))) as
+        ExpenseInboxResponse & { item?: ExpenseInboxItem };
+      if (!response.ok || !body.item) {
+        setError(body.error ?? "No se pudo reintentar el análisis.");
+        return;
+      }
+      setItems((current) =>
+        current.map((currentItem) =>
+          currentItem.id === body.item?.id ? body.item : currentItem,
+        ),
+      );
+      if (body.item.status === "pending") {
+        setPendingCount((count) => count + 1);
+      }
+    } catch {
+      setError("No se pudo reintentar el análisis.");
+    } finally {
+      setRetryingId(null);
+    }
+  }
+
+  async function buyScanPack() {
+    setBuyingPack(true);
+    setError(null);
+    const checkoutError = await checkoutScanPack();
+    if (checkoutError) setError(checkoutError);
+    setBuyingPack(false);
   }
 
   if (!user) {
@@ -324,6 +373,10 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
               item.scanPayload?.expense.description ||
               item.attachmentFilename ||
               "Factura recibida";
+            const canBuyScanPack =
+              item.status === "error" &&
+              usageMode === "empty" &&
+              isExpenseInboxQuotaError(item.scanError);
             return (
               <div
                 key={item.id}
@@ -354,7 +407,34 @@ export function ExpenseInboxCard({ vatExempt = false }: { vatExempt?: boolean })
                     </p>
                   ) : null}
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
+                  {canBuyScanPack ? (
+                    <Button
+                      onClick={() => void buyScanPack()}
+                      disabled={buyingPack}
+                    >
+                      {buyingPack ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <ShoppingBag className="h-4 w-4" />
+                      )}
+                      Comprar {scanPackLabel()}
+                    </Button>
+                  ) : null}
+                  {item.status === "error" && item.canRetry ? (
+                    <Button
+                      variant="secondary"
+                      onClick={() => void retryItem(item)}
+                      disabled={retryingId === item.id}
+                    >
+                      {retryingId === item.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                      Reintentar análisis
+                    </Button>
+                  ) : null}
                   {item.status === "pending" ? (
                     <Link
                       href={`/gastos/nuevo?inbox=${item.id}`}

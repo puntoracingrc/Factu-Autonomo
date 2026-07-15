@@ -7,7 +7,7 @@ import { fetchUserSubscriptionServer } from "@/lib/billing/server-repository";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import { MAX_IMAGE_BYTES, MAX_PDF_BYTES } from "@/lib/expense-scan/limits";
 import { extractExpenseFromImage } from "@/lib/expense-scan/openai";
-import { sendEmail } from "@/lib/email/send";
+import { getEmailDeliveryStatus, sendEmail } from "@/lib/email/send";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   buildExpenseInboxCopyEmail,
@@ -17,6 +17,7 @@ import {
 import {
   downloadResendAttachment,
   ExpenseInboxDownloadError,
+  listRecentResendReceivedEmails,
   MAX_RESEND_ATTACHMENT_BYTES,
   MAX_RESEND_ATTACHMENTS_TOTAL_BYTES,
   splitResendAttachmentBatch,
@@ -31,6 +32,7 @@ import {
   normalizeExpenseInboxInboundPayload,
   normalizeResendReceivedEmailMetadata,
   resolveExpenseInboxAttachmentMimeType,
+  shouldRetryExpenseInboxItem,
   type ExpenseInboxAttachmentInput,
   type ExpenseInboxDeliveryStatus,
   type ExpenseInboxInboundEmail,
@@ -61,6 +63,8 @@ interface ExpenseInboxItemRow {
   status: ExpenseInboxItemStatus;
   scan_payload: unknown;
   scan_error: string | null;
+  source_email_id: string | null;
+  source_attachment_id: string | null;
   created_at: string;
 }
 
@@ -224,6 +228,20 @@ async function sendExpenseInboxCompanyCopy(input: {
 
   const result = await sendEmail(copy);
   if (!result.ok) throw new ExpenseInboxCopyDeliveryError(result);
+  const delivery = await getEmailDeliveryStatus(result.id ?? "", {
+    timeoutMs: 5_000,
+  });
+  if (delivery.state !== "delivered") {
+    throw new ExpenseInboxCopyDeliveryError({
+      ok: false,
+      status: delivery.status,
+      providerCode: delivery.event,
+      failureKind:
+        delivery.state === "failed" ? "known" : "ambiguous",
+      retryable: delivery.retryable,
+      error: "Resend todavía no ha confirmado la entrega de la copia.",
+    });
+  }
 }
 
 function mapItem(row: ExpenseInboxItemRow): ExpenseInboxItem {
@@ -240,6 +258,7 @@ function mapItem(row: ExpenseInboxItemRow): ExpenseInboxItem {
     status: row.status,
     scanPayload: mapExpenseInboxScanPayload(row.scan_payload),
     scanError: row.scan_error ?? undefined,
+    canRetry: row.status === "error",
     createdAt: row.created_at,
   };
 }
@@ -252,6 +271,21 @@ function isMissingInboxTableError(error: unknown): boolean {
     source.code === "42P01" ||
     message.includes("expense_inbox_aliases") ||
     message.includes("expense_inbox_items")
+  );
+}
+
+function isMissingRetryMetadataError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const source = error as { code?: string; message?: string; details?: string };
+  const text = [source.message, source.details]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  return (
+    source.code === "42703" ||
+    source.code === "PGRST204" ||
+    text.includes("source_email_id") ||
+    text.includes("source_attachment_id")
   );
 }
 
@@ -1093,14 +1127,20 @@ function scanSizeError(mimeType: string, size: number): string | null {
   return null;
 }
 
-async function hasDuplicateAttachment(
+interface ExistingInboxAttachment {
+  id: string;
+  status: ExpenseInboxItemStatus;
+  scanError?: string;
+}
+
+async function findExistingAttachment(
   userId: string,
   hash: string,
-): Promise<boolean> {
+): Promise<ExistingInboxAttachment | null> {
   const admin = ensureAdmin();
   const { data, error } = await admin
     .from("expense_inbox_items")
-    .select("id")
+    .select("id, status, scan_error")
     .eq("user_id", userId)
     .eq("attachment_hash", hash)
     .limit(1)
@@ -1108,11 +1148,20 @@ async function hasDuplicateAttachment(
 
   if (error) {
     if (isMissingInboxTableError(error)) {
-      return hasDuplicateAttachmentInSyncEntities(userId, hash);
+      return (await hasDuplicateAttachmentInSyncEntities(userId, hash))
+        ? { id: "sync-entity", status: "duplicate" }
+        : null;
     }
     throw error;
   }
-  return Boolean(data);
+  if (!data) return null;
+  const row = data as { id?: unknown; status?: unknown; scan_error?: unknown };
+  if (typeof row.id !== "string" || typeof row.status !== "string") return null;
+  return {
+    id: row.id,
+    status: row.status as ExpenseInboxItemStatus,
+    scanError: typeof row.scan_error === "string" ? row.scan_error : undefined,
+  };
 }
 
 async function insertInboxItem(input: {
@@ -1129,7 +1178,7 @@ async function insertInboxItem(input: {
   const admin = ensureAdmin();
   const now = new Date().toISOString();
   const hash = attachmentHash(input.buffer);
-  const { error } = await admin.from("expense_inbox_items").insert({
+  const basePayload = {
     user_id: input.userId,
     alias_token: input.aliasToken,
     from_email: input.email.fromEmail,
@@ -1144,7 +1193,16 @@ async function insertInboxItem(input: {
     scan_payload: input.scanPayload ?? null,
     scan_error: input.scanError ?? null,
     updated_at: now,
+  };
+  let { error } = await admin.from("expense_inbox_items").insert({
+    ...basePayload,
+    source_email_id: input.attachment.providerEmailId ?? null,
+    source_attachment_id: input.attachment.providerAttachmentId ?? null,
   });
+
+  if (error && isMissingRetryMetadataError(error)) {
+    ({ error } = await admin.from("expense_inbox_items").insert(basePayload));
+  }
 
   if (!error) return "inserted";
   if (isMissingInboxTableError(error)) {
@@ -1154,11 +1212,92 @@ async function insertInboxItem(input: {
   throw error;
 }
 
+async function claimInboxItemRetry(input: {
+  userId: string;
+  itemId: string;
+  attachment: ExpenseInboxAttachmentInput;
+}): Promise<boolean> {
+  const admin = ensureAdmin();
+  const now = new Date().toISOString();
+  const claim = (includeRetryMetadata: boolean) =>
+    admin
+      .from("expense_inbox_items")
+      .update({
+        status: "processing",
+        scan_error: null,
+        ...(includeRetryMetadata
+          ? {
+              source_email_id: input.attachment.providerEmailId ?? null,
+              source_attachment_id:
+                input.attachment.providerAttachmentId ?? null,
+            }
+          : {}),
+        updated_at: now,
+      })
+      .eq("user_id", input.userId)
+      .eq("id", input.itemId)
+      .eq("status", "error")
+      .select("id")
+      .maybeSingle();
+
+  let { data, error } = await claim(true);
+  if (error && isMissingRetryMetadataError(error)) {
+    ({ data, error } = await claim(false));
+  }
+  if (error) throw error;
+  return Boolean(data);
+}
+
+async function finishInboxItemRetry(input: {
+  userId: string;
+  itemId: string;
+  status: Extract<ExpenseInboxItemStatus, "pending" | "error">;
+  scanPayload?: unknown;
+  scanError?: string;
+}): Promise<void> {
+  const admin = ensureAdmin();
+  const { error } = await admin
+    .from("expense_inbox_items")
+    .update({
+      status: input.status,
+      scan_payload: input.scanPayload ?? null,
+      scan_error: input.scanError ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", input.userId)
+    .eq("id", input.itemId)
+    .eq("status", "processing");
+  if (error) throw error;
+}
+
+async function saveAttachmentFailure(input: {
+  userId: string;
+  aliasToken: string;
+  email: ExpenseInboxInboundEmail;
+  attachment: ExpenseInboxAttachmentInput;
+  mimeType: string;
+  buffer: Buffer;
+  retryItemId?: string;
+  scanError: string;
+}): Promise<void> {
+  if (input.retryItemId) {
+    await finishInboxItemRetry({
+      userId: input.userId,
+      itemId: input.retryItemId,
+      status: "error",
+      scanError: input.scanError,
+    });
+    return;
+  }
+  await insertInboxItem({ ...input, status: "error" });
+}
+
 async function processAttachment(input: {
   userId: string;
   aliasToken: string;
   email: ExpenseInboxInboundEmail;
   attachment: ExpenseInboxAttachmentInput;
+  allowAnyErrorRetry?: boolean;
 }): Promise<"pending" | "duplicate" | "ignored" | "error"> {
   const mimeType = resolveExpenseInboxAttachmentMimeType(input.attachment);
   if (!mimeType) return "ignored";
@@ -1176,26 +1315,45 @@ async function processAttachment(input: {
   if (buffer.byteLength === 0) return "ignored";
   const sizeError = scanSizeError(mimeType, buffer.byteLength);
   const hash = attachmentHash(buffer);
-  if (await hasDuplicateAttachment(input.userId, hash)) return "duplicate";
+  const existing = await findExistingAttachment(input.userId, hash);
+  let retryItemId: string | undefined;
+  if (existing) {
+    if (
+      !shouldRetryExpenseInboxItem({
+        status: existing.status,
+        scanError: existing.scanError,
+        explicitRetry: input.allowAnyErrorRetry === true,
+      })
+    ) {
+      return "duplicate";
+    }
+    const claimed = await claimInboxItemRetry({
+      userId: input.userId,
+      itemId: existing.id,
+      attachment: input.attachment,
+    });
+    if (!claimed) return "duplicate";
+    retryItemId = existing.id;
+  }
 
   const access = await canUseExpenseInbox(input.userId);
   if (!access.allowed) {
-    await insertInboxItem({
+    await saveAttachmentFailure({
       ...input,
       mimeType,
       buffer,
-      status: "error",
-      scanError: access.reason,
+      retryItemId,
+      scanError: access.reason ?? "El buzón de gastos no está disponible.",
     });
     return "error";
   }
 
   if (sizeError) {
-    await insertInboxItem({
+    await saveAttachmentFailure({
       ...input,
       mimeType,
       buffer,
-      status: "error",
+      retryItemId,
       scanError: sizeError,
     });
     return "error";
@@ -1203,17 +1361,40 @@ async function processAttachment(input: {
 
   const gate = await consumeExpenseScan(input.userId);
   if (!gate.allowed) {
-    await insertInboxItem({
+    await saveAttachmentFailure({
       ...input,
       mimeType,
       buffer,
-      status: "error",
+      retryItemId,
       scanError: gate.reason ?? "No quedan escaneos IA disponibles.",
     });
     return "error";
   }
 
-  const scan = await extractExpenseFromImage(base64, mimeType);
+  let scan: Awaited<ReturnType<typeof extractExpenseFromImage>>;
+  try {
+    scan = await extractExpenseFromImage(base64, mimeType);
+  } catch (error) {
+    if (retryItemId) {
+      await finishInboxItemRetry({
+        userId: input.userId,
+        itemId: retryItemId,
+        status: "error",
+        scanError: "No se pudo completar el análisis. Puedes reintentarlo.",
+      });
+    }
+    throw error;
+  }
+  if (retryItemId) {
+    await finishInboxItemRetry({
+      userId: input.userId,
+      itemId: retryItemId,
+      status: scan.data ? "pending" : "error",
+      scanPayload: scan.data,
+      scanError: scan.error,
+    });
+    return scan.data ? "pending" : "error";
+  }
   const inserted = await insertInboxItem({
     ...input,
     mimeType,
@@ -1225,6 +1406,166 @@ async function processAttachment(input: {
 
   if (inserted === "duplicate") return "duplicate";
   return scan.data ? "pending" : "error";
+}
+
+function bareEmailAddress(value: string): string {
+  const match = value.match(/<([^>]+)>/);
+  return (match?.[1] ?? value).trim().toLowerCase();
+}
+
+async function recoverRetryAttachment(
+  row: ExpenseInboxItemRow,
+): Promise<ExpenseInboxAttachmentInput> {
+  const directEmailId = row.source_email_id?.trim();
+  const directAttachmentId = row.source_attachment_id?.trim();
+  if (directEmailId && directAttachmentId) {
+    const downloaded = await downloadResendAttachment({
+      apiKey: getResendApiKey(),
+      emailId: directEmailId,
+      attachmentId: directAttachmentId,
+      declaredSize: row.attachment_size,
+      maxBytes: MAX_RESEND_ATTACHMENT_BYTES,
+      timeoutMs: 10_000,
+    });
+    if (attachmentHash(downloaded.buffer) !== row.attachment_hash) {
+      throw new Error("El adjunto recuperado no coincide con el original.");
+    }
+    return {
+      filename: downloaded.filename ?? row.attachment_filename,
+      contentType: downloaded.contentType ?? row.attachment_content_type,
+      contentBase64: downloaded.buffer.toString("base64"),
+      size: downloaded.buffer.byteLength,
+      providerEmailId: directEmailId,
+      providerAttachmentId: directAttachmentId,
+    };
+  }
+
+  const expectedAddress = buildExpenseInboxAddress(
+    row.alias_token,
+    getExpenseInboxDomain(),
+  ).toLowerCase();
+  const expectedFrom = bareEmailAddress(row.from_email ?? "");
+  const candidates = (await listRecentResendReceivedEmails({
+    apiKey: getResendApiKey(),
+    timeoutMs: 10_000,
+  }))
+    .filter((email) =>
+      email.to.some((recipient) => bareEmailAddress(recipient) === expectedAddress),
+    )
+    .filter((email) =>
+      expectedFrom ? bareEmailAddress(email.from) === expectedFrom : true,
+    )
+    .filter((email) =>
+      row.subject ? (email.subject ?? "") === row.subject : true,
+    )
+    .flatMap((email) =>
+      email.attachments
+        .filter(
+          (attachment) =>
+            attachment.filename === row.attachment_filename &&
+            attachment.size === row.attachment_size,
+        )
+        .map((attachment) => ({ email, attachment })),
+    )
+    .slice(0, 10);
+
+  for (const candidate of candidates) {
+    const downloaded = await downloadResendAttachment({
+      apiKey: getResendApiKey(),
+      emailId: candidate.email.id,
+      attachmentId: candidate.attachment.id,
+      declaredSize: candidate.attachment.size,
+      maxBytes: MAX_RESEND_ATTACHMENT_BYTES,
+      timeoutMs: 10_000,
+    });
+    if (attachmentHash(downloaded.buffer) !== row.attachment_hash) continue;
+    return {
+      filename: downloaded.filename ?? row.attachment_filename,
+      contentType: downloaded.contentType ?? row.attachment_content_type,
+      contentBase64: downloaded.buffer.toString("base64"),
+      size: downloaded.buffer.byteLength,
+      providerEmailId: candidate.email.id,
+      providerAttachmentId: candidate.attachment.id,
+    };
+  }
+
+  throw new Error(
+    "No he podido recuperar ese adjunto del proveedor. Reenvía el mismo email al buzón para reintentarlo sin crear duplicados.",
+  );
+}
+
+export async function retryExpenseInboxItem(input: {
+  userId: string;
+  itemId: string;
+}): Promise<ExpenseInboxItem> {
+  const admin = ensureAdmin();
+  const baseColumns = [
+    "id",
+    "user_id",
+    "alias_token",
+    "from_email",
+    "from_name",
+    "subject",
+    "received_at",
+    "attachment_filename",
+    "attachment_content_type",
+    "attachment_size",
+    "attachment_hash",
+    "status",
+    "scan_payload",
+    "scan_error",
+    "created_at",
+  ];
+  const selectRow = (includeRetryMetadata: boolean) =>
+    admin
+      .from("expense_inbox_items")
+      .select(
+        [
+          ...baseColumns,
+          ...(includeRetryMetadata
+            ? ["source_email_id", "source_attachment_id"]
+            : []),
+        ].join(", "),
+      )
+      .eq("user_id", input.userId)
+      .eq("id", input.itemId)
+      .maybeSingle();
+
+  let { data, error } = await selectRow(true);
+  if (error && isMissingRetryMetadataError(error)) {
+    ({ data, error } = await selectRow(false));
+  }
+  if (error) throw error;
+  if (!data) throw new Error("No encuentro esa factura del buzón.");
+  const row = {
+    source_email_id: null,
+    source_attachment_id: null,
+    ...(data as object),
+  } as ExpenseInboxItemRow;
+  if (row.status !== "error") {
+    throw new Error("Esta factura ya no necesita reintento.");
+  }
+
+  const attachment = await recoverRetryAttachment(row);
+  const result = await processAttachment({
+    userId: input.userId,
+    aliasToken: row.alias_token,
+    email: {
+      to: [buildExpenseInboxAddress(row.alias_token, getExpenseInboxDomain())],
+      fromEmail: row.from_email ?? "proveedor@desconocido.invalid",
+      fromName: row.from_name ?? undefined,
+      subject: row.subject ?? undefined,
+      attachments: [attachment],
+    },
+    attachment,
+    allowAnyErrorRetry: true,
+  });
+  if (result === "ignored") {
+    throw new Error("El adjunto ya no cumple el formato permitido.");
+  }
+  const updated = await getExpenseInboxItem(input.userId, input.itemId);
+  if (!updated) throw new Error("No se pudo confirmar el reintento.");
+  return updated;
 }
 
 async function ingestNormalizedExpenseInboxEmailResolved(
@@ -1324,6 +1665,8 @@ async function fetchResendAttachment(input: {
     contentType: downloaded.contentType ?? input.attachment.contentType,
     contentBase64: downloaded.buffer.toString("base64"),
     size: downloaded.buffer.byteLength,
+    providerEmailId: input.emailId,
+    providerAttachmentId: input.attachment.id,
   };
 }
 
@@ -1354,6 +1697,8 @@ export async function ingestResendExpenseInboxEmail(
       filename: attachment.filename,
       contentType: attachment.contentType,
       size: attachment.size,
+      providerEmailId: received.emailId,
+      providerAttachmentId: attachment.id,
     };
     const mimeType = resolveExpenseInboxAttachmentMimeType(baseAttachment);
     const isInlineImage =

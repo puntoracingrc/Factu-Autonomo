@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { sendEmail } from "./send";
+import { getEmailDeliveryStatus, sendEmail } from "./send";
 
 const input = {
   to: "owner@example.test",
@@ -119,6 +119,55 @@ describe("sendEmail provider result classification", () => {
         }),
       }),
     );
+  });
+
+  it("permite un remitente dedicado para el buzón", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_test");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ id: "email-1" }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await sendEmail({
+      ...input,
+      from: "Factu <hola@mail.facturacion-autonomos.app>",
+    });
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body));
+    expect(body.from).toBe("Factu <hola@mail.facturacion-autonomos.app>");
+  });
+
+  it("distingue entrega real de estado pendiente y rebote", async () => {
+    vi.stubEnv("RESEND_API_KEY", "re_test");
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ last_event: "delivered" }), {
+          status: 200,
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ last_event: "sent" }), { status: 200 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ last_event: "bounced" }), {
+          status: 200,
+        }),
+      );
+
+    await expect(
+      getEmailDeliveryStatus("email-1", { fetchImpl }),
+    ).resolves.toMatchObject({ state: "delivered", retryable: false });
+    await expect(
+      getEmailDeliveryStatus("email-2", { fetchImpl }),
+    ).resolves.toMatchObject({ state: "pending", retryable: true });
+    await expect(
+      getEmailDeliveryStatus("email-3", { fetchImpl }),
+    ).resolves.toMatchObject({
+      state: "failed",
+      event: "bounced",
+      retryable: false,
+    });
   });
 
   it("mantiene ambiguo un 2xx cuyo identificador no puede confirmarse", async () => {

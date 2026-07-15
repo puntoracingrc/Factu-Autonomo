@@ -1,8 +1,8 @@
 # ADR-0004 - Fiabilidad del buzón de gastos por email
 
 - Estado: aceptada
-- Versión: 2
-- Fecha: 2026-07-14
+- Versión: 3
+- Fecha: 2026-07-15
 - Ámbito: recepción de facturas de proveedores por email mediante Resend
 
 ## Contexto
@@ -18,6 +18,13 @@ bloqueada antes de crear el elemento.
 El bloque vuelve a funcionar en producción y debe conservar su seguridad sin
 quedar expuesto a regresiones de middleware, autenticación, facturación,
 descargas, sincronización o refactors generales.
+
+El 15 de julio se comprobaron dos huecos adicionales. Una cuenta cuya cuota
+pasaba después a ilimitada conservaba el error anterior y el mismo PDF se
+trataba como duplicado antes de reanalizarlo. Además, aceptar el `POST` de envío
+de la copia no demostraba que el servidor del destinatario la hubiese
+entregado, y la configuración general podía escoger un remitente distinto del
+subdominio autenticado para Resend.
 
 ## Decisión
 
@@ -72,13 +79,32 @@ de host exacta, HTTPS y las restricciones SSRF. No se siguen redirecciones.
     Ambos estados desaparecen de la consulta abierta. El gasto creado conserva
     `sourceInboxItemId`, de modo que si falla únicamente el cierre, el siguiente
     intento repite el cierre y no vuelve a crear el gasto.
+14. Un adjunto cuyo único registro está en `error` puede reclamarse de forma
+    atómica y reanalizarse con el acceso y la cuota vigentes. Nunca se inserta
+    otro elemento ni se repite una entrada `pending`, `processed` o `ignored`.
+    Los identificadores de email y adjunto de Resend son opacos, solo servidor
+    y deben concordar con el SHA-256 almacenado antes de usarse. El despliegue
+    es compatible con el esquema anterior: mientras esas columnas aditivas no
+    estén disponibles, se conserva la lectura y el reintento por hash.
+15. Para errores antiguos sin esos identificadores se consulta únicamente la
+    lista autenticada y acotada de recibidos, se filtra por alias y metadatos y
+    solo se acepta el adjunto cuyos bytes reproducen exactamente el hash. Si no
+    existe una coincidencia exacta, se pide reenviar el mismo email.
+16. La copia sale con una identidad del mismo subdominio autenticado en Resend.
+    Un `POST` aceptado no equivale a entrega: se consulta el email enviado y
+    solo `last_event=delivered` confirma éxito. Estados pendientes, ambiguos o
+    fallidos mantienen el webhook reintentable con la misma clave idempotente.
+17. El botón de compra solo aparece ante un error de cuota vigente y nunca para
+    una cuenta cuyo medidor actual sea ilimitado. El reintento vuelve a evaluar
+    la cuota en servidor; la UI no concede saldo ni altera la suscripción.
 
 ## Pruebas y despliegue
 
 La suite de contrato debe fallar si el middleware bloquea el webhook, se añade
 autenticación de usuario, se elimina firma o límite, se deja de devolver 500,
-se pierde deduplicación, se relaja la resolución de alias activos o desaparece
-el historial de retirada. También cubre la copia idempotente, el bloqueo de
+se pierde deduplicación, el reclamo atómico del error, se relaja la resolución
+de alias activos o desaparece el historial de retirada. También cubre la copia
+idempotente, el remitente alineado, la confirmación `delivered`, el bloqueo de
 bucles y el cierre `processed`/`ignored`. La prueba de descarga reproduce el
 host real `cdn.resend.app` y mantiene casos adversariales para dominios
 imitadores.

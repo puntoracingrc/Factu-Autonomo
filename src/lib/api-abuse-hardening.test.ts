@@ -37,6 +37,11 @@ const routeSources = new Map(
       "expense_inbox_rotate_alias",
     ],
     [
+      "expense inbox retry",
+      "../app/api/expense-inbox/route.ts",
+      "expense_inbox_retry",
+    ],
+    [
       "verifactu register",
       "../app/api/verifactu/register/route.ts",
       "verifactu_register",

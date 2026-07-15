@@ -5,6 +5,7 @@ export const MAX_RESEND_ATTACHMENT_BYTES = 4 * 1024 * 1024;
 export const MAX_RESEND_ATTACHMENTS_TOTAL_BYTES = 16 * 1024 * 1024;
 
 const MAX_RESEND_ATTACHMENT_METADATA_BYTES = 64 * 1024;
+const MAX_RESEND_RECEIVED_LIST_BYTES = 256 * 1024;
 const RESEND_API_ORIGIN = "https://api.resend.com";
 const RESEND_API_USER_AGENT = "Facturacion-Autonomos/expense-inbox";
 const DEFAULT_DOWNLOAD_TIMEOUT_MS = 10_000;
@@ -42,6 +43,22 @@ export interface ResendAttachmentDownload {
   filename?: string;
   contentType?: string;
   declaredSize?: number;
+}
+
+export interface RecentResendReceivedAttachment {
+  id: string;
+  filename?: string;
+  contentType?: string;
+  size?: number;
+}
+
+export interface RecentResendReceivedEmail {
+  id: string;
+  to: string[];
+  from: string;
+  subject?: string;
+  createdAt: string;
+  attachments: RecentResendReceivedAttachment[];
 }
 
 interface ResendAttachmentDownloadInput {
@@ -276,6 +293,124 @@ function optionalDeclaredSize(value: unknown): number | undefined {
     );
   }
   return value;
+}
+
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
+function parseRecentReceivedEmail(value: unknown): RecentResendReceivedEmail | null {
+  if (!isRecord(value)) return null;
+  const id = optionalString(value.id);
+  const from = optionalString(value.from);
+  const createdAt = optionalString(value.created_at);
+  const to = stringArray(value.to);
+  if (!id || !from || !createdAt || to.length === 0) return null;
+
+  const attachments = Array.isArray(value.attachments)
+    ? value.attachments.slice(0, MAX_RESEND_ATTACHMENTS_PER_EMAIL).flatMap((item) => {
+        if (!isRecord(item)) return [];
+        const attachmentId = optionalString(item.id);
+        if (!attachmentId) return [];
+        let size: number | undefined;
+        try {
+          size = optionalDeclaredSize(item.size);
+        } catch {
+          return [];
+        }
+        return [
+          {
+            id: attachmentId,
+            filename: optionalString(item.filename),
+            contentType: optionalString(item.content_type),
+            size,
+          },
+        ];
+      })
+    : [];
+
+  return {
+    id,
+    to,
+    from,
+    subject: optionalString(value.subject),
+    createdAt,
+    attachments,
+  };
+}
+
+export async function listRecentResendReceivedEmails(input: {
+  apiKey: string;
+  timeoutMs?: number;
+  fetchImpl?: typeof fetch;
+}): Promise<RecentResendReceivedEmail[]> {
+  const timeoutMs = input.timeoutMs ?? DEFAULT_DOWNLOAD_TIMEOUT_MS;
+  assertValidByteLimit(timeoutMs, "El tiempo máximo de consulta");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const fetchImpl = input.fetchImpl ?? fetch;
+
+  try {
+    const response = await awaitWithAbort(
+      fetchImpl(`${RESEND_API_ORIGIN}/emails/receiving`, {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${input.apiKey}`,
+          "User-Agent": RESEND_API_USER_AGENT,
+        },
+        cache: "no-store",
+        redirect: "manual",
+        signal: controller.signal,
+      }),
+      controller.signal,
+    );
+    assertResponseDidNotRedirect(response, assertAllowedResendApiUrl);
+    if (!response.ok) {
+      throw new ExpenseInboxDownloadError(
+        "provider_error",
+        "Resend no devolvió los emails recibidos.",
+        response.status,
+      );
+    }
+    const buffer = await readResponseWithinLimit(
+      response,
+      MAX_RESEND_RECEIVED_LIST_BYTES,
+      controller.signal,
+    );
+    let payload: unknown;
+    try {
+      payload = JSON.parse(buffer.toString("utf8"));
+    } catch {
+      throw new ExpenseInboxDownloadError(
+        "invalid_metadata",
+        "Resend devolvió una lista de emails no válida.",
+      );
+    }
+    if (!isRecord(payload) || !Array.isArray(payload.data)) {
+      throw new ExpenseInboxDownloadError(
+        "invalid_metadata",
+        "Resend devolvió una lista de emails no válida.",
+      );
+    }
+    return payload.data
+      .slice(0, 100)
+      .map(parseRecentReceivedEmail)
+      .filter((item): item is RecentResendReceivedEmail => Boolean(item));
+  } catch (error) {
+    if (error instanceof ExpenseInboxDownloadError) throw error;
+    if (controller.signal.aborted) throw timeoutError();
+    throw new ExpenseInboxDownloadError(
+      "provider_error",
+      "No se pudieron consultar los emails recibidos por Resend.",
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function downloadResendAttachment(

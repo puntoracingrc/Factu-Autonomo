@@ -6,6 +6,7 @@ export interface EmailAttachment {
 }
 
 export interface SendEmailInput {
+  from?: string;
   to: string;
   subject: string;
   html: string;
@@ -32,8 +33,26 @@ export interface SendEmailResult {
   retryAfterSeconds?: number;
 }
 
+export type EmailDeliveryState =
+  | "delivered"
+  | "pending"
+  | "failed"
+  | "unknown";
+
+export interface EmailDeliveryResult {
+  state: EmailDeliveryState;
+  event?: string;
+  status?: number;
+  retryable: boolean;
+}
+
 const DEFAULT_RESEND_TIMEOUT_MS = 10_000;
 const MAX_RESEND_TIMEOUT_MS = 30_000;
+const RESEND_API_ORIGIN = "https://api.resend.com";
+
+function validEmailId(value: string): boolean {
+  return /^[a-zA-Z0-9_-]{1,200}$/.test(value);
+}
 
 function boundedTimeoutMs(value: number | undefined): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
@@ -166,7 +185,7 @@ export async function sendEmail(
         ...(idempotencyKey ? { "Idempotency-Key": idempotencyKey } : {}),
       },
       body: JSON.stringify({
-        from: getEmailFromAddress(),
+        from: input.from ?? getEmailFromAddress(),
         to: [input.to],
         subject: input.subject,
         html: input.html,
@@ -186,6 +205,70 @@ export async function sendEmail(
       retryable: true,
       error: "No se pudo confirmar la respuesta de Resend",
     };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function deliveryState(lastEvent: unknown): EmailDeliveryResult {
+  if (typeof lastEvent !== "string" || !lastEvent.trim()) {
+    return { state: "unknown", retryable: true };
+  }
+  const event = lastEvent.trim().toLowerCase();
+  if (event === "delivered") {
+    return { state: "delivered", event, retryable: false };
+  }
+  if (
+    event === "bounced" ||
+    event === "failed" ||
+    event === "complained" ||
+    event === "suppressed" ||
+    event === "canceled"
+  ) {
+    return { state: "failed", event, retryable: false };
+  }
+  return { state: "pending", event, retryable: true };
+}
+
+export async function getEmailDeliveryStatus(
+  emailId: string,
+  options: { timeoutMs?: number; fetchImpl?: typeof fetch } = {},
+): Promise<EmailDeliveryResult> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  const normalizedId = emailId.trim();
+  if (!apiKey || !validEmailId(normalizedId)) {
+    return { state: "unknown", retryable: false };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    boundedTimeoutMs(options.timeoutMs),
+  );
+  try {
+    const response = await (options.fetchImpl ?? fetch)(
+      `${RESEND_API_ORIGIN}/emails/${encodeURIComponent(normalizedId)}`,
+      {
+        headers: {
+          Accept: "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        cache: "no-store",
+        redirect: "manual",
+        signal: controller.signal,
+      },
+    );
+    if (!response.ok || response.redirected) {
+      return {
+        state: "unknown",
+        status: response.status,
+        retryable: response.status >= 500 || response.status === 429,
+      };
+    }
+    const payload = (await response.json()) as { last_event?: unknown };
+    return { ...deliveryState(payload.last_event), status: response.status };
+  } catch {
+    return { state: "unknown", retryable: true };
   } finally {
     clearTimeout(timeout);
   }
