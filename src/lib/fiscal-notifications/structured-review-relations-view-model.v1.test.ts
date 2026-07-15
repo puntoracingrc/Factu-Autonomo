@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   appendStructuredReviewRelationSuggestionsV1,
   STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
+  STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
 } from "./structured-review-relation-suggestions.v1";
 import { projectStructuredReviewRelationsV1 } from "./structured-review-relations-view-model.v1";
 import type { FiscalNotificationsWorkspace } from "./types";
@@ -197,6 +198,52 @@ describe("structured review relations view model v1", () => {
     expect(Object.isFrozen(result)).toBe(true);
     expect(Object.isFrozen(result.entries)).toBe(true);
   });
+
+  it.each([
+    ["ENFORCES", "Embargo vinculado a providencia de apremio", "ni modifica ningún saldo"],
+    ["RESPONDS_TO_SEIZURE", "Contestación vinculada a diligencia de embargo", "no convierte al tercero en deudor"],
+    ["TRANSFERS_SEIZED_FUNDS", "Ingreso de tercero vinculado a diligencia de embargo", "no marca automáticamente la deuda como pagada"],
+    ["RELEASES_SEIZURE", "Levantamiento vinculado a diligencia de embargo", "no se infiere automáticamente"],
+  ] as const)(
+    "explains the exact %s edge without applying an operational effect",
+    (relationType, title, explanationFragment) => {
+      const source = workspace();
+      source.relations.push({
+        id: `relation:typed:${relationType}`,
+        ownerScope: OWNER,
+        sourceDocumentId: "document:1",
+        targetDocumentId: "document:0",
+        relationType,
+        confidenceBand: "EXACT",
+        score: 100,
+        evidence: {
+          matchingReferenceTypes: ["LIQUIDATION_KEY"],
+          matchingAmountTypes: [],
+          matchingDates: [],
+          differences: [
+            "No cambia saldos, estados, pagos, deudas, plazos ni asientos.",
+          ],
+        },
+        algorithmVersion:
+          STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+        status: "SYSTEM_CONFIRMED_EXACT",
+        createdAt: NOW,
+      });
+
+      const result = projectStructuredReviewRelationsV1(source, OWNER);
+
+      expect(result.status).toBe("READY");
+      expect(result.entries).toEqual([
+        expect.objectContaining({
+          relationType,
+          title,
+          statusLabel: "Referencia exacta · revisar efectos",
+          explanation: expect.stringContaining(explanationFragment),
+          requiresHumanReview: true,
+        }),
+      ]);
+    },
+  );
 
   it("blocks another owner and hides rejected or unrelated algorithms", () => {
     const source = workspace();

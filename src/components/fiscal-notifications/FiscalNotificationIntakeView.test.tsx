@@ -367,7 +367,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain("PDF no conservado");
   });
 
-  it("muestra relaciones guardadas por referencias exactas sin afirmar causalidad", () => {
+  it("muestra relaciones exactas tipadas sin aplicar sus efectos", () => {
     expect(componentSource).toContain("Relaciones entre documentos");
     expect(componentSource).toContain(
       "projectStructuredReviewRelationsV1(",
@@ -391,6 +391,21 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(relationsViewModelSource).toContain(
       "ni que el expediente esté cerrado",
+    );
+    expect(relationsViewModelSource).toContain(
+      "Embargo vinculado a providencia de apremio",
+    );
+    expect(relationsViewModelSource).toContain(
+      "Ingreso de tercero vinculado a diligencia de embargo",
+    );
+    expect(relationsViewModelSource).toContain(
+      "no marca automáticamente la deuda como pagada",
+    );
+    expect(relationsViewModelSource).toContain(
+      "no se infiere automáticamente",
+    );
+    expect(componentSource).toContain(
+      "sin cambiar saldos",
     );
     expect(componentSource).not.toMatch(
       /relación confirmada|pago confirmado|expediente cerrado/iu,

@@ -1,6 +1,10 @@
-import { STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1 } from "./structured-review-relation-suggestions.v1";
+import {
+  STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
+  STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+} from "./structured-review-relation-suggestions.v1";
 import type {
   AdministrativeDocument,
+  DocumentRelationType,
   ExternalReference,
   ExternalReferenceType,
 } from "./types";
@@ -21,8 +25,11 @@ export interface StructuredReviewRelationMatchV1 {
 
 export interface StructuredReviewRelationEntryV1 {
   readonly key: string;
-  readonly title: "Documentos relacionados por referencia";
-  readonly statusLabel: "Relación detectada · revisar";
+  readonly relationType: DocumentRelationType;
+  readonly title: string;
+  readonly statusLabel:
+    | "Relación detectada · revisar"
+    | "Referencia exacta · revisar efectos";
   readonly documents: readonly [
     StructuredReviewRelationDocumentV1,
     StructuredReviewRelationDocumentV1,
@@ -84,8 +91,12 @@ export function projectStructuredReviewRelationsV1(
   const entries: StructuredReviewRelationEntryV1[] = [];
   for (const relation of workspace.relations) {
     if (
-      relation.algorithmVersion !==
-        STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1 ||
+      (
+        relation.algorithmVersion !==
+          STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1 &&
+        relation.algorithmVersion !==
+          STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1
+      ) ||
       relation.status === "USER_REJECTED"
     ) {
       continue;
@@ -99,11 +110,13 @@ export function projectStructuredReviewRelationsV1(
       relation.evidence.matchingReferenceTypes,
     );
     if (matches.length === 0) continue;
+    const presentation = relationPresentation(relation.relationType);
     entries.push(
       Object.freeze({
         key: relation.id,
-        title: "Documentos relacionados por referencia" as const,
-        statusLabel: "Relación detectada · revisar" as const,
+        relationType: relation.relationType,
+        title: presentation.title,
+        statusLabel: presentation.statusLabel,
         documents: Object.freeze([
           projectDocument(source),
           projectDocument(target),
@@ -112,8 +125,7 @@ export function projectStructuredReviewRelationsV1(
           StructuredReviewRelationDocumentV1,
         ],
         matches: Object.freeze(matches),
-        explanation:
-          "Las dos fichas comparten el mismo identificador administrativo. La coincidencia las vincula de forma objetiva, pero no demuestra por sí sola cuál originó a la otra, que exista un pago ni que el expediente esté cerrado.",
+        explanation: presentation.explanation,
         requiresHumanReview: true as const,
       }),
     );
@@ -127,6 +139,52 @@ export function projectStructuredReviewRelationsV1(
     status: "READY",
     entries: Object.freeze(entries),
   });
+}
+
+function relationPresentation(relationType: DocumentRelationType): Readonly<{
+  title: string;
+  statusLabel:
+    | "Relación detectada · revisar"
+    | "Referencia exacta · revisar efectos";
+  explanation: string;
+}> {
+  switch (relationType) {
+    case "ENFORCES":
+      return Object.freeze({
+        title: "Embargo vinculado a providencia de apremio",
+        statusLabel: "Referencia exacta · revisar efectos",
+        explanation:
+          "La diligencia de embargo y la providencia comparten una referencia administrativa exacta. Esto confirma el vínculo entre los documentos, pero no demuestra por sí solo que la deuda siga pendiente ni modifica ningún saldo.",
+      });
+    case "RESPONDS_TO_SEIZURE":
+      return Object.freeze({
+        title: "Contestación vinculada a diligencia de embargo",
+        statusLabel: "Referencia exacta · revisar efectos",
+        explanation:
+          "La contestación del tercero cita la misma diligencia de embargo. Se conserva como respuesta documental; no convierte al tercero en deudor ni altera el estado del embargo.",
+      });
+    case "TRANSFERS_SEIZED_FUNDS":
+      return Object.freeze({
+        title: "Ingreso de tercero vinculado a diligencia de embargo",
+        statusLabel: "Referencia exacta · revisar efectos",
+        explanation:
+          "El justificante de ingreso cita la misma diligencia. Registra un ingreso de tercero relacionado, pero no marca automáticamente la deuda como pagada ni recalcula el saldo pendiente.",
+      });
+    case "RELEASES_SEIZURE":
+      return Object.freeze({
+        title: "Levantamiento vinculado a diligencia de embargo",
+        statusLabel: "Referencia exacta · revisar efectos",
+        explanation:
+          "El levantamiento cita la misma diligencia de embargo. El documento histórico se conserva y no se infiere automáticamente si el levantamiento es total, parcial o el estado vigente fuera de lo impreso.",
+      });
+    default:
+      return Object.freeze({
+        title: "Documentos relacionados por referencia",
+        statusLabel: "Relación detectada · revisar",
+        explanation:
+          "Las dos fichas comparten el mismo identificador administrativo. La coincidencia las vincula de forma objetiva, pero no demuestra por sí sola cuál originó a la otra, que exista un pago ni que el expediente esté cerrado.",
+      });
+  }
 }
 
 function commonReferenceMatches(

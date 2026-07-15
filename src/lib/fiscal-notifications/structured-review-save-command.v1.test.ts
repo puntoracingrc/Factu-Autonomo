@@ -6,6 +6,7 @@ import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-expli
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
 import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { extractAeatOffsetAgreementFactsV1 } from "./aeat-offset-agreement-facts.v1";
+import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import type { BoundedDocumentInput } from "./input-contract";
 import type {
@@ -13,6 +14,7 @@ import type {
   FiscalNotificationLocalReviewResult,
 } from "./local-review-flow";
 import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "./structured-review-save-command.v1";
+import { projectFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
 
 const OWNER = "user:00000000-0000-4000-8000-000000000071";
 const FOREIGN_OWNER = "user:00000000-0000-4000-8000-000000000072";
@@ -70,6 +72,26 @@ const OFFSET_TEXT = [
   "DETALLE DE EFECTOS",
   "(1) EFECTOS DE LA COMPENSACIÓN",
   "EL IMPORTE DE LA DEUDA QUE FIGURA EN LA COLUMNA TOTAL PENDIENTE ANTES DE COMPENSAR HA QUEDADO EXTINGUIDO EN PERIODO VOLUNTARIO DE INGRESO.",
+].join("\n");
+
+const SEIZURE_TEXT = [
+  "AGENCIA TRIBUTARIA",
+  "sede.agenciatributaria.gob.es",
+  "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+  "Número de diligencia: EMB-SAVE-071",
+  "Número de expediente: EXP-SAVE-071",
+  "Clave de deuda: DEBT-SAVE-071",
+  "Clave de liquidación: LQ-SYNTH-071",
+  "Deudor: PERSONA DEUDORA SINTÉTICA",
+  "NIF del deudor: 12345678Z",
+  "Destinatario: BANCO SINTÉTICO",
+  "NIF del destinatario: A12345674",
+  "Entidad financiera: BANCO SINTÉTICO",
+  "IBAN: ES00 0000 0000 0000 1234",
+  "Principal: 1.234,56 EUR",
+  "Límite del embargo: 1.481,47 EUR",
+  "Importe retenido: 900,00 EUR",
+  "Fecha del embargo: 04/03/2026",
 ].join("\n");
 
 function documentInput(): BoundedDocumentInput {
@@ -155,6 +177,30 @@ function analysisWithHash(sha256: string): FiscalNotificationLocalAnalysisResult
       sha256,
     }),
   });
+}
+
+async function seizureAnalysis(): Promise<FiscalNotificationLocalAnalysisResult> {
+  const input: BoundedDocumentInput = Object.freeze({
+    ownerScope: OWNER,
+    documentId: "notification-review:synthetic-seizure-save",
+    pages: Object.freeze([
+      Object.freeze({ pageNumber: 1, text: SEIZURE_TEXT, isBlank: false }),
+    ]),
+  });
+  const value = structuredClone(analysis()) as FiscalNotificationLocalAnalysisResult & {
+    technicalReview: FiscalNotificationLocalReviewResult;
+    ephemeralVerticalSliceReview?: unknown;
+  };
+  value.technicalReview = Object.freeze({
+    ...value.technicalReview,
+    pageCount: 1,
+    byteLength: 5_678,
+    sha256: "d".repeat(64),
+  });
+  value.ephemeralVerticalSliceReview = projectFiscalNotificationVerticalSliceReviewV1(
+    await analyzeFiscalNotificationVerticalSliceV1(input),
+  );
+  return Object.freeze(value);
 }
 
 function deferralAnalysis(): FiscalNotificationLocalAnalysisResult {
@@ -519,6 +565,44 @@ describe("structured fiscal notification save command v1", () => {
         }),
       }),
     ]);
+  });
+
+  it("guarda la diligencia como embargo exacto de su providencia sin aplicar efectos", async () => {
+    const first = commandInput();
+    const firstResult = runSaveFiscalNotificationStructuredReviewCommandV1(
+      first.value,
+    );
+    expect(firstResult.status).toBe("applied");
+    if (firstResult.status !== "applied") return;
+
+    const second = commandInput({ expected: firstResult.data });
+    const secondResult = runSaveFiscalNotificationStructuredReviewCommandV1({
+      ...second.value,
+      reviewId: "review:00000000-0000-4000-8000-000000000076",
+      createdAt: "2026-07-14T10:03:00.000Z",
+      analysis: await seizureAnalysis(),
+    });
+
+    expect(secondResult.status).toBe("applied");
+    if (secondResult.status !== "applied") return;
+    expect(secondResult.data.fiscalNotificationsWorkspace?.relations).toEqual([
+      expect.objectContaining({
+        relationType: "ENFORCES",
+        status: "SYSTEM_CONFIRMED_EXACT",
+        confidenceBand: "EXACT",
+        evidence: expect.objectContaining({
+          matchingReferenceTypes: ["LIQUIDATION_KEY"],
+        }),
+      }),
+    ]);
+    expect(secondResult.data.fiscalNotificationsWorkspace).toMatchObject({
+      debts: [],
+      obligations: [],
+      installments: [],
+      paymentPlans: [],
+      accountingDrafts: [],
+    });
+    expect(JSON.stringify(secondResult.data)).not.toContain(SEIZURE_TEXT);
   });
 
   it("no guarda una clasificación sin hechos estructurados exactos", () => {
