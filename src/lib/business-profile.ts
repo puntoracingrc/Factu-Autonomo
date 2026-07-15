@@ -4,6 +4,7 @@ import { normalizeQuoteValidityDays } from "./quote-validity";
 import { normalizeProductFamilyMarkupSettings } from "./product-family-markups";
 import { normalizeBusinessFiscalProfile } from "./fiscal-profile";
 import { normalizeTaxModelDiagnosticSession } from "./tax-model-diagnostic/profile";
+import { normalizeFiscalAdvisoryModelPreferencesV1 } from "./fiscal-advisory-models/preferences";
 
 export interface BusinessProfileFields {
   commercialName?: string;
@@ -93,6 +94,10 @@ export function normalizeBusinessProfileForSave(
     taxModelDiagnostic: normalizeTaxModelDiagnosticSession(
       profile.taxModelDiagnostic,
     ),
+    fiscalAdvisoryModelPreferences:
+      normalizeFiscalAdvisoryModelPreferencesV1(
+        profile.fiscalAdvisoryModelPreferences,
+      ),
   };
 }
 

@@ -7,7 +7,10 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import { FiscalModelCatalogBrowser } from "./FiscalModelCatalogBrowser";
+import {
+  FiscalModelCatalogBrowser,
+  FiscalModelManualSelectionAction,
+} from "./FiscalModelCatalogBrowser";
 import {
   createPublicAeatModelSearchEntryWithTermsV2,
   type PublicAeatModelReviewSearchResultV2,
@@ -203,9 +206,8 @@ export function FiscalModelCatalogView({
         entries={searchEntries}
         initialQuery={result.query ?? ""}
         focusedCardId={focusedCardId}
-      />
-
-      <section aria-labelledby="catalogo-modelos-title" className="space-y-4">
+      >
+        <section aria-labelledby="catalogo-modelos-title" className="space-y-4">
         <div className="flex items-center gap-2">
           <BookOpenCheck
             className="h-5 w-5 text-blue-700 dark:text-blue-300"
@@ -225,7 +227,7 @@ export function FiscalModelCatalogView({
           hidden={result.total !== 0}
         >
           <p className="font-semibold text-slate-900 dark:text-slate-100">
-            No encontramos fichas que coincidan con la búsqueda.
+            No encontramos fichas que coincidan con esta vista o búsqueda.
           </p>
           <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
             Prueba con un código, un impuesto o una palabra del nombre oficial.
@@ -249,6 +251,7 @@ export function FiscalModelCatalogView({
                 key={page.code}
                 id={page.catalogCardId}
                 data-fiscal-model-card="true"
+                data-fiscal-model-code={page.code}
                 tabIndex={fromCalendar ? -1 : undefined}
                 hidden={!matchingIds.has(page.catalogCardId)}
                 className={`flex min-w-0 scroll-mt-6 flex-col dark:border-slate-700 dark:bg-slate-900 ${
@@ -317,6 +320,7 @@ export function FiscalModelCatalogView({
                   </div>
                 </div>
                 <div className="flex-1" />
+                <FiscalModelManualSelectionAction modelCode={page.code} />
                 {fromCalendar && (
                   <Link
                     href={calendarNavigation!.returnHref}
@@ -341,13 +345,14 @@ export function FiscalModelCatalogView({
             );
           })}
         </div>
-      </section>
+        </section>
 
-      <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
-        La cobertura se limita a las fichas que aparecen en este catálogo. La
-        ausencia de un código no implica una conclusión sobre su existencia,
-        vigencia o aplicación fiscal.
-      </p>
+        <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
+          La cobertura se limita a las fichas que aparecen en este catálogo. La
+          ausencia de un código no implica una conclusión sobre su existencia,
+          vigencia o aplicación fiscal.
+        </p>
+      </FiscalModelCatalogBrowser>
     </div>
   );
 }

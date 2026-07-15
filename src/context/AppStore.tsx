@@ -40,6 +40,7 @@ import type { Client } from "@/lib/types";
 import { EMPTY_DATA } from "@/lib/types";
 import { normalizeBusinessFiscalProfile } from "@/lib/fiscal-profile";
 import { normalizeTaxModelDiagnosticSession } from "@/lib/tax-model-diagnostic/profile";
+import { normalizeFiscalAdvisoryModelPreferencesV1 } from "@/lib/fiscal-advisory-models/preferences";
 import {
   assignNextDocumentNumber,
   assignNextDocumentNumberByType,
@@ -773,6 +774,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           taxModelDiagnostic: normalizeTaxModelDiagnosticSession(
             profile.taxModelDiagnostic,
           ),
+          fiscalAdvisoryModelPreferences:
+            normalizeFiscalAdvisoryModelPreferencesV1(
+              profile.fiscalAdvisoryModelPreferences,
+            ),
         },
       }));
     },

@@ -1,8 +1,28 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { RotateCcw } from "lucide-react";
+import Link from "next/link";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import { CircleAlert, RotateCcw, Star } from "lucide-react";
+import {
+  AdvisoryScopeToggle,
+  type AdvisoryScope,
+} from "@/components/consultor-fiscal/AdvisoryScopeToggle";
 import { Card } from "@/components/ui/Card";
+import { useAppStore } from "@/context/AppStore";
+import {
+  buildFiscalModelPersonalizationV1,
+  setManualFiscalAdvisoryModelSelectionV1,
+  type FiscalModelPersonalizationV1,
+} from "@/lib/fiscal-advisory-models";
 import {
   filterPublicAeatModelSearchEntriesInteractiveV2,
   getFiscalModelCatalogFocusPresentationV1,
@@ -18,40 +38,146 @@ const focusedCardClasses = [
   "dark:ring-offset-slate-950",
 ] as const;
 
-function resultLabel(total: number, query: string): string {
+interface PersonalizationContextValue {
+  enabled: boolean;
+  assessmentCodes: ReadonlySet<string>;
+  reviewCodes: ReadonlySet<string>;
+  manualCodes: ReadonlySet<string>;
+  toggleManualModel: (modelCode: string, selected: boolean) => void;
+}
+
+const PersonalizationContext = createContext<PersonalizationContextValue | null>(
+  null,
+);
+
+function resultLabel(total: number, query: string, scope: AdvisoryScope): string {
+  if (!query && scope === "MINE") return `${total} fichas en Mis modelos`;
   if (!query) return `${total} fichas registradas`;
   if (total === 1) return `1 ficha encontrada para «${query}»`;
   return `${total} fichas encontradas para «${query}»`;
+}
+
+function fallbackMessage(
+  personalization: FiscalModelPersonalizationV1,
+): string {
+  switch (personalization.fallbackReason) {
+    case "RULES_PENDING_REVIEW":
+      return "Las reglas del diagnóstico siguen en revisión fiscal. Hasta que estén aprobadas, el catálogo completo permanece visible.";
+    case "ASSESSMENT_NOT_RESOLVED":
+      return "El diagnóstico todavía necesita revisión o más información. Hasta resolverlo, el catálogo completo permanece visible.";
+    case "PROFILE_NOT_COMPLETE":
+      return "Faltan datos o existen conflictos en el perfil fiscal. Hasta completarlo, el catálogo completo permanece visible.";
+    case "INVALID_CATALOG":
+      return "No se ha podido validar la vista personalizada. El catálogo completo se mantiene visible de forma segura.";
+    case "NO_PUBLISHED_ASSESSMENT":
+    default:
+      return "Completa y confirma el diagnóstico fiscal para activar una vista personalizada. Mientras tanto, puedes consultar todas las fichas.";
+  }
 }
 
 export function FiscalModelCatalogBrowser({
   entries,
   initialQuery,
   focusedCardId,
+  children,
 }: {
   entries: readonly PublicAeatModelSearchEntryV2[];
   initialQuery: string;
   focusedCardId: string | null;
+  children: ReactNode;
 }) {
+  const { data, ready, updateProfile } = useAppStore();
   const [query, setQuery] = useState(initialQuery);
+  const [requestedScope, setRequestedScope] = useState<AdvisoryScope>("ALL");
   const inputRef = useRef<HTMLInputElement>(null);
+  const availableModelCodes = useMemo(
+    () => entries.map((entry) => entry.code),
+    [entries],
+  );
+  const personalization = useMemo(
+    () =>
+      buildFiscalModelPersonalizationV1({
+        session: data.profile.taxModelDiagnostic,
+        preferences: data.profile.fiscalAdvisoryModelPreferences,
+        availableModelCodes,
+      }),
+    [
+      availableModelCodes,
+      data.profile.fiscalAdvisoryModelPreferences,
+      data.profile.taxModelDiagnostic,
+    ],
+  );
+  const personalizationEnabled =
+    ready && personalization.status === "PERSONALIZED";
+  const effectiveScope: AdvisoryScope = personalizationEnabled
+    ? requestedScope
+    : "ALL";
   const result = useMemo(
     () => filterPublicAeatModelSearchEntriesInteractiveV2(entries, query),
     [entries, query],
   );
   const blocked = result.status === "BLOCKED";
-  const total = blocked ? 0 : result.total;
+  const searchMatches = useMemo(
+    () =>
+      new Set(
+        result.status === "REVIEW_ONLY"
+          ? result.data.map((entry) => entry.catalogCardId)
+          : [],
+      ),
+    [result],
+  );
+  const personalizedCodes = useMemo(
+    () => new Set(personalization.visibleModelCodes),
+    [personalization.visibleModelCodes],
+  );
+  const visibleTotal = blocked
+    ? 0
+    : entries.filter(
+        (entry) =>
+          searchMatches.has(entry.catalogCardId) &&
+          (effectiveScope === "ALL" || personalizedCodes.has(entry.code)),
+      ).length;
+
+  const toggleManualModel = useCallback(
+    (modelCode: string, selected: boolean) => {
+      if (!personalizationEnabled) return;
+      const next = setManualFiscalAdvisoryModelSelectionV1({
+        current: data.profile.fiscalAdvisoryModelPreferences,
+        modelCode,
+        selected,
+        allowedModelCodes: availableModelCodes,
+      });
+      if (!next) return;
+      updateProfile({
+        ...data.profile,
+        fiscalAdvisoryModelPreferences: next,
+      });
+    },
+    [
+      availableModelCodes,
+      data.profile,
+      personalizationEnabled,
+      updateProfile,
+    ],
+  );
+  const personalizationContext = useMemo<PersonalizationContextValue>(
+    () => ({
+      enabled: personalizationEnabled,
+      assessmentCodes: new Set(personalization.assessmentModelCodes),
+      reviewCodes: new Set(personalization.reviewModelCodes),
+      manualCodes: new Set(personalization.manualModelCodes),
+      toggleManualModel,
+    }),
+    [personalization, personalizationEnabled, toggleManualModel],
+  );
 
   useEffect(() => {
-    const matchingIds = new Set(
-      result.status === "REVIEW_ONLY"
-        ? result.data.map((entry) => entry.catalogCardId)
-        : [],
-    );
     for (const entry of entries) {
       const card = document.getElementById(entry.catalogCardId);
       if (!card || card.dataset.fiscalModelCard !== "true") continue;
-      const shouldHide = !matchingIds.has(entry.catalogCardId);
+      const shouldHide =
+        !searchMatches.has(entry.catalogCardId) ||
+        (effectiveScope === "MINE" && !personalizedCodes.has(entry.code));
       if (
         shouldHide &&
         document.activeElement instanceof Node &&
@@ -63,8 +189,15 @@ export function FiscalModelCatalogBrowser({
     }
 
     const noResults = document.getElementById("modelos-aeat-sin-resultados");
-    if (noResults) noResults.hidden = blocked || total !== 0;
-  }, [blocked, entries, result, total]);
+    if (noResults) noResults.hidden = blocked || visibleTotal !== 0;
+  }, [
+    blocked,
+    effectiveScope,
+    entries,
+    personalizedCodes,
+    searchMatches,
+    visibleTotal,
+  ]);
 
   useEffect(() => {
     if (!focusedCardId) return;
@@ -108,97 +241,209 @@ export function FiscalModelCatalogBrowser({
   }, [focusedCardId]);
 
   return (
-    <Card className="dark:border-slate-700 dark:bg-slate-900">
-      <div
-        role="search"
-        aria-labelledby="buscar-modelo-title"
-        className="space-y-3"
-      >
-        <div>
-          <h2
-            id="buscar-modelo-title"
-            className="font-bold text-slate-950 dark:text-slate-100"
-          >
-            Buscar modelos
-          </h2>
-          <p
-            id="buscar-modelo-hint"
-            className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300"
-          >
-            Busca por código, nombre oficial o conceptos que aparezcan en el
-            nombre del modelo; por ejemplo, 303, IVA, retenciones o
-            arrendamiento. Puedes escribir con o sin tildes y usar mayúsculas o
-            minúsculas. El filtro es local y no envía datos a servicios
-            externos.
-          </p>
-        </div>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-          <div className="min-w-0 flex-1">
-            <label
-              htmlFor="modelo-aeat"
-              className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200"
+    <PersonalizationContext.Provider value={personalizationContext}>
+      <div className="space-y-6">
+        <Card className="dark:border-slate-700 dark:bg-slate-900">
+          <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+            <div
+              role="search"
+              aria-labelledby="buscar-modelo-title"
+              className="space-y-3"
             >
-              Código, nombre o concepto
-            </label>
-            <input
-              ref={inputRef}
-              id="modelo-aeat"
-              name="modelo"
-              type="search"
-              autoComplete="off"
-              enterKeyHint="search"
-              maxLength={80}
-              value={query}
-              onChange={(event) => setQuery(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") setQuery("");
-              }}
-              aria-describedby={
-                blocked
-                  ? "buscar-modelo-hint buscar-modelo-error"
-                  : "buscar-modelo-hint buscar-modelo-resultados"
-              }
-              aria-invalid={blocked}
-              aria-errormessage={blocked ? "buscar-modelo-error" : undefined}
-              placeholder="Ej.: 303, IVA o retenciones"
-              className={`min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base text-slate-950 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 ${focusRing}`}
-            />
+              <div>
+                <h2
+                  id="buscar-modelo-title"
+                  className="font-bold text-slate-950 dark:text-slate-100"
+                >
+                  Buscar modelos
+                </h2>
+                <p
+                  id="buscar-modelo-hint"
+                  className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300"
+                >
+                  Busca por código, nombre oficial o conceptos que aparezcan en
+                  el nombre del modelo; por ejemplo, 303, IVA, retenciones o
+                  arrendamiento. Puedes escribir con o sin tildes y usar
+                  mayúsculas o minúsculas. El filtro es local y no envía datos a
+                  servicios externos.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="min-w-0 flex-1">
+                  <label
+                    htmlFor="modelo-aeat"
+                    className="mb-1.5 block text-sm font-semibold text-slate-800 dark:text-slate-200"
+                  >
+                    Código, nombre o concepto
+                  </label>
+                  <input
+                    ref={inputRef}
+                    id="modelo-aeat"
+                    name="modelo"
+                    type="search"
+                    autoComplete="off"
+                    enterKeyHint="search"
+                    maxLength={80}
+                    value={query}
+                    onChange={(event) => setQuery(event.currentTarget.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") setQuery("");
+                    }}
+                    aria-describedby={
+                      blocked
+                        ? "buscar-modelo-hint buscar-modelo-error"
+                        : "buscar-modelo-hint buscar-modelo-resultados"
+                    }
+                    aria-invalid={blocked}
+                    aria-errormessage={
+                      blocked ? "buscar-modelo-error" : undefined
+                    }
+                    placeholder="Ej.: 303, IVA o retenciones"
+                    className={`min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base text-slate-950 shadow-sm placeholder:text-slate-400 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 ${focusRing}`}
+                  />
+                </div>
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery("");
+                      inputRef.current?.focus();
+                    }}
+                    className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:w-auto dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 ${focusRing}`}
+                  >
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                    Limpiar
+                  </button>
+                )}
+              </div>
+              {blocked ? (
+                <p
+                  id="buscar-modelo-error"
+                  className="text-sm font-semibold text-red-700 dark:text-red-300"
+                  role="alert"
+                >
+                  Escribe hasta 80 caracteres, usa un solo código de modelo y
+                  evita saltos de línea o espacios al principio y al final.
+                </p>
+              ) : (
+                <p
+                  id="buscar-modelo-resultados"
+                  className="text-sm font-semibold text-slate-600 dark:text-slate-300"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  {resultLabel(visibleTotal, query, effectiveScope)}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <h2 className="font-bold text-slate-950 dark:text-slate-100">
+                  Vista del catálogo
+                </h2>
+                <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  Organiza las fichas sin modificar ni confirmar tus
+                  obligaciones fiscales.
+                </p>
+              </div>
+              <AdvisoryScopeToggle
+                value={effectiveScope}
+                onChange={setRequestedScope}
+                groupLabel="Elegir vista del catálogo"
+                mineLabel="Mis modelos"
+                mineCount={
+                  personalizationEnabled
+                    ? personalization.visibleModelCodes.length
+                    : personalization.manualModelCodes.length
+                }
+                allCount={entries.length}
+                mineDisabled={!personalizationEnabled}
+              />
+              {!ready ? (
+                <p className="text-sm text-slate-600 dark:text-slate-300" role="status">
+                  Cargando tu configuración fiscal…
+                </p>
+              ) : personalization.status === "ALL_ONLY" ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+                  <div className="flex items-start gap-2">
+                    <CircleAlert
+                      className="mt-1 h-4 w-4 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <p>
+                      {fallbackMessage(personalization)}{" "}
+                      <Link
+                        href="/consultor-fiscal/diagnostico"
+                        className={`font-bold underline underline-offset-2 ${focusRing}`}
+                      >
+                        Abrir diagnóstico
+                      </Link>
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+                  Reúne los modelos del diagnóstico y los que añadas
+                  manualmente. Los casos dudosos siguen visibles para que los
+                  confirmes.
+                </p>
+              )}
+            </div>
           </div>
-          {query && (
-            <button
-              type="button"
-              onClick={() => {
-                setQuery("");
-                inputRef.current?.focus();
-              }}
-              className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 font-semibold text-slate-700 transition-colors hover:bg-slate-50 sm:w-auto dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 ${focusRing}`}
-            >
-              <RotateCcw className="h-4 w-4" aria-hidden="true" />
-              Limpiar
-            </button>
-          )}
-        </div>
-        {blocked ? (
-          <p
-            id="buscar-modelo-error"
-            className="text-sm font-semibold text-red-700 dark:text-red-300"
-            role="alert"
-          >
-            Escribe hasta 80 caracteres, usa un solo código de modelo y evita
-            saltos de línea o espacios al principio y al final.
-          </p>
-        ) : (
-          <p
-            id="buscar-modelo-resultados"
-            className="text-sm font-semibold text-slate-600 dark:text-slate-300"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            {resultLabel(total, query)}
-          </p>
-        )}
+        </Card>
+
+        {children}
       </div>
-    </Card>
+    </PersonalizationContext.Provider>
+  );
+}
+
+export function FiscalModelManualSelectionAction({
+  modelCode,
+}: {
+  modelCode: string;
+}) {
+  const context = useContext(PersonalizationContext);
+  if (!context?.enabled) return null;
+  const fromAssessment = context.assessmentCodes.has(modelCode);
+  const needsReview = context.reviewCodes.has(modelCode);
+  const manuallySelected = context.manualCodes.has(modelCode);
+
+  return (
+    <div className="mt-3 space-y-2">
+      {fromAssessment && (
+        <p
+          className={`rounded-lg px-2.5 py-1.5 text-center text-xs font-bold ${
+            needsReview
+              ? "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100"
+              : "bg-blue-100 text-blue-950 dark:bg-blue-950 dark:text-blue-100"
+          }`}
+        >
+          {needsReview
+            ? "Confirmar en el diagnóstico"
+            : "Incluido por tu diagnóstico"}
+        </p>
+      )}
+      <button
+        type="button"
+        aria-pressed={manuallySelected}
+        onClick={() =>
+          context.toggleManualModel(modelCode, !manuallySelected)
+        }
+        className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold transition-colors ${
+          manuallySelected
+            ? "border-blue-300 bg-blue-50 text-blue-900 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-100"
+            : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
+        } ${focusRing}`}
+      >
+        <Star
+          className={`h-4 w-4 ${manuallySelected ? "fill-current" : ""}`}
+          aria-hidden="true"
+        />
+        {manuallySelected ? "Quitar de Mis modelos" : "Añadir a Mis modelos"}
+      </button>
+    </div>
   );
 }

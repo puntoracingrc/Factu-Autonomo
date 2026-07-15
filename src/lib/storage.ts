@@ -19,6 +19,7 @@ import { normalizeProductFamilyMarkupSettings } from "./product-family-markups";
 import { normalizeAppPreferences } from "./app-preferences";
 import { normalizeBusinessFiscalProfile } from "./fiscal-profile";
 import { normalizeTaxModelDiagnosticSession } from "./tax-model-diagnostic/profile";
+import { normalizeFiscalAdvisoryModelPreferencesV1 } from "./fiscal-advisory-models/preferences";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./fiscal-notifications/workspace-persistence.v1";
 import { normalizeSupplierNif, supplierCompareKey } from "./suppliers";
 import { normalizeRecurringExpense } from "./recurring-expenses";
@@ -83,6 +84,10 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
     taxModelDiagnostic: normalizeTaxModelDiagnosticSession(
       profile?.taxModelDiagnostic,
     ),
+    fiscalAdvisoryModelPreferences:
+      normalizeFiscalAdvisoryModelPreferencesV1(
+        profile?.fiscalAdvisoryModelPreferences,
+      ),
     quoteValidityDays: normalizeQuoteValidityDays(profile?.quoteValidityDays),
     numbering: normalizeNumbering(profile?.numbering),
     verifactu: normalizeVerifactuSettings(profile?.verifactu),
