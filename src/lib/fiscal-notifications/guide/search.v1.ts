@@ -22,6 +22,15 @@ function searchableText(entry: FiscalNotificationGuideEntryV1): string {
       entry.nameEs,
       entry.categoryLabel,
       ...entry.aliases,
+      ...(entry.plainLanguage
+        ? [
+            entry.plainLanguage.inShort,
+            entry.plainLanguage.whyItUsuallyArrives,
+            entry.plainLanguage.usualNextStep,
+            entry.plainLanguage.deadline.title,
+            ...entry.plainLanguage.searchTerms,
+          ]
+        : []),
       ...entry.sources.map((source) => source.title),
     ].join(" "),
   );

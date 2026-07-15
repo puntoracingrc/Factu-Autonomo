@@ -69,6 +69,35 @@ describe("fiscal notification guide catalog v1", () => {
         (related) => related.status === "SUGGESTED_ONLY" && !related.autoConfirm,
       ),
     ).toBe(true);
+    expect(paymentForm.entry.plainLanguage?.inShort).toContain(
+      "No es una prueba",
+    );
+    expect(paymentReceipt.entry.plainLanguage?.inShort).toContain("evidencia");
+  });
+
+  it("adds concise official guidance to the first vertical chain", () => {
+    const explained = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.filter(
+      (entry) => entry.plainLanguage,
+    );
+    expect(explained).toHaveLength(28);
+
+    const enforcement = explained.find(
+      (entry) => entry.familyId === "collection.enforcement_order",
+    );
+    expect(enforcement?.summary).toContain("providencia de apremio");
+    expect(enforcement?.plainLanguage).toMatchObject({
+      profileId: "enforcement-order",
+      profileVersion: "1.0.0",
+      networkPolicy: "NO_RUNTIME_NETWORK",
+      deadlinePolicy: "NEVER_CALCULATE_FROM_ISSUE_OR_SCAN_DATE",
+    });
+    expect(enforcement?.sources.map((source) => source.sourceId)).toEqual(
+      expect.arrayContaining([
+        "aeat.collection.enforcement_surcharges",
+        "aeat.collection.enforcement_nonpayment",
+        "aeat.collection.enforcement_resources",
+      ]),
+    );
   });
 
   it("derives only suggested before/after context from v2 causal relations", () => {
@@ -144,5 +173,10 @@ describe("fiscal notification guide catalog v1", () => {
     expect(Object.isFrozen(first.possiblePrevious)).toBe(true);
     expect(Object.isFrozen(first.possibleNext)).toBe(true);
     expect(Object.isFrozen(first.prohibitions)).toBe(true);
+    const explained = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.find(
+      (entry) => entry.plainLanguage,
+    );
+    expect(Object.isFrozen(explained?.plainLanguage)).toBe(true);
+    expect(Object.isFrozen(explained?.plainLanguage?.deadline)).toBe(true);
   });
 });
