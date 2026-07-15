@@ -4,20 +4,32 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import {
   CalendarDays,
+  CircleAlert,
   ExternalLink,
   Info,
   Loader2,
   RefreshCw,
   TriangleAlert,
 } from "lucide-react";
+import {
+  AdvisoryScopeToggle,
+  type AdvisoryScope,
+} from "@/components/consultor-fiscal/AdvisoryScopeToggle";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
+import { useAppStore } from "@/context/AppStore";
+import { normalizeFiscalAdvisoryModelPreferencesV1 } from "@/lib/fiscal-advisory-models";
 import {
   formatFiscalCalendarEventDate,
   formatFiscalCalendarFetchedAt,
 } from "@/lib/fiscal-calendar/dates";
 import { segmentFiscalCalendarModelReferences } from "@/lib/fiscal-calendar/model-reference-links";
+import {
+  buildFiscalCalendarObligationView,
+  type FiscalCalendarEventObligationDecision,
+  type FiscalCalendarObligationView,
+} from "@/lib/fiscal-calendar/obligation-filter";
 import { parseFiscalCalendarResponseData } from "@/lib/fiscal-calendar/response-data";
 import type {
   FiscalCalendarCategory,
@@ -76,6 +88,22 @@ function safeErrorMessage(value: unknown): string {
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, 240);
+}
+
+function obligationFallbackMessage(view: FiscalCalendarObligationView): string {
+  switch (view.fallbackReason) {
+    case "RULES_PENDING_REVIEW":
+      return "Las reglas del diagnóstico siguen en revisión fiscal. Hasta que estén aprobadas, se muestran todos los vencimientos.";
+    case "ASSESSMENT_NOT_RESOLVED":
+      return "El diagnóstico todavía necesita revisión o más información. Hasta resolverlo, se muestran todos los vencimientos.";
+    case "PROFILE_NOT_COMPLETE":
+      return "Faltan datos o existen conflictos en el perfil fiscal. Hasta completarlo, se muestran todos los vencimientos.";
+    case "UNSUPPORTED_TERRITORY":
+      return "El diagnóstico no puede personalizar este territorio con seguridad. Se muestran todos los vencimientos.";
+    case "NO_PUBLISHED_ASSESSMENT":
+    default:
+      return "Completa y confirma el diagnóstico fiscal para activar una vista personalizada. Mientras tanto, se muestran todos los vencimientos.";
+  }
 }
 
 function LinkedEventText({
@@ -155,10 +183,12 @@ function EventCard({
   event,
   categoryLabel,
   modelLinks,
+  obligationDecision,
 }: {
   event: FiscalCalendarEvent;
   categoryLabel: string;
   modelLinks: ReadonlyMap<string, FiscalCalendarModelPageLink>;
+  obligationDecision?: FiscalCalendarEventObligationDecision;
 }) {
   return (
     <li>
@@ -190,6 +220,20 @@ function EventCard({
           {event.reviewStatus === "review-with-advisor" ? (
             <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-900 dark:bg-amber-950 dark:text-amber-100">
               Revisar con gestor
+            </span>
+          ) : null}
+          {obligationDecision?.manuallySelected ? (
+            <span className="rounded-full bg-blue-100 px-2.5 py-1 text-blue-900 dark:bg-blue-950 dark:text-blue-100">
+              Añadido por ti
+            </span>
+          ) : null}
+          {obligationDecision?.requiresConfirmation ? (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+              Por confirmar
+            </span>
+          ) : obligationDecision?.modelCode ? (
+            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100">
+              Coincide con tu diagnóstico
             </span>
           ) : null}
         </div>
@@ -226,6 +270,7 @@ export function FiscalCalendarView({
   categoryOptions,
   officialSource,
 }: FiscalCalendarViewProps) {
+  const { data: appData, ready: appReady } = useAppStore();
   const allCategories = useMemo(
     () => categoryOptions.map((option) => option.key),
     [categoryOptions],
@@ -247,6 +292,7 @@ export function FiscalCalendarView({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterError, setFilterError] = useState<string | null>(null);
+  const [requestedScope, setRequestedScope] = useState<AdvisoryScope>("ALL");
 
   const categoryLabels = useMemo(
     () => new Map(categoryOptions.map((option) => [option.key, option.label])),
@@ -263,6 +309,53 @@ export function FiscalCalendarView({
       ),
     [data?.modelPageLinks],
   );
+  const events = useMemo(() => data?.events ?? [], [data?.events]);
+  const manualModelCodes = useMemo(
+    () =>
+      normalizeFiscalAdvisoryModelPreferencesV1(
+        appData.profile.fiscalAdvisoryModelPreferences,
+      )?.manualModelCodes ?? [],
+    [appData.profile.fiscalAdvisoryModelPreferences],
+  );
+  const obligationView = useMemo(
+    () =>
+      buildFiscalCalendarObligationView({
+        events,
+        session: appData.profile.taxModelDiagnostic,
+        manualModelCodes,
+      }),
+    [appData.profile.taxModelDiagnostic, events, manualModelCodes],
+  );
+  const personalizationEnabled =
+    appReady && obligationView.status === "PERSONALIZED";
+  const effectiveScope: AdvisoryScope = personalizationEnabled
+    ? requestedScope
+    : "ALL";
+  const visibleEvents = useMemo(
+    () =>
+      effectiveScope === "MINE"
+        ? events.filter((event) =>
+            obligationView.visibleEventIds.has(event.id),
+          )
+        : events,
+    [effectiveScope, events, obligationView.visibleEventIds],
+  );
+  const obligationDecisions = useMemo(
+    () =>
+      new Map(
+        obligationView.decisions.map((decision) => [
+          decision.eventId,
+          decision,
+        ]),
+      ),
+    [obligationView.decisions],
+  );
+  const visibleReviewCount =
+    effectiveScope === "MINE"
+      ? visibleEvents.filter((event) =>
+          obligationView.reviewEventIds.has(event.id),
+        ).length
+      : 0;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -353,8 +446,6 @@ export function FiscalCalendarView({
     });
   }
 
-  const events = data?.events ?? [];
-
   return (
     <div className="mx-auto w-full max-w-6xl">
       <PageHeader
@@ -369,7 +460,7 @@ export function FiscalCalendarView({
             aria-hidden="true"
           />
           <div className="text-sm leading-6 text-blue-950 dark:text-blue-100">
-            <p className="font-bold">Información general, no personalizada</p>
+            <p className="font-bold">Información general de la fuente</p>
             <p>
               Los resultados se cargan desde los cinco calendarios iCalendar
               públicos enlazados por la Agencia Tributaria para estas categorías.
@@ -378,6 +469,79 @@ export function FiscalCalendarView({
               Se conserva la fecha y el texto publicados por la fuente. Los filtros
               no determinan qué modelos debe presentar cada contribuyente.
             </p>
+            <p className="mt-2">
+              «Mis obligaciones» solo organiza los eventos mediante el último
+              diagnóstico fiscal confirmado. Los casos dudosos permanecen
+              visibles para que puedas revisarlos.
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      <Card className="mb-5 dark:border-slate-700 dark:bg-slate-900">
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+          <div>
+            <h2 className="font-bold text-slate-950 dark:text-slate-100">
+              Vista del calendario
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
+              Elige entre todos los vencimientos o una vista organizada según
+              tu diagnóstico y los modelos que hayas añadido manualmente.
+            </p>
+          </div>
+          <div className="space-y-3">
+            <AdvisoryScopeToggle
+              value={effectiveScope}
+              onChange={setRequestedScope}
+              groupLabel="Elegir vista del calendario"
+              mineLabel="Mis obligaciones"
+              mineCount={
+                personalizationEnabled
+                  ? obligationView.visibleEventIds.size
+                  : 0
+              }
+              allCount={events.length}
+              mineDisabled={!personalizationEnabled}
+            />
+            {!appReady ? (
+              <p
+                className="text-sm text-slate-600 dark:text-slate-300"
+                role="status"
+              >
+                Cargando tu configuración fiscal…
+              </p>
+            ) : obligationView.status === "ALL_ONLY" ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
+                <div className="flex items-start gap-2">
+                  <CircleAlert
+                    className="mt-1 h-4 w-4 shrink-0"
+                    aria-hidden="true"
+                  />
+                  <p>
+                    {obligationFallbackMessage(obligationView)}{" "}
+                    <Link
+                      href="/consultor-fiscal/diagnostico"
+                      className="font-bold underline underline-offset-2 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                    >
+                      Abrir diagnóstico
+                    </Link>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
+                Se ocultan únicamente modelos marcados como no aplicables con
+                evidencia suficiente. Los demás siguen visibles. Gestiona tus
+                elecciones en{" "}
+                <Link
+                  href="/consultor-fiscal/modelos"
+                  className="font-bold text-blue-700 underline underline-offset-2 dark:text-blue-300"
+                >
+                  Modelos AEAT
+                </Link>
+                .
+              </p>
+            )}
           </div>
         </div>
       </Card>
@@ -497,10 +661,7 @@ export function FiscalCalendarView({
           </Card>
         ) : null}
 
-        {!loading &&
-        !error &&
-        data &&
-        events.length === 0 ? (
+        {!loading && !error && data && events.length === 0 ? (
           <Card className="text-center dark:border-slate-700 dark:bg-slate-900">
             <CalendarDays
               className="mx-auto h-8 w-8 text-slate-400"
@@ -515,7 +676,34 @@ export function FiscalCalendarView({
           </Card>
         ) : null}
 
-        {events.length > 0 ? (
+        {!loading &&
+        !error &&
+        data &&
+        events.length > 0 &&
+        visibleEvents.length === 0 ? (
+          <Card className="text-center dark:border-slate-700 dark:bg-slate-900">
+            <CalendarDays
+              className="mx-auto h-8 w-8 text-slate-400"
+              aria-hidden="true"
+            />
+            <p className="mt-3 font-bold text-slate-800 dark:text-slate-100">
+              No hay vencimientos en Mis obligaciones
+            </p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Puedes volver a la vista completa en cualquier momento.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              className="mt-4"
+              onClick={() => setRequestedScope("ALL")}
+            >
+              Ver todos
+            </Button>
+          </Card>
+        ) : null}
+
+        {visibleEvents.length > 0 ? (
           <section aria-labelledby="fiscal-calendar-upcoming-title">
             <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
               <div>
@@ -526,7 +714,11 @@ export function FiscalCalendarView({
                   Próximos vencimientos
                 </h2>
                 <p className="text-sm text-slate-500 dark:text-slate-400">
-                  {events.length} resultado{events.length === 1 ? "" : "s"}
+                  {visibleEvents.length} resultado
+                  {visibleEvents.length === 1 ? "" : "s"}
+                  {effectiveScope === "MINE"
+                    ? ` · ${obligationView.excludedCount} no aplicables ocultos · ${visibleReviewCount} por confirmar`
+                    : ""}
                 </p>
               </div>
               {loading ? (
@@ -536,7 +728,7 @@ export function FiscalCalendarView({
               ) : null}
             </div>
             <ol className="grid gap-4 md:grid-cols-2">
-              {events.map((event) => (
+              {visibleEvents.map((event) => (
                 <EventCard
                   key={event.id}
                   event={event}
@@ -544,6 +736,11 @@ export function FiscalCalendarView({
                     categoryLabels.get(event.category) ?? event.category
                   }
                   modelLinks={modelLinks}
+                  obligationDecision={
+                    effectiveScope === "MINE"
+                      ? obligationDecisions.get(event.id)
+                      : undefined
+                  }
                 />
               ))}
             </ol>

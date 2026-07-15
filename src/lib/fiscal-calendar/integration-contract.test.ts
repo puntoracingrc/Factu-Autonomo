@@ -29,6 +29,10 @@ const modelAdapterSource = readFileSync(
   new URL("./model-page-links.server.ts", import.meta.url),
   "utf8",
 );
+const obligationAdapterSource = readFileSync(
+  new URL("./obligation-filter.ts", import.meta.url),
+  "utf8",
+);
 
 describe("aislamiento del calendario fiscal", () => {
   it("queda descrito como módulo público live y sin escrituras", () => {
@@ -66,6 +70,24 @@ describe("aislamiento del calendario fiscal", () => {
     expect(uiSource).toContain("href={segment.modelPage.href}");
     expect(uiSource).not.toContain("fiscal-models/model-pages");
     expect(uiSource).not.toMatch(/modelos\/\$\{/);
+  });
+
+  it("personaliza solo con el contrato público congelado del Motor", () => {
+    expect(obligationAdapterSource).toContain(
+      'from "@/lib/tax-obligations"',
+    );
+    expect(obligationAdapterSource).toContain(
+      "normalizeTaxObligationModelCode",
+    );
+    expect(obligationAdapterSource).toContain(
+      "selectStoredTaxObligationsAssessment",
+    );
+    expect(obligationAdapterSource).toContain(
+      "extractFiscalCalendarModelCodes",
+    );
+    expect(obligationAdapterSource).not.toContain("build-assessment");
+    expect(obligationAdapterSource).not.toContain("tax-model-diagnostic/engine");
+    expect(uiSource).toContain('groupLabel="Elegir vista del calendario"');
   });
 
   it("hace encontrable Asesoría sin aceptar calendarId del cliente", () => {

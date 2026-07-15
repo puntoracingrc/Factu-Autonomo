@@ -75,7 +75,10 @@ describe("contrato de interfaz del calendario fiscal", () => {
     );
     const applyFiltersSource = componentSource.slice(
       componentSource.indexOf("function applyFilters"),
-      componentSource.indexOf("const events ="),
+      componentSource.indexOf(
+        "  return (",
+        componentSource.indexOf("function applyFilters"),
+      ),
     );
     expect(applyFiltersSource).toContain(
       "setRefreshSequence((value) => value + 1)",
@@ -106,6 +109,22 @@ describe("contrato de interfaz del calendario fiscal", () => {
     expect(componentSource).toContain("histórico · no vigente");
     expect(componentSource).not.toContain("public-review-route-manifest");
     expect(componentSource).not.toMatch(/modelos\/\$\{/);
+  });
+
+  it("integra Mis obligaciones con fallback seguro y conserva Todos", () => {
+    expect(componentSource).toContain("buildFiscalCalendarObligationView");
+    expect(componentSource).toContain(
+      "normalizeFiscalAdvisoryModelPreferencesV1",
+    );
+    expect(componentSource).toContain('mineLabel="Mis obligaciones"');
+    expect(componentSource).toContain('groupLabel="Elegir vista del calendario"');
+    expect(componentSource).toContain("mineDisabled={!personalizationEnabled}");
+    expect(componentSource).toContain("Abrir diagnóstico");
+    expect(componentSource).toContain("Por confirmar");
+    expect(componentSource).toContain("Coincide con tu diagnóstico");
+    expect(componentSource).toContain("no aplicables ocultos");
+    expect(componentSource).toContain("Ver todos");
+    expect(componentSource).not.toContain("buildTaxObligationsAssessment");
   });
 
   it("valida toda la respuesta no confiable antes de entregarla al render", () => {
