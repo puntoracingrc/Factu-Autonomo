@@ -600,9 +600,16 @@ function FiscalNotificationReviewWorkspace({
       setError("Este navegador no puede crear una cola local segura.");
       return;
     }
+    const fiscalNotificationsWorkspaceWasQuarantined =
+      data.workspaceIntegrityQuarantine?.some(
+        (entry) => entry.collection === "fiscalNotificationsWorkspace",
+      ) === true;
     const persisted = readPersistedFiscalNotificationHashesV1(
       data.fiscalNotificationsWorkspace,
       ownerScope,
+      {
+        allowAbsentWorkspace: !fiscalNotificationsWorkspaceWasQuarantined,
+      },
     );
     if (persisted.status === "BLOCKED") {
       setError(
@@ -1114,6 +1121,7 @@ function FiscalNotificationReviewWorkspace({
       (item.status === "PREPARED" || item.status === "ERROR") &&
       filesRef.current.has(item.id),
   ).length;
+  const showBatchControls = pendingCount > 0 || processing;
   const reviewGuidance = result
     ? projectFiscalNotificationReviewGuidanceV1({
         technicalReview: result,
@@ -1446,22 +1454,23 @@ function FiscalNotificationReviewWorkspace({
           </div>
         ) : null}
 
-        <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-          <Button
-            type="button"
-            disabled={pendingCount === 0 || busy}
-            onClick={() => void analyzeQueue()}
-          >
+        {showBatchControls ? (
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <Button
+              type="button"
+              disabled={pendingCount === 0 || busy}
+              onClick={() => void analyzeQueue()}
+            >
+              {processing ? (
+                <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
+              ) : (
+                <ScanLine aria-hidden="true" className="h-5 w-5" />
+              )}
+              {processing
+                ? "Analizando el lote localmente…"
+                : `Analizar ${pendingCount} documento${pendingCount === 1 ? "" : "s"}`}
+            </Button>
             {processing ? (
-              <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
-            ) : (
-              <ScanLine aria-hidden="true" className="h-5 w-5" />
-            )}
-            {processing
-              ? "Analizando el lote localmente…"
-              : `Analizar ${pendingCount} documento${pendingCount === 1 ? "" : "s"}`}
-          </Button>
-          {processing ? (
               <Button
                 type="button"
                 variant="secondary"
@@ -1471,7 +1480,8 @@ function FiscalNotificationReviewWorkspace({
                 Cancelar
               </Button>
             ) : null}
-        </div>
+          </div>
+        ) : null}
       </Card>
 
       {result ? (

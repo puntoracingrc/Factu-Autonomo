@@ -1,4 +1,5 @@
 import { FISCAL_NOTIFICATION_PDF_LIMITS, hasStrictPdfMagic } from "./pdf-text-layer-parser";
+import { assertBoundedOwnerScope } from "./input-contract";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
 
 export const FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1 = 10 as const;
@@ -43,6 +44,14 @@ export type PersistedFiscalNotificationHashesV1 =
       status: "BLOCKED";
       sha256: readonly [];
     }>;
+
+export interface ReadPersistedFiscalNotificationHashesOptionsV1 {
+  /**
+   * Solo permite el estado inicial legítimo de una cuenta que todavía no ha
+   * creado su workspace. Un valor presente pero inválido continúa bloqueado.
+   */
+  readonly allowAbsentWorkspace?: boolean;
+}
 
 interface FingerprintDependenciesV1 {
   readonly digestSha256?: (
@@ -110,14 +119,21 @@ export async function fingerprintFiscalNotificationBatchFileV1(
 export function readPersistedFiscalNotificationHashesV1(
   value: unknown,
   ownerScope: string,
+  options: ReadPersistedFiscalNotificationHashesOptionsV1 = {},
 ): PersistedFiscalNotificationHashesV1 {
+  if (
+    (value === undefined || value === null) &&
+    options.allowAbsentWorkspace === true &&
+    isValidUserOwnerScope(ownerScope)
+  ) {
+    return readyHashes([]);
+  }
   const workspace = parseFiscalNotificationsWorkspaceForPersistenceV1(
     value,
     ownerScope,
   );
   if (!workspace) {
-    const empty = Object.freeze([]) as readonly [];
-    return Object.freeze({ status: "BLOCKED" as const, sha256: empty });
+    return blockedHashes();
   }
   const hashes = [
     ...new Set(
@@ -126,10 +142,28 @@ export function readPersistedFiscalNotificationHashesV1(
         .map((file) => file.sha256),
     ),
   ].sort();
+  return readyHashes(hashes);
+}
+
+function isValidUserOwnerScope(value: unknown): value is string {
+  try {
+    assertBoundedOwnerScope(value, "ownerScope");
+    return value.startsWith("user:");
+  } catch {
+    return false;
+  }
+}
+
+function readyHashes(hashes: readonly string[]): PersistedFiscalNotificationHashesV1 {
   return Object.freeze({
     status: "READY" as const,
-    sha256: Object.freeze(hashes),
+    sha256: Object.freeze([...hashes]),
   });
+}
+
+function blockedHashes(): PersistedFiscalNotificationHashesV1 {
+  const empty = Object.freeze([]) as readonly [];
+  return Object.freeze({ status: "BLOCKED" as const, sha256: empty });
 }
 
 function validateDisplayName(value: unknown): string {
