@@ -1,7 +1,9 @@
 import { FISCAL_NOTIFICATION_INPUT_LIMITS } from "./input-contract";
 import { MAX_FISCAL_RELATION_CANDIDATES } from "./relation-types";
 import type {
+  AdministrativeDocument,
   DocumentRelation,
+  DocumentRelationType,
   ExternalReference,
   ExternalReferenceType,
   FieldEvidence,
@@ -11,6 +13,8 @@ import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-p
 
 export const STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1 =
   "fiscal-notification-explicit-reference-relations/1.0.0" as const;
+export const STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1 =
+  "fiscal-notification-typed-explicit-relations/1.0.0" as const;
 
 export type AppendStructuredReviewRelationSuggestionsResultV1 =
   | {
@@ -57,11 +61,67 @@ interface PendingRelation {
   readonly matchingReferenceTypes: Set<ExternalReferenceType>;
 }
 
+type RelationPlan =
+  | { readonly kind: "SKIP_CONFLICT" }
+  | {
+      readonly kind: "GENERIC_SUGGESTION";
+      readonly sourceDocumentId: string;
+      readonly targetDocumentId: string;
+      readonly relationType: "POSSIBLY_RELATED";
+      readonly confidenceBand: "HIGH";
+      readonly status: "SUGGESTED";
+      readonly algorithmVersion: typeof STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1;
+      readonly differences: readonly string[];
+    }
+  | {
+      readonly kind: "TYPED_EXACT";
+      readonly sourceDocumentId: string;
+      readonly targetDocumentId: string;
+      readonly relationType:
+        | "ENFORCES"
+        | "RESPONDS_TO_SEIZURE"
+        | "TRANSFERS_SEIZED_FUNDS"
+        | "RELEASES_SEIZURE";
+      readonly confidenceBand: "EXACT";
+      readonly status: "SYSTEM_CONFIRMED_EXACT";
+      readonly algorithmVersion: typeof STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1;
+      readonly differences: readonly string[];
+    };
+
+const ENFORCEMENT_SEIZURE_REFERENCE_TYPES = new Set<ExternalReferenceType>([
+  "DEBT_KEY",
+  "LIQUIDATION_KEY",
+  "DOCUMENT_REFERENCE",
+]);
+const SEIZURE_ORDER_SUBTYPES = new Set([
+  "seizure.bank_account",
+  "seizure.commercial_credits",
+  "seizure.wages_or_pensions",
+  "seizure.tpv_receipts",
+  "seizure.cash_or_refund",
+  "seizure.real_estate",
+]);
+const SEIZURE_FOLLOW_UP_TYPES: Readonly<
+  Record<
+    string,
+    Extract<
+      DocumentRelationType,
+      | "RESPONDS_TO_SEIZURE"
+      | "TRANSFERS_SEIZED_FUNDS"
+      | "RELEASES_SEIZURE"
+    >
+  >
+> = Object.freeze({
+  "seizure.third_party_response": "RESPONDS_TO_SEIZURE",
+  "seizure.third_party_payment": "TRANSFERS_SEIZED_FUNDS",
+  "seizure.release": "RELEASES_SEIZURE",
+});
+
 /**
- * Conserva relaciones sugeridas únicamente cuando dos fichas comparten un
- * identificador explícito del documento. La coincidencia es determinista,
- * pero nunca se interpreta como causalidad, pago o identidad jurídica del
- * acto; por eso la relación permanece SUGGESTED.
+ * Conserva relaciones únicamente cuando dos fichas comparten un identificador
+ * explícito. Las combinaciones documentales conocidas reciben un tipo exacto;
+ * el resto permanece como sugerencia genérica. Ninguna relación aplica efectos
+ * sobre deudas, pagos, saldos, plazos o asientos.
  */
 export function appendStructuredReviewRelationSuggestionsV1(input: {
   readonly ownerScope: string;
@@ -88,6 +148,7 @@ export function appendStructuredReviewRelationSuggestionsV1(input: {
   const evidenceById = new Map(
     original.evidence.map((evidence) => [evidence.id, evidence]),
   );
+  const referencesByDocument = new Map<string, ExternalReference[]>();
   const groups = new Map<string, ReferenceGroup>();
 
   for (const reference of original.references) {
@@ -98,6 +159,9 @@ export function appendStructuredReviewRelationSuggestionsV1(input: {
     ) {
       continue;
     }
+    const documentReferences = referencesByDocument.get(reference.documentId) ?? [];
+    documentReferences.push(reference);
+    referencesByDocument.set(reference.documentId, documentReferences);
     const key = JSON.stringify([
       document.authorityId,
       reference.referenceType,
@@ -156,6 +220,13 @@ export function appendStructuredReviewRelationSuggestionsV1(input: {
   const existingIds = new Set(original.relations.map((relation) => relation.id));
   const additions: DocumentRelation[] = [];
   for (const pending of [...pendingByPair.values()].sort(comparePending)) {
+    const plan = planRelation(
+      pending,
+      documentsById,
+      referencesByDocument,
+      evidenceById,
+    );
+    if (plan.kind === "SKIP_CONFLICT") continue;
     const id = relationId(
       pending.sourceDocumentId,
       pending.targetDocumentId,
@@ -167,22 +238,28 @@ export function appendStructuredReviewRelationSuggestionsV1(input: {
     additions.push({
       id,
       ownerScope: input.ownerScope,
-      sourceDocumentId: pending.sourceDocumentId,
-      targetDocumentId: pending.targetDocumentId,
-      relationType: "POSSIBLY_RELATED",
-      confidenceBand: "HIGH",
+      sourceDocumentId: plan.sourceDocumentId,
+      targetDocumentId: plan.targetDocumentId,
+      relationType: plan.relationType,
+      confidenceBand: plan.confidenceBand,
       score: 100,
       evidence: {
         matchingReferenceTypes: [...pending.matchingReferenceTypes].sort(),
         matchingAmountTypes: [],
         matchingDates: [],
-        differences: [
-          "La coincidencia no demuestra por sí sola causalidad, pago o estado jurídico.",
-        ],
+        differences: [...plan.differences],
       },
-      algorithmVersion: STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
-      status: "SUGGESTED",
+      algorithmVersion: plan.algorithmVersion,
+      status: plan.status,
       createdAt: input.createdAt,
+    });
+  }
+
+  if (additions.length === 0) {
+    return Object.freeze({
+      status: "UNCHANGED",
+      addedRelationIds: Object.freeze([]) as readonly [],
+      workspace: original,
     });
   }
 
@@ -200,6 +277,194 @@ export function appendStructuredReviewRelationSuggestionsV1(input: {
     addedRelationIds: Object.freeze(additions.map((item) => item.id)),
     workspace: parsed,
   });
+}
+
+function planRelation(
+  pending: PendingRelation,
+  documentsById: ReadonlyMap<string, AdministrativeDocument>,
+  referencesByDocument: ReadonlyMap<string, readonly ExternalReference[]>,
+  evidenceById: ReadonlyMap<string, FieldEvidence>,
+): RelationPlan {
+  const left = documentsById.get(pending.sourceDocumentId);
+  const right = documentsById.get(pending.targetDocumentId);
+  if (!left || !right) return Object.freeze({ kind: "SKIP_CONFLICT" });
+
+  const enforcement = [left, right].find(
+    (document) => document.documentType === "AEAT_ENFORCEMENT_ORDER",
+  );
+  const seizure = [left, right].find(isSeizureOrder);
+  if (
+    enforcement &&
+    seizure &&
+    [...pending.matchingReferenceTypes].some((type) =>
+      ENFORCEMENT_SEIZURE_REFERENCE_TYPES.has(type)
+    )
+  ) {
+    if (hasExplicitConflict(
+      enforcement.id,
+      seizure.id,
+      ENFORCEMENT_SEIZURE_REFERENCE_TYPES,
+      referencesByDocument,
+    )) {
+      return Object.freeze({ kind: "SKIP_CONFLICT" });
+    }
+    return typedPlan(seizure.id, enforcement.id, "ENFORCES");
+  }
+
+  const seizureOrder = [left, right].find(isSeizureOrder);
+  const followUp = [left, right].find((document) =>
+    document.documentSubtype !== undefined &&
+    SEIZURE_FOLLOW_UP_TYPES[document.documentSubtype] !== undefined
+  );
+  if (
+    seizureOrder &&
+    followUp &&
+    pending.matchingReferenceTypes.has("DOCUMENT_REFERENCE") &&
+    hasExactPrimaryDocumentReferenceMatch(
+      seizureOrder.id,
+      followUp.id,
+      referencesByDocument,
+      evidenceById,
+    )
+  ) {
+    const exactDiligenceReference = new Set<ExternalReferenceType>([
+      "DOCUMENT_REFERENCE",
+    ]);
+    if (hasExplicitConflict(
+      seizureOrder.id,
+      followUp.id,
+      exactDiligenceReference,
+      referencesByDocument,
+    )) {
+      return Object.freeze({ kind: "SKIP_CONFLICT" });
+    }
+    return typedPlan(
+      followUp.id,
+      seizureOrder.id,
+      SEIZURE_FOLLOW_UP_TYPES[followUp.documentSubtype!]!,
+    );
+  }
+
+  return Object.freeze({
+    kind: "GENERIC_SUGGESTION",
+    sourceDocumentId: pending.sourceDocumentId,
+    targetDocumentId: pending.targetDocumentId,
+    relationType: "POSSIBLY_RELATED",
+    confidenceBand: "HIGH",
+    status: "SUGGESTED",
+    algorithmVersion: STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
+    differences: Object.freeze([
+      "La coincidencia no demuestra por sí sola causalidad, pago o estado jurídico.",
+    ]),
+  });
+}
+
+function hasExactPrimaryDocumentReferenceMatch(
+  leftDocumentId: string,
+  rightDocumentId: string,
+  referencesByDocument: ReadonlyMap<string, readonly ExternalReference[]>,
+  evidenceById: ReadonlyMap<string, FieldEvidence>,
+): boolean {
+  const left = new Set(
+    (referencesByDocument.get(leftDocumentId) ?? [])
+      .filter((reference) => isSeizureOrderReference(reference, evidenceById))
+      .map((reference) => reference.normalizedValue),
+  );
+  const right = new Set(
+    (referencesByDocument.get(rightDocumentId) ?? [])
+      .filter((reference) => isSeizureOrderReference(reference, evidenceById))
+      .map((reference) => reference.normalizedValue),
+  );
+  return [...left].some((value) => right.has(value));
+}
+
+function isSeizureOrderReference(
+  reference: ExternalReference,
+  evidenceById: ReadonlyMap<string, FieldEvidence>,
+): boolean {
+  if (
+    reference.referenceType !== "DOCUMENT_REFERENCE" ||
+    !reference.isPrimary ||
+    reference.occurrenceIds.length === 0
+  ) {
+    return false;
+  }
+  return reference.occurrenceIds.every((id) => {
+    const evidence = evidenceById.get(id);
+    if (!evidence || evidence.documentId !== reference.documentId) return false;
+    const label = evidence.textSnippet
+      .normalize("NFD")
+      .replace(/\p{M}/gu, "")
+      .toLowerCase();
+    return label.includes("diligencia") && !label.includes("providencia");
+  });
+}
+
+function typedPlan(
+  sourceDocumentId: string,
+  targetDocumentId: string,
+  relationType: Extract<
+    DocumentRelationType,
+    | "ENFORCES"
+    | "RESPONDS_TO_SEIZURE"
+    | "TRANSFERS_SEIZED_FUNDS"
+    | "RELEASES_SEIZURE"
+  >,
+): RelationPlan {
+  return Object.freeze({
+    kind: "TYPED_EXACT",
+    sourceDocumentId,
+    targetDocumentId,
+    relationType,
+    confidenceBand: "EXACT",
+    status: "SYSTEM_CONFIRMED_EXACT",
+    algorithmVersion: STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+    differences: Object.freeze([
+      "La relación se basa en una familia documental compatible y una referencia administrativa exacta.",
+      "No cambia saldos, estados, pagos, deudas, plazos ni asientos.",
+    ]),
+  });
+}
+
+function isSeizureOrder(document: AdministrativeDocument): boolean {
+  return (
+    document.documentType === "AEAT_SEIZURE_ORDER" &&
+    document.documentSubtype !== undefined &&
+    SEIZURE_ORDER_SUBTYPES.has(document.documentSubtype)
+  );
+}
+
+function hasExplicitConflict(
+  leftDocumentId: string,
+  rightDocumentId: string,
+  referenceTypes: ReadonlySet<ExternalReferenceType>,
+  referencesByDocument: ReadonlyMap<string, readonly ExternalReference[]>,
+): boolean {
+  const left = referencesByDocument.get(leftDocumentId) ?? [];
+  const right = referencesByDocument.get(rightDocumentId) ?? [];
+  for (const referenceType of referenceTypes) {
+    const leftValues = referenceValues(left, referenceType);
+    const rightValues = referenceValues(right, referenceType);
+    if (
+      leftValues.size > 0 &&
+      rightValues.size > 0 &&
+      ![...leftValues].some((value) => rightValues.has(value))
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function referenceValues(
+  references: readonly ExternalReference[],
+  referenceType: ExternalReferenceType,
+): ReadonlySet<string> {
+  return new Set(
+    references
+      .filter((reference) => reference.referenceType === referenceType)
+      .map((reference) => reference.normalizedValue),
+  );
 }
 
 function isEligibleExplicitReference(

@@ -854,7 +854,9 @@ function StructuredReviewRelations({
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
             Detecta identificadores administrativos que coinciden en dos
-            fichas guardadas y conserva la relación como sugerencia revisable.
+            fichas guardadas. Cuando el tipo y la referencia exacta lo
+            permiten, muestra la relación concreta sin cambiar saldos,
+            estados, pagos ni deudas.
           </p>
         </div>
         <span className="text-xs font-semibold text-slate-500">

@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   appendStructuredReviewRelationSuggestionsV1,
   STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
+  STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
 } from "./structured-review-relation-suggestions.v1";
 import type {
   ExternalReference,
+  ExternalReferenceType,
   FiscalNotificationsWorkspace,
 } from "./types";
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
@@ -128,6 +130,95 @@ function reference(index: number): ExternalReference {
   };
 }
 
+function exactReference(
+  documentIndex: number,
+  type: ExternalReferenceType,
+  value: string,
+  suffix: string,
+  isPrimary = true,
+): ExternalReference {
+  return {
+    id: `reference:${suffix}:${documentIndex}`,
+    ownerScope: OWNER,
+    referenceType: type,
+    rawValue: value,
+    normalizedValue: value,
+    issuer: "AEAT",
+    scope: "DOCUMENT",
+    documentId: `document:${documentIndex}`,
+    isPrimary,
+    confidence: "EXACT",
+    confirmationStatus: "PENDING",
+    extractionMethod: "RULE",
+    occurrenceIds: [`evidence:${suffix}:${documentIndex}`],
+    createdAt: NOW,
+  };
+}
+
+function exactEvidence(
+  documentIndex: number,
+  suffix: string,
+  textSnippet = "Referencia administrativa",
+) {
+  return {
+    id: `evidence:${suffix}:${documentIndex}`,
+    ownerScope: OWNER,
+    documentId: `document:${documentIndex}`,
+    pageNumber: 1,
+    textSnippet,
+    extractionMethod: "RULE" as const,
+    confidence: "EXACT" as const,
+    assertionType: "EXPLICIT_IN_DOCUMENT" as const,
+  };
+}
+
+function replaceReferencePair(
+  input: FiscalNotificationsWorkspace,
+  type: ExternalReferenceType,
+  leftValue: string,
+  rightValue: string,
+  suffix: string,
+): void {
+  input.references = [
+    exactReference(0, type, leftValue, suffix),
+    exactReference(1, type, rightValue, suffix),
+  ];
+  const textSnippet = type === "DOCUMENT_REFERENCE"
+    ? "Número de diligencia"
+    : "Referencia administrativa";
+  input.evidence = [
+    exactEvidence(0, suffix, textSnippet),
+    exactEvidence(1, suffix, textSnippet),
+  ];
+  input.documents[0]!.referenceIds = [`reference:${suffix}:0`];
+  input.documents[1]!.referenceIds = [`reference:${suffix}:1`];
+}
+
+function configureEnforcementAndSeizure(
+  input: FiscalNotificationsWorkspace,
+): void {
+  input.documents[0]!.documentType = "AEAT_ENFORCEMENT_ORDER";
+  input.documents[0]!.titleRaw = "Providencia de apremio sintética";
+  input.documents[1]!.documentType = "AEAT_SEIZURE_ORDER";
+  input.documents[1]!.documentSubtype = "seizure.bank_account";
+  input.documents[1]!.titleRaw = "Diligencia de embargo sintética";
+}
+
+function configureSeizureAndFollowUp(
+  input: FiscalNotificationsWorkspace,
+  followUpSubtype:
+    | "seizure.release"
+    | "seizure.third_party_response"
+    | "seizure.third_party_payment",
+): void {
+  input.documents[0]!.documentType = "AEAT_SEIZURE_ORDER";
+  input.documents[0]!.documentSubtype = "seizure.bank_account";
+  input.documents[0]!.titleRaw = "Diligencia de embargo sintética";
+  input.documents[1]!.documentType = "GENERIC_ADMINISTRATIVE_NOTICE";
+  input.documents[1]!.documentSubtype = followUpSubtype;
+  input.documents[1]!.titleRaw = `Seguimiento sintético ${followUpSubtype}`;
+}
+
 describe("structured review relation suggestions v1", () => {
   it("contains no network, AI, browser storage or fiscal materialization", () => {
     const source = readFileSync(
@@ -178,6 +269,174 @@ describe("structured review relation suggestions v1", () => {
     expect(
       validateFiscalNotificationsWorkspaceIntegrity(result.workspace, OWNER),
     ).toEqual({ valid: true, issues: [] });
+  });
+
+  it("types an enforcement-to-seizure edge as exact when a strong key matches", () => {
+    const input = workspace();
+    configureEnforcementAndSeizure(input);
+    replaceReferencePair(
+      input,
+      "LIQUIDATION_KEY",
+      "LQ-SYNTH-ENFORCEMENT-001",
+      "LQ-SYNTH-ENFORCEMENT-001",
+      "enforcement",
+    );
+
+    const result = appendStructuredReviewRelationSuggestionsV1({
+      ownerScope: OWNER,
+      workspace: input,
+      createdAt: NOW,
+    });
+
+    expect(result.status).toBe("APPLIED");
+    expect(result.workspace.relations).toEqual([
+      expect.objectContaining({
+        sourceDocumentId: "document:1",
+        targetDocumentId: "document:0",
+        relationType: "ENFORCES",
+        confidenceBand: "EXACT",
+        status: "SYSTEM_CONFIRMED_EXACT",
+        algorithmVersion:
+          STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+        evidence: {
+          matchingReferenceTypes: ["LIQUIDATION_KEY"],
+          matchingAmountTypes: [],
+          matchingDates: [],
+          differences: [
+            "La relación se basa en una familia documental compatible y una referencia administrativa exacta.",
+            "No cambia saldos, estados, pagos, deudas, plazos ni asientos.",
+          ],
+        },
+      }),
+    ]);
+    expect(
+      validateFiscalNotificationsWorkspaceIntegrity(result.workspace, OWNER),
+    ).toEqual({ valid: true, issues: [] });
+  });
+
+  it.each([
+    ["seizure.third_party_response", "RESPONDS_TO_SEIZURE"],
+    ["seizure.third_party_payment", "TRANSFERS_SEIZED_FUNDS"],
+    ["seizure.release", "RELEASES_SEIZURE"],
+  ] as const)(
+    "types %s by the exact cited seizure order",
+    (followUpSubtype, relationType) => {
+      const input = workspace();
+      configureSeizureAndFollowUp(input, followUpSubtype);
+      replaceReferencePair(
+        input,
+        "DOCUMENT_REFERENCE",
+        "EMB-SYNTH-REL-001",
+        "EMB-SYNTH-REL-001",
+        "seizure-order",
+      );
+
+      const result = appendStructuredReviewRelationSuggestionsV1({
+        ownerScope: OWNER,
+        workspace: input,
+        createdAt: NOW,
+      });
+
+      expect(result.status).toBe("APPLIED");
+      expect(result.workspace.relations).toEqual([
+        expect.objectContaining({
+          sourceDocumentId: "document:1",
+          targetDocumentId: "document:0",
+          relationType,
+          confidenceBand: "EXACT",
+          status: "SYSTEM_CONFIRMED_EXACT",
+        }),
+      ]);
+    },
+  );
+
+  it("does not mistake a shared secondary act reference for the cited seizure order", () => {
+    const input = workspace();
+    configureSeizureAndFollowUp(input, "seizure.release");
+    input.references = [
+      exactReference(0, "DOCUMENT_REFERENCE", "EMB-SYNTH-A", "primary"),
+      exactReference(0, "DOCUMENT_REFERENCE", "APR-SYNTH-SHARED", "secondary", false),
+      exactReference(1, "DOCUMENT_REFERENCE", "EMB-SYNTH-B", "primary"),
+      exactReference(1, "DOCUMENT_REFERENCE", "APR-SYNTH-SHARED", "secondary", false),
+    ];
+    input.evidence = [
+      exactEvidence(0, "primary", "Número de diligencia"),
+      exactEvidence(0, "secondary", "Referencia de la providencia"),
+      exactEvidence(1, "primary", "Número de diligencia"),
+      exactEvidence(1, "secondary", "Referencia de la providencia"),
+    ];
+    input.documents[0]!.referenceIds = [
+      "reference:primary:0",
+      "reference:secondary:0",
+    ];
+    input.documents[1]!.referenceIds = [
+      "reference:primary:1",
+      "reference:secondary:1",
+    ];
+
+    const result = appendStructuredReviewRelationSuggestionsV1({
+      ownerScope: OWNER,
+      workspace: input,
+      createdAt: NOW,
+    });
+
+    expect(result.status).toBe("APPLIED");
+    expect(result.workspace.relations).toEqual([
+      expect.objectContaining({
+        relationType: "POSSIBLY_RELATED",
+        status: "SUGGESTED",
+        algorithmVersion: STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
+      }),
+    ]);
+  });
+
+  it("does not relate an enforcement and seizure with different keys", () => {
+    const input = workspace();
+    configureEnforcementAndSeizure(input);
+    replaceReferencePair(
+      input,
+      "DEBT_KEY",
+      "DEBT-SYNTH-A",
+      "DEBT-SYNTH-B",
+      "different-debt",
+    );
+
+    const result = appendStructuredReviewRelationSuggestionsV1({
+      ownerScope: OWNER,
+      workspace: input,
+      createdAt: NOW,
+    });
+
+    expect(result.status).toBe("UNCHANGED");
+    expect(result.workspace.relations).toEqual([]);
+  });
+
+  it("blocks a typed edge when another explicit reference contradicts it", () => {
+    const input = workspace();
+    configureEnforcementAndSeizure(input);
+    replaceReferencePair(
+      input,
+      "LIQUIDATION_KEY",
+      "LQ-SYNTH-SHARED",
+      "LQ-SYNTH-SHARED",
+      "shared-liquidation",
+    );
+    input.references.push(
+      exactReference(0, "DOCUMENT_REFERENCE", "APR-SYNTH-A", "act"),
+      exactReference(1, "DOCUMENT_REFERENCE", "APR-SYNTH-B", "act"),
+    );
+    input.evidence.push(exactEvidence(0, "act"), exactEvidence(1, "act"));
+    input.documents[0]!.referenceIds.push("reference:act:0");
+    input.documents[1]!.referenceIds.push("reference:act:1");
+
+    const result = appendStructuredReviewRelationSuggestionsV1({
+      ownerScope: OWNER,
+      workspace: input,
+      createdAt: NOW,
+    });
+
+    expect(result.status).toBe("UNCHANGED");
+    expect(result.workspace.relations).toEqual([]);
   });
 
   it("creates a deterministic star for three documents without duplicates", () => {
