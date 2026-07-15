@@ -55,6 +55,54 @@ import {
   MODEL_217_GUIDE_V1,
   MODEL_220_GUIDE_V1,
 } from "./model-batch-1-corporate-nonresident-guides.v1";
+import {
+  MODEL_221_GUIDE_V1,
+  MODEL_222_GUIDE_V1,
+  MODEL_237_GUIDE_V1,
+} from "./model-batch-2-corporate-guides.v1";
+import {
+  MODEL_226_GUIDE_V1,
+  MODEL_228_GUIDE_V1,
+  MODEL_247_GUIDE_V1,
+} from "./model-batch-2-nonresident-guides.v1";
+import {
+  MODEL_230_GUIDE_V1,
+  MODEL_270_GUIDE_V1,
+} from "./model-batch-2-lottery-guides.v1";
+import {
+  MODEL_231_GUIDE_V1,
+  MODEL_234_GUIDE_V1,
+  MODEL_235_GUIDE_V1,
+  MODEL_236_GUIDE_V1,
+  MODEL_239_GUIDE_V1,
+} from "./model-batch-2-international-transparency-guides.v1";
+import {
+  MODEL_240_GUIDE_V1,
+  MODEL_241_GUIDE_V1,
+  MODEL_242_GUIDE_V1,
+} from "./model-batch-2-pillar-two-guides.v1";
+import {
+  MODEL_280_GUIDE_V1,
+  MODEL_289_GUIDE_V1,
+  MODEL_290_GUIDE_V1,
+  MODEL_291_GUIDE_V1,
+  MODEL_294_GUIDE_V1,
+  MODEL_295_GUIDE_V1,
+} from "./model-batch-2-financial-international-guides.v1";
+import {
+  MODEL_281_GUIDE_V1,
+  MODEL_282_GUIDE_V1,
+  MODEL_283_GUIDE_V1,
+} from "./model-batch-2-territorial-guides.v1";
+import {
+  MODEL_318_GUIDE_V1,
+  MODEL_319_GUIDE_V1,
+  MODEL_322_GUIDE_V1,
+} from "./model-batch-2-specialized-vat-guides.v1";
+import {
+  MODEL_345_GUIDE_V1,
+  MODEL_346_GUIDE_V1,
+} from "./model-batch-2-social-agrarian-guides.v1";
 import { MODEL_01C_GUIDE_V1 } from "./model-01c-guide.v1";
 import { MODEL_030_GUIDE_V1 } from "./model-030-guide.v1";
 import { MODEL_035_GUIDE_V1 } from "./model-035-guide.v1";
@@ -155,6 +203,41 @@ const BATCH_1_PRACTICAL_GUIDES_BY_CODE: Readonly<
   "220": MODEL_220_GUIDE_V1,
 });
 
+const BATCH_2_PRACTICAL_GUIDES_BY_CODE: Readonly<
+  Record<string, FiscalModelPracticalGuideV1>
+> = Object.freeze({
+  "221": MODEL_221_GUIDE_V1,
+  "222": MODEL_222_GUIDE_V1,
+  "226": MODEL_226_GUIDE_V1,
+  "228": MODEL_228_GUIDE_V1,
+  "230": MODEL_230_GUIDE_V1,
+  "231": MODEL_231_GUIDE_V1,
+  "234": MODEL_234_GUIDE_V1,
+  "235": MODEL_235_GUIDE_V1,
+  "236": MODEL_236_GUIDE_V1,
+  "237": MODEL_237_GUIDE_V1,
+  "239": MODEL_239_GUIDE_V1,
+  "240": MODEL_240_GUIDE_V1,
+  "241": MODEL_241_GUIDE_V1,
+  "242": MODEL_242_GUIDE_V1,
+  "247": MODEL_247_GUIDE_V1,
+  "270": MODEL_270_GUIDE_V1,
+  "280": MODEL_280_GUIDE_V1,
+  "281": MODEL_281_GUIDE_V1,
+  "282": MODEL_282_GUIDE_V1,
+  "283": MODEL_283_GUIDE_V1,
+  "289": MODEL_289_GUIDE_V1,
+  "290": MODEL_290_GUIDE_V1,
+  "291": MODEL_291_GUIDE_V1,
+  "294": MODEL_294_GUIDE_V1,
+  "295": MODEL_295_GUIDE_V1,
+  "318": MODEL_318_GUIDE_V1,
+  "319": MODEL_319_GUIDE_V1,
+  "322": MODEL_322_GUIDE_V1,
+  "345": MODEL_345_GUIDE_V1,
+  "346": MODEL_346_GUIDE_V1,
+});
+
 function ExternalOfficialLink({
   href,
   children,
@@ -197,6 +280,11 @@ export function FiscalModelOfficialContentView({
   const batch1Guide = BATCH_1_PRACTICAL_GUIDES_BY_CODE[content.code];
   if (batch1Guide) {
     return <FiscalModelPracticalGuide content={content} guide={batch1Guide} />;
+  }
+
+  const batch2Guide = BATCH_2_PRACTICAL_GUIDES_BY_CODE[content.code];
+  if (batch2Guide) {
+    return <FiscalModelPracticalGuide content={content} guide={batch2Guide} />;
   }
 
   if (content.code === "01C") {

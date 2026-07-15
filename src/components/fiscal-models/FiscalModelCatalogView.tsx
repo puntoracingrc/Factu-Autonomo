@@ -35,11 +35,21 @@ const practicalCatalogLabels: Readonly<
     "Registro censal",
     "Operaciones B2C",
   ],
-  "038": ["Registros públicos", "Mensual", "Declaración informativa", "No la presenta la entidad inscrita"],
+  "038": [
+    "Registros públicos",
+    "Mensual",
+    "Declaración informativa",
+    "No la presenta la entidad inscrita",
+  ],
   "039": ["Grupo de IVA", "Comunicación censal", "Relacionado con 322 y 353"],
   "043": ["Juego", "Bingo", "Competencia territorial", "Sectorial"],
   "044": ["Juego", "Casinos", "Competencia territorial", "Sectorial"],
-  "045": ["Juego", "Máquinas recreativas", "Competencia territorial", "Sectorial"],
+  "045": [
+    "Juego",
+    "Máquinas recreativas",
+    "Competencia territorial",
+    "Sectorial",
+  ],
   "040": [
     "Obligaciones informativas sectoriales",
     "Operadores de plataformas",
@@ -54,7 +64,12 @@ const practicalCatalogLabels: Readonly<
   ],
   "102": ["Renta", "Segundo plazo", "40 %", "Documento de ingreso"],
   "111": ["Frecuente si pagas retenciones", "Trimestral o mensual", "IRPF"],
-  "113": ["Impuesto de salida", "Cambio de residencia", "UE y EEE", "Participaciones"],
+  "113": [
+    "Impuesto de salida",
+    "Cambio de residencia",
+    "UE y EEE",
+    "Participaciones",
+  ],
   "115": ["Si alquilas un local", "Trimestral o mensual", "Retenciones"],
   "121": [
     "Deducciones familiares",
@@ -101,26 +116,61 @@ const practicalCatalogLabels: Readonly<
     "Datos del trabajador",
   ],
   "146": ["Pensionistas", "Varios pagadores", "Retenciones", "Solicitud"],
-  "147": ["Trabajador desplazado", "Retenciones", "183 días", "No es Ley Beckham"],
+  "147": [
+    "Trabajador desplazado",
+    "Retenciones",
+    "183 días",
+    "No es Ley Beckham",
+  ],
   "149": [
     "Movilidad internacional y no residentes",
     "Régimen de desplazados",
     "Opción y comunicaciones",
     "IRPF",
   ],
-  "150": ["Histórico", "Régimen anterior a 2015", "No para nuevas opciones", "Relacionado con 149 y 151"],
+  "150": [
+    "Histórico",
+    "Régimen anterior a 2015",
+    "No para nuevas opciones",
+    "Relacionado con 149 y 151",
+  ],
   "151": [
     "Movilidad internacional y no residentes",
     "Régimen de desplazados",
     "Declaración anual",
     "IRPF",
   ],
-  "156": ["Cotizaciones", "Deducción por maternidad", "Anual", "No lo presenta el afiliado"],
-  "159": ["Energía eléctrica", "Consumo", "Anual", "No lo presenta el consumidor"],
+  "156": [
+    "Cotizaciones",
+    "Deducción por maternidad",
+    "Anual",
+    "No lo presenta el afiliado",
+  ],
+  "159": [
+    "Energía eléctrica",
+    "Consumo",
+    "Anual",
+    "No lo presenta el consumidor",
+  ],
   "165": ["Empresas nuevas", "Inversores", "Certificados", "Anual"],
-  "170": ["Mensual desde 2026", "Tarjetas y pagos móviles", "Entidades de pago", "No lo presenta el comercio"],
-  "171": ["Efectivo", "Operaciones financieras", "Anual", "No equivale a infracción"],
-  "174": ["Primera presentación en 2027", "Tarjetas", "Anual", "Entidades financieras"],
+  "170": [
+    "Mensual desde 2026",
+    "Tarjetas y pagos móviles",
+    "Entidades de pago",
+    "No lo presenta el comercio",
+  ],
+  "171": [
+    "Efectivo",
+    "Operaciones financieras",
+    "Anual",
+    "No equivale a infracción",
+  ],
+  "174": [
+    "Primera presentación en 2027",
+    "Tarjetas",
+    "Anual",
+    "Entidades financieras",
+  ],
   "172": [
     "Obligaciones informativas sectoriales",
     "Criptomonedas",
@@ -148,12 +198,22 @@ const practicalCatalogLabels: Readonly<
     "Anual",
     "Relacionado con Renta",
   ],
-  "185": ["Mensual desde 2026", "Seguridad Social", "Mutualidades", "No lo presenta el afiliado"],
+  "185": [
+    "Mensual desde 2026",
+    "Seguridad Social",
+    "Mutualidades",
+    "No lo presenta el afiliado",
+  ],
   "186": ["Registro Civil", "Nacimientos", "Defunciones", "Mensual"],
   "189": ["Valores", "Seguros", "31 de diciembre", "Anual"],
   "190": ["Anual", "Relacionado con 111", "Declaración informativa"],
   "192": ["Letras del Tesoro", "Operaciones", "Anual", "Intermediarios"],
-  "195": ["Cuentas sin NIF", "Entidades de crédito", "Trimestral", "Identificación"],
+  "195": [
+    "Cuentas sin NIF",
+    "Entidades de crédito",
+    "Trimestral",
+    "Identificación",
+  ],
   "198": ["Activos financieros", "Valores", "Operaciones", "Anual"],
   "199": ["Cheques", "Entidades de crédito", "Identificación", "Anual"],
   "193": [
@@ -172,7 +232,12 @@ const practicalCatalogLabels: Readonly<
     "Abril, octubre y diciembre",
     "Pago a cuenta",
   ],
-  "206": ["Auxiliar del Modelo 200", "IRNR", "Establecimiento permanente", "No se presenta solo"],
+  "206": [
+    "Auxiliar del Modelo 200",
+    "IRNR",
+    "Establecimiento permanente",
+    "No se presenta solo",
+  ],
   "210": [
     "Movilidad internacional y no residentes",
     "IRNR",
@@ -193,7 +258,132 @@ const practicalCatalogLabels: Readonly<
     "Solo si existe obligación de retener",
   ],
   "217": ["SOCIMI", "Dividendos", "19 %", "Dos meses desde el acuerdo"],
-  "220": ["Grupos fiscales", "Sociedades", "Anual", "Relacionado con 200 y 222"],
+  "220": [
+    "Grupos fiscales",
+    "Sociedades",
+    "Anual",
+    "Relacionado con 200 y 222",
+  ],
+  "221": [
+    "Muy especializado",
+    "Sociedades",
+    "Activos fiscales diferidos",
+    "1,5 %",
+  ],
+  "222": [
+    "Grupos fiscales",
+    "Pago a cuenta",
+    "Abril, octubre y diciembre",
+    "Relacionado con 220",
+  ],
+  "226": ["No residentes", "UE y EEE", "Solicitud", "No confiere residencia"],
+  "228": ["No residentes", "Vivienda habitual", "Reinversión", "Tres meses"],
+  "230": ["Loterías", "Mensual", "20 %", "Lo presenta el pagador"],
+  "231": ["CBC/DAC4", "Grandes grupos", "> 750 millones", "Doce meses"],
+  "234": ["DAC6", "Comunicación inicial", "30 días", "Transfronterizo"],
+  "235": ["DAC6", "Comercializable", "Trimestral", "Actualización"],
+  "236": ["DAC6", "Utilización", "Anual", "Octubre a diciembre"],
+  "237": ["SOCIMI", "15 %", "Beneficios no distribuidos", "Dos meses"],
+  "239": ["Pendiente de activación", "CRS", "AMAC", "Sin presentación"],
+  "240": [
+    "Impuesto Complementario",
+    "Grandes grupos",
+    "Comunicación",
+    "Primera campaña",
+  ],
+  "241": [
+    "Impuesto Complementario",
+    "GIR/DAC9",
+    "Grandes grupos",
+    "Servicio web",
+  ],
+  "242": [
+    "Impuesto Complementario",
+    "Autoliquidación",
+    "Grandes grupos",
+    "Por lotes",
+  ],
+  "247": [
+    "Trabajador por cuenta ajena",
+    "Salida al extranjero",
+    "Retenciones",
+    "No es 147",
+  ],
+  "270": ["Loterías", "Anual", "Fichero", "Relacionado con 230"],
+  "280": [
+    "Ahorro a largo plazo",
+    "SIALP y CIALP",
+    "Durante febrero",
+    "No lo presenta el ahorrador",
+  ],
+  "281": ["ZEC", "Trimestral", "Sin tránsito por Canarias", "Territorial"],
+  "282": [
+    "REF Canarias",
+    "Ayudas de Estado",
+    "Renta o Sociedades",
+    "Territorial",
+  ],
+  "283": [
+    "Illes Balears",
+    "Ayudas fiscales",
+    "Renta o Sociedades",
+    "Territorial",
+  ],
+  "289": [
+    "CRS",
+    "Cuentas financieras",
+    "Servicio web",
+    "Instituciones financieras",
+  ],
+  "290": [
+    "FATCA",
+    "Estados Unidos",
+    "Servicio web",
+    "Instituciones financieras",
+  ],
+  "291": [
+    "Transición 2026",
+    "Histórico reciente",
+    "Relacionado con 196",
+    "No lo presenta el titular",
+  ],
+  "294": [
+    "IIC españolas",
+    "Operaciones",
+    "Clientes extranjeros",
+    "Hasta 31 de marzo",
+  ],
+  "295": [
+    "IIC españolas",
+    "Posiciones",
+    "31 de diciembre",
+    "Hasta 31 de marzo",
+  ],
+  "318": [
+    "IVA especializado",
+    "Estado y forales",
+    "Regularización",
+    "Territorial",
+  ],
+  "319": ["Nuevo en 2026", "Hidrocarburos", "Antes de la extracción", "110 %"],
+  "322": [
+    "Grupo de IVA",
+    "Mensual",
+    "Modelo individual",
+    "Relacionado con 353",
+  ],
+  "345": [
+    "Previsión social",
+    "Anual",
+    "Entidades obligadas",
+    "No lo presenta el partícipe",
+  ],
+  "346": [
+    "Ayudas agrarias",
+    "Entidad pagadora",
+    "Plazo a verificar",
+    "Informativa",
+  ],
   "232": [
     "Autónomo societario y empresas",
     "Operaciones vinculadas",
@@ -297,36 +487,119 @@ const practicalCatalogLabels: Readonly<
 };
 
 const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
-  "038": "Información mensual de inscripciones comunicada por titulares de Registros públicos. No la presenta la entidad inscrita.",
-  "039": "Comunicación de opciones, composición y cambios del régimen especial del grupo de entidades de IVA.",
-  "043": "Tasa sobre el bingo cuando la gestión corresponde a la Administración tributaria estatal.",
-  "044": "Tasa fiscal sobre casinos cuando la gestión corresponde a la Administración estatal.",
-  "045": "Tasa sobre máquinas recreativas o de azar en los supuestos de gestión estatal.",
-  "102": "Documento para ingresar el segundo 40 % de la Renta cuando no quedó domiciliado.",
-  "113": "Comunicación especial de determinadas participaciones al trasladar la residencia a la UE o al EEE.",
-  "136": "Autoliquidación de determinados premios cuando no se practicó la retención correspondiente.",
-  "146": "Solicitud para coordinar la retención de pensionistas con dos o más pagadores.",
-  "147": "Comunicación de un trabajador desplazado para anticipar el cambio de residencia en sus retenciones.",
-  "150": "Modelo histórico del régimen de desplazados anterior a 2015. Las situaciones actuales utilizan 149 y 151.",
-  "156": "Resumen anual de cotizaciones comunicado por organismos y mutualidades para contrastar la deducción por maternidad.",
-  "159": "Información anual de contratos, puntos de suministro y consumos comunicada por entidades eléctricas.",
-  "165": "Información anual de certificados emitidos a inversores de determinadas empresas nuevas o recientes.",
-  "170": "Información mensual desde 2026 sobre cobros con tarjeta y móvil gestionados para empresarios y profesionales.",
-  "171": "Información anual de determinadas imposiciones, retiradas y cobros de documentos comunicada por entidades financieras.",
-  "174": "Nueva declaración anual de tarjetas cuya primera información de 2026 se presenta en enero de 2027.",
-  "181": "Información anual de préstamos, créditos y financiación inmobiliaria comunicada por entidades obligadas.",
-  "182": "Declaración anual de donativos y aportaciones presentada por las entidades beneficiarias.",
-  "185": "Información mensual desde 2026 de cotizaciones suministrada electrónicamente por Seguridad Social y mutualidades.",
-  "186": "Información mensual de nacimientos y defunciones suministrada por los órganos del Registro Civil.",
-  "189": "Información anual sobre valores, seguros y rentas comunicada por entidades financieras y aseguradoras.",
-  "192": "Información anual de operaciones con Letras del Tesoro comunicada por intermediarios obligados.",
-  "195": "Información trimestral sobre cuentas cuyos titulares no facilitaron el NIF en plazo.",
-  "198": "Información anual de operaciones con activos financieros y valores comunicada por entidades e intermediarios.",
-  "199": "Información anual de determinadas operaciones con cheques comunicada por entidades de crédito.",
-  "206": "Documento auxiliar de ingreso o devolución generado junto al Modelo 200 para determinados contribuyentes del IRNR.",
-  "213": "Gravamen anual del 3 % para determinadas entidades de jurisdicciones no cooperativas con inmuebles en España.",
-  "217": "Autoliquidación del 19 % sobre determinados dividendos distribuidos por SOCIMI, dentro de los dos meses del acuerdo.",
-  "220": "Declaración anual de Sociedades para grupos acogidos al régimen de consolidación fiscal.",
+  "038":
+    "Información mensual de inscripciones comunicada por titulares de Registros públicos. No la presenta la entidad inscrita.",
+  "039":
+    "Comunicación de opciones, composición y cambios del régimen especial del grupo de entidades de IVA.",
+  "043":
+    "Tasa sobre el bingo cuando la gestión corresponde a la Administración tributaria estatal.",
+  "044":
+    "Tasa fiscal sobre casinos cuando la gestión corresponde a la Administración estatal.",
+  "045":
+    "Tasa sobre máquinas recreativas o de azar en los supuestos de gestión estatal.",
+  "102":
+    "Documento para ingresar el segundo 40 % de la Renta cuando no quedó domiciliado.",
+  "113":
+    "Comunicación especial de determinadas participaciones al trasladar la residencia a la UE o al EEE.",
+  "136":
+    "Autoliquidación de determinados premios cuando no se practicó la retención correspondiente.",
+  "146":
+    "Solicitud para coordinar la retención de pensionistas con dos o más pagadores.",
+  "147":
+    "Comunicación de un trabajador desplazado para anticipar el cambio de residencia en sus retenciones.",
+  "150":
+    "Modelo histórico del régimen de desplazados anterior a 2015. Las situaciones actuales utilizan 149 y 151.",
+  "156":
+    "Resumen anual de cotizaciones comunicado por organismos y mutualidades para contrastar la deducción por maternidad.",
+  "159":
+    "Información anual de contratos, puntos de suministro y consumos comunicada por entidades eléctricas.",
+  "165":
+    "Información anual de certificados emitidos a inversores de determinadas empresas nuevas o recientes.",
+  "170":
+    "Información mensual desde 2026 sobre cobros con tarjeta y móvil gestionados para empresarios y profesionales.",
+  "171":
+    "Información anual de determinadas imposiciones, retiradas y cobros de documentos comunicada por entidades financieras.",
+  "174":
+    "Nueva declaración anual de tarjetas cuya primera información de 2026 se presenta en enero de 2027.",
+  "181":
+    "Información anual de préstamos, créditos y financiación inmobiliaria comunicada por entidades obligadas.",
+  "182":
+    "Declaración anual de donativos y aportaciones presentada por las entidades beneficiarias.",
+  "185":
+    "Información mensual desde 2026 de cotizaciones suministrada electrónicamente por Seguridad Social y mutualidades.",
+  "186":
+    "Información mensual de nacimientos y defunciones suministrada por los órganos del Registro Civil.",
+  "189":
+    "Información anual sobre valores, seguros y rentas comunicada por entidades financieras y aseguradoras.",
+  "192":
+    "Información anual de operaciones con Letras del Tesoro comunicada por intermediarios obligados.",
+  "195":
+    "Información trimestral sobre cuentas cuyos titulares no facilitaron el NIF en plazo.",
+  "198":
+    "Información anual de operaciones con activos financieros y valores comunicada por entidades e intermediarios.",
+  "199":
+    "Información anual de determinadas operaciones con cheques comunicada por entidades de crédito.",
+  "206":
+    "Documento auxiliar de ingreso o devolución generado junto al Modelo 200 para determinados contribuyentes del IRNR.",
+  "213":
+    "Gravamen anual del 3 % para determinadas entidades de jurisdicciones no cooperativas con inmuebles en España.",
+  "217":
+    "Autoliquidación del 19 % sobre determinados dividendos distribuidos por SOCIMI, dentro de los dos meses del acuerdo.",
+  "220":
+    "Declaración anual de Sociedades para grupos acogidos al régimen de consolidación fiscal.",
+  "221":
+    "Prestación anual aplicable a determinados activos fiscales diferidos convertibles en crédito frente a Hacienda.",
+  "222":
+    "Pago fraccionado de Sociedades presentado por la entidad representante de un grupo fiscal.",
+  "226":
+    "Solicitud de determinados residentes UE/EEE para comparar su tributación como no residentes con el IRPF.",
+  "228":
+    "Devolución para determinados no residentes que reinvierten la venta de su vivienda habitual española.",
+  "230":
+    "Retenciones mensuales practicadas por los pagadores de determinados premios de loterías.",
+  "231": "Información país por país de grandes grupos multinacionales.",
+  "234":
+    "Comunicación inicial de determinados mecanismos transfronterizos DAC6.",
+  "235":
+    "Actualización trimestral de mecanismos transfronterizos comercializables.",
+  "236": "Información anual sobre la utilización en España de mecanismos DAC6.",
+  "237":
+    "Gravamen del 15 % sobre determinados beneficios no distribuidos por SOCIMI.",
+  "239":
+    "Modelo internacional para mecanismos de elusión CRS, pendiente de activación.",
+  "240":
+    "Comunicación de la entidad designada para presentar la información del Impuesto Complementario.",
+  "241": "Declaración informativa GIR/DAC9 del Impuesto Complementario.",
+  "242": "Autoliquidación del Impuesto Complementario de grandes grupos.",
+  "247":
+    "Comunicación de un trabajador por cuenta ajena que se desplaza al extranjero.",
+  "270":
+    "Resumen anual de premios, perceptores y retenciones declarados mediante el Modelo 230.",
+  "280":
+    "Información anual de Planes de Ahorro a Largo Plazo presentada por entidades financieras.",
+  "281":
+    "Operaciones trimestrales de comercio de bienes de entidades ZEC sin tránsito por Canarias.",
+  "282": "Ayudas fiscales del REF de Canarias y otras ayudas de Estado.",
+  "283": "Ayudas fiscales del Régimen Fiscal Especial de las Illes Balears.",
+  "289": "Información CRS de cuentas financieras reportables.",
+  "290":
+    "Información FATCA de cuentas de determinadas personas estadounidenses.",
+  "291":
+    "Información anual histórica reciente de cuentas de no residentes, en transición al Modelo 196.",
+  "294":
+    "Distribuciones y reembolsos de clientes extranjeros en IIC españolas.",
+  "295":
+    "Posiciones a 31 de diciembre de clientes extranjeros en IIC españolas.",
+  "318":
+    "Regularización territorial del IVA entre la Administración estatal y las Haciendas forales.",
+  "319":
+    "Pago anticipado de IVA para determinadas extracciones de carburantes de depósitos fiscales.",
+  "322":
+    "Autoliquidación mensual individual de entidades incluidas en un grupo de IVA.",
+  "345":
+    "Información anual de aportaciones y partícipes de sistemas de previsión social.",
+  "346":
+    "Información anual de ayudas agrarias comunicada por las entidades pagadoras.",
   "040":
     "Alta, modificación y baja de operadores de plataformas en sus dos registros específicos. No es el Modelo 04 y no lo presenta el vendedor.",
   "172":
@@ -376,7 +649,8 @@ const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
 };
 
 const practicalCatalogTitles: Readonly<Partial<Record<string, string>>> = {
-  "170": "Declaración mensual de operaciones gestionadas mediante tarjetas y pagos asociados a números de teléfono móvil",
+  "170":
+    "Declaración mensual de operaciones gestionadas mediante tarjetas y pagos asociados a números de teléfono móvil",
   "185": "Declaración mensual de cotizaciones de afiliados y mutualistas",
   "206": "Documento de ingreso o devolución asociado al Modelo 200",
 };
@@ -491,7 +765,9 @@ export function FiscalModelCatalogView({
               No encontramos fichas que coincidan con esta vista o búsqueda.
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Prueba con un código, un impuesto o una palabra del nombre oficial.
+              {
+                "Prueba con un código, un impuesto o una palabra del nombre oficial."
+              }
             </p>
           </Card>
 
