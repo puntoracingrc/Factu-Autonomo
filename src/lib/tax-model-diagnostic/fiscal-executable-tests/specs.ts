@@ -44,8 +44,10 @@ export interface FiscalModelExecutableSpec {
   modelNumber: TaxModelNumber;
   positive: FiscalScenarioTemplate;
   negative: FiscalScenarioTemplate;
+  exception: FiscalScenarioTemplate;
   unknown: FiscalScenarioTemplate;
-  thresholdMutationRelevant: boolean;
+  prohibitedInference: FiscalScenarioTemplate;
+  thresholdExceptionAt: number | null;
 }
 
 const scenario = (
@@ -65,8 +67,12 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
     modelNumber: "035",
     positive: scenario("OSS_IOSS", "CONDITIONAL", "OSS/IOSS"),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No hubo ventas B2C"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "No hubo ventas B2C", {
+      changesDuringYear: "YES",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "alta OSS/IOSS"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("EU_OPERATIONS", "NOT_APPLICABLE", "No hubo ventas B2C"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "036",
@@ -74,29 +80,49 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       changesDuringYear: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "cambios censales"),
+    exception: scenario("EU_OPERATIONS", "NOT_APPLICABLE", "cambios censales", {
+      changesDuringYear: "NO",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "cambios censales"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("WORKERS", "NOT_APPLICABLE", "cambios censales"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "100",
     positive: scenario("PROFESSIONAL", "DERIVED", "alta en RETA"),
-    negative: scenario("COMPANY", "NEEDS_INFORMATION", "actividad personal"),
+    negative: scenario("PROFESSIONAL", "CONDITIONAL", "actividad personal", {
+      retaDuringYear: "NO",
+    }),
+    exception: scenario("COMPANY", "NEEDS_INFORMATION", "actividad personal"),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "alta en RETA"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("COMPANY", "NEEDS_INFORMATION", "actividad personal", {
+      employees: "YES",
+    }),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "111",
     positive: scenario("WORKERS", "DERIVED", "pagos de trabajo o profesionales"),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se han declarado rentas"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "No se han declarado rentas", {
+      employees: "NO",
+      paidProfessionalsWithWithholding: "NO",
+      otherIrpfWithholdingPayments: "NO",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "No se sabe si se pagaron"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("RENT", "NOT_APPLICABLE", "No se han declarado rentas"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "115",
     positive: scenario("RENT", "DERIVED", "alquiler urbano sujeto a retención"),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se han declarado rentas"),
+    exception: scenario("RENT", "NOT_APPLICABLE", "No se han declarado rentas", {
+      landlordWithholdingExemption: "YES",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "No se sabe si se pagaron"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("WORKERS", "NOT_APPLICABLE", "No se han declarado rentas"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "123",
@@ -104,29 +130,48 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       paidCapitalIncome: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se declararon pagos"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "No se declararon pagos", {
+      paidCapitalIncome: "NO",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "No se sabe si se pagaron"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("WORKERS", "NOT_APPLICABLE", "No se declararon pagos"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "130",
     positive: scenario("BUSINESS", "DERIVED", "estimación directa"),
     negative: scenario("COMPANY", "NOT_APPLICABLE", "actividad facturada personalmente"),
+    exception: scenario("PROFESSIONAL", "NOT_APPLICABLE", "70%", {
+      withheldIncomePercent: 70,
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "método de determinación"),
-    thresholdMutationRelevant: true,
+    prohibitedInference: scenario("COMPANY", "NOT_APPLICABLE", "actividad facturada personalmente", {
+      employees: "YES",
+    }),
+    thresholdExceptionAt: 70,
   },
   {
     modelNumber: "131",
     positive: scenario("MODULES", "DERIVED", "estimación objetiva"),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "estimación objetiva"),
+    exception: scenario("MODULES", "NOT_APPLICABLE", "porcentaje de retención", {
+      activityKinds: ["AGRICULTURE"],
+      withheldIncomePercent: 70,
+    }),
     unknown: scenario("ATTRIBUTION_ENTITY", "NEEDS_INFORMATION", "atribución de rentas"),
-    thresholdMutationRelevant: true,
+    prohibitedInference: scenario("WORKERS", "NOT_APPLICABLE", "estimación objetiva"),
+    thresholdExceptionAt: 70,
   },
   {
     modelNumber: "180",
     positive: scenario("RENT", "DERIVED", "alquiler urbano sujeto a retención"),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "retenciones periódicas"),
+    exception: scenario("RENT", "NOT_APPLICABLE", "retenciones periódicas", {
+      landlordWithholdingExemption: "YES",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "resumen anual depende"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("WORKERS", "NOT_APPLICABLE", "retenciones periódicas"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "184",
@@ -134,15 +179,25 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       attributionEntityIncomeAboveThreshold: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "entidad en régimen de atribución"),
+    exception: scenario("ATTRIBUTION_ENTITY", "NOT_APPLICABLE", "no ejerce actividad económica", {
+      attributionEntityIncomeAboveThreshold: "NO",
+    }),
     unknown: scenario("ATTRIBUTION_ENTITY", "NEEDS_INFORMATION", "Falta confirmar actividad"),
-    thresholdMutationRelevant: true,
+    prohibitedInference: scenario("COMPANY", "NOT_APPLICABLE", "entidad en régimen de atribución"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "190",
     positive: scenario("PAID_PROFESSIONALS", "DERIVED", "pagos de trabajo o profesionales"),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "retenciones periódicas"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "retenciones periódicas", {
+      employees: "NO",
+      paidProfessionalsWithWithholding: "NO",
+      otherIrpfWithholdingPayments: "NO",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "resumen anual depende"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("RENT", "NOT_APPLICABLE", "retenciones periódicas"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "193",
@@ -150,15 +205,21 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       paidCapitalIncome: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No existen rentas de capital"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "No existen rentas de capital", {
+      paidCapitalIncome: "NO",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "Falta confirmar la existencia"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("WORKERS", "NOT_APPLICABLE", "No existen rentas de capital"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "200",
     positive: scenario("COMPANY", "DERIVED", "sociedad"),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "no se ha identificado como sociedad"),
+    exception: scenario("ATTRIBUTION_ENTITY", "NOT_APPLICABLE", "no se ha identificado como sociedad"),
     unknown: scenario("UNKNOWN_FACTS", "NOT_APPLICABLE", "no se ha identificado como sociedad"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("WORKERS", "NOT_APPLICABLE", "no se ha identificado como sociedad"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "202",
@@ -166,8 +227,12 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       companyInstallmentPayments: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se analiza una sociedad"),
+    exception: scenario("COMPANY", "NOT_APPLICABLE", "ausencia de obligación", {
+      companyInstallmentPayments: "NO",
+    }),
     unknown: scenario("COMPANY", "NEEDS_INFORMATION", "No basta ser sociedad"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("ATTRIBUTION_ENTITY", "NOT_APPLICABLE", "No se analiza una sociedad"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "216",
@@ -176,8 +241,13 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       nonResidentWithholdingConfirmed: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se declararon pagos"),
+    exception: scenario("BUSINESS", "NEEDS_INFORMATION", "factura extranjera no basta", {
+      paidNonResidentIncome: "YES",
+      nonResidentWithholdingConfirmed: "NO",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "No se sabe si hubo pagos"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("EU_OPERATIONS", "NOT_APPLICABLE", "No se declararon pagos"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "296",
@@ -186,15 +256,24 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       nonResidentWithholdingConfirmed: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se declararon pagos"),
+    exception: scenario("BUSINESS", "NEEDS_INFORMATION", "No se ha confirmado", {
+      paidNonResidentIncome: "YES",
+      nonResidentWithholdingConfirmed: "NO",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "No se sabe si hubo pagos"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("EU_OPERATIONS", "NOT_APPLICABLE", "No se declararon pagos"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "303",
     positive: scenario("BUSINESS", "DERIVED", "autoliquidación periódica"),
     negative: scenario("EXEMPT_ACTIVITY", "NOT_APPLICABLE", "no acreditan autoliquidación"),
+    exception: scenario("EQUIVALENCE_SURCHARGE", "NOT_APPLICABLE", "no acreditan autoliquidación"),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "tratamiento de IVA"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("EXEMPT_ACTIVITY", "NOT_APPLICABLE", "no acreditan autoliquidación", {
+      employees: "YES",
+    }),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "308",
@@ -202,8 +281,12 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       specialVatRefundSituation: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se declaró ningún supuesto especial"),
+    exception: scenario("EQUIVALENCE_SURCHARGE", "NOT_APPLICABLE", "No se declaró ningún supuesto especial"),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "supuesto especial"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("BUSINESS", "NOT_APPLICABLE", "No se declaró ningún supuesto especial", {
+      reverseChargeTransactions: "YES",
+    }),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "309",
@@ -211,13 +294,18 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       euGoodsPurchases: "YES",
       roiRegistered: "YES",
     }),
-    negative: scenario("BUSINESS", "NOT_APPLICABLE", "autoliquidación periódica 303"),
+    negative: scenario("EXEMPT_ACTIVITY", "NOT_APPLICABLE", "No se han identificado operaciones"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "autoliquidación periódica 303"),
     unknown: scenario("EXEMPT_ACTIVITY", "NEEDS_INFORMATION", "Falta confirmar", {
       euGoodsPurchases: "UNKNOWN",
       euServicesPurchases: "NO",
       reverseChargeTransactions: "NO",
     }),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("EXEMPT_ACTIVITY", "NOT_APPLICABLE", "No se han identificado operaciones", {
+      euGoodsSales: "YES",
+      roiRegistered: "YES",
+    }),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "341",
@@ -225,8 +313,10 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       specialVatRefundSituation: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se declaró ningún supuesto especial"),
+    exception: scenario("EQUIVALENCE_SURCHARGE", "NOT_APPLICABLE", "No se declaró ningún supuesto especial"),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "supuesto especial"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("EU_OPERATIONS", "NOT_APPLICABLE", "No se declaró ningún supuesto especial"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "347",
@@ -234,33 +324,50 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       thirdPartyThresholdExceeded: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se alcanzó el umbral"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "todas las operaciones", {
+      thirdPartyThresholdExceeded: "YES",
+      thirdPartyOperationsAllExcluded: "YES",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "cálculo por tercero"),
-    thresholdMutationRelevant: true,
+    prohibitedInference: scenario("WORKERS", "NOT_APPLICABLE", "No se alcanzó el umbral"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "349",
     positive: scenario("EU_OPERATIONS", "DERIVED", "operaciones intracomunitarias"),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se declararon operaciones"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "alta en ROI", {
+      roiRegistered: "YES",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "operaciones intracomunitarias"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("OSS_IOSS", "NOT_APPLICABLE", "No se declararon operaciones"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "369",
     positive: scenario("OSS_IOSS", "DERIVED", "alta en un régimen OSS/IOSS"),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No hubo ventas B2C"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "No hubo ventas B2C", {
+      changesDuringYear: "YES",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "alta OSS/IOSS"),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("EU_OPERATIONS", "NOT_APPLICABLE", "No hubo ventas B2C"),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "390",
     positive: scenario("BUSINESS", "DERIVED", "autoliquidación periódica de IVA"),
-    negative: scenario("BUSINESS", "NOT_APPLICABLE", "exoneración del resumen anual", {
+    negative: scenario("EXEMPT_ACTIVITY", "NOT_APPLICABLE", "obligación periódica de IVA"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "exoneración del resumen anual", {
       vatAnnualSummaryExempt: "YES",
     }),
     unknown: scenario("BUSINESS", "NEEDS_INFORMATION", "exoneración del resumen anual", {
       vatAnnualSummaryExempt: "UNKNOWN",
     }),
-    thresholdMutationRelevant: false,
+    prohibitedInference: scenario("EXEMPT_ACTIVITY", "NOT_APPLICABLE", "obligación periódica de IVA", {
+      employees: "YES",
+    }),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "714",
@@ -268,8 +375,14 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       wealthTaxPotentiallyApplicable: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se ha declarado"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "No se ha declarado", {
+      foreignAssetsPotentiallyReportable: "YES",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "No está confirmado"),
-    thresholdMutationRelevant: true,
+    prohibitedInference: scenario("BUSINESS", "NOT_APPLICABLE", "No se ha declarado", {
+      foreignCryptoPotentiallyReportable: "YES",
+    }),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "720",
@@ -277,8 +390,14 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       foreignAssetsPotentiallyReportable: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se ha declarado"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "No se ha declarado", {
+      foreignCryptoPotentiallyReportable: "YES",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "No está confirmado"),
-    thresholdMutationRelevant: true,
+    prohibitedInference: scenario("BUSINESS", "NOT_APPLICABLE", "No se ha declarado", {
+      wealthTaxPotentiallyApplicable: "YES",
+    }),
+    thresholdExceptionAt: null,
   },
   {
     modelNumber: "721",
@@ -286,17 +405,25 @@ export const FISCAL_MODEL_EXECUTABLE_SPECS = [
       foreignCryptoPotentiallyReportable: "YES",
     }),
     negative: scenario("BUSINESS", "NOT_APPLICABLE", "No se ha declarado"),
+    exception: scenario("BUSINESS", "NOT_APPLICABLE", "No se ha declarado", {
+      foreignAssetsPotentiallyReportable: "YES",
+    }),
     unknown: scenario("UNKNOWN_FACTS", "NEEDS_INFORMATION", "No está confirmado"),
-    thresholdMutationRelevant: true,
+    prohibitedInference: scenario("BUSINESS", "NOT_APPLICABLE", "No se ha declarado", {
+      wealthTaxPotentiallyApplicable: "YES",
+    }),
+    thresholdExceptionAt: null,
   },
 ] as const satisfies readonly FiscalModelExecutableSpec[];
 
 export function mutationOperatorsForSpec(
   spec: FiscalModelExecutableSpec,
+  conditionCount: number,
 ): readonly FiscalMutationOperator[] {
-  return spec.thresholdMutationRelevant
-    ? FISCAL_MUTATION_OPERATORS
-    : FISCAL_MUTATION_OPERATORS.filter(
-        (operator) => operator !== "THRESHOLD_CHANGED",
-      );
+  return FISCAL_MUTATION_OPERATORS.filter(
+    (operator) =>
+      (operator !== "THRESHOLD_CHANGED" ||
+        spec.thresholdExceptionAt !== null) &&
+      (operator !== "AND_TO_OR" || conditionCount > 1),
+  );
 }

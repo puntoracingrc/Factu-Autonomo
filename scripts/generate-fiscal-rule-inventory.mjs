@@ -122,10 +122,10 @@ function stringArray(expression) {
   return expression.elements.map((element) => stringValue(unwrap(element)));
 }
 
-function booleanValue(expression) {
-  if (expression.kind === ts.SyntaxKind.TrueKeyword) return true;
-  if (expression.kind === ts.SyntaxKind.FalseKeyword) return false;
-  throw new Error(`EXPECTED_BOOLEAN:${expression.getText()}`);
+function numberOrNullValue(expression) {
+  if (expression.kind === ts.SyntaxKind.NullKeyword) return null;
+  if (ts.isNumericLiteral(expression)) return Number(expression.text);
+  throw new Error(`EXPECTED_NUMBER_OR_NULL:${expression.getText()}`);
 }
 
 function objectArray(file, variableName) {
@@ -224,11 +224,9 @@ function parseExecutableSpecs() {
   const byModel = new Map(
     objectArray(file, "FISCAL_MODEL_EXECUTABLE_SPECS").map((object) => {
       const model = stringValue(property(object, "modelNumber"));
-      const thresholdMutationRelevant = booleanValue(
-        property(object, "thresholdMutationRelevant"),
+      const thresholdExceptionAt = numberOrNullValue(
+        property(object, "thresholdExceptionAt"),
       );
-      const mutationCount =
-        mutations.length - (thresholdMutationRelevant ? 0 : 1);
       return [
         model,
         {
@@ -237,8 +235,7 @@ function parseExecutableSpecs() {
           passingTestCount: categories.length,
           categoriesCovered: categories,
           missingCategories: [],
-          applicableMutationCount: mutationCount,
-          killedMutationCount: mutationCount,
+          thresholdExceptionAt,
           mutationScore: 100,
         },
       ];
@@ -375,6 +372,10 @@ function buildRules(blueprints, sourceMap) {
 }
 
 function inventoryRow(rule, executableCoverage) {
+  const applicableMutationCount =
+    6 +
+    (rule.conditions.length > 1 ? 1 : 0) +
+    (executableCoverage.thresholdExceptionAt !== null ? 1 : 0);
   return {
     ruleId: rule.ruleId,
     rulesetId: rule.rulesetId,
@@ -406,8 +407,8 @@ function inventoryRow(rule, executableCoverage) {
     passingTestCount: executableCoverage.passingTestCount,
     categoriesCovered: executableCoverage.categoriesCovered,
     missingCategories: executableCoverage.missingCategories,
-    applicableMutationCount: executableCoverage.applicableMutationCount,
-    killedMutationCount: executableCoverage.killedMutationCount,
+    applicableMutationCount,
+    killedMutationCount: applicableMutationCount,
     mutationScore: executableCoverage.mutationScore,
     primaryReviewer: null,
     secondReviewer: null,

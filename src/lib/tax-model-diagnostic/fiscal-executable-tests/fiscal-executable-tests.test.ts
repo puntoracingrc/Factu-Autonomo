@@ -51,6 +51,34 @@ describe("fiscal executable rule suites", () => {
       expect(new Set(suite.cases.map((testCase) => testCase.category))).toEqual(
         new Set(FISCAL_EXECUTABLE_CATEGORIES),
       );
+
+      const byCategory = new Map(
+        suite.cases.map((testCase) => [testCase.category, testCase]),
+      );
+      expect(byCategory.get("EXCEPTION")?.predicateFacts.exceptionApplies).toBe(
+        "TRUE",
+      );
+      expect(byCategory.get("NEGATIVE")?.predicateFacts.exceptionApplies).toBe(
+        "FALSE",
+      );
+      expect(
+        byCategory.get("PROHIBITED_INFERENCE")?.predicateFacts
+          .prohibitedInferenceEvidence,
+      ).toBe(true);
+      expect(
+        byCategory.get("PROHIBITED_INFERENCE")?.predicateFacts.conditions[0],
+      ).toBe("FALSE");
+      expect(byCategory.get("CONTRADICTION")?.profile).toMatchObject({
+        activityStillActive: "YES",
+        activityEndDate: `${suite.fiscalYear}-06-30`,
+        censusReviewed: "YES",
+      });
+      expect(
+        byCategory.get("CONTRADICTION")?.profile.censusObligations,
+      ).toContain(suite.modelNumber);
+      expect(
+        byCategory.get("CONTRADICTION")?.predicateFacts.hasContradiction,
+      ).toBe(true);
     },
   );
 
@@ -75,8 +103,10 @@ describe("fiscal executable rule suites", () => {
       );
 
       it("kills every applicable fiscal mutation", () => {
-        const mutation = mutationScoreForSuite(suite, observations);
-        expect(mutation.total).toBeGreaterThanOrEqual(7);
+        const mutation = mutationScoreForSuite(suite);
+        expect(mutation.total).toBeGreaterThanOrEqual(6);
+        expect(mutation.invalidBaselineOperators).toEqual([]);
+        expect(mutation.survivedOperators).toEqual([]);
         expect(mutation.killed).toBe(mutation.total);
         expect(mutation.score).toBe(100);
       });

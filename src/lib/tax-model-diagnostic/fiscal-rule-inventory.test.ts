@@ -4,6 +4,10 @@ import { readFileSync, readdirSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
+import {
+  FISCAL_EXECUTABLE_RULE_SUITES,
+  mutationScoreForSuite,
+} from "./fiscal-executable-tests/harness";
 import { DIAGNOSTIC_QUESTIONS } from "./questions";
 import { TAX_RULES } from "./rules";
 
@@ -36,6 +40,8 @@ interface InventoryDocument {
     passingTestCount: number;
     categoriesCovered: string[];
     missingCategories: string[];
+    applicableMutationCount: number;
+    killedMutationCount: number;
     mutationScore: number;
     exclusionAuthorized: boolean;
   }>;
@@ -95,6 +101,11 @@ describe("generated fiscal closure inventory", () => {
     });
     expect(inventory.rules).toHaveLength(TAX_RULES.length);
     for (const rule of TAX_RULES) {
+      const suite = FISCAL_EXECUTABLE_RULE_SUITES.find(
+        (candidate) => candidate.ruleId === rule.ruleId,
+      );
+      expect(suite).toBeDefined();
+      const mutation = mutationScoreForSuite(suite!);
       expect(
         inventory.rules.find((entry) => entry.ruleId === rule.ruleId),
       ).toMatchObject({
@@ -116,6 +127,8 @@ describe("generated fiscal closure inventory", () => {
           "PROHIBITED_INFERENCE",
         ],
         missingCategories: [],
+        applicableMutationCount: mutation.total,
+        killedMutationCount: mutation.killed,
         mutationScore: 100,
         exclusionAuthorized: false,
       });
