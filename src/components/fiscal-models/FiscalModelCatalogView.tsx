@@ -43,6 +43,8 @@ const practicalCatalogLabels: Readonly<
   ],
   "111": ["Frecuente si pagas retenciones", "Trimestral o mensual", "IRPF"],
   "115": ["Si alquilas un local", "Trimestral o mensual", "Retenciones"],
+  "121": ["Deducciones familiares", "Cesión del derecho", "Solo no declarantes", "Caso excepcional"],
+  "122": ["Deducciones familiares", "Regularización", "Solo no declarantes", "Resultado a ingresar"],
   "123": [
     "Dividendos e intereses",
     "Trimestral o mensual",
@@ -56,6 +58,8 @@ const practicalCatalogLabels: Readonly<
     "Estimación directa",
   ],
   "131": ["Solo módulos", "IRPF", "Trimestral", "Revisión anual"],
+  "140": ["Deducción por maternidad", "Abono anticipado", "IRPF", "Hijos menores de 3 años"],
+  "143": ["Deducciones familiares", "Abono anticipado", "IRPF", "Familia y discapacidad"],
   "145": [
     "Si tienes empleados",
     "Nóminas",
@@ -169,10 +173,18 @@ const practicalCatalogLabels: Readonly<
 };
 
 const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
+  "121":
+    "Comunicación excepcional de la cesión de determinadas deducciones familiares por una persona no obligada a presentar Renta.",
+  "122":
+    "Regularización de abonos anticipados familiares cobrados en exceso por una persona no obligada a presentar Renta.",
   "123":
     "Ingreso periódico de determinadas retenciones sobre dividendos, intereses y otras rentas del capital.",
   "145":
     "Datos personales y familiares del trabajador para calcular la retención de su nómina. Se entrega al pagador.",
+  "140":
+    "Solicitud del abono anticipado de la deducción por maternidad y comunicación de variaciones.",
+  "143":
+    "Solicitud del abono anticipado de deducciones por familia numerosa y determinadas circunstancias familiares o de discapacidad.",
   "193":
     "Resumen anual de determinadas rentas y retenciones declaradas mediante el Modelo 123.",
   "714":

@@ -48,9 +48,13 @@ export async function generateMetadata({
         "100": "Modelo 100 AEAT: declaración de la Renta del autónomo",
         "111": "Modelo 111 AEAT: retenciones de nóminas y profesionales",
         "115": "Modelo 115 AEAT: retención del alquiler de un local",
+        "121": "Modelo 121 AEAT: cesión de deducciones familiares",
+        "122": "Modelo 122 AEAT: regularización de deducciones familiares",
         "123": "Modelo 123 AEAT: retenciones sobre dividendos e intereses",
         "130": "Modelo 130 AEAT: pago trimestral del IRPF",
         "131": "Modelo 131 AEAT: pago trimestral por módulos",
+        "140": "Modelo 140 AEAT: abono anticipado por maternidad",
+        "143": "Modelo 143 AEAT: abono anticipado de deducciones familiares",
         "145": "Modelo 145 AEAT: datos para calcular la retención de la nómina",
         "180": "Modelo 180 AEAT: resumen anual de alquileres",
         "184": "Modelo 184 AEAT: comunidades de bienes y rentas atribuidas",
@@ -89,12 +93,20 @@ export async function generateMetadata({
           "Guía sencilla del Modelo 111: quién debe presentarlo, retenciones de empleados y facturas profesionales, tipos, plazos, pago y corrección de errores.",
         "115":
           "Guía sencilla del Modelo 115: quién debe presentarlo, alquileres sujetos, excepciones, base, tipo del 19 %, plazos y pago.",
+        "121":
+          "Guía del Modelo 121: quién puede ceder determinadas deducciones familiares, requisitos para no declarantes, plazo, presentación y relación con Renta.",
+        "122":
+          "Guía del Modelo 122: regularización de deducciones familiares cobradas en exceso por no declarantes, cálculo, plazo, pago y relación con Renta.",
         "123":
           "Guía sencilla del Modelo 123: quién debe presentarlo, dividendos, préstamos de socios, otras rentas del capital, tipos, plazos y pago.",
         "130":
           "Guía sencilla del Modelo 130: quién debe presentarlo, regla del 70 %, cálculo acumulado, gastos, retenciones, plazos y presentación.",
         "131":
           "Guía sencilla del Modelo 131: quién puede tributar por módulos, cálculo, límites de 2026, porcentajes, plazos y presentación.",
+        "140":
+          "Guía del Modelo 140: abono anticipado por maternidad, requisitos, cuantía, variaciones, guardería y relación con los Modelos 100 y 233.",
+        "143":
+          "Guía del Modelo 143: abono anticipado de deducciones familiares, requisitos, cuantías, solicitud individual o colectiva y variaciones.",
         "145":
           "Guía sencilla del Modelo 145: quién lo rellena, a quién se entrega, datos familiares, cambios, conservación y relación con los Modelos 111 y 190.",
         "180":
