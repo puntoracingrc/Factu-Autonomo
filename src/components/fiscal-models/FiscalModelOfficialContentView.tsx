@@ -43,7 +43,9 @@ import { MODEL_216_GUIDE_V1 } from "./model-216-guide.v1";
 import { MODEL_232_GUIDE_V1 } from "./model-232-guide.v1";
 import { MODEL_296_GUIDE_V1 } from "./model-296-guide.v1";
 import { MODEL_303_GUIDE_V1 } from "./model-303-guide.v1";
+import { MODEL_308_GUIDE_V1 } from "./model-308-guide.v1";
 import { MODEL_309_GUIDE_V1 } from "./model-309-guide.v1";
+import { MODEL_341_GUIDE_V1 } from "./model-341-guide.v1";
 import { MODEL_347_GUIDE_V1 } from "./model-347-guide.v1";
 import { MODEL_349_GUIDE_V1 } from "./model-349-guide.v1";
 import { MODEL_360_GUIDE_V1 } from "./model-360-guide.v1";
@@ -272,9 +274,21 @@ export function FiscalModelOfficialContentView({
     );
   }
 
+  if (content.code === "308") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_308_GUIDE_V1} />
+    );
+  }
+
   if (content.code === "309") {
     return (
       <FiscalModelPracticalGuide content={content} guide={MODEL_309_GUIDE_V1} />
+    );
+  }
+
+  if (content.code === "341") {
+    return (
+      <FiscalModelPracticalGuide content={content} guide={MODEL_341_GUIDE_V1} />
     );
   }
 

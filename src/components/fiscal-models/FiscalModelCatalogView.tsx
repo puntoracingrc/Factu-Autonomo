@@ -104,11 +104,25 @@ const practicalCatalogLabels: Readonly<
   ],
   "296": ["Anual", "No residentes", "Informativa", "Relacionado con 216"],
   "303": ["Frecuente para autónomos", "IVA", "Trimestral o mensual"],
+  "308": [
+    "IVA sectorial",
+    "Caso especial de IVA",
+    "Comercio y transporte",
+    "Solicitud de devolución",
+    "No periódico",
+  ],
   "309": [
     "Caso especial de IVA",
     "No periódico",
     "Operaciones intracomunitarias",
     "Solo si se produce el supuesto",
+  ],
+  "341": [
+    "IVA sectorial",
+    "Agricultura, ganadería y pesca",
+    "REAGP",
+    "Solicitud de reintegro",
+    "Trimestral",
   ],
   "347": [
     "Anual",
@@ -173,6 +187,10 @@ const practicalCatalogLabels: Readonly<
 };
 
 const practicalCatalogSummaries: Readonly<Partial<Record<string, string>>> = {
+  "308":
+    "Solicitud especial de devolución de IVA para determinados comercios en recargo de equivalencia, transportistas en régimen simplificado y ventas ocasionales de medios de transporte nuevos.",
+  "341":
+    "Solicitud trimestral del reintegro de compensaciones del régimen especial agrario en determinadas operaciones exteriores.",
   "121":
     "Comunicación excepcional de la cesión de determinadas deducciones familiares por una persona no obligada a presentar Renta.",
   "122":
