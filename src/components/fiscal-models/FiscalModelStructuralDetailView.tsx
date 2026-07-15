@@ -30,12 +30,18 @@ const practicalSubtitleByCode: Readonly<Record<string, string>> = Object.freeze(
     "140": "Abono anticipado de la deducción por maternidad",
     "143": "Abono anticipado de deducciones familiares",
     "145": "Datos del trabajador para calcular la retención de su nómina",
+    "149":
+      "Opción y comunicaciones del régimen especial de personas desplazadas",
+    "151": "Declaración anual del régimen especial de personas desplazadas",
     "180": "Resumen anual de retenciones por alquileres urbanos",
     "184": "Rentas de comunidades de bienes y otras entidades",
     "190": "Resumen anual de retenciones de nóminas y actividades económicas",
     "193": "Resumen anual de dividendos, intereses y otras rentas del capital",
     "200": "Declaración anual del Impuesto sobre Sociedades",
     "202": "Pagos a cuenta del Impuesto sobre Sociedades",
+    "210":
+      "Rentas obtenidas en España por no residentes sin establecimiento permanente",
+    "211": "Retención en la compra de inmuebles a personas no residentes",
     "216": "Retenciones por pagos a personas y empresas no residentes",
     "232":
       "Operaciones vinculadas y situaciones relacionadas con jurisdicciones no cooperativas",

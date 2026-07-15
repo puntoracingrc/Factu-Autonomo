@@ -56,12 +56,16 @@ export async function generateMetadata({
         "140": "Modelo 140 AEAT: abono anticipado por maternidad",
         "143": "Modelo 143 AEAT: abono anticipado de deducciones familiares",
         "145": "Modelo 145 AEAT: datos para calcular la retención de la nómina",
+        "149": "Modelo 149 AEAT: opción por el régimen de desplazados",
+        "151": "Modelo 151 AEAT: declaración de trabajadores desplazados",
         "180": "Modelo 180 AEAT: resumen anual de alquileres",
         "184": "Modelo 184 AEAT: comunidades de bienes y rentas atribuidas",
         "190": "Modelo 190 AEAT: resumen anual de retenciones",
         "193": "Modelo 193 AEAT: resumen anual de dividendos e intereses",
         "200": "Modelo 200 AEAT: Impuesto sobre Sociedades",
         "202": "Modelo 202 AEAT: pagos a cuenta de Sociedades",
+        "210": "Modelo 210 AEAT: declaración de no residentes",
+        "211": "Modelo 211 AEAT: retención en la compra a no residentes",
         "216": "Modelo 216 AEAT: retenciones por pagos a no residentes",
         "232": "Modelo 232 AEAT: operaciones vinculadas",
         "296": "Modelo 296 AEAT: resumen anual de pagos a no residentes",
@@ -111,6 +115,10 @@ export async function generateMetadata({
           "Guía del Modelo 143: abono anticipado de deducciones familiares, requisitos, cuantías, solicitud individual o colectiva y variaciones.",
         "145":
           "Guía sencilla del Modelo 145: quién lo rellena, a quién se entrega, datos familiares, cambios, conservación y relación con los Modelos 111 y 190.",
+        "149":
+          "Guía del Modelo 149: quién puede optar por el régimen de desplazados, comunicaciones, documentación, plazos y relación con el Modelo 151.",
+        "151":
+          "Guía del Modelo 151: declaración anual del régimen de desplazados, rentas, tipos, deducciones, patrimonio y presentación.",
         "180":
           "Guía sencilla del Modelo 180: arrendadores, referencias catastrales, relación con el Modelo 115, certificados, correcciones y presentación.",
         "184":
@@ -123,6 +131,10 @@ export async function generateMetadata({
           "Guía del Modelo 200: quién lo presenta, resultado contable, ajustes fiscales, tipos del ejercicio 2025, plazos, Sociedades WEB y correcciones.",
         "202":
           "Guía del Modelo 202: pagos fraccionados, modalidades de cálculo, periodos de abril, octubre y diciembre, plazos y relación con el Modelo 200.",
+        "210":
+          "Guía del Modelo 210: rentas de no residentes, inmuebles, alquileres, transmisiones, tipos, plazos de 2026 y presentación.",
+        "211":
+          "Guía del Modelo 211: retención del 3 % al comprar un inmueble a una persona no residente, plazo, justificante y relación con el Modelo 210.",
         "216":
           "Guía sencilla del Modelo 216: quién debe presentarlo, alquileres y profesionales no residentes, convenios, certificado de residencia, plazos y pago.",
         "232":
