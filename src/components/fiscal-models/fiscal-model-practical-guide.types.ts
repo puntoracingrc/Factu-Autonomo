@@ -33,11 +33,14 @@ export type FiscalModelGuideInternalHrefV1 =
   | "/consultor-fiscal/modelos/179"
   | "/consultor-fiscal/modelos/180"
   | "/consultor-fiscal/modelos/184"
+  | "/consultor-fiscal/modelos/187"
+  | "/consultor-fiscal/modelos/188"
   | "/consultor-fiscal/modelos/189"
   | "/consultor-fiscal/modelos/190"
   | "/consultor-fiscal/modelos/193"
   | "/consultor-fiscal/modelos/194"
   | "/consultor-fiscal/modelos/196"
+  | "/consultor-fiscal/modelos/198"
   | "/consultor-fiscal/modelos/200"
   | "/consultor-fiscal/modelos/202"
   | "/consultor-fiscal/modelos/210"
@@ -46,6 +49,7 @@ export type FiscalModelGuideInternalHrefV1 =
   | "/consultor-fiscal/modelos/232"
   | "/consultor-fiscal/modelos/233"
   | "/consultor-fiscal/modelos/238"
+  | "/consultor-fiscal/modelos/280"
   | "/consultor-fiscal/modelos/296"
   | "/consultor-fiscal/modelos/303"
   | "/consultor-fiscal/modelos/308"
@@ -79,9 +83,13 @@ export interface FiscalModelPracticalGuideV1 {
     | "100"
     | "111"
     | "115"
+    | "117"
     | "121"
     | "122"
     | "123"
+    | "124"
+    | "126"
+    | "128"
     | "130"
     | "131"
     | "140"
@@ -94,8 +102,12 @@ export interface FiscalModelPracticalGuideV1 {
     | "179"
     | "180"
     | "184"
+    | "187"
+    | "188"
     | "190"
     | "193"
+    | "194"
+    | "196"
     | "200"
     | "202"
     | "210"
@@ -123,6 +135,10 @@ export interface FiscalModelPracticalGuideV1 {
   readonly effectiveYear?: number;
   readonly taxPeriodYear?: number;
   readonly filingYear?: number;
+  readonly editorialCategory?: string;
+  readonly monthlyFromYear?: number;
+  readonly firstMonthlyFiling?: `${number}-${number}`;
+  readonly lastAnnualOnlyYear?: number;
   readonly lastVerifiedAt?: string;
   readonly requiresAnnualReview?: boolean;
   readonly externalActionNotice?: string;

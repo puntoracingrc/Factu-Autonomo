@@ -1,0 +1,100 @@
+import type { FiscalModelPracticalGuideV1 } from "./fiscal-model-practical-guide.types";
+
+export const MODEL_188_GUIDE_V1 = {
+  code: "188",
+  editorialCategory: "Retenciones e información financiera especializada",
+  taxPeriodYear: 2025,
+  filingYear: 2026,
+  lastVerifiedAt: "2026-07-15",
+  requiresAnnualReview: true,
+  intro: [
+    "El Modelo 188 es el resumen anual informativo de determinadas rentas y retenciones procedentes de operaciones de capitalización y de contratos de seguro de vida o invalidez.",
+    "Lo presenta la entidad aseguradora, pagadora o retenedora obligada. El tomador, asegurado o beneficiario aparece como perceptor cuando corresponda, pero normalmente no presenta el 188. Los ingresos periódicos relacionados se realizan mediante el Modelo 128.",
+  ],
+  notices: [
+    { title: "Es un resumen anual, no una nueva autoliquidación", paragraphs: ["El 188 no vuelve a ingresar las retenciones de los periodos 128. Ambos deben conciliarse y corregirse por separado cuando exista un error."] },
+    { title: "Campaña versionada", paragraphs: ["Para la información de 2025, el plazo publicado fue del 1 de enero al 2 de febrero de 2026. No debe tratarse como fecha permanente."] },
+  ],
+  actions: [
+    { label: "Abrir gestiones oficiales del Modelo 188", sourceId: "aeat.model-188.procedure-home.2026-07-08", primary: true },
+    { label: "Consultar ayuda del formulario", sourceId: "aeat.model-188.browser-form-help.2026-06-19", primary: true },
+    { label: "Consultar los plazos oficiales", href: "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/declaraciones-informativas/modelo-188-decla_____atos-seguro-vida-anual_/plazos-presentacion.html" },
+  ],
+  quickSummaryTitle: "El Modelo 188 en pocas palabras",
+  quickFacts: [
+    { label: "Qué es", value: "Una declaración informativa anual; no genera un segundo pago." },
+    { label: "Quién lo presenta", value: "La entidad obligada a informar, no el beneficiario ordinario." },
+    { label: "Productos", value: "Operaciones de capitalización y determinados seguros de vida o invalidez." },
+    { label: "Relación periódica", value: "Modelo 128." },
+    { label: "Plazo general", value: "Durante enero del año siguiente, comprobando la campaña concreta." },
+    { label: "Campaña 2025", value: "Del 1 de enero al 2 de febrero de 2026, como referencia versionada." },
+  ],
+  sections: [
+    { id: "model-188-roles", title: "Quién informa y quién recibe", cards: [
+      { title: "Entidad declarante", paragraphs: ["La aseguradora o pagadora presenta cuando la normativa le atribuye la obligación de informar y retener."] },
+      { title: "Perceptor", paragraphs: ["Tomador, asegurado o beneficiario puede figurar con los datos de la renta y retención, sin convertirse por ello en declarante."] },
+    ] },
+    { id: "model-188-content", title: "Qué contiene el resumen anual", cards: [
+      { title: "Contratos y operaciones", paragraphs: ["Identifica el producto, la operación y los campos exigidos por el diseño del ejercicio."] },
+      { title: "Perceptores e importes", paragraphs: ["Relaciona cada perceptor con sus rentas, reducciones y retenciones cuando corresponda."] },
+      { title: "Conciliación con el 128", paragraphs: ["Los totales deben poder explicarse con las autoliquidaciones periódicas y sus correcciones."], links: [{ label: "Ver Modelo 128", href: "/consultor-fiscal/modelos/128" }] },
+    ] },
+    { id: "model-188-boundaries", title: "Modelos de seguros y ahorro cercanos", cards: [
+      { title: "Modelo 189", paragraphs: ["Informa de determinados valores, seguros y rentas, incluidos datos de posición, con una finalidad distinta."], links: [{ label: "Ver Modelo 189", href: "/consultor-fiscal/modelos/189" }] },
+      { title: "Modelo 280", paragraphs: ["Declaración informativa anual de Planes de Ahorro a Largo Plazo."], links: [{ label: "Ver Modelo 280", href: "/consultor-fiscal/modelos/280" }] },
+    ] },
+  ],
+  fillingTitle: "Cómo preparar el Modelo 188",
+  fillingSteps: [
+    { title: "1. Reúne los Modelos 128", paragraphs: ["Incluye todos los periodos, correcciones y justificantes."] },
+    { title: "2. Inventaría contratos y prestaciones", paragraphs: ["Distingue capitalización, vida e invalidez y clasifica cada operación."] },
+    { title: "3. Valida a cada perceptor", paragraphs: ["Comprueba identidad, residencia y rol sin completar lagunas por inferencia."] },
+    { title: "4. Usa el diseño del ejercicio", paragraphs: ["Aplica las claves y campos vigentes, no un fichero heredado sin validar."] },
+    { title: "5. Concilia y presenta", paragraphs: ["Explica diferencias entre contratos, pagos, retenciones y periodos 128 antes del envío."] },
+  ],
+  afterTitle: "Qué ocurre después",
+  afterSteps: [
+    { title: "Resultado del envío", description: "Comprueba registros aceptados y rechazados y conserva el justificante." },
+    { title: "Información al perceptor", description: "Facilita el certificado o información fiscal cuando corresponda." },
+    { title: "Correcciones", description: "Mantén coherentes el 188 y los Modelos 128 afectados." },
+  ],
+  comparison: {
+    title: "Modelo 188 y Modelo 128",
+    current: { title: "Modelo 188", description: "Resumen anual informativo de perceptores, rentas y retenciones de capitalización y seguros." },
+    related: { title: "Modelo 128", description: "Autoliquidación periódica que ingresa determinadas retenciones.", href: "/consultor-fiscal/modelos/128", label: "Ver Modelo 128" },
+    additional: [
+      { title: "Modelo 189", description: "Determinada información anual sobre posiciones de valores, seguros y rentas.", href: "/consultor-fiscal/modelos/189", label: "Ver Modelo 189" },
+      { title: "Modelo 280", description: "Información anual específica de Planes de Ahorro a Largo Plazo.", href: "/consultor-fiscal/modelos/280", label: "Ver Modelo 280" },
+    ],
+    conclusion: "El 128 ingresa retenciones durante el año; el 188 identifica anualmente los contratos, rentas y perceptores.",
+  },
+  pdfNotice: ["El diseño de registro corresponde al ejercicio indicado. Es documentación técnica y no acredita una declaración presentada."],
+  documents: [{ label: "Descargar diseño de registro del Modelo 188", sourceId: "aeat.model-188.register-design.pdf" }],
+  officialLinks: [
+    { label: "Ficha del procedimiento", sourceId: "aeat.model-188.procedure-record.2026-07-08" },
+    { label: "Ayuda de presentación mediante fichero", sourceId: "aeat.model-188.file-upload-help.2026-06-19" },
+  ],
+  legalLinks: [{ label: "Orden de 17 de noviembre de 1999", sourceId: "boe.model-188.order-1999-11-17" }],
+  faq: [
+    { question: "¿Qué es el Modelo 188?", answer: "La declaración informativa anual de determinadas rentas y retenciones de capitalización y seguros de vida o invalidez." },
+    { question: "¿Quién lo presenta?", answer: "La entidad aseguradora, pagadora o retenedora obligada, no el beneficiario por el mero hecho de cobrar." },
+    { question: "¿Vuelve a pagar las retenciones?", answer: "No. Los ingresos periódicos relacionados se realizan mediante el Modelo 128." },
+    { question: "¿Qué productos aparecen?", answer: "Operaciones de capitalización y determinados contratos de seguro de vida o invalidez." },
+    { question: "¿Cuándo se presenta?", answer: "Con carácter general durante enero del año siguiente, verificando el calendario de la campaña." },
+    { question: "¿Qué plazo tuvo el ejercicio 2025?", answer: "La campaña publicada fue del 1 de enero al 2 de febrero de 2026." },
+    { question: "¿Qué diferencia hay con el 189?", answer: "El 188 detalla rentas y retenciones; el 189 contiene determinada información anual sobre valores, seguros y rentas." },
+    { question: "¿Qué diferencia hay con el 280?", answer: "El 280 es específico de Planes de Ahorro a Largo Plazo." },
+    { question: "¿Puedo reutilizar un fichero anterior?", answer: "Solo después de validar que sus claves y diseño corresponden al ejercicio que se presenta." },
+    { question: "¿Un fichero validado ya está presentado?", answer: "No. Hace falta enviarlo y obtener la respuesta oficial." },
+    { question: "¿Cómo se corrige un error?", answer: "Debe corregirse el registro anual y revisar también los Modelos 128 afectados." },
+    { question: "¿Factu almacena datos del seguro?", answer: "No en esta ficha. El contenido es público e informativo y no transmite datos a la AEAT." },
+  ],
+  sourceIds: [
+    "aeat.model-188.procedure-home.2026-07-08",
+    "aeat.model-188.procedure-record.2026-07-08",
+    "aeat.model-188.browser-form-help.2026-06-19",
+    "aeat.model-188.file-upload-help.2026-06-19",
+    "aeat.model-188.register-design.pdf",
+    "boe.model-188.order-1999-11-17",
+  ],
+} as const satisfies FiscalModelPracticalGuideV1;
