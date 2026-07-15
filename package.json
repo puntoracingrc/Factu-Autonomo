@@ -31,6 +31,8 @@
     "fiscal:shadow:validate": "node scripts/fiscal-approval/run.mjs shadow:validate",
     "fiscal:approval:validate": "node scripts/fiscal-approval/run.mjs approval:validate",
     "fiscal:rollback:validate": "node scripts/fiscal-approval/run.mjs rollback:validate",
+    "fiscal:release:report": "node scripts/fiscal-release/run.mjs",
+    "fiscal:release:check": "node scripts/fiscal-release/run.mjs --check",
     "fixtures:invoices:validate": "node scripts/validate-invoice-fixtures.mjs",
     "fixtures:invoices:generate-adversarial": "node scripts/generate-adversarial-invoice-fixtures.mjs",
     "benchmark:invoices": "node scripts/benchmark-invoices.mjs",
