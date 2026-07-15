@@ -62,6 +62,7 @@ import {
 } from "@/lib/fiscal-notifications/structured-review-history-view-model.v1";
 import {
   projectStructuredReviewRelationsV1,
+  type StructuredReviewCaseTimelineV1,
   type StructuredReviewRelationEntryV1,
   type StructuredReviewRelationsViewModelV1,
 } from "@/lib/fiscal-notifications/structured-review-relations-view-model.v1";
@@ -733,6 +734,7 @@ function FiscalNotificationReviewWorkspace({
           onSave={saveStructuredReview}
         />
       ) : null}
+      <StructuredReviewCaseTimelines viewModel={relations} />
       <StructuredReviewRelations viewModel={relations} />
       <StructuredReviewHistory viewModel={history} />
     </>
@@ -811,6 +813,111 @@ function ReviewPersistencePanel({
         ) : null}
       </div>
     </Card>
+  );
+}
+
+function StructuredReviewCaseTimelines({
+  viewModel,
+}: {
+  viewModel: StructuredReviewRelationsViewModelV1;
+}) {
+  if (viewModel.status === "BLOCKED") return null;
+  const timelines = viewModel.timelines;
+  return (
+    <Card className="mt-6" aria-labelledby="notification-timeline-heading">
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h2
+            id="notification-timeline-heading"
+            className="text-lg font-bold text-slate-950"
+          >
+            Cronología del expediente
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+            Ordena documentos vinculados por referencias administrativas
+            exactas. La secuencia describe cómo se relacionan los actos, sin
+            decidir saldos, pagos ni el estado jurídico actual.
+          </p>
+        </div>
+        <span className="text-xs font-semibold text-slate-500">
+          {timelines.length}{" "}
+          {timelines.length === 1 ? "expediente" : "expedientes"}
+        </span>
+      </div>
+
+      {timelines.length === 0 ? (
+        <p className="mt-4 rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-600">
+          Todavía no hay una cadena exacta entre providencia, embargo y
+          documentos posteriores. Las fichas independientes siguen visibles
+          en el historial.
+        </p>
+      ) : (
+        <ol className="mt-4 space-y-5">
+          {timelines.map((timeline) => (
+            <StructuredReviewCaseTimeline
+              key={timeline.key}
+              timeline={timeline}
+            />
+          ))}
+        </ol>
+      )}
+    </Card>
+  );
+}
+
+function StructuredReviewCaseTimeline({
+  timeline,
+}: {
+  timeline: StructuredReviewCaseTimelineV1;
+}) {
+  const titleById = new Map(
+    timeline.steps.map((step) => [step.id, step.title] as const),
+  );
+  return (
+    <li className="rounded-2xl border border-indigo-200 bg-indigo-50/30 p-4 sm:p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <h3 className="text-base font-bold text-slate-950">{timeline.title}</h3>
+        <span className="inline-flex w-fit rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-900">
+          {timeline.statusLabel}
+        </span>
+      </div>
+
+      <ol className="mt-4 space-y-3">
+        {timeline.steps.map((step) => (
+          <li key={step.id} className="flex gap-3">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-700 text-xs font-bold text-white">
+              {step.position}
+            </span>
+            <div className="min-w-0 rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <p className="font-bold text-slate-950">{step.title}</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Ficha guardada {formatReviewTimestamp(step.createdAt)}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ol>
+
+      <ul className="mt-4 space-y-3">
+        {timeline.links.map((link) => (
+          <li
+            key={link.key}
+            className="rounded-xl border border-indigo-100 bg-white p-4"
+          >
+            <p className="text-xs font-bold uppercase tracking-wide text-indigo-800">
+              {link.label}
+            </p>
+            <p className="mt-1 text-sm font-bold text-slate-900">
+              {titleById.get(link.earlierDocumentId)} →{" "}
+              {titleById.get(link.laterDocumentId)}
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {link.explanation}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </li>
   );
 }
 
