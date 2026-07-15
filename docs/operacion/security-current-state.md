@@ -1,6 +1,6 @@
 # Estado actual de seguridad
 
-Ultima comprobacion: 2026-07-11.
+Ultima comprobacion: 2026-07-15.
 
 Proyecto: `facturacion-autonomos.app`.
 
@@ -16,9 +16,10 @@ MFA obligatorio para administradores, CSP en bloqueo, limites distribuidos,
 webhooks firmados, WAF, deteccion de abuso y un despliegue que no llega al
 dominio hasta superar las pruebas.
 
-El registro, la demo y la primera factura no tienen pasos nuevos. El MFA de los
-usuarios normales es opcional. Las protecciones adicionales actuan en segundo
-plano y solo frenan una peticion cuando supera limites de seguridad o consumo.
+El registro, la demo y la primera factura no tienen pasos nuevos. El alta y la
+validacion MFA pertenecen exclusivamente al area administrativa. Las
+protecciones adicionales actuan en segundo plano y solo frenan una peticion
+cuando supera limites de seguridad o consumo.
 
 ## Infraestructura y navegador
 
@@ -53,10 +54,10 @@ plano y solo frenan una peticion cuando supera limites de seguridad o consumo.
 - Los administradores se definen mediante `ADMIN_EMAILS` de servidor; no hay un
   admin fijo de produccion dentro del codigo.
 - Las APIs admin completas exigen TOTP y nivel de sesion `aal2`.
-- Los usuarios normales pueden activar TOTP de forma voluntaria en
-  Cuenta > Seguridad y registrar un segundo dispositivo.
-- La recuperacion de un factor perdido requiere admin en `aal2`, codigo enviado
-  al email verificado del usuario, confirmacion manual, caducidad, limite de
+- El alta y la validacion TOTP se muestran solo dentro de `/admin`, despues de
+  comprobar en servidor que el email pertenece a `ADMIN_EMAILS`.
+- La recuperacion de un factor perdido requiere otro admin en `aal2`, codigo
+  enviado al email verificado, confirmacion manual, caducidad, limite de
   intentos y registro operativo.
 
 ## Datos y Supabase
@@ -176,7 +177,7 @@ Cuando aparezca un aviso rojo:
 
 - Registro y login: sin pasos adicionales fuera del CAPTCHA ya integrado.
 - Demo y primera factura: sin pasos adicionales.
-- MFA de usuario: voluntario.
+- MFA: reservado al area administrativa; Cuenta no ofrece alta TOTP.
 - Google, Drive, Stripe y Supabase Auth: mismo flujo visible.
 - Un archivo demasiado grande muestra un error antes de consumir recursos.
 - Un `429` solo aparece cuando se supera un limite de seguridad o consumo.

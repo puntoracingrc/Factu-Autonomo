@@ -1,6 +1,6 @@
 # Checklist Supabase
 
-Ultima revision: 2026-07-10.
+Ultima revision: 2026-07-15.
 
 ## Revision rapida mensual
 
@@ -35,8 +35,8 @@ Ultima revision: 2026-07-10.
   por defecto y `SECURITY_CSP_MODE=report-only` queda como rollback temporal.
 - Admin MFA: confirmar que las cuentas admin tienen TOTP verificado y que
   `ADMIN_MFA_REQUIRED=true` sigue activo en Vercel Production.
-- MFA usuarios: confirmar que Cuenta > Seguridad permite TOTP opcional y que la
-  recuperacion admin exige codigo enviado al email verificado.
+- Superficie MFA: confirmar que el alta TOTP solo aparece en `/admin` para un
+  email autorizado y que `/cuenta` no ofrece controles MFA.
 - Admin recuperacion MFA: comprobar que `admin_mfa_recovery_challenges` existe,
   no tiene permisos para `public`, `anon` ni `authenticated`, y solo se usa desde
   servidor con `service_role`.
@@ -86,7 +86,7 @@ Ultima revision: 2026-07-10.
   Auth; no se modifica con la service role de la aplicacion.
 - Admin MFA: cuenta `puntoracingrc@gmail.com` verificada con TOTP real en sesion
   `aal2`; Vercel Production tiene `ADMIN_MFA_REQUIRED=true`.
-- MFA usuarios: preparado como opt-in en Cuenta > Seguridad; recuperacion por
+- Superficie MFA: el alta TOTP queda reservada a `/admin`; recuperacion por otro
   admin disenada con codigo de email, caducidad, intentos limitados y sesion
   admin `aal2`.
 - Revisión mensual: recordatorio activo en Codex
@@ -111,9 +111,8 @@ Ultima revision: 2026-07-10.
   legitima.
 - Admin MFA required: no desactivar salvo rollback controlado; si se anade otra
   cuenta admin, verificar TOTP real antes de depender de ella.
-- MFA usuarios obligatorio: no activar de forma global sin flujo de login MFA,
-  soporte de recuperacion probado, comunicacion previa y al menos dos admins con
-  MFA recuperable.
+- MFA de usuarios: no exponer ni activar fuera de `/admin` sin una decision de
+  producto explicita, flujo de login probado y soporte de recuperacion completo.
 - Recuperacion MFA: no quitar factores a mano sin codigo enviado al email del
   usuario y confirmacion de identidad; dejar registro operativo de la accion.
 - Rate limit distribuido: si se cambia o se revierte, confirmar que la migracion

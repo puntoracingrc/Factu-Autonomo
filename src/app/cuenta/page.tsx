@@ -9,14 +9,12 @@ import {
   LogIn,
   RefreshCw,
   Scale,
-  ShieldCheck,
   Upload,
   type LucideIcon,
 } from "lucide-react";
 import { AiUsageMeterCard } from "@/components/billing/AiUsageMeterCard";
 import { PlanStatusCard } from "@/components/billing/PlanStatusCard";
 import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillingCard";
-import { AccountMfaCard } from "@/components/cloud/AccountMfaCard";
 import { CloudAccountCard } from "@/components/cloud/CloudAccountCard";
 import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard";
 import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
@@ -45,7 +43,6 @@ const ACCOUNT_NAV_ITEMS: Array<{
   Icon: LucideIcon;
 }> = [
   { href: "#inicio-sesion", label: "Acceso", Icon: LogIn },
-  { href: "#seguridad-cuenta", label: "Seguridad", Icon: ShieldCheck },
   { href: "#plan-cuenta", label: "Plan", Icon: CreditCard },
   { href: "#sincronizacion-cuenta", label: "Sincronización", Icon: RefreshCw },
   { href: "#copias-cuenta", label: "Copias", Icon: HardDrive },
@@ -106,7 +103,7 @@ export default function CuentaPage() {
     <div>
       <PageHeader
         title="Cuenta"
-        subtitle="Acceso, seguridad, plan, sincronización, copias, importación y documentos legales."
+        subtitle="Acceso, plan, sincronización, copias, importación y documentos legales."
       />
 
       <AccountQuickLinks />
@@ -124,15 +121,6 @@ export default function CuentaPage() {
         >
           <CloudAccountCard />
         </Suspense>
-      </AccountSection>
-
-      <AccountSection
-        id="seguridad-cuenta"
-        title="Seguridad"
-        description="Activa protección extra para tu cuenta sin complicar el registro ni el uso diario."
-        Icon={ShieldCheck}
-      >
-        <AccountMfaCard />
       </AccountSection>
 
       <AccountSection
