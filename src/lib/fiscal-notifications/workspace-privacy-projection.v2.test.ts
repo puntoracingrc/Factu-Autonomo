@@ -378,4 +378,23 @@ describe("workspace privacy projection v2", () => {
       }),
     );
   });
+
+  it("keeps evidenced installment and stated obligation dates explicit", async () => {
+    const projected = await projectFiscalNotificationsWorkspacePrivacyV2(
+      workspace(),
+      OWNER,
+    );
+    expect(projected?.dates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldId: "INSTALLMENT_1_DUE_DATE",
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+        }),
+        expect.objectContaining({
+          fieldId: "OBLIGATION_DEADLINE",
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+        }),
+      ]),
+    );
+  });
 });

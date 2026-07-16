@@ -144,6 +144,46 @@ function workspace(): FiscalNotificationsPersistedWorkspaceV2 {
   };
 }
 
+function workspaceWithExactRelation(
+  relationType: string,
+): FiscalNotificationsPersistedWorkspaceV2 {
+  const value = workspace();
+  value.documents.push({
+    ...value.documents[0]!,
+    id: "document:synthetic:2",
+    chronologyDate: null,
+    chronologyBasis: null,
+    dateFactIds: [],
+    referenceIds: ["reference:synthetic:2"],
+    amountFactIds: [],
+    factIds: [],
+    evidenceIds: [],
+  });
+  value.references.push({
+    ...value.references[0]!,
+    id: "reference:synthetic:2",
+    documentId: "document:synthetic:2",
+    evidenceIds: [],
+  });
+  value.relations.push({
+    id: "relation:synthetic:1",
+    ownerScope: OWNER,
+    sourceDocumentId: "document:synthetic:1",
+    targetDocumentId: "document:synthetic:2",
+    relationType,
+    status: "SYSTEM_CONFIRMED_EXACT",
+    exactReferenceIds: [
+      "reference:synthetic:1",
+      "reference:synthetic:2",
+    ],
+    contextualDateFactIds: [],
+    contextualAmountFactIds: [],
+    algorithmVersion: "synthetic-v2",
+    createdAt: NOW,
+  });
+  return value;
+}
+
 describe("persisted fiscal notifications workspace v2", () => {
   it("accepts canonical UUIDv7 and synthetic opaque owner scopes", () => {
     for (const ownerScope of [
@@ -159,6 +199,29 @@ describe("persisted fiscal notifications workspace v2", () => {
           ownerScope,
         ),
       ).not.toBeNull();
+    }
+  });
+
+  it("rejects false exactness for every legacy-only relation at the direct boundary", () => {
+    expect(
+      parseFiscalNotificationsWorkspaceForPersistenceV2(
+        workspaceWithExactRelation("RESOLVES"),
+        OWNER,
+      ),
+    ).not.toBeNull();
+    for (const relationType of [
+      "BELONGS_TO_CASE",
+      "DUPLICATE_COPY_OF",
+      "RELATED_TO_PAYMENT_PLAN",
+      "RELATED_TO_INSTALLMENT",
+      "POSSIBLY_RELATED",
+    ]) {
+      expect(
+        parseFiscalNotificationsWorkspaceForPersistenceV2(
+          workspaceWithExactRelation(relationType),
+          OWNER,
+        ),
+      ).toBeNull();
     }
   });
 

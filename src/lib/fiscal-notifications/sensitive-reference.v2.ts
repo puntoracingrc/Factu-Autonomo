@@ -27,8 +27,9 @@ const SHA256_HEX = /^[0-9a-f]{64}$/u;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u;
 const NORMALIZED_REFERENCE = /^[\p{L}\p{N}]+$/u;
 const CANONICAL_OWNER_UUID_SCOPE =
-  /^user:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
-const CANONICAL_OWNER_OPAQUE_SCOPE = /^user:[a-z][a-z0-9_.:-]{0,154}$/u;
+  /^user:[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+const CANONICAL_OWNER_OPAQUE_SCOPE =
+  /^user:(?:synthetic|test|fixture|mock|batch|tenant|other|foreign)(?:[-_.:][a-z0-9][a-z0-9_.:-]*)?$/u;
 const OWNER_TAX_ID_TOKEN = /(?:^|[^A-Z0-9])(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])(?=$|[^A-Z0-9])/iu;
 const OWNER_IBAN_TOKEN = /(?:^|[^A-Z0-9])ES\d{22}(?=$|[^A-Z0-9])/iu;
 const CANONICAL_ISSUER_CODE = /^[A-Z][A-Z0-9_]{1,31}$/u;

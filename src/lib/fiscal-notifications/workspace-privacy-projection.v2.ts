@@ -215,7 +215,11 @@ function addDocumentDate(input: {
     kind: input.kind,
     value: input.value,
     assertionType:
-      input.assertionType === "EXPLICIT_IN_DOCUMENT" && evidenceIds.length > 0
+      (input.assertionType ??
+        (evidenceIds.length > 0
+          ? "EXPLICIT_IN_DOCUMENT"
+          : "NOT_PROVEN_BY_DOCUMENT")) === "EXPLICIT_IN_DOCUMENT" &&
+      evidenceIds.length > 0
         ? "EXPLICIT_IN_DOCUMENT"
         : "NOT_PROVEN_BY_DOCUMENT",
     evidenceIds,

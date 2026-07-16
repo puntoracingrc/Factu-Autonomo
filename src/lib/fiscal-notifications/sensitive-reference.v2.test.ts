@@ -197,6 +197,18 @@ describe("sensitive administrative references v2", () => {
         ownerScope: "user:ES0000000000000000000000",
         issuerCode: "AEAT",
       },
+      {
+        ownerScope: "user:juan.perez",
+        issuerCode: "AEAT",
+      },
+      {
+        ownerScope: "user:019f7e00-0000-0000-8000-000000000001",
+        issuerCode: "AEAT",
+      },
+      {
+        ownerScope: "user:019f7e00-0000-f000-8000-000000000001",
+        issuerCode: "AEAT",
+      },
     ]) {
       expect(
         await createSensitiveReferenceV2({

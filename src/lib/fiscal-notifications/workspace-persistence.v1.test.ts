@@ -74,6 +74,12 @@ describe("fiscal notifications workspace persistence v1", () => {
     );
     expect(fiscalNotificationsOwnerScopeForUserIdV1(uuidV7.toUpperCase())).toBeNull();
     expect(fiscalNotificationsOwnerScopeForUserIdV1("00000000T")).toBeNull();
+    expect(fiscalNotificationsOwnerScopeForUserIdV1("juan.perez")).toBeNull();
+    expect(
+      fiscalNotificationsOwnerScopeForUserIdV1(
+        "019f7e00-0000-0000-8000-000000000001",
+      ),
+    ).toBeNull();
 
     const candidate = workspace();
     candidate.ownerScope = `user:${uuidV7}`;

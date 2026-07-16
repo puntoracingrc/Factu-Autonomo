@@ -11,13 +11,17 @@ import {
 } from "./knowledge/aeat-document-knowledge.v1";
 import type { FiscalNotificationDocumentFamilyIdV3 } from "./knowledge/document-families.v3";
 
-export const PERSISTED_DOCUMENT_RELATION_TYPES_V2 = [
-  ...AEAT_DOCUMENT_RELATION_TYPE_IDS_V1,
+export const LEGACY_ONLY_DOCUMENT_RELATION_TYPES_V2 = [
   "BELONGS_TO_CASE",
   "DUPLICATE_COPY_OF",
   "RELATED_TO_PAYMENT_PLAN",
   "RELATED_TO_INSTALLMENT",
   "POSSIBLY_RELATED",
+] as const;
+
+export const PERSISTED_DOCUMENT_RELATION_TYPES_V2 = [
+  ...AEAT_DOCUMENT_RELATION_TYPE_IDS_V1,
+  ...LEGACY_ONLY_DOCUMENT_RELATION_TYPES_V2,
 ] as const;
 
 export const FISCAL_NOTIFICATIONS_PERSISTED_WORKSPACE_SCHEMA_V2 = 2 as const;
@@ -1088,6 +1092,13 @@ function parseRelation(
   if (
     result.status === "SYSTEM_CONFIRMED_EXACT" &&
     result.exactReferenceIds.length === 0
+  )
+    fail();
+  if (
+    result.status === "SYSTEM_CONFIRMED_EXACT" &&
+    LEGACY_ONLY_DOCUMENT_RELATION_TYPES_V2.includes(
+      result.relationType as (typeof LEGACY_ONLY_DOCUMENT_RELATION_TYPES_V2)[number],
+    )
   )
     fail();
   return result;
