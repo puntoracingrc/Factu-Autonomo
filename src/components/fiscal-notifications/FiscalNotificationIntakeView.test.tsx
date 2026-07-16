@@ -41,6 +41,9 @@ const reviewStepsSource = readSource("./FiscalNotificationReviewSteps.tsx");
 const verticalSlicePanelSource = readSource(
   "./FiscalNotificationVerticalSliceReview.tsx",
 );
+const verticalSliceProjectionSource = readSource(
+  "../../lib/fiscal-notifications/vertical-slice-review.v1.ts",
+);
 const explicitFieldsPanelSource = readSource(
   "./FiscalNotificationExplicitFieldsReview.tsx",
 );
@@ -1032,6 +1035,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(verticalSlicePanelSource).toContain("field.displayValue");
     expect(verticalSlicePanelSource).toContain("field.sourcePageNumbers");
     expect(verticalSlicePanelSource).not.toMatch(/posible familia/iu);
+    expect(verticalSliceProjectionSource).toContain(
+      'addStatus(fields, "Orden de pago", pagesForOutput(output))',
+    );
+    expect(verticalSliceProjectionSource).not.toContain(
+      "pago no confirmado",
+    );
   });
 
   it("solo añade el guardado estructurado seguro y no ofrece acciones fiscales", () => {

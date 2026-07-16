@@ -707,11 +707,7 @@ function projectPaymentOrder(
   >,
 ) {
   const fields = commonFields(output);
-  addStatus(
-    fields,
-    "Orden de pago · pago no confirmado",
-    pagesForOutput(output),
-  );
+  addStatus(fields, "Orden de pago", pagesForOutput(output));
   addTextFact(
     fields,
     "PAYMENT_MEDIUM",
