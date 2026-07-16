@@ -18,6 +18,7 @@ import type {
   TaxModelDiagnosticSession,
   TaxpayerProfile,
 } from "@/lib/tax-model-diagnostic/contracts";
+import { TAX_MODEL_DIAGNOSTIC_ENGINE_VERSION } from "@/lib/tax-model-diagnostic/contracts";
 import { evaluateTaxModelDiagnostic } from "@/lib/tax-model-diagnostic/engine";
 import { buildTaxObligationsAssessment } from "@/lib/tax-obligations";
 import {
@@ -30,6 +31,22 @@ import {
   QUESTION_SECTIONS,
   questionsForSection,
 } from "@/lib/tax-model-diagnostic/questions";
+import { taxRuleSetVersion } from "@/lib/tax-model-diagnostic/rules";
+import {
+  buildTaxModelRecommendationsV1,
+} from "@/lib/tax-obligations";
+import { normalizeFiscalAdvisoryModelPreferencesV1 } from "@/lib/fiscal-advisory-models";
+import {
+  answerKindFromValue,
+  confidenceBucket,
+  durationBucket,
+} from "@/lib/tax-diagnostic-insights/contracts";
+import {
+  getTaxProductTelemetryStartedAt,
+  recordTaxProductEvent,
+  resetTaxProductTelemetrySession,
+} from "@/lib/tax-diagnostic-insights/client";
+import { taxDiagnosticRiskTag } from "@/lib/tax-diagnostic-insights/risk-tags";
 import { DiagnosticHaciendaReview } from "./DiagnosticHaciendaReview";
 import { DiagnosticQuestionField } from "./DiagnosticQuestionField";
 import { DiagnosticResults } from "./DiagnosticResults";
@@ -130,6 +147,7 @@ function profileSummary(profile: TaxpayerProfile) {
 export function TaxModelDiagnosticWizard() {
   const { data, ready, updateProfile } = useAppStore();
   const firstQuestionRef = useRef<HTMLDivElement>(null);
+  const diagnosticStartedRef = useRef(false);
   const [session, setSession] = useState<TaxModelDiagnosticSession | null>(
     null,
   );
@@ -166,6 +184,38 @@ export function TaxModelDiagnosticWizard() {
     ? Math.round((completedCount / applicableQuestions.length) * 100)
     : 0;
 
+  useEffect(() => {
+    if (!session || diagnosticStartedRef.current) return;
+    diagnosticStartedRef.current = true;
+    void recordTaxProductEvent({
+      eventType: "tax_diagnostic_started",
+      page: "DIAGNOSTIC",
+      engineVersion: TAX_MODEL_DIAGNOSTIC_ENGINE_VERSION,
+      rulesetVersion: taxRuleSetVersion(session.profile.fiscalYear),
+      fiscalYear: session.profile.fiscalYear,
+      properties: { entryPoint: "FISCAL_ADVISORY_MENU" },
+    });
+  }, [session]);
+
+  useEffect(() => {
+    if (!session || showReview) return;
+    const visible = questionsForSection(session.currentSection).filter((question) =>
+      isQuestionApplicable(question, session.profile),
+    );
+    visible.forEach((question, position) => {
+      void recordTaxProductEvent({
+        eventType: "tax_question_viewed",
+        page: "DIAGNOSTIC",
+        questionId: question.questionId,
+        questionGroup: question.sectionId,
+        riskTag: taxDiagnosticRiskTag(question.questionId),
+        fiscalYear: session.profile.fiscalYear,
+        engineVersion: TAX_MODEL_DIAGNOSTIC_ENGINE_VERSION,
+        properties: { position },
+      }, { dedupeKey: `question-viewed:${question.questionId}` });
+    });
+  }, [session, showReview]);
+
   if (!ready || !session) {
     return (
       <Card
@@ -200,6 +250,63 @@ export function TaxModelDiagnosticWizard() {
     field: keyof TaxpayerProfile,
     value: QuestionValue,
   ) {
+    const question = DIAGNOSTIC_QUESTIONS.find((item) => item.questionId === questionId);
+    const previousValue = activeSession.profile[field];
+    const wasPreviouslyAnswered = activeSession.completedQuestionIds.includes(questionId);
+    const wasChanged = wasPreviouslyAnswered && JSON.stringify(previousValue) !== JSON.stringify(value);
+    const documentPrefilled = activeSession.evidence.some(
+      (item) => item.field === field && item.type !== "USER_ANSWER",
+    );
+    const documentEvidence = activeSession.evidence.find(
+      (item) => item.field === field && item.type !== "USER_ANSWER",
+    );
+    void recordTaxProductEvent({
+      eventType: "tax_question_answered",
+      page: "DIAGNOSTIC",
+      questionId,
+      questionGroup: question?.sectionId ?? "UNKNOWN",
+      riskTag: taxDiagnosticRiskTag(questionId),
+      fiscalYear: activeSession.profile.fiscalYear,
+      properties: {
+        answerKind: answerKindFromValue(value),
+        answerSource: "USER",
+        wasChanged,
+      },
+    });
+    if (wasChanged) {
+      void recordTaxProductEvent({
+        eventType: "tax_question_changed",
+        page: "DIAGNOSTIC",
+        questionId,
+        questionGroup: question?.sectionId ?? "UNKNOWN",
+        riskTag: taxDiagnosticRiskTag(questionId),
+        fiscalYear: activeSession.profile.fiscalYear,
+        properties: {
+          previousAnswerKind: answerKindFromValue(previousValue),
+          newAnswerKind: answerKindFromValue(value),
+          changeOrigin: documentPrefilled ? "DOCUMENT_CORRECTION" : "USER",
+        },
+      });
+      if (documentEvidence) {
+        const method = documentEvidence.extractionMethod === "OCR_LOCAL" ||
+          documentEvidence.extractionMethod === "OCR_EXTERNAL"
+          ? "OCR"
+          : "NATIVE";
+        void recordTaxProductEvent({
+          eventType: "tax_document_field_reviewed",
+          page: "DIAGNOSTIC",
+          questionId,
+          documentFamily: documentEvidence.type,
+          extractionMethod: method,
+          confidenceBucket: confidenceBucket(documentEvidence.confidence),
+          properties: {
+            fieldId: field,
+            action: "CORRECTED",
+            answeredQuestion: true,
+          },
+        });
+      }
+    }
     const now = new Date().toISOString();
     const clearsEndDate =
       field === "activityStillActive" && value === "YES";
@@ -299,6 +406,71 @@ export function TaxModelDiagnosticWizard() {
       generatedAt,
     );
     const publishedAssessment = buildTaxObligationsAssessment(nextResult);
+    const preferences = normalizeFiscalAdvisoryModelPreferencesV1(
+      data.profile.fiscalAdvisoryModelPreferences,
+    );
+    const recommendations = buildTaxModelRecommendationsV1({
+      assessment: publishedAssessment,
+      manualModelCodes: preferences?.manualModelCodes ?? [],
+    });
+    const recommendationCounts = new Map<string, number>();
+    for (const recommendation of recommendations.recommendations) {
+      recommendationCounts.set(
+        recommendation.recommendationStatus,
+        (recommendationCounts.get(recommendation.recommendationStatus) ?? 0) + 1,
+      );
+    }
+    const unknownCount = applicableQuestions.filter(
+      (question) => answerKindFromValue(activeSession.profile[question.field]) === "UNKNOWN",
+    ).length;
+    const documentEvidence = activeSession.evidence.filter(
+      (item) => item.type !== "USER_ANSWER",
+    );
+    const documentCount = new Set(
+      documentEvidence.map((item) => item.documentId ?? item.evidenceId),
+    ).size;
+    void recordTaxProductEvent({
+      eventType: "tax_diagnostic_completed",
+      page: "DIAGNOSTIC",
+      engineVersion: nextResult.engineVersion,
+      rulesetVersion: nextResult.ruleSetVersion,
+      fiscalYear: nextResult.fiscalYear,
+      properties: {
+        questionCountShown: applicableQuestions.length,
+        unknownCount,
+        contradictionCount: nextResult.discrepancies.length,
+        documentCount,
+        durationBucket: durationBucket(getTaxProductTelemetryStartedAt()),
+      },
+    });
+    void recordTaxProductEvent({
+      eventType: "tax_evaluation_generated",
+      page: "DIAGNOSTIC",
+      engineVersion: nextResult.engineVersion,
+      rulesetVersion: nextResult.ruleSetVersion,
+      fiscalYear: nextResult.fiscalYear,
+      properties: {
+        likelyRequiredCount: recommendationCounts.get("LIKELY_REQUIRED") ?? 0,
+        possiblyRequiredCount: recommendationCounts.get("POSSIBLY_REQUIRED") ?? 0,
+        unlikelyRequiredCount: recommendationCounts.get("UNLIKELY_REQUIRED") ?? 0,
+        needsInformationCount: recommendationCounts.get("NEEDS_INFORMATION") ?? 0,
+        manuallySelectedCount: recommendationCounts.get("MANUALLY_SELECTED") ?? 0,
+        contradictionCount: nextResult.discrepancies.length,
+        documentBackedFactCount: documentEvidence.length,
+      },
+    });
+    void recordTaxProductEvent({
+      eventType: "tax_models_saved",
+      page: "DIAGNOSTIC",
+      engineVersion: nextResult.engineVersion,
+      rulesetVersion: nextResult.ruleSetVersion,
+      fiscalYear: nextResult.fiscalYear,
+      properties: {
+        recommendedCount: (recommendationCounts.get("LIKELY_REQUIRED") ?? 0) + (recommendationCounts.get("POSSIBLY_REQUIRED") ?? 0),
+        manuallyAddedCount: recommendationCounts.get("MANUALLY_SELECTED") ?? 0,
+        manuallyRemovedCount: 0,
+      },
+    });
     setResult(nextResult);
     persist({
       ...activeSession,
@@ -318,6 +490,8 @@ export function TaxModelDiagnosticWizard() {
       return;
     }
     const next = createTaxModelDiagnosticSession(new Date().toISOString());
+    resetTaxProductTelemetrySession();
+    diagnosticStartedRef.current = false;
     persist(next);
     setResult(null);
     setShowReview(false);

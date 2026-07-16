@@ -23,6 +23,13 @@ const adminMfaRecoveryMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const taxProductInsightsMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260716160000_tax_product_insights.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -41,6 +48,8 @@ const serviceOnlyTables = [
   "admin_user_restore_events",
   "stripe_events",
   "fiscal_evidence_packets",
+  "tax_product_events",
+  "tax_product_weekly_reports",
 ];
 
 const browserSyncTables = ["user_backups", "sync_entities"];
@@ -100,6 +109,9 @@ describe("Supabase table-by-table RLS audit hardening", () => {
       const source =
         table === "admin_mfa_recovery_challenges"
           ? adminMfaRecoveryMigrationSource
+          : table === "tax_product_events" ||
+              table === "tax_product_weekly_reports"
+            ? taxProductInsightsMigrationSource
           : migrationSource;
       expect(source).toContain(
         `revoke all on table public.${table} from public, anon, authenticated`,

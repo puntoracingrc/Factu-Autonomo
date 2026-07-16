@@ -1,0 +1,461 @@
+{
+  "schemaVersion": "1.0.0",
+  "fiscalYear": 2027,
+  "territory": "ES_COMMON",
+  "generatedAt": "2026-07-16T14:11:40.667Z",
+  "sourceExercise": 2026,
+  "status": "REQUIRES_RULE_CONTENT_REVIEW",
+  "publicationMode": "ORIENTATIVE",
+  "authorizedFiscalExclusion": false,
+  "allModelsViewRequired": true,
+  "calendarContractYear": 2027,
+  "rules": [
+    {
+      "ruleId": "es-common.2027.model-035",
+      "modelNumber": "035",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-035.procedure",
+        "aeat.model-369.periodicity"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-036",
+      "modelNumber": "036",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-036.modification",
+        "aeat.roi-intraeu"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-100",
+      "modelNumber": "100",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "boe.irpf-law.article-96",
+        "aeat.renta-2025.obligation"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-111",
+      "modelNumber": "111",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.withholding.111-190"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-115",
+      "modelNumber": "115",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.withholding.115-180"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-123",
+      "modelNumber": "123",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.withholding.123-193"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-130",
+      "modelNumber": "130",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-130.instructions",
+        "aeat.irpf.installment-payments"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-131",
+      "modelNumber": "131",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-131.instructions",
+        "aeat.irpf.installment-payments"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-180",
+      "modelNumber": "180",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.withholding.115-180"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-184",
+      "modelNumber": "184",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-184.obligations"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-190",
+      "modelNumber": "190",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.withholding.111-190"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-193",
+      "modelNumber": "193",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.withholding.123-193"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-200",
+      "modelNumber": "200",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.is.model-200.obligation"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-202",
+      "modelNumber": "202",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.is.installments"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-216",
+      "modelNumber": "216",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.irnr.withholding"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-296",
+      "modelNumber": "296",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.irnr.withholding"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-303",
+      "modelNumber": "303",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-303.instructions-2026"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-308",
+      "modelNumber": "308",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-308.procedure"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-309",
+      "modelNumber": "309",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-309.instructions",
+        "aeat.roi-intraeu"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-341",
+      "modelNumber": "341",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-341.instructions"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-347",
+      "modelNumber": "347",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-347.exclusions"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-349",
+      "modelNumber": "349",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.roi-intraeu",
+        "aeat.model-349.periodicity"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-369",
+      "modelNumber": "369",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-369.procedure",
+        "aeat.model-369.periodicity"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-390",
+      "modelNumber": "390",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-390.procedure",
+        "aeat.model-390.exemptions"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-714",
+      "modelNumber": "714",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.wealth.obligation"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-720",
+      "modelNumber": "720",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-720.frequency"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    },
+    {
+      "ruleId": "es-common.2027.model-721",
+      "modelNumber": "721",
+      "fiscalYear": 2027,
+      "territory": "ES_COMMON",
+      "effectiveFrom": "2027-01-01",
+      "effectiveTo": "2027-12-31",
+      "runtimeVersion": null,
+      "ruleContentState": "REQUIRES_REVIEW",
+      "sourceReferenceIds": [
+        "aeat.model-721.faq"
+      ],
+      "sourceValidityState": "REQUIRES_REVIEW",
+      "dateValidityState": "REQUIRES_REVIEW",
+      "thresholdValidityState": "REQUIRES_REVIEW"
+    }
+  ],
+  "practicalProfiles": {
+    "status": "BASELINE_GREEN",
+    "profileCount": 20,
+    "targetYearDryRunState": "BLOCKED_PENDING_RULE_CONTENT",
+    "explanation": "The 20 baseline profiles stay green; target-year outcomes are not copied until rule content and sources are reviewed."
+  }
+}

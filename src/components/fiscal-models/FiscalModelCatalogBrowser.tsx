@@ -33,6 +33,7 @@ import {
   getFiscalModelCatalogFocusPresentationV1,
   type PublicAeatModelSearchEntryV2,
 } from "@/lib/fiscal-models/model-pages/public-review-search.v2";
+import { recordTaxProductEvent } from "@/lib/tax-diagnostic-insights/client";
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
@@ -156,6 +157,35 @@ export function FiscalModelCatalogBrowser({
         allowedModelCodes: availableModelCodes,
       });
       if (!next) return;
+      const recommendation = personalization.recommendations.find(
+        (item) => item.modelCode === modelCode,
+      );
+      void recordTaxProductEvent({
+        eventType: selected ? "tax_model_manual_added" : "tax_model_manual_removed",
+        page: "MODELS",
+        modelNumber: modelCode,
+        properties: {
+          previousRecommendationStatus: selected
+            ? recommendation?.engineRecommendationStatus ?? "UNLIKELY_REQUIRED"
+            : recommendation?.recommendationStatus ?? "MANUALLY_SELECTED",
+          sourcePage: "MODELS",
+        },
+      });
+      const assessment = data.profile.taxModelDiagnostic?.publishedAssessment;
+      if (assessment) {
+        void recordTaxProductEvent({
+          eventType: "tax_models_saved",
+          page: "MODELS",
+          engineVersion: assessment.traceability.engineVersion,
+          rulesetVersion: assessment.ruleSetVersion,
+          fiscalYear: assessment.fiscalYear,
+          properties: {
+            recommendedCount: personalization.assessmentModelCodes.length,
+            manuallyAddedCount: next.manualModelCodes.length,
+            manuallyRemovedCount: selected ? 0 : 1,
+          },
+        });
+      }
       updateProfile({
         ...data.profile,
         fiscalAdvisoryModelPreferences: next,
@@ -165,9 +195,18 @@ export function FiscalModelCatalogBrowser({
       availableModelCodes,
       data.profile,
       personalizationEnabled,
+      personalization,
       updateProfile,
     ],
   );
+
+  useEffect(() => {
+    void recordTaxProductEvent({
+      eventType: "tax_models_catalog_opened",
+      page: "MODELS",
+      properties: {},
+    }, { dedupeKey: "models-catalog-opened" });
+  }, []);
   const personalizationContext = useMemo<PersonalizationContextValue>(
     () => ({
       enabled: personalizationEnabled,
@@ -424,11 +463,21 @@ export function FiscalModelManualSelectionAction({
   modelCode: string;
 }) {
   const context = useContext(PersonalizationContext);
+  const recommendation = context?.recommendationsByCode.get(modelCode);
+  useEffect(() => {
+    if (!context?.enabled || !recommendation) return;
+    void recordTaxProductEvent({
+      eventType: "tax_model_recommendation_viewed",
+      page: "MODELS",
+      modelNumber: modelCode,
+      recommendationStatus: recommendation.recommendationStatus,
+      properties: { reasonExpanded: true, sourcePage: "MODELS" },
+    }, { dedupeKey: `models-recommendation:${modelCode}` });
+  }, [context?.enabled, modelCode, recommendation]);
   if (!context?.enabled) return null;
   const fromAssessment = context.assessmentCodes.has(modelCode);
   const needsReview = context.reviewCodes.has(modelCode);
   const manuallySelected = context.manualCodes.has(modelCode);
-  const recommendation = context.recommendationsByCode.get(modelCode);
   const displayStatus: TaxModelRecommendationStatus | null = manuallySelected
     ? "MANUALLY_SELECTED"
     : recommendation?.recommendationStatus ?? null;

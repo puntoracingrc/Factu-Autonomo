@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "1.0.0",
+  "fiscalYear": 2027,
+  "validatedAt": "2026-07-16T14:11:50.861Z",
+  "status": "VALID_REVIEW_REQUIRED",
+  "errors": [],
+  "practicalProfiles": {
+    "status": "BASELINE_GREEN",
+    "profileCount": 20
+  },
+  "targetYearOutcomes": "REQUIRES_RULE_CONTENT_REVIEW",
+  "allModelsAccessible": true,
+  "authorizedFiscalExclusion": false
+}
