@@ -92,7 +92,7 @@ const BASE_PROFILES = Object.freeze({
   AEAT_ENFORCEMENT_ORDER: profile(
     "Una providencia de apremio inicia o continúa la vía ejecutiva para una deuda que el documento identifica.",
     "La AEAT comunica que una deuda figura pendiente en vía ejecutiva.",
-    "El resultado exacto depende de la deuda, recargo, importe pendiente y fechas impresas en esta ficha.",
+    "El resultado exacto depende de la deuda, recargo, importe pendiente y fechas de esta ficha.",
     "Revisa deuda, recargo y fecha de pago",
     "Comprueba que la clave, el importe y el plazo coinciden con el documento antes de pagar, recurrir o pedir asistencia.",
     [
@@ -103,10 +103,10 @@ const BASE_PROFILES = Object.freeze({
   ),
   AEAT_INSTALLMENT_OR_DEFERRAL_GRANT: profile(
     "Una concesión de aplazamiento o fraccionamiento fija las condiciones aceptadas por la AEAT.",
-    "Resuelve favorablemente, en los términos impresos, una solicitud previa de aplazamiento o fraccionamiento.",
+    "Resuelve favorablemente, en los términos del documento, una solicitud previa de aplazamiento o fraccionamiento.",
     "Las cuotas, vencimientos e importes válidos son los que aparecen en el documento.",
     "Comprueba las cuotas concedidas",
-    "Revisa cada vencimiento, la cuenta de cargo y las condiciones impresas antes de confirmar el plan en Factu.",
+    "Revisa cada vencimiento, la cuenta de cargo y las condiciones del documento antes de confirmar el plan en Factu.",
     [
       "aeat.collection.deferral",
       "aeat.collection.deferral_management",
@@ -116,9 +116,9 @@ const BASE_PROFILES = Object.freeze({
   AEAT_INSTALLMENT_OR_DEFERRAL_DENIAL: profile(
     "La AEAT ha rechazado una solicitud para aplazar o dividir el pago de una deuda.",
     "Has recibido la resolución de una solicitud previa de aplazamiento o fraccionamiento que no ha sido concedida.",
-    "La deuda no queda aplazada por esta resolución. El motivo, el importe, la forma de pago y los efectos válidos son los impresos en el documento.",
+    "La deuda no queda aplazada por esta resolución. El motivo, el importe, la forma de pago y los efectos válidos son los que figuran en el documento.",
     "Revisa la carta de pago y la fecha de recepción",
-    "Comprueba el motivo, la deuda afectada y el plazo impreso. Si no estás conforme, revisa las dos vías de recurso indicadas antes de que transcurra su plazo.",
+    "Comprueba el motivo, la deuda afectada y el plazo indicado. Si no estás conforme, revisa las dos vías de recurso indicadas antes de que transcurra su plazo.",
     [
       "aeat.collection.deferral",
       "aeat.collection.deferral_management",
@@ -131,7 +131,7 @@ const BASE_PROFILES = Object.freeze({
   AEAT_OFFSET_AGREEMENT: profile(
     "Un acuerdo de compensación aplica un crédito reconocido a una o varias deudas.",
     "La AEAT resuelve una compensación solicitada por el obligado o practicada de oficio.",
-    "El resultado depende de los créditos, deudas y efectos impresos en el acuerdo.",
+    "El resultado depende de los créditos, deudas y efectos que figuran en el acuerdo.",
     "Revisa el resultado de la compensación",
     "Comprueba qué deudas quedan extinguidas y si el documento deja algún importe pendiente.",
     [
@@ -175,7 +175,7 @@ const BASE_PROFILES = Object.freeze({
   ),
   AEAT_ASSESSMENT: profile(
     "Una liquidación determina una deuda o resultado tributario en los términos del acto notificado.",
-    "La AEAT cierra una comprobación o regularización con los importes y motivos impresos.",
+    "La AEAT cierra una comprobación o regularización con los importes y motivos indicados.",
     "El importe, forma de pago y vías de revisión dependen del acto concreto.",
     "Comprueba el resultado y las opciones",
     "Revisa el importe, el período, la fecha de notificación y las instrucciones antes de pagar o recurrir.",
@@ -186,7 +186,7 @@ const BASE_PROFILES = Object.freeze({
     "La AEAT atribuye provisionalmente una infracción y ofrece el trámite que figura en el documento.",
     "No equivale a una sanción firme si el propio documento la identifica como propuesta.",
     "Revisa hechos, reducciones y alegaciones",
-    "Comprueba la conducta imputada, los importes y el plazo impreso antes de aceptar o formular alegaciones.",
+    "Comprueba la conducta imputada, los importes y el plazo indicado antes de aceptar o formular alegaciones.",
     ["aeat.sanction.general", "boe.tax.sanction.regulation"],
   ),
   AEAT_SANCTION_DECISION: profile(
@@ -204,7 +204,7 @@ const BASE_PROFILES = Object.freeze({
   AEAT_SEIZURE_ORDER: profile(
     "Una diligencia de embargo identifica bienes, cuentas, créditos o derechos afectados por la recaudación.",
     "La AEAT comunica una actuación de embargo vinculada a deudas en vía ejecutiva.",
-    "El bien afectado, el importe y las posibilidades de oposición son los impresos en la diligencia.",
+    "El bien afectado, el importe y las posibilidades de oposición son los que figuran en la diligencia.",
     "Comprueba qué se embarga y por qué deuda",
     "Revisa el objeto, la cuantía, la referencia y la fecha de notificación antes de pagar, oponerte o pedir ayuda.",
     [
@@ -297,12 +297,12 @@ function explainDeferralDenial(
     ? Object.freeze({
         status: "RECEIPT_DATE_AVAILABLE" as const,
         title: "El plazo se cuenta desde la recepción, no desde el escaneo",
-        detail: `${paymentRule ?? "Aplica el plazo de ingreso que figure en la resolución."} La fecha de recepción registrada es ${input.receiptDate}. ${appealRule ?? "Si recurres, revisa el plazo impreso."} Factu no calcula automáticamente el último día hábil.`,
+        detail: `${paymentRule ?? "Aplica el plazo de ingreso que figure en la resolución."} La fecha de recepción registrada es ${input.receiptDate}. ${appealRule ?? "Si recurres, revisa el plazo indicado."} Factu no calcula automáticamente el último día hábil.`,
       })
     : Object.freeze({
         status: "MISSING_RECEIPT_DATE" as const,
         title: "Falta la fecha de recepción para situar los plazos",
-        detail: `${paymentRule ?? "Revisa el plazo de ingreso impreso en la resolución."} ${appealRule ?? "El recurso de reposición o la reclamación económico-administrativa tienen el plazo que indique el acuerdo."} La fecha del acuerdo o del escaneo no sustituye la fecha de recepción.`,
+        detail: `${paymentRule ?? "Revisa el plazo de ingreso indicado en la resolución."} ${appealRule ?? "El recurso de reposición o la reclamación económico-administrativa tienen el plazo que indique el acuerdo."} La fecha del acuerdo o del escaneo no sustituye la fecha de recepción.`,
       });
   const keyFacts: Array<{
     label: string;
@@ -339,7 +339,7 @@ function explainDeferralDenial(
     result,
     nextStep: Object.freeze({
       status: "PAYMENT_OR_RESPONSE_MAY_BE_REQUIRED" as const,
-      title: "Paga dentro del plazo impreso o revisa el recurso",
+      title: "Paga dentro del plazo indicado o revisa el recurso",
       detail: nextStepDetail,
     }),
     deadline,
@@ -404,7 +404,7 @@ function explainOffset(
     : remainingTotal !== null && remainingTotal > 0
       ? `El documento muestra ${formatEuros(remainingTotal)} pendientes después de compensar. Debes revisar a qué deuda y plazo corresponde.`
       : remaining.length > 0
-        ? "Los importes impresos dejan 0,00 € pendiente, pero falta un efecto textual suficiente para afirmar la extinción completa."
+        ? "Los importes dejan 0,00 € pendiente, pero falta un efecto textual suficiente para afirmar la extinción completa."
         : base.result;
   const nextStep = allListedDebtsExtinguished
     ? Object.freeze({
@@ -521,7 +521,7 @@ function explainBase(
     }),
     deadline: Object.freeze({
       status: "NOT_IDENTIFIED" as const,
-      title: "Busca el plazo impreso y la fecha de notificación",
+      title: "Busca el plazo indicado y la fecha de notificación",
       detail:
         "El motor no convierte la fecha del documento o del escaneo en fecha de notificación. Si falta ese dato, no inventa un vencimiento.",
     }),
@@ -630,7 +630,7 @@ function genericProfile(description: string): BaseExplanationProfile {
   return profile(
     `Es ${description}.`,
     "El organismo emisor comunica un acto o una actuación que identifica en el documento.",
-    "El efecto exacto depende del título, los hechos, las fechas y las instrucciones impresas.",
+    "El efecto exacto depende del título, los hechos, las fechas y las instrucciones del documento.",
     "Revisa qué comunica y qué solicita",
     "Comprueba organismo, referencias, fecha de notificación, instrucciones y plazo antes de actuar.",
     [],

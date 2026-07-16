@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -43,9 +43,11 @@ type DocumentGroupOrderV1 = "FIRST_DOCUMENT" | "LATEST_DOCUMENT";
 export function FiscalNotificationDocumentLibrary({
   viewModel,
   ownerScope,
+  focusDocumentId,
 }: {
   viewModel: FiscalNotificationDocumentLibraryViewModelV1;
   ownerScope: string;
+  focusDocumentId?: string | null;
 }) {
   const { getCurrentData, deleteFiscalNotificationDocument } = useAppStore();
   const [query, setQuery] = useState("");
@@ -79,6 +81,25 @@ export function FiscalNotificationDocumentLibrary({
         );
       });
   }, [order, query, viewModel]);
+
+  useEffect(() => {
+    if (
+      !focusDocumentId ||
+      !viewModel.documents.some((document) => document.key === focusDocumentId)
+    ) {
+      return;
+    }
+    if (query !== "") {
+      setQuery("");
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      document
+        .getElementById(documentCardDomId(focusDocumentId))
+        ?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusDocumentId, query, viewModel.documents]);
   const deleteCandidate = deleteDocumentId
     ? viewModel.documents.find((item) => item.key === deleteDocumentId) ?? null
     : null;
@@ -268,6 +289,7 @@ export function FiscalNotificationDocumentLibrary({
       ) : (
         <DocumentGroupList
           groups={groups}
+          recentlySavedDocumentId={focusDocumentId}
           onDelete={requestDelete}
         />
       )}
@@ -364,7 +386,7 @@ export function FiscalNotificationDocumentDetail({
               <Fact label="Obligado al pago" value={document.subjectName} />
             ) : null}
             {document.subjectTaxId ? (
-              <Fact label="NIF impreso" value={document.subjectTaxId} />
+              <Fact label="NIF" value={document.subjectTaxId} />
             ) : null}
           </dl>
         ) : null}
@@ -383,7 +405,7 @@ export function FiscalNotificationDocumentDetail({
           <DocumentFactsInSourceOrder document={document} />
 
           {document.installments.length > 0 ? (
-          <section className="mt-5" aria-label="Cuotas y vencimientos impresos">
+          <section className="mt-5" aria-label="Cuotas y vencimientos">
             <h3 className="font-bold text-slate-950">Cuotas y vencimientos</h3>
             <ol className="mt-3 grid gap-3 lg:grid-cols-2">
               {document.installments.map((installment) => (
@@ -396,13 +418,13 @@ export function FiscalNotificationDocumentDetail({
                   </p>
                   <p className="mt-1 text-lg font-bold text-blue-950">
                     {installment.amountCents === null
-                      ? "Importe no impreso"
+                      ? "Importe no disponible"
                       : formatMoney(installment.amountCents, "EUR")}
                   </p>
                   <p className="mt-1 text-sm font-semibold text-blue-900">
                     {installment.dueDate
                       ? `Vence ${formatDocumentDate(installment.dueDate)}`
-                      : "Vencimiento no impreso"}
+                      : "Vencimiento no disponible"}
                   </p>
                   {installment.components.length > 1 ? (
                     <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-blue-100 pt-3">
@@ -419,7 +441,7 @@ export function FiscalNotificationDocumentDetail({
               ))}
             </ol>
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              Son datos impresos guardados para consulta. Ninguna cuota se marca
+              Son datos guardados para consulta. Ninguna cuota se marca
               como pagada y no se crea automáticamente un gasto o asiento.
             </p>
           </section>
@@ -509,7 +531,7 @@ function DocumentExplanationPanel({
               <dd className="mt-1 text-lg font-bold text-blue-950">{fact.value}</dd>
               {fact.basis === "CALCULATED_FROM_PRINTED_VALUES" ? (
                 <dd className="mt-1 text-xs text-blue-800">
-                  Calculado únicamente con cifras impresas en el documento
+                  Calculado únicamente con cifras del documento
                 </dd>
               ) : null}
             </div>
@@ -564,9 +586,11 @@ function DocumentExplanationPanel({
 
 function DocumentGroupList({
   groups,
+  recentlySavedDocumentId,
   onDelete,
 }: {
   groups: readonly FiscalNotificationDocumentLibraryGroupV1[];
+  recentlySavedDocumentId?: string | null;
   onDelete: (documentId: string) => void;
 }) {
   return (
@@ -577,28 +601,21 @@ function DocumentGroupList({
             <TimelineMonthDivider label={formatGroupMonthSequence(group)} />
             <li>
               <Card className="overflow-hidden p-4 sm:p-5">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="font-bold text-slate-950">
-                      {group.documents.length > 1
-                        ? `Expediente relacionado · ${group.documents.length} documentos`
-                        : "Documento independiente"}
-                    </h3>
-                    <p className="mt-1 text-xs text-slate-500">
-                      De izquierda a derecha: documento más antiguo → documento
-                      más reciente
-                    </p>
-                  </div>
-                  {group.documents.length > 1 ? (
+                {group.documents.length > 1 ? (
+                  <div className="mb-3 flex justify-end">
                     <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-800">
                       {group.links.length}{" "}
                       {group.links.length === 1
                         ? "vínculo exacto"
                         : "vínculos exactos"}
                     </span>
-                  ) : null}
-                </div>
-                <DocumentFlow group={group} onDelete={onDelete} />
+                  </div>
+                ) : null}
+                <DocumentFlow
+                  group={group}
+                  recentlySavedDocumentId={recentlySavedDocumentId}
+                  onDelete={onDelete}
+                />
               </Card>
             </li>
           </Fragment>
@@ -611,10 +628,12 @@ function DocumentGroupList({
 function DocumentFlow({
   group,
   selectedDocumentId,
+  recentlySavedDocumentId,
   onDelete,
 }: {
   group: FiscalNotificationDocumentLibraryGroupV1;
   selectedDocumentId?: string;
+  recentlySavedDocumentId?: string | null;
   onDelete?: (documentId: string) => void;
 }) {
   return (
@@ -634,6 +653,7 @@ function DocumentFlow({
                 <DocumentCard
                   document={document}
                   selected={document.key === selectedDocumentId}
+                  recentlySaved={document.key === recentlySavedDocumentId}
                   onDelete={onDelete}
                 />
               </li>
@@ -664,28 +684,42 @@ function DocumentFlow({
 function DocumentCard({
   document,
   selected,
+  recentlySaved,
   onDelete,
 }: {
   document: FiscalNotificationStructuredHistoryEntryV1;
   selected: boolean;
+  recentlySaved: boolean;
   onDelete?: (documentId: string) => void;
 }) {
   return (
-    <div className="relative h-[16rem] w-[18rem] min-w-[18rem]">
+    <div
+      id={documentCardDomId(document.key)}
+      className="relative h-[16rem] w-[18rem] min-w-[18rem] scroll-m-6"
+    >
       <Link
         href={documentDetailHref(document.key)}
         aria-current={selected ? "page" : undefined}
         className={`flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-white p-4 pr-12 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-          selected ? "border-blue-500 ring-2 ring-blue-200" : "border-slate-200"
+          recentlySaved
+            ? "border-emerald-500 ring-2 ring-emerald-200"
+            : selected
+              ? "border-blue-500 ring-2 ring-blue-200"
+              : "border-slate-200"
         }`}
       >
-        <div className="flex items-start gap-3">
+        <div className="flex flex-wrap items-start gap-2">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
             <FileText aria-hidden="true" className="h-5 w-5" />
           </span>
           <span className="rounded-full bg-blue-100 px-2.5 py-1 text-[10px] font-bold text-blue-900">
             {abbreviateAuthority(document.authority)}
           </span>
+          {recentlySaved ? (
+            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[10px] font-bold text-emerald-900">
+              Guardado ahora
+            </span>
+          ) : null}
         </div>
         <h4 className="mt-4 line-clamp-4 text-lg font-bold leading-6 text-slate-950">
           {document.title}
@@ -719,6 +753,10 @@ function DocumentCard({
       ) : null}
     </div>
   );
+}
+
+function documentCardDomId(documentId: string): string {
+  return `fiscal-notification-document-${encodeURIComponent(documentId)}`;
 }
 
 function DocumentFactsInSourceOrder({
@@ -839,7 +877,7 @@ function DocumentAmounts({
         Este documento no contiene importes estructurados guardados.
       </p>
     ) : (
-      <p className="text-xs text-slate-500">Sin importes impresos guardados</p>
+      <p className="text-xs text-slate-500">Sin importes guardados</p>
     );
   }
   const facts = expanded ? document.money : document.money.slice(0, 2);

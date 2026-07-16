@@ -65,7 +65,7 @@ describe("FiscalNotificationReviewSteps", () => {
     expect(html).toContain("Antes de actuar");
     expect(html).toContain("Comprueba el destinatario y el organismo");
     expect(html).toContain("Revisa la clasificación propuesta");
-    expect(html).toContain("Compara los importes impresos");
+    expect(html).toContain("Compara los importes");
     expect(html).toContain("Verifica fechas y vías de respuesta");
     expect(html).toContain("Consulta el contexto oficial del procedimiento");
     expect(html).toContain("Solicita revisión fiscal humana");

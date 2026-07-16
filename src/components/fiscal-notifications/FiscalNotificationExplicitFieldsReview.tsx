@@ -30,7 +30,7 @@ export function FiscalNotificationExplicitFieldsReview({
             id: "notification-explicit-fields-heading",
             className: "font-bold text-amber-950",
           },
-          "Referencias y fechas impresas",
+          "Referencias y fechas",
         ),
         h(
           "span",
@@ -70,7 +70,7 @@ export function FiscalNotificationExplicitFieldsReview({
             id: "notification-explicit-fields-heading",
             className: "font-bold text-blue-950",
           },
-          "Referencias y fechas impresas",
+          "Referencias y fechas",
         ),
         h(
           "p",
@@ -148,7 +148,7 @@ export function FiscalNotificationExplicitFieldsReview({
           h(
             "h4",
             { className: "font-bold text-blue-950" },
-            "Fechas impresas detectadas",
+            "Fechas detectadas",
           ),
           h(
             "dl",

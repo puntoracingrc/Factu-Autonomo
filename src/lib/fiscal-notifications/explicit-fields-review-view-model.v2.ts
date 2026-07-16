@@ -21,13 +21,13 @@ export type ExplicitFieldsReviewStateV2 =
   | "BLOCKED";
 
 export type ExplicitFieldsReviewStateLabelV2 =
-  | "Datos impresos detectados"
+  | "Datos detectados"
   | "Información pendiente"
   | "Lectura ambigua"
   | "Lectura bloqueada";
 
 export type ExplicitFieldsReviewSummaryV2 =
-  | "Se han leído referencias y/o fechas impresas. Contrasta los valores con el PDF original antes de confirmarlos."
+  | "Se han leído referencias y/o fechas. Contrasta los valores con el PDF original antes de confirmarlos."
   | "No se han encontrado campos bajo las etiquetas cubiertas. La ausencia no confirma que el documento no los contenga."
   | "Aparecen valores distintos para una misma categoría. No mostramos ningún valor hasta que una persona revise el documento."
   | "El formato no supera la validación estricta. No mostramos datos parciales ni corregimos valores automáticamente.";
@@ -37,12 +37,12 @@ export type ExplicitFieldsReviewCategoryLabelV2 =
   | "Referencia del documento"
   | "Justificante de pago"
   | "Código seguro de verificación (CSV)"
-  | "Vto. (identificador impreso)";
+  | "Vto. (identificador)";
 
 export type ExplicitFieldsReviewDateLabelV2 =
-  | "Fecha de emisión impresa"
-  | "Fecha de firma impresa"
-  | "Fin del período voluntario impreso";
+  | "Fecha de emisión"
+  | "Fecha de firma"
+  | "Fin del período voluntario";
 
 export type ExplicitFieldsReviewCalendarDateV2 =
   `${number}-${number}-${number}`;
@@ -51,7 +51,7 @@ export interface ExplicitFieldsReviewCategoryV2 {
   readonly kind: ReferenceKindV2;
   readonly label: ExplicitFieldsReviewCategoryLabelV2;
   readonly printedValue: string;
-  readonly meaningLabel: "Valor impreso · revisión obligatoria";
+  readonly meaningLabel: "Valor detectado · revisión obligatoria";
   readonly occurrenceCount: number;
   readonly pageNumbers: readonly number[];
 }
@@ -61,7 +61,7 @@ export interface ExplicitFieldsReviewDateV2 {
   readonly label: ExplicitFieldsReviewDateLabelV2;
   readonly printedValue: string;
   readonly dateTime: ExplicitFieldsReviewCalendarDateV2;
-  readonly meaningLabel: "Fecha impresa · sin efecto jurídico determinado";
+  readonly meaningLabel: "Fecha detectada · sin efecto jurídico determinado";
   readonly occurrenceCount: number;
   readonly pageNumbers: readonly number[];
 }
@@ -76,9 +76,9 @@ export interface ExplicitFieldsReviewViewModelV2 {
   readonly categories: readonly ExplicitFieldsReviewCategoryV2[];
   readonly dates: readonly ExplicitFieldsReviewDateV2[];
   readonly warnings: readonly [
-    "Los valores impresos deben contrastarse con el PDF original antes de confirmarlos.",
-    "Las fechas impresas no confirman la fecha de notificación ni calculan un vencimiento.",
-    "«Vto.» se trata como un identificador impreso, no como una fecha ni una cuota.",
+    "Los valores detectados deben contrastarse con el PDF original antes de confirmarlos.",
+    "Las fechas detectadas no confirman la fecha de notificación ni calculan un vencimiento.",
+    "«Vto.» se trata como un identificador, no como una fecha ni una cuota.",
   ];
   readonly ephemeralNotice: "Estos datos son visibles ahora, pero son efímeros: no se guardan, desaparecen al salir y no se incluyen en la ficha técnica ni en el historial local.";
   readonly referenceDisclosure: "EXACT_VALUE_VISIBLE_EPHEMERAL";
@@ -102,16 +102,16 @@ const REFERENCE_LABELS: Readonly<
   DOCUMENT_REFERENCE: "Referencia del documento",
   PAYMENT_JUSTIFICANTE: "Justificante de pago",
   CSV: "Código seguro de verificación (CSV)",
-  VTO_RAW: "Vto. (identificador impreso)",
+  VTO_RAW: "Vto. (identificador)",
 };
 
 const DATE_LABELS: Readonly<
   Record<PrintedDateKindV2, ExplicitFieldsReviewDateLabelV2>
 > = {
-  PRINTED_ISSUE_DATE: "Fecha de emisión impresa",
-  PRINTED_SIGNATURE_DATE: "Fecha de firma impresa",
+  PRINTED_ISSUE_DATE: "Fecha de emisión",
+  PRINTED_SIGNATURE_DATE: "Fecha de firma",
   PRINTED_VOLUNTARY_PERIOD_END_DATE:
-    "Fin del período voluntario impreso",
+    "Fin del período voluntario",
 };
 
 const COPY: Readonly<
@@ -124,9 +124,9 @@ const COPY: Readonly<
   >
 > = {
   FACTS: {
-    label: "Datos impresos detectados",
+    label: "Datos detectados",
     summary:
-      "Se han leído referencias y/o fechas impresas. Contrasta los valores con el PDF original antes de confirmarlos.",
+      "Se han leído referencias y/o fechas. Contrasta los valores con el PDF original antes de confirmarlos.",
   },
   PENDING: {
     label: "Información pendiente",
@@ -146,9 +146,9 @@ const COPY: Readonly<
 };
 
 const WARNINGS = Object.freeze([
-  "Los valores impresos deben contrastarse con el PDF original antes de confirmarlos.",
-  "Las fechas impresas no confirman la fecha de notificación ni calculan un vencimiento.",
-  "«Vto.» se trata como un identificador impreso, no como una fecha ni una cuota.",
+  "Los valores detectados deben contrastarse con el PDF original antes de confirmarlos.",
+  "Las fechas detectadas no confirman la fecha de notificación ni calculan un vencimiento.",
+  "«Vto.» se trata como un identificador, no como una fecha ni una cuota.",
 ] as const);
 
 export function projectExplicitFieldsReviewViewModelV2(
@@ -170,7 +170,7 @@ export function projectExplicitFieldsReviewViewModelV2(
               kind: item.kind,
               label: REFERENCE_LABELS[item.kind],
               printedValue: item.printedValue,
-              meaningLabel: "Valor impreso · revisión obligatoria" as const,
+              meaningLabel: "Valor detectado · revisión obligatoria" as const,
               occurrenceCount: item.occurrenceCount,
               pageNumbers: Object.freeze([...item.pageNumbers]),
             }),
@@ -186,7 +186,7 @@ export function projectExplicitFieldsReviewViewModelV2(
               dateTime:
                 item.calendarDate as ExplicitFieldsReviewCalendarDateV2,
               meaningLabel:
-                "Fecha impresa · sin efecto jurídico determinado" as const,
+                "Fecha detectada · sin efecto jurídico determinado" as const,
               occurrenceCount: item.occurrenceCount,
               pageNumbers: Object.freeze([...item.pageNumbers]),
             }),

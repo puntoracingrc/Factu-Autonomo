@@ -411,6 +411,40 @@ describe("payment order extractor v1", () => {
     );
   });
 
+  it("reads the issue date from the closed AEAT table layout", () => {
+    const output = extractPaymentOrderV1({
+      document: document(
+        [
+          "Agencia Tributaria",
+          "DOCUMENTO DE PAGO",
+          "Modelo 010",
+          "Concepto Fecha de emisión",
+          "IRPF DECLARACION ANUAL ORDINARIA",
+          "05-07-2017",
+          "Importe Total: 728,44 euros",
+        ].join("\n"),
+      ),
+      segments: [
+        segment(
+          "PAYMENT_DOCUMENT",
+          1,
+          1,
+          "b",
+          "AEAT",
+          "documento de pago",
+        ),
+      ],
+    });
+
+    expect(output.proceduralDates).toContainEqual(
+      expect.objectContaining({
+        dateType: "ISSUE_DATE",
+        rawText: "05-07-2017",
+        parsedDate: "2017-07-05",
+      }),
+    );
+  });
+
   it("blocks incompatible authorities and a guide quoting the title", () => {
     const regional = extractPaymentOrderV1({
       document: document(

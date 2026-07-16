@@ -914,7 +914,7 @@ function addPrintedDate(
   sourceLabel: string,
   warnings: string[],
 ): void {
-  const fact = uniqueLabelFact(
+  const fact = uniquePrintedDateFact(
     lines,
     labels,
     sourceLabel,
@@ -943,6 +943,48 @@ function addPrintedDate(
       requiresReview: true,
     }),
   );
+}
+
+function uniquePrintedDateFact(
+  lines: readonly PrivateLineV1[],
+  labels: readonly string[],
+  sourceLabel: string,
+  warnings: string[],
+  conflictWarning: string,
+): PaymentOrderTextFactV1 | null {
+  const observations = lines.flatMap((line, index) => {
+    const hasLabel = labels.some(
+      (label) =>
+        matchesLabel(line.folded, label) ||
+        containsTokenSequence(line.folded, label),
+    );
+    if (!hasLabel) return [];
+    const nearby = lines.slice(index, index + 40).filter(
+      (candidate) => candidate.pageNumber === line.pageNumber,
+    );
+    const match = nearby
+      .map((candidate) => ({
+        candidate,
+        value: candidate.raw.match(/\b\d{2}[-/]\d{2}[-/]\d{4}\b/u)?.[0],
+      }))
+      .find((candidate) => candidate.value !== undefined);
+    return match?.value
+      ? [{ value: match.value, pageNumber: match.candidate.pageNumber }]
+      : [];
+  });
+  const byValue = new Map<string, { value: string; pages: number[] }>();
+  observations.forEach((item) => {
+    const key = fold(item.value);
+    const current = byValue.get(key) ?? { value: item.value, pages: [] };
+    current.pages.push(item.pageNumber);
+    byValue.set(key, current);
+  });
+  if (byValue.size > 1) {
+    warnings.push(conflictWarning);
+    return null;
+  }
+  const only = [...byValue.values()][0];
+  return only ? textFact(only.value, only.pages, sourceLabel) : null;
 }
 
 function textFact(

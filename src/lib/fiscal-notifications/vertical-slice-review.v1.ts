@@ -278,11 +278,11 @@ const SEIZURE_MONEY_LABEL: Readonly<Record<SeizureMoneyRoleV1, string>> =
     EXECUTIVE_SURCHARGE: "Recargo ejecutivo",
     LATE_INTEREST: "Intereses de demora",
     COSTS: "Costas del procedimiento",
-    TOTAL_PENDING: "Total pendiente impreso",
+    TOTAL_PENDING: "Total pendiente",
     SEIZED_AMOUNT: "Importe embargado",
     SEIZURE_LIMIT: "Límite del embargo",
     RETAINED_AMOUNT: "Importe retenido",
-    AVAILABLE_BALANCE: "Saldo disponible impreso",
+    AVAILABLE_BALANCE: "Saldo disponible",
     THIRD_PARTY_TRANSFERRED: "Importe ingresado por el tercero",
     RELEASED_AMOUNT: "Importe liberado",
   });
@@ -299,11 +299,11 @@ const SEIZURE_SPECIFIC_LABEL: Readonly<
   CREDIT_PAYMENT_PERIODICITY: "Periodicidad del crédito",
   PROHIBITION_TO_PAY_DEBTOR: "Prohibición de pago al deudor",
   REMUNERATION_TYPE: "Tipo de retribución",
-  PRINTED_WITHHOLDING_LIMIT: "Límite de retención impreso",
+  PRINTED_WITHHOLDING_LIMIT: "Límite de retención",
   PAYMENT_SERVICE_PROVIDER: "Proveedor de servicios de pago",
   TERMINAL_OR_MERCHANT: "Terminal o comercio",
   COLLECTION_FLOW: "Flujo de cobros",
-  PRINTED_PERCENTAGE: "Porcentaje impreso",
+  PRINTED_PERCENTAGE: "Porcentaje",
   PROPERTY_HOLDER: "Titular del inmueble",
   PROPERTY_ADDRESS: "Dirección del inmueble",
   CADASTRAL_REFERENCE: "Referencia catastral",
@@ -311,7 +311,7 @@ const SEIZURE_SPECIFIC_LABEL: Readonly<
   PROPERTY_NUMBER: "Finca registral",
   SEIZED_RIGHT: "Bien o derecho embargado",
   OWNERSHIP_SHARE: "Cuota de titularidad",
-  VALUATION: "Valoración impresa",
+  VALUATION: "Valoración",
   CHARGES: "Cargas registrales",
   RELEASED_ASSET_OR_RIGHT: "Bien o derecho liberado",
   EXPLICIT_RELEASE_REASON: "Motivo del levantamiento",
@@ -571,7 +571,7 @@ function projectNotificationEnvelope(
   addTextFact(
     fields,
     "PRINTED_NOTIFICATION_STATE",
-    "Estado impreso",
+    "Estado",
     output.notificationEnvelopeFacts.printedState,
   );
   addTextFact(
@@ -697,7 +697,7 @@ function projectDeferralDenial(
     "deferral",
     output,
     fields,
-    "La AEAT ha denegado la solicitud; revisa motivo, pago y recurso impresos",
+    "La AEAT ha denegado la solicitud; revisa motivo, pago y recurso",
   );
 }
 
@@ -707,11 +707,7 @@ function projectPaymentOrder(
   >,
 ) {
   const fields = commonFields(output);
-  addStatus(
-    fields,
-    "Orden de pago · pago no confirmado",
-    pagesForOutput(output),
-  );
+  addStatus(fields, "Orden de pago", pagesForOutput(output));
   addTextFact(
     fields,
     "PAYMENT_MEDIUM",
@@ -854,7 +850,7 @@ function projectSeizure(
   addTextFact(
     fields,
     "SEIZURE_INSTRUCTIONS",
-    "Instrucciones impresas",
+    "Instrucciones",
     output.seizureFacts.instructions,
   );
   addTextFact(

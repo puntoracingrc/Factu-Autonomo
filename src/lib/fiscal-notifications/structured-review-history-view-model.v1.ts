@@ -107,32 +107,32 @@ export type FiscalNotificationStructuredHistoryViewModelV1 =
     };
 
 const MONEY_LABELS: Readonly<Record<AdministrativeMoneyKind, string>> = {
-  ORIGINAL_TAX_PRINCIPAL: "Principal tributario impreso",
-  OUTSTANDING_PRINCIPAL: "Principal pendiente impreso",
-  PROPOSED_QUOTA: "Cuota propuesta impresa",
-  FINAL_QUOTA: "Cuota definitiva impresa",
-  DEFERRAL_INTEREST: "Interés de aplazamiento impreso",
-  LATE_PAYMENT_INTEREST: "Interés de demora impreso",
-  EXECUTIVE_SURCHARGE_5: "Recargo ejecutivo del 5 % impreso",
-  EXECUTIVE_SURCHARGE_10: "Recargo reducido del 10 % impreso",
-  EXECUTIVE_SURCHARGE_20: "Recargo ordinario del 20 % impreso",
-  SANCTION_INITIAL: "Sanción inicial impresa",
-  SANCTION_REDUCTION: "Reducción de sanción impresa",
-  SANCTION_REDUCED: "Sanción reducida impresa",
-  COSTS: "Costas impresas",
-  REFUND_CREDIT: "Crédito a devolver impreso",
-  CREDIT_TOTAL: "Total del crédito impreso",
-  OFFSET_APPLIED: "Compensación aplicada impresa",
-  EXECUTIVE_SURCHARGE_PRINTED: "Recargo ejecutivo impreso",
-  TOTAL_BEFORE_OFFSET: "Total antes de compensar impreso",
-  REMAINING_AFTER_OFFSET: "Pendiente tras compensar impreso",
-  NET_REFUND_PAYMENT: "Devolución neta impresa",
-  SEIZED_AMOUNT: "Importe embargado impreso",
-  RETAINED_AMOUNT: "Importe retenido impreso",
-  REMITTED_AMOUNT: "Importe remitido impreso",
-  PAYMENT_ON_ACCOUNT: "Ingreso a cuenta impreso",
-  DOCUMENT_TOTAL: "Importe total impreso",
-  PAYMENT_CONFIRMED: "Pago confirmado impreso",
+  ORIGINAL_TAX_PRINCIPAL: "Principal tributario",
+  OUTSTANDING_PRINCIPAL: "Principal pendiente",
+  PROPOSED_QUOTA: "Cuota propuesta",
+  FINAL_QUOTA: "Cuota definitiva",
+  DEFERRAL_INTEREST: "Interés de aplazamiento",
+  LATE_PAYMENT_INTEREST: "Interés de demora",
+  EXECUTIVE_SURCHARGE_5: "Recargo ejecutivo del 5 %",
+  EXECUTIVE_SURCHARGE_10: "Recargo reducido del 10 %",
+  EXECUTIVE_SURCHARGE_20: "Recargo ordinario del 20 %",
+  SANCTION_INITIAL: "Sanción inicial",
+  SANCTION_REDUCTION: "Reducción de sanción",
+  SANCTION_REDUCED: "Sanción reducida",
+  COSTS: "Costas",
+  REFUND_CREDIT: "Crédito a devolver",
+  CREDIT_TOTAL: "Total del crédito",
+  OFFSET_APPLIED: "Compensación aplicada",
+  EXECUTIVE_SURCHARGE_PRINTED: "Recargo ejecutivo",
+  TOTAL_BEFORE_OFFSET: "Total antes de compensar",
+  REMAINING_AFTER_OFFSET: "Pendiente tras compensar",
+  NET_REFUND_PAYMENT: "Devolución neta",
+  SEIZED_AMOUNT: "Importe embargado",
+  RETAINED_AMOUNT: "Importe retenido",
+  REMITTED_AMOUNT: "Importe remitido",
+  PAYMENT_ON_ACCOUNT: "Ingreso a cuenta",
+  DOCUMENT_TOTAL: "Importe total",
+  PAYMENT_CONFIRMED: "Pago confirmado",
 };
 
 const REFERENCE_LABELS: Readonly<Record<string, string>> = {
@@ -154,34 +154,34 @@ const REFERENCE_LABELS: Readonly<Record<string, string>> = {
 };
 
 const DATE_LABELS: Readonly<Record<string, string>> = {
-  PRINTED_ISSUE_DATE: "Fecha de emisión impresa",
-  PRINTED_SIGNATURE_DATE: "Fecha de firma impresa",
-  PRINTED_VOLUNTARY_PERIOD_END_DATE: "Fin del período voluntario impreso",
-  PRINTED_PAYMENT_ACCOUNT: "Cuenta de pago impresa",
-  PRINTED_DEBT_CONCEPT: "Concepto impreso",
-  PRINTED_INTEREST_START_DATE: "Fecha de intereses impresa",
-  PRINTED_LISTED_DEBT_AMOUNT: "Importe de deuda impreso",
-  PRINTED_OFFSET_REQUEST_DATE: "Fecha de solicitud impresa",
+  PRINTED_ISSUE_DATE: "Fecha de emisión",
+  PRINTED_SIGNATURE_DATE: "Fecha de firma",
+  PRINTED_VOLUNTARY_PERIOD_END_DATE: "Fin del período voluntario",
+  PRINTED_PAYMENT_ACCOUNT: "Cuenta de pago",
+  PRINTED_DEBT_CONCEPT: "Concepto",
+  PRINTED_INTEREST_START_DATE: "Fecha de intereses",
+  PRINTED_LISTED_DEBT_AMOUNT: "Importe de deuda",
+  PRINTED_OFFSET_REQUEST_DATE: "Fecha de solicitud",
   PRINTED_OFFSET_CREDIT_DESCRIPTION: "Descripción del crédito",
   PRINTED_OFFSET_CREDIT_RECOGNITION_DATE: "Fecha de reconocimiento del crédito",
   PRINTED_OFFSET_DEBT_DESCRIPTION: "Descripción de la deuda",
-  PRINTED_OFFSET_EFFECT_DATE: "Fecha de efectos impresa",
-  PRINTED_OFFSET_EFFECT_CODE: "Código de efecto impreso",
+  PRINTED_OFFSET_EFFECT_DATE: "Fecha de efectos",
+  PRINTED_OFFSET_EFFECT_CODE: "Código de efecto",
   OFFSET_EFFECT_MEANING: "Efecto indicado en el documento",
 };
 
 const COMPONENT_LABELS: Readonly<Record<string, string>> = {
-  PRINCIPAL: "Principal impreso",
-  INTEREST: "Intereses impresos",
-  EXECUTIVE_SURCHARGE_5: "Recargo ejecutivo impreso",
-  REDUCED_SURCHARGE_10: "Recargo reducido impreso",
-  ORDINARY_SURCHARGE_20: "Recargo ordinario impreso",
-  PENALTY: "Sanción impresa",
-  COSTS: "Costas impresas",
-  PAYMENT_ON_ACCOUNT: "Ingreso a cuenta impreso",
-  TOTAL_DEBT: "Deuda total impresa",
-  AMOUNT_TO_PAY: "Importe de cuota impreso",
-  OTHER: "Recargo impreso",
+  PRINCIPAL: "Principal",
+  INTEREST: "Intereses",
+  EXECUTIVE_SURCHARGE_5: "Recargo ejecutivo",
+  REDUCED_SURCHARGE_10: "Recargo reducido",
+  ORDINARY_SURCHARGE_20: "Recargo ordinario",
+  PENALTY: "Sanción",
+  COSTS: "Costas",
+  PAYMENT_ON_ACCOUNT: "Ingreso a cuenta",
+  TOTAL_DEBT: "Deuda total",
+  AMOUNT_TO_PAY: "Importe de cuota",
+  OTHER: "Recargo",
 };
 
 export function projectFiscalNotificationStructuredHistoryV1(
@@ -282,7 +282,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
                 .find((metadata) => metadata?.semantic === "REFERENCE")
                 ?.label ??
               REFERENCE_LABELS[item.referenceType] ??
-              "Referencia impresa",
+              "Referencia",
             value: item.rawValue,
           }),
         ));
@@ -300,7 +300,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
               label:
                 metadata?.label ??
                 DATE_LABELS[field.labelRaw] ??
-                "Dato impreso",
+                "Dato",
               value: field.valueRaw,
             }),
           ];
@@ -320,7 +320,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
               item.components.map((component) =>
                 Object.freeze({
                   label:
-                    COMPONENT_LABELS[component.type] ?? "Componente impreso",
+                    COMPONENT_LABELS[component.type] ?? "Componente",
                   amountCents: component.amountCents,
                 }),
               ),
@@ -543,7 +543,7 @@ function projectOrderedFacts(input: {
           .map((id) => verticalMetadataByEvidence.get(id))
           .find((metadata) => metadata?.semantic === "REFERENCE")?.label ??
         REFERENCE_LABELS[reference.referenceType] ??
-        "Referencia impresa",
+        "Referencia",
       value: reference.rawValue,
       pageNumber: source.pageNumber,
       sourceReference: null,
@@ -591,7 +591,7 @@ function projectOrderedFacts(input: {
     candidates.push({
       key: fact.evidenceId ?? `printed:${fact.page}:${index}`,
       semantic: orderedSemantic(metadata?.semantic, fact.labelRaw),
-      label: metadata?.label ?? DATE_LABELS[fact.labelRaw] ?? "Dato impreso",
+      label: metadata?.label ?? DATE_LABELS[fact.labelRaw] ?? "Dato",
       value: fact.valueRaw,
       pageNumber: fact.page,
       sourceReference: null,

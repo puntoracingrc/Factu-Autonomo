@@ -61,21 +61,21 @@ describe("FiscalNotificationExplicitFieldsReview", () => {
       'aria-labelledby="notification-explicit-fields-heading"',
     );
     expect(html).toContain('id="notification-explicit-fields-heading"');
-    expect(html).toContain("Referencias y fechas impresas");
+    expect(html).toContain("Referencias y fechas");
     expect(html).toContain("Clave de liquidación");
     expect(html).toContain("Referencia del documento");
     expect(html).toContain("Justificante de pago");
     expect(html).toContain("Código seguro de verificación (CSV)");
-    expect(html).toContain("Vto. (identificador impreso)");
+    expect(html).toContain("Vto. (identificador)");
     expect(html).toContain(PRIVATE_REFERENCE);
     expect(html).toContain("DOC-SYNTH-002");
     expect(html).toContain("JUST-SYNTH-003");
     expect(html).toContain("CSV-SYNTH-004");
     expect(html).toContain("VTO-SYNTH-005");
-    expect(html).toContain("Valor impreso · revisión obligatoria");
-    expect(html).toContain("Fecha de emisión impresa");
-    expect(html).toContain("Fecha de firma impresa");
-    expect(html).toContain("Fin del período voluntario impreso");
+    expect(html).toContain("Valor detectado · revisión obligatoria");
+    expect(html).toContain("Fecha de emisión");
+    expect(html).toContain("Fecha de firma");
+    expect(html).toContain("Fin del período voluntario");
     expect(html).toContain('<time dateTime="2026-07-05">05/07/2026</time>');
     expect(html).toContain('<time dateTime="2026-07-06">06-07-2026</time>');
     expect(html).toContain('<time dateTime="2026-07-07">07/07/2026</time>');
@@ -91,9 +91,9 @@ describe("FiscalNotificationExplicitFieldsReview", () => {
     const onlyDate = render(["Fecha de firma: 06/07/2026"]);
 
     expect(onlyReference).toContain("Referencias detectadas");
-    expect(onlyReference).not.toContain("Fechas impresas detectadas");
+    expect(onlyReference).not.toContain("Fechas detectadas");
     expect(onlyDate).not.toContain("Referencias detectadas");
-    expect(onlyDate).toContain("Fechas impresas detectadas");
+    expect(onlyDate).toContain("Fechas detectadas");
     expect(`${onlyReference}${onlyDate}`).not.toMatch(/>0(?:,00)?</);
   });
 
@@ -117,7 +117,7 @@ describe("FiscalNotificationExplicitFieldsReview", () => {
       expect(html).toContain(summary);
       expect(html).not.toContain("<dl");
       expect(html).not.toContain("<time");
-      expect(html).not.toContain("Valor impreso · revisión obligatoria");
+      expect(html).not.toContain("Valor detectado · revisión obligatoria");
     },
   );
 

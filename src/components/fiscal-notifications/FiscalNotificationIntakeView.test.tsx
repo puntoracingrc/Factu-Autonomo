@@ -41,6 +41,9 @@ const reviewStepsSource = readSource("./FiscalNotificationReviewSteps.tsx");
 const verticalSlicePanelSource = readSource(
   "./FiscalNotificationVerticalSliceReview.tsx",
 );
+const verticalSliceProjectionSource = readSource(
+  "../../lib/fiscal-notifications/vertical-slice-review.v1.ts",
+);
 const explicitFieldsPanelSource = readSource(
   "./FiscalNotificationExplicitFieldsReview.tsx",
 );
@@ -111,6 +114,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(documentLibraryComponentSource).not.toContain("Solo ficha");
     expect(documentLibraryComponentSource).not.toContain(
       "Fecha del documento pendiente",
+    );
+    expect(documentLibraryComponentSource).not.toContain(
+      "Documento independiente",
+    );
+    expect(documentLibraryComponentSource).not.toContain(
+      "De izquierda a derecha: documento más antiguo",
     );
   });
 
@@ -305,25 +314,56 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "saveFiscalNotificationStructuredReview({",
     );
+    expect(componentSource).toContain("getCurrentData,");
     expect(componentSource).toContain("key={ownerScope}");
     expect(componentSource).not.toContain(
       "createBrowserFiscalNotificationLocalReviewStore",
     );
   });
 
-  it("guarda solo por acción explícita una ficha estructurada", () => {
-    expect(componentSource).toContain("Guardar datos en mi cuenta");
+  it("elige destino y guarda solo por acción explícita", () => {
+    expect(componentSource).toContain("¿Dónde quieres guardar este documento?");
+    expect(componentSource).toContain('onSelect("ACCOUNT")');
+    expect(componentSource).toContain('onSelect("DRIVE")');
+    expect(componentSource).toContain('onSelect("BOTH")');
+    expect(componentSource).toContain("Mi cuenta");
+    expect(componentSource).toContain("Google Drive");
+    expect(componentSource).toContain("Ambas");
+    expect(compact(componentSource)).toContain(
+      "no tendrás que seleccionarlo ni escanearlo otra vez",
+    );
     expect(componentSource).toContain("onClick={() => void onSave()}");
     expect(componentSource).toContain(
       "saveFiscalNotificationStructuredReview({",
     );
-    expect(componentSource).toContain("expected: data");
+    expect(componentSource).toContain("const currentData = getCurrentData()");
+    expect(componentSource).toContain("expected: currentData");
     expect(componentSource).toContain("ownerScope,");
     expect(componentSource).toMatch(/reviewId:\s*[A-Za-z0-9_]+\.reviewId/);
     expect(componentSource).toMatch(/createdAt:\s*[A-Za-z0-9_]+\.createdAt/);
     expect(componentSource).toMatch(/analysis:\s*[A-Za-z0-9_]+\.analysis/);
     expect(componentSource).toMatch(/`review:\$\{/);
     expect(componentSource).toContain("new Date().toISOString()");
+    expect(componentSource).toContain("setRecentlySavedDocumentId(savedDocumentId)");
+    expect(componentSource).toContain(
+      "focusDocumentId={recentlySavedDocumentId}",
+    );
+    expect(documentLibraryComponentSource).toContain('setQuery("")');
+    expect(documentLibraryComponentSource).toContain("scrollIntoView({");
+    expect(documentLibraryComponentSource).toContain("Guardado ahora");
+    expect(documentLibraryComponentSource).toContain(
+      "border-emerald-500 ring-2 ring-emerald-200",
+    );
+    expect(componentSource).toContain(
+      "advanceAfterSuccessfulSave(activeId, savedDocumentId)",
+    );
+    expect(componentSource).toContain(
+      "reviewsRef.current.delete(savedItemId)",
+    );
+    expect(componentSource).toContain("replaceQueue(remainingQueue)");
+    expect(componentSource).toContain("showReview(nextReview.id)");
+    expect(componentSource).toContain("setScannerOpen(false)");
+    expect(componentSource).toContain("Escanear más documentos");
 
     expect(componentSource).toContain(
       "await analyzeFiscalNotificationLocallyWithEphemeralFacts",
@@ -407,25 +447,23 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
   });
 
-  it("solo presenta applied como guardado y separa los bloqueos", () => {
+  it("solo avanza tras applied y mantiene separados los bloqueos", () => {
     const saveStart = componentSource.indexOf(
       "saveFiscalNotificationStructuredReview({",
     );
     const writeFlow = componentSource.slice(saveStart, saveStart + 4_000);
     expect(saveStart).toBeGreaterThan(-1);
-    expect(writeFlow).toMatch(
-      /\.status === "applied"[\s\S]{0,300}set[A-Za-z0-9_]+\("saved"\)/,
+    expect(writeFlow).toContain('accountWrite.status !== "applied"');
+    expect(writeFlow).toContain('destination === "ACCOUNT"');
+    expect(writeFlow).toContain(
+      "advanceAfterSuccessfulSave(activeId, savedDocumentId)",
     );
-    expect(writeFlow).toContain('write.status === "indeterminate"');
-    expect(writeFlow).toContain('write.reason === "no_structured_facts"');
-    expect(writeFlow).toContain('write.reason === "invalid_structured_review"');
-    expect(componentSource.match(/set[A-Za-z0-9_]+\("saved"\)/g)).toHaveLength(
-      1,
-    );
-    expect(componentSource).toContain('const successful = state === "saved"');
+    expect(componentSource).toContain('write.status === "indeterminate"');
+    expect(componentSource).toContain('write.reason === "no_structured_facts"');
     expect(componentSource).toContain(
-      "Ficha guardada en los datos de tu cuenta.",
+      'write.reason === "invalid_structured_review"',
     );
+    expect(componentSource).not.toContain('setPersistenceState("saved")');
     expect(componentSource).toContain("No se ha guardado una tarjeta vacía");
     expect(componentSource).toContain(
       "No se puede confirmar el estado de la escritura",
@@ -592,12 +630,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "Factu no guarda el PDF, su nombre ni el texto; únicamente conserva los campos estructurados que aceptes.",
       "Una huella SHA-256 local impide duplicarlo.",
       "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias, fechas y sujeto identificado.",
-      "Guarda únicamente campos estructurados visibles y su procedencia: nunca conserva el PDF, su nombre ni el texto completo.",
+      "Puedes conservar la ficha estructurada en Factu, el PDF original en tu Google Drive o ambos.",
       "No se ha enviado a ningún proveedor y debes revisarlo manualmente.",
       "Reconoce la familia documental de providencia de apremio, concesión de aplazamiento o fraccionamiento, diligencia de embargo de bienes inmuebles, requerimiento formal de presentación y acuerdo de alta en el ROI. No confirma por sí sola el organismo emisor ni la autenticidad.",
       "Un acuerdo de alta en el ROI describe el documento analizado: no demuestra que el alta siga vigente ni valida el estado en VIES.",
-      "El nombre, el NIF, los importes, los valores exactos de referencia y las fechas impresas pueden guardarse en una ficha estructurada mediante una acción explícita.",
-      "Una fecha impresa se presenta como tal: no se convierte por sí sola en fecha de notificación o vencimiento ni activa una acción.",
+      "El nombre, el NIF, los importes, los valores exactos de referencia y las fechas del documento pueden guardarse en una ficha estructurada mediante una acción explícita.",
+      "Una fecha del documento se presenta como tal: no se convierte por sí sola en fecha de notificación o vencimiento ni activa una acción.",
       "No consulta automáticamente sedes oficiales, no ejecuta OCR remoto y no utiliza IA.",
       "Lectura OCR local",
       "Esta herramienta no sustituye la revisión de un asesor ni confirma la validez jurídica del documento.",
@@ -637,18 +675,18 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
 
   it("muestra solo importes explícitos efímeros sin inventar moneda, cero o total", () => {
     for (const expected of [
-      "Principal pendiente impreso",
-      "Recargo ordinario impreso",
-      "Ingreso a cuenta impreso",
-      "Importe total impreso",
-      "Importes impresos detectados",
+      "Principal pendiente",
+      "Recargo ordinario",
+      "Ingreso a cuenta",
+      "Importe total",
+      "Importes detectados",
       "según el documento",
       "revisión obligatoria",
       "moneda no confirmada",
       "Una ausencia nunca se convierte en cero.",
       "No se han sumado, recalculado ni elegido como importe a pagar.",
       "Permanecen solo en memoria hasta que pulses",
-      "Guardar datos en mi cuenta",
+      "Guardar",
       "No se encontró una etiqueta cubierta; no se ha convertido en cero.",
       "Una etiqueta cubierta aparece sin cifra; se mantiene pendiente.",
     ]) {
@@ -681,12 +719,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "Concesión de aplazamiento o fraccionamiento",
       "Cuotas, importes y vencimientos leídos literalmente de los anexos de la concesión.",
       "Importe concedido",
-      "Cuenta de pago impresa",
-      "Importe de deuda impreso",
-      "Fecha de intereses impresa",
-      "Vencimiento impreso",
+      "Cuenta de pago",
+      "Importe de deuda",
+      "Fecha de intereses",
+      "Vencimiento",
       "Cuotas y vencimientos",
-      "Son datos impresos guardados para consulta.",
+      "Son datos guardados para consulta.",
     ]) {
       expect(copy).toContain(expected);
     }
@@ -712,7 +750,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "Acuerdo de compensación solicitado",
       "Crédito, deudas, importes compensados, saldos y efectos leídos de los anexos del acuerdo.",
       "Número de acuerdo",
-      "Fecha de solicitud impresa",
+      "Fecha de solicitud",
       "Total del crédito",
       "Aplicado a compensar",
       "Principal pendiente",
@@ -830,7 +868,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(documentLibraryComponentSource).toContain(
       'label="Obligado al pago"',
     );
-    expect(documentLibraryComponentSource).toContain('label="NIF impreso"');
+    expect(documentLibraryComponentSource).toContain('label="NIF"');
     expect(partyFactsViewModelSource).toContain("Obligado al pago");
     expect(partyFactsPanelSource).not.toMatch(/posible|podr[ií]a ser/iu);
     expect(partyFactsPanelSource).not.toMatch(
@@ -1017,6 +1055,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(verticalSlicePanelSource).toContain("field.displayValue");
     expect(verticalSlicePanelSource).toContain("field.sourcePageNumbers");
     expect(verticalSlicePanelSource).not.toMatch(/posible familia/iu);
+    expect(verticalSliceProjectionSource).toContain(
+      'addStatus(fields, "Orden de pago", pagesForOutput(output))',
+    );
+    expect(verticalSliceProjectionSource).not.toContain(
+      "pago no confirmado",
+    );
   });
 
   it("solo añade el guardado estructurado seguro y no ofrece acciones fiscales", () => {
@@ -1030,7 +1074,10 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
 
     expect(controls).toContain("Analizar ${pendingCount} documento");
     expect(controls).toContain("Cancelar");
-    expect(controls).toContain("Guardar datos en mi cuenta");
+    expect(controls).toContain("Guardar");
+    expect(controls).toContain("Mi cuenta");
+    expect(controls).toContain("Google Drive");
+    expect(controls).toContain("Ambas");
     expect(controls).not.toMatch(
       /(?:Confirmar|Aceptar propuesta|Crear (?:expediente|deuda|plazo|pago|gasto|asiento)|Pagar|Contabilizar|Aplicar propuesta|Borrar ficha|Eliminar ficha)/i,
     );
