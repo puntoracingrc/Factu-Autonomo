@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Eye, FileWarning, Pencil, Search } from "lucide-react";
+import { Download, Eye, FileWarning, Pencil, Search, Send } from "lucide-react";
 import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
@@ -52,10 +52,13 @@ import {
 import { openDocumentPdfPreview } from "@/lib/pdf";
 import {
   downloadInvoicePdfPeriodArchive,
+  invoicePdfExportPackagePeriodLabel,
   invoicePdfExportPeriodFromQuarter,
   InvoicePdfPeriodExportError,
   type InvoicePdfExportPeriod,
 } from "@/lib/billing/export-invoice-pdf-archive";
+import { buildInvoicePeriodAdvisorEmail } from "@/lib/billing/invoice-period-advisor-email";
+import { validateAdvisorContact } from "@/lib/advisor-contact";
 import { summarizeWorkDocumentExpensesById } from "@/lib/expenses";
 import { isCollectedDocument, isPendingInvoicePayment } from "@/lib/income";
 import {
@@ -176,7 +179,9 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     kind: "all",
   }));
   const [statusFilter, setStatusFilter] = useState<DocumentStatusFilter>("all");
-  const [invoicePdfExportBusy, setInvoicePdfExportBusy] = useState(false);
+  const [invoicePdfExportBusy, setInvoicePdfExportBusy] = useState<
+    "download" | "advisor" | null
+  >(null);
   const [invoicePdfExportFeedback, setInvoicePdfExportFeedback] = useState<{
     kind: "success" | "error";
     message: string;
@@ -281,7 +286,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     setInvoicePdfExportFeedback(null);
   }
 
-  async function handleExportInvoicePdfs() {
+  async function handleExportInvoicePdfs(sendToAdvisor = false) {
     if (!invoicePdfExportPeriod) {
       setInvoicePdfExportFeedback({
         kind: "error",
@@ -291,17 +296,44 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
       return;
     }
 
+    if (
+      sendToAdvisor &&
+      !validateAdvisorContact(data.profile.advisorContact).value
+    ) {
+      setInvoicePdfExportFeedback({
+        kind: "error",
+        message:
+          "Completa primero el nombre, email y teléfono de tu gestor en Ajustes.",
+      });
+      return;
+    }
+
     setInvoicePdfExportFeedback(null);
-    setInvoicePdfExportBusy(true);
+    setInvoicePdfExportBusy(sendToAdvisor ? "advisor" : "download");
     try {
       const result = await downloadInvoicePdfPeriodArchive(
         data.documents,
         data.profile,
         invoicePdfExportPeriod,
       );
+      if (sendToAdvisor) {
+        const email = buildInvoicePeriodAdvisorEmail(
+          data.profile,
+          invoicePdfExportPackagePeriodLabel(invoicePdfExportPeriod),
+          result.fileName,
+          result.summaryFileName,
+          result.invoiceCount,
+        );
+        if (!email) {
+          throw new Error("advisor_contact_unavailable");
+        }
+        window.location.href = email.mailtoUrl;
+      }
       setInvoicePdfExportFeedback({
         kind: "success",
-        message: `Descargado ${result.folderName}: ${result.invoiceCount} factura${result.invoiceCount === 1 ? "" : "s"} en PDF.`,
+        message: sendToAdvisor
+          ? `Descargado ${result.fileName} y preparado el correo para tu gestor. Adjunta el ZIP antes de enviarlo.`
+          : `Descargado ${result.folderName}: ${result.invoiceCount} factura${result.invoiceCount === 1 ? "" : "s"} en PDF y su resumen.`,
       });
     } catch (error) {
       const message =
@@ -312,7 +344,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
           : "No se pudo preparar el paquete de facturas. No se ha descargado un archivo incompleto.";
       setInvoicePdfExportFeedback({ kind: "error", message });
     } finally {
-      setInvoicePdfExportBusy(false);
+      setInvoicePdfExportBusy(null);
     }
   }
 
@@ -484,12 +516,14 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
 
           {type === "factura" && limits.quarterlyExport ? (
             <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+              <div className="flex flex-col gap-2 sm:flex-row">
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => void handleExportInvoicePdfs()}
-                  disabled={invoicePdfExportBusy || !invoicePdfExportPeriod}
+                  onClick={() => void handleExportInvoicePdfs(false)}
+                  disabled={
+                    Boolean(invoicePdfExportBusy) || !invoicePdfExportPeriod
+                  }
                   title={
                     invoicePdfExportPeriod
                       ? "Descargar las facturas del periodo en una carpeta ZIP"
@@ -498,9 +532,27 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                   className="min-h-10 px-4 text-sm"
                 >
                   <Download className="h-4 w-4" />
-                  {invoicePdfExportBusy
+                  {invoicePdfExportBusy === "download"
                     ? "Preparando…"
                     : "Exportar facturas PDF"}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={() => void handleExportInvoicePdfs(true)}
+                  disabled={
+                    Boolean(invoicePdfExportBusy) || !invoicePdfExportPeriod
+                  }
+                  title={
+                    invoicePdfExportPeriod
+                      ? "Descargar el ZIP y abrir un correo dirigido a tu gestor"
+                      : "Selecciona Trimestre o Meses (máximo tres meses)"
+                  }
+                  className="min-h-10 px-4 text-sm"
+                >
+                  <Send className="h-4 w-4" />
+                  {invoicePdfExportBusy === "advisor"
+                    ? "Preparando correo…"
+                    : "Exportar y enviar al gestor"}
                 </Button>
               </div>
               <p className="text-xs text-slate-500 sm:max-w-md sm:text-right">
@@ -523,6 +575,15 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
               }`}
             >
               {invoicePdfExportFeedback.message}
+              {invoicePdfExportFeedback.kind === "error" &&
+              !validateAdvisorContact(data.profile.advisorContact).value ? (
+                <Link
+                  href="/configuracion#ajustes-gestor"
+                  className="ml-2 underline underline-offset-2"
+                >
+                  Completar datos del gestor
+                </Link>
+              ) : null}
             </p>
           ) : null}
         </Card>
