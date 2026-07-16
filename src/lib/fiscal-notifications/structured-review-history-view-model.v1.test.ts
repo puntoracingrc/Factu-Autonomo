@@ -281,7 +281,7 @@ describe("structured fiscal notification history view model v1", () => {
           },
         ],
         printedDates: [
-          { label: "Fecha de emisión impresa", value: "05/02/2026" },
+          { label: "Fecha de emisión", value: "05/02/2026" },
         ],
         orderedFacts: [
           {
@@ -303,7 +303,7 @@ describe("structured fiscal notification history view model v1", () => {
           {
             key: "money:principal",
             semantic: "MONEY",
-            label: "Principal pendiente impreso",
+            label: "Principal pendiente",
             value: "1.234,56 €",
             pageNumber: 2,
             sourceReference: null,
@@ -311,7 +311,7 @@ describe("structured fiscal notification history view model v1", () => {
           {
             key: "evidence:date",
             semantic: "DATE",
-            label: "Fecha de emisión impresa",
+            label: "Fecha de emisión",
             value: "05/02/2026",
             pageNumber: 3,
             sourceReference: null,
@@ -320,7 +320,7 @@ describe("structured fiscal notification history view model v1", () => {
         money: [
           {
             key: "money:principal",
-            label: "Principal pendiente impreso",
+            label: "Principal pendiente",
             kind: "OUTSTANDING_PRINCIPAL",
             amountCents: 123_456,
             currency: "EUR",
@@ -577,8 +577,8 @@ describe("structured fiscal notification history view model v1", () => {
               amountCents: 105_000,
               dueDate: "2026-02-20",
               components: [
-                { label: "Principal impreso", amountCents: 100_000 },
-                { label: "Intereses impresos", amountCents: 5_000 },
+                { label: "Principal", amountCents: 100_000 },
+                { label: "Intereses", amountCents: 5_000 },
               ],
             },
           ],

@@ -18,8 +18,11 @@ describe("manual de Notificaciones y expedientes", () => {
     expect(text).toContain("Elegir varios PDF");
     expect(text).toContain("50 documentos");
     expect(text).toContain("Añadirlos no inicia el análisis");
-    expect(text).toContain("Guardar datos en mi cuenta");
-    expect(text).toContain("no guarda el PDF, su nombre ni el texto completo");
+    expect(text).toContain("**Mi cuenta**");
+    expect(text).toContain("**Google Drive**");
+    expect(text).toContain("**Ambas**");
+    expect(text).toContain("no necesitas seleccionarlo ni escanearlo otra vez");
+    expect(text).toContain("Factu nunca custodia el PDF");
     expect(text).toContain("requerimientos de documentación");
     expect(text).toContain("denegaciones de aplazamiento o fraccionamiento");
     expect(text).toContain("motivo impreso");

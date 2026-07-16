@@ -26,6 +26,7 @@ import {
 } from "react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
+import { Modal } from "@/components/ui/Modal";
 import { FiscalNotificationExplicitFieldsReview } from "@/components/fiscal-notifications/FiscalNotificationExplicitFieldsReview";
 import {
   FiscalNotificationDocumentDetail,
@@ -71,6 +72,7 @@ import {
 } from "@/lib/fiscal-notifications/pdf-text-layer-parser";
 import { projectFiscalNotificationReviewGuidanceV1 } from "@/lib/fiscal-notifications/review-guidance.v1";
 import { projectFiscalNotificationDocumentLibraryV1 } from "@/lib/fiscal-notifications/structured-review-document-library.v1";
+import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "@/lib/fiscal-notifications/structured-review-save-command.v1";
 import type { FiscalNotificationVerticalSliceReviewV1 } from "@/lib/fiscal-notifications/vertical-slice-review.v1";
 import {
   inspectFiscalNotificationDriveArchiveCandidateV1,
@@ -138,10 +140,10 @@ const SIGNAL_LABELS = {
 const MONEY_FACT_LABELS: Readonly<
   Record<AeatEnforcementMoneyFact["kind"], string>
 > = {
-  OUTSTANDING_PRINCIPAL: "Principal pendiente impreso",
-  ORDINARY_ENFORCEMENT_SURCHARGE: "Recargo ordinario impreso",
-  PAYMENT_ON_ACCOUNT: "Ingreso a cuenta impreso",
-  DOCUMENT_TOTAL: "Importe total impreso",
+  OUTSTANDING_PRINCIPAL: "Principal pendiente",
+  ORDINARY_ENFORCEMENT_SURCHARGE: "Recargo ordinario",
+  PAYMENT_ON_ACCOUNT: "Ingreso a cuenta",
+  DOCUMENT_TOTAL: "Importe total",
 };
 
 const REASON_COPY: Readonly<
@@ -277,10 +279,13 @@ type ReviewPersistenceState =
   | "pending"
   | "saving"
   | "saved"
+  | "drive_failed"
   | "no_structured_facts"
   | "invalid_structured_review"
   | "blocked"
   | "indeterminate";
+
+type ReviewSaveDestination = "ACCOUNT" | "DRIVE" | "BOTH";
 
 type FiscalNotificationArchiveCandidateStatus =
   | "READY"
@@ -400,13 +405,13 @@ export function FiscalNotificationIntakeView({
             </li>
             <li>
               El nombre, el NIF, los importes, los valores exactos de referencia
-              y las fechas impresas pueden guardarse en una ficha estructurada
+              y las fechas del documento pueden guardarse en una ficha estructurada
               mediante una acción explícita. Factu no conserva el PDF, su nombre
               ni el texto completo; opcionalmente puede archivar el original en
               el Google Drive del usuario tras otra confirmación expresa.
             </li>
             <li>
-              Una fecha impresa se presenta como tal: no se convierte por sí
+              Una fecha del documento se presenta como tal: no se convierte por sí
               sola en fecha de notificación o vencimiento ni activa una acción.
             </li>
             <li>
@@ -482,6 +487,8 @@ function FiscalNotificationReviewWorkspace({
     useState<PendingStructuredReview | null>(null);
   const [persistenceState, setPersistenceState] =
     useState<ReviewPersistenceState>("idle");
+  const [saveDestinationOpen, setSaveDestinationOpen] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(true);
   const [recentlySavedDocumentId, setRecentlySavedDocumentId] = useState<
     string | null
   >(null);
@@ -532,6 +539,7 @@ function FiscalNotificationReviewWorkspace({
   }
 
   function clearReviewDisplay(): void {
+    setSaveDestinationOpen(false);
     setResult(null);
     setVerticalSliceReview(null);
     setTextAcquisition(null);
@@ -936,52 +944,152 @@ function FiscalNotificationReviewWorkspace({
     void addFiles(Array.from(event.dataTransfer.files));
   }
 
-  function saveStructuredReview(): void {
+  async function saveStructuredReview(
+    destination: ReviewSaveDestination,
+  ): Promise<void> {
     if (!pendingReview || saveOperationRef.current) return;
     const activeId = activeItemIdRef.current;
     if (!activeId) return;
+    const activeItem = queueRef.current.find((item) => item.id === activeId);
+    const activeFile = filesRef.current.get(activeId);
+    if (!activeItem || !activeFile) return;
 
     const operation = Symbol("structured-review-save");
     saveOperationRef.current = operation;
+    setSaveDestinationOpen(false);
+    setError(null);
     updateStoredReview(activeId, "saving", false);
     setPersistenceState("saving");
     try {
       const currentData = getCurrentData();
-      const write = saveFiscalNotificationStructuredReview({
-        expected: currentData,
-        ownerScope,
-        reviewId: pendingReview.reviewId,
-        createdAt: pendingReview.createdAt,
-        analysis: pendingReview.analysis,
-      });
+      const accountWrite =
+        destination === "DRIVE"
+          ? runSaveFiscalNotificationStructuredReviewCommandV1({
+              expected: currentData,
+              ownerScope,
+              reviewId: pendingReview.reviewId,
+              createdAt: pendingReview.createdAt,
+              analysis: pendingReview.analysis,
+              commit: (expected, build) => {
+                const transition = build(expected);
+                return {
+                  status: "applied" as const,
+                  data: transition.data,
+                  value: transition.value,
+                  replayed: false,
+                };
+              },
+            })
+          : saveFiscalNotificationStructuredReview({
+              expected: currentData,
+              ownerScope,
+              reviewId: pendingReview.reviewId,
+              createdAt: pendingReview.createdAt,
+              analysis: pendingReview.analysis,
+            });
       if (saveOperationRef.current !== operation) return;
-
-      if (write.status === "applied") {
-        updateStoredReview(activeId, "saved", true);
-        updateQueueItem(activeId, { saved: true });
-        const savedDocumentId =
-          "documentIds" in write.value
-            ? (write.value.documentIds[0] ?? null)
-            : write.value.documentId;
-        offerCurrentOriginalForDriveArchive(activeId, write.data);
-        setRecentlySavedDocumentId(savedDocumentId);
-        setPendingReview(null);
-        setPersistenceState("saved");
+      if (accountWrite.status !== "applied") {
+        applyStructuredSaveFailure(activeId, accountWrite);
         return;
       }
-      if (write.status === "indeterminate") {
-        updateStoredReview(activeId, "indeterminate", false);
-        setPersistenceState("indeterminate");
-      } else if (write.reason === "no_structured_facts") {
-        updateStoredReview(activeId, "no_structured_facts", false);
-        setPersistenceState("no_structured_facts");
-      } else if (write.reason === "invalid_structured_review") {
-        updateStoredReview(activeId, "invalid_structured_review", false);
-        setPersistenceState("invalid_structured_review");
-      } else {
-        updateStoredReview(activeId, "blocked", false);
-        setPersistenceState("blocked");
+
+      const savedDocumentId =
+        destination === "DRIVE"
+          ? null
+          : "documentIds" in accountWrite.value
+            ? (accountWrite.value.documentIds[0] ?? null)
+            : accountWrite.value.documentId;
+      if (destination === "ACCOUNT") {
+        filesRef.current.delete(activeId);
+        advanceAfterSuccessfulSave(activeId, savedDocumentId);
+        return;
       }
+
+      const inspection = inspectFiscalNotificationDriveArchiveCandidateV1(
+        accountWrite.data.fiscalNotificationsWorkspace,
+        ownerScope,
+        activeItem.sha256,
+      );
+      if (inspection.status === "ALREADY_ARCHIVED") {
+        filesRef.current.delete(activeId);
+        advanceAfterSuccessfulSave(activeId, savedDocumentId);
+        return;
+      }
+      if (inspection.status !== "READY_TO_ARCHIVE") {
+        setDriveSaveFailure(
+          activeId,
+          destination !== "DRIVE",
+          "No se ha podido preparar el original para Google Drive.",
+        );
+        return;
+      }
+      if (!isGoogleDriveBackupEnabled()) {
+        setDriveSaveFailure(
+          activeId,
+          destination !== "DRIVE",
+          "Google Drive no está disponible en esta instalación de Factu.",
+        );
+        return;
+      }
+
+      const execution = await runExclusiveDriveOperation(() =>
+        uploadFiscalNotificationOriginalToGoogleDriveV1(
+          {
+            file: activeFile,
+            expectedSha256: inspection.candidate.sourceSha256,
+            documentDate: inspection.candidate.documentDate,
+            documentTitle: inspection.candidate.documentTitle,
+          },
+          {
+            clientId: getGoogleDriveClientId(),
+            prompt: hasUsableDriveToken() ? "" : "consent",
+          },
+        ),
+      );
+      if (saveOperationRef.current !== operation) return;
+      if (!execution.started) {
+        setDriveSaveFailure(
+          activeId,
+          destination !== "DRIVE",
+          "Google Drive ya está realizando otra operación. Inténtalo de nuevo cuando termine.",
+        );
+        return;
+      }
+      if (!execution.value.ok) {
+        setDriveSaveFailure(
+          activeId,
+          destination !== "DRIVE",
+          execution.value.error,
+        );
+        return;
+      }
+
+      if (destination === "BOTH") {
+        const archiveWrite = archiveFiscalNotificationOriginal({
+          expected: getCurrentData(),
+          ownerScope,
+          receipt: {
+            sourceSha256: execution.value.sourceSha256,
+            driveFileId: execution.value.fileId,
+            driveFolderId: execution.value.folderId,
+            documentDate: execution.value.documentDate,
+            verification: execution.value.verification,
+          },
+          archivedAt: new Date().toISOString(),
+        });
+        if (saveOperationRef.current !== operation) return;
+        if (archiveWrite.status !== "applied") {
+          setDriveSaveFailure(
+            activeId,
+            true,
+            "El original está en tu Drive, pero Factu no pudo guardar ahora el enlace verificado. Pulsa Guardar y elige Ambas para comprobarlo de nuevo sin volver a escanear.",
+          );
+          return;
+        }
+      }
+
+      filesRef.current.delete(activeId);
+      advanceAfterSuccessfulSave(activeId, savedDocumentId);
     } finally {
       if (saveOperationRef.current === operation) {
         saveOperationRef.current = null;
@@ -989,41 +1097,79 @@ function FiscalNotificationReviewWorkspace({
     }
   }
 
-  function offerCurrentOriginalForDriveArchive(
-    batchItemId: string,
-    storedData: typeof data,
+  function applyStructuredSaveFailure(
+    activeId: string,
+    write: ReturnType<
+      typeof runSaveFiscalNotificationStructuredReviewCommandV1
+    >,
   ): void {
-    const file = filesRef.current.get(batchItemId);
-    const batchItem = queueRef.current.find((item) => item.id === batchItemId);
-    if (!file || !batchItem) return;
-    const inspection = inspectFiscalNotificationDriveArchiveCandidateV1(
-      storedData.fiscalNotificationsWorkspace,
-      ownerScope,
-      batchItem.sha256,
-    );
-    if (
-      inspection.status !== "READY_TO_ARCHIVE" ||
-      archiveCandidatesRef.current.some(
-        (item) => item.candidate.sourceSha256 === batchItem.sha256,
-      )
+    if (write.status === "applied") return;
+    if (write.status === "indeterminate") {
+      updateStoredReview(activeId, "indeterminate", false);
+      setPersistenceState("indeterminate");
+    } else if (
+      write.status === "blocked" &&
+      write.reason === "no_structured_facts"
     ) {
-      filesRef.current.delete(batchItemId);
+      updateStoredReview(activeId, "no_structured_facts", false);
+      setPersistenceState("no_structured_facts");
+    } else if (
+      write.status === "blocked" &&
+      write.reason === "invalid_structured_review"
+    ) {
+      updateStoredReview(activeId, "invalid_structured_review", false);
+      setPersistenceState("invalid_structured_review");
+    } else {
+      updateStoredReview(activeId, "blocked", false);
+      setPersistenceState("blocked");
+    }
+  }
+
+  function setDriveSaveFailure(
+    activeId: string,
+    accountSaved: boolean,
+    message: string,
+  ): void {
+    updateStoredReview(activeId, "drive_failed", accountSaved);
+    setPersistenceState("drive_failed");
+    setError(message);
+  }
+
+  function advanceAfterSuccessfulSave(
+    savedItemId: string,
+    savedDocumentId: string | null,
+  ): void {
+    const currentQueue = queueRef.current;
+    const savedIndex = currentQueue.findIndex(
+      (item) => item.id === savedItemId,
+    );
+    reviewsRef.current.delete(savedItemId);
+    const remainingQueue = currentQueue.filter(
+      (item) => item.id !== savedItemId,
+    );
+    replaceQueue(remainingQueue);
+
+    const nextStartIndex =
+      savedIndex < 0 ? 0 : Math.min(savedIndex, remainingQueue.length);
+    const orderedCandidates = [
+      ...remainingQueue.slice(nextStartIndex),
+      ...remainingQueue.slice(0, nextStartIndex),
+    ];
+    const nextReview = orderedCandidates.find((item) =>
+      reviewsRef.current.has(item.id),
+    );
+
+    if (nextReview) {
+      setRecentlySavedDocumentId(null);
+      showReview(nextReview.id);
       return;
     }
-    const archiveId = `drive:${batchItemId}`;
-    archiveFilesRef.current.set(archiveId, file);
-    filesRef.current.delete(batchItemId);
-    replaceArchiveCandidates([
-      ...archiveCandidatesRef.current,
-      Object.freeze({
-        id: archiveId,
-        byteLength: batchItem.byteLength,
-        displayName: batchItem.displayName,
-        candidate: inspection.candidate,
-        status: "READY" as const,
-        errorMessage: null,
-      }),
-    ]);
+
+    activeItemIdRef.current = null;
+    setActiveItemId(null);
+    clearReviewDisplay();
+    setRecentlySavedDocumentId(savedDocumentId);
+    setScannerOpen(false);
   }
 
   async function archiveOriginalInDrive(id: string): Promise<void> {
@@ -1182,7 +1328,8 @@ function FiscalNotificationReviewWorkspace({
 
   return (
     <>
-      <Card>
+      {scannerOpen ? (
+        <Card>
         <div className="flex items-start gap-3">
           <FileUp
             aria-hidden="true"
@@ -1278,108 +1425,6 @@ function FiscalNotificationReviewWorkspace({
           ya registrado pero aún no archivado, podrás enviarlo voluntariamente a
           tu Google Drive. Una huella SHA-256 local impide duplicarlo.
         </p>
-
-        {archiveCandidates.length > 0 ? (
-          <section
-            className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4"
-            aria-labelledby="fiscal-notification-drive-archive-heading"
-          >
-            <div className="flex items-start gap-3">
-              <CloudUpload
-                aria-hidden="true"
-                className="mt-0.5 h-6 w-6 shrink-0 text-emerald-700"
-              />
-              <div>
-                <h3
-                  id="fiscal-notification-drive-archive-heading"
-                  className="font-bold text-emerald-950"
-                >
-                  Original registrado sin archivar
-                </h3>
-                <p className="mt-1 text-sm leading-6 text-emerald-900">
-                  La ficha ya existe. Puedes guardar ahora el PDF original en
-                  tu Drive sin repetir el análisis. En escaneos antiguos, Factu
-                  reconoce el mismo contenido al reseleccionarlo. Nada se sube
-                  hasta que pulses el botón de cada documento.
-                </p>
-              </div>
-            </div>
-            <ul className="mt-4 space-y-3">
-              {archiveCandidates.map((item) => {
-                const path = item.candidate.documentDate
-                  ? driveArchiveDatePath(item.candidate.documentDate)
-                  : "Fecha pendiente";
-                return (
-                  <li
-                    key={item.id}
-                    className="rounded-xl border border-emerald-200 bg-white p-4"
-                  >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                      <div className="min-w-0">
-                        <p className="truncate font-bold text-slate-950">
-                          {item.displayName}
-                        </p>
-                        <p className="mt-1 text-sm font-semibold text-slate-700">
-                          {item.candidate.documentTitle}
-                        </p>
-                        <p className="mt-1 text-xs leading-5 text-slate-500">
-                          PDF · {formatBytes(item.byteLength)} · Carpeta: {path}
-                        </p>
-                      </div>
-                      {item.status === "ARCHIVED" ? (
-                        <span className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">
-                          <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
-                          Original archivado
-                        </span>
-                      ) : null}
-                    </div>
-                    {item.errorMessage ? (
-                      <p className="mt-3 text-sm font-semibold text-red-700">
-                        {item.errorMessage}
-                      </p>
-                    ) : null}
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {item.status !== "ARCHIVED" ? (
-                        <Button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void archiveOriginalInDrive(item.id)}
-                        >
-                          {item.status === "ARCHIVING" ? (
-                            <Loader2
-                              aria-hidden="true"
-                              className="h-4 w-4 animate-spin"
-                            />
-                          ) : (
-                            <CloudUpload aria-hidden="true" className="h-4 w-4" />
-                          )}
-                          {item.status === "ARCHIVING"
-                            ? "Verificando en Drive…"
-                            : hasUsableDriveToken()
-                              ? "Archivar original en Drive"
-                              : "Conectar Drive y archivar"}
-                        </Button>
-                      ) : null}
-                      <button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => removeArchiveCandidate(item.id)}
-                        className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <X aria-hidden="true" className="h-4 w-4" />
-                        Quitar
-                      </button>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-            <p className="mt-3 text-xs leading-5 text-emerald-900">
-              Se organizará por la fecha del documento. Si no existe una fecha
-              exacta, irá a “Fecha pendiente”; nunca se usa la fecha de escaneo.
-            </p>
-          </section>
-        ) : null}
 
         {queue.length > 0 ? (
           <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
@@ -1563,9 +1608,30 @@ function FiscalNotificationReviewWorkspace({
             ) : null}
           </div>
         ) : null}
-      </Card>
+        </Card>
+      ) : (
+        <div className="mb-4 flex justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => setScannerOpen(true)}
+          >
+            <ScanLine aria-hidden="true" className="h-5 w-5" />
+            Escanear más documentos
+          </Button>
+        </div>
+      )}
 
-      {result ? (
+      {archiveCandidates.length > 0 ? (
+        <DriveArchiveCandidatesPanel
+          candidates={archiveCandidates}
+          busy={busy}
+          onArchive={(id) => void archiveOriginalInDrive(id)}
+          onRemove={removeArchiveCandidate}
+        />
+      ) : null}
+
+      {scannerOpen && result ? (
         <ReviewResult
           result={result}
           ephemeralMoneyFacts={ephemeralMoneyFacts}
@@ -1578,7 +1644,7 @@ function FiscalNotificationReviewWorkspace({
           batchContext={activeBatchContext}
         />
       ) : null}
-      {reviewGuidance ? (
+      {scannerOpen && reviewGuidance ? (
         <div className="mt-4">
           <FiscalNotificationReviewSteps
             guidance={reviewGuidance}
@@ -1591,13 +1657,19 @@ function FiscalNotificationReviewWorkspace({
           />
         </div>
       ) : null}
-      {result ? (
+      {scannerOpen && result ? (
         <ReviewPersistencePanel
           state={persistenceState}
           canSave={pendingReview !== null}
-          onSave={saveStructuredReview}
+          onSave={() => setSaveDestinationOpen(true)}
         />
       ) : null}
+      <SaveDestinationModal
+        open={saveDestinationOpen}
+        busy={saving}
+        onClose={() => setSaveDestinationOpen(false)}
+        onSelect={(destination) => void saveStructuredReview(destination)}
+      />
       <div id="documentos-guardados" className="scroll-mt-6">
         <FiscalNotificationDocumentLibrary
           viewModel={documentLibrary}
@@ -1606,6 +1678,120 @@ function FiscalNotificationReviewWorkspace({
         />
       </div>
     </>
+  );
+}
+
+function DriveArchiveCandidatesPanel({
+  candidates,
+  busy,
+  onArchive,
+  onRemove,
+}: {
+  candidates: readonly FiscalNotificationArchiveCandidateItem[];
+  busy: boolean;
+  onArchive: (id: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  return (
+    <section
+      className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4"
+      aria-labelledby="fiscal-notification-drive-archive-heading"
+    >
+      <div className="flex items-start gap-3">
+        <CloudUpload
+          aria-hidden="true"
+          className="mt-0.5 h-6 w-6 shrink-0 text-emerald-700"
+        />
+        <div>
+          <h3
+            id="fiscal-notification-drive-archive-heading"
+            className="font-bold text-emerald-950"
+          >
+            Original registrado sin archivar
+          </h3>
+          <p className="mt-1 text-sm leading-6 text-emerald-900">
+            La ficha ya existe. Puedes guardar ahora el PDF original en tu Drive
+            sin repetir el análisis. En escaneos antiguos, Factu reconoce el mismo
+            contenido al reseleccionarlo. Nada se sube hasta que pulses el botón de
+            cada documento.
+          </p>
+        </div>
+      </div>
+      <ul className="mt-4 space-y-3">
+        {candidates.map((item) => {
+          const path = item.candidate.documentDate
+            ? driveArchiveDatePath(item.candidate.documentDate)
+            : "Fecha pendiente";
+          return (
+            <li
+              key={item.id}
+              className="rounded-xl border border-emerald-200 bg-white p-4"
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                  <p className="truncate font-bold text-slate-950">
+                    {item.displayName}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-slate-700">
+                    {item.candidate.documentTitle}
+                  </p>
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    PDF · {formatBytes(item.byteLength)} · Carpeta: {path}
+                  </p>
+                </div>
+                {item.status === "ARCHIVED" ? (
+                  <span className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">
+                    <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+                    Original archivado
+                  </span>
+                ) : null}
+              </div>
+              {item.errorMessage ? (
+                <p className="mt-3 text-sm font-semibold text-red-700">
+                  {item.errorMessage}
+                </p>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2">
+                {item.status !== "ARCHIVED" ? (
+                  <Button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => onArchive(item.id)}
+                  >
+                    {item.status === "ARCHIVING" ? (
+                      <Loader2
+                        aria-hidden="true"
+                        className="h-4 w-4 animate-spin"
+                      />
+                    ) : (
+                      <CloudUpload aria-hidden="true" className="h-4 w-4" />
+                    )}
+                    {item.status === "ARCHIVING"
+                      ? "Verificando en Drive…"
+                      : hasUsableDriveToken()
+                        ? "Archivar original en Drive"
+                        : "Conectar Drive y archivar"}
+                  </Button>
+                ) : null}
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => onRemove(item.id)}
+                  className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <X aria-hidden="true" className="h-4 w-4" />
+                  Quitar
+                </button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-3 text-xs leading-5 text-emerald-900">
+        Se organizará por la fecha del documento. Si no existe una fecha exacta,
+        irá a “Fecha pendiente”; nunca se usa la fecha de escaneo.
+      </p>
+    </section>
   );
 }
 
@@ -1622,9 +1808,11 @@ function ReviewPersistencePanel({
     idle: "Los datos estructurados todavía no se han guardado.",
     pending:
       "El análisis está disponible. Guarda la ficha si quieres conservar los datos exactos detectados.",
-    saving: "Guardando los datos estructurados en tu cuenta…",
+    saving: "Guardando el documento en el destino elegido…",
     saved:
       "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias, fechas y sujeto identificado.",
+    drive_failed:
+      "La ficha sigue abierta porque Google Drive no ha completado el archivado. Puedes reintentar sin volver a escanear el PDF.",
     no_structured_facts:
       "Este análisis no contiene todavía campos exactos compatibles con la ficha estructurada. No se ha guardado una tarjeta vacía.",
     invalid_structured_review:
@@ -1648,16 +1836,14 @@ function ReviewPersistencePanel({
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="font-bold text-slate-950">
-            Guardar ficha estructurada
-          </h2>
+          <h2 className="font-bold text-slate-950">Guardar documento</h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
             {copy[state]}
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Guarda únicamente campos estructurados visibles y su procedencia:
-            nunca conserva el PDF, su nombre ni el texto completo. Tampoco crea
-            una deuda, pago, vencimiento, gasto o asiento.
+            Puedes conservar la ficha estructurada en Factu, el PDF original en
+            tu Google Drive o ambos. Ninguna opción crea una deuda, pago,
+            vencimiento, gasto o asiento.
           </p>
         </div>
         {canSave ? (
@@ -1676,11 +1862,100 @@ function ReviewPersistencePanel({
               ? "Comprobar ficha y reintentar"
               : state === "saving"
                 ? "Guardando ficha…"
-                : "Guardar datos en mi cuenta"}
+                : "Guardar"}
           </Button>
         ) : null}
       </div>
     </Card>
+  );
+}
+
+function SaveDestinationModal({
+  open,
+  busy,
+  onClose,
+  onSelect,
+}: {
+  open: boolean;
+  busy: boolean;
+  onClose: () => void;
+  onSelect: (destination: ReviewSaveDestination) => void;
+}) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      titleId="notification-save-destination-title"
+      descriptionId="notification-save-destination-description"
+      initialFocusSelector='[data-save-destination="both"]'
+      closeOnBackdrop={!busy}
+      closeOnEscape={!busy}
+    >
+      <div className="p-5 sm:p-6">
+        <h2
+          id="notification-save-destination-title"
+          className="text-lg font-bold text-slate-950"
+        >
+          ¿Dónde quieres guardar este documento?
+        </h2>
+        <p
+          id="notification-save-destination-description"
+          className="mt-2 text-sm leading-6 text-slate-600"
+        >
+          El PDF sigue disponible en memoria: no tendrás que seleccionarlo ni
+          escanearlo otra vez.
+        </p>
+        <div className="mt-5 grid gap-3">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onSelect("ACCOUNT")}
+            className="rounded-xl border border-slate-200 p-4 text-left transition hover:border-blue-300 hover:bg-blue-50 disabled:opacity-50"
+          >
+            <span className="block font-bold text-slate-950">Mi cuenta</span>
+            <span className="mt-1 block text-sm leading-5 text-slate-600">
+              Guarda la ficha y sus datos estructurados en Factu. El PDF no se
+              conserva.
+            </span>
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => onSelect("DRIVE")}
+            className="rounded-xl border border-slate-200 p-4 text-left transition hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-50"
+          >
+            <span className="block font-bold text-slate-950">Google Drive</span>
+            <span className="mt-1 block text-sm leading-5 text-slate-600">
+              Archiva solo el PDF original en tu Drive, ordenado por la fecha
+              del documento. No crea una ficha en Factu.
+            </span>
+          </button>
+          <button
+            type="button"
+            data-save-destination="both"
+            disabled={busy}
+            onClick={() => onSelect("BOTH")}
+            className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-left transition hover:border-emerald-500 hover:bg-emerald-100 disabled:opacity-50"
+          >
+            <span className="block font-bold text-emerald-950">Ambas</span>
+            <span className="mt-1 block text-sm leading-5 text-emerald-900">
+              Guarda la ficha en Factu y archiva ahora el PDF original en tu
+              Google Drive.
+            </span>
+          </button>
+        </div>
+        <div className="mt-5 flex justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={busy}
+            onClick={onClose}
+          >
+            Cancelar
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -1983,7 +2258,7 @@ function EphemeralMoneyFactsPanel({
         id="notification-money-facts-heading"
         className="font-bold text-blue-950"
       >
-        Importes impresos detectados
+        Importes detectados
       </h3>
       <p className="mt-1 text-sm leading-6 text-blue-900">
         Son cifras leídas literalmente. No se han sumado, recalculado ni elegido
@@ -2023,10 +2298,9 @@ function EphemeralMoneyFactsPanel({
         </p>
       ) : null}
       <p className="mt-3 text-xs leading-5 text-blue-900">
-        Permanecen solo en memoria hasta que pulses{" "}
-        <strong>Guardar datos en mi cuenta</strong>. Si los guardas, se conserva
-        la cifra estructurada y su procedencia, nunca el PDF ni el texto
-        completo.
+        Permanecen solo en memoria hasta que pulses <strong>Guardar</strong> y
+        elijas el destino. Si los guardas en Factu, se conserva la cifra
+        estructurada y su procedencia, nunca el PDF ni el texto completo.
       </p>
     </section>
   );
@@ -2074,7 +2348,7 @@ function DeferralGrantFactsPanel({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-blue-800">
-            Datos impresos del documento
+            Datos del documento
           </p>
           <h3
             id="deferral-grant-facts-heading"
@@ -2098,7 +2372,7 @@ function DeferralGrantFactsPanel({
 
       {result.outcome === "AMBIGUOUS" ? (
         <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950">
-          Alguna fila impresa no cuadra o está incompleta. Se muestran los
+          Alguna fila del documento no cuadra o está incompleta. Se muestran los
           valores que sí se han leído, sin corregirlos ni convertirlos en una
           instrucción de pago.
         </div>
@@ -2113,7 +2387,7 @@ function DeferralGrantFactsPanel({
         ) : null}
         {result.header.subjectTaxId ? (
           <DeferralFactCard
-            label="NIF impreso"
+            label="NIF"
             value={result.header.subjectTaxId.printedValue}
           />
         ) : null}
@@ -2134,7 +2408,7 @@ function DeferralGrantFactsPanel({
         ) : null}
         {result.header.paymentAccount ? (
           <DeferralFactCard
-            label="Cuenta de pago impresa"
+            label="Cuenta de pago"
             value={result.header.paymentAccount.printedValue}
           />
         ) : null}
@@ -2163,7 +2437,7 @@ function DeferralGrantFactsPanel({
               <dl className="grid gap-2 text-sm sm:grid-cols-2">
                 {schedule.listedDebtAmount ? (
                   <ResultFact
-                    label="Importe de deuda impreso"
+                    label="Importe de deuda"
                     value={formatStructuredMoney(
                       schedule.listedDebtAmount.amountCents,
                       "EUR",
@@ -2172,7 +2446,7 @@ function DeferralGrantFactsPanel({
                 ) : null}
                 {schedule.interestStartDate ? (
                   <ResultFact
-                    label="Fecha de intereses impresa"
+                    label="Fecha de intereses"
                     value={schedule.interestStartDate.printedValue}
                   />
                 ) : null}
@@ -2199,7 +2473,7 @@ function DeferralGrantFactsPanel({
                     </div>
                     <div className="text-right">
                       <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                        Vencimiento impreso
+                        Vencimiento
                       </p>
                       <p className="mt-1 font-bold text-slate-950">
                         {installment.dueDate.printedValue}
@@ -2216,7 +2490,7 @@ function DeferralGrantFactsPanel({
                         )}
                       />
                       <ResultFact
-                        label="Recargo impreso"
+                        label="Recargo"
                         value={formatStructuredMoney(
                           installment.enforcementSurcharge.amountCents,
                           "EUR",
@@ -2251,7 +2525,7 @@ function DeferralGrantFactsPanel({
       </div>
 
       <p className="mt-4 text-xs leading-5 text-blue-900">
-        Estas son fechas e instrucciones impresas en el documento. No se ha
+        Estas son fechas e instrucciones del documento. No se ha
         marcado ninguna cuota como pagada ni se ha creado un gasto o asiento.
       </p>
     </section>
@@ -2267,7 +2541,7 @@ const OFFSET_EFFECT_LABELS: Readonly<
     "Deuda parcialmente extinguida en período ejecutivo",
   TOTAL_EXTINGUISHED_IN_ENFORCEMENT:
     "Deuda totalmente extinguida en período ejecutivo",
-  PRINTED_CODE_UNMAPPED: "Código de efecto impreso sin equivalencia verificada",
+  PRINTED_CODE_UNMAPPED: "Código de efecto sin equivalencia verificada",
 };
 
 function OffsetAgreementFactsPanel({
@@ -2305,7 +2579,7 @@ function OffsetAgreementFactsPanel({
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-wide text-blue-800">
-            Datos impresos del documento
+            Datos del documento
           </p>
           <h3
             id="offset-agreement-facts-heading"
@@ -2345,7 +2619,7 @@ function OffsetAgreementFactsPanel({
         ) : null}
         {result.header.subjectTaxId ? (
           <DeferralFactCard
-            label="NIF impreso"
+            label="NIF"
             value={result.header.subjectTaxId.printedValue}
           />
         ) : null}
@@ -2357,7 +2631,7 @@ function OffsetAgreementFactsPanel({
         ) : null}
         {result.header.requestDate ? (
           <DeferralFactCard
-            label="Fecha de solicitud impresa"
+            label="Fecha de solicitud"
             value={result.header.requestDate.printedValue}
           />
         ) : null}
@@ -2501,7 +2775,7 @@ function OffsetAgreementFactsPanel({
       </div>
 
       <p className="mt-4 text-xs leading-5 text-blue-900">
-        Los importes se muestran tal como aparecen impresos. No se recalculan y
+        Los importes se muestran tal como aparecen en el documento. No se recalculan y
         no se crea, cancela ni marca como pagada ninguna deuda, gasto o asiento.
       </p>
     </section>

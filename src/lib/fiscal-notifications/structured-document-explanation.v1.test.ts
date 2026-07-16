@@ -172,7 +172,7 @@ describe("structured document explanation v1", () => {
       result: expect.stringContaining("728,44 €"),
       nextStep: {
         status: "PAYMENT_OR_RESPONSE_MAY_BE_REQUIRED",
-        title: "Paga dentro del plazo impreso o revisa el recurso",
+        title: "Paga dentro del plazo indicado o revisa el recurso",
       },
       deadline: { status: "MISSING_RECEIPT_DATE" },
       networkPolicy: "NO_NETWORK",

@@ -126,7 +126,7 @@ export function FiscalNotificationVerticalSliceReview({
         className:
           "rounded-xl border border-blue-100 bg-blue-50 p-4 text-sm leading-6 text-blue-950",
       },
-      "Se muestran los valores impresos que el lector ha localizado y la página de la que proceden. Revisa los datos antes de utilizarlos: verlos no crea una deuda, un pago, un plazo, un gasto ni un asiento.",
+      "Se muestran los valores que el lector ha localizado y la página de la que proceden. Revisa los datos antes de utilizarlos: verlos no crea una deuda, un pago, un plazo, un gasto ni un asiento.",
     ),
   );
 }

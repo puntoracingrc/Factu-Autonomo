@@ -56,7 +56,7 @@ describe("explicit fields review view model v2", () => {
       schemaVersion: 2,
       viewModelVersion: "2.0.0",
       state: "FACTS",
-      stateLabel: "Datos impresos detectados",
+      stateLabel: "Datos detectados",
       referenceDisclosure: "EXACT_VALUE_VISIBLE_EPHEMERAL",
       persistencePolicy: "DO_NOT_PERSIST",
       requiresHumanReview: true,

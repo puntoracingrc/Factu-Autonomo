@@ -109,7 +109,7 @@ describe("fiscal notification knowledge coverage v1", () => {
     expect(manual).toContain(
       "Esos campos permanecen solo en memoria hasta que el usuario pulsa el botón de guardado",
     );
-    expect(manual).toContain("no guarda el PDF, su nombre ni el texto completo");
+    expect(manual).toContain("Factu nunca custodia el PDF");
     expect(manual).toContain("**Relaciones entre documentos**");
     expect(manual).toContain("**Relación detectada · revisar**");
     expect(manual).toContain(

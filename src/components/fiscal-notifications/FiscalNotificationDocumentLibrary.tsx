@@ -386,7 +386,7 @@ export function FiscalNotificationDocumentDetail({
               <Fact label="Obligado al pago" value={document.subjectName} />
             ) : null}
             {document.subjectTaxId ? (
-              <Fact label="NIF impreso" value={document.subjectTaxId} />
+              <Fact label="NIF" value={document.subjectTaxId} />
             ) : null}
           </dl>
         ) : null}
@@ -405,7 +405,7 @@ export function FiscalNotificationDocumentDetail({
           <DocumentFactsInSourceOrder document={document} />
 
           {document.installments.length > 0 ? (
-          <section className="mt-5" aria-label="Cuotas y vencimientos impresos">
+          <section className="mt-5" aria-label="Cuotas y vencimientos">
             <h3 className="font-bold text-slate-950">Cuotas y vencimientos</h3>
             <ol className="mt-3 grid gap-3 lg:grid-cols-2">
               {document.installments.map((installment) => (
@@ -418,13 +418,13 @@ export function FiscalNotificationDocumentDetail({
                   </p>
                   <p className="mt-1 text-lg font-bold text-blue-950">
                     {installment.amountCents === null
-                      ? "Importe no impreso"
+                      ? "Importe no disponible"
                       : formatMoney(installment.amountCents, "EUR")}
                   </p>
                   <p className="mt-1 text-sm font-semibold text-blue-900">
                     {installment.dueDate
                       ? `Vence ${formatDocumentDate(installment.dueDate)}`
-                      : "Vencimiento no impreso"}
+                      : "Vencimiento no disponible"}
                   </p>
                   {installment.components.length > 1 ? (
                     <dl className="mt-3 grid grid-cols-2 gap-2 border-t border-blue-100 pt-3">
@@ -441,7 +441,7 @@ export function FiscalNotificationDocumentDetail({
               ))}
             </ol>
             <p className="mt-3 text-xs leading-5 text-slate-500">
-              Son datos impresos guardados para consulta. Ninguna cuota se marca
+              Son datos guardados para consulta. Ninguna cuota se marca
               como pagada y no se crea automáticamente un gasto o asiento.
             </p>
           </section>
@@ -531,7 +531,7 @@ function DocumentExplanationPanel({
               <dd className="mt-1 text-lg font-bold text-blue-950">{fact.value}</dd>
               {fact.basis === "CALCULATED_FROM_PRINTED_VALUES" ? (
                 <dd className="mt-1 text-xs text-blue-800">
-                  Calculado únicamente con cifras impresas en el documento
+                  Calculado únicamente con cifras del documento
                 </dd>
               ) : null}
             </div>
@@ -701,9 +701,11 @@ function DocumentCard({
         href={documentDetailHref(document.key)}
         aria-current={selected ? "page" : undefined}
         className={`flex h-full w-full flex-col overflow-hidden rounded-2xl border bg-white p-4 pr-12 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-          selected || recentlySaved
-            ? "border-blue-500 ring-2 ring-blue-200"
-            : "border-slate-200"
+          recentlySaved
+            ? "border-emerald-500 ring-2 ring-emerald-200"
+            : selected
+              ? "border-blue-500 ring-2 ring-blue-200"
+              : "border-slate-200"
         }`}
       >
         <div className="flex flex-wrap items-start gap-2">
@@ -875,7 +877,7 @@ function DocumentAmounts({
         Este documento no contiene importes estructurados guardados.
       </p>
     ) : (
-      <p className="text-xs text-slate-500">Sin importes impresos guardados</p>
+      <p className="text-xs text-slate-500">Sin importes guardados</p>
     );
   }
   const facts = expanded ? document.money : document.money.slice(0, 2);

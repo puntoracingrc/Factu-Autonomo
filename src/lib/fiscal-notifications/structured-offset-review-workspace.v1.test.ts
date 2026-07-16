@@ -246,7 +246,7 @@ describe("structured offset review workspace v1", () => {
         { label: "Clave de liquidación", value: "DEUDA-0131" },
       ]),
       printedDates: expect.arrayContaining([
-        { label: "Fecha de solicitud impresa", value: "05/01/2026" },
+        { label: "Fecha de solicitud", value: "05/01/2026" },
         {
           label: "Efecto indicado en el documento",
           value: "Deuda totalmente extinguida en período voluntario",
@@ -254,13 +254,13 @@ describe("structured offset review workspace v1", () => {
       ]),
       money: expect.arrayContaining([
         expect.objectContaining({
-          label: "Total antes de compensar impreso",
+          label: "Total antes de compensar",
           amountCents: 90_000,
           currency: "EUR",
           sourceReference: "DEUDA-0131",
         }),
         expect.objectContaining({
-          label: "Pendiente tras compensar impreso",
+          label: "Pendiente tras compensar",
           amountCents: 0,
           currency: "EUR",
           sourceReference: "DEUDA-0131",

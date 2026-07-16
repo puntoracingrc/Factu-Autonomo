@@ -24,7 +24,7 @@ const REVIEW_STEP_COPY: Readonly<
       "La familia mostrada es solo una candidata técnica. No la des por confirmada: déjala pendiente de revisión fiscal humana.",
   },
   COMPARE_EPHEMERAL_PRINTED_AMOUNTS: {
-    title: "Compara los importes impresos",
+    title: "Compara los importes",
     detail:
       "Contrasta con el PDF original cualquier importe mostrado durante esta revisión. No se guarda ni se interpreta como una deuda.",
   },
