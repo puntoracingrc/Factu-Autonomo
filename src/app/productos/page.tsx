@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
+import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
@@ -2080,12 +2081,7 @@ export default function ProductosPage() {
             {visibleProductGroups.map((group) => (
               <div key={group.key} className="grid gap-3">
                 {group.title ? (
-                  <div className="flex items-center gap-4">
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-black uppercase tracking-wide text-slate-600 shadow-sm ring-1 ring-slate-200">
-                      {group.title}
-                    </span>
-                    <span className="h-px flex-1 bg-slate-200" />
-                  </div>
+                  <TimelineMonthDivider label={group.title} />
                 ) : null}
                 {group.products.map((product) => {
                   const targetFromDocument = productMatchesDocumentPickRequest(
