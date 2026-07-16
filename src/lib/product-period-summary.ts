@@ -2,12 +2,18 @@ import { roundMoney } from "./calculations";
 import { buildProductBusinessSummary } from "./product-business-summary";
 import type { AppData, Document, Expense } from "./types";
 
-export type ProductPeriodKind = "all" | "month" | "quarter" | "year";
+export type ProductPeriodKind =
+  | "all"
+  | "month"
+  | "months"
+  | "quarter"
+  | "year";
 
 export interface ProductPeriodSelection {
   kind: ProductPeriodKind;
   year: number;
   month: number;
+  endMonth?: number;
   quarter: 1 | 2 | 3 | 4;
 }
 
@@ -75,8 +81,21 @@ export function getDefaultProductPeriod(
     kind: "year",
     year,
     month,
+    endMonth: month,
     quarter: quarterFromMonth(month),
   };
+}
+
+export function productPeriodMonthRange(
+  selection: Pick<ProductPeriodSelection, "month" | "endMonth">,
+): { startMonth: number; endMonth: number } {
+  const startMonth = Math.min(12, Math.max(1, selection.month));
+  const requestedEndMonth = selection.endMonth ?? startMonth;
+  const endMonth = Math.min(
+    12,
+    Math.max(startMonth, Math.min(requestedEndMonth, startMonth + 2)),
+  );
+  return { startMonth, endMonth };
 }
 
 export function formatProductPeriodLabel(
@@ -87,6 +106,14 @@ export function formatProductPeriodLabel(
       return "Todos los periodos";
     case "month":
       return `${PRODUCT_MONTH_NAMES[selection.month - 1]} ${selection.year}`;
+    case "months": {
+      const { startMonth, endMonth } = productPeriodMonthRange(selection);
+      const start = PRODUCT_MONTH_NAMES[startMonth - 1];
+      const end = PRODUCT_MONTH_NAMES[endMonth - 1];
+      return startMonth === endMonth
+        ? `${start} ${selection.year}`
+        : `${start}-${end} ${selection.year}`;
+    }
     case "quarter":
       return `${selection.quarter}.º trimestre ${selection.year}`;
     case "year":
@@ -103,6 +130,10 @@ export function isDateInProductPeriod(
   if (parts.year !== selection.year) return false;
   if (selection.kind === "year") return true;
   if (selection.kind === "month") return parts.month === selection.month;
+  if (selection.kind === "months") {
+    const { startMonth, endMonth } = productPeriodMonthRange(selection);
+    return parts.month >= startMonth && parts.month <= endMonth;
+  }
   return quarterFromMonth(parts.month) === selection.quarter;
 }
 
