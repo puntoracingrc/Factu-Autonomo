@@ -47,8 +47,12 @@ describe("fiscal notification guide search v1", () => {
     );
     expect(embargo.status).toBe("READY");
     if (embargo.status !== "READY") throw new Error("Expected ready search");
-    expect(embargo.entries.every((entry) => entry.category === "SEIZURE")).toBe(
-      true,
+    expect(embargo.entries.map((entry) => entry.familyId)).toEqual(
+      expect.arrayContaining([
+        "seizure.bank_account",
+        "seizure.commercial_credits",
+        "seizure.release",
+      ]),
     );
   });
 

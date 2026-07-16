@@ -34,6 +34,8 @@ describe("fiscal notification guide catalog v1", () => {
       expect(entry.permitsAutomaticRelationConfirmation).toBe(false);
       expect(entry.documentChecks.length).toBeGreaterThan(0);
       expect(entry.prohibitions).toHaveLength(10);
+      expect(entry.plainLanguage.status).toBe("GENERAL_CONTEXT_EXPLAINED");
+      expect(entry.sources.length).toBeGreaterThan(0);
     }
   });
 
@@ -71,32 +73,40 @@ describe("fiscal notification guide catalog v1", () => {
           related.status === "SUGGESTED_ONLY" && !related.autoConfirm,
       ),
     ).toBe(true);
-    expect(paymentForm.entry.plainLanguage?.inShort).toContain(
-      "No es una prueba",
+    expect(paymentForm.entry.plainLanguage.keyPoints).toContain(
+      "Permite pagar, pero no acredita que el pago ya se haya realizado.",
     );
-    expect(paymentReceipt.entry.plainLanguage?.inShort).toContain("evidencia");
+    expect(paymentReceipt.entry.plainLanguage.inShort).toContain("evidencia");
   });
 
-  it("adds concise official guidance to the first vertical chain", () => {
-    const explained = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.filter(
-      (entry) => entry.plainLanguage,
-    );
-    expect(explained).toHaveLength(29);
+  it("adds individual official guidance to all 87 families", () => {
+    const explained = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1;
+    expect(explained).toHaveLength(87);
+    expect(
+      explained.filter(
+        (entry) => entry.recognitionMode === "AUTOMATIC_REVIEW_ONLY",
+      ),
+    ).toHaveLength(24);
+    expect(
+      explained.filter(
+        (entry) => entry.recognitionMode === "MANUAL_REVIEW_ONLY",
+      ),
+    ).toHaveLength(63);
 
     expect(
       explained.find((entry) => entry.familyId === "collection.deferral_denial")
         ?.plainLanguage,
     ).toMatchObject({
-      profileId: "deferral-denial",
+      profileId: "collection.deferral_denial",
       status: "GENERAL_CONTEXT_EXPLAINED",
     });
 
     const enforcement = explained.find(
       (entry) => entry.familyId === "collection.enforcement_order",
     );
-    expect(enforcement?.summary).toContain("providencia de apremio");
+    expect(enforcement?.summary).toContain("vía ejecutiva");
     expect(enforcement?.plainLanguage).toMatchObject({
-      profileId: "enforcement-order",
+      profileId: "collection.enforcement_order",
       profileVersion: "1.0.0",
       networkPolicy: "NO_RUNTIME_NETWORK",
       deadlinePolicy: "NEVER_CALCULATE_FROM_ISSUE_OR_SCAN_DATE",
@@ -108,6 +118,18 @@ describe("fiscal notification guide catalog v1", () => {
         "aeat.collection.enforcement_resources",
       ]),
     );
+
+    const manual = explained.find(
+      (entry) => entry.familyId === "sanction.resolution",
+    );
+    expect(manual).toMatchObject({
+      recognitionMode: "MANUAL_REVIEW_ONLY",
+      plainLanguage: {
+        status: "GENERAL_CONTEXT_EXPLAINED",
+        networkPolicy: "NO_RUNTIME_NETWORK",
+      },
+    });
+    expect(manual?.summary).not.toContain("El catálogo registra");
   });
 
   it("derives only suggested before/after context from v2 causal relations", () => {
@@ -183,9 +205,7 @@ describe("fiscal notification guide catalog v1", () => {
     expect(Object.isFrozen(first.possiblePrevious)).toBe(true);
     expect(Object.isFrozen(first.possibleNext)).toBe(true);
     expect(Object.isFrozen(first.prohibitions)).toBe(true);
-    const explained = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.find(
-      (entry) => entry.plainLanguage,
-    );
+    const explained = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1[0];
     expect(Object.isFrozen(explained?.plainLanguage)).toBe(true);
     expect(Object.isFrozen(explained?.plainLanguage?.deadline)).toBe(true);
   });

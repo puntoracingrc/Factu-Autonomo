@@ -22,10 +22,15 @@ import {
   resolveFiscalNotificationPlainLanguageGuidanceV1,
   type FiscalNotificationPlainLanguageGuidanceV1,
 } from "@/lib/fiscal-notifications/guide/plain-language-guidance.v1";
+import {
+  resolveFiscalNotificationKnowledgeGuidanceV2,
+  type FiscalNotificationGuideRecognitionModeV2,
+} from "@/lib/fiscal-notifications/guide/knowledge-guidance-adapter.v2";
+import type { AeatDocumentOfficialSourceIdV1 } from "@/lib/fiscal-notifications/knowledge/aeat-document-knowledge.v1";
 
 export const FISCAL_NOTIFICATION_GUIDE_SCHEMA_VERSION_V1 = 1 as const;
 export const FISCAL_NOTIFICATION_GUIDE_RELEASE_ID_V1 =
-  "fiscal-notification-guide.2026-07-13.v1" as const;
+  "fiscal-notification-guide.2026-07-16.v2" as const;
 
 interface CategoryPresentationV1 {
   readonly label: string;
@@ -138,12 +143,18 @@ export const FISCAL_NOTIFICATION_GUIDE_DOCUMENT_CHECKS_V1 = Object.freeze([
 ]);
 
 export interface FiscalNotificationGuideSourceV1 {
-  readonly sourceId: FiscalNotificationOfficialSourceIdV4;
+  readonly sourceId:
+    | FiscalNotificationOfficialSourceIdV4
+    | AeatDocumentOfficialSourceIdV1;
   readonly title: string;
-  readonly authority: "AEAT" | "BOE";
+  readonly authority: "AEAT" | "BOE" | "Gobierno de España";
   readonly sourceKind: "PROCEDURE_INFORMATION" | "LEGAL_TEXT";
   readonly canonicalUrl: string;
-  readonly urlCheckedOn: "2026-07-12" | "2026-07-13" | "2026-07-15";
+  readonly urlCheckedOn:
+    | "2026-07-12"
+    | "2026-07-13"
+    | "2026-07-15"
+    | "2026-07-16";
   readonly verificationStatus: "OFFICIAL_URL_VERIFIED";
   readonly legalReviewStatus: "LEGAL_REVIEW_PENDING";
   readonly usagePolicy: "CONTEXT_ONLY";
@@ -173,8 +184,9 @@ export interface FiscalNotificationGuideEntryV1 {
   readonly categoryLabel: string;
   readonly aliases: readonly string[];
   readonly knowledgePriority: FiscalNotificationKnowledgePriorityV2;
+  readonly recognitionMode: FiscalNotificationGuideRecognitionModeV2;
   readonly summary: string;
-  readonly plainLanguage: FiscalNotificationPlainLanguageGuidanceV1 | null;
+  readonly plainLanguage: FiscalNotificationPlainLanguageGuidanceV1;
   readonly documentChecks: readonly string[];
   readonly possiblePrevious: readonly FiscalNotificationGuideRelatedFamilyV1[];
   readonly possibleNext: readonly FiscalNotificationGuideRelatedFamilyV1[];
@@ -263,14 +275,16 @@ function guideEntry(
     throw new Error("Missing fiscal notification guide coverage");
   }
 
-  const plainLanguage = resolveFiscalNotificationPlainLanguageGuidanceV1(
+  const legacyGuidance = resolveFiscalNotificationPlainLanguageGuidanceV1(
     family.id,
   );
+  const knowledge = resolveFiscalNotificationKnowledgeGuidanceV2(family.id);
+  const plainLanguage = knowledge.guidance;
 
-  const sources = Array.from(
+  const legacySources = Array.from(
     new Set<FiscalNotificationOfficialSourceIdV4>([
       ...family.sourceIds,
-      ...(plainLanguage?.sourceIds ?? []),
+      ...(legacyGuidance?.sourceIds ?? []),
     ]),
   ).map((sourceId) => {
     const source = sourceById.get(sourceId);
@@ -287,6 +301,11 @@ function guideEntry(
       usagePolicy: source.usagePolicy,
     });
   });
+  const sourcesByUrl = new Map<string, FiscalNotificationGuideSourceV1>();
+  for (const source of [...legacySources, ...knowledge.sources]) {
+    sourcesByUrl.set(source.canonicalUrl, Object.freeze({ ...source }));
+  }
+  const sources = [...sourcesByUrl.values()];
 
   return Object.freeze({
     schemaVersion: FISCAL_NOTIFICATION_GUIDE_SCHEMA_VERSION_V1,
@@ -298,12 +317,12 @@ function guideEntry(
     aliases: Object.freeze([
       ...category.aliases,
       ...family.id.split(/[._-]/u).filter(Boolean),
-      ...(plainLanguage?.searchTerms ?? []),
+      ...(legacyGuidance?.searchTerms ?? []),
+      ...plainLanguage.searchTerms,
     ]),
     knowledgePriority: family.knowledgePriority,
-    summary:
-      plainLanguage?.inShort ??
-      `El catálogo registra «${family.nameEs}» como una familia documental de ${category.label.toLocaleLowerCase("es")}. Esta ficha aporta contexto y no clasifica por sí sola un documento concreto.`,
+    recognitionMode: knowledge.recognitionMode,
+    summary: plainLanguage.inShort,
     plainLanguage,
     documentChecks: FISCAL_NOTIFICATION_GUIDE_DOCUMENT_CHECKS_V1,
     possiblePrevious: relatedFamilies(family.id, "POSSIBLE_PREVIOUS"),
