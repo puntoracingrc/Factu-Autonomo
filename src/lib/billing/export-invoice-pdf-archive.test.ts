@@ -11,8 +11,10 @@ import {
 import {
   buildInvoicePdfPeriodArchive,
   invoicePdfExportFolderName,
+  invoicePdfExportPackagePeriodLabel,
   invoicePdfExportPeriodFromQuarter,
   invoicePdfExportPeriodLabel,
+  invoicePdfSummaryFileName,
   InvoicePdfPeriodExportError,
   isDateInInvoicePdfExportPeriod,
 } from "./export-invoice-pdf-archive";
@@ -60,11 +62,7 @@ function draftInvoice(
   };
 }
 
-function issuedInvoice(
-  id: string,
-  number: string,
-  date: string,
-): Document {
+function issuedInvoice(id: string, number: string, date: string): Document {
   return issueDocument(
     draftInvoice(id, number, date),
     PROFILE,
@@ -72,7 +70,9 @@ function issuedInvoice(
   );
 }
 
-async function archiveFiles(archive: Blob): Promise<Record<string, Uint8Array>> {
+async function archiveFiles(
+  archive: Blob,
+): Promise<Record<string, Uint8Array>> {
   return unzipSync(new Uint8Array(await archive.arrayBuffer()));
 }
 
@@ -86,6 +86,9 @@ describe("invoice PDF period naming", () => {
     expect(period).toEqual({ year: 2026, startMonth: 4, endMonth: 6 });
     expect(invoicePdfExportFolderName(period)).toBe(
       "Facturas Trimestre 2 2026",
+    );
+    expect(invoicePdfExportPackagePeriodLabel(period)).toBe(
+      "Trimestre 2 2026",
     );
   });
 
@@ -111,6 +114,16 @@ describe("invoice PDF period naming", () => {
         endMonth: 12,
       }),
     ).toBe("Noviembre-Diciembre 2026");
+    expect(
+      invoicePdfSummaryFileName({
+        year: 2026,
+        startMonth: 5,
+        endMonth: 5,
+      }),
+    ).toBe("Resumen Facturas Mayo 2026.pdf");
+    expect(
+      invoicePdfSummaryFileName(invoicePdfExportPeriodFromQuarter(2026, 2)),
+    ).toBe("Resumen Facturas Trimestre 2 2026.pdf");
   });
 
   it("rechaza rangos invertidos, inválidos o superiores a tres meses", () => {
@@ -161,16 +174,24 @@ describe("invoice PDF period archive", () => {
     expect(result).toMatchObject({
       folderName: "Facturas Mayo 2026",
       fileName: "Facturas Mayo 2026.zip",
+      summaryFileName: "Resumen Facturas Mayo 2026.pdf",
       invoiceCount: 1,
     });
     expect(Object.keys(files)).toEqual([
       "Facturas Mayo 2026/F-2026-0002.pdf",
+      "Facturas Mayo 2026/Resumen Facturas Mayo 2026.pdf",
     ]);
-    expect(strFromU8(files[Object.keys(files)[0]].slice(0, 4))).toBe("%PDF");
+    for (const file of Object.values(files)) {
+      expect(strFromU8(file.slice(0, 4))).toBe("%PDF");
+    }
   });
 
   it("usa fecha y número del snapshot aunque los campos vivos hayan derivado", async () => {
-    const issued = issuedInvoice("snapshot-source", "F-2026-0010", "2026-04-02");
+    const issued = issuedInvoice(
+      "snapshot-source",
+      "F-2026-0010",
+      "2026-04-02",
+    );
     const drifted: Document = {
       ...issued,
       number: "F-LIVE-ALTERADA",
@@ -187,6 +208,7 @@ describe("invoice PDF period archive", () => {
 
     expect(Object.keys(files)).toEqual([
       "Facturas Trimestre 2 2026/F-2026-0010.pdf",
+      "Facturas Trimestre 2 2026/Resumen Facturas Trimestre 2 2026.pdf",
     ]);
     expect(JSON.stringify(Object.keys(files))).not.toContain("ALTERADA");
   });
@@ -209,16 +231,17 @@ describe("invoice PDF period archive", () => {
       "2026-07-13T20:00:00.000Z",
     );
 
-    const result = await buildInvoicePdfPeriodArchive(
-      [historical],
-      PROFILE,
-      { year: 2026, startMonth: 6, endMonth: 6 },
-    );
+    const result = await buildInvoicePdfPeriodArchive([historical], PROFILE, {
+      year: 2026,
+      startMonth: 6,
+      endMonth: 6,
+    });
     const files = await archiveFiles(result.blob);
 
     expect(result.invoiceCount).toBe(1);
     expect(Object.keys(files)).toEqual([
       "Facturas Junio 2026/Factura_2941_.pdf",
+      "Facturas Junio 2026/Resumen Facturas Junio 2026.pdf",
     ]);
     expect(historical.pdfSnapshot).toBeUndefined();
     expect(historical.snapshotSeal).toBeUndefined();
@@ -240,11 +263,11 @@ describe("invoice PDF period archive", () => {
     };
 
     const error = await captureExportError(() =>
-      buildInvoicePdfPeriodArchive(
-        [corrupt],
-        PROFILE,
-        { year: 2026, startMonth: 5, endMonth: 5 },
-      ),
+      buildInvoicePdfPeriodArchive([corrupt], PROFILE, {
+        year: 2026,
+        startMonth: 5,
+        endMonth: 5,
+      }),
     );
 
     expect(error).toBeInstanceOf(InvoicePdfPeriodExportError);
@@ -256,11 +279,11 @@ describe("invoice PDF period archive", () => {
 
   it("no descarga un archivo vacío cuando el periodo no contiene facturas", async () => {
     const error = await captureExportError(() =>
-      buildInvoicePdfPeriodArchive(
-        [],
-        PROFILE,
-        { year: 2026, startMonth: 5, endMonth: 5 },
-      ),
+      buildInvoicePdfPeriodArchive([], PROFILE, {
+        year: 2026,
+        startMonth: 5,
+        endMonth: 5,
+      }),
     );
 
     expect(error).toMatchObject({ code: "no_invoices" });

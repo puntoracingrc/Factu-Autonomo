@@ -5,6 +5,7 @@ import {
   documentPdfFilename,
 } from "@/lib/pdf";
 import type { BusinessProfile, Document } from "@/lib/types";
+import { buildInvoicePeriodSummaryPdf } from "./invoice-period-summary-pdf";
 import { selectCanonicalFiscalDocumentsForExport } from "./fiscal-export-documents";
 
 export const INVOICE_PDF_EXPORT_MONTH_NAMES = [
@@ -49,6 +50,7 @@ export interface InvoicePdfPeriodArchive {
   blob: Blob;
   fileName: string;
   folderName: string;
+  summaryFileName: string;
   invoiceCount: number;
 }
 
@@ -142,11 +144,23 @@ export function invoicePdfExportPeriodLabel(
 export function invoicePdfExportFolderName(
   period: InvoicePdfExportPeriod,
 ): string {
+  return `Facturas ${invoicePdfExportPackagePeriodLabel(period)}`;
+}
+
+export function invoicePdfExportPackagePeriodLabel(
+  period: InvoicePdfExportPeriod,
+): string {
   assertInvoicePdfExportPeriod(period);
   const quarter = fiscalQuarterForPeriod(period);
   return quarter
-    ? `Facturas Trimestre ${quarter} ${period.year}`
-    : `Facturas ${invoicePdfExportPeriodLabel(period)}`;
+    ? `Trimestre ${quarter} ${period.year}`
+    : invoicePdfExportPeriodLabel(period);
+}
+
+export function invoicePdfSummaryFileName(
+  period: InvoicePdfExportPeriod,
+): string {
+  return `Resumen Facturas ${invoicePdfExportPackagePeriodLabel(period)}.pdf`;
 }
 
 function isPotentialInvoice(document: Document | undefined): boolean {
@@ -303,6 +317,7 @@ export async function buildInvoicePdfPeriodArchive(
   const records = selectInvoiceArchiveRecords(documents, profile, period);
   const pdfBytes = await renderPdfBytes(records, profile);
   const folderName = invoicePdfExportFolderName(period);
+  const summaryFileName = invoicePdfSummaryFileName(period);
   const files: Record<string, Uint8Array> = {};
   const usedNames = new Map<string, number>();
 
@@ -314,11 +329,28 @@ export async function buildInvoicePdfPeriodArchive(
     files[`${folderName}/${filename}`] = pdfBytes[index];
   });
 
+  try {
+    const summaryPdf = buildInvoicePeriodSummaryPdf(
+      records.map((record) => record.canonical),
+      profile,
+      invoicePdfExportPackagePeriodLabel(period),
+    );
+    files[`${folderName}/${summaryFileName}`] = new Uint8Array(
+      summaryPdf.output("arraybuffer"),
+    );
+  } catch {
+    throw new InvoicePdfPeriodExportError(
+      "pdf_generation_failed",
+      "No se pudo preparar el resumen de facturas. No se ha descargado un paquete incompleto.",
+    );
+  }
+
   const archive = zipSync(files, { level: 0 });
   return {
     blob: new Blob([archive], { type: "application/zip" }),
     fileName: `${folderName}.zip`,
     folderName,
+    summaryFileName,
     invoiceCount: records.length,
   };
 }

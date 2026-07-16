@@ -20,11 +20,12 @@ describe("settings advisor contact UI contract", () => {
     expect(settingsSource).toContain("Contacto opcional de tu gestoría");
   });
 
-  it("explica el uso futuro sin prometer un envío actual", () => {
+  it("explica la preparación del correo sin prometer adjuntos automáticos", () => {
     expect(settingsSource).toContain(
-      "Rellena estos datos para poder enviar a tu gestor tus facturas y",
+      "Rellena estos datos para preparar desde Facturas un ZIP y un",
     );
-    expect(settingsSource).toContain("no realiza envíos todavía");
+    expect(settingsSource).toContain("adjuntas el ZIP descargado");
+    expect(settingsSource).toContain("envías desde tu aplicación de correo");
     expect(settingsSource).toContain("Nombre de la gestoría");
     expect(settingsSource).toContain("Nombre del gestor");
     expect(settingsSource).toContain("Email del gestor");

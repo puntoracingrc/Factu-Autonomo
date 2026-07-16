@@ -1141,7 +1141,7 @@ export interface BusinessProfile {
   website?: string;
   iban?: string;
   logoUrl?: string;
-  /** Contacto opcional para futuros envíos iniciados expresamente por el usuario. */
+  /** Contacto opcional para correos al gestor iniciados expresamente por el usuario. */
   advisorContact?: AdvisorContact;
   /** Frases reutilizables en notas de facturas, presupuestos y recibos */
   documentPhrases?: DocumentPhrasesSettings;
