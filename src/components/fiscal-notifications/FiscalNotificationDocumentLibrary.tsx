@@ -601,27 +601,16 @@ function DocumentGroupList({
             <TimelineMonthDivider label={formatGroupMonthSequence(group)} />
             <li>
               <Card className="overflow-hidden p-4 sm:p-5">
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <h3 className="font-bold text-slate-950">
-                      {group.documents.length > 1
-                        ? `Expediente relacionado · ${group.documents.length} documentos`
-                        : "Documento independiente"}
-                    </h3>
-                    <p className="mt-1 text-xs text-slate-500">
-                      De izquierda a derecha: documento más antiguo → documento
-                      más reciente
-                    </p>
-                  </div>
-                  {group.documents.length > 1 ? (
+                {group.documents.length > 1 ? (
+                  <div className="mb-3 flex justify-end">
                     <span className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-800">
                       {group.links.length}{" "}
                       {group.links.length === 1
                         ? "vínculo exacto"
                         : "vínculos exactos"}
                     </span>
-                  ) : null}
-                </div>
+                  </div>
+                ) : null}
                 <DocumentFlow
                   group={group}
                   recentlySavedDocumentId={recentlySavedDocumentId}

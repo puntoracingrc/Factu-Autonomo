@@ -112,6 +112,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(documentLibraryComponentSource).not.toContain(
       "Fecha del documento pendiente",
     );
+    expect(documentLibraryComponentSource).not.toContain(
+      "Documento independiente",
+    );
+    expect(documentLibraryComponentSource).not.toContain(
+      "De izquierda a derecha: documento más antiguo",
+    );
   });
 
   it("confirma de forma breve y separa borrar en Factu de enviar el original a la papelera de Drive", () => {
