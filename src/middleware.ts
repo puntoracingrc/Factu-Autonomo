@@ -183,6 +183,7 @@ export const config = {
     "/google-auth/callback/:path*",
     "/importar/:path*",
     "/impuestos/:path*",
+    "/partners/:path*",
     "/presupuestos/:path*",
     "/productos/:path*",
     "/proveedores/:path*",

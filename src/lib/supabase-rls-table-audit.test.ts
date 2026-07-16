@@ -30,6 +30,13 @@ const taxProductInsightsMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const partnerProgramMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260717090000_partner_program_foundation.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -50,6 +57,9 @@ const serviceOnlyTables = [
   "fiscal_evidence_packets",
   "tax_product_events",
   "tax_product_weekly_reports",
+  "partner_accounts",
+  "partner_commission_entries",
+  "partner_payouts",
 ];
 
 const browserSyncTables = ["user_backups", "sync_entities"];
@@ -107,7 +117,9 @@ describe("Supabase table-by-table RLS audit hardening", () => {
   it("keeps internal tables unavailable to browser roles", () => {
     for (const table of serviceOnlyTables) {
       const source =
-        table === "admin_mfa_recovery_challenges"
+        table.startsWith("partner_")
+          ? partnerProgramMigrationSource
+          : table === "admin_mfa_recovery_challenges"
           ? adminMfaRecoveryMigrationSource
           : table === "tax_product_events" ||
               table === "tax_product_weekly_reports"

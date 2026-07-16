@@ -6,6 +6,7 @@ import {
   MOBILE_MORE_NAV_ITEMS,
   MOBILE_PRIMARY_NAV_HREFS,
   MOBILE_PRIMARY_NAV_ITEMS,
+  PARTNER_NAV_ITEM,
 } from "./app-navigation";
 
 describe("app navigation", () => {
@@ -58,6 +59,16 @@ describe("app navigation", () => {
     expect(
       findActiveAppNavItem("/facturas/nuevo", MOBILE_MORE_NAV_ITEMS),
     ).toBeUndefined();
+  });
+
+  it("keeps the private Partner destination out of every default menu", () => {
+    expect(PARTNER_NAV_ITEM).toMatchObject({
+      href: "/partners",
+      label: "Área Partners",
+    });
+    expect(APP_NAV_ITEMS).not.toContain(PARTNER_NAV_ITEM);
+    expect(MOBILE_PRIMARY_NAV_ITEMS).not.toContain(PARTNER_NAV_ITEM);
+    expect(MOBILE_MORE_NAV_ITEMS).not.toContain(PARTNER_NAV_ITEM);
   });
 
   it("abre Asesoría fiscal en el configurador cuando está habilitado", () => {
