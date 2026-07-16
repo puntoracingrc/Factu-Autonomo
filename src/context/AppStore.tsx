@@ -206,6 +206,10 @@ import {
   runDeleteFiscalNotificationDocumentCommandV1,
   type DurableFiscalNotificationDocumentDeletionResultV1,
 } from "@/lib/fiscal-notifications/document-deletion-command.v1";
+import {
+  runRepairFiscalNotificationEmptyHistoryCommandV1,
+  type DurableFiscalNotificationEmptyHistoryRepairResultV1,
+} from "@/lib/fiscal-notifications/empty-history-repair.v1";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -280,6 +284,11 @@ interface AppStoreValue {
     documentId: string;
     deletedAt: string;
   }) => DurableFiscalNotificationDocumentDeletionResultV1;
+  repairFiscalNotificationEmptyHistory: (input: {
+    expected: AppData;
+    ownerScope: string;
+    confirmedAt: string;
+  }) => DurableFiscalNotificationEmptyHistoryRepairResultV1;
   updateProfile: (profile: BusinessProfile) => void;
   addDocument: (
     doc: Omit<Document, "id" | "number" | "createdAt" | "updatedAt">,
@@ -798,6 +807,19 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       deletedAt: string;
     }): DurableFiscalNotificationDocumentDeletionResultV1 =>
       runDeleteFiscalNotificationDocumentCommandV1({
+        ...input,
+        commit: commitDurableAppData,
+      }),
+    [commitDurableAppData],
+  );
+
+  const repairFiscalNotificationEmptyHistory = useCallback(
+    (input: {
+      expected: AppData;
+      ownerScope: string;
+      confirmedAt: string;
+    }): DurableFiscalNotificationEmptyHistoryRepairResultV1 =>
+      runRepairFiscalNotificationEmptyHistoryCommandV1({
         ...input,
         commit: commitDurableAppData,
       }),
@@ -2235,6 +2257,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       saveFiscalNotificationStructuredReview,
       archiveFiscalNotificationOriginal,
       deleteFiscalNotificationDocument,
+      repairFiscalNotificationEmptyHistory,
       updateProfile,
       addDocument,
       issueDocument,
@@ -2298,6 +2321,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       saveFiscalNotificationStructuredReview,
       archiveFiscalNotificationOriginal,
       deleteFiscalNotificationDocument,
+      repairFiscalNotificationEmptyHistory,
       updateProfile,
       addDocument,
       issueDocument,

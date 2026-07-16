@@ -17,12 +17,14 @@ import type {
   SyncChange,
 } from "../types";
 import type { FiscalNotificationsWorkspace } from "../fiscal-notifications/types";
+import { deleteFiscalNotificationDocumentV1 } from "../fiscal-notifications/document-deletion.v1";
 import { FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 } from "../fiscal-notifications/workspace-persistence.v1";
 import {
   FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_KIND_V2,
   FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
   encodeFiscalNotificationsWorkspaceForStorageV2,
   parseFiscalNotificationsWorkspaceStorageEnvelopeV2,
+  registerFiscalNotificationDocumentReductionTransitionV2,
 } from "../fiscal-notifications/workspace-storage-envelope.v2";
 import {
   applyLegacyImportRepair,
@@ -175,6 +177,22 @@ function fiscalWorkspaceWithPrivateDocument(): FiscalNotificationsWorkspace {
     },
   ];
   return workspace;
+}
+
+function fiscalWorkspaceWithNewPrivateDocument(): FiscalNotificationsWorkspace {
+  const remapped = JSON.parse(
+    JSON.stringify(fiscalWorkspaceWithPrivateDocument()).replaceAll(
+      "sync-privacy",
+      "sync-descendant",
+    ),
+  ) as FiscalNotificationsWorkspace;
+  remapped.workspaceId = "fiscal-notifications-workspace-v1";
+  remapped.revision = 3;
+  remapped.createdAt = FISCAL_NOW;
+  remapped.updatedAt = "2026-07-14T09:03:00.000Z";
+  remapped.files[0]!.sha256 = "b".repeat(64);
+  remapped.files[0]!.contentFingerprint = "b".repeat(64);
+  return remapped;
 }
 
 function attestedHistoricalData(): AppData {
@@ -1004,6 +1022,145 @@ describe("sync del expediente fiscal estructurado", () => {
     expect(JSON.stringify(hydrated)).not.toMatch(
       /Título privado|PERSONA PRIVADA|00000000T/iu,
     );
+  });
+
+  it("sincroniza la eliminación estricta del último documento como un workspace vacío", () => {
+    const currentWorkspace = fiscalWorkspaceWithPrivateDocument();
+    const current: AppData = {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: currentWorkspace,
+    };
+    const deletion = deleteFiscalNotificationDocumentV1({
+      workspace: currentWorkspace,
+      ownerScope: FISCAL_OWNER,
+      documentId: "document:sync-privacy:1",
+      deletedAt: "2026-07-14T09:02:00.000Z",
+    });
+
+    expect(deletion.status).toBe("APPLIED");
+    if (deletion.status !== "APPLIED") return;
+    const confirmedWorkspace =
+      registerFiscalNotificationDocumentReductionTransitionV2(
+        deletion.workspace,
+        currentWorkspace,
+        FISCAL_OWNER,
+        "2026-07-14T09:02:00.000Z",
+      );
+    expect(confirmedWorkspace).not.toBeNull();
+    const changes = diffAppData(current, {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: confirmedWorkspace ?? undefined,
+    }).filter(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+
+    expect(changes).toHaveLength(1);
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        changes[0]?.payload,
+        FISCAL_OWNER,
+      ),
+    ).toMatchObject({
+      workspace: { revision: 2, documents: [] },
+      sources: [],
+      transition: {
+        removedDocumentIds: ["document:sync-privacy:1"],
+      },
+    });
+    expect(
+      applySyncChanges(current, changes).fiscalNotificationsWorkspace,
+    ).toMatchObject({
+      revision: 2,
+      packages: [],
+      files: [],
+      documents: [],
+    });
+  });
+
+  it("no sincroniza una reducción que salta revisiones", () => {
+    const currentWorkspace = fiscalWorkspaceWithPrivateDocument();
+    const current: AppData = {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: currentWorkspace,
+    };
+    const deletion = deleteFiscalNotificationDocumentV1({
+      workspace: currentWorkspace,
+      ownerScope: FISCAL_OWNER,
+      documentId: "document:sync-privacy:1",
+      deletedAt: "2026-07-14T09:02:00.000Z",
+    });
+
+    expect(deletion.status).toBe("APPLIED");
+    if (deletion.status !== "APPLIED") return;
+    const skippedRevision = structuredClone(deletion.workspace);
+    skippedRevision.revision = currentWorkspace.revision + 2;
+    skippedRevision.updatedAt = "2026-07-14T09:03:00.000Z";
+
+    expect(
+      diffAppData(current, {
+        ...EMPTY_DATA,
+        fiscalNotificationsWorkspace: skippedRevision,
+      }).filter(
+        (change) => change.entityType === "fiscal_notifications_workspace",
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("conserva la reducción confirmada si se añade otro documento antes de subir", () => {
+    const baseWorkspace = fiscalWorkspaceWithPrivateDocument();
+    const base: AppData = {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: baseWorkspace,
+    };
+    const deletion = deleteFiscalNotificationDocumentV1({
+      workspace: baseWorkspace,
+      ownerScope: FISCAL_OWNER,
+      documentId: "document:sync-privacy:1",
+      deletedAt: "2026-07-14T09:02:00.000Z",
+    });
+    expect(deletion.status).toBe("APPLIED");
+    if (deletion.status !== "APPLIED") return;
+    const reducedWorkspace =
+      registerFiscalNotificationDocumentReductionTransitionV2(
+        deletion.workspace,
+        baseWorkspace,
+        FISCAL_OWNER,
+        "2026-07-14T09:02:00.000Z",
+      );
+    expect(reducedWorkspace).not.toBeNull();
+    const reducedData: AppData = {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: reducedWorkspace ?? undefined,
+    };
+    const reductionChanges = diffAppData(base, reducedData).filter(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+    const readdedWorkspace = fiscalWorkspaceWithNewPrivateDocument();
+    const readdedData: AppData = {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: readdedWorkspace,
+    };
+    const additionChanges = diffAppData(reducedData, readdedData).filter(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+    const pending = mergePendingChanges(reductionChanges, additionChanges);
+
+    expect(pending).toHaveLength(1);
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        pending[0]?.payload,
+        FISCAL_OWNER,
+      )?.transition,
+    ).toMatchObject({
+      kind: "USER_CONFIRMED_DOCUMENT_REDUCTION_V1",
+      baseRevision: 1,
+    });
+    expect(
+      applySyncChanges(base, pending).fiscalNotificationsWorkspace,
+    ).toMatchObject({
+      revision: 3,
+      documents: [{ id: "document:sync-descendant:1" }],
+    });
   });
 
   it("sincroniza avances append-only y no degrada una revisión más nueva", () => {

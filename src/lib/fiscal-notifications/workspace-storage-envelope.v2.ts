@@ -62,11 +62,29 @@ export interface FiscalNotificationPersistedSourceV2 {
   readonly documentIds: readonly string[];
 }
 
+export type FiscalNotificationsWorkspaceTransitionV2 =
+  | Readonly<{
+      kind: "USER_CONFIRMED_DOCUMENT_REDUCTION_V1";
+      ownerScope: string;
+      confirmedAt: string;
+      baseWorkspaceId: string;
+      baseCreatedAt: string;
+      baseRevision: number;
+      baseUpdatedAt: string;
+      removedDocumentIds: readonly string[];
+    }>
+  | Readonly<{
+      kind: "USER_CONFIRMED_EMPTY_RESTART_V1";
+      ownerScope: string;
+      confirmedAt: string;
+    }>;
+
 export interface FiscalNotificationsWorkspaceStorageEnvelopeV2 {
   readonly storageKind: typeof FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_KIND_V2;
   readonly storageVersion: typeof FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_VERSION_V2;
   readonly workspace: Readonly<FiscalNotificationsPersistedWorkspaceV2>;
   readonly sources: readonly Readonly<FiscalNotificationPersistedSourceV2>[];
+  readonly transition?: FiscalNotificationsWorkspaceTransitionV2;
 }
 
 export type FiscalNotificationsWorkspaceStorageComparisonV2 =
@@ -132,6 +150,80 @@ function safePositiveInteger(value: unknown): number | null {
   return Number.isSafeInteger(value) && Number(value) > 0
     ? Number(value)
     : null;
+}
+
+function safeNonNegativeInteger(value: unknown): number | null {
+  return Number.isSafeInteger(value) && Number(value) >= 0
+    ? Number(value)
+    : null;
+}
+
+function parseTransition(
+  value: unknown,
+  expectedOwnerScope: string,
+): FiscalNotificationsWorkspaceTransitionV2 | null {
+  const candidate = plainRecord(value, [
+    "kind",
+    "ownerScope",
+    "confirmedAt",
+    "baseWorkspaceId",
+    "baseCreatedAt",
+    "baseRevision",
+    "baseUpdatedAt",
+    "removedDocumentIds",
+  ]);
+  if (!candidate) return null;
+  const kind = own(candidate, "kind");
+  const ownerScope = canonicalFiscalNotificationOwnerScopeV2(
+    own(candidate, "ownerScope"),
+  );
+  const confirmedAt = safeTimestamp(own(candidate, "confirmedAt"));
+  if (ownerScope !== expectedOwnerScope || !confirmedAt) return null;
+  if (kind === "USER_CONFIRMED_EMPTY_RESTART_V1") {
+    if (
+      own(candidate, "baseWorkspaceId") !== undefined ||
+      own(candidate, "baseCreatedAt") !== undefined ||
+      own(candidate, "baseRevision") !== undefined ||
+      own(candidate, "baseUpdatedAt") !== undefined ||
+      own(candidate, "removedDocumentIds") !== undefined
+    ) {
+      return null;
+    }
+    return deepFreeze({ kind, ownerScope, confirmedAt });
+  }
+  if (kind !== "USER_CONFIRMED_DOCUMENT_REDUCTION_V1") return null;
+  const baseWorkspaceId = safeId(own(candidate, "baseWorkspaceId"));
+  const baseCreatedAt = safeTimestamp(own(candidate, "baseCreatedAt"));
+  const baseRevision = safeNonNegativeInteger(own(candidate, "baseRevision"));
+  const baseUpdatedAt = safeTimestamp(own(candidate, "baseUpdatedAt"));
+  const rawRemovedDocumentIds = own(candidate, "removedDocumentIds");
+  const removedDocumentIds = Array.isArray(rawRemovedDocumentIds)
+    ? rawRemovedDocumentIds.map(safeId)
+    : [];
+  if (
+    !baseWorkspaceId ||
+    !baseCreatedAt ||
+    baseRevision === null ||
+    !baseUpdatedAt ||
+    !Array.isArray(rawRemovedDocumentIds) ||
+    removedDocumentIds.length === 0 ||
+    removedDocumentIds.length > MAX_SOURCES ||
+    removedDocumentIds.some((id) => id === null) ||
+    new Set(removedDocumentIds).size !== removedDocumentIds.length ||
+    Date.parse(confirmedAt) <= Date.parse(baseUpdatedAt)
+  ) {
+    return null;
+  }
+  return deepFreeze({
+    kind,
+    ownerScope,
+    confirmedAt,
+    baseWorkspaceId,
+    baseCreatedAt,
+    baseRevision,
+    baseUpdatedAt,
+    removedDocumentIds: removedDocumentIds as string[],
+  });
 }
 
 function deepFreeze<T>(value: T): T {
@@ -248,6 +340,7 @@ export function parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
     "storageVersion",
     "workspace",
     "sources",
+    "transition",
   ]);
   if (
     !root ||
@@ -285,8 +378,31 @@ export function parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
     own(root, "workspace"),
     ownerScope,
   );
+  if (!workspace) return null;
+  const rawTransition = own(root, "transition");
+  const transition =
+    rawTransition === undefined
+      ? undefined
+      : parseTransition(rawTransition, ownerScope);
+  if (rawTransition !== undefined && !transition) return null;
+  if (
+    transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+    (workspace.createdAt !== transition.confirmedAt ||
+      Date.parse(workspace.updatedAt) < Date.parse(transition.confirmedAt))
+  ) {
+    return null;
+  }
+  if (
+    transition?.kind === "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" &&
+    (workspace.workspaceId !== transition.baseWorkspaceId ||
+      workspace.createdAt !== transition.baseCreatedAt ||
+      workspace.revision <= transition.baseRevision ||
+      Date.parse(workspace.updatedAt) < Date.parse(transition.confirmedAt))
+  ) {
+    return null;
+  }
   const rawSources = own(root, "sources");
-  if (!workspace || !Array.isArray(rawSources) || rawSources.length > MAX_SOURCES) {
+  if (!Array.isArray(rawSources) || rawSources.length > MAX_SOURCES) {
     return null;
   }
   const documentIds = new Set(workspace.documents.map((entry) => entry.id));
@@ -316,6 +432,7 @@ export function parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
     storageVersion: FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_VERSION_V2,
     workspace,
     sources: parsedSources,
+    ...(transition ? { transition } : {}),
   } satisfies FiscalNotificationsWorkspaceStorageEnvelopeV2;
   const serialized = stableJson(parsed);
   if (/"(?:textSnippet|rawValue|valueRaw)"\s*:/u.test(serialized)) {
@@ -416,6 +533,11 @@ function reconcileWithBase(
   });
   return {
     ...projected,
+    accountHolder:
+      newDocumentIds.size === 0 &&
+      projected.documents.length < base.workspace.documents.length
+        ? base.workspace.accountHolder
+        : projected.accountHolder,
     documents,
     references: [
       ...entitiesForDocuments(base.workspace.references, retainedBaseDocumentIds),
@@ -475,12 +597,14 @@ export function encodeFiscalNotificationsWorkspaceForStorageV2(
   const base =
     parseFiscalNotificationsWorkspaceStorageEnvelopeV2(baseValue, ownerScope) ??
     registered;
+  const transition = registered?.transition ?? base?.transition;
   const envelope = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
     {
       storageKind: FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_KIND_V2,
       storageVersion: FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_VERSION_V2,
       workspace: reconcileWithBase(projected, base),
       sources,
+      ...(transition ? { transition } : {}),
     },
     ownerScope,
   );
@@ -857,6 +981,487 @@ function collectionContainsPrefix<T>(
   });
 }
 
+function envelopeCollectionsAreExactSubset(
+  smaller: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  larger: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+): boolean {
+  return (
+    collectionContainsPrefix(
+      smaller.workspace.documents,
+      larger.workspace.documents,
+    ) &&
+    collectionContainsPrefix(
+      smaller.workspace.references,
+      larger.workspace.references,
+    ) &&
+    collectionContainsPrefix(smaller.workspace.dates, larger.workspace.dates) &&
+    collectionContainsPrefix(
+      smaller.workspace.amounts,
+      larger.workspace.amounts,
+    ) &&
+    collectionContainsPrefix(smaller.workspace.facts, larger.workspace.facts) &&
+    collectionContainsPrefix(
+      smaller.workspace.evidence,
+      larger.workspace.evidence,
+    ) &&
+    collectionContainsPrefix(
+      smaller.workspace.thirdParties,
+      larger.workspace.thirdParties,
+    ) &&
+    collectionContainsPrefix(
+      smaller.workspace.relations,
+      larger.workspace.relations,
+    ) &&
+    collectionContainsPrefix(
+      smaller.workspace.driveArchives,
+      larger.workspace.driveArchives,
+    ) &&
+    collectionContainsPrefix(
+      smaller.sources,
+      larger.sources,
+      (entry) => entry.fileId,
+    )
+  );
+}
+
+function envelopeIsStructurallyEmpty(
+  envelope: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+): boolean {
+  return (
+    envelope.sources.length === 0 &&
+    envelope.workspace.documents.length === 0 &&
+    envelope.workspace.references.length === 0 &&
+    envelope.workspace.dates.length === 0 &&
+    envelope.workspace.amounts.length === 0 &&
+    envelope.workspace.facts.length === 0 &&
+    envelope.workspace.evidence.length === 0 &&
+    envelope.workspace.thirdParties.length === 0 &&
+    envelope.workspace.relations.length === 0 &&
+    envelope.workspace.driveArchives.length === 0
+  );
+}
+
+function transitionBaseMatches(
+  envelope: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  transition: Extract<
+    FiscalNotificationsWorkspaceTransitionV2,
+    { kind: "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" }
+  >,
+): boolean {
+  return (
+    envelope.workspace.workspaceId === transition.baseWorkspaceId &&
+    envelope.workspace.createdAt === transition.baseCreatedAt &&
+    envelope.workspace.revision === transition.baseRevision &&
+    envelope.workspace.updatedAt === transition.baseUpdatedAt
+  );
+}
+
+function documentScopedCollectionFollowsReduction<
+  T extends { readonly id: string; readonly documentId: string },
+>(
+  baseEntries: readonly T[],
+  candidateEntries: readonly T[],
+  droppedBaseDocumentIds: ReadonlySet<string>,
+  newDocumentIds: ReadonlySet<string>,
+): boolean {
+  const scopedKey = (entry: T): string => `${entry.documentId}\u0000${entry.id}`;
+  const baseById = new Map(baseEntries.map((entry) => [scopedKey(entry), entry]));
+  const candidateById = new Map(
+    candidateEntries.map((entry) => [scopedKey(entry), entry]),
+  );
+  for (const baseEntry of baseEntries) {
+    const candidate = candidateById.get(scopedKey(baseEntry));
+    if (candidate) {
+      if (stableJson(candidate) !== stableJson(baseEntry)) return false;
+    } else if (!droppedBaseDocumentIds.has(baseEntry.documentId)) {
+      return false;
+    }
+  }
+  return candidateEntries.every((entry) => {
+    const baseEntry = baseById.get(scopedKey(entry));
+    return baseEntry
+      ? stableJson(baseEntry) === stableJson(entry)
+      : newDocumentIds.has(entry.documentId);
+  });
+}
+
+function sourcesFollowReduction(
+  base: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  candidate: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  liveBaseDocumentIds: ReadonlySet<string>,
+  newDocumentIds: ReadonlySet<string>,
+): boolean {
+  const baseById = new Map(base.sources.map((entry) => [entry.fileId, entry]));
+  const candidateById = new Map(
+    candidate.sources.map((entry) => [entry.fileId, entry]),
+  );
+  for (const source of base.sources) {
+    const expectedDocumentIds = source.documentIds.filter((id) =>
+      liveBaseDocumentIds.has(id),
+    );
+    const candidateSource = candidateById.get(source.fileId);
+    if (expectedDocumentIds.length === 0) {
+      if (candidateSource) return false;
+      continue;
+    }
+    if (!candidateSource) return false;
+    const baseMetadata = { ...source, documentIds: undefined };
+    const candidateMetadata = {
+      ...candidateSource,
+      documentIds: undefined,
+    };
+    const candidateDocumentIds = candidateSource.documentIds;
+    if (
+      stableJson(baseMetadata) !== stableJson(candidateMetadata) ||
+      stableJson(expectedDocumentIds) !== stableJson(candidateDocumentIds)
+    ) {
+      return false;
+    }
+  }
+  return candidate.sources.every((source) => {
+    if (baseById.has(source.fileId)) return true;
+    return source.documentIds.every((id) => newDocumentIds.has(id));
+  });
+}
+
+function relationsFollowReduction(
+  base: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  candidate: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  droppedBaseDocumentIds: ReadonlySet<string>,
+  newDocumentIds: ReadonlySet<string>,
+): boolean {
+  const relationKey = (entry: (typeof base.workspace.relations)[number]) =>
+    `${entry.sourceDocumentId}\u0000${entry.targetDocumentId}\u0000${entry.id}`;
+  const baseById = new Map(
+    base.workspace.relations.map((entry) => [relationKey(entry), entry]),
+  );
+  const candidateById = new Map(
+    candidate.workspace.relations.map((entry) => [relationKey(entry), entry]),
+  );
+  for (const relation of base.workspace.relations) {
+    const candidateRelation = candidateById.get(relationKey(relation));
+    if (candidateRelation) {
+      if (stableJson(candidateRelation) !== stableJson(relation)) return false;
+    } else if (
+      !droppedBaseDocumentIds.has(relation.sourceDocumentId) &&
+      !droppedBaseDocumentIds.has(relation.targetDocumentId)
+    ) {
+      return false;
+    }
+  }
+  return candidate.workspace.relations.every((relation) => {
+    const baseRelation = baseById.get(relationKey(relation));
+    return baseRelation
+      ? stableJson(baseRelation) === stableJson(relation)
+      : newDocumentIds.has(relation.sourceDocumentId) ||
+          newDocumentIds.has(relation.targetDocumentId);
+  });
+}
+
+function driveArchivesFollowReduction(
+  base: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  candidate: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  liveBaseDocumentIds: ReadonlySet<string>,
+  newDocumentIds: ReadonlySet<string>,
+): boolean {
+  const baseById = new Map(
+    base.workspace.driveArchives.map((entry) => [entry.id, entry]),
+  );
+  const candidateById = new Map(
+    candidate.workspace.driveArchives.map((entry) => [entry.id, entry]),
+  );
+  for (const archive of base.workspace.driveArchives) {
+    const expectedDocumentIds = archive.documentIds.filter((id) =>
+      liveBaseDocumentIds.has(id),
+    );
+    const candidateArchive = candidateById.get(archive.id);
+    if (expectedDocumentIds.length === 0) {
+      if (candidateArchive) return false;
+      continue;
+    }
+    if (!candidateArchive) return false;
+    const baseMetadata = { ...archive, documentIds: undefined };
+    const candidateMetadata = {
+      ...candidateArchive,
+      documentIds: undefined,
+    };
+    const candidateDocumentIds = candidateArchive.documentIds;
+    if (
+      stableJson(baseMetadata) !== stableJson(candidateMetadata) ||
+      stableJson(expectedDocumentIds) !== stableJson(candidateDocumentIds)
+    ) {
+      return false;
+    }
+  }
+  return candidate.workspace.driveArchives.every((archive) => {
+    if (baseById.has(archive.id)) return true;
+    return archive.documentIds.every((id) => newDocumentIds.has(id));
+  });
+}
+
+function followsDeclaredDocumentReduction(
+  base: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  candidate: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  transition: Extract<
+    FiscalNotificationsWorkspaceTransitionV2,
+    { kind: "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" }
+  >,
+): boolean {
+  if (!transitionBaseMatches(base, transition)) return false;
+  if (
+    stableJson(base.workspace.accountHolder) !==
+    stableJson(candidate.workspace.accountHolder)
+  ) {
+    return false;
+  }
+  const baseDocumentsById = new Map(
+    base.workspace.documents.map((entry) => [entry.id, entry]),
+  );
+  const candidateDocumentsById = new Map(
+    candidate.workspace.documents.map((entry) => [entry.id, entry]),
+  );
+  const declaredRemovedDocumentIds = new Set(transition.removedDocumentIds);
+  if (
+    transition.removedDocumentIds.some((id) => !baseDocumentsById.has(id))
+  ) {
+    return false;
+  }
+  const droppedBaseDocumentIds = new Set(
+    base.workspace.documents
+      .filter((entry) => !candidateDocumentsById.has(entry.id))
+      .map((entry) => entry.id),
+  );
+  if (
+    droppedBaseDocumentIds.size === 0 ||
+    droppedBaseDocumentIds.size !== declaredRemovedDocumentIds.size ||
+    [...droppedBaseDocumentIds].some(
+      (id) => !declaredRemovedDocumentIds.has(id),
+    )
+  ) {
+    return false;
+  }
+  const liveBaseDocumentIds = new Set(
+    base.workspace.documents
+      .filter((entry) => candidateDocumentsById.has(entry.id))
+      .map((entry) => entry.id),
+  );
+  for (const documentId of liveBaseDocumentIds) {
+    if (
+      stableJson(baseDocumentsById.get(documentId)) !==
+      stableJson(candidateDocumentsById.get(documentId))
+    ) {
+      return false;
+    }
+  }
+  const newDocumentIds = new Set(
+    candidate.workspace.documents
+      .filter((entry) => !baseDocumentsById.has(entry.id))
+      .map((entry) => entry.id),
+  );
+  const reductionChecks = {
+    references: documentScopedCollectionFollowsReduction(
+      base.workspace.references,
+      candidate.workspace.references,
+      droppedBaseDocumentIds,
+      newDocumentIds,
+    ),
+    dates: documentScopedCollectionFollowsReduction(
+      base.workspace.dates,
+      candidate.workspace.dates,
+      droppedBaseDocumentIds,
+      newDocumentIds,
+    ),
+    amounts: documentScopedCollectionFollowsReduction(
+      base.workspace.amounts,
+      candidate.workspace.amounts,
+      droppedBaseDocumentIds,
+      newDocumentIds,
+    ),
+    facts: documentScopedCollectionFollowsReduction(
+      base.workspace.facts,
+      candidate.workspace.facts,
+      droppedBaseDocumentIds,
+      newDocumentIds,
+    ),
+    evidence: documentScopedCollectionFollowsReduction(
+      base.workspace.evidence,
+      candidate.workspace.evidence,
+      droppedBaseDocumentIds,
+      newDocumentIds,
+    ),
+    thirdParties: documentScopedCollectionFollowsReduction(
+      base.workspace.thirdParties,
+      candidate.workspace.thirdParties,
+      droppedBaseDocumentIds,
+      newDocumentIds,
+    ),
+    sources: sourcesFollowReduction(
+      base,
+      candidate,
+      liveBaseDocumentIds,
+      newDocumentIds,
+    ),
+    relations: relationsFollowReduction(
+      base,
+      candidate,
+      droppedBaseDocumentIds,
+      newDocumentIds,
+    ),
+    driveArchives: driveArchivesFollowReduction(
+      base,
+      candidate,
+      liveBaseDocumentIds,
+      newDocumentIds,
+    ),
+  };
+  return Object.values(reductionChecks).every(Boolean);
+}
+
+function compareDeclaredTransitions(
+  current: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  incoming: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+): FiscalNotificationsWorkspaceStorageComparisonV2 | null {
+  if (stableJson(current.transition) === stableJson(incoming.transition)) {
+    return null;
+  }
+  if (
+    incoming.transition?.kind ===
+      "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" &&
+    followsDeclaredDocumentReduction(current, incoming, incoming.transition)
+  ) {
+    return "INCOMING_ADVANCES";
+  }
+  if (
+    current.transition?.kind ===
+      "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" &&
+    followsDeclaredDocumentReduction(incoming, current, current.transition)
+  ) {
+    return "CURRENT_ADVANCES";
+  }
+  if (
+    incoming.transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+    Date.parse(incoming.transition.confirmedAt) >
+      Date.parse(current.workspace.updatedAt)
+  ) {
+    return "INCOMING_ADVANCES";
+  }
+  if (
+    current.transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+    Date.parse(current.transition.confirmedAt) >
+      Date.parse(incoming.workspace.updatedAt)
+  ) {
+    return "CURRENT_ADVANCES";
+  }
+  return current.transition || incoming.transition ? "DIVERGED" : null;
+}
+
+export function registerFiscalNotificationDocumentReductionTransitionV2(
+  resultWorkspaceValue: unknown,
+  baseWorkspaceValue: unknown,
+  expectedOwnerScope: string,
+  confirmedAt: string,
+): FiscalNotificationsWorkspace | null {
+  const ownerScope = canonicalFiscalNotificationOwnerScopeV2(
+    expectedOwnerScope,
+  );
+  const confirmedTimestamp = safeTimestamp(confirmedAt);
+  if (!ownerScope || ownerScope !== expectedOwnerScope || !confirmedTimestamp) {
+    return null;
+  }
+  const base = encodeFiscalNotificationsWorkspaceForStorageV2(
+    baseWorkspaceValue,
+  );
+  const result = encodeFiscalNotificationsWorkspaceForStorageV2(
+    resultWorkspaceValue,
+    base,
+  );
+  if (
+    !base ||
+    !result ||
+    base.workspace.ownerScope !== ownerScope ||
+    result.workspace.ownerScope !== ownerScope ||
+    result.workspace.documents.length >= base.workspace.documents.length ||
+    result.workspace.revision !== base.workspace.revision + 1 ||
+    Date.parse(confirmedTimestamp) <= Date.parse(base.workspace.updatedAt) ||
+    !envelopeCollectionsAreExactSubset(result, base)
+  ) {
+    return null;
+  }
+  const resultDocumentIds = new Set(
+    result.workspace.documents.map((entry) => entry.id),
+  );
+  const removedDocumentIds = base.workspace.documents
+    .map((entry) => entry.id)
+    .filter((id) => !resultDocumentIds.has(id))
+    .sort();
+  if (
+    removedDocumentIds.length === 0 ||
+    removedDocumentIds.length !==
+      base.workspace.documents.length - result.workspace.documents.length
+  ) {
+    return null;
+  }
+  const marked = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+    {
+      ...result,
+      transition: {
+        kind: "USER_CONFIRMED_DOCUMENT_REDUCTION_V1",
+        ownerScope,
+        confirmedAt: confirmedTimestamp,
+        baseWorkspaceId: base.workspace.workspaceId,
+        baseCreatedAt: base.workspace.createdAt,
+        baseRevision: base.workspace.revision,
+        baseUpdatedAt: base.workspace.updatedAt,
+        removedDocumentIds,
+      },
+    },
+    ownerScope,
+  );
+  return marked
+    ? restoreFiscalNotificationsWorkspaceFromStorageV2(marked, ownerScope)
+    : null;
+}
+
+export function registerFiscalNotificationEmptyRestartTransitionV2(
+  emptyWorkspaceValue: unknown,
+  expectedOwnerScope: string,
+  confirmedAt: string,
+): FiscalNotificationsWorkspace | null {
+  const ownerScope = canonicalFiscalNotificationOwnerScopeV2(
+    expectedOwnerScope,
+  );
+  const confirmedTimestamp = safeTimestamp(confirmedAt);
+  const envelope = encodeFiscalNotificationsWorkspaceForStorageV2(
+    emptyWorkspaceValue,
+  );
+  if (
+    !ownerScope ||
+    ownerScope !== expectedOwnerScope ||
+    !confirmedTimestamp ||
+    !envelope ||
+    envelope.workspace.ownerScope !== ownerScope ||
+    envelope.workspace.createdAt !== confirmedTimestamp ||
+    envelope.workspace.updatedAt !== confirmedTimestamp ||
+    !envelopeIsStructurallyEmpty(envelope)
+  ) {
+    return null;
+  }
+  const marked = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+    {
+      ...envelope,
+      transition: {
+        kind: "USER_CONFIRMED_EMPTY_RESTART_V1",
+        ownerScope,
+        confirmedAt: confirmedTimestamp,
+      },
+    },
+    ownerScope,
+  );
+  return marked
+    ? restoreFiscalNotificationsWorkspaceFromStorageV2(marked, ownerScope)
+    : null;
+}
+
 export function compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
   currentValue: unknown,
   incomingValue: unknown,
@@ -870,44 +1475,30 @@ export function compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
     incomingValue,
     expectedOwnerScope,
   );
+  if (!current || !incoming) return "DIVERGED";
+  if (stableJson(current) === stableJson(incoming)) return "EQUAL";
+  const declaredTransitionComparison = compareDeclaredTransitions(
+    current,
+    incoming,
+  );
+  if (declaredTransitionComparison) return declaredTransitionComparison;
   if (
-    !current ||
-    !incoming ||
     current.workspace.workspaceId !== incoming.workspace.workspaceId ||
     current.workspace.createdAt !== incoming.workspace.createdAt
   ) {
     return "DIVERGED";
   }
-  if (stableJson(current) === stableJson(incoming)) return "EQUAL";
-  const contains = (
-    smaller: FiscalNotificationsWorkspaceStorageEnvelopeV2,
-    larger: FiscalNotificationsWorkspaceStorageEnvelopeV2,
-  ): boolean =>
-    collectionContainsPrefix(smaller.workspace.documents, larger.workspace.documents) &&
-    collectionContainsPrefix(smaller.workspace.references, larger.workspace.references) &&
-    collectionContainsPrefix(smaller.workspace.dates, larger.workspace.dates) &&
-    collectionContainsPrefix(smaller.workspace.amounts, larger.workspace.amounts) &&
-    collectionContainsPrefix(smaller.workspace.facts, larger.workspace.facts) &&
-    collectionContainsPrefix(smaller.workspace.evidence, larger.workspace.evidence) &&
-    collectionContainsPrefix(smaller.workspace.thirdParties, larger.workspace.thirdParties) &&
-    collectionContainsPrefix(smaller.workspace.relations, larger.workspace.relations) &&
-    collectionContainsPrefix(smaller.workspace.driveArchives, larger.workspace.driveArchives) &&
-    collectionContainsPrefix(
-      smaller.sources,
-      larger.sources,
-      (entry) => entry.fileId,
-    );
   if (
     incoming.workspace.revision > current.workspace.revision &&
     incoming.workspace.updatedAt > current.workspace.updatedAt &&
-    contains(current, incoming)
+    envelopeCollectionsAreExactSubset(current, incoming)
   ) {
     return "INCOMING_ADVANCES";
   }
   if (
     current.workspace.revision > incoming.workspace.revision &&
     current.workspace.updatedAt > incoming.workspace.updatedAt &&
-    contains(incoming, current)
+    envelopeCollectionsAreExactSubset(incoming, current)
   ) {
     return "CURRENT_ADVANCES";
   }

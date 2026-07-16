@@ -144,7 +144,10 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(documentDeletionSource).toContain("driveFileIdsPreserved");
     expect(documentDeletionCommandSource).toContain(
-      "fiscalNotificationsWorkspace: prepared.workspace",
+      "fiscalNotificationsWorkspace: transitioned.workspace",
+    );
+    expect(documentDeletionCommandSource).toContain(
+      "registerFiscalNotificationDocumentReductionTransitionV2(",
     );
     expect(driveOriginalDeleteSource).toContain(
       "body: JSON.stringify({ trashed })",
@@ -949,7 +952,23 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       'entry.collection === "fiscalNotificationsWorkspace"',
     );
     expect(componentSource).toContain(
-      "allowAbsentWorkspace: !fiscalNotificationsWorkspaceWasQuarantined",
+      "allowAbsentWorkspace: !persistedWorkspaceWasQuarantined",
+    );
+    expect(componentSource).toContain(
+      "Revisar y restablecer",
+    );
+    expect(componentSource).toContain(
+      "¿Ya eliminaste todas las fichas de Notificaciones?",
+    );
+    expect(componentSource).toContain("Sí, iniciar historial vacío");
+    expect(compact(componentSource)).toContain(
+      "Los originales de Google Drive no se borran ni se modifican.",
+    );
+    expect(componentSource).toContain(
+      "repairFiscalNotificationEmptyHistory({",
+    );
+    expect(componentSource).toContain(
+      "void addFiles(pendingFiles, execution.data)",
     );
     expect(componentSource).toContain("ya estaba escaneado");
     expect(componentSource).toContain("duplicado dentro del lote");
