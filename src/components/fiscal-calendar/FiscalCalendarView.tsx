@@ -26,6 +26,13 @@ import {
   formatFiscalCalendarEventDate,
   formatFiscalCalendarFetchedAt,
 } from "@/lib/fiscal-calendar/dates";
+import {
+  buildFiscalCalendarDescriptionFilterContext,
+  buildFiscalCalendarDescriptionView,
+  type FiscalCalendarDescriptionFilterContext,
+  type FiscalCalendarDescriptionLine,
+  type FiscalCalendarDescriptionScope,
+} from "@/lib/fiscal-calendar/description-obligation-view";
 import { segmentFiscalCalendarModelReferences } from "@/lib/fiscal-calendar/model-reference-links";
 import {
   buildFiscalCalendarObligationView,
@@ -67,8 +74,6 @@ const DEADLINE_KIND_LABELS = {
   exception: "Excepción",
   unclassified: "Tipo de plazo no clasificado",
 } as const;
-
-const MAX_RENDERED_DESCRIPTION_LINES = 100;
 
 function requestUrl(
   startDate: string,
@@ -147,26 +152,53 @@ function LinkedEventText({
   );
 }
 
-function EventDescription({
-  description,
+function EventDescriptionLine({
+  line,
   modelLinks,
   onModelOpen,
 }: {
-  description: string;
+  line: FiscalCalendarDescriptionLine;
   modelLinks: ReadonlyMap<string, FiscalCalendarModelPageLink>;
   onModelOpen?: (modelNumber: string) => void;
 }) {
-  const lines = description
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, MAX_RENDERED_DESCRIPTION_LINES);
+  return (
+    <p
+      role="listitem"
+      className="break-words rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+    >
+      <LinkedEventText
+        text={line.text}
+        modelLinks={modelLinks}
+        onModelOpen={onModelOpen}
+      />
+    </p>
+  );
+}
 
-  if (lines.length <= 1) {
+export function FiscalCalendarEventDescription({
+  event,
+  scope,
+  filterContext,
+  modelLinks,
+  onModelOpen,
+}: {
+  event: FiscalCalendarEvent;
+  scope: FiscalCalendarDescriptionScope;
+  filterContext: FiscalCalendarDescriptionFilterContext;
+  modelLinks: ReadonlyMap<string, FiscalCalendarModelPageLink>;
+  onModelOpen?: (modelNumber: string) => void;
+}) {
+  const view = buildFiscalCalendarDescriptionView({
+    event,
+    scope,
+    context: filterContext,
+  });
+
+  if (view.mode === "FULL" && view.directLines.length <= 1) {
     return (
       <p className="mt-3 break-words text-sm leading-6 text-slate-600 dark:text-slate-300">
         <LinkedEventText
-          text={lines[0] ?? description}
+          text={view.directLines[0]?.text ?? event.description}
           modelLinks={modelLinks}
           onModelOpen={onModelOpen}
         />
@@ -174,21 +206,71 @@ function EventDescription({
     );
   }
 
+  if (view.mode === "FULL") {
+    return (
+      <div
+        className="mt-3 space-y-2"
+        role="list"
+        aria-label="Detalle del vencimiento"
+      >
+        {view.directLines.map((line) => (
+          <EventDescriptionLine
+            key={`${line.sourceIndex}-${line.text}`}
+            line={line}
+            modelLinks={modelLinks}
+            onModelOpen={onModelOpen}
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="mt-3 space-y-2"
-      role="list"
-      aria-label="Detalle del vencimiento"
-    >
-      {lines.map((line, index) => (
-        <p
-          key={`${index}-${line}`}
-          role="listitem"
-          className="break-words rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
+    <div className="mt-3 min-w-0 space-y-2">
+      {view.directLines.length > 0 ? (
+        <div
+          className="space-y-2"
+          role="list"
+          aria-label="Detalle visible del vencimiento"
         >
-          <LinkedEventText text={line} modelLinks={modelLinks} onModelOpen={onModelOpen} />
-        </p>
-      ))}
+          {view.directLines.map((line) => (
+            <EventDescriptionLine
+              key={`${line.sourceIndex}-${line.text}`}
+              line={line}
+              modelLinks={modelLinks}
+              onModelOpen={onModelOpen}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      <details className="group min-w-0 max-w-full rounded-xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+        <summary className="flex min-w-0 cursor-pointer items-center justify-between gap-3 rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:text-slate-200">
+          <span className="min-w-0 flex-1 break-words">
+            Otros modelos publicados por la AEAT ({view.otherModelCount})
+          </span>
+          <span className="shrink-0 text-blue-700 group-open:hidden dark:text-blue-300">
+            Mostrar
+          </span>
+          <span className="hidden shrink-0 text-blue-700 group-open:inline dark:text-blue-300">
+            Ocultar
+          </span>
+        </summary>
+        <div
+          className="space-y-2 border-t border-slate-100 px-2 py-2 dark:border-slate-800"
+          role="list"
+          aria-label="Otros modelos publicados por la AEAT"
+        >
+          {view.otherModelLines.map((line) => (
+            <EventDescriptionLine
+              key={`${line.sourceIndex}-${line.text}`}
+              line={line}
+              modelLinks={modelLinks}
+              onModelOpen={onModelOpen}
+            />
+          ))}
+        </div>
+      </details>
     </div>
   );
 }
@@ -199,6 +281,8 @@ function EventCard({
   modelLinks,
   obligationDecision,
   orientationHighlighted,
+  descriptionScope,
+  descriptionFilterContext,
   onCreateReminder,
   onModelOpen,
 }: {
@@ -207,6 +291,8 @@ function EventCard({
   modelLinks: ReadonlyMap<string, FiscalCalendarModelPageLink>;
   obligationDecision?: FiscalCalendarEventObligationDecision;
   orientationHighlighted: boolean;
+  descriptionScope: FiscalCalendarDescriptionScope;
+  descriptionFilterContext: FiscalCalendarDescriptionFilterContext;
   onCreateReminder: (event: FiscalCalendarEvent) => void;
   onModelOpen: (modelNumber: string) => void;
 }) {
@@ -283,8 +369,10 @@ function EventCard({
           {formatFiscalCalendarEventDate(event)}
         </time>
         {event.description ? (
-          <EventDescription
-            description={event.description}
+          <FiscalCalendarEventDescription
+            event={event}
+            scope={descriptionScope}
+            filterContext={descriptionFilterContext}
             modelLinks={modelLinks}
             onModelOpen={onModelOpen}
           />
@@ -376,6 +464,19 @@ export function FiscalCalendarView({
         manualModelCodes,
       }),
     [appData.profile.taxModelDiagnostic, events, manualModelCodes],
+  );
+  const descriptionFilterContext = useMemo(
+    () =>
+      buildFiscalCalendarDescriptionFilterContext({
+        session: appData.profile.taxModelDiagnostic,
+        manualModelCodes,
+        obligationViewStatus: obligationView.status,
+      }),
+    [
+      appData.profile.taxModelDiagnostic,
+      manualModelCodes,
+      obligationView.status,
+    ],
   );
   const obligationDecisions = useMemo(
     () =>
@@ -913,6 +1014,8 @@ export function FiscalCalendarView({
                     obligationView.status === "ORIENTATIVE" &&
                     orientationPriorityEventIds.has(event.id)
                   }
+                  descriptionScope={effectiveScope}
+                  descriptionFilterContext={descriptionFilterContext}
                   onCreateReminder={prepareReminder}
                   onModelOpen={recordCalendarModelOpen}
                 />
