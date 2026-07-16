@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { type BoundedDocumentInput, FiscalNotificationInputError } from "../input-contract";
-import { createDocumentSegmentV1, type DocumentSegmentTypeV1, type DocumentSegmentV1 } from "./document-segment.v1";
-import { PAYMENT_ORDER_EXTRACTOR_RELEASE_V1, extractPaymentOrderV1 } from "./payment-order-extractor.v1";
+import {
+  type BoundedDocumentInput,
+  FiscalNotificationInputError,
+} from "../input-contract";
+import {
+  createDocumentSegmentV1,
+  type DocumentSegmentTypeV1,
+  type DocumentSegmentV1,
+} from "./document-segment.v1";
+import {
+  PAYMENT_ORDER_EXTRACTOR_RELEASE_V1,
+  extractPaymentOrderV1,
+} from "./payment-order-extractor.v1";
 
 const OWNER_SCOPE = "user:synthetic-payment-order";
 const DOCUMENT_ID = "document:synthetic-payment-order";
@@ -34,19 +44,28 @@ const FULL_PAYMENT_FORM = [
   "Código Seguro de Verificación (CSV): CSV-SYN-002",
 ].join("\n");
 
-function document(...pagesOrSignal: readonly (string | AbortSignal)[]): BoundedDocumentInput {
-  const signal = pagesOrSignal.at(-1) instanceof AbortSignal
-    ? pagesOrSignal.at(-1) as AbortSignal
-    : undefined;
-  const pageTexts = pagesOrSignal.filter((item): item is string => typeof item === "string");
+function document(
+  ...pagesOrSignal: readonly (string | AbortSignal)[]
+): BoundedDocumentInput {
+  const signal =
+    pagesOrSignal.at(-1) instanceof AbortSignal
+      ? (pagesOrSignal.at(-1) as AbortSignal)
+      : undefined;
+  const pageTexts = pagesOrSignal.filter(
+    (item): item is string => typeof item === "string",
+  );
   return Object.freeze({
     ownerScope: OWNER_SCOPE,
     documentId: DOCUMENT_ID,
-    pages: Object.freeze(pageTexts.map((text, index) => Object.freeze({
-      pageNumber: index + 1,
-      text,
-      isBlank: text.trim().length === 0,
-    }))),
+    pages: Object.freeze(
+      pageTexts.map((text, index) =>
+        Object.freeze({
+          pageNumber: index + 1,
+          text,
+          isBlank: text.trim().length === 0,
+        }),
+      ),
+    ),
     ...(signal ? { signal } : {}),
   });
 }
@@ -65,12 +84,20 @@ function segment(
     segmentType: type,
     pageFrom,
     pageTo,
-    detectedTitle: detectedTitle ?? (type === "PAYMENT_DOCUMENT" ? "carta de pago" : "contenido auxiliar sintético"),
+    detectedTitle:
+      detectedTitle ??
+      (type === "PAYMENT_DOCUMENT"
+        ? "carta de pago"
+        : "contenido auxiliar sintético"),
     detectedAuthority,
     classificationConfidence: 1,
     extractionStatus: "EXTRACTED_REVIEW_REQUIRED",
     contentHash: `sha256:${suffix.padEnd(64, "a").slice(0, 64)}`,
-    canGenerateAdministrativeFacts: ["MAIN_ADMINISTRATIVE_ACT", "DEBT_LIST", "PAYMENT_DOCUMENT"].includes(type),
+    canGenerateAdministrativeFacts: [
+      "MAIN_ADMINISTRATIVE_ACT",
+      "DEBT_LIST",
+      "PAYMENT_DOCUMENT",
+    ].includes(type),
   });
 }
 
@@ -83,7 +110,10 @@ describe("payment order extractor v1", () => {
 
     expect(output.status).toBe("REVIEW_REQUIRED");
     expect(output.familyCandidates).toEqual([
-      expect.objectContaining({ familyId: "payment.payment_form", confidence: 1 }),
+      expect.objectContaining({
+        familyId: "payment.payment_form",
+        confidence: 1,
+      }),
     ]);
     expect(output.paymentOrderFacts).toMatchObject({
       documentKind: "CARTA_DE_PAGO",
@@ -100,34 +130,69 @@ describe("payment order extractor v1", () => {
       rawPaymentDeadline: { printedValue: "hasta el 30/04/2026" },
       paymentChannel: { printedValue: "Entidad colaboradora o pasarela AEAT" },
       collaboratingEntity: { printedValue: "BANCO SINTÉTICO" },
-      maskedBankAccount: { maskedValue: "****9012", disclosurePolicy: "MASKED_LAST_FOUR_ONLY" },
+      maskedBankAccount: {
+        maskedValue: "****9012",
+        disclosurePolicy: "MASKED_LAST_FOUR_ONLY",
+      },
       barcodeReference: { printedValue: "BAR-SYN-002" },
       explicitPaymentProof: null,
     });
-    expect(output.paymentOrderFacts.moneyFacts.map((fact) => [fact.role, fact.amountCents])).toEqual([
+    expect(
+      output.paymentOrderFacts.moneyFacts.map((fact) => [
+        fact.role,
+        fact.amountCents,
+      ]),
+    ).toEqual([
       ["PRINCIPAL", 100_000],
       ["EXECUTIVE_SURCHARGE", 10_000],
       ["LATE_INTEREST", 2_500],
       ["COSTS", 500],
       ["TOTAL_DUE", 113_000],
     ]);
-    expect(output.monetaryComponents.map((item) => [item.componentType, item.amountCents])).toEqual([
+    expect(
+      output.monetaryComponents.map((item) => [
+        item.componentType,
+        item.amountCents,
+      ]),
+    ).toEqual([
       ["PRINCIPAL", 100_000],
       ["EXECUTIVE_SURCHARGE", 10_000],
       ["LATE_INTEREST", 2_500],
       ["COSTS", 500],
       ["TOTAL_CLAIMED", 113_000],
     ]);
-    expect(output.entities).toEqual(expect.arrayContaining([
-      expect.objectContaining({ entityKind: "ADMINISTRATIVE_ACT", familyId: "payment.payment_form" }),
-      expect.objectContaining({ entityKind: "PAYMENT_EVENT", paymentStatus: "ORDERED" }),
-      expect.objectContaining({ entityKind: "DEBT_CLAIM", creationBasis: "EXPLICITLY_PRINTED_DEBT" }),
-      expect.objectContaining({ entityKind: "PARTY", roles: ["PRIMARY_DEBTOR"] }),
-      expect.objectContaining({ entityKind: "PARTY", roles: ["FINANCIAL_ENTITY"] }),
-    ]));
-    expect(output.entities).not.toContainEqual(expect.objectContaining({ paymentStatus: "PAID" }));
+    expect(output.entities).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entityKind: "ADMINISTRATIVE_ACT",
+          familyId: "payment.payment_form",
+        }),
+        expect.objectContaining({
+          entityKind: "PAYMENT_EVENT",
+          paymentStatus: "ORDERED",
+        }),
+        expect.objectContaining({
+          entityKind: "DEBT_CLAIM",
+          creationBasis: "EXPLICITLY_PRINTED_DEBT",
+        }),
+        expect.objectContaining({
+          entityKind: "PARTY",
+          roles: ["PRIMARY_DEBTOR"],
+        }),
+        expect.objectContaining({
+          entityKind: "PARTY",
+          roles: ["FINANCIAL_ENTITY"],
+        }),
+      ]),
+    );
+    expect(output.entities).not.toContainEqual(
+      expect.objectContaining({ paymentStatus: "PAID" }),
+    );
     expect(output.proceduralDates).toEqual([
-      expect.objectContaining({ dateType: "ISSUE_DATE", parsedDate: "2026-04-05" }),
+      expect.objectContaining({
+        dateType: "ISSUE_DATE",
+        parsedDate: "2026-04-05",
+      }),
       expect.objectContaining({
         dateType: "VOLUNTARY_PAYMENT_DEADLINE",
         rawDeadlineText: "hasta el 30/04/2026",
@@ -157,7 +222,9 @@ describe("payment order extractor v1", () => {
     ].join("\n");
     const output = extractPaymentOrderV1({
       document: document(page),
-      segments: [segment("PAYMENT_DOCUMENT", 1, 1, "b", "AEAT", "documento de ingreso")],
+      segments: [
+        segment("PAYMENT_DOCUMENT", 1, 1, "b", "AEAT", "documento de ingreso"),
+      ],
     });
 
     expect(output.paymentOrderFacts).toMatchObject({
@@ -170,8 +237,77 @@ describe("payment order extractor v1", () => {
       explicitPaymentProof: null,
     });
     expect(output.warnings).toContain("MISSING_EXPLICIT_PAYMENT_DEADLINE");
-    expect(output.entities).toContainEqual(expect.objectContaining({ paymentStatus: "ORDERED" }));
-    expect(output.entities).not.toContainEqual(expect.objectContaining({ paymentStatus: "PAID" }));
+    expect(output.entities).toContainEqual(
+      expect.objectContaining({ paymentStatus: "ORDERED" }),
+    );
+    expect(output.entities).not.toContainEqual(
+      expect.objectContaining({ paymentStatus: "PAID" }),
+    );
+  });
+
+  it("recognizes the AEAT Modelo 010 title as a document to pay, never as proof of payment", () => {
+    const output = extractPaymentOrderV1({
+      document: document(
+        [
+          "Agencia Tributaria",
+          "DOCUMENTO DE PAGO",
+          "Modelo: 010",
+          "Número de justificante: 0100000000002",
+          "Importe del ingreso: 728,44 euros",
+        ].join("\n"),
+      ),
+      segments: [
+        segment("PAYMENT_DOCUMENT", 1, 1, "c", "AEAT", "documento de pago"),
+      ],
+    });
+
+    expect(output.paymentOrderFacts).toMatchObject({
+      documentKind: "DOCUMENTO_DE_PAGO",
+      paymentState: "ORDERED_NOT_CONFIRMED",
+      model: { printedValue: "010" },
+      explicitPaymentProof: null,
+    });
+    expect(output.entities).toContainEqual(
+      expect.objectContaining({ paymentStatus: "ORDERED" }),
+    );
+    expect(output.entities).not.toContainEqual(
+      expect.objectContaining({ paymentStatus: "PAID" }),
+    );
+  });
+
+  it("recognizes a split AEAT Modelo 010 form whose printed validation box becomes the segment title", () => {
+    const output = extractPaymentOrderV1({
+      document: document(
+        [
+          "Agencia Tributaria",
+          "Modelo",
+          "010",
+          "JUSTIFICANTE DEL INGRESO (VALIDACIÓN MECÁNICA O SELLO, FECHA Y FIRMA)",
+          "Importe del ingreso: 728,44 euros",
+        ].join("\n"),
+      ),
+      segments: [
+        segment(
+          "PAYMENT_DOCUMENT",
+          1,
+          1,
+          "d",
+          "AEAT",
+          "justificante del ingreso (validacion mecanica o sello, fecha y firma)",
+        ),
+      ],
+    });
+
+    expect(output).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      paymentOrderFacts: {
+        documentKind: "DOCUMENTO_DE_PAGO",
+        paymentState: "ORDERED_NOT_CONFIRMED",
+      },
+    });
+    expect(output.entities).not.toContainEqual(
+      expect.objectContaining({ paymentStatus: "PAID" }),
+    );
   });
 
   it("does not convert a printed NRC in the order into proof of payment", () => {
@@ -180,74 +316,109 @@ describe("payment order extractor v1", () => {
       segments: [segment("PAYMENT_DOCUMENT", 1)],
     });
 
-    expect(output.warnings).toContain("PAYMENT_EVIDENCE_PRESENT_REQUIRES_SEPARATE_EXTRACTOR");
-    expect(output.references).not.toContainEqual(expect.objectContaining({ referenceType: "NRC" }));
+    expect(output.warnings).toContain(
+      "PAYMENT_EVIDENCE_PRESENT_REQUIRES_SEPARATE_EXTRACTOR",
+    );
+    expect(output.references).not.toContainEqual(
+      expect.objectContaining({ referenceType: "NRC" }),
+    );
     expect(output.paymentOrderFacts.explicitPaymentProof).toBeNull();
-    expect(output.entities).toContainEqual(expect.objectContaining({ paymentStatus: "ORDERED" }));
-    expect(output.entities).not.toContainEqual(expect.objectContaining({ paymentStatus: "PAID" }));
+    expect(output.entities).toContainEqual(
+      expect.objectContaining({ paymentStatus: "ORDERED" }),
+    );
+    expect(output.entities).not.toContainEqual(
+      expect.objectContaining({ paymentStatus: "PAID" }),
+    );
   });
 
   it("fails closed on conflicting totals and does not create a debt claim", () => {
     const output = extractPaymentOrderV1({
-      document: document(FULL_PAYMENT_FORM.replace(
-        "Importe total: 1.130,00 euros",
-        "Importe total: 1.130,00 euros\nImporte total: 1.131,00 euros",
-      )),
+      document: document(
+        FULL_PAYMENT_FORM.replace(
+          "Importe total: 1.130,00 euros",
+          "Importe total: 1.130,00 euros\nImporte total: 1.131,00 euros",
+        ),
+      ),
       segments: [segment("PAYMENT_DOCUMENT", 1)],
     });
 
-    expect(output.paymentOrderFacts.moneyFacts).not.toContainEqual(expect.objectContaining({ role: "TOTAL_DUE" }));
-    expect(output.warnings).toEqual(expect.arrayContaining([
-      "CONFLICTING_PRINTED_AMOUNT_TOTAL_DUE",
-      "MISSING_EXPLICIT_TOTAL_DUE",
-    ]));
-    expect(output.entities).not.toContainEqual(expect.objectContaining({ entityKind: "DEBT_CLAIM" }));
+    expect(output.paymentOrderFacts.moneyFacts).not.toContainEqual(
+      expect.objectContaining({ role: "TOTAL_DUE" }),
+    );
+    expect(output.warnings).toEqual(
+      expect.arrayContaining([
+        "CONFLICTING_PRINTED_AMOUNT_TOTAL_DUE",
+        "MISSING_EXPLICIT_TOTAL_DUE",
+      ]),
+    );
+    expect(output.entities).not.toContainEqual(
+      expect.objectContaining({ entityKind: "DEBT_CLAIM" }),
+    );
   });
 
   it("keeps a negative printed total visible but never represents it as debt", () => {
     const output = extractPaymentOrderV1({
-      document: document(FULL_PAYMENT_FORM
-        .replace("Principal: 1.000,00 euros\n", "")
-        .replace("Recargo de apremio: 100,00 euros\n", "")
-        .replace("Intereses de demora: 25,00 euros\n", "")
-        .replace("Costas: 5,00 euros\n", "")
-        .replace("1.130,00 euros", "-10,00 euros")),
+      document: document(
+        FULL_PAYMENT_FORM.replace("Principal: 1.000,00 euros\n", "")
+          .replace("Recargo de apremio: 100,00 euros\n", "")
+          .replace("Intereses de demora: 25,00 euros\n", "")
+          .replace("Costas: 5,00 euros\n", "")
+          .replace("1.130,00 euros", "-10,00 euros"),
+      ),
       segments: [segment("PAYMENT_DOCUMENT", 1)],
     });
 
-    expect(output.paymentOrderFacts.moneyFacts).toContainEqual(expect.objectContaining({
-      role: "TOTAL_DUE",
-      sign: "NEGATIVE",
-      amountCents: 1_000,
-    }));
+    expect(output.paymentOrderFacts.moneyFacts).toContainEqual(
+      expect.objectContaining({
+        role: "TOTAL_DUE",
+        sign: "NEGATIVE",
+        amountCents: 1_000,
+      }),
+    );
     expect(output.warnings).toContain("NON_POSITIVE_TOTAL_DUE");
-    expect(output.entities).not.toContainEqual(expect.objectContaining({ entityKind: "DEBT_CLAIM" }));
+    expect(output.entities).not.toContainEqual(
+      expect.objectContaining({ entityKind: "DEBT_CLAIM" }),
+    );
   });
 
   it("retains invalid printed date and amount as review-required information", () => {
     const output = extractPaymentOrderV1({
-      document: document(FULL_PAYMENT_FORM
-        .replace("Importe total: 1.130,00 euros", "Importe total: mil ciento treinta euros")
-        .replace("05/04/2026", "31/02/2026")),
+      document: document(
+        FULL_PAYMENT_FORM.replace(
+          "Importe total: 1.130,00 euros",
+          "Importe total: mil ciento treinta euros",
+        ).replace("05/04/2026", "31/02/2026"),
+      ),
       segments: [segment("PAYMENT_DOCUMENT", 1)],
     });
 
-    expect(output.paymentOrderFacts.moneyFacts).not.toContainEqual(expect.objectContaining({ role: "TOTAL_DUE" }));
-    expect(output.warnings).toEqual(expect.arrayContaining([
-      "INVALID_PRINTED_AMOUNT_TOTAL_DUE",
-      "INVALID_PRINTED_ISSUE_DATE",
-      "MISSING_EXPLICIT_TOTAL_DUE",
-    ]));
-    expect(output.proceduralDates).toContainEqual(expect.objectContaining({
-      dateType: "ISSUE_DATE",
-      rawText: "31/02/2026",
-      parsedDate: null,
-    }));
+    expect(output.paymentOrderFacts.moneyFacts).not.toContainEqual(
+      expect.objectContaining({ role: "TOTAL_DUE" }),
+    );
+    expect(output.warnings).toEqual(
+      expect.arrayContaining([
+        "INVALID_PRINTED_AMOUNT_TOTAL_DUE",
+        "INVALID_PRINTED_ISSUE_DATE",
+        "MISSING_EXPLICIT_TOTAL_DUE",
+      ]),
+    );
+    expect(output.proceduralDates).toContainEqual(
+      expect.objectContaining({
+        dateType: "ISSUE_DATE",
+        rawText: "31/02/2026",
+        parsedDate: null,
+      }),
+    );
   });
 
   it("blocks incompatible authorities and a guide quoting the title", () => {
     const regional = extractPaymentOrderV1({
-      document: document(FULL_PAYMENT_FORM.replace("Agencia Tributaria", "Agencia Tributaria Canaria")),
+      document: document(
+        FULL_PAYMENT_FORM.replace(
+          "Agencia Tributaria",
+          "Agencia Tributaria Canaria",
+        ),
+      ),
       segments: [segment("PAYMENT_DOCUMENT", 1)],
     });
     const guide = extractPaymentOrderV1({
@@ -255,8 +426,14 @@ describe("payment order extractor v1", () => {
       segments: [segment("PAYMENT_DOCUMENT", 1)],
     });
 
-    expect(regional).toMatchObject({ status: "BLOCKED", warnings: ["CONFLICTING_AUTHORITY_OR_TERRITORY"] });
-    expect(guide).toMatchObject({ status: "BLOCKED", warnings: ["CONFLICTING_NON_DOCUMENT_GUIDE"] });
+    expect(regional).toMatchObject({
+      status: "BLOCKED",
+      warnings: ["CONFLICTING_AUTHORITY_OR_TERRITORY"],
+    });
+    expect(guide).toMatchObject({
+      status: "BLOCKED",
+      warnings: ["CONFLICTING_NON_DOCUMENT_GUIDE"],
+    });
     expect(regional.entities).toEqual([]);
     expect(guide.entities).toEqual([]);
   });
@@ -267,17 +444,33 @@ describe("payment order extractor v1", () => {
       segments: [segment("PAYMENT_DOCUMENT", 1)],
     });
 
-    expect(output).toMatchObject({ status: "BLOCKED", warnings: ["CONFLICTING_PAYMENT_ORDER_KIND"] });
+    expect(output).toMatchObject({
+      status: "BLOCKED",
+      warnings: ["CONFLICTING_PAYMENT_ORDER_KIND"],
+    });
     expect(output.paymentOrderFacts.documentKind).toBeNull();
   });
 
   it("returns UNKNOWN for instructions or an unrelated administrative act", () => {
     const instructions = extractPaymentOrderV1({
-      document: document("Agencia Tributaria\nINSTRUCCIONES PARA EFECTUAR EL PAGO\nModelo: 002"),
-      segments: [segment("PAYMENT_DOCUMENT", 1, 1, "c", "AEAT", "instrucciones para efectuar el pago")],
+      document: document(
+        "Agencia Tributaria\nINSTRUCCIONES PARA EFECTUAR EL PAGO\nModelo: 002",
+      ),
+      segments: [
+        segment(
+          "PAYMENT_DOCUMENT",
+          1,
+          1,
+          "c",
+          "AEAT",
+          "instrucciones para efectuar el pago",
+        ),
+      ],
     });
     const unrelated = extractPaymentOrderV1({
-      document: document("Agencia Tributaria\nComunicación informativa sintética"),
+      document: document(
+        "Agencia Tributaria\nComunicación informativa sintética",
+      ),
       segments: [segment("MAIN_ADMINISTRATIVE_ACT", 1)],
     });
 
@@ -288,11 +481,15 @@ describe("payment order extractor v1", () => {
   });
 
   it("does not promote values printed only in generic instructions", () => {
-    const payment = FULL_PAYMENT_FORM
-      .replace("Entidad colaboradora: BANCO SINTÉTICO\n", "")
-      .replace("Cuenta de cargo: ES12 3456 7890 1234 5678 9012\n", "");
+    const payment = FULL_PAYMENT_FORM.replace(
+      "Entidad colaboradora: BANCO SINTÉTICO\n",
+      "",
+    ).replace("Cuenta de cargo: ES12 3456 7890 1234 5678 9012\n", "");
     const output = extractPaymentOrderV1({
-      document: document(payment, "Entidad colaboradora: BANCO INCORRECTO\nCuenta de cargo: ES00 0000 0000 0000 0000 9999"),
+      document: document(
+        payment,
+        "Entidad colaboradora: BANCO INCORRECTO\nCuenta de cargo: ES00 0000 0000 0000 0000 9999",
+      ),
       segments: [
         segment("PAYMENT_DOCUMENT", 1),
         segment("GENERIC_INSTRUCTIONS", 2, 2, "e"),
@@ -304,9 +501,10 @@ describe("payment order extractor v1", () => {
   });
 
   it("uses high-confidence AEAT segment evidence when the logo is not text-extractable", () => {
-    const withoutAuthority = FULL_PAYMENT_FORM
-      .replace("Agencia Tributaria\n", "")
-      .replace("sede.agenciatributaria.gob.es\n", "");
+    const withoutAuthority = FULL_PAYMENT_FORM.replace(
+      "Agencia Tributaria\n",
+      "",
+    ).replace("sede.agenciatributaria.gob.es\n", "");
     const recognized = extractPaymentOrderV1({
       document: document(withoutAuthority),
       segments: [segment("PAYMENT_DOCUMENT", 1)],
@@ -316,7 +514,9 @@ describe("payment order extractor v1", () => {
       segments: [segment("PAYMENT_DOCUMENT", 1, 1, "d", "UNKNOWN")],
     });
 
-    expect(recognized.familyCandidates[0]?.familyId).toBe("payment.payment_form");
+    expect(recognized.familyCandidates[0]?.familyId).toBe(
+      "payment.payment_form",
+    );
     expect(unsupported.status).toBe("UNKNOWN");
     expect(unsupported.entities).toEqual([]);
   });
@@ -326,15 +526,26 @@ describe("payment order extractor v1", () => {
       document: document(FULL_PAYMENT_FORM),
       segments: [segment("PAYMENT_DOCUMENT", 1)],
     };
-    expect(() => extractPaymentOrderV1({ ...valid, hiddenPii: "forbidden" } as never)).toThrowError(
-      expect.objectContaining<Partial<FiscalNotificationInputError>>({ code: "INVALID_INPUT", path: "paymentOrderInput.$shape" }),
+    expect(() =>
+      extractPaymentOrderV1({ ...valid, hiddenPii: "forbidden" } as never),
+    ).toThrowError(
+      expect.objectContaining<Partial<FiscalNotificationInputError>>({
+        code: "INVALID_INPUT",
+        path: "paymentOrderInput.$shape",
+      }),
     );
     const controller = new AbortController();
     controller.abort();
-    expect(() => extractPaymentOrderV1({
-      document: document(FULL_PAYMENT_FORM, controller.signal),
-      segments: valid.segments,
-    })).toThrowError(expect.objectContaining<Partial<FiscalNotificationInputError>>({ code: "ABORTED" }));
+    expect(() =>
+      extractPaymentOrderV1({
+        document: document(FULL_PAYMENT_FORM, controller.signal),
+        segments: valid.segments,
+      }),
+    ).toThrowError(
+      expect.objectContaining<Partial<FiscalNotificationInputError>>({
+        code: "ABORTED",
+      }),
+    );
   });
 
   it("is deterministic, non-mutating and returns immutable outputs without the raw account", () => {
@@ -348,11 +559,15 @@ describe("payment order extractor v1", () => {
 
     expect(first).toEqual(second);
     expect(JSON.stringify(input)).toBe(before);
-    expect(JSON.stringify(first)).not.toContain("ES12 3456 7890 1234 5678 9012");
+    expect(JSON.stringify(first)).not.toContain(
+      "ES12 3456 7890 1234 5678 9012",
+    );
     expect(Object.isFrozen(first)).toBe(true);
     expect(Object.isFrozen(first.paymentOrderFacts)).toBe(true);
     expect(Object.isFrozen(first.paymentOrderFacts.moneyFacts)).toBe(true);
-    expect(() => (first.paymentOrderFacts.moneyFacts as unknown as unknown[]).push({})).toThrow();
+    expect(() =>
+      (first.paymentOrderFacts.moneyFacts as unknown as unknown[]).push({}),
+    ).toThrow();
   });
 
   it("publishes versioned official sources and the no-payment-proof invariant", () => {
@@ -364,11 +579,25 @@ describe("payment order extractor v1", () => {
       accountPolicy: "MASK_LAST_FOUR_AND_DISCARD_RAW_VALUE",
       actionPolicy: "NO_DEBT_PAYMENT_DEADLINE_OR_ACCOUNTING_ACTION",
     });
-    expect(PAYMENT_ORDER_EXTRACTOR_RELEASE_V1.officialInterpretationSources).toEqual([
-      expect.objectContaining({ sourceId: "aeat.payment.nrc", url: expect.stringContaining("agenciatributaria.gob.es") }),
-      expect.objectContaining({ sourceId: "aeat.payment.liquidations.card", url: expect.stringContaining("agenciatributaria.gob.es") }),
-      expect.objectContaining({ sourceId: "boe.rgr.article.41", url: expect.stringContaining("BOE-A-2005-14803") }),
-      expect.objectContaining({ sourceId: "boe.order.eha-2027-2007", url: expect.stringContaining("BOE-A-2007-13223") }),
+    expect(
+      PAYMENT_ORDER_EXTRACTOR_RELEASE_V1.officialInterpretationSources,
+    ).toEqual([
+      expect.objectContaining({
+        sourceId: "aeat.payment.nrc",
+        url: expect.stringContaining("agenciatributaria.gob.es"),
+      }),
+      expect.objectContaining({
+        sourceId: "aeat.payment.liquidations.card",
+        url: expect.stringContaining("agenciatributaria.gob.es"),
+      }),
+      expect.objectContaining({
+        sourceId: "boe.rgr.article.41",
+        url: expect.stringContaining("BOE-A-2005-14803"),
+      }),
+      expect.objectContaining({
+        sourceId: "boe.order.eha-2027-2007",
+        url: expect.stringContaining("BOE-A-2007-13223"),
+      }),
     ]);
   });
 });

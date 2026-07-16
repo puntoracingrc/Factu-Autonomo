@@ -1,13 +1,16 @@
 import type { AdministrativeMoneyKind } from "./administrative-domain";
-import type { AdministrativeDocumentType, ExternalReferenceType } from "./types";
+import type {
+  AdministrativeDocumentType,
+  ExternalReferenceType,
+} from "./types";
 import { resolveFiscalNotificationOfficialSourceV2 } from "./knowledge/official-sources.v2";
 
 export const FISCAL_NOTIFICATION_DOCUMENT_EXPLANATION_ENGINE_ID_V1 =
   "fiscal-notification-document-explanation" as const;
 export const FISCAL_NOTIFICATION_DOCUMENT_EXPLANATION_ENGINE_VERSION_V1 =
-  "1.0.0" as const;
+  "1.1.0" as const;
 export const FISCAL_NOTIFICATION_DOCUMENT_KNOWLEDGE_SNAPSHOT_V1 =
-  "official-context.2026-07-15.v1" as const;
+  "official-context.2026-07-16.v2" as const;
 
 export interface FiscalNotificationExplanationMoneyInputV1 {
   readonly kind: AdministrativeMoneyKind;
@@ -92,7 +95,11 @@ const BASE_PROFILES = Object.freeze({
     "El resultado exacto depende de la deuda, recargo, importe pendiente y fechas impresas en esta ficha.",
     "Revisa deuda, recargo y fecha de pago",
     "Comprueba que la clave, el importe y el plazo coinciden con el documento antes de pagar, recurrir o pedir asistencia.",
-    ["aeat.collection.enforcement", "boe.tax.general.law", "boe.tax.collection.regulation"],
+    [
+      "aeat.collection.enforcement",
+      "boe.tax.general.law",
+      "boe.tax.collection.regulation",
+    ],
   ),
   AEAT_INSTALLMENT_OR_DEFERRAL_GRANT: profile(
     "Una concesión de aplazamiento o fraccionamiento fija las condiciones aceptadas por la AEAT.",
@@ -100,15 +107,26 @@ const BASE_PROFILES = Object.freeze({
     "Las cuotas, vencimientos e importes válidos son los que aparecen en el documento.",
     "Comprueba las cuotas concedidas",
     "Revisa cada vencimiento, la cuenta de cargo y las condiciones impresas antes de confirmar el plan en Factu.",
-    ["aeat.collection.deferral", "aeat.collection.deferral_management", "boe.tax.collection.regulation"],
+    [
+      "aeat.collection.deferral",
+      "aeat.collection.deferral_management",
+      "boe.tax.collection.regulation",
+    ],
   ),
   AEAT_INSTALLMENT_OR_DEFERRAL_DENIAL: profile(
-    "Una denegación rechaza una solicitud de aplazamiento o fraccionamiento.",
-    "La AEAT comunica que no concede la solicitud en los términos presentados.",
-    "La consecuencia y el plazo aplicable deben leerse en la resolución y desde su fecha de notificación.",
-    "Revisa el motivo y el plazo",
-    "Comprueba el motivo impreso, la deuda afectada y la fecha real de notificación antes de decidir cómo actuar.",
-    ["aeat.collection.deferral", "boe.tax.collection.regulation"],
+    "La AEAT ha rechazado una solicitud para aplazar o dividir el pago de una deuda.",
+    "Has recibido la resolución de una solicitud previa de aplazamiento o fraccionamiento que no ha sido concedida.",
+    "La deuda no queda aplazada por esta resolución. El motivo, el importe, la forma de pago y los efectos válidos son los impresos en el documento.",
+    "Revisa la carta de pago y la fecha de recepción",
+    "Comprueba el motivo, la deuda afectada y el plazo impreso. Si no estás conforme, revisa las dos vías de recurso indicadas antes de que transcurra su plazo.",
+    [
+      "aeat.collection.deferral",
+      "aeat.collection.deferral_management",
+      "boe.tax.general.law",
+      "boe.tax.collection.regulation",
+      "aeat.review.reconsideration",
+      "aeat.review.economic_administrative",
+    ],
   ),
   AEAT_OFFSET_AGREEMENT: profile(
     "Un acuerdo de compensación aplica un crédito reconocido a una o varias deudas.",
@@ -138,7 +156,10 @@ const BASE_PROFILES = Object.freeze({
     "La respuesta exigida y su plazo deben constar expresamente en la notificación.",
     "Prepara la respuesta solicitada",
     "Revisa exactamente qué se pide y la fecha de notificación; no des por cumplido el requerimiento sin justificante de presentación.",
-    ["aeat.compliance.individual_information", "boe.tax.management_inspection.regulation"],
+    [
+      "aeat.compliance.individual_information",
+      "boe.tax.management_inspection.regulation",
+    ],
   ),
   AEAT_ASSESSMENT_PROPOSAL: profile(
     "Una propuesta de liquidación expone un cálculo o regularización todavía sujeto al trámite indicado.",
@@ -146,7 +167,11 @@ const BASE_PROFILES = Object.freeze({
     "No debe tratarse como una liquidación definitiva si el documento dice que es propuesta.",
     "Revisa cálculos y alegaciones",
     "Comprueba los hechos, importes y el plazo de alegaciones que figuran en la notificación.",
-    ["aeat.assessment.irpf", "aeat.assessment.vat", "boe.tax.management_inspection.regulation"],
+    [
+      "aeat.assessment.irpf",
+      "aeat.assessment.vat",
+      "boe.tax.management_inspection.regulation",
+    ],
   ),
   AEAT_ASSESSMENT: profile(
     "Una liquidación determina una deuda o resultado tributario en los términos del acto notificado.",
@@ -170,7 +195,11 @@ const BASE_PROFILES = Object.freeze({
     "El estado y las posibles reducciones dependen de lo que indique la resolución.",
     "Revisa pago, reducciones y recursos",
     "Comprueba el importe, las condiciones de reducción y la fecha real de notificación antes de actuar.",
-    ["aeat.sanction.general", "boe.tax.sanction.regulation", "boe.tax.review.regulation"],
+    [
+      "aeat.sanction.general",
+      "boe.tax.sanction.regulation",
+      "boe.tax.review.regulation",
+    ],
   ),
   AEAT_SEIZURE_ORDER: profile(
     "Una diligencia de embargo identifica bienes, cuentas, créditos o derechos afectados por la recaudación.",
@@ -178,14 +207,26 @@ const BASE_PROFILES = Object.freeze({
     "El bien afectado, el importe y las posibilidades de oposición son los impresos en la diligencia.",
     "Comprueba qué se embarga y por qué deuda",
     "Revisa el objeto, la cuantía, la referencia y la fecha de notificación antes de pagar, oponerte o pedir ayuda.",
-    ["aeat.collection.seizure_types", "aeat.collection.seizure_resources", "boe.tax.collection.regulation"],
+    [
+      "aeat.collection.seizure_types",
+      "aeat.collection.seizure_resources",
+      "boe.tax.collection.regulation",
+    ],
   ),
-  TGSS_DEBT_NOTICE: genericProfile("un aviso de deuda de la Tesorería General de la Seguridad Social"),
-  TGSS_ENFORCEMENT_NOTICE: genericProfile("una actuación ejecutiva de la Tesorería General de la Seguridad Social"),
+  TGSS_DEBT_NOTICE: genericProfile(
+    "un aviso de deuda de la Tesorería General de la Seguridad Social",
+  ),
+  TGSS_ENFORCEMENT_NOTICE: genericProfile(
+    "una actuación ejecutiva de la Tesorería General de la Seguridad Social",
+  ),
   MUNICIPAL_FINE: genericProfile("una notificación sancionadora municipal"),
   MUNICIPAL_TAX_NOTICE: genericProfile("una notificación tributaria municipal"),
-  REGIONAL_AUTHORITY_NOTICE: genericProfile("una notificación de una administración autonómica"),
-  GENERIC_ADMINISTRATIVE_NOTICE: genericProfile("una notificación administrativa"),
+  REGIONAL_AUTHORITY_NOTICE: genericProfile(
+    "una notificación de una administración autonómica",
+  ),
+  GENERIC_ADMINISTRATIVE_NOTICE: genericProfile(
+    "una notificación administrativa",
+  ),
   UNKNOWN: profile(
     "El tipo exacto del documento todavía no se ha identificado.",
     "No hay hechos suficientes para explicar con seguridad por qué se emitió.",
@@ -194,7 +235,9 @@ const BASE_PROFILES = Object.freeze({
     "Confirma el título, el organismo, las fechas y las referencias antes de usar esta ficha.",
     [],
   ),
-} satisfies Readonly<Record<AdministrativeDocumentType, BaseExplanationProfile>>);
+} satisfies Readonly<
+  Record<AdministrativeDocumentType, BaseExplanationProfile>
+>);
 
 export function explainFiscalNotificationDocumentV1(
   input: FiscalNotificationDocumentExplanationInputV1,
@@ -203,14 +246,123 @@ export function explainFiscalNotificationDocumentV1(
   const specialized =
     input.documentType === "AEAT_OFFSET_AGREEMENT"
       ? explainOffset(input, base)
-      : explainBase(input, base);
+      : input.documentType === "AEAT_INSTALLMENT_OR_DEFERRAL_DENIAL"
+        ? explainDeferralDenial(input, base)
+        : explainBase(input, base);
   return freezeExplanation(specialized);
+}
+
+function explainDeferralDenial(
+  input: FiscalNotificationDocumentExplanationInputV1,
+  base: BaseExplanationProfile,
+): Omit<
+  FiscalNotificationDocumentExplanationV1,
+  | "schemaVersion"
+  | "engineId"
+  | "engineVersion"
+  | "knowledgeSnapshotId"
+  | "documentFactsPolicy"
+  | "legalContextPolicy"
+  | "networkPolicy"
+  | "requiresHumanReview"
+  | "materializationPolicy"
+> {
+  const deniedAmount = sumMoney(input.money, "DOCUMENT_TOTAL");
+  const reason = factValue(input.facts, "Motivo de la denegación");
+  const paymentRule = factValue(input.facts, "Límite de pago");
+  const appealRule = factValue(input.facts, "Plazo de recurso");
+  const paymentChannel = factValue(
+    input.facts,
+    "Dónde indica que puede pagarse",
+  );
+  const consequences = input.facts.filter((fact) =>
+    fact.label.startsWith("Consecuencia indicada "),
+  );
+  const affectedDebts = input.facts.filter((fact) =>
+    fact.label.startsWith("Deuda afectada "),
+  );
+  const result =
+    deniedAmount === null
+      ? base.result
+      : `La solicitud por ${formatEuros(deniedAmount)} no ha sido concedida. Esto no acredita que la deuda esté pagada ni extinguida.`;
+  const nextStepDetail = [
+    paymentChannel
+      ? `El documento indica este canal de pago: ${paymentChannel}`
+      : "Usa la carta o documento de pago adjunto y comprueba su clave e importe.",
+    consequences.length > 0
+      ? "El propio acuerdo avisa de que, si no se paga dentro del plazo aplicable, puede iniciarse o continuar el periodo ejecutivo y el procedimiento de apremio."
+      : "Revisa en el acuerdo qué efecto atribuye a la falta de pago.",
+  ].join(" ");
+  const deadline = input.receiptDate
+    ? Object.freeze({
+        status: "RECEIPT_DATE_AVAILABLE" as const,
+        title: "El plazo se cuenta desde la recepción, no desde el escaneo",
+        detail: `${paymentRule ?? "Aplica el plazo de ingreso que figure en la resolución."} La fecha de recepción registrada es ${input.receiptDate}. ${appealRule ?? "Si recurres, revisa el plazo impreso."} Factu no calcula automáticamente el último día hábil.`,
+      })
+    : Object.freeze({
+        status: "MISSING_RECEIPT_DATE" as const,
+        title: "Falta la fecha de recepción para situar los plazos",
+        detail: `${paymentRule ?? "Revisa el plazo de ingreso impreso en la resolución."} ${appealRule ?? "El recurso de reposición o la reclamación económico-administrativa tienen el plazo que indique el acuerdo."} La fecha del acuerdo o del escaneo no sustituye la fecha de recepción.`,
+      });
+  const keyFacts: Array<{
+    label: string;
+    value: string;
+    basis: "PRINTED";
+  }> = [];
+  if (deniedAmount !== null) {
+    keyFacts.push({
+      label: "Importe de la solicitud denegada",
+      value: formatEuros(deniedAmount),
+      basis: "PRINTED",
+    });
+  }
+  if (reason) {
+    keyFacts.push({
+      label: "Motivo que da la AEAT",
+      value: reason,
+      basis: "PRINTED",
+    });
+  }
+  if (affectedDebts.length > 0) {
+    keyFacts.push({
+      label: "Deudas identificadas",
+      value: String(affectedDebts.length),
+      basis: "PRINTED",
+    });
+  }
+  return {
+    ruleId: "aeat.deferral-denial.explanation",
+    ruleVersion: "1.0.0",
+    status: deniedAmount !== null && reason ? "EXPLAINED" : "PARTIAL",
+    whatItIs: base.whatItIs,
+    whyReceived: base.whyReceived,
+    result,
+    nextStep: Object.freeze({
+      status: "PAYMENT_OR_RESPONSE_MAY_BE_REQUIRED" as const,
+      title: "Paga dentro del plazo impreso o revisa el recurso",
+      detail: nextStepDetail,
+    }),
+    deadline,
+    keyFacts: Object.freeze(keyFacts.map((fact) => Object.freeze(fact))),
+    officialSources: resolveSources(base.sourceIds),
+  };
 }
 
 function explainOffset(
   input: FiscalNotificationDocumentExplanationInputV1,
   base: BaseExplanationProfile,
-): Omit<FiscalNotificationDocumentExplanationV1, "schemaVersion" | "engineId" | "engineVersion" | "knowledgeSnapshotId" | "documentFactsPolicy" | "legalContextPolicy" | "networkPolicy" | "requiresHumanReview" | "materializationPolicy"> {
+): Omit<
+  FiscalNotificationDocumentExplanationV1,
+  | "schemaVersion"
+  | "engineId"
+  | "engineVersion"
+  | "knowledgeSnapshotId"
+  | "documentFactsPolicy"
+  | "legalContextPolicy"
+  | "networkPolicy"
+  | "requiresHumanReview"
+  | "materializationPolicy"
+> {
   const creditTotal = sumMoney(input.money, "CREDIT_TOTAL");
   const creditApplied = sumMoney(
     input.money,
@@ -262,9 +414,10 @@ function explainOffset(
           "Si las referencias e importes coinciden con tu situación, este acuerdo no pide pagar de nuevo las deudas listadas. Conserva la resolución y comprueba el destino del crédito que no se haya consumido.",
       })
     : Object.freeze({
-        status: remainingTotal !== null && remainingTotal > 0
-          ? ("PAYMENT_OR_RESPONSE_MAY_BE_REQUIRED" as const)
-          : ("REVIEW_DOCUMENT_ACTION" as const),
+        status:
+          remainingTotal !== null && remainingTotal > 0
+            ? ("PAYMENT_OR_RESPONSE_MAY_BE_REQUIRED" as const)
+            : ("REVIEW_DOCUMENT_ACTION" as const),
         title: base.nextStepTitle,
         detail: base.nextStepDetail,
       });
@@ -275,16 +428,32 @@ function explainOffset(
     basis: "PRINTED" | "CALCULATED_FROM_PRINTED_VALUES";
   }> = [];
   if (creditTotal !== null) {
-    keyFacts.push({ label: "Crédito total", value: formatEuros(creditTotal), basis: "PRINTED" });
+    keyFacts.push({
+      label: "Crédito total",
+      value: formatEuros(creditTotal),
+      basis: "PRINTED",
+    });
   }
   if (creditApplied !== null) {
-    keyFacts.push({ label: "Aplicado a las deudas", value: formatEuros(creditApplied), basis: "PRINTED" });
+    keyFacts.push({
+      label: "Aplicado a las deudas",
+      value: formatEuros(creditApplied),
+      basis: "PRINTED",
+    });
   }
   if (debtTotals.length > 0) {
-    keyFacts.push({ label: "Deudas incluidas", value: String(debtTotals.length), basis: "PRINTED" });
+    keyFacts.push({
+      label: "Deudas incluidas",
+      value: String(debtTotals.length),
+      basis: "PRINTED",
+    });
   }
   if (remainingTotal !== null) {
-    keyFacts.push({ label: "Pendiente en esas deudas", value: formatEuros(remainingTotal), basis: "PRINTED" });
+    keyFacts.push({
+      label: "Pendiente en esas deudas",
+      value: formatEuros(remainingTotal),
+      basis: "PRINTED",
+    });
   }
   if (residualCredit !== null) {
     keyFacts.push({
@@ -293,7 +462,11 @@ function explainOffset(
       basis: "CALCULATED_FROM_PRINTED_VALUES",
     });
   }
-  if (totalDebt !== null && creditApplied !== null && totalDebt !== creditApplied) {
+  if (
+    totalDebt !== null &&
+    creditApplied !== null &&
+    totalDebt !== creditApplied
+  ) {
     keyFacts.push({
       label: "Comprobación pendiente",
       value: "El total de deuda y la compensación aplicada no coinciden",
@@ -303,7 +476,8 @@ function explainOffset(
   return {
     ruleId: "aeat.offset-agreement.explanation",
     ruleVersion: "1.0.0",
-    status: remaining.length > 0 && creditTotal !== null ? "EXPLAINED" : "PARTIAL",
+    status:
+      remaining.length > 0 && creditTotal !== null ? "EXPLAINED" : "PARTIAL",
     whatItIs: requested
       ? "Es la resolución de una compensación que se solicitó a la AEAT: usa un crédito reconocido para cancelar deudas incluidas en el acuerdo."
       : input.documentSubtype === "EX_OFFICIO"
@@ -321,7 +495,18 @@ function explainOffset(
 function explainBase(
   input: FiscalNotificationDocumentExplanationInputV1,
   base: BaseExplanationProfile,
-): Omit<FiscalNotificationDocumentExplanationV1, "schemaVersion" | "engineId" | "engineVersion" | "knowledgeSnapshotId" | "documentFactsPolicy" | "legalContextPolicy" | "networkPolicy" | "requiresHumanReview" | "materializationPolicy"> {
+): Omit<
+  FiscalNotificationDocumentExplanationV1,
+  | "schemaVersion"
+  | "engineId"
+  | "engineVersion"
+  | "knowledgeSnapshotId"
+  | "documentFactsPolicy"
+  | "legalContextPolicy"
+  | "networkPolicy"
+  | "requiresHumanReview"
+  | "materializationPolicy"
+> {
   return {
     ruleId: `document-type.${input.documentType.toLowerCase()}.explanation`,
     ruleVersion: "1.0.0",
@@ -351,7 +536,8 @@ function offsetDeadline(
   return receiptDate
     ? Object.freeze({
         status: "RECEIPT_DATE_AVAILABLE" as const,
-        title: "Si no estás conforme: un mes desde el día siguiente a la recepción",
+        title:
+          "Si no estás conforme: un mes desde el día siguiente a la recepción",
         detail: `La fecha de recepción registrada es ${receiptDate}. Antes de presentar un recurso debe confirmarse el último día hábil; el motor no lo convierte en una acción automática.`,
       })
     : Object.freeze({
@@ -452,7 +638,18 @@ function genericProfile(description: string): BaseExplanationProfile {
 }
 
 function freezeExplanation(
-  value: Omit<FiscalNotificationDocumentExplanationV1, "schemaVersion" | "engineId" | "engineVersion" | "knowledgeSnapshotId" | "documentFactsPolicy" | "legalContextPolicy" | "networkPolicy" | "requiresHumanReview" | "materializationPolicy">,
+  value: Omit<
+    FiscalNotificationDocumentExplanationV1,
+    | "schemaVersion"
+    | "engineId"
+    | "engineVersion"
+    | "knowledgeSnapshotId"
+    | "documentFactsPolicy"
+    | "legalContextPolicy"
+    | "networkPolicy"
+    | "requiresHumanReview"
+    | "materializationPolicy"
+  >,
 ): FiscalNotificationDocumentExplanationV1 {
   return Object.freeze({
     schemaVersion: 1,

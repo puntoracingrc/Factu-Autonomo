@@ -84,12 +84,8 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(documentLibraryComponentSource).toContain(
       "Qué te está diciendo este documento",
     );
-    expect(documentLibraryComponentSource).toContain(
-      "Por qué lo has recibido",
-    );
-    expect(documentLibraryComponentSource).toContain(
-      "Qué tienes que hacer",
-    );
+    expect(documentLibraryComponentSource).toContain("Por qué lo has recibido");
+    expect(documentLibraryComponentSource).toContain("Qué tienes que hacer");
     expect(documentLibraryComponentSource).toContain(
       "Fuentes oficiales en las que se basa nuestro escáner",
     );
@@ -119,9 +115,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
   });
 
   it("confirma de forma breve y separa borrar en Factu de enviar el original a la papelera de Drive", () => {
-    expect(documentLibraryComponentSource).toContain(
-      "Eliminar ficha de Factu",
-    );
+    expect(documentLibraryComponentSource).toContain("Eliminar ficha de Factu");
     expect(documentLibraryComponentSource).toContain(
       "deleteFiscalNotificationDocument({",
     );
@@ -139,14 +133,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(documentDeletionSource).toContain(
       'drivePolicy: "PRESERVE_USER_DRIVE_ORIGINAL"',
     );
-    expect(documentDeletionSource).toContain(
-      "driveFileIdsPreserved",
-    );
+    expect(documentDeletionSource).toContain("driveFileIdsPreserved");
     expect(documentDeletionCommandSource).toContain(
       "fiscalNotificationsWorkspace: prepared.workspace",
     );
     expect(driveOriginalDeleteSource).toContain(
-      'body: JSON.stringify({ trashed })',
+      "body: JSON.stringify({ trashed })",
     );
     expect(driveOriginalDeleteSource).toContain(
       "FISCAL_NOTIFICATION_DRIVE_ARCHIVE_POLICY_V1",
@@ -154,7 +146,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(driveOriginalDeleteSource).not.toMatch(/method:\s*["']DELETE["']/u);
     expect(
       `${documentDeletionSource}\n${documentDeletionCommandSource}`,
-    ).not.toMatch(/fetch\s*\(|googleapis|drive\.files\.(?:delete|update)|trashDrive/iu);
+    ).not.toMatch(
+      /fetch\s*\(|googleapis|drive\.files\.(?:delete|update)|trashDrive/iu,
+    );
   });
 
   it("obtiene el ámbito exclusivamente de la cuenta canónica confirmada", () => {
@@ -187,10 +181,14 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(batchItemContract).toContain("readonly byteLength: number");
     expect(batchItemContract).toContain("readonly displayName: string");
     expect(batchItemContract).toContain("readonly sha256: string");
-    expect(batchItemContract).not.toMatch(/\b(?:bytes|text|pages|documentInput)\b/i);
+    expect(batchItemContract).not.toMatch(
+      /\b(?:bytes|text|pages|documentInput)\b/i,
+    );
 
     expect(componentSource).not.toMatch(/useState\s*<\s*File\b/);
-    expect(componentSource).toContain("const filesRef = useRef(new Map<string, File>())");
+    expect(componentSource).toContain(
+      "const filesRef = useRef(new Map<string, File>())",
+    );
     expect(componentSource).toContain("filesRef.current.clear()");
     expect(componentSource).toContain("filesRef.current.delete(id)");
     expect(componentSource).toContain("archiveFilesRef.current.clear()");
@@ -330,7 +328,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "await analyzeFiscalNotificationLocallyWithEphemeralFacts",
     );
-    expect(componentSource).toContain("setResult(nextAnalysis.technicalReview)");
+    expect(componentSource).toContain(
+      "setResult(nextAnalysis.technicalReview)",
+    );
     expect(componentSource).toContain(
       "nextAnalysis.ephemeralEnforcementMoneyFacts",
     );
@@ -814,7 +814,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "nextAnalysis.ephemeralEnforcementPartyFacts",
     );
-    expect(componentSource.match(/setPartyFactsReview\(null\)/g)).toHaveLength(1);
+    expect(componentSource.match(/setPartyFactsReview\(null\)/g)).toHaveLength(
+      1,
+    );
     expect(componentSource).toContain("<FiscalNotificationPartyFactsReview");
     expect(componentSource).toContain("viewModel={partyFactsReview}");
 
@@ -865,7 +867,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "onClick={() => fileInputRef.current?.click()}",
     );
     expect(componentSource).toContain("Elegir varios PDF");
-    expect(componentSource).toContain('data-drop-zone="FISCAL_NOTIFICATION_FILES"');
+    expect(componentSource).toContain(
+      'data-drop-zone="FISCAL_NOTIFICATION_FILES"',
+    );
     expect(componentSource).toContain("onDragEnter={handleDragEnter}");
     expect(componentSource).toContain("onDrop={handleDrop}");
     expect(componentSource).toContain("Quitar todos");
@@ -884,9 +888,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).not.toMatch(/w-\[(?:4|5|6|7|8|9)\d{2}px\]/);
   });
 
-  it("compone un lote de diez, no autoanaliza y rechaza duplicados por contenido", () => {
+  it("compone un lote de cincuenta, no autoanaliza y rechaza duplicados por contenido", () => {
     expect(batchIntakeSource).toContain(
-      "FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1 = 10",
+      "FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1 = 50",
     );
     expect(batchIntakeSource).toContain(
       'globalThis.crypto.subtle.digest("SHA-256", bytes)',
@@ -944,12 +948,8 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "projectBatchReviewSummary(review.analysis)",
     );
-    expect(componentSource).toContain(
-      'item.kind === "DOCUMENT_TOTAL"',
-    );
-    expect(componentSource).toContain(
-      'item.kind === "OUTSTANDING_PRINCIPAL"',
-    );
+    expect(componentSource).toContain('item.kind === "DOCUMENT_TOTAL"');
+    expect(componentSource).toContain('item.kind === "OUTSTANDING_PRINCIPAL"');
     expect(componentSource).toContain("pageCount: technicalReview.pageCount");
     expect(componentSource).toContain(
       "batchContext.position} de ${batchContext.total",
@@ -960,7 +960,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "inspectFiscalNotificationDriveArchiveCandidateV1(",
     );
-    expect(componentSource).toContain('inspection.status === "READY_TO_ARCHIVE"');
+    expect(componentSource).toContain(
+      'inspection.status === "READY_TO_ARCHIVE"',
+    );
     expect(componentSource).toContain("Archivar original en Drive");
     expect(componentSource).toContain("Conectar Drive y archivar");
     expect(compact(componentSource)).toContain(
@@ -985,9 +987,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(driveArchiveDomainSource).toContain(
       'verification: "SHA256_READBACK_MATCH"',
     );
-    expect(driveArchiveUploadSource).toContain(
-      "verifyDriveFileHash(",
-    );
+    expect(driveArchiveUploadSource).toContain("verifyDriveFileHash(");
     expect(driveArchiveUploadSource).toContain(
       "FISCAL_NOTIFICATION_DRIVE_ARCHIVE_PENDING_FOLDER_V1",
     );

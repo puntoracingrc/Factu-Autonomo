@@ -115,6 +115,62 @@ describe("fiscal notification document input analysis", () => {
     });
   });
 
+  it("recognizes a deferral denial instead of returning an unknown document", async () => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input(
+        [
+          "AGENCIA TRIBUTARIA",
+          "www.agenciatributaria.es",
+          "DENEGACIÓN DEL APLAZAMIENTO/FRACCIONAMIENTO DE PAGO",
+          "Número de expediente: EXP-SYN-DENIAL-PIPELINE",
+          "Vista la petición por un importe de 728,44 euros, se acuerda DENEGAR la petición",
+          "formulada.",
+          "MOTIVACIÓN",
+          "Motivo sintético impreso en la resolución.",
+          "PLAZOS DE INGRESO",
+          "El plazo de ingreso finaliza el día 20 del mes posterior.",
+          "CONSECUENCIAS DE LA FALTA DE PAGO",
+          "Puede iniciarse el procedimiento de apremio.",
+          "4 de julio de 2017",
+        ].join("\n"),
+      ),
+    );
+
+    expect(result.verticalSliceReview).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      documents: [
+        expect.objectContaining({
+          extractorId: "deferral",
+          familyId: "collection.deferral_denial",
+          title: "Denegación de aplazamiento o fraccionamiento",
+          fields: expect.arrayContaining([
+            expect.objectContaining({
+              canonicalType: "DOCUMENT_STATUS",
+              displayValue: "Solicitud de aplazamiento denegada",
+            }),
+            expect.objectContaining({
+              canonicalType: "ISSUE_DATE",
+              normalizedValue: "2017-07-04",
+            }),
+            expect.objectContaining({
+              canonicalType: "TOTAL_CLAIMED",
+              amountCents: 72_844,
+              currency: "EUR",
+            }),
+            expect.objectContaining({
+              canonicalType: "DEFERRAL_REASON",
+              displayValue: "Motivo sintético impreso en la resolución.",
+            }),
+          ]),
+        }),
+      ],
+      retainedSourceContent: "NONE",
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+    });
+  });
+
   it("returns no family or facts for a blank bounded input", async () => {
     expect(await analyzeFiscalNotificationDocumentInput(input(""))).toEqual({
       hasText: false,
@@ -145,18 +201,20 @@ describe("fiscal notification document input analysis", () => {
   it("transports an exact notification envelope without retaining its source page", async () => {
     const sourceMarker = "RAW-NOTIFICATION-SOURCE-MUST-DISAPPEAR";
     const result = await analyzeFiscalNotificationDocumentInput(
-      input([
-        "Dirección Electrónica Habilitada Única",
-        "dehu.redsara.es",
-        "ACUSE DE RECIBO",
-        "Estado de la notificación: Rechazada",
-        "Identificador de la notificación: NOT-SYN-PIPELINE-001",
-        "Identificador del acto: ACT-SYN-PIPELINE-001",
-        "Asunto: Resolución sintética notificada",
-        "Fecha de puesta a disposición: 10/07/2026 08:15",
-        "Fecha de rechazo: 12/07/2026 09:42",
-        sourceMarker,
-      ].join("\n")),
+      input(
+        [
+          "Dirección Electrónica Habilitada Única",
+          "dehu.redsara.es",
+          "ACUSE DE RECIBO",
+          "Estado de la notificación: Rechazada",
+          "Identificador de la notificación: NOT-SYN-PIPELINE-001",
+          "Identificador del acto: ACT-SYN-PIPELINE-001",
+          "Asunto: Resolución sintética notificada",
+          "Fecha de puesta a disposición: 10/07/2026 08:15",
+          "Fecha de rechazo: 12/07/2026 09:42",
+          sourceMarker,
+        ].join("\n"),
+      ),
     );
 
     expect(result.verticalSliceReview).toMatchObject({
@@ -189,26 +247,27 @@ describe("fiscal notification document input analysis", () => {
     expect(JSON.stringify(result)).not.toContain(sourceMarker);
   });
 
-
   it("transports exact payment evidence fields without retaining the source text", async () => {
     const rawAccount = "ES12 3456 7890 1234 5678 9012";
     const result = await analyzeFiscalNotificationDocumentInput(
-      input([
-        "Agencia Tributaria",
-        "sede.agenciatributaria.gob.es",
-        "JUSTIFICANTE DE PAGO",
-        "Número de justificante: REC-SYN-PIPELINE-001",
-        "NRC: ABCDEF1234567890GHIJKL",
-        "Fecha del pago: 14/07/2026",
-        "N.I.F.: 12345678Z",
-        "Modelo: 303",
-        "Ejercicio: 2026",
-        "Periodo: 2T",
-        "Clave de deuda: DEBT-SYN-PIPELINE-001",
-        "Importe pagado: 600,00 euros",
-        "Resultado del pago: Pago confirmado",
-        `Cuenta de cargo: ${rawAccount}`,
-      ].join("\n")),
+      input(
+        [
+          "Agencia Tributaria",
+          "sede.agenciatributaria.gob.es",
+          "JUSTIFICANTE DE PAGO",
+          "Número de justificante: REC-SYN-PIPELINE-001",
+          "NRC: ABCDEF1234567890GHIJKL",
+          "Fecha del pago: 14/07/2026",
+          "N.I.F.: 12345678Z",
+          "Modelo: 303",
+          "Ejercicio: 2026",
+          "Periodo: 2T",
+          "Clave de deuda: DEBT-SYN-PIPELINE-001",
+          "Importe pagado: 600,00 euros",
+          "Resultado del pago: Pago confirmado",
+          `Cuenta de cargo: ${rawAccount}`,
+        ].join("\n"),
+      ),
     );
 
     expect(result.verticalSliceReview).toMatchObject({
@@ -239,20 +298,22 @@ describe("fiscal notification document input analysis", () => {
   it("transports an exact seizure with useful fields and no raw account", async () => {
     const rawAccount = "ES00 0000 0000 0000 1234";
     const result = await analyzeFiscalNotificationDocumentInput(
-      input([
-        "Agencia Tributaria",
-        "sede.agenciatributaria.gob.es",
-        "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
-        "Número de diligencia: EMB-SYN-PIPELINE-001",
-        "Número de expediente: EXP-SYN-PIPELINE-001",
-        "Deudor: PERSONA DEUDORA SINTÉTICA",
-        "Destinatario: BANCO SINTÉTICO",
-        "Entidad financiera: BANCO SINTÉTICO",
-        `IBAN: ${rawAccount}`,
-        "Límite del embargo: 1.240,00 EUR",
-        "Importe retenido: 900,00 EUR",
-        "Fecha del embargo: 04/03/2026",
-      ].join("\n")),
+      input(
+        [
+          "Agencia Tributaria",
+          "sede.agenciatributaria.gob.es",
+          "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+          "Número de diligencia: EMB-SYN-PIPELINE-001",
+          "Número de expediente: EXP-SYN-PIPELINE-001",
+          "Deudor: PERSONA DEUDORA SINTÉTICA",
+          "Destinatario: BANCO SINTÉTICO",
+          "Entidad financiera: BANCO SINTÉTICO",
+          `IBAN: ${rawAccount}`,
+          "Límite del embargo: 1.240,00 EUR",
+          "Importe retenido: 900,00 EUR",
+          "Fecha del embargo: 04/03/2026",
+        ].join("\n"),
+      ),
     );
 
     expect(result.verticalSliceReview).toMatchObject({

@@ -1,8 +1,11 @@
-import { FISCAL_NOTIFICATION_PDF_LIMITS, hasStrictPdfMagic } from "./pdf-text-layer-parser";
+import {
+  FISCAL_NOTIFICATION_PDF_LIMITS,
+  hasStrictPdfMagic,
+} from "./pdf-text-layer-parser";
 import { assertBoundedOwnerScope } from "./input-contract";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
 
-export const FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1 = 10 as const;
+export const FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1 = 50 as const;
 export const FISCAL_NOTIFICATION_BATCH_FILE_NAME_MAX_CHARS_V1 = 255 as const;
 
 export type FiscalNotificationBatchFileErrorCodeV1 =
@@ -154,7 +157,9 @@ function isValidUserOwnerScope(value: unknown): value is string {
   }
 }
 
-function readyHashes(hashes: readonly string[]): PersistedFiscalNotificationHashesV1 {
+function readyHashes(
+  hashes: readonly string[],
+): PersistedFiscalNotificationHashesV1 {
   return Object.freeze({
     status: "READY" as const,
     sha256: Object.freeze([...hashes]),

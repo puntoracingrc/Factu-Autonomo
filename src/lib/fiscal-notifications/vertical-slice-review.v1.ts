@@ -27,7 +27,7 @@ export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1 =
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1 =
   Object.freeze({
-    maxDocuments: 6,
+    maxDocuments: 7,
     maxFieldsPerDocument: 256,
     maxWarningsPerDocument: 64,
     maxLabelChars: 160,
@@ -65,6 +65,9 @@ const DETAIL_CANONICAL_TYPES = Object.freeze([
   "REJECTION_REASON",
   "PAYMENT_SCOPE",
   "PAYMENT_TIME",
+  "DEFERRAL_REASON",
+  "DEBT_DESCRIPTION",
+  "ORIGINAL_DEBT_DUE_DATE",
   "MASKED_ACCOUNT",
   "BARCODE_REFERENCE",
   "NOTIFICATION_SUBJECT",
@@ -163,90 +166,98 @@ const FAMILY_TITLE: Readonly<
   Partial<Record<FiscalNotificationDocumentFamilyIdV3, string>>
 > = Object.freeze({
   "notification.delivery_attempt": "Aviso o intento de notificación",
-  "notification.publication_or_appearance": "Publicación o comparecencia para notificación",
+  "notification.publication_or_appearance":
+    "Publicación o comparecencia para notificación",
   "notification.dehu_envelope": "Sobre o acuse de notificación electrónica",
   "compliance.formal_filing_requirement":
     "Requerimiento formal de presentación",
   "compliance.document_request": "Requerimiento de documentación",
   "assessment.allegations_and_proposal": "Propuesta de liquidación provisional",
   "assessment.final_provisional_assessment": "Liquidación provisional",
+  "collection.deferral_denial": "Denegación de aplazamiento o fraccionamiento",
   "payment.payment_form": "Carta o documento de pago",
   "payment.receipt": "Justificante de pago",
   "payment.failed_or_reversed": "Incidencia de pago",
   "seizure.bank_account": "Diligencia de embargo de cuenta bancaria",
-  "seizure.commercial_credits": "Diligencia de embargo de créditos comerciales o arrendaticios",
-  "seizure.wages_or_pensions": "Diligencia de embargo de sueldos, salarios o pensiones",
+  "seizure.commercial_credits":
+    "Diligencia de embargo de créditos comerciales o arrendaticios",
+  "seizure.wages_or_pensions":
+    "Diligencia de embargo de sueldos, salarios o pensiones",
   "seizure.tpv_receipts": "Diligencia de embargo de cobros mediante TPV",
-  "seizure.cash_or_refund": "Diligencia de embargo de efectivo, devoluciones o créditos públicos",
+  "seizure.cash_or_refund":
+    "Diligencia de embargo de efectivo, devoluciones o créditos públicos",
   "seizure.real_estate": "Diligencia de embargo de inmueble",
   "seizure.release": "Levantamiento de embargo",
   "seizure.third_party_response": "Contestación a diligencia de embargo",
   "seizure.third_party_payment": "Ingreso efectuado por tercero retenedor",
 });
 
-const REFERENCE_LABEL: Readonly<Record<ReferenceTypeV1, string>> = Object.freeze({
-  PROCEDURE_ID: "Procedimiento",
-  EXPEDIENTE_ID: "Expediente",
-  ACT_ID: "Acto o requerimiento",
-  NOTIFICATION_ID: "Notificación",
-  LIQUIDATION_KEY: "Clave de liquidación",
-  DEBT_KEY: "Clave de deuda",
-  SEIZURE_ORDER_ID: "Diligencia de embargo",
-  AGREEMENT_ID: "Acuerdo",
-  REGISTRY_ID: "Registro",
-  FILING_RECEIPT_ID: "Justificante de presentación",
-  PAYMENT_RECEIPT_ID: "Justificante de pago",
-  NRC: "NRC",
-  CSV: "CSV",
-  NIF: "NIF",
-  MODEL: "Modelo",
-  FISCAL_YEAR: "Ejercicio",
-  TAX_PERIOD: "Periodo",
-  BANK_REFERENCE: "Referencia bancaria",
-  THIRD_PARTY_RESPONSE_ID: "Contestación de tercero",
-  OTHER_OFFICIAL_REFERENCE: "Referencia oficial",
-});
+const REFERENCE_LABEL: Readonly<Record<ReferenceTypeV1, string>> =
+  Object.freeze({
+    PROCEDURE_ID: "Procedimiento",
+    EXPEDIENTE_ID: "Expediente",
+    ACT_ID: "Acto o requerimiento",
+    NOTIFICATION_ID: "Notificación",
+    LIQUIDATION_KEY: "Clave de liquidación",
+    DEBT_KEY: "Clave de deuda",
+    SEIZURE_ORDER_ID: "Diligencia de embargo",
+    AGREEMENT_ID: "Acuerdo",
+    REGISTRY_ID: "Registro",
+    FILING_RECEIPT_ID: "Justificante de presentación",
+    PAYMENT_RECEIPT_ID: "Justificante de pago",
+    NRC: "NRC",
+    CSV: "CSV",
+    NIF: "NIF",
+    MODEL: "Modelo",
+    FISCAL_YEAR: "Ejercicio",
+    TAX_PERIOD: "Periodo",
+    BANK_REFERENCE: "Referencia bancaria",
+    THIRD_PARTY_RESPONSE_ID: "Contestación de tercero",
+    OTHER_OFFICIAL_REFERENCE: "Referencia oficial",
+  });
 
-const MONEY_LABEL: Readonly<Record<MonetaryComponentTypeV1, string>> = Object.freeze({
-  PRINCIPAL: "Principal",
-  TAX_QUOTA: "Cuota",
-  PENALTY: "Sanción",
-  SURCHARGE: "Recargo",
-  EXECUTIVE_SURCHARGE: "Recargo ejecutivo",
-  LATE_INTEREST: "Intereses",
-  COSTS: "Costas",
-  PAYMENT_ON_ACCOUNT: "Ingreso a cuenta",
-  TOTAL_CLAIMED: "Total reclamado",
-  TOTAL_PAID: "Total pagado",
-  PARTIAL_PAYMENT: "Pago parcial",
-  TOTAL_PENDING: "Total pendiente",
-  REFUND_REQUESTED: "Devolución solicitada",
-  REFUND_RECOGNIZED: "Devolución reconocida",
-  REFUND_PAID: "Devolución pagada",
-  CREDIT_APPLIED: "Crédito aplicado",
-  COMPENSATED_AMOUNT: "Importe compensado",
-  SEIZED_AMOUNT: "Importe embargado",
-  RELEASED_AMOUNT: "Importe liberado",
-  OTHER: "Importe",
-});
+const MONEY_LABEL: Readonly<Record<MonetaryComponentTypeV1, string>> =
+  Object.freeze({
+    PRINCIPAL: "Principal",
+    TAX_QUOTA: "Cuota",
+    PENALTY: "Sanción",
+    SURCHARGE: "Recargo",
+    EXECUTIVE_SURCHARGE: "Recargo ejecutivo",
+    LATE_INTEREST: "Intereses",
+    COSTS: "Costas",
+    PAYMENT_ON_ACCOUNT: "Ingreso a cuenta",
+    TOTAL_CLAIMED: "Total reclamado",
+    TOTAL_PAID: "Total pagado",
+    PARTIAL_PAYMENT: "Pago parcial",
+    TOTAL_PENDING: "Total pendiente",
+    REFUND_REQUESTED: "Devolución solicitada",
+    REFUND_RECOGNIZED: "Devolución reconocida",
+    REFUND_PAID: "Devolución pagada",
+    CREDIT_APPLIED: "Crédito aplicado",
+    COMPENSATED_AMOUNT: "Importe compensado",
+    SEIZED_AMOUNT: "Importe embargado",
+    RELEASED_AMOUNT: "Importe liberado",
+    OTHER: "Importe",
+  });
 
-const DATE_LABEL: Readonly<Record<ProceduralDateTypeV1, string>> = Object.freeze({
-  ISSUE_DATE: "Fecha de emisión",
-  SIGNING_DATE: "Fecha de firma",
-  AVAILABILITY_DATE: "Puesta a disposición",
-  ACCESS_DATE: "Fecha de acceso",
-  REJECTION_DATE: "Fecha de rechazo",
-  EXPIRATION_DATE: "Fecha de caducidad",
-  EFFECTIVE_NOTIFICATION_DATE: "Fecha de notificación",
-  ACTION_DATE: "Fecha del acto",
-  VOLUNTARY_PAYMENT_DEADLINE: "Límite de pago",
-  RESPONSE_DEADLINE: "Plazo de respuesta",
-  APPEAL_DEADLINE: "Plazo de recurso",
-  INSTALLMENT_DUE_DATE: "Vencimiento del plazo",
-  PAYMENT_DATE: "Fecha de pago",
-  SEIZURE_DATE: "Fecha de embargo",
-  RELEASE_DATE: "Fecha de levantamiento",
-});
+const DATE_LABEL: Readonly<Record<ProceduralDateTypeV1, string>> =
+  Object.freeze({
+    ISSUE_DATE: "Fecha de emisión",
+    SIGNING_DATE: "Fecha de firma",
+    AVAILABILITY_DATE: "Puesta a disposición",
+    ACCESS_DATE: "Fecha de acceso",
+    REJECTION_DATE: "Fecha de rechazo",
+    EXPIRATION_DATE: "Fecha de caducidad",
+    EFFECTIVE_NOTIFICATION_DATE: "Fecha de notificación",
+    ACTION_DATE: "Fecha del acto",
+    VOLUNTARY_PAYMENT_DEADLINE: "Límite de pago",
+    RESPONSE_DEADLINE: "Plazo de respuesta",
+    APPEAL_DEADLINE: "Plazo de recurso",
+    INSTALLMENT_DUE_DATE: "Vencimiento del plazo",
+    PAYMENT_DATE: "Fecha de pago",
+    SEIZURE_DATE: "Fecha de embargo",
+    RELEASE_DATE: "Fecha de levantamiento",
+  });
 
 const PARTY_LABEL: Readonly<Record<PartyRoleV1, string>> = Object.freeze({
   TAXPAYER: "Obligado tributario",
@@ -261,21 +272,24 @@ const PARTY_LABEL: Readonly<Record<PartyRoleV1, string>> = Object.freeze({
   ISSUING_AUTHORITY: "Órgano emisor",
 });
 
-const SEIZURE_MONEY_LABEL: Readonly<Record<SeizureMoneyRoleV1, string>> = Object.freeze({
-  PRINCIPAL: "Principal pendiente",
-  EXECUTIVE_SURCHARGE: "Recargo ejecutivo",
-  LATE_INTEREST: "Intereses de demora",
-  COSTS: "Costas del procedimiento",
-  TOTAL_PENDING: "Total pendiente impreso",
-  SEIZED_AMOUNT: "Importe embargado",
-  SEIZURE_LIMIT: "Límite del embargo",
-  RETAINED_AMOUNT: "Importe retenido",
-  AVAILABLE_BALANCE: "Saldo disponible impreso",
-  THIRD_PARTY_TRANSFERRED: "Importe ingresado por el tercero",
-  RELEASED_AMOUNT: "Importe liberado",
-});
+const SEIZURE_MONEY_LABEL: Readonly<Record<SeizureMoneyRoleV1, string>> =
+  Object.freeze({
+    PRINCIPAL: "Principal pendiente",
+    EXECUTIVE_SURCHARGE: "Recargo ejecutivo",
+    LATE_INTEREST: "Intereses de demora",
+    COSTS: "Costas del procedimiento",
+    TOTAL_PENDING: "Total pendiente impreso",
+    SEIZED_AMOUNT: "Importe embargado",
+    SEIZURE_LIMIT: "Límite del embargo",
+    RETAINED_AMOUNT: "Importe retenido",
+    AVAILABLE_BALANCE: "Saldo disponible impreso",
+    THIRD_PARTY_TRANSFERRED: "Importe ingresado por el tercero",
+    RELEASED_AMOUNT: "Importe liberado",
+  });
 
-const SEIZURE_SPECIFIC_LABEL: Readonly<Record<SeizureSpecificFieldIdV1, string>> = Object.freeze({
+const SEIZURE_SPECIFIC_LABEL: Readonly<
+  Record<SeizureSpecificFieldIdV1, string>
+> = Object.freeze({
   FINANCIAL_ENTITY: "Entidad financiera",
   MASKED_ACCOUNT: "Cuenta enmascarada",
   ACCOUNT_OR_DEPOSIT: "Cuenta o depósito",
@@ -315,6 +329,7 @@ const EXTRACTOR_IDS = new Set<FiscalNotificationVerticalSliceExtractorIdV1>([
   "notification-envelope",
   "requirement",
   "assessment",
+  "deferral",
   "payment-order",
   "payment-evidence",
   "seizure",
@@ -337,13 +352,18 @@ export function projectFiscalNotificationVerticalSliceReviewV1(
   const documents: FiscalNotificationVerticalSliceReviewDocumentV1[] = [];
   const { extractions } = analysis;
   if (extractions.notificationEnvelope) {
-    documents.push(projectNotificationEnvelope(extractions.notificationEnvelope));
+    documents.push(
+      projectNotificationEnvelope(extractions.notificationEnvelope),
+    );
   }
   if (extractions.formalFilingRequirement) {
     documents.push(projectRequirement(extractions.formalFilingRequirement));
   }
   if (extractions.assessment) {
     documents.push(projectAssessment(extractions.assessment));
+  }
+  if (extractions.deferralDenial) {
+    documents.push(projectDeferralDenial(extractions.deferralDenial));
   }
   if (extractions.paymentOrder) {
     documents.push(projectPaymentOrder(extractions.paymentOrder));
@@ -395,15 +415,26 @@ export function parseFiscalNotificationVerticalSliceReviewV1(
   try {
     const root = snapshotRecord(value);
     assertKeys(root, [
-      "schemaVersion", "reviewVersion", "status", "documents", "sourceContentPolicy",
-      "retainedSourceContent", "requiresHumanReview", "materializationPolicy",
-      "permitsDebtCreation", "permitsDeadlineCreation", "permitsPaymentAction",
+      "schemaVersion",
+      "reviewVersion",
+      "status",
+      "documents",
+      "sourceContentPolicy",
+      "retainedSourceContent",
+      "requiresHumanReview",
+      "materializationPolicy",
+      "permitsDebtCreation",
+      "permitsDeadlineCreation",
+      "permitsPaymentAction",
       "permitsAccountingAction",
     ]);
     if (
       root.schemaVersion !== 1 ||
-      root.reviewVersion !== FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1 ||
-      !["REVIEW_REQUIRED", "INFORMATION_PENDING", "BLOCKED"].includes(String(root.status)) ||
+      root.reviewVersion !==
+        FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1 ||
+      !["REVIEW_REQUIRED", "INFORMATION_PENDING", "BLOCKED"].includes(
+        String(root.status),
+      ) ||
       root.sourceContentPolicy !== "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" ||
       root.retainedSourceContent !== "NONE" ||
       root.requiresHumanReview !== true ||
@@ -412,12 +443,13 @@ export function parseFiscalNotificationVerticalSliceReviewV1(
       root.permitsDeadlineCreation !== false ||
       root.permitsPaymentAction !== false ||
       root.permitsAccountingAction !== false
-    ) throw invalidReview();
+    )
+      throw invalidReview();
     const documentValues = snapshotArray(
       root.documents,
       FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxDocuments,
     );
-    if ((root.status === "REVIEW_REQUIRED") !== (documentValues.length > 0)) {
+    if ((root.status === "REVIEW_REQUIRED") !== documentValues.length > 0) {
       throw invalidReview();
     }
     const seenDocuments = new Set<string>();
@@ -427,7 +459,8 @@ export function parseFiscalNotificationVerticalSliceReviewV1(
       if (
         seenDocuments.has(document.reviewDocumentId) ||
         seenExtractors.has(document.extractorId)
-      ) throw invalidReview();
+      )
+        throw invalidReview();
       seenDocuments.add(document.reviewDocumentId);
       seenExtractors.add(document.extractorId);
       return document;
@@ -447,7 +480,8 @@ export function parseFiscalNotificationVerticalSliceReviewV1(
       permitsAccountingAction: false,
     });
   } catch (error) {
-    if (error instanceof FiscalNotificationVerticalSliceReviewErrorV1) throw error;
+    if (error instanceof FiscalNotificationVerticalSliceReviewErrorV1)
+      throw error;
     throw invalidReview();
   }
 }
@@ -460,27 +494,45 @@ export class FiscalNotificationVerticalSliceReviewErrorV1 extends Error {
 }
 
 function projectRequirement(
-  output: NonNullable<FiscalNotificationVerticalSliceAnalysisV1["extractions"]["formalFilingRequirement"]>,
+  output: NonNullable<
+    FiscalNotificationVerticalSliceAnalysisV1["extractions"]["formalFilingRequirement"]
+  >,
 ) {
   const documentationRequest =
     output.familyCandidates[0]?.familyId === "compliance.document_request";
   const fields = commonFields(output);
-  addStatus(fields, "Requerimiento pendiente de revisión", pagesForOutput(output));
+  addStatus(
+    fields,
+    "Requerimiento pendiente de revisión",
+    pagesForOutput(output),
+  );
   addTextFact(fields, "REASON", "Motivo", output.requirementFacts.reason);
   output.requirementFacts.obligations.forEach((item, index) => {
-    fields.push(field({
-      fieldId: `obligation:${index + 1}`,
-      semantic: "OBLIGATION",
-      canonicalType: "OBLIGATION",
-      label: "Obligación solicitada",
-      displayValue: `Modelo ${item.model} · ${item.fiscalYear} · ${item.period}`,
-      sourcePageNumbers: [item.sourcePage],
-      sourceLabel: item.sourceLabel,
-    }));
+    fields.push(
+      field({
+        fieldId: `obligation:${index + 1}`,
+        semantic: "OBLIGATION",
+        canonicalType: "OBLIGATION",
+        label: "Obligación solicitada",
+        displayValue: `Modelo ${item.model} · ${item.fiscalYear} · ${item.period}`,
+        sourcePageNumbers: [item.sourcePage],
+        sourceLabel: item.sourceLabel,
+      }),
+    );
   });
-  addTextFact(fields, "RESPONSE_CHANNEL", "Canal de respuesta", output.requirementFacts.responseChannel);
+  addTextFact(
+    fields,
+    "RESPONSE_CHANNEL",
+    "Canal de respuesta",
+    output.requirementFacts.responseChannel,
+  );
   output.requirementFacts.documentationRequired.forEach((item, index) =>
-    addTextFact(fields, "DOCUMENTATION_REQUIRED", `Documentación ${index + 1}`, item),
+    addTextFact(
+      fields,
+      "DOCUMENTATION_REQUIRED",
+      `Documentación ${index + 1}`,
+      item,
+    ),
   );
   output.requirementFacts.explicitConsequences.forEach((item, index) =>
     addTextFact(
@@ -498,14 +550,23 @@ function projectRequirement(
       ? "Documentación solicitada pendiente de revisión"
       : "Requerimiento formal de presentación",
   );
-  return documentProjection("requirement", output, fields, "Requerimiento formal de presentación");
+  return documentProjection(
+    "requirement",
+    output,
+    fields,
+    "Requerimiento formal de presentación",
+  );
 }
 
 function projectNotificationEnvelope(
-  output: NonNullable<FiscalNotificationVerticalSliceAnalysisV1["extractions"]["notificationEnvelope"]>,
+  output: NonNullable<
+    FiscalNotificationVerticalSliceAnalysisV1["extractions"]["notificationEnvelope"]
+  >,
 ) {
   const fields = commonFields(output);
-  const state = notificationStateLabel(output.notificationEnvelopeFacts.notificationState);
+  const state = notificationStateLabel(
+    output.notificationEnvelopeFacts.notificationState,
+  );
   addStatus(fields, state, pagesForOutput(output));
   addTextFact(
     fields,
@@ -529,81 +590,267 @@ function projectNotificationEnvelope(
 }
 
 function projectAssessment(
-  output: NonNullable<FiscalNotificationVerticalSliceAnalysisV1["extractions"]["assessment"]>,
+  output: NonNullable<
+    FiscalNotificationVerticalSliceAnalysisV1["extractions"]["assessment"]
+  >,
 ) {
   const fields = commonFields(output);
-  const stage = output.assessmentFacts.stage === "FINAL_PROVISIONAL_ASSESSMENT"
-    ? "Liquidación provisional emitida"
-    : "Propuesta de liquidación y alegaciones";
+  const stage =
+    output.assessmentFacts.stage === "FINAL_PROVISIONAL_ASSESSMENT"
+      ? "Liquidación provisional emitida"
+      : "Propuesta de liquidación y alegaciones";
   addStatus(fields, stage, pagesForOutput(output));
   addTextFact(fields, "REASON", "Motivo", output.assessmentFacts.reason);
   output.assessmentFacts.factsAndGrounds.forEach((item, index) =>
-    addTextFact(fields, "FACT_OR_GROUND", `Hecho o fundamento ${index + 1}`, item),
+    addTextFact(
+      fields,
+      "FACT_OR_GROUND",
+      `Hecho o fundamento ${index + 1}`,
+      item,
+    ),
   );
   output.assessmentFacts.printedAppealInformation.forEach((item, index) =>
-    addTextFact(fields, "APPEAL_INFORMATION", `Recurso indicado ${index + 1}`, item),
+    addTextFact(
+      fields,
+      "APPEAL_INFORMATION",
+      `Recurso indicado ${index + 1}`,
+      item,
+    ),
   );
   return documentProjection("assessment", output, fields, stage);
 }
 
+function projectDeferralDenial(
+  output: NonNullable<
+    FiscalNotificationVerticalSliceAnalysisV1["extractions"]["deferralDenial"]
+  >,
+) {
+  const fields = commonFields(output, { includeMoney: false });
+  addStatus(
+    fields,
+    "Solicitud de aplazamiento denegada",
+    pagesForOutput(output),
+  );
+  const facts = output.deferralDenialFacts;
+  addTextFact(
+    fields,
+    "DEFERRAL_REASON",
+    "Motivo de la denegación",
+    facts.reason,
+  );
+  facts.debtDescriptions.forEach((item, index) =>
+    addTextFact(
+      fields,
+      "DEBT_DESCRIPTION",
+      `Deuda afectada ${index + 1}`,
+      item,
+    ),
+  );
+  facts.originalDebtDueDates.forEach((item, index) =>
+    addTextFact(
+      fields,
+      "ORIGINAL_DEBT_DUE_DATE",
+      `Vencimiento original ${index + 1}`,
+      item,
+    ),
+  );
+  addTextFact(
+    fields,
+    "PAYMENT_MEDIUM",
+    "Dónde indica que puede pagarse",
+    facts.paymentChannel,
+  );
+  facts.explicitConsequences.forEach((item, index) =>
+    addTextFact(
+      fields,
+      "EXPLICIT_CONSEQUENCE",
+      `Consecuencia indicada ${index + 1}`,
+      item,
+    ),
+  );
+  addTextFact(
+    fields,
+    "PRINTED_RESOURCES",
+    "Recursos indicados",
+    facts.printedAppealInformation,
+  );
+  output.monetaryComponents.forEach((item) =>
+    fields.push(
+      field({
+        fieldId: `money:${item.componentId}`,
+        semantic: "MONEY",
+        canonicalType: item.componentType,
+        label:
+          item.sourceLabel === "Importe de la solicitud denegada"
+            ? item.sourceLabel
+            : MONEY_LABEL[item.componentType],
+        displayValue: formatCents(item.amountCents, item.sign),
+        amountCents: item.amountCents,
+        currency: "EUR",
+        sourcePageNumbers: [item.sourcePage],
+        sourceLabel: item.sourceLabel ?? MONEY_LABEL[item.componentType],
+        confidence: item.extractionConfidence,
+      }),
+    ),
+  );
+  return documentProjection(
+    "deferral",
+    output,
+    fields,
+    "La AEAT ha denegado la solicitud; revisa motivo, pago y recurso impresos",
+  );
+}
+
 function projectPaymentOrder(
-  output: NonNullable<FiscalNotificationVerticalSliceAnalysisV1["extractions"]["paymentOrder"]>,
+  output: NonNullable<
+    FiscalNotificationVerticalSliceAnalysisV1["extractions"]["paymentOrder"]
+  >,
 ) {
   const fields = commonFields(output);
-  addStatus(fields, "Orden de pago · pago no confirmado", pagesForOutput(output));
-  addTextFact(fields, "PAYMENT_MEDIUM", "Medio o lugar de pago", output.paymentOrderFacts.paymentChannel);
-  addTextFact(fields, "COLLABORATING_ENTITY", "Entidad colaboradora", output.paymentOrderFacts.collaboratingEntity);
+  addStatus(
+    fields,
+    "Orden de pago · pago no confirmado",
+    pagesForOutput(output),
+  );
+  addTextFact(
+    fields,
+    "PAYMENT_MEDIUM",
+    "Medio o lugar de pago",
+    output.paymentOrderFacts.paymentChannel,
+  );
+  addTextFact(
+    fields,
+    "COLLABORATING_ENTITY",
+    "Entidad colaboradora",
+    output.paymentOrderFacts.collaboratingEntity,
+  );
   addMaskedFact(fields, output.paymentOrderFacts.maskedBankAccount);
-  addTextFact(fields, "BARCODE_REFERENCE", "Código de barras o referencia", output.paymentOrderFacts.barcodeReference);
-  return documentProjection("payment-order", output, fields, "Orden de pago · no acredita pago");
+  addTextFact(
+    fields,
+    "BARCODE_REFERENCE",
+    "Código de barras o referencia",
+    output.paymentOrderFacts.barcodeReference,
+  );
+  return documentProjection(
+    "payment-order",
+    output,
+    fields,
+    "Orden de pago · no acredita pago",
+  );
 }
 
 function projectPaymentEvidence(
-  output: NonNullable<FiscalNotificationVerticalSliceAnalysisV1["extractions"]["paymentEvidence"]>,
+  output: NonNullable<
+    FiscalNotificationVerticalSliceAnalysisV1["extractions"]["paymentEvidence"]
+  >,
 ) {
   const fields = commonFields(output);
-  addStatus(fields, paymentStateLabel(output.paymentEvidenceFacts.paymentState), pagesForOutput(output));
-  addTextFact(fields, "PAYMENT_TIME", "Hora del pago", output.paymentEvidenceFacts.paymentTime);
-  addTextFact(fields, "COLLABORATING_ENTITY", "Entidad", output.paymentEvidenceFacts.collaboratingEntity);
-  addTextFact(fields, "PAYMENT_MEDIUM", "Medio de pago", output.paymentEvidenceFacts.paymentMedium);
-  addTextFact(fields, "PAYMENT_RESULT", "Resultado", output.paymentEvidenceFacts.result);
-  addTextFact(fields, "REJECTION_REASON", "Motivo del rechazo", output.paymentEvidenceFacts.rejectionReason);
+  addStatus(
+    fields,
+    paymentStateLabel(output.paymentEvidenceFacts.paymentState),
+    pagesForOutput(output),
+  );
+  addTextFact(
+    fields,
+    "PAYMENT_TIME",
+    "Hora del pago",
+    output.paymentEvidenceFacts.paymentTime,
+  );
+  addTextFact(
+    fields,
+    "COLLABORATING_ENTITY",
+    "Entidad",
+    output.paymentEvidenceFacts.collaboratingEntity,
+  );
+  addTextFact(
+    fields,
+    "PAYMENT_MEDIUM",
+    "Medio de pago",
+    output.paymentEvidenceFacts.paymentMedium,
+  );
+  addTextFact(
+    fields,
+    "PAYMENT_RESULT",
+    "Resultado",
+    output.paymentEvidenceFacts.result,
+  );
+  addTextFact(
+    fields,
+    "REJECTION_REASON",
+    "Motivo del rechazo",
+    output.paymentEvidenceFacts.rejectionReason,
+  );
   addMaskedFact(fields, output.paymentEvidenceFacts.maskedBankAccount);
-  addTextFact(fields, "PAYMENT_SCOPE", "Alcance del pago", output.paymentEvidenceFacts.paymentScope);
-  return documentProjection("payment-evidence", output, fields, paymentStateLabel(output.paymentEvidenceFacts.paymentState));
+  addTextFact(
+    fields,
+    "PAYMENT_SCOPE",
+    "Alcance del pago",
+    output.paymentEvidenceFacts.paymentScope,
+  );
+  return documentProjection(
+    "payment-evidence",
+    output,
+    fields,
+    paymentStateLabel(output.paymentEvidenceFacts.paymentState),
+  );
 }
 
 function projectSeizure(
-  output: NonNullable<FiscalNotificationVerticalSliceAnalysisV1["extractions"]["seizure"]>,
+  output: NonNullable<
+    FiscalNotificationVerticalSliceAnalysisV1["extractions"]["seizure"]
+  >,
 ) {
   const fields = commonFields(output, { includeMoney: false });
   const state = seizureStateLabel(output.seizureFacts.printedState);
   addStatus(fields, state, pagesForOutput(output));
   if (output.seizureFacts.recipientRole !== "UNKNOWN") {
-    fields.push(field({
-      fieldId: "detail:SEIZURE_RECIPIENT_ROLE",
-      semantic: "DETAIL",
-      canonicalType: "SEIZURE_RECIPIENT_ROLE",
-      label: "Papel del destinatario",
-      displayValue: seizureRecipientRoleLabel(output.seizureFacts.recipientRole),
-      sourcePageNumbers: pagesForOutput(output),
-      sourceLabel: "Tipo exacto del documento",
-    }));
+    fields.push(
+      field({
+        fieldId: "detail:SEIZURE_RECIPIENT_ROLE",
+        semantic: "DETAIL",
+        canonicalType: "SEIZURE_RECIPIENT_ROLE",
+        label: "Papel del destinatario",
+        displayValue: seizureRecipientRoleLabel(
+          output.seizureFacts.recipientRole,
+        ),
+        sourcePageNumbers: pagesForOutput(output),
+        sourceLabel: "Tipo exacto del documento",
+      }),
+    );
   }
-  addTextFact(fields, "DEBTOR_TAX_ID", "NIF del deudor", output.seizureFacts.debtorTaxId);
-  addTextFact(fields, "RECIPIENT_TAX_ID", "NIF del destinatario", output.seizureFacts.recipientTaxId);
-  addTextFact(fields, "THIRD_PARTY_TAX_ID", "NIF del tercero", output.seizureFacts.thirdPartyTaxId);
-  output.seizureFacts.moneyFacts.forEach((item, index) => fields.push(field({
-    fieldId: `seizure-money:${index + 1}:${item.role}`,
-    semantic: "MONEY",
-    canonicalType: item.role,
-    label: SEIZURE_MONEY_LABEL[item.role],
-    displayValue: formatCents(item.amountCents, item.sign),
-    amountCents: item.amountCents,
-    currency: "EUR",
-    sourcePageNumbers: [item.sourcePage],
-    sourceLabel: item.sourceLabel,
-  })));
+  addTextFact(
+    fields,
+    "DEBTOR_TAX_ID",
+    "NIF del deudor",
+    output.seizureFacts.debtorTaxId,
+  );
+  addTextFact(
+    fields,
+    "RECIPIENT_TAX_ID",
+    "NIF del destinatario",
+    output.seizureFacts.recipientTaxId,
+  );
+  addTextFact(
+    fields,
+    "THIRD_PARTY_TAX_ID",
+    "NIF del tercero",
+    output.seizureFacts.thirdPartyTaxId,
+  );
+  output.seizureFacts.moneyFacts.forEach((item, index) =>
+    fields.push(
+      field({
+        fieldId: `seizure-money:${index + 1}:${item.role}`,
+        semantic: "MONEY",
+        canonicalType: item.role,
+        label: SEIZURE_MONEY_LABEL[item.role],
+        displayValue: formatCents(item.amountCents, item.sign),
+        amountCents: item.amountCents,
+        currency: "EUR",
+        sourcePageNumbers: [item.sourcePage],
+        sourceLabel: item.sourceLabel,
+      }),
+    ),
+  );
   addTextFact(
     fields,
     "SEIZURE_INSTRUCTIONS",
@@ -627,54 +874,73 @@ function commonFields(
   options: Readonly<{ includeMoney: boolean }> = { includeMoney: true },
 ): FiscalNotificationVerticalSliceReviewFieldV1[] {
   const fields: FiscalNotificationVerticalSliceReviewFieldV1[] = [];
-  output.references.forEach((item, index) => fields.push(field({
-    fieldId: `reference:${index + 1}:${item.referenceType}`,
-    semantic: "REFERENCE",
-    canonicalType: item.referenceType,
-    label: REFERENCE_LABEL[item.referenceType],
-    displayValue: item.rawValue,
-    normalizedValue: item.normalizedValue,
-    sourcePageNumbers: [item.sourcePage],
-    sourceLabel: item.sourceLabel ?? REFERENCE_LABEL[item.referenceType],
-    confidence: item.confidence,
-  })));
+  output.references.forEach((item, index) =>
+    fields.push(
+      field({
+        fieldId: `reference:${index + 1}:${item.referenceType}`,
+        semantic: "REFERENCE",
+        canonicalType: item.referenceType,
+        label: REFERENCE_LABEL[item.referenceType],
+        displayValue: item.rawValue,
+        normalizedValue: item.normalizedValue,
+        sourcePageNumbers: [item.sourcePage],
+        sourceLabel: item.sourceLabel ?? REFERENCE_LABEL[item.referenceType],
+        confidence: item.confidence,
+      }),
+    ),
+  );
   if (options.includeMoney) {
-    output.monetaryComponents.forEach((item) => fields.push(field({
-      fieldId: `money:${item.componentId}`,
-      semantic: "MONEY",
-      canonicalType: item.componentType,
-      label: MONEY_LABEL[item.componentType],
-      displayValue: formatCents(item.amountCents, item.sign),
-      amountCents: item.amountCents,
-      currency: "EUR",
-      sourcePageNumbers: [item.sourcePage],
-      sourceLabel: item.sourceLabel ?? MONEY_LABEL[item.componentType],
-      confidence: item.extractionConfidence,
-    })));
+    output.monetaryComponents.forEach((item) =>
+      fields.push(
+        field({
+          fieldId: `money:${item.componentId}`,
+          semantic: "MONEY",
+          canonicalType: item.componentType,
+          label: MONEY_LABEL[item.componentType],
+          displayValue: formatCents(item.amountCents, item.sign),
+          amountCents: item.amountCents,
+          currency: "EUR",
+          sourcePageNumbers: [item.sourcePage],
+          sourceLabel: item.sourceLabel ?? MONEY_LABEL[item.componentType],
+          confidence: item.extractionConfidence,
+        }),
+      ),
+    );
   }
-  output.proceduralDates.forEach((item) => fields.push(field({
-    fieldId: `date:${item.proceduralDateId}`,
-    semantic: "DATE",
-    canonicalType: item.dateType,
-    label: DATE_LABEL[item.dateType],
-    displayValue: item.rawText,
-    normalizedValue: item.parsedDate,
-    sourcePageNumbers: [item.sourcePage],
-    sourceLabel: item.sourceLabel ?? DATE_LABEL[item.dateType],
-    confidence: item.extractionConfidence,
-  })));
+  output.proceduralDates.forEach((item) =>
+    fields.push(
+      field({
+        fieldId: `date:${item.proceduralDateId}`,
+        semantic: "DATE",
+        canonicalType: item.dateType,
+        label: DATE_LABEL[item.dateType],
+        displayValue: item.rawText,
+        normalizedValue: item.parsedDate,
+        sourcePageNumbers: [item.sourcePage],
+        sourceLabel: item.sourceLabel ?? DATE_LABEL[item.dateType],
+        confidence: item.extractionConfidence,
+      }),
+    ),
+  );
   output.entities.forEach((entity, entityIndex) => {
     if (entity.entityKind !== "PARTY" || entity.displayName === null) return;
-    entity.roles.forEach((role, roleIndex) => fields.push(field({
-      fieldId: `party:${entityIndex + 1}:${roleIndex + 1}`,
-      semantic: "PARTY",
-      canonicalType: role,
-      label: PARTY_LABEL[role],
-      displayValue: entity.displayName!,
-      sourcePageNumbers: pagesFromEvidence(entity.evidence.sourceSegmentIds, output),
-      sourceLabel: PARTY_LABEL[role],
-      confidence: entity.evidence.confidence,
-    })));
+    entity.roles.forEach((role, roleIndex) =>
+      fields.push(
+        field({
+          fieldId: `party:${entityIndex + 1}:${roleIndex + 1}`,
+          semantic: "PARTY",
+          canonicalType: role,
+          label: PARTY_LABEL[role],
+          displayValue: entity.displayName!,
+          sourcePageNumbers: pagesFromEvidence(
+            entity.evidence.sourceSegmentIds,
+            output,
+          ),
+          sourceLabel: PARTY_LABEL[role],
+          confidence: entity.evidence.confidence,
+        }),
+      ),
+    );
   });
   return fields;
 }
@@ -685,15 +951,17 @@ function addSeizureSpecificFact(
   index: number,
 ): void {
   const masked = factValue.fieldId === "MASKED_ACCOUNT";
-  fields.push(field({
-    fieldId: `seizure-specific:${index + 1}:${factValue.fieldId}`,
-    semantic: masked ? "MASKED_VALUE" : "DETAIL",
-    canonicalType: factValue.fieldId,
-    label: SEIZURE_SPECIFIC_LABEL[factValue.fieldId],
-    displayValue: factValue.printedValue,
-    sourcePageNumbers: factValue.pageNumbers,
-    sourceLabel: factValue.sourceLabel,
-  }));
+  fields.push(
+    field({
+      fieldId: `seizure-specific:${index + 1}:${factValue.fieldId}`,
+      semantic: masked ? "MASKED_VALUE" : "DETAIL",
+      canonicalType: factValue.fieldId,
+      label: SEIZURE_SPECIFIC_LABEL[factValue.fieldId],
+      displayValue: factValue.printedValue,
+      sourcePageNumbers: factValue.pageNumbers,
+      sourceLabel: factValue.sourceLabel,
+    }),
+  );
 }
 
 function documentProjection(
@@ -705,10 +973,12 @@ function documentProjection(
   const candidate = output.familyCandidates[0];
   if (!candidate || !FAMILY_TITLE[candidate.familyId]) throw invalidReview();
   const pages = Object.freeze(
-    [...new Set([
-      ...pagesForOutput(output),
-      ...fields.flatMap((item) => item.sourcePageNumbers),
-    ])].sort((left, right) => left - right),
+    [
+      ...new Set([
+        ...pagesForOutput(output),
+        ...fields.flatMap((item) => item.sourcePageNumbers),
+      ]),
+    ].sort((left, right) => left - right),
   );
   return Object.freeze({
     reviewDocumentId: `review-document:${extractorId}`,
@@ -730,15 +1000,17 @@ function addStatus(
   value: string,
   pages: readonly number[],
 ): void {
-  fields.unshift(field({
-    fieldId: "status:document",
-    semantic: "STATUS",
-    canonicalType: "DOCUMENT_STATUS",
-    label: "Estado del documento",
-    displayValue: value,
-    sourcePageNumbers: pages,
-    sourceLabel: "Estado extraído del documento",
-  }));
+  fields.unshift(
+    field({
+      fieldId: "status:document",
+      semantic: "STATUS",
+      canonicalType: "DOCUMENT_STATUS",
+      label: "Estado del documento",
+      displayValue: value,
+      sourcePageNumbers: pages,
+      sourceLabel: "Estado extraído del documento",
+    }),
+  );
 }
 
 type PrintedTextFact = Readonly<{
@@ -754,31 +1026,39 @@ function addTextFact(
   fact: PrintedTextFact | null,
 ): void {
   if (!fact) return;
-  fields.push(field({
-    fieldId: `detail:${canonicalType}:${fields.length + 1}`,
-    semantic: "DETAIL",
-    canonicalType,
-    label,
-    displayValue: fact.printedValue,
-    sourcePageNumbers: fact.pageNumbers,
-    sourceLabel: fact.sourceLabel,
-  }));
+  fields.push(
+    field({
+      fieldId: `detail:${canonicalType}:${fields.length + 1}`,
+      semantic: "DETAIL",
+      canonicalType,
+      label,
+      displayValue: fact.printedValue,
+      sourcePageNumbers: fact.pageNumbers,
+      sourceLabel: fact.sourceLabel,
+    }),
+  );
 }
 
 function addMaskedFact(
   fields: FiscalNotificationVerticalSliceReviewFieldV1[],
-  fact: Readonly<{ maskedValue: string; sourcePage: number; sourceLabel: string }> | null,
+  fact: Readonly<{
+    maskedValue: string;
+    sourcePage: number;
+    sourceLabel: string;
+  }> | null,
 ): void {
   if (!fact) return;
-  fields.push(field({
-    fieldId: `masked-account:${fields.length + 1}`,
-    semantic: "MASKED_VALUE",
-    canonicalType: "MASKED_ACCOUNT",
-    label: "Cuenta enmascarada",
-    displayValue: fact.maskedValue,
-    sourcePageNumbers: [fact.sourcePage],
-    sourceLabel: fact.sourceLabel,
-  }));
+  fields.push(
+    field({
+      fieldId: `masked-account:${fields.length + 1}`,
+      semantic: "MASKED_VALUE",
+      canonicalType: "MASKED_ACCOUNT",
+      label: "Cuenta enmascarada",
+      displayValue: fact.maskedValue,
+      sourcePageNumbers: [fact.sourcePage],
+      sourceLabel: fact.sourceLabel,
+    }),
+  );
 }
 
 function field(input: {
@@ -823,7 +1103,8 @@ function pagesForOutput(output: ExtractorOutputV1): readonly number[] {
     entity.evidence.sourceSegmentIds.forEach((segmentId) => {
       const match = /:(\d+)-(\d+)$/u.exec(segmentId);
       if (!match) return;
-      for (let page = Number(match[1]); page <= Number(match[2]); page += 1) pages.add(page);
+      for (let page = Number(match[1]); page <= Number(match[2]); page += 1)
+        pages.add(page);
     });
   });
   if (pages.size === 0) throw invalidReview();
@@ -838,12 +1119,18 @@ function pagesFromEvidence(
   segmentIds.forEach((segmentId) => {
     const match = /:(\d+)-(\d+)$/u.exec(segmentId);
     if (!match) return;
-    for (let page = Number(match[1]); page <= Number(match[2]); page += 1) pages.add(page);
+    for (let page = Number(match[1]); page <= Number(match[2]); page += 1)
+      pages.add(page);
   });
-  return pages.size > 0 ? Object.freeze([...pages].sort((a, b) => a - b)) : pagesForOutput(output);
+  return pages.size > 0
+    ? Object.freeze([...pages].sort((a, b) => a - b))
+    : pagesForOutput(output);
 }
 
-function formatCents(amountCents: number, sign: "POSITIVE" | "NEGATIVE"): string {
+function formatCents(
+  amountCents: number,
+  sign: "POSITIVE" | "NEGATIVE",
+): string {
   const euros = String(Math.floor(amountCents / 100)).replace(
     /\B(?=(\d{3})+(?!\d))/gu,
     ".",
@@ -853,88 +1140,129 @@ function formatCents(amountCents: number, sign: "POSITIVE" | "NEGATIVE"): string
 }
 
 function paymentStateLabel(state: PaymentEvidenceStateV1): string {
-  const labels: Readonly<Record<PaymentEvidenceStateV1, string>> = Object.freeze({
-    CONFIRMED: "Pago confirmado en el justificante",
-    PARTIAL: "Pago parcial confirmado en el justificante",
-    ATTEMPTED: "Intento de pago",
-    REJECTED: "Pago rechazado",
-    CANCELLED: "Pago anulado",
-    RETURNED: "Pago devuelto",
-    UNKNOWN: "Resultado de pago pendiente de revisión",
-  });
+  const labels: Readonly<Record<PaymentEvidenceStateV1, string>> =
+    Object.freeze({
+      CONFIRMED: "Pago confirmado en el justificante",
+      PARTIAL: "Pago parcial confirmado en el justificante",
+      ATTEMPTED: "Intento de pago",
+      REJECTED: "Pago rechazado",
+      CANCELLED: "Pago anulado",
+      RETURNED: "Pago devuelto",
+      UNKNOWN: "Resultado de pago pendiente de revisión",
+    });
   return labels[state];
 }
 
 function notificationStateLabel(state: NotificationEnvelopeStateV1): string {
-  const labels: Readonly<Record<NotificationEnvelopeStateV1, string>> = Object.freeze({
-    AVAILABLE: "Notificación puesta a disposición",
-    ACCESSED: "Notificación accedida o aceptada",
-    REJECTED: "Notificación rechazada",
-    EXPIRED: "Notificación expirada",
-    ATTEMPTED: "Intento de notificación",
-    DELIVERED: "Notificación entregada",
-    PUBLISHED: "Notificación publicada",
-    UNKNOWN: "Estado de notificación pendiente de revisión",
-  });
+  const labels: Readonly<Record<NotificationEnvelopeStateV1, string>> =
+    Object.freeze({
+      AVAILABLE: "Notificación puesta a disposición",
+      ACCESSED: "Notificación accedida o aceptada",
+      REJECTED: "Notificación rechazada",
+      EXPIRED: "Notificación expirada",
+      ATTEMPTED: "Intento de notificación",
+      DELIVERED: "Notificación entregada",
+      PUBLISHED: "Notificación publicada",
+      UNKNOWN: "Estado de notificación pendiente de revisión",
+    });
   return labels[state];
 }
 
 function seizureStateLabel(state: SeizurePrintedStateV1 | null): string {
-  const labels: Readonly<Record<SeizurePrintedStateV1, string>> = Object.freeze({
-    SEIZURE_ORDER_RECORDED_REVIEW_REQUIRED: "Diligencia de embargo registrada",
-    RELEASE_RECORDED_REVIEW_REQUIRED: "Levantamiento de embargo registrado",
-    THIRD_PARTY_RESPONSE_RECORDED_REVIEW_REQUIRED: "Contestación de tercero registrada",
-    THIRD_PARTY_PAYMENT_RECORDED_REVIEW_REQUIRED: "Ingreso de tercero registrado",
-  });
+  const labels: Readonly<Record<SeizurePrintedStateV1, string>> = Object.freeze(
+    {
+      SEIZURE_ORDER_RECORDED_REVIEW_REQUIRED:
+        "Diligencia de embargo registrada",
+      RELEASE_RECORDED_REVIEW_REQUIRED: "Levantamiento de embargo registrado",
+      THIRD_PARTY_RESPONSE_RECORDED_REVIEW_REQUIRED:
+        "Contestación de tercero registrada",
+      THIRD_PARTY_PAYMENT_RECORDED_REVIEW_REQUIRED:
+        "Ingreso de tercero registrado",
+    },
+  );
   return state ? labels[state] : "Documento de embargo registrado";
 }
 
 function seizureRecipientRoleLabel(role: SeizureRecipientRoleV1): string {
-  const labels: Readonly<Record<SeizureRecipientRoleV1, string>> = Object.freeze({
-    DEBTOR: "Deudor",
-    FINANCIAL_ENTITY: "Entidad financiera destinataria",
-    COMMERCIAL_OR_RENT_PAYER: "Pagador comercial o arrendaticio",
-    EMPLOYER_OR_PENSION_PAYER: "Empleador o pagador de pensión",
-    PAYMENT_SERVICE_PROVIDER: "Proveedor de servicios de pago",
-    GARNISHED_THIRD_PARTY: "Tercero obligado por el embargo",
-    UNKNOWN: "Papel pendiente de revisión",
-  });
+  const labels: Readonly<Record<SeizureRecipientRoleV1, string>> =
+    Object.freeze({
+      DEBTOR: "Deudor",
+      FINANCIAL_ENTITY: "Entidad financiera destinataria",
+      COMMERCIAL_OR_RENT_PAYER: "Pagador comercial o arrendaticio",
+      EMPLOYER_OR_PENSION_PAYER: "Empleador o pagador de pensión",
+      PAYMENT_SERVICE_PROVIDER: "Proveedor de servicios de pago",
+      GARNISHED_THIRD_PARTY: "Tercero obligado por el embargo",
+      UNKNOWN: "Papel pendiente de revisión",
+    });
   return labels[role];
 }
 
-function parseReviewDocument(value: unknown): FiscalNotificationVerticalSliceReviewDocumentV1 {
+function parseReviewDocument(
+  value: unknown,
+): FiscalNotificationVerticalSliceReviewDocumentV1 {
   const item = snapshotRecord(value);
   assertKeys(item, [
-    "reviewDocumentId", "extractorId", "familyId", "title", "subtitle", "pageFrom",
-    "pageTo", "confidence", "fields", "warnings", "requiresHumanReview",
+    "reviewDocumentId",
+    "extractorId",
+    "familyId",
+    "title",
+    "subtitle",
+    "pageFrom",
+    "pageTo",
+    "confidence",
+    "fields",
+    "warnings",
+    "requiresHumanReview",
   ]);
   assertBoundedString(item.reviewDocumentId, 160);
-  if (!EXTRACTOR_IDS.has(item.extractorId as FiscalNotificationVerticalSliceExtractorIdV1)) throw invalidReview();
-  if (!FAMILY_IDS.has(item.familyId as FiscalNotificationDocumentFamilyIdV3)) throw invalidReview();
-  assertBoundedString(item.title, FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxLabelChars);
-  assertBoundedString(item.subtitle, FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxLabelChars);
+  if (
+    !EXTRACTOR_IDS.has(
+      item.extractorId as FiscalNotificationVerticalSliceExtractorIdV1,
+    )
+  )
+    throw invalidReview();
+  if (!FAMILY_IDS.has(item.familyId as FiscalNotificationDocumentFamilyIdV3))
+    throw invalidReview();
+  assertBoundedString(
+    item.title,
+    FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxLabelChars,
+  );
+  assertBoundedString(
+    item.subtitle,
+    FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxLabelChars,
+  );
   assertPage(item.pageFrom);
   assertPage(item.pageTo);
   if (Number(item.pageTo) < Number(item.pageFrom)) throw invalidReview();
   assertConfidence(item.confidence);
   if (item.requiresHumanReview !== true) throw invalidReview();
-  const fieldValues = snapshotArray(item.fields, FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxFieldsPerDocument);
+  const fieldValues = snapshotArray(
+    item.fields,
+    FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxFieldsPerDocument,
+  );
   if (fieldValues.length === 0) throw invalidReview();
   const seenFields = new Set<string>();
   const fields = fieldValues.map((fieldValue) => {
-    const reviewField = parseReviewField(fieldValue, Number(item.pageFrom), Number(item.pageTo));
+    const reviewField = parseReviewField(
+      fieldValue,
+      Number(item.pageFrom),
+      Number(item.pageTo),
+    );
     if (seenFields.has(reviewField.fieldId)) throw invalidReview();
     seenFields.add(reviewField.fieldId);
     return reviewField;
   });
-  const warnings = snapshotArray(item.warnings, FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxWarningsPerDocument)
-    .map((warning) => {
-      assertBoundedString(warning, 240);
-      return warning as string;
-    });
+  const warnings = snapshotArray(
+    item.warnings,
+    FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxWarningsPerDocument,
+  ).map((warning) => {
+    assertBoundedString(warning, 240);
+    return warning as string;
+  });
   return Object.freeze({
     reviewDocumentId: item.reviewDocumentId as string,
-    extractorId: item.extractorId as FiscalNotificationVerticalSliceExtractorIdV1,
+    extractorId:
+      item.extractorId as FiscalNotificationVerticalSliceExtractorIdV1,
     familyId: item.familyId as FiscalNotificationDocumentFamilyIdV3,
     title: item.title as string,
     subtitle: item.subtitle as string,
@@ -954,41 +1282,76 @@ function parseReviewField(
 ): FiscalNotificationVerticalSliceReviewFieldV1 {
   const item = snapshotRecord(value);
   assertKeys(item, [
-    "fieldId", "semantic", "canonicalType", "label", "displayValue", "normalizedValue",
-    "amountCents", "currency", "sourcePageNumbers", "sourceLabel", "confidence", "reviewStatus",
+    "fieldId",
+    "semantic",
+    "canonicalType",
+    "label",
+    "displayValue",
+    "normalizedValue",
+    "amountCents",
+    "currency",
+    "sourcePageNumbers",
+    "sourceLabel",
+    "confidence",
+    "reviewStatus",
   ]);
   assertBoundedString(item.fieldId, 160);
   if (!FIELD_SEMANTICS.has(String(item.semantic))) throw invalidReview();
-  if (!isCanonicalTypeValid(String(item.semantic), item.canonicalType)) throw invalidReview();
-  assertBoundedString(item.label, FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxLabelChars);
-  assertBoundedString(item.displayValue, FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxDisplayValueChars);
+  if (!isCanonicalTypeValid(String(item.semantic), item.canonicalType))
+    throw invalidReview();
+  assertBoundedString(
+    item.label,
+    FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxLabelChars,
+  );
+  assertBoundedString(
+    item.displayValue,
+    FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxDisplayValueChars,
+  );
   if (item.normalizedValue !== null) {
-    assertBoundedString(item.normalizedValue, FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxNormalizedValueChars);
+    assertBoundedString(
+      item.normalizedValue,
+      FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxNormalizedValueChars,
+    );
   }
   const money = item.semantic === "MONEY";
   if (money) {
-    assertNonNegativeIntegerCents(item.amountCents, "verticalSliceReview.amountCents");
+    assertNonNegativeIntegerCents(
+      item.amountCents,
+      "verticalSliceReview.amountCents",
+    );
     if (item.currency !== "EUR") throw invalidReview();
   } else if (item.amountCents !== null || item.currency !== null) {
     throw invalidReview();
   }
-  const pageValues = snapshotArray(item.sourcePageNumbers, FISCAL_NOTIFICATION_INPUT_LIMITS.maxPages);
+  const pageValues = snapshotArray(
+    item.sourcePageNumbers,
+    FISCAL_NOTIFICATION_INPUT_LIMITS.maxPages,
+  );
   if (pageValues.length === 0) throw invalidReview();
   const seenPages = new Set<number>();
   const sourcePageNumbers = pageValues.map((page) => {
     assertPage(page);
     const pageNumber = Number(page);
-    if (pageNumber < pageFrom || pageNumber > pageTo || seenPages.has(pageNumber)) throw invalidReview();
+    if (
+      pageNumber < pageFrom ||
+      pageNumber > pageTo ||
+      seenPages.has(pageNumber)
+    )
+      throw invalidReview();
     seenPages.add(pageNumber);
     return pageNumber;
   });
-  assertBoundedString(item.sourceLabel, FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxSourceLabelChars);
+  assertBoundedString(
+    item.sourceLabel,
+    FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxSourceLabelChars,
+  );
   assertConfidence(item.confidence);
   if (item.reviewStatus !== "REVIEW_REQUIRED") throw invalidReview();
   return Object.freeze({
     fieldId: item.fieldId as string,
     semantic: item.semantic as FiscalNotificationVerticalSliceFieldSemanticV1,
-    canonicalType: item.canonicalType as FiscalNotificationVerticalSliceCanonicalFieldTypeV1,
+    canonicalType:
+      item.canonicalType as FiscalNotificationVerticalSliceCanonicalFieldTypeV1,
     label: item.label as string,
     displayValue: item.displayValue as string,
     normalizedValue: item.normalizedValue as string | null,
@@ -1004,22 +1367,33 @@ function parseReviewField(
 function isCanonicalTypeValid(semantic: string, value: unknown): boolean {
   if (typeof value !== "string") return false;
   switch (semantic) {
-    case "REFERENCE": return REFERENCE_TYPES.has(value);
-    case "MONEY": return MONEY_TYPES.has(value);
-    case "DATE": return DATE_TYPES.has(value);
-    case "PARTY": return PARTY_TYPES.has(value);
-    case "STATUS": return value === "DOCUMENT_STATUS";
-    case "OBLIGATION": return value === "OBLIGATION";
-    case "MASKED_VALUE": return value === "MASKED_ACCOUNT";
-    case "DETAIL": return DETAIL_TYPES.has(value);
-    default: return false;
+    case "REFERENCE":
+      return REFERENCE_TYPES.has(value);
+    case "MONEY":
+      return MONEY_TYPES.has(value);
+    case "DATE":
+      return DATE_TYPES.has(value);
+    case "PARTY":
+      return PARTY_TYPES.has(value);
+    case "STATUS":
+      return value === "DOCUMENT_STATUS";
+    case "OBLIGATION":
+      return value === "OBLIGATION";
+    case "MASKED_VALUE":
+      return value === "MASKED_ACCOUNT";
+    case "DETAIL":
+      return DETAIL_TYPES.has(value);
+    default:
+      return false;
   }
 }
 
 function snapshotRecord(value: unknown): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) throw invalidReview();
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    throw invalidReview();
   const prototype = Object.getPrototypeOf(value);
-  if (prototype !== Object.prototype && prototype !== null) throw invalidReview();
+  if (prototype !== Object.prototype && prototype !== null)
+    throw invalidReview();
   const copy: Record<string, unknown> = Object.create(null);
   for (const key of Reflect.ownKeys(value)) {
     if (typeof key !== "string") throw invalidReview();
@@ -1035,7 +1409,10 @@ function snapshotArray(value: unknown, max: number): readonly unknown[] {
   return [...value];
 }
 
-function assertKeys(value: Record<string, unknown>, keys: readonly string[]): void {
+function assertKeys(
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): void {
   const allowed = new Set(keys);
   if (Reflect.ownKeys(value).length !== allowed.size) throw invalidReview();
   for (const key of Reflect.ownKeys(value)) {
@@ -1045,19 +1422,33 @@ function assertKeys(value: Record<string, unknown>, keys: readonly string[]): vo
 
 function assertBoundedString(value: unknown, max: number): void {
   if (
-    typeof value !== "string" || value.length === 0 || value.length > max ||
-    value !== value.trim() || /[\u0000-\u001f\u007f-\u009f]/u.test(value)
-  ) throw invalidReview();
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > max ||
+    value !== value.trim() ||
+    /[\u0000-\u001f\u007f-\u009f]/u.test(value)
+  )
+    throw invalidReview();
 }
 
 function assertPage(value: unknown): void {
-  if (!Number.isSafeInteger(value) || Number(value) < 1 || Number(value) > FISCAL_NOTIFICATION_INPUT_LIMITS.maxPages) {
+  if (
+    !Number.isSafeInteger(value) ||
+    Number(value) < 1 ||
+    Number(value) > FISCAL_NOTIFICATION_INPUT_LIMITS.maxPages
+  ) {
     throw invalidReview();
   }
 }
 
 function assertConfidence(value: unknown): void {
-  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) throw invalidReview();
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < 0 ||
+    value > 1
+  )
+    throw invalidReview();
 }
 
 function invalidReview(): FiscalNotificationVerticalSliceReviewErrorV1 {

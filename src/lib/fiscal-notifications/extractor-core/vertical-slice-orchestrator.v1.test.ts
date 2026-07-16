@@ -25,19 +25,28 @@ const NOTIFICATION_RECEIPT = [
   "Fecha de acceso: 12/07/2026 09:42",
 ].join("\n");
 
-function document(...pagesOrSignal: readonly (string | AbortSignal)[]): BoundedDocumentInput {
-  const signal = pagesOrSignal.at(-1) instanceof AbortSignal
-    ? pagesOrSignal.at(-1) as AbortSignal
-    : undefined;
-  const texts = pagesOrSignal.filter((item): item is string => typeof item === "string");
+function document(
+  ...pagesOrSignal: readonly (string | AbortSignal)[]
+): BoundedDocumentInput {
+  const signal =
+    pagesOrSignal.at(-1) instanceof AbortSignal
+      ? (pagesOrSignal.at(-1) as AbortSignal)
+      : undefined;
+  const texts = pagesOrSignal.filter(
+    (item): item is string => typeof item === "string",
+  );
   return Object.freeze({
     ownerScope: OWNER_SCOPE,
     documentId: DOCUMENT_ID,
-    pages: Object.freeze(texts.map((text, index) => Object.freeze({
-      pageNumber: index + 1,
-      text,
-      isBlank: text.trim().length === 0,
-    }))),
+    pages: Object.freeze(
+      texts.map((text, index) =>
+        Object.freeze({
+          pageNumber: index + 1,
+          text,
+          isBlank: text.trim().length === 0,
+        }),
+      ),
+    ),
     ...(signal ? { signal } : {}),
   });
 }
@@ -157,7 +166,9 @@ describe("fiscal notification first vertical-slice orchestrator v1", () => {
     );
 
     expect(result.recognizedExtractorIds).toEqual(["notification-envelope"]);
-    expect(result.extractions.notificationEnvelope?.notificationEnvelopeFacts).toMatchObject({
+    expect(
+      result.extractions.notificationEnvelope?.notificationEnvelopeFacts,
+    ).toMatchObject({
       documentKind: "ELECTRONIC_NOTIFICATION_RECEIPT",
       notificationState: "ACCESSED",
       notificationReference: { printedValue: "NOT-SYN-CHAIN-001" },
@@ -213,7 +224,9 @@ describe("fiscal notification first vertical-slice orchestrator v1", () => {
     );
 
     expect(result.recognizedExtractorIds).toEqual(["payment-evidence"]);
-    expect(result.extractions.paymentEvidence?.paymentEvidenceFacts).toMatchObject({
+    expect(
+      result.extractions.paymentEvidence?.paymentEvidenceFacts,
+    ).toMatchObject({
       paymentState: "PARTIAL",
       debtKey: { printedValue: "DEBT-SYN-CHAIN-001" },
       amountPaid: { amountCents: 60_000 },
@@ -283,7 +296,9 @@ describe("fiscal notification first vertical-slice orchestrator v1", () => {
       seizureOrderId: { printedValue: "EMB-SYN-CHAIN-001" },
       recipientRole: "FINANCIAL_ENTITY",
     });
-    expect(result.extractions.seizure?.seizureFacts.specificFacts).toContainEqual(
+    expect(
+      result.extractions.seizure?.seizureFacts.specificFacts,
+    ).toContainEqual(
       expect.objectContaining({
         fieldId: "MASKED_ACCOUNT",
         printedValue: "****1234",
@@ -300,18 +315,24 @@ describe("fiscal notification first vertical-slice orchestrator v1", () => {
   });
 
   it("keeps a cover and generic instructions outside factual extraction", async () => {
-    const result = await analyzeFiscalNotificationVerticalSliceV1(document(
-      "Notificación electrónica\nDirección Electrónica Habilitada Única",
-      PAYMENT_ORDER,
-      "Instrucciones generales\nNO_RETENER_ESTE_TEXTO_BRUTO",
-    ));
+    const result = await analyzeFiscalNotificationVerticalSliceV1(
+      document(
+        "Notificación electrónica\nDirección Electrónica Habilitada Única",
+        PAYMENT_ORDER,
+        "Instrucciones generales\nNO_RETENER_ESTE_TEXTO_BRUTO",
+      ),
+    );
 
-    expect(result.segmentation.segments.map((segment) => segment.segmentType)).toEqual([
+    expect(
+      result.segmentation.segments.map((segment) => segment.segmentType),
+    ).toEqual([
       "NOTIFICATION_COVER",
       "PAYMENT_DOCUMENT",
       "GENERIC_INSTRUCTIONS",
     ]);
-    expect(result.extractions.paymentOrder?.paymentOrderFacts.moneyFacts).toEqual([
+    expect(
+      result.extractions.paymentOrder?.paymentOrderFacts.moneyFacts,
+    ).toEqual([
       expect.objectContaining({ role: "PRINCIPAL", amountCents: 100_000 }),
       expect.objectContaining({ role: "SURCHARGE", amountCents: 20_000 }),
       expect.objectContaining({ role: "TOTAL_DUE", amountCents: 120_000 }),
@@ -320,9 +341,9 @@ describe("fiscal notification first vertical-slice orchestrator v1", () => {
   });
 
   it("returns information pending for an unsupported document without inventing facts", async () => {
-    const result = await analyzeFiscalNotificationVerticalSliceV1(document(
-      "Agencia Tributaria\nComunicación informativa sintética",
-    ));
+    const result = await analyzeFiscalNotificationVerticalSliceV1(
+      document("Agencia Tributaria\nComunicación informativa sintética"),
+    );
 
     expect(result.status).toBe("INFORMATION_PENDING");
     expect(result.recognizedExtractorIds).toEqual([]);
@@ -330,6 +351,7 @@ describe("fiscal notification first vertical-slice orchestrator v1", () => {
       notificationEnvelope: null,
       formalFilingRequirement: null,
       assessment: null,
+      deferralDenial: null,
       paymentOrder: null,
       paymentEvidence: null,
       seizure: null,

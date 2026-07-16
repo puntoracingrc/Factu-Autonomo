@@ -10,7 +10,9 @@ describe("fiscal notification guide catalog v1", () => {
     expect(FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1).toHaveLength(87);
     expect(
       FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.map((entry) => entry.familyId),
-    ).toEqual(FISCAL_NOTIFICATION_DOCUMENT_FAMILIES_V2.map((family) => family.id));
+    ).toEqual(
+      FISCAL_NOTIFICATION_DOCUMENT_FAMILIES_V2.map((family) => family.id),
+    );
 
     for (const entry of FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1) {
       expect(entry.schemaVersion).toBe(1);
@@ -39,9 +41,8 @@ describe("fiscal notification guide catalog v1", () => {
     const paymentForm = resolveFiscalNotificationGuideSelectionV1(
       "payment.payment_form",
     );
-    const paymentReceipt = resolveFiscalNotificationGuideSelectionV1(
-      "payment.receipt",
-    );
+    const paymentReceipt =
+      resolveFiscalNotificationGuideSelectionV1("payment.receipt");
     expect(paymentForm.status).toBe("SELECTED");
     expect(paymentReceipt.status).toBe("SELECTED");
     if (
@@ -66,7 +67,8 @@ describe("fiscal notification guide catalog v1", () => {
     ).toBe(true);
     expect(
       paymentForm.entry.possibleNext.every(
-        (related) => related.status === "SUGGESTED_ONLY" && !related.autoConfirm,
+        (related) =>
+          related.status === "SUGGESTED_ONLY" && !related.autoConfirm,
       ),
     ).toBe(true);
     expect(paymentForm.entry.plainLanguage?.inShort).toContain(
@@ -79,7 +81,15 @@ describe("fiscal notification guide catalog v1", () => {
     const explained = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.filter(
       (entry) => entry.plainLanguage,
     );
-    expect(explained).toHaveLength(28);
+    expect(explained).toHaveLength(29);
+
+    expect(
+      explained.find((entry) => entry.familyId === "collection.deferral_denial")
+        ?.plainLanguage,
+    ).toMatchObject({
+      profileId: "deferral-denial",
+      status: "GENERAL_CONTEXT_EXPLAINED",
+    });
 
     const enforcement = explained.find(
       (entry) => entry.familyId === "collection.enforcement_order",

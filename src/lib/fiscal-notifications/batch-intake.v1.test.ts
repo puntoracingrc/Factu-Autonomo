@@ -12,7 +12,9 @@ const HASH = "a".repeat(64);
 describe("fiscal notification batch intake v1", () => {
   it("fingerprints a bounded PDF without retaining its bytes", async () => {
     const bytes = pdfBytes();
-    const digestSha256 = vi.fn(async () => new Uint8Array(32).fill(0xab).buffer);
+    const digestSha256 = vi.fn(
+      async () => new Uint8Array(32).fill(0xab).buffer,
+    );
 
     const result = await fingerprintFiscalNotificationBatchFileV1(
       file("notificacion.pdf", bytes),
@@ -20,7 +22,7 @@ describe("fiscal notification batch intake v1", () => {
       { digestSha256 },
     );
 
-    expect(FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1).toBe(10);
+    expect(FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1).toBe(50);
     expect(result).toEqual({
       byteLength: bytes.byteLength,
       displayName: "notificacion.pdf",
@@ -35,39 +37,55 @@ describe("fiscal notification batch intake v1", () => {
   it.each([
     [file("notificacion.png", pdfBytes(), "image/png"), "UNSUPPORTED_FILE"],
     [file("notificacion.pdf", new Uint8Array()), "EMPTY_FILE"],
-    [file("notificacion.pdf", new TextEncoder().encode("not a pdf")), "INVALID_PDF"],
+    [
+      file("notificacion.pdf", new TextEncoder().encode("not a pdf")),
+      "INVALID_PDF",
+    ],
     [file(" notificacion.pdf", pdfBytes()), "INVALID_FILE_NAME"],
     [file("notificacion\u0000.pdf", pdfBytes()), "INVALID_FILE_NAME"],
-    [{
-      ...file("notificacion.pdf", pdfBytes()),
-      size: 4 * 1024 * 1024 + 1,
-    }, "FILE_TOO_LARGE"],
-  ] as const)("rejects an invalid candidate without coercion", async (candidate, code) => {
-    await expect(
-      fingerprintFiscalNotificationBatchFileV1(candidate, undefined, {
-        digestSha256: async () => new Uint8Array(32).buffer,
-      }),
-    ).rejects.toMatchObject({ code });
-  });
+    [
+      {
+        ...file("notificacion.pdf", pdfBytes()),
+        size: 4 * 1024 * 1024 + 1,
+      },
+      "FILE_TOO_LARGE",
+    ],
+  ] as const)(
+    "rejects an invalid candidate without coercion",
+    async (candidate, code) => {
+      await expect(
+        fingerprintFiscalNotificationBatchFileV1(candidate, undefined, {
+          digestSha256: async () => new Uint8Array(32).buffer,
+        }),
+      ).rejects.toMatchObject({ code });
+    },
+  );
 
   it("aborts before reading and rejects malformed digests", async () => {
     const controller = new AbortController();
     controller.abort();
     const arrayBuffer = vi.fn(async () => pdfBytes().buffer);
     await expect(
-      fingerprintFiscalNotificationBatchFileV1({
-        name: "notificacion.pdf",
-        size: pdfBytes().byteLength,
-        type: "application/pdf",
-        arrayBuffer,
-      }, controller.signal),
+      fingerprintFiscalNotificationBatchFileV1(
+        {
+          name: "notificacion.pdf",
+          size: pdfBytes().byteLength,
+          type: "application/pdf",
+          arrayBuffer,
+        },
+        controller.signal,
+      ),
     ).rejects.toMatchObject({ code: "ABORTED" });
     expect(arrayBuffer).not.toHaveBeenCalled();
 
     await expect(
-      fingerprintFiscalNotificationBatchFileV1(file("notificacion.pdf", pdfBytes()), undefined, {
-        digestSha256: async () => new Uint8Array(8).buffer,
-      }),
+      fingerprintFiscalNotificationBatchFileV1(
+        file("notificacion.pdf", pdfBytes()),
+        undefined,
+        {
+          digestSha256: async () => new Uint8Array(8).buffer,
+        },
+      ),
     ).rejects.toMatchObject({ code: "HASH_UNAVAILABLE" });
   });
 
@@ -106,7 +124,9 @@ describe("fiscal notification batch intake v1", () => {
   });
 
   it("fails closed for a foreign or invalid workspace", () => {
-    expect(readPersistedFiscalNotificationHashesV1(emptyWorkspace(), OWNER)).toEqual({
+    expect(
+      readPersistedFiscalNotificationHashesV1(emptyWorkspace(), OWNER),
+    ).toEqual({
       status: "READY",
       sha256: [],
     });
@@ -149,7 +169,9 @@ describe("fiscal notification batch intake v1", () => {
 });
 
 function pdfBytes(): Uint8Array<ArrayBuffer> {
-  return new TextEncoder().encode("%PDF-1.7\nsynthetic") as Uint8Array<ArrayBuffer>;
+  return new TextEncoder().encode(
+    "%PDF-1.7\nsynthetic",
+  ) as Uint8Array<ArrayBuffer>;
 }
 
 function file(
