@@ -305,6 +305,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "saveFiscalNotificationStructuredReview({",
     );
+    expect(componentSource).toContain("getCurrentData,");
     expect(componentSource).toContain("key={ownerScope}");
     expect(componentSource).not.toContain(
       "createBrowserFiscalNotificationLocalReviewStore",
@@ -317,13 +318,21 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "saveFiscalNotificationStructuredReview({",
     );
-    expect(componentSource).toContain("expected: data");
+    expect(componentSource).toContain("const currentData = getCurrentData()");
+    expect(componentSource).toContain("expected: currentData");
     expect(componentSource).toContain("ownerScope,");
     expect(componentSource).toMatch(/reviewId:\s*[A-Za-z0-9_]+\.reviewId/);
     expect(componentSource).toMatch(/createdAt:\s*[A-Za-z0-9_]+\.createdAt/);
     expect(componentSource).toMatch(/analysis:\s*[A-Za-z0-9_]+\.analysis/);
     expect(componentSource).toMatch(/`review:\$\{/);
     expect(componentSource).toContain("new Date().toISOString()");
+    expect(componentSource).toContain("setRecentlySavedDocumentId(savedDocumentId)");
+    expect(componentSource).toContain(
+      "focusDocumentId={recentlySavedDocumentId}",
+    );
+    expect(documentLibraryComponentSource).toContain('setQuery("")');
+    expect(documentLibraryComponentSource).toContain("scrollIntoView({");
+    expect(documentLibraryComponentSource).toContain("Guardado ahora");
 
     expect(componentSource).toContain(
       "await analyzeFiscalNotificationLocallyWithEphemeralFacts",
@@ -414,7 +423,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     const writeFlow = componentSource.slice(saveStart, saveStart + 4_000);
     expect(saveStart).toBeGreaterThan(-1);
     expect(writeFlow).toMatch(
-      /\.status === "applied"[\s\S]{0,300}set[A-Za-z0-9_]+\("saved"\)/,
+      /\.status === "applied"[\s\S]{0,500}set[A-Za-z0-9_]+\("saved"\)/,
     );
     expect(writeFlow).toContain('write.status === "indeterminate"');
     expect(writeFlow).toContain('write.reason === "no_structured_facts"');

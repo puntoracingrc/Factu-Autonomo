@@ -432,6 +432,7 @@ function FiscalNotificationReviewWorkspace({
   const {
     data,
     ready: appStoreReady,
+    getCurrentData,
     saveFiscalNotificationStructuredReview,
     archiveFiscalNotificationOriginal,
   } = useAppStore();
@@ -481,6 +482,9 @@ function FiscalNotificationReviewWorkspace({
     useState<PendingStructuredReview | null>(null);
   const [persistenceState, setPersistenceState] =
     useState<ReviewPersistenceState>("idle");
+  const [recentlySavedDocumentId, setRecentlySavedDocumentId] = useState<
+    string | null
+  >(null);
   const documentLibrary = useMemo(
     () =>
       projectFiscalNotificationDocumentLibraryV1(
@@ -942,8 +946,9 @@ function FiscalNotificationReviewWorkspace({
     updateStoredReview(activeId, "saving", false);
     setPersistenceState("saving");
     try {
+      const currentData = getCurrentData();
       const write = saveFiscalNotificationStructuredReview({
-        expected: data,
+        expected: currentData,
         ownerScope,
         reviewId: pendingReview.reviewId,
         createdAt: pendingReview.createdAt,
@@ -954,7 +959,12 @@ function FiscalNotificationReviewWorkspace({
       if (write.status === "applied") {
         updateStoredReview(activeId, "saved", true);
         updateQueueItem(activeId, { saved: true });
+        const savedDocumentId =
+          "documentIds" in write.value
+            ? (write.value.documentIds[0] ?? null)
+            : write.value.documentId;
         offerCurrentOriginalForDriveArchive(activeId, write.data);
+        setRecentlySavedDocumentId(savedDocumentId);
         setPendingReview(null);
         setPersistenceState("saved");
         return;
@@ -1592,6 +1602,7 @@ function FiscalNotificationReviewWorkspace({
         <FiscalNotificationDocumentLibrary
           viewModel={documentLibrary}
           ownerScope={ownerScope}
+          focusDocumentId={recentlySavedDocumentId}
         />
       </div>
     </>
