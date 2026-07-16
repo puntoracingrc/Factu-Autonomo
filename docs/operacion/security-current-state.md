@@ -169,6 +169,8 @@ Cuando aparezca un aviso rojo:
 - Secret scanning y push protection estan activos.
 - Un push a `main` espera el deployment de Vercel, asigna el dominio y ejecuta
   Production Domain.
+- Production Domain exige que el host Vercel retirado responda 308 al canónico
+  y conserve ruta/query en callbacks y webhooks.
 - Admin compara el SHA de `main`, CI, deployment y alias. Si el dominio apunta
   a una produccion anterior, la seccion se marca como incidencia.
 
@@ -209,6 +211,8 @@ Cuando aparezca un aviso rojo:
 - CSP, HSTS, `nosniff`, `DENY`, Referrer Policy y Permissions Policy se sirven
   en produccion.
 - El dominio resuelve al deployment READY de la rama `main` vigente.
+- `factu-autonomo.vercel.app` redirige de forma permanente al dominio canónico;
+  no sirve una segunda versión de la aplicación.
 - Quality, Supabase Acceptance y Production Domain estan en verde.
 - La compilacion, tipos, lint, migraciones y auditoria de dependencias pasan.
 - La auditoria de dependencias no muestra vulnerabilidades conocidas altas.

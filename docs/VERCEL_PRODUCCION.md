@@ -1,7 +1,7 @@
 # Producción — facturacion-autonomos.app
 
 **URL principal:** https://facturacion-autonomos.app  
-**URL Vercel (legacy):** https://factu-autonomo.vercel.app  
+**URL Vercel retirada:** https://factu-autonomo.vercel.app → 308 al dominio principal<br>
 **Email contacto:** info@facturacion-autonomos.app  
 **Repo:** https://github.com/puntoracingrc/Factu-Autonomo
 
@@ -11,9 +11,14 @@
 |------|----------------|
 | `facturacion-autonomos.app` | Producción (apex) |
 | `www.facturacion-autonomos.app` | Redirige al apex |
-| `factu-autonomo.vercel.app` | Sigue activo (enlaces antiguos) |
+| `factu-autonomo.vercel.app` | Redirección 308 al apex; nunca sirve la aplicación |
 
-DNS en Vercel → Settings → Domains. Tras cambiar dominio, **Redeploy** obligatorio si actualizas variables.
+El redirect del host legacy está configurado en Vercel → Project → Settings →
+Domains y se refuerza en `next.config.ts`. El job `Production Domain` exige 308,
+destino canónico y conservación de ruta/query para la raíz, OAuth, Drive y
+Stripe. No quites el redirect ni reasignes el alias a un deployment antiguo.
+
+Tras cambiar variables de entorno, **Redeploy** es obligatorio.
 
 ## Alias automático tras merge
 
@@ -25,7 +30,8 @@ Vercel asociado al commit de `main` cuando han terminado correctamente:
 - deployment de Vercel en `Production`.
 
 El job se llama `Production Domain` y requiere el secret de GitHub Actions
-`VERCEL_TOKEN`. No ejecutes `alias set` manual salvo rollback o incidencia.
+`VERCEL_TOKEN`. Solo mueve el dominio canónico; el dominio legacy permanece como
+redirect de proyecto. No ejecutes `alias set` manual salvo rollback o incidencia.
 
 ## Variables en Vercel → Settings → Environment Variables
 
@@ -205,6 +211,8 @@ idempotente estable por Checkout Session y `payment_receipts` conserva el estado
 pendiente/enviado. La misma regla cubre los recibos de renovación `invoice.paid`.
 
 El `whsec_` del webhook local **no sirve** para Vercel: usa el secret del endpoint creado para esta URL.
+Stripe debe apuntar directamente al endpoint canónico. No configures el host
+legacy como webhook ni dependas de que Stripe siga una redirección.
 
 ## Supabase y Google Login
 
@@ -212,6 +220,7 @@ Ver `supabase/README.md`. Resumen:
 
 - **Site URL:** `https://facturacion-autonomos.app`
 - **Redirect URLs:** `https://facturacion-autonomos.app/auth/callback`, `http://localhost:3000/auth/callback`, `http://localhost:3001/auth/callback`
+- **Dominio retirado:** no añadir `factu-autonomo.vercel.app` a Site URL, Redirect URLs, orígenes Google ni callbacks Drive.
 - **Google OAuth:** configurar proveedor Google en Supabase Auth antes de poner `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED=true`. El botón usa Google Identity Services y luego crea la sesión en Supabase, para que Google muestre la app pública en vez del dominio técnico del proyecto. Usa variables propias (`NEXT_PUBLIC_GOOGLE_AUTH_CLIENT_ID` y `GOOGLE_AUTH_CLIENT_SECRET`); Drive queda separado para copias de seguridad.
 - **Google Cloud:** añade `https://facturacion-autonomos.app`, `http://localhost:3000` y `http://localhost:3001` como orígenes JavaScript autorizados. Si la app OAuth está en pruebas, añade los emails de prueba o publícala/verifícala antes de abrirla a usuarios reales.
 - **Google Drive:** configurar el OAuth client con origen autorizado `https://facturacion-autonomos.app` y, para probar en local, `http://localhost:3000` y `http://localhost:3001`. La copia extra en Drive usa `drive.file` y se activa aparte desde Cuenta.
@@ -219,6 +228,7 @@ Ver `supabase/README.md`. Resumen:
 ## Estado actual
 
 - App desplegada en dominio propio.
+- El dominio Vercel heredado devuelve 308 al dominio propio y conserva ruta/query.
 - Sin variables de entorno, billing aparece en “modo desarrollo” (todo desbloqueado).
 - Sin Supabase en Vercel (o sin redeploy tras añadirlas): no hay cuenta ni sync en nube.
 

@@ -155,12 +155,13 @@ jobs:
   production-domain:
     name: Production Domain
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     needs:
       - quality
       - supabase-acceptance
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     env:
+      LEGACY_DOMAIN: factu-autonomo.vercel.app
       PRODUCTION_DOMAIN: facturacion-autonomos.app
       VERCEL_SCOPE: team_igEbPlyUgBxnP6cO2sUObD5a
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -223,8 +224,20 @@ jobs:
       - name: Verify production domain
         run: |
           for attempt in {1..30}; do
-            body="$(curl -fsSL "https://${PRODUCTION_DOMAIN}" || true)"
-            if grep -q "Facturación Autónomos" <<< "$body"; then
+            status="$(
+              curl \
+                --silent \
+                --show-error \
+                --output /tmp/production-domain-body \
+                --connect-timeout 10 \
+                --max-time 20 \
+                --max-redirs 0 \
+                --write-out '%{http_code}' \
+                "https://${PRODUCTION_DOMAIN}" \
+                || true
+            )"
+            if [ "$status" = "200" ] \
+              && grep -q "Facturación Autónomos" /tmp/production-domain-body; then
               exit 0
             fi
             sleep 5
@@ -232,3 +245,56 @@ jobs:
 
           echo "Production domain did not respond with the expected brand after alias assignment."
           exit 1
+
+      - name: Verify legacy domain redirect
+        run: |
+          set -euo pipefail
+
+          probe_path="/auth/callback?domain_probe=1"
+          expected="308 https://${PRODUCTION_DOMAIN}${probe_path}"
+
+          for attempt in {1..30}; do
+            actual="$(
+              curl \
+                --silent \
+                --show-error \
+                --output /dev/null \
+                --connect-timeout 10 \
+                --max-time 20 \
+                --max-redirs 0 \
+                --write-out '%{http_code} %{redirect_url}' \
+                "https://${LEGACY_DOMAIN}${probe_path}" \
+                || true
+            )"
+            if [ "$actual" = "$expected" ]; then
+              break
+            fi
+            if [ "$attempt" = "30" ]; then
+              echo "Legacy domain redirect mismatch: expected '$expected', got '$actual'."
+              exit 1
+            fi
+            sleep 5
+          done
+
+          for path in \
+            "/" \
+            "/google-auth/callback?domain_probe=1" \
+            "/drive/callback?domain_probe=1" \
+            "/api/webhooks/stripe?domain_probe=1"; do
+            actual="$(
+              curl \
+                --silent \
+                --show-error \
+                --output /dev/null \
+                --connect-timeout 10 \
+                --max-time 20 \
+                --max-redirs 0 \
+                --write-out '%{http_code} %{redirect_url}' \
+                "https://${LEGACY_DOMAIN}${path}"
+            )"
+            expected="308 https://${PRODUCTION_DOMAIN}${path}"
+            if [ "$actual" != "$expected" ]; then
+              echo "Legacy domain redirect mismatch for '$path': expected '$expected', got '$actual'."
+              exit 1
+            fi
+          done
