@@ -3,13 +3,14 @@ import type { ManualSection } from "../types";
 export const impuestosSection: ManualSection = {
   slug: "impuestos",
   title: "Impuestos y exportación",
-  summary: "Resumen trimestral orientativo y CSV para tu gestor (Pro).",
+  summary:
+    "Resumen fiscal y exportación CSV, PDF anual o carpeta de facturas (Pro).",
   order: 9,
   steps: [
     {
       title: "1. Ver el resumen fiscal",
       paragraphs: [
-        "En **Impuestos** eliges **Trimestre**, **Año** o **Todo** y luego seleccionas el periodo concreto.",
+        "En **Impuestos** eliges **Trimestre**, **Meses**, **Año** o **Todo** y luego seleccionas el periodo concreto. La vista **Meses** admite de uno a tres meses consecutivos del mismo año.",
         "Verás las bases de ventas y gastos deducibles, el coste económico de los gastos, la posición de IVA, el beneficio económico, la base estimada para IRPF, la reserva orientativa y el resultado económico tras reservarla.",
         "La posición de IVA se muestra aparte: no se descuenta del beneficio ni del resultado económico porque sus bases ya están calculadas sin IVA.",
         "Los gastos marcados como **No deducibles** siguen en el gasto registrado, el balance y la rentabilidad y sí reducen el beneficio económico. Aportan cero a la base e IVA deducibles, por lo que no reducen la base ni la reserva estimada de IRPF. El resumen muestra un aviso con ese coste.",
@@ -40,7 +41,17 @@ export const impuestosSection: ManualSection = {
       },
     },
     {
-      title: "3. Exportar PDF anual (Pro)",
+      title: "3. Descargar las facturas del periodo en PDF (Pro)",
+      paragraphs: [
+        "En las vistas **Trimestre** y **Meses**, pulsa **Facturas PDF** para preparar todas las facturas emitidas de ese periodo. El máximo es de tres meses y los presupuestos, recibos y borradores no se incluyen.",
+        "La descarga es un ZIP que contiene una carpeta local. Un trimestre fiscal se nombra, por ejemplo, **Facturas Trimestre 2 2026**; un mes, **Facturas Mayo 2026**; y un rango no trimestral, **Facturas Mayo-Julio 2026**.",
+        "Cada archivo se genera desde la copia fiscal congelada y verificada del documento, no desde campos vivos que hayan cambiado después. Los históricos importados y aceptados conservan su tratamiento propio sin fabricarles un sello moderno.",
+        "Si una factura del periodo tiene la integridad pendiente o su PDF original no puede reconstruirse de forma segura, Factu bloquea el paquete completo y muestra qué documentos debes revisar. Nunca descarga silenciosamente una carpeta incompleta.",
+      ],
+      tip: "Al descomprimir el ZIP encontrarás directamente la carpeta con todos los PDF del periodo.",
+    },
+    {
+      title: "4. Exportar PDF anual (Pro)",
       paragraphs: [
         "En vista por **año** puedes descargar un PDF resumen del ejercicio.",
         "El PDF separa coste económico, base fiscal deducible y base estimada para IRPF, e identifica cada gasto no deducible.",

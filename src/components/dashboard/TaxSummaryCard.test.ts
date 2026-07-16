@@ -100,3 +100,29 @@ describe("TaxSummaryCard fiscal semantics", () => {
     expect(source).toContain("taxes.headerVatExpenseCount > 0");
   });
 });
+
+describe("FiscalSummaryPanel invoice PDF archive", () => {
+  it("permite trimestre o uno a tres meses y mantiene año/todo fuera del archivo", () => {
+    expect(fiscalPanelSource).toContain('["months", "Meses"]');
+    expect(fiscalPanelSource).toContain('aria-label="Mes inicial"');
+    expect(fiscalPanelSource).toContain('aria-label="Mes final"');
+    expect(fiscalPanelSource).toContain("nextStartMonth + 2");
+    expect(fiscalPanelSource).toContain("invoicePdfExportPeriodFromQuarter");
+    expect(fiscalPanelSource).toContain("downloadInvoicePdfPeriodArchive");
+    expect(fiscalPanelSource).toContain("Facturas PDF");
+    expect(fiscalPanelSource).toContain(
+      "Selecciona Trimestre o Meses (máximo tres meses)",
+    );
+  });
+
+  it("muestra resultado o bloqueo sin descargar silenciosamente un paquete incompleto", () => {
+    expect(fiscalPanelSource).toContain("InvoicePdfPeriodExportError");
+    expect(fiscalPanelSource).toContain("error.documentReferences.join");
+    expect(fiscalPanelSource).toContain('kind: "success"');
+    expect(fiscalPanelSource).toContain('kind: "error"');
+    expect(fiscalPanelSource).toContain('role={');
+    expect(fiscalPanelSource).toContain(
+      "No se ha descargado un archivo incompleto",
+    );
+  });
+});

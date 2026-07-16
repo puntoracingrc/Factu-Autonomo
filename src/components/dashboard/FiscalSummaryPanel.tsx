@@ -12,6 +12,15 @@ import { useBilling } from "@/context/BillingContext";
 import { formatMoney } from "@/lib/calculations";
 import { downloadAnnualSummaryPdf } from "@/lib/billing/export-annual-pdf";
 import {
+  downloadInvoicePdfPeriodArchive,
+  INVOICE_PDF_EXPORT_MONTH_NAMES,
+  invoicePdfExportPeriodFromQuarter,
+  invoicePdfExportPeriodLabel,
+  InvoicePdfPeriodExportError,
+  isDateInInvoicePdfExportPeriod,
+  type InvoicePdfExportPeriod,
+} from "@/lib/billing/export-invoice-pdf-archive";
+import {
   buildQuarterlyExportCsv,
   downloadQuarterlyCsv,
 } from "@/lib/billing/export-quarterly";
@@ -38,7 +47,12 @@ import {
   totalExpensesAmount,
 } from "@/lib/vat-regime";
 
-type FiscalPeriodMode = "quarter" | "year" | "all";
+type FiscalPeriodMode = "quarter" | "months" | "year" | "all";
+
+interface InvoicePdfExportFeedback {
+  kind: "success" | "error";
+  message: string;
+}
 
 interface FiscalSummaryPanelProps {
   data: AppData;
@@ -47,10 +61,28 @@ interface FiscalSummaryPanelProps {
 export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
   const { billingEnabled, limits } = useBilling();
   const current = getCurrentQuarter();
+  const currentMonth = new Date().getMonth() + 1;
   const [mode, setMode] = useState<FiscalPeriodMode>("quarter");
   const [year, setYear] = useState(current.year);
   const [quarter, setQuarter] = useState<Quarter>(current.quarter);
+  const [startMonth, setStartMonth] = useState(currentMonth);
+  const [endMonth, setEndMonth] = useState(currentMonth);
+  const [invoicePdfExportBusy, setInvoicePdfExportBusy] = useState(false);
+  const [invoicePdfExportFeedback, setInvoicePdfExportFeedback] =
+    useState<InvoicePdfExportFeedback | null>(null);
   const locked = billingEnabled && !limits.quarterlySummary;
+
+  const monthPeriod: InvoicePdfExportPeriod = {
+    year,
+    startMonth,
+    endMonth,
+  };
+  const invoicePdfExportPeriod =
+    mode === "quarter"
+      ? invoicePdfExportPeriodFromQuarter(year, quarter)
+      : mode === "months"
+        ? monthPeriod
+        : null;
 
   const vatExempt = isVatExempt(data.profile);
   const years = useMemo(
@@ -61,15 +93,27 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
   const periodExpenses = useMemo(() => {
     if (mode === "all") return data.expenses;
     if (mode === "year") return filterExpensesByYear(data.expenses, year);
+    if (mode === "months") {
+      return data.expenses.filter((expense) =>
+        isDateInInvoicePdfExportPeriod(expense.date, {
+          year,
+          startMonth,
+          endMonth,
+        }),
+      );
+    }
     return filterExpensesByQuarter(data.expenses, year, quarter);
-  }, [data.expenses, mode, year, quarter]);
+  }, [data.expenses, mode, year, quarter, startMonth, endMonth]);
 
   const isDocumentDateInPeriod =
     mode === "all"
       ? () => true
       : mode === "year"
         ? (date: string) => isDateInYear(date, year)
-        : (date: string) => isDateInQuarter(date, year, quarter);
+        : mode === "months"
+          ? (date: string) =>
+              isDateInInvoicePdfExportPeriod(date, monthPeriod)
+          : (date: string) => isDateInQuarter(date, year, quarter);
 
   const fiscalDocuments = selectTaxableFiscalDocumentsForPeriod(
     data.documents,
@@ -107,14 +151,20 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
       ? "Todo el historial"
       : mode === "year"
         ? `Año ${year}`
-        : quarterLabel(year, quarter);
+        : mode === "months"
+          ? invoicePdfExportPeriodLabel(monthPeriod)
+          : quarterLabel(year, quarter);
 
   const subtitle =
     mode === "all"
       ? "Facturas, recibos y gastos registrados desde el inicio."
       : mode === "year"
         ? `Movimientos con fecha en ${year}.`
-        : `Facturas, recibos y gastos con fecha en ${quarterLabel(year, quarter).toLowerCase()}.`;
+        : mode === "months"
+          ? startMonth === endMonth
+            ? `Facturas, recibos y gastos con fecha en ${INVOICE_PDF_EXPORT_MONTH_NAMES[startMonth - 1].toLowerCase()} de ${year}.`
+            : `Facturas, recibos y gastos con fecha entre ${INVOICE_PDF_EXPORT_MONTH_NAMES[startMonth - 1].toLowerCase()} y ${INVOICE_PDF_EXPORT_MONTH_NAMES[endMonth - 1].toLowerCase()} de ${year}.`
+          : `Facturas, recibos y gastos con fecha en ${quarterLabel(year, quarter).toLowerCase()}.`;
 
   function handleExportCsv() {
     const csv = buildQuarterlyExportCsv(
@@ -135,6 +185,41 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
       data.profile,
       year,
     );
+  }
+
+  async function handleExportInvoicePdfs() {
+    if (!invoicePdfExportPeriod) {
+      setInvoicePdfExportFeedback({
+        kind: "error",
+        message:
+          "Selecciona Trimestre o Meses para exportar un máximo de tres meses.",
+      });
+      return;
+    }
+
+    setInvoicePdfExportFeedback(null);
+    setInvoicePdfExportBusy(true);
+    try {
+      const result = await downloadInvoicePdfPeriodArchive(
+        data.documents,
+        data.profile,
+        invoicePdfExportPeriod,
+      );
+      setInvoicePdfExportFeedback({
+        kind: "success",
+        message: `Descargado ${result.folderName}: ${result.invoiceCount} factura${result.invoiceCount === 1 ? "" : "s"} en PDF.`,
+      });
+    } catch (error) {
+      const message =
+        error instanceof InvoicePdfPeriodExportError
+          ? error.documentReferences.length > 0
+            ? `${error.message} Documentos: ${error.documentReferences.join(", ")}.`
+            : error.message
+          : "No se pudo preparar el paquete de facturas. No se ha descargado un archivo incompleto.";
+      setInvoicePdfExportFeedback({ kind: "error", message });
+    } finally {
+      setInvoicePdfExportBusy(false);
+    }
   }
 
   if (locked) {
@@ -174,6 +259,7 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
             {(
               [
                 ["quarter", "Trimestre"],
+                ["months", "Meses"],
                 ["year", "Año"],
                 ["all", "Todo"],
               ] as const
@@ -181,7 +267,10 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
               <button
                 key={value}
                 type="button"
-                onClick={() => setMode(value)}
+                onClick={() => {
+                  setMode(value);
+                  setInvoicePdfExportFeedback(null);
+                }}
                 className={`rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
                   mode === value
                     ? "bg-blue-600 text-white"
@@ -222,6 +311,54 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
                   ))}
                 </select>
               )}
+              {mode === "months" && (
+                <>
+                  <select
+                    value={startMonth}
+                    onChange={(event) => {
+                      const nextStartMonth = Number(event.target.value);
+                      setStartMonth(nextStartMonth);
+                      setEndMonth((previousEndMonth) =>
+                        Math.min(
+                          12,
+                          Math.max(
+                            nextStartMonth,
+                            Math.min(previousEndMonth, nextStartMonth + 2),
+                          ),
+                        ),
+                      );
+                    }}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800"
+                    aria-label="Mes inicial"
+                  >
+                    {INVOICE_PDF_EXPORT_MONTH_NAMES.map((name, index) => (
+                      <option key={name} value={index + 1}>
+                        Desde {name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={endMonth}
+                    onChange={(event) =>
+                      setEndMonth(Number(event.target.value))
+                    }
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800"
+                    aria-label="Mes final"
+                  >
+                    {INVOICE_PDF_EXPORT_MONTH_NAMES.slice(
+                      startMonth - 1,
+                      Math.min(12, startMonth + 2),
+                    ).map((name, index) => {
+                      const month = startMonth + index;
+                      return (
+                        <option key={name} value={month}>
+                          Hasta {name}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </>
+              )}
               {mode === "quarter" && limits.quarterlyExport && (
                 <Button
                   variant="secondary"
@@ -241,11 +378,46 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
                   title={exportBlockedTitle}
                 >
                   <Download className="h-4 w-4" />
-                  PDF
+                  Resumen PDF
                 </Button>
               )}
             </div>
           )}
+          {limits.quarterlyExport && (
+            <Button
+              variant="secondary"
+              onClick={() => void handleExportInvoicePdfs()}
+              disabled={invoicePdfExportBusy || !invoicePdfExportPeriod}
+              title={
+                invoicePdfExportPeriod
+                  ? "Descargar las facturas del periodo en una carpeta ZIP"
+                  : "Selecciona Trimestre o Meses (máximo tres meses)"
+              }
+            >
+              <Download className="h-4 w-4" />
+              {invoicePdfExportBusy ? "Preparando…" : "Facturas PDF"}
+            </Button>
+          )}
+          {!invoicePdfExportPeriod && limits.quarterlyExport ? (
+            <p className="max-w-sm text-xs text-slate-500">
+              Para descargar facturas, selecciona Trimestre o Meses (máximo
+              tres meses).
+            </p>
+          ) : null}
+          {invoicePdfExportFeedback ? (
+            <p
+              role={
+                invoicePdfExportFeedback.kind === "error" ? "alert" : "status"
+              }
+              className={`max-w-md text-xs font-semibold ${
+                invoicePdfExportFeedback.kind === "error"
+                  ? "text-red-700"
+                  : "text-emerald-700"
+              }`}
+            >
+              {invoicePdfExportFeedback.message}
+            </p>
+          ) : null}
         </div>
       }
       highlights={
@@ -254,7 +426,7 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
             data={{ ...data, documents: fiscalDocuments }}
             embedded
           />
-        ) : mode === "quarter" ? (
+        ) : mode === "quarter" || mode === "months" ? (
           <PeriodOverviewCards
             income={periodIncome}
             spent={periodSpent}
