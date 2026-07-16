@@ -19,10 +19,9 @@ const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
 
 function coverageLabel(entry: FiscalNotificationGuideEntryV1): string {
-  if (entry.plainLanguage) return "Guía explicada";
-  return entry.coverage.status === "PARTIAL_REVIEW_ONLY"
-    ? "Cobertura parcial · revisión obligatoria"
-    : "Ficha en preparación · sin reconocimiento";
+  return entry.recognitionMode === "AUTOMATIC_REVIEW_ONLY"
+    ? "Lectura automática · revisión obligatoria"
+    : "Guía disponible · revisión manual";
 }
 
 function PlainLanguageExplanation({
@@ -186,12 +185,12 @@ export function FiscalNotificationGuideDetail({
         </div>
         <span
           className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold ${
-            entry.plainLanguage
+            entry.recognitionMode === "AUTOMATIC_REVIEW_ONLY"
               ? "border-emerald-300 bg-emerald-50 text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-100"
-              : "border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-100"
+              : "border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-100"
           }`}
         >
-          {entry.plainLanguage ? (
+          {entry.recognitionMode === "AUTOMATIC_REVIEW_ONLY" ? (
             <BadgeInfo className="h-4 w-4" aria-hidden="true" />
           ) : (
             <ShieldAlert className="h-4 w-4" aria-hidden="true" />
@@ -200,9 +199,7 @@ export function FiscalNotificationGuideDetail({
         </span>
       </header>
 
-      {entry.plainLanguage && (
-        <PlainLanguageExplanation guidance={entry.plainLanguage} />
-      )}
+      <PlainLanguageExplanation guidance={entry.plainLanguage} />
 
       <Card
         className="border-amber-200 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/40"
@@ -219,30 +216,13 @@ export function FiscalNotificationGuideDetail({
         </p>
       </Card>
 
-      {!entry.plainLanguage && (
-        <Card className="min-w-0 dark:border-slate-700 dark:bg-slate-900">
-          <div className="flex items-center gap-2">
-            <LibraryBig
-              className="h-5 w-5 text-blue-700 dark:text-blue-300"
-              aria-hidden="true"
-            />
-            <h4 className="text-lg font-bold text-slate-950 dark:text-slate-100">
-              Qué es esta ficha
-            </h4>
-          </div>
-          <p className="mt-3 break-words text-sm leading-6 text-slate-700 dark:text-slate-300">
-            {entry.summary}
-          </p>
-        </Card>
-      )}
-
       <details className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
         <summary className="min-h-11 cursor-pointer font-bold text-slate-950 dark:text-slate-100">
           Estado técnico de esta ficha
         </summary>
         <dl className="mt-3 grid gap-3 text-sm md:grid-cols-3">
           <div>
-            <dt className="font-semibold text-slate-500 dark:text-slate-400">Conocimiento</dt>
+            <dt className="font-semibold text-slate-500 dark:text-slate-400">Disponibilidad</dt>
             <dd className="mt-0.5 text-slate-800 dark:text-slate-200">{coverageLabel(entry)}</dd>
           </div>
           <div>
@@ -317,13 +297,14 @@ export function FiscalNotificationGuideDetail({
             aria-hidden="true"
           />
           <h4 className="text-lg font-bold text-slate-950 dark:text-slate-100">
-            Fuentes oficiales registradas
+            Fuentes oficiales en las que se basa el analizador
           </h4>
         </div>
         <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-          Los enlaces se verificaron como oficiales, pero su contenido y su
-          aplicación jurídica siguen pendientes de revisión. Abrirlos no inicia
-          ningún trámite desde la aplicación.
+          Estas fuentes forman parte del conocimiento local del analizador: no
+          se consulta internet durante el escaneo. Los enlaces se verificaron
+          como oficiales, pero su aplicación al documento concreto exige
+          revisión. Abrirlos no inicia ningún trámite desde la aplicación.
         </p>
         {entry.sources.length === 0 ? (
           <p className="mt-4 rounded-xl bg-amber-50 p-4 text-sm font-semibold text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">

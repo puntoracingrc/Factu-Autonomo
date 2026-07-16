@@ -14,9 +14,11 @@ import { searchFiscalNotificationGuideV1 } from "@/lib/fiscal-notifications/guid
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
-const explainedGuideCount = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.filter(
-  (entry) => entry.plainLanguage,
+const automaticGuideCount = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.filter(
+  (entry) => entry.recognitionMode === "AUTOMATIC_REVIEW_ONLY",
 ).length;
+const manualGuideCount =
+  FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.length - automaticGuideCount;
 
 function resultLabel(total: number, query: string): string {
   if (!query) return `${total} tipos documentales registrados`;
@@ -91,10 +93,12 @@ export function FiscalNotificationGuideView({
               Te lo explicamos; tú decides qué hacer
             </h3>
             <p className="mt-1 text-sm leading-6 text-amber-900 dark:text-amber-200">
-              Ya hay {explainedGuideCount} tipos con explicación sencilla y los {" "}
-              {FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.length} se pueden buscar. La
-              guía no paga, recurre ni cambia datos por sí sola: primero te ayuda
-              a entender el documento y deja visibles las fuentes oficiales.
+              Hay {FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.length} guías explicadas:
+              {" "}{automaticGuideCount} con lectura automática y revisión
+              obligatoria, y {manualGuideCount} disponibles para consulta manual,
+              sin lectura automática. La guía no paga, recurre ni cambia datos
+              por sí sola: te ayuda a entender el documento y deja visibles las
+              fuentes oficiales.
             </p>
           </div>
         </div>
@@ -225,17 +229,17 @@ export function FiscalNotificationGuideView({
                     <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-900 dark:bg-blue-950 dark:text-blue-100">
                       {entry.categoryLabel}
                     </span>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${entry.plainLanguage ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100" : "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200"}`}>
-                      {entry.plainLanguage ? "Guía explicada" : "En preparación"}
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${entry.recognitionMode === "AUTOMATIC_REVIEW_ONLY" ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100" : "bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-100"}`}>
+                      {entry.recognitionMode === "AUTOMATIC_REVIEW_ONLY"
+                        ? "Lectura automática · revisión obligatoria"
+                        : "Guía disponible · revisión manual"}
                     </span>
                   </div>
                   <h5 className="mt-4 break-words text-lg font-bold text-slate-950 dark:text-slate-100">
                     {entry.nameEs}
                   </h5>
                   <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                    {entry.plainLanguage
-                      ? entry.summary
-                      : `${entry.sources.length} ${entry.sources.length === 1 ? "fuente oficial registrada" : "fuentes oficiales registradas"}`}
+                    {entry.summary}
                   </p>
                   <div className="flex-1" />
                   <Link

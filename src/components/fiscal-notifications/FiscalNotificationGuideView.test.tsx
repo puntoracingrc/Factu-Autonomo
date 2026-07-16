@@ -20,6 +20,8 @@ describe("FiscalNotificationGuideView UI contract", () => {
     expect(viewSource).toContain(
       "FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.length",
     );
+    expect(viewSource).toContain("automaticGuideCount");
+    expect(viewSource).toContain("manualGuideCount");
     expect(viewSource).toContain("Consulta independiente del analizador");
   });
 
@@ -55,7 +57,17 @@ describe("FiscalNotificationGuideView UI contract", () => {
     expect(detailSource).toContain("Qué conviene hacer");
     expect(detailSource).toContain("Entenderlo un poco mejor");
     expect(detailSource).toContain("Estado técnico de esta ficha");
-    expect(viewSource).toContain("Guía explicada");
+    expect(viewSource).toContain("Lectura automática · revisión obligatoria");
+    expect(viewSource).toContain("Guía disponible · revisión manual");
+    expect(viewSource).toContain("sin lectura automática");
+    expect(viewSource).not.toContain("con selección y revisión manual");
+    expect(viewSource).not.toContain("En preparación");
+    expect(detailSource).toContain(
+      "Fuentes oficiales en las que se basa el analizador",
+    );
+    expect(detailSource).toMatch(
+      /no\s+se consulta internet durante el escaneo/u,
+    );
     expect(viewSource).toContain("Te lo explicamos; tú decides qué hacer");
   });
 
