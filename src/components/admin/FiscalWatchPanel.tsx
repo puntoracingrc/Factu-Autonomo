@@ -16,6 +16,12 @@ import type {
 export interface FiscalWatchPanelProps {
   status: FiscalWatchAdminStatus | null;
   notice?: string | null;
+  reviewStoreAvailable?: boolean;
+  reviewingIssueKey?: string | null;
+  onReviewIssue?: (issue: {
+    number: number;
+    kind: FiscalWatchAdminIssue["kind"];
+  }) => void;
 }
 
 const DATE_TIME_FORMATTER = new Intl.DateTimeFormat("es-ES", {
@@ -229,7 +235,17 @@ function issueTypeLabel(kind: FiscalWatchAdminIssue["kind"]): string {
   return kind === "baseline" ? "Línea base" : "Cambio detectado";
 }
 
-function IssueCard({ issue }: { issue: DisplayIssue }) {
+function IssueCard({
+  issue,
+  canReview,
+  reviewing,
+  onReview,
+}: {
+  issue: DisplayIssue;
+  canReview: boolean;
+  reviewing: boolean;
+  onReview?: (issue: DisplayIssue) => void;
+}) {
   return (
     <li className="min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white/80 p-4 dark:border-slate-700 dark:bg-slate-950/45">
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -274,15 +290,29 @@ function IssueCard({ issue }: { issue: DisplayIssue }) {
             </div>
           )}
         </div>
-        <a
-          href={issue.issueUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 sm:w-auto"
-        >
-          Examinar aviso
-          <ExternalLink aria-hidden="true" className="h-4 w-4" />
-        </a>
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto">
+          <a
+            href={issue.issueUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 py-2 text-sm font-black text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200 sm:w-auto"
+          >
+            Examinar aviso
+            <ExternalLink aria-hidden="true" className="h-4 w-4" />
+          </a>
+          {canReview && onReview && (
+            <button
+              type="button"
+              disabled={reviewing}
+              onClick={() => onReview(issue)}
+              title="Retira el aviso del panel sin borrar la evidencia oficial"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-900 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 dark:border-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-100 dark:hover:bg-emerald-900/60 sm:w-auto"
+            >
+              <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
+              {reviewing ? "Guardando..." : "Marcar revisado"}
+            </button>
+          )}
+        </div>
       </div>
       {issue.source && (
         <p className="mt-3 border-t border-slate-200 pt-3 text-sm dark:border-slate-700">
@@ -301,7 +331,13 @@ function IssueCard({ issue }: { issue: DisplayIssue }) {
   );
 }
 
-export function FiscalWatchPanel({ status, notice }: FiscalWatchPanelProps) {
+export function FiscalWatchPanel({
+  status,
+  notice,
+  reviewStoreAvailable = false,
+  reviewingIssueKey = null,
+  onReviewIssue,
+}: FiscalWatchPanelProps) {
   const rawIssues = Array.isArray(status?.issues) ? status.issues : [];
   const issues = rawIssues
     .map(displayIssue)
@@ -441,6 +477,15 @@ export function FiscalWatchPanel({ status, notice }: FiscalWatchPanelProps) {
                 <IssueCard
                   key={`${issue.kind}-${issue.number}`}
                   issue={issue}
+                  canReview={reviewStoreAvailable}
+                  reviewing={
+                    reviewingIssueKey === `${issue.kind}:${issue.number}`
+                  }
+                  onReview={
+                    onReviewIssue
+                      ? (reviewedIssue) => onReviewIssue(reviewedIssue)
+                      : undefined
+                  }
                 />
               ))}
             </ul>

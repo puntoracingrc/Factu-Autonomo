@@ -43,6 +43,7 @@ export async function GET(request: Request) {
   const { data, error } = await admin
     .from("app_error_events")
     .select("id,user_id,severity,area,code,message,route,created_at,resolved_at")
+    .neq("area", "fiscal_watch_review")
     .order("created_at", { ascending: false })
     .limit(limit);
 

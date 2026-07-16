@@ -165,6 +165,8 @@ interface AdminFiscalCalendarHealthResponse {
 
 interface AdminFiscalWatchResponse {
   status?: FiscalWatchAdminStatus | null;
+  reviewStoreAvailable?: boolean;
+  reviewed?: boolean;
   error?: string;
 }
 
@@ -3119,6 +3121,11 @@ function OperationsPanel({
     useState<FiscalCalendarAdminHealth | null>(null);
   const [fiscalWatch, setFiscalWatch] =
     useState<FiscalWatchAdminStatus | null>(null);
+  const [fiscalWatchReviewStoreAvailable, setFiscalWatchReviewStoreAvailable] =
+    useState(false);
+  const [reviewingFiscalWatchIssue, setReviewingFiscalWatchIssue] = useState<
+    string | null
+  >(null);
   const [vercel, setVercel] = useState<AdminVercelUsageSnapshot | null>(null);
   const [operations, setOperations] = useState<AdminOperationsStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -3140,6 +3147,7 @@ function OperationsPanel({
     setHealth(null);
     setCalendarHealth(null);
     setFiscalWatch(null);
+    setFiscalWatchReviewStoreAvailable(false);
     setVercel(null);
     setOperations(null);
     setError(null);
@@ -3205,6 +3213,7 @@ function OperationsPanel({
     const fiscalWatchProbeFailed = !fiscalWatchResponse?.ok;
     if (fiscalWatchProbeFailed) {
       setFiscalWatch(null);
+      setFiscalWatchReviewStoreAvailable(false);
       setFiscalWatchNotice(
         fiscalWatchBody.error ??
           "No se pudo comprobar la vigilancia de fuentes fiscales.",
@@ -3212,6 +3221,9 @@ function OperationsPanel({
     } else {
       nextFiscalWatch = fiscalWatchBody.status ?? null;
       setFiscalWatch(nextFiscalWatch);
+      setFiscalWatchReviewStoreAvailable(
+        fiscalWatchBody.reviewStoreAvailable === true,
+      );
       setFiscalWatchNotice(
         nextFiscalWatch
           ? null
@@ -3319,6 +3331,53 @@ function OperationsPanel({
     void loadOperations();
   }, [loadOperations]);
 
+  const reviewFiscalWatchIssue = useCallback(
+    async (issue: { number: number; kind: "change" | "baseline" }) => {
+      const confirmed = window.confirm(
+        "Confirma que ya has examinado este aviso. Se retirará del panel, pero la incidencia y la fuente oficial seguirán conservadas.",
+      );
+      if (!confirmed) return;
+
+      const issueKey = `${issue.kind}:${issue.number}`;
+      setReviewingFiscalWatchIssue(issueKey);
+      setFiscalWatchNotice(null);
+      try {
+        const token = await getAccessToken();
+        if (!token) {
+          setFiscalWatchNotice("Inicia sesión con una cuenta administradora.");
+          return;
+        }
+        const response = await fetchAdminResponse("/api/admin/fiscal-watch", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "review",
+            issueNumber: issue.number,
+            kind: issue.kind,
+          }),
+        });
+        const body = response
+          ? await readAdminJsonResponse<AdminFiscalWatchResponse>(response)
+          : {};
+        if (!response?.ok || body.reviewed !== true) {
+          setFiscalWatchNotice(
+            body.error ?? "No se pudo guardar la revisión del aviso.",
+          );
+          return;
+        }
+        await loadOperations();
+      } catch {
+        setFiscalWatchNotice("No se pudo guardar la revisión del aviso.");
+      } finally {
+        setReviewingFiscalWatchIssue(null);
+      }
+    },
+    [loadOperations],
+  );
+
   const syncErrors = errors.filter((item) => item.area === "sync").length;
   const browserErrors = errors.filter((item) => item.area === "browser").length;
   const sectionMeta = ADMIN_MENU.find((item) => item.id === section);
@@ -3392,6 +3451,9 @@ function OperationsPanel({
           <FiscalWatchPanel
             status={fiscalWatch}
             notice={fiscalWatchNotice}
+            reviewStoreAvailable={fiscalWatchReviewStoreAvailable}
+            reviewingIssueKey={reviewingFiscalWatchIssue}
+            onReviewIssue={reviewFiscalWatchIssue}
           />
           {!error && health && (
             <>

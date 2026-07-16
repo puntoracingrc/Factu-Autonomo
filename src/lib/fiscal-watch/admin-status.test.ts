@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildFiscalWatchAdminStatus } from "./admin-status";
+import {
+  applyFiscalWatchReviews,
+  buildFiscalWatchAdminStatus,
+  fiscalWatchReviewKey,
+} from "./admin-status";
 
 const NOW = new Date("2026-07-13T09:15:00.000Z");
 
@@ -164,6 +168,78 @@ describe("buildFiscalWatchAdminStatus", () => {
     expect(status.pendingReviews).toBe(0);
     expect(status.baselinePending).toBe(true);
     expect(status.issues[0]?.kind).toBe("baseline");
+  });
+
+  it("retira solo el aviso revisado y conserva los demás pendientes", () => {
+    const status = build({
+      unreviewedIssues: [
+        issue(41, "fiscal-watch:unreviewed"),
+        issue(42, "fiscal-watch:unreviewed"),
+      ],
+    });
+
+    const reviewed = applyFiscalWatchReviews(status, ["change:41"]);
+
+    expect(reviewed).toMatchObject({
+      level: "watch",
+      pendingReviews: 1,
+      baselinePending: false,
+      sourcesValid: true,
+    });
+    expect(reviewed.issues.map((item) => item.number)).toEqual([42]);
+    expect(reviewed.signalId).toBe(
+      "fiscal-watch:watch:run-9001:changes-42:baseline-none",
+    );
+  });
+
+  it("vuelve a verde cuando todos los avisos validados están revisados", () => {
+    const status = build({
+      unreviewedIssues: [issue(42, "fiscal-watch:unreviewed")],
+      baselineIssues: [issue(7, "fiscal-watch:baseline")],
+    });
+
+    const reviewed = applyFiscalWatchReviews(status, [
+      "change:42",
+      "baseline:7",
+    ]);
+
+    expect(reviewed).toMatchObject({
+      level: "ok",
+      label: "Al día",
+      pendingReviews: 0,
+      baselinePending: false,
+      sourcesValid: true,
+    });
+    expect(reviewed.headline).toContain("no hay cambios pendientes");
+    expect(reviewed.issues).toEqual([]);
+    expect(reviewed.signalId).toBe(
+      "fiscal-watch:ok:run-9001:changes-none:baseline-none",
+    );
+  });
+
+  it("falla cerrado ante claves de revisión manipuladas o duplicadas", () => {
+    const status = build({
+      unreviewedIssues: [issue(42, "fiscal-watch:unreviewed")],
+    });
+
+    for (const keys of [
+      ["change:42", "change:42"],
+      ["change:0"],
+      ["other:42"],
+      [42],
+    ]) {
+      const reviewed = applyFiscalWatchReviews(status, keys);
+      expect(reviewed.level).toBe("action");
+      expect(reviewed.sourcesValid).toBe(false);
+      expect(reviewed.issues).toEqual(status.issues);
+    }
+  });
+
+  it("genera únicamente claves acotadas para incidencias válidas", () => {
+    expect(fiscalWatchReviewKey("change", 42)).toBe("change:42");
+    expect(fiscalWatchReviewKey("baseline", 7)).toBe("baseline:7");
+    expect(fiscalWatchReviewKey("change", 0)).toBeNull();
+    expect(fiscalWatchReviewKey("change", Number.NaN)).toBeNull();
   });
 
   it.each([["failure"], ["cancelled"], ["timed_out"]])(
