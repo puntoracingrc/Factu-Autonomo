@@ -1,4 +1,5 @@
 import {
+  canonicalFiscalNotificationOwnerScopeV2,
   isSensitiveReferenceV2,
   snapshotSensitiveReferenceV2,
   SENSITIVE_REFERENCE_TYPES_V2,
@@ -9,6 +10,15 @@ import {
   resolveAeatDocumentProfileV1,
 } from "./knowledge/aeat-document-knowledge.v1";
 import type { FiscalNotificationDocumentFamilyIdV3 } from "./knowledge/document-families.v3";
+
+export const PERSISTED_DOCUMENT_RELATION_TYPES_V2 = [
+  ...AEAT_DOCUMENT_RELATION_TYPE_IDS_V1,
+  "BELONGS_TO_CASE",
+  "DUPLICATE_COPY_OF",
+  "RELATED_TO_PAYMENT_PLAN",
+  "RELATED_TO_INSTALLMENT",
+  "POSSIBLY_RELATED",
+] as const;
 
 export const FISCAL_NOTIFICATIONS_PERSISTED_WORKSPACE_SCHEMA_V2 = 2 as const;
 export const FISCAL_NOTIFICATIONS_WORKSPACE_MAX_SERIALIZED_BYTES_V2 =
@@ -361,7 +371,6 @@ type JsonRecord = Record<string, unknown>;
 const INVALID = Symbol("invalid-workspace-v2");
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u;
 const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:/\-]{0,159}$/u;
-const OWNER_SCOPE_PATTERN = /^user:[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const TECHNICAL_PATTERN = /^[A-Z0-9][A-Z0-9_.:\-]{0,95}$/u;
 const HASH_PATTERN = /^[0-9a-f]{64}$/u;
 const NORMALIZED_REFERENCE_PATTERN = /^[\p{L}\p{N}]+$/u;
@@ -437,7 +446,8 @@ function id(value: unknown): string {
 }
 
 function owner(value: unknown, expected: string): string {
-  const parsed = safeString(value, 160, OWNER_SCOPE_PATTERN);
+  const parsed = canonicalFiscalNotificationOwnerScopeV2(value);
+  if (!parsed) fail();
   if (parsed !== expected) fail();
   return parsed;
 }
@@ -1054,7 +1064,7 @@ function parseRelation(
     targetDocumentId: id(required(source, "targetDocumentId")),
     relationType: enumValue(
       required(source, "relationType"),
-      AEAT_DOCUMENT_RELATION_TYPE_IDS_V1,
+      PERSISTED_DOCUMENT_RELATION_TYPES_V2,
     ),
     status: enumValue(required(source, "status"), [
       "SUGGESTED",
@@ -1162,11 +1172,10 @@ export function parseFiscalNotificationsWorkspaceForPersistenceV2(
   expectedOwnerScope: string,
 ): Readonly<FiscalNotificationsPersistedWorkspaceV2> | null {
   try {
-    const expectedOwner = safeString(
+    const expectedOwner = canonicalFiscalNotificationOwnerScopeV2(
       expectedOwnerScope,
-      160,
-      OWNER_SCOPE_PATTERN,
     );
+    if (!expectedOwner) fail();
     const source = record(value, [
       "schemaVersion",
       "workspaceId",

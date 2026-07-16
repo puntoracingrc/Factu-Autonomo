@@ -145,6 +145,23 @@ function workspace(): FiscalNotificationsPersistedWorkspaceV2 {
 }
 
 describe("persisted fiscal notifications workspace v2", () => {
+  it("accepts canonical UUIDv7 and synthetic opaque owner scopes", () => {
+    for (const ownerScope of [
+      "user:019f7e00-0000-7000-8000-000000000001",
+      "user:synthetic-owner",
+    ]) {
+      const candidate = JSON.parse(
+        JSON.stringify(workspace()).replaceAll(OWNER, ownerScope),
+      ) as FiscalNotificationsPersistedWorkspaceV2;
+      expect(
+        parseFiscalNotificationsWorkspaceForPersistenceV2(
+          candidate,
+          ownerScope,
+        ),
+      ).not.toBeNull();
+    }
+  });
+
   it("returns a deeply frozen defensive copy with no free-text/PII fields", () => {
     const input = workspace();
     const before = structuredClone(input);

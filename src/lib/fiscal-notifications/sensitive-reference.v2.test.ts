@@ -159,12 +159,24 @@ describe("sensitive administrative references v2", () => {
     ).toBeNull();
   });
 
-  it("requires canonical opaque partition identifiers", async () => {
+  it("accepts canonical UUIDv7 and synthetic opaque owners consistently", async () => {
+    for (const ownerScope of [
+      "user:019f7e00-0000-7000-8000-000000000001",
+      "user:synthetic-owner",
+    ]) {
+      await expect(
+        createSensitiveReferenceV2({
+          ownerScope,
+          issuerCode: "AEAT",
+          referenceType: "CSV",
+          printedValue: "CSV-SYNTHETIC-00-A",
+        }),
+      ).resolves.toMatchObject({ referenceType: "CSV" });
+    }
+  });
+
+  it("rejects non-canonical or PII-like partition identifiers", async () => {
     for (const candidate of [
-      {
-        ownerScope: "user:synthetic-owner",
-        issuerCode: "AEAT",
-      },
       {
         ownerScope: OWNER.toUpperCase(),
         issuerCode: "AEAT",
@@ -176,6 +188,14 @@ describe("sensitive administrative references v2", () => {
       {
         ownerScope: OWNER,
         issuerCode: "Agencia Tributaria",
+      },
+      {
+        ownerScope: "user:00000000T",
+        issuerCode: "AEAT",
+      },
+      {
+        ownerScope: "user:ES0000000000000000000000",
+        issuerCode: "AEAT",
       },
     ]) {
       expect(

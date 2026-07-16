@@ -26,8 +26,11 @@ type DataRecordSnapshot = Readonly<Record<string, unknown>>;
 const SHA256_HEX = /^[0-9a-f]{64}$/u;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u;
 const NORMALIZED_REFERENCE = /^[\p{L}\p{N}]+$/u;
-const CANONICAL_OWNER_SCOPE =
-  /^user:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const CANONICAL_OWNER_UUID_SCOPE =
+  /^user:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u;
+const CANONICAL_OWNER_OPAQUE_SCOPE = /^user:[a-z][a-z0-9_.:-]{0,154}$/u;
+const OWNER_TAX_ID_TOKEN = /(?:^|[^A-Z0-9])(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])(?=$|[^A-Z0-9])/iu;
+const OWNER_IBAN_TOKEN = /(?:^|[^A-Z0-9])ES\d{22}(?=$|[^A-Z0-9])/iu;
 const CANONICAL_ISSUER_CODE = /^[A-Z][A-Z0-9_]{1,31}$/u;
 const MAX_REFERENCE_INPUT_CHARS = 256;
 const MAX_NORMALIZED_REFERENCE_CHARS = 160;
@@ -116,10 +119,20 @@ function isSensitiveReferenceTypeV2(
   );
 }
 
-function canonicalOwnerScopeV2(value: unknown): string | null {
-  return typeof value === "string" && CANONICAL_OWNER_SCOPE.test(value)
-    ? value
-    : null;
+export function canonicalFiscalNotificationOwnerScopeV2(
+  value: unknown,
+): string | null {
+  if (
+    typeof value !== "string" ||
+    value.length > 160 ||
+    (!CANONICAL_OWNER_UUID_SCOPE.test(value) &&
+      !CANONICAL_OWNER_OPAQUE_SCOPE.test(value)) ||
+    OWNER_TAX_ID_TOKEN.test(value) ||
+    OWNER_IBAN_TOKEN.test(value)
+  ) {
+    return null;
+  }
+  return value;
 }
 
 function canonicalIssuerCodeV2(value: unknown): string | null {
@@ -241,7 +254,7 @@ export async function createSensitiveReferenceV2(input: {
 }): Promise<Readonly<SensitiveReferenceV2> | null> {
   const snapshot = snapshotPlainRecord(input, CREATE_INPUT_KEYS);
   if (!snapshot) return null;
-  const ownerScope = canonicalOwnerScopeV2(snapshot.ownerScope);
+  const ownerScope = canonicalFiscalNotificationOwnerScopeV2(snapshot.ownerScope);
   const issuerCode = canonicalIssuerCodeV2(snapshot.issuerCode);
   const referenceType = snapshot.referenceType;
   if (
@@ -296,7 +309,7 @@ export async function buildSensitiveReferenceExactIndexKeyV2(input: {
 }): Promise<string | null> {
   const snapshot = snapshotPlainRecord(input, EXACT_KEY_INPUT_KEYS);
   if (!snapshot) return null;
-  const ownerScope = canonicalOwnerScopeV2(snapshot.ownerScope);
+  const ownerScope = canonicalFiscalNotificationOwnerScopeV2(snapshot.ownerScope);
   const issuerCode = canonicalIssuerCodeV2(snapshot.issuerCode);
   const reference = snapshotSensitiveReferenceV2(snapshot.reference);
   if (!ownerScope || !issuerCode || !reference) return null;

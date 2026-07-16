@@ -320,7 +320,7 @@ describe("workspace privacy projection v2", () => {
     "RELATED_TO_PAYMENT_PLAN",
     "RELATED_TO_INSTALLMENT",
     "POSSIBLY_RELATED",
-  ] as const)("omits unsupported legacy relation %s without aborting migration", async (relationType) => {
+  ] as const)("preserves legacy relation %s without fabricating exact evidence", async (relationType) => {
     const input = workspace();
     input.relations[0]!.relationType = relationType;
     input.relations[0]!.status = "SUGGESTED";
@@ -329,6 +329,53 @@ describe("workspace privacy projection v2", () => {
       OWNER,
     );
     expect(projected).not.toBeNull();
-    expect(projected?.relations).toEqual([]);
+    expect(projected?.relations).toEqual([
+      expect.objectContaining({
+        relationType,
+        status: "SUGGESTED",
+      }),
+    ]);
+  });
+
+  it("downgrades an unprovable exact legacy relation instead of losing it", async () => {
+    const input = workspace();
+    input.relations[0]!.relationType = "BELONGS_TO_CASE";
+    input.relations[0]!.status = "SYSTEM_CONFIRMED_EXACT";
+    const projected = await projectFiscalNotificationsWorkspacePrivacyV2(
+      input,
+      OWNER,
+    );
+    expect(projected?.relations).toEqual([
+      expect.objectContaining({
+        relationType: "BELONGS_TO_CASE",
+        status: "SUGGESTED",
+      }),
+    ]);
+  });
+
+  it("does not promote a provisional payment deadline because other evidence exists", async () => {
+    const input = workspace();
+    input.paymentOptions.push({
+      id: "payment-option:v1:0",
+      ownerScope: OWNER,
+      documentId: "document:v1:0",
+      title: "Synthetic provisional option",
+      eligibilityCondition: "Review required",
+      components: [],
+      deadline: "2026-08-31",
+      deadlineStatus: "PROVISIONAL",
+      evidenceIds: ["evidence:v1:0"],
+    });
+    const projected = await projectFiscalNotificationsWorkspacePrivacyV2(
+      input,
+      OWNER,
+    );
+    expect(projected?.dates).toContainEqual(
+      expect.objectContaining({
+        fieldId: "PAYMENT_OPTION_DEADLINE",
+        value: "2026-08-31",
+        assertionType: "NOT_PROVEN_BY_DOCUMENT",
+      }),
+    );
   });
 });

@@ -19,7 +19,6 @@ import {
 } from "./persisted-workspace.v2";
 import type { FiscalNotificationDocumentFamilyIdV3 } from "./knowledge/document-families.v3";
 import { resolveAeatDocumentProfileV1 } from "./knowledge/aeat-document-knowledge.v1";
-import { AEAT_DOCUMENT_RELATION_TYPE_IDS_V1 } from "./knowledge/aeat-document-knowledge.v1";
 import { normalizeFiscalNotificationReferenceV2 } from "./exact-reference-index.v2";
 import {
   createSensitiveReferenceV2,
@@ -197,6 +196,7 @@ function addDocumentDate(input: {
   kind: DocumentDateKindV2;
   value: string | undefined;
   evidenceIds?: readonly string[];
+  assertionType?: AssertionTypeV2;
 }): void {
   if (!input.value) return;
   const validEvidenceIds = new Set(
@@ -215,7 +215,7 @@ function addDocumentDate(input: {
     kind: input.kind,
     value: input.value,
     assertionType:
-      evidenceIds.length > 0
+      input.assertionType === "EXPLICIT_IN_DOCUMENT" && evidenceIds.length > 0
         ? "EXPLICIT_IN_DOCUMENT"
         : "NOT_PROVEN_BY_DOCUMENT",
     evidenceIds,
@@ -237,6 +237,11 @@ function pushTypedEntityDates(
       kind: "VOLUNTARY_PAYMENT_DEADLINE",
       value: option.deadline,
       evidenceIds: option.evidenceIds,
+      assertionType:
+        option.deadlineStatus === "DOCUMENT_STATED" ||
+        option.deadlineStatus === "CONFIRMED"
+          ? "EXPLICIT_IN_DOCUMENT"
+          : "NOT_PROVEN_BY_DOCUMENT",
     });
   }
   for (const debt of workspace.debts) {
@@ -811,11 +816,15 @@ export async function projectFiscalNotificationsWorkspacePrivacyV2(
   const relationReferences = new Map(
     references.map((entry) => [entry.id, entry] as const),
   );
-  const allowedRelationTypes = new Set<string>(
-    AEAT_DOCUMENT_RELATION_TYPE_IDS_V1,
-  );
+  const legacyOnlyRelationTypes = new Set<string>([
+    "BELONGS_TO_CASE",
+    "DUPLICATE_COPY_OF",
+    "RELATED_TO_PAYMENT_PLAN",
+    "RELATED_TO_INSTALLMENT",
+    "POSSIBLY_RELATED",
+  ]);
   const relations = workspace.relations.flatMap((relation) => {
-    if (!allowedRelationTypes.has(relation.relationType)) return [];
+    const isLegacyOnly = legacyOnlyRelationTypes.has(relation.relationType);
     const sourceRefs = references.filter(
       (entry) => entry.documentId === relation.sourceDocumentId,
     );
@@ -843,6 +852,7 @@ export async function projectFiscalNotificationsWorkspacePrivacyV2(
       relationReferences.has(id),
     );
     if (
+      !isLegacyOnly &&
       relation.status === "SYSTEM_CONFIRMED_EXACT" &&
       uniqueExact.length === 0
     )
@@ -854,7 +864,10 @@ export async function projectFiscalNotificationsWorkspacePrivacyV2(
         sourceDocumentId: relation.sourceDocumentId,
         targetDocumentId: relation.targetDocumentId,
         relationType: relation.relationType,
-        status: relation.status,
+        status:
+          isLegacyOnly && relation.status === "SYSTEM_CONFIRMED_EXACT"
+            ? ("SUGGESTED" as const)
+            : relation.status,
         exactReferenceIds: uniqueExact,
         contextualDateFactIds: [],
         contextualAmountFactIds: [],

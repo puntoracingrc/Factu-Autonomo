@@ -1,4 +1,5 @@
 import { assertBoundedOwnerScope } from "./input-contract";
+import { canonicalFiscalNotificationOwnerScopeV2 } from "./sensitive-reference.v2";
 import type { FiscalNotificationsWorkspace } from "./types";
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
 
@@ -40,8 +41,6 @@ const COLLECTIONS = [
 ] as const satisfies readonly (keyof FiscalNotificationsWorkspace)[];
 
 type JsonRecord = Record<string, unknown>;
-const ACCOUNT_USER_ID =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu;
 const MAX_PERSISTED_FACT_TEXT_CHARS = 2_000;
 
 function stableNormalize(value: unknown): unknown {
@@ -71,7 +70,7 @@ function readOwnerScope(value: unknown): string | null {
     const descriptor = Object.getOwnPropertyDescriptor(value, "ownerScope");
     if (!descriptor || !("value" in descriptor)) return null;
     assertBoundedOwnerScope(descriptor.value, "workspace.ownerScope");
-    return descriptor.value.startsWith("user:") ? descriptor.value : null;
+    return canonicalFiscalNotificationOwnerScopeV2(descriptor.value);
   } catch {
     return null;
   }
@@ -128,7 +127,8 @@ export function parseFiscalNotificationsWorkspaceForPersistenceV1(
   expectedOwnerScope?: string,
 ): FiscalNotificationsWorkspace | null {
   const ownerScope = expectedOwnerScope ?? readOwnerScope(value);
-  if (!ownerScope || !ownerScope.startsWith("user:")) return null;
+  if (!ownerScope || !canonicalFiscalNotificationOwnerScopeV2(ownerScope))
+    return null;
   try {
     assertBoundedOwnerScope(ownerScope, "expectedOwnerScope");
   } catch {
@@ -266,8 +266,8 @@ export function mergeFiscalNotificationsWorkspacesV1(
 export function fiscalNotificationsOwnerScopeForUserIdV1(
   userId: string,
 ): string | null {
-  if (!ACCOUNT_USER_ID.test(userId)) return null;
   const ownerScope = `user:${userId}`;
+  if (!canonicalFiscalNotificationOwnerScopeV2(ownerScope)) return null;
   try {
     assertBoundedOwnerScope(ownerScope, "userId");
   } catch {

@@ -64,6 +64,27 @@ function advancedWorkspace(): FiscalNotificationsWorkspace {
 }
 
 describe("fiscal notifications workspace persistence v1", () => {
+  it("uses the same canonical owner contract for UUIDv7 and synthetic tests", () => {
+    const uuidV7 = "019f7e00-0000-7000-8000-000000000001";
+    expect(fiscalNotificationsOwnerScopeForUserIdV1(uuidV7)).toBe(
+      `user:${uuidV7}`,
+    );
+    expect(fiscalNotificationsOwnerScopeForUserIdV1("synthetic-owner")).toBe(
+      "user:synthetic-owner",
+    );
+    expect(fiscalNotificationsOwnerScopeForUserIdV1(uuidV7.toUpperCase())).toBeNull();
+    expect(fiscalNotificationsOwnerScopeForUserIdV1("00000000T")).toBeNull();
+
+    const candidate = workspace();
+    candidate.ownerScope = `user:${uuidV7}`;
+    expect(
+      parseFiscalNotificationsWorkspaceForPersistenceV1(
+        candidate,
+        `user:${uuidV7}`,
+      ),
+    ).not.toBeNull();
+  });
+
   it("returns a validated defensive copy without mutating the input", () => {
     const input = advancedWorkspace();
     const before = structuredClone(input);
