@@ -181,15 +181,29 @@ jobs:
 
           deployment_url=""
           for attempt in {1..60}; do
-            deployments_json="$(
+            if ! deployments_json="$(
               gh api \
                 -H "Accept: application/vnd.github+json" \
-                "/repos/${GITHUB_REPOSITORY}/deployments?sha=${GITHUB_SHA}&environment=Production"
-            )"
+                "/repos/${GITHUB_REPOSITORY}/deployments?sha=${GITHUB_SHA}&environment=Production" \
+                2>/dev/null
+            )"; then
+              echo "GitHub deployments API is temporarily unavailable (attempt ${attempt}/60); retrying."
+              sleep 10
+              continue
+            fi
             statuses_url="$(jq -r '.[0].statuses_url // empty' <<< "$deployments_json")"
 
             if [ -n "$statuses_url" ]; then
-              statuses_json="$(gh api -H "Accept: application/vnd.github+json" "$statuses_url")"
+              if ! statuses_json="$(
+                gh api \
+                  -H "Accept: application/vnd.github+json" \
+                  "$statuses_url" \
+                  2>/dev/null
+              )"; then
+                echo "GitHub deployment status API is temporarily unavailable (attempt ${attempt}/60); retrying."
+                sleep 10
+                continue
+              fi
               state="$(jq -r '.[0].state // empty' <<< "$statuses_json")"
               deployment_url="$(jq -r '.[0].environment_url // .[0].target_url // empty' <<< "$statuses_json")"
 
