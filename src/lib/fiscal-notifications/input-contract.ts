@@ -9,6 +9,10 @@ export const FISCAL_NOTIFICATION_INPUT_LIMITS = Object.freeze({
   maxEvidenceIds: 128,
   maxRelationKeys: 32,
   maxProjectionFacts: 1_000,
+  maxLayoutRowsPerPage: 5_000,
+  maxLayoutCellsTotal: 50_000,
+  maxLayoutTextChars: 500_000,
+  maxLayoutCoordinateMilli: 10_000_000,
 } as const);
 
 export type FiscalNotificationInputErrorCode =
@@ -37,6 +41,19 @@ export interface BoundedAdministrativePage {
   readonly pageNumber: number;
   readonly text: string;
   readonly isBlank: boolean;
+  /** Ephemeral PDF text layout; never crosses the analysis persistence boundary. */
+  readonly layoutRows?: readonly BoundedAdministrativeLayoutRow[];
+}
+
+export interface BoundedAdministrativeLayoutRow {
+  readonly yMilli: number;
+  readonly cells: readonly BoundedAdministrativeLayoutCell[];
+}
+
+export interface BoundedAdministrativeLayoutCell {
+  readonly xMilli: number;
+  readonly widthMilli: number;
+  readonly text: string;
 }
 
 export interface BoundedDocumentInput {
@@ -53,7 +70,9 @@ const DOCUMENT_INPUT_KEYS = new Set([
   "pages",
   "signal",
 ]);
-const PAGE_INPUT_KEYS = new Set(["pageNumber", "text", "isBlank"]);
+const PAGE_INPUT_KEYS = new Set(["pageNumber", "text", "isBlank", "layoutRows"]);
+const LAYOUT_ROW_KEYS = new Set(["yMilli", "cells"]);
+const LAYOUT_CELL_KEYS = new Set(["xMilli", "widthMilli", "text"]);
 
 export function assertBoundedOwnerScope(
   value: unknown,
@@ -165,6 +184,8 @@ export function assertBoundedDocumentInput(
   }
 
   let totalTextChars = 0;
+  let totalLayoutCells = 0;
+  let totalLayoutTextChars = 0;
   for (let index = 0; index < pages.length; index += 1) {
     assertNotAborted(signal);
     const pagePath = `pages[${index}]`;
@@ -192,6 +213,81 @@ export function assertBoundedDocumentInput(
     if (totalTextChars > FISCAL_NOTIFICATION_INPUT_LIMITS.maxTextChars) {
       throw new FiscalNotificationInputError("TEXT_TOO_LARGE", "pages");
     }
+    if (page.layoutRows !== undefined) {
+      const layoutRows = snapshotDataArray(
+        page.layoutRows,
+        `${pagePath}.layoutRows`,
+        FISCAL_NOTIFICATION_INPUT_LIMITS.maxLayoutRowsPerPage,
+        "COLLECTION_LIMIT_EXCEEDED",
+      );
+      for (let rowIndex = 0; rowIndex < layoutRows.length; rowIndex += 1) {
+        const rowPath = `${pagePath}.layoutRows[${rowIndex}]`;
+        const row = snapshotDataRecord(layoutRows[rowIndex]);
+        if (!row) throw new FiscalNotificationInputError("INVALID_INPUT", rowPath);
+        assertKnownKeys(row, LAYOUT_ROW_KEYS, rowPath);
+        assertLayoutCoordinate(row.yMilli, `${rowPath}.yMilli`);
+        const cells = snapshotDataArray(
+          row.cells,
+          `${rowPath}.cells`,
+          FISCAL_NOTIFICATION_INPUT_LIMITS.maxLayoutCellsTotal,
+          "COLLECTION_LIMIT_EXCEEDED",
+        );
+        if (cells.length === 0) {
+          throw new FiscalNotificationInputError("INVALID_INPUT", `${rowPath}.cells`);
+        }
+        totalLayoutCells += cells.length;
+        if (totalLayoutCells > FISCAL_NOTIFICATION_INPUT_LIMITS.maxLayoutCellsTotal) {
+          throw new FiscalNotificationInputError(
+            "COLLECTION_LIMIT_EXCEEDED",
+            "pages.layoutRows.cells",
+          );
+        }
+        for (let cellIndex = 0; cellIndex < cells.length; cellIndex += 1) {
+          const cellPath = `${rowPath}.cells[${cellIndex}]`;
+          const cell = snapshotDataRecord(cells[cellIndex]);
+          if (!cell) throw new FiscalNotificationInputError("INVALID_INPUT", cellPath);
+          assertKnownKeys(cell, LAYOUT_CELL_KEYS, cellPath);
+          assertLayoutCoordinate(cell.xMilli, `${cellPath}.xMilli`);
+          if (
+            !Number.isSafeInteger(cell.widthMilli) ||
+            Number(cell.widthMilli) < 0 ||
+            Number(cell.widthMilli) > FISCAL_NOTIFICATION_INPUT_LIMITS.maxLayoutCoordinateMilli
+          ) {
+            throw new FiscalNotificationInputError("INVALID_INPUT", `${cellPath}.widthMilli`);
+          }
+          if (
+            typeof cell.text !== "string" ||
+            cell.text.length === 0 ||
+            cell.text.length > 32_768 ||
+            CONTROL_CHARACTER_PATTERN.test(cell.text)
+          ) {
+            throw new FiscalNotificationInputError("INVALID_INPUT", `${cellPath}.text`);
+          }
+          totalLayoutTextChars += cell.text.length;
+          if (
+            totalLayoutTextChars >
+            FISCAL_NOTIFICATION_INPUT_LIMITS.maxLayoutTextChars
+          ) {
+            throw new FiscalNotificationInputError(
+              "TEXT_TOO_LARGE",
+              "pages.layoutRows.cells.text",
+            );
+          }
+          if (!isFrozenRecord(cells[cellIndex])) {
+            throw new FiscalNotificationInputError("INVALID_INPUT", `${cellPath}.$frozen`);
+          }
+        }
+        if (
+          !isFrozenRecord(layoutRows[rowIndex]) ||
+          !isFrozenArray((layoutRows[rowIndex] as { readonly cells?: unknown }).cells)
+        ) {
+          throw new FiscalNotificationInputError("INVALID_INPUT", `${rowPath}.$frozen`);
+        }
+      }
+      if (!isFrozenArray(page.layoutRows)) {
+        throw new FiscalNotificationInputError("INVALID_INPUT", `${pagePath}.layoutRows.$frozen`);
+      }
+    }
   }
   assertNotAborted(signal);
   if (
@@ -204,6 +300,15 @@ export function assertBoundedDocumentInput(
   } catch (error) {
     if (error instanceof FiscalNotificationInputError) throw error;
     throw new FiscalNotificationInputError("INVALID_INPUT", "$");
+  }
+}
+
+function assertLayoutCoordinate(value: unknown, path: string): void {
+  if (
+    !Number.isSafeInteger(value) ||
+    Math.abs(Number(value)) > FISCAL_NOTIFICATION_INPUT_LIMITS.maxLayoutCoordinateMilli
+  ) {
+    throw new FiscalNotificationInputError("INVALID_INPUT", path);
   }
 }
 

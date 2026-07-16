@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, BookOpenCheck, RotateCcw, Search, ShieldAlert } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
+import { FiscalNotificationGuideCoverageSummary } from "@/components/fiscal-notifications/FiscalNotificationGuideCoverageSummary";
 import { FiscalNotificationGuideDetail } from "@/components/fiscal-notifications/FiscalNotificationGuideDetail";
 import {
   FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1,
@@ -14,12 +15,6 @@ import { searchFiscalNotificationGuideV1 } from "@/lib/fiscal-notifications/guid
 
 const focusRing =
   "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500";
-const automaticGuideCount = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.filter(
-  (entry) => entry.recognitionMode === "AUTOMATIC_REVIEW_ONLY",
-).length;
-const manualGuideCount =
-  FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.length - automaticGuideCount;
-
 function resultLabel(total: number, query: string): string {
   if (!query) return `${total} tipos documentales registrados`;
   if (total === 1) return `1 ficha encontrada para «${query}»`;
@@ -92,14 +87,7 @@ export function FiscalNotificationGuideView({
             <h3 className="font-bold text-amber-950 dark:text-amber-100">
               Te lo explicamos; tú decides qué hacer
             </h3>
-            <p className="mt-1 text-sm leading-6 text-amber-900 dark:text-amber-200">
-              Hay {FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.length} guías explicadas:
-              {" "}{automaticGuideCount} con lectura automática y revisión
-              obligatoria, y {manualGuideCount} disponibles para consulta manual,
-              sin lectura automática. La guía no paga, recurre ni cambia datos
-              por sí sola: te ayuda a entender el documento y deja visibles las
-              fuentes oficiales.
-            </p>
+            <FiscalNotificationGuideCoverageSummary />
           </div>
         </div>
       </Card>

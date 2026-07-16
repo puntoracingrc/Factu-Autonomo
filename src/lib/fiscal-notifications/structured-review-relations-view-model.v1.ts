@@ -1,7 +1,18 @@
 import {
+  STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2,
   STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
   STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
 } from "./structured-review-relation-suggestions.v1";
+import {
+  FISCAL_NOTIFICATION_DOCUMENT_CHAINS_V2,
+  type FiscalNotificationDocumentChainIdV2,
+} from "./document-chain-rules.v2";
+import {
+  FISCAL_NOTIFICATION_EXACT_LINK_NEUTRAL_PHRASE_V2,
+  FISCAL_NOTIFICATION_SUGGESTED_RELATION_PHRASE_V2,
+  explainFiscalNotificationRelationV2,
+  isFiscalNotificationExplanationRelationTypeV2,
+} from "./relation-explanation.v2";
 import type {
   AdministrativeDocument,
   DocumentRelationType,
@@ -9,10 +20,13 @@ import type {
   ExternalReferenceType,
 } from "./types";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
+import { selectExplicitDocumentDate } from "./structured-review-history-view-model.v1";
+import type { FiscalNotificationsWorkspace } from "./types";
 
 export interface StructuredReviewRelationDocumentV1 {
   readonly id: string;
   readonly title: string;
+  readonly chronologyDate: string | null;
   readonly createdAt: string;
 }
 
@@ -25,6 +39,12 @@ export interface StructuredReviewRelationMatchV1 {
 
 export interface StructuredReviewRelationEntryV1 {
   readonly key: string;
+  readonly chainId?: FiscalNotificationDocumentChainIdV2 | null;
+  readonly algorithmVersion?: string;
+  readonly relationStatus?:
+    | "SUGGESTED"
+    | "USER_CONFIRMED"
+    | "SYSTEM_CONFIRMED_EXACT";
   readonly relationType: DocumentRelationType;
   readonly title: string;
   readonly statusLabel:
@@ -83,10 +103,16 @@ const REFERENCE_LABELS: Readonly<Partial<Record<ExternalReferenceType, string>>>
   PROCEDURE_NUMBER: "Número de procedimiento",
   PAYMENT_JUSTIFICANTE: "Número de justificante",
   CSV: "Código Seguro de Verificación (CSV)",
+  NRC: "Número de Referencia Completo (NRC)",
   NOTIFICATION_ID: "Identificador de notificación",
   REQUEST_NUMBER: "Número de requerimiento",
   OFFICIAL_REGISTRY_NUMBER: "Número de registro oficial",
 };
+const PROTECTED_REFERENCE_TYPES = new Set<ExternalReferenceType>([
+  "CSV",
+  "NRC",
+]);
+const PROTECTED_REFERENCE_FINGERPRINT = /^[0-9a-f]{64}$/u;
 
 export function projectStructuredReviewRelationsV1(
   value: unknown,
@@ -126,7 +152,9 @@ export function projectStructuredReviewRelationsV1(
         relation.algorithmVersion !==
           STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1 &&
         relation.algorithmVersion !==
-          STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1
+          STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1 &&
+        relation.algorithmVersion !==
+          STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2
       ) ||
       relation.status === "USER_REJECTED"
     ) {
@@ -141,16 +169,24 @@ export function projectStructuredReviewRelationsV1(
       relation.evidence.matchingReferenceTypes,
     );
     if (matches.length === 0) continue;
-    const presentation = relationPresentation(relation.relationType);
+    const presentation = relationPresentation({
+      relationType: relation.relationType,
+      status: relation.status,
+      algorithmVersion: relation.algorithmVersion,
+      chainId: relation.evidence.chainId ?? null,
+    });
     entries.push(
       Object.freeze({
         key: relation.id,
+        chainId: relation.evidence.chainId ?? null,
+        algorithmVersion: relation.algorithmVersion,
+        relationStatus: relation.status,
         relationType: relation.relationType,
         title: presentation.title,
         statusLabel: presentation.statusLabel,
         documents: Object.freeze([
-          projectDocument(source),
-          projectDocument(target),
+          projectDocument(source, workspace),
+          projectDocument(target, workspace),
         ]) as readonly [
           StructuredReviewRelationDocumentV1,
           StructuredReviewRelationDocumentV1,
@@ -162,8 +198,8 @@ export function projectStructuredReviewRelationsV1(
     );
   }
   entries.sort((left, right) => {
-    const leftDate = left.documents[1].createdAt;
-    const rightDate = right.documents[1].createdAt;
+    const leftDate = left.documents[1].chronologyDate ?? "";
+    const rightDate = right.documents[1].chronologyDate ?? "";
     return rightDate.localeCompare(leftDate) || left.key.localeCompare(right.key);
   });
   const timelines = buildCaseTimelines(entries);
@@ -181,7 +217,7 @@ export function projectStructuredReviewRelationsV1(
   });
 }
 
-type ExactTimelineRelationTypeV1 =
+type LegacyExactTimelineRelationTypeV1 =
   | "ENFORCES"
   | "RESPONDS_TO_SEIZURE"
   | "TRANSFERS_SEIZED_FUNDS"
@@ -189,7 +225,7 @@ type ExactTimelineRelationTypeV1 =
 
 interface TimelineEdgeV1 {
   readonly entry: StructuredReviewRelationEntryV1;
-  readonly relationType: ExactTimelineRelationTypeV1;
+  readonly relationType: DocumentRelationType;
   readonly earlierDocumentId: string;
   readonly laterDocumentId: string;
 }
@@ -198,7 +234,7 @@ function buildCaseTimelines(
   entries: readonly StructuredReviewRelationEntryV1[],
 ): readonly StructuredReviewCaseTimelineV1[] | null {
   const edges = entries.flatMap((entry): TimelineEdgeV1[] =>
-    isExactTimelineRelation(entry.relationType)
+    isExactTimelineRelation(entry)
       ? [
           {
             entry,
@@ -292,7 +328,7 @@ function buildCaseTimelines(
           key: edge.entry.key,
           earlierDocumentId: edge.earlierDocumentId,
           laterDocumentId: edge.laterDocumentId,
-          label: timelineLinkLabel(edge.relationType),
+          label: timelineLinkLabel(edge.entry),
           explanation: edge.entry.explanation,
         }),
       )
@@ -314,8 +350,18 @@ function buildCaseTimelines(
 }
 
 function isExactTimelineRelation(
-  relationType: DocumentRelationType,
-): relationType is ExactTimelineRelationTypeV1 {
+  entry: StructuredReviewRelationEntryV1,
+): boolean {
+  if (
+    entry.algorithmVersion ===
+      STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2 &&
+    entry.chainId !== null &&
+    entry.chainId !== undefined &&
+    entry.relationStatus === "SYSTEM_CONFIRMED_EXACT"
+  ) {
+    return true;
+  }
+  const relationType = entry.relationType;
   return (
     relationType === "ENFORCES" ||
     relationType === "RESPONDS_TO_SEIZURE" ||
@@ -324,7 +370,22 @@ function isExactTimelineRelation(
   );
 }
 
-function timelineLinkLabel(relationType: ExactTimelineRelationTypeV1): string {
+function timelineLinkLabel(entry: StructuredReviewRelationEntryV1): string {
+  if (
+    entry.algorithmVersion ===
+      STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2 &&
+    isFiscalNotificationExplanationRelationTypeV2(entry.relationType)
+  ) {
+    return "Vínculo documental exacto";
+  }
+  return legacyTimelineLinkLabel(
+    entry.relationType as LegacyExactTimelineRelationTypeV1,
+  );
+}
+
+function legacyTimelineLinkLabel(
+  relationType: LegacyExactTimelineRelationTypeV1,
+): string {
   switch (relationType) {
     case "ENFORCES":
       return "Ejecución mediante embargo";
@@ -345,7 +406,9 @@ function compareTimelineDocuments(
   const left = documents.get(leftId);
   const right = documents.get(rightId);
   return (
-    (left?.createdAt ?? "").localeCompare(right?.createdAt ?? "") ||
+    (left?.chronologyDate ?? "").localeCompare(
+      right?.chronologyDate ?? "",
+    ) ||
     leftId.localeCompare(rightId)
   );
 }
@@ -389,13 +452,44 @@ function union(
   rank.set(root, leftRank + 1);
 }
 
-function relationPresentation(relationType: DocumentRelationType): Readonly<{
+function relationPresentation(input: Readonly<{
+  relationType: DocumentRelationType;
+  status: "SUGGESTED" | "USER_CONFIRMED" | "SYSTEM_CONFIRMED_EXACT";
+  algorithmVersion: string;
+  chainId: FiscalNotificationDocumentChainIdV2 | null;
+}>): Readonly<{
   title: string;
   statusLabel:
     | "Relación detectada · revisar"
     | "Referencia exacta · revisar efectos";
   explanation: string;
 }> {
+  if (
+    input.algorithmVersion ===
+      STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2 &&
+    isFiscalNotificationExplanationRelationTypeV2(input.relationType)
+  ) {
+    const explanation = explainFiscalNotificationRelationV2({
+      relationType: input.relationType,
+      status: input.status,
+      exactReferenceConfirmed: input.status === "SYSTEM_CONFIRMED_EXACT",
+      userConfirmed: input.status === "USER_CONFIRMED",
+      printedEffectProven: false,
+    });
+    const chain = FISCAL_NOTIFICATION_DOCUMENT_CHAINS_V2.find(
+      (candidate) => candidate.id === input.chainId,
+    );
+    return Object.freeze({
+      title: chain?.description ?? "Documentos relacionados por referencia",
+      statusLabel:
+        input.status === "SYSTEM_CONFIRMED_EXACT"
+          ? ("Referencia exacta · revisar efectos" as const)
+          : ("Relación detectada · revisar" as const),
+      explanation: explanation.phrase,
+    });
+  }
+
+  const relationType = input.relationType;
   switch (relationType) {
     case "ENFORCES":
       return Object.freeze({
@@ -428,9 +522,14 @@ function relationPresentation(relationType: DocumentRelationType): Readonly<{
     default:
       return Object.freeze({
         title: "Documentos relacionados por referencia",
-        statusLabel: "Relación detectada · revisar",
+        statusLabel:
+          input.status === "SYSTEM_CONFIRMED_EXACT"
+            ? "Referencia exacta · revisar efectos"
+            : "Relación detectada · revisar",
         explanation:
-          "Las dos fichas comparten el mismo identificador administrativo. La coincidencia las vincula de forma objetiva, pero no demuestra por sí sola cuál originó a la otra, que exista un pago ni que el expediente esté cerrado.",
+          input.status === "SUGGESTED"
+            ? FISCAL_NOTIFICATION_SUGGESTED_RELATION_PHRASE_V2
+            : FISCAL_NOTIFICATION_EXACT_LINK_NEUTRAL_PHRASE_V2,
       });
   }
 }
@@ -455,13 +554,22 @@ function commonReferenceMatches(
     const other = targetByKey.get(key);
     if (!other) continue;
     seen.add(key);
+    const protectedValue =
+      isProtectedReference(reference) || isProtectedReference(other);
     const exactPrinted = reference.rawValue === other.rawValue;
     matches.push(
       Object.freeze({
-        label: REFERENCE_LABELS[reference.referenceType] ?? "Referencia",
-        value: exactPrinted ? reference.rawValue : reference.normalizedValue,
+        label:
+          protectedValue && reference.referenceType === "PAYMENT_JUSTIFICANTE"
+            ? "Referencia bancaria"
+            : REFERENCE_LABELS[reference.referenceType] ?? "Referencia",
+        value: protectedValue
+          ? "Referencia protegida"
+          : exactPrinted
+            ? reference.rawValue
+            : reference.normalizedValue,
         issuer: reference.issuer,
-        matchMode: exactPrinted
+        matchMode: exactPrinted && !protectedValue
           ? ("EXACT_PRINTED" as const)
           : ("NORMALIZED_FORMAT" as const),
       }),
@@ -470,6 +578,14 @@ function commonReferenceMatches(
   return matches.sort(
     (left, right) =>
       left.label.localeCompare(right.label) || left.value.localeCompare(right.value),
+  );
+}
+
+function isProtectedReference(reference: ExternalReference): boolean {
+  return (
+    PROTECTED_REFERENCE_TYPES.has(reference.referenceType) ||
+    PROTECTED_REFERENCE_FINGERPRINT.test(reference.rawValue) ||
+    PROTECTED_REFERENCE_FINGERPRINT.test(reference.normalizedValue)
   );
 }
 
@@ -494,10 +610,27 @@ function referenceKey(reference: ExternalReference): string {
 
 function projectDocument(
   document: AdministrativeDocument,
+  workspace: FiscalNotificationsWorkspace,
 ): StructuredReviewRelationDocumentV1 {
+  const snapshot = document.analysisSnapshotIds
+    .map((id) => workspace.analysisSnapshots.find((item) => item.id === id))
+    .filter((item): item is NonNullable<typeof item> => item !== undefined)
+    .sort((left, right) => right.version - left.version)[0];
+  const selectedDate = selectExplicitDocumentDate({
+    documentIssueDate: document.issueDate,
+    documentSignatureDate: document.signatureDate,
+    documentEffectiveNotificationDate:
+      document.notificationDates.effectiveAt?.slice(0, 10) ??
+      document.notificationDates.accessedAt?.slice(0, 10),
+    snapshotIssueDate: snapshot?.structuredData.documentFields.issueDate,
+    snapshotEffectiveNotificationDate:
+      snapshot?.structuredData.documentFields.effectiveNotificationDate,
+    unknownFields: snapshot?.structuredData.unknownFields ?? [],
+  });
   return Object.freeze({
     id: document.id,
     title: document.titleRaw,
+    chronologyDate: selectedDate?.value ?? null,
     createdAt: document.createdAt,
   });
 }

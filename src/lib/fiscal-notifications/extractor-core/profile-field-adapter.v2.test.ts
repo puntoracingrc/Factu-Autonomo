@@ -535,7 +535,7 @@ describe("profile field adapter v2 fail-closed boundary", () => {
     expect(outcome.materializationPolicy).toBe("PROHIBITED");
   });
 
-  it("does not select a chronology date from conflicting exact values", () => {
+  it("preserves repeated exact values for review without selecting an ambiguous chronology date", () => {
     const dateAdapter = PROFILE_FIELD_ADAPTERS_V2.find((item) =>
       item.fieldContract.dates.includes("ISSUE_DATE"),
     )!;
@@ -547,8 +547,11 @@ describe("profile field adapter v2 fail-closed boundary", () => {
     const outcome = dateAdapter.adapt(
       selectedInput(dateAdapter, [first, conflicting]),
     );
-    expect(outcome.fields).toEqual([]);
-    expect(outcome.issues).toEqual(["CONFLICTING_EXACT_FIELD_VALUES"]);
+    expect(outcome.fields).toHaveLength(2);
+    expect(outcome.fields.map((field) =>
+      field.kind === "DATE" ? field.valueIso : null,
+    )).toEqual(["2026-07-16", "2026-07-15"]);
+    expect(outcome.issues).toContain("CONFLICTING_EXACT_FIELD_VALUES");
     expect(outcome.chronology).toEqual({
       schemaVersion: 2,
       chronologyDate: null,

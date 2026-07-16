@@ -1,4 +1,8 @@
 import type { AdministrativeDomainProjection } from "./administrative-domain";
+import type {
+  AeatDocumentChainIdV1,
+  AeatDocumentRelationTypeIdV1,
+} from "./knowledge/aeat-document-knowledge.v1";
 
 type TemplateRecognitionResult = {
   traceVersion: "fiscal-document-template-recognition/1.0.0";
@@ -405,28 +409,24 @@ export interface AdministrativeDebtObservation {
   observedAt: string;
 }
 
-export type DocumentRelationType =
+export type LegacyDocumentRelationType =
   | "BELONGS_TO_CASE"
-  | "REFERS_TO_DEBT"
-  | "PAYMENT_FORM_FOR"
-  | "ANNEX_OF"
   | "DUPLICATE_COPY_OF"
-  | "REPLACES"
-  | "CORRECTS"
-  | "CANCELS"
-  | "RESOLVES"
-  | "CONTINUES"
-  | "ENFORCES"
-  | "RESPONDS_TO_SEIZURE"
-  | "TRANSFERS_SEIZED_FUNDS"
-  | "RELEASES_SEIZURE"
-  | "CLAIMS_UNPAID_INSTALLMENT"
   | "RELATED_TO_PAYMENT_PLAN"
   | "RELATED_TO_INSTALLMENT"
-  | "RESPONSE_TO"
   | "POSSIBLY_RELATED";
 
+/**
+ * Los 48 tipos documentales AEAT/BOE son aditivos respecto del contrato V1.
+ * Los cinco tipos legacy se conservan para poder leer workspaces históricos.
+ */
+export type DocumentRelationType =
+  | AeatDocumentRelationTypeIdV1
+  | LegacyDocumentRelationType;
+
 export interface RelationEvidence {
+  /** Cadena declarada que autoriza la topología; nunca acredita efectos. */
+  chainId?: AeatDocumentChainIdV1;
   matchingReferenceTypes: ExternalReferenceType[];
   matchingAmountTypes: MoneyComponentType[];
   matchingDates: string[];

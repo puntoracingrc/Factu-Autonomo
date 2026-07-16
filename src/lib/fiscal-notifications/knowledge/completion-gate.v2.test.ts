@@ -29,18 +29,18 @@ function cloneManifest(): MutableManifest {
 }
 
 describe("AEAT document intelligence completion gate v2", () => {
-  it("explains exactly 87 guides without pretending specialized recognition", () => {
+  it("closes all 87 guides only with rule-backed executable recognition evidence", () => {
     const result = evaluateAeatDocumentCompletionGateV2(completeManifest());
 
-    expect(result.status).toBe("INCOMPLETE");
+    expect(result.status).toBe("GUIDES_EXPLAINED");
     expect(AEAT_DOCUMENT_COMPLETION_MANIFEST_V2.profiles).toHaveLength(87);
     expect(AEAT_DOCUMENT_COMPLETION_GATE_V2).toEqual(result);
     expect(result.guidesComplete).toBe(true);
-    expect(result.recognitionComplete).toBe(false);
+    expect(result.recognitionComplete).toBe(true);
     expect(result.issues).toEqual([]);
     expect(result.implementationCounts).toEqual({
-      automaticRecognition: 24,
-      manualExactSelection: 63,
+      automaticRecognition: 87,
+      manualExactSelection: 0,
     });
     expect(result.counts).toEqual({
       profiles: 87,
@@ -75,36 +75,36 @@ describe("AEAT document intelligence completion gate v2", () => {
       ]),
     );
     expect(bindingCounts).toEqual({
-      EXTRACTOR_IMPLEMENTED_REVIEW_ONLY: 24,
-      ADAPTER_REQUIRED: 1,
-      CONTRACT_ONLY: 62,
+      EXTRACTOR_IMPLEMENTED_REVIEW_ONLY: 87,
+      ADAPTER_REQUIRED: 0,
+      CONTRACT_ONLY: 0,
     });
     expect(
       result.profiles.filter(
         (profile) =>
           profile.extractionStatus === "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY",
       ),
-    ).toHaveLength(24);
+    ).toHaveLength(87);
     expect(
       result.profiles.filter(
         (profile) =>
           profile.extractionStatus ===
           "MANUAL_EXACT_SELECTION_ADAPTER_REVIEW_ONLY",
       ),
-    ).toHaveLength(63);
+    ).toHaveLength(0);
     expect(
       result.profiles.filter(
         (profile) =>
           profile.recognitionStatus ===
           "SPECIALIZED_RECOGNITION_IMPLEMENTED_REVIEW_ONLY",
       ),
-    ).toHaveLength(24);
+    ).toHaveLength(87);
     expect(
       result.profiles.filter(
         (profile) =>
           profile.recognitionStatus === "MANUAL_EXACT_SELECTION_ONLY",
       ),
-    ).toHaveLength(63);
+    ).toHaveLength(0);
     expect(JSON.stringify(result)).not.toMatch(/GENERIC_FALLBACK|PREPARATION/u);
   });
 
@@ -119,7 +119,7 @@ describe("AEAT document intelligence completion gate v2", () => {
 
   it.each([
     [
-      "adapter",
+      "extractor",
       (manifest: MutableManifest) => {
         const profile = manifest.profiles[0]!;
         profile.extraction.status = "MISSING";
@@ -191,25 +191,14 @@ describe("AEAT document intelligence completion gate v2", () => {
     );
   });
 
-  it("keeps recognition unimplemented when a manifest tries to promote an adapter", () => {
+  it("rejects a manifest that downgrades a rule-backed recognizer to manual selection", () => {
     const manifest = cloneManifest();
-    const contractBinding =
-      FISCAL_NOTIFICATION_FAMILY_EXTRACTOR_BINDINGS_V1.find(
-        (binding) => binding.implementationStatus === "CONTRACT_ONLY",
-      )!;
-    const manifestProfile = manifest.profiles.find(
-      (profile) => profile.familyId === contractBinding.familyId,
-    )!;
-    manifestProfile.recognition.claimedStatus =
-      "SPECIALIZED_RECOGNITION_IMPLEMENTED_REVIEW_ONLY";
+    manifest.profiles[0]!.recognition.claimedStatus =
+      "MANUAL_EXACT_SELECTION_ONLY";
     const result = evaluateAeatDocumentCompletionGateV2(manifest);
-    expect(
-      result.profiles.find(
-        (profile) => profile.familyId === contractBinding.familyId,
-      ),
-    ).toMatchObject({
-      recognitionStatus: "MANUAL_EXACT_SELECTION_ONLY",
-      extractionStatus: "MANUAL_EXACT_SELECTION_ADAPTER_REVIEW_ONLY",
+    expect(result.profiles[0]).toMatchObject({
+      recognitionStatus: "SPECIALIZED_RECOGNITION_IMPLEMENTED_REVIEW_ONLY",
+      extractionStatus: "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY",
       guideStatus: "EXPLAINED",
     });
     expect(result.status).toBe("INCOMPLETE");
@@ -223,7 +212,7 @@ describe("AEAT document intelligence completion gate v2", () => {
     );
   });
 
-  it("rejects an adapter claim for a real extractor and never promotes ADAPTER_REQUIRED without executable evidence", () => {
+  it("rejects an adapter claim for a profile-driven extractor", () => {
     const manifest = cloneManifest();
     const extractorBinding =
       FISCAL_NOTIFICATION_FAMILY_EXTRACTOR_BINDINGS_V1.find(
@@ -239,16 +228,6 @@ describe("AEAT document intelligence completion gate v2", () => {
       implementationVersion: "2.0.0",
     };
 
-    const adapterRequired =
-      FISCAL_NOTIFICATION_FAMILY_EXTRACTOR_BINDINGS_V1.find(
-        (binding) => binding.implementationStatus === "ADAPTER_REQUIRED",
-      )!;
-    const adapterRequiredProfile = manifest.profiles.find(
-      (profile) => profile.familyId === adapterRequired.familyId,
-    )!;
-    adapterRequiredProfile.recognition.claimedStatus =
-      "SPECIALIZED_RECOGNITION_IMPLEMENTED_REVIEW_ONLY";
-
     const result = evaluateAeatDocumentCompletionGateV2(manifest);
     expect(
       result.profiles.find(
@@ -259,21 +238,9 @@ describe("AEAT document intelligence completion gate v2", () => {
       extractionStatus: "MISSING",
       guideStatus: "PREPARATION",
     });
-    expect(
-      result.profiles.find(
-        (profile) => profile.familyId === adapterRequired.familyId,
-      ),
-    ).toMatchObject({
-      recognitionStatus: "MANUAL_EXACT_SELECTION_ONLY",
-      extractionStatus: "MANUAL_EXACT_SELECTION_ADAPTER_REVIEW_ONLY",
-      guideStatus: "EXPLAINED",
-    });
     expect(result.issues).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ code: "EXTRACTION_MISSING" }),
-        expect.objectContaining({
-          code: "RECOGNITION_CLAIM_NOT_SUPPORTED",
-        }),
       ]),
     );
   });
@@ -295,7 +262,7 @@ describe("AEAT document intelligence completion gate v2", () => {
   });
 
   it("binds every accepted evidence id to a real executable suite and named case", () => {
-    expect(AEAT_DOCUMENT_EXECUTABLE_TEST_EVIDENCE_V2).toHaveLength(30);
+    expect(AEAT_DOCUMENT_EXECUTABLE_TEST_EVIDENCE_V2).toHaveLength(33);
     expect(
       new Set(
         AEAT_DOCUMENT_EXECUTABLE_TEST_EVIDENCE_V2.map(
@@ -305,7 +272,16 @@ describe("AEAT document intelligence completion gate v2", () => {
     ).toBe(AEAT_DOCUMENT_EXECUTABLE_TEST_EVIDENCE_V2.length);
     expect(
       Object.keys(AEAT_DOCUMENT_SPECIALIZED_EXTRACTOR_TEST_EVIDENCE_V2),
-    ).toHaveLength(24);
+    ).toHaveLength(87);
+    expect(
+      new Set(
+        Object.values(
+          AEAT_DOCUMENT_SPECIALIZED_EXTRACTOR_TEST_EVIDENCE_V2,
+        ).map((evidence) => evidence.evidenceId),
+      ),
+    ).toEqual(
+      new Set(["test.profile-driven-extractor.v2.matrix.87-positive"]),
+    );
     for (const evidence of AEAT_DOCUMENT_EXECUTABLE_TEST_EVIDENCE_V2) {
       expect(Object.isFrozen(evidence)).toBe(true);
       const suite = readFileSync(evidence.suitePath, "utf8");
@@ -356,18 +332,16 @@ describe("AEAT document intelligence completion gate v2", () => {
     );
   });
 
-  it("rejects evidence copied from another specialized family", () => {
+  it("rejects adapter evidence substituted for the executable 87-family matrix", () => {
     const manifest = cloneManifest();
-    const specialized = manifest.profiles.filter(
-      (profile) =>
-        profile.recognition.claimedStatus ===
-        "SPECIALIZED_RECOGNITION_IMPLEMENTED_REVIEW_ONLY",
-    );
-    expect(specialized.length).toBeGreaterThan(1);
-    specialized[0]!.recognition.registryEvidenceId =
-      specialized[1]!.recognition.registryEvidenceId;
-    specialized[0]!.testCoverage.positiveTestIds =
-      specialized[1]!.testCoverage.positiveTestIds;
+    const adapterEvidence = AEAT_DOCUMENT_EXECUTABLE_TEST_EVIDENCE_V2.find(
+      (evidence) => evidence.scope === "EVERY_PROFILE_ADAPTER",
+    )!;
+    manifest.profiles[0]!.recognition.registryEvidenceId =
+      adapterEvidence.evidenceId;
+    manifest.profiles[0]!.testCoverage.positiveTestIds = [
+      adapterEvidence.evidenceId,
+    ];
 
     const result = evaluateAeatDocumentCompletionGateV2(manifest);
     expect(result.status).toBe("INCOMPLETE");

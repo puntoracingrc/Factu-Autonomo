@@ -204,9 +204,11 @@ const CANONICAL_OWNER_SCOPE = /^user:[A-Za-z0-9_-]{1,128}$/u;
 const CANONICAL_DOCUMENT_ID = /^[A-Za-z0-9][A-Za-z0-9_.:/\-]{0,159}$/u;
 const NORMALIZED_REFERENCE = /^[A-Z0-9][A-Z0-9./:_-]{0,199}$/u;
 const SPANISH_PERSONAL_TAX_ID =
-  /(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJKLMNPQRSUVW]\d{7}[0-9A-J])/u;
-const SPANISH_IBAN = /ES\d{22}/u;
-const SPANISH_PHONE = /(?:^|\D)(?:34)?[6789]\d{8}(?:$|\D)/u;
+  /(?:^|[./:_-])(?:\d{8}[./:_-]?[A-Z]|[XYZ][./:_-]?\d{7}[./:_-]?[A-Z]|[ABCDEFGHJKLMNPQRSUVW][./:_-]?\d{7}[./:_-]?[0-9A-J])(?=$|[./:_-])|^NIF[./:_-]?(?:\d{8}[./:_-]?[A-Z]|[XYZ][./:_-]?\d{7}[./:_-]?[A-Z]|[ABCDEFGHJKLMNPQRSUVW][./:_-]?\d{7}[./:_-]?[0-9A-J])$/u;
+const SPANISH_IBAN =
+  /(?:^|[./:_-])(?:IBAN[./:_-]?)?ES(?:[./:_-]?\d){22}(?=$|[./:_-])/u;
+const SPANISH_PHONE =
+  /(?:^|[./:_-])(?:34[./:_-]?)?[6789](?:[./:_-]?\d){8}(?=$|[./:_-])/u;
 const ISO_CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})$/u;
 const SENSITIVE_REFERENCE_CODES = new Set<ProfileReferenceFieldCodeV2>([
   "CSV",
@@ -496,14 +498,13 @@ function validateNormalizedReference(
     path,
     PROFILE_FIELD_ADAPTER_LIMITS_V2.maxNormalizedReferenceChars,
   );
-  const compactForPiiCheck = normalized.replace(/[./:_-]+/gu, "");
   if (
     normalized !== normalized.normalize("NFKC").toUpperCase() ||
     !NORMALIZED_REFERENCE.test(normalized) ||
     !/\d/u.test(normalized) ||
-    SPANISH_PERSONAL_TAX_ID.test(compactForPiiCheck) ||
-    SPANISH_IBAN.test(compactForPiiCheck) ||
-    SPANISH_PHONE.test(compactForPiiCheck)
+    SPANISH_PERSONAL_TAX_ID.test(normalized) ||
+    SPANISH_IBAN.test(normalized) ||
+    SPANISH_PHONE.test(normalized)
   ) {
     invalid(path);
   }
@@ -791,13 +792,23 @@ function chronologyFromFields(
     (field): field is ReviewField<ProfileDateFieldCandidateV2> =>
       field.kind === "DATE",
   );
-  const first = (fieldCode: ProfileDateFieldCodeV2): string | null =>
-    dates.find((date) => date.fieldCode === fieldCode)?.valueIso ?? null;
+  const singleUnambiguous = (
+    fieldCode: ProfileDateFieldCodeV2,
+  ): string | null => {
+    const values = new Set(
+      dates
+        .filter((date) => date.fieldCode === fieldCode)
+        .map((date) => date.valueIso),
+    );
+    return values.size === 1 ? [...values][0]! : null;
+  };
   return resolveFiscalNotificationChronologyV2({
-    issueDate: first("ISSUE_DATE"),
-    signingDate: first("SIGNING_DATE"),
-    actionDate: first("ACTION_DATE"),
-    effectiveNotificationDate: first("EFFECTIVE_NOTIFICATION_DATE"),
+    issueDate: singleUnambiguous("ISSUE_DATE"),
+    signingDate: singleUnambiguous("SIGNING_DATE"),
+    actionDate: singleUnambiguous("ACTION_DATE"),
+    effectiveNotificationDate: singleUnambiguous(
+      "EFFECTIVE_NOTIFICATION_DATE",
+    ),
   });
 }
 
@@ -1008,24 +1019,18 @@ function adaptForExpectedFamily(
       issues: ["CANDIDATE_OUTSIDE_PROFILE_CONTRACT"],
     });
   }
-  if (hasConflictingExactFieldValues(candidates)) {
-    return buildOutcome({
-      familyId: profile.id,
-      selectionBasis: selection.basis,
-      fields: [],
-      unobservedProfileFields: contract,
-      issues: ["CONFLICTING_EXACT_FIELD_VALUES"],
-    });
-  }
-
+  const hasConflictingValues = hasConflictingExactFieldValues(candidates);
   const fields = Object.freeze(candidates.map(freezeReviewField));
   const missing = unobservedFields(contract, fields);
+  const issues: ProfileFieldAdapterIssueV2[] = [];
+  if (hasConflictingValues) issues.push("CONFLICTING_EXACT_FIELD_VALUES");
+  if (hasUnobservedFields(missing)) issues.push("INCOMPLETE_PROFILE_FIELDS");
   return buildOutcome({
     familyId: profile.id,
     selectionBasis: selection.basis,
     fields,
     unobservedProfileFields: missing,
-    issues: hasUnobservedFields(missing) ? ["INCOMPLETE_PROFILE_FIELDS"] : [],
+    issues,
   });
 }
 

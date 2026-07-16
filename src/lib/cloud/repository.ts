@@ -11,13 +11,18 @@ import type {
   Document,
   TestDocumentRetirementBatchV1,
 } from "../types";
-import type { FiscalNotificationsWorkspace } from "../fiscal-notifications/types";
 import {
   FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
-  compareFiscalNotificationsWorkspacesV1,
   fiscalNotificationsOwnerScopeForUserIdV1,
   parseFiscalNotificationsWorkspaceForPersistenceV1,
 } from "../fiscal-notifications/workspace-persistence.v1";
+import {
+  FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+  compareFiscalNotificationsWorkspaceStorageEnvelopesV2,
+  encodeFiscalNotificationsWorkspaceForStorageV2,
+  parseFiscalNotificationsWorkspaceStorageEnvelopeV2,
+  type FiscalNotificationsWorkspaceStorageEnvelopeV2,
+} from "../fiscal-notifications/workspace-storage-envelope.v2";
 import {
   isValidTestDocumentRetirementBatch,
   mergeTestDocumentRetirementBatch,
@@ -53,7 +58,7 @@ interface RetirementBootstrapPlan {
 }
 
 interface FiscalNotificationsWorkspaceWritePlan {
-  workspace: FiscalNotificationsWorkspace;
+  workspace: Readonly<FiscalNotificationsWorkspaceStorageEnvelopeV2>;
   updatedAt: string;
   previous?: SyncEntityRow;
 }
@@ -67,8 +72,25 @@ type RetirementSyncChange = SyncChange & {
 type FiscalNotificationsWorkspaceSyncChange = SyncChange & {
   entityType: "fiscal_notifications_workspace";
   deleted: false;
-  payload: FiscalNotificationsWorkspace;
+  payload: Readonly<FiscalNotificationsWorkspaceStorageEnvelopeV2>;
 };
+
+function fiscalWorkspaceEnvelope(
+  value: unknown,
+  expectedOwnerScope: string,
+): Readonly<FiscalNotificationsWorkspaceStorageEnvelopeV2> | null {
+  const current = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+    value,
+    expectedOwnerScope,
+  );
+  if (current) return current;
+  const legacy = parseFiscalNotificationsWorkspaceForPersistenceV1(
+    value,
+    expectedOwnerScope,
+  );
+  if (!legacy) return null;
+  return encodeFiscalNotificationsWorkspaceForStorageV2(legacy);
+}
 
 function rowToChange(row: SyncEntityRow): SyncChange {
   return {
@@ -76,6 +98,23 @@ function rowToChange(row: SyncEntityRow): SyncChange {
     entityId: row.entity_id,
     deleted: row.deleted,
     payload: row.payload,
+    updatedAt: row.updated_at,
+  };
+}
+
+function fiscalRowToChange(
+  row: SyncEntityRow,
+  expectedOwnerScope: string,
+): SyncChange {
+  const envelope = fiscalWorkspaceEnvelope(row.payload, expectedOwnerScope);
+  if (!envelope) {
+    throw new Error("El expediente fiscal remoto no es verificable");
+  }
+  return {
+    entityType: "fiscal_notifications_workspace",
+    entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+    deleted: false,
+    payload: envelope,
     updatedAt: row.updated_at,
   };
 }
@@ -112,9 +151,10 @@ export async function pushSyncChanges(
     }
     const workspace =
       change.deleted ||
-      change.entityId !== FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1
+      (change.entityId !== FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 &&
+        change.entityId !== FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2)
         ? null
-        : parseFiscalNotificationsWorkspaceForPersistenceV1(
+        : fiscalWorkspaceEnvelope(
             change.payload,
             expectedFiscalOwner,
           );
@@ -179,12 +219,11 @@ export async function pushSyncChanges(
       });
       continue;
     }
-    const remoteWorkspace =
-      parseFiscalNotificationsWorkspaceForPersistenceV1(
-        previous.payload,
-        expectedFiscalOwner!,
-      )!;
-    const comparison = compareFiscalNotificationsWorkspacesV1(
+    const remoteWorkspace = fiscalWorkspaceEnvelope(
+      previous.payload,
+      expectedFiscalOwner!,
+    )!;
+    const comparison = compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
       remoteWorkspace,
       change.payload,
       expectedFiscalOwner!,
@@ -295,9 +334,10 @@ function validateFiscalNotificationsWorkspaceRows(
   for (const row of rows) {
     if (
       row.entity_type !== "fiscal_notifications_workspace" ||
-      row.entity_id !== FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 ||
+      (row.entity_id !== FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 &&
+        row.entity_id !== FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2) ||
       row.deleted ||
-      !parseFiscalNotificationsWorkspaceForPersistenceV1(
+      !fiscalWorkspaceEnvelope(
         row.payload,
         expectedOwnerScope,
       )
@@ -314,7 +354,7 @@ function fiscalNotificationsWorkspaceRow(
   return {
     user_id: userId,
     entity_type: "fiscal_notifications_workspace",
-    entity_id: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+    entity_id: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
     payload: plan.workspace,
     deleted: false,
     updated_at: plan.updatedAt,
@@ -335,13 +375,13 @@ function fiscalNotificationsWorkspaceReadbackMatches(
   plan: FiscalNotificationsWorkspaceWritePlan,
   expectedOwnerScope: string,
 ): boolean {
-  const parsed = parseFiscalNotificationsWorkspaceForPersistenceV1(
+  const parsed = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
     row.payload,
     expectedOwnerScope,
   );
   return Boolean(
     row.entity_type === "fiscal_notifications_workspace" &&
-      row.entity_id === FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 &&
+      row.entity_id === FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2 &&
       !row.deleted &&
       row.updated_at === plan.updatedAt &&
       parsed &&
@@ -385,12 +425,11 @@ async function writeFiscalNotificationsWorkspaceCas(
     if (!current) {
       throw inserted.error ?? new Error("No se confirmó el expediente fiscal");
     }
-    const currentWorkspace =
-      parseFiscalNotificationsWorkspaceForPersistenceV1(
-        current.payload,
-        expectedOwnerScope,
-      )!;
-    const comparison = compareFiscalNotificationsWorkspacesV1(
+    const currentWorkspace = fiscalWorkspaceEnvelope(
+      current.payload,
+      expectedOwnerScope,
+    )!;
+    const comparison = compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
       currentWorkspace,
       plan.workspace,
       expectedOwnerScope,
@@ -414,7 +453,7 @@ async function writeFiscalNotificationsWorkspaceCas(
     .update(row)
     .eq("user_id", userId)
     .eq("entity_type", "fiscal_notifications_workspace")
-    .eq("entity_id", FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1)
+    .eq("entity_id", previous.entity_id)
     .eq("deleted", false)
     .eq("updated_at", previous.updated_at)
     .select("entity_type, entity_id, payload, deleted, updated_at");
@@ -666,8 +705,9 @@ export async function pullSyncChanges(
     const fiscalRows = incremental.filter(
       (row) => row.entity_type === "fiscal_notifications_workspace",
     );
+    let expectedFiscalOwner: string | null = null;
     if (fiscalRows.length > 0) {
-      const expectedFiscalOwner = fiscalNotificationsOwnerScopeForUserIdV1(userId);
+      expectedFiscalOwner = fiscalNotificationsOwnerScopeForUserIdV1(userId);
       if (!expectedFiscalOwner) {
         throw new Error("La cuenta fiscal no es verificable");
       }
@@ -676,7 +716,11 @@ export async function pullSyncChanges(
         expectedFiscalOwner,
       );
     }
-    return incremental.map(rowToChange);
+    return incremental.map((row) =>
+      row.entity_type === "fiscal_notifications_workspace"
+        ? fiscalRowToChange(row, expectedFiscalOwner!)
+        : rowToChange(row),
+    );
   }
 
   // Exclusiones y lotes de retiro son contratos monotónicos. Se descargan
@@ -697,8 +741,9 @@ export async function pullSyncChanges(
   const fiscalRows = [...byEntity.values()].filter(
     (row) => row.entity_type === "fiscal_notifications_workspace",
   );
+  let expectedFiscalOwner: string | null = null;
   if (fiscalRows.length > 0) {
-    const expectedFiscalOwner = fiscalNotificationsOwnerScopeForUserIdV1(userId);
+    expectedFiscalOwner = fiscalNotificationsOwnerScopeForUserIdV1(userId);
     if (!expectedFiscalOwner) {
       throw new Error("La cuenta fiscal no es verificable");
     }
@@ -707,7 +752,11 @@ export async function pullSyncChanges(
       expectedFiscalOwner,
     );
   }
-  return [...byEntity.values()].map(rowToChange);
+  return [...byEntity.values()].map((row) =>
+    row.entity_type === "fiscal_notifications_workspace"
+      ? fiscalRowToChange(row, expectedFiscalOwner!)
+      : rowToChange(row),
+  );
 }
 
 /** Migra una copia completa antigua a entidades incrementales */

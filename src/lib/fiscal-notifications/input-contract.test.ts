@@ -38,6 +38,73 @@ describe("fiscal notification bounded input contract", () => {
     expect(input).toEqual(before);
   });
 
+  it("accepts frozen ephemeral layout and rejects unknown or unbounded layout cells", () => {
+    const input = validDocumentInput();
+    (input.pages as Array<Record<string, unknown>>)[0]!.layoutRows = [
+      {
+        yMilli: 100_000,
+        cells: [{ xMilli: 20_000, widthMilli: 40_000, text: "Importe total" }],
+      },
+    ];
+    expect(() => assertBoundedDocumentInput(deepFreeze(input))).not.toThrow();
+
+    const unknown = validDocumentInput();
+    (unknown.pages as Array<Record<string, unknown>>)[0]!.layoutRows = [
+      {
+        yMilli: 100_000,
+        cells: [
+          { xMilli: 20_000, widthMilli: 40_000, text: "Dato", raw: "forbidden" },
+        ],
+      },
+    ];
+    expect(() => assertBoundedDocumentInput(deepFreeze(unknown))).toThrowError(
+      expect.objectContaining({
+        code: "INVALID_INPUT",
+        path: "pages[0].layoutRows[0].cells[0].$unknown",
+      }),
+    );
+
+    const excessive = validDocumentInput();
+    (excessive.pages as Array<Record<string, unknown>>)[0]!.layoutRows = [
+      {
+        yMilli: 100_000,
+        cells: [
+          {
+            xMilli: FISCAL_NOTIFICATION_INPUT_LIMITS.maxLayoutCoordinateMilli + 1,
+            widthMilli: 0,
+            text: "Dato",
+          },
+        ],
+      },
+    ];
+    expect(() => assertBoundedDocumentInput(deepFreeze(excessive))).toThrowError(
+      expect.objectContaining({
+        code: "INVALID_INPUT",
+        path: "pages[0].layoutRows[0].cells[0].xMilli",
+      }),
+    );
+  });
+
+  it("enforces the aggregate ephemeral layout text limit before analysis", () => {
+    const input = validDocumentInput();
+    (input.pages as Array<Record<string, unknown>>)[0]!.layoutRows = [
+      {
+        yMilli: 100_000,
+        cells: Array.from({ length: 16 }, (_, index) => ({
+          xMilli: index * 10_000,
+          widthMilli: 9_000,
+          text: "x".repeat(32_000),
+        })),
+      },
+    ];
+    expect(() => assertBoundedDocumentInput(deepFreeze(input))).toThrowError(
+      expect.objectContaining({
+        code: "TEXT_TOO_LARGE",
+        path: "pages.layoutRows.cells.text",
+      }),
+    );
+  });
+
   it.each([
     ["", "OWNER_SCOPE_REQUIRED"],
     [123, "OWNER_SCOPE_REQUIRED"],

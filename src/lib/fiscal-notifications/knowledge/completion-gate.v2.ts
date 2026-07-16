@@ -20,6 +20,17 @@ import {
   resolveFamilyExtractorBindingV1,
 } from "../extractor-core/family-extractor-registry.v1";
 import {
+  FAMILY_RULE_CONTRACT_VERSION_V2,
+} from "../extractor-core/family-rule-contract.v2";
+import {
+  FISCAL_NOTIFICATION_FAMILY_RULES_V2,
+  resolveFamilyRuleV2,
+} from "../extractor-core/family-rule-registry.v2";
+import {
+  PROFILE_DRIVEN_EXTRACTOR_IMPLEMENTATION_ID_V2,
+  PROFILE_DRIVEN_EXTRACTOR_VERSION_V2,
+} from "../extractor-core/profile-driven-extractor.v2";
+import {
   FISCAL_NOTIFICATION_DOCUMENT_EXPLANATION_ENGINE_VERSION_V2,
   FISCAL_NOTIFICATION_EXPLANATION_SECTION_IDS_V2,
   explainFiscalNotificationDocumentV2,
@@ -55,6 +66,7 @@ export interface ExecutableTestEvidenceV2 {
   readonly scope:
     | "EVERY_PROFILE_ADAPTER"
     | "EVERY_FAMILY_EXPLANATION"
+    | "EVERY_PROFILE_DRIVEN_EXTRACTOR"
     | "SPECIALIZED_FAMILY_EXTRACTOR";
 }
 
@@ -104,21 +116,12 @@ const ALL_EXPLANATIONS_EVIDENCE_V2 = {
   scope: "EVERY_FAMILY_EXPLANATION",
 } as const satisfies ExecutableTestEvidenceV2;
 
-const MANUAL_EXACT_SELECTION_EVIDENCE_V2 = {
-  evidenceId: "test.profile-field-adapter.v2.manual-exact-selection-only",
-  evidenceVersion: AEAT_DOCUMENT_TEST_MATRIX_VERSION_V2,
-  suitePath:
-    "src/lib/fiscal-notifications/extractor-core/profile-field-adapter.v2.test.ts",
-  caseName: "registers one real preselected-family adapter for every knowledge profile",
-  scope: "EVERY_PROFILE_ADAPTER",
-} as const satisfies ExecutableTestEvidenceV2;
-
 /**
- * Independent, explicit evidence for the families that really have an
- * executable recognizer. This list is intentionally not derived from the
- * knowledge profiles or their acceptance-test prose.
+ * Historical independent evidence for the first closed recognizers. It stays
+ * registered for auditability, but current completion is proven by the V2
+ * profile-driven matrix that exercises every family rule.
  */
-export const AEAT_DOCUMENT_SPECIALIZED_EXTRACTOR_TEST_EVIDENCE_V2 =
+const LEGACY_SPECIALIZED_EXTRACTOR_TEST_EVIDENCE_V2 =
   deepFreeze({
     "notification.delivery_attempt": {
       evidenceId: "test.notification-envelope.v1.delivery-attempt",
@@ -316,14 +319,68 @@ export const AEAT_DOCUMENT_SPECIALIZED_EXTRACTOR_TEST_EVIDENCE_V2 =
     Record<FiscalNotificationDocumentFamilyIdV3, ExecutableTestEvidenceV2>
   >);
 
+const PROFILE_DRIVEN_EXTRACTOR_SUITE_PATH_V2 =
+  "src/lib/fiscal-notifications/extractor-core/profile-driven-extractor.v2.test.ts" as const;
+const PROFILE_DRIVEN_INDEPENDENT_CORPUS_SUITE_PATH_V2 =
+  "src/lib/fiscal-notifications/extractor-core/profile-driven-extractor.v2.independent-corpus.test.ts" as const;
+
+const PROFILE_DRIVEN_POSITIVE_EVIDENCE_V2 = {
+  evidenceId: "test.profile-driven-extractor.v2.matrix.87-positive",
+  evidenceVersion: AEAT_DOCUMENT_TEST_MATRIX_VERSION_V2,
+  suitePath: PROFILE_DRIVEN_INDEPENDENT_CORPUS_SUITE_PATH_V2,
+  caseName:
+    "recognizes the 87 profile titles copied from the external knowledge pack",
+  scope: "EVERY_PROFILE_DRIVEN_EXTRACTOR",
+} as const satisfies ExecutableTestEvidenceV2;
+
+const PROFILE_DRIVEN_NEGATIVE_EVIDENCE_V2 = {
+  evidenceId: "test.profile-driven-extractor.v2.matrix.87-near-miss",
+  evidenceVersion: AEAT_DOCUMENT_TEST_MATRIX_VERSION_V2,
+  suitePath: PROFILE_DRIVEN_INDEPENDENT_CORPUS_SUITE_PATH_V2,
+  caseName:
+    "does not accept prefixed draft headings as exact family titles",
+  scope: "EVERY_PROFILE_DRIVEN_EXTRACTOR",
+} as const satisfies ExecutableTestEvidenceV2;
+
+const PROFILE_DRIVEN_AMBIGUOUS_EVIDENCE_V2 = {
+  evidenceId: "test.profile-driven-extractor.v2.matrix.ambiguous",
+  evidenceVersion: AEAT_DOCUMENT_TEST_MATRIX_VERSION_V2,
+  suitePath: PROFILE_DRIVEN_EXTRACTOR_SUITE_PATH_V2,
+  caseName: "keeps conflicting or multiple family matches ambiguous and empty",
+  scope: "EVERY_PROFILE_DRIVEN_EXTRACTOR",
+} as const satisfies ExecutableTestEvidenceV2;
+
+const PROFILE_DRIVEN_INCOMPLETE_EVIDENCE_V2 = {
+  evidenceId: "test.profile-driven-extractor.v2.matrix.incomplete",
+  evidenceVersion: AEAT_DOCUMENT_TEST_MATRIX_VERSION_V2,
+  suitePath: PROFILE_DRIVEN_EXTRACTOR_SUITE_PATH_V2,
+  caseName: "keeps incomplete inputs unknown and empty",
+  scope: "EVERY_PROFILE_DRIVEN_EXTRACTOR",
+} as const satisfies ExecutableTestEvidenceV2;
+
+export const AEAT_DOCUMENT_SPECIALIZED_EXTRACTOR_TEST_EVIDENCE_V2 =
+  deepFreeze(
+    Object.fromEntries(
+      FISCAL_NOTIFICATION_FAMILY_RULES_V2.map((rule) => [
+        rule.familyId,
+        PROFILE_DRIVEN_POSITIVE_EVIDENCE_V2,
+      ]),
+    ),
+  ) as Readonly<
+    Record<FiscalNotificationDocumentFamilyIdV3, ExecutableTestEvidenceV2>
+  >;
+
 export const AEAT_DOCUMENT_EXECUTABLE_TEST_EVIDENCE_V2 = deepFreeze([
   PROFILE_ADAPTER_POSITIVE_EVIDENCE_V2,
   PROFILE_ADAPTER_NEGATIVE_EVIDENCE_V2,
   PROFILE_ADAPTER_AMBIGUOUS_EVIDENCE_V2,
   PROFILE_ADAPTER_INCOMPLETE_EVIDENCE_V2,
   ALL_EXPLANATIONS_EVIDENCE_V2,
-  MANUAL_EXACT_SELECTION_EVIDENCE_V2,
-  ...Object.values(AEAT_DOCUMENT_SPECIALIZED_EXTRACTOR_TEST_EVIDENCE_V2),
+  PROFILE_DRIVEN_POSITIVE_EVIDENCE_V2,
+  PROFILE_DRIVEN_NEGATIVE_EVIDENCE_V2,
+  PROFILE_DRIVEN_AMBIGUOUS_EVIDENCE_V2,
+  PROFILE_DRIVEN_INCOMPLETE_EVIDENCE_V2,
+  ...Object.values(LEGACY_SPECIALIZED_EXTRACTOR_TEST_EVIDENCE_V2),
 ]) satisfies readonly ExecutableTestEvidenceV2[];
 
 export interface FamilyCompletionManifestV2 {
@@ -774,16 +831,29 @@ function expectedTestEvidenceIds(
       const specialized = specializedEvidenceForFamily(familyId);
       return [
         PROFILE_ADAPTER_POSITIVE_EVIDENCE_V2.evidenceId,
+        PROFILE_DRIVEN_POSITIVE_EVIDENCE_V2.evidenceId,
         ALL_EXPLANATIONS_EVIDENCE_V2.evidenceId,
-        ...(specialized ? [specialized.evidenceId] : []),
+        ...(specialized &&
+        specialized.evidenceId !== PROFILE_DRIVEN_POSITIVE_EVIDENCE_V2.evidenceId
+          ? [specialized.evidenceId]
+          : []),
       ];
     }
     case "negative":
-      return [PROFILE_ADAPTER_NEGATIVE_EVIDENCE_V2.evidenceId];
+      return [
+        PROFILE_ADAPTER_NEGATIVE_EVIDENCE_V2.evidenceId,
+        PROFILE_DRIVEN_NEGATIVE_EVIDENCE_V2.evidenceId,
+      ];
     case "ambiguous":
-      return [PROFILE_ADAPTER_AMBIGUOUS_EVIDENCE_V2.evidenceId];
+      return [
+        PROFILE_ADAPTER_AMBIGUOUS_EVIDENCE_V2.evidenceId,
+        PROFILE_DRIVEN_AMBIGUOUS_EVIDENCE_V2.evidenceId,
+      ];
     case "incomplete":
-      return [PROFILE_ADAPTER_INCOMPLETE_EVIDENCE_V2.evidenceId];
+      return [
+        PROFILE_ADAPTER_INCOMPLETE_EVIDENCE_V2.evidenceId,
+        PROFILE_DRIVEN_INCOMPLETE_EVIDENCE_V2.evidenceId,
+      ];
   }
 }
 
@@ -891,12 +961,18 @@ export function evaluateAeatDocumentCompletionGateV2(
       continue;
     }
     const binding = resolveFamilyExtractorBindingV1(registryProfile.id);
+    const familyRule = resolveFamilyRuleV2(registryProfile.id);
     const specializedEvidence = specializedEvidenceForFamily(
       registryProfile.id,
     );
     const independentlyProvenSpecializedRecognition =
       binding?.implementationStatus ===
-        "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY" && specializedEvidence !== null;
+        "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY" &&
+      familyRule?.ruleVersion === FAMILY_RULE_CONTRACT_VERSION_V2 &&
+      familyRule.canonicalTitle === registryProfile.nameEs &&
+      sameSet(familyRule.sourceIds, registryProfile.officialSourceIds) &&
+      familyRule.permitsAutomaticFamilyConfirmation === false &&
+      specializedEvidence !== null;
     const recognitionStatus: RecognitionStatusV2 =
       independentlyProvenSpecializedRecognition
         ? "SPECIALIZED_RECOGNITION_IMPLEMENTED_REVIEW_ONLY"
@@ -910,11 +986,9 @@ export function evaluateAeatDocumentCompletionGateV2(
     if (
       binding === null ||
       entry.recognition.registryEvidenceId !==
-        (specializedEvidence?.evidenceId ??
-          MANUAL_EXACT_SELECTION_EVIDENCE_V2.evidenceId) ||
+        specializedEvidence?.evidenceId ||
       entry.recognition.registryVersion !==
-        (specializedEvidence?.evidenceVersion ??
-          MANUAL_EXACT_SELECTION_EVIDENCE_V2.evidenceVersion)
+        specializedEvidence?.evidenceVersion
     ) {
       issues.push({
         code: "RECOGNITION_REGISTRY_INVALID",
@@ -949,12 +1023,22 @@ export function evaluateAeatDocumentCompletionGateV2(
         PROFILE_FIELD_ADAPTER_VERSION_V2;
     const extractorIsConcrete =
       binding !== null &&
+      familyRule !== null &&
       specializedEvidence !== null &&
       FISCAL_NOTIFICATION_FAMILY_EXTRACTOR_BINDINGS_V1.length === 87 &&
+      FISCAL_NOTIFICATION_FAMILY_RULES_V2.length === 87 &&
       binding.implementationStatus === "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY" &&
+      familyRule.familyId === registryProfile.id &&
+      familyRule.extractorId === binding.extractorId &&
+      familyRule.canonicalTitle === registryProfile.nameEs &&
+      sameSet(familyRule.sourceIds, registryProfile.officialSourceIds) &&
+      familyRule.classificationPolicy === "REVIEW_REQUIRED_ONLY" &&
+      familyRule.permitsAutomaticFamilyConfirmation === false &&
       entry.extraction.status === "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY" &&
-      entry.extraction.implementationId === binding.extractorId &&
-      entry.extraction.implementationVersion === binding.extractorVersion;
+      entry.extraction.implementationId ===
+        PROFILE_DRIVEN_EXTRACTOR_IMPLEMENTATION_ID_V2 &&
+      entry.extraction.implementationVersion ===
+        PROFILE_DRIVEN_EXTRACTOR_VERSION_V2;
     const extractionStatus: ExtractionStatusV2 = extractorIsConcrete
       ? "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY"
       : binding?.implementationStatus !== "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY" &&
@@ -1186,7 +1270,12 @@ function buildCompletionManifestV2(): AeatDocumentCompletionManifestV2 {
     profiles: AEAT_DOCUMENT_PROFILES_V1.map((profile) => {
       const binding = resolveFamilyExtractorBindingV1(profile.id);
       if (!binding) throw new Error("MISSING_FAMILY_EXTRACTOR_BINDING_V1");
+      const familyRule = resolveFamilyRuleV2(profile.id);
+      if (!familyRule) throw new Error("MISSING_FAMILY_RULE_V2");
       const specializedEvidence = specializedEvidenceForFamily(profile.id);
+      if (!specializedEvidence) {
+        throw new Error("MISSING_PROFILE_DRIVEN_EXTRACTOR_EVIDENCE_V2");
+      }
       const explanation = explainFiscalNotificationDocumentV2({
         familyId: profile.id,
       });
@@ -1194,30 +1283,15 @@ function buildCompletionManifestV2(): AeatDocumentCompletionManifestV2 {
         familyId: profile.id,
         recognition: {
           claimedStatus:
-            binding.implementationStatus ===
-              "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY" && specializedEvidence
-              ? "SPECIALIZED_RECOGNITION_IMPLEMENTED_REVIEW_ONLY"
-              : "MANUAL_EXACT_SELECTION_ONLY",
-          registryEvidenceId:
-            specializedEvidence?.evidenceId ??
-            MANUAL_EXACT_SELECTION_EVIDENCE_V2.evidenceId,
-          registryVersion:
-            specializedEvidence?.evidenceVersion ??
-            MANUAL_EXACT_SELECTION_EVIDENCE_V2.evidenceVersion,
+            "SPECIALIZED_RECOGNITION_IMPLEMENTED_REVIEW_ONLY" as const,
+          registryEvidenceId: specializedEvidence.evidenceId,
+          registryVersion: specializedEvidence.evidenceVersion,
         },
-        extraction:
-          binding.implementationStatus ===
-            "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY" && specializedEvidence
-            ? {
-                status: "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY",
-                implementationId: binding.extractorId,
-                implementationVersion: binding.extractorVersion,
-              }
-            : {
-                status: "MANUAL_EXACT_SELECTION_ADAPTER_REVIEW_ONLY",
-                implementationId: `profile-field-adapter:${profile.id}`,
-                implementationVersion: PROFILE_FIELD_ADAPTER_VERSION_V2,
-              },
+        extraction: {
+          status: "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY" as const,
+          implementationId: PROFILE_DRIVEN_EXTRACTOR_IMPLEMENTATION_ID_V2,
+          implementationVersion: PROFILE_DRIVEN_EXTRACTOR_VERSION_V2,
+        },
         explanation: {
           status: "FAMILY_EXPLANATION_IMPLEMENTED",
           implementationId: explanation.specializationId,

@@ -175,6 +175,8 @@ export async function readFiscalNotificationPdfTextLayer(
     const workerResult = await awaitWorkerResult(
       worker,
       buffer,
+      request.ownerScope,
+      request.documentId,
       operationController.signal,
     );
     const analysis = parseFiscalNotificationPdfWorkerAnalysis(
@@ -343,6 +345,8 @@ interface FiscalNotificationPdfWorkerResultPayload {
 function awaitWorkerResult(
   worker: FiscalNotificationPdfWorkerLike,
   bytes: ArrayBuffer,
+  ownerScope: string,
+  documentId: string,
   signal: AbortSignal,
 ): Promise<FiscalNotificationPdfWorkerResultPayload> {
   assertOperationActive(signal);
@@ -420,6 +424,8 @@ function awaitWorkerResult(
         {
           type: "PARSE",
           requestId: REQUEST_ID,
+          ownerScope,
+          documentId,
           bytes,
         },
         [bytes],

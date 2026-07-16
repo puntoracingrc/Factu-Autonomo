@@ -16,6 +16,10 @@ import {
 import { testDocumentRetirementTenantFingerprintForUserId } from "../test-document-retirement-persistence";
 import type { FiscalNotificationsWorkspace } from "../fiscal-notifications/types";
 import { FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 } from "../fiscal-notifications/workspace-persistence.v1";
+import {
+  FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+  parseFiscalNotificationsWorkspaceStorageEnvelopeV2,
+} from "../fiscal-notifications/workspace-storage-envelope.v2";
 
 const supabaseMock = vi.hoisted(() => ({
   from: vi.fn(),
@@ -331,8 +335,10 @@ describe("cloud repository", () => {
     expect(changes).toEqual([
       expect.objectContaining({
         entityType: "fiscal_notifications_workspace",
-        entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
-        payload: workspace,
+        entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+        payload: expect.objectContaining({
+          storageKind: "FISCAL_NOTIFICATIONS_PRIVACY_WORKSPACE_V2",
+        }),
       }),
     ]);
   });
@@ -349,11 +355,22 @@ describe("cloud repository", () => {
       expect.objectContaining({
         user_id: FISCAL_USER_ID,
         entity_type: "fiscal_notifications_workspace",
-        entity_id: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
-        payload: workspace,
+        entity_id: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+        payload: expect.objectContaining({
+          storageKind: "FISCAL_NOTIFICATIONS_PRIVACY_WORKSPACE_V2",
+        }),
         deleted: false,
       }),
     ]);
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        rows[0]?.payload,
+        FISCAL_OWNER,
+      ),
+    ).not.toBeNull();
+    expect(JSON.stringify(rows[0]?.payload)).not.toMatch(
+      /"(?:textSnippet|rawValue|valueRaw)"\s*:/u,
+    );
   });
 
   it("avanza la cabeza fiscal por CAS sin usar last-write-wins", async () => {
@@ -376,7 +393,11 @@ describe("cloud repository", () => {
 
     expect(writes.update).toHaveBeenCalledTimes(1);
     expect(rows[0]).toMatchObject({
-      payload: advanced,
+      entity_id: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+      payload: {
+        storageKind: "FISCAL_NOTIFICATIONS_PRIVACY_WORKSPACE_V2",
+        workspace: { revision: advanced.revision },
+      },
       updated_at: "2026-07-14T09:02:00.000Z",
     });
   });
@@ -395,7 +416,7 @@ describe("cloud repository", () => {
     ];
     const writes = installPullMock(rows);
     const divergent = fiscalWorkspace(1);
-    divergent.packages[0]!.id = "package-divergent";
+    divergent.workspaceId = "workspace-divergent";
 
     await expect(
       pushSyncChanges(FISCAL_USER_ID, [fiscalWorkspaceChange(divergent)]),

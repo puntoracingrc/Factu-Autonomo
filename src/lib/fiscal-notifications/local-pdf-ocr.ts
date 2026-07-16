@@ -99,9 +99,40 @@ interface OcrWorkerLike {
   recognize(
     image: unknown,
     options: { rotateAuto: false },
-    output: { text: true },
-  ): Promise<{ readonly data: { readonly text: string; readonly confidence: number } }>;
+    output: { text: true; blocks: true },
+  ): Promise<{
+    readonly data: {
+      readonly text: string;
+      readonly confidence: number;
+      readonly blocks: readonly OcrBlockLike[] | null;
+    };
+  }>;
   terminate(): Promise<unknown> | unknown;
+}
+
+interface OcrBboxLike {
+  readonly x0: number;
+  readonly y0: number;
+  readonly x1: number;
+  readonly y1: number;
+}
+
+interface OcrWordLike {
+  readonly text: string;
+  readonly bbox: OcrBboxLike;
+}
+
+interface OcrLineLike {
+  readonly words: readonly OcrWordLike[];
+  readonly bbox: OcrBboxLike;
+}
+
+interface OcrParagraphLike {
+  readonly lines: readonly OcrLineLike[];
+}
+
+interface OcrBlockLike {
+  readonly paragraphs: readonly OcrParagraphLike[];
 }
 
 interface CanvasResource {
@@ -242,6 +273,7 @@ export async function recognizeFiscalNotificationPdfLocally(
       readonly pageNumber: number;
       readonly text: string;
       readonly isBlank: boolean;
+      readonly layoutRows?: BoundedDocumentInput["pages"][number]["layoutRows"];
     }> = [];
     const confidences: number[] = [];
     let totalChars = 0;
@@ -288,7 +320,7 @@ export async function recognizeFiscalNotificationPdfLocally(
           ocrWorker.recognize(
             canvasResource.canvas,
             { rotateAuto: false },
-            { text: true },
+            { text: true, blocks: true },
           ),
           request.signal,
           deadline,
@@ -300,10 +332,15 @@ export async function recognizeFiscalNotificationPdfLocally(
         }
         const confidence = normalizeConfidence(recognized.data.confidence);
         if (text.length > 0 && confidence !== null) confidences.push(confidence);
+        const layoutRows = buildOcrLayoutRows(
+          recognized.data.blocks,
+          height,
+        );
         pages.push(Object.freeze({
           pageNumber,
           text,
           isBlank: text.length === 0,
+          ...(layoutRows.length > 0 ? { layoutRows } : {}),
         }));
       } finally {
         try {
@@ -586,6 +623,123 @@ function sanitizeOcrText(value: unknown): string {
     .replace(/\r\n?/gu, "\n")
     .replace(UNSUPPORTED_OCR_CONTROL_PATTERN, " ")
     .trim();
+}
+
+function buildOcrLayoutRows(
+  blocks: readonly OcrBlockLike[] | null,
+  pageHeightPixels: number,
+): NonNullable<BoundedDocumentInput["pages"][number]["layoutRows"]> {
+  if (blocks === null) return Object.freeze([]);
+  if (!Array.isArray(blocks)) {
+    throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
+  }
+  const rows: Array<
+    NonNullable<BoundedDocumentInput["pages"][number]["layoutRows"]>[number]
+  > = [];
+  let cellsTotal = 0;
+  const milliPerPixel = Math.round(
+    (72_000 / FISCAL_NOTIFICATION_LOCAL_OCR_LIMITS.dpi),
+  );
+  for (const block of blocks) {
+    if (!block || !Array.isArray(block.paragraphs)) {
+      throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
+    }
+    for (const paragraph of block.paragraphs) {
+      if (!paragraph || !Array.isArray(paragraph.lines)) {
+        throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
+      }
+      for (const line of paragraph.lines) {
+        if (
+          rows.length >= FISCAL_NOTIFICATION_INPUT_LIMITS.maxLayoutRowsPerPage ||
+          !line ||
+          !Array.isArray(line.words) ||
+          !isFiniteOcrBbox(line.bbox)
+        ) {
+          throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
+        }
+        const cells = ocrCellsForLine(line.words, milliPerPixel);
+        cellsTotal += cells.length;
+        if (cellsTotal > FISCAL_NOTIFICATION_INPUT_LIMITS.maxLayoutCellsTotal) {
+          throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
+        }
+        if (cells.length === 0) continue;
+        rows.push(
+          Object.freeze({
+            yMilli: Math.round(
+              (pageHeightPixels - line.bbox.y0) * milliPerPixel,
+            ),
+            cells: Object.freeze(cells),
+          }),
+        );
+      }
+    }
+  }
+  return Object.freeze(rows);
+}
+
+function ocrCellsForLine(
+  words: readonly OcrWordLike[],
+  milliPerPixel: number,
+): NonNullable<
+  BoundedDocumentInput["pages"][number]["layoutRows"]
+>[number]["cells"] {
+  const sorted = words
+    .map((word) => {
+      if (!word || !isFiniteOcrBbox(word.bbox)) {
+        throw new FiscalNotificationPdfError("INVALID_WORKER_RESPONSE");
+      }
+      return {
+        text: sanitizeOcrText(word.text).replace(/\s+/gu, " "),
+        bbox: word.bbox,
+      };
+    })
+    .filter((word) => word.text.length > 0)
+    .sort((left, right) => left.bbox.x0 - right.bbox.x0);
+  const groups: Array<{ text: string; x0: number; x1: number; height: number }> = [];
+  for (const word of sorted) {
+    const height = Math.max(1, word.bbox.y1 - word.bbox.y0);
+    const previous = groups.at(-1);
+    const gap = previous ? word.bbox.x0 - previous.x1 : Number.POSITIVE_INFINITY;
+    if (!previous || gap > Math.max(18, previous.height * 1.5)) {
+      groups.push({
+        text: word.text,
+        x0: word.bbox.x0,
+        x1: word.bbox.x1,
+        height,
+      });
+      continue;
+    }
+    previous.text = `${previous.text} ${word.text}`;
+    previous.x1 = Math.max(previous.x1, word.bbox.x1);
+    previous.height = Math.max(previous.height, height);
+  }
+  return Object.freeze(
+    groups.map((group) =>
+      Object.freeze({
+        xMilli: Math.round(group.x0 * milliPerPixel),
+        widthMilli: Math.max(
+          0,
+          Math.round((group.x1 - group.x0) * milliPerPixel),
+        ),
+        text: group.text,
+      }),
+    ),
+  );
+}
+
+function isFiniteOcrBbox(value: unknown): value is OcrBboxLike {
+  if (value === null || typeof value !== "object") return false;
+  const bbox = value as Partial<OcrBboxLike>;
+  return (
+    Number.isFinite(bbox.x0) &&
+    Number.isFinite(bbox.y0) &&
+    Number.isFinite(bbox.x1) &&
+    Number.isFinite(bbox.y1) &&
+    Number(bbox.x0) >= 0 &&
+    Number(bbox.y0) >= 0 &&
+    Number(bbox.x1) >= Number(bbox.x0) &&
+    Number(bbox.y1) >= Number(bbox.y0)
+  );
 }
 
 function normalizeConfidence(value: unknown): number | null {

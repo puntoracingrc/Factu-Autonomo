@@ -486,11 +486,59 @@ describe("storage", () => {
       fiscalNotificationsWorkspace: workspace,
     });
 
-    expect(normalized.fiscalNotificationsWorkspace).toEqual(workspace);
+    expect(normalized.fiscalNotificationsWorkspace).toEqual({
+      ...workspace,
+      driveArchives: [],
+    });
     expect(normalized.fiscalNotificationsWorkspace).not.toBe(workspace);
     expect(JSON.stringify(normalized.fiscalNotificationsWorkspace)).not.toMatch(
       /originalFilename|storageReference|rawPdfText/,
     );
+  });
+
+  it("persiste localStorage y pendingChanges únicamente con el envelope fiscal V2", () => {
+    const workspace = emptyFiscalNotificationsWorkspace();
+    const data: AppData = {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: workspace,
+      meta: {
+        lastModified: NOW,
+        pendingChanges: [
+          {
+            entityType: "fiscal_notifications_workspace",
+            entityId: workspace.workspaceId,
+            deleted: false,
+            payload: workspace,
+            updatedAt: NOW,
+          },
+        ],
+      },
+    };
+
+    expect(saveData(data)).toEqual({ status: "applied" });
+    const raw = localStorage.getItem(STORAGE_KEY);
+    expect(raw).not.toBeNull();
+    const persisted = JSON.parse(raw!) as {
+      fiscalNotificationsWorkspace: { storageKind: string };
+      meta: { pendingChanges: Array<{ payload: { storageKind: string } }> };
+    };
+    expect(persisted.fiscalNotificationsWorkspace.storageKind).toBe(
+      "FISCAL_NOTIFICATIONS_PRIVACY_WORKSPACE_V2",
+    );
+    expect(persisted.meta.pendingChanges[0]?.payload.storageKind).toBe(
+      "FISCAL_NOTIFICATIONS_PRIVACY_WORKSPACE_V2",
+    );
+    expect(raw).not.toMatch(/"(?:textSnippet|rawValue|valueRaw)"\s*:/u);
+
+    const loaded = loadData();
+    expect(loaded.fiscalNotificationsWorkspace?.ownerScope).toBe(FISCAL_OWNER);
+    expect(
+      (
+        loaded.meta?.pendingChanges?.[0]?.payload as {
+          storageKind?: string;
+        }
+      )?.storageKind,
+    ).toBe("FISCAL_NOTIFICATIONS_PRIVACY_WORKSPACE_V2");
   });
 
   it("rechaza un expediente fiscal malformado sin copiar su PII a cuarentena", () => {
@@ -512,10 +560,27 @@ describe("storage", () => {
       reason: "malformed_record",
       rawValue: {
         status: "rejected",
-        schema: "fiscal-notifications-workspace-v1",
+        schema: "fiscal-notifications-privacy-workspace-v2",
       },
     });
     expect(JSON.stringify(normalized)).not.toContain("contenido privado");
+  });
+
+  it("migra un workspace V1 legado a V2 antes de volver a escribirlo", () => {
+    const workspace = emptyFiscalNotificationsWorkspace();
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...EMPTY_DATA, fiscalNotificationsWorkspace: workspace }),
+    );
+
+    const loaded = loadData();
+    expect(loaded.fiscalNotificationsWorkspace?.ownerScope).toBe(FISCAL_OWNER);
+    const rewritten = JSON.parse(localStorage.getItem(STORAGE_KEY)!) as {
+      fiscalNotificationsWorkspace?: { storageKind?: string };
+    };
+    expect(rewritten.fiscalNotificationsWorkspace?.storageKind).toBe(
+      "FISCAL_NOTIFICATIONS_PRIVACY_WORKSPACE_V2",
+    );
   });
 
   it("migra y conserva el perfil fiscal aditivo sin persistir el documento", () => {

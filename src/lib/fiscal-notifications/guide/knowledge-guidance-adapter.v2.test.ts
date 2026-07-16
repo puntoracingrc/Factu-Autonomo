@@ -39,7 +39,7 @@ describe("fiscal notification knowledge guidance adapter v2", () => {
     }
   });
 
-  it("reports the real executable split without turning review into confirmation", () => {
+  it("reports all 87 executable profile-driven recognizers without turning review into confirmation", () => {
     const automatic =
       FISCAL_NOTIFICATION_KNOWLEDGE_GUIDANCE_PROJECTIONS_V2.filter(
         (projection) =>
@@ -49,8 +49,8 @@ describe("fiscal notification knowledge guidance adapter v2", () => {
       FISCAL_NOTIFICATION_KNOWLEDGE_GUIDANCE_PROJECTIONS_V2.filter(
         (projection) => projection.recognitionMode === "MANUAL_REVIEW_ONLY",
       );
-    expect(automatic).toHaveLength(24);
-    expect(manual).toHaveLength(63);
+    expect(automatic).toHaveLength(87);
+    expect(manual).toHaveLength(0);
     expect(
       resolveFiscalNotificationKnowledgeGuidanceV2(
         "collection.enforcement_order",
@@ -60,7 +60,7 @@ describe("fiscal notification knowledge guidance adapter v2", () => {
       resolveFiscalNotificationKnowledgeGuidanceV2(
         "sanction.resolution",
       ).recognitionStatus,
-    ).toBe("MANUAL_EXACT_SELECTION_ONLY");
+    ).toBe("SPECIALIZED_RECOGNITION_IMPLEMENTED_REVIEW_ONLY");
   });
 
   it("uses only verified official links and keeps the runtime scan offline", () => {

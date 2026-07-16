@@ -37,6 +37,7 @@ import {
 } from "./document-integrity/legacy-import-attestation";
 import { EMPTY_DATA, type Document } from "./types";
 import type { FiscalNotificationsWorkspace } from "./fiscal-notifications/types";
+import { parseFiscalNotificationsWorkspaceStorageEnvelopeV2 } from "./fiscal-notifications/workspace-storage-envelope.v2";
 
 const NOW = "2026-06-24T10:00:00.000Z";
 
@@ -275,9 +276,27 @@ describe("backup", () => {
       fiscalNotificationsWorkspace: workspace,
     });
 
-    expect(backup.fiscalNotificationsWorkspace).toEqual(workspace);
-    expect(JSON.stringify(backup.fiscalNotificationsWorkspace)).not.toMatch(
-      /originalFilename|storageReference|rawPdfText/,
+    const envelope = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+      backup.fiscalNotificationsWorkspace,
+      workspace.ownerScope,
+    );
+    expect(envelope?.storageKind).toBe(
+      "FISCAL_NOTIFICATIONS_PRIVACY_WORKSPACE_V2",
+    );
+    expect(JSON.stringify(envelope)).not.toMatch(
+      /originalFilename|storageReference|rawPdfText|textSnippet|rawValue|valueRaw/,
+    );
+
+    const restored = parseBackupJson(
+      createBackupPayload(
+        { ...EMPTY_DATA, fiscalNotificationsWorkspace: workspace },
+        NOW,
+      ),
+    );
+    expect("error" in restored).toBe(false);
+    if ("error" in restored) return;
+    expect(restored.fiscalNotificationsWorkspace?.ownerScope).toBe(
+      workspace.ownerScope,
     );
   });
 

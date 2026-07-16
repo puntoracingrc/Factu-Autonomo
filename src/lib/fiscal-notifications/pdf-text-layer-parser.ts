@@ -123,6 +123,14 @@ export async function parseFiscalNotificationPdfTextLayerBytes(
       pageNumber: number;
       text: string;
       isBlank: boolean;
+      layoutRows?: readonly Readonly<{
+        yMilli: number;
+        cells: readonly Readonly<{
+          xMilli: number;
+          widthMilli: number;
+          text: string;
+        }>[];
+      }>[];
     }> = [];
     let totalItems = 0;
     let totalChars = 0;
@@ -146,6 +154,7 @@ export async function parseFiscalNotificationPdfTextLayerBytes(
         }
 
         const chunks: string[] = [];
+        const layoutCells: PositionedTextItem[] = [];
         for (const item of items) {
           assertNotAborted(snapshot.signal);
           const extracted = readTextItem(item);
@@ -156,6 +165,14 @@ export async function parseFiscalNotificationPdfTextLayerBytes(
           ) {
             throw new FiscalNotificationPdfError("TEXT_ITEM_TOO_LARGE");
           }
+          if (extracted.position !== null && extracted.text.trim().length > 0) {
+            layoutCells.push(
+              Object.freeze({
+                ...extracted.position,
+                text: extracted.text.trim(),
+              }),
+            );
+          }
           const separator = extracted.hasEol ? "\n" : " ";
           totalChars += extracted.text.length + separator.length;
           if (totalChars > FISCAL_NOTIFICATION_PDF_LIMITS.maxTextChars) {
@@ -164,7 +181,13 @@ export async function parseFiscalNotificationPdfTextLayerBytes(
           chunks.push(extracted.text, separator);
         }
         const text = chunks.join("").trim();
-        pages.push({ pageNumber, text, isBlank: text.length === 0 });
+        const layoutRows = buildLayoutRows(layoutCells);
+        pages.push({
+          pageNumber,
+          text,
+          isBlank: text.length === 0,
+          ...(layoutRows.length > 0 ? { layoutRows } : {}),
+        });
       } finally {
         safePageCleanup(page);
       }
@@ -362,9 +385,20 @@ function isAbortSignalValue(value: unknown): value is AbortSignal {
   }
 }
 
+interface PositionedTextItem {
+  readonly xMilli: number;
+  readonly yMilli: number;
+  readonly widthMilli: number;
+  readonly text: string;
+}
+
 function readTextItem(
   value: unknown,
-): { readonly text: string; readonly hasEol: boolean } | null {
+): {
+  readonly text: string;
+  readonly hasEol: boolean;
+  readonly position: Omit<PositionedTextItem, "text"> | null;
+} | null {
   try {
     if (value === null || typeof value !== "object") return null;
     const textDescriptor = Object.getOwnPropertyDescriptor(value, "str");
@@ -383,14 +417,92 @@ function readTextItem(
     ) {
       throw new FiscalNotificationPdfError("INVALID_PDF");
     }
+    const transformDescriptor = Object.getOwnPropertyDescriptor(value, "transform");
+    const widthDescriptor = Object.getOwnPropertyDescriptor(value, "width");
+    const position = transformDescriptor
+      ? readTextPosition(transformDescriptor, widthDescriptor)
+      : null;
     return {
       text: textDescriptor.value,
       hasEol: eolDescriptor?.value === true,
+      position,
     };
   } catch (error) {
     if (error instanceof FiscalNotificationPdfError) throw error;
     throw new FiscalNotificationPdfError("INVALID_PDF");
   }
+}
+
+function readTextPosition(
+  transformDescriptor: PropertyDescriptor,
+  widthDescriptor: PropertyDescriptor | undefined,
+): Omit<PositionedTextItem, "text"> | null {
+  if (!("value" in transformDescriptor) || !Array.isArray(transformDescriptor.value)) {
+    throw new FiscalNotificationPdfError("INVALID_PDF");
+  }
+  const transform = transformDescriptor.value as unknown[];
+  if (transform.length < 6) throw new FiscalNotificationPdfError("INVALID_PDF");
+  const x = transform[4];
+  const y = transform[5];
+  const width = widthDescriptor && "value" in widthDescriptor
+    ? widthDescriptor.value
+    : 0;
+  if (
+    typeof x !== "number" ||
+    !Number.isFinite(x) ||
+    typeof y !== "number" ||
+    !Number.isFinite(y) ||
+    typeof width !== "number" ||
+    !Number.isFinite(width) ||
+    width < 0
+  ) {
+    throw new FiscalNotificationPdfError("INVALID_PDF");
+  }
+  const xMilli = Math.round(x * 1_000);
+  const yMilli = Math.round(y * 2) * 500;
+  const widthMilli = Math.round(width * 1_000);
+  if (
+    !Number.isSafeInteger(xMilli) ||
+    !Number.isSafeInteger(yMilli) ||
+    !Number.isSafeInteger(widthMilli)
+  ) {
+    throw new FiscalNotificationPdfError("INVALID_PDF");
+  }
+  return Object.freeze({ xMilli, yMilli, widthMilli });
+}
+
+function buildLayoutRows(
+  items: readonly PositionedTextItem[],
+): readonly Readonly<{
+  yMilli: number;
+  cells: readonly Readonly<{
+    xMilli: number;
+    widthMilli: number;
+    text: string;
+  }>[];
+}>[] {
+  const rows = new Map<number, PositionedTextItem[]>();
+  for (const item of items) {
+    const row = rows.get(item.yMilli) ?? [];
+    row.push(item);
+    rows.set(item.yMilli, row);
+  }
+  return Object.freeze(
+    [...rows.entries()]
+      .sort(([left], [right]) => right - left)
+      .map(([yMilli, cells]) =>
+        Object.freeze({
+          yMilli,
+          cells: Object.freeze(
+            cells
+              .sort((left, right) => left.xMilli - right.xMilli)
+              .map(({ xMilli, widthMilli, text }) =>
+                Object.freeze({ xMilli, widthMilli, text }),
+              ),
+          ),
+        }),
+      ),
+  );
 }
 
 function awaitWithinDeadline<T>(

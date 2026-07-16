@@ -7,6 +7,7 @@ import {
   type BaseExtractorIdV1,
   type FamilyExtractorBindingV1,
 } from "./extractor-contract.v1";
+import { FISCAL_NOTIFICATION_FAMILY_RULES_V2 } from "./family-rule-registry.v2";
 import { FISCAL_NOTIFICATION_EXTRACTOR_CORE_VERSION_V1 } from "./shared.v1";
 
 const ENGINE_FIELDS = Object.freeze({
@@ -95,38 +96,11 @@ const ENGINE_FIELDS = Object.freeze({
   inspection: ["inspectionStage", "scope", "periods", "actReference"],
 } as const satisfies Readonly<Record<BaseExtractorIdV1, readonly string[]>>);
 
-const EXECUTABLE_REVIEW_ONLY_FAMILIES =
-  new Set<FiscalNotificationDocumentFamilyIdV3>([
-    "notification.delivery_attempt",
-    "notification.publication_or_appearance",
-    "notification.dehu_envelope",
-    "compliance.formal_filing_requirement",
-    "compliance.document_request",
-    "assessment.allegations_and_proposal",
-    "assessment.final_provisional_assessment",
-    "collection.enforcement_order",
-    "collection.deferral_grant",
-    "collection.deferral_denial",
-    "collection.offset_requested",
-    "collection.offset_ex_officio",
-    "payment.payment_form",
-    "payment.receipt",
-    "payment.failed_or_reversed",
-    "seizure.bank_account",
-    "seizure.commercial_credits",
-    "seizure.wages_or_pensions",
-    "seizure.tpv_receipts",
-    "seizure.cash_or_refund",
-    "seizure.real_estate",
-    "seizure.release",
-    "seizure.third_party_response",
-    "seizure.third_party_payment",
-  ]);
-
-const RECOGNIZED_WITHOUT_COMPLETE_EXTRACTOR =
-  new Set<FiscalNotificationDocumentFamilyIdV3>([
-    "registry.tax_registration_resolution",
-  ]);
+const familyRuleByFamilyId = new Map(
+  FISCAL_NOTIFICATION_FAMILY_RULES_V2.map(
+    (rule) => [rule.familyId, rule] as const,
+  ),
+);
 
 function engineForFamily(
   family: FiscalNotificationDocumentFamilyV3,
@@ -176,6 +150,10 @@ function bindingForFamily(
   family: FiscalNotificationDocumentFamilyV3,
 ): FamilyExtractorBindingV1 {
   const extractorId = engineForFamily(family);
+  const familyRule = familyRuleByFamilyId.get(family.id);
+  if (!familyRule || familyRule.extractorId !== extractorId) {
+    throw new Error("FISCAL_NOTIFICATION_FAMILY_RULE_BINDING_MISMATCH_V2");
+  }
   return Object.freeze({
     familyId: family.id,
     extractorId,
@@ -184,15 +162,11 @@ function bindingForFamily(
     variant: "AEAT_COMMON_TERRITORY_CATALOG_V3",
     additionalFieldIds: Object.freeze([...ENGINE_FIELDS[extractorId]]),
     classificationRuleIds: Object.freeze([
-      `classification.${extractorId}.explicit-markers.v1`,
+      familyRule.ruleId,
       "classification.segment-main-act-only.v1",
     ]),
     presentationViewId: `fiscal-notification.${extractorId}.review-card.v1`,
-    implementationStatus: EXECUTABLE_REVIEW_ONLY_FAMILIES.has(family.id)
-      ? "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY"
-      : RECOGNIZED_WITHOUT_COMPLETE_EXTRACTOR.has(family.id)
-        ? "ADAPTER_REQUIRED"
-        : "CONTRACT_ONLY",
+    implementationStatus: "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY",
   });
 }
 

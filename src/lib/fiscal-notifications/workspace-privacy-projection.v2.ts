@@ -21,12 +21,35 @@ import type { FiscalNotificationDocumentFamilyIdV3 } from "./knowledge/document-
 import { resolveAeatDocumentProfileV1 } from "./knowledge/aeat-document-knowledge.v1";
 import { normalizeFiscalNotificationReferenceV2 } from "./exact-reference-index.v2";
 import {
-  createSensitiveReferenceV2,
+  createSensitiveReferenceV2Sync,
   normalizeSensitiveReferenceForFingerprintV2,
+  parseSensitiveReferenceMemoryCarrierV2,
 } from "./sensitive-reference.v2";
 import { resolveFiscalNotificationChronologyV2 } from "./chronology-date.v2";
 
 const SENSITIVE_REFERENCE_TYPES = new Set(["CSV", "NRC"]);
+const PROFILE_DATE_FIELD_KINDS = new Set<string>([
+  "ISSUE_DATE",
+  "SIGNING_DATE",
+  "AVAILABILITY_DATE",
+  "ACCESS_DATE",
+  "REJECTION_DATE",
+  "EXPIRATION_DATE",
+  "EFFECTIVE_NOTIFICATION_DATE",
+  "ACTION_DATE",
+  "RESPONSE_DEADLINE",
+  "VOLUNTARY_PAYMENT_DEADLINE",
+  "APPEAL_DEADLINE",
+  "INSTALLMENT_DUE_DATE",
+  "PAYMENT_DATE",
+  "SEIZURE_DATE",
+  "RELEASE_DATE",
+  "FILING_DATE",
+  "START_DATE",
+  "END_DATE",
+  "INTEREST_START_DATE",
+  "INTEREST_END_DATE",
+]);
 
 function issuerForDocument(
   document: AdministrativeDocument,
@@ -137,53 +160,117 @@ function pushDocumentDates(input: {
   documentIndex: number;
   dates: PersistedDateFactV2[];
 }): void {
+  const evidenceById = new Map(
+    input.workspace.evidence
+      .filter((entry) => entry.documentId === input.document.id)
+      .map((entry) => [entry.id, entry] as const),
+  );
+  const explicitDates = input.document.analysisSnapshotIds.flatMap(
+    (snapshotId) => {
+      const snapshot = input.workspace.analysisSnapshots.find(
+        (entry) =>
+          entry.id === snapshotId && entry.documentId === input.document.id,
+      );
+      if (!snapshot) return [];
+      return snapshot.structuredData.unknownFields.flatMap((field) => {
+        if (!field.labelRaw.startsWith("VSR2|profile:date:")) return [];
+        const encodedFieldId = field.labelRaw.split("|", 3)[1];
+        const fieldCode = encodedFieldId?.split(":")[2];
+        if (!fieldCode || !PROFILE_DATE_FIELD_KINDS.has(fieldCode)) return [];
+        const evidence = field.evidenceId
+          ? evidenceById.get(field.evidenceId)
+          : undefined;
+        if (
+          !evidence ||
+          evidence.assertionType !== "EXPLICIT_IN_DOCUMENT" ||
+          evidence.extractionMethod !== "RULE"
+        ) {
+          return [];
+        }
+        return [
+          {
+            fieldId: fieldCode,
+            kind: fieldCode as DocumentDateKindV2,
+            value: field.valueRaw,
+            evidenceIds: [evidence.id],
+          },
+        ];
+      });
+    },
+  );
+  const explicitByKind = new Map(
+    explicitDates.map((entry) => [entry.kind, entry] as const),
+  );
   const candidates: Array<{
     fieldId: string;
     kind: DocumentDateKindV2;
     value: string | undefined;
+    evidenceIds: readonly string[];
   }> = [
     {
       fieldId: "ISSUE_DATE",
       kind: "ISSUE_DATE",
       value: input.document.issueDate,
+      evidenceIds: explicitByKind.get("ISSUE_DATE")?.evidenceIds ?? [],
     },
     {
       fieldId: "SIGNING_DATE",
       kind: "SIGNING_DATE",
       value: input.document.signatureDate,
+      evidenceIds: explicitByKind.get("SIGNING_DATE")?.evidenceIds ?? [],
     },
     {
       fieldId: "AVAILABILITY_DATE",
       kind: "AVAILABILITY_DATE",
       value: input.document.notificationDates.madeAvailableAt,
+      evidenceIds: explicitByKind.get("AVAILABILITY_DATE")?.evidenceIds ?? [],
     },
     {
       fieldId: "ACCESS_DATE",
       kind: "ACCESS_DATE",
       value: input.document.notificationDates.accessedAt,
+      evidenceIds: explicitByKind.get("ACCESS_DATE")?.evidenceIds ?? [],
     },
     {
       fieldId: "REJECTION_DATE",
       kind: "REJECTION_DATE",
       value: input.document.notificationDates.rejectedAt,
+      evidenceIds: explicitByKind.get("REJECTION_DATE")?.evidenceIds ?? [],
     },
     {
       fieldId: "EFFECTIVE_NOTIFICATION_DATE",
       kind: "EFFECTIVE_NOTIFICATION_DATE",
       value: input.document.notificationDates.effectiveAt,
+      evidenceIds:
+        explicitByKind.get("EFFECTIVE_NOTIFICATION_DATE")?.evidenceIds ?? [],
     },
+    ...explicitDates.filter(
+      (entry) =>
+        ![
+          "ISSUE_DATE",
+          "SIGNING_DATE",
+          "AVAILABILITY_DATE",
+          "ACCESS_DATE",
+          "REJECTION_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE",
+        ].includes(entry.kind),
+    ),
   ];
   for (const [dateIndex, candidate] of candidates.entries()) {
     if (!candidate.value) continue;
+    const dateValue = candidate.value.slice(0, 10);
     input.dates.push({
       id: `date:v1:${input.documentIndex}:${dateIndex}`,
       ownerScope: input.workspace.ownerScope,
       documentId: input.document.id,
       fieldId: candidate.fieldId,
       kind: candidate.kind,
-      value: candidate.value,
-      assertionType: "NOT_PROVEN_BY_DOCUMENT",
-      evidenceIds: [],
+      value: dateValue,
+      assertionType:
+        candidate.evidenceIds.length > 0
+          ? "EXPLICIT_IN_DOCUMENT"
+          : "NOT_PROVEN_BY_DOCUMENT",
+      evidenceIds: [...candidate.evidenceIds],
     });
   }
 }
@@ -549,32 +636,46 @@ function projectAmounts(
   return amounts;
 }
 
-async function projectReferences(
+function projectReferences(
   workspace: FiscalNotificationsWorkspace,
-): Promise<PersistedReferenceV2[] | null> {
+): PersistedReferenceV2[] | null {
   const documentsById = new Map(
     workspace.documents.map((entry) => [entry.id, entry]),
   );
   const result: PersistedReferenceV2[] = [];
   for (const reference of workspace.references) {
-    const normalized = normalizeSensitiveReferenceForFingerprintV2(
-      reference.normalizedValue,
-    );
     const document = documentsById.get(reference.documentId);
-    if (!normalized || !document) return null;
+    const sensitiveType = reference.referenceType as "CSV" | "NRC";
+    const protectedCarrier = SENSITIVE_REFERENCE_TYPES.has(
+      reference.referenceType,
+    )
+      ? parseSensitiveReferenceMemoryCarrierV2(
+          reference.normalizedValue,
+          sensitiveType,
+        )
+      : null;
+    const normalized = protectedCarrier
+      ? null
+      : normalizeSensitiveReferenceForFingerprintV2(
+          reference.normalizedValue,
+        );
+    if ((!protectedCarrier && !normalized) || !document) return null;
     const issuerCode = issuerForDocument(document, workspace);
     let value: PersistedReferenceV2["value"] | null;
     try {
       value = SENSITIVE_REFERENCE_TYPES.has(reference.referenceType)
-        ? await createSensitiveReferenceV2({
+        ? protectedCarrier ??
+          createSensitiveReferenceV2Sync({
             ownerScope: workspace.ownerScope,
             issuerCode,
-            referenceType: reference.referenceType as "CSV" | "NRC",
-            printedValue: normalized,
+            referenceType: sensitiveType,
+            printedValue: normalized!,
           })
         : {
             storage: "NORMALIZED_REFERENCE" as const,
-            normalizedValue: normalizeFiscalNotificationReferenceV2(normalized),
+            normalizedValue: normalizeFiscalNotificationReferenceV2(
+              normalized!,
+            ),
           };
     } catch {
       return null;
@@ -771,12 +872,12 @@ function projectTypedFacts(
  * copies party names, tax identifiers, addresses, bank accounts, source text,
  * titles, snippets, raw values, filenames or arbitrary notes.
  */
-export async function projectFiscalNotificationsWorkspacePrivacyV2(
+export function projectFiscalNotificationsWorkspacePrivacyV2(
   workspace: FiscalNotificationsWorkspace,
   expectedOwnerScope: string,
-): Promise<Readonly<FiscalNotificationsPersistedWorkspaceV2> | null> {
+): Readonly<FiscalNotificationsPersistedWorkspaceV2> | null {
   if (workspace.ownerScope !== expectedOwnerScope) return null;
-  const references = await projectReferences(workspace);
+  const references = projectReferences(workspace);
   if (!references) return null;
   const dates: PersistedDateFactV2[] = [];
   workspace.documents.forEach((document, documentIndex) =>

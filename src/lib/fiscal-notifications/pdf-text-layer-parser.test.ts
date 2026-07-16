@@ -11,6 +11,8 @@ import {
 interface SyntheticTextItem {
   readonly str?: string;
   readonly hasEOL?: boolean;
+  readonly transform?: readonly number[];
+  readonly width?: number;
 }
 
 interface SyntheticPdfOptions {
@@ -159,6 +161,34 @@ describe("fiscal notification PDF text-layer parser", () => {
     expect(harness.cleanup).toHaveBeenCalledTimes(2);
     expect(harness.documentDestroy).toHaveBeenCalledTimes(1);
     expect(harness.loadingDestroy).not.toHaveBeenCalled();
+  });
+
+  it("preserves bounded ephemeral layout rows for deterministic table extraction", async () => {
+    const harness = createSyntheticPdfJs({
+      itemsByPage: [
+        [
+          { str: "Importe total", transform: [1, 0, 0, 1, 20, 100], width: 50 },
+          { str: "123,45", transform: [1, 0, 0, 1, 80, 80], width: 30 },
+        ],
+      ],
+    });
+
+    const result = await parseFiscalNotificationPdfTextLayerBytes(
+      validInput({ pdfjs: harness.pdfjs }),
+    );
+
+    expect(result.pages[0]?.layoutRows).toEqual([
+      {
+        yMilli: 100_000,
+        cells: [{ xMilli: 20_000, widthMilli: 50_000, text: "Importe total" }],
+      },
+      {
+        yMilli: 80_000,
+        cells: [{ xMilli: 80_000, widthMilli: 30_000, text: "123,45" }],
+      },
+    ]);
+    expect(Object.isFrozen(result.pages[0]?.layoutRows)).toBe(true);
+    expect(Object.isFrozen(result.pages[0]?.layoutRows?.[0]?.cells[0])).toBe(true);
   });
 
   it("reads a real, fully synthetic PDF with the installed local PDF.js runtime", async () => {

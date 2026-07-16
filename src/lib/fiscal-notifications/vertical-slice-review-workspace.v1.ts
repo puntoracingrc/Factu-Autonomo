@@ -101,13 +101,24 @@ const REVIEW_ID =
 const SHA256 = /^[a-f0-9]{64}$/u;
 const MAX_SOURCE_BYTES = 4 * 1024 * 1024;
 const AEAT_AUTHORITY_ID = "authority:aeat";
-const VERTICAL_FIELD_PREFIX = "VSR1";
+const VERTICAL_FIELD_PREFIX = "VSR2";
 
 interface TechnicalSourceV1 {
   readonly pageCount: number;
   readonly byteLength: number;
   readonly sha256: string;
   readonly rulesVersion: string;
+}
+
+interface PlannedReviewDocumentV1 {
+  readonly document: FiscalNotificationVerticalSliceReviewDocumentV1;
+  /**
+   * Closed, non-document-derived key used only to disambiguate repeated
+   * extractor outputs from the same PDF. It intentionally contains neither
+   * reviewDocumentId nor title/text/reference data.
+   */
+  readonly persistenceKey: string;
+  readonly permitsLegacyFamilyReplay: boolean;
 }
 
 /**
@@ -171,21 +182,24 @@ export function appendFiscalNotificationVerticalSliceReviewV1(
     assertUnusedId(workspace.packages, packageId);
     assertUnusedId(workspace.files, fileId);
   }
+  const plannedDocuments = planReviewDocuments(review.documents);
   const documentIds: string[] = [];
-  const missingDocuments: FiscalNotificationVerticalSliceReviewDocumentV1[] =
-    [];
-  for (const document of review.documents) {
+  const missingDocuments: PlannedReviewDocumentV1[] = [];
+  for (const planned of plannedDocuments) {
+    const { document, persistenceKey, permitsLegacyFamilyReplay } = planned;
     const existing = findExistingReviewDocument(
       workspace,
       fileId,
       document.familyId,
+      persistenceKey,
+      permitsLegacyFamilyReplay,
     );
     if (existing) {
       documentIds.push(existing.id);
       continue;
     }
-    missingDocuments.push(document);
-    documentIds.push(documentId(reviewUuid, document.extractorId));
+    missingDocuments.push(planned);
+    documentIds.push(documentId(reviewUuid, persistenceKey));
   }
 
   if (missingDocuments.length === 0) {
@@ -216,7 +230,7 @@ export function appendFiscalNotificationVerticalSliceReviewV1(
     });
   }
 
-  for (const document of missingDocuments) {
+  for (const planned of missingDocuments) {
     appendDocument({
       workspace,
       ownerScope,
@@ -225,7 +239,8 @@ export function appendFiscalNotificationVerticalSliceReviewV1(
       packageId,
       fileId,
       source,
-      document,
+      document: planned.document,
+      persistenceKey: planned.persistenceKey,
     });
   }
   workspace.revision += 1;
@@ -247,10 +262,18 @@ function appendDocument(input: {
   fileId: string;
   source: TechnicalSourceV1;
   document: FiscalNotificationVerticalSliceReviewDocumentV1;
+  persistenceKey: string;
 }): void {
-  const { workspace, ownerScope, reviewUuid, createdAt, document } = input;
-  const id = documentId(reviewUuid, document.extractorId);
-  const snapshotId = `analysis:${reviewUuid}:vertical:${document.extractorId}`;
+  const {
+    workspace,
+    ownerScope,
+    reviewUuid,
+    createdAt,
+    document,
+    persistenceKey,
+  } = input;
+  const id = documentId(reviewUuid, persistenceKey);
+  const snapshotId = `analysis:${reviewUuid}:vertical:${persistenceKey}`;
   assertUnusedId(workspace.documents, id);
   assertUnusedId(workspace.analysisSnapshots, snapshotId);
 
@@ -273,8 +296,9 @@ function appendDocument(input: {
   const evidenceIds = new Set<string>();
 
   document.fields.forEach((field, fieldIndex) => {
+    const retainedValue = retainedTypedFieldValue(field);
     const fieldEvidenceIds = field.sourcePageNumbers.map((pageNumber) => {
-      const evidenceId = `evidence:${reviewUuid}:vertical:${document.extractorId}:${fieldIndex}:${pageNumber}`;
+      const evidenceId = `evidence:${reviewUuid}:vertical:${persistenceKey}:${fieldIndex}:${pageNumber}`;
       assertBoundedId(evidenceId, "evidenceId");
       if (
         evidenceIds.has(evidenceId) ||
@@ -288,8 +312,11 @@ function appendDocument(input: {
         ownerScope,
         documentId: id,
         pageNumber,
-        textSnippet: field.sourceLabel,
-        rawValue: field.normalizedValue ?? field.displayValue,
+        // Legacy workspace fields are required by the V1 schema, but their
+        // contents are controlled typed tokens, never snippets copied from the
+        // PDF. The review parser has already rejected raw/PII-bearing fields.
+        textSnippet: field.label,
+        rawValue: retainedValue,
         extractionMethod: "RULE",
         confidence: confidenceBand(field.confidence),
         assertionType: "EXPLICIT_IN_DOCUMENT",
@@ -300,19 +327,18 @@ function appendDocument(input: {
     if (!primaryEvidenceId) throw invalidInput();
     unknownFields.push({
       labelRaw: encodeVerticalFieldLabel(field),
-      valueRaw: field.displayValue,
+      valueRaw: retainedValue,
       page: field.sourcePageNumbers[0]!,
       evidenceId: primaryEvidenceId,
       confidence: confidenceBand(field.confidence),
     });
     if (field.semantic === "REFERENCE") {
       references.push({
-        id: `reference:${reviewUuid}:vertical:${document.extractorId}:${fieldIndex}`,
+        id: `reference:${reviewUuid}:vertical:${persistenceKey}:${fieldIndex}`,
         ownerScope,
         referenceType: referenceType(field.canonicalType),
-        rawValue: field.displayValue,
-        normalizedValue:
-          field.normalizedValue ?? normalizeReference(field.displayValue),
+        rawValue: retainedValue,
+        normalizedValue: retainedValue,
         issuer: "AEAT",
         scope: "DOCUMENT",
         documentId: id,
@@ -329,7 +355,7 @@ function appendDocument(input: {
         throw invalidInput();
       }
       moneyFacts.push({
-        id: `money:${reviewUuid}:vertical:${document.extractorId}:${fieldIndex}`,
+        id: `money:${reviewUuid}:vertical:${persistenceKey}:${fieldIndex}`,
         ownerScope,
         documentId: id,
         kind: moneyKind(field.canonicalType, document.familyId),
@@ -353,7 +379,6 @@ function appendDocument(input: {
   });
   const documentType = documentTypeForFamily(document.familyId);
   const authorityId = ensureDocumentAuthority(workspace, ownerScope, document);
-  const subjectParty = subjectPartyForDocument(document);
   const issueDate = normalizedDate(document, "ISSUE_DATE");
   const signingDate = normalizedDate(document, "SIGNING_DATE");
   const effectiveNotificationDate = normalizedDate(
@@ -376,9 +401,8 @@ function appendDocument(input: {
     ...(issueDate ? { issueDate } : {}),
     ...(signingDate ? { signatureDate: signingDate } : {}),
     notificationDates: effectiveNotificationDate
-      ? { effectiveAt: effectiveNotificationDate }
+      ? { effectiveAt: `${effectiveNotificationDate}T00:00:00.000Z` }
       : {},
-    ...(subjectParty ? { subjectParty } : {}),
     status: "UNKNOWN",
     urgency: "REVIEW",
     extractionVersion: FISCAL_NOTIFICATION_VERTICAL_SLICE_WORKSPACE_VERSION_V1,
@@ -642,13 +666,69 @@ function findExistingReviewDocument(
   workspace: FiscalNotificationsWorkspace,
   fileId: string,
   familyId: string,
+  persistenceKey: string,
+  permitsLegacyFamilyReplay: boolean,
 ): FiscalNotificationsWorkspace["documents"][number] | null {
-  const matches = workspace.documents.filter(
-    (document) =>
-      document.fileId === fileId && document.documentSubtype === familyId,
+  const sourceDocuments = workspace.documents.filter(
+    (document) => document.fileId === fileId,
   );
-  if (matches.length > 1) throw invalidInput();
-  return matches[0] ?? null;
+  const identitySuffix = `:vertical:${persistenceKey}`;
+  const identityMatches = sourceDocuments.filter((document) =>
+    document.id.endsWith(identitySuffix),
+  );
+  if (identityMatches.length > 1) throw invalidInput();
+  const exactMatch = identityMatches[0];
+  if (exactMatch) {
+    if (exactMatch.documentSubtype !== familyId) throw invalidInput();
+    return exactMatch;
+  }
+  if (!permitsLegacyFamilyReplay) return null;
+
+  // Compatibility for workspaces written before per-act identity existed:
+  // a non-repeated extractor was replayed by source file + family. This
+  // fallback is deliberately disabled as soon as an extractor emits more
+  // than one act, because family alone cannot distinguish those acts.
+  const legacyFamilyMatches = sourceDocuments.filter(
+    (document) => document.documentSubtype === familyId,
+  );
+  if (legacyFamilyMatches.length > 1) throw invalidInput();
+  return legacyFamilyMatches[0] ?? null;
+}
+
+function planReviewDocuments(
+  documents: readonly FiscalNotificationVerticalSliceReviewDocumentV1[],
+): readonly PlannedReviewDocumentV1[] {
+  const totals = new Map<string, number>();
+  for (const document of documents) {
+    totals.set(
+      document.extractorId,
+      (totals.get(document.extractorId) ?? 0) + 1,
+    );
+  }
+  const ordinals = new Map<string, number>();
+  return documents.map((document) => {
+    const total = totals.get(document.extractorId);
+    if (!total || total < 1) throw invalidInput();
+    if (total === 1) {
+      // Byte-for-byte compatibility with all pre-existing single-act IDs.
+      return Object.freeze({
+        document,
+        persistenceKey: document.extractorId,
+        permitsLegacyFamilyReplay: true,
+      });
+    }
+    const ordinal = (ordinals.get(document.extractorId) ?? 0) + 1;
+    ordinals.set(document.extractorId, ordinal);
+    const persistenceKey = `${document.extractorId}:occurrence:${String(
+      ordinal,
+    ).padStart(5, "0")}`;
+    assertBoundedId(persistenceKey, "persistenceKey");
+    return Object.freeze({
+      document,
+      persistenceKey,
+      permitsLegacyFamilyReplay: false,
+    });
+  });
 }
 
 function ensureAeatAuthority(
@@ -732,57 +812,6 @@ function ensureDocumentAuthority(
   return id;
 }
 
-function subjectPartyForDocument(
-  document: FiscalNotificationVerticalSliceReviewDocumentV1,
-): FiscalNotificationsWorkspace["documents"][number]["subjectParty"] | null {
-  const names = [
-    ...new Set(
-      document.fields
-        .filter(
-          (field) =>
-            field.semantic === "PARTY" &&
-            (field.canonicalType === "TAXPAYER" ||
-              field.canonicalType === "PRIMARY_DEBTOR"),
-        )
-        .map((field) => field.displayValue),
-    ),
-  ];
-  const debtorTaxIds = [
-    ...new Set(
-      document.fields
-        .filter(
-          (field) =>
-            field.semantic === "DETAIL" &&
-            field.canonicalType === "DEBTOR_TAX_ID",
-        )
-        .map((field) => normalizeReference(field.displayValue)),
-    ),
-  ];
-  const genericTaxIds = [
-    ...new Set(
-      document.fields
-        .filter(
-          (field) =>
-            field.semantic === "REFERENCE" && field.canonicalType === "NIF",
-        )
-        .map(
-          (field) =>
-            field.normalizedValue ?? normalizeReference(field.displayValue),
-        ),
-    ),
-  ];
-  if (names.length > 1 || debtorTaxIds.length > 1) throw invalidInput();
-  const taxId =
-    debtorTaxIds[0] ??
-    (genericTaxIds.length === 1 ? genericTaxIds[0] : undefined);
-  if (!names[0] && !taxId) return null;
-  return {
-    ...(names[0] ? { displayName: names[0] } : {}),
-    ...(taxId ? { taxIdNormalized: taxId } : {}),
-    matchesBusinessProfile: "UNKNOWN",
-  };
-}
-
 function documentTypeForFamily(familyId: string): AdministrativeDocumentType {
   switch (familyId) {
     case "notification.delivery_attempt":
@@ -813,7 +842,10 @@ function documentTypeForFamily(familyId: string): AdministrativeDocumentType {
     case "seizure.real_estate":
       return "AEAT_SEIZURE_ORDER";
     default:
-      throw invalidInput();
+      // The V2 profile-driven recognizer preserves the exact catalog family in
+      // documentSubtype. Families without a narrower legacy document type stay
+      // administrative notices; this never grants operational semantics.
+      return "GENERIC_ADMINISTRATIVE_NOTICE";
   }
 }
 
@@ -911,14 +943,33 @@ function confidenceBand(value: number): ConfidenceBand {
 function encodeVerticalFieldLabel(
   field: Pick<
     FiscalNotificationVerticalSliceReviewFieldV1,
-    "semantic" | "canonicalType" | "label"
+    "fieldId" | "semantic" | "canonicalType" | "label"
   >,
 ): string {
-  return `${VERTICAL_FIELD_PREFIX}|${field.semantic}|${field.canonicalType}|${field.label}`;
+  return `${VERTICAL_FIELD_PREFIX}|${field.fieldId}|${field.semantic}|${field.canonicalType}|${field.label}`;
 }
 
-function normalizeReference(value: string): string {
-  return value.toLocaleUpperCase("es").replace(/[\t \u00a0]+/gu, "");
+function retainedTypedFieldValue(
+  field: FiscalNotificationVerticalSliceReviewFieldV1,
+): string {
+  switch (field.semantic) {
+    case "REFERENCE":
+    case "DATE":
+    case "PARTY":
+    case "DETAIL":
+    case "OBLIGATION":
+      if (field.normalizedValue === null) throw invalidInput();
+      return field.normalizedValue;
+    case "MONEY":
+      if (field.amountCents === null || field.currency !== "EUR") {
+        throw invalidInput();
+      }
+      return String(field.amountCents);
+    case "STATUS":
+      return String(field.canonicalType);
+    case "MASKED_VALUE":
+      throw invalidInput();
+  }
 }
 
 function normalizeTitle(value: string): string {

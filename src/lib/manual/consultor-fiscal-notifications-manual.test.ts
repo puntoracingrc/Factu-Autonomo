@@ -23,8 +23,8 @@ describe("manual de Notificaciones y expedientes", () => {
     expect(text).toContain("**Ambas**");
     expect(text).toContain("no necesitas seleccionarlo ni escanearlo otra vez");
     expect(text).toContain("Factu nunca custodia el PDF");
-    expect(text).toContain("requerimientos de documentación");
-    expect(text).toContain("denegaciones de aplazamiento o fraccionamiento");
+    expect(text).toContain("documentación solicitada");
+    expect(text).toContain("denegación de aplazamiento o fraccionamiento");
     expect(text).toContain("motivo impreso");
     expect(text).toContain("carta de pago adjunta");
     expect(text).toContain("no crea automáticamente una deuda");
@@ -53,7 +53,7 @@ describe("manual de Notificaciones y expedientes", () => {
     expect(text).toContain("Fecha del último documento");
     expect(text).toContain("de izquierda a derecha");
     expect(text).toContain("Relación detectada · revisar");
-    expect(text).toContain("no inventa cuál causó a cuál");
+    expect(text).toContain("no confirma por sí sola el efecto");
     expect(text).toContain("¿Eliminar este documento?");
     expect(text).toContain("¿Quieres eliminar también el documento original");
     expect(text).toContain("papelera de Drive");

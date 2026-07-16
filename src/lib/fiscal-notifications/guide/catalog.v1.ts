@@ -1,23 +1,35 @@
 import {
-  FISCAL_NOTIFICATION_CAUSAL_RELATIONS_V2,
   FISCAL_NOTIFICATION_DOCUMENT_FAMILIES_V2,
   FISCAL_NOTIFICATION_PROHIBITED_INFERENCE_IDS_V2,
   resolveFiscalNotificationDocumentFamilyV2,
-  type FiscalNotificationCausalRelationIdV2,
   type FiscalNotificationDocumentFamilyCategoryV2,
   type FiscalNotificationDocumentFamilyIdV2,
   type FiscalNotificationKnowledgePriorityV2,
   type FiscalNotificationProhibitedInferenceIdV2,
 } from "@/lib/fiscal-notifications/knowledge/document-families.v2";
-import {
-  FISCAL_NOTIFICATION_FAMILY_COVERAGE_V2,
-  type FiscalNotificationKnowledgeBlockerV2,
-  type FiscalNotificationKnowledgeCoverageStatusV2,
-} from "@/lib/fiscal-notifications/knowledge/coverage.v2";
+import type { FiscalNotificationKnowledgeBlockerV2 } from "@/lib/fiscal-notifications/knowledge/coverage.v2";
 import {
   FISCAL_NOTIFICATION_OFFICIAL_SOURCES_V4,
   type FiscalNotificationOfficialSourceIdV4,
 } from "@/lib/fiscal-notifications/knowledge/official-sources.v4";
+import {
+  AEAT_DOCUMENT_COMPLETION_GATE_V2,
+} from "@/lib/fiscal-notifications/knowledge/completion-gate.v2";
+import {
+  AEAT_DOCUMENT_RELATION_TYPES_V1,
+  resolveAeatDocumentProfileV1,
+  type AeatDocumentRelationTypeIdV1,
+} from "@/lib/fiscal-notifications/knowledge/aeat-document-knowledge.v1";
+import {
+  FISCAL_NOTIFICATION_DOCUMENT_CHAINS_V2,
+  getFiscalNotificationFamilyChainAdjacencyV2,
+  isFiscalNotificationDocumentFamilyIdV2,
+  isFiscalNotificationRelationTypeIdV2,
+  matchesFiscalNotificationAbstractNodeV2,
+  type FiscalNotificationAbstractNodeIdV2,
+  type FiscalNotificationDocumentChainIdV2,
+  type FiscalNotificationRelationTypeIdV2,
+} from "@/lib/fiscal-notifications/document-chain-rules.v2";
 import {
   resolveFiscalNotificationPlainLanguageGuidanceV1,
   type FiscalNotificationPlainLanguageGuidanceV1,
@@ -161,14 +173,39 @@ export interface FiscalNotificationGuideSourceV1 {
 }
 
 export interface FiscalNotificationGuideRelatedFamilyV1 {
-  readonly relationId: FiscalNotificationCausalRelationIdV2;
+  readonly relationId: `${FiscalNotificationDocumentChainIdV2}:${FiscalNotificationRelationTypeIdV2}`;
+  readonly chainId: FiscalNotificationDocumentChainIdV2;
+  readonly relationType: FiscalNotificationRelationTypeIdV2;
   readonly familyId: FiscalNotificationDocumentFamilyIdV2;
   readonly nameEs: string;
   readonly direction: "POSSIBLE_PREVIOUS" | "POSSIBLE_NEXT";
   readonly status: "SUGGESTED_ONLY";
   readonly matchPolicy: "EXPLICIT_REFERENCE_OR_HUMAN_CONFIRMATION_REQUIRED";
+  readonly requiresPrintedFavorableOutcome: boolean;
   readonly autoConfirm: false;
 }
+
+export interface FiscalNotificationGuideAbstractRelationContextV1 {
+  readonly contextKind:
+    | "DECLARED_CHAIN_WILDCARD"
+    | "DECLARED_RELATION_WITHOUT_TARGET";
+  readonly chainId: FiscalNotificationDocumentChainIdV2 | null;
+  readonly relationType: AeatDocumentRelationTypeIdV1;
+  readonly abstractNodeId: FiscalNotificationAbstractNodeIdV2 | null;
+  readonly counterpartFamilyId: FiscalNotificationDocumentFamilyIdV2 | null;
+  readonly direction:
+    | "POSSIBLE_PREVIOUS"
+    | "POSSIBLE_NEXT"
+    | "CONTEXT_ONLY";
+  readonly status: "SUGGESTED_ONLY";
+  readonly prudentPhrase: string;
+  readonly requiresPrintedFavorableOutcome: boolean;
+  readonly autoConfirm: false;
+}
+
+export type FiscalNotificationGuideCoverageStatusV1 =
+  | "AUTOMATIC_REVIEW_ONLY"
+  | "MANUAL_REVIEW_ONLY";
 
 export interface FiscalNotificationGuideProhibitionV1 {
   readonly id: FiscalNotificationProhibitedInferenceIdV2;
@@ -190,9 +227,10 @@ export interface FiscalNotificationGuideEntryV1 {
   readonly documentChecks: readonly string[];
   readonly possiblePrevious: readonly FiscalNotificationGuideRelatedFamilyV1[];
   readonly possibleNext: readonly FiscalNotificationGuideRelatedFamilyV1[];
+  readonly abstractRelationContexts: readonly FiscalNotificationGuideAbstractRelationContextV1[];
   readonly sources: readonly FiscalNotificationGuideSourceV1[];
   readonly coverage: Readonly<{
-    status: FiscalNotificationKnowledgeCoverageStatusV2;
+    status: FiscalNotificationGuideCoverageStatusV1;
     candidateHandlerImplemented: boolean;
     explicitFactExtractorImplemented: boolean;
     syntheticTestCaseAvailable: boolean;
@@ -220,59 +258,193 @@ const sourceById = new Map(
     source,
   ] as const),
 );
-const coverageByFamilyId = new Map(
-  FISCAL_NOTIFICATION_FAMILY_COVERAGE_V2.map((coverage) => [
-    coverage.familyId,
-    coverage,
+const completionByFamilyId = new Map(
+  AEAT_DOCUMENT_COMPLETION_GATE_V2.profiles.map((profile) => [
+    profile.familyId,
+    profile,
   ] as const),
 );
+
+const GUIDE_REVIEW_ONLY_BLOCKERS_V1 = Object.freeze([
+  "OFFICIAL_CONTEXT_ONLY_NOT_A_RULE",
+  "LEGAL_REVIEW_PENDING",
+  "OPERATIONAL_ACTIVATION_PROHIBITED",
+] as const satisfies readonly FiscalNotificationKnowledgeBlockerV2[]);
 
 function relatedFamilies(
   familyId: FiscalNotificationDocumentFamilyIdV2,
   direction: FiscalNotificationGuideRelatedFamilyV1["direction"],
 ): readonly FiscalNotificationGuideRelatedFamilyV1[] {
   const related = new Map<string, FiscalNotificationGuideRelatedFamilyV1>();
+  const adjacency = getFiscalNotificationFamilyChainAdjacencyV2(familyId);
+  const edges =
+    direction === "POSSIBLE_PREVIOUS"
+      ? adjacency.incoming
+      : adjacency.outgoing;
 
-  for (const relation of FISCAL_NOTIFICATION_CAUSAL_RELATIONS_V2) {
-    const selectedIds =
+  for (const edge of edges) {
+    if (
+      !isFiscalNotificationDocumentFamilyIdV2(edge.rawFromNode) ||
+      !isFiscalNotificationDocumentFamilyIdV2(edge.rawToNode)
+    ) {
+      continue;
+    }
+    const otherId =
       direction === "POSSIBLE_PREVIOUS"
-        ? relation.toFamilyIds
-        : relation.fromFamilyIds;
-    if (!selectedIds.includes(familyId)) continue;
+        ? edge.fromFamilyId
+        : edge.toFamilyId;
+    if (otherId === familyId) continue;
+    const otherFamily = resolveFiscalNotificationDocumentFamilyV2(otherId);
+    if (!otherFamily) continue;
+    const relationId = `${edge.chainId}:${edge.relationType}` as const;
+    const key = `${relationId}:${otherFamily.id}:${direction}`;
+    related.set(
+      key,
+      Object.freeze({
+        relationId,
+        chainId: edge.chainId,
+        relationType: edge.relationType,
+        familyId: otherFamily.id,
+        nameEs: otherFamily.nameEs,
+        direction,
+        status: "SUGGESTED_ONLY",
+        matchPolicy: "EXPLICIT_REFERENCE_OR_HUMAN_CONFIRMATION_REQUIRED",
+        requiresPrintedFavorableOutcome:
+          edge.requiresPrintedFavorableOutcome,
+        autoConfirm: false,
+      }),
+    );
+  }
 
-    const otherIds =
-      direction === "POSSIBLE_PREVIOUS"
-        ? relation.fromFamilyIds
-        : relation.toFamilyIds;
-    for (const otherId of otherIds) {
-      const otherFamily = resolveFiscalNotificationDocumentFamilyV2(otherId);
-      if (!otherFamily || otherFamily.id === familyId) continue;
-      const key = `${relation.id}:${otherFamily.id}:${direction}`;
-      related.set(
+  return Object.freeze(
+    [...related.values()].sort((left, right) =>
+      `${left.chainId}:${left.relationType}:${left.familyId}`.localeCompare(
+        `${right.chainId}:${right.relationType}:${right.familyId}`,
+      ),
+    ),
+  );
+}
+
+function isAbstractNodeId(
+  value: string,
+): value is FiscalNotificationAbstractNodeIdV2 {
+  return !isFiscalNotificationDocumentFamilyIdV2(value);
+}
+
+function abstractRelationContexts(
+  familyId: FiscalNotificationDocumentFamilyIdV2,
+): readonly FiscalNotificationGuideAbstractRelationContextV1[] {
+  const profile = resolveAeatDocumentProfileV1(familyId);
+  if (!profile) throw new Error("Missing fiscal notification knowledge profile");
+  const contexts = new Map<
+    string,
+    FiscalNotificationGuideAbstractRelationContextV1
+  >();
+
+  for (const chain of FISCAL_NOTIFICATION_DOCUMENT_CHAINS_V2) {
+    for (const edge of chain.edges) {
+      const fromAbstract = isAbstractNodeId(edge.from);
+      const toAbstract = isAbstractNodeId(edge.to);
+      if (!fromAbstract && !toAbstract) continue;
+      const familyMatchesFrom = fromAbstract
+        ? matchesFiscalNotificationAbstractNodeV2({
+            nodeId: edge.from,
+            familyId,
+            printedFavorableOutcome: true,
+          })
+        : edge.from === familyId;
+      const familyMatchesTo = toAbstract
+        ? matchesFiscalNotificationAbstractNodeV2({
+            nodeId: edge.to,
+            familyId,
+            printedFavorableOutcome: true,
+          })
+        : edge.to === familyId;
+      if (!familyMatchesFrom && !familyMatchesTo) continue;
+      const followsFrom =
+        (!fromAbstract && edge.from === familyId) ||
+        (!toAbstract && edge.to !== familyId && familyMatchesFrom);
+      const direction = followsFrom
+        ? ("POSSIBLE_NEXT" as const)
+        : ("POSSIBLE_PREVIOUS" as const);
+      const abstractNodeId = (fromAbstract
+        ? edge.from
+        : edge.to) as FiscalNotificationAbstractNodeIdV2;
+      const counterpart = followsFrom ? edge.to : edge.from;
+      const counterpartFamilyId = isFiscalNotificationDocumentFamilyIdV2(
+        counterpart,
+      )
+        ? counterpart
+        : null;
+      const requiresPrintedFavorableOutcome =
+        edge.from === "ANY_FAVORABLE_ACT" ||
+        edge.to === "ANY_FAVORABLE_ACT";
+      const key = `${chain.id}:${edge.relationType}:${abstractNodeId}:${counterpartFamilyId ?? "*"}:${direction}`;
+      contexts.set(
         key,
         Object.freeze({
-          relationId: relation.id,
-          familyId: otherFamily.id,
-          nameEs: otherFamily.nameEs,
+          contextKind: "DECLARED_CHAIN_WILDCARD",
+          chainId: chain.id,
+          relationType: edge.relationType,
+          abstractNodeId,
+          counterpartFamilyId,
           direction,
-          status: relation.status,
-          matchPolicy: relation.matchPolicy,
-          autoConfirm: relation.autoConfirm,
+          status: "SUGGESTED_ONLY",
+          prudentPhrase:
+            AEAT_DOCUMENT_RELATION_TYPES_V1[edge.relationType].suggestedPhrase,
+          requiresPrintedFavorableOutcome,
+          autoConfirm: false,
         }),
       );
     }
   }
 
-  return Object.freeze([...related.values()]);
+  const representedTypes = new Set(
+    [
+      ...getFiscalNotificationFamilyChainAdjacencyV2(familyId).incoming,
+      ...getFiscalNotificationFamilyChainAdjacencyV2(familyId).outgoing,
+    ].map((edge) => edge.relationType),
+  );
+  for (const role of profile.chainRole) {
+    if (!role.startsWith("RELATION:")) continue;
+    const relationType = role.slice("RELATION:".length);
+    if (!isFiscalNotificationRelationTypeIdV2(relationType)) {
+      throw new Error("Missing fiscal notification relation role");
+    }
+    if (representedTypes.has(relationType)) continue;
+    contexts.set(
+      `role:${relationType}`,
+      Object.freeze({
+        contextKind: "DECLARED_RELATION_WITHOUT_TARGET",
+        chainId: null,
+        relationType,
+        abstractNodeId: null,
+        counterpartFamilyId: null,
+        direction: "CONTEXT_ONLY",
+        status: "SUGGESTED_ONLY",
+        prudentPhrase:
+          AEAT_DOCUMENT_RELATION_TYPES_V1[relationType].suggestedPhrase,
+        requiresPrintedFavorableOutcome: false,
+        autoConfirm: false,
+      }),
+    );
+  }
+  return Object.freeze(
+    [...contexts.values()].sort((left, right) =>
+      `${left.chainId ?? "~"}:${left.relationType}:${left.abstractNodeId ?? "~"}:${left.counterpartFamilyId ?? "~"}`.localeCompare(
+        `${right.chainId ?? "~"}:${right.relationType}:${right.abstractNodeId ?? "~"}:${right.counterpartFamilyId ?? "~"}`,
+      ),
+    ),
+  );
 }
 
 function guideEntry(
   family: (typeof FISCAL_NOTIFICATION_DOCUMENT_FAMILIES_V2)[number],
 ): FiscalNotificationGuideEntryV1 {
   const category = CATEGORY_PRESENTATION_V1[family.category];
-  const coverage = coverageByFamilyId.get(family.id);
-  if (!coverage) {
-    throw new Error("Missing fiscal notification guide coverage");
+  const completion = completionByFamilyId.get(family.id);
+  if (!completion || completion.guideStatus !== "EXPLAINED") {
+    throw new Error("Missing fiscal notification completion evidence");
   }
 
   const legacyGuidance = resolveFiscalNotificationPlainLanguageGuidanceV1(
@@ -327,18 +499,22 @@ function guideEntry(
     documentChecks: FISCAL_NOTIFICATION_GUIDE_DOCUMENT_CHECKS_V1,
     possiblePrevious: relatedFamilies(family.id, "POSSIBLE_PREVIOUS"),
     possibleNext: relatedFamilies(family.id, "POSSIBLE_NEXT"),
+    abstractRelationContexts: abstractRelationContexts(family.id),
     sources: Object.freeze(sources),
     coverage: Object.freeze({
-      status: coverage.status,
-      candidateHandlerImplemented: coverage.candidateHandlerImplemented,
+      status: knowledge.recognitionMode,
+      candidateHandlerImplemented:
+        completion.recognitionStatus ===
+        "SPECIALIZED_RECOGNITION_IMPLEMENTED_REVIEW_ONLY",
       explicitFactExtractorImplemented:
-        coverage.explicitFactExtractorImplemented,
-      syntheticTestCaseAvailable: coverage.syntheticTestCaseAvailable,
-      legalRuleActive: coverage.legalRuleActive,
-      operationalActionActive: coverage.operationalActionActive,
-      automaticRelationConfirmationActive:
-        coverage.automaticRelationConfirmationActive,
-      blockers: Object.freeze([...coverage.blockers]),
+        completion.extractionStatus === "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY",
+      syntheticTestCaseAvailable: Object.values(completion.testCoverage).every(
+        (status) => status === "COVERED",
+      ),
+      legalRuleActive: false,
+      operationalActionActive: false,
+      automaticRelationConfirmationActive: false,
+      blockers: GUIDE_REVIEW_ONLY_BLOCKERS_V1,
     }),
     prohibitions: Object.freeze(
       FISCAL_NOTIFICATION_PROHIBITED_INFERENCE_IDS_V2.map((id) =>
