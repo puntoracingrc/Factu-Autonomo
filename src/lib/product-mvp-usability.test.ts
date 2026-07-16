@@ -1062,13 +1062,13 @@ describe("MVP usability polish", () => {
     expect(documentListSource).toContain("TimelineMonthDivider");
     expect(documentListSource).toContain("formatTimelineMonthLabel");
     expect(documentListSource.replace(/\s+/g, " ")).toContain(
-      'type === "factura" ? sortInvoicesBySeriesAndNumberDesc( statusDocuments, data.profile.numbering, ) : sortDocumentsByNumberDesc(statusDocuments)',
+      'type === "factura" ? sortInvoicesByPeriodAndNumberDesc( statusDocuments, data.profile.numbering, ) : sortDocumentsByNumberDesc(statusDocuments)',
     );
     expect(documentListSource).toContain(
-      "Agrupadas por serie y ordenadas por número, de mayor a menor",
+      "Ordenadas por año y mes; dentro de cada mes, por el último número de mayor a menor",
     );
-    expect(documentListSource).toContain("describeInvoiceDocumentSeries");
-    expect(documentListSource).toContain("previousInvoiceSeries.key");
+    expect(documentListSource).not.toContain("describeInvoiceDocumentSeries");
+    expect(documentListSource).not.toContain("previousInvoiceSeries.key");
     expect(timelineDividerSource).toContain("min-w-0 max-w-full truncate");
     expect(timelineDividerSource).toContain("title={label}");
   });
