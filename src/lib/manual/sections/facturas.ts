@@ -42,6 +42,7 @@ export const facturasSection: ManualSection = {
       paragraphs: [
         "El listado mantiene juntos los documentos de cada año y mes. Dentro de cada mes ordena por el último bloque numérico del número de factura, de mayor a menor, sin dar prioridad al texto o al prefijo de la serie. Por ejemplo, el año incluido en un número nuevo identifica su formato, pero no sustituye a la secuencia final.",
         "La fecha evita que una factura antigua aparezca dentro de un periodo moderno. Si dos facturas comparten periodo y secuencia, la fecha exacta y el número completo se usan solo para desempatar. Los prefijos pueden ser cualesquiera y los números que no se puedan interpretar quedan al final de su mes.",
+        "Las facturas rectificativas se distinguen con un borde naranja en su tarjeta, además de la etiqueta Rectificativa, para localizarlas rápidamente sin alterar su estado ni sus importes.",
         "Si hay muchas facturas, verás primero 30 y luego el botón **Cargar más**.",
         "Pulsa el icono del **ojo** para abrir la vista previa del PDF dentro de la app. Es el mismo PDF que se descarga, con botón **Descargar** dentro del visor.",
         "El icono de descarga guarda el PDF directamente. Los iconos muestran qué hacen al pasar el ratón o enfocar con teclado.",
