@@ -172,7 +172,8 @@ export function appendFiscalNotificationVerticalSliceReviewV1(
     assertUnusedId(workspace.files, fileId);
   }
   const documentIds: string[] = [];
-  const missingDocuments: FiscalNotificationVerticalSliceReviewDocumentV1[] = [];
+  const missingDocuments: FiscalNotificationVerticalSliceReviewDocumentV1[] =
+    [];
   for (const document of review.documents) {
     const existing = findExistingReviewDocument(
       workspace,
@@ -310,7 +311,8 @@ function appendDocument(input: {
         ownerScope,
         referenceType: referenceType(field.canonicalType),
         rawValue: field.displayValue,
-        normalizedValue: field.normalizedValue ?? normalizeReference(field.displayValue),
+        normalizedValue:
+          field.normalizedValue ?? normalizeReference(field.displayValue),
         issuer: "AEAT",
         scope: "DOCUMENT",
         documentId: id,
@@ -417,9 +419,7 @@ function appendDocument(input: {
       documentFields: {
         title: document.title,
         ...(issueDate ? { issueDate } : {}),
-        ...(effectiveNotificationDate
-          ? { effectiveNotificationDate }
-          : {}),
+        ...(effectiveNotificationDate ? { effectiveNotificationDate } : {}),
       },
     },
     plainLanguageExplanation: [
@@ -483,7 +483,8 @@ function preflightReview(
   let evidence = 0;
   for (const document of documents) {
     fields += document.fields.length;
-    for (const field of document.fields) evidence += field.sourcePageNumbers.length;
+    for (const field of document.fields)
+      evidence += field.sourcePageNumbers.length;
   }
   if (
     fields > FISCAL_NOTIFICATION_INPUT_LIMITS.maxCollectionItems ||
@@ -684,15 +685,17 @@ function ensureDocumentAuthority(
   ownerScope: string,
   document: FiscalNotificationVerticalSliceReviewDocumentV1,
 ): string {
-  const issuerNames = [...new Set(
-    document.fields
-      .filter(
-        (field) =>
-          field.semantic === "PARTY" &&
-          field.canonicalType === "ISSUING_AUTHORITY",
-      )
-      .map((field) => field.displayValue),
-  )];
+  const issuerNames = [
+    ...new Set(
+      document.fields
+        .filter(
+          (field) =>
+            field.semantic === "PARTY" &&
+            field.canonicalType === "ISSUING_AUTHORITY",
+        )
+        .map((field) => field.displayValue),
+    ),
+  ];
   if (issuerNames.length > 1) throw invalidInput();
   const issuer = issuerNames[0];
   const normalized = issuer ? normalizeTitle(issuer) : null;
@@ -732,35 +735,46 @@ function ensureDocumentAuthority(
 function subjectPartyForDocument(
   document: FiscalNotificationVerticalSliceReviewDocumentV1,
 ): FiscalNotificationsWorkspace["documents"][number]["subjectParty"] | null {
-  const names = [...new Set(
-    document.fields
-      .filter(
-        (field) =>
-          field.semantic === "PARTY" &&
-          (field.canonicalType === "TAXPAYER" ||
-            field.canonicalType === "PRIMARY_DEBTOR"),
-      )
-      .map((field) => field.displayValue),
-  )];
-  const debtorTaxIds = [...new Set(
-    document.fields
-      .filter(
-        (field) =>
-          field.semantic === "DETAIL" &&
-          field.canonicalType === "DEBTOR_TAX_ID",
-      )
-      .map((field) => normalizeReference(field.displayValue)),
-  )];
-  const genericTaxIds = [...new Set(
-    document.fields
-      .filter(
-        (field) =>
-          field.semantic === "REFERENCE" && field.canonicalType === "NIF",
-      )
-      .map((field) => field.normalizedValue ?? normalizeReference(field.displayValue)),
-  )];
+  const names = [
+    ...new Set(
+      document.fields
+        .filter(
+          (field) =>
+            field.semantic === "PARTY" &&
+            (field.canonicalType === "TAXPAYER" ||
+              field.canonicalType === "PRIMARY_DEBTOR"),
+        )
+        .map((field) => field.displayValue),
+    ),
+  ];
+  const debtorTaxIds = [
+    ...new Set(
+      document.fields
+        .filter(
+          (field) =>
+            field.semantic === "DETAIL" &&
+            field.canonicalType === "DEBTOR_TAX_ID",
+        )
+        .map((field) => normalizeReference(field.displayValue)),
+    ),
+  ];
+  const genericTaxIds = [
+    ...new Set(
+      document.fields
+        .filter(
+          (field) =>
+            field.semantic === "REFERENCE" && field.canonicalType === "NIF",
+        )
+        .map(
+          (field) =>
+            field.normalizedValue ?? normalizeReference(field.displayValue),
+        ),
+    ),
+  ];
   if (names.length > 1 || debtorTaxIds.length > 1) throw invalidInput();
-  const taxId = debtorTaxIds[0] ?? (genericTaxIds.length === 1 ? genericTaxIds[0] : undefined);
+  const taxId =
+    debtorTaxIds[0] ??
+    (genericTaxIds.length === 1 ? genericTaxIds[0] : undefined);
   if (!names[0] && !taxId) return null;
   return {
     ...(names[0] ? { displayName: names[0] } : {}),
@@ -781,6 +795,8 @@ function documentTypeForFamily(familyId: string): AdministrativeDocumentType {
       return "AEAT_ASSESSMENT_PROPOSAL";
     case "assessment.final_provisional_assessment":
       return "AEAT_ASSESSMENT";
+    case "collection.deferral_denial":
+      return "AEAT_INSTALLMENT_OR_DEFERRAL_DENIAL";
     case "payment.payment_form":
       return "AEAT_PAYMENT_FORM";
     case "payment.receipt":
@@ -945,7 +961,10 @@ function parseReviewId(value: unknown): string {
 function parseIsoTimestamp(value: unknown): string {
   if (typeof value !== "string") throw invalidInput();
   const timestamp = Date.parse(value);
-  if (!Number.isFinite(timestamp) || new Date(timestamp).toISOString() !== value) {
+  if (
+    !Number.isFinite(timestamp) ||
+    new Date(timestamp).toISOString() !== value
+  ) {
     throw invalidInput();
   }
   return value;

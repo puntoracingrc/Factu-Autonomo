@@ -81,7 +81,9 @@ describe("structured document explanation v1", () => {
     expect(result).toMatchObject({
       ruleId: "aeat.offset-agreement.explanation",
       status: "EXPLAINED",
-      result: expect.stringContaining("2 deudas incluidas quedan totalmente extinguidas"),
+      result: expect.stringContaining(
+        "2 deudas incluidas quedan totalmente extinguidas",
+      ),
       nextStep: { status: "NO_PAYMENT_SHOWN" },
       deadline: { status: "MISSING_RECEIPT_DATE" },
       networkPolicy: "NO_NETWORK",
@@ -94,7 +96,11 @@ describe("structured document explanation v1", () => {
           value: "987,20 €",
           basis: "CALCULATED_FROM_PRINTED_VALUES",
         },
-        { label: "Pendiente en esas deudas", value: "0,00 €", basis: "PRINTED" },
+        {
+          label: "Pendiente en esas deudas",
+          value: "0,00 €",
+          basis: "PRINTED",
+        },
       ]),
     );
     expect(result.officialSources.map((source) => source.authority)).toEqual(
@@ -123,12 +129,83 @@ describe("structured document explanation v1", () => {
     expect(partial.nextStep.status).toBe("PAYMENT_OR_RESPONSE_MAY_BE_REQUIRED");
     expect(partial.deadline.status).toBe("RECEIPT_DATE_AVAILABLE");
   });
+
+  it("explains a deferral denial from printed facts and learned official context", () => {
+    const result = explainFiscalNotificationDocumentV1({
+      documentType: "AEAT_INSTALLMENT_OR_DEFERRAL_DENIAL",
+      documentSubtype: "DENIED",
+      documentDate: "2017-07-04",
+      receiptDate: null,
+      facts: [
+        {
+          label: "Motivo de la denegación",
+          value:
+            "Dificultades económico-financieras estructurales indicadas en el acuerdo.",
+        },
+        {
+          label: "Límite de pago",
+          value:
+            "Día 20 del mes posterior o día 5 del segundo mes posterior, según la recepción.",
+        },
+        {
+          label: "Plazo de recurso",
+          value: "Un mes contado desde el día siguiente a la recepción.",
+        },
+        {
+          label: "Dónde indica que puede pagarse",
+          value: "Entidad colaboradora o sede electrónica de la AEAT.",
+        },
+        {
+          label: "Consecuencia indicada 1",
+          value: "Puede iniciarse el procedimiento de apremio.",
+        },
+        { label: "Deuda afectada 1", value: "Deuda sintética" },
+      ],
+      money: [money("DOCUMENT_TOTAL", 72_844, null)],
+    });
+
+    expect(result).toMatchObject({
+      engineVersion: "1.1.0",
+      knowledgeSnapshotId: "official-context.2026-07-16.v2",
+      ruleId: "aeat.deferral-denial.explanation",
+      status: "EXPLAINED",
+      result: expect.stringContaining("728,44 €"),
+      nextStep: {
+        status: "PAYMENT_OR_RESPONSE_MAY_BE_REQUIRED",
+        title: "Paga dentro del plazo impreso o revisa el recurso",
+      },
+      deadline: { status: "MISSING_RECEIPT_DATE" },
+      networkPolicy: "NO_NETWORK",
+    });
+    expect(result.keyFacts).toEqual(
+      expect.arrayContaining([
+        {
+          label: "Importe de la solicitud denegada",
+          value: "728,44 €",
+          basis: "PRINTED",
+        },
+        { label: "Deudas identificadas", value: "1", basis: "PRINTED" },
+      ]),
+    );
+    expect(result.officialSources.map((source) => source.id)).toEqual(
+      expect.arrayContaining([
+        "aeat.collection.deferral_management",
+        "boe.tax.general.law",
+        "boe.tax.collection.regulation",
+      ]),
+    );
+    expect(JSON.stringify(result)).not.toContain("fetch");
+  });
 });
 
 function money(
-  kind: Parameters<typeof explainFiscalNotificationDocumentV1>[0]["money"][number]["kind"],
+  kind: Parameters<
+    typeof explainFiscalNotificationDocumentV1
+  >[0]["money"][number]["kind"],
   amountCents: number,
-  sourceReferenceType: Parameters<typeof explainFiscalNotificationDocumentV1>[0]["money"][number]["sourceReferenceType"],
+  sourceReferenceType: Parameters<
+    typeof explainFiscalNotificationDocumentV1
+  >[0]["money"][number]["sourceReferenceType"],
 ) {
   return Object.freeze({
     kind,

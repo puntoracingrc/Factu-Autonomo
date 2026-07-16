@@ -8,6 +8,10 @@ import {
   type AssessmentExtractorOutputV1,
 } from "./assessment-extractor.v1";
 import {
+  extractDeferralDenialV1,
+  type DeferralDenialExtractorOutputV1,
+} from "./deferral-denial-extractor.v1";
+import {
   segmentFiscalNotificationDocumentV1,
   type DocumentSegmentationResultV1,
 } from "./document-segmenter.v1";
@@ -44,6 +48,7 @@ export const FISCAL_NOTIFICATION_VERTICAL_SLICE_EXTRACTOR_ORDER_V1 =
     "notification-envelope",
     "requirement",
     "assessment",
+    "deferral",
     "payment-order",
     "payment-evidence",
     "seizure",
@@ -56,6 +61,7 @@ export interface FiscalNotificationVerticalSliceExtractionsV1 {
   readonly notificationEnvelope: NotificationEnvelopeExtractorOutputV1 | null;
   readonly formalFilingRequirement: FormalFilingRequirementExtractorOutputV1 | null;
   readonly assessment: AssessmentExtractorOutputV1 | null;
+  readonly deferralDenial: DeferralDenialExtractorOutputV1 | null;
   readonly paymentOrder: PaymentOrderExtractorOutputV1 | null;
   readonly paymentEvidence: PaymentEvidenceExtractorOutputV1 | null;
   readonly seizure: SeizureExtractorOutputV1 | null;
@@ -66,10 +72,7 @@ export interface FiscalNotificationVerticalSliceAnalysisV1 {
   readonly orchestratorVersion: typeof FISCAL_NOTIFICATION_VERTICAL_SLICE_ORCHESTRATOR_VERSION_V1;
   readonly coreContractVersion: typeof FISCAL_NOTIFICATION_EXTRACTOR_CORE_VERSION_V1;
   readonly releaseId: typeof FISCAL_NOTIFICATION_EXTRACTOR_CORE_RELEASE_V1;
-  readonly status:
-    | "REVIEW_REQUIRED"
-    | "INFORMATION_PENDING"
-    | "BLOCKED";
+  readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING" | "BLOCKED";
   readonly documentId: string;
   readonly segmentation: DocumentSegmentationResultV1;
   readonly extractionOrder: readonly FiscalNotificationVerticalSliceExtractorIdV1[];
@@ -131,6 +134,11 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
     segments: segmentation.segments,
   });
   assertNotAborted(document.signal);
+  const deferralDenial = extractDeferralDenialV1({
+    document,
+    segments: segmentation.segments,
+  });
+  assertNotAborted(document.signal);
   const paymentOrder = extractPaymentOrderV1({
     document,
     segments: segmentation.segments,
@@ -148,9 +156,13 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
   assertNotAborted(document.signal);
 
   const outputs = Object.freeze([
-    Object.freeze({ id: "notification-envelope" as const, output: notificationEnvelope }),
+    Object.freeze({
+      id: "notification-envelope" as const,
+      output: notificationEnvelope,
+    }),
     Object.freeze({ id: "requirement" as const, output: requirement }),
     Object.freeze({ id: "assessment" as const, output: assessment }),
+    Object.freeze({ id: "deferral" as const, output: deferralDenial }),
     Object.freeze({ id: "payment-order" as const, output: paymentOrder }),
     Object.freeze({ id: "payment-evidence" as const, output: paymentEvidence }),
     Object.freeze({ id: "seizure" as const, output: seizure }),
@@ -162,9 +174,10 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
   );
   const blockedExtractorIds = Object.freeze(
     outputs
-      .filter(({ id, output }) =>
-        output.status === "BLOCKED" &&
-        !isSupersededCompetingExtractorBlock(id, recognizedExtractorIds)
+      .filter(
+        ({ id, output }) =>
+          output.status === "BLOCKED" &&
+          !isSupersededCompetingExtractorBlock(id, recognizedExtractorIds),
       )
       .map(({ id }) => id),
   );
@@ -194,17 +207,19 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
     extractionOrder: FISCAL_NOTIFICATION_VERTICAL_SLICE_EXTRACTOR_ORDER_V1,
     extractions: Object.freeze({
       notificationEnvelope:
-        notificationEnvelope.status === "REVIEW_REQUIRED" ? notificationEnvelope : null,
+        notificationEnvelope.status === "REVIEW_REQUIRED"
+          ? notificationEnvelope
+          : null,
       formalFilingRequirement:
         requirement.status === "REVIEW_REQUIRED" ? requirement : null,
-      assessment:
-        assessment.status === "REVIEW_REQUIRED" ? assessment : null,
+      assessment: assessment.status === "REVIEW_REQUIRED" ? assessment : null,
+      deferralDenial:
+        deferralDenial.status === "REVIEW_REQUIRED" ? deferralDenial : null,
       paymentOrder:
         paymentOrder.status === "REVIEW_REQUIRED" ? paymentOrder : null,
       paymentEvidence:
         paymentEvidence.status === "REVIEW_REQUIRED" ? paymentEvidence : null,
-      seizure:
-        seizure.status === "REVIEW_REQUIRED" ? seizure : null,
+      seizure: seizure.status === "REVIEW_REQUIRED" ? seizure : null,
     }),
     recognizedExtractorIds,
     blockedExtractorIds,
@@ -225,11 +240,10 @@ function isSupersededCompetingExtractorBlock(
   recognizedExtractorIds: readonly FiscalNotificationVerticalSliceExtractorIdV1[],
 ): boolean {
   return (
-    extractorId === "payment-evidence" &&
-    recognizedExtractorIds.includes("payment-order")
-  ) || (
-    extractorId === "payment-order" &&
-    recognizedExtractorIds.includes("payment-evidence")
+    (extractorId === "payment-evidence" &&
+      recognizedExtractorIds.includes("payment-order")) ||
+    (extractorId === "payment-order" &&
+      recognizedExtractorIds.includes("payment-evidence"))
   );
 }
 

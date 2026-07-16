@@ -4,7 +4,7 @@ import type { FiscalNotificationOfficialSourceIdV4 } from "@/lib/fiscal-notifica
 export const FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_SCHEMA_VERSION_V1 =
   1 as const;
 export const FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_RELEASE_ID_V1 =
-  "fiscal-notification-plain-language-guidance.2026-07-15.v1" as const;
+  "fiscal-notification-plain-language-guidance.2026-07-16.v2" as const;
 
 export interface FiscalNotificationPlainLanguageGuidanceV1 {
   readonly schemaVersion: 1;
@@ -55,7 +55,14 @@ const PROFILES_V1 = Object.freeze({
       "Si el mismo acto llega por más de un canal, prevalece la primera notificación correctamente practicada.",
       "Un aviso por correo o móvil no sustituye el acceso al contenido ni demuestra por sí solo la fecha efectiva.",
     ],
-    ["dehu", "notifica", "acuse", "puesta a disposición", "comparecencia", "sobre"],
+    [
+      "dehu",
+      "notifica",
+      "acuse",
+      "puesta a disposición",
+      "comparecencia",
+      "sobre",
+    ],
     [
       "aeat.notification.electronic_faq",
       "boe.tax.general.law",
@@ -73,7 +80,12 @@ const PROFILES_V1 = Object.freeze({
       "Que Hacienda no encuentre la presentación no demuestra por sí solo que nunca se presentara.",
       "Una carta informativa y un requerimiento formal no tienen necesariamente los mismos efectos.",
     ],
-    ["no presentada", "modelo pendiente", "declaración omitida", "autoliquidación"],
+    [
+      "no presentada",
+      "modelo pendiente",
+      "declaración omitida",
+      "autoliquidación",
+    ],
     [
       "aeat.compliance.omitted_return",
       "boe.tax.general.law",
@@ -91,7 +103,12 @@ const PROFILES_V1 = Object.freeze({
       "Responder no equivale a que Hacienda haya aceptado todavía la explicación.",
       "No des por cumplido el trámite sin un justificante de presentación o registro.",
     ],
-    ["requerimiento", "presentar modelo", "presentación obligatoria", "contestar hacienda"],
+    [
+      "requerimiento",
+      "presentar modelo",
+      "presentación obligatoria",
+      "contestar hacienda",
+    ],
     [
       "aeat.compliance.omitted_return",
       "boe.tax.general.law",
@@ -109,7 +126,13 @@ const PROFILES_V1 = Object.freeze({
       "No responder y responder de forma incompleta son situaciones distintas; el documento debe indicar el alcance.",
       "La petición no prueba por sí sola que exista una deuda o una infracción.",
     ],
-    ["aportar documentación", "requerimiento información", "facturas", "justificantes", "subsanar"],
+    [
+      "aportar documentación",
+      "requerimiento información",
+      "facturas",
+      "justificantes",
+      "subsanar",
+    ],
     [
       "aeat.compliance.individual_information",
       "aeat.assessment.irpf",
@@ -128,7 +151,12 @@ const PROFILES_V1 = Object.freeze({
       "El inicio de una comprobación no equivale por sí solo a una deuda.",
       "El alcance impreso limita qué está comunicando esa actuación concreta.",
     ],
-    ["inicio comprobación", "verificación datos", "comprobación limitada", "regularización"],
+    [
+      "inicio comprobación",
+      "verificación datos",
+      "comprobación limitada",
+      "regularización",
+    ],
     [
       "aeat.assessment.irpf",
       "aeat.assessment.vat",
@@ -146,7 +174,12 @@ const PROFILES_V1 = Object.freeze({
       "Una propuesta no es lo mismo que una liquidación final.",
       "Alegar no suspende ni confirma automáticamente ninguna deuda futura.",
     ],
-    ["propuesta liquidación", "alegaciones", "regularización provisional", "trámite audiencia"],
+    [
+      "propuesta liquidación",
+      "alegaciones",
+      "regularización provisional",
+      "trámite audiencia",
+    ],
     [
       "aeat.assessment.irpf",
       "aeat.assessment.vat",
@@ -164,7 +197,12 @@ const PROFILES_V1 = Object.freeze({
       "La liquidación y una posible sanción son actos distintos, aunque puedan estar relacionados.",
       "Para marcar un pago hace falta una evidencia de pago, no solo la liquidación.",
     ],
-    ["liquidación provisional", "resolución comprobación", "cuota a ingresar", "resultado comprobación"],
+    [
+      "liquidación provisional",
+      "resolución comprobación",
+      "cuota a ingresar",
+      "resultado comprobación",
+    ],
     [
       "aeat.assessment.irpf",
       "aeat.assessment.vat",
@@ -183,11 +221,44 @@ const PROFILES_V1 = Object.freeze({
       "Cerrar una comprobación concreta no borra ni confirma otros expedientes.",
       "El alcance impreso determina qué se ha cerrado.",
     ],
-    ["sin regularización", "sin liquidación", "terminación comprobación", "archivo comprobación"],
+    [
+      "sin regularización",
+      "sin liquidación",
+      "terminación comprobación",
+      "archivo comprobación",
+    ],
     [
       "aeat.assessment.irpf",
       "aeat.assessment.vat",
       "boe.tax.management_inspection.regulation",
+    ],
+  ),
+  DEFERRAL_DENIAL: profile(
+    "deferral-denial",
+    "La AEAT ha rechazado la solicitud de aplazar o dividir una deuda. La deuda no queda aplazada por esta resolución.",
+    "Llega después de una solicitud previa cuando la AEAT considera que no procede concederla por el motivo que imprime en el acuerdo.",
+    "Lee el motivo, identifica cada deuda y revisa la carta de pago incluida. Paga en el plazo impreso o valora la vía de recurso que indica la resolución.",
+    "Pago y recurso se cuentan desde la notificación",
+    "Si la deuda estaba en voluntaria, el acuerdo debe indicar el nuevo plazo de ingreso; si estaba en ejecutiva, la recaudación puede continuar. La ficha no calcula el último día hábil sin la fecha real de recepción.",
+    [
+      "La denegación no es un justificante de pago ni crea por sí sola una deuda distinta.",
+      "La AEAT indica que una resolución denegatoria incluye la carta de pago (modelo 010).",
+      "El recurso de reposición y la reclamación económico-administrativa son vías alternativas; recurrir no acredita por sí solo la suspensión del cobro.",
+    ],
+    [
+      "denegación aplazamiento",
+      "denegación fraccionamiento",
+      "aplazamiento rechazado",
+      "modelo 010",
+      "pagar tras denegación",
+    ],
+    [
+      "aeat.collection.deferral",
+      "aeat.collection.deferral_management",
+      "boe.tax.general.law",
+      "boe.tax.collection.regulation",
+      "aeat.review.reconsideration",
+      "aeat.review.economic_administrative",
     ],
   ),
   PAYMENT_FORM: profile(
@@ -201,7 +272,13 @@ const PROFILES_V1 = Object.freeze({
       "Una carta de pago pendiente y un recibo pagado son documentos diferentes.",
       "El mismo importe no basta para vincular silenciosamente un justificante.",
     ],
-    ["carta de pago", "documento de ingreso", "pagar deuda", "referencia completa", "nrc"],
+    [
+      "carta de pago",
+      "documento de ingreso",
+      "pagar deuda",
+      "referencia completa",
+      "nrc",
+    ],
     [
       "aeat.collection.payment_and_receipts",
       "aeat.payment.nrc_receipt",
@@ -237,7 +314,13 @@ const PROFILES_V1 = Object.freeze({
       "Una orden fallida no es un pago.",
       "Tampoco demuestra por sí sola que Hacienda haya reabierto una deuda ya extinguida.",
     ],
-    ["pago rechazado", "pago devuelto", "nrc anulado", "fallo pago", "pago fallido"],
+    [
+      "pago rechazado",
+      "pago devuelto",
+      "nrc anulado",
+      "fallo pago",
+      "pago fallido",
+    ],
     ["aeat.collection.payment_and_receipts", "boe.tax.collection.regulation"],
   ),
   ENFORCEMENT_ORDER: profile(
@@ -252,7 +335,13 @@ const PROFILES_V1 = Object.freeze({
       "Si termina el plazo de la providencia sin ingreso, puede comenzar la fase de embargo para cubrir deuda, recargos, intereses y costas.",
       "Recurrir no demuestra por sí solo que el cobro esté suspendido.",
     ],
-    ["providencia apremio", "vía ejecutiva", "recargo ejecutivo", "recargo apremio", "deuda apremiada"],
+    [
+      "providencia apremio",
+      "vía ejecutiva",
+      "recargo ejecutivo",
+      "recargo apremio",
+      "deuda apremiada",
+    ],
     [
       "aeat.collection.enforcement",
       "aeat.collection.enforcement_surcharges",
@@ -274,7 +363,14 @@ const PROFILES_V1 = Object.freeze({
       "Deudor, banco, cliente, pagador o empleador pueden recibir documentos distintos y no deben confundirse.",
       "Pagar o contestar como tercero no autoriza a modificar silenciosamente la ficha de deuda del usuario.",
     ],
-    ["embargo", "diligencia embargo", "retener", "cuenta bloqueada", "crédito embargado", "salario"],
+    [
+      "embargo",
+      "diligencia embargo",
+      "retener",
+      "cuenta bloqueada",
+      "crédito embargado",
+      "salario",
+    ],
     [
       "aeat.collection.seizure_overview",
       "aeat.collection.seizure_types",
@@ -294,7 +390,12 @@ const PROFILES_V1 = Object.freeze({
       "El tercero y el deudor son roles diferentes.",
       "Una respuesta del tercero no acredita por sí sola que ya se haya ingresado el dinero.",
     ],
-    ["contestación embargo", "tercero retenedor", "respuesta diligencia", "cliente pagador"],
+    [
+      "contestación embargo",
+      "tercero retenedor",
+      "respuesta diligencia",
+      "cliente pagador",
+    ],
     [
       "aeat.seizure.credits",
       "aeat.collection.seizure_types",
@@ -312,7 +413,12 @@ const PROFILES_V1 = Object.freeze({
       "El ingreso del tercero puede ser parcial y no demuestra automáticamente que toda la deuda esté extinguida.",
       "La referencia explícita es necesaria para relacionarlo con la diligencia correcta.",
     ],
-    ["pago tercero", "ingreso embargo", "retención ingresada", "justificante diligencia"],
+    [
+      "pago tercero",
+      "ingreso embargo",
+      "retención ingresada",
+      "justificante diligencia",
+    ],
     [
       "aeat.collection.payment_and_receipts",
       "aeat.seizure.credits",
@@ -330,7 +436,12 @@ const PROFILES_V1 = Object.freeze({
       "Levantar un embargo concreto no equivale necesariamente a extinguir todo el expediente.",
       "El motivo y el alcance válidos son los que constan en el acuerdo.",
     ],
-    ["levantamiento embargo", "desembargo", "liberar cuenta", "cancelación retención"],
+    [
+      "levantamiento embargo",
+      "desembargo",
+      "liberar cuenta",
+      "cancelación retención",
+    ],
     [
       "aeat.collection.seizure_overview",
       "aeat.collection.seizure_types",
@@ -363,6 +474,7 @@ const FAMILY_PROFILE_BINDINGS_V1 = Object.freeze([
     "assessment.final_provisional_assessment",
   ]),
   bind(PROFILES_V1.NO_ADJUSTMENT, ["assessment.no_adjustment_resolution"]),
+  bind(PROFILES_V1.DEFERRAL_DENIAL, ["collection.deferral_denial"]),
   bind(PROFILES_V1.PAYMENT_FORM, ["payment.payment_form"]),
   bind(PROFILES_V1.PAYMENT_RECEIPT, ["payment.receipt"]),
   bind(PROFILES_V1.FAILED_PAYMENT, ["payment.failed_or_reversed"]),
@@ -395,10 +507,9 @@ export const FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_V1 = Object.freeze(
 ) satisfies readonly FiscalNotificationPlainLanguageGuidanceV1[];
 
 const guidanceByFamilyId = new Map(
-  FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_V1.map((guidance) => [
-    guidance.familyId,
-    guidance,
-  ] as const),
+  FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_V1.map(
+    (guidance) => [guidance.familyId, guidance] as const,
+  ),
 );
 const CONTROL_CHARACTER_PATTERN = /[\u0000-\u001f\u007f-\u009f]/u;
 
@@ -455,7 +566,8 @@ function freezeGuidance(
   familyId: FiscalNotificationDocumentFamilyIdV2,
 ): FiscalNotificationPlainLanguageGuidanceV1 {
   return Object.freeze({
-    schemaVersion: FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_SCHEMA_VERSION_V1,
+    schemaVersion:
+      FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_SCHEMA_VERSION_V1,
     releaseId: FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_RELEASE_ID_V1,
     profileId: seed.profileId,
     profileVersion: "1.0.0",

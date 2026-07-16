@@ -3,7 +3,10 @@ import { consultorFiscalSection } from "./sections/consultor-fiscal";
 
 function notificationManualText(): string {
   return consultorFiscalSection.steps
-    .filter((step) => /^\d+\. /u.test(step.title) && Number.parseInt(step.title, 10) >= 7)
+    .filter(
+      (step) =>
+        /^\d+\. /u.test(step.title) && Number.parseInt(step.title, 10) >= 7,
+    )
     .flatMap((step) => [step.title, ...step.paragraphs, step.tip ?? ""])
     .join("\n");
 }
@@ -13,11 +16,14 @@ describe("manual de Notificaciones y expedientes", () => {
     const text = notificationManualText();
 
     expect(text).toContain("Elegir varios PDF");
-    expect(text).toContain("10 documentos");
+    expect(text).toContain("50 documentos");
     expect(text).toContain("Añadirlos no inicia el análisis");
     expect(text).toContain("Guardar datos en mi cuenta");
     expect(text).toContain("no guarda el PDF, su nombre ni el texto completo");
     expect(text).toContain("requerimientos de documentación");
+    expect(text).toContain("denegaciones de aplazamiento o fraccionamiento");
+    expect(text).toContain("motivo impreso");
+    expect(text).toContain("carta de pago adjunta");
     expect(text).toContain("no crea automáticamente una deuda");
   });
 
