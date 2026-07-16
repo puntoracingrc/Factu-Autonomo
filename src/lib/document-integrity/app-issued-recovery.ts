@@ -19,6 +19,7 @@ import type {
 } from "@/lib/types";
 import { sha256Hex } from "./snapshot-hash";
 import { hasAppIssuedRecoveryProtectionClaim } from "./app-issued-recovery-protection";
+import { isValidTestDocumentRetirementBatch } from "../test-document-retirement-persistence";
 import {
   buildDocumentSnapshot,
   inspectDocumentSnapshotsIntegrity,
@@ -1491,6 +1492,22 @@ function evidenceFromPreview(
   return evidence;
 }
 
+function appliedRetiredDocumentIds(data: AppData): Set<string> {
+  const documentIds = new Set<string>();
+  for (const batch of data.testDocumentRetirementBatches ?? []) {
+    if (
+      !isValidTestDocumentRetirementBatch(batch) ||
+      batch.status !== "applied"
+    ) {
+      continue;
+    }
+    batch.selectedDocumentIds.forEach((documentId) =>
+      documentIds.add(documentId),
+    );
+  }
+  return documentIds;
+}
+
 export function buildAppIssuedDocumentRecoveryPreview(
   data: AppData,
   suppliedEvidence: AppIssuedDocumentRecoveryPdfEvidenceByDocumentId = {},
@@ -1518,14 +1535,18 @@ export function buildAppIssuedDocumentRecoveryPreview(
   }
 
   const duplicates = duplicateIds(data.documents);
+  const retiredDocumentIds = appliedRetiredDocumentIds(data);
+  const activeDocuments = data.documents.filter(
+    (document) => !retiredDocumentIds.has(document.id),
+  );
   const manualReview: AppIssuedDocumentRecoveryReviewItem[] = [];
   const candidates: AppIssuedDocumentRecoveryCandidate[] = [];
   const alreadyAppliedRepairIds: string[] = [];
   const byId = new Map(
-    data.documents.map((document) => [document.id, document]),
+    activeDocuments.map((document) => [document.id, document]),
   );
 
-  for (const document of data.documents) {
+  for (const document of activeDocuments) {
     if (duplicates.has(document.id)) {
       review(manualReview, document, ["duplicate_document_id"]);
       continue;
@@ -1538,7 +1559,7 @@ export function buildAppIssuedDocumentRecoveryPreview(
     }
   }
 
-  for (const document of data.documents) {
+  for (const document of activeDocuments) {
     if (
       !isPotentialPreSealStandaloneInvoice(document) ||
       duplicates.has(document.id) ||
@@ -1559,7 +1580,7 @@ export function buildAppIssuedDocumentRecoveryPreview(
     if (detected) candidates.push(detected);
   }
 
-  for (const rectification of data.documents) {
+  for (const rectification of activeDocuments) {
     if (
       rectification.rectification?.type !== "correccion" ||
       duplicates.has(rectification.id) ||
@@ -1594,7 +1615,7 @@ export function buildAppIssuedDocumentRecoveryPreview(
     if (detected) candidates.push(detected);
   }
 
-  for (const receipt of data.documents) {
+  for (const receipt of activeDocuments) {
     if (
       receipt.type !== "recibo" ||
       !receipt.sourceDocumentId ||

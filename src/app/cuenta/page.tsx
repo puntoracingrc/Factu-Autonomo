@@ -179,11 +179,11 @@ export default function CuentaPage() {
         <div id="reparacion-repartos-gastos" className="scroll-mt-24">
           <ExpenseWorkAllocationRepairCard />
         </div>
-        <div id="recuperacion-documentos-factu" className="scroll-mt-24">
-          <AppIssuedDocumentRecoveryCard />
-        </div>
         <div id="mantenimiento-documentos-prueba" className="scroll-mt-24">
           <TestDocumentRetirementCard />
+        </div>
+        <div id="recuperacion-documentos-factu" className="scroll-mt-24">
+          <AppIssuedDocumentRecoveryCard />
         </div>
       </AccountSection>
 
