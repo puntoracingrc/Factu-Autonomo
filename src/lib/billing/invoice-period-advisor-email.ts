@@ -1,11 +1,12 @@
 import { validateAdvisorContact } from "@/lib/advisor-contact";
-import { buildMailtoUrl } from "@/lib/share";
+import { buildGmailComposeUrl, buildMailtoUrl } from "@/lib/share";
 import type { BusinessProfile } from "@/lib/types";
 
 export interface InvoicePeriodAdvisorEmail {
   recipient: string;
   subject: string;
   body: string;
+  gmailComposeUrl: string;
   mailtoUrl: string;
 }
 
@@ -38,6 +39,11 @@ export function buildInvoicePeriodAdvisorEmail(
     recipient: advisor.value.email,
     subject,
     body,
+    gmailComposeUrl: buildGmailComposeUrl(
+      advisor.value.email,
+      subject,
+      body,
+    ),
     mailtoUrl: buildMailtoUrl(advisor.value.email, subject, body),
   };
 }

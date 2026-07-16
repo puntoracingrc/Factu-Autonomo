@@ -25,7 +25,7 @@ describe("settings advisor contact UI contract", () => {
       "Rellena estos datos para preparar desde Facturas un ZIP y un",
     );
     expect(settingsSource).toContain("adjuntas el ZIP descargado");
-    expect(settingsSource).toContain("envías desde tu aplicación de correo");
+    expect(settingsSource).toContain("Factu abre Gmail");
     expect(settingsSource).toContain("Nombre de la gestoría");
     expect(settingsSource).toContain("Nombre del gestor");
     expect(settingsSource).toContain("Email del gestor");

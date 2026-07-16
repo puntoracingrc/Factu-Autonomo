@@ -92,7 +92,12 @@ import {
   documentStatusHint,
   documentStatusLabel,
 } from "@/lib/invoice-status-actions";
-import { hasClientEmail, hasClientPhone } from "@/lib/share";
+import {
+  hasClientEmail,
+  hasClientPhone,
+  openExternalUrl,
+  reserveExternalShareWindow,
+} from "@/lib/share";
 import { getCustomerDisplayName } from "@/lib/customers";
 import { hasPublicVerifactuAccreditation } from "@/lib/verifactu/attestation";
 import type { Document, DocumentType } from "@/lib/types";
@@ -308,6 +313,9 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
       return;
     }
 
+    const reservedAdvisorWindow = sendToAdvisor
+      ? reserveExternalShareWindow()
+      : null;
     setInvoicePdfExportFeedback(null);
     setInvoicePdfExportBusy(sendToAdvisor ? "advisor" : "download");
     try {
@@ -327,15 +335,24 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
         if (!email) {
           throw new Error("advisor_contact_unavailable");
         }
-        window.location.href = email.mailtoUrl;
+        const opened = openExternalUrl(
+          email.gmailComposeUrl,
+          reservedAdvisorWindow,
+        );
+        if (!opened) {
+          window.location.assign(email.gmailComposeUrl);
+        }
       }
       setInvoicePdfExportFeedback({
         kind: "success",
         message: sendToAdvisor
-          ? `Descargado ${result.fileName} y preparado el correo para tu gestor. Adjunta el ZIP antes de enviarlo.`
+          ? `Descargado ${result.fileName} y abierto Gmail para tu gestor. Adjunta el ZIP antes de enviarlo.`
           : `Descargado ${result.folderName}: ${result.invoiceCount} factura${result.invoiceCount === 1 ? "" : "s"} en PDF y su resumen.`,
       });
     } catch (error) {
+      if (reservedAdvisorWindow && !reservedAdvisorWindow.closed) {
+        reservedAdvisorWindow.close();
+      }
       const message =
         error instanceof InvoicePdfPeriodExportError
           ? error.documentReferences.length > 0
@@ -544,7 +561,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                   }
                   title={
                     invoicePdfExportPeriod
-                      ? "Descargar el ZIP y abrir un correo dirigido a tu gestor"
+                      ? "Descargar el ZIP y abrir Gmail dirigido a tu gestor"
                       : "Selecciona Trimestre o Meses (máximo tres meses)"
                   }
                   className="min-h-10 px-4 text-sm"

@@ -15,6 +15,7 @@ import {
   hasClientPhone,
   normalizePhoneForWhatsApp,
   openDocumentEmailMessage,
+  openExternalUrl,
   openWhatsAppDocumentMessage,
   reserveExternalShareWindow,
   shareDocumentByWhatsApp,
@@ -215,6 +216,39 @@ describe("reserveExternalShareWindow", () => {
     expect(opened.opener).toBeNull();
     expect(opened.document.title).toBe("Preparando envío");
     expect(opened.document.body.textContent).toContain("Preparando el envío");
+  });
+});
+
+describe("openExternalUrl", () => {
+  it("reutiliza la pestaña reservada antes del trabajo asíncrono", () => {
+    const open = vi.fn();
+    const target = {
+      closed: false,
+      focus: vi.fn(),
+      location: { href: "about:blank" },
+    } as unknown as Window;
+    vi.stubGlobal("window", { open });
+
+    expect(
+      openExternalUrl("https://mail.google.com/mail/?view=cm", target),
+    ).toBe(true);
+    expect(open).not.toHaveBeenCalled();
+    expect(target.location.href).toContain("mail.google.com");
+    expect(target.focus).toHaveBeenCalledOnce();
+  });
+
+  it("informa del bloqueo para permitir una navegación de respaldo", () => {
+    const open = vi.fn(() => null);
+    vi.stubGlobal("window", { open });
+
+    expect(openExternalUrl("https://mail.google.com/mail/?view=cm")).toBe(
+      false,
+    );
+    expect(open).toHaveBeenCalledWith(
+      "https://mail.google.com/mail/?view=cm",
+      "_blank",
+      "noopener,noreferrer",
+    );
   });
 });
 
