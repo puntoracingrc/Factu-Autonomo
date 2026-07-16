@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Eye, FileWarning, Pencil, Search } from "lucide-react";
+import { Download, Eye, FileWarning, Pencil, Search } from "lucide-react";
 import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
@@ -18,7 +18,7 @@ import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
 import { GenerateReceiptButton } from "@/components/documents/GenerateReceiptButton";
 import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
 import { Card } from "@/components/ui/Card";
-import { ButtonLink } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
@@ -50,6 +50,12 @@ import {
   sortInvoicesByPeriodAndNumberDesc,
 } from "@/lib/documents";
 import { openDocumentPdfPreview } from "@/lib/pdf";
+import {
+  downloadInvoicePdfPeriodArchive,
+  invoicePdfExportPeriodFromQuarter,
+  InvoicePdfPeriodExportError,
+  type InvoicePdfExportPeriod,
+} from "@/lib/billing/export-invoice-pdf-archive";
 import { summarizeWorkDocumentExpensesById } from "@/lib/expenses";
 import { isCollectedDocument, isPendingInvoicePayment } from "@/lib/income";
 import {
@@ -73,6 +79,7 @@ import {
   filterDocumentsByProductPeriod,
   formatProductPeriodLabel,
   getDefaultProductPeriod,
+  productPeriodMonthRange,
   type ProductPeriodKind,
   type ProductPeriodSelection,
 } from "@/lib/product-period-summary";
@@ -160,7 +167,7 @@ interface DocumentListProps {
 
 export function DocumentList({ type, basePath }: DocumentListProps) {
   const { data, getDocumentsByType, repairDocumentCustomer } = useAppStore();
-  const { billingEnabled, isPro } = useBilling();
+  const { billingEnabled, isPro, limits } = useBilling();
   const vatExempt = isVatExempt(data.profile);
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const [search, setSearch] = useState("");
@@ -169,6 +176,11 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     kind: "all",
   }));
   const [statusFilter, setStatusFilter] = useState<DocumentStatusFilter>("all");
+  const [invoicePdfExportBusy, setInvoicePdfExportBusy] = useState(false);
+  const [invoicePdfExportFeedback, setInvoicePdfExportFeedback] = useState<{
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
   const [visibleCount, setVisibleCount] = useState(DOCUMENT_LIST_BATCH_SIZE);
   const [previewingDocumentId, setPreviewingDocumentId] = useState<
     string | null
@@ -211,6 +223,25 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     vatExempt,
   ]);
 
+  const invoicePdfExportPeriod = useMemo<InvoicePdfExportPeriod | null>(() => {
+    if (type !== "factura") return null;
+    if (period.kind === "quarter") {
+      return invoicePdfExportPeriodFromQuarter(period.year, period.quarter);
+    }
+    if (period.kind === "month") {
+      return {
+        year: period.year,
+        startMonth: period.month,
+        endMonth: period.month,
+      };
+    }
+    if (period.kind === "months") {
+      const { startMonth, endMonth } = productPeriodMonthRange(period);
+      return { year: period.year, startMonth, endMonth };
+    }
+    return null;
+  }, [period, type]);
+
   const workExpenseSummaries = useMemo(() => {
     return summarizeWorkDocumentExpensesById(data.expenses);
   }, [data.expenses]);
@@ -241,7 +272,48 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
   const hiddenCount = Math.max(documents.length - visibleDocuments.length, 0);
 
   function updatePeriod(patch: Partial<ProductPeriodSelection>) {
-    setPeriod((current) => ({ ...current, ...patch }));
+    setPeriod((current) => {
+      const next = { ...current, ...patch };
+      if (next.kind !== "months") return next;
+      const { startMonth, endMonth } = productPeriodMonthRange(next);
+      return { ...next, month: startMonth, endMonth };
+    });
+    setInvoicePdfExportFeedback(null);
+  }
+
+  async function handleExportInvoicePdfs() {
+    if (!invoicePdfExportPeriod) {
+      setInvoicePdfExportFeedback({
+        kind: "error",
+        message:
+          "Selecciona Trimestre o Meses para exportar un máximo de tres meses.",
+      });
+      return;
+    }
+
+    setInvoicePdfExportFeedback(null);
+    setInvoicePdfExportBusy(true);
+    try {
+      const result = await downloadInvoicePdfPeriodArchive(
+        data.documents,
+        data.profile,
+        invoicePdfExportPeriod,
+      );
+      setInvoicePdfExportFeedback({
+        kind: "success",
+        message: `Descargado ${result.folderName}: ${result.invoiceCount} factura${result.invoiceCount === 1 ? "" : "s"} en PDF.`,
+      });
+    } catch (error) {
+      const message =
+        error instanceof InvoicePdfPeriodExportError
+          ? error.documentReferences.length > 0
+            ? `${error.message} Documentos: ${error.documentReferences.join(", ")}.`
+            : error.message
+          : "No se pudo preparar el paquete de facturas. No se ha descargado un archivo incompleto.";
+      setInvoicePdfExportFeedback({ kind: "error", message });
+    } finally {
+      setInvoicePdfExportBusy(false);
+    }
   }
 
   async function handlePdfPreview(doc: Document) {
@@ -261,6 +333,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     setVisibleCount(DOCUMENT_LIST_BATCH_SIZE);
   }, [
     period.kind,
+    period.endMonth,
     period.month,
     period.quarter,
     period.year,
@@ -273,7 +346,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     <div className="space-y-4">
       {totalCount > 0 && (
         <Card className="space-y-4 p-4">
-          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_minmax(0,0.8fr)]">
             <Field label={`Buscar ${label}`} hint={SEARCH_HINTS[type]}>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -287,7 +360,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
             </Field>
 
             <Field label="Periodo">
-              <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2">
                 <Select
                   value={period.kind}
                   aria-label="Periodo del listado"
@@ -298,7 +371,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                   }
                 >
                   <option value="all">Todos</option>
-                  <option value="month">Mes</option>
+                  <option value="months">Meses</option>
                   <option value="quarter">Trimestre</option>
                   <option value="year">Año</option>
                 </Select>
@@ -319,19 +392,42 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                   </Select>
                 )}
 
-                {period.kind === "month" && (
+                {period.kind === "months" && (
                   <Select
                     value={period.month}
-                    aria-label="Mes del listado"
-                    onChange={(event) =>
-                      updatePeriod({ month: Number(event.target.value) })
-                    }
+                    aria-label="Mes inicial del listado"
+                    onChange={(event) => {
+                      const month = Number(event.target.value);
+                      updatePeriod({ month });
+                    }}
                   >
                     {PRODUCT_MONTH_NAMES.map((name, index) => (
                       <option key={name} value={index + 1}>
-                        {name}
+                        Desde {name}
                       </option>
                     ))}
+                  </Select>
+                )}
+
+                {period.kind === "months" && (
+                  <Select
+                    value={period.endMonth ?? period.month}
+                    aria-label="Mes final del listado"
+                    onChange={(event) =>
+                      updatePeriod({ endMonth: Number(event.target.value) })
+                    }
+                  >
+                    {PRODUCT_MONTH_NAMES.slice(
+                      period.month - 1,
+                      Math.min(12, period.month + 2),
+                    ).map((name, index) => {
+                      const month = period.month + index;
+                      return (
+                        <option key={name} value={month}>
+                          Hasta {name}
+                        </option>
+                      );
+                    })}
                   </Select>
                 )}
 
@@ -385,6 +481,50 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
               ? ` · Mostrando ${visibleDocuments.length}`
               : ""}
           </p>
+
+          {type === "factura" && limits.quarterlyExport ? (
+            <div className="flex flex-col gap-2 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => void handleExportInvoicePdfs()}
+                  disabled={invoicePdfExportBusy || !invoicePdfExportPeriod}
+                  title={
+                    invoicePdfExportPeriod
+                      ? "Descargar las facturas del periodo en una carpeta ZIP"
+                      : "Selecciona Trimestre o Meses (máximo tres meses)"
+                  }
+                  className="min-h-10 px-4 text-sm"
+                >
+                  <Download className="h-4 w-4" />
+                  {invoicePdfExportBusy
+                    ? "Preparando…"
+                    : "Exportar facturas PDF"}
+                </Button>
+              </div>
+              <p className="text-xs text-slate-500 sm:max-w-md sm:text-right">
+                Usa el periodo seleccionado: un mes, hasta tres meses
+                consecutivos o un trimestre. La búsqueda y el estado no cambian
+                el paquete.
+              </p>
+            </div>
+          ) : null}
+
+          {type === "factura" && invoicePdfExportFeedback ? (
+            <p
+              role={
+                invoicePdfExportFeedback.kind === "error" ? "alert" : "status"
+              }
+              className={`text-sm font-semibold ${
+                invoicePdfExportFeedback.kind === "error"
+                  ? "text-red-700"
+                  : "text-emerald-700"
+              }`}
+            >
+              {invoicePdfExportFeedback.message}
+            </p>
+          ) : null}
         </Card>
       )}
 

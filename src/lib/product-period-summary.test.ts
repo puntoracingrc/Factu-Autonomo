@@ -3,6 +3,7 @@ import {
   buildProductPeriodSummary,
   filterDocumentsByProductPeriod,
   filterExpensesByProductPeriod,
+  formatProductPeriodLabel,
   getDefaultProductPeriod,
   type ProductPeriodSelection,
 } from "./product-period-summary";
@@ -136,6 +137,38 @@ describe("product period summary", () => {
 
     expect(filterDocumentsByProductPeriod(documents, june2026).map((d) => d.id))
       .toEqual(["june"]);
+  });
+
+  it("filtra hasta tres meses consecutivos y describe el rango", () => {
+    const documents = [
+      invoice({ id: "may", date: "2026-05-01" }),
+      invoice({ id: "june", date: "2026-06-15" }),
+      invoice({ id: "july", date: "2026-07-31" }),
+      invoice({ id: "august", date: "2026-08-01" }),
+    ];
+    const selection: ProductPeriodSelection = {
+      kind: "months",
+      year: 2026,
+      month: 5,
+      endMonth: 7,
+      quarter: 2,
+    };
+
+    expect(filterDocumentsByProductPeriod(documents, selection).map((d) => d.id))
+      .toEqual(["may", "june", "july"]);
+    expect(formatProductPeriodLabel(selection)).toBe("Mayo-Julio 2026");
+  });
+
+  it("limita defensivamente los rangos mensuales a tres meses", () => {
+    const selection: ProductPeriodSelection = {
+      kind: "months",
+      year: 2026,
+      month: 5,
+      endMonth: 12,
+      quarter: 2,
+    };
+
+    expect(formatProductPeriodLabel(selection)).toBe("Mayo-Julio 2026");
   });
 
   it("filtra facturas por año", () => {
