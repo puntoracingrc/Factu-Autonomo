@@ -516,6 +516,10 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                 {dividerLabel && <TimelineMonthDivider label={dividerLabel} />}
                 <Card
                   className={`grid gap-4 ${
+                    rect
+                      ? "!border-orange-300 ring-1 ring-orange-100"
+                      : ""
+                  } ${
                     type === "factura"
                       ? "xl:grid-cols-[minmax(18rem,0.8fr)_minmax(30rem,1.2fr)]"
                       : "md:grid-cols-[minmax(0,1fr)_minmax(15rem,auto)]"
@@ -548,8 +552,11 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                           </span>
                         )}
                       {legacyImportedAccepted && (
-                        <span className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800">
-                          Histórico importado · aceptado por ti
+                        <span
+                          className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-800"
+                          title="Documento histórico importado y aceptado para cálculos"
+                        >
+                          Histórico importado
                         </span>
                       )}
                       {appIssuedRecovered && (

@@ -22,7 +22,8 @@ describe("historical imported document presentation", () => {
   it("etiqueta únicamente atestaciones válidas mediante la policy central", () => {
     expect(listSource).toContain("isUsableLegacyImportedDocument(doc)");
     expect(actionsSource).toContain("isUsableLegacyImportedDocument(doc)");
-    expect(listSource).toContain("Histórico importado · aceptado");
+    expect(listSource).toContain("Histórico importado");
+    expect(listSource).not.toContain("Histórico importado · aceptado por ti");
     expect(actionsSource).toContain("Histórico importado · aceptado por ti");
   });
 

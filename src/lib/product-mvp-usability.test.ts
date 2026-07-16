@@ -1076,6 +1076,18 @@ describe("MVP usability polish", () => {
     expect(timelineDividerSource).toContain("bg-blue-300");
   });
 
+  it("distingue las facturas rectificativas con el acento naranja del vínculo", () => {
+    const documentListSource = readFileSync(
+      new URL("../components/documents/DocumentList.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(documentListSource.replace(/\s+/g, " ")).toContain(
+      'rect ? "!border-orange-300 ring-1 ring-orange-100" : ""',
+    );
+    expect(documentListSource).toContain("isRectificativa(doc)");
+  });
+
   it("carga gastos por bloques y muestra separadores por mes", () => {
     const expensesPageSource = readFileSync(
       new URL("../app/gastos/page.tsx", import.meta.url),
