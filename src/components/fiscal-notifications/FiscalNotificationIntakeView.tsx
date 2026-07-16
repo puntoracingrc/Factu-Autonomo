@@ -393,22 +393,23 @@ export function FiscalNotificationIntakeView({
           <h2 className="font-bold text-slate-900">Alcance de esta versión</h2>
           <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
             <li>
-              Reconoce la familia documental de providencia de apremio,
-              concesión de aplazamiento o fraccionamiento, diligencia de embargo
-              de bienes inmuebles, requerimiento formal de presentación y
-              acuerdo de alta en el ROI. No confirma por sí sola el organismo
-              emisor ni la autenticidad.
+              El motor dispone de 87 perfiles documentales cerrados. Para cada
+              familia ejecuta reconocimiento y extracción deterministas con sus
+              propios campos, fuentes y reglas. Toda lectura queda pendiente de
+              revisión y no confirma por sí sola el organismo emisor, la
+              autenticidad ni un efecto jurídico.
             </li>
             <li>
               Un acuerdo de alta en el ROI describe el documento analizado: no
               demuestra que el alta siga vigente ni valida el estado en VIES.
             </li>
             <li>
-              El nombre, el NIF, los importes, los valores exactos de referencia
-              y las fechas del documento pueden guardarse en una ficha estructurada
-              mediante una acción explícita. Factu no conserva el PDF, su nombre
-              ni el texto completo; opcionalmente puede archivar el original en
-              el Google Drive del usuario tras otra confirmación expresa.
+              Durante la revisión puede mostrar el nombre, el NIF, importes,
+              referencias y fechas que constan en el documento. Al guardar en
+              Factu solo conserva los datos estructurados admitidos por su
+              modelo privado: nunca el nombre, NIF, dirección, cuenta bancaria,
+              PDF, nombre del archivo ni texto completo. El original solo se
+              archiva en el Google Drive del usuario tras confirmación expresa.
             </li>
             <li>
               Una fecha del documento se presenta como tal: no se convierte por sí
@@ -1810,7 +1811,7 @@ function ReviewPersistencePanel({
       "El análisis está disponible. Guarda la ficha si quieres conservar los datos exactos detectados.",
     saving: "Guardando el documento en el destino elegido…",
     saved:
-      "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias, fechas y sujeto identificado.",
+      "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias permitidas, fechas, estados y relaciones estructurados.",
     drive_failed:
       "La ficha sigue abierta porque Google Drive no ha completado el archivado. Puedes reintentar sin volver a escanear el PDF.",
     no_structured_facts:
