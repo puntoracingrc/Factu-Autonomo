@@ -18,7 +18,10 @@ import type { FiscalNotificationsWorkspace } from "../fiscal-notifications/types
 import { FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 } from "../fiscal-notifications/workspace-persistence.v1";
 import {
   FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+  encodeFiscalNotificationsWorkspaceForStorageV2,
   parseFiscalNotificationsWorkspaceStorageEnvelopeV2,
+  registerFiscalNotificationAutomaticEmptyRepairTransitionV2,
+  registerFiscalNotificationEmptyRestartTransitionV2,
 } from "../fiscal-notifications/workspace-storage-envelope.v2";
 
 const supabaseMock = vi.hoisted(() => ({
@@ -434,6 +437,96 @@ describe("cloud repository", () => {
     await expect(pullSyncChanges(FISCAL_USER_ID)).rejects.toThrow(
       "expediente fiscal remoto no es verificable",
     );
+  });
+
+  it("reemplaza por CAS una cabeza remota inválida solo con un reinicio vacío confirmado", async () => {
+    const rows: Row[] = [
+      {
+        user_id: FISCAL_USER_ID,
+        entity_type: "fiscal_notifications_workspace",
+        entity_id: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+        payload: { legacy: "unverifiable" },
+        deleted: false,
+        updated_at: "2026-07-14T09:01:00.000Z",
+      },
+    ];
+    const writes = installPullMock(rows);
+    const restart = confirmedEmptyFiscalRestart();
+    const restartEnvelope = encodeFiscalNotificationsWorkspaceForStorageV2(
+      restart,
+    );
+    if (!restartEnvelope) throw new Error("fixture fiscal no codificable");
+
+    await pushSyncChanges(FISCAL_USER_ID, [
+      {
+        ...fiscalWorkspaceChange(restart, restart.updatedAt),
+        entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+        payload: restartEnvelope,
+      },
+    ]);
+
+    expect(writes.update).toHaveBeenCalledTimes(1);
+    const stored = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+      rows[0]?.payload,
+      FISCAL_OWNER,
+    );
+    expect(stored).not.toBeNull();
+    expect(stored?.workspace.documents).toEqual([]);
+    expect(stored?.transition).toMatchObject({
+      kind: "USER_CONFIRMED_EMPTY_RESTART_V1",
+      ownerScope: FISCAL_OWNER,
+    });
+  });
+
+  it("mantiene bloqueada una cabeza remota inválida sin reinicio vacío confirmado", async () => {
+    const rows: Row[] = [
+      {
+        user_id: FISCAL_USER_ID,
+        entity_type: "fiscal_notifications_workspace",
+        entity_id: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+        payload: { legacy: "unverifiable" },
+        deleted: false,
+        updated_at: "2026-07-14T09:01:00.000Z",
+      },
+    ];
+    const writes = installPullMock(rows);
+
+    await expect(
+      pushSyncChanges(FISCAL_USER_ID, [
+        fiscalWorkspaceChange(fiscalWorkspace()),
+      ]),
+    ).rejects.toThrow("expediente fiscal remoto no es verificable");
+    expect(writes.update).not.toHaveBeenCalled();
+  });
+
+  it("no usa una reparación automática local para sobrescribir una cabeza remota inválida", async () => {
+    const rows: Row[] = [
+      {
+        user_id: FISCAL_USER_ID,
+        entity_type: "fiscal_notifications_workspace",
+        entity_id: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+        payload: { legacy: "unverifiable" },
+        deleted: false,
+        updated_at: "2026-07-14T09:01:00.000Z",
+      },
+    ];
+    const writes = installPullMock(rows);
+    const repair = automaticEmptyFiscalRepair();
+    const repairEnvelope = encodeFiscalNotificationsWorkspaceForStorageV2(
+      repair,
+    );
+    if (!repairEnvelope) throw new Error("fixture fiscal no codificable");
+
+    await expect(
+      pushSyncChanges(FISCAL_USER_ID, [
+        {
+          ...fiscalWorkspaceChange(repair, repair.updatedAt),
+          entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+          payload: repairEnvelope,
+        },
+      ]),
+    ).rejects.toThrow("expediente fiscal remoto no es verificable");
+    expect(writes.update).not.toHaveBeenCalled();
   });
 
   it("descarga entidades sincronizadas por paginas para cuentas grandes", async () => {
@@ -973,3 +1066,37 @@ describe("cloud repository", () => {
     );
   });
 });
+
+function confirmedEmptyFiscalRestart(): FiscalNotificationsWorkspace {
+  const confirmedAt = "2026-07-16T20:00:00.000Z";
+  const input: FiscalNotificationsWorkspace = {
+    ...fiscalWorkspace(),
+    workspaceId: "fiscal-notifications-workspace-empty-restart",
+    createdAt: confirmedAt,
+    updatedAt: confirmedAt,
+  };
+  const restart = registerFiscalNotificationEmptyRestartTransitionV2(
+    input,
+    FISCAL_OWNER,
+    confirmedAt,
+  );
+  if (!restart) throw new Error("fixture de reinicio vacío inválida");
+  return restart;
+}
+
+function automaticEmptyFiscalRepair(): FiscalNotificationsWorkspace {
+  const repairedAt = "2026-07-16T20:05:00.000Z";
+  const input: FiscalNotificationsWorkspace = {
+    ...fiscalWorkspace(),
+    workspaceId: "fiscal-notifications-workspace-auto-repair",
+    createdAt: repairedAt,
+    updatedAt: repairedAt,
+  };
+  const repair = registerFiscalNotificationAutomaticEmptyRepairTransitionV2(
+    input,
+    FISCAL_OWNER,
+    repairedAt,
+  );
+  if (!repair) throw new Error("fixture de reparación automática inválida");
+  return repair;
+}

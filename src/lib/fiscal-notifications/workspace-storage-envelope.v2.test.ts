@@ -783,5 +783,20 @@ describe("runtime privacy storage envelope v2", () => {
     expect(
       parseFiscalNotificationsWorkspaceStorageEnvelopeV2(unknownKey, OWNER),
     ).toBeNull();
+
+    const continuedAfterEmptyRestart = {
+      ...structuredClone(oldLineage),
+      transition: {
+        kind: "USER_CONFIRMED_EMPTY_RESTART_V1" as const,
+        ownerScope: OWNER,
+        confirmedAt: oldLineage.workspace.createdAt,
+      },
+    };
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        continuedAfterEmptyRestart,
+        OWNER,
+      ),
+    ).not.toBeNull();
   });
 });

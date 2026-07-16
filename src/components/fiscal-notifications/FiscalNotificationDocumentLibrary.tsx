@@ -227,12 +227,11 @@ export function FiscalNotificationDocumentLibrary({
               id="notification-library-heading"
               className="text-lg font-bold text-slate-950"
             >
-              Documentos escaneados y expedientes
+              Tus documentos
             </h2>
             <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
-              Cada fila conserva juntos sus documentos relacionados. Dentro de
-              la fila se muestran de izquierda a derecha por la fecha que figura
-              en el documento, nunca por la fecha de escaneo.
+              Los documentos relacionados aparecen juntos y ordenados por su
+              fecha.
             </p>
           </div>
           <span className="text-xs font-semibold text-slate-500">
@@ -280,7 +279,7 @@ export function FiscalNotificationDocumentLibrary({
 
       {viewModel.documents.length === 0 ? (
         <Card className="mt-3 text-sm text-slate-600">
-          Aún no has guardado ningún documento estructurado en esta cuenta.
+          Aún no has guardado ningún documento.
         </Card>
       ) : groups.length === 0 ? (
         <Card className="mt-3 text-sm text-slate-600">

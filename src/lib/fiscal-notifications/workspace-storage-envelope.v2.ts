@@ -77,6 +77,11 @@ export type FiscalNotificationsWorkspaceTransitionV2 =
       kind: "USER_CONFIRMED_EMPTY_RESTART_V1";
       ownerScope: string;
       confirmedAt: string;
+    }>
+  | Readonly<{
+      kind: "AUTO_REPAIRED_EMPTY_HISTORY_V1";
+      ownerScope: string;
+      repairedAt: string;
     }>;
 
 export interface FiscalNotificationsWorkspaceStorageEnvelopeV2 {
@@ -166,6 +171,7 @@ function parseTransition(
     "kind",
     "ownerScope",
     "confirmedAt",
+    "repairedAt",
     "baseWorkspaceId",
     "baseCreatedAt",
     "baseRevision",
@@ -178,7 +184,23 @@ function parseTransition(
     own(candidate, "ownerScope"),
   );
   const confirmedAt = safeTimestamp(own(candidate, "confirmedAt"));
-  if (ownerScope !== expectedOwnerScope || !confirmedAt) return null;
+  if (ownerScope !== expectedOwnerScope) return null;
+  if (kind === "AUTO_REPAIRED_EMPTY_HISTORY_V1") {
+    const repairedAt = safeTimestamp(own(candidate, "repairedAt"));
+    if (
+      !repairedAt ||
+      own(candidate, "confirmedAt") !== undefined ||
+      own(candidate, "baseWorkspaceId") !== undefined ||
+      own(candidate, "baseCreatedAt") !== undefined ||
+      own(candidate, "baseRevision") !== undefined ||
+      own(candidate, "baseUpdatedAt") !== undefined ||
+      own(candidate, "removedDocumentIds") !== undefined
+    ) {
+      return null;
+    }
+    return deepFreeze({ kind, ownerScope, repairedAt });
+  }
+  if (!confirmedAt || own(candidate, "repairedAt") !== undefined) return null;
   if (kind === "USER_CONFIRMED_EMPTY_RESTART_V1") {
     if (
       own(candidate, "baseWorkspaceId") !== undefined ||
@@ -389,6 +411,13 @@ export function parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
     transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
     (workspace.createdAt !== transition.confirmedAt ||
       Date.parse(workspace.updatedAt) < Date.parse(transition.confirmedAt))
+  ) {
+    return null;
+  }
+  if (
+    transition?.kind === "AUTO_REPAIRED_EMPTY_HISTORY_V1" &&
+    (workspace.createdAt !== transition.repairedAt ||
+      Date.parse(workspace.updatedAt) < Date.parse(transition.repairedAt))
   ) {
     return null;
   }
@@ -1024,7 +1053,7 @@ function envelopeCollectionsAreExactSubset(
   );
 }
 
-function envelopeIsStructurallyEmpty(
+export function isFiscalNotificationsWorkspaceStorageEnvelopeEmptyV2(
   envelope: FiscalNotificationsWorkspaceStorageEnvelopeV2,
 ): boolean {
   return (
@@ -1442,7 +1471,7 @@ export function registerFiscalNotificationEmptyRestartTransitionV2(
     envelope.workspace.ownerScope !== ownerScope ||
     envelope.workspace.createdAt !== confirmedTimestamp ||
     envelope.workspace.updatedAt !== confirmedTimestamp ||
-    !envelopeIsStructurallyEmpty(envelope)
+    !isFiscalNotificationsWorkspaceStorageEnvelopeEmptyV2(envelope)
   ) {
     return null;
   }
@@ -1453,6 +1482,46 @@ export function registerFiscalNotificationEmptyRestartTransitionV2(
         kind: "USER_CONFIRMED_EMPTY_RESTART_V1",
         ownerScope,
         confirmedAt: confirmedTimestamp,
+      },
+    },
+    ownerScope,
+  );
+  return marked
+    ? restoreFiscalNotificationsWorkspaceFromStorageV2(marked, ownerScope)
+    : null;
+}
+
+export function registerFiscalNotificationAutomaticEmptyRepairTransitionV2(
+  emptyWorkspaceValue: unknown,
+  expectedOwnerScope: string,
+  repairedAt: string,
+): FiscalNotificationsWorkspace | null {
+  const ownerScope = canonicalFiscalNotificationOwnerScopeV2(
+    expectedOwnerScope,
+  );
+  const repairedTimestamp = safeTimestamp(repairedAt);
+  const envelope = encodeFiscalNotificationsWorkspaceForStorageV2(
+    emptyWorkspaceValue,
+  );
+  if (
+    !ownerScope ||
+    ownerScope !== expectedOwnerScope ||
+    !repairedTimestamp ||
+    !envelope ||
+    envelope.workspace.ownerScope !== ownerScope ||
+    envelope.workspace.createdAt !== repairedTimestamp ||
+    envelope.workspace.updatedAt !== repairedTimestamp ||
+    !isFiscalNotificationsWorkspaceStorageEnvelopeEmptyV2(envelope)
+  ) {
+    return null;
+  }
+  const marked = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+    {
+      ...envelope,
+      transition: {
+        kind: "AUTO_REPAIRED_EMPTY_HISTORY_V1",
+        ownerScope,
+        repairedAt: repairedTimestamp,
       },
     },
     ownerScope,

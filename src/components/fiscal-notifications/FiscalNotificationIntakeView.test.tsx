@@ -205,11 +205,8 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain("filesRef.current.delete(id)");
     expect(componentSource).toContain("archiveFilesRef.current.clear()");
     expect(componentSource).toContain("archiveFilesRef.current.delete(id)");
-    expect(componentSource).toContain(
-      "El nombre solo se muestra mientras el documento está en esta cola",
-    );
     expect(compact(componentSource)).toContain(
-      "Factu no guarda el PDF, su nombre ni el texto",
+      "El análisis es local. Al guardar eliges Factu, Google Drive o ambos.",
     );
 
     const reviewResultContract = flowSource.slice(
@@ -475,7 +472,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
 
   it("muestra la biblioteca con datos seguros sin exponer identidad ni huellas", () => {
     expect(documentLibraryComponentSource).toContain(
-      "Documentos escaneados y expedientes",
+      "Tus documentos",
     );
     expect(documentLibraryComponentSource).toContain(
       "group.documents.map((document, index)",
@@ -572,7 +569,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "Requerimiento formal de presentación",
       "Acuerdo de alta en el ROI",
       "La familia documental coincide con una firma estructural cerrada. La autoridad, autenticidad, datos y efectos siguen pendientes de revisión.",
-      "Un acuerdo de alta en el ROI describe el documento analizado: no demuestra que el alta siga vigente ni valida el estado en VIES.",
+      "Este acuerdo describe el alta que figura en el documento; no confirma que siga vigente ni valida el estado actual en VIES.",
     ]) {
       expect(compact(componentSource)).toContain(expected);
     }
@@ -626,22 +623,13 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
   it("explica con precisión OCR, alcance y persistencia estructurada opcional", () => {
     const copy = compact(componentSource);
     for (const expected of [
-      "El análisis es local. El PDF solo sale del navegador si eliges archivarlo en tu Drive.",
-      "Muestra y puede guardar importes, referencias, fechas y sujeto cuando constan expresamente.",
       "Prepara un lote de hasta {FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1} PDF, revísalo y pulsa una sola vez Analizar.",
-      "El nombre solo se muestra mientras el documento está en esta cola.",
-      "Factu no guarda el PDF, su nombre ni el texto; únicamente conserva los campos estructurados que aceptes.",
-      "Una huella SHA-256 local impide duplicarlo.",
+      "El análisis es local. Al guardar eliges Factu, Google Drive o ambos.",
+      "Los documentos duplicados se detectan automáticamente.",
       "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias permitidas, fechas, estados y relaciones estructurados.",
       "Puedes conservar la ficha estructurada en Factu, el PDF original en tu Google Drive o ambos.",
       "No se ha enviado a ningún proveedor y debes revisarlo manualmente.",
-      "El motor dispone de 87 perfiles documentales cerrados. Para cada familia ejecuta reconocimiento y extracción deterministas con sus propios campos, fuentes y reglas. Toda lectura queda pendiente de revisión y no confirma por sí sola el organismo emisor, la autenticidad ni un efecto jurídico.",
-      "Un acuerdo de alta en el ROI describe el documento analizado: no demuestra que el alta siga vigente ni valida el estado en VIES.",
-      "Durante la revisión puede mostrar el nombre, el NIF, importes, referencias y fechas que constan en el documento. Al guardar en Factu solo conserva los datos estructurados admitidos por su modelo privado: nunca el nombre, NIF, dirección, cuenta bancaria, PDF, nombre del archivo ni texto completo.",
-      "Una fecha del documento se presenta como tal: no se convierte por sí sola en fecha de notificación o vencimiento ni activa una acción.",
-      "No consulta automáticamente sedes oficiales, no ejecuta OCR remoto y no utiliza IA.",
       "Lectura OCR local",
-      "Esta herramienta no sustituye la revisión de un asesor ni confirma la validez jurídica del documento.",
     ]) {
       expect(copy).toContain(expected);
     }
@@ -930,7 +918,6 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain('id="notification-review-heading"');
     expect(componentSource).toContain('type="button"');
     expect(componentSource).toContain("sm:flex-row");
-    expect(componentSource).toContain("md:grid-cols-3");
     expect(componentSource).toContain("sm:grid-cols-2");
     expect(componentSource).not.toMatch(/w-\[(?:4|5|6|7|8|9)\d{2}px\]/);
   });
@@ -954,21 +941,19 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "allowAbsentWorkspace: !persistedWorkspaceWasQuarantined",
     );
-    expect(componentSource).toContain(
-      "Revisar y restablecer",
-    );
-    expect(componentSource).toContain(
+    expect(componentSource).not.toContain("Revisar y restablecer");
+    expect(componentSource).not.toContain(
       "¿Ya eliminaste todas las fichas de Notificaciones?",
     );
-    expect(componentSource).toContain("Sí, iniciar historial vacío");
-    expect(compact(componentSource)).toContain(
-      "Los originales de Google Drive no se borran ni se modifican.",
-    );
+    expect(componentSource).not.toContain("Sí, iniciar historial vacío");
     expect(componentSource).toContain(
       "repairFiscalNotificationEmptyHistory({",
     );
     expect(componentSource).toContain(
-      "void addFiles(pendingFiles, execution.data)",
+      "await addFiles(files, execution.data)",
+    );
+    expect(componentSource).toContain(
+      "if (!appStoreReady || !shouldInitializeEmptyHistory) return",
     );
     expect(componentSource).toContain("ya estaba escaneado");
     expect(componentSource).toContain("duplicado dentro del lote");

@@ -6,7 +6,7 @@ import type { AppData } from "../types";
 import { assertBoundedOwnerScope } from "./input-contract";
 import type { FiscalNotificationsWorkspace } from "./types";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
-import { registerFiscalNotificationEmptyRestartTransitionV2 } from "./workspace-storage-envelope.v2";
+import { registerFiscalNotificationAutomaticEmptyRepairTransitionV2 } from "./workspace-storage-envelope.v2";
 
 export const FISCAL_NOTIFICATION_EMPTY_HISTORY_REPAIR_VERSION_V1 =
   "1.0.0" as const;
@@ -26,7 +26,8 @@ export type FiscalNotificationEmptyHistoryRepairBlockedReasonV1 =
   | "invalid_input"
   | "workspace_present"
   | "unsynced_workspace"
-  | "fiscal_quarantine_not_found";
+  | "fiscal_quarantine_not_found"
+  | "fiscal_quarantine_not_auto_repairable";
 
 export type DurableFiscalNotificationEmptyHistoryRepairResultV1 =
   | AppDataDurabilityResult<FiscalNotificationEmptyHistoryRepairAppliedV1>
@@ -63,17 +64,21 @@ export function runRepairFiscalNotificationEmptyHistoryCommandV1(input: {
     return blocked("unsynced_workspace");
   }
   const quarantine = input.expected.workspaceIntegrityQuarantine;
-  const removedQuarantineCount = countExactFiscalQuarantine(quarantine);
-  if (removedQuarantineCount === 0) {
+  const fiscalQuarantine = inspectFiscalQuarantine(quarantine);
+  if (fiscalQuarantine.total === 0) {
     return blocked("fiscal_quarantine_not_found");
   }
+  if (!fiscalQuarantine.autoRepairable) {
+    return blocked("fiscal_quarantine_not_auto_repairable");
+  }
+  const removedQuarantineCount = fiscalQuarantine.total;
 
   const canonicalWorkspace = createCanonicalEmptyWorkspace(
     input.ownerScope,
     input.confirmedAt,
   );
   const workspace = canonicalWorkspace
-    ? registerFiscalNotificationEmptyRestartTransitionV2(
+    ? registerFiscalNotificationAutomaticEmptyRepairTransitionV2(
         canonicalWorkspace,
         input.ownerScope,
         input.confirmedAt,
@@ -152,12 +157,31 @@ function withRepairedEmptyHistory(
   return repaired;
 }
 
-function countExactFiscalQuarantine(
+function inspectFiscalQuarantine(
   quarantine: AppData["workspaceIntegrityQuarantine"],
-): number {
-  return (quarantine ?? []).filter(
+): Readonly<{ total: number; autoRepairable: boolean }> {
+  const entries = (quarantine ?? []).filter(
     (entry) => entry.collection === FISCAL_NOTIFICATIONS_QUARANTINE_COLLECTION,
-  ).length;
+  );
+  return Object.freeze({
+    total: entries.length,
+    autoRepairable:
+      entries.length > 0 &&
+      entries.every((entry) => isPrivacySafeRejectedFiscalPayload(entry.rawValue)),
+  });
+}
+
+function isPrivacySafeRejectedFiscalPayload(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record).sort();
+  return (
+    keys.length === 2 &&
+    keys[0] === "schema" &&
+    keys[1] === "status" &&
+    record.status === "rejected" &&
+    record.schema === "fiscal-notifications-privacy-workspace-v2"
+  );
 }
 
 function validOwnerScope(value: unknown): value is string {
