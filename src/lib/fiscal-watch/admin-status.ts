@@ -57,6 +57,8 @@ const MODEL_HINT_MARKER =
 const MODEL_HINT_MARKER_PREFIX = "<!-- fiscal-watch-model-hint:v1:";
 const MODEL_HINTS_TRUNCATED_MARKER =
   /<!-- fiscal-watch-model-hints-truncated:v1 -->/g;
+const REVIEW_KEY_PATTERN = /^(change|baseline):([1-9]\d{0,15})$/;
+const MAX_REVIEW_KEYS = 500;
 
 const WORKFLOW_STATUSES = new Set([
   "queued",
@@ -414,6 +416,129 @@ function stableSignalId(
       .sort((a, b) => a - b)
       .join(".") || "none";
   return `fiscal-watch:${level}:run-${workflowId ?? "none"}:changes-${changeIds}:baseline-${baselineIds}`;
+}
+
+export function fiscalWatchReviewKey(
+  kind: FiscalWatchIssueKind,
+  issueNumber: number,
+): string | null {
+  if (!Number.isSafeInteger(issueNumber) || issueNumber <= 0) return null;
+  return `${kind}:${issueNumber}`;
+}
+
+function invalidReviewedStatus(
+  status: FiscalWatchAdminStatus,
+): FiscalWatchAdminStatus {
+  return {
+    ...status,
+    signalId: stableSignalId(
+      "action",
+      status.workflow.id,
+      status.issues.filter((issue) => issue.kind === "change"),
+      status.issues.filter((issue) => issue.kind === "baseline"),
+    ),
+    level: "action",
+    label: "Acción necesaria",
+    headline: "La vigilancia fiscal no puede verificarse.",
+    sourcesValid: false,
+    recommendations: [
+      "Revisa la ejecución técnica antes de confiar en la vigilancia diaria.",
+    ],
+  };
+}
+
+export function applyFiscalWatchReviews(
+  status: FiscalWatchAdminStatus,
+  reviewedKeys: unknown,
+): FiscalWatchAdminStatus {
+  if (!Array.isArray(reviewedKeys) || reviewedKeys.length > MAX_REVIEW_KEYS) {
+    return invalidReviewedStatus(status);
+  }
+  const keys = new Set<string>();
+  for (const value of reviewedKeys) {
+    if (
+      typeof value !== "string" ||
+      !REVIEW_KEY_PATTERN.test(value) ||
+      keys.has(value)
+    ) {
+      return invalidReviewedStatus(status);
+    }
+    keys.add(value);
+  }
+  if (!status.sourcesValid || keys.size === 0) return status;
+
+  const issues = status.issues.filter((issue) => {
+    const key = fiscalWatchReviewKey(issue.kind, issue.number);
+    return key === null || !keys.has(key);
+  });
+  const changes = issues.filter((issue) => issue.kind === "change");
+  const baselines = issues.filter((issue) => issue.kind === "baseline");
+  const workflowFailed =
+    status.workflow.status === "completed" &&
+    status.workflow.conclusion !== "success";
+
+  let level: FiscalWatchAdminLevel;
+  let label: string;
+  let headline: string;
+  if (status.workflow.id === null) {
+    level = "action";
+    label = "Acción necesaria";
+    headline = "La vigilancia fiscal no puede verificarse.";
+  } else if (workflowFailed) {
+    level = "action";
+    label = "Acción necesaria";
+    headline = "La última vigilancia fiscal terminó con error.";
+  } else if (status.workflow.stale) {
+    level = "action";
+    label = "Acción necesaria";
+    headline = "La vigilancia fiscal lleva más de 36 horas sin completarse.";
+  } else if (changes.length > 0) {
+    level = "watch";
+    label = "Revisión pendiente";
+    headline =
+      changes.length === 1
+        ? "Hay un aviso oficial pendiente de revisión humana."
+        : `Hay ${changes.length} avisos oficiales pendientes de revisión humana.`;
+  } else if (baselines.length > 0) {
+    level = "watch";
+    label = "Revisión pendiente";
+    headline = "La línea base de fuentes oficiales está pendiente de validación.";
+  } else if (status.workflow.status !== "completed") {
+    level = "watch";
+    label = "Comprobando";
+    headline = "La revisión diaria de fuentes oficiales está en curso.";
+  } else {
+    level = "ok";
+    label = "Al día";
+    headline = "Fuentes oficiales revisadas; no hay cambios pendientes.";
+  }
+
+  const recommendations =
+    level === "action"
+      ? [
+          "Revisa la ejecución técnica antes de confiar en la vigilancia diaria.",
+        ]
+      : changes.length > 0
+        ? [
+            "Examina cada cambio y valida su efecto fiscal antes de modificar el producto.",
+          ]
+        : baselines.length > 0
+          ? [
+              "Valida la primera captura para empezar a comparar cambios diarios.",
+            ]
+          : ["No se requiere ninguna intervención."];
+
+  return {
+    ...status,
+    signalId: stableSignalId(level, status.workflow.id, changes, baselines),
+    level,
+    label,
+    headline,
+    pendingReviews: changes.length,
+    baselinePending: baselines.length > 0,
+    issues,
+    recommendations,
+  };
 }
 
 export function buildFiscalWatchAdminStatus(

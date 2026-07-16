@@ -1,10 +1,19 @@
 import { NextResponse } from "next/server";
 import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
-import { buildFiscalWatchAdminStatus } from "@/lib/fiscal-watch/admin-status";
+import {
+  applyFiscalWatchReviews,
+  buildFiscalWatchAdminStatus,
+  type FiscalWatchIssueKind,
+} from "@/lib/fiscal-watch/admin-status";
+import {
+  listFiscalWatchReviewKeys,
+  recordFiscalWatchReview,
+} from "@/lib/fiscal-watch/review-store";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
+import { readJsonBody } from "@/lib/server/request-body";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -17,6 +26,12 @@ const GITHUB_STATUS_CACHE_MS = 5 * 60_000;
 const GITHUB_SHARED_CACHE_SECONDS = 15 * 60;
 
 type FiscalWatchStatus = ReturnType<typeof buildFiscalWatchAdminStatus>;
+
+interface ReviewRequestBody {
+  action?: unknown;
+  issueNumber?: unknown;
+  kind?: unknown;
+}
 
 let cachedStatus:
   | { expiresAt: number; fetchImpl: typeof fetch; value: FiscalWatchStatus }
@@ -189,6 +204,42 @@ async function fetchFiscalWatchAdminStatus(): Promise<FiscalWatchStatus> {
   return statusRequest.promise;
 }
 
+function parseReviewRequest(value: unknown): {
+  issueNumber: number;
+  kind: FiscalWatchIssueKind;
+} | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const body = value as ReviewRequestBody & Record<string, unknown>;
+  if (
+    Object.keys(body).sort().join(",") !== "action,issueNumber,kind" ||
+    body.action !== "review" ||
+    !Number.isSafeInteger(body.issueNumber) ||
+    (body.issueNumber as number) <= 0 ||
+    (body.kind !== "change" && body.kind !== "baseline")
+  ) {
+    return null;
+  }
+  return {
+    issueNumber: body.issueNumber as number,
+    kind: body.kind,
+  };
+}
+
+async function statusWithStoredReviews(
+  status: FiscalWatchStatus,
+): Promise<{
+  status: FiscalWatchStatus;
+  reviewStoreAvailable: boolean;
+}> {
+  const reviews = await listFiscalWatchReviewKeys();
+  return {
+    status: reviews.available
+      ? applyFiscalWatchReviews(status, reviews.keys)
+      : status,
+    reviewStoreAvailable: reviews.available,
+  };
+}
+
 export async function GET(request: Request) {
   const access = await getAdminAccessFromRequest(request);
   if (!access.ok) return withPrivateResponseHeaders(access.response);
@@ -207,11 +258,87 @@ export async function GET(request: Request) {
   }
 
   try {
-    const status = await fetchFiscalWatchAdminStatus();
-    return privateJson({ status });
+    const result = await statusWithStoredReviews(
+      await fetchFiscalWatchAdminStatus(),
+    );
+    return privateJson(result);
   } catch {
     return privateJson(
       { error: "No se pudo comprobar la vigilancia fiscal." },
+      { status: 503 },
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  const access = await getAdminAccessFromRequest(request);
+  if (!access.ok) return withPrivateResponseHeaders(access.response);
+
+  const rateLimit = await checkRateLimit(
+    request,
+    {
+      namespace: "admin_fiscal_watch_review",
+      limit: 20,
+      windowMs: 10 * 60_000,
+    },
+    access.user.id,
+  );
+  if (!rateLimit.allowed) {
+    return withPrivateResponseHeaders(rateLimitExceededResponse(rateLimit));
+  }
+
+  const bodyResult = await readJsonBody<ReviewRequestBody>(request, {
+    maxBytes: 256,
+    invalidMessage: "La revisión indicada no es válida.",
+    tooLargeMessage: "La revisión indicada es demasiado grande.",
+  });
+  if (!bodyResult.ok) {
+    return withPrivateResponseHeaders(bodyResult.response);
+  }
+  const review = parseReviewRequest(bodyResult.data);
+  if (!review) {
+    return privateJson(
+      { error: "La revisión indicada no es válida." },
+      { status: 400 },
+    );
+  }
+
+  try {
+    const currentStatus = await fetchFreshFiscalWatchAdminStatus(fetch);
+    if (!currentStatus.sourcesValid) {
+      return privateJson(
+        { error: "La vigilancia fiscal no puede verificarse ahora." },
+        { status: 409 },
+      );
+    }
+    const issue = currentStatus.issues.find(
+      (candidate) =>
+        candidate.number === review.issueNumber &&
+        candidate.kind === review.kind,
+    );
+    if (!issue) {
+      return privateJson(
+        { error: "Ese aviso ya no está pendiente de revisión." },
+        { status: 409 },
+      );
+    }
+
+    const stored = await recordFiscalWatchReview({
+      actorUserId: access.user.id,
+      kind: review.kind,
+      issueNumber: review.issueNumber,
+    });
+    if (!stored) {
+      return privateJson(
+        { error: "El registro de revisiones no está disponible." },
+        { status: 503 },
+      );
+    }
+    const result = await statusWithStoredReviews(currentStatus);
+    return privateJson({ ...result, reviewed: true });
+  } catch {
+    return privateJson(
+      { error: "No se pudo guardar la revisión del aviso." },
       { status: 503 },
     );
   }

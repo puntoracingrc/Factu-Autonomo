@@ -62,6 +62,13 @@ Cerrar un Issue de cambio significa únicamente «revisado». Si una modificaci�
 requiere cambiar el producto, debe hacerse en un PR separado, con su fuente
 oficial, pruebas y revisión fiscal correspondiente.
 
+Admin también permite marcar un aviso como revisado. Esa acción guarda una
+atestación global, idempotente y auditada, y retira la tarjeta del panel sin
+borrar el Issue ni la fuente oficial. Si la ejecución diaria está sana y no
+quedan avisos o líneas base pendientes, el semáforo vuelve a verde. Solo una
+cuenta administradora autenticada puede registrar esta revisión y el servidor
+vuelve a validar que el aviso procede de la automatización antes de aceptarla.
+
 ## Semáforo en Admin
 
 - **Rojo — vigilancia interrumpida:** último workflow fallido, respuesta

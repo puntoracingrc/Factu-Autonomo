@@ -4,13 +4,18 @@ import { describe, expect, it } from "vitest";
 const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
 
 describe("integración de la vigilancia fiscal en Admin", () => {
-  it("consulta el endpoint exactamente una vez por carga", () => {
-    expect(source.match(/"\/api\/admin\/fiscal-watch"/g)).toHaveLength(1);
+  it("consulta el endpoint una vez por carga y usa el mismo contrato para revisar", () => {
+    expect(source.match(/"\/api\/admin\/fiscal-watch"/g)).toHaveLength(2);
     expect(source).toContain(
       'fetchAdminResponse("/api/admin/fiscal-watch", { headers })',
     );
     expect(source).toContain("fiscalWatchResponse");
     expect(source).toContain("setFiscalWatchNotice");
+    expect(source).toContain('method: "POST"');
+    expect(source).toContain('action: "review"');
+    expect(source).toContain("reviewStoreAvailable");
+    expect(source).toContain("reviewFiscalWatchIssue");
+    expect(source).toContain("await loadOperations()");
   });
 
   it("conserva a la vez el monitor técnico del calendario y el de cambios", () => {

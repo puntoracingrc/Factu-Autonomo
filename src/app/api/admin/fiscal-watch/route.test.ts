@@ -1,10 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
+import {
+  listFiscalWatchReviewKeys,
+  recordFiscalWatchReview,
+} from "@/lib/fiscal-watch/review-store";
 import { checkRateLimit, type RateLimitResult } from "@/lib/server/rate-limit";
-import { GET } from "./route";
+import { GET, POST } from "./route";
 
 vi.mock("@/lib/admin/server-access", () => ({
   getAdminAccessFromRequest: vi.fn(),
+}));
+
+vi.mock("@/lib/fiscal-watch/review-store", () => ({
+  listFiscalWatchReviewKeys: vi.fn(),
+  recordFiscalWatchReview: vi.fn(),
 }));
 
 vi.mock("@/lib/server/rate-limit", async () => {
@@ -26,6 +35,19 @@ const ALLOWED_RATE_LIMIT: RateLimitResult = {
 function request() {
   return new Request("http://localhost/api/admin/fiscal-watch", {
     headers: { Authorization: "Bearer admin-token" },
+  });
+}
+
+function reviewRequest(
+  body: unknown = { action: "review", issueNumber: 81, kind: "change" },
+) {
+  return new Request("http://localhost/api/admin/fiscal-watch", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer admin-token",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
   });
 }
 
@@ -137,6 +159,11 @@ describe("GET /api/admin/fiscal-watch", () => {
       user: { id: "admin-1" },
     } as never);
     vi.mocked(checkRateLimit).mockResolvedValue(ALLOWED_RATE_LIMIT);
+    vi.mocked(listFiscalWatchReviewKeys).mockResolvedValue({
+      available: true,
+      keys: [],
+    });
+    vi.mocked(recordFiscalWatchReview).mockResolvedValue(true);
   });
 
   afterEach(() => {
@@ -205,6 +232,7 @@ describe("GET /api/admin/fiscal-watch", () => {
       baselinePending: false,
       lastRunAt: "2026-07-13T09:00:00.000Z",
     });
+    expect(body.reviewStoreAvailable).toBe(true);
     expect(body.status.issues[0]).toMatchObject({
       number: 81,
       sourceLabel: "Agencia Tributaria",
@@ -288,6 +316,124 @@ describe("GET /api/admin/fiscal-watch", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(body.status.level).toBe("action");
     expect(serialized).not.toContain("private upstream detail");
+    expectPrivateHeaders(response);
+  });
+});
+
+describe("POST /api/admin/fiscal-watch", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-13T09:15:00.000Z"));
+    vi.mocked(getAdminAccessFromRequest).mockResolvedValue({
+      ok: true,
+      user: { id: "admin-1" },
+    } as never);
+    vi.mocked(checkRateLimit).mockResolvedValue(ALLOWED_RATE_LIMIT);
+    vi.mocked(listFiscalWatchReviewKeys).mockResolvedValue({
+      available: true,
+      keys: [],
+    });
+    vi.mocked(recordFiscalWatchReview).mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+    vi.resetAllMocks();
+  });
+
+  it("autentica y limita antes de leer el cuerpo o consultar GitHub", async () => {
+    const fetchMock = installGithubFetch();
+    vi.mocked(getAdminAccessFromRequest).mockResolvedValueOnce({
+      ok: false,
+      response: new Response(JSON.stringify({ error: "MFA requerida" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      }),
+    } as never);
+
+    const denied = await POST(reviewRequest());
+
+    expect(denied.status).toBe(403);
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(recordFiscalWatchReview).not.toHaveBeenCalled();
+    expectPrivateHeaders(denied);
+  });
+
+  it("rechaza cuerpos desconocidos antes de consultar la fuente", async () => {
+    const fetchMock = installGithubFetch();
+
+    const response = await POST(
+      reviewRequest({
+        action: "review",
+        issueNumber: 81,
+        kind: "change",
+        deleteEvidence: true,
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(recordFiscalWatchReview).not.toHaveBeenCalled();
+    expectPrivateHeaders(response);
+  });
+
+  it("verifica el aviso fresco, registra al actor y devuelve verde al retirarlo", async () => {
+    const fetchMock = installGithubFetch({
+      unreviewed: () => jsonResponse([issueFixture("fiscal-watch:unreviewed")]),
+    });
+    vi.mocked(listFiscalWatchReviewKeys).mockResolvedValue({
+      available: true,
+      keys: ["change:81"],
+    });
+
+    const response = await POST(reviewRequest());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(recordFiscalWatchReview).toHaveBeenCalledWith({
+      actorUserId: "admin-1",
+      kind: "change",
+      issueNumber: 81,
+    });
+    expect(body).toMatchObject({
+      reviewed: true,
+      reviewStoreAvailable: true,
+      status: {
+        level: "ok",
+        label: "Al día",
+        pendingReviews: 0,
+        baselinePending: false,
+        issues: [],
+      },
+    });
+    expectPrivateHeaders(response);
+  });
+
+  it("no registra un número que no esté actualmente pendiente", async () => {
+    const fetchMock = installGithubFetch();
+
+    const response = await POST(reviewRequest());
+
+    expect(response.status).toBe(409);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(recordFiscalWatchReview).not.toHaveBeenCalled();
+    expectPrivateHeaders(response);
+  });
+
+  it("falla sin ocultar el aviso si no puede persistir la revisión", async () => {
+    installGithubFetch({
+      unreviewed: () => jsonResponse([issueFixture("fiscal-watch:unreviewed")]),
+    });
+    vi.mocked(recordFiscalWatchReview).mockResolvedValue(false);
+
+    const response = await POST(reviewRequest());
+
+    expect(response.status).toBe(503);
+    expect(listFiscalWatchReviewKeys).not.toHaveBeenCalled();
     expectPrivateHeaders(response);
   });
 });
