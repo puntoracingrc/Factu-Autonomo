@@ -7,6 +7,7 @@ import {
   deleteFiscalNotificationDocumentV1,
   type DeleteFiscalNotificationDocumentResultV1,
 } from "./document-deletion.v1";
+import { registerFiscalNotificationDocumentReductionTransitionV2 } from "./workspace-storage-envelope.v2";
 
 export type DurableFiscalNotificationDocumentDeletionResultV1 =
   | AppDataDurabilityResult<
@@ -15,7 +16,8 @@ export type DurableFiscalNotificationDocumentDeletionResultV1 =
   | Extract<
       DeleteFiscalNotificationDocumentResultV1,
       { status: "BLOCKED" | "NOT_FOUND" }
-    >;
+    >
+  | Readonly<{ status: "BLOCKED"; reason: "UNSYNCED_WORKSPACE" }>;
 
 export function runDeleteFiscalNotificationDocumentCommandV1(input: {
   readonly expected: AppData;
@@ -27,6 +29,13 @@ export function runDeleteFiscalNotificationDocumentCommandV1(input: {
     build: (previous: AppData) => AppDataTransition<T>,
   ) => AppDataDurabilityResult<T>;
 }): DurableFiscalNotificationDocumentDeletionResultV1 {
+  if (
+    input.expected.meta?.pendingChanges?.some(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    )
+  ) {
+    return Object.freeze({ status: "BLOCKED", reason: "UNSYNCED_WORKSPACE" });
+  }
   const prepared = deleteFiscalNotificationDocumentV1({
     workspace: input.expected.fiscalNotificationsWorkspace,
     ownerScope: input.ownerScope,
@@ -34,11 +43,40 @@ export function runDeleteFiscalNotificationDocumentCommandV1(input: {
     deletedAt: input.deletedAt,
   });
   if (prepared.status !== "APPLIED") return prepared;
-  return input.commit(input.expected, (previous) => ({
-    data: {
+  const transitionedWorkspace =
+    registerFiscalNotificationDocumentReductionTransitionV2(
+      prepared.workspace,
+      input.expected.fiscalNotificationsWorkspace,
+      input.ownerScope,
+      input.deletedAt,
+    );
+  if (!transitionedWorkspace) {
+    return Object.freeze({ status: "BLOCKED", reason: "RESULT_INVALID" });
+  }
+  const transitioned = Object.freeze({
+    ...prepared,
+    workspace: transitionedWorkspace,
+  });
+  return input.commit(input.expected, (previous) => {
+    const shouldClearObsoleteFiscalQuarantine =
+      transitioned.workspace.documents.length === 0;
+    const remainingQuarantine = shouldClearObsoleteFiscalQuarantine
+      ? (previous.workspaceIntegrityQuarantine ?? []).filter(
+          (entry) => entry.collection !== "fiscalNotificationsWorkspace",
+        )
+      : previous.workspaceIntegrityQuarantine;
+    const data: AppData = {
       ...previous,
-      fiscalNotificationsWorkspace: prepared.workspace,
-    },
-    value: prepared,
-  }));
+      fiscalNotificationsWorkspace: transitioned.workspace,
+    };
+    if (remainingQuarantine && remainingQuarantine.length > 0) {
+      data.workspaceIntegrityQuarantine = remainingQuarantine;
+    } else {
+      delete data.workspaceIntegrityQuarantine;
+    }
+    return {
+      data,
+      value: transitioned,
+    };
+  });
 }

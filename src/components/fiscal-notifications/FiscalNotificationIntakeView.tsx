@@ -115,6 +115,11 @@ const FAMILY_INDICATION_LABELS = {
     "Indicios de acuerdo de alta en el ROI",
 } as const;
 
+const DUPLICATE_HISTORY_BLOCKED_MESSAGE =
+  "El historial anterior de documentos quedó pendiente de restablecer. No se ha añadido ningún archivo.";
+const DUPLICATE_HISTORY_INVALID_MESSAGE =
+  "No se puede comprobar el historial de duplicados de esta cuenta. No se ha añadido ningún archivo.";
+
 function recognizedCandidateFrom(result: FiscalNotificationLocalReviewResult) {
   const candidate = result.candidates[0];
   return (result.engineVersion === "1.3.0" ||
@@ -441,6 +446,7 @@ function FiscalNotificationReviewWorkspace({
     getCurrentData,
     saveFiscalNotificationStructuredReview,
     archiveFiscalNotificationOriginal,
+    repairFiscalNotificationEmptyHistory,
   } = useAppStore();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const filesRef = useRef(new Map<string, File>());
@@ -457,6 +463,7 @@ function FiscalNotificationReviewWorkspace({
   const processingRef = useRef(false);
   const saveOperationRef = useRef<symbol | null>(null);
   const archiveOperationRef = useRef<symbol | null>(null);
+  const blockedDuplicateFilesRef = useRef<readonly File[]>([]);
   const dragDepthRef = useRef(0);
   const [queue, setQueue] = useState<readonly FiscalNotificationBatchItem[]>([]);
   const [archiveCandidates, setArchiveCandidates] = useState<
@@ -484,6 +491,9 @@ function FiscalNotificationReviewWorkspace({
   const [partyFactsReview, setPartyFactsReview] =
     useState<PartyFactsReviewViewModelV1 | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [repairingDuplicateHistory, setRepairingDuplicateHistory] =
+    useState(false);
+  const [emptyHistoryResetOpen, setEmptyHistoryResetOpen] = useState(false);
   const [pendingReview, setPendingReview] =
     useState<PendingStructuredReview | null>(null);
   const [persistenceState, setPersistenceState] =
@@ -501,6 +511,16 @@ function FiscalNotificationReviewWorkspace({
       ),
     [data.fiscalNotificationsWorkspace, ownerScope],
   );
+  const fiscalNotificationsWorkspaceWasQuarantined = useMemo(
+    () =>
+      data.workspaceIntegrityQuarantine?.some(
+        (entry) => entry.collection === "fiscalNotificationsWorkspace",
+      ) === true,
+    [data.workspaceIntegrityQuarantine],
+  );
+  const canRepairEmptyDuplicateHistory =
+    data.fiscalNotificationsWorkspace === undefined &&
+    fiscalNotificationsWorkspaceWasQuarantined;
 
   useEffect(() => {
     const fileInput = fileInputRef.current;
@@ -524,6 +544,7 @@ function FiscalNotificationReviewWorkspace({
       queueRef.current = [];
       archiveCandidatesRef.current = [];
       activeItemIdRef.current = null;
+      blockedDuplicateFilesRef.current = [];
       if (fileInput) fileInput.value = "";
     };
   }, [ownerScope]);
@@ -617,7 +638,15 @@ function FiscalNotificationReviewWorkspace({
     setPersistenceState(review.persistenceState);
   }
 
-  async function addFiles(files: readonly File[]): Promise<void> {
+  async function addFiles(
+    files: readonly File[],
+    persistedData: {
+      readonly fiscalNotificationsWorkspace?: unknown;
+      readonly workspaceIntegrityQuarantine?: readonly {
+        readonly collection: string;
+      }[];
+    } = data,
+  ): Promise<void> {
     if (
       files.length === 0 ||
       admittingRef.current ||
@@ -632,23 +661,28 @@ function FiscalNotificationReviewWorkspace({
       setError("Este navegador no puede crear una cola local segura.");
       return;
     }
-    const fiscalNotificationsWorkspaceWasQuarantined =
-      data.workspaceIntegrityQuarantine?.some(
+    const persistedWorkspaceWasQuarantined =
+      persistedData.workspaceIntegrityQuarantine?.some(
         (entry) => entry.collection === "fiscalNotificationsWorkspace",
       ) === true;
     const persisted = readPersistedFiscalNotificationHashesV1(
-      data.fiscalNotificationsWorkspace,
+      persistedData.fiscalNotificationsWorkspace,
       ownerScope,
       {
-        allowAbsentWorkspace: !fiscalNotificationsWorkspaceWasQuarantined,
+        allowAbsentWorkspace: !persistedWorkspaceWasQuarantined,
       },
     );
     if (persisted.status === "BLOCKED") {
+      blockedDuplicateFilesRef.current = [...files];
       setError(
-        "No se puede comprobar el historial de duplicados de esta cuenta. No se ha añadido ningún archivo.",
+        persistedData.fiscalNotificationsWorkspace === undefined &&
+          persistedWorkspaceWasQuarantined
+          ? DUPLICATE_HISTORY_BLOCKED_MESSAGE
+          : DUPLICATE_HISTORY_INVALID_MESSAGE,
       );
       return;
     }
+    blockedDuplicateFilesRef.current = [];
 
     admissionControllerRef.current?.abort();
     const controller = new AbortController();
@@ -692,7 +726,7 @@ function FiscalNotificationReviewWorkspace({
           }
           if (persistedHashes.has(fingerprint.sha256)) {
             const inspection = inspectFiscalNotificationDriveArchiveCandidateV1(
-              data.fiscalNotificationsWorkspace,
+              persistedData.fiscalNotificationsWorkspace,
               ownerScope,
               fingerprint.sha256,
             );
@@ -761,6 +795,30 @@ function FiscalNotificationReviewWorkspace({
         setAdmitting(false);
       }
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  function repairEmptyDuplicateHistory(): void {
+    if (!canRepairEmptyDuplicateHistory || repairingDuplicateHistory) return;
+    setRepairingDuplicateHistory(true);
+    const execution = repairFiscalNotificationEmptyHistory({
+      expected: getCurrentData(),
+      ownerScope,
+      confirmedAt: new Date().toISOString(),
+    });
+    setRepairingDuplicateHistory(false);
+    setEmptyHistoryResetOpen(false);
+    if (execution.status !== "applied") {
+      setError(
+        "No se ha podido restablecer el historial vacío. Recarga la página y vuelve a intentarlo.",
+      );
+      return;
+    }
+    const pendingFiles = blockedDuplicateFilesRef.current;
+    blockedDuplicateFilesRef.current = [];
+    setError(null);
+    if (pendingFiles.length > 0) {
+      void addFiles(pendingFiles, execution.data);
     }
   }
 
@@ -1577,7 +1635,22 @@ function FiscalNotificationReviewWorkspace({
               aria-hidden="true"
               className="mt-0.5 h-5 w-5 shrink-0"
             />
-            {error}
+            <div className="min-w-0 flex-1">
+              <p>{error}</p>
+              {error === DUPLICATE_HISTORY_BLOCKED_MESSAGE &&
+              canRepairEmptyDuplicateHistory ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="mt-3"
+                  disabled={repairingDuplicateHistory}
+                  onClick={() => setEmptyHistoryResetOpen(true)}
+                >
+                  <RotateCcw aria-hidden="true" className="h-4 w-4" />
+                  Revisar y restablecer
+                </Button>
+              ) : null}
+            </div>
           </div>
         ) : null}
 
@@ -1671,6 +1744,12 @@ function FiscalNotificationReviewWorkspace({
         onClose={() => setSaveDestinationOpen(false)}
         onSelect={(destination) => void saveStructuredReview(destination)}
       />
+      <EmptyHistoryResetModal
+        open={emptyHistoryResetOpen}
+        busy={repairingDuplicateHistory}
+        onClose={() => setEmptyHistoryResetOpen(false)}
+        onConfirm={repairEmptyDuplicateHistory}
+      />
       <div id="documentos-guardados" className="scroll-mt-6">
         <FiscalNotificationDocumentLibrary
           viewModel={documentLibrary}
@@ -1679,6 +1758,66 @@ function FiscalNotificationReviewWorkspace({
         />
       </div>
     </>
+  );
+}
+
+function EmptyHistoryResetModal({
+  open,
+  busy,
+  onClose,
+  onConfirm,
+}: {
+  open: boolean;
+  busy: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      titleId="notification-empty-history-reset-title"
+      descriptionId="notification-empty-history-reset-description"
+      initialFocusSelector='[data-empty-history-reset="cancel"]'
+      closeOnBackdrop={!busy}
+      closeOnEscape={!busy}
+    >
+      <div className="p-5 sm:p-6">
+        <h2
+          id="notification-empty-history-reset-title"
+          className="text-lg font-bold text-slate-950"
+        >
+          ¿Ya eliminaste todas las fichas de Notificaciones?
+        </h2>
+        <p
+          id="notification-empty-history-reset-description"
+          className="mt-2 text-sm leading-6 text-slate-600"
+        >
+          Confirma solo si querías dejar este historial vacío. Factu iniciará un
+          historial nuevo y añadirá los PDF que acabas de seleccionar. Los
+          originales de Google Drive no se borran ni se modifican.
+        </p>
+        <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+          <Button
+            type="button"
+            variant="secondary"
+            data-empty-history-reset="cancel"
+            disabled={busy}
+            onClick={onClose}
+          >
+            Cancelar
+          </Button>
+          <Button type="button" disabled={busy} onClick={onConfirm}>
+            {busy ? (
+              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+            ) : (
+              <RotateCcw aria-hidden="true" className="h-4 w-4" />
+            )}
+            {busy ? "Restableciendo…" : "Sí, iniciar historial vacío"}
+          </Button>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

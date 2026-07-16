@@ -6,11 +6,19 @@ import type {
 import { EMPTY_DATA, type AppData } from "../types";
 import type { FiscalNotificationsWorkspace } from "./types";
 
-const { deleteMock } = vi.hoisted(() => ({ deleteMock: vi.fn() }));
+const { deleteMock, transitionMock } = vi.hoisted(() => ({
+  deleteMock: vi.fn(),
+  transitionMock: vi.fn(),
+}));
 
 vi.mock("./document-deletion.v1", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./document-deletion.v1")>()),
   deleteFiscalNotificationDocumentV1: deleteMock,
+}));
+
+vi.mock("./workspace-storage-envelope.v2", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./workspace-storage-envelope.v2")>()),
+  registerFiscalNotificationDocumentReductionTransitionV2: transitionMock,
 }));
 
 import { runDeleteFiscalNotificationDocumentCommandV1 } from "./document-deletion-command.v1";
@@ -23,7 +31,11 @@ type Commit = <T>(
 ) => AppDataDurabilityResult<T>;
 
 describe("durable fiscal notification document deletion command v1", () => {
-  beforeEach(() => deleteMock.mockReset());
+  beforeEach(() => {
+    deleteMock.mockReset();
+    transitionMock.mockReset();
+    transitionMock.mockImplementation((workspace) => workspace);
+  });
 
   it("no intenta persistir cuando el dominio bloquea la eliminación", () => {
     deleteMock.mockReturnValue({
@@ -40,8 +52,70 @@ describe("durable fiscal notification document deletion command v1", () => {
     expect(commit).not.toHaveBeenCalled();
   });
 
+  it("bloquea una segunda reducción mientras la cabeza fiscal sigue pendiente", () => {
+    const expected: AppData = {
+      ...structuredClone(EMPTY_DATA),
+      meta: {
+        lastModified: DELETED_AT,
+        pendingChanges: [
+          {
+            entityType: "fiscal_notifications_workspace",
+            entityId: "fiscal-notifications-workspace-v2",
+            deleted: false,
+            payload: {},
+            updatedAt: DELETED_AT,
+          },
+        ],
+      },
+    };
+    const commit = vi.fn();
+
+    expect(
+      runDeleteFiscalNotificationDocumentCommandV1(
+        input(commit as unknown as Commit, expected),
+      ),
+    ).toEqual({ status: "BLOCKED", reason: "UNSYNCED_WORKSPACE" });
+    expect(deleteMock).not.toHaveBeenCalled();
+    expect(commit).not.toHaveBeenCalled();
+  });
+
+  it("bloquea antes del commit si no puede registrar la reducción", () => {
+    deleteMock.mockReturnValue({
+      status: "APPLIED",
+      workspace: emptyWorkspace(),
+      removedDocumentId: "document:161",
+      removedRelationCount: 0,
+      driveFileIdsPreserved: [],
+      drivePolicy: "PRESERVE_USER_DRIVE_ORIGINAL",
+    });
+    transitionMock.mockReturnValue(null);
+    const commit = vi.fn();
+
+    expect(
+      runDeleteFiscalNotificationDocumentCommandV1(
+        input(commit as unknown as Commit),
+      ),
+    ).toEqual({ status: "BLOCKED", reason: "RESULT_INVALID" });
+    expect(commit).not.toHaveBeenCalled();
+  });
+
   it("entrega una única transición completa al commit durable", () => {
-    const expected = structuredClone(EMPTY_DATA);
+    const expected: AppData = {
+      ...structuredClone(EMPTY_DATA),
+      workspaceIntegrityQuarantine: [
+        {
+          collection: "fiscalNotificationsWorkspace",
+          reason: "malformed_record",
+          rawValue: { stale: true },
+        },
+        {
+          collection: "customers",
+          reason: "malformed_record",
+          rawValue: { retained: true },
+        },
+      ],
+    };
+    const before = structuredClone(expected);
     const workspace = emptyWorkspace();
     deleteMock.mockReturnValue({
       status: "APPLIED",
@@ -74,14 +148,104 @@ describe("durable fiscal notification document deletion command v1", () => {
     expect(result.status).toBe("applied");
     if (result.status !== "applied") return;
     expect(result.data.fiscalNotificationsWorkspace).toBe(workspace);
+    expect(result.data.workspaceIntegrityQuarantine).toEqual([
+      expect.objectContaining({ collection: "customers" }),
+    ]);
     expect(result.value).toEqual(
       expect.objectContaining({
         drivePolicy: "PRESERVE_USER_DRIVE_ORIGINAL",
         driveFileIdsPreserved: ["drive_file_preserved_161"],
       }),
     );
+    expect(expected).toEqual(before);
+  });
+
+  it("conserva toda la cuarentena cuando todavía quedan documentos", () => {
+    const expected: AppData = {
+      ...structuredClone(EMPTY_DATA),
+      workspaceIntegrityQuarantine: [
+        {
+          collection: "fiscalNotificationsWorkspace",
+          reason: "malformed_record",
+          rawValue: { retainedWhileNonEmpty: true },
+        },
+      ],
+    };
+    const workspace = {
+      ...emptyWorkspace(),
+      documents: [
+        {
+          id: "document:remaining",
+        } as FiscalNotificationsWorkspace["documents"][number],
+      ],
+    };
+    deleteMock.mockReturnValue({
+      status: "APPLIED",
+      workspace,
+      removedDocumentId: "document:161",
+      removedRelationCount: 0,
+      driveFileIdsPreserved: [],
+      drivePolicy: "PRESERVE_USER_DRIVE_ORIGINAL",
+    });
+    const commit = applyingCommit();
+
+    const result = runDeleteFiscalNotificationDocumentCommandV1(
+      input(commit, expected),
+    );
+
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    expect(result.data.workspaceIntegrityQuarantine).toEqual(
+      expected.workspaceIntegrityQuarantine,
+    );
+  });
+
+  it("no limpia ni muta la cuarentena cuando falla el commit durable", () => {
+    const expected: AppData = {
+      ...structuredClone(EMPTY_DATA),
+      workspaceIntegrityQuarantine: [
+        {
+          collection: "fiscalNotificationsWorkspace",
+          reason: "malformed_record",
+          rawValue: { stillPresent: true },
+        },
+      ],
+    };
+    const before = structuredClone(expected);
+    deleteMock.mockReturnValue({
+      status: "APPLIED",
+      workspace: emptyWorkspace(),
+      removedDocumentId: "document:161",
+      removedRelationCount: 0,
+      driveFileIdsPreserved: [],
+      drivePolicy: "PRESERVE_USER_DRIVE_ORIGINAL",
+    });
+    const commit = vi.fn(() => ({
+      status: "blocked" as const,
+      reason: "write_failed" as const,
+    })) as unknown as Commit;
+
+    expect(
+      runDeleteFiscalNotificationDocumentCommandV1(input(commit, expected)),
+    ).toEqual({ status: "blocked", reason: "write_failed" });
+    expect(expected).toEqual(before);
   });
 });
+
+function applyingCommit(): Commit {
+  return <T>(
+    expected: AppData,
+    build: (previous: AppData) => AppDataTransition<T>,
+  ) => {
+    const transition = build(expected);
+    return {
+      status: "applied" as const,
+      data: transition.data,
+      value: transition.value,
+      replayed: false,
+    };
+  };
+}
 
 function input(commit: Commit, expected = structuredClone(EMPTY_DATA)) {
   return {
