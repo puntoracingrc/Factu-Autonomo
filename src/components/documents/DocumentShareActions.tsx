@@ -18,8 +18,10 @@ import { shareDocumentWithIntegrity } from "@/lib/document-integrity/share-flow"
 import { showFactuToast } from "@/lib/factu/occasional";
 import { downloadDocumentPdf } from "@/lib/pdf";
 import {
+  canShareDocumentPdfNatively,
   hasClientEmail,
   hasClientPhone,
+  NativeDocumentShareUnavailableError,
   openDocumentEmailMessage,
   openWhatsAppDocumentMessage,
   reserveExternalShareWindow,
@@ -167,6 +169,15 @@ export function DocumentShareActions({
 
   async function runEmail(method: ConcreteEmailMethod) {
     if (!canEmail || busy) return;
+    if (method === "native" && !canShareDocumentPdfNatively()) {
+      setRememberMethod(true);
+      setChooser("email");
+      showFactuToast(
+        "Compartir del dispositivo no está disponible aquí. Elige Gmail o Correo del dispositivo.",
+        5000,
+      );
+      return;
+    }
     const useExternalClient = method === "gmail" || method === "mailto";
     const externalWindow = useExternalClient
       ? reserveExternalShareWindow()
@@ -203,8 +214,17 @@ export function DocumentShareActions({
       });
       const hint = postShareHint("email", method);
       if (hint) showFactuToast(hint, 5000);
-    } catch {
+    } catch (error) {
       externalWindow?.close();
+      if (error instanceof NativeDocumentShareUnavailableError) {
+        setRememberMethod(true);
+        setChooser("email");
+        showFactuToast(
+          "El dispositivo no pudo compartir el PDF. Elige Gmail o Correo del dispositivo.",
+          5000,
+        );
+        return;
+      }
       showFactuToast(externalOpenError("email"), 5000);
     } finally {
       setBusy(null);

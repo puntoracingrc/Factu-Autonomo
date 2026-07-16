@@ -10,14 +10,17 @@ import {
   buildMailtoUrl,
   buildShareMessage,
   buildWhatsAppUrl,
+  canShareDocumentPdfNatively,
   greetingForDate,
   hasClientEmail,
   hasClientPhone,
   normalizePhoneForWhatsApp,
+  NativeDocumentShareUnavailableError,
   openDocumentEmailMessage,
   openExternalUrl,
   openWhatsAppDocumentMessage,
   reserveExternalShareWindow,
+  shareDocumentByEmail,
   shareDocumentByWhatsApp,
 } from "./share";
 
@@ -114,6 +117,42 @@ describe("shareDocumentByWhatsApp", () => {
 
     expect(share).toHaveBeenCalledTimes(1);
     expect(share.mock.calls[0][0].files[0].type).toBe("application/pdf");
+    expect(open).not.toHaveBeenCalled();
+  });
+});
+
+describe("document email native sharing", () => {
+  it("detecta de antemano si el navegador puede compartir un PDF", () => {
+    vi.stubGlobal("navigator", {});
+    expect(canShareDocumentPdfNatively()).toBe(false);
+
+    vi.stubGlobal("navigator", { share: vi.fn() });
+    expect(canShareDocumentPdfNatively()).toBe(true);
+
+    vi.stubGlobal("navigator", {
+      share: vi.fn(),
+      canShare: vi.fn(() => false),
+    });
+    expect(canShareDocumentPdfNatively()).toBe(false);
+
+    vi.stubGlobal("navigator", {
+      share: vi.fn(),
+      canShare: vi.fn(() => true),
+    });
+    expect(canShareDocumentPdfNatively()).toBe(true);
+  });
+
+  it("no cae silenciosamente a mailto si compartir falla", async () => {
+    const open = vi.fn();
+    vi.stubGlobal("navigator", {
+      share: vi.fn().mockRejectedValue(new Error("share_failed")),
+      canShare: vi.fn(() => true),
+    });
+    vi.stubGlobal("window", { open });
+
+    await expect(
+      shareDocumentByEmail(sampleDoc, profile, undefined, "native"),
+    ).rejects.toBeInstanceOf(NativeDocumentShareUnavailableError);
     expect(open).not.toHaveBeenCalled();
   });
 });
