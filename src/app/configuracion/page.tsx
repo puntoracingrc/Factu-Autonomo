@@ -838,9 +838,8 @@ export default function ConfiguracionPage() {
             </h2>
             <p className="mt-1 text-sm text-slate-600">
               Rellena estos datos para preparar desde Facturas un ZIP y un
-              correo dirigido a tu gestor. Factu abre el correo con el texto y
-              el destinatario; tú revisas, adjuntas el ZIP descargado y lo
-              envías desde tu aplicación de correo.
+              correo dirigido a tu gestor. Factu abre Gmail con el texto y el
+              destinatario; tú revisas, adjuntas el ZIP descargado y lo envías.
             </p>
           </div>
 

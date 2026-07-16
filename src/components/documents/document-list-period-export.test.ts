@@ -20,6 +20,9 @@ describe("invoice list period PDF export", () => {
     expect(source).toContain("Exportar facturas PDF");
     expect(source).toContain("Exportar y enviar al gestor");
     expect(source).toContain("buildInvoicePeriodAdvisorEmail");
+    expect(source).toContain("reserveExternalShareWindow");
+    expect(source).toContain("email.gmailComposeUrl");
+    expect(source).toContain("window.location.assign(email.gmailComposeUrl)");
     expect(source).toContain("/configuracion#ajustes-gestor");
     expect(source).toContain("Adjunta el ZIP antes de enviarlo");
     expect(source).toContain("La búsqueda y el estado no cambian");

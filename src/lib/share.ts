@@ -210,7 +210,10 @@ export function reserveExternalShareWindow(): Window | null {
   return opened;
 }
 
-function openExternalUrl(url: string, reservedWindow?: Window | null): boolean {
+export function openExternalUrl(
+  url: string,
+  reservedWindow?: Window | null,
+): boolean {
   if (reservedWindow && !reservedWindow.closed) {
     reservedWindow.location.href = url;
     reservedWindow.focus();

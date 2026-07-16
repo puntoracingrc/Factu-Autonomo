@@ -34,6 +34,13 @@ describe("invoice period advisor email", () => {
     expect(result?.body).toContain("Resumen Facturas Trimestre 2 2026.pdf");
     expect(result?.body).toContain("Adjunta ese archivo");
 
+    const gmail = new URL(result!.gmailComposeUrl);
+    expect(gmail.origin).toBe("https://mail.google.com");
+    expect(gmail.searchParams.get("view")).toBe("cm");
+    expect(gmail.searchParams.get("to")).toBe("laura@gestoria.test");
+    expect(gmail.searchParams.get("su")).toBe(result?.subject);
+    expect(gmail.searchParams.get("body")).toBe(result?.body);
+
     const mailto = new URL(result!.mailtoUrl);
     expect(mailto.pathname).toBe("laura@gestoria.test");
     expect(mailto.searchParams.get("subject")).toBe(result?.subject);
