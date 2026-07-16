@@ -35,6 +35,12 @@ import {
   type FiscalDocumentExtractionResult,
 } from "@/lib/tax-model-diagnostic/extractors";
 import { DIAGNOSTIC_QUESTIONS } from "@/lib/tax-model-diagnostic/questions";
+import {
+  answerKindFromValue,
+  confidenceBucket,
+} from "@/lib/tax-diagnostic-insights/contracts";
+import { recordTaxProductEvent } from "@/lib/tax-diagnostic-insights/client";
+import { taxDiagnosticRiskTag } from "@/lib/tax-diagnostic-insights/risk-tags";
 
 type ProfilePatch = Partial<TaxpayerProfile>;
 
@@ -51,6 +57,9 @@ interface UnifiedProposal {
   date?: string;
   page?: number;
   documentId: string;
+  documentFamily: string;
+  telemetryExtractionMethod: "NATIVE" | "PDF_FORM" | "OCR" | "MIXED";
+  layoutVersion?: string;
   detail?: string;
 }
 
@@ -143,6 +152,43 @@ function evidenceType(
   return "OTHER";
 }
 
+function telemetryExtractionMethod(
+  result: FiscalDocumentExtractionResult,
+): "NATIVE" | "PDF_FORM" | "OCR" | "MIXED" {
+  const methods = result.envelope.extractionMethods;
+  if (methods.length > 1) return "MIXED";
+  const method = methods[0];
+  if (method === "OCR_LOCAL") return "OCR";
+  if (method === "PDF_ACROFORM" || method === "PDF_XFA") return "PDF_FORM";
+  return "NATIVE";
+}
+
+function documentFamily(result: FiscalDocumentExtractionResult) {
+  return result.envelope.detectedDocumentType ?? "UNRECOGNIZED";
+}
+
+function recordDocumentClassification(result: FiscalDocumentExtractionResult) {
+  const classificationResult = result.envelope.detectedDocumentType
+    ? result.status === "RESOLVED"
+      ? "RECOGNIZED"
+      : "AMBIGUOUS"
+    : "UNRECOGNIZED";
+  void recordTaxProductEvent({
+    eventType: "tax_document_classified",
+    page: "DIAGNOSTIC",
+    documentFamily: documentFamily(result),
+    extractionMethod: telemetryExtractionMethod(result),
+    confidenceBucket: confidenceBucket(result.envelope.overallConfidence),
+    ...(result.envelope.fiscalYear ? { fiscalYear: result.envelope.fiscalYear } : {}),
+    ...(result.envelope.modelVersion ? { layoutVersion: result.envelope.modelVersion } : {}),
+    properties: {
+      classificationResult,
+      prefilledQuestionCount: result.questionResolutions.length,
+      extractedFactCount: result.facts.length,
+    },
+  });
+}
+
 function displayProposalValue(
   field: keyof TaxpayerProfile,
   value: TaxpayerProfile[keyof TaxpayerProfile],
@@ -222,6 +268,11 @@ function extractionProposals(
           : {}),
         ...(primaryFact?.sourcePage ? { page: primaryFact.sourcePage } : {}),
         documentId: result.envelope.documentId,
+        documentFamily: documentFamily(result),
+        telemetryExtractionMethod: telemetryExtractionMethod(result),
+        ...(result.envelope.modelVersion
+          ? { layoutVersion: result.envelope.modelVersion }
+          : {}),
         detail: [resolution.explanation, ...resolution.missingInformation].join(
           " ",
         ),
@@ -411,6 +462,18 @@ export function DiagnosticHaciendaReview({
   }
 
   async function analyzeFiles(nextFiles: File[]) {
+    const hasPdf = nextFiles.some(isPdf);
+    const hasImage = nextFiles.some((file) => !isPdf(file));
+    const inputType = hasPdf && hasImage ? "MIXED" : hasPdf ? "PDF" : "SCREENSHOT";
+    void recordTaxProductEvent({
+      eventType: "tax_document_scan_started",
+      page: "DIAGNOSTIC",
+      properties: {
+        inputType,
+        pageCountBucket: "UNKNOWN",
+        documentCount: nextFiles.length,
+      },
+    });
     setReading(true);
     setError(null);
     setProgress(null);
@@ -501,8 +564,19 @@ export function DiagnosticHaciendaReview({
             status: analysisStatus(result),
             warnings: [...result.warnings],
           });
+          recordDocumentClassification(result);
           rawProposals.push(...extractionProposals(result));
         } catch (caught) {
+          void recordTaxProductEvent({
+            eventType: "tax_document_scan_failed",
+            page: "DIAGNOSTIC",
+            properties: {
+              failureCode: "READ_FAILED",
+              extractionStage: "READ",
+              inputType: "PDF",
+              pageCountBucket: "UNKNOWN",
+            },
+          });
           nextAnalyses.push({
             fileName: file.name,
             label: "PDF no legible",
@@ -544,6 +618,7 @@ export function DiagnosticHaciendaReview({
               warnings: [...extraction.warnings],
             });
           }
+          recordDocumentClassification(extraction);
           rawProposals.push(...extractionProposals(extraction));
         }
         for (const result of results.filter(
@@ -563,6 +638,7 @@ export function DiagnosticHaciendaReview({
             status: analysisStatus(extraction),
             warnings: [...extraction.warnings],
           });
+          recordDocumentClassification(extraction);
           rawProposals.push(...extractionProposals(extraction));
         }
       }
@@ -573,6 +649,16 @@ export function DiagnosticHaciendaReview({
       setConflicts(consolidated.conflicts);
       setSelected(consolidated.proposals.map((proposal) => proposal.field));
     } catch (caught) {
+      void recordTaxProductEvent({
+        eventType: "tax_document_scan_failed",
+        page: "DIAGNOSTIC",
+        properties: {
+          failureCode: "EXTRACTION_FAILED",
+          extractionStage: "EXTRACTION",
+          inputType,
+          pageCountBucket: "UNKNOWN",
+        },
+      });
       setAnalyses(nextAnalyses);
       setError(
         caught instanceof Error
@@ -591,6 +677,39 @@ export function DiagnosticHaciendaReview({
       selected.includes(proposal.field),
     );
     if (chosen.length === 0) return;
+    for (const proposal of proposals) {
+      const accepted = selected.includes(proposal.field);
+      void recordTaxProductEvent({
+        eventType: "tax_document_field_reviewed",
+        page: "DIAGNOSTIC",
+        questionId: proposal.questionId,
+        documentFamily: proposal.documentFamily,
+        extractionMethod: proposal.telemetryExtractionMethod,
+        confidenceBucket: confidenceBucket(proposal.confidence),
+        ...(proposal.layoutVersion ? { layoutVersion: proposal.layoutVersion } : {}),
+        properties: {
+          fieldId: proposal.field,
+          action: accepted ? "CONFIRMED" : "REJECTED",
+          answeredQuestion: true,
+        },
+      });
+      if (accepted) {
+        void recordTaxProductEvent({
+          eventType: "tax_question_answered",
+          page: "DIAGNOSTIC",
+          questionId: proposal.questionId,
+          questionGroup: proposal.questionId.split("_", 1)[0] ?? "UNKNOWN",
+          riskTag: taxDiagnosticRiskTag(proposal.questionId),
+          properties: {
+            answerKind: answerKindFromValue(proposal.value),
+            answerSource: "DOCUMENT_PREFILL",
+            wasChanged:
+              JSON.stringify(currentProfile[proposal.field]) !==
+              JSON.stringify(proposal.value),
+          },
+        });
+      }
+    }
     const patch = Object.fromEntries(
       chosen.map((proposal) => [proposal.field, proposal.value]),
     ) as ProfilePatch;

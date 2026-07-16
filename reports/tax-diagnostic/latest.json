@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-07-16T00:00:00.000Z",
+  "period": {
+    "from": "2026-07-09T00:00:00.000Z",
+    "to": "2026-07-16T00:00:00.000Z"
+  },
+  "retentionDays": 90,
+  "eventVolume": 0,
+  "funnel": {
+    "started": 0,
+    "completed": 0,
+    "evaluationsGenerated": 0,
+    "evaluationsSaved": 0,
+    "modelsOpened": 0,
+    "calendarOpened": 0,
+    "abandoned": 0,
+    "completionRate": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null
+    },
+    "saveRate": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null
+    },
+    "calendarOpenRate": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null
+    }
+  },
+  "questions": [],
+  "models": [],
+  "documents": [],
+  "versions": {},
+  "signals": [],
+  "regressions": [],
+  "recommendations": [
+    "DATA_VOLUME_INSUFFICIENT"
+  ],
+  "safeguards": {
+    "changesRulesAutomatically": false,
+    "approvesFiscalRules": false,
+    "authorizedFiscalExclusion": false,
+    "allModelsViewRequired": true
+  },
+  "source": "EMPTY_LOCAL"
+}

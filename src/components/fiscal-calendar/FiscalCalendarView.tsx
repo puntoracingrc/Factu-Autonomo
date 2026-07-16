@@ -46,6 +46,7 @@ import type {
   FiscalCalendarOfficialSource,
   FiscalCalendarResponseData,
 } from "@/lib/fiscal-calendar/types";
+import { recordTaxProductEvent } from "@/lib/tax-diagnostic-insights/client";
 
 interface FiscalCalendarViewProps {
   initialStartDate: string;
@@ -116,9 +117,11 @@ function obligationFallbackMessage(view: FiscalCalendarObligationView): string {
 function LinkedEventText({
   text,
   modelLinks,
+  onModelOpen,
 }: {
   text: string;
   modelLinks: ReadonlyMap<string, FiscalCalendarModelPageLink>;
+  onModelOpen?: (modelNumber: string) => void;
 }) {
   return segmentFiscalCalendarModelReferences(text, modelLinks).map(
     (segment, index) =>
@@ -126,6 +129,7 @@ function LinkedEventText({
         <span key={`${index}-${segment.text}`}>
           <Link
             href={segment.modelPage.href}
+            onClick={() => onModelOpen?.(segment.modelPage!.code)}
             aria-label={`Modelo ${segment.modelPage.code}: localizar en el catálogo de Modelos AEAT`}
             className="font-bold text-blue-700 underline decoration-blue-300 underline-offset-2 hover:decoration-blue-700 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 dark:text-blue-300"
           >
@@ -146,9 +150,11 @@ function LinkedEventText({
 function EventDescription({
   description,
   modelLinks,
+  onModelOpen,
 }: {
   description: string;
   modelLinks: ReadonlyMap<string, FiscalCalendarModelPageLink>;
+  onModelOpen?: (modelNumber: string) => void;
 }) {
   const lines = description
     .split("\n")
@@ -162,6 +168,7 @@ function EventDescription({
         <LinkedEventText
           text={lines[0] ?? description}
           modelLinks={modelLinks}
+          onModelOpen={onModelOpen}
         />
       </p>
     );
@@ -179,7 +186,7 @@ function EventDescription({
           role="listitem"
           className="break-words rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
         >
-          <LinkedEventText text={line} modelLinks={modelLinks} />
+          <LinkedEventText text={line} modelLinks={modelLinks} onModelOpen={onModelOpen} />
         </p>
       ))}
     </div>
@@ -193,6 +200,7 @@ function EventCard({
   obligationDecision,
   orientationHighlighted,
   onCreateReminder,
+  onModelOpen,
 }: {
   event: FiscalCalendarEvent;
   categoryLabel: string;
@@ -200,6 +208,7 @@ function EventCard({
   obligationDecision?: FiscalCalendarEventObligationDecision;
   orientationHighlighted: boolean;
   onCreateReminder: (event: FiscalCalendarEvent) => void;
+  onModelOpen: (modelNumber: string) => void;
 }) {
   return (
     <li>
@@ -265,7 +274,7 @@ function EventCard({
           ) : null}
         </div>
         <h2 className="mt-3 text-lg font-bold leading-snug text-slate-900 dark:text-slate-100">
-          <LinkedEventText text={event.title} modelLinks={modelLinks} />
+          <LinkedEventText text={event.title} modelLinks={modelLinks} onModelOpen={onModelOpen} />
         </h2>
         <time
           className="mt-2 block text-sm font-semibold text-blue-700 dark:text-blue-300"
@@ -277,6 +286,7 @@ function EventCard({
           <EventDescription
             description={event.description}
             modelLinks={modelLinks}
+            onModelOpen={onModelOpen}
           />
         ) : (
           <p className="mt-3 text-sm text-slate-400 dark:text-slate-500">
@@ -422,6 +432,14 @@ export function FiscalCalendarView({
       : 0;
 
   useEffect(() => {
+    void recordTaxProductEvent({
+      eventType: "tax_calendar_opened",
+      page: "CALENDAR",
+      properties: { scope: effectiveScope },
+    }, { dedupeKey: `calendar-opened:${effectiveScope}` });
+  }, [effectiveScope]);
+
+  useEffect(() => {
     const controller = new AbortController();
     let active = true;
     async function loadEvents() {
@@ -508,9 +526,26 @@ export function FiscalCalendarView({
       endDateInclusive,
       categories: selectedCategories,
     });
+    const rangeDays = Math.max(
+      1,
+      Math.round((new Date(endDateInclusive).getTime() - new Date(startDate).getTime()) / 86_400_000) + 1,
+    );
+    void recordTaxProductEvent({
+      eventType: "tax_calendar_filters_used",
+      page: "CALENDAR",
+      properties: {
+        categoryCount: selectedCategories.length,
+        dateRangeBucket: rangeDays <= 31 ? "UP_TO_31_DAYS" : rangeDays <= 92 ? "32_TO_92_DAYS" : "OVER_92_DAYS",
+      },
+    });
   }
 
   function prepareReminder(event: FiscalCalendarEvent) {
+    void recordTaxProductEvent({
+      eventType: "tax_calendar_event_opened",
+      page: "CALENDAR",
+      properties: { sourcePage: "CALENDAR" },
+    });
     setReminderDraftError(null);
     try {
       const draft = createFiscalCalendarReminderDraft(event);
@@ -530,6 +565,15 @@ export function FiscalCalendarView({
         "No hemos podido preparar el recordatorio. Inténtalo de nuevo.",
       );
     }
+  }
+
+  function recordCalendarModelOpen(modelNumber: string) {
+    void recordTaxProductEvent({
+      eventType: "tax_calendar_model_opened",
+      page: "CALENDAR",
+      modelNumber,
+      properties: { sourcePage: "CALENDAR" },
+    });
   }
 
   return (
@@ -870,6 +914,7 @@ export function FiscalCalendarView({
                     orientationPriorityEventIds.has(event.id)
                   }
                   onCreateReminder={prepareReminder}
+                  onModelOpen={recordCalendarModelOpen}
                 />
               ))}
             </ol>

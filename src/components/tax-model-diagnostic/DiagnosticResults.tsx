@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect } from "react";
+
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -29,6 +31,7 @@ import {
   type TaxModelRecommendationItemV1,
   type TaxModelRecommendationStatus,
 } from "@/lib/tax-obligations";
+import { recordTaxProductEvent } from "@/lib/tax-diagnostic-insights/client";
 
 function filingSubjectLabel(subject: ModelResult["filingSubject"]): string {
   const labels: Record<ModelResult["filingSubject"], string> = {
@@ -209,7 +212,7 @@ export function DiagnosticResults({
     assessment,
     manualModelCodes: preferences?.manualModelCodes ?? [],
   });
-  const recommendationsByCode = new Map(
+  const recommendationsByCode = new Map<string, TaxModelRecommendationItemV1>(
     recommendationSnapshot.recommendations.map((recommendation) => [
       recommendation.modelCode,
       recommendation,
@@ -233,6 +236,21 @@ export function DiagnosticResults({
     );
   }
 
+  useEffect(() => {
+    for (const recommendation of recommendationSnapshot.recommendations) {
+      void recordTaxProductEvent({
+        eventType: "tax_model_recommendation_viewed",
+        page: "DIAGNOSTIC",
+        modelNumber: recommendation.modelCode,
+        recommendationStatus: recommendation.recommendationStatus,
+        engineVersion: result.engineVersion,
+        rulesetVersion: result.ruleSetVersion,
+        fiscalYear: result.fiscalYear,
+        properties: { reasonExpanded: false, sourcePage: "DIAGNOSTIC" },
+      }, { dedupeKey: `recommendation:${result.generatedAt}:${recommendation.modelCode}` });
+    }
+  }, [recommendationSnapshot.recommendations, result.engineVersion, result.fiscalYear, result.generatedAt, result.ruleSetVersion]);
+
   function toggleManualModel(modelCode: string, selected: boolean) {
     if (!ready) return;
     const next = setManualFiscalAdvisoryModelSelectionV1({
@@ -242,6 +260,35 @@ export function DiagnosticResults({
       allowedModelCodes: TAX_OBLIGATION_MODEL_CODES,
     });
     if (!next) return;
+    const previous = recommendationsByCode.get(modelCode);
+    if (previous) {
+      void recordTaxProductEvent({
+        eventType: selected ? "tax_model_manual_added" : "tax_model_manual_removed",
+        page: "DIAGNOSTIC",
+        modelNumber: modelCode,
+        engineVersion: result.engineVersion,
+        rulesetVersion: result.ruleSetVersion,
+        fiscalYear: result.fiscalYear,
+        properties: {
+          previousRecommendationStatus: selected
+            ? previous.engineRecommendationStatus
+            : previous.recommendationStatus,
+          sourcePage: "DIAGNOSTIC",
+        },
+      });
+      void recordTaxProductEvent({
+        eventType: "tax_models_saved",
+        page: "DIAGNOSTIC",
+        engineVersion: result.engineVersion,
+        rulesetVersion: result.ruleSetVersion,
+        fiscalYear: result.fiscalYear,
+        properties: {
+          recommendedCount: (counts.get("LIKELY_REQUIRED") ?? 0) + (counts.get("POSSIBLY_REQUIRED") ?? 0),
+          manuallyAddedCount: next.manualModelCodes.length,
+          manuallyRemovedCount: selected ? 0 : 1,
+        },
+      });
+    }
     updateProfile({
       ...data.profile,
       fiscalAdvisoryModelPreferences: next,
