@@ -12,6 +12,7 @@ import type { ProjectFiscalNotificationPdfWorkerAnalysisInput } from "./pdf-work
 import { extractProfileDrivenFamilyV2 } from "./extractor-core/profile-driven-extractor.v2";
 import { segmentProfileDrivenDocumentV2 } from "./extractor-core/profile-driven-document-segments.v2";
 import { extractAeatRealCorpusDocumentV2 } from "./extractor-core/real-corpus-extractor.v2";
+import { extractAeatRealCorpusDocumentV3 } from "./extractor-core/real-corpus-extractor.v3";
 import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
 import {
@@ -19,6 +20,7 @@ import {
   projectProfileDrivenReviewV2,
 } from "./profile-driven-review.v2";
 import { projectRealCorpusReviewV2 } from "./real-corpus-review.v2";
+import { projectRealCorpusReviewV3 } from "./real-corpus-review.v3";
 import {
   projectFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewV1,
@@ -80,6 +82,7 @@ export async function analyzeFiscalNotificationDocumentInput(
     profileDrivenOutcome,
     profileDrivenSegments,
     realCorpusOutcome,
+    realCorpusOutcomeV3,
   ] = await Promise.all([
     analyzeFiscalNotificationVerticalSliceV1(documentInput),
     hasText
@@ -90,6 +93,9 @@ export async function analyzeFiscalNotificationDocumentInput(
       : Promise.resolve(null),
     hasText
       ? extractAeatRealCorpusDocumentV2(documentInput)
+      : Promise.resolve(null),
+    hasText
+      ? extractAeatRealCorpusDocumentV3(documentInput)
       : Promise.resolve(null),
   ]);
   const legacyReview =
@@ -125,10 +131,22 @@ export async function analyzeFiscalNotificationDocumentInput(
         : [];
     },
   );
+  const v3FamilyId =
+    realCorpusOutcomeV3?.status === "REVIEW_REQUIRED"
+      ? realCorpusOutcomeV3.familyId
+      : null;
+  const reviewsOutsideV3Family = profileReviews.filter(
+    (review) =>
+      v3FamilyId === null ||
+      review.documents.every((document) => document.familyId !== v3FamilyId),
+  );
   const verticalSliceReview = mergeProfileDrivenReviewsV2(legacyReview, [
-    ...profileReviews,
-    ...(realCorpusOutcome
+    ...reviewsOutsideV3Family,
+    ...(realCorpusOutcome && realCorpusOutcome.familyId !== v3FamilyId
       ? [projectRealCorpusReviewV2(realCorpusOutcome)]
+      : []),
+    ...(realCorpusOutcomeV3
+      ? [projectRealCorpusReviewV3(realCorpusOutcomeV3)]
       : []),
   ]);
 

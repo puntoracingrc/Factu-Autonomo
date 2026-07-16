@@ -1585,11 +1585,64 @@ function isControlledFieldLabel(value: string): boolean {
       "Reconocimiento documental",
       "Título del documento",
       "Total",
+      "Fecha del documento",
+      "Clave de liquidación",
+      "Modelo",
+      "Ejercicio",
+      "Período",
+      "Recargo ordinario del 20 %",
+      "Total con recargo ordinario",
+      "Importe con recargo reducido",
+      "Recargo del 5 % si el principal ya se pagó",
+      "Referencia de la carta de pago",
+      "Importe de la carta de pago",
+      "Referencia del acuerdo",
+      "Principal concedido",
+      "Intereses del plan",
+      "Total del plan",
+      "Forma prevista de pago",
+      "Referencia de la diligencia",
+      "Fecha del embargo",
+      "Deuda pendiente",
+      "Importe embargado",
+      "Importe remitido al Tesoro",
+      "Destinatario operativo",
+      "Modelo periódico citado",
+      "Modelo anual esperado",
+      "Inicio impreso del período",
+      "Canal indicado",
+      "Estructura lingüística",
+      "Referencia de la devolución",
+      "Devolución solicitada",
+      "Devolución acordada",
+      "Devolución ordenada",
+      "Total deducciones",
+      "Líquido cuya transferencia se ordena",
+      "Estado de la devolución",
+      "Modelo afectado",
+      "Ejercicios afectados",
+      "Canal retirado",
+      "Canal disponible",
+      "Referencia del embargo anterior",
+      "Fecha del embargo anterior",
+      "Fecha del levantamiento",
+      "Tipo de bien",
+      "Alcance",
+      "Cancelación registral ordenada",
+      "Referencia del certificado",
+      "Fecha del certificado",
+      "Motivo indicado",
+      "Carta de pago adjunta",
+      "Qué es",
+      "Qué resultado muestra",
+      "Qué conviene hacer",
+      "Cómo se cuenta el plazo",
+      "Qué puede ocurrir",
     ].includes(value)
   ) {
     return true;
   }
-  return /^(?:Documentación|Consecuencia indicada|Hecho o fundamento|Recurso indicado|Deuda afectada|Vencimiento original) [1-9]\d*$/u.test(
+  return /^(?:Documentación|Consecuencia indicada|Hecho o fundamento|Recurso indicado|Deuda afectada|Vencimiento original|Cuota|Organismo público|Deducción|Referencia de la deducción) [1-9]\d*$/u.test(
     value,
   );
 }
@@ -1603,7 +1656,8 @@ function assertSerializableFieldPrivacy(
   const normalizedValue = item.normalizedValue as string | null;
   if (
     (semantic === "DETAIL" || semantic === "OBLIGATION") &&
-    assertRealCorpusSerializableFieldPrivacyV2(item)
+    (assertRealCorpusSerializableFieldPrivacyV2(item) ||
+      assertRealCorpusSerializableFieldPrivacyV3(item))
   ) {
     return;
   }
@@ -1801,6 +1855,143 @@ function normalizeClosedRealCorpusDisplayV2(value: string): string {
   } catch {
     return "";
   }
+}
+
+const REAL_CORPUS_EXPLANATIONS_V3 = new Set([
+  "Es una providencia de apremio: una cuota o deuda no se pagó en período voluntario y pasa a vía ejecutiva.",
+  "Muestra el principal pendiente y tres escenarios de recargo condicionados por cuándo se pague.",
+  "Comprueba la fecha real de recepción antes de elegir el importe aplicable. La carta de pago adjunta sirve para ingresar, pero no acredita que ya se haya pagado.",
+  "Depende de la quincena en que se recibió; sin fecha de recepción no se calcula el último día.",
+  "Si no se paga en el plazo abierto por la providencia, puede continuar el embargo y devengarse intereses y costas.",
+  "La AEAT ha concedido pagar la deuda mediante las cuotas y fechas del Anexo I.",
+  "La deuda principal no desaparece: queda sometida al calendario concedido y genera los intereses detallados.",
+  "Mantén saldo suficiente para cada vencimiento y revisa por separado cualquier cuota que ya estuviera vencida al notificarse el acuerdo.",
+  "Cada cuota tiene su propia fecha. El plazo de diez días del texto solo aplica a cuotas ya vencidas o que venzan dentro de ese período y no hayan podido cargarse.",
+  "El impago de una cuota puede iniciar o continuar el apremio y, según el caso, anticipar el vencimiento de cuotas pendientes.",
+  "La AEAT ha dictado una diligencia que afecta saldos bancarios para cobrar una deuda en ejecutiva.",
+  "El anexo identifica la deuda y el importe que el documento declara embargado.",
+  "Comprueba la deuda de origen, el importe y la fecha de recepción. Los motivos de oposición a la diligencia son limitados.",
+  "El recurso se cuenta desde la recepción, no desde la fecha de la diligencia ni la firma.",
+  "La entidad puede retener e ingresar fondos hasta el límite indicado, pero la diligencia no prueba que ya se hayan remitido al Tesoro.",
+  "Es un recordatorio informativo sobre una declaración anual que la AEAT espera por los modelos periódicos presentados.",
+  "Indica el modelo y ejercicio, pero no acredita que falte la presentación ni que exista una sanción o deuda.",
+  "Comprueba si el modelo anual ya fue presentado y conserva su justificante.",
+  "Solo muestra el comienzo del período. Si no imprime la fecha final, no debe inventarse.",
+  "El documento no declara una consecuencia concreta ni abre por sí solo un procedimiento sancionador.",
+  "Es el desglose de una devolución: cuánto se reconoció, cuánto se descontó para otras deudas públicas y qué líquido se ordenó transferir.",
+  "La suma de las deducciones y el líquido debe cuadrar con el importe ordenado.",
+  "Comprueba el abono bancario y consulta con cada organismo público si no reconoces una deducción.",
+  "No abre por sí sola un plazo de pago.",
+  "Las deducciones reducen el efectivo de la devolución, pero este documento no demuestra que las deudas externas quedaran totalmente extinguidas.",
+  "Es una comunicación general sobre un cambio de canal de presentación del modelo 303.",
+  "Desde el ejercicio indicado ya no se permite imprimir la predeclaración para presentarla en papel.",
+  "Utiliza la presentación electrónica o un tercero autorizado; el pago puede seguir realizándose con el documento de ingreso cuando proceda.",
+  "No crea un vencimiento individual.",
+  "No es un requerimiento, liquidación ni sanción.",
+  "La AEAT levanta un embargo anterior sobre un bien mueble y ordena cancelar la anotación correspondiente.",
+  "El anexo identifica el bien afectado por el levantamiento.",
+  "Conserva el documento y verifica la cancelación registral si necesitas disponer del bien.",
+  "No muestra una actuación obligatoria inmediata.",
+  "El bien deja de estar afectado por esa diligencia en el alcance indicado.",
+  "Es un certificado negativo de estar al corriente, emitido a petición del interesado.",
+  "A la fecha del certificado constaban deudas o sanciones en ejecutiva no suspendidas ni aplazadas.",
+  "Consulta las deudas vigentes. Si los datos del certificado son incorrectos, el contexto oficial prevé un escrito de disconformidad, no un recurso ordinario.",
+  "La disconformidad se cuenta desde la recepción; sin esa fecha no se calcula el último día.",
+  "Puede impedir acreditar estar al corriente para la finalidad solicitada.",
+]);
+
+const REAL_CORPUS_CLOSED_VALUES_V3 = new Set([
+  "DIRECT_DEBIT_PRESENT",
+  "PAYMENT_CHANNEL_NOT_PRINTED",
+  "FINANCIAL_ENTITY",
+  "ELECTRONIC_CHANNEL",
+  "SPANISH_CATALAN_SAME_ACT",
+  "PUBLIC_AUTHORITY_1",
+  "PUBLIC_AUTHORITY_2",
+  "SOCIAL_SECURITY",
+  "REGIONAL_TAX_AUTHORITY",
+  "OTHER_PUBLIC_AUTHORITY",
+  "TRANSFER_ORDERED_NOT_BANK_CREDIT",
+  "FROM_2023_ONWARDS",
+  "PAPER_PREDECLARATION_REMOVED",
+  "ELECTRONIC_FILING",
+  "MOTOR_VEHICLE",
+  "PRINTED_SEIZURE_RELEASE",
+  "NEGATIVE",
+  "EXECUTIVE_DEBTS_OR_SANCTIONS_NOT_SUSPENDED_OR_DEFERRED",
+]);
+
+/** Closed V3 exception. Only synthetic enums and source-controlled prose pass. */
+function assertRealCorpusSerializableFieldPrivacyV3(
+  item: Readonly<Record<string, unknown>>,
+): boolean {
+  const fieldId = String(item.fieldId);
+  if (!fieldId.startsWith("real-corpus-v3:")) return false;
+  const display = String(item.displayValue);
+  const normalized =
+    typeof item.normalizedValue === "string" ? item.normalizedValue : "";
+  if (fieldId === "real-corpus-v3:recognized-family") {
+    if (
+      display !== "Título, autoridad y estructura coinciden" ||
+      normalized !== "V3:EXACT_TITLE_AUTHORITY_STRUCTURE"
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (fieldId === "real-corpus-v3:payment-form-status") {
+    if (
+      display !==
+        "Sirve para pagar; no acredita que el pago se haya realizado" ||
+      normalized !== "V3:PAYMENT_FORM_ONLY"
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (
+    /^real-corpus-v3:explanation:(?:what_is|result|action|deadline|consequence)$/u.test(
+      fieldId,
+    )
+  ) {
+    if (
+      !/^V3:EXPLANATION:(?:collection\.enforcement_order|collection\.deferral_grant|seizure\.bank_account|information\.model_filing_reminder|refund\.payment_communication|information\.regulatory_change|seizure\.release|certificate\.tax_compliance):(?:WHAT_IS|RESULT|ACTION|DEADLINE|CONSEQUENCE)$/u.test(
+        normalized,
+      ) ||
+      !REAL_CORPUS_EXPLANATIONS_V3.has(display)
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (/^real-corpus-v3:installment:\d+$/u.test(fieldId)) {
+    if (
+      !/^V3:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):\d+:\d+:\d+$/u.test(
+        normalized,
+      ) ||
+      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · base \d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés \d{1,3}(?:\.\d{3})*,\d{2}\s€ · total \d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
+        display,
+      )
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  const closed = /^V3:TEXT:[A-Z0-9_]+:([A-Z0-9_]+)$/u.exec(normalized);
+  if (closed) {
+    if (
+      !REAL_CORPUS_CLOSED_VALUES_V3.has(closed[1]!) ||
+      display !== closed[1]
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (/^V3:BOOLEAN:[A-Z0-9_]+:(?:TRUE|FALSE)$/u.test(normalized)) {
+    if (display !== "Sí" && display !== "No") throw invalidReview();
+    return true;
+  }
+  throw invalidReview();
 }
 
 function isCanonicalTypeValid(semantic: string, value: unknown): boolean {
