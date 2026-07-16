@@ -43,12 +43,11 @@ import {
   findLinkedCustomerForDocument,
 } from "@/lib/document-client-contact";
 import {
-  describeInvoiceDocumentSeries,
   filterDocumentsByQuery,
   isDocumentEditable,
   isDraftInvoiceNumber,
   sortDocumentsByNumberDesc,
-  sortInvoicesBySeriesAndNumberDesc,
+  sortInvoicesByPeriodAndNumberDesc,
 } from "@/lib/documents";
 import { openDocumentPdfPreview } from "@/lib/pdf";
 import { summarizeWorkDocumentExpensesById } from "@/lib/expenses";
@@ -95,7 +94,8 @@ const SEARCH_PLACEHOLDERS: Record<DocumentType, string> = {
 };
 
 const SEARCH_HINTS: Record<DocumentType, string> = {
-  factura: "Agrupadas por serie y ordenadas por número, de mayor a menor",
+  factura:
+    "Ordenadas por año y mes; dentro de cada mes, por el último número de mayor a menor",
   presupuesto: "Ordenados por número, más recientes primero",
   recibo: "Ordenados por número, más recientes primero",
 };
@@ -194,7 +194,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     );
     const sorted =
       type === "factura"
-        ? sortInvoicesBySeriesAndNumberDesc(
+        ? sortInvoicesByPeriodAndNumberDesc(
             statusDocuments,
             data.profile.numbering,
           )
@@ -406,28 +406,12 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
           {visibleDocuments.map((doc, index) => {
             const previousDocument =
               index > 0 ? visibleDocuments[index - 1] : null;
-            const invoiceSeries =
-              type === "factura"
-                ? describeInvoiceDocumentSeries(doc, data.profile.numbering)
-                : null;
-            const previousInvoiceSeries =
-              type === "factura" && previousDocument
-                ? describeInvoiceDocumentSeries(
-                    previousDocument,
-                    data.profile.numbering,
-                  )
-                : null;
             const dividerLabel =
-              type === "factura"
-                ? !previousInvoiceSeries ||
-                  previousInvoiceSeries.key !== invoiceSeries?.key
-                  ? invoiceSeries?.label
-                  : null
-                : !previousDocument ||
-                    timelineMonthKey(previousDocument.date) !==
-                      timelineMonthKey(doc.date)
-                  ? formatTimelineMonthLabel(doc.date)
-                  : null;
+              !previousDocument ||
+              timelineMonthKey(previousDocument.date) !==
+                timelineMonthKey(doc.date)
+                ? formatTimelineMonthLabel(doc.date)
+                : null;
             const recoveryCollectionValid =
               !hasAppIssuedRecoveryProtectionClaim(doc) ||
               appIssuedRecoveryCollection.validDocumentIds.has(doc.id);

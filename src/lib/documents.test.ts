@@ -3,6 +3,7 @@ import { documentTotals } from "./calculations";
 import { ensureCustomerForDocument } from "./customers";
 import {
   assignNextDocumentNumberByType,
+  compareInvoicesByPeriodAndNumberDesc,
   compareInvoicesBySeriesAndNumberDesc,
   compareDocumentsByNumberDesc,
   compareDocumentsByNewest,
@@ -19,6 +20,7 @@ import {
   shouldUseDraftInvoiceNumber,
   sortDocumentsByNumberDesc,
   sortDocumentsByNewest,
+  sortInvoicesByPeriodAndNumberDesc,
   sortInvoicesBySeriesAndNumberDesc,
 } from "./documents";
 import { issueDocument } from "./document-integrity";
@@ -543,6 +545,114 @@ describe("buscador de documentos", () => {
       "Históricas importadas · Serie Factura/…/",
     ]);
     expect(mixedSeries).toEqual(originalDocuments);
+  });
+
+  it("mantiene los meses contiguos y evita que una factura antigua con secuencia alta aparezca en un periodo moderno", () => {
+    const julyRectification = {
+      originalDocumentId: "app-july",
+      originalNumber: "F-2026-2954",
+      originalDate: "2026-07-09",
+      reason: "Corrección",
+      type: "correccion" as const,
+    };
+    const historicalJune = {
+      ...issuedInvoice(
+        doc("legacy-june", "factura", "Factura/2949/", "Histórica junio"),
+      ),
+      date: "2026-06-27",
+      legacyImportProvenance: {
+        schemaVersion: 1 as const,
+        kind: "external_import" as const,
+        importer: "pcfacturacion" as const,
+        importedAt: "2026-07-01T10:00:00.000Z",
+      },
+    };
+    const mixedPeriods: Document[] = [
+      historicalJune,
+      issuedInvoice({
+        ...doc("app-july", "factura", "F-2026-2954", "Nueva julio"),
+        date: "2026-07-09",
+      }),
+      issuedInvoice({
+        ...doc("app-june", "factura", "F-2026-0002", "Nueva junio"),
+        date: "2026-06-10",
+      }),
+      issuedInvoice({
+        ...doc("rect-july", "factura", "FR-2026-0001", "Rectificativa"),
+        date: "2026-07-06",
+        rectification: julyRectification,
+      }),
+      issuedInvoice({
+        ...doc("old-high", "factura", "ZZ-2099-999999", "Antigua"),
+        date: "2009-12-31",
+      }),
+    ];
+
+    expect(
+      sortInvoicesByPeriodAndNumberDesc(mixedPeriods).map((item) => item.id),
+    ).toEqual([
+      "app-july",
+      "rect-july",
+      "legacy-june",
+      "app-june",
+      "old-high",
+    ]);
+    expect(
+      sortInvoicesByPeriodAndNumberDesc(mixedPeriods).map((item) =>
+        item.date.slice(0, 7),
+      ),
+    ).toEqual(["2026-07", "2026-07", "2026-06", "2026-06", "2009-12"]);
+  });
+
+  it("ignora cualquier prefijo y el año del formato al priorizar la secuencia final dentro del mismo mes", () => {
+    const arbitraryPrefixes = [
+      issuedInvoice(
+        doc("plain", "factura", "CUALQUIER-PREFIJO/1111", "A"),
+      ),
+      issuedInvoice(doc("short", "factura", "FX/2222", "B")),
+      issuedInvoice(doc("year-prefix", "factura", "ABC-2026-3333", "C")),
+      issuedInvoice(doc("legacy-shape", "factura", "Factura/4444/", "D")),
+      issuedInvoice(doc("year-suffix", "factura", "OTRO5555-2026", "E")),
+      issuedInvoice(doc("embedded", "factura", "R2D2-FX/6666", "F")),
+    ];
+
+    expect(
+      sortInvoicesByPeriodAndNumberDesc(arbitraryPrefixes).map(
+        (item) => item.id,
+      ),
+    ).toEqual([
+      "embedded",
+      "year-suffix",
+      "legacy-shape",
+      "year-prefix",
+      "short",
+      "plain",
+    ]);
+  });
+
+  it("preserva secuencias exactas, deja números no interpretables al final del mes y no muta la entrada", () => {
+    const documents = [
+      issuedInvoice(
+        doc("huge-low", "factura", "INV-9007199254740992", "A"),
+      ),
+      issuedInvoice(
+        doc("huge-high", "factura", "OTRA/9007199254740993", "B"),
+      ),
+      issuedInvoice(doc("unparseable", "factura", "SIN-NUMERO", "C")),
+      issuedInvoice({
+        ...doc("invalid-date", "factura", "ZZ/9999999999999999", "D"),
+        date: "fecha-desconocida",
+      }),
+    ];
+    const original = structuredClone(documents);
+
+    expect(
+      sortInvoicesByPeriodAndNumberDesc(documents).map((item) => item.id),
+    ).toEqual(["huge-high", "huge-low", "unparseable", "invalid-date"]);
+    expect(
+      compareInvoicesByPeriodAndNumberDesc(documents[0]!, documents[1]!),
+    ).toBeGreaterThan(0);
+    expect(documents).toEqual(original);
   });
 
   it("respeta año, ceros, revisiones y deja los números no definitivos al final", () => {

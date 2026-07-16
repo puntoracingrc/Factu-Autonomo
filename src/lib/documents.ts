@@ -730,6 +730,108 @@ export function sortInvoicesBySeriesAndNumberDesc(
   );
 }
 
+type InvoiceListPeriodOrder = {
+  valid: boolean;
+  key: string;
+};
+
+function invoiceListPeriodOrder(date: string): InvoiceListPeriodOrder {
+  const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return { valid: false, key: "" };
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const valid =
+    Number.isInteger(year) &&
+    Number.isInteger(month) &&
+    Number.isInteger(day) &&
+    year >= 1 &&
+    month >= 1 &&
+    month <= 12 &&
+    day >= 1 &&
+    day <= lastDay;
+
+  return valid
+    ? { valid: true, key: `${match[1]}-${match[2]}` }
+    : { valid: false, key: "" };
+}
+
+/**
+ * Contrato del listado de facturas:
+ *
+ * 1. El periodo real (año y mes de la fecha del documento) siempre manda, de
+ *    forma que una factura antigua nunca se inserta bajo un mes moderno.
+ * 2. Dentro del mismo periodo, la secuencia es el último bloque numérico útil
+ *    del número, con independencia de cualquier prefijo o del año incluido en
+ *    él. Los formatos configurados y las revisiones decimales se respetan.
+ * 3. Prefijo, serie, procedencia y texto completo solo desempatan; nunca crean
+ *    bloques que repitan meses ni cambian la prioridad de la secuencia.
+ *
+ * Esta función es solo de presentación. No reclasifica procedencia ni modifica
+ * documentos, snapshots, sellos, hashes o cálculos fiscales.
+ */
+export function compareInvoicesByPeriodAndNumberDesc(
+  a: Document,
+  b: Document,
+  numbering?: NumberingSettings,
+): number {
+  const periodA = invoiceListPeriodOrder(a.date);
+  const periodB = invoiceListPeriodOrder(b.date);
+
+  if (periodA.valid !== periodB.valid) return periodA.valid ? -1 : 1;
+  if (periodA.key !== periodB.key) return periodB.key.localeCompare(periodA.key);
+
+  const numberA = describeInvoiceDocumentSeries(a, numbering);
+  const numberB = describeInvoiceDocumentSeries(b, numbering);
+  if (numberA.hasNumber !== numberB.hasNumber) {
+    return numberA.hasNumber ? -1 : 1;
+  }
+
+  const byExactSequence = compareExactUnsignedIntegersDesc(
+    numberA.exactSequence,
+    numberB.exactSequence,
+  );
+  if (byExactSequence !== 0) return byExactSequence;
+
+  const byExactRevision = compareExactUnsignedIntegersDesc(
+    numberA.exactRevision,
+    numberB.exactRevision,
+  );
+  if (byExactRevision !== 0) return byExactRevision;
+
+  const byDate = b.date.localeCompare(a.date);
+  if (byDate !== 0) return byDate;
+
+  const byNumber = b.number.localeCompare(a.number, "es", {
+    numeric: true,
+    sensitivity: "base",
+  });
+  if (byNumber !== 0) return byNumber;
+  if (a.number !== b.number) return a.number < b.number ? 1 : -1;
+
+  const byCreatedAt = b.createdAt.localeCompare(a.createdAt);
+  if (byCreatedAt !== 0) return byCreatedAt;
+
+  const byId = a.id.localeCompare(b.id, "es", {
+    numeric: true,
+    sensitivity: "base",
+  });
+  if (byId !== 0) return byId;
+  if (a.id === b.id) return 0;
+  return a.id < b.id ? -1 : 1;
+}
+
+export function sortInvoicesByPeriodAndNumberDesc(
+  documents: Document[],
+  numbering?: NumberingSettings,
+): Document[] {
+  return [...documents].sort((a, b) =>
+    compareInvoicesByPeriodAndNumberDesc(a, b, numbering),
+  );
+}
+
 function normalizeSearchAmount(value: string): string {
   return value.replace(/[€\s]/g, "").replace(/\./g, "").replace(",", ".");
 }
