@@ -12,6 +12,22 @@ function input(text: string): BoundedDocumentInput {
   });
 }
 
+function multipageInput(pages: readonly (readonly string[])[]): BoundedDocumentInput {
+  return Object.freeze({
+    ownerScope: "user:synthetic-local-ocr",
+    documentId: "document:synthetic-local-ocr-multipage",
+    pages: Object.freeze(
+      pages.map((lines, index) =>
+        Object.freeze({
+          pageNumber: index + 1,
+          text: lines.join("\n"),
+          isBlank: lines.every((line) => line.length === 0),
+        }),
+      ),
+    ),
+  });
+}
+
 describe("fiscal notification document input analysis", () => {
   it("recognizes a closed historical AEAT enforcement template deterministically", async () => {
     const source = input(
@@ -41,8 +57,14 @@ describe("fiscal notification document input analysis", () => {
     expect(first).toEqual(second);
     expect(first.verticalSliceReview).toMatchObject({
       schemaVersion: 1,
-      status: "INFORMATION_PENDING",
-      documents: [],
+      status: "REVIEW_REQUIRED",
+      documents: [
+        expect.objectContaining({
+          extractorId: "payment-order",
+          familyId: "collection.enforcement_order",
+          title: "Providencia de apremio",
+        }),
+      ],
       retainedSourceContent: "NONE",
     });
     expect(Object.isFrozen(first)).toBe(true);
@@ -85,6 +107,7 @@ describe("fiscal notification document input analysis", () => {
       status: "REVIEW_REQUIRED",
       documents: [
         expect.objectContaining({
+          extractorId: "requirement",
           familyId: "compliance.document_request",
           title: "Requerimiento de documentación",
           subtitle: "Documentación solicitada pendiente de revisión",
@@ -94,24 +117,153 @@ describe("fiscal notification document input analysis", () => {
               displayValue: "REQ-DOC-SYN-PIPELINE-001",
             }),
             expect.objectContaining({
-              canonicalType: "RESPONSE_DEADLINE",
-              displayValue:
-                "Diez días hábiles desde el día siguiente a la recepción",
-            }),
-            expect.objectContaining({
               canonicalType: "DOCUMENTATION_REQUIRED",
-              displayValue:
-                "Documentación justificativa de los datos declarados",
+              displayValue: "Detectado en el documento",
+              normalizedValue: "DOCUMENTATION_REQUIRED",
             }),
             expect.objectContaining({
               canonicalType: "EXPLICIT_CONSEQUENCE",
-              displayValue:
-                "La falta de atención puede producir las consecuencias impresas",
+              displayValue: "Detectado en el documento",
+              normalizedValue: "EXPLICIT_CONSEQUENCE",
             }),
           ]),
         }),
       ],
       retainedSourceContent: "NONE",
+    });
+  });
+
+  it("recognizes a profile-driven family and projects only its structured fields", async () => {
+    const sourceMarker = "RAW-TAX-DATA-SOURCE-MUST-DISAPPEAR";
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input(
+        [
+          "AGENCIA TRIBUTARIA",
+          "sede.agenciatributaria.gob.es",
+          "Datos fiscales",
+          "Ejercicio fiscal: 2025",
+          "Fecha de emisión: 16/07/2026",
+          "Total del documento: 1.234,56 €",
+          sourceMarker,
+        ].join("\n"),
+      ),
+    );
+
+    expect(result.verticalSliceReview).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      documents: [
+        expect.objectContaining({
+          extractorId: "informative-communication",
+          familyId: "information.tax_data_report",
+          title: "Datos fiscales",
+          pageFrom: 1,
+          pageTo: 1,
+          fields: expect.arrayContaining([
+            expect.objectContaining({
+              canonicalType: "FISCAL_YEAR",
+              displayValue: "2025",
+            }),
+            expect.objectContaining({
+              canonicalType: "ISSUE_DATE",
+              normalizedValue: "2026-07-16",
+            }),
+            expect.objectContaining({
+              canonicalType: "OTHER",
+              amountCents: 123_456,
+              currency: "EUR",
+            }),
+          ]),
+        }),
+      ],
+      retainedSourceContent: "NONE",
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+      permitsAccountingAction: false,
+    });
+    expect(JSON.stringify(result)).not.toContain(sourceMarker);
+  });
+
+  it("separates multiple acts in one PDF even when they share an extractor", async () => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      multipageInput([
+        [
+          "Agencia Estatal de Administración Tributaria",
+          "Datos fiscales",
+          "Ejercicio fiscal: 2025",
+        ],
+        ["Anexo del primer acto sin título propio"],
+        [
+          "Agencia Estatal de Administración Tributaria",
+          "Comunicación informativa de cambio normativo o de canal",
+          "Fecha de emisión: 16/07/2026",
+        ],
+      ]),
+    );
+
+    expect(result.verticalSliceReview.status).toBe("REVIEW_REQUIRED");
+    expect(
+      result.verticalSliceReview.documents.map((document) => ({
+        extractorId: document.extractorId,
+        familyId: document.familyId,
+        pageFrom: document.pageFrom,
+      })),
+    ).toEqual([
+      {
+        extractorId: "informative-communication",
+        familyId: "information.tax_data_report",
+        pageFrom: 1,
+      },
+      {
+        extractorId: "informative-communication",
+        familyId: "information.regulatory_change",
+        pageFrom: 3,
+      },
+    ]);
+    expect(new Set(result.verticalSliceReview.documents.map(({ reviewDocumentId }) => reviewDocumentId)).size)
+      .toBe(2);
+  });
+
+  it.each([
+    {
+      caseName: "a near-miss title",
+      lines: [
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "Resumen de datos fiscales",
+      ],
+    },
+    {
+      caseName: "an incompatible authority",
+      lines: ["MINISTERIO DE HACIENDA", "Datos fiscales"],
+    },
+    {
+      caseName: "a conflicting guide marker",
+      lines: [
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "Datos fiscales",
+        "Manual de usuario",
+      ],
+    },
+  ])("does not promote $caseName through the profile-driven route", async ({ lines }) => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input(lines.join("\n")),
+    );
+
+    expect(result.verticalSliceReview).toEqual({
+      schemaVersion: 1,
+      reviewVersion: "1.0.0",
+      status: "INFORMATION_PENDING",
+      documents: [],
+      sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+      retainedSourceContent: "NONE",
+      requiresHumanReview: true,
+      materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+      permitsAccountingAction: false,
     });
   });
 
@@ -159,7 +311,8 @@ describe("fiscal notification document input analysis", () => {
             }),
             expect.objectContaining({
               canonicalType: "DEFERRAL_REASON",
-              displayValue: "Motivo sintético impreso en la resolución.",
+              displayValue: "Detectado en el documento",
+              normalizedValue: "DEFERRAL_REASON",
             }),
           ]),
         }),
@@ -236,7 +389,7 @@ describe("fiscal notification document input analysis", () => {
             }),
             expect.objectContaining({
               canonicalType: "REJECTION_DATE",
-              displayValue: "12/07/2026 09:42",
+              displayValue: "12/07/2026",
               normalizedValue: "2026-07-12",
             }),
           ]),
@@ -283,16 +436,14 @@ describe("fiscal notification document input analysis", () => {
               amountCents: 60_000,
               displayValue: "600,00 €",
             }),
-            expect.objectContaining({
-              canonicalType: "MASKED_ACCOUNT",
-              displayValue: "****9012",
-            }),
           ]),
         }),
       ],
       retainedSourceContent: "NONE",
     });
     expect(JSON.stringify(result)).not.toContain(rawAccount);
+    expect(JSON.stringify(result)).not.toContain("****9012");
+    expect(JSON.stringify(result)).not.toContain("12345678Z");
   });
 
   it("transports an exact seizure with useful fields and no raw account", async () => {
@@ -337,15 +488,14 @@ describe("fiscal notification document input analysis", () => {
               canonicalType: "RETAINED_AMOUNT",
               amountCents: 90_000,
             }),
-            expect.objectContaining({
-              canonicalType: "MASKED_ACCOUNT",
-              displayValue: "****1234",
-            }),
           ]),
         }),
       ],
       retainedSourceContent: "NONE",
     });
     expect(JSON.stringify(result)).not.toContain(rawAccount);
+    expect(JSON.stringify(result)).not.toContain("****1234");
+    expect(JSON.stringify(result)).not.toContain("PERSONA DEUDORA SINTÉTICA");
+    expect(JSON.stringify(result)).not.toContain("BANCO SINTÉTICO");
   });
 });

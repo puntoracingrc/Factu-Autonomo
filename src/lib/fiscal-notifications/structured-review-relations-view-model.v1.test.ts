@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   appendStructuredReviewRelationSuggestionsV1,
+  STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2,
   STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
   STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
 } from "./structured-review-relation-suggestions.v1";
 import { projectStructuredReviewRelationsV1 } from "./structured-review-relations-view-model.v1";
+import {
+  FISCAL_NOTIFICATION_EXACT_LINK_NEUTRAL_PHRASE_V2,
+  FISCAL_NOTIFICATION_SUGGESTED_RELATION_PHRASE_V2,
+} from "./relation-explanation.v2";
 import type { FiscalNotificationsWorkspace } from "./types";
 
 const OWNER = "user:00000000-0000-4000-8000-000000000093";
@@ -185,7 +190,7 @@ describe("structured review relations view model v1", () => {
             },
             {
               label: "Código Seguro de Verificación (CSV)",
-              value: "CSV-SYNTH-093",
+              value: "Referencia protegida",
               issuer: "AEAT",
               matchMode: "NORMALIZED_FORMAT",
             },
@@ -194,10 +199,110 @@ describe("structured review relations view model v1", () => {
       ],
     });
     const serialized = JSON.stringify(result);
+    expect(result.entries[0]?.explanation).toBe(
+      FISCAL_NOTIFICATION_SUGGESTED_RELATION_PHRASE_V2,
+    );
     expect(serialized).not.toContain("3".repeat(64));
     expect(serialized).not.toContain("4".repeat(64));
+    expect(serialized).not.toContain("CSV-SYNTH-093");
     expect(Object.isFrozen(result)).toBe(true);
     expect(Object.isFrozen(result.entries)).toBe(true);
+  });
+
+  it("never exposes a fingerprinted bank reference collapsed into the legacy payment-reference type", () => {
+    const source = workspace();
+    const protectedFingerprint = "a".repeat(64);
+    for (const reference of source.references.filter(({ id }) =>
+      id.includes(":csv:"),
+    )) {
+      reference.referenceType = "PAYMENT_JUSTIFICANTE";
+      reference.rawValue = protectedFingerprint;
+      reference.normalizedValue = protectedFingerprint;
+    }
+    const derived = appendStructuredReviewRelationSuggestionsV1({
+      ownerScope: OWNER,
+      workspace: source,
+      createdAt: NOW,
+    });
+
+    const result = projectStructuredReviewRelationsV1(
+      derived.workspace,
+      OWNER,
+    );
+
+    expect(result.status).toBe("READY");
+    expect(result.entries[0]?.matches).toEqual(
+      expect.arrayContaining([
+        {
+          label: "Referencia bancaria",
+          value: "Referencia protegida",
+          issuer: "AEAT",
+          matchMode: "NORMALIZED_FORMAT",
+        },
+      ]),
+    );
+    expect(JSON.stringify(result)).not.toContain(protectedFingerprint);
+  });
+
+  it("projects a non-seizure declared chain with a prudent V2 explanation and timeline", () => {
+    const source = workspace();
+    source.documents[0]!.documentType = "GENERIC_ADMINISTRATIVE_NOTICE";
+    source.documents[0]!.documentSubtype =
+      "collection.deferral_request_receipt";
+    source.documents[0]!.titleRaw = "Solicitud de aplazamiento";
+    source.documents[1]!.documentType =
+      "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT";
+    source.documents[1]!.documentSubtype = "collection.deferral_grant";
+    source.documents[1]!.titleRaw = "Concesión de aplazamiento";
+
+    const derived = appendStructuredReviewRelationSuggestionsV1({
+      ownerScope: OWNER,
+      workspace: source,
+      createdAt: NOW,
+    });
+    expect(derived.status).toBe("APPLIED");
+    expect(derived.workspace.relations[0]).toMatchObject({
+      relationType: "CREATES_PAYMENT_PLAN_FOR",
+      algorithmVersion: STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2,
+      evidence: { chainId: "deferral_chain" },
+    });
+
+    const result = projectStructuredReviewRelationsV1(
+      derived.workspace,
+      OWNER,
+    );
+
+    expect(result.status).toBe("READY");
+    expect(result.entries).toEqual([
+      expect.objectContaining({
+        chainId: "deferral_chain",
+        algorithmVersion:
+          STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2,
+        relationType: "CREATES_PAYMENT_PLAN_FOR",
+        title:
+          "Solicitud, subsanación, resolución, modificación e incumplimiento de aplazamiento",
+        statusLabel: "Referencia exacta · revisar efectos",
+        explanation: FISCAL_NOTIFICATION_EXACT_LINK_NEUTRAL_PHRASE_V2,
+      }),
+    ]);
+    expect(result.entries[0]?.explanation).toBe(
+      FISCAL_NOTIFICATION_EXACT_LINK_NEUTRAL_PHRASE_V2,
+    );
+    expect(result.entries[0]?.explanation).not.toContain(
+      "Este acuerdo concede un calendario",
+    );
+    expect(result.timelines).toEqual([
+      expect.objectContaining({
+        key: "timeline:document:0:document:1",
+        links: [
+          expect.objectContaining({
+            earlierDocumentId: "document:0",
+            laterDocumentId: "document:1",
+            label: "Vínculo documental exacto",
+          }),
+        ],
+      }),
+    ]);
   });
 
   it.each([

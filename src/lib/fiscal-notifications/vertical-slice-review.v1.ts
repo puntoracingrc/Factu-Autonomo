@@ -1,4 +1,7 @@
-import type { FiscalNotificationDocumentFamilyIdV3 } from "./knowledge/document-families.v3";
+import {
+  FISCAL_NOTIFICATION_DOCUMENT_FAMILY_IDS_V3,
+  type FiscalNotificationDocumentFamilyIdV3,
+} from "./knowledge/document-families.v3";
 import {
   FISCAL_NOTIFICATION_INPUT_LIMITS,
   assertNonNegativeIntegerCents,
@@ -21,13 +24,19 @@ import type {
   FiscalNotificationVerticalSliceAnalysisV1,
   FiscalNotificationVerticalSliceExtractorIdV1,
 } from "./extractor-core/vertical-slice-orchestrator.v1";
+import {
+  BASE_EXTRACTOR_IDS_V1,
+  type BaseExtractorIdV1,
+} from "./extractor-core/extractor-contract.v1";
+import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
+import { PROFILE_FIELD_LABELS_V2 } from "./extractor-core/profile-field-labels.v2";
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1 =
   "1.0.0" as const;
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1 =
   Object.freeze({
-    maxDocuments: 7,
+    maxDocuments: 16,
     maxFieldsPerDocument: 256,
     maxWarningsPerDocument: 64,
     maxLabelChars: 160,
@@ -135,7 +144,7 @@ export interface FiscalNotificationVerticalSliceReviewFieldV1 {
 
 export interface FiscalNotificationVerticalSliceReviewDocumentV1 {
   readonly reviewDocumentId: string;
-  readonly extractorId: FiscalNotificationVerticalSliceExtractorIdV1;
+  readonly extractorId: BaseExtractorIdV1;
   readonly familyId: FiscalNotificationDocumentFamilyIdV3;
   readonly title: string;
   readonly subtitle: string;
@@ -323,17 +332,9 @@ const SEIZURE_SPECIFIC_LABEL: Readonly<
 });
 
 const FAMILY_IDS = new Set<FiscalNotificationDocumentFamilyIdV3>(
-  Object.keys(FAMILY_TITLE) as FiscalNotificationDocumentFamilyIdV3[],
+  FISCAL_NOTIFICATION_DOCUMENT_FAMILY_IDS_V3,
 );
-const EXTRACTOR_IDS = new Set<FiscalNotificationVerticalSliceExtractorIdV1>([
-  "notification-envelope",
-  "requirement",
-  "assessment",
-  "deferral",
-  "payment-order",
-  "payment-evidence",
-  "seizure",
-]);
+const EXTRACTOR_IDS = new Set<BaseExtractorIdV1>(BASE_EXTRACTOR_IDS_V1);
 const REFERENCE_TYPES = new Set(Object.keys(REFERENCE_LABEL));
 const MONEY_TYPES = new Set([
   ...Object.keys(MONEY_LABEL),
@@ -345,6 +346,70 @@ const DETAIL_TYPES = new Set<string>(DETAIL_CANONICAL_TYPES);
 const FIELD_SEMANTICS = new Set<string>(
   FISCAL_NOTIFICATION_VERTICAL_SLICE_FIELD_SEMANTICS_V1,
 );
+const SENSITIVE_REFERENCE_TYPES = new Set<ReferenceTypeV1>([
+  "CSV",
+  "NRC",
+  "BANK_REFERENCE",
+]);
+const SHA256_FINGERPRINT = /^[0-9a-f]{64}$/u;
+const ISO_DATE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/u;
+const CLOSED_WARNING_CODE =
+  /^(?:[A-Z][A-Z0-9_]{0,159}|profile\.[A-Z][A-Z0-9_]{0,151})$/u;
+const PII_LIKE_REFERENCE =
+  /^(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J]|ES\d{22}|[6789]\d{8})$/u;
+const CLOSED_FACT_VALUE = "Detectado en el documento";
+const SAFE_STATUS_VALUES = new Set([
+  "Pendiente de revisión",
+  "Requerimiento pendiente de revisión",
+  "Notificación puesta a disposición",
+  "Notificación accedida o aceptada",
+  "Notificación rechazada",
+  "Notificación expirada",
+  "Intento de notificación",
+  "Notificación entregada",
+  "Notificación publicada",
+  "Estado de notificación pendiente de revisión",
+  "Liquidación provisional emitida",
+  "Propuesta de liquidación y alegaciones",
+  "Solicitud de aplazamiento denegada",
+  "Orden de pago",
+  "Pago confirmado en el justificante",
+  "Pago parcial confirmado en el justificante",
+  "Intento de pago",
+  "Pago rechazado",
+  "Pago anulado",
+  "Pago devuelto",
+  "Resultado de pago pendiente de revisión",
+  "Diligencia de embargo registrada",
+  "Levantamiento de embargo registrado",
+  "Contestación de tercero registrada",
+  "Ingreso de tercero registrado",
+  "Documento de embargo registrado",
+]);
+const OMITTED_PRIVATE_DETAIL_TYPES = new Set<string>([
+  "MASKED_ACCOUNT",
+  "DEBTOR_TAX_ID",
+  "RECIPIENT_TAX_ID",
+  "THIRD_PARTY_TAX_ID",
+  "FINANCIAL_ENTITY",
+  "ACCOUNT_OR_DEPOSIT",
+  "PAYER",
+  "CREDIT_DEBTOR",
+  "PAYMENT_SERVICE_PROVIDER",
+  "TERMINAL_OR_MERCHANT",
+  "PROPERTY_HOLDER",
+  "PROPERTY_ADDRESS",
+  "LAND_REGISTRY",
+]);
+const SAFE_SUBTITLE_VALUES = new Set([
+  ...SAFE_STATUS_VALUES,
+  "Documentación solicitada pendiente de revisión",
+  "Requerimiento formal de presentación",
+  "La AEAT ha denegado la solicitud; revisa motivo, pago y recurso",
+  "Orden de pago · no acredita pago",
+  "Título, autoridad y estructura coinciden",
+  "Clasificación histórica amplia",
+]);
 
 export function projectFiscalNotificationVerticalSliceReviewV1(
   analysis: FiscalNotificationVerticalSliceAnalysisV1,
@@ -453,16 +518,10 @@ export function parseFiscalNotificationVerticalSliceReviewV1(
       throw invalidReview();
     }
     const seenDocuments = new Set<string>();
-    const seenExtractors = new Set<string>();
     const documents = documentValues.map((item) => {
       const document = parseReviewDocument(item);
-      if (
-        seenDocuments.has(document.reviewDocumentId) ||
-        seenExtractors.has(document.extractorId)
-      )
-        throw invalidReview();
+      if (seenDocuments.has(document.reviewDocumentId)) throw invalidReview();
       seenDocuments.add(document.reviewDocumentId);
-      seenExtractors.add(document.extractorId);
       return document;
     });
     return Object.freeze({
@@ -514,9 +573,10 @@ function projectRequirement(
         semantic: "OBLIGATION",
         canonicalType: "OBLIGATION",
         label: "Obligación solicitada",
-        displayValue: `Modelo ${item.model} · ${item.fiscalYear} · ${item.period}`,
+        displayValue: CLOSED_FACT_VALUE,
+        normalizedValue: "MODEL_PERIOD_OBLIGATION",
         sourcePageNumbers: [item.sourcePage],
-        sourceLabel: item.sourceLabel,
+        sourceLabel: "Obligación solicitada",
       }),
     );
   });
@@ -549,12 +609,6 @@ function projectRequirement(
     documentationRequest
       ? "Documentación solicitada pendiente de revisión"
       : "Requerimiento formal de presentación",
-  );
-  return documentProjection(
-    "requirement",
-    output,
-    fields,
-    "Requerimiento formal de presentación",
   );
 }
 
@@ -680,15 +734,12 @@ function projectDeferralDenial(
         fieldId: `money:${item.componentId}`,
         semantic: "MONEY",
         canonicalType: item.componentType,
-        label:
-          item.sourceLabel === "Importe de la solicitud denegada"
-            ? item.sourceLabel
-            : MONEY_LABEL[item.componentType],
+        label: MONEY_LABEL[item.componentType],
         displayValue: formatCents(item.amountCents, item.sign),
         amountCents: item.amountCents,
         currency: "EUR",
         sourcePageNumbers: [item.sourcePage],
-        sourceLabel: item.sourceLabel ?? MONEY_LABEL[item.componentType],
+        sourceLabel: MONEY_LABEL[item.componentType],
         confidence: item.extractionConfidence,
       }),
     ),
@@ -809,29 +860,12 @@ function projectSeizure(
         displayValue: seizureRecipientRoleLabel(
           output.seizureFacts.recipientRole,
         ),
+        normalizedValue: `SEIZURE_RECIPIENT_ROLE:${output.seizureFacts.recipientRole}`,
         sourcePageNumbers: pagesForOutput(output),
         sourceLabel: "Tipo exacto del documento",
       }),
     );
   }
-  addTextFact(
-    fields,
-    "DEBTOR_TAX_ID",
-    "NIF del deudor",
-    output.seizureFacts.debtorTaxId,
-  );
-  addTextFact(
-    fields,
-    "RECIPIENT_TAX_ID",
-    "NIF del destinatario",
-    output.seizureFacts.recipientTaxId,
-  );
-  addTextFact(
-    fields,
-    "THIRD_PARTY_TAX_ID",
-    "NIF del tercero",
-    output.seizureFacts.thirdPartyTaxId,
-  );
   output.seizureFacts.moneyFacts.forEach((item, index) =>
     fields.push(
       field({
@@ -843,7 +877,7 @@ function projectSeizure(
         amountCents: item.amountCents,
         currency: "EUR",
         sourcePageNumbers: [item.sourcePage],
-        sourceLabel: item.sourceLabel,
+        sourceLabel: SEIZURE_MONEY_LABEL[item.role],
       }),
     ),
   );
@@ -870,21 +904,29 @@ function commonFields(
   options: Readonly<{ includeMoney: boolean }> = { includeMoney: true },
 ): FiscalNotificationVerticalSliceReviewFieldV1[] {
   const fields: FiscalNotificationVerticalSliceReviewFieldV1[] = [];
-  output.references.forEach((item, index) =>
+  output.references.forEach((item, index) => {
+    if (item.referenceType === "NIF") return;
+    const normalized = safeOfficialReference(
+      item.referenceType,
+      item.normalizedValue,
+    );
+    if (!normalized) return;
     fields.push(
       field({
         fieldId: `reference:${index + 1}:${item.referenceType}`,
         semantic: "REFERENCE",
         canonicalType: item.referenceType,
         label: REFERENCE_LABEL[item.referenceType],
-        displayValue: item.rawValue,
-        normalizedValue: item.normalizedValue,
+        displayValue: SENSITIVE_REFERENCE_TYPES.has(item.referenceType)
+          ? `Huella protegida ${normalized.slice(0, 12)}…`
+          : normalized,
+        normalizedValue: normalized,
         sourcePageNumbers: [item.sourcePage],
-        sourceLabel: item.sourceLabel ?? REFERENCE_LABEL[item.referenceType],
+        sourceLabel: REFERENCE_LABEL[item.referenceType],
         confidence: item.confidence,
       }),
-    ),
-  );
+    );
+  });
   if (options.includeMoney) {
     output.monetaryComponents.forEach((item) =>
       fields.push(
@@ -897,27 +939,28 @@ function commonFields(
           amountCents: item.amountCents,
           currency: "EUR",
           sourcePageNumbers: [item.sourcePage],
-          sourceLabel: item.sourceLabel ?? MONEY_LABEL[item.componentType],
+          sourceLabel: MONEY_LABEL[item.componentType],
           confidence: item.extractionConfidence,
         }),
       ),
     );
   }
-  output.proceduralDates.forEach((item) =>
+  output.proceduralDates.forEach((item) => {
+    if (!item.parsedDate || !isValidIsoDate(item.parsedDate)) return;
     fields.push(
       field({
         fieldId: `date:${item.proceduralDateId}`,
         semantic: "DATE",
         canonicalType: item.dateType,
         label: DATE_LABEL[item.dateType],
-        displayValue: item.rawText,
+        displayValue: formatIsoDate(item.parsedDate),
         normalizedValue: item.parsedDate,
         sourcePageNumbers: [item.sourcePage],
-        sourceLabel: item.sourceLabel ?? DATE_LABEL[item.dateType],
+        sourceLabel: DATE_LABEL[item.dateType],
         confidence: item.extractionConfidence,
       }),
-    ),
-  );
+    );
+  });
   output.entities.forEach((entity, entityIndex) => {
     if (entity.entityKind !== "PARTY" || entity.displayName === null) return;
     entity.roles.forEach((role, roleIndex) =>
@@ -927,7 +970,16 @@ function commonFields(
           semantic: "PARTY",
           canonicalType: role,
           label: PARTY_LABEL[role],
-          displayValue: entity.displayName!,
+          displayValue:
+            role === "ISSUING_AUTHORITY"
+              ? safeAuthorityRole(entity.displayName!)
+              : `Interviniente ${entityIndex + 1}`,
+          normalizedValue:
+            role === "ISSUING_AUTHORITY"
+              ? safeAuthorityRole(entity.displayName!) === "AEAT"
+                ? "AEAT"
+                : "OTHER_AUTHORITY"
+              : `ROLE:${role}:${entityIndex + 1}`,
           sourcePageNumbers: pagesFromEvidence(
             entity.evidence.sourceSegmentIds,
             output,
@@ -946,16 +998,17 @@ function addSeizureSpecificFact(
   factValue: SeizureSpecificFactV1,
   index: number,
 ): void {
-  const masked = factValue.fieldId === "MASKED_ACCOUNT";
+  if (OMITTED_PRIVATE_DETAIL_TYPES.has(factValue.fieldId)) return;
   fields.push(
     field({
       fieldId: `seizure-specific:${index + 1}:${factValue.fieldId}`,
-      semantic: masked ? "MASKED_VALUE" : "DETAIL",
+      semantic: "DETAIL",
       canonicalType: factValue.fieldId,
       label: SEIZURE_SPECIFIC_LABEL[factValue.fieldId],
-      displayValue: factValue.printedValue,
+      displayValue: CLOSED_FACT_VALUE,
+      normalizedValue: factValue.fieldId,
       sourcePageNumbers: factValue.pageNumbers,
-      sourceLabel: factValue.sourceLabel,
+      sourceLabel: SEIZURE_SPECIFIC_LABEL[factValue.fieldId],
     }),
   );
 }
@@ -986,7 +1039,11 @@ function documentProjection(
     pageTo: pages.at(-1)!,
     confidence: candidate.confidence,
     fields: Object.freeze(fields),
-    warnings: Object.freeze([...output.warnings]),
+    warnings: Object.freeze(
+      [...new Set(output.warnings)].filter((warning) =>
+        CLOSED_WARNING_CODE.test(warning),
+      ),
+    ),
     requiresHumanReview: true,
   });
 }
@@ -1021,16 +1078,17 @@ function addTextFact(
   label: string,
   fact: PrintedTextFact | null,
 ): void {
-  if (!fact) return;
+  if (!fact || OMITTED_PRIVATE_DETAIL_TYPES.has(canonicalType)) return;
   fields.push(
     field({
       fieldId: `detail:${canonicalType}:${fields.length + 1}`,
       semantic: "DETAIL",
       canonicalType,
       label,
-      displayValue: fact.printedValue,
+      displayValue: CLOSED_FACT_VALUE,
+      normalizedValue: canonicalType,
       sourcePageNumbers: fact.pageNumbers,
-      sourceLabel: fact.sourceLabel,
+      sourceLabel: label,
     }),
   );
 }
@@ -1043,18 +1101,10 @@ function addMaskedFact(
     sourceLabel: string;
   }> | null,
 ): void {
-  if (!fact) return;
-  fields.push(
-    field({
-      fieldId: `masked-account:${fields.length + 1}`,
-      semantic: "MASKED_VALUE",
-      canonicalType: "MASKED_ACCOUNT",
-      label: "Cuenta enmascarada",
-      displayValue: fact.maskedValue,
-      sourcePageNumbers: [fact.sourcePage],
-      sourceLabel: fact.sourceLabel,
-    }),
-  );
+  // Even a partially masked account is personal financial data. The legacy
+  // extractor may use it ephemerally, but this serializable review boundary
+  // deliberately drops it.
+  void fact;
 }
 
 function field(input: {
@@ -1072,6 +1122,7 @@ function field(input: {
 }): FiscalNotificationVerticalSliceReviewFieldV1 {
   return Object.freeze({
     ...input,
+    sourceLabel: input.label,
     normalizedValue: input.normalizedValue ?? null,
     amountCents: input.amountCents ?? null,
     currency: input.currency ?? null,
@@ -1121,6 +1172,66 @@ function pagesFromEvidence(
   return pages.size > 0
     ? Object.freeze([...pages].sort((a, b) => a - b))
     : pagesForOutput(output);
+}
+
+function safeOfficialReference(
+  referenceType: ReferenceTypeV1,
+  value: string,
+): string | null {
+  if (referenceType === "NIF") return null;
+  if (SENSITIVE_REFERENCE_TYPES.has(referenceType)) {
+    return SHA256_FINGERPRINT.test(value) ? value : null;
+  }
+  let normalized: string;
+  try {
+    normalized = value
+      .normalize("NFKC")
+      .toLocaleUpperCase("es")
+      .replace(/[\t \u00a0]+/gu, "");
+  } catch {
+    return null;
+  }
+  return normalized.length > 0 &&
+    normalized.length <=
+      FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxNormalizedValueChars &&
+    /^[A-Z0-9][A-Z0-9./:_-]*$/u.test(normalized) &&
+    /\d/u.test(normalized) &&
+    !PII_LIKE_REFERENCE.test(normalized)
+    ? normalized
+    : null;
+}
+
+function isValidIsoDate(value: string): boolean {
+  if (!ISO_DATE.test(value)) return false;
+  const timestamp = Date.parse(`${value}T00:00:00.000Z`);
+  return (
+    Number.isFinite(timestamp) &&
+    new Date(timestamp).toISOString().slice(0, 10) === value
+  );
+}
+
+function formatIsoDate(value: string): string {
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function safeAuthorityRole(value: string): "AEAT" | "Otra autoridad" {
+  let normalized: string;
+  try {
+    normalized = value
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/gu, "")
+      .toLocaleUpperCase("es")
+      .trim();
+  } catch {
+    return "Otra autoridad";
+  }
+  return normalized === "AEAT" ||
+    normalized === "AGENCIA TRIBUTARIA" ||
+    normalized === "AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA" ||
+    normalized.startsWith("AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA ")
+    ? "AEAT"
+    : "Otra autoridad";
 }
 
 function formatCents(
@@ -1213,7 +1324,7 @@ function parseReviewDocument(
   assertBoundedString(item.reviewDocumentId, 160);
   if (
     !EXTRACTOR_IDS.has(
-      item.extractorId as FiscalNotificationVerticalSliceExtractorIdV1,
+      item.extractorId as BaseExtractorIdV1,
     )
   )
     throw invalidReview();
@@ -1227,6 +1338,17 @@ function parseReviewDocument(
     item.subtitle,
     FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxLabelChars,
   );
+  const familyId = item.familyId as FiscalNotificationDocumentFamilyIdV3;
+  const canonicalTitle = resolveFamilyRuleV2(familyId)?.canonicalTitle;
+  if (
+    (item.title !== FAMILY_TITLE[familyId] &&
+      item.title !== canonicalTitle &&
+      item.title !== "Documento de recaudación" &&
+      item.title !== "Liquidación de intereses de demora") ||
+    !SAFE_SUBTITLE_VALUES.has(item.subtitle as string)
+  ) {
+    throw invalidReview();
+  }
   assertPage(item.pageFrom);
   assertPage(item.pageTo);
   if (Number(item.pageTo) < Number(item.pageFrom)) throw invalidReview();
@@ -1253,12 +1375,13 @@ function parseReviewDocument(
     FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxWarningsPerDocument,
   ).map((warning) => {
     assertBoundedString(warning, 240);
+    if (!CLOSED_WARNING_CODE.test(warning as string)) throw invalidReview();
     return warning as string;
   });
   return Object.freeze({
     reviewDocumentId: item.reviewDocumentId as string,
     extractorId:
-      item.extractorId as FiscalNotificationVerticalSliceExtractorIdV1,
+      item.extractorId as BaseExtractorIdV1,
     familyId: item.familyId as FiscalNotificationDocumentFamilyIdV3,
     title: item.title as string,
     subtitle: item.subtitle as string,
@@ -1299,6 +1422,7 @@ function parseReviewField(
     item.label,
     FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxLabelChars,
   );
+  if (!isControlledFieldLabel(item.label as string)) throw invalidReview();
   assertBoundedString(
     item.displayValue,
     FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxDisplayValueChars,
@@ -1341,8 +1465,12 @@ function parseReviewField(
     item.sourceLabel,
     FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxSourceLabelChars,
   );
+  if (!isControlledFieldLabel(item.sourceLabel as string)) {
+    throw invalidReview();
+  }
   assertConfidence(item.confidence);
   if (item.reviewStatus !== "REVIEW_REQUIRED") throw invalidReview();
+  assertSerializableFieldPrivacy(item);
   return Object.freeze({
     fieldId: item.fieldId as string,
     semantic: item.semantic as FiscalNotificationVerticalSliceFieldSemanticV1,
@@ -1358,6 +1486,153 @@ function parseReviewField(
     confidence: Number(item.confidence),
     reviewStatus: "REVIEW_REQUIRED",
   });
+}
+
+function isControlledFieldLabel(value: string): boolean {
+  if (
+    [
+      ...Object.values(REFERENCE_LABEL),
+      ...Object.values(MONEY_LABEL),
+      ...Object.values(DATE_LABEL),
+      ...Object.values(PARTY_LABEL),
+      ...Object.values(SEIZURE_MONEY_LABEL),
+      ...Object.values(SEIZURE_SPECIFIC_LABEL),
+      ...PROFILE_FIELD_LABELS_V2.map((entry) => entry.labelEs),
+      "Estado del documento",
+      "Obligación solicitada",
+      "Motivo",
+      "Canal de respuesta",
+      "Estado",
+      "Asunto",
+      "Canal",
+      "Motivo de la denegación",
+      "Dónde indica que puede pagarse",
+      "Recursos indicados",
+      "Medio o lugar de pago",
+      "Entidad colaboradora",
+      "Código de barras o referencia",
+      "Hora del pago",
+      "Entidad",
+      "Medio de pago",
+      "Resultado",
+      "Motivo del rechazo",
+      "Alcance del pago",
+      "Papel del destinatario",
+      "Instrucciones",
+      "Recursos indicados en el documento",
+      "Reconocimiento documental",
+      "Título del documento",
+      "Total",
+    ].includes(value)
+  ) {
+    return true;
+  }
+  return /^(?:Documentación|Consecuencia indicada|Hecho o fundamento|Recurso indicado|Deuda afectada|Vencimiento original) [1-9]\d*$/u.test(
+    value,
+  );
+}
+
+function assertSerializableFieldPrivacy(
+  item: Readonly<Record<string, unknown>>,
+): void {
+  const semantic = String(item.semantic);
+  const canonicalType = String(item.canonicalType);
+  const displayValue = item.displayValue as string;
+  const normalizedValue = item.normalizedValue as string | null;
+  switch (semantic) {
+    case "REFERENCE": {
+      if (canonicalType === "NIF" || normalizedValue === null) {
+        throw invalidReview();
+      }
+      const safe = safeOfficialReference(
+        canonicalType as ReferenceTypeV1,
+        normalizedValue,
+      );
+      if (!safe || safe !== normalizedValue) throw invalidReview();
+      if (SENSITIVE_REFERENCE_TYPES.has(canonicalType as ReferenceTypeV1)) {
+        if (displayValue !== `Huella protegida ${safe.slice(0, 12)}…`) {
+          throw invalidReview();
+        }
+      } else if (displayValue !== safe) {
+        throw invalidReview();
+      }
+      return;
+    }
+    case "DATE":
+      if (
+        normalizedValue === null ||
+        !isValidIsoDate(normalizedValue) ||
+        displayValue !== formatIsoDate(normalizedValue)
+      ) {
+        throw invalidReview();
+      }
+      return;
+    case "PARTY": {
+      if (normalizedValue === null) throw invalidReview();
+      if (canonicalType === "ISSUING_AUTHORITY") {
+        if (
+          !(
+            (displayValue === "AEAT" && normalizedValue === "AEAT") ||
+            (displayValue === "Otra autoridad" &&
+              normalizedValue === "OTHER_AUTHORITY")
+          )
+        ) {
+          throw invalidReview();
+        }
+        return;
+      }
+      const match = /^Interviniente ([1-9]\d*)$/u.exec(displayValue);
+      if (
+        !match ||
+        normalizedValue !== `ROLE:${canonicalType}:${match[1]}`
+      ) {
+        throw invalidReview();
+      }
+      return;
+    }
+    case "MASKED_VALUE":
+      throw invalidReview();
+    case "DETAIL":
+    case "OBLIGATION":
+      if (
+        displayValue !== CLOSED_FACT_VALUE &&
+        displayValue !== "Título y autoridad coinciden" &&
+        !/^Interviniente [1-9]\d*$/u.test(displayValue) &&
+        ![
+          "Deudor",
+          "Entidad financiera destinataria",
+          "Pagador comercial o arrendaticio",
+          "Empleador o pagador de pensión",
+          "Proveedor de servicios de pago",
+          "Tercero obligado por el embargo",
+          "Papel pendiente de revisión",
+        ].includes(displayValue)
+      ) {
+        throw invalidReview();
+      }
+      if (
+        normalizedValue === null ||
+        !/^[A-Z][A-Z0-9_:.-]{0,159}$/u.test(normalizedValue)
+      ) {
+        throw invalidReview();
+      }
+      return;
+    case "MONEY":
+      if (
+        normalizedValue !== null &&
+        normalizedValue !== String(item.amountCents)
+      ) {
+        throw invalidReview();
+      }
+      return;
+    case "STATUS":
+      if (normalizedValue !== null || !SAFE_STATUS_VALUES.has(displayValue)) {
+        throw invalidReview();
+      }
+      return;
+    default:
+      throw invalidReview();
+  }
 }
 
 function isCanonicalTypeValid(semantic: string, value: unknown): boolean {

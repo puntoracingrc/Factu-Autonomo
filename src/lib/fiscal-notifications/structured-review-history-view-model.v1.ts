@@ -6,6 +6,22 @@ import {
   explainFiscalNotificationDocumentV1,
   type FiscalNotificationDocumentExplanationV1,
 } from "./structured-document-explanation.v1";
+import {
+  explainFiscalNotificationDocumentV2,
+  type FiscalNotificationDocumentEvidenceInputV2,
+  type FiscalNotificationDocumentExplanationInputV2,
+  type FiscalNotificationDocumentExplanationV2,
+  type FiscalNotificationExplanationDateInputV2,
+  type FiscalNotificationExplanationFactInputV2,
+  type FiscalNotificationExplanationMoneyInputV2,
+  type FiscalNotificationExplanationReferenceInputV2,
+  type FiscalNotificationExplanationRoleInputV2,
+  type FiscalNotificationPrintedEffectCodeV2,
+  type FiscalNotificationPrintedEffectInputV2,
+  resolveAllowedPrintedEffectCodesV2,
+  resolveIntrinsicPrintedEffectCodeV2,
+} from "./structured-document-explanation.v2";
+import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "./knowledge/aeat-document-knowledge.v1";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
 import type {
   AdministrativeDocumentType,
@@ -153,6 +169,38 @@ const REFERENCE_LABELS: Readonly<Record<string, string>> = {
   REQUEST_NUMBER: "Número de requerimiento",
 };
 
+const SENSITIVE_EXTERNAL_REFERENCE_TYPES = new Set<ExternalReferenceType>([
+  "CSV",
+  "NRC",
+]);
+const SENSITIVE_PROFILE_REFERENCE_FIELD_ID =
+  /^profile:reference:(CSV|NRC|BANK_REFERENCE):\d+$/u;
+
+function visibleStoredReference(
+  reference: ExternalReference,
+  metadataByEvidence: ReadonlyMap<string, PersistedVerticalFieldLabelV1>,
+): string {
+  if (
+    SENSITIVE_EXTERNAL_REFERENCE_TYPES.has(reference.referenceType) ||
+    reference.occurrenceIds.some((evidenceId) => {
+      const fieldId = metadataByEvidence.get(evidenceId)?.fieldId;
+      return fieldId
+        ? SENSITIVE_PROFILE_REFERENCE_FIELD_ID.test(fieldId)
+        : false;
+    })
+  ) {
+    return "Referencia protegida";
+  }
+  return reference.rawValue;
+}
+
+function isProfileControlField(fieldId: string | null): boolean {
+  return (
+    fieldId === "profile:recognition:document-type:0" ||
+    (fieldId !== null && /^profile:effect:[A-Z0-9_]+:\d+$/u.test(fieldId))
+  );
+}
+
 const DATE_LABELS: Readonly<Record<string, string>> = {
   PRINTED_ISSUE_DATE: "Fecha de emisión",
   PRINTED_SIGNATURE_DATE: "Fecha de firma",
@@ -256,6 +304,12 @@ export function projectFiscalNotificationStructuredHistoryV1(
           const sourceReference = fact.sourceActRefId
             ? references.get(fact.sourceActRefId)
             : undefined;
+          const protectedSourceReference = sourceReference
+            ? visibleStoredReference(
+                sourceReference,
+                verticalFieldsByEvidence,
+              )
+            : null;
           return Object.freeze({
             key: fact.id,
             label:
@@ -266,7 +320,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
             kind: fact.kind,
             amountCents: fact.amountCents,
             currency: fact.currency,
-            sourceReference: sourceReference?.rawValue ?? null,
+            sourceReference: protectedSourceReference,
             sourceReferenceType: sourceReference?.referenceType ?? null,
           });
         },
@@ -283,7 +337,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
                 ?.label ??
               REFERENCE_LABELS[item.referenceType] ??
               "Referencia",
-            value: item.rawValue,
+            value: visibleStoredReference(item, verticalFieldsByEvidence),
           }),
         ));
       const explanationFacts = snapshot.structuredData.unknownFields.flatMap(
@@ -291,7 +345,8 @@ export function projectFiscalNotificationStructuredHistoryV1(
           const metadata = parseVerticalFieldLabel(field.labelRaw);
           if (
             metadata?.semantic === "MONEY" ||
-            metadata?.semantic === "REFERENCE"
+            metadata?.semantic === "REFERENCE" ||
+            isProfileControlField(metadata?.fieldId ?? null)
           ) {
             return [];
           }
@@ -353,13 +408,18 @@ export function projectFiscalNotificationStructuredHistoryV1(
         evidenceById: evidence,
         evidenceOrder,
       });
-      const explanation = explainFiscalNotificationDocumentV1({
+      const explanation = explainStoredFiscalNotification({
         documentType: document.documentType,
         documentSubtype: document.documentSubtype ?? null,
         documentDate,
         receiptDate,
         facts: explanationFacts,
         money,
+        profileInput: buildStoredProfileExplanationInputV2({
+          documentSubtype: document.documentSubtype ?? null,
+          unknownFields: snapshot.structuredData.unknownFields,
+          evidenceById: evidence,
+        }),
       });
 
       return Object.freeze({
@@ -373,8 +433,10 @@ export function projectFiscalNotificationStructuredHistoryV1(
         createdAt: document.createdAt,
         pageCount: file.pageCount,
         byteLength: file.fileSize,
-        subjectName: document.subjectParty?.displayName ?? null,
-        subjectTaxId: document.subjectParty?.taxIdNormalized ?? null,
+        // Legacy workspaces may contain identity fields. They are deliberately
+        // not projected into the document library or explanation surface.
+        subjectName: null,
+        subjectTaxId: null,
         references: Object.freeze(documentReferences),
         printedDates: Object.freeze(printedDates),
         orderedFacts,
@@ -400,6 +462,292 @@ export function projectFiscalNotificationStructuredHistoryV1(
   });
 }
 
+const STORED_PROFILE_FIELD_ID =
+  /^profile:(reference|date|money|fact|participant_role):([A-Z0-9_]+):\d+$/u;
+const STORED_PROFILE_EFFECT_FIELD_ID =
+  /^profile:effect:([A-Z0-9_]+):\d+$/u;
+const STORED_PROFILE_RECOGNITION_FIELD_ID =
+  "profile:recognition:document-type:0";
+const SENSITIVE_STORED_PROFILE_REFERENCES = new Set([
+  "CSV",
+  "NRC",
+  "BANK_REFERENCE",
+]);
+
+/**
+ * Reconstructs only the closed typed profile fields retained by VSR2. It never
+ * reads a PDF snippet, person name, tax id, account number or other free text.
+ */
+function buildStoredProfileExplanationInputV2(input: {
+  readonly documentSubtype: string | null;
+  readonly unknownFields: readonly UnknownExtractedField[];
+  readonly evidenceById: ReadonlyMap<string, FieldEvidence>;
+}): FiscalNotificationDocumentExplanationInputV2 | null {
+  if (!isAeatProfileId(input.documentSubtype)) return null;
+
+  const documentEvidence: FiscalNotificationDocumentEvidenceInputV2[] = [];
+  const references: FiscalNotificationExplanationReferenceInputV2[] = [];
+  const dates: FiscalNotificationExplanationDateInputV2[] = [];
+  const money: FiscalNotificationExplanationMoneyInputV2[] = [];
+  const factCodes: FiscalNotificationExplanationFactInputV2[] = [];
+  const roleCodes: FiscalNotificationExplanationRoleInputV2[] = [];
+  const printedEffects: FiscalNotificationPrintedEffectInputV2[] = [];
+  const allowedEffects = new Set(
+    resolveAllowedPrintedEffectCodesV2(input.documentSubtype),
+  );
+  const seenEffects = new Set<FiscalNotificationPrintedEffectCodeV2>();
+  const seenEvidence = new Set<string>();
+  let recognitionEvidenceId: string | null = null;
+
+  for (const field of input.unknownFields) {
+    const metadata = parseVerticalFieldLabel(field.labelRaw);
+    const profileMatch = metadata?.fieldId
+      ? STORED_PROFILE_FIELD_ID.exec(metadata.fieldId)
+      : null;
+    const effectMatch = metadata?.fieldId
+      ? STORED_PROFILE_EFFECT_FIELD_ID.exec(metadata.fieldId)
+      : null;
+    const recognition =
+      metadata?.fieldId === STORED_PROFILE_RECOGNITION_FIELD_ID;
+    if ((!profileMatch && !effectMatch && !recognition) || !field.evidenceId) {
+      continue;
+    }
+    const source = input.evidenceById.get(field.evidenceId);
+    if (
+      !source ||
+      source.pageNumber !== field.page ||
+      source.assertionType !== "EXPLICIT_IN_DOCUMENT"
+    ) {
+      continue;
+    }
+    if (!seenEvidence.has(source.id)) {
+      seenEvidence.add(source.id);
+      documentEvidence.push({
+        evidenceId: source.id,
+        pageNumber: source.pageNumber,
+        extractionMethod:
+          source.extractionMethod === "USER"
+            ? "USER_CONFIRMED"
+            : source.extractionMethod === "OCR"
+              ? "OCR"
+              : "RULE",
+        confidence: confidenceNumber(source.confidence),
+        assertionType: "EXPLICIT_IN_DOCUMENT",
+        ruleId: "profile-driven-family-v2",
+        ruleVersion: "2026-07-16.v2",
+      });
+    }
+
+    if (recognition) {
+      if (field.valueRaw === "EXACT_TITLE_AND_AUTHORITY") {
+        recognitionEvidenceId = source.id;
+      }
+      continue;
+    }
+
+    if (effectMatch) {
+      const effectCode = effectMatch[1] as FiscalNotificationPrintedEffectCodeV2;
+      if (
+        allowedEffects.has(effectCode) &&
+        field.valueRaw === `EFFECT:${effectCode}` &&
+        !seenEffects.has(effectCode)
+      ) {
+        seenEffects.add(effectCode);
+        printedEffects.push({ effectCode, evidenceId: source.id });
+      }
+      continue;
+    }
+    if (!profileMatch) continue;
+
+    const kind = profileMatch[1];
+    const code = profileMatch[2];
+    if (kind === "reference") {
+      if (SENSITIVE_STORED_PROFILE_REFERENCES.has(code)) continue;
+      references.push({
+        referenceType:
+          code as FiscalNotificationExplanationReferenceInputV2["referenceType"],
+        value: field.valueRaw,
+        evidenceId: source.id,
+      });
+    } else if (kind === "date") {
+      if (!normalizeCalendarDate(field.valueRaw)) continue;
+      dates.push({
+        dateType: code as FiscalNotificationExplanationDateInputV2["dateType"],
+        value: field.valueRaw,
+        evidenceId: source.id,
+      });
+    } else if (kind === "money") {
+      const amountCents = Number(field.valueRaw);
+      if (!Number.isSafeInteger(amountCents) || amountCents < 0) continue;
+      money.push({
+        moneyType:
+          code as FiscalNotificationExplanationMoneyInputV2["moneyType"],
+        amountCents,
+        currency: "EUR",
+        evidenceId: source.id,
+      });
+    } else if (kind === "fact") {
+      factCodes.push({
+        factCode: code as FiscalNotificationExplanationFactInputV2["factCode"],
+        evidenceId: source.id,
+      });
+    } else if (kind === "participant_role") {
+      roleCodes.push({
+        roleCode: code as FiscalNotificationExplanationRoleInputV2["roleCode"],
+        evidenceId: source.id,
+      });
+    }
+  }
+
+  const intrinsicEffect = resolveIntrinsicPrintedEffectCodeV2(
+    input.documentSubtype,
+  );
+  if (
+    intrinsicEffect &&
+    recognitionEvidenceId &&
+    !seenEffects.has(intrinsicEffect)
+  ) {
+    printedEffects.unshift({
+      effectCode: intrinsicEffect,
+      evidenceId: recognitionEvidenceId,
+    });
+  }
+
+  return Object.freeze({
+    familyId: input.documentSubtype,
+    documentEvidence: Object.freeze(documentEvidence),
+    references: Object.freeze(references),
+    dates: Object.freeze(dates),
+    money: Object.freeze(money),
+    factCodes: Object.freeze(factCodes),
+    roleCodes: Object.freeze(roleCodes),
+    printedEffects: Object.freeze(printedEffects),
+  });
+}
+
+function confidenceNumber(value: FieldEvidence["confidence"]): number {
+  switch (value) {
+    case "EXACT":
+      return 1;
+    case "HIGH":
+      return 0.9;
+    case "MEDIUM":
+      return 0.7;
+    case "LOW":
+      return 0.4;
+  }
+}
+
+function explainStoredFiscalNotification(input: {
+  readonly documentType: AdministrativeDocumentType;
+  readonly documentSubtype: string | null;
+  readonly documentDate: string | null;
+  readonly receiptDate: string | null;
+  readonly facts: readonly { readonly label: string; readonly value: string }[];
+  readonly money: readonly FiscalNotificationStructuredHistoryMoneyV1[];
+  readonly profileInput: FiscalNotificationDocumentExplanationInputV2 | null;
+}): FiscalNotificationDocumentExplanationV1 {
+  const familyId = isAeatProfileId(input.documentSubtype)
+    ? input.documentSubtype
+    : null;
+  if (!familyId) {
+    return explainFiscalNotificationDocumentV1(input);
+  }
+  return projectExplanationV2ForHistory(
+    explainFiscalNotificationDocumentV2(
+      input.profileInput ?? { familyId },
+    ),
+  );
+}
+
+function projectExplanationV2ForHistory(
+  explanation: FiscalNotificationDocumentExplanationV2,
+): FiscalNotificationDocumentExplanationV1 {
+  const sectionText = (
+    id: FiscalNotificationDocumentExplanationV2["sections"][number]["id"],
+  ): string =>
+    explanation.sections
+      .find((section) => section.id === id)
+      ?.assertions.map((assertion) => assertion.text)
+      .join(" ") ?? "Información pendiente de revisión.";
+  const deadlineDetail = sectionText("DEADLINE");
+  const keyFacts =
+    explanation.sections
+      .find((section) => section.id === "KEY_DATA")
+      ?.assertions.filter(
+        (assertion) =>
+          assertion.level === "EXPLICIT_IN_DOCUMENT" ||
+          assertion.level === "CALCULATED_FROM_PRINTED_VALUES",
+      )
+      .map((assertion) =>
+        Object.freeze({
+          label: "Dato del documento",
+          value: assertion.text,
+          basis:
+            assertion.level === "CALCULATED_FROM_PRINTED_VALUES"
+              ? ("CALCULATED_FROM_PRINTED_VALUES" as const)
+              : ("PRINTED" as const),
+        }),
+      ) ?? [];
+  const officialSources = explanation.officialSources.flatMap((source) =>
+    source.canonicalUrl !== null &&
+    (source.authority === "AEAT" || source.authority === "BOE")
+      ? [
+          Object.freeze({
+            id: source.id,
+            title: source.title,
+            authority: source.authority,
+            canonicalUrl: source.canonicalUrl,
+          }),
+        ]
+      : [],
+  );
+
+  return Object.freeze({
+    schemaVersion: 1,
+    engineId: "fiscal-notification-document-explanation",
+    engineVersion: "1.1.0",
+    knowledgeSnapshotId: "official-context.2026-07-16.v2",
+    ruleId: `profile.${explanation.familyId ?? "unknown"}.explanation.v2`,
+    ruleVersion: explanation.engineVersion,
+    status: explanation.status === "EXPLAINED" ? "EXPLAINED" : "PARTIAL",
+    whatItIs: sectionText("WHAT_DOCUMENT_SAYS"),
+    whyReceived: sectionText("WHY_RECEIVED"),
+    result: sectionText("RESULT"),
+    nextStep: Object.freeze({
+      status: "REVIEW_DOCUMENT_ACTION" as const,
+      title: "Revisa qué te pide o comunica el documento",
+      detail: sectionText("NEXT_STEP"),
+    }),
+    deadline: Object.freeze({
+      status: explanation.deadlineTriggerAvailable
+        ? ("DOCUMENT_STATED" as const)
+        : ("NOT_IDENTIFIED" as const),
+      title:
+        explanation.deadlineTrigger === null
+          ? "Comprueba si el documento fija algún plazo"
+          : "Localiza la fecha que inicia el plazo",
+      detail: deadlineDetail,
+    }),
+    keyFacts: Object.freeze(keyFacts),
+    officialSources: Object.freeze(officialSources),
+    documentFactsPolicy: "DOCUMENT_IS_PRIMARY",
+    legalContextPolicy: "OFFICIAL_CONTEXT_DOES_NOT_OVERRIDE_DOCUMENT",
+    networkPolicy: "NO_NETWORK",
+    requiresHumanReview: true,
+    materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+  });
+}
+
+type AeatDocumentProfileIdV1 = (typeof AEAT_DOCUMENT_PROFILE_IDS_V1)[number];
+
+function isAeatProfileId(value: string | null): value is AeatDocumentProfileIdV1 {
+  return (
+    value !== null &&
+    (AEAT_DOCUMENT_PROFILE_IDS_V1 as readonly string[]).includes(value)
+  );
+}
+
 function deduplicateFacts<T extends FiscalNotificationStructuredHistoryFactV1>(
   facts: readonly T[],
 ): readonly T[] {
@@ -411,7 +759,7 @@ function deduplicateFacts<T extends FiscalNotificationStructuredHistoryFactV1>(
   return Object.freeze([...unique.values()]);
 }
 
-interface ExplicitDocumentDateInputV1 {
+export interface ExplicitDocumentDateInputV1 {
   readonly documentIssueDate?: string;
   readonly documentSignatureDate?: string;
   readonly documentEffectiveNotificationDate?: string;
@@ -424,7 +772,7 @@ interface ExplicitDocumentDateInputV1 {
   }[];
 }
 
-interface SelectedDocumentDateV1 {
+export interface SelectedDocumentDateV1 {
   readonly value: string;
   readonly basis:
     | "Fecha de emision"
@@ -433,72 +781,104 @@ interface SelectedDocumentDateV1 {
     | "Fecha de notificacion";
 }
 
-function selectExplicitDocumentDate(
+export function selectExplicitDocumentDate(
   input: ExplicitDocumentDateInputV1,
 ): SelectedDocumentDateV1 | null {
-  for (const value of [input.documentIssueDate, input.snapshotIssueDate]) {
-    const normalized = normalizeCalendarDate(value);
-    if (normalized) {
-      return Object.freeze({ value: normalized, basis: "Fecha de emision" });
-    }
-  }
-  const normalizedSignature = normalizeCalendarDate(
-    input.documentSignatureDate,
-  );
-  if (normalizedSignature) {
-    return Object.freeze({
-      value: normalizedSignature,
-      basis: "Fecha de firma",
-    });
-  }
-
   const datedFields = input.unknownFields.filter(
     (field) => field.confidence === "EXACT",
   );
-  for (const [preferredKind, basis] of [
-    ["ISSUE_DATE", "Fecha de emision"],
-    ["SIGNATURE_DATE", "Fecha de firma"],
-    ["ACTION_DATE", "Fecha del acto"],
-  ] as const) {
-    const field = datedFields.find((candidate) => {
-      const metadata = parseVerticalFieldLabel(candidate.labelRaw);
-      if (metadata?.semantic === "DATE") {
-        return metadata.canonicalType === preferredKind;
-      }
-      return candidate.labelRaw === `PRINTED_${preferredKind}`;
-    });
-    const normalized = normalizeCalendarDate(field?.valueRaw);
-    if (normalized) return Object.freeze({ value: normalized, basis });
-  }
 
-  for (const value of [
-    input.snapshotEffectiveNotificationDate,
-    input.documentEffectiveNotificationDate,
-  ]) {
-    const normalized = normalizeCalendarDate(value);
-    if (normalized) {
-      return Object.freeze({
-        value: normalized,
-        basis: "Fecha de notificacion",
-      });
+  const storedDate = (
+    preferredKind: StoredChronologyDateKindV1,
+  ): string | undefined =>
+    datedFields.find((candidate) => {
+      const metadata = parseVerticalFieldLabel(candidate.labelRaw);
+      if (metadata) {
+        return storedChronologyDateKind(metadata) === preferredKind;
+      }
+      return LEGACY_PRINTED_CHRONOLOGY_LABELS[preferredKind].has(
+        candidate.labelRaw,
+      );
+    })?.valueRaw;
+
+  const candidates = [
+    [
+      "Fecha de emision",
+      [
+        input.documentIssueDate,
+        input.snapshotIssueDate,
+        storedDate("ISSUE_DATE"),
+      ],
+    ],
+    [
+      "Fecha de firma",
+      [input.documentSignatureDate, storedDate("SIGNING_DATE")],
+    ],
+    ["Fecha del acto", [storedDate("ACTION_DATE")]],
+    [
+      "Fecha de notificacion",
+      [
+        input.snapshotEffectiveNotificationDate,
+        input.documentEffectiveNotificationDate,
+        storedDate("EFFECTIVE_NOTIFICATION_DATE"),
+      ],
+    ],
+  ] as const;
+
+  for (const [basis, values] of candidates) {
+    for (const value of values) {
+      const normalized = normalizeCalendarDate(value);
+      if (normalized) return Object.freeze({ value: normalized, basis });
     }
-  }
-  const notificationField = datedFields.find((candidate) => {
-    const metadata = parseVerticalFieldLabel(candidate.labelRaw);
-    return (
-      metadata?.semantic === "DATE" &&
-      metadata.canonicalType === "EFFECTIVE_NOTIFICATION_DATE"
-    );
-  });
-  const notificationDate = normalizeCalendarDate(notificationField?.valueRaw);
-  if (notificationDate) {
-    return Object.freeze({
-      value: notificationDate,
-      basis: "Fecha de notificacion",
-    });
   }
 
   return null;
+}
+
+type StoredChronologyDateKindV1 =
+  | "ISSUE_DATE"
+  | "SIGNING_DATE"
+  | "ACTION_DATE"
+  | "EFFECTIVE_NOTIFICATION_DATE";
+
+const LEGACY_PRINTED_CHRONOLOGY_LABELS: Readonly<
+  Record<StoredChronologyDateKindV1, ReadonlySet<string>>
+> = Object.freeze({
+  ISSUE_DATE: new Set(["PRINTED_ISSUE_DATE"]),
+  SIGNING_DATE: new Set(["PRINTED_SIGNING_DATE", "PRINTED_SIGNATURE_DATE"]),
+  ACTION_DATE: new Set(["PRINTED_ACTION_DATE"]),
+  EFFECTIVE_NOTIFICATION_DATE: new Set([
+    "PRINTED_EFFECTIVE_NOTIFICATION_DATE",
+  ]),
+});
+
+const PROFILE_DATE_FIELD_ID = /^profile:date:([A-Z0-9_]+):\d+$/u;
+
+/**
+ * VSR2 keeps the original profile date code in fieldId. That code is the
+ * chronology authority: some profile dates use ACTION_DATE only as a legacy
+ * storage carrier because VSR1 has no START/END/INTEREST/FILING variants.
+ * Those dates remain visible facts, but must never become the document date.
+ */
+function storedChronologyDateKind(
+  metadata: PersistedVerticalFieldLabelV1,
+): StoredChronologyDateKindV1 | null {
+  if (metadata.semantic !== "DATE") return null;
+  const profileDateCode = metadata.fieldId
+    ? PROFILE_DATE_FIELD_ID.exec(metadata.fieldId)?.[1] ?? null
+    : null;
+  const dateCode = profileDateCode ?? metadata.canonicalType;
+  switch (dateCode) {
+    case "ISSUE_DATE":
+    case "SIGNING_DATE":
+    case "ACTION_DATE":
+    case "EFFECTIVE_NOTIFICATION_DATE":
+      return dateCode;
+    case "SIGNATURE_DATE":
+      return "SIGNING_DATE";
+    default:
+      return null;
+  }
 }
 
 function projectOrderedFacts(input: {
@@ -544,7 +924,7 @@ function projectOrderedFacts(input: {
           .find((metadata) => metadata?.semantic === "REFERENCE")?.label ??
         REFERENCE_LABELS[reference.referenceType] ??
         "Referencia",
-      value: reference.rawValue,
+      value: visibleStoredReference(reference, verticalMetadataByEvidence),
       pageNumber: source.pageNumber,
       sourceReference: null,
       order: firstOrder(reference.occurrenceIds),
@@ -557,8 +937,11 @@ function projectOrderedFacts(input: {
     const sourceField = fact.evidenceIds
       .map((id) => verticalFieldByEvidence.get(id))
       .find((field) => parseVerticalFieldLabel(field?.labelRaw ?? "")?.semantic === "MONEY");
-    const sourceReference = fact.sourceActRefId
-      ? input.referencesById.get(fact.sourceActRefId)?.rawValue ?? null
+    const sourceReferenceValue = fact.sourceActRefId
+      ? input.referencesById.get(fact.sourceActRefId)
+      : undefined;
+    const sourceReference = sourceReferenceValue
+      ? visibleStoredReference(sourceReferenceValue, verticalMetadataByEvidence)
       : null;
     candidates.push({
       key: fact.id,
@@ -581,7 +964,8 @@ function projectOrderedFacts(input: {
     const metadata = parseVerticalFieldLabel(fact.labelRaw);
     if (
       metadata?.semantic === "MONEY" ||
-      metadata?.semantic === "REFERENCE"
+      metadata?.semantic === "REFERENCE" ||
+      isProfileControlField(metadata?.fieldId ?? null)
     ) {
       return;
     }
@@ -699,6 +1083,7 @@ function chronologyKey(
 }
 
 interface PersistedVerticalFieldLabelV1 {
+  readonly fieldId: string | null;
   readonly semantic: string;
   readonly canonicalType: string;
   readonly label: string;
@@ -708,10 +1093,14 @@ function parseVerticalFieldLabel(
   value: string,
 ): PersistedVerticalFieldLabelV1 | null {
   const parts = value.split("|");
-  if (parts.length < 4 || parts[0] !== "VSR1") return null;
-  const semantic = parts[1];
-  const canonicalType = parts[2];
-  const label = parts.slice(3).join("|");
+  if (parts[0] !== "VSR1" && parts[0] !== "VSR2") return null;
+  const isV2 = parts[0] === "VSR2";
+  if (parts.length < (isV2 ? 5 : 4)) return null;
+  const fieldId = isV2 ? parts[1] : null;
+  const semantic = parts[isV2 ? 2 : 1];
+  const canonicalType = parts[isV2 ? 3 : 2];
+  const label = parts.slice(isV2 ? 4 : 3).join("|");
+  if (fieldId !== null && !fieldId) return null;
   if (!semantic || !canonicalType || !label) return null;
-  return Object.freeze({ semantic, canonicalType, label });
+  return Object.freeze({ fieldId, semantic, canonicalType, label });
 }

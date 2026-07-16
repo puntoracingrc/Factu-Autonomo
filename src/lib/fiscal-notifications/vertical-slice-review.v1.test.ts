@@ -132,34 +132,38 @@ describe("fiscal notification vertical-slice review v1", () => {
       expect.objectContaining({
         semantic: "DATE",
         canonicalType: "AVAILABILITY_DATE",
-        displayValue: "10/07/2026 08:15",
+        displayValue: "10/07/2026",
         normalizedValue: "2026-07-10",
       }),
       expect.objectContaining({
         semantic: "DATE",
         canonicalType: "ACCESS_DATE",
-        displayValue: "12/07/2026 09:42",
+        displayValue: "12/07/2026",
         normalizedValue: "2026-07-12",
       }),
       expect.objectContaining({
         semantic: "PARTY",
         canonicalType: "ISSUING_AUTHORITY",
-        displayValue: "Agencia Estatal de Administración Tributaria",
+        displayValue: "AEAT",
+        normalizedValue: "AEAT",
       }),
       expect.objectContaining({
         semantic: "PARTY",
         canonicalType: "TAXPAYER",
-        displayValue: "PERSONA SINTÉTICA",
+        displayValue: expect.stringMatching(/^Interviniente \d+$/u),
+        normalizedValue: expect.stringMatching(/^ROLE:TAXPAYER:\d+$/u),
       }),
       expect.objectContaining({
         semantic: "DETAIL",
         canonicalType: "NOTIFICATION_SUBJECT",
-        displayValue: "Liquidación sintética notificada",
+        displayValue: "Detectado en el documento",
+        normalizedValue: "NOTIFICATION_SUBJECT",
       }),
       expect.objectContaining({
         semantic: "DETAIL",
         canonicalType: "NOTIFICATION_CHANNEL",
-        displayValue: "DEHú",
+        displayValue: "Detectado en el documento",
+        normalizedValue: "NOTIFICATION_CHANNEL",
       }),
     ]));
     expect(review).toMatchObject({
@@ -202,12 +206,10 @@ describe("fiscal notification vertical-slice review v1", () => {
         currency: "EUR",
         displayValue: "600,00 €",
       }),
-      expect.objectContaining({
-        semantic: "MASKED_VALUE",
-        displayValue: "****9012",
-      }),
     ]));
-    expect(JSON.stringify(review)).not.toContain("ES12 3456");
+    expect(JSON.stringify(review)).not.toMatch(
+      /ES12 3456|12345678Z|BANCO SINTÉTICO|Cargo en cuenta|NRC|ABCDEF1234567890GHIJKL|MASKED_ACCOUNT/iu,
+    );
     expect(review).toMatchObject({
       retainedSourceContent: "NONE",
       permitsDebtCreation: false,
@@ -243,7 +245,7 @@ describe("fiscal notification vertical-slice review v1", () => {
       expect.objectContaining({
         semantic: "PARTY",
         canonicalType: "PRIMARY_DEBTOR",
-        displayValue: "PERSONA DEUDORA SINTÉTICA",
+        displayValue: expect.stringMatching(/^Interviniente \d+$/u),
       }),
       expect.objectContaining({
         semantic: "MONEY",
@@ -257,22 +259,14 @@ describe("fiscal notification vertical-slice review v1", () => {
         amountCents: 90_000,
       }),
       expect.objectContaining({
-        semantic: "MASKED_VALUE",
-        canonicalType: "MASKED_ACCOUNT",
-        displayValue: "****1234",
-      }),
-      expect.objectContaining({
-        semantic: "DETAIL",
-        canonicalType: "DEBTOR_TAX_ID",
-        displayValue: "12345678Z",
-      }),
-      expect.objectContaining({
         semantic: "DATE",
         canonicalType: "RESPONSE_DEADLINE",
         normalizedValue: "2026-03-12",
       }),
     ]));
-    expect(JSON.stringify(review)).not.toContain("ES00 0000 0000 0000 1234");
+    expect(JSON.stringify(review)).not.toMatch(
+      /ES00 0000 0000 0000 1234|12345678Z|A12345674|PERSONA DEUDORA SINTÉTICA|BANCO SINTÉTICO|MASKED_ACCOUNT|DEBTOR_TAX_ID|RECIPIENT_TAX_ID/iu,
+    );
     expect(JSON.stringify(review)).not.toContain(BANK_SEIZURE);
   });
 
@@ -302,6 +296,47 @@ describe("fiscal notification vertical-slice review v1", () => {
     expect(Object.isFrozen(parsed)).toBe(true);
     expect(Object.isFrozen(parsed.documents[0]?.fields)).toBe(true);
     expect(() => parseFiscalNotificationVerticalSliceReviewV1(tampered)).toThrow(
+      FiscalNotificationVerticalSliceReviewErrorV1,
+    );
+  });
+
+  it("rejects raw PII, copied snippets and unfingerprinted sensitive references at the serializable boundary", async () => {
+    const projected = projectFiscalNotificationVerticalSliceReviewV1(
+      await analyzeFiscalNotificationVerticalSliceV1(document(PAYMENT)),
+    );
+    const partyPii = structuredClone(projected);
+    const party = partyPii.documents[0]!.fields.find(
+      (candidate) => candidate.semantic === "PARTY",
+    )!;
+    (party as { displayValue: string }).displayValue = "PERSONA PRIVADA";
+    const copiedSnippet = structuredClone(projected);
+    (
+      copiedSnippet.documents[0]!.fields[0] as unknown as {
+        sourceLabel: string;
+      }
+    ).sourceLabel = "Domicilio: Calle Privada 1";
+    const rawNrc = structuredClone(projected);
+    const rawNrcFields = rawNrc.documents[0]!.fields as Array<
+      (typeof rawNrc.documents)[number]["fields"][number]
+    >;
+    rawNrcFields.push({
+      ...rawNrcFields[0]!,
+      fieldId: "reference:raw:nrc",
+      semantic: "REFERENCE",
+      canonicalType: "NRC",
+      label: "NRC",
+      sourceLabel: "NRC",
+      displayValue: "ABCDEF1234567890GHIJKL",
+      normalizedValue: "ABCDEF1234567890GHIJKL",
+    });
+
+    expect(() => parseFiscalNotificationVerticalSliceReviewV1(partyPii)).toThrow(
+      FiscalNotificationVerticalSliceReviewErrorV1,
+    );
+    expect(() =>
+      parseFiscalNotificationVerticalSliceReviewV1(copiedSnippet),
+    ).toThrow(FiscalNotificationVerticalSliceReviewErrorV1);
+    expect(() => parseFiscalNotificationVerticalSliceReviewV1(rawNrc)).toThrow(
       FiscalNotificationVerticalSliceReviewErrorV1,
     );
   });

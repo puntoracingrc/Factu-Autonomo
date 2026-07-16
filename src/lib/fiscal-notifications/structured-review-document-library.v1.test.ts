@@ -81,10 +81,16 @@ function relations(): StructuredReviewRelationsViewModelV1 {
         title: "Embargo vinculado a providencia de apremio",
         statusLabel: "Referencia exacta · revisar efectos",
         documents: [
-          { id: MARCH.key, title: MARCH.title, createdAt: MARCH.createdAt },
+          {
+            id: MARCH.key,
+            title: MARCH.title,
+            chronologyDate: MARCH.documentDate,
+            createdAt: MARCH.createdAt,
+          },
           {
             id: JANUARY.key,
             title: JANUARY.title,
+            chronologyDate: JANUARY.documentDate,
             createdAt: JANUARY.createdAt,
           },
         ],
@@ -98,8 +104,18 @@ function relations(): StructuredReviewRelationsViewModelV1 {
         title: "Levantamiento vinculado a diligencia de embargo",
         statusLabel: "Referencia exacta · revisar efectos",
         documents: [
-          { id: APRIL.key, title: APRIL.title, createdAt: APRIL.createdAt },
-          { id: MARCH.key, title: MARCH.title, createdAt: MARCH.createdAt },
+          {
+            id: APRIL.key,
+            title: APRIL.title,
+            chronologyDate: APRIL.documentDate,
+            createdAt: APRIL.createdAt,
+          },
+          {
+            id: MARCH.key,
+            title: MARCH.title,
+            chronologyDate: MARCH.documentDate,
+            createdAt: MARCH.createdAt,
+          },
         ],
         matches: [],
         explanation: "El levantamiento cita la diligencia exacta.",

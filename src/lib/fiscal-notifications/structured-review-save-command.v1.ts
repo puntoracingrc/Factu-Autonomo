@@ -20,6 +20,7 @@ import {
   type AppendFiscalNotificationVerticalSliceReviewResultV1,
 } from "./vertical-slice-review-workspace.v1";
 import { parseFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
+import { enrichVerticalSliceSpecializedFactsV1 } from "./vertical-slice-specialized-facts.v1";
 
 export type FiscalNotificationStructuredReviewSaveBlockedReasonV1 =
   | "invalid_structured_review"
@@ -63,20 +64,43 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
     | AppendAeatOffsetStructuredReviewResultV1
     | AppendFiscalNotificationVerticalSliceReviewResultV1;
   try {
-    const append = hasStructuredVerticalSlice(input.analysis)
-      ? appendFiscalNotificationVerticalSliceReviewV1
-      : input.analysis.ephemeralOffsetAgreementFacts
+    if (hasStructuredVerticalSlice(input.analysis)) {
+      const vertical = appendFiscalNotificationVerticalSliceReviewV1({
+        ownerScope: input.ownerScope,
+        reviewId: input.reviewId,
+        createdAt: input.createdAt,
+        workspace: input.expected.fiscalNotificationsWorkspace ?? null,
+        analysis: input.analysis,
+      });
+      if (vertical.status === "APPLIED") {
+        const enrichment = enrichVerticalSliceSpecializedFactsV1({
+          ownerScope: input.ownerScope,
+          createdAt: input.createdAt,
+          workspace: vertical.workspace,
+          documentIds: vertical.documentIds,
+          analysis: input.analysis,
+        });
+        prepared = Object.freeze({
+          ...vertical,
+          workspace: enrichment.workspace,
+        });
+      } else {
+        prepared = vertical;
+      }
+    } else {
+      const append = input.analysis.ephemeralOffsetAgreementFacts
         ? appendAeatOffsetStructuredReviewV1
         : input.analysis.ephemeralDeferralGrantFacts
           ? appendAeatDeferralStructuredReviewV1
           : appendAeatEnforcementStructuredReviewV1;
-    prepared = append({
-      ownerScope: input.ownerScope,
-      reviewId: input.reviewId,
-      createdAt: input.createdAt,
-      workspace: input.expected.fiscalNotificationsWorkspace ?? null,
-      analysis: input.analysis,
-    });
+      prepared = append({
+        ownerScope: input.ownerScope,
+        reviewId: input.reviewId,
+        createdAt: input.createdAt,
+        workspace: input.expected.fiscalNotificationsWorkspace ?? null,
+        analysis: input.analysis,
+      });
+    }
     if (prepared.status === "APPLIED") {
       const relations = appendStructuredReviewRelationSuggestionsV1({
         ownerScope: input.ownerScope,

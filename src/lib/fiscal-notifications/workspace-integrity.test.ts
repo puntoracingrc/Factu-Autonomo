@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { FISCAL_NOTIFICATION_INPUT_LIMITS } from "./input-contract";
 import { createEmptyAdministrativeDomainProjection } from "./administrative-domain";
+import {
+  AEAT_DOCUMENT_RELATION_TYPE_IDS_V1,
+} from "./knowledge/aeat-document-knowledge.v1";
 import type { FiscalNotificationsWorkspace } from "./types";
 import {
   assertFiscalNotificationsWorkspaceIntegrity,
@@ -51,6 +54,66 @@ function deepFreeze<T>(value: T): T {
 }
 
 describe("fiscal notifications workspace integrity", () => {
+  it("accepts all 48 registered relation types and only declared chain ids", () => {
+    for (const relationType of AEAT_DOCUMENT_RELATION_TYPE_IDS_V1) {
+      const workspace = empty();
+      workspace.relations.push({
+        id: `relation-${relationType}`,
+        ownerScope: OWNER,
+        sourceDocumentId: "missing-source",
+        targetDocumentId: "missing-target",
+        relationType,
+        confidenceBand: "HIGH",
+        score: 50,
+        evidence: {
+          matchingReferenceTypes: [],
+          matchingAmountTypes: [],
+          matchingDates: [],
+          differences: [],
+        },
+        algorithmVersion: "synthetic-v2",
+        status: "SUGGESTED",
+        createdAt: NOW,
+      });
+
+      const result = validateFiscalNotificationsWorkspaceIntegrity(
+        workspace,
+        OWNER,
+      );
+      expect(result.issues).not.toContainEqual({
+        code: "INVALID_WORKSPACE",
+        path: "workspace.relations[0].relationType",
+      });
+    }
+
+    const invalid = empty();
+    invalid.relations.push({
+      id: "relation-invalid-chain",
+      ownerScope: OWNER,
+      sourceDocumentId: "missing-source",
+      targetDocumentId: "missing-target",
+      relationType: "CONTINUES",
+      confidenceBand: "HIGH",
+      score: 50,
+      evidence: {
+        chainId: "not-a-declared-chain",
+        matchingReferenceTypes: [],
+        matchingAmountTypes: [],
+        matchingDates: [],
+        differences: [],
+      },
+      algorithmVersion: "synthetic-v2",
+      status: "SUGGESTED",
+      createdAt: NOW,
+    } as never);
+    expect(
+      validateFiscalNotificationsWorkspaceIntegrity(invalid, OWNER).issues,
+    ).toContainEqual({
+      code: "INVALID_WORKSPACE",
+      path: "workspace.relations[0].evidence.chainId",
+    });
+  });
+
   it("accepts a legacy empty workspace without adding fields or mutating it", () => {
     const workspace = empty() as unknown as Record<string, unknown>;
     delete workspace.debtObservations;

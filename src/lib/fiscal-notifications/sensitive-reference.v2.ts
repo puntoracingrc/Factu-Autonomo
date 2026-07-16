@@ -1,3 +1,5 @@
+import { sha256Hex } from "../document-integrity/snapshot-hash";
+
 export const SENSITIVE_REFERENCE_TYPES_V2 = Object.freeze([
   "CSV",
   "NRC",
@@ -55,6 +57,7 @@ const PARTITIONED_FINGERPRINT_DOMAIN =
   "factu:fiscal-notification:sensitive-reference:partitioned-sha256:v2";
 const PARTITIONED_EXACT_KEY_DOMAIN =
   "factu:fiscal-notification:sensitive-reference:exact-key-sha256:v2";
+const MEMORY_FINGERPRINT_PREFIX = "FACTU_PROTECTED_REFERENCE_V2";
 
 const TYPE_STRENGTH_RULES: Readonly<
   Record<
@@ -192,6 +195,43 @@ export function isSensitiveReferenceV2(
 }
 
 /**
+ * Technical in-memory carrier used only when a privacy-minimized workspace is
+ * rehydrated for legacy V1 view models. The carrier is safe to display only via
+ * `sensitiveReferenceSafeLabelV2` and must never be persisted as a raw value.
+ */
+export function sensitiveReferenceMemoryCarrierV2(
+  value: SensitiveReferenceV2,
+): string {
+  const snapshot = snapshotSensitiveReferenceV2(value);
+  if (!snapshot) return "";
+  return [
+    MEMORY_FINGERPRINT_PREFIX,
+    snapshot.referenceType,
+    snapshot.fingerprintSha256,
+  ].join(":");
+}
+
+export function parseSensitiveReferenceMemoryCarrierV2(
+  value: unknown,
+  expectedType: SensitiveReferenceTypeV2,
+): Readonly<SensitiveReferenceV2> | null {
+  if (typeof value !== "string") return null;
+  const [prefix, referenceType, fingerprintSha256, extra] = value.split(":");
+  if (
+    prefix !== MEMORY_FINGERPRINT_PREFIX ||
+    referenceType !== expectedType ||
+    extra !== undefined
+  ) {
+    return null;
+  }
+  return snapshotSensitiveReferenceV2({
+    storage: "FINGERPRINT_ONLY",
+    referenceType,
+    fingerprintSha256,
+  });
+}
+
+/**
  * Canonicalizes only typographic separators. Significant letters, zeroes,
  * check digits, suffixes and installment markers are preserved.
  *
@@ -240,19 +280,17 @@ async function sha256HexV2(value: string): Promise<string | null> {
   }
 }
 
-/**
- * Creates a partitioned equality digest. This is deliberately SHA-256, not an
- * HMAC: this local persistence boundary has no managed secret or key lifecycle,
- * so claiming MAC authentication would be false. The opaque canonical owner
- * scope, canonical issuer, type-specific minimum strength and domain-separated
- * tuple prevent a single value-only digest from correlating all tenants.
- */
-export async function createSensitiveReferenceV2(input: {
+function createSensitiveReferenceSnapshotV2(input: {
   readonly ownerScope: string;
   readonly issuerCode: string;
   readonly referenceType: SensitiveReferenceTypeV2;
   readonly printedValue: string;
-}): Promise<Readonly<SensitiveReferenceV2> | null> {
+}): Readonly<{
+  ownerScope: string;
+  issuerCode: string;
+  referenceType: SensitiveReferenceTypeV2;
+  normalized: string;
+}> | null {
   const snapshot = snapshotPlainRecord(input, CREATE_INPUT_KEYS);
   if (!snapshot) return null;
   const ownerScope = canonicalFiscalNotificationOwnerScopeV2(snapshot.ownerScope);
@@ -272,19 +310,69 @@ export async function createSensitiveReferenceV2(input: {
   if (!normalized || !hasTypeSpecificStrengthV2(referenceType, normalized)) {
     return null;
   }
+  return Object.freeze({ ownerScope, issuerCode, referenceType, normalized });
+}
+
+/**
+ * Synchronous browser-safe variant used by synchronous localStorage/backup
+ * boundaries. It uses the same SHA-256 tuple and produces exactly the same
+ * representation as `createSensitiveReferenceV2`.
+ */
+export function createSensitiveReferenceV2Sync(input: {
+  readonly ownerScope: string;
+  readonly issuerCode: string;
+  readonly referenceType: SensitiveReferenceTypeV2;
+  readonly printedValue: string;
+}): Readonly<SensitiveReferenceV2> | null {
+  const snapshot = createSensitiveReferenceSnapshotV2(input);
+  if (!snapshot) return null;
+  try {
+    return Object.freeze({
+      storage: "FINGERPRINT_ONLY" as const,
+      referenceType: snapshot.referenceType,
+      fingerprintSha256: sha256Hex(
+        collisionSafeTupleV2([
+          PARTITIONED_FINGERPRINT_DOMAIN,
+          snapshot.ownerScope,
+          snapshot.issuerCode,
+          snapshot.referenceType,
+          snapshot.normalized,
+        ]),
+      ),
+    });
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Creates a partitioned equality digest. This is deliberately SHA-256, not an
+ * HMAC: this local persistence boundary has no managed secret or key lifecycle,
+ * so claiming MAC authentication would be false. The opaque canonical owner
+ * scope, canonical issuer, type-specific minimum strength and domain-separated
+ * tuple prevent a single value-only digest from correlating all tenants.
+ */
+export async function createSensitiveReferenceV2(input: {
+  readonly ownerScope: string;
+  readonly issuerCode: string;
+  readonly referenceType: SensitiveReferenceTypeV2;
+  readonly printedValue: string;
+}): Promise<Readonly<SensitiveReferenceV2> | null> {
+  const snapshot = createSensitiveReferenceSnapshotV2(input);
+  if (!snapshot) return null;
   const fingerprintSha256 = await sha256HexV2(
     collisionSafeTupleV2([
       PARTITIONED_FINGERPRINT_DOMAIN,
-      ownerScope,
-      issuerCode,
-      referenceType,
-      normalized,
+      snapshot.ownerScope,
+      snapshot.issuerCode,
+      snapshot.referenceType,
+      snapshot.normalized,
     ]),
   );
   if (!fingerprintSha256) return null;
   return Object.freeze({
     storage: "FINGERPRINT_ONLY" as const,
-    referenceType,
+    referenceType: snapshot.referenceType,
     fingerprintSha256,
   });
 }

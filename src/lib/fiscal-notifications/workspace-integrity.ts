@@ -6,6 +6,10 @@ import {
   assertNonNegativeIntegerCents,
 } from "./input-contract";
 import { validateAdministrativeDomainProjection } from "./administrative-domain";
+import {
+  AEAT_DOCUMENT_CHAIN_IDS_V1,
+  AEAT_DOCUMENT_RELATION_TYPE_IDS_V1,
+} from "./knowledge/aeat-document-knowledge.v1";
 import type { FiscalNotificationsWorkspace } from "./types";
 
 export type WorkspaceIntegrityIssueCode =
@@ -505,26 +509,14 @@ const EXTERNAL_REFERENCE_TYPES = new Set([
   "OTHER",
 ]);
 const DOCUMENT_RELATION_TYPES = new Set([
+  ...AEAT_DOCUMENT_RELATION_TYPE_IDS_V1,
   "BELONGS_TO_CASE",
-  "REFERS_TO_DEBT",
-  "PAYMENT_FORM_FOR",
-  "ANNEX_OF",
   "DUPLICATE_COPY_OF",
-  "REPLACES",
-  "CORRECTS",
-  "CANCELS",
-  "RESOLVES",
-  "CONTINUES",
-  "ENFORCES",
-  "RESPONDS_TO_SEIZURE",
-  "TRANSFERS_SEIZED_FUNDS",
-  "RELEASES_SEIZURE",
-  "CLAIMS_UNPAID_INSTALLMENT",
   "RELATED_TO_PAYMENT_PLAN",
   "RELATED_TO_INSTALLMENT",
-  "RESPONSE_TO",
   "POSSIBLY_RELATED",
 ]);
+const DOCUMENT_CHAIN_IDS = new Set<string>(AEAT_DOCUMENT_CHAIN_IDS_V1);
 const ACCOUNTING_TREATMENT_STATUSES = new Set([
   "PENDING_EXISTING_ENGINE",
   "NEEDS_REVIEW",
@@ -620,6 +612,7 @@ const BOUNDING_BOX_KEYS = new Set([
   "pageHeight",
 ]);
 const RELATION_EVIDENCE_KEYS = new Set([
+  "chainId",
   "matchingReferenceTypes",
   "matchingAmountTypes",
   "matchingDates",
@@ -2631,6 +2624,13 @@ function validateEntityStructure(
       addIssue("INVALID_WORKSPACE", `${path}.evidence`);
     } else {
       value.evidence = relationEvidence;
+      if (
+        relationEvidence.chainId !== undefined &&
+        (typeof relationEvidence.chainId !== "string" ||
+          !DOCUMENT_CHAIN_IDS.has(relationEvidence.chainId))
+      ) {
+        addIssue("INVALID_WORKSPACE", `${path}.evidence.chainId`);
+      }
       for (const field of RELATION_EVIDENCE_ARRAY_FIELDS) {
         const snapshot = validateArray(
           relationEvidence[field],

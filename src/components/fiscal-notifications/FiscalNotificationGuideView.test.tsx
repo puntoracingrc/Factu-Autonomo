@@ -1,5 +1,8 @@
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { FiscalNotificationGuideCoverageSummary } from "./FiscalNotificationGuideCoverageSummary";
 
 function readSource(relativePath: string): string {
   return readFileSync(new URL(relativePath, import.meta.url), "utf8");
@@ -7,9 +10,24 @@ function readSource(relativePath: string): string {
 
 const viewSource = readSource("./FiscalNotificationGuideView.tsx");
 const detailSource = readSource("./FiscalNotificationGuideDetail.tsx");
-const combinedSource = `${viewSource}\n${detailSource}`;
+const coverageSource = readSource("./FiscalNotificationGuideCoverageSummary.tsx");
+const combinedSource = `${viewSource}\n${detailSource}\n${coverageSource}`;
 
 describe("FiscalNotificationGuideView UI contract", () => {
+  it("renders the real catalog as 87 automatic families and no pending cards", () => {
+    const html = renderToStaticMarkup(
+      createElement(FiscalNotificationGuideCoverageSummary),
+    );
+
+    // Independent product acceptance count from the signed-off 87-family pack.
+    // Deliberately do not derive this expectation from the runtime registry.
+    expect(html).toContain("Hay 87 guías explicadas:");
+    expect(html).toContain("87 con lectura automática");
+    expect(html).toContain("0 disponibles para consulta manual");
+    expect(html).not.toContain("En preparación");
+    expect(viewSource).toContain("<FiscalNotificationGuideCoverageSummary />");
+  });
+
   it("is an independent local catalog with accessible search and addressable cards", () => {
     expect(viewSource).toContain('role="search"');
     expect(viewSource).toContain('type="search"');
@@ -17,11 +35,11 @@ describe("FiscalNotificationGuideView UI contract", () => {
     expect(viewSource).toContain("searchFiscalNotificationGuideV1(");
     expect(viewSource).toContain("?guia=${encodeURIComponent(entry.familyId)}");
     expect(viewSource).toContain("#guia-notificaciones");
-    expect(viewSource).toContain(
+    expect(coverageSource).toContain(
       "FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.length",
     );
-    expect(viewSource).toContain("automaticGuideCount");
-    expect(viewSource).toContain("manualGuideCount");
+    expect(coverageSource).toContain("automaticGuideCount");
+    expect(coverageSource).toContain("manualGuideCount");
     expect(viewSource).toContain("Consulta independiente del analizador");
   });
 
@@ -59,7 +77,7 @@ describe("FiscalNotificationGuideView UI contract", () => {
     expect(detailSource).toContain("Estado técnico de esta ficha");
     expect(viewSource).toContain("Lectura automática · revisión obligatoria");
     expect(viewSource).toContain("Guía disponible · revisión manual");
-    expect(viewSource).toContain("sin lectura automática");
+    expect(coverageSource).toContain("sin lectura automática");
     expect(viewSource).not.toContain("con selección y revisión manual");
     expect(viewSource).not.toContain("En preparación");
     expect(detailSource).toContain(

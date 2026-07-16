@@ -20,6 +20,11 @@ import { normalizeAppPreferences } from "./app-preferences";
 import { normalizeBusinessFiscalProfile } from "./fiscal-profile";
 import { normalizeTaxModelDiagnosticSession } from "./tax-model-diagnostic/profile";
 import { normalizeFiscalAdvisoryModelPreferencesV1 } from "./fiscal-advisory-models/preferences";
+import {
+  encodeFiscalNotificationsWorkspaceForStorageV2,
+  parseFiscalNotificationsWorkspaceStorageEnvelopeV2,
+  restoreFiscalNotificationsWorkspaceFromStorageV2,
+} from "./fiscal-notifications/workspace-storage-envelope.v2";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./fiscal-notifications/workspace-persistence.v1";
 import { normalizeSupplierNif, supplierCompareKey } from "./suppliers";
 import { normalizeRecurringExpense } from "./recurring-expenses";
@@ -129,12 +134,109 @@ function base64ToBytes(value: string): Uint8Array {
   return bytes;
 }
 
-function serializeStoredData(data: AppData): string {
+function serializeStoredData(data: unknown): string {
   const serialized = JSON.stringify(data);
   if (serialized.length < STORAGE_COMPRESSION_THRESHOLD) return serialized;
 
   const compressed = gzipSync(strToU8(serialized), { level: 6 });
   return `${COMPRESSED_STORAGE_PREFIX}${bytesToBase64(compressed)}`;
+}
+
+function safeRejectedFiscalPayload(): Record<string, string> {
+  return {
+    status: "rejected",
+    schema: "fiscal-notifications-privacy-workspace-v2",
+  };
+}
+
+function persistedFiscalChange(
+  change: SyncChange,
+  basePayload?: unknown,
+): SyncChange | null {
+  if (change.entityType !== "fiscal_notifications_workspace") return change;
+  if (change.deleted) {
+    return {
+      entityType: change.entityType,
+      entityId: change.entityId,
+      deleted: true,
+      updatedAt: change.updatedAt,
+    };
+  }
+  const envelope =
+    parseFiscalNotificationsWorkspaceStorageEnvelopeV2(change.payload) ??
+    encodeFiscalNotificationsWorkspaceForStorageV2(
+      change.payload,
+      basePayload,
+    );
+  return envelope ? { ...change, payload: envelope } : null;
+}
+
+function fiscalPendingPayloadByKey(value: unknown): Map<string, unknown> {
+  const result = new Map<string, unknown>();
+  if (!isRecord(value) || !isRecord(value.meta)) return result;
+  const pending = value.meta.pendingChanges;
+  if (!Array.isArray(pending)) return result;
+  for (const entry of pending) {
+    if (
+      isRecord(entry) &&
+      entry.entityType === "fiscal_notifications_workspace" &&
+      typeof entry.entityId === "string"
+    ) {
+      result.set(entry.entityId, entry.payload);
+    }
+  }
+  return result;
+}
+
+/**
+ * Proyección estructural usada por todos los bordes duraderos. El expediente
+ * fiscal V1 solo vive en memoria; localStorage, backup y pendingChanges reciben
+ * siempre el envelope V2 minimizado y versionado.
+ */
+export function projectAppDataForPersistence(
+  data: AppData,
+  baseValue?: unknown,
+): unknown {
+  const base = isRecord(baseValue) ? baseValue : undefined;
+  const result: Record<string, unknown> = { ...data };
+  if (data.fiscalNotificationsWorkspace) {
+    const envelope = encodeFiscalNotificationsWorkspaceForStorageV2(
+      data.fiscalNotificationsWorkspace,
+      base?.fiscalNotificationsWorkspace,
+    );
+    if (!envelope) throw new Error("fiscal_workspace_privacy_projection_failed");
+    result.fiscalNotificationsWorkspace = envelope;
+  } else {
+    delete result.fiscalNotificationsWorkspace;
+  }
+
+  if (data.meta) {
+    const basePending = fiscalPendingPayloadByKey(baseValue);
+    const pendingChanges = data.meta.pendingChanges?.map((change) => {
+      const projected = persistedFiscalChange(
+        change,
+        basePending.get(change.entityId),
+      );
+      if (!projected) {
+        throw new Error("fiscal_pending_change_privacy_projection_failed");
+      }
+      return projected;
+    });
+    result.meta = {
+      ...data.meta,
+      ...(pendingChanges ? { pendingChanges } : {}),
+    };
+  }
+
+  if (Array.isArray(data.workspaceIntegrityQuarantine)) {
+    result.workspaceIntegrityQuarantine =
+      data.workspaceIntegrityQuarantine.map((entry) =>
+        /fiscalNotifications|fiscal_notifications/iu.test(entry.collection)
+          ? { ...entry, rawValue: safeRejectedFiscalPayload() }
+          : entry,
+      );
+  }
+  return result;
 }
 
 function parseStoredData(raw: string): unknown {
@@ -552,7 +654,7 @@ export function normalizeLoadedData(
       rawValue: parsed.meta,
     });
   }
-  const pendingChanges = normalizeRecordCollection<SyncChange>({
+  const parsedPendingChanges = normalizeRecordCollection<SyncChange>({
     rawValue: parsedMeta?.pendingChanges,
     collection: "meta.pendingChanges",
     quarantine: workspaceIntegrityQuarantine,
@@ -562,6 +664,16 @@ export function normalizeLoadedData(
       typeof value.deleted === "boolean" &&
       typeof value.updatedAt === "string",
     normalize: (value) => value as unknown as SyncChange,
+  });
+  const pendingChanges = parsedPendingChanges.flatMap((change) => {
+    const normalized = persistedFiscalChange(change);
+    if (normalized) return [normalized];
+    workspaceIntegrityQuarantine.push({
+      collection: "meta.pendingChanges.fiscal_notifications_workspace",
+      reason: "malformed_record",
+      rawValue: safeRejectedFiscalPayload(),
+    });
+    return [];
   });
   const baseMeta = parsedMeta
     ? {
@@ -657,12 +769,26 @@ export function normalizeLoadedData(
     normalizedExpenses,
     suppliers,
   );
-  const fiscalNotificationsWorkspace =
+  const persistedFiscalEnvelope =
     parsed.fiscalNotificationsWorkspace === undefined
-      ? undefined
-      : parseFiscalNotificationsWorkspaceForPersistenceV1(
+      ? null
+      : parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
           parsed.fiscalNotificationsWorkspace,
-        ) ?? undefined;
+        ) ??
+        (() => {
+          const legacy = parseFiscalNotificationsWorkspaceForPersistenceV1(
+            parsed.fiscalNotificationsWorkspace,
+          );
+          return legacy
+            ? encodeFiscalNotificationsWorkspaceForStorageV2(legacy)
+            : null;
+        })();
+  const fiscalNotificationsWorkspace = persistedFiscalEnvelope
+    ? restoreFiscalNotificationsWorkspaceFromStorageV2(
+        persistedFiscalEnvelope,
+        persistedFiscalEnvelope.workspace.ownerScope,
+      ) ?? undefined
+    : undefined;
   if (
     parsed.fiscalNotificationsWorkspace !== undefined &&
     fiscalNotificationsWorkspace === undefined
@@ -670,10 +796,7 @@ export function normalizeLoadedData(
     workspaceIntegrityQuarantine.push({
       collection: "fiscalNotificationsWorkspace",
       reason: "malformed_record",
-      rawValue: {
-        status: "rejected",
-        schema: "fiscal-notifications-workspace-v1",
-      },
+      rawValue: safeRejectedFiscalPayload(),
     });
   }
   const documentCounters = countersFromDocuments(
@@ -1248,9 +1371,13 @@ function storedRawMatchesExpected(
   }
 
   try {
+    const parsed = parseStoredData(raw);
+    const normalizedCurrent = normalizeLoadedData(parsed);
     return (
-      stableStringifySnapshot(normalizeLoadedData(parseStoredData(raw))) ===
-      stableStringifySnapshot(expected)
+      stableStringifySnapshot(
+        projectAppDataForPersistence(normalizedCurrent, parsed),
+      ) ===
+      stableStringifySnapshot(projectAppDataForPersistence(expected, parsed))
     );
   } catch {
     return false;
@@ -1265,9 +1392,12 @@ export function saveData(
     return { status: "blocked", reason: "storage_unavailable" };
   }
 
+  // Mantiene el fallo de serialización/compression anterior a cualquier
+  // lectura de storage. La segunda proyección, ya con la base, solo sirve para
+  // reconciliar fingerprints V2 existentes sin reintroducir el workspace V1.
   let serialized: string;
   try {
-    serialized = serializeStoredData(data);
+    serialized = serializeStoredData(projectAppDataForPersistence(data));
   } catch {
     return { status: "blocked", reason: "serialization_failed" };
   }
@@ -1281,6 +1411,20 @@ export function saveData(
     beforeRaw = storage.getItem(storageKey);
   } catch {
     return { status: "blocked", reason: "storage_unavailable" };
+  }
+
+  try {
+    let baseValue: unknown;
+    try {
+      baseValue = beforeRaw === null ? undefined : parseStoredData(beforeRaw);
+    } catch {
+      baseValue = undefined;
+    }
+    serialized = serializeStoredData(
+      projectAppDataForPersistence(data, baseValue),
+    );
+  } catch {
+    return { status: "blocked", reason: "serialization_failed" };
   }
 
   if (

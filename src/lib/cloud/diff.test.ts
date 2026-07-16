@@ -5,6 +5,7 @@ import {
   clearSyncedChanges,
   diffAppData,
   emptyCloudBootstrapData,
+  mergePendingChanges,
   snapshotIntegrityMetadataChange,
 } from "./diff";
 import { EMPTY_DATA } from "../types";
@@ -17,6 +18,12 @@ import type {
 } from "../types";
 import type { FiscalNotificationsWorkspace } from "../fiscal-notifications/types";
 import { FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 } from "../fiscal-notifications/workspace-persistence.v1";
+import {
+  FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_KIND_V2,
+  FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+  encodeFiscalNotificationsWorkspaceForStorageV2,
+  parseFiscalNotificationsWorkspaceStorageEnvelopeV2,
+} from "../fiscal-notifications/workspace-storage-envelope.v2";
 import {
   applyLegacyImportRepair,
   buildLegacyImportRepairPreview,
@@ -95,6 +102,79 @@ function fiscalWorkspace(revision = 0): FiscalNotificationsWorkspace {
     accountingDrafts: [],
     auditEvents: [],
   };
+}
+
+function fiscalWorkspaceWithPrivateDocument(): FiscalNotificationsWorkspace {
+  const workspace = fiscalWorkspace(1);
+  const sourceHash = "a".repeat(64);
+  workspace.packages = [
+    {
+      id: "package:sync-privacy:1",
+      ownerScope: FISCAL_OWNER,
+      fileIds: ["file:sync-privacy:1"],
+      sourceChannel: "MANUAL_UPLOAD",
+      processingStatus: "NEEDS_REVIEW",
+      securityScanStatus: "NOT_AVAILABLE",
+      uploadedAt: FISCAL_NOW,
+    },
+  ];
+  workspace.files = [
+    {
+      id: "file:sync-privacy:1",
+      packageId: "package:sync-privacy:1",
+      ownerScope: FISCAL_OWNER,
+      role: "PRIMARY",
+      mimeType: "application/pdf",
+      fileSize: 1_024,
+      pageCount: 1,
+      sha256: sourceHash,
+      contentFingerprint: sourceHash,
+      sourceContentRetention: "NOT_RETAINED",
+      uploadedAt: FISCAL_NOW,
+    },
+  ];
+  workspace.authorities = [
+    {
+      id: "authority:sync-privacy:aeat",
+      ownerScope: FISCAL_OWNER,
+      administrationType: "AEAT",
+      nameRaw: "Agencia Tributaria",
+      nameNormalized: "AEAT",
+    },
+  ];
+  workspace.documents = [
+    {
+      id: "document:sync-privacy:1",
+      packageId: "package:sync-privacy:1",
+      fileId: "file:sync-privacy:1",
+      ownerScope: FISCAL_OWNER,
+      documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+      titleRaw: "Título privado que no puede entrar en la cola",
+      titleNormalized: "TITULO PRIVADO QUE NO PUEDE ENTRAR EN LA COLA",
+      authorityId: "authority:sync-privacy:aeat",
+      issueDate: "2026-07-01",
+      notificationDates: {},
+      subjectParty: {
+        displayName: "PERSONA PRIVADA SINTETICA",
+        taxIdNormalized: "00000000T",
+        matchesBusinessProfile: "MATCH",
+      },
+      status: "UNKNOWN",
+      urgency: "REVIEW",
+      extractionVersion: "synthetic-sync-v1",
+      analysisStatus: "NEEDS_REVIEW",
+      humanReviewStatus: "PENDING",
+      authenticityStatus: "NOT_CHECKED",
+      partIds: [],
+      referenceIds: [],
+      debtIds: [],
+      caseIds: [],
+      analysisSnapshotIds: [],
+      createdAt: FISCAL_NOW,
+      updatedAt: "2026-07-14T09:01:00.000Z",
+    },
+  ];
+  return workspace;
 }
 
 function attestedHistoricalData(): AppData {
@@ -859,16 +939,71 @@ describe("sync del expediente fiscal estructurado", () => {
 
     expect(workspaceChanges).toHaveLength(1);
     expect(workspaceChanges[0]).toMatchObject({
-      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
       deleted: false,
+      payload: {
+        storageKind: FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_KIND_V2,
+        storageVersion: 1,
+        workspace: { schemaVersion: 2, ownerScope: FISCAL_OWNER },
+      },
     });
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        workspaceChanges[0]?.payload,
+        FISCAL_OWNER,
+      ),
+    ).not.toBeNull();
     expect(applySyncChanges(EMPTY_DATA, workspaceChanges).fiscalNotificationsWorkspace)
-      .toEqual(source.fiscalNotificationsWorkspace);
+      .toEqual({
+        ...source.fiscalNotificationsWorkspace,
+        driveArchives: [],
+      });
     expect(
       appDataToSyncChanges(source).filter(
         (change) => change.entityType === "fiscal_notifications_workspace",
       ),
     ).toHaveLength(1);
+  });
+
+  it("solo pone el envelope V2 sanitizado en cola y rehidrata una vista V1 segura", () => {
+    const source = fiscalWorkspaceWithPrivateDocument();
+    const changes = diffAppData(EMPTY_DATA, {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: source,
+    }).filter(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+
+    expect(changes).toHaveLength(1);
+    expect(changes[0]?.entityId).toBe(
+      FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+    );
+    expect(JSON.stringify(changes[0]?.payload)).not.toMatch(
+      /Título privado|PERSONA PRIVADA|00000000T|titleRaw|taxIdNormalized/iu,
+    );
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        changes[0]?.payload,
+        FISCAL_OWNER,
+      ),
+    ).not.toBeNull();
+
+    const hydrated = applySyncChanges(EMPTY_DATA, changes)
+      .fiscalNotificationsWorkspace;
+    expect(hydrated).toMatchObject({
+      schemaVersion: 1,
+      ownerScope: FISCAL_OWNER,
+      documents: [
+        expect.objectContaining({
+          id: "document:sync-privacy:1",
+          titleRaw: "Generic administrative notice",
+          subjectParty: { matchesBusinessProfile: "MATCH" },
+        }),
+      ],
+    });
+    expect(JSON.stringify(hydrated)).not.toMatch(
+      /Título privado|PERSONA PRIVADA|00000000T/iu,
+    );
   });
 
   it("sincroniza avances append-only y no degrada una revisión más nueva", () => {
@@ -893,6 +1028,8 @@ describe("sync del expediente fiscal estructurado", () => {
 
     const staleRemote: SyncChange = {
       entityType: "fiscal_notifications_workspace",
+      // A legacy row is accepted only through the explicit V1 -> envelope V2
+      // -> safe in-memory V1 migration in the diff boundary.
       entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
       deleted: false,
       payload: fiscalWorkspace(),
@@ -918,7 +1055,7 @@ describe("sync del expediente fiscal estructurado", () => {
     };
     const remote = (payload: unknown): SyncChange => ({
       entityType: "fiscal_notifications_workspace",
-      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
       deleted: false,
       payload,
       updatedAt: "2026-07-14T09:02:00.000Z",
@@ -957,27 +1094,42 @@ describe("sync del expediente fiscal estructurado", () => {
     );
     const invalid: SyncChange = {
       entityType: "fiscal_notifications_workspace",
-      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
       deleted: false,
       payload: { ownerScope: FISCAL_OWNER, rawPdfText: "private" },
       updatedAt: "2026-07-14T09:02:00.000Z",
+    };
+    const legacyFirst: SyncChange = {
+      entityType: "fiscal_notifications_workspace",
+      entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+      deleted: false,
+      payload: fiscalWorkspace(),
+      updatedAt: FISCAL_NOW,
     };
     const tracked = trackDataDiff(
       {
         ...EMPTY_DATA,
         fiscalNotificationsWorkspace: fiscalWorkspace(),
-        meta: { lastModified: FISCAL_NOW, pendingChanges: first },
+        meta: { lastModified: FISCAL_NOW, pendingChanges: [legacyFirst] },
       },
       {
         ...EMPTY_DATA,
         fiscalNotificationsWorkspace: fiscalWorkspace(1),
       },
     );
+    const trackedFiscal = tracked.meta?.pendingChanges?.find(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+    expect(trackedFiscal?.entityId).toBe(
+      FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+    );
     expect(
-      tracked.meta?.pendingChanges?.find(
-        (change) => change.entityType === "fiscal_notifications_workspace",
-      )?.payload,
-    ).toEqual(fiscalWorkspace(1));
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        trackedFiscal?.payload,
+        FISCAL_OWNER,
+      )?.workspace,
+    ).toMatchObject({ schemaVersion: 2, revision: 1 });
+    expect(trackedFiscal?.payload).not.toMatchObject({ schemaVersion: 1 });
     const uploadChanges = buildCloudUploadChanges({
         ...tracked,
         meta: {
@@ -988,8 +1140,50 @@ describe("sync del expediente fiscal estructurado", () => {
         (change) => change.entityType === "fiscal_notifications_workspace",
       );
     expect(uploadChanges).toHaveLength(1);
-    expect(uploadChanges[0]?.payload).toEqual(fiscalWorkspace(1));
+    expect(uploadChanges[0]?.entityId).toBe(
+      FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+    );
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        uploadChanges[0]?.payload,
+        FISCAL_OWNER,
+      )?.workspace.revision,
+    ).toBe(1);
     expect(second).toHaveLength(1);
+    expect(first[0]?.entityId).toBe(
+      FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+    );
+  });
+
+  it("mantiene la cabeza en cola ante envelopes divergentes", () => {
+    const current = fiscalWorkspaceChangeForTest(fiscalWorkspace(1));
+    const divergentPayload = structuredClone(current.payload) as {
+      workspace: { workspaceId: string };
+    };
+    divergentPayload.workspace.workspaceId =
+      "fiscal-notifications-workspace-divergent";
+    const divergent: SyncChange = {
+      ...current,
+      payload: divergentPayload,
+      updatedAt: "2026-07-14T09:02:00.000Z",
+    };
+
+    const merged = mergePendingChanges([current], [divergent]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0]?.entityId).toBe(
+      FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+    );
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        merged[0]?.payload,
+        FISCAL_OWNER,
+      )?.workspace.workspaceId,
+    ).toBe("fiscal-notifications-workspace-v1");
+    expect(clearSyncedChanges([divergent], [current])).toEqual([
+      expect.objectContaining({
+        entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+      }),
+    ]);
   });
 
   it("no borra una revisión fiscal más nueva mientras termina un sync anterior", () => {
@@ -1003,11 +1197,13 @@ describe("sync del expediente fiscal estructurado", () => {
 function fiscalWorkspaceChangeForTest(
   workspace: FiscalNotificationsWorkspace,
 ): SyncChange {
+  const envelope = encodeFiscalNotificationsWorkspaceForStorageV2(workspace);
+  if (!envelope) throw new Error("No se pudo codificar el fixture fiscal");
   return {
     entityType: "fiscal_notifications_workspace",
-    entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1,
+    entityId: FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
     deleted: false,
-    payload: workspace,
+    payload: envelope,
     updatedAt: workspace.updatedAt,
   };
 }

@@ -254,7 +254,7 @@ export function FiscalNotificationDocumentLibrary({
                 <Input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Título, organismo, referencia, NIF o importe..."
+                  placeholder="Título, organismo, referencia o importe..."
                   className="pl-10"
                 />
               </div>
@@ -379,17 +379,6 @@ export function FiscalNotificationDocumentDetail({
         </div>
 
         <OriginalArchiveStatus document={document} expanded />
-
-        {document.subjectName || document.subjectTaxId ? (
-          <dl className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-2">
-            {document.subjectName ? (
-              <Fact label="Obligado al pago" value={document.subjectName} />
-            ) : null}
-            {document.subjectTaxId ? (
-              <Fact label="NIF" value={document.subjectTaxId} />
-            ) : null}
-          </dl>
-        ) : null}
 
         <DocumentExplanationPanel explanation={document.explanation} />
 
@@ -1049,8 +1038,6 @@ function documentSearchText(
       document.title,
       document.authority,
       document.documentDate ?? "",
-      document.subjectName ?? "",
-      document.subjectTaxId ?? "",
       ...document.references.flatMap((item) => [item.label, item.value]),
       ...document.money.flatMap((item) => [
         item.label,

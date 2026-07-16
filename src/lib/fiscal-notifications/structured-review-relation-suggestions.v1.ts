@@ -1,20 +1,33 @@
 import { FISCAL_NOTIFICATION_INPUT_LIMITS } from "./input-contract";
 import { MAX_FISCAL_RELATION_CANDIDATES } from "./relation-types";
+import {
+  evaluateFiscalNotificationDocumentChainEdgeV2,
+  getFiscalNotificationFamilyChainAdjacencyV2,
+  isFiscalNotificationDocumentFamilyIdV2,
+  type FiscalNotificationDocumentChainIdV2,
+  type FiscalNotificationDocumentFamilyIdV2,
+  type FiscalNotificationRelationTypeIdV2,
+} from "./document-chain-rules.v2";
 import type {
   AdministrativeDocument,
   DocumentRelation,
-  DocumentRelationType,
   ExternalReference,
   ExternalReferenceType,
   FieldEvidence,
   FiscalNotificationsWorkspace,
 } from "./types";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
+import {
+  normalizeFiscalNotificationIssuerV2,
+  normalizeFiscalNotificationReferenceV2,
+} from "./exact-reference-index.v2";
 
 export const STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1 =
   "fiscal-notification-explicit-reference-relations/1.0.0" as const;
 export const STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1 =
   "fiscal-notification-typed-explicit-relations/1.0.0" as const;
+export const STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2 =
+  "fiscal-notification-declared-document-chains/2.0.0" as const;
 
 export type AppendStructuredReviewRelationSuggestionsResultV1 =
   | {
@@ -45,9 +58,24 @@ const STRONG_REFERENCE_TYPES = new Set<ExternalReferenceType>([
   "LIQUIDATION_KEY",
   "DEBT_KEY",
   "PAYMENT_JUSTIFICANTE",
+  "NRC",
   "NOTIFICATION_ID",
   "REQUEST_NUMBER",
   "OFFICIAL_REGISTRY_NUMBER",
+]);
+const ENFORCEMENT_CONTEXT_REFERENCE_TYPES = new Set<ExternalReferenceType>([
+  "DEBT_KEY",
+  "LIQUIDATION_KEY",
+  "DOCUMENT_REFERENCE",
+]);
+const PRIMARY_ACT_RELATION_TYPES = new Set<FiscalNotificationRelationTypeIdV2>([
+  "RESPONDS_TO_SEIZURE",
+  "TRANSFERS_SEIZED_FUNDS",
+  "RELEASES_SEIZURE",
+]);
+const NRC_OPERATION_RELATION_TYPES = new Set<FiscalNotificationRelationTypeIdV2>([
+  "PAYMENT_EVIDENCE_FOR",
+  "PAYMENT_FAILED_FOR",
 ]);
 
 interface ReferenceGroup {
@@ -74,47 +102,28 @@ type RelationPlan =
       readonly differences: readonly string[];
     }
   | {
-      readonly kind: "TYPED_EXACT";
+      readonly kind: "CHAIN_EXACT";
       readonly sourceDocumentId: string;
       readonly targetDocumentId: string;
-      readonly relationType:
-        | "ENFORCES"
-        | "RESPONDS_TO_SEIZURE"
-        | "TRANSFERS_SEIZED_FUNDS"
-        | "RELEASES_SEIZURE";
+      readonly chainId: FiscalNotificationDocumentChainIdV2;
+      readonly relationType: FiscalNotificationRelationTypeIdV2;
       readonly confidenceBand: "EXACT";
       readonly status: "SYSTEM_CONFIRMED_EXACT";
-      readonly algorithmVersion: typeof STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1;
+      readonly algorithmVersion: typeof STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2;
       readonly differences: readonly string[];
     };
 
-const ENFORCEMENT_SEIZURE_REFERENCE_TYPES = new Set<ExternalReferenceType>([
-  "DEBT_KEY",
-  "LIQUIDATION_KEY",
-  "DOCUMENT_REFERENCE",
-]);
-const SEIZURE_ORDER_SUBTYPES = new Set([
-  "seizure.bank_account",
-  "seizure.commercial_credits",
-  "seizure.wages_or_pensions",
-  "seizure.tpv_receipts",
-  "seizure.cash_or_refund",
-  "seizure.real_estate",
-]);
-const SEIZURE_FOLLOW_UP_TYPES: Readonly<
-  Record<
-    string,
-    Extract<
-      DocumentRelationType,
-      | "RESPONDS_TO_SEIZURE"
-      | "TRANSFERS_SEIZED_FUNDS"
-      | "RELEASES_SEIZURE"
-    >
-  >
+const LEGACY_DOCUMENT_FAMILIES: Readonly<
+  Partial<Record<AdministrativeDocument["documentType"], FiscalNotificationDocumentFamilyIdV2>>
 > = Object.freeze({
-  "seizure.third_party_response": "RESPONDS_TO_SEIZURE",
-  "seizure.third_party_payment": "TRANSFERS_SEIZED_FUNDS",
-  "seizure.release": "RELEASES_SEIZURE",
+  AEAT_ENFORCEMENT_ORDER: "collection.enforcement_order",
+  AEAT_INSTALLMENT_OR_DEFERRAL_GRANT: "collection.deferral_grant",
+  AEAT_INSTALLMENT_OR_DEFERRAL_DENIAL: "collection.deferral_denial",
+  AEAT_PAYMENT_FORM: "payment.payment_form",
+  AEAT_ASSESSMENT_PROPOSAL: "assessment.allegations_and_proposal",
+  AEAT_ASSESSMENT: "assessment.final_provisional_assessment",
+  AEAT_SANCTION_PROPOSAL: "sanction.initiation_and_hearing",
+  AEAT_SANCTION_DECISION: "sanction.resolution",
 });
 
 /**
@@ -163,10 +172,10 @@ export function appendStructuredReviewRelationSuggestionsV1(input: {
     documentReferences.push(reference);
     referencesByDocument.set(reference.documentId, documentReferences);
     const key = JSON.stringify([
-      document.authorityId,
+      original.ownerScope,
       reference.referenceType,
-      reference.issuer,
-      reference.normalizedValue,
+      normalizeFiscalNotificationIssuerV2(reference.issuer),
+      canonicalReferenceValue(reference),
     ]);
     const group = groups.get(key) ?? {
       referenceType: reference.referenceType,
@@ -244,6 +253,7 @@ export function appendStructuredReviewRelationSuggestionsV1(input: {
       confidenceBand: plan.confidenceBand,
       score: 100,
       evidence: {
+        ...(plan.kind === "CHAIN_EXACT" ? { chainId: plan.chainId } : {}),
         matchingReferenceTypes: [...pending.matchingReferenceTypes].sort(),
         matchingAmountTypes: [],
         matchingDates: [],
@@ -289,62 +299,49 @@ function planRelation(
   const right = documentsById.get(pending.targetDocumentId);
   if (!left || !right) return Object.freeze({ kind: "SKIP_CONFLICT" });
 
-  const enforcement = [left, right].find(
-    (document) => document.documentType === "AEAT_ENFORCEMENT_ORDER",
-  );
-  const seizure = [left, right].find(isSeizureOrder);
-  if (
-    enforcement &&
-    seizure &&
-    [...pending.matchingReferenceTypes].some((type) =>
-      ENFORCEMENT_SEIZURE_REFERENCE_TYPES.has(type)
-    )
-  ) {
-    if (hasExplicitConflict(
-      enforcement.id,
-      seizure.id,
-      ENFORCEMENT_SEIZURE_REFERENCE_TYPES,
-      referencesByDocument,
-    )) {
+  const chainPlan = planDeclaredDocumentChainRelation(left, right);
+  if (chainPlan) {
+    if (
+      pending.matchingReferenceTypes.size === 1 &&
+      pending.matchingReferenceTypes.has("NRC") &&
+      !NRC_OPERATION_RELATION_TYPES.has(chainPlan.relationType)
+    ) {
       return Object.freeze({ kind: "SKIP_CONFLICT" });
     }
-    return typedPlan(seizure.id, enforcement.id, "ENFORCES");
-  }
-
-  const seizureOrder = [left, right].find(isSeizureOrder);
-  const followUp = [left, right].find((document) =>
-    document.documentSubtype !== undefined &&
-    SEIZURE_FOLLOW_UP_TYPES[document.documentSubtype] !== undefined
-  );
-  if (
-    seizureOrder &&
-    followUp &&
-    pending.matchingReferenceTypes.has("DOCUMENT_REFERENCE") &&
-    hasExactPrimaryDocumentReferenceMatch(
-      seizureOrder.id,
-      followUp.id,
-      referencesByDocument,
-      evidenceById,
-    )
-  ) {
-    const exactDiligenceReference = new Set<ExternalReferenceType>([
-      "DOCUMENT_REFERENCE",
-    ]);
-    if (hasExplicitConflict(
-      seizureOrder.id,
-      followUp.id,
-      exactDiligenceReference,
-      referencesByDocument,
-    )) {
+    if (
+      PRIMARY_ACT_RELATION_TYPES.has(chainPlan.relationType) &&
+      !hasExactPrimaryDocumentReferenceMatch(
+        chainPlan.sourceDocumentId,
+        chainPlan.targetDocumentId,
+        referencesByDocument,
+        evidenceById,
+      )
+    ) {
+      return genericSuggestion(pending);
+    }
+    const conflictTypes =
+      chainPlan.relationType === "ENFORCES"
+        ? ENFORCEMENT_CONTEXT_REFERENCE_TYPES
+        : pending.matchingReferenceTypes;
+    if (
+      hasExplicitConflict(
+        left.id,
+        right.id,
+        conflictTypes,
+        referencesByDocument,
+      )
+    ) {
       return Object.freeze({ kind: "SKIP_CONFLICT" });
     }
-    return typedPlan(
-      followUp.id,
-      seizureOrder.id,
-      SEIZURE_FOLLOW_UP_TYPES[followUp.documentSubtype!]!,
-    );
+    return chainPlan;
   }
 
+  return genericSuggestion(pending);
+}
+
+function genericSuggestion(
+  pending: PendingRelation,
+): Extract<RelationPlan, { kind: "GENERIC_SUGGESTION" }> {
   return Object.freeze({
     kind: "GENERIC_SUGGESTION",
     sourceDocumentId: pending.sourceDocumentId,
@@ -367,18 +364,18 @@ function hasExactPrimaryDocumentReferenceMatch(
 ): boolean {
   const left = new Set(
     (referencesByDocument.get(leftDocumentId) ?? [])
-      .filter((reference) => isSeizureOrderReference(reference, evidenceById))
-      .map((reference) => reference.normalizedValue),
+      .filter((reference) => isPrimaryAdministrativeActReference(reference, evidenceById))
+      .map(canonicalReferenceValue),
   );
   const right = new Set(
     (referencesByDocument.get(rightDocumentId) ?? [])
-      .filter((reference) => isSeizureOrderReference(reference, evidenceById))
-      .map((reference) => reference.normalizedValue),
+      .filter((reference) => isPrimaryAdministrativeActReference(reference, evidenceById))
+      .map(canonicalReferenceValue),
   );
   return [...left].some((value) => right.has(value));
 }
 
-function isSeizureOrderReference(
+function isPrimaryAdministrativeActReference(
   reference: ExternalReference,
   evidenceById: ReadonlyMap<string, FieldEvidence>,
 ): boolean {
@@ -400,38 +397,68 @@ function isSeizureOrderReference(
   });
 }
 
-function typedPlan(
-  sourceDocumentId: string,
-  targetDocumentId: string,
-  relationType: Extract<
-    DocumentRelationType,
-    | "ENFORCES"
-    | "RESPONDS_TO_SEIZURE"
-    | "TRANSFERS_SEIZED_FUNDS"
-    | "RELEASES_SEIZURE"
-  >,
-): RelationPlan {
+function planDeclaredDocumentChainRelation(
+  left: AdministrativeDocument,
+  right: AdministrativeDocument,
+): Extract<RelationPlan, { kind: "CHAIN_EXACT" }> | null {
+  const leftFamily = documentFamily(left);
+  const rightFamily = documentFamily(right);
+  if (!leftFamily || !rightFamily || leftFamily === rightFamily) return null;
+
+  const candidates = [
+    ...getFiscalNotificationFamilyChainAdjacencyV2(leftFamily).outgoing.filter(
+      (edge) => edge.toFamilyId === rightFamily,
+    ),
+    ...getFiscalNotificationFamilyChainAdjacencyV2(rightFamily).outgoing.filter(
+      (edge) => edge.toFamilyId === leftFamily,
+    ),
+  ].filter((edge) =>
+    evaluateFiscalNotificationDocumentChainEdgeV2({
+      chainId: edge.chainId,
+      fromFamilyId: edge.fromFamilyId,
+      toFamilyId: edge.toFamilyId,
+      relationType: edge.relationType,
+      printedFavorableOutcome: false,
+    }).declared,
+  );
+  const unique = new Map(
+    candidates.map((edge) => [
+      JSON.stringify([
+        edge.chainId,
+        edge.fromFamilyId,
+        edge.toFamilyId,
+        edge.relationType,
+      ]),
+      edge,
+    ]),
+  );
+  if (unique.size !== 1) return null;
+  const edge = [...unique.values()][0]!;
+  const earlierDocument = edge.fromFamilyId === leftFamily ? left : right;
+  const laterDocument = edge.toFamilyId === rightFamily ? right : left;
   return Object.freeze({
-    kind: "TYPED_EXACT",
-    sourceDocumentId,
-    targetDocumentId,
-    relationType,
+    kind: "CHAIN_EXACT",
+    sourceDocumentId: laterDocument.id,
+    targetDocumentId: earlierDocument.id,
+    chainId: edge.chainId,
+    relationType: edge.relationType,
     confidenceBand: "EXACT",
     status: "SYSTEM_CONFIRMED_EXACT",
-    algorithmVersion: STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+    algorithmVersion: STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2,
     differences: Object.freeze([
-      "La relación se basa en una familia documental compatible y una referencia administrativa exacta.",
-      "No cambia saldos, estados, pagos, deudas, plazos ni asientos.",
+      "La referencia oficial coincide exactamente y la dirección figura en una cadena documental declarada.",
+      "La relación no cambia saldos, estados, pagos, deudas, plazos ni asientos.",
     ]),
   });
 }
 
-function isSeizureOrder(document: AdministrativeDocument): boolean {
-  return (
-    document.documentType === "AEAT_SEIZURE_ORDER" &&
-    document.documentSubtype !== undefined &&
-    SEIZURE_ORDER_SUBTYPES.has(document.documentSubtype)
-  );
+function documentFamily(
+  document: AdministrativeDocument,
+): FiscalNotificationDocumentFamilyIdV2 | null {
+  if (isFiscalNotificationDocumentFamilyIdV2(document.documentSubtype)) {
+    return document.documentSubtype;
+  }
+  return LEGACY_DOCUMENT_FAMILIES[document.documentType] ?? null;
 }
 
 function hasExplicitConflict(
@@ -463,7 +490,7 @@ function referenceValues(
   return new Set(
     references
       .filter((reference) => reference.referenceType === referenceType)
-      .map((reference) => reference.normalizedValue),
+      .map(canonicalReferenceValue),
   );
 }
 
@@ -521,6 +548,10 @@ function isExactBoundedValue(value: string): boolean {
     value === value.trim() &&
     !/[\u0000-\u001f\u007f-\u009f]/u.test(value)
   );
+}
+
+function canonicalReferenceValue(reference: ExternalReference): string {
+  return normalizeFiscalNotificationReferenceV2(reference.normalizedValue);
 }
 
 function pairKey(left: string, right: string): string {

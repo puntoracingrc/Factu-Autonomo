@@ -101,19 +101,17 @@ describe("fiscal notification knowledge coverage v1", () => {
       "utf8",
     );
     expect(manual).toContain(
-      "muestra el nombre o razón social, el NIF y la condición de **obligado al pago**",
+      "puede leer temporalmente un nombre, NIF, cuenta o domicilio para entender la estructura, pero la ficha persistente no conserva esos valores",
     );
     expect(manual).toContain(
-      "también puede mostrar importes, valores exactos de referencias y fechas bajo etiquetas cerradas",
+      "referencias administrativas seguras, importes, fechas impresas",
     );
-    expect(manual).toContain(
-      "Esos campos permanecen solo en memoria hasta que el usuario pulsa el botón de guardado",
-    );
+    expect(manual).toContain("roles se guardan sin identidad");
     expect(manual).toContain("Factu nunca custodia el PDF");
     expect(manual).toContain("**Relaciones entre documentos**");
     expect(manual).toContain("**Relación detectada · revisar**");
     expect(manual).toContain(
-      "no inventa cuál causó a cuál, no confirma un pago y no cierra el expediente",
+      "no confirma por sí sola el efecto, el pago, la extinción de una deuda ni el cierre del expediente",
     );
     expect(manual).toContain(
       "Una fecha impresa no se interpreta como fecha de notificación ni como vencimiento",

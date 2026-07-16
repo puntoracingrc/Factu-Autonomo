@@ -443,7 +443,7 @@ describe("fiscal notification PDF text-layer adapter", () => {
     );
   });
 
-  it("sends only protocol metadata and transferable bytes to the worker", async () => {
+  it("sends only account-isolated protocol metadata and transferable bytes to the worker", async () => {
     const worker = createFakeWorker();
     const deps = dependencies(worker);
     const file = pdfFile(pdfBytes("\nPRIVATE_FILE_CONTENT_SENTINEL"));
@@ -455,13 +455,13 @@ describe("fiscal notification PDF text-layer adapter", () => {
     expect(message).toMatchObject({
       type: "PARSE",
       requestId: "parse",
+      ownerScope: "user:synthetic",
+      documentId: "document:synthetic-pdf",
       bytes: expect.any(ArrayBuffer),
     });
     expect(Reflect.ownKeys(message as object).sort()).toEqual(
-      ["bytes", "requestId", "type"].sort(),
+      ["bytes", "documentId", "ownerScope", "requestId", "type"].sort(),
     );
-    expect(message).not.toHaveProperty("ownerScope");
-    expect(message).not.toHaveProperty("documentId");
     expect(JSON.stringify({ ...(message as object), bytes: undefined })).not.toContain(
       PRIVATE_FILENAME,
     );

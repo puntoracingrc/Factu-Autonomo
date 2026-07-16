@@ -470,7 +470,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
   });
 
-  it("muestra la biblioteca y cada ficha con datos exactos sin exponer la huella", () => {
+  it("muestra la biblioteca con datos seguros sin exponer identidad ni huellas", () => {
     expect(documentLibraryComponentSource).toContain(
       "Documentos escaneados y expedientes",
     );
@@ -478,8 +478,8 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "group.documents.map((document, index)",
     );
     expect(documentLibraryComponentSource).toContain("document.createdAt");
-    expect(documentLibraryComponentSource).toContain("document.subjectName");
-    expect(documentLibraryComponentSource).toContain("document.subjectTaxId");
+    expect(documentLibraryComponentSource).not.toContain("document.subjectName");
+    expect(documentLibraryComponentSource).not.toContain("document.subjectTaxId");
     expect(documentLibraryComponentSource).toContain("document.money");
     expect(documentLibraryComponentSource).toContain("document.references");
     expect(documentLibraryComponentSource).toContain("document.orderedFacts");
@@ -526,10 +526,10 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "?documento=${encodeURIComponent(documentId)}",
     );
     expect(relationsViewModelSource).toContain(
-      "no demuestra por sí sola cuál originó a la otra",
+      "FISCAL_NOTIFICATION_EXACT_LINK_NEUTRAL_PHRASE_V2",
     );
     expect(relationsViewModelSource).toContain(
-      "ni que el expediente esté cerrado",
+      "FISCAL_NOTIFICATION_SUGGESTED_RELATION_PHRASE_V2",
     );
     expect(relationsViewModelSource).toContain(
       "Embargo vinculado a providencia de apremio",
@@ -837,14 +837,14 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       'persistencePolicy: "DO_NOT_PERSIST"',
     );
     expect(compact(manualSource)).toContain(
-      "también puede mostrar importes, valores exactos de referencias y fechas bajo etiquetas cerradas",
+      "referencias administrativas seguras, importes, fechas impresas",
     );
     expect(compact(manualSource)).toContain(
       "Una fecha impresa no se interpreta como fecha de notificación ni como vencimiento",
     );
   });
 
-  it("muestra nombre, NIF y rol exactos y permite guardarlos estructurados", () => {
+  it("muestra nombre, NIF y rol solo durante la revisión y no los persiste", () => {
     expect(componentSource).toContain(
       "useState<PartyFactsReviewViewModelV1 | null>(null)",
     );
@@ -865,10 +865,16 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(pendingContract).toContain(
       "readonly analysis: FiscalNotificationLocalAnalysisResult",
     );
-    expect(documentLibraryComponentSource).toContain(
+    expect(documentLibraryComponentSource).not.toContain(
       'label="Obligado al pago"',
     );
-    expect(documentLibraryComponentSource).toContain('label="NIF"');
+    expect(documentLibraryComponentSource).not.toContain('label="NIF"');
+    expect(documentLibraryComponentSource).not.toContain(
+      "document.subjectName",
+    );
+    expect(documentLibraryComponentSource).not.toContain(
+      "document.subjectTaxId",
+    );
     expect(partyFactsViewModelSource).toContain("Obligado al pago");
     expect(partyFactsPanelSource).not.toMatch(/posible|podr[ií]a ser/iu);
     expect(partyFactsPanelSource).not.toMatch(
@@ -881,7 +887,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       'materializationPolicy: "PROHIBITED_UNTIL_REVIEW"',
     );
     expect(compact(manualSource)).toContain(
-      "muestra el nombre o razón social, el NIF y la condición de **obligado al pago** cuando aparecen juntos bajo la sección impresa **Identificación del obligado al pago**",
+      "puede leer temporalmente un nombre, NIF, cuenta o domicilio para entender la estructura, pero la ficha persistente no conserva esos valores",
     );
     expect(compact(manualSource)).toContain(
       "La condición impresa describe el documento: no compara el NIF con la cuenta, no verifica la autenticidad y nunca crea deudas, plazos, pagos, gastos o asientos.",

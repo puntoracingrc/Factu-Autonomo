@@ -46,7 +46,9 @@ function dependencies(
     createCanvas: vi.fn(() => ({ canvas: {}, context: {}, release })),
     createOcrWorker: vi.fn(async () => ({
       setParameters: vi.fn(async () => undefined),
-      recognize: vi.fn(async () => ({ data: { text, confidence: 93 } })),
+      recognize: vi.fn(async () => ({
+        data: { text, confidence: 93, blocks: null },
+      })),
       terminate,
     })),
     loadPdfJs: vi.fn(async () => ({
@@ -106,6 +108,120 @@ describe("local PDF OCR", () => {
     expect(destroyDocument).toHaveBeenCalledOnce();
     expect(destroyLoadingTask).toHaveBeenCalledOnce();
     expect(Object.isFrozen(result)).toBe(true);
+  });
+
+  it("routes a scanned V2 family through the same structured review pipeline", async () => {
+    const sourceText = [
+      "Agencia Estatal de Administración Tributaria",
+      "Datos fiscales",
+      "Ejercicio fiscal: 2025",
+      "Fecha de emisión: 16/07/2026",
+    ].join("\n");
+
+    const result = await recognizeFiscalNotificationPdfLocally(
+      request(),
+      dependencies(sourceText).deps,
+    );
+
+    expect(result).toMatchObject({
+      status: "OCR_TEXT_AVAILABLE",
+      providerCalled: false,
+      analysis: {
+        verticalSliceReview: {
+          status: "REVIEW_REQUIRED",
+          documents: [
+            expect.objectContaining({
+              familyId: "information.tax_data_report",
+              title: "Datos fiscales",
+              fields: expect.arrayContaining([
+                expect.objectContaining({
+                  canonicalType: "FISCAL_YEAR",
+                  normalizedValue: "2025",
+                }),
+                expect.objectContaining({
+                  canonicalType: "ISSUE_DATE",
+                  normalizedValue: "2026-07-16",
+                }),
+              ]),
+            }),
+          ],
+        },
+      },
+      retainedSourceContent: "NONE",
+    });
+    expect(JSON.stringify(result)).not.toContain(sourceText);
+  });
+
+  it("uses bounded OCR geometry to preserve repeated values in a printed table", async () => {
+    const sourceText = [
+      "Agencia Estatal de Administración Tributaria",
+      "Liquidación independiente de intereses de demora",
+      "Intereses de demora",
+      "1,00 €",
+      "2,00 €",
+    ].join("\n");
+    const bbox = (x0: number, y0: number, x1: number, y1: number) => ({
+      x0,
+      y0,
+      x1,
+      y1,
+    });
+    const line = (text: string, y: number) => ({
+      text,
+      confidence: 95,
+      baseline: { x0: 10, y0: y + 10, x1: 160, y1: y + 10 },
+      rowAttributes: { ascenders: 1, descenders: 1, rowHeight: 12 },
+      bbox: bbox(10, y, 160, y + 12),
+      words: [
+        {
+          text,
+          confidence: 95,
+          bbox: bbox(10, y, 160, y + 12),
+          symbols: [],
+          choices: [],
+          font_name: "",
+        },
+      ],
+    });
+    const terminate = vi.fn(async () => undefined);
+    const result = await recognizeFiscalNotificationPdfLocally(
+      request(),
+      dependencies(sourceText, {
+        createOcrWorker: vi.fn(async () => ({
+          setParameters: vi.fn(async () => undefined),
+          recognize: vi.fn(async () => ({
+            data: {
+              text: sourceText,
+              confidence: 95,
+              blocks: [
+                {
+                  paragraphs: [
+                    {
+                      lines: [
+                        line("Intereses de demora", 100),
+                        line("1,00 €", 130),
+                        line("2,00 €", 160),
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          })),
+          terminate,
+        })),
+      }).deps,
+    );
+
+    const fields = result.analysis?.verticalSliceReview.documents[0]?.fields ?? [];
+    expect(fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ canonicalType: "LATE_INTEREST", amountCents: 100 }),
+        expect.objectContaining({ canonicalType: "LATE_INTEREST", amountCents: 200 }),
+      ]),
+    );
+    expect(terminate).toHaveBeenCalledOnce();
+    expect(JSON.stringify(result)).not.toContain(sourceText);
   });
 
   it("reports an unreadable scan without retaining source data", async () => {

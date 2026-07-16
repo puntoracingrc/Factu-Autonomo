@@ -6,6 +6,7 @@ import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-expli
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
 import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { extractAeatOffsetAgreementFactsV1 } from "./aeat-offset-agreement-facts.v1";
+import { analyzeFiscalNotificationDocumentInput } from "./document-input-analysis";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import type { BoundedDocumentInput } from "./input-contract";
@@ -187,8 +188,11 @@ async function seizureAnalysis(): Promise<FiscalNotificationLocalAnalysisResult>
       Object.freeze({ pageNumber: 1, text: SEIZURE_TEXT, isBlank: false }),
     ]),
   });
-  const value = structuredClone(analysis()) as FiscalNotificationLocalAnalysisResult & {
+  const value = structuredClone(analysis()) as unknown as {
     technicalReview: FiscalNotificationLocalReviewResult;
+    ephemeralEnforcementMoneyFacts: FiscalNotificationLocalAnalysisResult["ephemeralEnforcementMoneyFacts"];
+    ephemeralEnforcementExplicitFields: FiscalNotificationLocalAnalysisResult["ephemeralEnforcementExplicitFields"];
+    ephemeralEnforcementPartyFacts: FiscalNotificationLocalAnalysisResult["ephemeralEnforcementPartyFacts"];
     ephemeralVerticalSliceReview?: unknown;
   };
   value.technicalReview = Object.freeze({
@@ -197,10 +201,13 @@ async function seizureAnalysis(): Promise<FiscalNotificationLocalAnalysisResult>
     byteLength: 5_678,
     sha256: "d".repeat(64),
   });
+  value.ephemeralEnforcementMoneyFacts = null;
+  value.ephemeralEnforcementExplicitFields = null;
+  value.ephemeralEnforcementPartyFacts = null;
   value.ephemeralVerticalSliceReview = projectFiscalNotificationVerticalSliceReviewV1(
     await analyzeFiscalNotificationVerticalSliceV1(input),
   );
-  return Object.freeze(value);
+  return Object.freeze(value) as unknown as FiscalNotificationLocalAnalysisResult;
 }
 
 function deferralAnalysis(): FiscalNotificationLocalAnalysisResult {
@@ -265,6 +272,23 @@ function deferralAnalysis(): FiscalNotificationLocalAnalysisResult {
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+  });
+}
+
+async function verticalDeferralAnalysis(): Promise<FiscalNotificationLocalAnalysisResult> {
+  const input: BoundedDocumentInput = Object.freeze({
+    ownerScope: OWNER,
+    documentId: "notification-review:synthetic-deferral-save-v2",
+    pages: Object.freeze([
+      Object.freeze({ pageNumber: 1, text: DEFERRAL_TEXT, isBlank: false }),
+    ]),
+  });
+  const analyzed = await analyzeFiscalNotificationDocumentInput(input);
+  const legacy = deferralAnalysis();
+  return Object.freeze({
+    ...legacy,
+    ephemeralDeferralGrantFacts: analyzed.deferralGrantFacts ?? null,
+    ephemeralVerticalSliceReview: analyzed.verticalSliceReview,
   });
 }
 
@@ -432,6 +456,47 @@ describe("structured fiscal notification save command v1", () => {
     expect(workspace?.installments).toEqual([]);
     expect(workspace?.debts).toEqual([]);
     expect(workspace?.accountingDrafts).toEqual([]);
+    expect(input.persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("enriquece la ficha V2 con sus cuotas en la misma transición durable", async () => {
+    const input = commandInput();
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1({
+      ...input.value,
+      analysis: await verticalDeferralAnalysis(),
+    });
+
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    expect(result.replayed).toBe(false);
+    expect(result.value.status).toBe("APPLIED");
+    expect(result.data.fiscalNotificationsWorkspace?.documents).toEqual([
+      expect.objectContaining({
+        documentSubtype: "collection.deferral_grant",
+      }),
+    ]);
+    expect(
+      result.data.fiscalNotificationsWorkspace?.documents[0]?.subjectParty,
+    ).toBeUndefined();
+    expect(result.data.fiscalNotificationsWorkspace?.paymentOptions).toEqual([
+      expect.objectContaining({
+        title: "Cuota 1",
+        totalCents: 105_000,
+        deadline: "2026-02-20",
+        deadlineStatus: "DOCUMENT_STATED",
+      }),
+    ]);
+    expect(result.data.fiscalNotificationsWorkspace).toMatchObject({
+      debts: [],
+      paymentPlans: [],
+      installments: [],
+      deadlineRules: [],
+      obligations: [],
+      accountingDrafts: [],
+    });
+    expect(JSON.stringify(result.data)).not.toMatch(
+      /PERSONA SINTETICA|X0000000X|IRPF SINTETICO|L-SAVE-071/iu,
+    );
     expect(input.persist).toHaveBeenCalledTimes(1);
   });
 

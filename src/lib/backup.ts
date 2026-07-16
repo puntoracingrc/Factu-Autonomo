@@ -1,6 +1,6 @@
 import { APP_BRAND_NAME } from "./brand";
 import { sha256Hex } from "./document-integrity/snapshot-hash";
-import { normalizeLoadedData } from "./storage";
+import { normalizeLoadedData, projectAppDataForPersistence } from "./storage";
 import type { AppData } from "./types";
 
 export const BACKUP_FILE_PREFIX = "factu-autonomo-backup";
@@ -444,7 +444,9 @@ function normalizeBackupDataForImport(
 }
 
 export function createBackupData(data: AppData): AppData {
-  const localData = { ...data };
+  const localData = {
+    ...(projectAppDataForPersistence(data) as Record<string, unknown>),
+  };
   delete localData.meta;
   return sanitizeBackupValue(localData) as AppData;
 }

@@ -5,7 +5,10 @@ import type { FiscalNotificationLocalAnalysisResult } from "./local-review-flow"
 import type { BoundedDocumentInput } from "./input-contract";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
 import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "./structured-review-save-command.v1";
-import { projectFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
+import {
+  projectFiscalNotificationVerticalSliceReviewV1,
+  type FiscalNotificationVerticalSliceReviewFieldV1,
+} from "./vertical-slice-review.v1";
 import {
   FiscalNotificationVerticalSliceWorkspaceErrorV1,
   appendFiscalNotificationVerticalSliceReviewV1,
@@ -38,8 +41,10 @@ const BANK_SEIZURE = [
   "Fecha del embargo: 04/03/2026",
 ].join("\n");
 
-function field(overrides: Record<string, unknown>) {
-  return Object.freeze({
+function field(
+  overrides: Record<string, unknown>,
+): FiscalNotificationVerticalSliceReviewFieldV1 {
+  const candidate: Record<string, unknown> = {
     fieldId: "status:document",
     semantic: "STATUS",
     canonicalType: "DOCUMENT_STATUS",
@@ -53,7 +58,33 @@ function field(overrides: Record<string, unknown>) {
     confidence: 1,
     reviewStatus: "REVIEW_REQUIRED",
     ...overrides,
-  });
+  };
+  candidate.sourceLabel = candidate.label;
+  if (candidate.semantic === "DATE" && typeof candidate.normalizedValue === "string") {
+    const [year, month, day] = candidate.normalizedValue.split("-");
+    candidate.displayValue = `${day}/${month}/${year}`;
+  }
+  if (candidate.semantic === "PARTY") {
+    if (candidate.canonicalType === "ISSUING_AUTHORITY") {
+      candidate.displayValue = "AEAT";
+      candidate.normalizedValue = "AEAT";
+    } else {
+      candidate.displayValue = "Interviniente 1";
+      candidate.normalizedValue = `ROLE:${String(candidate.canonicalType)}:1`;
+    }
+  }
+  if (candidate.semantic === "DETAIL" || candidate.semantic === "OBLIGATION") {
+    candidate.displayValue = "Detectado en el documento";
+    candidate.normalizedValue = String(candidate.canonicalType);
+  }
+  if (candidate.semantic === "REFERENCE" && candidate.canonicalType === "NRC") {
+    const fingerprint = "b".repeat(64);
+    candidate.displayValue = `Huella protegida ${fingerprint.slice(0, 12)}…`;
+    candidate.normalizedValue = fingerprint;
+  }
+  return Object.freeze(
+    candidate,
+  ) as unknown as FiscalNotificationVerticalSliceReviewFieldV1;
 }
 
 function analysis(sha256 = HASH): FiscalNotificationLocalAnalysisResult {
@@ -189,15 +220,6 @@ function analysis(sha256 = HASH): FiscalNotificationLocalAnalysisResult {
               sourcePageNumbers: Object.freeze([3]),
               sourceLabel: "Importe pagado",
             }),
-            field({
-              fieldId: "masked-account",
-              semantic: "MASKED_VALUE",
-              canonicalType: "MASKED_ACCOUNT",
-              label: "Cuenta enmascarada",
-              displayValue: "****9012",
-              sourcePageNumbers: Object.freeze([3]),
-              sourceLabel: "Cuenta de cargo",
-            }),
           ]),
           warnings: Object.freeze([]),
           requiresHumanReview: true,
@@ -220,6 +242,30 @@ function analysis(sha256 = HASH): FiscalNotificationLocalAnalysisResult {
     requiresHumanReview: true,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
   });
+}
+
+function repeatedExtractorAnalysis(input?: {
+  readonly sameFamily?: boolean;
+}): FiscalNotificationLocalAnalysisResult {
+  const source = structuredClone(analysis()) as unknown as {
+    ephemeralVerticalSliceReview: {
+      documents: Array<{
+        extractorId: string;
+        familyId: string;
+        title: string;
+        subtitle: string;
+      }>;
+    };
+  };
+  const [first, second] = source.ephemeralVerticalSliceReview.documents;
+  if (!first || !second) throw new Error("SYNTHETIC_FIXTURE_INVALID");
+  second.extractorId = first.extractorId;
+  if (input?.sameFamily) {
+    second.familyId = first.familyId;
+    second.title = "Liquidación provisional";
+    second.subtitle = "Liquidación provisional emitida";
+  }
+  return source as unknown as FiscalNotificationLocalAnalysisResult;
 }
 
 function notificationAnalysis(): FiscalNotificationLocalAnalysisResult {
@@ -260,15 +306,6 @@ function notificationAnalysis(): FiscalNotificationLocalAnalysisResult {
           displayValue: "ACT-SYN-WORKSPACE-001",
           normalizedValue: "ACT-SYN-WORKSPACE-001",
           sourceLabel: "Identificador del acto",
-        }),
-        field({
-          fieldId: "reference:nif",
-          semantic: "REFERENCE",
-          canonicalType: "NIF",
-          label: "NIF",
-          displayValue: "12345678Z",
-          normalizedValue: "12345678Z",
-          sourceLabel: "NIF del destinatario",
         }),
         field({
           fieldId: "date:available",
@@ -350,7 +387,7 @@ async function seizureAnalysis(): Promise<FiscalNotificationLocalAnalysisResult>
 }
 
 describe("vertical slice structured workspace v1", () => {
-  it("persiste una diligencia exacta con partes, importes y cuenta enmascarada sin efectos operativos", async () => {
+  it("persiste una diligencia exacta con importes y referencias sin identidades ni cuentas", async () => {
     const result = appendFiscalNotificationVerticalSliceReviewV1({
       ownerScope: OWNER,
       reviewId: REVIEW_ID,
@@ -364,13 +401,9 @@ describe("vertical slice structured workspace v1", () => {
         documentType: "AEAT_SEIZURE_ORDER",
         documentSubtype: "seizure.bank_account",
         titleRaw: "Diligencia de embargo de cuenta bancaria",
-        subjectParty: {
-          displayName: "PERSONA DEUDORA SINTÉTICA",
-          taxIdNormalized: "12345678Z",
-          matchesBusinessProfile: "UNKNOWN",
-        },
       }),
     ]);
+    expect(result.workspace.documents[0]?.subjectParty).toBeUndefined();
     expect(result.workspace.references.map((item) => [item.referenceType, item.rawValue])).toEqual(
       expect.arrayContaining([
         ["DOCUMENT_REFERENCE", "EMB-SYN-WORKSPACE-001"],
@@ -385,19 +418,10 @@ describe("vertical slice structured workspace v1", () => {
         expect.objectContaining({ kind: "RETAINED_AMOUNT", amountCents: 90_000 }),
       ]),
     );
-    expect(result.workspace.analysisSnapshots[0]?.structuredData.unknownFields).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          labelRaw: "VSR1|MASKED_VALUE|MASKED_ACCOUNT|Cuenta enmascarada",
-          valueRaw: "****1234",
-        }),
-        expect.objectContaining({
-          labelRaw: "VSR1|DETAIL|DEBTOR_TAX_ID|NIF del deudor",
-          valueRaw: "12345678Z",
-        }),
-      ]),
+    const serialized = JSON.stringify(result.workspace);
+    expect(serialized).not.toMatch(
+      /ES00 0000 0000 0000 1234|12345678Z|A12345674|PERSONA DEUDORA SINTÉTICA|BANCO SINTÉTICO|MASKED_ACCOUNT|DEBTOR_TAX_ID|RECIPIENT_TAX_ID/iu,
     );
-    expect(JSON.stringify(result.workspace)).not.toContain("ES00 0000 0000 0000 1234");
     expect(result.workspace.debts).toEqual([]);
     expect(result.workspace.deadlineRules).toEqual([]);
     expect(result.workspace.paymentOptions).toEqual([]);
@@ -432,37 +456,35 @@ describe("vertical slice structured workspace v1", () => {
         documentSubtype: "notification.dehu_envelope",
         titleRaw: "Sobre o acuse de notificación electrónica",
         authorityId: "authority:aeat",
-        subjectParty: {
-          displayName: "PERSONA SINTÉTICA",
-          taxIdNormalized: "12345678Z",
-          matchesBusinessProfile: "UNKNOWN",
-        },
         notificationDates: {},
       }),
     ]);
+    expect(result.workspace.documents[0]?.subjectParty).toBeUndefined();
     expect(result.workspace.references.map((item) => [item.referenceType, item.rawValue])).toEqual([
       ["NOTIFICATION_ID", "NOT-SYN-WORKSPACE-001"],
       ["DOCUMENT_REFERENCE", "ACT-SYN-WORKSPACE-001"],
-      ["OTHER", "12345678Z"],
     ]);
     expect(result.workspace.analysisSnapshots[0]?.structuredData.unknownFields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          labelRaw: "VSR1|DATE|AVAILABILITY_DATE|Puesta a disposición",
-          valueRaw: "10/07/2026 08:15",
+          labelRaw: "VSR2|date:available|DATE|AVAILABILITY_DATE|Puesta a disposición",
+          valueRaw: "2026-07-10",
           page: 1,
         }),
         expect.objectContaining({
-          labelRaw: "VSR1|DATE|ACCESS_DATE|Fecha de acceso",
-          valueRaw: "12/07/2026 09:42",
+          labelRaw: "VSR2|date:accessed|DATE|ACCESS_DATE|Fecha de acceso",
+          valueRaw: "2026-07-12",
           page: 1,
         }),
         expect.objectContaining({
-          labelRaw: "VSR1|DETAIL|NOTIFICATION_SUBJECT|Asunto",
-          valueRaw: "Resolución sintética notificada",
+          labelRaw: "VSR2|detail:subject|DETAIL|NOTIFICATION_SUBJECT|Asunto",
+          valueRaw: "NOTIFICATION_SUBJECT",
           page: 1,
         }),
       ]),
+    );
+    expect(JSON.stringify(result.workspace)).not.toMatch(
+      /PERSONA SINTÉTICA|12345678Z|Resolución sintética notificada/iu,
     );
     expect(result.workspace.debts).toEqual([]);
     expect(result.workspace.deadlineRules).toEqual([]);
@@ -474,16 +496,23 @@ describe("vertical slice structured workspace v1", () => {
     });
   });
 
-  it("conserva literalmente un emisor no AEAT sin atribuírselo falsamente a AEAT", () => {
+  it("clasifica un emisor no AEAT sin conservar su nombre impreso", () => {
     const source = structuredClone(notificationAnalysis()) as unknown as {
       ephemeralVerticalSliceReview: {
-        documents: Array<{ fields: Array<{ canonicalType: string; displayValue: string }> }>;
+        documents: Array<{
+          fields: Array<{
+            canonicalType: string;
+            displayValue: string;
+            normalizedValue: string | null;
+          }>;
+        }>;
       };
     };
     const issuer = source.ephemeralVerticalSliceReview.documents[0]!.fields.find(
       (item) => item.canonicalType === "ISSUING_AUTHORITY",
     )!;
-    issuer.displayValue = "Organismo tributario sintético";
+    issuer.displayValue = "Otra autoridad";
+    issuer.normalizedValue = "OTHER_AUTHORITY";
 
     const result = appendFiscalNotificationVerticalSliceReviewV1({
       ownerScope: OWNER,
@@ -496,12 +525,15 @@ describe("vertical slice structured workspace v1", () => {
     expect(result.workspace.authorities).toEqual([
       expect.objectContaining({
         administrationType: "OTHER",
-        nameRaw: "Organismo tributario sintético",
-        nameNormalized: "ORGANISMO TRIBUTARIO SINTETICO",
+        nameRaw: "Otra autoridad",
+        nameNormalized: "OTRA AUTORIDAD",
       }),
     ]);
     expect(result.workspace.documents[0]?.authorityId).toBe(result.workspace.authorities[0]?.id);
     expect(result.workspace.documents[0]?.authorityId).not.toBe("authority:aeat");
+    expect(JSON.stringify(result.workspace)).not.toContain(
+      "Organismo tributario sintético",
+    );
   });
 
   it("persiste varias fichas segmentadas con datos exactos y ningún efecto operativo", () => {
@@ -516,7 +548,10 @@ describe("vertical slice structured workspace v1", () => {
     });
 
     expect(result.status).toBe("APPLIED");
-    expect(result.documentIds).toHaveLength(2);
+    expect(result.documentIds).toEqual([
+      "document:00000000-0000-4000-8000-000000000103:vertical:assessment",
+      "document:00000000-0000-4000-8000-000000000103:vertical:payment-evidence",
+    ]);
     expect(result.workspace.packages).toHaveLength(1);
     expect(result.workspace.files).toEqual([
       expect.objectContaining({
@@ -542,7 +577,7 @@ describe("vertical slice structured workspace v1", () => {
     expect(result.workspace.references.map((item) => item.rawValue)).toEqual([
       "SYNTH-DEBT-101",
       "SYNTH-DEBT-101",
-      "SYNTH-NRC-101",
+      "b".repeat(64),
     ]);
     expect(
       result.workspace.analysisSnapshots.flatMap(
@@ -560,17 +595,6 @@ describe("vertical slice structured workspace v1", () => {
         status: "PROPOSED",
       }),
     ]);
-    expect(
-      result.workspace.analysisSnapshots[1]?.structuredData.unknownFields,
-    ).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          labelRaw: "VSR1|MASKED_VALUE|MASKED_ACCOUNT|Cuenta enmascarada",
-          valueRaw: "****9012",
-          page: 3,
-        }),
-      ]),
-    );
     expect(result.workspace.debts).toEqual([]);
     expect(result.workspace.obligations).toEqual([]);
     expect(result.workspace.deadlineRules).toEqual([]);
@@ -584,7 +608,7 @@ describe("vertical slice structured workspace v1", () => {
     expect(Object.isFrozen(result.workspace)).toBe(true);
     expect(Object.isFrozen(result.workspace.documents)).toBe(true);
     expect(JSON.stringify(result.workspace)).not.toMatch(
-      /originalFilename|storageReference|texto ocr completo|private\.pdf|SYNTHETIC_RAW_WARNING_SHOULD_NOT_PERSIST/i,
+      /originalFilename|storageReference|texto ocr completo|private\.pdf|SYNTHETIC_RAW_WARNING_SHOULD_NOT_PERSIST|PERSONA SINTÉTICA|\*\*\*\*9012/i,
     );
   });
 
@@ -607,6 +631,85 @@ describe("vertical slice structured workspace v1", () => {
     expect(replay.status).toBe("EXISTING");
     expect(replay.documentIds).toEqual(first.documentIds);
     expect(replay.workspace.revision).toBe(first.workspace.revision);
+    expect(replay.workspace.documents).toHaveLength(2);
+  });
+
+  it("asigna ordinales cerrados a dos familias emitidas por el mismo extractor y las reproduce sin duplicar", () => {
+    const source = repeatedExtractorAnalysis();
+    const first = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: source,
+    });
+
+    expect(first.documentIds).toEqual([
+      "document:00000000-0000-4000-8000-000000000103:vertical:assessment:occurrence:00001",
+      "document:00000000-0000-4000-8000-000000000103:vertical:assessment:occurrence:00002",
+    ]);
+    expect(first.workspace.documents.map((item) => item.documentSubtype)).toEqual([
+      "assessment.final_provisional_assessment",
+      "payment.receipt",
+    ]);
+    expect(first.workspace.analysisSnapshots.map((item) => item.id)).toEqual([
+      "analysis:00000000-0000-4000-8000-000000000103:vertical:assessment:occurrence:00001",
+      "analysis:00000000-0000-4000-8000-000000000103:vertical:assessment:occurrence:00002",
+    ]);
+    for (const collection of [
+      first.workspace.documents,
+      first.workspace.analysisSnapshots,
+      first.workspace.evidence,
+      first.workspace.references,
+    ]) {
+      expect(new Set(collection.map((item) => item.id)).size).toBe(
+        collection.length,
+      );
+    }
+
+    const replay = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: SECOND_REVIEW_ID,
+      createdAt: "2026-07-14T20:01:00.000Z",
+      workspace: first.workspace,
+      analysis: repeatedExtractorAnalysis(),
+    });
+    expect(replay.status).toBe("EXISTING");
+    expect(replay.documentIds).toEqual(first.documentIds);
+    expect(replay.workspace.revision).toBe(first.workspace.revision);
+    expect(replay.workspace.documents).toHaveLength(2);
+  });
+
+  it("distingue dos actos de la misma familia y extractor sin usar su id documental crudo", () => {
+    const first = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: repeatedExtractorAnalysis({ sameFamily: true }),
+    });
+
+    expect(first.status).toBe("APPLIED");
+    expect(first.workspace.documents).toHaveLength(2);
+    expect(first.workspace.documents.map((item) => item.documentSubtype)).toEqual([
+      "assessment.final_provisional_assessment",
+      "assessment.final_provisional_assessment",
+    ]);
+    expect(first.documentIds[0]).toMatch(/:occurrence:00001$/u);
+    expect(first.documentIds[1]).toMatch(/:occurrence:00002$/u);
+    expect(JSON.stringify(first.workspace)).not.toContain(
+      "review-document:payment-evidence",
+    );
+
+    const replay = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: SECOND_REVIEW_ID,
+      createdAt: "2026-07-14T20:01:00.000Z",
+      workspace: first.workspace,
+      analysis: repeatedExtractorAnalysis({ sameFamily: true }),
+    });
+    expect(replay.status).toBe("EXISTING");
+    expect(replay.documentIds).toEqual(first.documentIds);
     expect(replay.workspace.documents).toHaveLength(2);
   });
 
@@ -646,6 +749,74 @@ describe("vertical slice structured workspace v1", () => {
     ]);
     expect(persist).toHaveBeenCalledTimes(1);
     expect(expected.fiscalNotificationsWorkspace).toBeUndefined();
+  });
+
+  it("persiste una familia del registro V2 sin convertirla en deuda, pago ni plazo", () => {
+    const source = structuredClone(analysis()) as unknown as {
+      technicalReview: { pageCount: number; byteLength: number };
+      ephemeralVerticalSliceReview: { documents: unknown[] };
+    };
+    source.technicalReview.pageCount = 1;
+    source.technicalReview.byteLength = 4_500;
+    source.ephemeralVerticalSliceReview.documents = [
+      {
+        reviewDocumentId: "review-document:profile:sanction.resolution",
+        extractorId: "penalty",
+        familyId: "sanction.resolution",
+        title: "Resolución sancionadora",
+        subtitle: "Título, autoridad y estructura coinciden",
+        pageFrom: 1,
+        pageTo: 1,
+        confidence: 1,
+        fields: [
+          field({
+            fieldId: "profile:date:ISSUE_DATE:0",
+            semantic: "DATE",
+            canonicalType: "ISSUE_DATE",
+            label: "Fecha de emisión",
+            displayValue: "16/07/2026",
+            normalizedValue: "2026-07-16",
+            sourceLabel: "Fecha de emisión",
+          }),
+          field({
+            fieldId: "profile:money:SANCTION_INITIAL:1",
+            semantic: "MONEY",
+            canonicalType: "PENALTY",
+            label: "Sanción inicial",
+            displayValue: "300,00 €",
+            normalizedValue: "30000",
+            amountCents: 30_000,
+            currency: "EUR",
+            sourceLabel: "Sanción inicial",
+          }),
+        ],
+        warnings: [],
+        requiresHumanReview: true,
+      },
+    ];
+
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: source as unknown as FiscalNotificationLocalAnalysisResult,
+    });
+
+    expect(result.workspace.documents).toEqual([
+      expect.objectContaining({
+        documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+        documentSubtype: "sanction.resolution",
+        issueDate: "2026-07-16",
+        status: "UNKNOWN",
+        analysisStatus: "NEEDS_REVIEW",
+      }),
+    ]);
+    expect(result.workspace.debts).toEqual([]);
+    expect(result.workspace.obligations).toEqual([]);
+    expect(result.workspace.deadlineRules).toEqual([]);
+    expect(result.workspace.paymentPlans).toEqual([]);
+    expect(result.workspace.accountingDrafts).toEqual([]);
   });
 
   it("rechaza ownerScope, claves desconocidas y revisiones vacías sin eco de datos", () => {

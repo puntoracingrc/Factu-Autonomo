@@ -9,7 +9,14 @@ import {
   type BoundedDocumentInput,
 } from "./input-contract";
 import type { ProjectFiscalNotificationPdfWorkerAnalysisInput } from "./pdf-worker-analysis-contract";
+import { extractProfileDrivenFamilyV2 } from "./extractor-core/profile-driven-extractor.v2";
+import { segmentProfileDrivenDocumentV2 } from "./extractor-core/profile-driven-document-segments.v2";
+import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
+import {
+  mergeProfileDrivenReviewsV2,
+  projectProfileDrivenReviewV2,
+} from "./profile-driven-review.v2";
 import {
   projectFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewV1,
@@ -70,8 +77,52 @@ export async function analyzeFiscalNotificationDocumentInput(
   const enforcementExplicitFields = enforcementCandidate
     ? extractAeatEnforcementExplicitFieldsV2(documentInput)
     : null;
-  const verticalSliceReview = projectFiscalNotificationVerticalSliceReviewV1(
-    await analyzeFiscalNotificationVerticalSliceV1(documentInput),
+  const [legacyAnalysis, profileDrivenOutcome, profileDrivenSegments] = await Promise.all([
+    analyzeFiscalNotificationVerticalSliceV1(documentInput),
+    hasText
+      ? extractProfileDrivenFamilyV2({ document: documentInput })
+      : Promise.resolve(null),
+    hasText && pageCount > 1
+      ? segmentProfileDrivenDocumentV2({ document: documentInput })
+      : Promise.resolve(null),
+  ]);
+  const legacyReview = projectFiscalNotificationVerticalSliceReviewV1(
+    legacyAnalysis,
+  );
+  const segmentedOutcomes =
+    profileDrivenSegments?.status === "SEGMENTED_REVIEW_REQUIRED"
+      ? profileDrivenSegments.segments.map((segment) => ({
+          outcome: segment.outcome,
+          documentInstanceId: segment.segmentId,
+        }))
+      : profileDrivenOutcome?.status === "REVIEW_REQUIRED"
+        ? [{ outcome: profileDrivenOutcome, documentInstanceId: null }]
+        : [];
+  const profileReviews = segmentedOutcomes.flatMap(
+    ({ outcome, documentInstanceId }) => {
+      const profileRule = resolveFamilyRuleV2(outcome.familyId);
+      const selectedProfileCandidate = outcome.familyCandidates.find(
+        (candidate) => candidate.familyId === outcome.familyId,
+      );
+      return outcome.adaptedFields !== null &&
+        profileRule !== null &&
+        selectedProfileCandidate !== undefined
+        ? [
+            projectProfileDrivenReviewV2({
+              outcome: outcome.adaptedFields,
+              extractorId: profileRule.extractorId,
+              canonicalTitle: profileRule.canonicalTitle,
+              titlePageNumbers: selectedProfileCandidate.matchedPageNumbers,
+              pageCount,
+              ...(documentInstanceId ? { documentInstanceId } : {}),
+            }),
+          ]
+        : [];
+    },
+  );
+  const verticalSliceReview = mergeProfileDrivenReviewsV2(
+    legacyReview,
+    profileReviews,
   );
 
   return Object.freeze({

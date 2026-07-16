@@ -4,9 +4,11 @@ import { describe, expect, it } from "vitest";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "@/lib/fiscal-notifications/extractor-core/vertical-slice-orchestrator.v1";
 import type { BoundedDocumentInput } from "@/lib/fiscal-notifications/input-contract";
 import {
+  type FiscalNotificationVerticalSliceReviewV1,
   createEmptyFiscalNotificationVerticalSliceReviewV1,
   projectFiscalNotificationVerticalSliceReviewV1,
 } from "@/lib/fiscal-notifications/vertical-slice-review.v1";
+import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "@/lib/fiscal-notifications/knowledge/aeat-document-knowledge.v1";
 import { FiscalNotificationVerticalSliceReview } from "./FiscalNotificationVerticalSliceReview";
 
 const RAW_ACCOUNT = "ES12 3456 7890 1234 5678 9012";
@@ -64,6 +66,53 @@ function document(text: string): BoundedDocumentInput {
   });
 }
 
+function reviewForFamily(familyId: string): FiscalNotificationVerticalSliceReviewV1 {
+  return {
+    schemaVersion: 1,
+    reviewVersion: "1.0.0",
+    status: "REVIEW_REQUIRED",
+    documents: [
+      {
+        reviewDocumentId: `review:${familyId}`,
+        extractorId: "informative-communication",
+        familyId:
+          familyId as FiscalNotificationVerticalSliceReviewV1["documents"][number]["familyId"],
+        title: `Documento ${familyId}`,
+        subtitle: "Estructura documental reconocida",
+        pageFrom: 1,
+        pageTo: 1,
+        confidence: 1,
+        fields: [
+          {
+            fieldId: "field:document-status",
+            semantic: "DETAIL",
+            canonicalType: "DOCUMENT_STATUS",
+            label: "Estado del documento",
+            displayValue: "Dato sintético localizado",
+            normalizedValue: "PRESENT",
+            amountCents: null,
+            currency: null,
+            sourcePageNumbers: [1],
+            sourceLabel: "Página sintética",
+            confidence: 1,
+            reviewStatus: "REVIEW_REQUIRED",
+          },
+        ],
+        warnings: [],
+        requiresHumanReview: true,
+      },
+    ],
+    sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+    retainedSourceContent: "NONE",
+    requiresHumanReview: true,
+    materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+    permitsDebtCreation: false,
+    permitsDeadlineCreation: false,
+    permitsPaymentAction: false,
+    permitsAccountingAction: false,
+  };
+}
+
 describe("FiscalNotificationVerticalSliceReview", () => {
   it("shows an exact expired notification and its printed dates", async () => {
     const review = projectFiscalNotificationVerticalSliceReviewV1(
@@ -76,10 +125,26 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).toContain("Sobre o acuse de notificación electrónica");
     expect(html).toContain("Notificación expirada");
     expect(html).toContain("NOT-SYN-UI-001");
-    expect(html).toContain("Acto sintético notificado");
-    expect(html).toContain("01/07/2026 10:00");
-    expect(html).toContain("11/07/2026 10:00");
+    expect(html).toContain("01/07/2026");
+    expect(html).toContain("11/07/2026");
+    expect(html).not.toContain("Acto sintético notificado");
+    expect(html).not.toContain("10:00");
     expect(html).toContain("Documento reconocido");
+    expect(html).toContain("Qué significa este documento");
+    expect(html).toContain("Por qué te llega");
+    expect(html).toContain("Qué ha ocurrido o qué resultado refleja");
+    expect(html).toContain("Datos clave detectados");
+    expect(html).toContain("Qué revisar o hacer");
+    expect(html).toContain("Cómo identificar el plazo");
+    expect(html).toContain("Qué puede pasar después");
+    expect(html).toContain("Qué no demuestra");
+    expect(html).toContain("Cómo encaja con otros documentos");
+    expect(html).toContain(
+      "Fuentes oficiales en las que se basa nuestro escáner",
+    );
+    expect(html).toContain(
+      "No se consulta internet durante el escaneo",
+    );
     expect(html).not.toMatch(/posible familia/iu);
   });
 
@@ -96,9 +161,9 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).toContain("Pago parcial confirmado en el justificante");
     expect(html).toContain("DEBT-SYN-UI-001");
     expect(html).toContain("600,00 €");
-    expect(html).toContain("****9012");
     expect(html).toContain("Página 1");
     expect(html).not.toContain("Posible familia");
+    expect(html).not.toContain("****9012");
     expect(html).not.toContain(RAW_ACCOUNT);
   });
 
@@ -113,16 +178,65 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).toContain("Diligencia de embargo de cuenta bancaria");
     expect(html).toContain("Diligencia de embargo registrada");
     expect(html).toContain("EMB-SYN-UI-001");
-    expect(html).toContain("PERSONA DEUDORA SINTÉTICA");
-    expect(html).toContain("BANCO SINTÉTICO");
+    expect(html).toContain("Interviniente");
     expect(html).toContain("Límite del embargo");
     expect(html).toContain("1.240,00 €");
     expect(html).toContain("Importe retenido");
     expect(html).toContain("900,00 €");
-    expect(html).toContain("****1234");
     expect(html).toContain("Documento reconocido");
     expect(html).not.toMatch(/posible familia/iu);
+    expect(html).not.toContain("PERSONA DEUDORA SINTÉTICA");
+    expect(html).not.toContain("BANCO SINTÉTICO");
+    expect(html).not.toContain("****1234");
     expect(html).not.toContain("ES00 0000 0000 0000 1234");
+  });
+
+  it("shows family-specific plain-language guidance for every one of the 87 covered families", () => {
+    expect(AEAT_DOCUMENT_PROFILE_IDS_V1).toHaveLength(87);
+
+    for (const familyId of AEAT_DOCUMENT_PROFILE_IDS_V1) {
+      const html = renderToStaticMarkup(
+        createElement(FiscalNotificationVerticalSliceReview, {
+          review: reviewForFamily(familyId),
+        }),
+      );
+
+      expect(html, familyId).toContain("Qué significa este documento");
+      expect(html, familyId).toContain("Qué es");
+      expect(html, familyId).toContain("Por qué te llega");
+      expect(html, familyId).toContain(
+        "Qué ha ocurrido o qué resultado refleja",
+      );
+      expect(html, familyId).toContain("Datos clave detectados");
+      expect(html, familyId).toContain("Qué revisar o hacer");
+      expect(html, familyId).toContain("Cómo identificar el plazo");
+      expect(html, familyId).toContain("Qué puede pasar después");
+      expect(html, familyId).toContain("Qué no demuestra");
+      expect(html, familyId).toContain("Cómo encaja con otros documentos");
+      expect(html, familyId).toContain(
+        "Fuentes oficiales en las que se basa nuestro escáner",
+      );
+      expect(html, familyId).toMatch(/href="https:\/\//u);
+      expect(html, familyId).not.toMatch(/(?:NIF|IBAN)\s*:\s*[A-Z0-9]/u);
+    }
+  });
+
+  it("keeps the legacy result unchanged when the family is not a V2 profile", () => {
+    const review = structuredClone(reviewForFamily("payment.receipt"));
+    (
+      review.documents[0] as unknown as { familyId: string }
+    ).familyId = "legacy.family.outside-v2";
+
+    const html = renderToStaticMarkup(
+      createElement(FiscalNotificationVerticalSliceReview, { review }),
+    );
+
+    expect(html).toContain("Datos leídos del documento");
+    expect(html).toContain("Dato sintético localizado");
+    expect(html).not.toContain("Qué significa este documento");
+    expect(html).not.toContain(
+      "Fuentes oficiales en las que se basa nuestro escáner",
+    );
   });
 
   it("renders no empty card for information-pending content", () => {
@@ -150,7 +264,10 @@ describe("FiscalNotificationVerticalSliceReview", () => {
 
     expect(html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
     expect(html).not.toContain("<img");
-    expect(html).not.toMatch(/<(?:form|input|button|a|select|textarea)\b/u);
+    expect(html).not.toMatch(/<(?:form|input|button|select|textarea)\b/u);
+    expect(html).toMatch(
+      /<a href="https:\/\/(?:www\.boe\.es|sede\.agenciatributaria\.gob\.es|clave\.gob\.es)[^"]*" target="_blank" rel="noreferrer"/u,
+    );
     expect(html).not.toMatch(/(?:aria-live|role="(?:status|alert)")/u);
   });
 });

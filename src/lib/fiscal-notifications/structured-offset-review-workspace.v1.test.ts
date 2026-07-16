@@ -238,8 +238,8 @@ describe("structured offset review workspace v1", () => {
     expect(history.entries[0]).toMatchObject({
       title: "Acuerdo de compensación solicitado AEAT",
       documentDate: "2026-07-30",
-      subjectName: "PERSONA SINTÉTICA",
-      subjectTaxId: "X0000000T",
+      subjectName: null,
+      subjectTaxId: null,
       references: expect.arrayContaining([
         { label: "Número de procedimiento", value: "ACUERDO-0131" },
         { label: "Referencia del documento", value: "CREDITO-0131" },

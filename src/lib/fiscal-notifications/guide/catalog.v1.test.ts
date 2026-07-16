@@ -3,6 +3,14 @@ import {
   FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1,
   resolveFiscalNotificationGuideSelectionV1,
 } from "@/lib/fiscal-notifications/guide/catalog.v1";
+import {
+  FISCAL_NOTIFICATION_DOCUMENT_CHAIN_EDGES_V2,
+  FISCAL_NOTIFICATION_DOCUMENT_CHAINS_V2,
+} from "@/lib/fiscal-notifications/document-chain-rules.v2";
+import {
+  AEAT_DOCUMENT_PROFILES_V1,
+  AEAT_DOCUMENT_RELATION_TYPE_IDS_V1,
+} from "@/lib/fiscal-notifications/knowledge/aeat-document-knowledge.v1";
 import { FISCAL_NOTIFICATION_DOCUMENT_FAMILIES_V2 } from "@/lib/fiscal-notifications/knowledge/document-families.v2";
 
 describe("fiscal notification guide catalog v1", () => {
@@ -27,6 +35,15 @@ describe("fiscal notification guide catalog v1", () => {
       expect(entry.coverage.legalRuleActive).toBe(false);
       expect(entry.coverage.operationalActionActive).toBe(false);
       expect(entry.coverage.automaticRelationConfirmationActive).toBe(false);
+      expect(entry.coverage.status).toBe("AUTOMATIC_REVIEW_ONLY");
+      expect(entry.coverage.candidateHandlerImplemented).toBe(true);
+      expect(entry.coverage.explicitFactExtractorImplemented).toBe(true);
+      expect(entry.coverage.syntheticTestCaseAvailable).toBe(true);
+      expect(entry.coverage.blockers).not.toContain("CANDIDATE_HANDLER_MISSING");
+      expect(entry.coverage.blockers).not.toContain(
+        "EXPLICIT_FACT_EXTRACTOR_MISSING",
+      );
+      expect(entry.coverage.blockers).not.toContain("SYNTHETIC_FIXTURE_MISSING");
       expect(entry.permitsDebtCreation).toBe(false);
       expect(entry.permitsDeadlineCreation).toBe(false);
       expect(entry.permitsPaymentAction).toBe(false);
@@ -86,12 +103,12 @@ describe("fiscal notification guide catalog v1", () => {
       explained.filter(
         (entry) => entry.recognitionMode === "AUTOMATIC_REVIEW_ONLY",
       ),
-    ).toHaveLength(24);
+    ).toHaveLength(87);
     expect(
       explained.filter(
         (entry) => entry.recognitionMode === "MANUAL_REVIEW_ONLY",
       ),
-    ).toHaveLength(63);
+    ).toHaveLength(0);
 
     expect(
       explained.find((entry) => entry.familyId === "collection.deferral_denial")
@@ -119,20 +136,22 @@ describe("fiscal notification guide catalog v1", () => {
       ]),
     );
 
-    const manual = explained.find(
+    const sanction = explained.find(
       (entry) => entry.familyId === "sanction.resolution",
     );
-    expect(manual).toMatchObject({
-      recognitionMode: "MANUAL_REVIEW_ONLY",
+    expect(sanction).toMatchObject({
+      recognitionMode: "AUTOMATIC_REVIEW_ONLY",
       plainLanguage: {
         status: "GENERAL_CONTEXT_EXPLAINED",
         networkPolicy: "NO_RUNTIME_NETWORK",
       },
     });
-    expect(manual?.summary).not.toContain("El catálogo registra");
+    expect(sanction?.summary).not.toContain("El catálogo registra");
   });
 
-  it("derives only suggested before/after context from v2 causal relations", () => {
+  it("derives only suggested before/after context from all 15 declared chains", () => {
+    expect(FISCAL_NOTIFICATION_DOCUMENT_CHAINS_V2).toHaveLength(15);
+    expect(AEAT_DOCUMENT_RELATION_TYPE_IDS_V1).toHaveLength(48);
     const enforcement = resolveFiscalNotificationGuideSelectionV1(
       "collection.enforcement_order",
     );
@@ -147,13 +166,23 @@ describe("fiscal notification guide catalog v1", () => {
       expect.arrayContaining([
         "collection.deferral_breach",
         "assessment.final_provisional_assessment",
-        "inspection.assessment",
-        "payment.failed_or_reversed",
+        "liability.final_resolution",
+        "liability.successors",
       ]),
     );
-    expect(
-      enforcement.entry.possibleNext.map((entry) => entry.familyId),
-    ).toContain("seizure.bank_account");
+    expect(enforcement.entry.abstractRelationContexts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          contextKind: "DECLARED_CHAIN_WILDCARD",
+          chainId: "enforcement_seizure_chain",
+          relationType: "ENFORCES",
+          abstractNodeId: "ANY_SEIZURE",
+          direction: "POSSIBLE_NEXT",
+          status: "SUGGESTED_ONLY",
+          autoConfirm: false,
+        }),
+      ]),
+    );
     for (const related of [
       ...enforcement.entry.possiblePrevious,
       ...enforcement.entry.possibleNext,
@@ -161,8 +190,95 @@ describe("fiscal notification guide catalog v1", () => {
       expect(related.matchPolicy).toBe(
         "EXPLICIT_REFERENCE_OR_HUMAN_CONFIRMATION_REQUIRED",
       );
+      expect(related.status).toBe("SUGGESTED_ONLY");
       expect(related.autoConfirm).toBe(false);
+      const declaredEdge = FISCAL_NOTIFICATION_DOCUMENT_CHAIN_EDGES_V2.find(
+        (edge) =>
+          edge.chainId === related.chainId &&
+          edge.relationType === related.relationType &&
+          (related.direction === "POSSIBLE_PREVIOUS"
+            ? edge.fromFamilyId === related.familyId &&
+              edge.toFamilyId === enforcement.entry.familyId
+            : edge.fromFamilyId === enforcement.entry.familyId &&
+              edge.toFamilyId === related.familyId),
+      );
+      expect(declaredEdge).toBeDefined();
+      expect(declaredEdge?.rawFromNode).not.toMatch(/^ANY_/u);
+      expect(declaredEdge?.rawToNode).not.toMatch(/^ANY_/u);
     }
+  });
+
+  it("keeps wildcard and targetless roles abstract while covering every declared chain role", () => {
+    const entriesByFamily = new Map(
+      FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.map((entry) => [
+        entry.familyId,
+        entry,
+      ] as const),
+    );
+    const representedChainIds = new Set<string>();
+
+    for (const profile of AEAT_DOCUMENT_PROFILES_V1) {
+      const entry = entriesByFamily.get(profile.id);
+      expect(entry, profile.id).toBeDefined();
+      if (!entry) continue;
+      const related = [...entry.possiblePrevious, ...entry.possibleNext];
+      for (const item of related) {
+        representedChainIds.add(item.chainId);
+        expect(item.status, profile.id).toBe("SUGGESTED_ONLY");
+        expect(item.autoConfirm, profile.id).toBe(false);
+        expect(AEAT_DOCUMENT_RELATION_TYPE_IDS_V1).toContain(item.relationType);
+      }
+      for (const context of entry.abstractRelationContexts) {
+        if (context.chainId) representedChainIds.add(context.chainId);
+        expect(context.status, profile.id).toBe("SUGGESTED_ONLY");
+        expect(context.autoConfirm, profile.id).toBe(false);
+        expect(context.prudentPhrase.length, profile.id).toBeGreaterThan(0);
+        expect(AEAT_DOCUMENT_RELATION_TYPE_IDS_V1).toContain(
+          context.relationType,
+        );
+        if (context.contextKind === "DECLARED_RELATION_WITHOUT_TARGET") {
+          expect(context.chainId, profile.id).toBeNull();
+          expect(context.abstractNodeId, profile.id).toBeNull();
+          expect(context.counterpartFamilyId, profile.id).toBeNull();
+          expect(context.direction, profile.id).toBe("CONTEXT_ONLY");
+        } else {
+          expect(context.chainId, profile.id).not.toBeNull();
+          expect(context.abstractNodeId, profile.id).toMatch(/^ANY_/u);
+        }
+      }
+      if (profile.chainRole.length > 0) {
+        expect(
+          related.length + entry.abstractRelationContexts.length,
+          profile.id,
+        ).toBeGreaterThan(0);
+      }
+      expect(related.length, profile.id).toBeLessThanOrEqual(10);
+    }
+
+    expect([...representedChainIds].sort()).toEqual(
+      FISCAL_NOTIFICATION_DOCUMENT_CHAINS_V2.map((chain) => chain.id).sort(),
+    );
+    expect(
+      entriesByFamily.get("information.tax_data_report")?.possibleNext,
+    ).toEqual([]);
+    expect(
+      entriesByFamily.get("information.tax_data_report")
+        ?.abstractRelationContexts,
+    ).toEqual([
+      {
+        contextKind: "DECLARED_RELATION_WITHOUT_TARGET",
+        chainId: null,
+        relationType: "INFORMATIONAL_CONTEXT_FOR",
+        abstractNodeId: null,
+        counterpartFamilyId: null,
+        direction: "CONTEXT_ONLY",
+        status: "SUGGESTED_ONLY",
+        prudentPhrase:
+          "Puede aportar contexto a otro documento. No lo uses para crear una obligación o un pago.",
+        requiresPrintedFavorableOutcome: false,
+        autoConfirm: false,
+      },
+    ]);
   });
 
   it("resolves query selections exactly and fails closed for malformed or unknown values", () => {
@@ -204,6 +320,7 @@ describe("fiscal notification guide catalog v1", () => {
     expect(Object.isFrozen(first.coverage.blockers)).toBe(true);
     expect(Object.isFrozen(first.possiblePrevious)).toBe(true);
     expect(Object.isFrozen(first.possibleNext)).toBe(true);
+    expect(Object.isFrozen(first.abstractRelationContexts)).toBe(true);
     expect(Object.isFrozen(first.prohibitions)).toBe(true);
     const explained = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1[0];
     expect(Object.isFrozen(explained?.plainLanguage)).toBe(true);

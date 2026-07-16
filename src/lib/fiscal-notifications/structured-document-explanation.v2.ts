@@ -597,6 +597,39 @@ const EFFECTS_BY_FAMILY = Object.freeze({
   >
 >);
 
+/**
+ * Returns the single effect that is intrinsic to an exact document-family
+ * title. Families whose result can vary deliberately return null until an
+ * explicit printed outcome is extracted.
+ */
+export function resolveIntrinsicPrintedEffectCodeV2(
+  familyId: FiscalNotificationDocumentFamilyIdV2,
+): FiscalNotificationPrintedEffectCodeV2 | null {
+  const effects = resolveAllowedPrintedEffectCodesV2(familyId);
+  return effects.length === 1 ? effects[0]! : null;
+}
+
+/**
+ * Closed allowlist used by deterministic readers before they expose a printed
+ * effect to the explanation engine. Returning a defensive frozen copy keeps
+ * the source-controlled family contract immutable at runtime.
+ */
+export function resolveAllowedPrintedEffectCodesV2(
+  familyId: FiscalNotificationDocumentFamilyIdV2,
+): readonly FiscalNotificationPrintedEffectCodeV2[] {
+  const effects = (
+    EFFECTS_BY_FAMILY as Partial<
+      Readonly<
+        Record<
+          FiscalNotificationDocumentFamilyIdV2,
+          readonly FiscalNotificationPrintedEffectCodeV2[]
+        >
+      >
+    >
+  )[familyId] ?? Object.freeze([]);
+  return Object.freeze([...effects]);
+}
+
 const SPECIALIZATION_BY_FAMILY = Object.freeze({
   "assessment.allegations_and_proposal": "ASSESSMENT_PROPOSAL",
   "assessment.final_provisional_assessment": "ASSESSMENT_FINAL",

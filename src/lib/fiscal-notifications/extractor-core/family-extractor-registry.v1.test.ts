@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { FISCAL_NOTIFICATION_DOCUMENT_FAMILY_IDS_V3 } from "../knowledge/document-families.v3";
 import { BASE_EXTRACTOR_IDS_V1 } from "./extractor-contract.v1";
+import { FISCAL_NOTIFICATION_FAMILY_RULES_V2 } from "./family-rule-registry.v2";
 import {
   FISCAL_NOTIFICATION_FAMILY_EXTRACTOR_BINDINGS_V1,
   resolveFamilyExtractorBindingV1,
@@ -42,77 +43,26 @@ describe("family to reusable extractor registry v1", () => {
     });
   });
 
-  it("marks only executable review-only adapters complete, never by taxonomy alone", () => {
+  it("marks all 87 rule-backed profile extractors review-only without confirming a family", () => {
+    expect(FISCAL_NOTIFICATION_FAMILY_RULES_V2).toHaveLength(87);
     expect(
-      resolveFamilyExtractorBindingV1("notification.delivery_attempt")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
+      FISCAL_NOTIFICATION_FAMILY_EXTRACTOR_BINDINGS_V1.every(
+        (binding) =>
+          binding.implementationStatus ===
+            "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY" &&
+          binding.classificationRuleIds.includes(
+            `family-rule.${binding.familyId}.v2`,
+          ),
+      ),
+    ).toBe(true);
     expect(
-      resolveFamilyExtractorBindingV1("notification.publication_or_appearance")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(
-      resolveFamilyExtractorBindingV1("notification.dehu_envelope")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(
-      resolveFamilyExtractorBindingV1("collection.enforcement_order")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(
-      resolveFamilyExtractorBindingV1("collection.deferral_grant")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(
-      resolveFamilyExtractorBindingV1("collection.offset_requested")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(
-      resolveFamilyExtractorBindingV1("collection.offset_ex_officio")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(
-      resolveFamilyExtractorBindingV1("compliance.formal_filing_requirement")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(
-      resolveFamilyExtractorBindingV1("compliance.document_request")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(
-      resolveFamilyExtractorBindingV1("assessment.allegations_and_proposal")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(
-      resolveFamilyExtractorBindingV1("assessment.final_provisional_assessment")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(
-      resolveFamilyExtractorBindingV1("payment.payment_form")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(
-      resolveFamilyExtractorBindingV1("payment.receipt")?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    expect(
-      resolveFamilyExtractorBindingV1("payment.failed_or_reversed")
-        ?.implementationStatus,
-    ).toBe("EXTRACTOR_IMPLEMENTED_REVIEW_ONLY");
-    for (const familyId of [
-      "seizure.bank_account",
-      "seizure.commercial_credits",
-      "seizure.wages_or_pensions",
-      "seizure.tpv_receipts",
-      "seizure.cash_or_refund",
-      "seizure.real_estate",
-      "seizure.release",
-      "seizure.third_party_response",
-      "seizure.third_party_payment",
-    ] as const) {
-      expect(resolveFamilyExtractorBindingV1(familyId)?.implementationStatus).toBe(
-        "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY",
-      );
-    }
-    expect(resolveFamilyExtractorBindingV1("sanction.resolution")?.implementationStatus).toBe("CONTRACT_ONLY");
+      resolveFamilyExtractorBindingV1("sanction.resolution"),
+    ).toMatchObject({
+      implementationStatus: "EXTRACTOR_IMPLEMENTED_REVIEW_ONLY",
+      classificationRuleIds: [
+        "family-rule.sanction.resolution.v2",
+        "classification.segment-main-act-only.v1",
+      ],
+    });
   });
 });
