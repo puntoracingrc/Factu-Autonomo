@@ -29,9 +29,7 @@ const EXPECTED_SHA256 = Array.from({ length: 32 }, (_, index) =>
 
 interface FakeWorkerOptions {
   readonly response?:
-    | unknown
-    | typeof NO_RESPONSE
-    | ((postedMessage: unknown) => unknown);
+    unknown | typeof NO_RESPONSE | ((postedMessage: unknown) => unknown);
   readonly responseSequence?: readonly unknown[];
   readonly postThrows?: boolean;
   readonly terminateThrows?: boolean;
@@ -57,6 +55,7 @@ function digestBytes(length = 32): ArrayBuffer {
 function request(overrides: Record<string, unknown> = {}) {
   return {
     ownerScope: "user:synthetic",
+    fileId: "file:synthetic-pdf",
     documentId: "document:synthetic-pdf",
     file: pdfFile(),
     ...overrides,
@@ -64,8 +63,8 @@ function request(overrides: Record<string, unknown> = {}) {
 }
 
 function workerAnalysis(
-  status: "TEXT_LAYER_AVAILABLE" | "NO_EXTRACTABLE_TEXT" =
-    "TEXT_LAYER_AVAILABLE",
+  status:
+    "TEXT_LAYER_AVAILABLE" | "NO_EXTRACTABLE_TEXT" = "TEXT_LAYER_AVAILABLE",
 ) {
   return {
     schemaVersion: 6,
@@ -174,9 +173,11 @@ function resultMessage(analysis: unknown = workerAnalysis()) {
   return {
     type: "RESULT",
     requestId: "parse",
+    fileId: "file:synthetic-pdf",
+    documentId: "document:synthetic-pdf",
+    sourceSha256: EXPECTED_SHA256,
     analysis,
-    verticalSliceReview:
-      createEmptyFiscalNotificationVerticalSliceReviewV1(),
+    verticalSliceReview: createEmptyFiscalNotificationVerticalSliceReviewV1(),
   };
 }
 
@@ -290,67 +291,74 @@ afterEach(() => {
 });
 
 describe("fiscal notification PDF text-layer adapter", () => {
-  it.each([
-    "TEXT_LAYER_AVAILABLE",
-    "NO_EXTRACTABLE_TEXT",
-  ] as const)("returns a bounded %s result without retaining source content", async (status) => {
-    const sourceAnalysis = workerAnalysis(status);
-    const worker = createFakeWorker({ response: resultMessage(sourceAnalysis) });
-    const deps = dependencies(worker);
-    const input = request();
+  it.each(["TEXT_LAYER_AVAILABLE", "NO_EXTRACTABLE_TEXT"] as const)(
+    "returns a bounded %s result without retaining source content",
+    async (status) => {
+      const sourceAnalysis = workerAnalysis(status);
+      const worker = createFakeWorker({
+        response: resultMessage(sourceAnalysis),
+      });
+      const deps = dependencies(worker);
+      const input = request();
 
-    const output = await readFiscalNotificationPdfTextLayer(input, deps);
+      const output = await readFiscalNotificationPdfTextLayer(input, deps);
 
-    expect(output).toMatchObject({
-      schemaVersion: 6,
-      adapterVersion: "6.0.0",
-      status,
-      sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
-      fileIntegrity: {
-        mimeType: "application/pdf",
-        byteLength: input.file.size,
-        sha256: EXPECTED_SHA256,
-      },
-      reviewContext: {
-        ownerScope: "user:synthetic",
-        documentId: "document:synthetic-pdf",
-      },
-      analysis: {
-        textLayerStatus: status,
-        pageCount: 1,
-        familyAnalysis:
-          status === "TEXT_LAYER_AVAILABLE"
-            ? expect.objectContaining({
-                reason: "NO_SUPPORTED_FAMILY_SIGNAL",
-              })
-            : null,
-        enforcementMoneyFacts: null,
-        enforcementExplicitFields: null,
-        enforcementPartyFacts: null,
-        retainedSourceContent: "NONE",
-      },
-      verticalSliceReview: {
-        schemaVersion: 1,
-        status: "INFORMATION_PENDING",
-        documents: [],
-        retainedSourceContent: "NONE",
-      },
-      requiresHumanReview: true,
-      materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
-    });
-    expect(JSON.stringify(output)).not.toContain(PRIVATE_FILENAME);
-    expect(Object.isFrozen(output)).toBe(true);
-    expect(Object.isFrozen(output.fileIntegrity)).toBe(true);
-    expect(Object.isFrozen(output.reviewContext)).toBe(true);
-    expect(Object.isFrozen(output.analysis)).toBe(true);
-    expect(output.analysis).not.toBe(sourceAnalysis);
-    expect(JSON.stringify(output.analysis)).not.toMatch(
-      /"(?:ownerScope|documentId|filename|bytes|pages|text|rawValue)"/i,
-    );
-    expect(worker.terminate).toHaveBeenCalledTimes(1);
-    expect(worker.activeMessageListeners()).toBe(0);
-    expect(worker.activeErrorListeners()).toBe(0);
-  });
+      expect(output).toMatchObject({
+        schemaVersion: 6,
+        adapterVersion: "6.0.0",
+        status,
+        sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+        fileIntegrity: {
+          mimeType: "application/pdf",
+          byteLength: input.file.size,
+          sha256: EXPECTED_SHA256,
+        },
+        sourceIdentity: {
+          fileId: "file:synthetic-pdf",
+          documentId: "document:synthetic-pdf",
+          sourceSha256: EXPECTED_SHA256,
+        },
+        reviewContext: {
+          ownerScope: "user:synthetic",
+          documentId: "document:synthetic-pdf",
+        },
+        analysis: {
+          textLayerStatus: status,
+          pageCount: 1,
+          familyAnalysis:
+            status === "TEXT_LAYER_AVAILABLE"
+              ? expect.objectContaining({
+                  reason: "NO_SUPPORTED_FAMILY_SIGNAL",
+                })
+              : null,
+          enforcementMoneyFacts: null,
+          enforcementExplicitFields: null,
+          enforcementPartyFacts: null,
+          retainedSourceContent: "NONE",
+        },
+        verticalSliceReview: {
+          schemaVersion: 1,
+          status: "INFORMATION_PENDING",
+          documents: [],
+          retainedSourceContent: "NONE",
+        },
+        requiresHumanReview: true,
+        materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+      });
+      expect(JSON.stringify(output)).not.toContain(PRIVATE_FILENAME);
+      expect(Object.isFrozen(output)).toBe(true);
+      expect(Object.isFrozen(output.fileIntegrity)).toBe(true);
+      expect(Object.isFrozen(output.reviewContext)).toBe(true);
+      expect(Object.isFrozen(output.analysis)).toBe(true);
+      expect(output.analysis).not.toBe(sourceAnalysis);
+      expect(JSON.stringify(output.analysis)).not.toMatch(
+        /"(?:ownerScope|documentId|filename|bytes|pages|text|rawValue)"/i,
+      );
+      expect(worker.terminate).toHaveBeenCalledTimes(1);
+      expect(worker.activeMessageListeners()).toBe(0);
+      expect(worker.activeErrorListeners()).toBe(0);
+    },
+  );
 
   it("carries exact bounded party and reference facts ephemerally without raw PDF content", async () => {
     const worker = createFakeWorker({
@@ -412,7 +420,9 @@ describe("fiscal notification PDF text-layer adapter", () => {
 
   it("preserves a historical 1.2 R1 candidate without returning document content", async () => {
     const sourceAnalysis = r1WorkerAnalysis();
-    const worker = createFakeWorker({ response: resultMessage(sourceAnalysis) });
+    const worker = createFakeWorker({
+      response: resultMessage(sourceAnalysis),
+    });
     const output = await readFiscalNotificationPdfTextLayer(
       request(),
       dependencies(worker),
@@ -456,15 +466,25 @@ describe("fiscal notification PDF text-layer adapter", () => {
       type: "PARSE",
       requestId: "parse",
       ownerScope: "user:synthetic",
+      fileId: "file:synthetic-pdf",
       documentId: "document:synthetic-pdf",
+      sourceSha256: EXPECTED_SHA256,
       bytes: expect.any(ArrayBuffer),
     });
     expect(Reflect.ownKeys(message as object).sort()).toEqual(
-      ["bytes", "documentId", "ownerScope", "requestId", "type"].sort(),
+      [
+        "bytes",
+        "documentId",
+        "fileId",
+        "ownerScope",
+        "requestId",
+        "sourceSha256",
+        "type",
+      ].sort(),
     );
-    expect(JSON.stringify({ ...(message as object), bytes: undefined })).not.toContain(
-      PRIVATE_FILENAME,
-    );
+    expect(
+      JSON.stringify({ ...(message as object), bytes: undefined }),
+    ).not.toContain(PRIVATE_FILENAME);
     expect(transfer).toEqual([(message as { bytes: ArrayBuffer }).bytes]);
     expect(deps.digestSha256).toHaveBeenCalledTimes(1);
     expect(Array.from(deps.digestSha256.mock.calls[0]?.[0] ?? [])).toEqual(
@@ -491,23 +511,31 @@ describe("fiscal notification PDF text-layer adapter", () => {
 
   it.each([
     [new Uint8Array(), "INVALID_PDF"],
-    [new Uint8Array(FISCAL_NOTIFICATION_PDF_LIMITS.maxBytes + 1), "FILE_TOO_LARGE"],
-  ] as const)("rejects file size bounds before reading bytes", async (bytes, code) => {
-    const file = pdfFile(bytes);
-    const arrayBuffer = vi.spyOn(file, "arrayBuffer");
-    const worker = createFakeWorker();
-    const deps = dependencies(worker);
+    [
+      new Uint8Array(FISCAL_NOTIFICATION_PDF_LIMITS.maxBytes + 1),
+      "FILE_TOO_LARGE",
+    ],
+  ] as const)(
+    "rejects file size bounds before reading bytes",
+    async (bytes, code) => {
+      const file = pdfFile(bytes);
+      const arrayBuffer = vi.spyOn(file, "arrayBuffer");
+      const worker = createFakeWorker();
+      const deps = dependencies(worker);
 
-    await expect(
-      readFiscalNotificationPdfTextLayer(request({ file }), deps),
-    ).rejects.toMatchObject({ code });
-    expect(arrayBuffer).not.toHaveBeenCalled();
-    expect(deps.createWorker).not.toHaveBeenCalled();
-  });
+      await expect(
+        readFiscalNotificationPdfTextLayer(request({ file }), deps),
+      ).rejects.toMatchObject({ code });
+      expect(arrayBuffer).not.toHaveBeenCalled();
+      expect(deps.createWorker).not.toHaveBeenCalled();
+    },
+  );
 
   it("rejects a declared/read byte-length mismatch", async () => {
     const file = pdfFile();
-    vi.spyOn(file, "arrayBuffer").mockResolvedValue(pdfBytes().slice(0, 8).buffer);
+    vi.spyOn(file, "arrayBuffer").mockResolvedValue(
+      pdfBytes().slice(0, 8).buffer,
+    );
     const worker = createFakeWorker();
     const deps = dependencies(worker);
 
@@ -563,7 +591,9 @@ describe("fiscal notification PDF text-layer adapter", () => {
     );
 
     expect(failure.code).toBe("HASH_UNAVAILABLE");
-    expect(failure.message).toBe("FISCAL_NOTIFICATION_PDF_ERROR:HASH_UNAVAILABLE");
+    expect(failure.message).toBe(
+      "FISCAL_NOTIFICATION_PDF_ERROR:HASH_UNAVAILABLE",
+    );
     expect(JSON.stringify(failure)).not.toContain("PRIVATE_DIGEST_SENTINEL");
     expect(worker.postMessage).not.toHaveBeenCalled();
   });
@@ -619,16 +649,19 @@ describe("fiscal notification PDF text-layer adapter", () => {
         "PRIVATE_EXPLICIT_FIELD_SENTINEL";
       return resultMessage(analysis);
     })(),
-  ])("rejects unknown keys from every worker response level", async (response) => {
-    const worker = createFakeWorker({ response });
-    const failure = await captureFailure(
-      readFiscalNotificationPdfTextLayer(request(), dependencies(worker)),
-    );
+  ])(
+    "rejects unknown keys from every worker response level",
+    async (response) => {
+      const worker = createFakeWorker({ response });
+      const failure = await captureFailure(
+        readFiscalNotificationPdfTextLayer(request(), dependencies(worker)),
+      );
 
-    expect(failure.code).toBe("INVALID_WORKER_RESPONSE");
-    expect(failure.message).not.toContain("PRIVATE_");
-    expect(worker.terminate).toHaveBeenCalledTimes(1);
-  });
+      expect(failure.code).toBe("INVALID_WORKER_RESPONSE");
+      expect(failure.message).not.toContain("PRIVATE_");
+      expect(worker.terminate).toHaveBeenCalledTimes(1);
+    },
+  );
 
   it("rejects an analysis that claims no text while carrying a family result", async () => {
     const worker = createFakeWorker({
@@ -644,6 +677,24 @@ describe("fiscal notification PDF text-layer adapter", () => {
     expect(worker.terminate).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    { fileId: "file:another-pdf" },
+    { documentId: "document:another-pdf" },
+    { sourceSha256: "f".repeat(64) },
+  ])(
+    "rejects a worker result attached to a different source identity",
+    async (identity) => {
+      const worker = createFakeWorker({
+        response: { ...resultMessage(), ...identity },
+      });
+
+      await expect(
+        readFiscalNotificationPdfTextLayer(request(), dependencies(worker)),
+      ).rejects.toMatchObject({ code: "INVALID_WORKER_RESPONSE" });
+      expect(worker.terminate).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("never permits a test timeout above the canonical production deadline", async () => {
     const worker = createFakeWorker();
     await expect(
@@ -657,10 +708,17 @@ describe("fiscal notification PDF text-layer adapter", () => {
 
   it("reattaches owner identifiers only in main and keeps signal non-enumerable", async () => {
     const controller = new AbortController();
-    const worker = createFakeWorker();
+    const worker = createFakeWorker({
+      response: {
+        ...resultMessage(),
+        fileId: "file:tenant-b",
+        documentId: "document:tenant-b",
+      },
+    });
     const output = await readFiscalNotificationPdfTextLayer(
       request({
         ownerScope: "user:tenant-b",
+        fileId: "file:tenant-b",
         documentId: "document:tenant-b",
         signal: controller.signal,
       }),
@@ -671,7 +729,9 @@ describe("fiscal notification PDF text-layer adapter", () => {
       ownerScope: "user:tenant-b",
       documentId: "document:tenant-b",
     });
-    expect(Object.getOwnPropertyDescriptor(output.reviewContext, "signal")).toMatchObject({
+    expect(
+      Object.getOwnPropertyDescriptor(output.reviewContext, "signal"),
+    ).toMatchObject({
       value: controller.signal,
       enumerable: false,
       writable: false,
@@ -835,11 +895,16 @@ describe("fiscal notification PDF text-layer adapter", () => {
   it("does not mutate request or worker output, and snapshots before later changes", async () => {
     const sourceAnalysis = workerAnalysis();
     const sourceFamily = sourceAnalysis.familyAnalysis;
-    const worker = createFakeWorker({ response: resultMessage(sourceAnalysis) });
+    const worker = createFakeWorker({
+      response: resultMessage(sourceAnalysis),
+    });
     const input = request();
     const originalKeys = Reflect.ownKeys(input);
 
-    const output = await readFiscalNotificationPdfTextLayer(input, dependencies(worker));
+    const output = await readFiscalNotificationPdfTextLayer(
+      input,
+      dependencies(worker),
+    );
     sourceAnalysis.pageCount = 80;
     if (sourceFamily) sourceFamily.reason = "PRIVATE_MUTATION";
 
@@ -858,7 +923,9 @@ describe("fiscal notification PDF text-layer adapter", () => {
 
   it("fails closed on terminate failure and never logs filename or worker details", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
-    const errorLog = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const errorLog = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const log = vi.spyOn(console, "log").mockImplementation(() => undefined);
     const worker = createFakeWorker({ terminateThrows: true });
 
@@ -969,7 +1036,9 @@ describe("fiscal notification PDF text-layer adapter", () => {
         const typeProperty = argument.properties.find(
           (property) => property.name?.getText(sourceFile) === "type",
         );
-        expect(typeProperty && ts.isPropertyAssignment(typeProperty)).toBe(true);
+        expect(typeProperty && ts.isPropertyAssignment(typeProperty)).toBe(
+          true,
+        );
         if (!typeProperty || !ts.isPropertyAssignment(typeProperty)) return;
         expect(ts.isStringLiteral(typeProperty.initializer)).toBe(true);
         if (!ts.isStringLiteral(typeProperty.initializer)) return;
@@ -988,19 +1057,35 @@ describe("fiscal notification PDF text-layer adapter", () => {
     };
     visit(sourceFile);
 
-    expect(envelopes.sort((left, right) => left.type.localeCompare(right.type)))
-      .toEqual([
-        {
-          type: "ERROR",
-          keys: ["code", "requestId", "type"],
-          analysisIsShorthand: false,
-        },
-        {
-          type: "RESULT",
-          keys: ["analysis", "requestId", "type", "verticalSliceReview"],
-          analysisIsShorthand: true,
-        },
-      ]);
+    expect(
+      envelopes.sort((left, right) => left.type.localeCompare(right.type)),
+    ).toEqual([
+      {
+        type: "ERROR",
+        keys: [
+          "code",
+          "documentId",
+          "fileId",
+          "requestId",
+          "sourceSha256",
+          "type",
+        ],
+        analysisIsShorthand: false,
+      },
+      {
+        type: "RESULT",
+        keys: [
+          "analysis",
+          "documentId",
+          "fileId",
+          "requestId",
+          "sourceSha256",
+          "type",
+          "verticalSliceReview",
+        ],
+        analysisIsShorthand: true,
+      },
+    ]);
   });
 
   it("gates the visible explicit-field extractor in the shared pure analysis before Worker projection", () => {
@@ -1055,8 +1140,9 @@ describe("fiscal notification PDF text-layer adapter", () => {
     visit(sourceFile);
 
     expect(extractorCalls).toHaveLength(1);
-    expect(extractorCalls[0]?.arguments.map((item) => item.getText(sourceFile)))
-      .toEqual(["documentInput"]);
+    expect(
+      extractorCalls[0]?.arguments.map((item) => item.getText(sourceFile)),
+    ).toEqual(["documentInput"]);
     const capturedExplicitDeclaration =
       explicitDeclaration as ts.VariableDeclaration | null;
     expect(capturedExplicitDeclaration).not.toBeNull();
@@ -1097,7 +1183,9 @@ describe("fiscal notification PDF text-layer adapter", () => {
     expect(adapterSource.startsWith('"use client";')).toBe(true);
     for (const source of [adapterSource, workerSource, parserSource]) {
       expect(source).not.toMatch(/\bfetch\s*\(/u);
-      expect(source).not.toMatch(/OpenAI|localStorage|sessionStorage|supabase/iu);
+      expect(source).not.toMatch(
+        /OpenAI|localStorage|sessionStorage|supabase/iu,
+      );
       expect(source).not.toMatch(/console\.(?:log|warn|error)/u);
     }
   });

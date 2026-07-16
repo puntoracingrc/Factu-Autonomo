@@ -401,6 +401,11 @@ describe("fiscal notification safe local review repository", () => {
               byteLength: 2_048,
               sha256: "c".repeat(64),
             }),
+            sourceIdentity: Object.freeze({
+              fileId: "file:synthetic-round-trip",
+              documentId: "document:synthetic-round-trip",
+              sourceSha256: "c".repeat(64),
+            }),
             analysis: projectFiscalNotificationPdfWorkerAnalysis({
               textLayerStatus: "TEXT_LAYER_AVAILABLE",
               pageCount: 1,

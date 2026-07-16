@@ -25,6 +25,7 @@ import {
 import { FiscalNotificationPdfError } from "./pdf-text-layer-parser";
 import type { AdministrativeDocumentType } from "./types";
 import type { FiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
+import type { FiscalNotificationBatchAnalysisIdentityV2 } from "./batch-analysis-identity.v2";
 
 export const FISCAL_NOTIFICATION_LOCAL_REVIEW_SCHEMA_VERSION = 1 as const;
 export const FISCAL_NOTIFICATION_LOCAL_REVIEW_FLOW_VERSION = "1.0.0" as const;
@@ -86,6 +87,8 @@ export interface FiscalNotificationLocalReviewResult {
 export interface FiscalNotificationLocalAnalysisResult {
   readonly schemaVersion: 6;
   readonly analysisVersion: "6.0.0";
+  /** Present on every production analysis; non-enumerable to prevent persistence. */
+  readonly sourceIdentity?: FiscalNotificationBatchAnalysisIdentityV2;
   readonly technicalReview: FiscalNotificationLocalReviewResult;
   readonly ephemeralEnforcementMoneyFacts:
     | AeatEnforcementMoneyFactsResult
@@ -179,6 +182,7 @@ async function analyzeFiscalNotificationWithDependencies(
           averageConfidence: ocr.averageConfidence,
         }),
         ocr.analysis.verticalSliceReview,
+        intake.sourceIdentity,
       );
     }
     return freezeAnalysisResult(
@@ -202,6 +206,7 @@ async function analyzeFiscalNotificationWithDependencies(
         mode: "LOCAL_OCR" as const,
         averageConfidence: null,
       }),
+      intake.sourceIdentity,
     );
   }
 
@@ -214,6 +219,7 @@ async function analyzeFiscalNotificationWithDependencies(
       averageConfidence: null,
     }),
     intake.verticalSliceReview,
+    intake.sourceIdentity,
   );
 }
 
@@ -227,6 +233,7 @@ function projectAnalysis(
     FiscalNotificationLocalAnalysisResult["textAcquisition"]
   >,
   verticalSliceReview: FiscalNotificationVerticalSliceReviewV1,
+  sourceIdentity: FiscalNotificationBatchAnalysisIdentityV2,
 ): FiscalNotificationLocalAnalysisResult {
   const extraction = analysis.familyAnalysis;
   if (!extraction) {
@@ -270,6 +277,7 @@ function projectAnalysis(
     analysis.offsetAgreementFacts ?? null,
     verticalSliceReview,
     textAcquisition,
+    sourceIdentity,
   );
 }
 
@@ -302,8 +310,9 @@ function freezeAnalysisResult(
   textAcquisition?: NonNullable<
     FiscalNotificationLocalAnalysisResult["textAcquisition"]
   >,
+  sourceIdentity?: FiscalNotificationBatchAnalysisIdentityV2,
 ): FiscalNotificationLocalAnalysisResult {
-  return Object.freeze({
+  const result = {
     schemaVersion: FISCAL_NOTIFICATION_LOCAL_ANALYSIS_SCHEMA_VERSION,
     analysisVersion: FISCAL_NOTIFICATION_LOCAL_ANALYSIS_VERSION,
     technicalReview,
@@ -319,7 +328,16 @@ function freezeAnalysisResult(
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST" as const,
     requiresHumanReview: true as const,
     materializationPolicy: "PROHIBITED_UNTIL_REVIEW" as const,
-  });
+  } as FiscalNotificationLocalAnalysisResult;
+  if (sourceIdentity) {
+    Object.defineProperty(result, "sourceIdentity", {
+      value: sourceIdentity,
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
+  }
+  return Object.freeze(result);
 }
 
 function readRequestFile(value: unknown): File {

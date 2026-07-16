@@ -174,6 +174,9 @@ export const FISCAL_NOTIFICATION_FAMILY_RULES_V2 = Object.freeze([
           "anuncio de citación",
           "anuncio de notificación",
           "publicación en el tablón edictal único",
+          "diligencia de publicación del anuncio de citación para notificación por comparecencia",
+          "certificado de publicación en el boletín oficial del estado del anuncio de citación para notificación por comparecencia",
+          "comunicación notificación por comparecencia",
         ]),
       }),
     ]),
@@ -235,6 +238,7 @@ export const FISCAL_NOTIFICATION_FAMILY_RULES_V2 = Object.freeze([
         matchMode: "LINE_PREFIX",
         literals: Object.freeze([
           "Datos fiscales",
+          "Dades fiscals",
           "consulta de datos fiscales",
           "información fiscal para la declaración de la renta",
         ]),
@@ -375,6 +379,7 @@ export const FISCAL_NOTIFICATION_FAMILY_RULES_V2 = Object.freeze([
         matchMode: "LINE_PREFIX",
         literals: Object.freeze([
           "Carta de aviso por declaraciones no registradas",
+          "carta de aviso",
           "carta informativa de declaraciones o autoliquidaciones no presentadas",
           "aviso de declaraciones no presentadas",
         ]),
@@ -509,6 +514,7 @@ export const FISCAL_NOTIFICATION_FAMILY_RULES_V2 = Object.freeze([
         literals: Object.freeze([
           "Trámite de alegaciones y propuesta de liquidación",
           "notificación del trámite de alegaciones y propuesta de liquidación provisional",
+          "propuesta de liquidación provisional",
         ]),
       }),
     ]),
@@ -1232,6 +1238,8 @@ export const FISCAL_NOTIFICATION_FAMILY_RULES_V2 = Object.freeze([
         matchMode: "LINE_PREFIX",
         literals: Object.freeze([
           "Suspensión de deuda IRPF mediante devolución del cónyuge",
+          "notificación del acuerdo de suspensión del ingreso (compensación entre cónyuges)",
+          "notificació de l'acord de suspensió de l'ingrés (compensació entre cònjuges)",
           "acuerdo de suspensión por devolución del cónyuge",
           "solicitud de suspensión de deuda del IRPF con devolución del cónyuge",
         ]),

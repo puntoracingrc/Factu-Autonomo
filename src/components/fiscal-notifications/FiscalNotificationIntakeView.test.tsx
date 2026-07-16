@@ -344,7 +344,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toMatch(/analysis:\s*[A-Za-z0-9_]+\.analysis/);
     expect(componentSource).toMatch(/`review:\$\{/);
     expect(componentSource).toContain("new Date().toISOString()");
-    expect(componentSource).toContain("setRecentlySavedDocumentId(savedDocumentId)");
+    expect(componentSource).toContain(
+      "setRecentlySavedDocumentId(savedDocumentId)",
+    );
     expect(componentSource).toContain(
       "focusDocumentId={recentlySavedDocumentId}",
     );
@@ -357,11 +359,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "advanceAfterSuccessfulSave(activeId, savedDocumentId)",
     );
-    expect(componentSource).toContain(
-      "reviewsRef.current.delete(savedItemId)",
-    );
+    expect(componentSource).toContain("reviewsRef.current.delete(savedItemId)");
     expect(componentSource).toContain("replaceQueue(remainingQueue)");
-    expect(componentSource).toContain("showReview(nextReview.id)");
+    expect(componentSource).toContain("showReview(nextReview.documentId)");
     expect(componentSource).toContain("setScannerOpen(false)");
     expect(componentSource).toContain("Escanear más documentos");
 
@@ -471,15 +471,17 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
   });
 
   it("muestra la biblioteca con datos seguros sin exponer identidad ni huellas", () => {
-    expect(documentLibraryComponentSource).toContain(
-      "Tus documentos",
-    );
+    expect(documentLibraryComponentSource).toContain("Tus documentos");
     expect(documentLibraryComponentSource).toContain(
       "group.documents.map((document, index)",
     );
     expect(documentLibraryComponentSource).toContain("document.createdAt");
-    expect(documentLibraryComponentSource).not.toContain("document.subjectName");
-    expect(documentLibraryComponentSource).not.toContain("document.subjectTaxId");
+    expect(documentLibraryComponentSource).not.toContain(
+      "document.subjectName",
+    );
+    expect(documentLibraryComponentSource).not.toContain(
+      "document.subjectTaxId",
+    );
     expect(documentLibraryComponentSource).toContain("document.money");
     expect(documentLibraryComponentSource).toContain("document.references");
     expect(documentLibraryComponentSource).toContain("document.orderedFacts");
@@ -623,7 +625,8 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
   it("explica con precisión OCR, alcance y persistencia estructurada opcional", () => {
     const copy = compact(componentSource);
     for (const expected of [
-      "Prepara un lote de hasta {FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1} PDF, revísalo y pulsa una sola vez Analizar.",
+      "Prepara un lote de hasta",
+      "PDF, revísalo y pulsa una sola vez Analizar.",
       "El análisis es local. Al guardar eliges Factu, Google Drive o ambos.",
       "Los documentos duplicados se detectan automáticamente.",
       "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias permitidas, fechas, estados y relaciones estructurados.",
@@ -946,12 +949,8 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "¿Ya eliminaste todas las fichas de Notificaciones?",
     );
     expect(componentSource).not.toContain("Sí, iniciar historial vacío");
-    expect(componentSource).toContain(
-      "repairFiscalNotificationEmptyHistory({",
-    );
-    expect(componentSource).toContain(
-      "await addFiles(files, execution.data)",
-    );
+    expect(componentSource).toContain("repairFiscalNotificationEmptyHistory({");
+    expect(componentSource).toContain("await addFiles(files, execution.data)");
     expect(componentSource).toContain(
       "if (!appStoreReady || !shouldInitializeEmptyHistory) return",
     );
@@ -1068,9 +1067,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(verticalSliceProjectionSource).toContain(
       'addStatus(fields, "Orden de pago", pagesForOutput(output))',
     );
-    expect(verticalSliceProjectionSource).not.toContain(
-      "pago no confirmado",
-    );
+    expect(verticalSliceProjectionSource).not.toContain("pago no confirmado");
   });
 
   it("solo añade el guardado estructurado seguro y no ofrece acciones fiscales", () => {

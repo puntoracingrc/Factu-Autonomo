@@ -410,6 +410,72 @@ const SAFE_SUBTITLE_VALUES = new Set([
   "Título, autoridad y estructura coinciden",
   "Clasificación histórica amplia",
 ]);
+const REAL_CORPUS_SAFE_LABELS_V2 = new Set([
+  "Referencia",
+  "Referencia del informe",
+  "Referencia de devolución",
+  "Referencia del acuerdo de devolución",
+  "Referencia del acuerdo de compensación",
+  "Identificador de la evidencia",
+  "Referencia del acto citado",
+  "Concepto tributario",
+  "Ejercicio",
+  "Fecha de emisión",
+  "Datos a fecha de",
+  "Inicio por internet",
+  "Inicio por otros medios",
+  "Fin de campaña",
+  "Fin de domiciliación",
+  "Resultado declarado",
+  "Resultado propuesto",
+  "Variación del resultado",
+  "Cuota propuesta",
+  "Saldo declarado a compensar",
+  "Plazo de alegaciones",
+  "Unidad del plazo",
+  "Inicio del plazo",
+  "Motivos",
+  "La sanción se tramitaría por separado",
+  "Borrador disponible",
+  "Participantes",
+  "Filas conservadas",
+  "Compensación aplicada entre cónyuges",
+  "Importe indicado",
+  "Saldo restante indicado",
+  "Devolución solicitada",
+  "Devolución acordada",
+  "Pago ordenado",
+  "Deducciones",
+  "Importe líquido de la devolución",
+  "Tipo de compensación",
+  "Abono bancario confirmado",
+  "Tipo del acto citado",
+  "Fecha de publicación",
+  "Número de publicación",
+  "Plazo de comparecencia",
+  "Fecha efectiva de notificación",
+  "Explica el contenido del acto citado",
+  "Declaraciones no registradas",
+  "Requerimiento formal",
+  "Plazo de respuesta indicado",
+  "Porcentaje histórico citado",
+  "Declaración no registrada en el aviso",
+  "Qué significa",
+  "EMPLOYMENT INCOME",
+  "ECONOMIC ACTIVITY INCOME",
+  "BANK INTEREST",
+  "ECONOMIC ACTIVITY CENSUS",
+  "ATTRIBUTED ECONOMIC ACTIVITY INCOME",
+  "ATTRIBUTED WITHHOLDINGS",
+  "DONATIONS",
+  "MORTGAGE LOAN",
+  "INSTALLMENT PAYMENTS",
+  "SOCIAL SECURITY CONTRIBUTIONS",
+  "CADASTRAL PROPERTY",
+  "ENTITY PARTICIPATION",
+  "MATERNITY DEDUCTION CONTRIBUTIONS",
+  "MATERNITY DEDUCTION",
+]);
 
 export function projectFiscalNotificationVerticalSliceReviewV1(
   analysis: FiscalNotificationVerticalSliceAnalysisV1,
@@ -1322,11 +1388,7 @@ function parseReviewDocument(
     "requiresHumanReview",
   ]);
   assertBoundedString(item.reviewDocumentId, 160);
-  if (
-    !EXTRACTOR_IDS.has(
-      item.extractorId as BaseExtractorIdV1,
-    )
-  )
+  if (!EXTRACTOR_IDS.has(item.extractorId as BaseExtractorIdV1))
     throw invalidReview();
   if (!FAMILY_IDS.has(item.familyId as FiscalNotificationDocumentFamilyIdV3))
     throw invalidReview();
@@ -1380,8 +1442,7 @@ function parseReviewDocument(
   });
   return Object.freeze({
     reviewDocumentId: item.reviewDocumentId as string,
-    extractorId:
-      item.extractorId as BaseExtractorIdV1,
+    extractorId: item.extractorId as BaseExtractorIdV1,
     familyId: item.familyId as FiscalNotificationDocumentFamilyIdV3,
     title: item.title as string,
     subtitle: item.subtitle as string,
@@ -1489,6 +1550,7 @@ function parseReviewField(
 }
 
 function isControlledFieldLabel(value: string): boolean {
+  if (REAL_CORPUS_SAFE_LABELS_V2.has(value)) return true;
   if (
     [
       ...Object.values(REFERENCE_LABEL),
@@ -1539,6 +1601,12 @@ function assertSerializableFieldPrivacy(
   const canonicalType = String(item.canonicalType);
   const displayValue = item.displayValue as string;
   const normalizedValue = item.normalizedValue as string | null;
+  if (
+    (semantic === "DETAIL" || semantic === "OBLIGATION") &&
+    assertRealCorpusSerializableFieldPrivacyV2(item)
+  ) {
+    return;
+  }
   switch (semantic) {
     case "REFERENCE": {
       if (canonicalType === "NIF" || normalizedValue === null) {
@@ -1570,22 +1638,17 @@ function assertSerializableFieldPrivacy(
     case "PARTY": {
       if (normalizedValue === null) throw invalidReview();
       if (canonicalType === "ISSUING_AUTHORITY") {
-        if (
-          !(
-            (displayValue === "AEAT" && normalizedValue === "AEAT") ||
-            (displayValue === "Otra autoridad" &&
-              normalizedValue === "OTHER_AUTHORITY")
-          )
-        ) {
+        if (!(
+          (displayValue === "AEAT" && normalizedValue === "AEAT") ||
+          (displayValue === "Otra autoridad" &&
+            normalizedValue === "OTHER_AUTHORITY")
+        )) {
           throw invalidReview();
         }
         return;
       }
       const match = /^Interviniente ([1-9]\d*)$/u.exec(displayValue);
-      if (
-        !match ||
-        normalizedValue !== `ROLE:${canonicalType}:${match[1]}`
-      ) {
+      if (!match || normalizedValue !== `ROLE:${canonicalType}:${match[1]}`) {
         throw invalidReview();
       }
       return;
@@ -1632,6 +1695,111 @@ function assertSerializableFieldPrivacy(
       return;
     default:
       throw invalidReview();
+  }
+}
+
+const REAL_CORPUS_EXPLANATION_PATTERNS_V2 = Object.freeze([
+  /^La AEAT propone cambiar un saldo de \d{1,3}(?:\.\d{3})*,\d{2}\s€ a compensar por \d{1,3}(?:\.\d{3})*,\d{2}\s€ a ingresar; todavía no es liquidación final y abre 10 días hábiles desde la recepción\.$/u,
+  /^La AEAT formula una propuesta de liquidación y abre un trámite de alegaciones; todavía no es una liquidación final ni una orden de pago\.$/u,
+  /^Informe informativo de datos fiscales del IRPF (?:19|20)\d{2}; no es declaración, deuda ni liquidación\. Debe mostrar la causa por la que no se pudo elaborar el borrador y los plazos de campaña como información\.$/u,
+  /^Informe informativo de datos fiscales del IRPF; no es declaración, deuda ni liquidación\.$/u,
+  /^La AEAT confirma que aplicó la devolución del cónyuge al ingreso suspendido, pero sin importe no puede afirmar cobertura total ni saldo cero\.$/u,
+  /^La devolución se aplicó (?:íntegramente a deudas y no queda importe líquido para transferir|parcialmente a deudas y queda un importe líquido cuya transferencia fue ordenada)\.$/u,
+  /^(?:La diligencia acredita la publicación, pero no permite afirmar la fecha efectiva de notificación|El certificado acredita la fecha efectiva de notificación del acto citado, pero no es el acto subyacente|La comunicación anuncia una futura publicación; todavía no acredita publicación ni notificación efectiva)\.$/u,
+  /^Es una carta de aviso sobre (?:\d+|dos) modelos no registrados; no es requerimiento formal, deuda ni sanción y no tiene plazo impreso\.$/u,
+]);
+const REAL_CORPUS_DETAIL_VALUE_PATTERNS_V2 = Object.freeze([
+  /^IVA$/u,
+  /^(?:BUSINESS_DAYS|CALENDAR_DAYS|RECEIPT_DATE|REQUESTED|EX_OFFICIO)$/u,
+  /^(?:EXECUTIVE_LIQUIDATION|BANK_ACCOUNT_SEIZURE|DEFERRAL_OR_INSTALLMENT_RESOLUTION|SANCTION_REDUCTION_CLAWBACK)$/u,
+]);
+const REAL_CORPUS_SECTION_DISPLAY_V2 =
+  /^(?:Titular|Cónyuge) · fila [1-9]\d*(?: · modelo \d{3})?(?: · periodo (?:0A|[1-4]T|0[1-9]|1[0-2]))?(?: · -?\d{1,3}(?:\.\d{3})*,\d{2}\s€)?(?: · retención -?\d{1,3}(?:\.\d{3})*,\d{2}\s€)?$/u;
+const REAL_CORPUS_SECTION_NORMALIZED_V2 =
+  /^(?:EMPLOYMENT_INCOME|ECONOMIC_ACTIVITY_INCOME|BANK_INTEREST|ECONOMIC_ACTIVITY_CENSUS|ATTRIBUTED_ECONOMIC_ACTIVITY_INCOME|ATTRIBUTED_WITHHOLDINGS|DONATIONS|MORTGAGE_LOAN|INSTALLMENT_PAYMENTS|SOCIAL_SECURITY_CONTRIBUTIONS|CADASTRAL_PROPERTY|ENTITY_PARTICIPATION|MATERNITY_DEDUCTION_CONTRIBUTIONS|MATERNITY_DEDUCTION):(?:ACCOUNT_HOLDER|SPOUSE):[1-9]\d*:(?:\d{3}|-):(?:(?:0A|[1-4]T|0[1-9]|1[0-2])|-):(?:-?\d+|-):(?:-?\d+|-)$/u;
+
+/**
+ * Closed exception for V2 corpus fields. It permits only generated enums,
+ * numbers and source-controlled explanation sentences; arbitrary OCR text,
+ * personal identifiers and account data remain invalid.
+ */
+function assertRealCorpusSerializableFieldPrivacyV2(
+  item: Readonly<Record<string, unknown>>,
+): boolean {
+  const fieldId = String(item.fieldId);
+  if (!fieldId.startsWith("real-corpus:")) return false;
+  const display = String(item.displayValue);
+  const normalized =
+    typeof item.normalizedValue === "string" ? item.normalizedValue : "";
+  if (fieldId === "real-corpus:recognized-family") return false;
+  if (fieldId === "real-corpus:plain-explanation") {
+    if (
+      !/^EXPLANATION:(?:assessment\.allegations_and_proposal|information\.tax_data_report|irpf\.spouse_refund_suspension|refund\.payment_communication|notification\.publication_or_appearance|compliance\.informal_missing_return_notice):[A-Z0-9_]+$/u.test(
+        normalized,
+      ) ||
+      !REAL_CORPUS_EXPLANATION_PATTERNS_V2.some((pattern) =>
+        pattern.test(display),
+      )
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (/^real-corpus:section:\d+$/u.test(fieldId)) {
+    if (
+      !REAL_CORPUS_SECTION_DISPLAY_V2.test(display) ||
+      !REAL_CORPUS_SECTION_NORMALIZED_V2.test(normalized)
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (/^real-corpus:missing-return:\d+$/u.test(fieldId)) {
+    if (
+      !/^Modelo \d{3} · (?:19|20)\d{2} · (?:0A|[1-4]T|0[1-9]|1[0-2])$/u.test(
+        display,
+      ) ||
+      !/^\d{3}:(?:19|20)\d{2}:(?:0A|[1-4]T|0[1-9]|1[0-2])$/u.test(normalized)
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (/^real-corpus:[A-Z0-9_]+:\d+$/u.test(fieldId)) {
+    if (/^SIGNED_CENTS:-\d+$/u.test(normalized)) {
+      if (!/^-\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(display)) {
+        throw invalidReview();
+      }
+      return true;
+    }
+    if (
+      /^(?:BOOLEAN|INTEGER):[A-Z0-9_]+:(?:TRUE|FALSE|\d+)$/u.test(normalized)
+    ) {
+      if (!/^(?:Sí|No|\d+)$/u.test(display)) throw invalidReview();
+      return true;
+    }
+    const closedText = /^TEXT:[A-Z0-9_]+:(.+)$/u.exec(normalized);
+    if (
+      closedText &&
+      REAL_CORPUS_DETAIL_VALUE_PATTERNS_V2.some((pattern) =>
+        pattern.test(closedText[1]!),
+      ) &&
+      normalizeClosedRealCorpusDisplayV2(display) === closedText[1]
+    ) {
+      return true;
+    }
+  }
+  throw invalidReview();
+}
+
+function normalizeClosedRealCorpusDisplayV2(value: string): string {
+  try {
+    return value
+      .normalize("NFKD")
+      .replace(/\p{M}+/gu, "")
+      .toLocaleUpperCase("es-ES");
+  } catch {
+    return "";
   }
 }
 

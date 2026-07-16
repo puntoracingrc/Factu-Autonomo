@@ -15,10 +15,13 @@ const REQUEST_KEYS = new Set([
   "type",
   "requestId",
   "ownerScope",
+  "fileId",
   "documentId",
+  "sourceSha256",
   "bytes",
 ]);
 const REQUEST_ID = "parse" as const;
+const SHA256 = /^[a-f0-9]{64}$/u;
 const workerScope = globalThis as unknown as FiscalNotificationPdfWorkerScope;
 
 workerScope.onmessage = (event: MessageEvent<unknown>) => {
@@ -26,6 +29,11 @@ workerScope.onmessage = (event: MessageEvent<unknown>) => {
 };
 
 async function processMessage(value: unknown): Promise<void> {
+  let responseIdentity: Readonly<{
+    fileId: string;
+    documentId: string;
+    sourceSha256: string;
+  }> | null = null;
   try {
     const request = snapshotRecord(value);
     if (!request) throw new FiscalNotificationPdfError("INVALID_PDF");
@@ -42,10 +50,18 @@ async function processMessage(value: unknown): Promise<void> {
     }
     if (
       typeof request.ownerScope !== "string" ||
-      typeof request.documentId !== "string"
+      typeof request.fileId !== "string" ||
+      typeof request.documentId !== "string" ||
+      typeof request.sourceSha256 !== "string" ||
+      !SHA256.test(request.sourceSha256)
     ) {
       throw new FiscalNotificationPdfError("INVALID_PDF");
     }
+    responseIdentity = Object.freeze({
+      fileId: request.fileId,
+      documentId: request.documentId,
+      sourceSha256: request.sourceSha256,
+    });
 
     const documentInput = await parseFiscalNotificationPdfTextLayerBytes({
       ownerScope: request.ownerScope,
@@ -68,6 +84,9 @@ async function processMessage(value: unknown): Promise<void> {
     workerScope.postMessage({
       type: "RESULT",
       requestId: REQUEST_ID,
+      fileId: responseIdentity.fileId,
+      documentId: responseIdentity.documentId,
+      sourceSha256: responseIdentity.sourceSha256,
       analysis,
       verticalSliceReview: projected.verticalSliceReview,
     });
@@ -75,6 +94,9 @@ async function processMessage(value: unknown): Promise<void> {
     workerScope.postMessage({
       type: "ERROR",
       requestId: REQUEST_ID,
+      fileId: responseIdentity?.fileId ?? null,
+      documentId: responseIdentity?.documentId ?? null,
+      sourceSha256: responseIdentity?.sourceSha256 ?? null,
       code: safeErrorCode(error),
     });
   }

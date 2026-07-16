@@ -14,7 +14,10 @@ const TAX_ID_PATTERN =
   /(?:^|[^A-Z0-9])(?:\d{8}[\s._-]?[A-Z]|[XYZ][\s._-]?\d{7}[\s._-]?[A-Z]|[ABCDEFGHJNPQRSUVW][\s._-]?\d{7}[\s._-]?[0-9A-J])(?=$|[^A-Z0-9])/iu;
 const IBAN_PATTERN = /(?:^|[^A-Z0-9])ES(?:[\s._-]?\d){22}(?=$|[^A-Z0-9])/iu;
 const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/iu;
-const SHORT_OFFICIAL_TITLE_VARIANTS = new Set(["notificación electrónica"]);
+const SHORT_OFFICIAL_TITLE_VARIANTS = new Set([
+  "notificación electrónica",
+  "Dades fiscals",
+]);
 
 describe("family rule registry v2", () => {
   it("registers exactly one literal rule for every one of the 87 families", () => {
