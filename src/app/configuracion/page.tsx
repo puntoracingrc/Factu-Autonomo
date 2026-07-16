@@ -1482,7 +1482,7 @@ export default function ConfiguracionPage() {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
                 label="Enviar documentos por email"
-                hint="El PDF se descarga para que puedas adjuntarlo si usas Gmail o correo externo."
+                hint="Preguntar te deja elegir. Si Compartir no está disponible, Factu vuelve a ofrecer Gmail o el correo del dispositivo."
               >
                 <Select
                   value={appPreferences.documentEmailMethod}

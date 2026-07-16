@@ -180,6 +180,33 @@ async function sharePdfNative(
   }
 }
 
+export function canShareDocumentPdfNatively(): boolean {
+  if (
+    typeof navigator === "undefined" ||
+    typeof navigator.share !== "function"
+  ) {
+    return false;
+  }
+  if (typeof navigator.canShare !== "function") return true;
+  if (typeof File === "undefined") return false;
+
+  try {
+    const probe = new File([""], "documento.pdf", {
+      type: "application/pdf",
+    });
+    return navigator.canShare({ files: [probe] });
+  } catch {
+    return false;
+  }
+}
+
+export class NativeDocumentShareUnavailableError extends Error {
+  constructor() {
+    super("El dispositivo no pudo abrir el menú de compartir.");
+    this.name = "NativeDocumentShareUnavailableError";
+  }
+}
+
 function shareSubject(doc: Document): string {
   return `${documentTypeLabel(doc).replace(/^./, (c) => c.toUpperCase())} ${doc.number}`;
 }
@@ -276,6 +303,7 @@ export async function shareDocumentByEmail(
   if (method === "native") {
     const shared = await sharePdfNative(doc, profile, message, pdfOptions);
     if (shared) return;
+    throw new NativeDocumentShareUnavailableError();
   }
 
   if (method === "gmail") {
