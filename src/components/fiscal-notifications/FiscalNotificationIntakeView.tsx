@@ -58,6 +58,7 @@ import {
   fingerprintFiscalNotificationBatchFileV1,
   readPersistedFiscalNotificationHashesV1,
 } from "@/lib/fiscal-notifications/batch-intake.v1";
+import { assertFiscalNotificationBatchAnalysisIdentityV2 } from "@/lib/fiscal-notifications/batch-analysis-identity.v2";
 import {
   projectExplicitFieldsReviewViewModelV2,
   type ExplicitFieldsReviewViewModelV2,
@@ -78,9 +79,7 @@ import {
   inspectFiscalNotificationDriveArchiveCandidateV1,
   type FiscalNotificationDriveArchiveCandidateV1,
 } from "@/lib/fiscal-notifications/drive-original-archive.v1";
-import {
-  uploadFiscalNotificationOriginalToGoogleDriveV1,
-} from "@/lib/google-drive/fiscal-notification-original-archive.v1";
+import { uploadFiscalNotificationOriginalToGoogleDriveV1 } from "@/lib/google-drive/fiscal-notification-original-archive.v1";
 import { hasUsableDriveToken } from "@/lib/google-drive/backup";
 import {
   getGoogleDriveClientId,
@@ -242,6 +241,7 @@ type FiscalNotificationBatchStatus =
 
 interface FiscalNotificationBatchItem {
   readonly id: string;
+  readonly documentId: string;
   readonly byteLength: number;
   readonly displayName: string;
   readonly mimeType: string;
@@ -291,10 +291,7 @@ type ReviewPersistenceState =
 type ReviewSaveDestination = "ACCOUNT" | "DRIVE" | "BOTH";
 
 type FiscalNotificationArchiveCandidateStatus =
-  | "READY"
-  | "ARCHIVING"
-  | "ARCHIVED"
-  | "ERROR";
+  "READY" | "ARCHIVING" | "ARCHIVED" | "ERROR";
 
 interface FiscalNotificationArchiveCandidateItem {
   readonly id: string;
@@ -370,7 +367,6 @@ export function FiscalNotificationIntakeView({
           ownerScope={ownerScope}
         />
       )}
-
     </div>
   );
 }
@@ -396,7 +392,7 @@ function FiscalNotificationReviewWorkspace({
   const archiveCandidatesRef = useRef<
     readonly FiscalNotificationArchiveCandidateItem[]
   >([]);
-  const activeItemIdRef = useRef<string | null>(null);
+  const activeDocumentIdRef = useRef<string | null>(null);
   const admissionControllerRef = useRef<AbortController | null>(null);
   const admittingRef = useRef(false);
   const controllerRef = useRef<AbortController | null>(null);
@@ -407,11 +403,13 @@ function FiscalNotificationReviewWorkspace({
   const emptyHistoryAutoRepairAttemptedRef = useRef(false);
   const blockedDuplicateFilesRef = useRef<readonly File[]>([]);
   const dragDepthRef = useRef(0);
-  const [queue, setQueue] = useState<readonly FiscalNotificationBatchItem[]>([]);
+  const [queue, setQueue] = useState<readonly FiscalNotificationBatchItem[]>(
+    [],
+  );
   const [archiveCandidates, setArchiveCandidates] = useState<
     readonly FiscalNotificationArchiveCandidateItem[]
   >([]);
-  const [activeItemId, setActiveItemId] = useState<string | null>(null);
+  const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [admitting, setAdmitting] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -529,7 +527,7 @@ function FiscalNotificationReviewWorkspace({
       reviews.clear();
       queueRef.current = [];
       archiveCandidatesRef.current = [];
-      activeItemIdRef.current = null;
+      activeDocumentIdRef.current = null;
       blockedDuplicateFilesRef.current = [];
       if (fileInput) fileInput.value = "";
     };
@@ -594,11 +592,15 @@ function FiscalNotificationReviewWorkspace({
     );
   }
 
-  function showReview(id: string): void {
-    const review = reviewsRef.current.get(id);
+  function showReview(documentId: string): void {
+    const item = queueRef.current.find(
+      (candidate) => candidate.documentId === documentId,
+    );
+    if (!item) return;
+    const review = reviewsRef.current.get(item.id);
     if (!review) return;
-    activeItemIdRef.current = id;
-    setActiveItemId(id);
+    activeDocumentIdRef.current = documentId;
+    setActiveDocumentId(documentId);
     const nextAnalysis = review.analysis;
     setResult(nextAnalysis.technicalReview);
     setVerticalSliceReview(nextAnalysis.ephemeralVerticalSliceReview ?? null);
@@ -715,7 +717,9 @@ function FiscalNotificationReviewWorkspace({
             controller.signal,
           );
           if (duplicateHashes.has(fingerprint.sha256)) {
-            rejected.push(`${fingerprint.displayName}: duplicado dentro del lote`);
+            rejected.push(
+              `${fingerprint.displayName}: duplicado dentro del lote`,
+            );
             continue;
           }
           if (persistedHashes.has(fingerprint.sha256)) {
@@ -748,13 +752,16 @@ function FiscalNotificationReviewWorkspace({
             );
             continue;
           }
-          const id = `notification-batch:${randomUUID.call(globalThis.crypto)}`;
+          const uuid = randomUUID.call(globalThis.crypto);
+          const id = `notification-file:${uuid}`;
+          const documentId = `notification-document:${uuid}`;
           duplicateHashes.add(fingerprint.sha256);
           capacityHashes.add(fingerprint.sha256);
           filesRef.current.set(id, file);
           accepted.push(
             Object.freeze({
               id,
+              documentId,
               byteLength: fingerprint.byteLength,
               displayName: fingerprint.displayName,
               mimeType: fingerprint.mimeType,
@@ -799,12 +806,13 @@ function FiscalNotificationReviewWorkspace({
       archiveOperationRef.current
     )
       return;
+    const removed = queueRef.current.find((item) => item.id === id);
     filesRef.current.delete(id);
     reviewsRef.current.delete(id);
     replaceQueue(queueRef.current.filter((item) => item.id !== id));
-    if (activeItemIdRef.current === id) {
-      activeItemIdRef.current = null;
-      setActiveItemId(null);
+    if (removed && activeDocumentIdRef.current === removed.documentId) {
+      activeDocumentIdRef.current = null;
+      setActiveDocumentId(null);
       clearReviewDisplay();
     }
   }
@@ -834,15 +842,17 @@ function FiscalNotificationReviewWorkspace({
     reviewsRef.current.clear();
     replaceQueue([]);
     replaceArchiveCandidates([]);
-    activeItemIdRef.current = null;
-    setActiveItemId(null);
+    activeDocumentIdRef.current = null;
+    setActiveDocumentId(null);
     clearReviewDisplay();
     setError(null);
   }
 
   function cancelAnalysis(): void {
     controllerRef.current?.abort();
-    setError("Análisis cancelado. Los documentos pendientes siguen en la cola.");
+    setError(
+      "Análisis cancelado. Los documentos pendientes siguen en la cola.",
+    );
   }
 
   async function analyzeQueue(requestedIds?: readonly string[]): Promise<void> {
@@ -880,18 +890,28 @@ function FiscalNotificationReviewWorkspace({
     setError(null);
     try {
       for (const id of ids) {
+        const item = queueRef.current.find((candidate) => candidate.id === id);
         const file = filesRef.current.get(id);
-        if (!file) continue;
+        if (!file || !item) continue;
         const reviewUuid = randomUUID.call(globalThis.crypto);
         updateQueueItem(id, { status: "ANALYZING", errorMessage: null });
         try {
           const nextAnalysis =
             await analyzeFiscalNotificationLocallyWithEphemeralFacts({
-          ownerScope,
-          documentId: `notification-review:${reviewUuid}`,
-          file,
-          signal: controller.signal,
-        });
+              ownerScope,
+              fileId: item.id,
+              documentId: item.documentId,
+              file,
+              signal: controller.signal,
+            });
+          assertFiscalNotificationBatchAnalysisIdentityV2(
+            {
+              fileId: item.id,
+              documentId: item.documentId,
+              sourceSha256: item.sha256,
+            },
+            nextAnalysis.sourceIdentity,
+          );
           if (
             controller.signal.aborted ||
             controllerRef.current !== controller
@@ -911,7 +931,9 @@ function FiscalNotificationReviewWorkspace({
             status: batchStatusForAnalysis(nextAnalysis),
             errorMessage: null,
           });
-          if (activeItemIdRef.current === null) showReview(id);
+          if (activeDocumentIdRef.current === null) {
+            showReview(item.documentId);
+          }
         } catch (caught) {
           if (
             controller.signal.aborted ||
@@ -977,7 +999,9 @@ function FiscalNotificationReviewWorkspace({
     destination: ReviewSaveDestination,
   ): Promise<void> {
     if (!pendingReview || saveOperationRef.current) return;
-    const activeId = activeItemIdRef.current;
+    const activeId = queueRef.current.find(
+      (item) => item.documentId === activeDocumentIdRef.current,
+    )?.id;
     if (!activeId) return;
     const activeItem = queueRef.current.find((item) => item.id === activeId);
     const activeFile = filesRef.current.get(activeId);
@@ -1190,12 +1214,12 @@ function FiscalNotificationReviewWorkspace({
 
     if (nextReview) {
       setRecentlySavedDocumentId(null);
-      showReview(nextReview.id);
+      showReview(nextReview.documentId);
       return;
     }
 
-    activeItemIdRef.current = null;
-    setActiveItemId(null);
+    activeDocumentIdRef.current = null;
+    setActiveDocumentId(null);
     clearReviewDisplay();
     setRecentlySavedDocumentId(savedDocumentId);
     setScannerOpen(false);
@@ -1335,11 +1359,11 @@ function FiscalNotificationReviewWorkspace({
     }),
   );
   const reviewedCount = batchReviewSummaries.size;
-  const activeBatchPosition = activeItemId
-    ? queue.findIndex((item) => item.id === activeItemId) + 1
+  const activeBatchPosition = activeDocumentId
+    ? queue.findIndex((item) => item.documentId === activeDocumentId) + 1
     : 0;
   const activeBatchItem =
-    activeBatchPosition > 0 ? queue[activeBatchPosition - 1] ?? null : null;
+    activeBatchPosition > 0 ? (queue[activeBatchPosition - 1] ?? null) : null;
   const activeBatchContext: FiscalNotificationBatchContext | null =
     activeBatchItem
       ? {
@@ -1359,281 +1383,294 @@ function FiscalNotificationReviewWorkspace({
     <>
       {scannerOpen ? (
         <Card>
-        <div className="flex items-start gap-3">
-          <FileUp
-            aria-hidden="true"
-            className="mt-0.5 h-6 w-6 shrink-0 text-blue-600"
-          />
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">
-              Escanear notificaciones y documentos oficiales
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
-              Prepara un lote de hasta {FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1} PDF,
-              revísalo y pulsa una sola vez Analizar. Cada PDF puede tener hasta
-              4 MB y 80 páginas.
-            </p>
-          </div>
-        </div>
-
-        <input
-          ref={fileInputRef}
-          id="fiscal-notification-file"
-          name="fiscal-notification-file"
-          type="file"
-          accept="application/pdf,.pdf"
-          multiple
-          disabled={
-            busy ||
-            batchCapacityCount >= FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1
-          }
-          onChange={(event) => {
-            void addFiles(Array.from(event.currentTarget.files ?? []));
-          }}
-          className="hidden"
-          tabIndex={-1}
-          aria-hidden="true"
-        />
-
-        <div
-          role="group"
-          aria-label="Archivos de notificaciones"
-          data-drop-zone="FISCAL_NOTIFICATION_FILES"
-          onDragEnter={handleDragEnter}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          className={`mt-5 rounded-2xl border-2 border-dashed p-6 text-center transition ${
-            dragging
-              ? "border-blue-600 bg-blue-50 ring-4 ring-blue-100"
-              : "border-sky-200 bg-sky-50/60"
-          }`}
-        >
-          {admitting ? (
-            <Loader2
+          <div className="flex items-start gap-3">
+            <FileUp
               aria-hidden="true"
-              className="mx-auto h-7 w-7 animate-spin text-blue-600"
+              className="mt-0.5 h-6 w-6 shrink-0 text-blue-600"
             />
-          ) : (
-            <Upload aria-hidden="true" className="mx-auto h-7 w-7 text-blue-600" />
-          )}
-          <p className="mt-2 font-bold text-slate-950" aria-live="polite">
-            {admitting
-              ? "Comprobando formato y duplicados…"
-              : dragging
-                ? "Suelta aquí los PDF"
-                : "Arrastra aquí tus notificaciones y documentos oficiales"}
-          </p>
-          <p className="mt-1 text-sm text-slate-600">
-            PDF · hasta {FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1} documentos · no se
-            analizan hasta que tú pulses el botón
-          </p>
-          <Button
-            type="button"
-            variant="secondary"
-            className="mt-4"
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">
+                Escanear notificaciones y documentos oficiales
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Prepara un lote de hasta{" "}
+                {FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1} PDF, revísalo y pulsa
+                una sola vez Analizar. Cada PDF puede tener hasta 4 MB y 80
+                páginas.
+              </p>
+            </div>
+          </div>
+
+          <input
+            ref={fileInputRef}
+            id="fiscal-notification-file"
+            name="fiscal-notification-file"
+            type="file"
+            accept="application/pdf,.pdf"
+            multiple
             disabled={
               busy ||
               batchCapacityCount >= FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1
             }
-            aria-describedby="fiscal-notification-file-help"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Files aria-hidden="true" className="h-5 w-5" />
-            Elegir varios PDF
-          </Button>
-        </div>
+            onChange={(event) => {
+              void addFiles(Array.from(event.currentTarget.files ?? []));
+            }}
+            className="hidden"
+            tabIndex={-1}
+            aria-hidden="true"
+          />
 
-        <p
-          id="fiscal-notification-file-help"
-          className="mt-3 text-sm leading-6 text-slate-500"
-        >
-          El análisis es local. Al guardar eliges Factu, Google Drive o ambos.
-          Los documentos duplicados se detectan automáticamente.
-        </p>
-
-        {queue.length > 0 ? (
-          <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <h3 className="font-bold text-slate-950">
-                  {reviewedCount > 0
-                    ? `Resumen del lote · ${reviewedCount}/${queue.length} analizados`
-                    : `Cola preparada · ${queue.length}/${FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1}`}
-                </h3>
-                <p className="mt-1 text-sm text-slate-600">
-                  {reviewedCount > 0
-                    ? "Cada tarjeta corresponde a un PDF. Abre una para ver su ficha completa."
-                    : "Puedes quitar archivos antes de analizar y abrir cada resultado después."}
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                disabled={busy}
-                onClick={clearQueue}
-              >
-                <Trash2 aria-hidden="true" className="h-4 w-4" />
-                Quitar todos
-              </Button>
-            </div>
-            <ul className="mt-4 space-y-2">
-              {queue.map((item) => {
-                const presentation = batchStatusPresentation(item.status);
-                const hasReview = reviewsRef.current.has(item.id);
-                const summary = batchReviewSummaries.get(item.id) ?? null;
-                return (
-                  <li
-                    key={item.id}
-                    className={`rounded-xl border p-3 ${
-                      activeItemId === item.id
-                        ? "border-blue-400 bg-blue-50"
-                        : "border-slate-200 bg-slate-50"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <FileText
-                        aria-hidden="true"
-                        className="mt-1 h-5 w-5 shrink-0 text-slate-500"
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-start justify-between gap-2">
-                          <div className="min-w-0">
-                            {summary ? (
-                              <>
-                                <p className="font-bold text-slate-950">
-                                  {summary.title}
-                                </p>
-                                <p className="mt-1 truncate text-sm font-semibold text-slate-600">
-                                  {item.displayName}
-                                </p>
-                                <p className="mt-1 text-xs text-slate-500">
-                                  PDF · {summary.pageCount} página
-                                  {summary.pageCount === 1 ? "" : "s"} ·{" "}
-                                  {formatBytes(item.byteLength)}
-                                  {summary.primaryAmount
-                                    ? ` · ${formatStructuredMoney(
-                                        summary.primaryAmount.amountCents,
-                                        summary.primaryAmount.currency,
-                                      )}`
-                                    : ""}
-                                </p>
-                              </>
-                            ) : (
-                              <>
-                                <p className="truncate font-bold text-slate-950">
-                                  {item.displayName}
-                                </p>
-                                <p className="mt-1 text-xs text-slate-500">
-                                  PDF · {formatBytes(item.byteLength)}
-                                </p>
-                              </>
-                            )}
-                          </div>
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${presentation.className}`}
-                          >
-                            {item.status === "ANALYZING" ? (
-                              <Loader2
-                                aria-hidden="true"
-                                className="mr-1 h-3.5 w-3.5 animate-spin"
-                              />
-                            ) : null}
-                            {presentation.label}
-                            {item.saved ? " · ficha guardada" : ""}
-                          </span>
-                        </div>
-                        {item.errorMessage ? (
-                          <p className="mt-2 text-sm text-red-700">
-                            {item.errorMessage}
-                          </p>
-                        ) : null}
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {hasReview ? (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              disabled={busy}
-                              onClick={() => showReview(item.id)}
-                            >
-                              <FileSearch aria-hidden="true" className="h-4 w-4" />
-                              {activeItemId === item.id
-                                ? "Ficha abierta"
-                                : "Ver ficha completa"}
-                            </Button>
-                          ) : null}
-                          {item.status === "ERROR" &&
-                          filesRef.current.has(item.id) ? (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              disabled={busy}
-                              onClick={() => void analyzeQueue([item.id])}
-                            >
-                              <RotateCcw aria-hidden="true" className="h-4 w-4" />
-                              Reintentar
-                            </Button>
-                          ) : null}
-                          <button
-                            type="button"
-                            disabled={busy}
-                            onClick={() => removeItem(item.id)}
-                            className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-600 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            <X aria-hidden="true" className="h-4 w-4" />
-                            Quitar
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
-        ) : null}
-
-        {error ? (
           <div
-            role="alert"
-            className="mt-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"
+            role="group"
+            aria-label="Archivos de notificaciones"
+            data-drop-zone="FISCAL_NOTIFICATION_FILES"
+            onDragEnter={handleDragEnter}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`mt-5 rounded-2xl border-2 border-dashed p-6 text-center transition ${
+              dragging
+                ? "border-blue-600 bg-blue-50 ring-4 ring-blue-100"
+                : "border-sky-200 bg-sky-50/60"
+            }`}
           >
-            <TriangleAlert
-              aria-hidden="true"
-              className="mt-0.5 h-5 w-5 shrink-0"
-            />
-            <p className="min-w-0 flex-1">{error}</p>
-          </div>
-        ) : null}
-
-        {showBatchControls ? (
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            {admitting ? (
+              <Loader2
+                aria-hidden="true"
+                className="mx-auto h-7 w-7 animate-spin text-blue-600"
+              />
+            ) : (
+              <Upload
+                aria-hidden="true"
+                className="mx-auto h-7 w-7 text-blue-600"
+              />
+            )}
+            <p className="mt-2 font-bold text-slate-950" aria-live="polite">
+              {admitting
+                ? "Comprobando formato y duplicados…"
+                : dragging
+                  ? "Suelta aquí los PDF"
+                  : "Arrastra aquí tus notificaciones y documentos oficiales"}
+            </p>
+            <p className="mt-1 text-sm text-slate-600">
+              PDF · hasta {FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1} documentos ·
+              no se analizan hasta que tú pulses el botón
+            </p>
             <Button
               type="button"
-              disabled={pendingCount === 0 || busy}
-              onClick={() => void analyzeQueue()}
+              variant="secondary"
+              className="mt-4"
+              disabled={
+                busy ||
+                batchCapacityCount >= FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1
+              }
+              aria-describedby="fiscal-notification-file-help"
+              onClick={() => fileInputRef.current?.click()}
             >
-              {processing ? (
-                <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
-              ) : (
-                <ScanLine aria-hidden="true" className="h-5 w-5" />
-              )}
-              {processing
-                ? "Analizando el lote localmente…"
-                : `Analizar ${pendingCount} documento${pendingCount === 1 ? "" : "s"}`}
+              <Files aria-hidden="true" className="h-5 w-5" />
+              Elegir varios PDF
             </Button>
-            {processing ? (
+          </div>
+
+          <p
+            id="fiscal-notification-file-help"
+            className="mt-3 text-sm leading-6 text-slate-500"
+          >
+            El análisis es local. Al guardar eliges Factu, Google Drive o ambos.
+            Los documentos duplicados se detectan automáticamente.
+          </p>
+
+          {queue.length > 0 ? (
+            <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-bold text-slate-950">
+                    {reviewedCount > 0
+                      ? `Resumen del lote · ${reviewedCount}/${queue.length} analizados`
+                      : `Cola preparada · ${queue.length}/${FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1}`}
+                  </h3>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {reviewedCount > 0
+                      ? "Cada tarjeta corresponde a un PDF. Abre una para ver su ficha completa."
+                      : "Puedes quitar archivos antes de analizar y abrir cada resultado después."}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={clearQueue}
+                >
+                  <Trash2 aria-hidden="true" className="h-4 w-4" />
+                  Quitar todos
+                </Button>
+              </div>
+              <ul className="mt-4 space-y-2">
+                {queue.map((item) => {
+                  const presentation = batchStatusPresentation(item.status);
+                  const hasReview = reviewsRef.current.has(item.id);
+                  const summary = batchReviewSummaries.get(item.id) ?? null;
+                  return (
+                    <li
+                      key={item.id}
+                      className={`rounded-xl border p-3 ${
+                        activeDocumentId === item.documentId
+                          ? "border-blue-400 bg-blue-50"
+                          : "border-slate-200 bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <FileText
+                          aria-hidden="true"
+                          className="mt-1 h-5 w-5 shrink-0 text-slate-500"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              {summary ? (
+                                <>
+                                  <p className="font-bold text-slate-950">
+                                    {summary.title}
+                                  </p>
+                                  <p className="mt-1 truncate text-sm font-semibold text-slate-600">
+                                    {item.displayName}
+                                  </p>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    PDF · {summary.pageCount} página
+                                    {summary.pageCount === 1 ? "" : "s"} ·{" "}
+                                    {formatBytes(item.byteLength)}
+                                    {summary.primaryAmount
+                                      ? ` · ${formatStructuredMoney(
+                                          summary.primaryAmount.amountCents,
+                                          summary.primaryAmount.currency,
+                                        )}`
+                                      : ""}
+                                  </p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="truncate font-bold text-slate-950">
+                                    {item.displayName}
+                                  </p>
+                                  <p className="mt-1 text-xs text-slate-500">
+                                    PDF · {formatBytes(item.byteLength)}
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${presentation.className}`}
+                            >
+                              {item.status === "ANALYZING" ? (
+                                <Loader2
+                                  aria-hidden="true"
+                                  className="mr-1 h-3.5 w-3.5 animate-spin"
+                                />
+                              ) : null}
+                              {presentation.label}
+                              {item.saved ? " · ficha guardada" : ""}
+                            </span>
+                          </div>
+                          {item.errorMessage ? (
+                            <p className="mt-2 text-sm text-red-700">
+                              {item.errorMessage}
+                            </p>
+                          ) : null}
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {hasReview ? (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                disabled={busy}
+                                onClick={() => showReview(item.documentId)}
+                              >
+                                <FileSearch
+                                  aria-hidden="true"
+                                  className="h-4 w-4"
+                                />
+                                {activeDocumentId === item.documentId
+                                  ? "Ficha abierta"
+                                  : "Ver ficha completa"}
+                              </Button>
+                            ) : null}
+                            {item.status === "ERROR" &&
+                            filesRef.current.has(item.id) ? (
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                disabled={busy}
+                                onClick={() => void analyzeQueue([item.id])}
+                              >
+                                <RotateCcw
+                                  aria-hidden="true"
+                                  className="h-4 w-4"
+                                />
+                                Reintentar
+                              </Button>
+                            ) : null}
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => removeItem(item.id)}
+                              className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-600 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              <X aria-hidden="true" className="h-4 w-4" />
+                              Quitar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
+
+          {error ? (
+            <div
+              role="alert"
+              className="mt-4 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-900"
+            >
+              <TriangleAlert
+                aria-hidden="true"
+                className="mt-0.5 h-5 w-5 shrink-0"
+              />
+              <p className="min-w-0 flex-1">{error}</p>
+            </div>
+          ) : null}
+
+          {showBatchControls ? (
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row">
               <Button
                 type="button"
-                variant="secondary"
-                onClick={cancelAnalysis}
+                disabled={pendingCount === 0 || busy}
+                onClick={() => void analyzeQueue()}
               >
-                <X aria-hidden="true" className="h-5 w-5" />
-                Cancelar
+                {processing ? (
+                  <Loader2
+                    aria-hidden="true"
+                    className="h-5 w-5 animate-spin"
+                  />
+                ) : (
+                  <ScanLine aria-hidden="true" className="h-5 w-5" />
+                )}
+                {processing
+                  ? "Analizando el lote localmente…"
+                  : `Analizar ${pendingCount} documento${pendingCount === 1 ? "" : "s"}`}
               </Button>
-            ) : null}
-          </div>
-        ) : null}
+              {processing ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={cancelAnalysis}
+                >
+                  <X aria-hidden="true" className="h-5 w-5" />
+                  Cancelar
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
         </Card>
       ) : (
         <div className="mb-4 flex justify-end">
@@ -1737,9 +1774,9 @@ function DriveArchiveCandidatesPanel({
           </h3>
           <p className="mt-1 text-sm leading-6 text-emerald-900">
             La ficha ya existe. Puedes guardar ahora el PDF original en tu Drive
-            sin repetir el análisis. En escaneos antiguos, Factu reconoce el mismo
-            contenido al reseleccionarlo. Nada se sube hasta que pulses el botón de
-            cada documento.
+            sin repetir el análisis. En escaneos antiguos, Factu reconoce el
+            mismo contenido al reseleccionarlo. Nada se sube hasta que pulses el
+            botón de cada documento.
           </p>
         </div>
       </div>
@@ -2540,8 +2577,8 @@ function DeferralGrantFactsPanel({
       </div>
 
       <p className="mt-4 text-xs leading-5 text-blue-900">
-        Estas son fechas e instrucciones del documento. No se ha
-        marcado ninguna cuota como pagada ni se ha creado un gasto o asiento.
+        Estas son fechas e instrucciones del documento. No se ha marcado ninguna
+        cuota como pagada ni se ha creado un gasto o asiento.
       </p>
     </section>
   );
@@ -2790,8 +2827,9 @@ function OffsetAgreementFactsPanel({
       </div>
 
       <p className="mt-4 text-xs leading-5 text-blue-900">
-        Los importes se muestran tal como aparecen en el documento. No se recalculan y
-        no se crea, cancela ni marca como pagada ninguna deuda, gasto o asiento.
+        Los importes se muestran tal como aparecen en el documento. No se
+        recalculan y no se crea, cancela ni marca como pagada ninguna deuda,
+        gasto o asiento.
       </p>
     </section>
   );

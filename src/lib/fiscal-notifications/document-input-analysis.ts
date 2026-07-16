@@ -11,22 +11,23 @@ import {
 import type { ProjectFiscalNotificationPdfWorkerAnalysisInput } from "./pdf-worker-analysis-contract";
 import { extractProfileDrivenFamilyV2 } from "./extractor-core/profile-driven-extractor.v2";
 import { segmentProfileDrivenDocumentV2 } from "./extractor-core/profile-driven-document-segments.v2";
+import { extractAeatRealCorpusDocumentV2 } from "./extractor-core/real-corpus-extractor.v2";
 import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
 import {
   mergeProfileDrivenReviewsV2,
   projectProfileDrivenReviewV2,
 } from "./profile-driven-review.v2";
+import { projectRealCorpusReviewV2 } from "./real-corpus-review.v2";
 import {
   projectFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewV1,
 } from "./vertical-slice-review.v1";
 
-export interface FiscalNotificationDocumentInputAnalysis
-  extends Omit<
-    ProjectFiscalNotificationPdfWorkerAnalysisInput,
-    "textLayerStatus"
-  > {
+export interface FiscalNotificationDocumentInputAnalysis extends Omit<
+  ProjectFiscalNotificationPdfWorkerAnalysisInput,
+  "textLayerStatus"
+> {
   readonly hasText: boolean;
   readonly verticalSliceReview: FiscalNotificationVerticalSliceReviewV1;
 }
@@ -51,24 +52,21 @@ export async function analyzeFiscalNotificationDocumentInput(
     familyAnalysis.candidates.length === 1 &&
     familyAnalysis.candidates[0]?.familyId ===
       "AEAT_ENFORCEMENT_ORDER_CANDIDATE" &&
-    familyAnalysis.candidates[0].signalStatus ===
-      "COMPLETE_REQUIRED_ANCHORS" &&
+    familyAnalysis.candidates[0].signalStatus === "COMPLETE_REQUIRED_ANCHORS" &&
     familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
   const deferralCandidate =
     familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
     familyAnalysis.candidates.length === 1 &&
     familyAnalysis.candidates[0]?.familyId ===
       "AEAT_DEFERRAL_GRANT_CANDIDATE" &&
-    familyAnalysis.candidates[0].signalStatus ===
-      "COMPLETE_REQUIRED_ANCHORS" &&
+    familyAnalysis.candidates[0].signalStatus === "COMPLETE_REQUIRED_ANCHORS" &&
     familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
   const offsetCandidate =
     familyAnalysis?.reason === "SUPPORTED_FAMILY_CANDIDATE" &&
     familyAnalysis.candidates.length === 1 &&
     familyAnalysis.candidates[0]?.familyId ===
       "AEAT_OFFSET_AGREEMENT_CANDIDATE" &&
-    familyAnalysis.candidates[0].signalStatus ===
-      "COMPLETE_REQUIRED_ANCHORS" &&
+    familyAnalysis.candidates[0].signalStatus === "COMPLETE_REQUIRED_ANCHORS" &&
     familyAnalysis.candidates[0].conflictingAnchorIds.length === 0;
 
   const extractedOffsetAgreementFacts = offsetCandidate
@@ -77,7 +75,12 @@ export async function analyzeFiscalNotificationDocumentInput(
   const enforcementExplicitFields = enforcementCandidate
     ? extractAeatEnforcementExplicitFieldsV2(documentInput)
     : null;
-  const [legacyAnalysis, profileDrivenOutcome, profileDrivenSegments] = await Promise.all([
+  const [
+    legacyAnalysis,
+    profileDrivenOutcome,
+    profileDrivenSegments,
+    realCorpusOutcome,
+  ] = await Promise.all([
     analyzeFiscalNotificationVerticalSliceV1(documentInput),
     hasText
       ? extractProfileDrivenFamilyV2({ document: documentInput })
@@ -85,10 +88,12 @@ export async function analyzeFiscalNotificationDocumentInput(
     hasText && pageCount > 1
       ? segmentProfileDrivenDocumentV2({ document: documentInput })
       : Promise.resolve(null),
+    hasText
+      ? extractAeatRealCorpusDocumentV2(documentInput)
+      : Promise.resolve(null),
   ]);
-  const legacyReview = projectFiscalNotificationVerticalSliceReviewV1(
-    legacyAnalysis,
-  );
+  const legacyReview =
+    projectFiscalNotificationVerticalSliceReviewV1(legacyAnalysis);
   const segmentedOutcomes =
     profileDrivenSegments?.status === "SEGMENTED_REVIEW_REQUIRED"
       ? profileDrivenSegments.segments.map((segment) => ({
@@ -120,10 +125,12 @@ export async function analyzeFiscalNotificationDocumentInput(
         : [];
     },
   );
-  const verticalSliceReview = mergeProfileDrivenReviewsV2(
-    legacyReview,
-    profileReviews,
-  );
+  const verticalSliceReview = mergeProfileDrivenReviewsV2(legacyReview, [
+    ...profileReviews,
+    ...(realCorpusOutcome
+      ? [projectRealCorpusReviewV2(realCorpusOutcome)]
+      : []),
+  ]);
 
   return Object.freeze({
     hasText,

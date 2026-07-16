@@ -126,6 +126,11 @@ function intake(
       byteLength: 2_048,
       sha256: HASH,
     }),
+    sourceIdentity: Object.freeze({
+      fileId: "file:synthetic-review",
+      documentId: boundedInput.documentId,
+      sourceSha256: HASH,
+    }),
     analysis,
     verticalSliceReview: createEmptyFiscalNotificationVerticalSliceReviewV1(),
     reviewContext: Object.freeze(reviewContext),
@@ -174,6 +179,7 @@ function analyzeEphemeralForTest(
 function scannedRequest() {
   return Object.freeze({
     ownerScope: "user:synthetic-review",
+    fileId: "file:synthetic-review",
     documentId: "document:synthetic-review",
     file: new File(["%PDF-1.7 synthetic"], "ignored.pdf", {
       type: "application/pdf",
