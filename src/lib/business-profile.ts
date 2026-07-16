@@ -5,6 +5,7 @@ import { normalizeProductFamilyMarkupSettings } from "./product-family-markups";
 import { normalizeBusinessFiscalProfile } from "./fiscal-profile";
 import { normalizeTaxModelDiagnosticSession } from "./tax-model-diagnostic/profile";
 import { normalizeFiscalAdvisoryModelPreferencesV1 } from "./fiscal-advisory-models/preferences";
+import { normalizeAdvisorContact } from "./advisor-contact";
 
 export interface BusinessProfileFields {
   commercialName?: string;
@@ -85,6 +86,7 @@ export function normalizeBusinessProfileForSave(
     email: text(profile.email).toLowerCase(),
     website: normalizeWebsite(profile.website),
     iban: text(profile.iban) || undefined,
+    advisorContact: normalizeAdvisorContact(profile.advisorContact),
     googlePlaces: normalizeGooglePlacesSettings(profile.googlePlaces),
     productFamilyMarkups: normalizeProductFamilyMarkupSettings(
       profile.productFamilyMarkups,

@@ -47,6 +47,21 @@ describe("issuer snapshot", () => {
     expect(snapshot.capturedAt).toBeTruthy();
   });
 
+  it("no incorpora el contacto del gestor al documento emitido", () => {
+    const snapshot = captureIssuerSnapshot({
+      ...DEFAULT_PROFILE,
+      advisorContact: {
+        firmName: "Gestoría Central",
+        advisorName: "Laura García",
+        email: "laura@gestoria.es",
+        phone: "600000000",
+      },
+    });
+
+    expect(snapshot).not.toHaveProperty("advisorContact");
+    expect(JSON.stringify(snapshot)).not.toContain("laura@gestoria.es");
+  });
+
   it("uses commercial name as display name without replacing fiscal identity", () => {
     const issuer = {
       commercialName: "Taller Visible",

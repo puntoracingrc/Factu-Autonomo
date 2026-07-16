@@ -1118,6 +1118,14 @@ export interface DocumentPdfSnapshot {
   contentHash: string;
 }
 
+export interface AdvisorContact {
+  /** Nombre comercial de la gestoría; es opcional incluso al activar la sección. */
+  firmName?: string;
+  advisorName: string;
+  email: string;
+  phone: string;
+}
+
 export interface BusinessProfile {
   commercialName?: string;
   name: string;
@@ -1133,6 +1141,8 @@ export interface BusinessProfile {
   website?: string;
   iban?: string;
   logoUrl?: string;
+  /** Contacto opcional para futuros envíos iniciados expresamente por el usuario. */
+  advisorContact?: AdvisorContact;
   /** Frases reutilizables en notas de facturas, presupuestos y recibos */
   documentPhrases?: DocumentPhrasesSettings;
   /** Formas de pago reutilizables en facturas, presupuestos y recibos */

@@ -479,6 +479,57 @@ describe("storage", () => {
     expect(malformed.profile.fiscalAdvisoryModelPreferences).toBeUndefined();
   });
 
+  it("rehidrata solo contactos completos del gestor", () => {
+    const valid = normalizeLoadedData({
+      ...EMPTY_DATA,
+      profile: {
+        ...EMPTY_DATA.profile,
+        advisorContact: {
+          firmName: " Gestoría Central ",
+          advisorName: " Laura García ",
+          email: " LAURA@GESTORIA.ES ",
+          phone: " 600 000 000 ",
+        },
+      },
+    });
+    expect(valid.profile.advisorContact).toEqual({
+      firmName: "Gestoría Central",
+      advisorName: "Laura García",
+      email: "laura@gestoria.es",
+      phone: "600 000 000",
+    });
+
+    const incomplete = normalizeLoadedData({
+      ...EMPTY_DATA,
+      profile: {
+        ...EMPTY_DATA.profile,
+        advisorContact: {
+          advisorName: "Laura García",
+          email: "",
+          phone: "",
+        },
+      },
+    });
+    expect(incomplete.profile.advisorContact).toBeUndefined();
+  });
+
+  it("persiste y recupera el contacto del gestor sin alterar sus datos", () => {
+    const advisorContact = {
+      firmName: "Gestoría Central",
+      advisorName: "Laura García",
+      email: "laura@gestoria.es",
+      phone: "+34 600 000 000",
+    };
+
+    const result = saveData({
+      ...EMPTY_DATA,
+      profile: { ...EMPTY_DATA.profile, advisorContact },
+    });
+
+    expect(result.status).toBe("applied");
+    expect(loadData().profile.advisorContact).toEqual(advisorContact);
+  });
+
   it("rehidrata el expediente fiscal estructurado sin retener contenido fuente", () => {
     const workspace = emptyFiscalNotificationsWorkspace();
     const normalized = normalizeLoadedData({

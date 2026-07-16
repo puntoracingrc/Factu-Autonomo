@@ -108,6 +108,7 @@ import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods"
 import { normalizeDocumentTemplate } from "@/lib/document-templates";
 import { normalizeDocumentUnits } from "@/lib/document-units";
 import { normalizeAppPreferences } from "@/lib/app-preferences";
+import { normalizeAdvisorContact } from "@/lib/advisor-contact";
 import {
   SUPPLIER_AUTO_LINK_SCORE,
   supplierSimilarityScore,
@@ -832,6 +833,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         ...prev,
         profile: {
           ...profile,
+          advisorContact: normalizeAdvisorContact(profile.advisorContact),
           iva: normalizeIvaSettings(profile.iva),
           numbering: normalizeNumbering(profile.numbering),
           documentPhrases: normalizeDocumentPhrases(profile.documentPhrases),
