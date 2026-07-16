@@ -14,6 +14,7 @@ import {
   Database,
   Gauge,
   HardDrive,
+  Handshake,
   History,
   Mail,
   RefreshCw,
@@ -27,6 +28,7 @@ import {
 import { useSearchParams } from "next/navigation";
 import { FiscalCalendarHealthPanel } from "@/components/admin/FiscalCalendarHealthPanel";
 import { FiscalWatchPanel } from "@/components/admin/FiscalWatchPanel";
+import { AdminPartnersPanel } from "@/components/admin/AdminPartnersPanel";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
@@ -65,6 +67,7 @@ import { Card, PageHeader } from "@/components/ui/Card";
 
 type AdminSection =
   | "usuarios"
+  | "partners"
   | "sistema"
   | "supabase"
   | "vercel"
@@ -72,7 +75,10 @@ type AdminSection =
   | "errores"
   | "aprendizaje";
 
-type OperationsSection = Exclude<AdminSection, "usuarios" | "aprendizaje">;
+type OperationsSection = Exclude<
+  AdminSection,
+  "usuarios" | "partners" | "aprendizaje"
+>;
 
 const ADMIN_MFA_UI_ENABLED = false;
 
@@ -265,6 +271,12 @@ const ADMIN_MENU: Array<{
     label: "Usuarios",
     description: "Planes, pagos, restauración y acceso de cuentas.",
     Icon: UserCog,
+  },
+  {
+    id: "partners",
+    label: "Partners",
+    description: "Accesos, referidos, comisiones y datos de cobro.",
+    Icon: Handshake,
   },
   {
     id: "supabase",
@@ -623,7 +635,7 @@ function buildCodexHandoffBlock(scope: string) {
     "local_repo=<ruta-del-worktree-aislado>",
     "production=https://facturacion-autonomos.app",
     "github=https://github.com/puntoracingrc/Factu-Autonomo",
-    "admin=/admin?seccion=sistema|usuarios|supabase|vercel|seguridad|errores|aprendizaje",
+    "admin=/admin?seccion=sistema|usuarios|partners|supabase|vercel|seguridad|errores|aprendizaje",
     "rules=read-only-first; never expose tokens; never mutate Supabase/Vercel/real user data without explicit approval",
     "deploy_flow=branch -> commit -> push -> PR -> checks -> merge -> main CI -> Production Domain -> verify production",
     "verify_after_deploy=/admin 200; protected admin APIs return 401 without auth; Production Domain must pass",
@@ -4265,8 +4277,12 @@ export default function AdminPage() {
       )}
 
       {capabilities?.fullAdmin && section === "usuarios" && <UsersPanel />}
+      {capabilities?.fullAdmin && section === "partners" && (
+        <AdminPartnersPanel />
+      )}
       {capabilities?.fullAdmin &&
         section !== "usuarios" &&
+        section !== "partners" &&
         section !== "aprendizaje" && (
         <OperationsPanel section={section} onSignalsLoaded={handleSignalsLoaded} />
       )}

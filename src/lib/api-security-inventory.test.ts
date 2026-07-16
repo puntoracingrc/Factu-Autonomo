@@ -17,6 +17,8 @@ const expectedMethods: Record<string, string[]> = {
   "admin/fiscal-watch/route.ts": ["GET", "POST"],
   "admin/health/route.ts": ["GET"],
   "admin/operations-status/route.ts": ["GET"],
+  "admin/partners/[userId]/route.ts": ["PATCH"],
+  "admin/partners/route.ts": ["GET", "POST"],
   "admin/tax-diagnostic-insights/route.ts": ["GET"],
   "admin/users/[userId]/mfa/route.ts": ["DELETE", "GET", "POST"],
   "admin/users/[userId]/restore-points/route.ts": ["GET", "POST"],
@@ -43,6 +45,8 @@ const expectedMethods: Record<string, string[]> = {
   "google-places/address-fill/route.ts": ["POST"],
   "imports/review/route.ts": ["POST"],
   "monitoring/error/route.ts": ["POST"],
+  "partners/access/route.ts": ["GET"],
+  "partners/me/route.ts": ["GET", "PATCH"],
   "tax-diagnostic/events/route.ts": ["POST"],
   "referrals/me/route.ts": ["GET"],
   "referrals/redeem/route.ts": ["POST"],
@@ -62,12 +66,19 @@ const adminRoutes = [
   "admin/fiscal-watch/route.ts",
   "admin/health/route.ts",
   "admin/operations-status/route.ts",
+  "admin/partners/[userId]/route.ts",
+  "admin/partners/route.ts",
   "admin/tax-diagnostic-insights/route.ts",
   "admin/users/[userId]/mfa/route.ts",
   "admin/users/[userId]/restore-points/route.ts",
   "admin/users/[userId]/route.ts",
   "admin/users/route.ts",
   "admin/vercel-usage/route.ts",
+] as const;
+
+const partnerRoutes = [
+  "partners/access/route.ts",
+  "partners/me/route.ts",
 ] as const;
 
 const bearerRoutes = [
@@ -120,12 +131,15 @@ const scheduledRoutes = ["security/health-alert/route.ts"] as const;
 const distributedRateLimitedRoutes = [
   ...adminRoutes,
   ...bearerRoutes,
+  ...partnerRoutes,
   ...publicConstrainedRoutes,
 ];
 
 const boundedBodyRoutes = [
   "admin/ai-learning/correct/route.ts",
   "admin/ai-learning/feedback/route.ts",
+  "admin/partners/[userId]/route.ts",
+  "admin/partners/route.ts",
   "admin/users/[userId]/mfa/route.ts",
   "admin/users/[userId]/restore-points/route.ts",
   "admin/users/[userId]/route.ts",
@@ -141,6 +155,7 @@ const boundedBodyRoutes = [
   "google-drive/token/route.ts",
   "imports/review/route.ts",
   "monitoring/error/route.ts",
+  "partners/me/route.ts",
   "tax-diagnostic/events/route.ts",
   "referrals/redeem/route.ts",
   "security/csp-report/route.ts",
@@ -187,6 +202,7 @@ describe("API security inventory", () => {
     const classified = [
       ...adminRoutes,
       ...bearerRoutes,
+      ...partnerRoutes,
       ...publicConstrainedRoutes,
       ...signedWebhookRoutes,
       ...flagControlledRoutes,
@@ -202,6 +218,9 @@ describe("API security inventory", () => {
     }
     for (const route of bearerRoutes) {
       expect(sourceFor(route), route).toContain("getUserFromBearer");
+    }
+    for (const route of partnerRoutes) {
+      expect(sourceFor(route), route).toContain("getPartnerAccessFromRequest");
     }
   });
 

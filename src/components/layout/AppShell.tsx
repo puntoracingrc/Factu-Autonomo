@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -46,6 +46,7 @@ import {
   isAppNavItemActive,
   MOBILE_MORE_NAV_ITEMS,
   MOBILE_PRIMARY_NAV_ITEMS,
+  PARTNER_NAV_ITEM,
 } from "@/components/layout/app-navigation";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -60,6 +61,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const mobileMoreMenuRef = useRef<HTMLDivElement>(null);
   const firstMobileMoreLinkRef = useRef<HTMLAnchorElement>(null);
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
+  const [partnerAuthorized, setPartnerAuthorized] = useState(false);
+  const appNavItems = useMemo(
+    () =>
+      partnerAuthorized ? [...APP_NAV_ITEMS, PARTNER_NAV_ITEM] : APP_NAV_ITEMS,
+    [partnerAuthorized],
+  );
+  const mobileMoreNavItems = useMemo(
+    () =>
+      partnerAuthorized
+        ? [...MOBILE_MORE_NAV_ITEMS, PARTNER_NAV_ITEM]
+        : MOBILE_MORE_NAV_ITEMS,
+    [partnerAuthorized],
+  );
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const resolvedTheme =
     appPreferences.theme === "system" ? systemTheme : appPreferences.theme;
@@ -72,8 +86,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const brandAriaLabel = user ? "Ir a la pantalla inicial" : "Ir al inicio";
   const activeMobileMoreItem = findActiveAppNavItem(
     pathname,
-    MOBILE_MORE_NAV_ITEMS,
+    mobileMoreNavItems,
   );
+
+  useEffect(() => {
+    if (!user) {
+      setPartnerAuthorized(false);
+      return;
+    }
+    let cancelled = false;
+    const loadPartnerAccess = async () => {
+      const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
+      const supabase = await getSupabaseClientAsync();
+      const { data: sessionData } = supabase
+        ? await supabase.auth.getSession()
+        : { data: { session: null } };
+      const token = sessionData.session?.access_token;
+      if (!token) {
+        if (!cancelled) setPartnerAuthorized(false);
+        return;
+      }
+      try {
+        const response = await fetch("/api/partners/access", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const body = (await response.json().catch(() => ({}))) as {
+          authorized?: boolean;
+        };
+        if (!cancelled) setPartnerAuthorized(response.ok && body.authorized === true);
+      } catch {
+        if (!cancelled) setPartnerAuthorized(false);
+      }
+    };
+    void loadPartnerAccess();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -229,7 +278,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           aria-label="Navegación principal"
         >
           <div className="space-y-1">
-            {APP_NAV_ITEMS.map(({ href, activeBase, label, icon: Icon }) => {
+            {appNavItems.map(({ href, activeBase, label, icon: Icon }) => {
               const active = isAppNavItemActive(pathname, href, activeBase);
               return (
                 <Link
@@ -499,7 +548,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
 
             <ul className="grid grid-cols-1 gap-2 min-[260px]:grid-cols-2 sm:grid-cols-3">
-              {MOBILE_MORE_NAV_ITEMS.map(
+              {mobileMoreNavItems.map(
                 ({ href, activeBase, label, icon: Icon }, index) => {
                   const active = isAppNavItemActive(
                     pathname,

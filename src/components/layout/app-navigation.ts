@@ -2,6 +2,7 @@ import {
   ChartNoAxesCombined,
   FileText,
   Home,
+  Handshake,
   Landmark,
   PackageSearch,
   Receipt,
@@ -91,6 +92,13 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     icon: Settings,
   },
 ];
+
+export const PARTNER_NAV_ITEM: AppNavItem = {
+  href: "/partners",
+  label: "Área Partners",
+  shortLabel: "Partners",
+  icon: Handshake,
+};
 
 export const MOBILE_PRIMARY_NAV_HREFS = [
   "/",
