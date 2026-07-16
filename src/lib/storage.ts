@@ -20,6 +20,7 @@ import { normalizeAppPreferences } from "./app-preferences";
 import { normalizeBusinessFiscalProfile } from "./fiscal-profile";
 import { normalizeTaxModelDiagnosticSession } from "./tax-model-diagnostic/profile";
 import { normalizeFiscalAdvisoryModelPreferencesV1 } from "./fiscal-advisory-models/preferences";
+import { normalizeAdvisorContact } from "./advisor-contact";
 import {
   encodeFiscalNotificationsWorkspaceForStorageV2,
   parseFiscalNotificationsWorkspaceStorageEnvelopeV2,
@@ -82,6 +83,7 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
     province: profile?.province?.trim() ?? "",
     country: profile?.country?.trim() ?? DEFAULT_PROFILE.country,
     website: profile?.website?.trim() ?? "",
+    advisorContact: normalizeAdvisorContact(profile?.advisorContact),
     iva: normalizeIvaSettings(profile?.iva),
     irpfPercent: normalizeIrpfPercent(profile?.irpfPercent),
     vatExempt: normalizeVatExempt(profile?.vatExempt),

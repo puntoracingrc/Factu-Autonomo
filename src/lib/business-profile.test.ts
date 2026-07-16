@@ -49,6 +49,36 @@ describe("business profile document data", () => {
     });
   });
 
+  it("normaliza el contacto opcional del gestor y omite borradores incompletos", () => {
+    const normalized = normalizeBusinessProfileForSave({
+      ...DEFAULT_PROFILE,
+      advisorContact: {
+        firmName: "  Gestoría Central ",
+        advisorName: " Laura García ",
+        email: " LAURA@GESTORIA.ES ",
+        phone: " +34 600 000 000 ",
+      },
+    });
+
+    expect(normalized.advisorContact).toEqual({
+      firmName: "Gestoría Central",
+      advisorName: "Laura García",
+      email: "laura@gestoria.es",
+      phone: "+34 600 000 000",
+    });
+
+    expect(
+      normalizeBusinessProfileForSave({
+        ...DEFAULT_PROFILE,
+        advisorContact: {
+          advisorName: "",
+          email: "",
+          phone: "",
+        },
+      }).advisorContact,
+    ).toBeUndefined();
+  });
+
   it("normaliza el perfil fiscal opcional sin guardar campos ajenos", () => {
     const normalized = normalizeBusinessProfileForSave({
       ...DEFAULT_PROFILE,

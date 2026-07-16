@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   ArrowRight,
+  BriefcaseBusiness,
   Building2,
   Calculator,
   ChevronDown,
@@ -60,6 +61,11 @@ import {
   normalizeAppPreferences,
 } from "@/lib/app-preferences";
 import {
+  ADVISOR_CONTACT_LIMITS,
+  validateAdvisorContact,
+  type AdvisorContactField,
+} from "@/lib/advisor-contact";
+import {
   businessProfileNotices,
   isBusinessProfileReadyForIssuedInvoices,
   normalizeBusinessProfileForSave,
@@ -77,6 +83,7 @@ import {
 import { buildPurchaseProductSummaries } from "@/lib/purchase-products";
 import type {
   AppPreferences,
+  AdvisorContact,
   BusinessProfile,
   IvaSettings,
   NumberingFormats,
@@ -84,7 +91,12 @@ import type {
   ProductFamilyMarkupSettings,
 } from "@/lib/types";
 
-type SettingsSectionKey = "business" | "documents" | "taxes" | "preferences";
+type SettingsSectionKey =
+  | "business"
+  | "advisor"
+  | "documents"
+  | "taxes"
+  | "preferences";
 
 const SETTINGS_NAV_ITEMS: Array<{
   key: SettingsSectionKey;
@@ -98,6 +110,12 @@ const SETTINGS_NAV_ITEMS: Array<{
     id: "ajustes-negocio",
     title: "Negocio",
     Icon: Building2,
+  },
+  {
+    key: "advisor",
+    id: "ajustes-gestor",
+    title: "Mi gestor",
+    Icon: BriefcaseBusiness,
   },
   {
     key: "documents",
@@ -175,6 +193,7 @@ export default function ConfiguracionPage() {
     numbering: normalizeNumbering(data.profile.numbering),
   });
   const [saved, setSaved] = useState(false);
+  const [advisorSaveAttempted, setAdvisorSaveAttempted] = useState(false);
   const [ivaError, setIvaError] = useState<string | null>(null);
   const [newIva, setNewIva] = useState("");
   const [placesUpgradeOpen, setPlacesUpgradeOpen] = useState(false);
@@ -182,6 +201,7 @@ export default function ConfiguracionPage() {
     Record<SettingsSectionKey, boolean>
   >({
     business: true,
+    advisor: false,
     documents: false,
     taxes: false,
     preferences: false,
@@ -262,6 +282,20 @@ export default function ConfiguracionPage() {
   }
 
   function handleSave() {
+    const advisorContact = validateAdvisorContact(form.advisorContact);
+    if (!advisorContact.valid) {
+      setAdvisorSaveAttempted(true);
+      setSaved(false);
+      setSectionOpen("advisor", true);
+      window.setTimeout(() => {
+        document
+          .getElementById("ajustes-gestor")
+          ?.scrollIntoView({ block: "start", behavior: "smooth" });
+      }, 0);
+      return;
+    }
+
+    setAdvisorSaveAttempted(false);
     const next = normalizeBusinessProfileForSave(form);
     setForm(next);
     persistProfile(next);
@@ -296,6 +330,19 @@ export default function ConfiguracionPage() {
 
   function update(field: keyof BusinessProfile, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function updateAdvisorContact(field: AdvisorContactField, value: string) {
+    setForm((prev) => ({
+      ...prev,
+      advisorContact: {
+        advisorName: "",
+        email: "",
+        phone: "",
+        ...prev.advisorContact,
+        [field]: value,
+      },
+    }));
   }
 
   function updateGooglePlacesEnabled(enabled: boolean) {
@@ -468,12 +515,18 @@ export default function ConfiguracionPage() {
     form.productFamilyMarkups,
   );
   const appPreferences = normalizeAppPreferences(form.appPreferences);
+  const advisorContact: AdvisorContact = form.advisorContact ?? {
+    advisorName: "",
+    email: "",
+    phone: "",
+  };
+  const advisorValidation = validateAdvisorContact(form.advisorContact);
 
   return (
     <div>
       <PageHeader
         title="Ajustes"
-        subtitle="Negocio, facturación, fiscalidad y preferencias de uso"
+        subtitle="Negocio, gestor, facturación, fiscalidad y preferencias de uso"
       />
 
       <nav
@@ -769,6 +822,131 @@ export default function ConfiguracionPage() {
         onClose={() => setPlacesUpgradeOpen(false)}
         reason="El autorrelleno de direcciones con Google Places está reservado para cuentas Pro."
       />
+
+      <SettingsSection
+        id="ajustes-gestor"
+        title="Mi gestor"
+        description="Contacto opcional de tu gestoría"
+        Icon={BriefcaseBusiness}
+        open={openSections.advisor}
+        onToggle={(open) => setSectionOpen("advisor", open)}
+      >
+        <Card className="space-y-4">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">
+              Datos de tu gestor
+            </h2>
+            <p className="mt-1 text-sm text-slate-600">
+              Rellena estos datos para poder enviar a tu gestor tus facturas y
+              gastos desde facturacion-autonomos.app. Esta sección prepara el
+              contacto; no realiza envíos todavía.
+            </p>
+          </div>
+
+          {advisorSaveAttempted && !advisorValidation.valid && (
+            <div
+              role="alert"
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800"
+            >
+              Completa el nombre, el email y el teléfono del gestor, o deja
+              vacía toda la sección.
+            </div>
+          )}
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Nombre de la gestoría" hint="Opcional.">
+              <Input
+                autoComplete="organization"
+                maxLength={ADVISOR_CONTACT_LIMITS.firmName}
+                value={advisorContact.firmName ?? ""}
+                onChange={(event) =>
+                  updateAdvisorContact("firmName", event.target.value)
+                }
+                placeholder="Ej: Gestoría Central"
+              />
+              {advisorSaveAttempted && advisorValidation.errors.firmName && (
+                <span className="text-xs font-medium text-red-700">
+                  {advisorValidation.errors.firmName}
+                </span>
+              )}
+            </Field>
+            <Field
+              label="Nombre del gestor"
+              hint="Obligatorio si completas esta sección."
+            >
+              <Input
+                autoComplete="name"
+                maxLength={ADVISOR_CONTACT_LIMITS.advisorName}
+                required={advisorValidation.active}
+                value={advisorContact.advisorName}
+                onChange={(event) =>
+                  updateAdvisorContact("advisorName", event.target.value)
+                }
+                aria-invalid={
+                  advisorSaveAttempted &&
+                  Boolean(advisorValidation.errors.advisorName)
+                }
+                placeholder="Ej: Laura García"
+              />
+              {advisorSaveAttempted && advisorValidation.errors.advisorName && (
+                <span className="text-xs font-medium text-red-700">
+                  {advisorValidation.errors.advisorName}
+                </span>
+              )}
+            </Field>
+            <Field
+              label="Email del gestor"
+              hint="Obligatorio si completas esta sección."
+            >
+              <Input
+                type="email"
+                autoComplete="email"
+                maxLength={ADVISOR_CONTACT_LIMITS.email}
+                required={advisorValidation.active}
+                value={advisorContact.email}
+                onChange={(event) =>
+                  updateAdvisorContact("email", event.target.value)
+                }
+                aria-invalid={
+                  advisorSaveAttempted &&
+                  Boolean(advisorValidation.errors.email)
+                }
+                placeholder="gestor@gestoria.es"
+              />
+              {advisorSaveAttempted && advisorValidation.errors.email && (
+                <span className="text-xs font-medium text-red-700">
+                  {advisorValidation.errors.email}
+                </span>
+              )}
+            </Field>
+            <Field
+              label="Teléfono del gestor"
+              hint="Obligatorio si completas esta sección."
+            >
+              <Input
+                inputMode="tel"
+                autoComplete="tel"
+                maxLength={ADVISOR_CONTACT_LIMITS.phone}
+                required={advisorValidation.active}
+                value={advisorContact.phone}
+                onChange={(event) =>
+                  updateAdvisorContact("phone", event.target.value)
+                }
+                aria-invalid={
+                  advisorSaveAttempted &&
+                  Boolean(advisorValidation.errors.phone)
+                }
+                placeholder="600 000 000"
+              />
+              {advisorSaveAttempted && advisorValidation.errors.phone && (
+                <span className="text-xs font-medium text-red-700">
+                  {advisorValidation.errors.phone}
+                </span>
+              )}
+            </Field>
+          </div>
+        </Card>
+      </SettingsSection>
 
       <SettingsSection
         id="ajustes-facturacion"
