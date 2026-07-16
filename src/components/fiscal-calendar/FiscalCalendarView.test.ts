@@ -17,6 +17,13 @@ const advisorNavigationSource = readFileSync(
   new URL("../consultor-fiscal/AdvisorAreaNavigation.tsx", import.meta.url),
   "utf8",
 );
+const descriptionViewSource = readFileSync(
+  new URL(
+    "../../lib/fiscal-calendar/description-obligation-view.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("contrato de interfaz del calendario fiscal", () => {
   it("incluye carga, vacío, error recuperable, filtros, rango y fuente", () => {
@@ -89,14 +96,16 @@ describe("contrato de interfaz del calendario fiscal", () => {
     expect(componentSource).not.toContain("dangerouslySetInnerHTML");
     expect(componentSource).not.toContain("innerHTML");
     expect(componentSource).not.toMatch(/<iframe/i);
-    expect(componentSource).toContain("<EventDescription");
-    expect(componentSource).toContain("description={event.description}");
+    expect(componentSource).toContain("<FiscalCalendarEventDescription");
+    expect(componentSource).toContain("event={event}");
     expect(componentSource).toContain('role="list"');
     expect(componentSource).toContain('role="listitem"');
     expect(componentSource).toContain("break-words");
-    expect(componentSource).toContain("MAX_RENDERED_DESCRIPTION_LINES = 100");
-    expect(componentSource).toContain(
-      ".slice(0, MAX_RENDERED_DESCRIPTION_LINES)",
+    expect(descriptionViewSource).toContain(
+      "MAX_RENDERED_FISCAL_CALENDAR_DESCRIPTION_LINES = 100",
+    );
+    expect(descriptionViewSource).toContain(
+      ".slice(0, MAX_RENDERED_FISCAL_CALENDAR_DESCRIPTION_LINES)",
     );
   });
 
@@ -142,6 +151,25 @@ describe("contrato de interfaz del calendario fiscal", () => {
     expect(componentSource).toContain("no aplicables ocultos");
     expect(componentSource).toContain("Ver todos");
     expect(componentSource).not.toContain("buildTaxObligationsAssessment");
+    expect(componentSource).toContain(
+      "buildFiscalCalendarDescriptionFilterContext",
+    );
+    expect(componentSource).toContain(
+      "Otros modelos publicados por la AEAT",
+    );
+    expect(componentSource).toContain(
+      'aria-label="Detalle visible del vencimiento"',
+    );
+    expect(componentSource).not.toContain(
+      'aria-label="Modelos relacionados con tu selección"',
+    );
+    expect(componentSource).toContain("<details");
+    expect(componentSource).toContain("<summary");
+    expect(componentSource).not.toContain("<details open");
+    expect(componentSource).toContain("group-open:hidden");
+    expect(componentSource).toContain("group-open:inline");
+    expect(componentSource).toContain("view.otherModelLines.map");
+    expect(componentSource).not.toContain("Otros modelos no aplicables");
   });
 
   it("prepara un borrador revisable en Recordatorios sin guardarlo automáticamente", () => {
