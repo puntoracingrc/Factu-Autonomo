@@ -25,7 +25,7 @@ describe("FiscalNotificationGuideView UI contract", () => {
     expect(html).toContain("87 con lectura automática");
     expect(html).toContain("0 disponibles para consulta manual");
     expect(html).not.toContain("En preparación");
-    expect(viewSource).toContain("<FiscalNotificationGuideCoverageSummary />");
+    expect(viewSource).not.toContain("<FiscalNotificationGuideCoverageSummary />");
   });
 
   it("is an independent local catalog with accessible search and addressable cards", () => {
@@ -40,7 +40,7 @@ describe("FiscalNotificationGuideView UI contract", () => {
     );
     expect(coverageSource).toContain("automaticGuideCount");
     expect(coverageSource).toContain("manualGuideCount");
-    expect(viewSource).toContain("Consulta independiente del analizador");
+    expect(viewSource).toContain("Guía de notificaciones y expedientes");
   });
 
   it("fails closed for an unknown family and never substitutes a nearby card", () => {
@@ -75,8 +75,8 @@ describe("FiscalNotificationGuideView UI contract", () => {
     expect(detailSource).toContain("Qué conviene hacer");
     expect(detailSource).toContain("Entenderlo un poco mejor");
     expect(detailSource).toContain("Estado técnico de esta ficha");
-    expect(viewSource).toContain("Lectura automática · revisión obligatoria");
-    expect(viewSource).toContain("Guía disponible · revisión manual");
+    expect(viewSource).not.toContain("Lectura automática · revisión obligatoria");
+    expect(viewSource).not.toContain("Guía disponible · revisión manual");
     expect(coverageSource).toContain("sin lectura automática");
     expect(viewSource).not.toContain("con selección y revisión manual");
     expect(viewSource).not.toContain("En preparación");
@@ -86,7 +86,7 @@ describe("FiscalNotificationGuideView UI contract", () => {
     expect(detailSource).toMatch(
       /no\s+se consulta internet durante el escaneo/u,
     );
-    expect(viewSource).toContain("Te lo explicamos; tú decides qué hacer");
+    expect(viewSource).not.toContain("Te lo explicamos; tú decides qué hacer");
   });
 
   it("does not add persistence, runtime fetching, AI or fiscal side effects", () => {

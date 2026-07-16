@@ -20,6 +20,7 @@ import {
   FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
   compareFiscalNotificationsWorkspaceStorageEnvelopesV2,
   encodeFiscalNotificationsWorkspaceForStorageV2,
+  isFiscalNotificationsWorkspaceStorageEnvelopeEmptyV2,
   parseFiscalNotificationsWorkspaceStorageEnvelopeV2,
   type FiscalNotificationsWorkspaceStorageEnvelopeV2,
 } from "../fiscal-notifications/workspace-storage-envelope.v2";
@@ -205,10 +206,18 @@ export async function pushSyncChanges(
           entityType: "fiscal_notifications_workspace",
         })
       : [];
-  validateFiscalNotificationsWorkspaceRows(
-    remoteFiscalRows,
-    expectedFiscalOwner!,
-  );
+  const mayReplaceUnverifiableFiscalHead =
+    canReplaceUnverifiableFiscalHeadWithConfirmedEmptyRestart(
+      remoteFiscalRows,
+      fiscalWorkspaceChanges,
+      expectedFiscalOwner!,
+    );
+  if (!mayReplaceUnverifiableFiscalHead) {
+    validateFiscalNotificationsWorkspaceRows(
+      remoteFiscalRows,
+      expectedFiscalOwner!,
+    );
+  }
   const fiscalWorkspacePlans: FiscalNotificationsWorkspaceWritePlan[] = [];
   for (const change of fiscalWorkspaceChanges) {
     const previous = remoteFiscalRows[0];
@@ -222,7 +231,21 @@ export async function pushSyncChanges(
     const remoteWorkspace = fiscalWorkspaceEnvelope(
       previous.payload,
       expectedFiscalOwner!,
-    )!;
+    );
+    if (!remoteWorkspace) {
+      if (!mayReplaceUnverifiableFiscalHead) {
+        throw new Error("El expediente fiscal remoto no es verificable");
+      }
+      fiscalWorkspacePlans.push({
+        workspace: change.payload,
+        updatedAt:
+          change.updatedAt > previous.updated_at
+            ? change.updatedAt
+            : syncedAt,
+        previous,
+      });
+      continue;
+    }
     const comparison = compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
       remoteWorkspace,
       change.payload,
@@ -345,6 +368,33 @@ function validateFiscalNotificationsWorkspaceRows(
       throw new Error("El expediente fiscal remoto no es verificable");
     }
   }
+}
+
+function canReplaceUnverifiableFiscalHeadWithConfirmedEmptyRestart(
+  rows: readonly SyncEntityRow[],
+  changes: readonly FiscalNotificationsWorkspaceSyncChange[],
+  expectedOwnerScope: string,
+): boolean {
+  if (rows.length !== 1 || changes.length !== 1) return false;
+  const row = rows[0]!;
+  const change = changes[0]!;
+  if (
+    row.entity_type !== "fiscal_notifications_workspace" ||
+    (row.entity_id !== FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 &&
+      row.entity_id !== FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2) ||
+    row.deleted ||
+    fiscalWorkspaceEnvelope(row.payload, expectedOwnerScope) !== null
+  ) {
+    return false;
+  }
+  const parsed = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+    change.payload,
+    expectedOwnerScope,
+  );
+  return Boolean(
+    parsed?.transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+      isFiscalNotificationsWorkspaceStorageEnvelopeEmptyV2(parsed),
+  );
 }
 
 function fiscalNotificationsWorkspaceRow(

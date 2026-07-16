@@ -8,7 +8,6 @@ import {
   FileUp,
   Files,
   Loader2,
-  LockKeyhole,
   RotateCcw,
   ScanLine,
   ShieldCheck,
@@ -18,6 +17,7 @@ import {
   X,
 } from "lucide-react";
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -115,10 +115,8 @@ const FAMILY_INDICATION_LABELS = {
     "Indicios de acuerdo de alta en el ROI",
 } as const;
 
-const DUPLICATE_HISTORY_BLOCKED_MESSAGE =
-  "El historial anterior de documentos quedó pendiente de restablecer. No se ha añadido ningún archivo.";
 const DUPLICATE_HISTORY_INVALID_MESSAGE =
-  "No se puede comprobar el historial de duplicados de esta cuenta. No se ha añadido ningún archivo.";
+  "No se pudo cargar el historial de documentos. Recarga la página.";
 
 function recognizedCandidateFrom(result: FiscalNotificationLocalReviewResult) {
   const candidate = result.candidates[0];
@@ -327,29 +325,9 @@ export function FiscalNotificationIntakeView({
         subtitle={
           selectedDocumentId
             ? "Datos, importes, fechas y relaciones conservados en tu cuenta."
-            : "Comprende una comunicación administrativa sin enviarla fuera de tu navegador."
+            : "Escanea, entiende y organiza tus documentos de Hacienda."
         }
       />
-
-      {!selectedDocumentId ? (
-        <div className="mb-6 grid gap-3 md:grid-cols-3">
-          <InfoTile
-            icon={ShieldCheck}
-            title="Lectura local"
-            detail="El análisis es local. El PDF solo sale del navegador si eliges archivarlo en tu Drive."
-          />
-          <InfoTile
-            icon={FileSearch}
-            title="Datos exactos visibles"
-            detail="Muestra y puede guardar importes, referencias, fechas y sujeto cuando constan expresamente."
-          />
-          <InfoTile
-            icon={LockKeyhole}
-            title="Sin efectos fiscales"
-            detail="No crea deudas, plazos, pagos, gastos ni asientos."
-          />
-        </div>
-      ) : null}
 
       {!authReady ? (
         <Card role="status" aria-live="polite">
@@ -393,44 +371,6 @@ export function FiscalNotificationIntakeView({
         />
       )}
 
-      {!selectedDocumentId ? (
-        <Card className="mt-6 bg-slate-50">
-          <h2 className="font-bold text-slate-900">Alcance de esta versión</h2>
-          <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
-            <li>
-              El motor dispone de 87 perfiles documentales cerrados. Para cada
-              familia ejecuta reconocimiento y extracción deterministas con sus
-              propios campos, fuentes y reglas. Toda lectura queda pendiente de
-              revisión y no confirma por sí sola el organismo emisor, la
-              autenticidad ni un efecto jurídico.
-            </li>
-            <li>
-              Un acuerdo de alta en el ROI describe el documento analizado: no
-              demuestra que el alta siga vigente ni valida el estado en VIES.
-            </li>
-            <li>
-              Durante la revisión puede mostrar el nombre, el NIF, importes,
-              referencias y fechas que constan en el documento. Al guardar en
-              Factu solo conserva los datos estructurados admitidos por su
-              modelo privado: nunca el nombre, NIF, dirección, cuenta bancaria,
-              PDF, nombre del archivo ni texto completo. El original solo se
-              archiva en el Google Drive del usuario tras confirmación expresa.
-            </li>
-            <li>
-              Una fecha del documento se presenta como tal: no se convierte por sí
-              sola en fecha de notificación o vencimiento ni activa una acción.
-            </li>
-            <li>
-              No consulta automáticamente sedes oficiales, no ejecuta OCR remoto
-              y no utiliza IA.
-            </li>
-          </ul>
-          <p className="mt-3 text-sm font-semibold text-slate-700">
-            Esta herramienta no sustituye la revisión de un asesor ni confirma
-            la validez jurídica del documento.
-          </p>
-        </Card>
-      ) : null}
     </div>
   );
 }
@@ -463,6 +403,8 @@ function FiscalNotificationReviewWorkspace({
   const processingRef = useRef(false);
   const saveOperationRef = useRef<symbol | null>(null);
   const archiveOperationRef = useRef<symbol | null>(null);
+  const repairingDuplicateHistoryRef = useRef(false);
+  const emptyHistoryAutoRepairAttemptedRef = useRef(false);
   const blockedDuplicateFilesRef = useRef<readonly File[]>([]);
   const dragDepthRef = useRef(0);
   const [queue, setQueue] = useState<readonly FiscalNotificationBatchItem[]>([]);
@@ -491,9 +433,6 @@ function FiscalNotificationReviewWorkspace({
   const [partyFactsReview, setPartyFactsReview] =
     useState<PartyFactsReviewViewModelV1 | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [repairingDuplicateHistory, setRepairingDuplicateHistory] =
-    useState(false);
-  const [emptyHistoryResetOpen, setEmptyHistoryResetOpen] = useState(false);
   const [pendingReview, setPendingReview] =
     useState<PendingStructuredReview | null>(null);
   const [persistenceState, setPersistenceState] =
@@ -518,9 +457,56 @@ function FiscalNotificationReviewWorkspace({
       ) === true,
     [data.workspaceIntegrityQuarantine],
   );
-  const canRepairEmptyDuplicateHistory =
+  const hasPendingFiscalWorkspaceSync =
+    data.meta?.pendingChanges?.some(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    ) === true;
+  const shouldInitializeEmptyHistory =
     data.fiscalNotificationsWorkspace === undefined &&
-    fiscalNotificationsWorkspaceWasQuarantined;
+    fiscalNotificationsWorkspaceWasQuarantined &&
+    !hasPendingFiscalWorkspaceSync;
+
+  const repairEmptyDuplicateHistoryAutomatically = useCallback(() => {
+    if (
+      !shouldInitializeEmptyHistory ||
+      repairingDuplicateHistoryRef.current ||
+      emptyHistoryAutoRepairAttemptedRef.current
+    ) {
+      return null;
+    }
+    emptyHistoryAutoRepairAttemptedRef.current = true;
+    repairingDuplicateHistoryRef.current = true;
+    const execution = (() => {
+      try {
+        return repairFiscalNotificationEmptyHistory({
+          expected: getCurrentData(),
+          ownerScope,
+          confirmedAt: new Date().toISOString(),
+        });
+      } finally {
+        repairingDuplicateHistoryRef.current = false;
+      }
+    })();
+    if (execution.status !== "applied") {
+      setError(DUPLICATE_HISTORY_INVALID_MESSAGE);
+    }
+    return execution;
+  }, [
+    getCurrentData,
+    ownerScope,
+    repairFiscalNotificationEmptyHistory,
+    shouldInitializeEmptyHistory,
+  ]);
+
+  useEffect(() => {
+    if (!appStoreReady || !shouldInitializeEmptyHistory) return;
+    const execution = repairEmptyDuplicateHistoryAutomatically();
+    if (execution?.status === "applied") setError(null);
+  }, [
+    appStoreReady,
+    repairEmptyDuplicateHistoryAutomatically,
+    shouldInitializeEmptyHistory,
+  ]);
 
   useEffect(() => {
     const fileInput = fileInputRef.current;
@@ -673,13 +659,21 @@ function FiscalNotificationReviewWorkspace({
       },
     );
     if (persisted.status === "BLOCKED") {
-      blockedDuplicateFilesRef.current = [...files];
-      setError(
+      if (
         persistedData.fiscalNotificationsWorkspace === undefined &&
-          persistedWorkspaceWasQuarantined
-          ? DUPLICATE_HISTORY_BLOCKED_MESSAGE
-          : DUPLICATE_HISTORY_INVALID_MESSAGE,
-      );
+        persistedWorkspaceWasQuarantined
+      ) {
+        blockedDuplicateFilesRef.current = [...files];
+        const execution = repairEmptyDuplicateHistoryAutomatically();
+        if (execution?.status === "applied") {
+          blockedDuplicateFilesRef.current = [];
+          setError(null);
+          await addFiles(files, execution.data);
+          return;
+        }
+      }
+      blockedDuplicateFilesRef.current = [...files];
+      setError(DUPLICATE_HISTORY_INVALID_MESSAGE);
       return;
     }
     blockedDuplicateFilesRef.current = [];
@@ -795,30 +789,6 @@ function FiscalNotificationReviewWorkspace({
         setAdmitting(false);
       }
       if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  }
-
-  function repairEmptyDuplicateHistory(): void {
-    if (!canRepairEmptyDuplicateHistory || repairingDuplicateHistory) return;
-    setRepairingDuplicateHistory(true);
-    const execution = repairFiscalNotificationEmptyHistory({
-      expected: getCurrentData(),
-      ownerScope,
-      confirmedAt: new Date().toISOString(),
-    });
-    setRepairingDuplicateHistory(false);
-    setEmptyHistoryResetOpen(false);
-    if (execution.status !== "applied") {
-      setError(
-        "No se ha podido restablecer el historial vacío. Recarga la página y vuelve a intentarlo.",
-      );
-      return;
-    }
-    const pendingFiles = blockedDuplicateFilesRef.current;
-    blockedDuplicateFilesRef.current = [];
-    setError(null);
-    if (pendingFiles.length > 0) {
-      void addFiles(pendingFiles, execution.data);
     }
   }
 
@@ -1478,11 +1448,8 @@ function FiscalNotificationReviewWorkspace({
           id="fiscal-notification-file-help"
           className="mt-3 text-sm leading-6 text-slate-500"
         >
-          El nombre solo se muestra mientras el documento está en esta cola.
-          Factu no guarda el PDF, su nombre ni el texto; únicamente conserva los
-          campos estructurados que aceptes. Si vuelves a seleccionar un original
-          ya registrado pero aún no archivado, podrás enviarlo voluntariamente a
-          tu Google Drive. Una huella SHA-256 local impide duplicarlo.
+          El análisis es local. Al guardar eliges Factu, Google Drive o ambos.
+          Los documentos duplicados se detectan automáticamente.
         </p>
 
         {queue.length > 0 ? (
@@ -1635,22 +1602,7 @@ function FiscalNotificationReviewWorkspace({
               aria-hidden="true"
               className="mt-0.5 h-5 w-5 shrink-0"
             />
-            <div className="min-w-0 flex-1">
-              <p>{error}</p>
-              {error === DUPLICATE_HISTORY_BLOCKED_MESSAGE &&
-              canRepairEmptyDuplicateHistory ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  className="mt-3"
-                  disabled={repairingDuplicateHistory}
-                  onClick={() => setEmptyHistoryResetOpen(true)}
-                >
-                  <RotateCcw aria-hidden="true" className="h-4 w-4" />
-                  Revisar y restablecer
-                </Button>
-              ) : null}
-            </div>
+            <p className="min-w-0 flex-1">{error}</p>
           </div>
         ) : null}
 
@@ -1744,12 +1696,6 @@ function FiscalNotificationReviewWorkspace({
         onClose={() => setSaveDestinationOpen(false)}
         onSelect={(destination) => void saveStructuredReview(destination)}
       />
-      <EmptyHistoryResetModal
-        open={emptyHistoryResetOpen}
-        busy={repairingDuplicateHistory}
-        onClose={() => setEmptyHistoryResetOpen(false)}
-        onConfirm={repairEmptyDuplicateHistory}
-      />
       <div id="documentos-guardados" className="scroll-mt-6">
         <FiscalNotificationDocumentLibrary
           viewModel={documentLibrary}
@@ -1758,66 +1704,6 @@ function FiscalNotificationReviewWorkspace({
         />
       </div>
     </>
-  );
-}
-
-function EmptyHistoryResetModal({
-  open,
-  busy,
-  onClose,
-  onConfirm,
-}: {
-  open: boolean;
-  busy: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      titleId="notification-empty-history-reset-title"
-      descriptionId="notification-empty-history-reset-description"
-      initialFocusSelector='[data-empty-history-reset="cancel"]'
-      closeOnBackdrop={!busy}
-      closeOnEscape={!busy}
-    >
-      <div className="p-5 sm:p-6">
-        <h2
-          id="notification-empty-history-reset-title"
-          className="text-lg font-bold text-slate-950"
-        >
-          ¿Ya eliminaste todas las fichas de Notificaciones?
-        </h2>
-        <p
-          id="notification-empty-history-reset-description"
-          className="mt-2 text-sm leading-6 text-slate-600"
-        >
-          Confirma solo si querías dejar este historial vacío. Factu iniciará un
-          historial nuevo y añadirá los PDF que acabas de seleccionar. Los
-          originales de Google Drive no se borran ni se modifican.
-        </p>
-        <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            data-empty-history-reset="cancel"
-            disabled={busy}
-            onClick={onClose}
-          >
-            Cancelar
-          </Button>
-          <Button type="button" disabled={busy} onClick={onConfirm}>
-            {busy ? (
-              <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
-            ) : (
-              <RotateCcw aria-hidden="true" className="h-4 w-4" />
-            )}
-            {busy ? "Restableciendo…" : "Sí, iniciar historial vacío"}
-          </Button>
-        </div>
-      </div>
-    </Modal>
   );
 }
 
@@ -2099,24 +1985,6 @@ function SaveDestinationModal({
   );
 }
 
-function InfoTile({
-  icon: Icon,
-  title,
-  detail,
-}: {
-  icon: typeof ShieldCheck;
-  title: string;
-  detail: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <Icon aria-hidden="true" className="h-5 w-5 text-blue-600" />
-      <h2 className="mt-3 font-bold text-slate-900">{title}</h2>
-      <p className="mt-1 text-sm leading-5 text-slate-600">{detail}</p>
-    </div>
-  );
-}
-
 function ReviewResult({
   result,
   ephemeralMoneyFacts,
@@ -2239,6 +2107,13 @@ function ReviewResult({
             <p className="mt-1 text-sm font-semibold text-emerald-900">
               Título y estructura coinciden
             </p>
+            {recognizedCandidate.familyId ===
+            "AEAT_ROI_REGISTRATION_AGREEMENT_CANDIDATE" ? (
+              <p className="mt-2 text-sm text-emerald-900">
+                Este acuerdo describe el alta que figura en el documento; no
+                confirma que siga vigente ni valida el estado actual en VIES.
+              </p>
+            ) : null}
           </div>
         ) : result.candidates.length ? (
           <div className="mt-5 space-y-3">

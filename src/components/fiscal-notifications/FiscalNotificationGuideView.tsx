@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BookOpenCheck, RotateCcw, Search, ShieldAlert } from "lucide-react";
+import { ArrowRight, RotateCcw, Search } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
-import { FiscalNotificationGuideCoverageSummary } from "@/components/fiscal-notifications/FiscalNotificationGuideCoverageSummary";
 import { FiscalNotificationGuideDetail } from "@/components/fiscal-notifications/FiscalNotificationGuideDetail";
 import {
   FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1,
@@ -58,39 +57,14 @@ export function FiscalNotificationGuideView({
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 pb-12 sm:px-6">
       <header className="min-w-0">
-        <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
-          <BookOpenCheck className="h-5 w-5" aria-hidden="true" />
-          <p className="text-sm font-bold uppercase tracking-wide">
-            Consulta independiente del analizador
-          </p>
-        </div>
-        <h2 className="mt-2 text-2xl font-bold text-slate-950 sm:text-3xl dark:text-slate-100">
+        <h2 className="text-2xl font-bold text-slate-950 sm:text-3xl dark:text-slate-100">
           Guía de notificaciones y expedientes
         </h2>
         <p className="mt-1 max-w-3xl text-base leading-7 text-slate-600 dark:text-slate-300">
-          Busca qué significa un documento, por qué suele llegar, qué conviene
-          hacer y qué plazo debes localizar. La búsqueda se ejecuta en este
-          navegador y no envía lo que escribes.
+          Busca el nombre del documento y te explicamos qué significa y qué
+          debes comprobar.
         </p>
       </header>
-
-      <Card
-        className="border-amber-200 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/40"
-        role="note"
-      >
-        <div className="flex items-start gap-3">
-          <ShieldAlert
-            className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300"
-            aria-hidden="true"
-          />
-          <div className="min-w-0">
-            <h3 className="font-bold text-amber-950 dark:text-amber-100">
-              Te lo explicamos; tú decides qué hacer
-            </h3>
-            <FiscalNotificationGuideCoverageSummary />
-          </div>
-        </div>
-      </Card>
 
       {selection.status === "UNKNOWN_OR_INVALID" && (
         <Card
@@ -127,9 +101,7 @@ export function FiscalNotificationGuideView({
               </h3>
             </div>
             <p id="buscar-notificacion-hint" className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Busca por nombre, categoría o términos equivalentes; por ejemplo,
-              requerimiento, reposición, embargo, aplazamiento o NRC. Puedes
-              escribir con o sin tildes. El filtro es exclusivamente local.
+              Por ejemplo: requerimiento, embargo, aplazamiento o NRC.
             </p>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -216,11 +188,6 @@ export function FiscalNotificationGuideView({
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-bold text-blue-900 dark:bg-blue-950 dark:text-blue-100">
                       {entry.categoryLabel}
-                    </span>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${entry.recognitionMode === "AUTOMATIC_REVIEW_ONLY" ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-100" : "bg-blue-100 text-blue-900 dark:bg-blue-950 dark:text-blue-100"}`}>
-                      {entry.recognitionMode === "AUTOMATIC_REVIEW_ONLY"
-                        ? "Lectura automática · revisión obligatoria"
-                        : "Guía disponible · revisión manual"}
                     </span>
                   </div>
                   <h5 className="mt-4 break-words text-lg font-bold text-slate-950 dark:text-slate-100">

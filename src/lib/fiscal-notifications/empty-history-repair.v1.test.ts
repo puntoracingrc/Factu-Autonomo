@@ -76,9 +76,9 @@ describe("fiscal notification empty history durable repair v1", () => {
       encodeFiscalNotificationsWorkspaceForStorageV2(result.value.workspace)
         ?.transition,
     ).toEqual({
-      kind: "USER_CONFIRMED_EMPTY_RESTART_V1",
+      kind: "AUTO_REPAIRED_EMPTY_HISTORY_V1",
       ownerScope: OWNER,
-      confirmedAt: REPAIRED_AT,
+      repairedAt: REPAIRED_AT,
     });
     expect(result.data.workspaceIntegrityQuarantine).toEqual([
       expect.objectContaining({ collection: "customers" }),
@@ -153,6 +153,24 @@ describe("fiscal notification empty history durable repair v1", () => {
     expect(expected).toEqual(before);
     expect(commit).toHaveBeenCalledTimes(1);
   });
+
+  it("no reinicia una cuarentena fiscal ajena al marcador privado conocido", () => {
+    const commit = vi.fn() as unknown as Commit;
+    const malformed = dataWithQuarantine();
+    malformed.workspaceIntegrityQuarantine = [
+      {
+        collection: "fiscalNotificationsWorkspace",
+        reason: "malformed_record",
+        rawValue: { documents: ["contenido-no-inspeccionable"] },
+      },
+    ];
+
+    expect(run(malformed, commit)).toEqual({
+      status: "blocked",
+      reason: "fiscal_quarantine_not_auto_repairable",
+    });
+    expect(commit).not.toHaveBeenCalled();
+  });
 });
 
 function run(
@@ -194,7 +212,7 @@ function dataWithQuarantine(): AppData {
       {
         collection: "fiscalNotificationsWorkspace",
         reason: "malformed_record",
-        rawValue: { stale: 1 },
+        rawValue: rejectedFiscalPayload(),
       },
       {
         collection: "meta.pendingChanges.fiscal_notifications_workspace",
@@ -204,9 +222,16 @@ function dataWithQuarantine(): AppData {
       {
         collection: "fiscalNotificationsWorkspace",
         reason: "malformed_collection",
-        rawValue: { stale: 2 },
+        rawValue: rejectedFiscalPayload(),
       },
     ],
+  };
+}
+
+function rejectedFiscalPayload() {
+  return {
+    status: "rejected",
+    schema: "fiscal-notifications-privacy-workspace-v2",
   };
 }
 
