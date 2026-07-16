@@ -1071,6 +1071,9 @@ describe("MVP usability polish", () => {
     expect(documentListSource).not.toContain("previousInvoiceSeries.key");
     expect(timelineDividerSource).toContain("min-w-0 max-w-full truncate");
     expect(timelineDividerSource).toContain("title={label}");
+    expect(timelineDividerSource).toContain('role="separator"');
+    expect(timelineDividerSource).toContain("bg-blue-100/95");
+    expect(timelineDividerSource).toContain("bg-blue-300");
   });
 
   it("carga gastos por bloques y muestra separadores por mes", () => {
@@ -1095,6 +1098,10 @@ describe("MVP usability polish", () => {
     );
 
     expect(productsPageSource).toContain("function productDisplayName");
+    expect(productsPageSource).toContain("TimelineMonthDivider");
+    expect(productsPageSource).toContain(
+      "<TimelineMonthDivider label={group.title} />",
+    );
     expect(productsPageSource).toContain("product.saleDescription?.trim()");
     expect(productsPageSource).toContain("Proveedor: {supplierLabel}");
     expect(productsPageSource).toContain("product.usualSupplier?.supplierName");
