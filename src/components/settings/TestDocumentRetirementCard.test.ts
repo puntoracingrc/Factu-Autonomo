@@ -18,8 +18,8 @@ describe("TestDocumentRetirementCard wiring", () => {
     );
     expect(accountSource).toContain('id="mantenimiento-documentos-prueba"');
     expect(accountSource).toContain("<TestDocumentRetirementCard />");
-    expect(accountSource.indexOf("<AppIssuedDocumentRecoveryCard />")).toBeLessThan(
-      accountSource.indexOf("<TestDocumentRetirementCard />"),
+    expect(accountSource.indexOf("<TestDocumentRetirementCard />")).toBeLessThan(
+      accountSource.indexOf("<AppIssuedDocumentRecoveryCard />"),
     );
   });
 
@@ -41,7 +41,7 @@ describe("TestDocumentRetirementCard wiring", () => {
     expect(cardSource).not.toContain("user.id}");
   });
 
-  it("resuelve números exactos, construye preview y exige la frase derivada", () => {
+  it("resuelve números exactos y confirma directamente desde la vista previa", () => {
     expect(cardSource).toContain(
       "resolveExactDocumentNumbers(data.documents, numberInput)",
     );
@@ -49,12 +49,14 @@ describe("TestDocumentRetirementCard wiring", () => {
     expect(cardSource).toContain("resolution.unknownNumbers.length > 0");
     expect(cardSource).toContain("resolution.ambiguousNumbers.length > 0");
     expect(cardSource).toContain("resolution.duplicateNumbers.length > 0");
-    expect(cardSource).toContain("testDocumentRetirementConfirmationPhrase(");
-    expect(cardSource).toContain(
-      "samePhrase(retirementPhrase, expectedRetirementPhrase)",
-    );
+    expect(cardSource).not.toContain("testDocumentRetirementConfirmationPhrase(");
+    expect(cardSource).not.toContain("retirementPhrase");
     expect(cardSource).toContain("retiredDocuments.map(");
     expect(cardSource).toContain("Factu no los clasifica automáticamente");
+    expect(cardSource).toContain("Factu preparará automáticamente una copia");
+    expect(cardSource).toContain(
+      "Retirar estos ${preparedRetirement.preview.affectedCount}",
+    );
   });
 
   it("muestra importes archivados desde snapshot y usa líneas como fallback", () => {

@@ -46,6 +46,16 @@ describe("AppIssuedDocumentRecoveryCard wiring", () => {
     expect(cardSource).not.toContain("console.");
   });
 
+  it("no presenta históricos importados como incidencias de esta reparación", () => {
+    expect(cardSource).toContain('reason === "legacy_document"');
+    expect(cardSource).toContain("initialActionableReview.length > 0");
+    expect(cardSource).not.toContain(
+      "initialPreview.manualReview.length > 0",
+    );
+    expect(cardSource).toContain("Si el documento fue solo una prueba");
+    expect(cardSource).toContain("Archivar documentos de prueba");
+  });
+
   it("exige descarga, relectura y confirmación ligadas a identidad, precondición y grupo", () => {
     expect(cardSource).toContain("downloadBackup(expected)");
     expect(cardSource).toContain("readBackupFile(file)");

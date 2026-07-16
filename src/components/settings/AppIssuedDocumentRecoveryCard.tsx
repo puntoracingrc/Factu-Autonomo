@@ -423,7 +423,17 @@ export function AppIssuedDocumentRecoveryCard() {
   );
   const actionableReview = preview.manualReview.filter(
     (item) =>
-      !item.reasons.every((reason) => reason === "pdf_evidence_missing"),
+      !item.reasons.every(
+        (reason) =>
+          reason === "pdf_evidence_missing" || reason === "legacy_document",
+      ),
+  );
+  const initialActionableReview = initialPreview.manualReview.filter(
+    (item) =>
+      !item.reasons.every(
+        (reason) =>
+          reason === "pdf_evidence_missing" || reason === "legacy_document",
+      ),
   );
   const selectedDocumentIds = new Set(
     selectedGroup?.members.map((member) => member.documentId) ?? [],
@@ -469,7 +479,7 @@ export function AppIssuedDocumentRecoveryCard() {
   const visible =
     initialPreview.affectedCount > 0 ||
     initialPreview.requiredPdfDocumentIds.length > 0 ||
-    initialPreview.manualReview.length > 0 ||
+    initialActionableReview.length > 0 ||
     initialPreview.alreadyAppliedRepairIds.length > 0 ||
     preview.affectedCount > 0 ||
     rollbackPreview.affectedCount > 0 ||
@@ -853,6 +863,10 @@ export function AppIssuedDocumentRecoveryCard() {
             presentación, registro ni aceptación por la AEAT. Evidencia
             server/production o cualquier registro real incompatible permanece
             bloqueado y no se ofrece para recuperar.
+          </p>
+          <p className="mt-2 rounded-lg border border-violet-200 bg-white p-2 text-sm font-semibold text-violet-900">
+            Si el documento fue solo una prueba, no lo recuperes: usa primero
+            «Archivar documentos de prueba», justo encima de este bloque.
           </p>
         </div>
       </div>

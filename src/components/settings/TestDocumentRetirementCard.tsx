@@ -13,7 +13,7 @@ import { Card } from "@/components/ui/Card";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
-import { BACKUP_SCOPE_NOTICE, downloadBackup } from "@/lib/backup";
+import { downloadBackup } from "@/lib/backup";
 import { documentTotals, formatMoney } from "@/lib/calculations";
 import {
   buildTestDocumentRetirementPreview,
@@ -36,7 +36,6 @@ import type {
 import {
   maskAccountEmail,
   resolveExactDocumentNumbers,
-  testDocumentRetirementConfirmationPhrase,
   testDocumentRetirementReadiness,
   testDocumentRetirementRollbackPhrase,
   testDocumentRetirementSelectionCode,
@@ -191,7 +190,6 @@ export function TestDocumentRetirementCard() {
   const [numberInput, setNumberInput] = useState("");
   const [preparedRetirement, setPreparedRetirement] =
     useState<PreparedRetirement | null>(null);
-  const [retirementPhrase, setRetirementPhrase] = useState("");
   const [preparedRollback, setPreparedRollback] =
     useState<PreparedRollback | null>(null);
   const [rollbackPhrase, setRollbackPhrase] = useState("");
@@ -284,7 +282,6 @@ export function TestDocumentRetirementCard() {
 
   useEffect(() => {
     setPreparedRetirement(null);
-    setRetirementPhrase("");
     setPreparedRollback(null);
     setRollbackPhrase("");
   }, [retirementHistoryKey, tenantFingerprint, workspaceKey]);
@@ -318,12 +315,6 @@ export function TestDocumentRetirementCard() {
         (batch) => batch.batchId === preparedRollback.batchId,
       ) ?? null
     : null;
-  const expectedRetirementPhrase = preparedRetirement
-    ? testDocumentRetirementConfirmationPhrase(
-        preparedRetirement.preview.affectedCount,
-        preparedRetirement.preview.selectionFingerprint,
-      )
-    : "";
   const expectedRollbackPhrase = selectedRollbackBatch
     ? testDocumentRetirementRollbackPhrase(
         selectedRollbackBatch.selectionFingerprint,
@@ -332,7 +323,6 @@ export function TestDocumentRetirementCard() {
 
   function handlePrepareRetirement() {
     setFeedback(null);
-    setRetirementPhrase("");
     setPreparedRetirement(null);
     if (!readiness.ready || storageStateUnknown) {
       setFeedback({
@@ -386,8 +376,7 @@ export function TestDocumentRetirementCard() {
       storageStateUnknown ||
       !preparedRetirement ||
       !preparedRetirement.preview.candidate ||
-      preparedRetirement.preview.blockers.length > 0 ||
-      !samePhrase(retirementPhrase, expectedRetirementPhrase)
+      preparedRetirement.preview.blockers.length > 0
     ) {
       return;
     }
@@ -402,7 +391,6 @@ export function TestDocumentRetirementCard() {
         getCurrentData(),
       );
       if (!currentReadiness.ready) {
-        setRetirementPhrase("");
         setFeedback({
           tone: "error",
           message:
@@ -424,7 +412,6 @@ export function TestDocumentRetirementCard() {
       });
 
       if (safetyResult.status === "backup_failed") {
-        setRetirementPhrase("");
         setFeedback({
           tone: "error",
           message: `${safetyResult.error} Sin copia previa no se archivó nada.`,
@@ -432,7 +419,6 @@ export function TestDocumentRetirementCard() {
         return;
       }
       if (safetyResult.status === "stale_precondition") {
-        setRetirementPhrase("");
         setFeedback({
           tone: "error",
           message:
@@ -441,7 +427,6 @@ export function TestDocumentRetirementCard() {
         return;
       }
       if (safetyResult.status === "unexpected_failure") {
-        setRetirementPhrase("");
         setFeedback({
           tone: "error",
           message:
@@ -453,7 +438,6 @@ export function TestDocumentRetirementCard() {
       const result = safetyResult.result;
       if (result.status === "indeterminate") {
         setStorageStateUnknown(true);
-        setRetirementPhrase("");
         setFeedback({
           tone: "error",
           message:
@@ -462,7 +446,6 @@ export function TestDocumentRetirementCard() {
         return;
       }
       if (result.status === "blocked") {
-        setRetirementPhrase("");
         setFeedback({
           tone: "error",
           message: actionFailureMessage(result.reason),
@@ -472,10 +455,9 @@ export function TestDocumentRetirementCard() {
 
       setNumberInput("");
       setPreparedRetirement(null);
-      setRetirementPhrase("");
       setFeedback({
         tone: "success",
-        message: `Lote archivado de forma reversible: ${preparedRetirement.preview.affectedCount} ${preparedRetirement.preview.affectedCount === 1 ? "documento" : "documentos"}. Descarga previa solicitada: ${safetyResult.safetyCopyFilename}. El resultado queda en el historial y se ha solicitado sincronización inmediata.`,
+        message: `Archivado reversible completado: ${preparedRetirement.preview.affectedCount} ${preparedRetirement.preview.affectedCount === 1 ? "documento" : "documentos"}. Factu preparó automáticamente la copia ${safetyResult.safetyCopyFilename}, guardó el historial y solicitó la sincronización.`,
       });
       void syncNow();
     } finally {
@@ -600,8 +582,7 @@ export function TestDocumentRetirementCard() {
       !storageStateUnknown &&
       preparedRetirement?.preview.candidate &&
       preparedRetirement.preview.blockers.length === 0 &&
-      !resolutionHasErrors &&
-      samePhrase(retirementPhrase, expectedRetirementPhrase),
+      !resolutionHasErrors,
   );
   const rollbackReady = Boolean(
     readiness.ready &&
@@ -701,7 +682,6 @@ export function TestDocumentRetirementCard() {
             onChange={(event) => {
               setNumberInput(event.target.value);
               setPreparedRetirement(null);
-              setRetirementPhrase("");
             }}
             rows={3}
             autoComplete="off"
@@ -823,26 +803,10 @@ export function TestDocumentRetirementCard() {
                     )}
                   </div>
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-slate-700">
-                    Los bytes de la copia JSON se prepararán y su descarga se
-                    solicitará inmediatamente antes del único commit durable.
-                    El historial guarda su hash y tamaño, pero no afirma que el
-                    sistema operativo terminara de guardarla. {BACKUP_SCOPE_NOTICE} Las
-                    identidades y números quedan reservados incluso después de
-                    un rollback. Los contadores no retroceden.
+                    Factu preparará automáticamente una copia de seguridad en el
+                    mismo clic y conservará un historial reversible. Los números
+                    retirados quedan reservados y nunca se reutilizan.
                   </div>
-                  <label className="block text-sm font-semibold text-slate-800">
-                    Para confirmar, escribe exactamente{" "}
-                    <code className="break-all rounded bg-slate-200 px-1 py-0.5">
-                      {expectedRetirementPhrase}
-                    </code>
-                    <input
-                      value={retirementPhrase}
-                      onChange={(event) => setRetirementPhrase(event.target.value)}
-                      autoComplete="off"
-                      spellCheck={false}
-                      className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-900 shadow-sm focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-200"
-                    />
-                  </label>
                   <Button
                     type="button"
                     variant="danger"
@@ -853,7 +817,9 @@ export function TestDocumentRetirementCard() {
                     <Archive className="h-5 w-5" aria-hidden="true" />
                     {busyAction === "retire"
                       ? "Comprobando y guardando…"
-                      : "Preparar copia y archivar este lote"}
+                      : preparedRetirement.preview.affectedCount === 1
+                        ? "Retirar este documento de prueba"
+                        : `Retirar estos ${preparedRetirement.preview.affectedCount} documentos de prueba`}
                   </Button>
                 </>
               )}

@@ -26,6 +26,11 @@ import {
 import { inspectUsableHistoricalDocumentEvidence } from "./legacy-import-attestation";
 import { withDocumentRelationshipIntegritySignals } from "./relationships";
 import { hashDocumentSnapshotWithAlgorithm } from "./snapshots";
+import {
+  applyTestDocumentRetirement,
+  buildTestDocumentRetirementPreview,
+  testDocumentRetirementExportableDataFingerprint,
+} from "./test-document-retirement";
 
 const NOW = "2026-07-06T10:00:00.000Z";
 const REPAIR_NOW = "2026-07-13T10:00:00.000Z";
@@ -609,6 +614,44 @@ describe("app-issued recovery", () => {
       active: true,
       kind: "receipt_source_snapshot_gap_v1",
     });
+  });
+
+  it("MUST NOT REAPPEAR: un documento ya retirado no vuelve a ofrecerse aunque una sincronización lo reintroduzca", () => {
+    const { data, receipt } = receiptWorkspace();
+    const tenantFingerprint = `sha256:${"1".repeat(64)}`;
+    const retirementPreview = buildTestDocumentRetirementPreview(data, {
+      selectedDocumentIds: [receipt.id],
+      tenantFingerprint,
+    });
+    const retirement = applyTestDocumentRetirement(
+      data,
+      retirementPreview,
+      REPAIR_NOW,
+      tenantFingerprint,
+      {
+        filename:
+          "factu-autonomo-backup-antes-retirar-pruebas-2026-07-13-10-00-00.json",
+        createdAt: REPAIR_NOW,
+        exportableDataFingerprint:
+          testDocumentRetirementExportableDataFingerprint(data),
+        contentSha256: `sha256:${"2".repeat(64)}`,
+        byteLength: 1_024,
+        disposition: "browser_download_requested",
+      },
+    );
+    expect(retirement.status).toBe("applied");
+    if (retirement.status === "blocked") return;
+
+    const reintroduced: AppData = {
+      ...retirement.data,
+      documents: data.documents,
+    };
+    const preview = buildAppIssuedDocumentRecoveryPreview(reintroduced);
+
+    expect(preview.affectedCount).toBe(0);
+    expect(preview.candidates).toEqual([]);
+    expect(preview.manualReview).toEqual([]);
+    expect(preview.requiredPdfDocumentIds).toEqual([]);
   });
 
   it("MUST PASS: recupera el standalone pre-sello solo con PDF confirmado y conserva toda la evidencia", () => {
