@@ -155,7 +155,7 @@ jobs:
   production-domain:
     name: Production Domain
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     needs:
       - quality
       - supabase-acceptance
@@ -179,47 +179,85 @@ jobs:
         run: |
           set -euo pipefail
 
-          deployment_url=""
+          accept_deployment_url() {
+            local candidate="$1"
+            if [[ ! "$candidate" =~ ^https://[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.vercel\.app$ ]]; then
+              echo "Unexpected Vercel deployment URL: $candidate"
+              exit 1
+            fi
+            echo "VERCEL_DEPLOYMENT_URL=$candidate" >> "$GITHUB_ENV"
+            exit 0
+          }
+
           for attempt in {1..60}; do
-            if ! deployments_json="$(
+            if deployments_json="$(
               gh api \
                 -H "Accept: application/vnd.github+json" \
                 "/repos/${GITHUB_REPOSITORY}/deployments?sha=${GITHUB_SHA}&environment=Production" \
                 2>/dev/null
             )"; then
-              echo "GitHub deployments API is temporarily unavailable (attempt ${attempt}/60); retrying."
-              sleep 10
-              continue
-            fi
-            statuses_url="$(jq -r '.[0].statuses_url // empty' <<< "$deployments_json")"
+              statuses_url="$(jq -r '.[0].statuses_url // empty' <<< "$deployments_json")"
 
-            if [ -n "$statuses_url" ]; then
-              if ! statuses_json="$(
-                gh api \
-                  -H "Accept: application/vnd.github+json" \
-                  "$statuses_url" \
+              if [ -n "$statuses_url" ]; then
+                if statuses_json="$(
+                  gh api \
+                    -H "Accept: application/vnd.github+json" \
+                    "$statuses_url" \
+                    2>/dev/null
+                )"; then
+                  state="$(jq -r '.[0].state // empty' <<< "$statuses_json")"
+                  deployment_url="$(jq -r '.[0].environment_url // .[0].target_url // empty' <<< "$statuses_json")"
+
+                  if [ "$state" = "success" ] && [ -n "$deployment_url" ]; then
+                    accept_deployment_url "$deployment_url"
+                  fi
+
+                  if [ "$state" = "failure" ] || [ "$state" = "error" ]; then
+                    echo "Vercel deployment failed with state: $state"
+                    exit 1
+                  fi
+                else
+                  echo "GitHub deployment status API is temporarily unavailable (attempt ${attempt}/60); checking Vercel directly."
+                fi
+              fi
+            else
+              echo "GitHub deployments API is temporarily unavailable (attempt ${attempt}/60); checking Vercel directly."
+            fi
+
+            if vercel_deployments_json="$(
+              curl \
+                --fail \
+                --silent \
+                --show-error \
+                --connect-timeout 3 \
+                --max-time 8 \
+                --get "https://api.vercel.com/v7/deployments" \
+                -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+                --data-urlencode "teamId=${VERCEL_SCOPE}" \
+                --data-urlencode "sha=${GITHUB_SHA}" \
+                --data-urlencode "target=production" \
+                --data-urlencode "limit=1" \
+                2>/dev/null
+            )"; then
+              if vercel_state="$(
+                jq -er '.deployments[0].readyState // .deployments[0].state // empty' \
+                  <<< "$vercel_deployments_json" \
                   2>/dev/null
               )"; then
-                echo "GitHub deployment status API is temporarily unavailable (attempt ${attempt}/60); retrying."
-                sleep 10
-                continue
-              fi
-              state="$(jq -r '.[0].state // empty' <<< "$statuses_json")"
-              deployment_url="$(jq -r '.[0].environment_url // .[0].target_url // empty' <<< "$statuses_json")"
+                vercel_target="$(jq -r '.deployments[0].target // empty' <<< "$vercel_deployments_json")"
+                vercel_host="$(jq -r '.deployments[0].url // empty' <<< "$vercel_deployments_json")"
 
-              if [ "$state" = "success" ] && [ -n "$deployment_url" ]; then
-                if [[ "$deployment_url" != https://*.vercel.app ]]; then
-                  echo "Unexpected Vercel deployment URL: $deployment_url"
+                if [ "$vercel_state" = "READY" ] && [ "$vercel_target" = "production" ] && [ -n "$vercel_host" ]; then
+                  accept_deployment_url "https://${vercel_host}"
+                fi
+
+                if [ "$vercel_state" = "ERROR" ] || [ "$vercel_state" = "CANCELED" ] || [ "$vercel_state" = "BLOCKED" ]; then
+                  echo "Vercel deployment failed with state: $vercel_state"
                   exit 1
                 fi
-                echo "VERCEL_DEPLOYMENT_URL=$deployment_url" >> "$GITHUB_ENV"
-                exit 0
               fi
-
-              if [ "$state" = "failure" ] || [ "$state" = "error" ]; then
-                echo "Vercel deployment failed with state: $state"
-                exit 1
-              fi
+            else
+              echo "Vercel deployments API is temporarily unavailable (attempt ${attempt}/60); retrying."
             fi
 
             sleep 10
