@@ -22,6 +22,8 @@ export const REFERENCE_TYPES_V1 = Object.freeze([
   "REGISTRY_ID",
   "FILING_RECEIPT_ID",
   "PAYMENT_RECEIPT_ID",
+  "PAYMENT_FORM_REFERENCE",
+  "PAYMENT_FORM_MODEL",
   "NRC",
   "CSV",
   "NIF",
@@ -155,6 +157,7 @@ function validateSpanishTaxIdV1(value: string): boolean {
 function isKnownReferencePatternValidV1(type: ReferenceTypeV1, value: string): boolean {
   switch (type) {
     case "MODEL":
+    case "PAYMENT_FORM_MODEL":
       return /^\d{3}$/u.test(value);
     case "FISCAL_YEAR":
       return /^(?:19|20)\d{2}$/u.test(value);

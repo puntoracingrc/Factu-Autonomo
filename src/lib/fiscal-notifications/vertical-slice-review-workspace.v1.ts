@@ -453,9 +453,6 @@ function appendDocument(input: {
     validationWarnings: [
       "La autenticidad no se ha comprobado.",
       "No se ha creado deuda, pago, plazo, gasto ni asiento.",
-      ...(document.warnings.length > 0
-        ? ["El extractor ha señalado campos que requieren revisión."]
-        : []),
     ],
     evidenceIds: [...evidenceIds],
     confidenceBand: confidenceBand(document.confidence),
@@ -862,6 +859,8 @@ function referenceType(value: string): ExternalReferenceType {
     REGISTRY_ID: "OFFICIAL_REGISTRY_NUMBER",
     FILING_RECEIPT_ID: "OFFICIAL_REGISTRY_NUMBER",
     PAYMENT_RECEIPT_ID: "PAYMENT_JUSTIFICANTE",
+    PAYMENT_FORM_REFERENCE: "PAYMENT_JUSTIFICANTE",
+    PAYMENT_FORM_MODEL: "OTHER",
     NRC: "NRC",
     CSV: "CSV",
     NIF: "OTHER",
@@ -880,6 +879,10 @@ function referenceType(value: string): ExternalReferenceType {
 
 function moneyKind(value: string, familyId: string): AdministrativeMoneyKind {
   switch (value) {
+    case "ORIGINAL_TAX_PRINCIPAL":
+      return "ORIGINAL_TAX_PRINCIPAL";
+    case "OUTSTANDING_PRINCIPAL":
+      return "OUTSTANDING_PRINCIPAL";
     case "PRINCIPAL":
       return "ORIGINAL_TAX_PRINCIPAL";
     case "TAX_QUOTA":
@@ -891,6 +894,14 @@ function moneyKind(value: string, familyId: string): AdministrativeMoneyKind {
     case "SURCHARGE":
     case "EXECUTIVE_SURCHARGE":
       return "EXECUTIVE_SURCHARGE_PRINTED";
+    case "EXECUTIVE_SURCHARGE_5":
+      return "EXECUTIVE_SURCHARGE_5";
+    case "EXECUTIVE_SURCHARGE_10":
+      return "EXECUTIVE_SURCHARGE_10";
+    case "EXECUTIVE_SURCHARGE_20":
+      return "EXECUTIVE_SURCHARGE_20";
+    case "DEFERRAL_INTEREST":
+      return "DEFERRAL_INTEREST";
     case "LATE_INTEREST":
       return "LATE_PAYMENT_INTEREST";
     case "COSTS":
@@ -905,6 +916,7 @@ function moneyKind(value: string, familyId: string): AdministrativeMoneyKind {
     case "AVAILABLE_BALANCE":
     case "RELEASED_AMOUNT":
     case "OTHER":
+    case "PAYMENT_OPTION_AMOUNT":
       return "DOCUMENT_TOTAL";
     case "SEIZED_AMOUNT":
     case "SEIZURE_LIMIT":

@@ -247,6 +247,88 @@ describe("AEAT real corpus extractor V6", () => {
     expect(result.confirmsPayment).toBe(false);
   });
 
+  it("keeps a deferral interest Annex II inside the grant instead of elevating it to another act", async () => {
+    const grant = source(CASES[0]!);
+    const pages = grant.pages.map((page) =>
+      page.pageNumber === 4
+        ? Object.freeze({
+            pageNumber: page.pageNumber,
+            isBlank: false,
+            text: [
+              "ANEXO II",
+              "ACUERDO DE LIQUIDACIÓN DE INTERESES DE DEMORA",
+              "CÁLCULO DE INTERESES",
+              "Referencia del acuerdo: SYN-PLAN-IVA-4T",
+              "Clave de la deuda principal: SYN-DEBT-IVA-4T",
+            ].join("\n"),
+          })
+        : page,
+    );
+    const result = await extractAeatRealCorpusDocumentV6(
+      Object.freeze({ ...grant, pages: Object.freeze(pages) }),
+    );
+
+    expect(result.familyId).toBe("collection.deferral_grant");
+    expect(result.interestAssessment).toBeNull();
+    expect(result.segments).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: "ANNEX_INTEREST_CALCULATION",
+        relationToPrimary: "ANNEX_ONLY",
+        createsIndependentDebt: false,
+      }),
+    ]));
+    expect(projectRealCorpusReviewV6(result).documents[0]?.subtitle).toBe(
+      "1 documento reconocido · incluye calendario, anexo de intereses y carta de pago",
+    );
+  });
+
+  it("namespaces payment-form fields without replacing the main act date or tax model", async () => {
+    const enforcement = source(CASES[1]!);
+    const pages = enforcement.pages.map((page) =>
+      page.pageNumber === CASES[1]!.contentPages
+        ? Object.freeze({
+            pageNumber: page.pageNumber,
+            isBlank: false,
+            text: [
+              "CARTA DE PAGO",
+              "Fecha de la carta de pago: 18-07-2027",
+              "Modelo de ingreso: 002",
+              "Referencia de la carta de pago: SYN-PAY-61",
+              "Importe de la carta de pago: 123,60 €",
+            ].join("\n"),
+          })
+        : page,
+    );
+    const result = await extractAeatRealCorpusDocumentV6(Object.freeze({
+      ...enforcement,
+      pages: Object.freeze(pages),
+    }));
+    const review = projectRealCorpusReviewV6(result);
+
+    expect(result.fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fieldCode: "ISSUE_DATE", value: "2027-07-17" }),
+      expect.objectContaining({ fieldCode: "PAYMENT_FORM_DATE", value: "2027-07-18" }),
+      expect.objectContaining({ fieldCode: "PAYMENT_FORM_MODEL", value: "002" }),
+      expect.objectContaining({ fieldCode: "PAYMENT_FORM_REFERENCE", value: "SYN-PAY-61" }),
+    ]));
+    expect(result.fields.some((item) => item.fieldCode === "TAX_MODEL")).toBe(false);
+    expect(review.documents[0]?.fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({ canonicalType: "PAYMENT_FORM_DATE", normalizedValue: "2027-07-18" }),
+      expect.objectContaining({ canonicalType: "PAYMENT_FORM_MODEL" }),
+      expect.objectContaining({ canonicalType: "PAYMENT_FORM_REFERENCE" }),
+    ]));
+  });
+
+  it("projects known V6 money with exact semantics instead of OTHER", async () => {
+    const result = await extractAeatRealCorpusDocumentV6(source(CASES[1]!));
+    const fields = projectRealCorpusReviewV6(result).documents[0]?.fields ?? [];
+    expect(fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({ semantic: "MONEY", canonicalType: "OUTSTANDING_PRINCIPAL" }),
+      expect.objectContaining({ semantic: "MONEY", canonicalType: "EXECUTIVE_SURCHARGE_20" }),
+      expect.objectContaining({ semantic: "MONEY", canonicalType: "EXECUTIVE_SURCHARGE_5" }),
+    ]));
+  });
+
   it("never returns direct identity, asset identifiers or OCR text", async () => {
     const result = await extractAeatRealCorpusDocumentV6(source(CASES[11]!, true));
     const serialized = JSON.stringify(result);
@@ -281,7 +363,7 @@ describe("AEAT real corpus extractor V6", () => {
           }),
         }),
       ],
-    })).toThrow("FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_INVALID");
+    })).toThrow("FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_PRIVACY_REJECTED");
   });
 
   it("does not mutate source inputs and returns frozen collections", async () => {

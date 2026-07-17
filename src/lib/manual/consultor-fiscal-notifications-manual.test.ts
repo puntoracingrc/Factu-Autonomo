@@ -27,6 +27,10 @@ describe("manual de Notificaciones y expedientes", () => {
     expect(text).toContain("denegación de aplazamiento o fraccionamiento");
     expect(text).toContain("motivo impreso");
     expect(text).toContain("carta de pago adjunta");
+    expect(text).toContain("se mantiene dentro del acto principal");
+    expect(text).toContain("no crea una segunda liquidación ni un pago");
+    expect(text).toContain("la ficha válida se conserva");
+    expect(text).toContain("la fase y un código seguro");
     expect(text).toContain("no crea automáticamente una deuda");
   });
 
@@ -68,8 +72,12 @@ describe("manual de Notificaciones y expedientes", () => {
     expect(text).toContain("11 familias prioritarias");
     expect(text).toContain("extracción profunda");
     expect(text).toContain("se añaden 11 cadenas");
-    expect(text).toContain("puede producir automáticamente la ampliación por la mitad");
-    expect(text).toContain("resolución puede llegar directamente sin propuesta previa");
+    expect(text).toContain(
+      "puede producir automáticamente la ampliación por la mitad",
+    );
+    expect(text).toContain(
+      "resolución puede llegar directamente sin propuesta previa",
+    );
     expect(text).toContain("mensual desde septiembre de 2024");
     expect(text).toContain("no se presenta como un recurso ordinario");
     expect(text).toContain("respuesta técnica VERI*FACTU no es una sanción");

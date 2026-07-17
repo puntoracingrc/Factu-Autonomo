@@ -332,6 +332,70 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     );
   });
 
+  it("deduplicates repeated fields and translates controlled values", () => {
+    const review = structuredClone(
+      reviewForFamily("collection.deferral_grant"),
+    );
+    const document = review.documents[0]!;
+    const template = document.fields[0]!;
+    (document as unknown as { fields: unknown[] }).fields = [
+      {
+        ...template,
+        fieldId: "field:method:1",
+        semantic: "DETAIL",
+        canonicalType: "FACT_OR_GROUND",
+        label: "Forma de pago",
+        displayValue: "DIRECT_DEBIT",
+        normalizedValue: "DIRECT_DEBIT",
+      },
+      {
+        ...template,
+        fieldId: "field:method:2",
+        semantic: "DETAIL",
+        canonicalType: "FACT_OR_GROUND",
+        label: "Forma de pago",
+        displayValue: "DIRECT_DEBIT",
+        normalizedValue: "DIRECT_DEBIT",
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      createElement(FiscalNotificationVerticalSliceReview, { review }),
+    );
+
+    expect(html.match(/Domiciliación bancaria/gu)).toHaveLength(1);
+    expect(html).not.toContain("DIRECT_DEBIT");
+  });
+
+  it("groups installment facts in a familiar table instead of scattered cards", () => {
+    const review = structuredClone(
+      reviewForFamily("collection.deferral_grant"),
+    );
+    const document = review.documents[0]!;
+    const template = document.fields[0]!;
+    (document as unknown as { fields: unknown[] }).fields = [
+      {
+        ...template,
+        fieldId: "real-corpus-v6:installment:0",
+        semantic: "DETAIL",
+        canonicalType: "FACT_OR_GROUND",
+        label: "Cuota 1",
+        displayValue:
+          "Vence 20/02/2027 · principal 100,00 € · interés 2,00 € · total 102,00 €",
+        normalizedValue: "V6:INSTALLMENT:1:2027-02-20:10000:200:10200",
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      createElement(FiscalNotificationVerticalSliceReview, { review }),
+    );
+
+    expect(html).toContain("Calendario de cuotas");
+    expect(html).toContain("<table");
+    expect(html).toContain("20/02/2027");
+    expect(html).toContain("102,00");
+  });
+
   it("renders no empty card for information-pending content", () => {
     expect(
       renderToStaticMarkup(
