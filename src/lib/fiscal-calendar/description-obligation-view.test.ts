@@ -117,6 +117,20 @@ const resolvableModelCodes = new Set([
 ]);
 const mineModelCodes = new Set(["303"]);
 
+function expectExactSourcePartition(
+  result: ReturnType<typeof buildFiscalCalendarDescriptionView>,
+): void {
+  const partitionIndexes = [
+    ...result.directLines.map(({ sourceIndex }) => sourceIndex),
+    ...result.otherModelLines.map(({ sourceIndex }) => sourceIndex),
+  ].sort((left, right) => left - right);
+
+  expect(partitionIndexes).toEqual(
+    result.allLines.map(({ sourceIndex }) => sourceIndex),
+  );
+  expect(new Set(partitionIndexes).size).toBe(result.allLines.length);
+}
+
 describe("vista de líneas del calendario por obligación", () => {
   it("agrupa reversiblemente otros modelos dentro de un evento compuesto", () => {
     const calendarEvent = event(compoundDescription);
@@ -152,11 +166,7 @@ describe("vista de líneas del calendario por obligación", () => {
       "341",
     ]);
     expect(result.otherModelCount).toBe(5);
-    expect(
-      [...result.directLines, ...result.otherModelLines]
-        .map(({ text }) => text)
-        .sort(),
-    ).toEqual(result.allLines.map(({ text }) => text).sort());
+    expectExactSourcePartition(result);
   });
 
   it("Todos conserva el texto completo, el orden y los duplicados", () => {
@@ -267,18 +277,8 @@ describe("vista de líneas del calendario por obligación", () => {
         resolutionState: "BLOCKED",
       }),
     ],
-    [
-      "ORIENTATIVE" as const,
-      assessment(pendingAssessment.obligations, {
-        profile: {
-          state: "INCOMPLETE",
-          missingInformation: ["fixture pendiente"],
-          conflicts: [],
-        },
-      }),
-    ],
   ])(
-    "no segmenta con estado %s o perfil incompleto",
+    "no segmenta con estado %s o assessment bloqueado",
     (obligationViewStatus, storedAssessment) => {
       const calendarEvent = event(compoundDescription);
       const context = buildFiscalCalendarDescriptionFilterContext({
@@ -299,14 +299,61 @@ describe("vista de líneas del calendario por obligación", () => {
     },
   );
 
-  it("no cruza una foto fiscal con un evento de otro año en Madrid", () => {
+  it.each([
+    {
+      label: "perfil incompleto",
+      profile: {
+        state: "INCOMPLETE" as const,
+        missingInformation: ["fixture pendiente"],
+        conflicts: [],
+      },
+    },
+    {
+      label: "perfil con conflicto",
+      profile: {
+        state: "CONFLICTED" as const,
+        missingInformation: [],
+        conflicts: ["fixture contradictorio"],
+      },
+    },
+  ])(
+    "mantiene el plegado reversible con $label",
+    ({ profile }) => {
+      const calendarEvent = event(compoundDescription);
+      const context = buildFiscalCalendarDescriptionFilterContext({
+        session: session(
+          assessment(pendingAssessment.obligations, { profile }),
+        ),
+        obligationViewStatus: "ORIENTATIVE",
+        mineModelCodes,
+        resolvableModelCodes,
+      });
+      const result = buildFiscalCalendarDescriptionView({
+        event: calendarEvent,
+        scope: "MINE",
+        context,
+      });
+
+      expect(context.enabled).toBe(true);
+      expect(result.mode).toBe("GROUPED");
+      expect(result.directLines.map(({ modelCode }) => modelCode)).toEqual([
+        "303",
+      ]);
+      expect(result.otherModelCount).toBe(5);
+      expectExactSourcePartition(result);
+    },
+  );
+
+  it("aplica el plegado visual aunque la foto fiscal sea de otro año", () => {
     const calendarEvent = event(compoundDescription, {
       allDay: false,
       startDate: "2026-12-31T23:30:00.000Z",
       endDateExclusive: "2027-01-01T00:30:00.000Z",
     });
     const context = buildFiscalCalendarDescriptionFilterContext({
-      session: session(pendingAssessment),
+      session: session(
+        assessment(pendingAssessment.obligations, { fiscalYear: 2025 }),
+      ),
       obligationViewStatus: "ORIENTATIVE",
       mineModelCodes,
       resolvableModelCodes,
@@ -317,7 +364,31 @@ describe("vista de líneas del calendario por obligación", () => {
       context,
     });
 
+    expect(result.mode).toBe("GROUPED");
+    expect(result.directLines.map(({ modelCode }) => modelCode)).toEqual([
+      "303",
+    ]);
+    expect(result.otherModelCount).toBe(5);
+    expectExactSourcePartition(result);
+  });
+
+  it("no pliega todo el contenido si Mis obligaciones no contiene modelos", () => {
+    const calendarEvent = event(compoundDescription);
+    const context = buildFiscalCalendarDescriptionFilterContext({
+      session: session(pendingAssessment),
+      obligationViewStatus: "ORIENTATIVE",
+      mineModelCodes: new Set(),
+      resolvableModelCodes,
+    });
+    const result = buildFiscalCalendarDescriptionView({
+      event: calendarEvent,
+      scope: "MINE",
+      context,
+    });
+
+    expect(context.enabled).toBe(false);
     expect(result.mode).toBe("FULL");
+    expectExactSourcePartition(result);
   });
 
   it("normaliza espacios y acota las líneas sin mutar la entrada", () => {
