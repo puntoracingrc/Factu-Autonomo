@@ -12,7 +12,6 @@ export type FiscalCalendarObligationViewStatus =
 
 export interface FiscalCalendarDescriptionFilterContext {
   enabled: boolean;
-  fiscalYear: number | null;
   mineModelCodes: ReadonlySet<string>;
   resolvableModelCodes: ReadonlySet<string>;
 }
@@ -31,26 +30,9 @@ export interface FiscalCalendarDescriptionView {
   otherModelCount: number;
 }
 
-const MADRID_YEAR = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Europe/Madrid",
-  year: "numeric",
-});
-
-function eventYearInMadrid(event: FiscalCalendarEvent): number | null {
-  if (event.allDay) {
-    const match = /^(\d{4})-\d{2}-\d{2}$/.exec(event.startDate);
-    return match ? Number(match[1]) : null;
-  }
-  const date = new Date(event.startDate);
-  if (!Number.isFinite(date.getTime())) return null;
-  const year = Number(MADRID_YEAR.format(date));
-  return Number.isInteger(year) ? year : null;
-}
-
 function disabledContext(): FiscalCalendarDescriptionFilterContext {
   return Object.freeze({
     enabled: false,
-    fiscalYear: null,
     mineModelCodes: new Set<string>(),
     resolvableModelCodes: new Set<string>(),
   });
@@ -58,7 +40,8 @@ function disabledContext(): FiscalCalendarDescriptionFilterContext {
 
 /**
  * Builds read-only context for grouping description lines. It never authorizes
- * fiscal exclusion and remains disabled for fallbacks or incomplete profiles.
+ * fiscal exclusion. Profile completeness and the assessment year do not gate
+ * this reversible presentation-only grouping.
  */
 export function buildFiscalCalendarDescriptionFilterContext({
   session,
@@ -71,23 +54,21 @@ export function buildFiscalCalendarDescriptionFilterContext({
   mineModelCodes: ReadonlySet<string>;
   resolvableModelCodes: ReadonlySet<string>;
 }): FiscalCalendarDescriptionFilterContext {
-  if (obligationViewStatus === "ALL_ONLY") return disabledContext();
+  if (obligationViewStatus === "ALL_ONLY" || mineModelCodes.size === 0) {
+    return disabledContext();
+  }
 
   const assessment = selectStoredTaxObligationsAssessment(session);
   if (
     !assessment ||
     assessment.territory !== "ES_COMMON" ||
-    assessment.resolutionState === "BLOCKED" ||
-    assessment.profile.state !== "COMPLETE" ||
-    assessment.profile.missingInformation.length > 0 ||
-    assessment.profile.conflicts.length > 0
+    assessment.resolutionState === "BLOCKED"
   ) {
     return disabledContext();
   }
 
   return Object.freeze({
     enabled: true,
-    fiscalYear: assessment.fiscalYear,
     mineModelCodes: new Set(mineModelCodes),
     resolvableModelCodes: new Set(resolvableModelCodes),
   });
@@ -136,12 +117,7 @@ export function buildFiscalCalendarDescriptionView({
   context: FiscalCalendarDescriptionFilterContext;
 }): FiscalCalendarDescriptionView {
   const allLines = descriptionLines(event.description);
-  if (
-    scope !== "MINE" ||
-    !context.enabled ||
-    context.fiscalYear === null ||
-    eventYearInMadrid(event) !== context.fiscalYear
-  ) {
+  if (scope !== "MINE" || !context.enabled) {
     return fullDescriptionView(allLines);
   }
 
