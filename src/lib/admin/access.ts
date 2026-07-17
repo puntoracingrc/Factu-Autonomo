@@ -1,30 +1,18 @@
 import type { User } from "@supabase/supabase-js";
 
-const DEFAULT_ADMIN_EMAILS = ["puntoracingrc@gmail.com"];
-
-interface AdminEmailsOptions {
-  nodeEnv?: string;
-}
-
-function shouldIncludeDefaultAdminEmails(
-  nodeEnv: string | undefined = process.env.NODE_ENV,
-): boolean {
-  return nodeEnv !== "production";
-}
+const OWNER_ADMIN_EMAILS = [
+  "puntoracingrc@gmail.com",
+  "persianasalmar@gmail.com",
+] as const;
 
 export function adminEmailsFromEnv(
   value = process.env.ADMIN_EMAILS,
-  options: AdminEmailsOptions = {},
 ): string[] {
   const configured = (value ?? "")
     .split(",")
     .map((email) => email.trim().toLowerCase())
     .filter(Boolean);
-  const defaults = shouldIncludeDefaultAdminEmails(options.nodeEnv)
-    ? DEFAULT_ADMIN_EMAILS
-    : [];
-
-  return Array.from(new Set([...configured, ...defaults]));
+  return Array.from(new Set([...OWNER_ADMIN_EMAILS, ...configured]));
 }
 
 export function isAdminEmail(email: string | null | undefined): boolean {
