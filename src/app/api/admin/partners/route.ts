@@ -2,6 +2,7 @@ import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import {
   grantPartnerAccess,
   listAdminPartners,
+  PartnerRepositoryError,
   PartnerSchemaUnavailableError,
 } from "@/lib/partners/repository";
 import { normalizePartnerEmail } from "@/lib/partners/contracts";
@@ -45,6 +46,12 @@ export async function GET(request: Request) {
   } catch (error) {
     if (error instanceof PartnerSchemaUnavailableError) {
       return partnerJsonResponse({ partners: [], schemaReady: false });
+    }
+    if (error instanceof PartnerRepositoryError) {
+      console.error("Partner admin list query failed", {
+        operation: error.operation,
+        databaseCode: error.databaseCode,
+      });
     }
     return partnerJsonResponse(
       { error: "No se pudieron cargar los partners." },

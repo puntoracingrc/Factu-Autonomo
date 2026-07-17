@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "prebuild": "node scripts/apply-partner-program-production-migration.mjs",
     "dev": "next dev -p 3000",
     "dev:clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next dev -p 3000",
     "build": "next build",
@@ -327,7 +326,6 @@
     "mdb-reader": "^3.2.0",
     "next": "^15.5.20",
     "pdfjs-dist": "^4.10.38",
-    "postgres": "^3.4.9",
     "qrcode": "^1.5.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",

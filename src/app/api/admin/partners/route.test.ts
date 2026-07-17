@@ -15,6 +15,7 @@ vi.mock("@/lib/admin/server-access", () => ({
 vi.mock("@/lib/partners/repository", () => ({
   grantPartnerAccess: vi.fn(),
   listAdminPartners: vi.fn(),
+  PartnerRepositoryError: class PartnerRepositoryError extends Error {},
   PartnerSchemaUnavailableError: class PartnerSchemaUnavailableError extends Error {},
 }));
 vi.mock("@/lib/server/rate-limit", async () => {
