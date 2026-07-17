@@ -3,6 +3,7 @@ import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import {
   grantPartnerAccess,
   listAdminPartners,
+  PartnerSchemaUnavailableError,
 } from "@/lib/partners/repository";
 import { checkRateLimit, type RateLimitResult } from "@/lib/server/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
@@ -77,8 +78,23 @@ describe("Admin Partner API", () => {
     expect(response.headers.get("cache-control")).toBe(
       "private, no-store, max-age=0",
     );
-    expect(body).toEqual({ partners: [] });
+    expect(body).toEqual({ partners: [], schemaReady: true });
     expect(listAdminPartners).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the administrative structure visible while the schema is pending", async () => {
+    vi.mocked(listAdminPartners).mockRejectedValue(
+      new PartnerSchemaUnavailableError(),
+    );
+
+    const response = await GET(request());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ partners: [], schemaReady: false });
+    expect(response.headers.get("cache-control")).toBe(
+      "private, no-store, max-age=0",
+    );
   });
 
   it("rejects an invalid email before granting access", async () => {

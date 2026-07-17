@@ -38,9 +38,14 @@ export async function GET(request: Request) {
   if (!admin) return unavailableResponse();
 
   try {
-    return partnerJsonResponse({ partners: await listAdminPartners(admin) });
+    return partnerJsonResponse({
+      partners: await listAdminPartners(admin),
+      schemaReady: true,
+    });
   } catch (error) {
-    if (error instanceof PartnerSchemaUnavailableError) return unavailableResponse();
+    if (error instanceof PartnerSchemaUnavailableError) {
+      return partnerJsonResponse({ partners: [], schemaReady: false });
+    }
     return partnerJsonResponse(
       { error: "No se pudieron cargar los partners." },
       { status: 500 },

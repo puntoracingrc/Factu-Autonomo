@@ -32,6 +32,7 @@ async function accessToken(): Promise<string | null> {
 
 export function AdminPartnersPanel() {
   const [partners, setPartners] = useState<AdminPartnerRow[]>([]);
+  const [schemaReady, setSchemaReady] = useState<boolean | null>(null);
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
@@ -53,10 +54,12 @@ export function AdminPartnersPanel() {
       });
       const body = (await response.json()) as {
         partners?: AdminPartnerRow[];
+        schemaReady?: boolean;
         error?: string;
       };
       if (!response.ok) throw new Error(body.error ?? "No se pudieron cargar los partners.");
       setPartners(body.partners ?? []);
+      setSchemaReady(body.schemaReady !== false);
     } catch (loadError) {
       setError(
         loadError instanceof Error
@@ -220,22 +223,35 @@ export function AdminPartnersPanel() {
               placeholder="gestoria@ejemplo.es"
               autoComplete="email"
               required
+              disabled={schemaReady === false}
               className="min-h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
           </label>
-          <Button type="submit" disabled={busy !== null || !email.trim()}>
+          <Button
+            type="submit"
+            disabled={schemaReady !== true || busy !== null || !email.trim()}
+          >
             <UserPlus className="h-4 w-4" />
             Dar acceso
           </Button>
         </form>
 
+        {schemaReady === false && (
+          <p role="status" className="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+            La estructura del programa está preparada. La activación de datos está pendiente; las altas se habilitarán al conectar su base de datos.
+          </p>
+        )}
         {notice && <p role="status" className="rounded-xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">{notice}</p>}
         {error && <p role="alert" className="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">{error}</p>}
       </Card>
 
       {loading ? <Card>Cargando partners...</Card> : null}
       {!loading && partners.length === 0 ? (
-        <Card className="text-slate-600">Todavía no has autorizado ningún partner.</Card>
+        <Card className="text-slate-600">
+          {schemaReady === false
+            ? "No hay datos de Partners todavía."
+            : "Todavía no has autorizado ningún partner."}
+        </Card>
       ) : null}
 
       {!loading && partners.length > 0 ? (
