@@ -65,7 +65,7 @@ interface PayoutRow {
 }
 
 export class PartnerSchemaUnavailableError extends Error {
-  constructor() {
+  constructor(readonly operation = "unknown") {
     super("El programa Partners todavía no está disponible en la base de datos.");
   }
 }
@@ -98,7 +98,9 @@ function throwPartnerQueryError(
   operation: string,
 ): void {
   if (!error) return;
-  if (isMissingPartnerSchemaError(error)) throw new PartnerSchemaUnavailableError();
+  if (isMissingPartnerSchemaError(error)) {
+    throw new PartnerSchemaUnavailableError(operation);
+  }
   throw new PartnerRepositoryError(operation, error.code ?? null);
 }
 

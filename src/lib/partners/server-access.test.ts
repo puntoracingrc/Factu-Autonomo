@@ -11,7 +11,10 @@ import { getPartnerAccessFromRequest } from "./server-access";
 
 vi.mock("@/lib/admin/access", () => ({ isAdminEmail: vi.fn() }));
 vi.mock("@/lib/billing/server-auth", () => ({ getUserFromBearer: vi.fn() }));
-vi.mock("./admin-client", () => ({ getPartnerSupabaseAdmin: vi.fn() }));
+vi.mock("./admin-client", () => ({
+  getPartnerAdminCredentialSource: vi.fn(() => "secret"),
+  getPartnerSupabaseAdmin: vi.fn(),
+}));
 vi.mock("./repository", async (importOriginal) => {
   const original = await importOriginal<typeof import("./repository")>();
   return { ...original, getPartnerAccountRecord: vi.fn() };

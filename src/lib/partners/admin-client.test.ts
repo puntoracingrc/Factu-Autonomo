@@ -12,7 +12,10 @@ vi.mock("@/lib/supabase/admin", () => ({
   getSupabaseAdmin: mocks.getSupabaseAdmin,
 }));
 
-import { getPartnerSupabaseAdmin } from "./admin-client";
+import {
+  getPartnerAdminCredentialSource,
+  getPartnerSupabaseAdmin,
+} from "./admin-client";
 
 describe("Partner Supabase admin client", () => {
   beforeEach(() => {
@@ -36,5 +39,6 @@ describe("Partner Supabase admin client", () => {
       { auth: { persistSession: false, autoRefreshToken: false } },
     );
     expect(mocks.getSupabaseAdmin).not.toHaveBeenCalled();
+    expect(getPartnerAdminCredentialSource()).toBe("secret");
   });
 });
