@@ -10,7 +10,6 @@ import {
   Link2,
   RefreshCw,
   Save,
-  ShieldCheck,
   UserCheck,
   Users,
   WalletCards,
@@ -228,24 +227,6 @@ export default function PartnersPage() {
           </Button>
         }
       />
-
-      {isAdminPreview && (
-        <Card className="mb-4 border-amber-200 bg-amber-50">
-          <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
-              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <div>
-              <h2 className="text-lg font-bold text-amber-950">
-                Vista previa de Partner
-              </h2>
-              <p className="mt-1 text-sm text-amber-900">
-                Estás viendo la misma estructura que verá una gestoría autorizada. Esta vista no crea referidos, comisiones ni datos de cobro.
-              </p>
-            </div>
-          </div>
-        </Card>
-      )}
 
       <Card className="mb-4 border-blue-200 bg-blue-50">
         <div className="flex items-start gap-3">
