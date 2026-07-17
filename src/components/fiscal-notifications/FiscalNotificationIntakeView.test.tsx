@@ -638,7 +638,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "El análisis es local. Al guardar eliges Factu, Google Drive o ambos.",
       "Los documentos duplicados se detectan automáticamente.",
       "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias permitidas, fechas, estados y relaciones estructurados.",
-      "Puedes conservar la ficha estructurada en Factu, el PDF original en tu Google Drive o ambos.",
+      "Al guardar podrás elegir Mi cuenta, Google Drive o ambas opciones.",
       "No se ha enviado a ningún proveedor y debes revisarlo manualmente.",
       "Lectura OCR local",
     ]) {
@@ -985,18 +985,27 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     }
   });
 
-  it("resume todos los PDF analizados y distingue la ficha seleccionada", () => {
+  it("reutiliza el flujo familiar de cola, revisión individual y avance al siguiente", () => {
     for (const expected of [
-      "Resumen del lote",
-      "analizados",
-      "Cada tarjeta corresponde a un PDF. Abre una para ver su ficha completa.",
-      "Ver ficha completa",
-      "Ficha abierta",
+      "Primero prepara la cola. No analizaremos nada hasta que pulses Analizar.",
+      "Archivos en la cola",
+      "Puedes añadir más o quitar alguno antes de analizar.",
+      "Documentos escaneados",
+      "Revisa y guarda cada documento. Al guardar se abrirá automáticamente el siguiente.",
+      "Revisar",
+      "Revisión abierta",
+      "Guardar y revisar siguiente",
+      "Guardar documento",
       "Ficha seleccionada · documento",
       "Archivo temporal:",
     ]) {
       expect(compact(componentSource)).toContain(expected);
     }
+    expect(componentSource).toContain("hasNextReview={hasAnotherReview}");
+    expect(componentSource).toContain("advanceAfterSuccessfulSave(");
+    expect(componentSource).toContain("showReview(nextReview.documentId)");
+    expect(componentSource).toContain("setScannerOpen(false)");
+    expect(componentSource).not.toContain("Guardar todo lo listo");
     expect(componentSource).toContain(
       "const review = reviewsRef.current.get(item.id)",
     );

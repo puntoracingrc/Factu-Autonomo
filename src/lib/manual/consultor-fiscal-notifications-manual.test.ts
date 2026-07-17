@@ -18,6 +18,11 @@ describe("manual de Notificaciones y expedientes", () => {
     expect(text).toContain("Elegir varios PDF");
     expect(text).toContain("50 documentos");
     expect(text).toContain("Añadirlos no inicia el análisis");
+    expect(text).toContain("mismo orden familiar del escáner de gastos");
+    expect(text).toContain("**Guardar y revisar siguiente**");
+    expect(text).toContain("se abre automáticamente el siguiente");
+    expect(text).toContain("se cierra");
+    expect(text).toContain("señala en verde la ficha recién guardada");
     expect(text).toContain("**Mi cuenta**");
     expect(text).toContain("**Google Drive**");
     expect(text).toContain("**Ambas**");

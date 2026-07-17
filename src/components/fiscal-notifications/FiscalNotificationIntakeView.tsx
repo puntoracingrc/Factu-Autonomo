@@ -1394,6 +1394,10 @@ function FiscalNotificationReviewWorkspace({
           total: queue.length,
         }
       : null;
+  const hasAnotherReview = queue.some(
+    (item) =>
+      item.documentId !== activeDocumentId && reviewsRef.current.has(item.id),
+  );
   const reviewGuidance = result
     ? projectFiscalNotificationReviewGuidanceV1({
         technicalReview: result,
@@ -1478,6 +1482,10 @@ function FiscalNotificationReviewWorkspace({
               PDF · hasta {FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1} documentos ·
               no se analizan hasta que tú pulses el botón
             </p>
+            <p className="mt-1 text-sm font-semibold text-slate-700">
+              Primero prepara la cola. No analizaremos nada hasta que pulses
+              Analizar.
+            </p>
             <Button
               type="button"
               variant="secondary"
@@ -1508,13 +1516,13 @@ function FiscalNotificationReviewWorkspace({
                 <div>
                   <h3 className="font-bold text-slate-950">
                     {reviewedCount > 0
-                      ? `Resumen del lote · ${reviewedCount}/${queue.length} analizados`
-                      : `Cola preparada · ${queue.length}/${FISCAL_NOTIFICATION_BATCH_MAX_FILES_V1}`}
+                      ? `Documentos escaneados · ${reviewedCount}/${queue.length} leídos`
+                      : `Archivos en la cola · ${queue.length}`}
                   </h3>
                   <p className="mt-1 text-sm text-slate-600">
                     {reviewedCount > 0
-                      ? "Cada tarjeta corresponde a un PDF. Abre una para ver su ficha completa."
-                      : "Puedes quitar archivos antes de analizar y abrir cada resultado después."}
+                      ? "Revisa y guarda cada documento. Al guardar se abrirá automáticamente el siguiente."
+                      : "Puedes añadir más o quitar alguno antes de analizar."}
                   </p>
                 </div>
                 <Button
@@ -1611,8 +1619,8 @@ function FiscalNotificationReviewWorkspace({
                                   className="h-4 w-4"
                                 />
                                 {activeDocumentId === item.documentId
-                                  ? "Ficha abierta"
-                                  : "Ver ficha completa"}
+                                  ? "Revisión abierta"
+                                  : "Revisar"}
                               </Button>
                             ) : null}
                             {item.status === "ERROR" &&
@@ -1746,6 +1754,7 @@ function FiscalNotificationReviewWorkspace({
         <ReviewPersistencePanel
           state={persistenceState}
           canSave={pendingReview !== null}
+          hasNextReview={hasAnotherReview}
           onSave={() => setSaveDestinationOpen(true)}
         />
       ) : null}
@@ -1883,16 +1892,18 @@ function DriveArchiveCandidatesPanel({
 function ReviewPersistencePanel({
   state,
   canSave,
+  hasNextReview,
   onSave,
 }: {
   state: ReviewPersistenceState;
   canSave: boolean;
+  hasNextReview: boolean;
   onSave: () => void;
 }) {
   const copy: Readonly<Record<ReviewPersistenceState, string>> = {
     idle: "Los datos estructurados todavía no se han guardado.",
     pending:
-      "El análisis está disponible. Guarda la ficha si quieres conservar los datos exactos detectados.",
+      "Revisa los datos y guarda este documento cuando estén correctos.",
     saving: "Guardando el documento en el destino elegido…",
     saved:
       "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias permitidas, fechas, estados y relaciones estructurados.",
@@ -1926,9 +1937,7 @@ function ReviewPersistencePanel({
             {copy[state]}
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Puedes conservar la ficha estructurada en Factu, el PDF original en
-            tu Google Drive o ambos. Ninguna opción crea una deuda, pago,
-            vencimiento, gasto o asiento.
+            Al guardar podrás elegir Mi cuenta, Google Drive o ambas opciones.
           </p>
         </div>
         {canSave ? (
@@ -1947,7 +1956,9 @@ function ReviewPersistencePanel({
               ? "Comprobar ficha y reintentar"
               : state === "saving"
                 ? "Guardando ficha…"
-                : "Guardar"}
+                : hasNextReview
+                  ? "Guardar y revisar siguiente"
+                  : "Guardar documento"}
           </Button>
         ) : null}
       </div>
