@@ -1,4 +1,5 @@
 import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
+import { getPartnerSupabaseAdmin } from "@/lib/partners/admin-client";
 import type { PartnerAccountStatus } from "@/lib/partners/contracts";
 import {
   partnerJsonResponse,
@@ -13,7 +14,6 @@ import {
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
 import { readJsonBody } from "@/lib/server/request-body";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 type RouteParams = { params: Promise<{ userId: string }> };
 
@@ -28,7 +28,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   if (!rateLimit.allowed) {
     return withPartnerPrivateHeaders(rateLimitExceededResponse(rateLimit));
   }
-  const admin = getSupabaseAdmin();
+  const admin = getPartnerSupabaseAdmin();
   if (!admin) {
     return partnerJsonResponse(
       { error: "La base de datos del programa Partners no está disponible." },

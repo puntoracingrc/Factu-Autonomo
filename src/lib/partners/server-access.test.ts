@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { isAdminEmail } from "@/lib/admin/access";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getPartnerSupabaseAdmin } from "./admin-client";
 import {
   getPartnerAccountRecord,
   PartnerSchemaUnavailableError,
@@ -11,7 +11,7 @@ import { getPartnerAccessFromRequest } from "./server-access";
 
 vi.mock("@/lib/admin/access", () => ({ isAdminEmail: vi.fn() }));
 vi.mock("@/lib/billing/server-auth", () => ({ getUserFromBearer: vi.fn() }));
-vi.mock("@/lib/supabase/admin", () => ({ getSupabaseAdmin: vi.fn() }));
+vi.mock("./admin-client", () => ({ getPartnerSupabaseAdmin: vi.fn() }));
 vi.mock("./repository", async (importOriginal) => {
   const original = await importOriginal<typeof import("./repository")>();
   return { ...original, getPartnerAccountRecord: vi.fn() };
@@ -41,7 +41,7 @@ describe("Partner server access", () => {
       id: activeAccount.user_id,
       email: activeAccount.email,
     } as never);
-    vi.mocked(getSupabaseAdmin).mockReturnValue({} as never);
+    vi.mocked(getPartnerSupabaseAdmin).mockReturnValue({} as never);
     vi.mocked(isAdminEmail).mockReturnValue(false);
     vi.mocked(getPartnerAccountRecord).mockResolvedValue(activeAccount);
   });
@@ -59,7 +59,7 @@ describe("Partner server access", () => {
   });
 
   it("fails closed when the service database is unavailable", async () => {
-    vi.mocked(getSupabaseAdmin).mockReturnValue(null);
+    vi.mocked(getPartnerSupabaseAdmin).mockReturnValue(null);
 
     const result = await getPartnerAccessFromRequest(request);
 
