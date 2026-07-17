@@ -186,6 +186,7 @@ export function buildInvoicePeriodSummaryPdf(
       287,
     );
     pdf.text(`${page}/${pageCount}`, 196, 287, { align: "right" });
+    pdf.text("facturacion-autonomos.app", 105, 292, { align: "center" });
   }
 
   return pdf;

@@ -116,5 +116,6 @@ describe("invoice period summary PDF", () => {
     expect(new TextDecoder().decode(bytes.slice(0, 4))).toBe("%PDF");
     expect(pdf.getNumberOfPages()).toBe(1);
     expect(bytes.byteLength).toBeGreaterThan(1_000);
+    expect(pdf.output()).toContain("facturacion-autonomos.app");
   });
 });

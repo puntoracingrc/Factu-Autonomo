@@ -39,6 +39,7 @@ export interface PdfArtifacts {
 
 export interface DocumentPdfOptions {
   freePlanBranding?: boolean;
+  websiteFooter?: boolean;
 }
 
 function formatIssuerLocationLines(
@@ -87,6 +88,7 @@ function formatIssuerDetailLines(
 
 const FREE_PLAN_BRANDING_TEXT =
   "Factura realizada con facturacion-autonomos.app";
+const WEBSITE_FOOTER_TEXT = "facturacion-autonomos.app";
 
 function documentLabel(doc: Document): string {
   if (isRectificativa(doc)) return "FACTURA RECTIFICATIVA";
@@ -112,6 +114,23 @@ function drawFreePlanBranding(
     pdf.setFontSize(7);
     pdf.setTextColor(150, 150, 150);
     pdf.text(FREE_PLAN_BRANDING_TEXT, 105, 292, { align: "center" });
+  }
+  pdf.setTextColor(0, 0, 0);
+}
+
+function drawWebsiteFooter(
+  pdf: jsPDF,
+  options: {
+    font: "helvetica" | "times" | "courier";
+  },
+): void {
+  const pageCount = pdf.getNumberOfPages();
+  for (let page = 1; page <= pageCount; page += 1) {
+    pdf.setPage(page);
+    pdf.setFont(options.font, "normal");
+    pdf.setFontSize(7);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(WEBSITE_FOOTER_TEXT, 105, 292, { align: "center" });
   }
   pdf.setTextColor(0, 0, 0);
 }
@@ -521,7 +540,7 @@ export function buildDocumentPdfFromViewModel(
             fillColor: [248, 250, 252],
           },
     margin: {
-      bottom: options.freePlanBranding ? 16 : 10,
+      bottom: options.freePlanBranding || options.websiteFooter ? 16 : 10,
     },
   });
 
@@ -621,6 +640,8 @@ export function buildDocumentPdfFromViewModel(
 
   if (options.freePlanBranding) {
     drawFreePlanBranding(pdf, { font: pdfFont });
+  } else if (options.websiteFooter) {
+    drawWebsiteFooter(pdf, { font: pdfFont });
   }
 
   return pdf;

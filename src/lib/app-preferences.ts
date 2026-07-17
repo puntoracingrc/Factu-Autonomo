@@ -107,7 +107,7 @@ export const DOCUMENT_EMAIL_METHOD_OPTIONS: Array<{
   {
     value: "ask",
     label: "Preguntar",
-    description: "Elegir método al pulsar el icono de email.",
+    description: "Elegir método cada vez que envías por email.",
   },
   {
     value: "gmail",
@@ -125,6 +125,15 @@ export const DOCUMENT_EMAIL_METHOD_OPTIONS: Array<{
     description: "Usar el menú de compartir de macOS, iOS, Android o navegador.",
   },
 ];
+
+export const DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS =
+  DOCUMENT_EMAIL_METHOD_OPTIONS.filter(
+    (
+      option,
+    ): option is (typeof DOCUMENT_EMAIL_METHOD_OPTIONS)[number] & {
+      value: Exclude<DocumentEmailSendPreference, "ask">;
+    } => option.value !== "ask",
+  );
 
 export const DOCUMENT_WHATSAPP_METHOD_OPTIONS: Array<{
   value: DocumentWhatsAppSendPreference;
@@ -147,6 +156,15 @@ export const DOCUMENT_WHATSAPP_METHOD_OPTIONS: Array<{
     description: "Usar el menú de compartir del sistema.",
   },
 ];
+
+export const DOCUMENT_WHATSAPP_CONCRETE_METHOD_OPTIONS =
+  DOCUMENT_WHATSAPP_METHOD_OPTIONS.filter(
+    (
+      option,
+    ): option is (typeof DOCUMENT_WHATSAPP_METHOD_OPTIONS)[number] & {
+      value: Exclude<DocumentWhatsAppSendPreference, "ask">;
+    } => option.value !== "ask",
+  );
 
 function isTheme(value: unknown): value is AppThemePreference {
   return value === "system" || value === "light" || value === "dark";

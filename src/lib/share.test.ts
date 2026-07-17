@@ -10,6 +10,7 @@ import {
   buildMailtoUrl,
   buildShareMessage,
   buildWhatsAppUrl,
+  canShareFileNatively,
   canShareDocumentPdfNatively,
   greetingForDate,
   hasClientEmail,
@@ -20,6 +21,7 @@ import {
   openExternalUrl,
   openWhatsAppDocumentMessage,
   reserveExternalShareWindow,
+  shareFileNatively,
   shareDocumentByEmail,
   shareDocumentByWhatsApp,
 } from "./share";
@@ -140,6 +142,28 @@ describe("document email native sharing", () => {
       canShare: vi.fn(() => true),
     });
     expect(canShareDocumentPdfNatively()).toBe(true);
+  });
+
+  it("comparte un ZIP con nombre, texto y tipo preservados", async () => {
+    const share = vi.fn().mockResolvedValue(undefined);
+    const canShare = vi.fn(() => true);
+    vi.stubGlobal("navigator", { share, canShare });
+
+    expect(canShareFileNatively("Facturas Mayo 2026.zip", "application/zip"))
+      .toBe(true);
+
+    await shareFileNatively({
+      blob: new Blob(["zip"], { type: "application/zip" }),
+      fileName: "Facturas Mayo 2026.zip",
+      title: "Facturas emitidas · Mayo 2026",
+      text: "Hola Laura",
+    });
+
+    const payload = share.mock.calls[0][0];
+    expect(payload.files[0].name).toBe("Facturas Mayo 2026.zip");
+    expect(payload.files[0].type).toBe("application/zip");
+    expect(payload.title).toBe("Facturas emitidas · Mayo 2026");
+    expect(payload.text).toBe("Hola Laura");
   });
 
   it("no cae silenciosamente a mailto si compartir falla", async () => {

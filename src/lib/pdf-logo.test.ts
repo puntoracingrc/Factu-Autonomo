@@ -225,4 +225,13 @@ describe("buildDocumentPdf", () => {
       "Factura realizada con facturacion-autonomos.app",
     );
   });
+
+  it("puede añadir solo el dominio al pie de los PDF exportados", () => {
+    const pdf = buildDocumentPdf(baseDoc, DEFAULT_PROFILE, {}, {
+      websiteFooter: true,
+    });
+
+    expect(pdf.output()).toContain("facturacion-autonomos.app");
+    expect(pdf.output()).not.toContain("Factura realizada con");
+  });
 });

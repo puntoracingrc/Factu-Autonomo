@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   APP_START_PAGE_OPTIONS,
+  DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS,
   DOCUMENT_EMAIL_METHOD_OPTIONS,
+  DOCUMENT_WHATSAPP_CONCRETE_METHOD_OPTIONS,
   DOCUMENT_WHATSAPP_METHOD_OPTIONS,
   appStartPageHref,
   normalizeAppPreferences,
@@ -75,5 +77,11 @@ describe("app preferences", () => {
     expect(
       DOCUMENT_WHATSAPP_METHOD_OPTIONS.map((option) => option.value),
     ).toEqual(["ask", "direct", "native"]);
+    expect(
+      DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS.map((option) => option.value),
+    ).toEqual(["gmail", "mailto", "native"]);
+    expect(
+      DOCUMENT_WHATSAPP_CONCRETE_METHOD_OPTIONS.map((option) => option.value),
+    ).toEqual(["direct", "native"]);
   });
 });

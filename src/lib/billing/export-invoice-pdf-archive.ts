@@ -293,7 +293,9 @@ async function renderPdfBytes(
         nextIndex += 1;
         const record = records[index];
         try {
-          const blob = await buildDocumentPdfBlob(record.stored, profile);
+          const blob = await buildDocumentPdfBlob(record.stored, profile, {
+            websiteFooter: true,
+          });
           rendered[index] = new Uint8Array(await blob.arrayBuffer());
         } catch {
           throw new InvoicePdfPeriodExportError(

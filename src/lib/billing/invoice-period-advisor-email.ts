@@ -29,8 +29,6 @@ export function buildInvoicePeriodAdvisorEmail(
     `Te envío las facturas emitidas correspondientes a ${periodLabel}.`,
     `El paquete ${archiveFileName} contiene ${invoiceCount} factura${invoiceCount === 1 ? "" : "s"} en PDF y el archivo ${summaryFileName} con su relación y totales.`,
     "",
-    "Factu ha descargado el ZIP en este dispositivo. Adjunta ese archivo a este correo antes de enviarlo.",
-    "",
     "Un saludo,",
     senderName,
   ].join("\n");
