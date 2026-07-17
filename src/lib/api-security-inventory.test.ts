@@ -52,6 +52,7 @@ const expectedMethods: Record<string, string[]> = {
   "referrals/redeem/route.ts": ["POST"],
   "reminders/realtime-session/route.ts": ["POST"],
   "security/csp-report/route.ts": ["GET", "POST"],
+  "security/data-access-event/route.ts": ["POST"],
   "security/health-alert/route.ts": ["GET"],
   "server-documents/ingest/route.ts": ["GET", "POST"],
   "verifactu/declaration/route.ts": ["GET"],
@@ -104,6 +105,7 @@ const bearerRoutes = [
   "referrals/me/route.ts",
   "referrals/redeem/route.ts",
   "reminders/realtime-session/route.ts",
+  "security/data-access-event/route.ts",
   "verifactu/register/route.ts",
 ] as const;
 
@@ -159,6 +161,7 @@ const boundedBodyRoutes = [
   "tax-diagnostic/events/route.ts",
   "referrals/redeem/route.ts",
   "security/csp-report/route.ts",
+  "security/data-access-event/route.ts",
   "verifactu/register/route.ts",
   "webhooks/stripe/route.ts",
 ] as const;

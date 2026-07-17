@@ -10,6 +10,7 @@ import {
   Eye,
   EyeOff,
   KeyRound,
+  LogOut,
   Mail,
   RefreshCw,
 } from "lucide-react";
@@ -90,6 +91,7 @@ export function CloudAccountCard() {
     signInWithGoogle,
     resendConfirmationEmail,
     signOut,
+    signOutAndClearDevice,
     syncNow,
     forceDownloadFromCloud,
     exportBackup,
@@ -337,6 +339,24 @@ export function CloudAccountCard() {
     keepLocalDataOnDevice();
   }
 
+  async function handleSecureSignOut() {
+    const confirmed = confirm(
+      "Se comprobará primero que la nube está al día. Después se cerrará la sesión y se borrarán de este navegador los datos de Factu y los ajustes locales de Rentabilidad Real. ¿Continuar?",
+    );
+    if (!confirmed) return;
+
+    setAuthError(null);
+    setAuthNotice(null);
+    setBusy(true);
+    const error = await signOutAndClearDevice();
+    setBusy(false);
+    if (error) {
+      setAuthError(error);
+      return;
+    }
+    setAuthNotice("Sesión cerrada y datos de este dispositivo borrados.");
+  }
+
   return (
     <Card className="mb-6 space-y-4">
       <div className="flex items-start gap-3">
@@ -536,6 +556,14 @@ export function CloudAccountCard() {
             </Button>
             <Button variant="ghost" onClick={() => void signOut()}>
               Cerrar sesión
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => void handleSecureSignOut()}
+              disabled={busy}
+            >
+              <LogOut className="h-4 w-4" />
+              Cerrar y borrar este dispositivo
             </Button>
           </div>
           <details className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">

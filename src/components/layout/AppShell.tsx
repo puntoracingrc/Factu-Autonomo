@@ -19,6 +19,7 @@ import {
   CloudSyncPendingBanner,
 } from "@/components/cloud/CloudSyncIndicator";
 import { GoogleDriveAutoBackup } from "@/components/cloud/GoogleDriveAutoBackup";
+import { DataAccessEventReporter } from "@/components/security/DataAccessEventReporter";
 import { GuestLocalDataBanner } from "@/components/cloud/GuestLocalDataBanner";
 import { DemoModeBanner } from "@/components/demo/DemoModeBanner";
 import { QuickToolsLauncher } from "@/components/documents/QuickToolsLauncher";
@@ -216,6 +217,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Suspense>
       <ReferralRedeemOnLogin />
       <GoogleDriveAutoBackup />
+      <DataAccessEventReporter />
 
       <aside className="app-sidebar hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:shrink-0 lg:flex-col lg:border-r lg:border-slate-200 lg:bg-white">
         <div className="border-b border-slate-200 px-5 py-4">

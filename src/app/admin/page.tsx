@@ -293,7 +293,7 @@ const ADMIN_MENU: Array<{
   {
     id: "seguridad",
     label: "Seguridad",
-    description: "MFA, abuso/scraping y log seguro para diagnóstico.",
+    description: "MFA, abuso, extracción y log seguro para diagnóstico.",
     Icon: ShieldCheck,
   },
   {
@@ -2201,7 +2201,7 @@ function HealthDashboard({ health }: { health: AdminHealthSnapshot }) {
             </div>
             <div>
               <p className="text-sm font-bold uppercase tracking-wide">
-                Abuso y scraping · {health.abuse.label}
+                Abuso, scraping y extracción · {health.abuse.label}
               </p>
               <p className="mt-1 text-lg font-black">{health.abuse.headline}</p>
               <p className="mt-1 text-sm">
@@ -2799,7 +2799,7 @@ function SecurityDashboard({
             </div>
             <div>
               <p className="text-sm font-bold uppercase tracking-wide">
-                Abuso y scraping · {securityLabel}
+                Abuso, scraping y extracción · {securityLabel}
               </p>
               <p className="mt-1 text-xl font-black">{securityHeadline}</p>
               <p className="mt-1 text-sm">
@@ -2879,7 +2879,7 @@ function SecurityDashboard({
 
       <CopyableLogPanel
         title="Log seguridad para Codex"
-        description="Pensado para investigar scraping, abusos, CSP y rate limits sin copiar IPs, tokens ni emails."
+        description="Pensado para investigar scraping, extracción, abusos, CSP y rate limits sin copiar IPs, tokens ni emails."
         log={securityLog}
       />
     </div>

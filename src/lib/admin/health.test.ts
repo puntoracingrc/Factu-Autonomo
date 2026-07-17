@@ -117,6 +117,33 @@ describe("admin health helpers", () => {
     );
   });
 
+  it("distingue una extracción probable de un ataque genérico", () => {
+    const snapshot = buildAdminHealthSnapshot({
+      database: { bytes: 100, limitBytes: 1000 },
+      users: { active30d: 20 },
+      sync: { cloudUsers: 1, latestSyncAt: "2026-07-09T06:03:00.000Z" },
+      errors: { last24h: 0 },
+      abuse: {
+        namespaces: [
+          {
+            namespace: "data_backup_local_large",
+            buckets: 5,
+            requests: 5,
+            maxRequests: 4,
+            latestAt: "2026-07-10T13:00:00.000Z",
+          },
+        ],
+      },
+    });
+
+    expect(snapshot.abuse.level).toBe("action");
+    expect(snapshot.abuse.label).toBe("Extracción probable");
+    expect(snapshot.abuse.headline).toContain("copias o descargas");
+    expect(snapshot.recommendations).toContain(
+      "Posible extracción de datos: revisar copias, sesiones y descargas del usuario afectado.",
+    );
+  });
+
   it("nombra los nuevos contadores protegidos de forma legible", () => {
     const abuse = buildAdminAbuseSummary({
       namespaces: [

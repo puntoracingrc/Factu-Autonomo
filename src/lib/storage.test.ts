@@ -11,7 +11,12 @@ import {
   DEMO_WORKSPACE_STORAGE_KEY,
   setDemoWorkspaceMode,
 } from "./demo-workspace";
-import { loadData, normalizeLoadedData, saveData } from "./storage";
+import {
+  clearPersistedAppData,
+  loadData,
+  normalizeLoadedData,
+  saveData,
+} from "./storage";
 import {
   applyLegacyImportRepair,
   buildLegacyImportRepairPreview,
@@ -448,6 +453,20 @@ describe("storage", () => {
       clear: () => store.clear(),
     });
     vi.stubGlobal("window", {});
+  });
+
+  it("borra el workspace local solo si coincide con el estado esperado", () => {
+    const current = normalizeLoadedData(sampleData());
+    expect(saveData(current)).toEqual({ status: "applied" });
+
+    expect(clearPersistedAppData(EMPTY_DATA)).toEqual({
+      status: "blocked",
+      reason: "stale_precondition",
+    });
+    expect(localStorage.getItem(STORAGE_KEY)).not.toBeNull();
+
+    expect(clearPersistedAppData(current)).toEqual({ status: "applied" });
+    expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
   });
 
   it("rehidrata únicamente preferencias manuales de modelos válidas", () => {
