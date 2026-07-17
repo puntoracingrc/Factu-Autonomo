@@ -46,11 +46,12 @@ describe("contrato de interfaz del calendario fiscal", () => {
     expect(componentSource).toContain('type="date"');
   });
 
-  it("explica la fuente pública y distingue fixtures simulados", () => {
-    expect(componentSource).toContain(
+  it("distingue fixtures simulados sin añadir bloques informativos redundantes", () => {
+    expect(componentSource).not.toContain("Información general de la fuente");
+    expect(componentSource).not.toContain(
       "Los resultados se cargan desde los cinco calendarios iCalendar",
     );
-    expect(componentSource).toContain(
+    expect(componentSource).not.toContain(
       "Se conserva la fecha y el texto publicados por la fuente",
     );
     expect(componentSource).toContain("Datos simulados para revisión local");
@@ -125,7 +126,7 @@ describe("contrato de interfaz del calendario fiscal", () => {
     );
     expect(componentSource).toContain('mineLabel="Mis obligaciones"');
     expect(componentSource).toContain("obligationView.mineModelCodes.size");
-    expect(componentSource).toContain(
+    expect(componentSource).not.toContain(
       "«Mis obligaciones» cuenta modelos únicos",
     );
     expect(componentSource).toContain(
@@ -135,14 +136,14 @@ describe("contrato de interfaz del calendario fiscal", () => {
       "mineDisabled={!personalizationAvailable}",
     );
     expect(componentSource).toContain("Abrir diagnóstico");
-    expect(componentSource).toContain("Calendario recomendado orientativo.");
+    expect(componentSource).not.toContain("Calendario recomendado orientativo.");
     expect(componentSource).toContain("Puede afectarte · por confirmar");
     expect(componentSource).toContain("Relacionado · por confirmar");
     expect(componentSource).toContain("orientationHighlighted");
     expect(componentSource).toContain(
       "orientationPriorityEventIds.has(event.id)",
     );
-    expect(componentSource).toContain(
+    expect(componentSource).not.toContain(
       "conserva siempre el calendario completo",
     );
     expect(componentSource).toContain(
