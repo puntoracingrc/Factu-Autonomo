@@ -31,6 +31,7 @@ import {
 import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
 import { PROFILE_FIELD_LABELS_V2 } from "./extractor-core/profile-field-labels.v2";
 import { REAL_CORPUS_EXPLANATIONS_V4 } from "./extractor-core/real-corpus-extractor.v4";
+import { REAL_CORPUS_EXPLANATIONS_V5 } from "./extractor-core/real-corpus-extractor.v5";
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1 =
   "1.0.0" as const;
@@ -1681,6 +1682,11 @@ function isControlledFieldLabel(value: string): boolean {
       "Consecuencia indicada",
       "Espera antes del ingreso bancario",
       "Estado de la notificación anterior",
+      "Clave de la deuda denegada",
+      "Principal denegado",
+      "Regla del plazo tras denegación",
+      "Estado de la retención",
+      "Estado del ingreso al Tesoro",
       "Qué es",
       "Qué resultado muestra",
       "Qué conviene hacer",
@@ -1690,7 +1696,7 @@ function isControlledFieldLabel(value: string): boolean {
   ) {
     return true;
   }
-  return /^(?:Documentación|Consecuencia indicada|Hecho o fundamento|Recurso indicado|Deuda afectada|Vencimiento original|Cuota|Organismo público|Deducción|Referencia de la deducción) [1-9]\d*$/u.test(
+  return /^(?:Documentación|Consecuencia indicada|Hecho o fundamento|Recurso indicado|Deuda afectada|Vencimiento original|Cuota|Organismo público|Deducción|Referencia de la deducción|Deuda ejecutiva citada|Importe de deuda ejecutiva citada) [1-9]\d*$/u.test(
     value,
   );
 }
@@ -1706,7 +1712,8 @@ function assertSerializableFieldPrivacy(
     (semantic === "DETAIL" || semantic === "OBLIGATION") &&
     (assertRealCorpusSerializableFieldPrivacyV2(item) ||
       assertRealCorpusSerializableFieldPrivacyV3(item) ||
-      assertRealCorpusSerializableFieldPrivacyV4(item))
+      assertRealCorpusSerializableFieldPrivacyV4(item) ||
+      assertRealCorpusSerializableFieldPrivacyV5(item))
   ) {
     return;
   }
@@ -2125,6 +2132,102 @@ function assertRealCorpusSerializableFieldPrivacyV4(
     return true;
   }
   const integer = /^V4:INTEGER:[A-Z0-9_]+:(\d+)$/u.exec(normalized);
+  if (integer) {
+    if (display !== integer[1]) throw invalidReview();
+    return true;
+  }
+  throw invalidReview();
+}
+
+const REAL_CORPUS_EXPLANATION_TEXT_V5 = new Set(
+  Object.values(REAL_CORPUS_EXPLANATIONS_V5).flatMap((explanation) => [
+    explanation.whatIs,
+    explanation.action,
+    explanation.deadline,
+    explanation.consequence,
+  ]),
+);
+
+const REAL_CORPUS_CLOSED_VALUES_V5 = new Set([
+  ...REAL_CORPUS_CLOSED_VALUES_V4,
+  "DEPENDS_ON_EFFECTIVE_RECEIPT",
+  "PRIMARY_DEBTOR",
+  "GARNISHED_THIRD_PARTY_WITHOUT_IDENTITY",
+  "THIRD_PARTY_ONLY",
+  "NOT_CONFIRMED",
+]);
+
+/** Closed V5 exception. Raw text, PII and arbitrary values are rejected. */
+function assertRealCorpusSerializableFieldPrivacyV5(
+  item: Readonly<Record<string, unknown>>,
+): boolean {
+  const fieldId = String(item.fieldId);
+  if (!fieldId.startsWith("real-corpus-v5:")) return false;
+  const display = String(item.displayValue);
+  const normalized =
+    typeof item.normalizedValue === "string" ? item.normalizedValue : "";
+  if (fieldId === "real-corpus-v5:recognized-family") {
+    if (
+      display !== "Título, autoridad y estructura coinciden" ||
+      normalized !== "V5:EXACT_TITLE_AUTHORITY_STRUCTURE"
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (fieldId === "real-corpus-v5:payment-form-status") {
+    if (
+      display !==
+        "Sirve para pagar; sus copias son una sola operación y no acreditan el pago" ||
+      normalized !== "V5:PAYMENT_FORM_ONLY"
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (
+    /^real-corpus-v5:explanation:(?:what_is|action|deadline|consequence)$/u.test(
+      fieldId,
+    )
+  ) {
+    if (
+      !/^V5:EXPLANATION:(?:collection\.enforcement_order|collection\.deferral_grant|collection\.deferral_denial|seizure\.commercial_credits):(?:WHAT_IS|ACTION|DEADLINE|CONSEQUENCE)$/u.test(
+        normalized,
+      ) ||
+      !REAL_CORPUS_EXPLANATION_TEXT_V5.has(display)
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (/^real-corpus-v5:installment:\d+$/u.test(fieldId)) {
+    if (
+      !/^V5:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):\d+:\d+:\d+$/u.test(
+        normalized,
+      ) ||
+      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés \d{1,3}(?:\.\d{3})*,\d{2}\s€ · total \d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
+        display,
+      )
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  const closed = /^V5:TEXT:[A-Z0-9_]+:([A-Z0-9_]+)$/u.exec(normalized);
+  if (closed) {
+    if (
+      !REAL_CORPUS_CLOSED_VALUES_V5.has(closed[1]!) ||
+      display !== closed[1]
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (/^V5:BOOLEAN:[A-Z0-9_]+:(?:TRUE|FALSE)$/u.test(normalized)) {
+    if (display !== "Sí" && display !== "No") throw invalidReview();
+    return true;
+  }
+  const integer = /^V5:INTEGER:[A-Z0-9_]+:(\d+)$/u.exec(normalized);
   if (integer) {
     if (display !== integer[1]) throw invalidReview();
     return true;

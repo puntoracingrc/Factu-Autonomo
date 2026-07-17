@@ -14,6 +14,7 @@ import { segmentProfileDrivenDocumentV2 } from "./extractor-core/profile-driven-
 import { extractAeatRealCorpusDocumentV2 } from "./extractor-core/real-corpus-extractor.v2";
 import { extractAeatRealCorpusDocumentV3 } from "./extractor-core/real-corpus-extractor.v3";
 import { extractAeatRealCorpusDocumentV4 } from "./extractor-core/real-corpus-extractor.v4";
+import { extractAeatRealCorpusDocumentV5 } from "./extractor-core/real-corpus-extractor.v5";
 import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
 import {
@@ -23,6 +24,7 @@ import {
 import { projectRealCorpusReviewV2 } from "./real-corpus-review.v2";
 import { projectRealCorpusReviewV3 } from "./real-corpus-review.v3";
 import { projectRealCorpusReviewV4 } from "./real-corpus-review.v4";
+import { projectRealCorpusReviewV5 } from "./real-corpus-review.v5";
 import {
   projectFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewV1,
@@ -86,6 +88,7 @@ export async function analyzeFiscalNotificationDocumentInput(
     realCorpusOutcome,
     realCorpusOutcomeV3,
     realCorpusOutcomeV4,
+    realCorpusOutcomeV5,
   ] = await Promise.all([
     analyzeFiscalNotificationVerticalSliceV1(documentInput),
     hasText
@@ -102,6 +105,9 @@ export async function analyzeFiscalNotificationDocumentInput(
       : Promise.resolve(null),
     hasText
       ? extractAeatRealCorpusDocumentV4(documentInput)
+      : Promise.resolve(null),
+    hasText
+      ? extractAeatRealCorpusDocumentV5(documentInput)
       : Promise.resolve(null),
   ]);
   const legacyReview =
@@ -145,25 +151,37 @@ export async function analyzeFiscalNotificationDocumentInput(
     realCorpusOutcomeV4?.status === "REVIEW_REQUIRED"
       ? realCorpusOutcomeV4.familyId
       : null;
+  const v5FamilyId =
+    realCorpusOutcomeV5?.status === "REVIEW_REQUIRED"
+      ? realCorpusOutcomeV5.familyId
+      : null;
   const reviewsOutsideLatestFamily = profileReviews.filter(
     (review) =>
       (v3FamilyId === null ||
         review.documents.every((document) => document.familyId !== v3FamilyId)) &&
       (v4FamilyId === null ||
-        review.documents.every((document) => document.familyId !== v4FamilyId)),
+        review.documents.every((document) => document.familyId !== v4FamilyId)) &&
+      (v5FamilyId === null ||
+        review.documents.every((document) => document.familyId !== v5FamilyId)),
   );
   const verticalSliceReview = mergeProfileDrivenReviewsV2(legacyReview, [
     ...reviewsOutsideLatestFamily,
     ...(realCorpusOutcome &&
     realCorpusOutcome.familyId !== v3FamilyId &&
-    realCorpusOutcome.familyId !== v4FamilyId
+    realCorpusOutcome.familyId !== v4FamilyId &&
+    realCorpusOutcome.familyId !== v5FamilyId
       ? [projectRealCorpusReviewV2(realCorpusOutcome)]
       : []),
-    ...(realCorpusOutcomeV3 && realCorpusOutcomeV3.familyId !== v4FamilyId
+    ...(realCorpusOutcomeV3 &&
+    realCorpusOutcomeV3.familyId !== v4FamilyId &&
+    realCorpusOutcomeV3.familyId !== v5FamilyId
       ? [projectRealCorpusReviewV3(realCorpusOutcomeV3)]
       : []),
-    ...(realCorpusOutcomeV4
+    ...(realCorpusOutcomeV4 && realCorpusOutcomeV4.familyId !== v5FamilyId
       ? [projectRealCorpusReviewV4(realCorpusOutcomeV4)]
+      : []),
+    ...(realCorpusOutcomeV5
+      ? [projectRealCorpusReviewV5(realCorpusOutcomeV5)]
       : []),
   ]);
 
