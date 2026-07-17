@@ -120,6 +120,7 @@ import {
   type DocumentSessionDraft,
 } from "@/lib/document-session-draft";
 import { productFamilyMarkupPercent } from "@/lib/product-family-markups";
+import type { WhatsappDocumentPrefill } from "@/lib/whatsapp-document-prefill";
 import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
 import type { PurchaseProductSummary } from "@/lib/purchase-products";
 
@@ -405,12 +406,14 @@ interface DocumentFormProps {
   type: DocumentType;
   existing?: Document;
   initialCustomerId?: string | null;
+  initialPrefill?: WhatsappDocumentPrefill | null;
 }
 
 export function DocumentForm({
   type,
   existing,
   initialCustomerId,
+  initialPrefill,
 }: DocumentFormProps) {
   const router = useRouter();
   const {
@@ -586,9 +589,10 @@ export function DocumentForm({
   const [pendingSessionDraft, setPendingSessionDraft] =
     useState<DocumentSessionDraft | null>(null);
   const [sessionDraftChecked, setSessionDraftChecked] = useState(
-    Boolean(existing),
+    Boolean(existing || initialPrefill),
   );
   const productDocumentDraftApplied = useRef(false);
+  const initialPrefillApplied = useRef(false);
 
   useEffect(() => {
     itemsRef.current = items;
@@ -724,6 +728,12 @@ export function DocumentForm({
 
   useEffect(() => {
     if (existing || productDocumentDraftApplied.current) return;
+    if (initialPrefill) {
+      productDocumentDraftApplied.current = true;
+      setPendingSessionDraft(null);
+      setSessionDraftChecked(true);
+      return;
+    }
     const draft = consumeProductDocumentDraft();
     productDocumentDraftApplied.current = true;
     if (!draft || draft.documentType !== type) {
@@ -788,8 +798,53 @@ export function DocumentForm({
     existing,
     findProductSummaryForDraftLine,
     type,
+    initialPrefill,
     unitsSettings,
     vatExempt,
+  ]);
+
+  useEffect(() => {
+    if (existing || !initialPrefill || initialPrefillApplied.current) return;
+
+    const nextClientForm = {
+      ...EMPTY_CLIENT,
+      ...initialPrefill.clientForm,
+    } as ClientFormValues;
+    const nextLine: LineItem = {
+      ...emptyLine(effectiveDocumentIva, defaultUnit),
+      ...initialPrefill.line,
+      id: crypto.randomUUID(),
+      ivaPercent: effectiveDocumentIva,
+      unit: defaultUnit,
+    };
+    const normalizedItems = normalizeLineItemUnits([nextLine], unitsSettings);
+
+    setSelectedCustomerId(null);
+    setClientForm(nextClientForm);
+    if (initialPrefill.notes) {
+      setNotes(initialPrefill.notes);
+    }
+    if (initialPrefill.salesTerms) {
+      setSalesTerms(initialPrefill.salesTerms);
+      defaultSalesTermsApplied.current = true;
+    }
+    if (initialPrefill.paymentTerms) {
+      setPaymentTerms(initialPrefill.paymentTerms);
+      defaultPaymentApplied.current = true;
+    }
+    itemsRef.current = normalizedItems;
+    setItems(normalizedItems);
+    setLineProductPricing({});
+    setLineAreaDrafts(ensureMeasureDraftsForMeasuredLines(normalizedItems));
+    setPendingSessionDraft(null);
+    setSessionDraftChecked(true);
+    initialPrefillApplied.current = true;
+  }, [
+    defaultUnit,
+    effectiveDocumentIva,
+    existing,
+    initialPrefill,
+    unitsSettings,
   ]);
 
   function applySessionDraft(draft: DocumentSessionDraft) {
