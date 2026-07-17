@@ -45,8 +45,8 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(browser).toContain("maxLength={80}");
     expect(browser).toContain("onChange={(event) => setQuery");
     expect(browser).toContain("Código, nombre o concepto");
-    expect(browser).toContain("IVA, retenciones o");
-    expect(browser).toContain("El filtro es local");
+    expect(browser).not.toContain("IVA, retenciones o");
+    expect(browser).not.toContain("El filtro es local");
     expect(browser).not.toContain("pattern=");
     expect(browser).not.toContain("autoCapitalize=");
     expect(browser).not.toContain(">Buscar<");
@@ -54,8 +54,24 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(browser).toContain("personalization.manualModelCodes.length");
     expect(browser).toContain('href="/consultor-fiscal/diagnostico"');
     expect(browser).toContain("personalization.status === \"ALL_ONLY\"");
-    expect(browser).toContain("Organiza las fichas sin modificar ni confirmar");
-    expect(catalog).toContain("Algunas fichas siguen en preparación");
+    expect(browser).not.toContain(
+      "Organiza las fichas sin modificar ni confirmar",
+    );
+    expect(browser).not.toContain(
+      "«Mis modelos» reúne los probablemente necesarios",
+    );
+    expect(browser).not.toContain(
+      "«Todos los modelos» permanece siempre disponible.",
+    );
+    expect(catalog).not.toContain("Algunas fichas siguen en preparación");
+    expect(catalog).not.toContain(
+      "Las tarjetas con la etiqueta «Revisión pendiente»",
+    );
+    expect(browser).toContain("const catalogBatchSize = 30");
+    expect(browser).toContain("matchingEntries.slice(0, visibleCount)");
+    expect(browser).toContain("setVisibleCount(catalogBatchSize)");
+    expect(browser).toContain("Cargar 30 más");
+    expect(catalog).toContain("result.data.slice(0, 30)");
     expect(catalog).toContain("Revisión pendiente");
     expect(catalog).not.toContain("Ficha estructural");
     expect(catalog).not.toContain("Ficha desplegada · contenido en revisión");

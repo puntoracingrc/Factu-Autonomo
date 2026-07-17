@@ -43,6 +43,7 @@ const focusedCardClasses = [
   "ring-offset-2",
   "dark:ring-offset-slate-950",
 ] as const;
+const catalogBatchSize = 30;
 
 interface PersonalizationContextValue {
   enabled: boolean;
@@ -98,6 +99,7 @@ export function FiscalModelCatalogBrowser({
   const { data, ready, updateProfile } = useAppStore();
   const [query, setQuery] = useState(initialQuery);
   const [requestedScope, setRequestedScope] = useState<AdvisoryScope>("ALL");
+  const [visibleCount, setVisibleCount] = useState(catalogBatchSize);
   const inputRef = useRef<HTMLInputElement>(null);
   const availableModelCodes = useMemo(
     () => entries.map((entry) => entry.code),
@@ -139,13 +141,33 @@ export function FiscalModelCatalogBrowser({
     () => new Set(personalization.visibleModelCodes),
     [personalization.visibleModelCodes],
   );
-  const visibleTotal = blocked
-    ? 0
-    : entries.filter(
-        (entry) =>
-          searchMatches.has(entry.catalogCardId) &&
-          (effectiveScope === "ALL" || personalizedCodes.has(entry.code)),
-      ).length;
+  const matchingEntries = useMemo(
+    () =>
+      blocked
+        ? []
+        : entries.filter(
+            (entry) =>
+              searchMatches.has(entry.catalogCardId) &&
+              (effectiveScope === "ALL" || personalizedCodes.has(entry.code)),
+          ),
+    [
+      blocked,
+      effectiveScope,
+      entries,
+      personalizedCodes,
+      searchMatches,
+    ],
+  );
+  const visibleTotal = matchingEntries.length;
+  const visibleEntries = useMemo(
+    () => matchingEntries.slice(0, visibleCount),
+    [matchingEntries, visibleCount],
+  );
+  const visibleCardIds = useMemo(
+    () => new Set(visibleEntries.map((entry) => entry.catalogCardId)),
+    [visibleEntries],
+  );
+  const displayedTotal = visibleEntries.length;
 
   const toggleManualModel = useCallback(
     (modelCode: string, selected: boolean) => {
@@ -225,12 +247,25 @@ export function FiscalModelCatalogBrowser({
   );
 
   useEffect(() => {
+    setVisibleCount(catalogBatchSize);
+  }, [effectiveScope, query]);
+
+  useEffect(() => {
+    if (!focusedCardId) return;
+    const focusedIndex = matchingEntries.findIndex(
+      (entry) => entry.catalogCardId === focusedCardId,
+    );
+    if (focusedIndex < 0) return;
+    const requiredCount =
+      Math.ceil((focusedIndex + 1) / catalogBatchSize) * catalogBatchSize;
+    setVisibleCount((current) => Math.max(current, requiredCount));
+  }, [focusedCardId, matchingEntries]);
+
+  useEffect(() => {
     for (const entry of entries) {
       const card = document.getElementById(entry.catalogCardId);
       if (!card || card.dataset.fiscalModelCard !== "true") continue;
-      const shouldHide =
-        !searchMatches.has(entry.catalogCardId) ||
-        (effectiveScope === "MINE" && !personalizedCodes.has(entry.code));
+      const shouldHide = !visibleCardIds.has(entry.catalogCardId);
       if (
         shouldHide &&
         document.activeElement instanceof Node &&
@@ -245,10 +280,8 @@ export function FiscalModelCatalogBrowser({
     if (noResults) noResults.hidden = blocked || visibleTotal !== 0;
   }, [
     blocked,
-    effectiveScope,
     entries,
-    personalizedCodes,
-    searchMatches,
+    visibleCardIds,
     visibleTotal,
   ]);
 
@@ -291,7 +324,7 @@ export function FiscalModelCatalogBrowser({
         card.classList.remove(className);
       }
     };
-  }, [focusedCardId]);
+  }, [focusedCardId, visibleCardIds]);
 
   return (
     <PersonalizationContext.Provider value={personalizationContext}>
@@ -310,16 +343,6 @@ export function FiscalModelCatalogBrowser({
                 >
                   Buscar modelos
                 </h2>
-                <p
-                  id="buscar-modelo-hint"
-                  className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300"
-                >
-                  Busca por código, nombre oficial o conceptos que aparezcan en
-                  el nombre del modelo; por ejemplo, 303, IVA, retenciones o
-                  arrendamiento. Puedes escribir con o sin tildes y usar
-                  mayúsculas o minúsculas. El filtro es local y no envía datos a
-                  servicios externos.
-                </p>
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                 <div className="min-w-0 flex-1">
@@ -344,8 +367,8 @@ export function FiscalModelCatalogBrowser({
                     }}
                     aria-describedby={
                       blocked
-                        ? "buscar-modelo-hint buscar-modelo-error"
-                        : "buscar-modelo-hint buscar-modelo-resultados"
+                        ? "buscar-modelo-error"
+                        : "buscar-modelo-resultados"
                     }
                     aria-invalid={blocked}
                     aria-errormessage={
@@ -396,10 +419,6 @@ export function FiscalModelCatalogBrowser({
                 <h2 className="font-bold text-slate-950 dark:text-slate-100">
                   Vista del catálogo
                 </h2>
-                <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  Organiza las fichas sin modificar ni confirmar tus
-                  obligaciones fiscales.
-                </p>
               </div>
               <AdvisoryScopeToggle
                 value={effectiveScope}
@@ -436,22 +455,25 @@ export function FiscalModelCatalogBrowser({
                     </p>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-                  <p>
-                    «Mis modelos» reúne los probablemente necesarios, los
-                    posibles, los que necesitan información y los que añadas.
-                  </p>
-                  <p className="font-semibold text-slate-700 dark:text-slate-200">
-                    «Todos los modelos» permanece siempre disponible.
-                  </p>
-                </div>
-              )}
+              ) : null}
             </div>
           </div>
         </Card>
 
         {children}
+        {displayedTotal < visibleTotal ? (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() =>
+                setVisibleCount((current) => current + catalogBatchSize)
+              }
+              className={`inline-flex min-h-12 items-center justify-center rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-black text-blue-700 transition-colors hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-950 ${focusRing}`}
+            >
+              Cargar 30 más
+            </button>
+          </div>
+        ) : null}
       </div>
     </PersonalizationContext.Provider>
   );
