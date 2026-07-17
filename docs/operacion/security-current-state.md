@@ -94,8 +94,8 @@ porque puede leer `localStorage` y actuar con la sesión abierta.
 
 - El acceso admin exige sesión válida y pertenencia a una allowlist de email.
 - La allowlist actual es la unión de dos cuentas propietarias fijadas en código
-  (`puntoracingrc@gmail.com` y `persianasalmar@gmail.com`) y `ADMIN_EMAILS` de
-  servidor.
+  y `ADMIN_EMAILS` de servidor. Los valores concretos se revisan en el código,
+  no se duplican en este informe público.
 - La service role se utiliza únicamente en rutas de servidor.
 - Las APIs admin sin bearer válido responden `401`.
 - La interfaz general de alta/recuperación TOTP está desactivada y el acceso
