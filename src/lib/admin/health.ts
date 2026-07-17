@@ -135,6 +135,14 @@ const ABUSE_NAMESPACE_THRESHOLDS: Record<string, AbuseThresholds> = {
     watchMaxRequests: 300,
     actionMaxRequests: 800,
   },
+  backup_key: {
+    watchRequests: 30,
+    actionRequests: 100,
+    watchBuckets: 10,
+    actionBuckets: 30,
+    watchMaxRequests: 20,
+    actionMaxRequests: 60,
+  },
   data_access_event: {
     watchRequests: 100,
     actionRequests: 300,
@@ -229,6 +237,7 @@ const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
   billing_profile: "Billing: perfil",
   billing_portal: "Billing: portal",
   billing_trial: "Billing: prueba",
+  backup_key: "Seguridad: claves de copia cifrada",
   customers_parse: "IA: parseo clientes",
   data_access_event: "Datos: actividad observada",
   data_backup_drive: "Datos: copia manual en Drive",

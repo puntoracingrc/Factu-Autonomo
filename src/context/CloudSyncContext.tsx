@@ -11,7 +11,6 @@ import {
 } from "react";
 import type { User } from "@supabase/supabase-js";
 import { useAppStore } from "@/context/AppStore";
-import { downloadBackup, readBackupFile } from "@/lib/backup";
 import { appDataToSyncChanges } from "@/lib/cloud/diff";
 import {
   hasPendingSyncChanges,
@@ -68,6 +67,10 @@ import {
 } from "@/lib/security/data-access-events";
 import { clearSecondaryDeviceData } from "@/lib/security/device-data-clear";
 import {
+  downloadProtectedBackup,
+  readProtectedBackupFile,
+} from "@/lib/security/protected-backup";
+import {
   isRetryableWelcomeStatus,
   WELCOME_MAX_CLIENT_RETRIES,
   welcomeRetryDelayMs,
@@ -117,7 +120,7 @@ interface CloudSyncValue {
   saveLocalDataToAccount: () => Promise<void>;
   keepLocalDataOnDevice: () => void;
   forceDownloadFromCloud: () => Promise<void>;
-  exportBackup: () => void;
+  exportBackup: () => Promise<void>;
   importBackup: (file: File) => Promise<string | null>;
 }
 
@@ -1306,7 +1309,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (demoMode) {
         return "Sal de la demo para importar una copia real.";
       }
-      const parsed = await readBackupFile(file);
+      const parsed = await readProtectedBackupFile(file);
       if ("error" in parsed) return parsed.error;
 
       const confirmed = confirm(
@@ -1339,6 +1342,17 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     [demoMode, emailConfirmed, pushToCloud, replaceData, user],
   );
 
+  const exportBackup = useCallback(async () => {
+    const result = await downloadProtectedBackup(dataRef.current);
+    setSyncMessage(
+      result.ok
+        ? result.encrypted
+          ? `Copia cifrada descargada: ${result.filename}`
+          : `Copia local descargada sin cifrar: ${result.filename}`
+        : result.error,
+    );
+  }, []);
+
   const value = useMemo(
     () => ({
       cloudEnabled,
@@ -1365,7 +1379,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       saveLocalDataToAccount,
       keepLocalDataOnDevice,
       forceDownloadFromCloud,
-      exportBackup: () => downloadBackup(data),
+      exportBackup,
       importBackup,
     }),
     [
@@ -1391,7 +1405,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       saveLocalDataToAccount,
       keepLocalDataOnDevice,
       forceDownloadFromCloud,
-      data,
+      exportBackup,
       authReady,
       importBackup,
     ],

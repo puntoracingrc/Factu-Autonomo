@@ -91,7 +91,7 @@ export interface BackupRestoreReadiness {
   confirmedReplacement: boolean;
 }
 
-interface DownloadBackupOptions {
+export interface DownloadBackupOptions {
   now?: () => Date;
   purpose?: "manual" | "pre_restore" | "pre_test_retirement";
 }
@@ -589,10 +589,15 @@ export function createBackupBlob(
   return createBackupArtifact(data, exportedAt).blob;
 }
 
-function createBackupArtifact(
+export function createBackupArtifact(
   data: AppData,
   exportedAt: string,
-): { blob: Blob; contentSha256: string; byteLength: number } {
+): {
+  blob: Blob;
+  text: string;
+  contentSha256: string;
+  byteLength: number;
+} {
   const json = JSON.stringify(createPortableBackupPayload(data, exportedAt));
   const blob = new Blob([json], {
     type: "application/json",
@@ -602,6 +607,7 @@ function createBackupArtifact(
   }
   return {
     blob,
+    text: json,
     contentSha256: `sha256:${sha256Hex(json)}`,
     byteLength: blob.size,
   };
