@@ -1313,9 +1313,12 @@ export function FiscalModelCatalogView({
                   }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <span className="rounded-xl bg-blue-100 px-3 py-1.5 font-mono text-lg font-black text-blue-900 dark:bg-blue-950 dark:text-blue-100">
-                      {page.code}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <FiscalModelManualSelectionAction modelCode={page.code} />
+                      <span className="rounded-xl bg-blue-100 px-3 py-1.5 font-mono text-lg font-black text-blue-900 dark:bg-blue-950 dark:text-blue-100">
+                        {page.code}
+                      </span>
+                    </div>
                     {(historical || !officialContent) && (
                       <span
                         className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
@@ -1375,7 +1378,6 @@ export function FiscalModelCatalogView({
                     </div>
                   </div>
                   <div className="flex-1" />
-                  <FiscalModelManualSelectionAction modelCode={page.code} />
                   {fromCalendar && (
                     <Link
                       href={calendarNavigation!.returnHref}
