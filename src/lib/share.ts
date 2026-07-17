@@ -158,53 +158,86 @@ async function pdfFile(
   return new File([blob], `${doc.number}.pdf`, { type: "application/pdf" });
 }
 
-async function sharePdfNative(
-  doc: Document,
-  profile: BusinessProfile,
-  text: string,
-  pdfOptions?: DocumentPdfOptions,
-): Promise<boolean> {
-  if (typeof navigator === "undefined" || !navigator.share) return false;
-
-  const file = await pdfFile(doc, profile, pdfOptions);
-  const payload = { files: [file], title: doc.number, text };
-
-  if (navigator.canShare && !navigator.canShare(payload)) return false;
-
-  try {
-    await navigator.share(payload);
-    return true;
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") return true;
-    return false;
+export class NativeDocumentShareUnavailableError extends Error {
+  constructor() {
+    super("El dispositivo no pudo abrir el menú de compartir.");
+    this.name = "NativeDocumentShareUnavailableError";
   }
 }
 
-export function canShareDocumentPdfNatively(): boolean {
+export function canShareFileNatively(
+  fileName: string,
+  mimeType: string,
+): boolean {
   if (
     typeof navigator === "undefined" ||
-    typeof navigator.share !== "function"
+    typeof navigator.share !== "function" ||
+    typeof File === "undefined"
   ) {
     return false;
   }
+
   if (typeof navigator.canShare !== "function") return true;
-  if (typeof File === "undefined") return false;
 
   try {
-    const probe = new File([""], "documento.pdf", {
-      type: "application/pdf",
-    });
+    const probe = new File([""], fileName, { type: mimeType });
     return navigator.canShare({ files: [probe] });
   } catch {
     return false;
   }
 }
 
-export class NativeDocumentShareUnavailableError extends Error {
-  constructor() {
-    super("El dispositivo no pudo abrir el menú de compartir.");
-    this.name = "NativeDocumentShareUnavailableError";
+export async function shareFileNatively({
+  blob,
+  fileName,
+  title,
+  text,
+}: {
+  blob: Blob;
+  fileName: string;
+  title: string;
+  text: string;
+}): Promise<void> {
+  if (!canShareFileNatively(fileName, blob.type || "application/octet-stream")) {
+    throw new NativeDocumentShareUnavailableError();
   }
+
+  const file = new File([blob], fileName, {
+    type: blob.type || "application/octet-stream",
+  });
+  const payload = { files: [file], title, text };
+
+  try {
+    await navigator.share(payload);
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return;
+    throw new NativeDocumentShareUnavailableError();
+  }
+}
+
+async function sharePdfNative(
+  doc: Document,
+  profile: BusinessProfile,
+  text: string,
+  pdfOptions?: DocumentPdfOptions,
+): Promise<boolean> {
+  const file = await pdfFile(doc, profile, pdfOptions);
+
+  try {
+    await shareFileNatively({
+      blob: file,
+      fileName: file.name,
+      title: doc.number,
+      text,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function canShareDocumentPdfNatively(): boolean {
+  return canShareFileNatively("documento.pdf", "application/pdf");
 }
 
 function shareSubject(doc: Document): string {

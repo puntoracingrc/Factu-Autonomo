@@ -5,7 +5,7 @@ const migratedCriticalDialogs = [
   "../billing/UpgradeModal.tsx",
   "../documents/DeleteDocumentButton.tsx",
   "../documents/DocumentLinkManagerButton.tsx",
-  "../documents/DocumentShareActions.tsx",
+  "../documents/SendMethodChooserModal.tsx",
   "../documents/PaymentReminderButton.tsx",
   "../settings/DocumentTemplateDesignerCard.tsx",
   "../masters/MasterDeleteConfirmationModal.tsx",
@@ -37,6 +37,17 @@ describe("migración de diálogos críticos", () => {
       expect(source).not.toContain('aria-modal="true"');
     },
   );
+
+  it("las acciones de compartir reutilizan el selector ya migrado", () => {
+    const source = readFileSync(
+      new URL("../documents/DocumentShareActions.tsx", import.meta.url),
+      "utf8",
+    );
+
+    expect(source).toContain("SendMethodChooserModal");
+    expect(source).not.toContain('role="dialog"');
+    expect(source).not.toContain('aria-modal="true"');
+  });
 
   it("el preview grande elimina la altura rígida y conserva cabecera fija", () => {
     const source = readFileSync(

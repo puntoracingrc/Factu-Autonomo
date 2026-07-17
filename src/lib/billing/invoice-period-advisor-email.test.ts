@@ -32,7 +32,8 @@ describe("invoice period advisor email", () => {
     expect(result?.body).toContain("12 facturas");
     expect(result?.body).toContain("Facturas Trimestre 2 2026.zip");
     expect(result?.body).toContain("Resumen Facturas Trimestre 2 2026.pdf");
-    expect(result?.body).toContain("Adjunta ese archivo");
+    expect(result?.body).not.toContain("Factu ha descargado el ZIP");
+    expect(result?.body).not.toContain("Adjunta ese archivo");
 
     const gmail = new URL(result!.gmailComposeUrl);
     expect(gmail.origin).toBe("https://mail.google.com");
@@ -75,4 +76,5 @@ describe("invoice period advisor email", () => {
       ),
     ).toBeNull();
   });
+
 });

@@ -12,6 +12,7 @@ import { DocumentRelationshipFlow } from "@/components/documents/DocumentRelatio
 import { selectDocumentRelationshipPresentationItems } from "@/components/documents/document-relationship-presentation";
 import { InvoiceRelationshipWorkspace } from "@/components/documents/InvoiceRelationshipWorkspace";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
+import { SendMethodChooserModal } from "@/components/documents/SendMethodChooserModal";
 import { DuplicateDocumentButton } from "@/components/documents/DuplicateDocumentButton";
 import { MarkAsAcceptedButton } from "@/components/documents/MarkAsAcceptedButton";
 import { MarkAsPaidButton } from "@/components/documents/MarkAsPaidButton";
@@ -59,6 +60,10 @@ import {
 } from "@/lib/billing/export-invoice-pdf-archive";
 import { buildInvoicePeriodAdvisorEmail } from "@/lib/billing/invoice-period-advisor-email";
 import { validateAdvisorContact } from "@/lib/advisor-contact";
+import {
+  DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS,
+  normalizeAppPreferences,
+} from "@/lib/app-preferences";
 import { summarizeWorkDocumentExpensesById } from "@/lib/expenses";
 import { isCollectedDocument, isPendingInvoicePayment } from "@/lib/income";
 import {
@@ -93,14 +98,21 @@ import {
   documentStatusLabel,
 } from "@/lib/invoice-status-actions";
 import {
+  canShareFileNatively,
   hasClientEmail,
   hasClientPhone,
+  NativeDocumentShareUnavailableError,
   openExternalUrl,
   reserveExternalShareWindow,
+  shareFileNatively,
 } from "@/lib/share";
 import { getCustomerDisplayName } from "@/lib/customers";
 import { hasPublicVerifactuAccreditation } from "@/lib/verifactu/attestation";
-import type { Document, DocumentType } from "@/lib/types";
+import type {
+  Document,
+  DocumentEmailSendPreference,
+  DocumentType,
+} from "@/lib/types";
 
 const SEARCH_PLACEHOLDERS: Record<DocumentType, string> = {
   factura: "Número, cliente, NIF, dirección o importe...",
@@ -173,8 +185,11 @@ interface DocumentListProps {
   basePath: string;
 }
 
+type ConcreteEmailMethod = Exclude<DocumentEmailSendPreference, "ask">;
+
 export function DocumentList({ type, basePath }: DocumentListProps) {
-  const { data, getDocumentsByType, repairDocumentCustomer } = useAppStore();
+  const { data, getDocumentsByType, repairDocumentCustomer, updateProfile } =
+    useAppStore();
   const { billingEnabled, isPro, limits } = useBilling();
   const vatExempt = isVatExempt(data.profile);
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
@@ -191,6 +206,10 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     kind: "success" | "error";
     message: string;
   } | null>(null);
+  const [advisorEmailChooserOpen, setAdvisorEmailChooserOpen] =
+    useState(false);
+  const [rememberAdvisorEmailMethod, setRememberAdvisorEmailMethod] =
+    useState(true);
   const [visibleCount, setVisibleCount] = useState(DOCUMENT_LIST_BATCH_SIZE);
   const [previewingDocumentId, setPreviewingDocumentId] = useState<
     string | null
@@ -201,6 +220,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     useState<Record<string, ExpenseCostAllocationsByExpenseId>>({});
 
   const allDocuments = getDocumentsByType(type);
+  const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const years = useMemo(
     () => availableProductPeriodYears(allDocuments, []),
     [allDocuments],
@@ -291,7 +311,54 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     setInvoicePdfExportFeedback(null);
   }
 
-  async function handleExportInvoicePdfs(sendToAdvisor = false) {
+  function saveAdvisorEmailMethod(method: ConcreteEmailMethod) {
+    updateProfile({
+      ...data.profile,
+      appPreferences: normalizeAppPreferences({
+        ...appPreferences,
+        documentEmailMethod: method,
+      }),
+    });
+  }
+
+  function handleAdvisorExportClick() {
+    if (!invoicePdfExportPeriod) {
+      setInvoicePdfExportFeedback({
+        kind: "error",
+        message:
+          "Selecciona Trimestre o Meses para exportar un máximo de tres meses.",
+      });
+      return;
+    }
+
+    if (!validateAdvisorContact(data.profile.advisorContact).value) {
+      setInvoicePdfExportFeedback({
+        kind: "error",
+        message:
+          "Completa primero el nombre, email y teléfono de tu gestor en Ajustes.",
+      });
+      return;
+    }
+
+    if (appPreferences.documentEmailMethod === "ask") {
+      setRememberAdvisorEmailMethod(true);
+      setAdvisorEmailChooserOpen(true);
+      return;
+    }
+
+    void handleExportInvoicePdfs(true, appPreferences.documentEmailMethod);
+  }
+
+  async function chooseAdvisorEmailMethod(method: ConcreteEmailMethod) {
+    if (rememberAdvisorEmailMethod) saveAdvisorEmailMethod(method);
+    setAdvisorEmailChooserOpen(false);
+    await handleExportInvoicePdfs(true, method);
+  }
+
+  async function handleExportInvoicePdfs(
+    sendToAdvisor = false,
+    advisorMethod?: ConcreteEmailMethod,
+  ) {
     if (!invoicePdfExportPeriod) {
       setInvoicePdfExportFeedback({
         kind: "error",
@@ -313,7 +380,25 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
       return;
     }
 
-    const reservedAdvisorWindow = sendToAdvisor
+    if (
+      sendToAdvisor &&
+      advisorMethod === "native" &&
+      !canShareFileNatively("Facturas.zip", "application/zip")
+    ) {
+      setRememberAdvisorEmailMethod(true);
+      setAdvisorEmailChooserOpen(true);
+      setInvoicePdfExportFeedback({
+        kind: "error",
+        message:
+          "Compartir del dispositivo no admite este ZIP aquí. Elige Gmail o Correo del dispositivo.",
+      });
+      return;
+    }
+
+    const useExternalEmailClient =
+      sendToAdvisor &&
+      (advisorMethod === "gmail" || advisorMethod === "mailto");
+    const reservedAdvisorWindow = useExternalEmailClient
       ? reserveExternalShareWindow()
       : null;
     setInvoicePdfExportFeedback(null);
@@ -324,7 +409,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
         data.profile,
         invoicePdfExportPeriod,
       );
-      if (sendToAdvisor) {
+      if (sendToAdvisor && advisorMethod) {
         const email = buildInvoicePeriodAdvisorEmail(
           data.profile,
           invoicePdfExportPackagePeriodLabel(invoicePdfExportPeriod),
@@ -335,26 +420,45 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
         if (!email) {
           throw new Error("advisor_contact_unavailable");
         }
-        const opened = openExternalUrl(
-          email.gmailComposeUrl,
-          reservedAdvisorWindow,
-        );
-        if (!opened) {
-          window.location.assign(email.gmailComposeUrl);
+
+        if (advisorMethod === "native") {
+          await shareFileNatively({
+            blob: result.blob,
+            fileName: result.fileName,
+            title: email.subject,
+            text: email.body,
+          });
+        } else {
+          const emailUrl =
+            advisorMethod === "gmail"
+              ? email.gmailComposeUrl
+              : email.mailtoUrl;
+          const opened = openExternalUrl(emailUrl, reservedAdvisorWindow);
+          if (!opened) window.location.assign(emailUrl);
         }
       }
       setInvoicePdfExportFeedback({
         kind: "success",
-        message: sendToAdvisor
-          ? `Descargado ${result.fileName} y abierto Gmail para tu gestor. Adjunta el ZIP antes de enviarlo.`
-          : `Descargado ${result.folderName}: ${result.invoiceCount} factura${result.invoiceCount === 1 ? "" : "s"} en PDF y su resumen.`,
+        message:
+          sendToAdvisor && advisorMethod
+            ? advisorMethod === "native"
+              ? `Descargado ${result.fileName} y abierto Compartir con el ZIP incluido.`
+              : `Descargado ${result.fileName} y abierto ${advisorMethod === "gmail" ? "Gmail" : "el correo del dispositivo"} para tu gestor. Adjunta el ZIP antes de enviarlo.`
+            : `Descargado ${result.folderName}: ${result.invoiceCount} factura${result.invoiceCount === 1 ? "" : "s"} en PDF y su resumen.`,
       });
     } catch (error) {
       if (reservedAdvisorWindow && !reservedAdvisorWindow.closed) {
         reservedAdvisorWindow.close();
       }
-      const message =
-        error instanceof InvoicePdfPeriodExportError
+      const nativeShareUnavailable =
+        error instanceof NativeDocumentShareUnavailableError;
+      if (nativeShareUnavailable) {
+        setRememberAdvisorEmailMethod(true);
+        setAdvisorEmailChooserOpen(true);
+      }
+      const message = nativeShareUnavailable
+        ? "El ZIP se ha descargado, pero Compartir no pudo abrirse. Elige Gmail o Correo del dispositivo."
+        : error instanceof InvoicePdfPeriodExportError
           ? error.documentReferences.length > 0
             ? `${error.message} Documentos: ${error.documentReferences.join(", ")}.`
             : error.message
@@ -555,13 +659,13 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                 </Button>
                 <Button
                   type="button"
-                  onClick={() => void handleExportInvoicePdfs(true)}
+                  onClick={handleAdvisorExportClick}
                   disabled={
                     Boolean(invoicePdfExportBusy) || !invoicePdfExportPeriod
                   }
                   title={
                     invoicePdfExportPeriod
-                      ? "Descargar el ZIP y abrir Gmail dirigido a tu gestor"
+                      ? "Descargar el ZIP y elegir cómo enviarlo a tu gestor"
                       : "Selecciona Trimestre o Meses (máximo tres meses)"
                   }
                   className="min-h-10 px-4 text-sm"
@@ -579,6 +683,21 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
               </p>
             </div>
           ) : null}
+
+          <SendMethodChooserModal
+            open={advisorEmailChooserOpen}
+            title="Enviar facturas al gestor"
+            description={`${formatProductPeriodLabel(period)} · ${data.profile.advisorContact?.advisorName?.trim() || "Gestor"}`}
+            options={DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS}
+            rememberMethod={rememberAdvisorEmailMethod}
+            onRememberMethodChange={setRememberAdvisorEmailMethod}
+            onChoose={(method) => void chooseAdvisorEmailMethod(method)}
+            onClose={() => {
+              if (!invoicePdfExportBusy) setAdvisorEmailChooserOpen(false);
+            }}
+            busy={invoicePdfExportBusy === "advisor"}
+            testId="advisor-email-method-modal"
+          />
 
           {type === "factura" && invoicePdfExportFeedback ? (
             <p

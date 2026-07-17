@@ -20,13 +20,30 @@ describe("invoice list period PDF export", () => {
     expect(source).toContain("Exportar facturas PDF");
     expect(source).toContain("Exportar y enviar al gestor");
     expect(source).toContain("buildInvoicePeriodAdvisorEmail");
+    expect(source).toContain("SendMethodChooserModal");
+    expect(source).toContain("DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS");
+    expect(source).toContain('appPreferences.documentEmailMethod === "ask"');
+    expect(source).toContain("saveAdvisorEmailMethod");
     expect(source).toContain("reserveExternalShareWindow");
     expect(source).toContain("email.gmailComposeUrl");
-    expect(source).toContain("window.location.assign(email.gmailComposeUrl)");
+    expect(source).toContain("email.mailtoUrl");
+    expect(source).toContain("shareFileNatively");
+    expect(source).toContain("canShareFileNatively");
     expect(source).toContain("/configuracion#ajustes-gestor");
     expect(source).toContain("Adjunta el ZIP antes de enviarlo");
+    expect(source).toContain("Compartir con el ZIP incluido");
     expect(source).toContain("La búsqueda y el estado no cambian");
     expect(source).toContain("limits.quarterlyExport");
     expect(source).toContain("InvoicePdfPeriodExportError");
+  });
+
+  it("mantiene la instrucción de adjuntar fuera del texto enviado al gestor", () => {
+    expect(source).toContain("Adjunta el ZIP antes de enviarlo");
+    const emailBuilder = readFileSync(
+      new URL("../../lib/billing/invoice-period-advisor-email.ts", import.meta.url),
+      "utf8",
+    );
+    expect(emailBuilder).not.toContain("Factu ha descargado el ZIP");
+    expect(emailBuilder).not.toContain("Adjunta ese archivo");
   });
 });
