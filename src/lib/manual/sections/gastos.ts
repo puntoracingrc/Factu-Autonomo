@@ -48,7 +48,7 @@ export const gastosSection: ManualSection = {
       },
     },
     {
-      title: "3. Exportar CSV",
+      title: "3. Exportar y enviar al gestor",
       paragraphs: [
         "Pulsa **Exportar CSV** en el bloque de filtros para descargar un libro de gastos con cabecera de tu negocio, NIF de proveedores, totales y resumen por categoría.",
         "Cada fila indica el **tratamiento fiscal**, el coste registrado y, por separado, la base y el IVA deducibles. Un gasto **No deducible** conserva su coste, pero muestra base e IVA deducibles a cero.",
@@ -56,13 +56,17 @@ export const gastosSection: ManualSection = {
         "El CSV indica también los tipos aplicados, el desglose y si el IVA procede de líneas conciliadas, de la cabecera o del contrato de importe íntegro no deducible. Una factura con evidencia de IVA mixto que no cuadra bloquea la exportación hasta que la revises; no se sustituye silenciosamente por un único porcentaje.",
         "Cuando existe recargo de equivalencia, el CSV lo publica en columnas separadas con su tipo y cuota. También diferencia el gasto deducible en IRPF de la base deducible en IVA; el total registrado incluye base, IVA y recargo una sola vez.",
         "El archivo respeta los filtros que tengas activos.",
+        "Con **Exportar gastos y originales**, selecciona un mes o trimestre para descargar un ZIP. Incluye cada PDF o imagen que se archivó voluntariamente en Google Drive y un **Resumen Gastos** en PDF con todos los movimientos filtrados, sus totales y una marca clara para los gastos que todavía no tienen original archivado.",
+        "Antes de incluir un original, Factu relee desde Drive su política, carpeta, tipo, tamaño y huella SHA-256. Si un archivo ya no coincide, bloquea el ZIP completo; no entrega un paquete parcial ni sustituye el original por un PDF inventado.",
+        "**Exportar y enviar al gestor** descarga el mismo ZIP y prepara un correo para el contacto guardado en **Ajustes → Gestor**. Puedes usar Gmail, el correo del dispositivo o Compartir y recordar la elección. Gmail y el correo del dispositivo no adjuntan archivos automáticamente: adjunta el ZIP descargado antes de enviar; Compartir sí incluye el ZIP cuando el sistema lo admite.",
+        "La exportación de originales está limitada a un mes o trimestre. Si tienes seleccionado un año completo, cambia el periodo para evitar paquetes demasiado grandes.",
         "La exportación manual de copia de datos está en **Cuenta**; este CSV es el listado de gastos para revisión o gestor.",
       ],
       screenshot: {
         src: "/ayuda/capturas/gastos-exportar.png",
         alt: "Botón exportar CSV en gastos",
       },
-      tip: "El CSV usa separador ; y decimales con coma para abrirlo bien en Excel en español.",
+      tip: "El CSV usa separador ; y decimales con coma para abrirlo bien en Excel en español. El ZIP conserva los originales exactamente como estaban en Drive.",
     },
     {
       title: "4. Gastos fijos",

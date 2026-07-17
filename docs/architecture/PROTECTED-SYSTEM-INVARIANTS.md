@@ -106,6 +106,9 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
   `Factu - facturas de gastos/AAAA/MM`; sin readback SHA-256 no se guarda el
   gasto ni se cierra el buzón. Solo se persiste un recibo versionado sin bytes,
   nombre, texto, enlace o token.
+- Exportar originales exige releer y verificar política, carpeta, procedencia,
+  MIME, tamaño y SHA-256. Un fallo bloquea el ZIP entero; los gastos sin original
+  solo se marcan en el resumen y nunca reciben un archivo fabricado.
 - La papelera local conserva Drive por omisión. Enviar también un original a la
   papelera remota exige una elección separada, que sea exclusivo de esa ficha,
   coincidencia exacta de ID/política/SHA-256 y readback; nunca usa borrado
@@ -116,6 +119,7 @@ Regresiones mínimas: `cloud-drive-sync-reliability-contract.test.ts`,
 `google-drive/operation.test.ts`, `google-drive/backup.test.ts` y
 `google-drive/fiscal-notification-original-delete.v1.test.ts`,
 `google-drive/expense-original-archive.v1.test.ts`,
+`google-drive/expense-original-download.v1.test.ts`,
 `google-drive/expense-original-archive-client.test.ts` y
 `expense-original-archive-persistence.test.ts`.
 

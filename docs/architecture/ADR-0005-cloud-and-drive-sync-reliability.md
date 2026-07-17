@@ -121,6 +121,15 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 6. Desactivar la preferencia evita nuevas subidas y no borra archivos ya
    custodiados por el usuario. Los gastos anteriores sin original no se suben
    automáticamente porque Factu no conserva esos bytes.
+7. Una exportación iniciada desde Gastos relee los originales por el ID opaco
+   del recibo persistido. Antes de incluir bytes en el ZIP exige que política
+   administrada, carpeta padre, procedencia, fecha documental, MIME, tamaño y
+   SHA-256 coincidan. Si uno falla, no se descarga un paquete parcial. Los
+   gastos sin recibo `originalArchive` se relacionan como «Sin original
+   archivado» y nunca generan un sustituto artificial.
+8. El ZIP y su resumen se crean solo en el navegador. Gmail y `mailto` reciben
+   texto y destinatario, nunca el token ni los bytes; Compartir recibe el ZIP
+   mediante la API local del dispositivo cuando está disponible.
 
 ## Consecuencias
 
@@ -153,6 +162,7 @@ deben superar:
 - `src/lib/google-drive/fiscal-notification-original-archive.v1.test.ts`
 - `src/lib/google-drive/fiscal-notification-original-delete.v1.test.ts`
 - `src/lib/google-drive/expense-original-archive.v1.test.ts`
+- `src/lib/google-drive/expense-original-download.v1.test.ts`
 - `src/lib/google-drive/expense-original-archive-client.test.ts`
 - `src/lib/expense-original-archive-persistence.test.ts`
 - `src/app/api/expense-inbox/[id]/original/route.test.ts`

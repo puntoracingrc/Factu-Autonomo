@@ -17,10 +17,12 @@ import {
   Repeat2,
   Receipt,
   ScanLine,
+  Send,
   ShoppingCart,
   Trash2,
   Upload,
 } from "lucide-react";
+import { SendMethodChooserModal } from "@/components/documents/SendMethodChooserModal";
 import { ExpenseFiltersBar } from "@/components/expenses/ExpenseFiltersBar";
 import { ExpenseInboxCard } from "@/components/expenses/ExpenseInboxCard";
 import { ExpensePurchaseLinesPreview } from "@/components/expenses/ExpensePurchaseLinesPreview";
@@ -44,6 +46,18 @@ import {
   buildExpensesExportCsv,
   downloadExpensesCsv,
 } from "@/lib/billing/export-expenses-csv";
+import {
+  downloadExpenseOriginalExportArchive,
+  ExpenseOriginalExportError,
+  expenseOriginalExportPeriodLabel,
+  type ExpenseOriginalExportPeriod,
+} from "@/lib/billing/export-expense-original-archive";
+import { buildExpensePeriodAdvisorEmail } from "@/lib/billing/expense-period-advisor-email";
+import { validateAdvisorContact } from "@/lib/advisor-contact";
+import {
+  DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS,
+  normalizeAppPreferences,
+} from "@/lib/app-preferences";
 import {
   findDuplicatePurchaseExpense,
   isExpenseFiscalDeductible,
@@ -85,11 +99,24 @@ import {
   supplierCompareKey,
 } from "@/lib/suppliers";
 import type { Quarter } from "@/lib/periods";
-import type { Expense, ExpenseBusinessKind, Supplier } from "@/lib/types";
+import type {
+  DocumentEmailSendPreference,
+  Expense,
+  ExpenseBusinessKind,
+  Supplier,
+} from "@/lib/types";
+import {
+  canShareFileNatively,
+  NativeDocumentShareUnavailableError,
+  openExternalUrl,
+  reserveExternalShareWindow,
+  shareFileNatively,
+} from "@/lib/share";
 import { expenseAmount, isVatExempt } from "@/lib/vat-regime";
 
 const EXPENSE_LIST_BATCH_SIZE = 30;
 const FIXED_EXPENSE_OTHER_KEY = "__fixed_otros__";
+type ConcreteEmailMethod = Exclude<DocumentEmailSendPreference, "ask">;
 
 interface ProviderSummaryPreview {
   id: string;
@@ -308,8 +335,10 @@ function expenseKindTone(kind: ExpenseBusinessKind): string {
 }
 
 export default function GastosPage() {
-  const { data, addExpense, addSupplier, deleteExpense } = useAppStore();
+  const { data, addExpense, addSupplier, deleteExpense, updateProfile } =
+    useAppStore();
   const vatExempt = isVatExempt(data.profile);
+  const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const defaultPeriod = getDefaultExpensePeriod();
 
   const [periodKind, setPeriodKind] =
@@ -332,6 +361,16 @@ export default function GastosPage() {
     useState<ProviderSummaryPreview | null>(null);
   const [summaryRemovedInvoiceNumbers, setSummaryRemovedInvoiceNumbers] =
     useState<string[]>([]);
+  const [expenseArchiveBusy, setExpenseArchiveBusy] = useState<
+    "download" | "advisor" | null
+  >(null);
+  const [expenseArchiveFeedback, setExpenseArchiveFeedback] = useState<{
+    kind: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [expenseEmailMethodOpen, setExpenseEmailMethodOpen] = useState(false);
+  const [rememberExpenseEmailMethod, setRememberExpenseEmailMethod] =
+    useState(true);
   const recurringExpenseIds = useMemo(
     () => new Set(data.recurringExpenses.map((item) => item.id)),
     [data.recurringExpenses],
@@ -510,6 +549,7 @@ export default function GastosPage() {
   function handlePeriodKindChange(kind: ExpensePeriodKind) {
     setPeriodKind(kind);
     setSupplierFilter(null);
+    setExpenseArchiveFeedback(null);
   }
 
   function handleExportCsv() {
@@ -532,6 +572,190 @@ export default function GastosPage() {
     const stem = expenseExportFilenameStem(periodKind, year, month, quarter);
     const suffix = supplierFilter ? "-filtrado" : "";
     downloadExpensesCsv(csv, `${stem}${suffix}`);
+  }
+
+  function currentExpenseExportPeriod(): ExpenseOriginalExportPeriod | null {
+    if (periodKind === "month") return { kind: "month", year, month };
+    if (periodKind === "quarter") {
+      return { kind: "quarter", year, quarter };
+    }
+    return null;
+  }
+
+  function currentSupplierFilterLabel(): string | undefined {
+    if (!supplierFilter) return undefined;
+    return (
+      supplierOptions.find((option) => option.key === supplierFilter)?.label ??
+      supplierLabelFromKey(supplierFilter, data.expenses)
+    );
+  }
+
+  function saveExpenseEmailMethod(method: ConcreteEmailMethod) {
+    updateProfile({
+      ...data.profile,
+      appPreferences: normalizeAppPreferences({
+        ...appPreferences,
+        documentEmailMethod: method,
+      }),
+    });
+  }
+
+  function handleExpenseAdvisorExportClick() {
+    const period = currentExpenseExportPeriod();
+    if (!period) {
+      setExpenseArchiveFeedback({
+        kind: "error",
+        message:
+          "Selecciona un mes o un trimestre para exportar un máximo de tres meses.",
+      });
+      return;
+    }
+    if (!validateAdvisorContact(data.profile.advisorContact).value) {
+      setExpenseArchiveFeedback({
+        kind: "error",
+        message:
+          "Completa primero el nombre, email y teléfono de tu gestor en Ajustes.",
+      });
+      return;
+    }
+    if (appPreferences.documentEmailMethod === "ask") {
+      setRememberExpenseEmailMethod(true);
+      setExpenseEmailMethodOpen(true);
+      return;
+    }
+    void handleExpenseArchiveExport(
+      "advisor",
+      appPreferences.documentEmailMethod,
+    );
+  }
+
+  async function chooseExpenseEmailMethod(method: ConcreteEmailMethod) {
+    if (rememberExpenseEmailMethod) saveExpenseEmailMethod(method);
+    setExpenseEmailMethodOpen(false);
+    await handleExpenseArchiveExport("advisor", method);
+  }
+
+  async function handleExpenseArchiveExport(
+    target?: "advisor",
+    emailMethod?: ConcreteEmailMethod,
+  ) {
+    const period = currentExpenseExportPeriod();
+    if (!period || filteredExpenses.length === 0) {
+      setExpenseArchiveFeedback({
+        kind: "error",
+        message:
+          periodKind === "year"
+            ? "Selecciona un mes o un trimestre para exportar un máximo de tres meses."
+            : "No hay gastos en la selección actual.",
+      });
+      return;
+    }
+    if (blockedVatExpenseCount > 0) {
+      setExpenseArchiveFeedback({
+        kind: "error",
+        message:
+          "Revisa los gastos con evidencia fiscal pendiente antes de exportar.",
+      });
+      return;
+    }
+    if (target && !validateAdvisorContact(data.profile.advisorContact).value) {
+      setExpenseArchiveFeedback({
+        kind: "error",
+        message:
+          "Completa primero el nombre, email y teléfono de tu gestor en Ajustes.",
+      });
+      return;
+    }
+    if (
+      target &&
+      emailMethod === "native" &&
+      !canShareFileNatively("Gastos.zip", "application/zip")
+    ) {
+      setRememberExpenseEmailMethod(true);
+      setExpenseEmailMethodOpen(true);
+      setExpenseArchiveFeedback({
+        kind: "error",
+        message:
+          "Compartir del dispositivo no admite este ZIP aquí. Elige Gmail o Correo del dispositivo.",
+      });
+      return;
+    }
+
+    const useExternalEmailClient =
+      target && (emailMethod === "gmail" || emailMethod === "mailto");
+    const reservedEmailWindow = useExternalEmailClient
+      ? reserveExternalShareWindow()
+      : null;
+    setExpenseArchiveFeedback(null);
+    setExpenseArchiveBusy(target ?? "download");
+    try {
+      const supplierFilterLabel = currentSupplierFilterLabel();
+      const result = await downloadExpenseOriginalExportArchive({
+        expenses: filteredExpenses,
+        suppliers: data.suppliers,
+        profile: data.profile,
+        period,
+        supplierFilterLabel,
+      });
+      if (target && emailMethod) {
+        const periodLabel = [
+          expenseOriginalExportPeriodLabel(period),
+          supplierFilterLabel,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        const email = buildExpensePeriodAdvisorEmail(
+          data.profile,
+          periodLabel,
+          result.fileName,
+          result.summaryFileName,
+          result.expenseCount,
+          result.originalCount,
+        );
+        if (!email) throw new Error("email_contact_unavailable");
+
+        if (emailMethod === "native") {
+          await shareFileNatively({
+            blob: result.blob,
+            fileName: result.fileName,
+            title: email.subject,
+            text: email.body,
+          });
+        } else {
+          const emailUrl =
+            emailMethod === "gmail" ? email.gmailComposeUrl : email.mailtoUrl;
+          const opened = openExternalUrl(emailUrl, reservedEmailWindow);
+          if (!opened) window.location.assign(emailUrl);
+        }
+      }
+      setExpenseArchiveFeedback({
+        kind: "success",
+        message:
+          target && emailMethod
+            ? emailMethod === "native"
+              ? `Descargado ${result.fileName} y abierto Compartir con el ZIP incluido.`
+              : `Descargado ${result.fileName} y abierto ${emailMethod === "gmail" ? "Gmail" : "el correo del dispositivo"} para tu gestor. Adjunta el ZIP antes de enviarlo.`
+            : `Descargado ${result.fileName}: ${result.originalCount} original${result.originalCount === 1 ? "" : "es"} verificado${result.originalCount === 1 ? "" : "s"} y el resumen de ${result.expenseCount} gasto${result.expenseCount === 1 ? "" : "s"}.`,
+      });
+    } catch (error) {
+      if (reservedEmailWindow && !reservedEmailWindow.closed) {
+        reservedEmailWindow.close();
+      }
+      const nativeShareUnavailable =
+        error instanceof NativeDocumentShareUnavailableError;
+      if (nativeShareUnavailable) {
+        setRememberExpenseEmailMethod(true);
+        setExpenseEmailMethodOpen(true);
+      }
+      const message = nativeShareUnavailable
+        ? "El ZIP se ha descargado, pero Compartir no pudo abrirse. Elige Gmail o Correo del dispositivo."
+        : error instanceof ExpenseOriginalExportError
+          ? error.message
+          : "No se pudo preparar el paquete de gastos. No se ha descargado un ZIP incompleto.";
+      setExpenseArchiveFeedback({ kind: "error", message });
+    } finally {
+      setExpenseArchiveBusy(null);
+    }
   }
 
   async function handleProviderSummaryFileChange(
@@ -945,6 +1169,84 @@ export default function GastosPage() {
             )}
           </div>
         </div>
+        <div className="flex flex-col gap-3 border-t border-slate-100 pt-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => void handleExpenseArchiveExport()}
+              disabled={
+                periodKind === "year" ||
+                filteredExpenses.length === 0 ||
+                blockedVatExpenseCount > 0 ||
+                expenseArchiveBusy !== null
+              }
+            >
+              <Download className="h-4 w-4" />
+              {expenseArchiveBusy === "download"
+                ? "Preparando ZIP..."
+                : "Exportar gastos y originales"}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleExpenseAdvisorExportClick}
+              disabled={
+                periodKind === "year" ||
+                filteredExpenses.length === 0 ||
+                blockedVatExpenseCount > 0 ||
+                expenseArchiveBusy !== null
+              }
+            >
+              <Send className="h-4 w-4" />
+              {expenseArchiveBusy === "advisor"
+                ? "Preparando envío..."
+                : "Exportar y enviar al gestor"}
+            </Button>
+          </div>
+          <p className="text-xs text-slate-500 lg:max-w-md lg:text-right">
+            Selecciona un mes o un trimestre. El ZIP incluye los originales
+            verificados disponibles en Drive y un resumen PDF; los gastos sin
+            original quedan identificados en el resumen.
+          </p>
+        </div>
+        <SendMethodChooserModal
+          open={expenseEmailMethodOpen}
+          title="Enviar gastos al gestor"
+          description={`${currentExpenseExportPeriod() ? expenseOriginalExportPeriodLabel(currentExpenseExportPeriod()!) : "Selecciona un mes o trimestre"} · ${data.profile.advisorContact?.advisorName?.trim() || "Gestor"}`}
+          options={DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS}
+          rememberMethod={rememberExpenseEmailMethod}
+          onRememberMethodChange={setRememberExpenseEmailMethod}
+          onChoose={(method) => void chooseExpenseEmailMethod(method)}
+          onClose={() => {
+            if (!expenseArchiveBusy) setExpenseEmailMethodOpen(false);
+          }}
+          busy={expenseArchiveBusy === "advisor"}
+          testId="expense-email-method-modal"
+        />
+        {expenseArchiveFeedback ? (
+          <p
+            className={`text-sm font-semibold ${
+              expenseArchiveFeedback.kind === "success"
+                ? "text-emerald-700"
+                : "text-red-700"
+            }`}
+            role={expenseArchiveFeedback.kind === "error" ? "alert" : "status"}
+          >
+            {expenseArchiveFeedback.message}
+            {expenseArchiveFeedback.kind === "error" &&
+            expenseArchiveFeedback.message.includes("Ajustes") ? (
+              <>
+                {" "}
+                <Link
+                  href="/configuracion#ajustes-gestor"
+                  className="underline underline-offset-2"
+                >
+                  Abrir datos del gestor
+                </Link>
+              </>
+            ) : null}
+          </p>
+        ) : null}
       </Card>
 
       {(purchaseChartSlices.length > 0 ||
