@@ -20,6 +20,15 @@ const rollback = readFileSync(
   ),
   "utf8",
 );
+const referralAlignment = readFileSync(
+  fileURLToPath(
+    new URL(
+      "../../../supabase/migrations/20260717104000_referral_schema_runtime_alignment.sql",
+      import.meta.url,
+    ),
+  ),
+  "utf8",
+);
 
 const TABLES = [
   "partner_accounts",
@@ -60,5 +69,23 @@ describe("Partner database boundary", () => {
     expect(payout).toBeGreaterThanOrEqual(0);
     expect(commission).toBeGreaterThan(payout);
     expect(account).toBeGreaterThan(commission);
+  });
+
+  it("keeps the Partner link tables available only through the server", () => {
+    for (const table of ["referral_codes", "referral_redemptions"]) {
+      expect(referralAlignment).toContain(
+        `create table if not exists public.${table}`,
+      );
+      expect(referralAlignment).toContain(
+        `alter table public.${table} enable row level security;`,
+      );
+      expect(referralAlignment).toContain(
+        `revoke all on table public.${table} from public, anon, authenticated;`,
+      );
+      expect(referralAlignment).toContain(
+        `grant all on table public.${table} to service_role;`,
+      );
+    }
+    expect(referralAlignment).toContain("notify pgrst, 'reload schema';");
   });
 });
