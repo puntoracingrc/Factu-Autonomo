@@ -200,6 +200,11 @@ La decisión obligatoria y versionada está en
   confirma readback SHA-256 exacto, no se publica el gasto ni se cierra el
   buzón. Factu persiste únicamente el recibo `originalArchive` versionado, sin
   bytes, nombre local, texto, enlace ni token.
+- Exportar originales de gastos es una lectura local solicitada por el usuario:
+  cada archivo se relee por su ID opaco y debe conservar política administrada,
+  carpeta, MIME, tamaño, procedencia y SHA-256 exactos antes de entrar en el
+  ZIP. Un fallo bloquea el paquete completo; un gasto sin original solo aparece
+  identificado en el resumen y jamás recibe un PDF o imagen fabricados.
 - Eliminar una ficha conserva Drive por omisión. Solo una elección separada
   puede enviar a la papelera un original exclusivo y verificado: se comprueban
   ID, política administrada y SHA-256, se relee `trashed: true`, nunca se borra
@@ -216,6 +221,7 @@ La decisión obligatoria y versionada está en
   `fiscal-notification-original-delete.v1.test.ts` y
   `drive-original-archive.v1.test.ts`,
   `expense-original-archive.v1.test.ts`,
+  `expense-original-download.v1.test.ts`,
   `expense-original-archive-client.test.ts` y
   `expense-original-archive-persistence.test.ts`.
 
