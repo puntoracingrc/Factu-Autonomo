@@ -56,6 +56,39 @@ function periodicityLabel(periodicity: ModelResult["periodicity"]): string {
   return labels[periodicity];
 }
 
+const AUTOMATIC_INCLUSION: Readonly<
+  Record<
+    TaxModelRecommendationStatus,
+    { label: string; className: string; confirmed: boolean }
+  >
+> = Object.freeze({
+  LIKELY_REQUIRED: {
+    label: "Incluido automáticamente en tus modelos orientativos",
+    className: "text-emerald-700 dark:text-emerald-300",
+    confirmed: true,
+  },
+  POSSIBLY_REQUIRED: {
+    label: "Incluido por precaución en tus modelos orientativos",
+    className: "text-amber-800 dark:text-amber-300",
+    confirmed: false,
+  },
+  NEEDS_INFORMATION: {
+    label: "Incluido provisionalmente hasta que completes la información",
+    className: "text-orange-800 dark:text-orange-300",
+    confirmed: false,
+  },
+  UNLIKELY_REQUIRED: {
+    label: "No incluido automáticamente",
+    className: "text-slate-600 dark:text-slate-300",
+    confirmed: false,
+  },
+  MANUALLY_SELECTED: {
+    label: "Añadido por ti",
+    className: "text-blue-700 dark:text-blue-300",
+    confirmed: true,
+  },
+});
+
 function ResultCard({
   result,
   recommendation,
@@ -86,6 +119,7 @@ function ResultCard({
     NEEDS_INFORMATION: "text-orange-800 dark:text-orange-300",
     MANUALLY_SELECTED: "text-blue-700 dark:text-blue-300",
   };
+  const inclusion = AUTOMATIC_INCLUSION[status];
   return (
     <article className={`rounded-2xl border p-5 ${statusClasses[status]}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -160,26 +194,27 @@ function ResultCard({
         </div>
       )}
 
-      <Button
-        type="button"
-        variant="secondary"
-        className="mt-4"
-        aria-pressed={recommendation.manuallySelected}
-        onClick={() =>
-          onToggleManual(
-            result.modelNumber,
-            !recommendation.manuallySelected,
-          )
-        }
-      >
-        <Star
-          className={`h-4 w-4 ${recommendation.manuallySelected ? "fill-current" : ""}`}
-          aria-hidden="true"
-        />
-        {recommendation.manuallySelected
-          ? "Quitar selección manual"
-          : "Añadir manualmente"}
-      </Button>
+      {recommendation.manuallySelected ? (
+        <Button
+          type="button"
+          variant="secondary"
+          className="mt-4"
+          aria-pressed="true"
+          onClick={() => onToggleManual(result.modelNumber, false)}
+        >
+          <Star className="h-4 w-4 fill-current" aria-hidden="true" />
+          Quitar selección manual
+        </Button>
+      ) : (
+        <p className={`mt-4 flex items-center gap-2 text-sm font-bold ${inclusion.className}`}>
+          {inclusion.confirmed ? (
+            <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+          ) : (
+            <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+          )}
+          {inclusion.label}
+        </p>
+      )}
 
       <details className="mt-4 text-sm">
         <summary className="cursor-pointer font-bold text-blue-700 dark:text-blue-300">Fuentes oficiales y trazabilidad</summary>
@@ -226,7 +261,6 @@ export function DiagnosticResults({
     { status: "POSSIBLY_REQUIRED", title: "Podrían ser necesarios" },
     { status: "NEEDS_INFORMATION", title: "Falta información" },
     { status: "MANUALLY_SELECTED", title: "Añadidos por ti" },
-    { status: "UNLIKELY_REQUIRED", title: "Probablemente no necesarios" },
   ];
   const counts = new Map<TaxModelRecommendationStatus, number>();
   for (const recommendation of recommendationSnapshot.recommendations) {
@@ -238,6 +272,9 @@ export function DiagnosticResults({
 
   useEffect(() => {
     for (const recommendation of recommendationSnapshot.recommendations) {
+      if (recommendation.recommendationStatus === "UNLIKELY_REQUIRED") {
+        continue;
+      }
       void recordTaxProductEvent({
         eventType: "tax_model_recommendation_viewed",
         page: "DIAGNOSTIC",
@@ -327,10 +364,6 @@ export function DiagnosticResults({
           </div>
         </div>
       </div>
-
-      {result.warnings.map((warning) => (
-        <p key={warning} className="rounded-xl bg-slate-100 px-4 py-3 text-sm text-slate-700 dark:bg-slate-800 dark:text-slate-200">{warning}</p>
-      ))}
 
       {result.models.length === 0 && (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 dark:border-amber-900 dark:bg-amber-950/20">
