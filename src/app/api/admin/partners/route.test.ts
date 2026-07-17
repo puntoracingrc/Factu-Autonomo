@@ -25,6 +25,7 @@ vi.mock("@/lib/server/rate-limit", async () => {
   return { ...actual, checkRateLimit: vi.fn() };
 });
 vi.mock("@/lib/partners/admin-client", () => ({
+  getPartnerAdminCredentialSource: vi.fn(() => "secret"),
   getPartnerSupabaseAdmin: vi.fn(),
 }));
 

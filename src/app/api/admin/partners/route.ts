@@ -1,5 +1,8 @@
 import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
-import { getPartnerSupabaseAdmin } from "@/lib/partners/admin-client";
+import {
+  getPartnerAdminCredentialSource,
+  getPartnerSupabaseAdmin,
+} from "@/lib/partners/admin-client";
 import {
   grantPartnerAccess,
   listAdminPartners,
@@ -45,6 +48,10 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     if (error instanceof PartnerSchemaUnavailableError) {
+      console.error("Partner admin schema unavailable", {
+        operation: error.operation,
+        credentialSource: getPartnerAdminCredentialSource(),
+      });
       return partnerJsonResponse({ partners: [], schemaReady: false });
     }
     if (error instanceof PartnerRepositoryError) {

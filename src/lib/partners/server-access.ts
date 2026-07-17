@@ -2,7 +2,10 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { isAdminEmail } from "@/lib/admin/access";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
-import { getPartnerSupabaseAdmin } from "./admin-client";
+import {
+  getPartnerAdminCredentialSource,
+  getPartnerSupabaseAdmin,
+} from "./admin-client";
 import { normalizePartnerEmail, type PartnerAccessRole } from "./contracts";
 import {
   getPartnerAccountRecord,
@@ -49,6 +52,12 @@ export async function getPartnerAccessFromRequest(
   try {
     account = await getPartnerAccountRecord(admin, user.id);
   } catch (error) {
+    if (administrator && error instanceof PartnerSchemaUnavailableError) {
+      console.error("Partner access schema unavailable", {
+        operation: error.operation,
+        credentialSource: getPartnerAdminCredentialSource(),
+      });
+    }
     if (!administrator || !(error instanceof PartnerSchemaUnavailableError)) {
       return {
         ok: false,
