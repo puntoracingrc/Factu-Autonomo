@@ -59,10 +59,38 @@ Copia desde tu `.env.local` (Production + Preview):
 | `NEXT_PUBLIC_VERIFACTU_DEVELOPER_EMAIL` | `info@facturacion-autonomos.app` |
 | `SERVER_RATE_LIMIT_BACKEND` | `supabase` tras aplicar/verificar la migracion distribuida |
 | `SERVER_RATE_LIMIT_SALT` | secreto aleatorio exclusivo; no usar URL, email ni otra clave |
+| `BACKUP_ENCRYPTION_ACTIVE_VERSION` | `1`; versión que cifra las copias nuevas, solo servidor |
+| `BACKUP_ENCRYPTION_KEY_V1` | 32 bytes aleatorios en base64; variable Sensitive, solo Production y nunca `NEXT_PUBLIC_` |
 | `CRON_SECRET` | secreto aleatorio compartido con el workflow protegido de alertas |
 | `VERCEL_PROJECT_ID` | ID del proyecto `factu-autonomo`, solo servidor |
 
 Después: **Deployments → Redeploy** (sin caché si cambias muchas variables).
+
+### Cifrado de copias y rotación de claves
+
+Las copias manuales de cuentas autenticadas y todas las copias de Drive se
+cifran con AES-256-GCM antes de salir del navegador. El servidor deriva una
+clave distinta por usuario desde `BACKUP_ENCRYPTION_KEY_V<n>`; el valor maestro
+no se guarda en Git, no se devuelve al admin y no debe descargarse a un `.env`
+compartido.
+
+Reglas operativas:
+
+1. Crear una clave con `openssl rand -base64 32` en un entorno seguro.
+2. Guardarla en Vercel Production como Sensitive.
+3. Mantener `BACKUP_ENCRYPTION_ACTIVE_VERSION` apuntando a la versión nueva.
+4. Al rotar, añadir primero `BACKUP_ENCRYPTION_KEY_V2`, conservar V1 y después
+   cambiar la versión activa a `2`.
+5. Redeplegar y verificar que una copia nueva declara `keyVersion: 2` y que una
+   copia V1 todavía se puede revisar con la misma cuenta.
+6. No borrar una clave histórica mientras exista cualquier copia creada con
+   esa versión. Borrarla haría irrecuperables esos archivos.
+7. La ruta `/api/security/backup-key` debe responder `401` sin bearer y nunca
+   debe permitir caché.
+
+Las variables están configuradas solo en Production de forma deliberada. Un
+Preview puede compilar y ejecutar pruebas, pero no debe descifrar copias reales
+ni recibir la clave maestra de producción.
 
 ## Panel admin de uso Vercel
 

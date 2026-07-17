@@ -1,5 +1,8 @@
 # Blindaje de datos de usuarios
 
+Este documento es un runbook de integridad y recuperación. El único informe
+general vigente de seguridad es `security-current-state.md`.
+
 Objetivo: las cuentas de usuarios reales deben sobrevivir a cambios de versión,
 importaciones, sincronizaciones y despliegues sin perder datos ni modificar
 documentos protegidos.
