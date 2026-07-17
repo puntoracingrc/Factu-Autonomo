@@ -24,11 +24,6 @@ import {
   type FiscalModelPersonalizationV1,
 } from "@/lib/fiscal-advisory-models";
 import {
-  TAX_MODEL_RECOMMENDATION_LABELS,
-  type TaxModelRecommendationItemV1,
-  type TaxModelRecommendationStatus,
-} from "@/lib/tax-obligations";
-import {
   filterPublicAeatModelSearchEntriesInteractiveV2,
   getFiscalModelCatalogFocusPresentationV1,
   type PublicAeatModelSearchEntryV2,
@@ -48,9 +43,7 @@ const catalogBatchSize = 30;
 interface PersonalizationContextValue {
   enabled: boolean;
   assessmentCodes: ReadonlySet<string>;
-  reviewCodes: ReadonlySet<string>;
   manualCodes: ReadonlySet<string>;
-  recommendationsByCode: ReadonlyMap<string, TaxModelRecommendationItemV1>;
   toggleManualModel: (modelCode: string, selected: boolean) => void;
 }
 
@@ -233,14 +226,7 @@ export function FiscalModelCatalogBrowser({
     () => ({
       enabled: personalizationEnabled,
       assessmentCodes: new Set(personalization.assessmentModelCodes),
-      reviewCodes: new Set(personalization.reviewModelCodes),
       manualCodes: new Set(personalization.manualModelCodes),
-      recommendationsByCode: new Map(
-        personalization.recommendations.map((recommendation) => [
-          recommendation.modelCode,
-          recommendation,
-        ]),
-      ),
       toggleManualModel,
     }),
     [personalization, personalizationEnabled, toggleManualModel],
@@ -420,19 +406,21 @@ export function FiscalModelCatalogBrowser({
                   Vista del catálogo
                 </h2>
               </div>
-              <AdvisoryScopeToggle
-                value={effectiveScope}
-                onChange={setRequestedScope}
-                groupLabel="Elegir vista del catálogo"
-                mineLabel="Mis modelos"
-                mineCount={
-                  personalizationEnabled
-                    ? personalization.visibleModelCodes.length
-                    : personalization.manualModelCodes.length
-                }
-                allCount={entries.length}
-                mineDisabled={!personalizationEnabled}
-              />
+              <div className="lg:pt-[1.625rem]">
+                <AdvisoryScopeToggle
+                  value={effectiveScope}
+                  onChange={setRequestedScope}
+                  groupLabel="Elegir vista del catálogo"
+                  mineLabel="Mis modelos"
+                  mineCount={
+                    personalizationEnabled
+                      ? personalization.visibleModelCodes.length
+                      : personalization.manualModelCodes.length
+                  }
+                  allCount={entries.length}
+                  mineDisabled={!personalizationEnabled}
+                />
+              </div>
               {!ready ? (
                 <p className="text-sm text-slate-600 dark:text-slate-300" role="status">
                   Cargando tu configuración fiscal…
@@ -485,79 +473,33 @@ export function FiscalModelManualSelectionAction({
   modelCode: string;
 }) {
   const context = useContext(PersonalizationContext);
-  const recommendation = context?.recommendationsByCode.get(modelCode);
-  useEffect(() => {
-    if (!context?.enabled || !recommendation) return;
-    void recordTaxProductEvent({
-      eventType: "tax_model_recommendation_viewed",
-      page: "MODELS",
-      modelNumber: modelCode,
-      recommendationStatus: recommendation.recommendationStatus,
-      properties: { reasonExpanded: true, sourcePage: "MODELS" },
-    }, { dedupeKey: `models-recommendation:${modelCode}` });
-  }, [context?.enabled, modelCode, recommendation]);
   if (!context?.enabled) return null;
   const fromAssessment = context.assessmentCodes.has(modelCode);
-  const needsReview = context.reviewCodes.has(modelCode);
   const manuallySelected = context.manualCodes.has(modelCode);
-  const displayStatus: TaxModelRecommendationStatus | null = manuallySelected
-    ? "MANUALLY_SELECTED"
-    : recommendation?.recommendationStatus ?? null;
-  const statusClasses: Record<TaxModelRecommendationStatus, string> = {
-    LIKELY_REQUIRED:
-      "bg-emerald-100 text-emerald-950 dark:bg-emerald-950 dark:text-emerald-100",
-    POSSIBLY_REQUIRED:
-      "bg-amber-100 text-amber-950 dark:bg-amber-950 dark:text-amber-100",
-    UNLIKELY_REQUIRED:
-      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200",
-    NEEDS_INFORMATION:
-      "bg-orange-100 text-orange-950 dark:bg-orange-950 dark:text-orange-100",
-    MANUALLY_SELECTED:
-      "bg-blue-100 text-blue-950 dark:bg-blue-950 dark:text-blue-100",
-  };
+  const selected = fromAssessment || manuallySelected;
+  const accessibleLabel = fromAssessment
+    ? `Modelo ${modelCode} incluido automáticamente en Mis modelos`
+    : manuallySelected
+      ? `Quitar el modelo ${modelCode} de Mis modelos`
+      : `Añadir el modelo ${modelCode} a Mis modelos`;
 
   return (
-    <div className="mt-3 space-y-2">
-      {displayStatus && (
-        <p
-          className={`rounded-lg px-2.5 py-1.5 text-center text-xs font-bold ${statusClasses[displayStatus]}`}
-        >
-          {TAX_MODEL_RECOMMENDATION_LABELS[displayStatus]}
-        </p>
-      )}
-      {recommendation && (
-        <div className="space-y-1 rounded-lg bg-slate-50 px-3 py-2 text-xs leading-5 text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-          <p>{recommendation.reason}</p>
-          {needsReview && recommendation.missingInformation.length > 0 && (
-            <p>
-              <strong>Falta:</strong>{" "}
-              {recommendation.missingInformation.join(" · ")}
-            </p>
-          )}
-        </div>
-      )}
-      <button
-        type="button"
-        aria-pressed={manuallySelected}
-        onClick={() =>
-          context.toggleManualModel(modelCode, !manuallySelected)
-        }
-        className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border px-3 text-sm font-bold transition-colors ${
-          manuallySelected
-            ? "border-blue-300 bg-blue-50 text-blue-900 hover:bg-blue-100 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-100"
-            : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-200 dark:hover:bg-slate-800"
-        } ${focusRing}`}
-      >
-        <Star
-          className={`h-4 w-4 ${manuallySelected ? "fill-current" : ""}`}
-          aria-hidden="true"
-        />
-        {manuallySelected
-          ? "Quitar selección manual"
-          : fromAssessment
-            ? "Añadir también manualmente"
-            : "Añadir a Mis modelos"}
-      </button>
-    </div>
+    <button
+      type="button"
+      aria-label={accessibleLabel}
+      aria-pressed={selected}
+      disabled={fromAssessment}
+      onClick={() => context.toggleManualModel(modelCode, !manuallySelected)}
+      className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border transition-colors disabled:cursor-default ${
+        selected
+          ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-700 dark:bg-emerald-950 dark:text-emerald-200"
+          : "border-slate-300 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800"
+      } ${focusRing}`}
+    >
+      <Star
+        className={`h-5 w-5 ${selected ? "fill-current" : ""}`}
+        aria-hidden="true"
+      />
+    </button>
   );
 }

@@ -52,6 +52,16 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(browser).not.toContain(">Buscar<");
     expect(browser).toContain('mineLabel="Mis modelos"');
     expect(browser).toContain("personalization.manualModelCodes.length");
+    expect(browser).toContain('className="lg:pt-[1.625rem]"');
+    expect(browser).toContain("const selected = fromAssessment || manuallySelected");
+    expect(browser).toContain("aria-pressed={selected}");
+    expect(browser).toContain("disabled={fromAssessment}");
+    expect(browser).toContain("text-emerald-700");
+    expect(browser).toContain("incluido automáticamente en Mis modelos");
+    expect(browser).not.toContain("Añadir a Mis modelos</");
+    expect(browser).not.toContain("Añadir también manualmente");
+    expect(browser).not.toContain("Quitar selección manual");
+    expect(browser).not.toContain("TAX_MODEL_RECOMMENDATION_LABELS");
     expect(browser).toContain('href="/consultor-fiscal/diagnostico"');
     expect(browser).toContain("personalization.status === \"ALL_ONLY\"");
     expect(browser).not.toContain(
@@ -80,6 +90,9 @@ describe("fiscal model structural review pages UI contract", () => {
     expect(catalog).toContain("Ver ficha");
     expect(catalog).toContain("getFiscalModelDocumentTitle(page.code)");
     expect(catalog).toContain("FiscalModelManualSelectionAction");
+    expect(catalog).toContain(
+      '<FiscalModelManualSelectionAction modelCode={page.code} />',
+    );
     expect(catalog).toContain("data-fiscal-model-code={page.code}");
     expect(catalog + browser).not.toMatch(/\b(?:AVAILABLE|CURRENT|APPROVED)\b/);
   });
