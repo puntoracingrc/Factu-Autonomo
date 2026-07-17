@@ -15,6 +15,8 @@ import {
 import { projectProfileDrivenExplanationInputV2 } from "@/lib/fiscal-notifications/profile-driven-explanation-input.v2";
 import { isAeatOfficialCatalogProfileIdV9 } from "@/lib/fiscal-notifications/knowledge/official-catalog-expansion.v9";
 import { explainAeatOfficialCatalogDocumentV9 } from "@/lib/fiscal-notifications/official-catalog-explanation.v9";
+import { isAeatP0DeepProfileIdV10 } from "@/lib/fiscal-notifications/knowledge/p0-deep-contracts.v10";
+import { explainAeatP0DeepDocumentV10 } from "@/lib/fiscal-notifications/p0-deep-explanation.v10";
 
 export interface FiscalNotificationVerticalSliceReviewProps {
   readonly review: FiscalNotificationVerticalSliceReviewV1;
@@ -283,6 +285,9 @@ function resolveFamilyExplanation(
   if (PROFILE_IDS.has(document.familyId)) {
     const input = projectProfileDrivenExplanationInputV2(document);
     return input ? explainFiscalNotificationDocumentV2(input) : null;
+  }
+  if (isAeatP0DeepProfileIdV10(document.familyId)) {
+    return explainAeatP0DeepDocumentV10(document.familyId);
   }
   return isAeatOfficialCatalogProfileIdV9(document.familyId)
     ? explainAeatOfficialCatalogDocumentV9(document.familyId)

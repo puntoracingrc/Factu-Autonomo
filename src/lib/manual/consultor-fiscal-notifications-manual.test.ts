@@ -59,15 +59,19 @@ describe("manual de Notificaciones y expedientes", () => {
     expect(text).toContain("papelera de Drive");
   });
 
-  it("documenta la expansión V9 y sus límites de madurez", () => {
+  it("documenta la expansión V9, la profundidad V10 y sus límites", () => {
     const text = notificationManualText();
 
     expect(text).toContain("122 familias documentales");
     expect(text).toContain("118 tienen lectura automática");
     expect(text).toContain("4 familias sectoriales");
-    expect(text).toContain("formato pendiente de validar");
+    expect(text).toContain("11 familias prioritarias");
+    expect(text).toContain("extracción profunda");
     expect(text).toContain("se añaden 11 cadenas");
-    expect(text).toContain("Una solicitud de ampliación no cambia el plazo");
+    expect(text).toContain("puede producir automáticamente la ampliación por la mitad");
+    expect(text).toContain("resolución puede llegar directamente sin propuesta previa");
+    expect(text).toContain("mensual desde septiembre de 2024");
+    expect(text).toContain("no se presenta como un recurso ordinario");
     expect(text).toContain("respuesta técnica VERI*FACTU no es una sanción");
   });
 });

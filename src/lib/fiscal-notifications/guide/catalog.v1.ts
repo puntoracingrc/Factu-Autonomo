@@ -48,6 +48,11 @@ import {
   type AeatOfficialCatalogProfileV9,
 } from "@/lib/fiscal-notifications/knowledge/official-catalog-expansion.v9";
 import { AEAT_OFFICIAL_CATALOG_CHAINS_V9 } from "@/lib/fiscal-notifications/official-catalog-relations.v9";
+import {
+  AEAT_P0_OFFICIAL_SOURCES_V10,
+  resolveAeatP0DeepProfileV10,
+} from "@/lib/fiscal-notifications/knowledge/p0-deep-contracts.v10";
+import { AEAT_P0_RELATION_RULES_V10 } from "@/lib/fiscal-notifications/p0-relations.v10";
 
 export const FISCAL_NOTIFICATION_GUIDE_SCHEMA_VERSION_V1 = 1 as const;
 export const FISCAL_NOTIFICATION_GUIDE_RELEASE_ID_V1 =
@@ -623,16 +628,22 @@ const OFFICIAL_CATALOG_GUIDE_BLOCKERS_V9 = Object.freeze([
 function officialCatalogGuideEntryV9(
   profile: AeatOfficialCatalogProfileV9,
 ): FiscalNotificationGuideEntryV1 {
+  const deepProfile = resolveAeatP0DeepProfileV10(profile.id);
   const category = OFFICIAL_CATALOG_CATEGORY_PRESENTATION_V9[profile.category];
   if (!category) throw new Error("Missing official catalog category presentation");
-  const sources = profile.officialSourceIds.map((sourceId) => {
-    const source = AEAT_OFFICIAL_CATALOG_SOURCES_V9[sourceId];
+  const sources = (deepProfile?.officialSourceIds ?? profile.officialSourceIds).map((sourceId) => {
+    const deepSource = deepProfile
+      ? AEAT_P0_OFFICIAL_SOURCES_V10[sourceId as keyof typeof AEAT_P0_OFFICIAL_SOURCES_V10]
+      : null;
+    const source = deepSource ?? AEAT_OFFICIAL_CATALOG_SOURCES_V9[sourceId];
     if (!source) throw new Error("Missing official catalog source");
     return Object.freeze({
       sourceId: source.sourceId,
       title: source.title,
-      authority: "AEAT" as const,
-      sourceKind: "PROCEDURE_INFORMATION" as const,
+      authority: deepSource?.authority ?? ("AEAT" as const),
+      sourceKind: deepSource?.authority === "BOE"
+        ? ("LEGAL_TEXT" as const)
+        : ("PROCEDURE_INFORMATION" as const),
       canonicalUrl: source.url,
       urlCheckedOn: "2026-07-17" as const,
       verificationStatus: "OFFICIAL_URL_VERIFIED" as const,
@@ -640,18 +651,21 @@ function officialCatalogGuideEntryV9(
       usagePolicy: "CONTEXT_ONLY" as const,
     });
   });
-  const relationHints = AEAT_OFFICIAL_CATALOG_CHAINS_V9
-    .filter((chain) => chain.nodes.includes(profile.id))
-    .flatMap((chain) => [
-      chain.explanation,
-      `No permite concluir: ${chain.forbiddenInference}`,
-    ]);
-  const expectedFieldNames = [
-    ...profile.mustExtract.references,
-    ...profile.mustExtract.dates,
-    ...profile.mustExtract.money,
-    ...profile.mustExtract.facts,
-  ].map((fieldId) => fieldId.toLocaleLowerCase("es").replaceAll("_", " "));
+  const relationHints = deepProfile
+    ? AEAT_P0_RELATION_RULES_V10
+        .filter((rule) => rule.sourceProfiles.includes(deepProfile.profileId) || (Array.isArray(rule.target) && rule.target.includes(deepProfile.profileId)))
+        .flatMap((rule) => [rule.exactPhrase, `No permite concluir: ${rule.forbidden}`])
+    : AEAT_OFFICIAL_CATALOG_CHAINS_V9
+        .filter((chain) => chain.nodes.includes(profile.id))
+        .flatMap((chain) => [chain.explanation, `No permite concluir: ${chain.forbiddenInference}`]);
+  const expectedFieldNames = (deepProfile
+    ? deepProfile.canonicalFields.map((field) => field.id)
+    : [
+        ...profile.mustExtract.references,
+        ...profile.mustExtract.dates,
+        ...profile.mustExtract.money,
+        ...profile.mustExtract.facts,
+      ]).map((fieldId) => fieldId.toLocaleLowerCase("es").replaceAll("_", " "));
   const plainLanguage: FiscalNotificationPlainLanguageGuidanceV1 = Object.freeze({
     schemaVersion: 1,
     releaseId: FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_RELEASE_ID_V1,
@@ -659,32 +673,37 @@ function officialCatalogGuideEntryV9(
     profileVersion: "1.0.0",
     familyId: profile.id,
     status: "GENERAL_CONTEXT_EXPLAINED",
-    inShort: profile.whatItIs,
-    whyItUsuallyArrives:
-      profile.notes ||
+    inShort: deepProfile?.explanationTemplate.whatItIs ?? profile.whatItIs,
+    whyItUsuallyArrives: deepProfile
+      ? `Forma parte de la fase «${deepProfile.procedurePhase.toLocaleLowerCase("es").replaceAll("_", " ")}» del trámite indicado.`
+      : profile.notes ||
       `La AEAT lo emite dentro de ${category.label.toLocaleLowerCase("es")} para comunicar el paso y el resultado que figuran en el propio documento.`,
-    usualNextStep:
+    usualNextStep: deepProfile?.explanationTemplate.whatToDo ??
       `Comprueba el resultado, las referencias y las fechas impresas. El analizador buscará, entre otros, estos campos: ${expectedFieldNames.slice(0, 6).join(", ")}.`,
     deadline: Object.freeze({
-      title:
-        profile.deadlineTrigger === "NONE"
+      title: deepProfile
+        ? deepProfile.deadlineRuleIds.length === 0
+          ? "No crea un plazo por sí solo"
+          : "Plazo explicado con su disparador correcto"
+        : profile.deadlineTrigger === "NONE"
           ? "No crea un plazo por sí solo"
           : "Localiza el inicio exacto del plazo",
-      detail:
-        profile.deadlineTrigger === "NONE"
+      detail: deepProfile?.explanationTemplate.deadline ??
+        (profile.deadlineTrigger === "NONE"
           ? "Este perfil no atribuye un plazo a este documento. Si el PDF incluye uno, debe revisarse literalmente y no se calcula desde la fecha de subida."
-          : "El plazo depende del hecho o la fecha que indique el documento y, cuando proceda, de la notificación efectiva. Nunca se calcula desde la fecha de escaneo o subida.",
+          : "El plazo depende del hecho o la fecha que indique el documento y, cuando proceda, de la notificación efectiva. Nunca se calcula desde la fecha de escaneo o subida."),
       basis: "RECEIPT_OR_DOCUMENT_ONLY",
     }),
-    keyPoints: Object.freeze([...profile.notProvenByThisDocument]),
+    keyPoints: Object.freeze(deepProfile
+      ? [deepProfile.explanationTemplate.notProven, ...deepProfile.notProvenByDocument]
+      : [...profile.notProvenByThisDocument]),
     searchTerms: Object.freeze([
       ...profile.id.split(/[._-]/u).filter(Boolean),
-      ...profile.phases,
-      ...profile.relationRules,
+      ...(deepProfile ? [deepProfile.procedurePhase, ...deepProfile.states, ...deepProfile.relationRuleIds] : [...profile.phases, ...profile.relationRules]),
       profile.nameEs,
       category.label,
     ]),
-    sourceIds: Object.freeze([...profile.officialSourceIds]),
+    sourceIds: Object.freeze([...(deepProfile?.officialSourceIds ?? profile.officialSourceIds)]),
     documentPolicy: "DOCUMENT_IS_PRIMARY",
     networkPolicy: "NO_RUNTIME_NETWORK",
     inferencePolicy: "NO_DOCUMENT_SPECIFIC_INFERENCE",
@@ -711,7 +730,7 @@ function officialCatalogGuideEntryV9(
         ? "MANUAL_REVIEW_ONLY"
         : "AUTOMATIC_REVIEW_ONLY",
     recognitionMaturity: profile.recognitionMaturity,
-    summary: profile.whatItIs,
+    summary: deepProfile?.explanationTemplate.whatItIs ?? profile.whatItIs,
     plainLanguage,
     documentChecks: FISCAL_NOTIFICATION_GUIDE_DOCUMENT_CHECKS_V1,
     possiblePrevious: Object.freeze([]),
@@ -725,12 +744,14 @@ function officialCatalogGuideEntryV9(
           ? "MANUAL_REVIEW_ONLY"
           : "AUTOMATIC_REVIEW_ONLY",
       candidateHandlerImplemented: true,
-      explicitFactExtractorImplemented: false,
+      explicitFactExtractorImplemented: deepProfile !== null,
       syntheticTestCaseAvailable: true,
       legalRuleActive: false,
       operationalActionActive: false,
       automaticRelationConfirmationActive: false,
-      blockers: OFFICIAL_CATALOG_GUIDE_BLOCKERS_V9,
+      blockers: deepProfile
+        ? Object.freeze(["LEGAL_REVIEW_PENDING", "OPERATIONAL_ACTIVATION_PROHIBITED"] as const)
+        : OFFICIAL_CATALOG_GUIDE_BLOCKERS_V9,
     }),
     prohibitions: Object.freeze(
       FISCAL_NOTIFICATION_PROHIBITED_INFERENCE_IDS_V2.map((id) =>

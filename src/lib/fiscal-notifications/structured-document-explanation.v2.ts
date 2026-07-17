@@ -209,6 +209,14 @@ export interface FiscalNotificationExplanationAssertionV2 {
   readonly code: string;
   readonly level: FiscalNotificationExplanationAssertionLevelV2;
   readonly text: string;
+  /** V10 closed rules attach the exact official-source snapshot used. */
+  readonly sourceVersion?: Readonly<{
+    sourceId: string;
+    lastChecked: string;
+    effectiveFrom: string | null;
+    effectiveTo: string | null;
+    legalVersion: string | null;
+  }>;
 }
 
 export interface FiscalNotificationExplanationSectionV2 {
@@ -223,6 +231,12 @@ export interface FiscalNotificationExplanationOfficialSourceV2 {
   readonly authority: "DOCUMENT" | "BOE" | "AEAT" | "Gobierno de España";
   readonly canonicalUrl: string | null;
   readonly assertionLevel: "EXPLICIT_IN_DOCUMENT" | "OFFICIAL_CONTEXT";
+  readonly sourceVersion?: Readonly<{
+    lastChecked: string;
+    effectiveFrom: string | null;
+    effectiveTo: string | null;
+    legalVersion: string | null;
+  }>;
 }
 
 export interface FiscalNotificationDocumentExplanationV2 {
@@ -231,7 +245,8 @@ export interface FiscalNotificationDocumentExplanationV2 {
   readonly engineVersion: typeof FISCAL_NOTIFICATION_DOCUMENT_EXPLANATION_ENGINE_VERSION_V2;
   readonly knowledgeReleaseId:
     | typeof AEAT_DOCUMENT_KNOWLEDGE_RELEASE_ID_V1
-    | "aeat-official-catalog-expansion.2026-07-17.v9";
+    | "aeat-official-catalog-expansion.2026-07-17.v9"
+    | "aeat-p0-deep-contracts.2026-07-17.v10";
   readonly status: "EXPLAINED" | "INFORMATION_PENDING" | "REVIEW_REQUIRED";
   readonly familyId:
     | FiscalNotificationDocumentFamilyIdV2

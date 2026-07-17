@@ -1,0 +1,2411 @@
+{
+  "meta": {
+    "title": "Contratos operativos P0 AEAT V10",
+    "version": "10.0.0",
+    "createdAt": "2026-07-17",
+    "profileCount": 11,
+    "purpose": "Convertir la investigación V9 en contratos implementables sin investigación adicional por Codex.",
+    "privacy": "No contiene PDF, OCR, identidad, referencias reales ni importes reales."
+  },
+  "correctionsToPreviousResearch": [
+    {
+      "correctionId": "V10-CORR-001",
+      "area": "Ampliación de plazo",
+      "previousSimplification": "La solicitud no cambia el plazo hasta que exista un acuerdo.",
+      "correctRule": "Si la solicitud reúne los requisitos del artículo 91 y se presenta en plazo, la ampliación por la mitad se entiende automáticamente concedida salvo denegación expresa antes de finalizar el plazo original.",
+      "engineChange": "Añadir estado AUTO_GRANTED_BY_RULE y reconciliar cualquier acuerdo expreso posterior.",
+      "sourceId": "BOE_RD1065_ART91",
+      "severity": "HIGH"
+    },
+    {
+      "correctionId": "V10-CORR-002",
+      "area": "Rectificación",
+      "previousSimplification": "Toda rectificación sigue siempre solicitud → propuesta → resolución.",
+      "correctRule": "La propuesta puede omitirse cuando lo que se va a acordar coincide con lo solicitado; puede notificarse directamente la resolución o liquidación.",
+      "engineChange": "Permitir cadena request → resolution sin marcar documento faltante.",
+      "sourceId": "AEAT_RECTIFICATION_GZ28",
+      "severity": "HIGH"
+    },
+    {
+      "correctionId": "V10-CORR-003",
+      "area": "Autoliquidación rectificativa IVA",
+      "previousSimplification": "Una familia genérica de rectificativa sirve para cualquier período.",
+      "correctRule": "En modelo 303 solo aplica desde septiembre de 2024 mensual y 3T 2024 trimestral; existen excepciones que siguen por solicitud tradicional.",
+      "engineChange": "Puerta temporal por modelo/período y tabla de excepciones.",
+      "sourceId": "AEAT_VAT_RECTIFYING_303",
+      "severity": "HIGH"
+    },
+    {
+      "correctionId": "V10-CORR-004",
+      "area": "Ejecución de recursos",
+      "previousSimplification": "La resolución favorable puede tratarse como resultado material ya aplicado.",
+      "correctRule": "El acto de ejecución es un acto separado que materializa la resolución y debe enlazarse expresamente.",
+      "engineChange": "No actualizar deuda/devolución solo con la resolución de revisión; esperar acuerdo de ejecución o acto equivalente.",
+      "sourceId": "BOE_RD520_ART66",
+      "severity": "HIGH"
+    },
+    {
+      "correctionId": "V10-CORR-005",
+      "area": "Certificados",
+      "previousSimplification": "El certificado se recurre como una resolución ordinaria.",
+      "correctRule": "Con carácter general no procede recurso ordinario contra su contenido; existe escrito de disconformidad en diez días y posible reemisión.",
+      "engineChange": "Usar workflow de corrección, no APPEAL_DEADLINE ordinario.",
+      "sourceId": "AEAT_CERT_CENSUS_G313",
+      "severity": "MEDIUM"
+    }
+  ],
+  "architecture": {
+    "sourceVersioning": {
+      "requiredFields": [
+        "sourceId",
+        "url",
+        "lastChecked",
+        "effectiveFrom",
+        "effectiveTo",
+        "legalVersion",
+        "profileIds"
+      ],
+      "rule": "Every explanation and deadline assertion records the source version used."
+    },
+    "assertionLayers": [
+      "PRINTED",
+      "NORMALIZED",
+      "CALCULATED_FROM_PRINTED_VALUES",
+      "LEGAL_RULE_APPLIED",
+      "RELATION_INFERRED",
+      "CONFIRMED_BY_LATER_DOCUMENT",
+      "NOT_PROVEN"
+    ],
+    "confidenceGates": {
+      "AUTO_ACTION_BLOCKED": [
+        "missing effective notification date",
+        "missing original filing reference",
+        "ambiguous procedure phase",
+        "suggested-only document relation",
+        "legal route depends on period or exception"
+      ],
+      "USER_REVIEW_REQUIRED": [
+        "traditional request vs rectifying return ambiguity",
+        "automatic extension eligibility missing one prerequisite",
+        "execution scope does not arithmetically match review resolution",
+        "certificate outside general validity period"
+      ]
+    },
+    "graphReconciliation": {
+      "when": [
+        "document saved",
+        "source version updated",
+        "profile rule updated",
+        "new related document imported"
+      ],
+      "allowStateUpgrade": [
+        "SUGGESTED -> SYSTEM_CONFIRMED_EXACT",
+        "PENDING -> AUTO_GRANTED_BY_RULE",
+        "AUTO_GRANTED_BY_RULE -> EXPRESS_GRANTED",
+        "AUTO_GRANTED_BY_RULE -> EXPRESS_DENIED only when timely denial evidence exists"
+      ],
+      "auditFields": [
+        "previousState",
+        "newState",
+        "ruleVersion",
+        "evidenceIds",
+        "changedAt",
+        "reason"
+      ]
+    }
+  },
+  "profiles": [
+    {
+      "profileId": "evidence.submission_receipt",
+      "titleEs": "Justificante de presentación, contestación o aportación documental",
+      "procedurePhase": "EVIDENCE",
+      "recognition": {
+        "strongAnchorSets": [
+          [
+            "JUSTIFICANTE",
+            "PRESENTACIÓN",
+            "REGISTRO"
+          ],
+          [
+            "RECIBO",
+            "PRESENTACIÓN",
+            "NÚMERO DE ENTRADA"
+          ],
+          [
+            "REGISTRO ELECTRÓNICO",
+            "FECHA Y HORA",
+            "CÓDIGO SEGURO DE VERIFICACIÓN"
+          ]
+        ],
+        "weakAnchors": [
+          "Número de entrada de registro",
+          "Número de justificante",
+          "Fecha y hora de presentación",
+          "Documentación adjunta",
+          "Presentación realizada con éxito"
+        ],
+        "incompatibleAnchors": [
+          "REQUERIMIENTO",
+          "PROPUESTA DE LIQUIDACIÓN",
+          "RESOLUCIÓN",
+          "CARTA DE PAGO"
+        ],
+        "titlePrecedence": "EXACT_OR_NEAR_EXACT_TITLE_BEATS_GENERIC_BODY_TERMS",
+        "minimumStrongSetsRequired": 1
+      },
+      "expectedParts": [
+        {
+          "kind": "submission.cover",
+          "pattern": "Primera hoja con metadatos de registro",
+          "effect": "ACTO_PROBATORIO"
+        },
+        {
+          "kind": "submitted.copy",
+          "pattern": "Copia del escrito, declaración o anexos",
+          "effect": "CONTENIDO_PRESENTADO"
+        }
+      ],
+      "canonicalFields": [
+        {
+          "id": "FILING_RECEIPT_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Número de entrada de registro",
+            "Número de expediente"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "FILING_DATE",
+          "type": "DATE",
+          "required": true,
+          "labelVariants": [
+            "Fecha de presentación",
+            "Día de presentación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "FILING_TIME",
+          "type": "TIME",
+          "required": false,
+          "labelVariants": [
+            "Hora de presentación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "FILING_JUSTIFICATION_NUMBER",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "Número de justificante"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "CSV",
+          "type": "SENSITIVE_REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "Código Seguro de Verificación",
+            "CSV"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "FINGERPRINT_ONLY",
+          "notes": ""
+        },
+        {
+          "id": "PROCEDURE_ID",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "Expediente",
+            "Procedimiento"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ACT_ID",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "Acto relacionado",
+            "Referencia del documento recibido"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "NOTIFICATION_ID",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "NCC",
+            "Identificador de notificación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "SUBMISSION_CHANNEL",
+          "type": "ENUM",
+          "required": false,
+          "labelVariants": [
+            "Canal",
+            "Registro electrónico"
+          ],
+          "assertionType": "NORMALIZED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "SUBMITTED_DOCUMENT_COUNT",
+          "type": "INTEGER",
+          "required": false,
+          "labelVariants": [
+            "Número de ficheros",
+            "Documentos anexos"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "SUBMISSION_RESULT",
+          "type": "ENUM",
+          "required": true,
+          "labelVariants": [
+            "Presentado",
+            "Registrado",
+            "Rechazado"
+          ],
+          "assertionType": "NORMALIZED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "PRESENTER_ROLE",
+          "type": "ROLE",
+          "required": false,
+          "labelVariants": [
+            "Interesado",
+            "Representante",
+            "Colaborador"
+          ],
+          "assertionType": "NORMALIZED",
+          "privacy": "ROLE_ONLY",
+          "notes": ""
+        }
+      ],
+      "states": [
+        "SUBMITTED",
+        "REGISTERED",
+        "REJECTED_OR_INCOMPLETE"
+      ],
+      "deadlineRuleIds": [],
+      "relationRuleIds": [
+        "RESPONSE_TO",
+        "FILES_AGAINST",
+        "SUPPLIES_DOCUMENTS_FOR",
+        "SUBMITS_APPEAL_FOR",
+        "REQUESTS_EXTENSION_FOR"
+      ],
+      "explanationTemplate": {
+        "whatItIs": "Es el justificante de que un escrito, declaración o grupo de documentos entró en el registro indicado.",
+        "result": "La presentación figura registrada en la fecha y hora impresas.",
+        "whatToDo": "Conserva el justificante y comprueba que la referencia del trámite y los anexos coinciden con lo que pretendías enviar.",
+        "deadline": "Este justificante no crea un nuevo plazo por sí solo.",
+        "after": "La AEAT puede revisar el contenido y emitir un requerimiento, propuesta o resolución posterior.",
+        "notProven": "No demuestra que la AEAT acepte los argumentos, estime la solicitud o dé por atendido correctamente todo el trámite."
+      },
+      "notProvenByDocument": [
+        "Aceptación jurídica del contenido.",
+        "Resolución favorable.",
+        "Suspensión del acto.",
+        "Pago o devolución."
+      ],
+      "officialSourceIds": [
+        "AEAT_SUBMISSION_HELP",
+        "AEAT_SUBMISSION_REPORT",
+        "AEAT_INFORMATION_RETURN_RECEIPT"
+      ],
+      "maturity": "OFFICIAL_STRUCTURE_MULTI_SERVICE",
+      "requiredTests": [
+        "Justificante con número de entrada, fecha, hora y CSV.",
+        "Justificante sin referencia explícita al acto: relación sugerida, no exacta.",
+        "Escrito adjunto que contiene la palabra resolución: no reclasificar el justificante.",
+        "Presentación rechazada: no mostrar como trámite atendido.",
+        "Varias copias del mismo justificante: deduplicar por CSV/fingerprint y entrada."
+      ],
+      "warnings": []
+    },
+    {
+      "profileId": "procedure.deadline_extension_request",
+      "titleEs": "Solicitud de ampliación del plazo de un trámite tributario",
+      "procedurePhase": "REQUEST",
+      "recognition": {
+        "strongAnchorSets": [
+          [
+            "SOLICITUD",
+            "AMPLIACIÓN",
+            "PLAZO"
+          ],
+          [
+            "SOLICITUD DE AMPLIACIÓN DE PLAZO",
+            "TRÁMITE"
+          ]
+        ],
+        "weakAnchors": [
+          "plazo que se pretende ampliar",
+          "circunstancias que lo aconsejan",
+          "no se perjudiquen derechos de terceros"
+        ],
+        "incompatibleAnchors": [
+          "APLAZAMIENTO/FRACCIONAMIENTO DE PAGO",
+          "SUSPENSIÓN DE LA DEUDA",
+          "PRÓRROGA DE DOMICILIACIÓN"
+        ],
+        "titlePrecedence": "EXACT_OR_NEAR_EXACT_TITLE_BEATS_GENERIC_BODY_TERMS",
+        "minimumStrongSetsRequired": 1
+      },
+      "expectedParts": [
+        {
+          "kind": "submission.cover",
+          "pattern": "Justificante de registro",
+          "effect": "PRUEBA_DE_FECHA"
+        },
+        {
+          "kind": "request.body",
+          "pattern": "Acto, plazo original, motivo y ampliación solicitada",
+          "effect": "PETICIÓN"
+        }
+      ],
+      "canonicalFields": [
+        {
+          "id": "FILING_RECEIPT_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Número de entrada",
+            "Justificante"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "PROCEDURE_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Expediente",
+            "Procedimiento"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ACT_ID",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "Acto",
+            "Referencia de la notificación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "FILING_DATE",
+          "type": "DATE_TIME",
+          "required": true,
+          "labelVariants": [
+            "Fecha y hora de presentación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ORIGINAL_DEADLINE",
+          "type": "DATE",
+          "required": true,
+          "labelVariants": [
+            "Plazo original",
+            "Fecha límite"
+          ],
+          "assertionType": "PRINTED_OR_DERIVED_WITH_EVIDENCE",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ORIGINAL_TERM_LENGTH",
+          "type": "DURATION",
+          "required": false,
+          "labelVariants": [
+            "Plazo concedido"
+          ],
+          "assertionType": "PRINTED_OR_DERIVED_WITH_EVIDENCE",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "REQUEST_REASON",
+          "type": "TYPED_TEXT",
+          "required": true,
+          "labelVariants": [
+            "Motivo",
+            "Circunstancias"
+          ],
+          "assertionType": "PRINTED_SUMMARY_ONLY",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "THIRD_PARTY_PREJUDICE_DECLARED",
+          "type": "BOOLEAN",
+          "required": false,
+          "labelVariants": [
+            "No perjudica derechos de terceros"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "REQUESTED_EXTENSION_LENGTH",
+          "type": "DURATION",
+          "required": false,
+          "labelVariants": [
+            "Ampliación solicitada"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        }
+      ],
+      "states": [
+        "FILED",
+        "ELIGIBLE_FOR_AUTOMATIC_HALF_EXTENSION",
+        "INELIGIBLE",
+        "EXPRESSLY_DENIED",
+        "EXPRESSLY_GRANTED"
+      ],
+      "deadlineRuleIds": [
+        "EXTENSION_ELIGIBILITY",
+        "EXTENSION_AUTOMATIC_EFFECT"
+      ],
+      "relationRuleIds": [
+        "REQUESTS_EXTENSION_FOR",
+        "MAY_UPDATE_DEADLINE_FOR"
+      ],
+      "explanationTemplate": {
+        "whatItIs": "Es una petición para ampliar el tiempo concedido para atender un trámite, no un aplazamiento de una deuda.",
+        "result": "La solicitud quedó presentada en la fecha indicada.",
+        "whatToDo": "Comprueba si se presentó antes de los tres días previos al vencimiento, si está motivada y si no perjudica a terceros.",
+        "deadline": "Cuando reúne los requisitos del artículo 91, la ampliación por la mitad del plazo se entiende concedida automáticamente salvo denegación expresa antes de terminar el plazo original.",
+        "after": "Puede existir un acuerdo expreso que conceda una duración inferior o una denegación notificada dentro del plazo original.",
+        "notProven": "No demuestra por sí sola que sea admisible en cualquier procedimiento ni que se haya concedido una duración mayor que la legal."
+      },
+      "notProvenByDocument": [
+        "Ampliación ilimitada.",
+        "Segunda ampliación del mismo trámite.",
+        "Suspensión del procedimiento.",
+        "Ampliación de un plazo de pago que tenga su propia regulación."
+      ],
+      "officialSourceIds": [
+        "BOE_RD1065_ART91",
+        "AEAT_RECTIFICATION_GZ28"
+      ],
+      "maturity": "NORMATIVE_STRONG_STRUCTURE_PENDING",
+      "requiredTests": [
+        "Solicitud presentada con más de tres días de antelación y requisitos completos: efecto automático.",
+        "Solicitud presentada dentro de los tres días previos: no aplicar efecto automático.",
+        "Solicitud sin motivo: marcar inelegible o revisión.",
+        "Confusión con aplazamiento de pago: clasificación negativa.",
+        "Segunda solicitud para el mismo plazo: no conceder automáticamente."
+      ],
+      "warnings": [
+        "CORRECCIÓN DE V9: no es correcto afirmar de forma general que el plazo solo cambia con acuerdo expreso. El artículo 91 prevé concesión automática si se cumplen los requisitos y no hay denegación expresa en plazo."
+      ]
+    },
+    {
+      "profileId": "procedure.deadline_extension_decision",
+      "titleEs": "Acuerdo expreso sobre una ampliación de plazo",
+      "procedurePhase": "DECISION",
+      "recognition": {
+        "strongAnchorSets": [
+          [
+            "ACUERDO",
+            "AMPLIACIÓN DE PLAZO"
+          ],
+          [
+            "RESOLUCIÓN",
+            "SOLICITUD DE AMPLIACIÓN"
+          ],
+          [
+            "DENEGACIÓN",
+            "AMPLIACIÓN DEL PLAZO"
+          ]
+        ],
+        "weakAnchors": [
+          "plazo inicialmente fijado",
+          "ampliación concedida",
+          "solicitud presentada"
+        ],
+        "incompatibleAnchors": [
+          "APLAZAMIENTO/FRACCIONAMIENTO DE PAGO",
+          "SUSPENSIÓN",
+          "PRÓRROGA DE DOMICILIACIÓN"
+        ],
+        "titlePrecedence": "EXACT_OR_NEAR_EXACT_TITLE_BEATS_GENERIC_BODY_TERMS",
+        "minimumStrongSetsRequired": 1
+      },
+      "expectedParts": [
+        {
+          "kind": "decision.main",
+          "pattern": "Identificación, decisión y nueva duración",
+          "effect": "DECISIÓN"
+        },
+        {
+          "kind": "appeal.info",
+          "pattern": "Recursos si proceden",
+          "effect": "CONTEXTO"
+        }
+      ],
+      "canonicalFields": [
+        {
+          "id": "ACT_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Acuerdo",
+            "Referencia"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "PROCEDURE_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Expediente"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "FILING_RECEIPT_ID",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "Solicitud",
+            "Entrada de registro"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ISSUE_DATE",
+          "type": "DATE",
+          "required": true,
+          "labelVariants": [
+            "Fecha del acuerdo"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "EFFECTIVE_NOTIFICATION_DATE",
+          "type": "DATE",
+          "required": false,
+          "labelVariants": [
+            "Fecha de notificación"
+          ],
+          "assertionType": "PRINTED_OR_EXTERNAL_EVIDENCE",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "DECISION_RESULT",
+          "type": "ENUM",
+          "required": true,
+          "labelVariants": [
+            "Conceder",
+            "Denegar",
+            "Conceder parcialmente"
+          ],
+          "assertionType": "NORMALIZED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ORIGINAL_DEADLINE",
+          "type": "DATE",
+          "required": true,
+          "labelVariants": [
+            "Plazo inicial"
+          ],
+          "assertionType": "PRINTED_OR_RELATION",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "NEW_DEADLINE",
+          "type": "DATE",
+          "required": false,
+          "labelVariants": [
+            "Nuevo plazo",
+            "Fecha límite"
+          ],
+          "assertionType": "PRINTED_OR_CALCULATED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "GRANTED_EXTENSION_LENGTH",
+          "type": "DURATION",
+          "required": false,
+          "labelVariants": [
+            "Ampliación concedida"
+          ],
+          "assertionType": "PRINTED_OR_CALCULATED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "DECISION_REASON",
+          "type": "TYPED_TEXT",
+          "required": false,
+          "labelVariants": [
+            "Motivación"
+          ],
+          "assertionType": "PRINTED_SUMMARY_ONLY",
+          "privacy": "PERSIST",
+          "notes": ""
+        }
+      ],
+      "states": [
+        "EXPRESS_GRANTED",
+        "EXPRESS_GRANTED_SHORTER_THAN_HALF",
+        "EXPRESS_DENIED"
+      ],
+      "deadlineRuleIds": [
+        "EXTENSION_DECISION_EFFECT"
+      ],
+      "relationRuleIds": [
+        "DECIDES_EXTENSION_REQUEST",
+        "UPDATES_DEADLINE_FOR"
+      ],
+      "explanationTemplate": {
+        "whatItIs": "Es la decisión expresa sobre una solicitud de ampliación.",
+        "result": "El documento concede, limita o deniega la ampliación en los términos impresos.",
+        "whatToDo": "Usa la nueva fecha expresa cuando exista; si deniega, conserva el plazo original salvo que otra regla aplicable indique lo contrario.",
+        "deadline": "La denegación solo impide el efecto automático si se notifica antes de finalizar el plazo que se pretendía ampliar.",
+        "after": "El expediente continúa con el trámite al que afecta.",
+        "notProven": "No cambia otros plazos ni suspende el procedimiento completo."
+      },
+      "notProvenByDocument": [
+        "Cambio de todos los plazos del expediente.",
+        "Reapertura de un plazo ya terminado.",
+        "Suspensión de una deuda."
+      ],
+      "officialSourceIds": [
+        "BOE_RD1065_ART91"
+      ],
+      "maturity": "NORMATIVE_STRONG_STRUCTURE_PENDING",
+      "requiredTests": [
+        "Concesión expresa con plazo inferior a la mitad.",
+        "Denegación notificada antes del vencimiento.",
+        "Denegación emitida después del vencimiento: revisión jurídica, no cancelar silenciosamente el efecto automático.",
+        "Acto sin nueva fecha pero con duración: calcular con calendario y evidencia."
+      ],
+      "warnings": []
+    },
+    {
+      "profileId": "assessment.rectification_request",
+      "titleEs": "Solicitud de rectificación de autoliquidación o declaración",
+      "procedurePhase": "REQUEST",
+      "recognition": {
+        "strongAnchorSets": [
+          [
+            "SOLICITUD",
+            "RECTIFICACIÓN",
+            "AUTOLIQUIDACIÓN"
+          ],
+          [
+            "RECTIFICACIÓN DE AUTOLIQUIDACIÓN",
+            "MODELO",
+            "PERÍODO"
+          ],
+          [
+            "SOLICITUD DE RECTIFICACIÓN",
+            "DEVOLUCIÓN"
+          ]
+        ],
+        "weakAnchors": [
+          "autoliquidación que se pretende rectificar",
+          "intereses legítimos",
+          "importe ingresado",
+          "devolución solicitada"
+        ],
+        "incompatibleAnchors": [
+          "AUTOLIQUIDACIÓN RECTIFICATIVA",
+          "DECLARACIÓN COMPLEMENTARIA",
+          "PROPUESTA DE LIQUIDACIÓN"
+        ],
+        "titlePrecedence": "EXACT_OR_NEAR_EXACT_TITLE_BEATS_GENERIC_BODY_TERMS",
+        "minimumStrongSetsRequired": 1
+      },
+      "expectedParts": [
+        {
+          "kind": "submission.cover",
+          "pattern": "Registro y justificante",
+          "effect": "PRUEBA_DE_SOLICITUD"
+        },
+        {
+          "kind": "request.body",
+          "pattern": "Identificación de autoliquidación, motivo, resultado solicitado",
+          "effect": "CONTENIDO"
+        },
+        {
+          "kind": "attachments.index",
+          "pattern": "Relación de documentos aportados",
+          "effect": "EVIDENCIA_APORTADA"
+        }
+      ],
+      "canonicalFields": [
+        {
+          "id": "FILING_RECEIPT_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Número de entrada",
+            "Justificante"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ORIGINAL_FILING_RECEIPT_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Justificante de la autoliquidación",
+            "Autoliquidación original"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "MODEL",
+          "type": "MODEL",
+          "required": true,
+          "labelVariants": [
+            "Modelo"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "FISCAL_YEAR",
+          "type": "YEAR",
+          "required": true,
+          "labelVariants": [
+            "Ejercicio"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "TAX_PERIOD",
+          "type": "PERIOD",
+          "required": true,
+          "labelVariants": [
+            "Período"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "FILING_DATE",
+          "type": "DATE_TIME",
+          "required": true,
+          "labelVariants": [
+            "Fecha de solicitud"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ORIGINAL_RESULT",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Resultado original",
+            "Importe ingresado"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "REQUESTED_RESULT",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Resultado correcto",
+            "Resultado solicitado"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "REQUESTED_REFUND",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Devolución solicitada"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "RECTIFICATION_REASON",
+          "type": "ENUM_TEXT",
+          "required": true,
+          "labelVariants": [
+            "Motivo de rectificación"
+          ],
+          "assertionType": "PRINTED_SUMMARY_ONLY",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ATTACHMENT_COUNT",
+          "type": "INTEGER",
+          "required": false,
+          "labelVariants": [
+            "Documentos adjuntos"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        }
+      ],
+      "states": [
+        "FILED",
+        "IN_REVIEW",
+        "REQUIREMENT_PENDING",
+        "PROPOSAL_PENDING",
+        "RESOLVED"
+      ],
+      "deadlineRuleIds": [
+        "RECTIFICATION_MAX_RESOLUTION"
+      ],
+      "relationRuleIds": [
+        "RECTIFIES_FILING",
+        "STARTS_RECTIFICATION_PROCEDURE",
+        "MAY_CREATE_REFUND"
+      ],
+      "explanationTemplate": {
+        "whatItIs": "Es una solicitud para que la AEAT corrija una autoliquidación o declaración anterior.",
+        "result": "La solicitud identifica el modelo, ejercicio, período y cambio pretendido.",
+        "whatToDo": "Comprueba que se ha identificado correctamente la presentación original y que se han aportado las pruebas necesarias.",
+        "deadline": "El procedimiento tiene un plazo máximo oficial de seis meses; la presentación de la solicitud no equivale a estimación.",
+        "after": "La AEAT puede requerir documentación, notificar una propuesta o resolver directamente si coincide íntegramente con lo pedido.",
+        "notProven": "No acredita una devolución reconocida ni que la deuda original esté suspendida."
+      },
+      "notProvenByDocument": [
+        "Estimación automática.",
+        "Pago de la devolución.",
+        "Suspensión de una deuda.",
+        "Rectificación de períodos para los que debe usarse autoliquidación rectificativa salvo excepción."
+      ],
+      "officialSourceIds": [
+        "AEAT_RECTIFICATION_GZ28",
+        "BOE_RD1065_ART126_129"
+      ],
+      "maturity": "OFFICIAL_FLOW_STRONG_VISUAL_PENDING",
+      "requiredTests": [
+        "Solicitud con original, modelo y período.",
+        "Solicitud sin justificante original: revisión, no relación exacta.",
+        "Autoliquidación rectificativa: no confundir con solicitud.",
+        "Resultado solicitado mayor, menor o sin efecto monetario.",
+        "Solicitud con documentación adjunta y sin importe."
+      ],
+      "warnings": []
+    },
+    {
+      "profileId": "assessment.rectification_requirement",
+      "titleEs": "Requerimiento dentro de un procedimiento de rectificación",
+      "procedurePhase": "REQUIREMENT",
+      "recognition": {
+        "strongAnchorSets": [
+          [
+            "REQUERIMIENTO",
+            "RECTIFICACIÓN",
+            "AUTOLIQUIDACIÓN"
+          ],
+          [
+            "APORTAR DOCUMENTACIÓN",
+            "SOLICITUD DE RECTIFICACIÓN"
+          ]
+        ],
+        "weakAnchors": [
+          "expediente de rectificación",
+          "documentación justificativa",
+          "ratificación"
+        ],
+        "incompatibleAnchors": [
+          "PROPUESTA DE RESOLUCIÓN",
+          "LIQUIDACIÓN PROVISIONAL",
+          "REQUERIMIENTO DE PRESENTACIÓN DE MODELO"
+        ],
+        "titlePrecedence": "EXACT_OR_NEAR_EXACT_TITLE_BEATS_GENERIC_BODY_TERMS",
+        "minimumStrongSetsRequired": 1
+      },
+      "expectedParts": [
+        {
+          "kind": "requirement.main",
+          "pattern": "Expediente, documentos pedidos y plazo",
+          "effect": "OBLIGACIÓN"
+        },
+        {
+          "kind": "response.instructions",
+          "pattern": "Canales de contestación",
+          "effect": "INSTRUCCIONES"
+        }
+      ],
+      "canonicalFields": [
+        {
+          "id": "PROCEDURE_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Expediente"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ORIGINAL_FILING_RECEIPT_ID",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "Autoliquidación objeto de rectificación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "NOTIFICATION_ID",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "NCC",
+            "Notificación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ISSUE_DATE",
+          "type": "DATE",
+          "required": true,
+          "labelVariants": [
+            "Fecha"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "EFFECTIVE_NOTIFICATION_DATE",
+          "type": "DATE",
+          "required": false,
+          "labelVariants": [
+            "Recepción",
+            "Acceso"
+          ],
+          "assertionType": "EXTERNAL_EVIDENCE",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "RESPONSE_DEADLINE",
+          "type": "DATE_OR_RULE",
+          "required": true,
+          "labelVariants": [
+            "Plazo"
+          ],
+          "assertionType": "PRINTED_OR_CALCULATED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "DOCUMENTATION_REQUIRED",
+          "type": "TYPED_LIST",
+          "required": true,
+          "labelVariants": [
+            "Documentación requerida"
+          ],
+          "assertionType": "PRINTED_SUMMARY_ONLY",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "RESPONSE_CHANNEL",
+          "type": "ENUM_LIST",
+          "required": false,
+          "labelVariants": [
+            "Forma de contestación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        }
+      ],
+      "states": [
+        "OPEN",
+        "ANSWERED",
+        "EXPIRED"
+      ],
+      "deadlineRuleIds": [
+        "DOCUMENT_RESPONSE_FROM_NOTIFICATION"
+      ],
+      "relationRuleIds": [
+        "CONTINUES_RECTIFICATION",
+        "RESPONSE_EXPECTED",
+        "RESPONSE_TO"
+      ],
+      "explanationTemplate": {
+        "whatItIs": "Hacienda necesita pruebas o aclaraciones antes de decidir la rectificación solicitada.",
+        "result": "El documento enumera qué falta o qué debe justificarse.",
+        "whatToDo": "Contesta dentro del plazo y conserva el justificante de presentación.",
+        "deadline": "El vencimiento se calcula desde la recepción o acceso cuando el documento así lo indique.",
+        "after": "La AEAT podrá formular propuesta o dictar resolución.",
+        "notProven": "No anticipa si la rectificación será estimada o denegada."
+      },
+      "notProvenByDocument": [
+        "Denegación de la solicitud.",
+        "Inicio de una comprobación independiente salvo que el documento lo declare.",
+        "Respuesta ya presentada."
+      ],
+      "officialSourceIds": [
+        "AEAT_RECTIFICATION_GZ28",
+        "BOE_RD1065_ART126_129",
+        "AEAT_SUBMISSION_HELP"
+      ],
+      "maturity": "OFFICIAL_FLOW_VISUAL_PENDING",
+      "requiredTests": [
+        "Requerimiento ligado por expediente exacto.",
+        "Justificante posterior enlazado por expediente o acto.",
+        "Mismo modelo y período sin expediente: solo sugerencia.",
+        "Documento genérico de comprobación: no clasificar como rectificación."
+      ],
+      "warnings": []
+    },
+    {
+      "profileId": "assessment.rectification_proposal",
+      "titleEs": "Propuesta de resolución de una rectificación y trámite de alegaciones",
+      "procedurePhase": "PROPOSAL",
+      "recognition": {
+        "strongAnchorSets": [
+          [
+            "PROPUESTA DE RESOLUCIÓN",
+            "RECTIFICACIÓN"
+          ],
+          [
+            "TRÁMITE DE ALEGACIONES",
+            "SOLICITUD DE RECTIFICACIÓN"
+          ]
+        ],
+        "weakAnchors": [
+          "15 días",
+          "propuesta",
+          "estimación parcial",
+          "desestimación"
+        ],
+        "incompatibleAnchors": [
+          "NOTIFICACIÓN DE RESOLUCIÓN",
+          "PROPUESTA DE LIQUIDACIÓN INICIADA DE OFICIO"
+        ],
+        "titlePrecedence": "EXACT_OR_NEAR_EXACT_TITLE_BEATS_GENERIC_BODY_TERMS",
+        "minimumStrongSetsRequired": 1
+      },
+      "expectedParts": [
+        {
+          "kind": "proposal.main",
+          "pattern": "Resultado propuesto y motivación",
+          "effect": "PROPUESTA"
+        },
+        {
+          "kind": "allegation.instructions",
+          "pattern": "Plazo y canales",
+          "effect": "AUDIENCIA"
+        },
+        {
+          "kind": "calculation.annex",
+          "pattern": "Cálculos opcionales",
+          "effect": "EVIDENCIA_MONETARIA"
+        }
+      ],
+      "canonicalFields": [
+        {
+          "id": "ACT_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Propuesta",
+            "Referencia"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "PROCEDURE_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Expediente"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ORIGINAL_FILING_RECEIPT_ID",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "Autoliquidación original"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ISSUE_DATE",
+          "type": "DATE",
+          "required": true,
+          "labelVariants": [
+            "Fecha"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "EFFECTIVE_NOTIFICATION_DATE",
+          "type": "DATE",
+          "required": false,
+          "labelVariants": [
+            "Recepción"
+          ],
+          "assertionType": "EXTERNAL_EVIDENCE",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ALLEGATION_DEADLINE",
+          "type": "DATE_OR_RULE",
+          "required": true,
+          "labelVariants": [
+            "15 días",
+            "Plazo de alegaciones"
+          ],
+          "assertionType": "PRINTED_OR_CALCULATED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "PROPOSAL_RESULT",
+          "type": "ENUM",
+          "required": true,
+          "labelVariants": [
+            "Estimar",
+            "Estimar parcialmente",
+            "Denegar"
+          ],
+          "assertionType": "NORMALIZED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "PROPOSED_REFUND",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Devolución propuesta"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "PROPOSED_DEBT_ADJUSTMENT",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Resultado propuesto",
+            "Liquidación propuesta"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "PROPOSAL_REASON",
+          "type": "TYPED_TEXT",
+          "required": true,
+          "labelVariants": [
+            "Motivación"
+          ],
+          "assertionType": "PRINTED_SUMMARY_ONLY",
+          "privacy": "PERSIST",
+          "notes": ""
+        }
+      ],
+      "states": [
+        "PROPOSED_FULL_GRANT",
+        "PROPOSED_PARTIAL_GRANT",
+        "PROPOSED_DENIAL",
+        "ALLEGATIONS_OPEN",
+        "ALLEGATIONS_CLOSED"
+      ],
+      "deadlineRuleIds": [
+        "RECTIFICATION_PROPOSAL_ALLEGATIONS"
+      ],
+      "relationRuleIds": [
+        "CONTINUES_RECTIFICATION",
+        "PRECEDES_RECTIFICATION_RESOLUTION",
+        "RESPONSE_TO"
+      ],
+      "explanationTemplate": {
+        "whatItIs": "Es la postura provisional de Hacienda sobre la rectificación y abre un trámite para alegar.",
+        "result": "Propone estimar, estimar parcialmente o denegar la solicitud en los términos impresos.",
+        "whatToDo": "Revisa el motivo y presenta alegaciones si no estás conforme.",
+        "deadline": "El plazo oficial de este trámite es de 15 días desde el día siguiente a la notificación.",
+        "after": "Después se dictará la resolución, salvo que el procedimiento termine por otra causa.",
+        "notProven": "No es todavía el resultado definitivo ni acredita pago o devolución."
+      },
+      "notProvenByDocument": [
+        "Resolución definitiva.",
+        "Devolución pagada.",
+        "Deuda exigible salvo que incluya un acto distinto."
+      ],
+      "officialSourceIds": [
+        "AEAT_RECTIFICATION_GZ28",
+        "BOE_RD1065_ART126_129"
+      ],
+      "maturity": "OFFICIAL_FLOW_VISUAL_PENDING",
+      "requiredTests": [
+        "Propuesta estimatoria total.",
+        "Propuesta parcial con varios importes.",
+        "Propuesta denegatoria.",
+        "Ausencia legítima de propuesta cuando coincide con lo solicitado.",
+        "No confundir con propuesta de liquidación iniciada de oficio."
+      ],
+      "warnings": []
+    },
+    {
+      "profileId": "assessment.rectification_resolution",
+      "titleEs": "Resolución de rectificación",
+      "procedurePhase": "FINAL_DECISION",
+      "recognition": {
+        "strongAnchorSets": [
+          [
+            "RESOLUCIÓN",
+            "RECTIFICACIÓN DE AUTOLIQUIDACIÓN"
+          ],
+          [
+            "ACUERDO",
+            "ESTIMAR",
+            "RECTIFICACIÓN"
+          ],
+          [
+            "ACUERDO",
+            "DENEGAR",
+            "RECTIFICACIÓN"
+          ]
+        ],
+        "weakAnchors": [
+          "liquidación provisional",
+          "devolución",
+          "estimación parcial",
+          "recursos"
+        ],
+        "incompatibleAnchors": [
+          "PROPUESTA DE RESOLUCIÓN",
+          "COMUNICACIÓN DE PAGO DE DEVOLUCIÓN"
+        ],
+        "titlePrecedence": "EXACT_OR_NEAR_EXACT_TITLE_BEATS_GENERIC_BODY_TERMS",
+        "minimumStrongSetsRequired": 1
+      },
+      "expectedParts": [
+        {
+          "kind": "resolution.main",
+          "pattern": "Resultado, alcance y motivación",
+          "effect": "DECISIÓN"
+        },
+        {
+          "kind": "assessment.annex",
+          "pattern": "Liquidación provisional opcional",
+          "effect": "NUEVO_RESULTADO"
+        },
+        {
+          "kind": "appeal.info",
+          "pattern": "Reposición/reclamación",
+          "effect": "RECURSOS"
+        }
+      ],
+      "canonicalFields": [
+        {
+          "id": "ACT_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Resolución",
+            "Acuerdo"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "PROCEDURE_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Expediente"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ORIGINAL_FILING_RECEIPT_ID",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "Autoliquidación original"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ISSUE_DATE",
+          "type": "DATE",
+          "required": true,
+          "labelVariants": [
+            "Fecha de resolución"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "EFFECTIVE_NOTIFICATION_DATE",
+          "type": "DATE",
+          "required": false,
+          "labelVariants": [
+            "Recepción"
+          ],
+          "assertionType": "EXTERNAL_EVIDENCE",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "FINAL_RESULT",
+          "type": "ENUM",
+          "required": true,
+          "labelVariants": [
+            "Estimar",
+            "Estimar parcialmente",
+            "Denegar",
+            "Archivar"
+          ],
+          "assertionType": "NORMALIZED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "RECOGNIZED_REFUND",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Devolución reconocida"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ADJUSTED_DEBT",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Deuda resultante",
+            "Liquidación provisional"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "INTEREST",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Intereses"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "APPEAL_DEADLINE",
+          "type": "DATE_OR_RULE",
+          "required": true,
+          "labelVariants": [
+            "Un mes",
+            "Recursos"
+          ],
+          "assertionType": "PRINTED_OR_CALCULATED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "FINAL_REASON",
+          "type": "TYPED_TEXT",
+          "required": true,
+          "labelVariants": [
+            "Motivación"
+          ],
+          "assertionType": "PRINTED_SUMMARY_ONLY",
+          "privacy": "PERSIST",
+          "notes": ""
+        }
+      ],
+      "states": [
+        "FULL_GRANT",
+        "PARTIAL_GRANT",
+        "DENIAL",
+        "ARCHIVAL"
+      ],
+      "deadlineRuleIds": [
+        "RECTIFICATION_RESOLUTION_APPEAL"
+      ],
+      "relationRuleIds": [
+        "RESOLVES_RECTIFICATION",
+        "CREATES_REFUND",
+        "MODIFIES_ORIGINAL_FILING",
+        "MAY_CREATE_ASSESSMENT",
+        "PRECEDES_REFUND_PAYMENT"
+      ],
+      "explanationTemplate": {
+        "whatItIs": "Es la decisión final de la AEAT sobre la rectificación solicitada.",
+        "result": "La resolución estima, estima parcialmente, deniega o archiva la solicitud y puede incluir una liquidación provisional.",
+        "whatToDo": "Comprueba el resultado, los importes y los recursos. Si reconoce una devolución, espera o relaciona la comunicación de pago.",
+        "deadline": "Los recursos ordinarios se presentan en un mes desde el día siguiente a la notificación.",
+        "after": "Puede seguir una comunicación de devolución, una compensación, una nueva deuda o un recurso.",
+        "notProven": "Una devolución reconocida no equivale a transferencia bancaria."
+      },
+      "notProvenByDocument": [
+        "Pago de la devolución.",
+        "Suspensión automática por recurrir.",
+        "Anulación de actos no citados."
+      ],
+      "officialSourceIds": [
+        "AEAT_RECTIFICATION_GZ28",
+        "BOE_RD1065_ART126_129"
+      ],
+      "maturity": "OFFICIAL_FLOW_VISUAL_PENDING",
+      "requiredTests": [
+        "Resolución estimatoria con devolución.",
+        "Resolución parcial con liquidación provisional.",
+        "Denegación sin importe.",
+        "Resolución directa sin propuesta previa.",
+        "Comunicación de pago posterior no fusionada con la resolución."
+      ],
+      "warnings": []
+    },
+    {
+      "profileId": "filing.rectifying_self_assessment_receipt",
+      "titleEs": "Justificante de autoliquidación rectificativa",
+      "procedurePhase": "SELF_ASSESSMENT_FILING",
+      "recognition": {
+        "strongAnchorSets": [
+          [
+            "AUTOLIQUIDACIÓN RECTIFICATIVA",
+            "NÚMERO DE JUSTIFICANTE ANTERIOR"
+          ],
+          [
+            "MODELO 303",
+            "RECTIFICATIVA",
+            "MOTIVO DE RECTIFICACIÓN"
+          ]
+        ],
+        "weakAnchors": [
+          "casilla autoliquidación rectificativa",
+          "justificante anterior",
+          "motivo de rectificación",
+          "casilla 108"
+        ],
+        "incompatibleAnchors": [
+          "SOLICITUD DE RECTIFICACIÓN",
+          "AUTOLIQUIDACIÓN COMPLEMENTARIA",
+          "RESOLUCIÓN"
+        ],
+        "titlePrecedence": "EXACT_OR_NEAR_EXACT_TITLE_BEATS_GENERIC_BODY_TERMS",
+        "minimumStrongSetsRequired": 1
+      },
+      "expectedParts": [
+        {
+          "kind": "submission.cover",
+          "pattern": "Registro, CSV y justificante",
+          "effect": "PRUEBA_PRESENTACIÓN"
+        },
+        {
+          "kind": "self_assessment.full_copy",
+          "pattern": "Nueva declaración completa del período",
+          "effect": "NUEVA_AUTOLIQUIDACIÓN"
+        },
+        {
+          "kind": "rectification.metadata",
+          "pattern": "Justificante anterior y motivos",
+          "effect": "RELACIÓN"
+        }
+      ],
+      "canonicalFields": [
+        {
+          "id": "FILING_RECEIPT_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Número de justificante"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ORIGINAL_FILING_RECEIPT_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Número de justificante anterior"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "MODEL",
+          "type": "MODEL",
+          "required": true,
+          "labelVariants": [
+            "Modelo 303"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "FISCAL_YEAR",
+          "type": "YEAR",
+          "required": true,
+          "labelVariants": [
+            "Ejercicio"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "TAX_PERIOD",
+          "type": "PERIOD",
+          "required": true,
+          "labelVariants": [
+            "Período"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "FILING_DATE",
+          "type": "DATE_TIME",
+          "required": true,
+          "labelVariants": [
+            "Fecha y hora de presentación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "RECTIFYING_FLAG",
+          "type": "BOOLEAN",
+          "required": true,
+          "labelVariants": [
+            "Autoliquidación rectificativa"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "RECTIFICATION_REASON",
+          "type": "ENUM_LIST",
+          "required": true,
+          "labelVariants": [
+            "Motivo de rectificación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "PREVIOUS_RESULT",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Resultado de la anterior",
+            "Casilla 70",
+            "Casilla 109"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "RECTIFIED_RESULT",
+          "type": "MONEY",
+          "required": true,
+          "labelVariants": [
+            "Resultado de la autoliquidación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "DIFFERENCE",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Diferencia",
+            "Importe a ingresar",
+            "A devolver",
+            "A compensar"
+          ],
+          "assertionType": "PRINTED_OR_CALCULATED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ADMINISTRATIVE_CRITERION_DISCREPANCY",
+          "type": "BOOLEAN",
+          "required": false,
+          "labelVariants": [
+            "Discrepancia criterio administrativo",
+            "Casilla 108"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        }
+      ],
+      "states": [
+        "FILED_HIGHER_AMOUNT",
+        "FILED_LOWER_AMOUNT",
+        "FILED_SAME_AMOUNT",
+        "REFUND_REQUESTED",
+        "COMPENSATION_UPDATED"
+      ],
+      "deadlineRuleIds": [
+        "RECTIFYING_RETURN_PERIOD_APPLICABILITY"
+      ],
+      "relationRuleIds": [
+        "RECTIFIES_FILING",
+        "MAY_UPDATE_PAYMENT_ORDER",
+        "MAY_UPDATE_REFUND_REQUEST",
+        "MAY_PRECEDE_ASSESSMENT"
+      ],
+      "explanationTemplate": {
+        "whatItIs": "Es una nueva autoliquidación que rectifica, completa o modifica otra anterior del mismo período.",
+        "result": "Sustituye los datos declarados para el período en los términos de la nueva presentación.",
+        "whatToDo": "Comprueba el justificante anterior, el motivo y la diferencia económica.",
+        "deadline": "No crea un plazo de alegaciones; es una presentación del contribuyente y sus efectos dependen del tributo, período y resultado.",
+        "after": "Puede generar un pago, una devolución solicitada o una comprobación posterior.",
+        "notProven": "El justificante acredita presentación, no que la AEAT acepte el criterio jurídico declarado ni que haya pagado una devolución."
+      },
+      "notProvenByDocument": [
+        "Resolución administrativa favorable.",
+        "Pago de la diferencia.",
+        "Reconocimiento o abono de devolución.",
+        "Aplicabilidad a períodos anteriores al inicio normativo."
+      ],
+      "officialSourceIds": [
+        "AEAT_VAT_RECTIFYING_303",
+        "AEAT_VAT_RECTIFYING_MANUAL"
+      ],
+      "maturity": "OFFICIAL_VISUAL_MODEL_303",
+      "requiredTests": [
+        "303 mensual septiembre 2024 o posterior.",
+        "303 trimestral 3T 2024 o posterior.",
+        "Período anterior: debe clasificarse por sistema tradicional/complementaria.",
+        "Excepción de cuotas indebidamente repercutidas: solicitud tradicional.",
+        "Excepción de regímenes especiales del capítulo XI: solicitud tradicional.",
+        "Mayor ingreso, menor ingreso, devolución y cambio sin efecto monetario.",
+        "Complementaria: clasificación negativa."
+      ],
+      "warnings": []
+    },
+    {
+      "profileId": "review.execution_resolution",
+      "titleEs": "Acuerdo de ejecución de una resolución de recurso o reclamación",
+      "procedurePhase": "EXECUTION",
+      "recognition": {
+        "strongAnchorSets": [
+          [
+            "ACUERDO DE EJECUCIÓN",
+            "RESOLUCIÓN"
+          ],
+          [
+            "EJECUCIÓN DE RESOLUCIÓN",
+            "TRIBUNAL ECONÓMICO-ADMINISTRATIVO"
+          ],
+          [
+            "EN CUMPLIMIENTO DE LA RESOLUCIÓN",
+            "SE ACUERDA"
+          ]
+        ],
+        "weakAnchors": [
+          "acto impugnado",
+          "resolución económico-administrativa",
+          "anulación",
+          "nueva liquidación",
+          "devolución"
+        ],
+        "incompatibleAnchors": [
+          "RESOLUCIÓN DE RECURSO",
+          "RECURSO CONTRA LA EJECUCIÓN",
+          "SUSPENSIÓN"
+        ],
+        "titlePrecedence": "EXACT_OR_NEAR_EXACT_TITLE_BEATS_GENERIC_BODY_TERMS",
+        "minimumStrongSetsRequired": 1
+      },
+      "expectedParts": [
+        {
+          "kind": "execution.main",
+          "pattern": "Resolución ejecutada y alcance",
+          "effect": "EJECUCIÓN"
+        },
+        {
+          "kind": "new_assessment",
+          "pattern": "Nueva liquidación opcional",
+          "effect": "NUEVO_ACTO"
+        },
+        {
+          "kind": "refund_or_cancellation",
+          "pattern": "Anulación/devolución opcional",
+          "effect": "EFECTO"
+        },
+        {
+          "kind": "appeal.info",
+          "pattern": "Impugnación del acto de ejecución",
+          "effect": "RECURSOS"
+        }
+      ],
+      "canonicalFields": [
+        {
+          "id": "EXECUTION_ACT_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Acuerdo de ejecución",
+            "Referencia"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "REVIEW_RESOLUTION_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Resolución que se ejecuta",
+            "TEAR/TEAC"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ORIGINAL_ACT_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Acto impugnado"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ORIGINAL_DEBT_KEY",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "Liquidación/deuda original"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ISSUE_DATE",
+          "type": "DATE",
+          "required": true,
+          "labelVariants": [
+            "Fecha del acuerdo"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "REVIEW_RESOLUTION_ENTRY_DATE",
+          "type": "DATE",
+          "required": false,
+          "labelVariants": [
+            "Entrada en el órgano competente"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "EXECUTION_SCOPE",
+          "type": "ENUM_LIST",
+          "required": true,
+          "labelVariants": [
+            "Anular",
+            "Retrotraer",
+            "Recalcular",
+            "Devolver",
+            "Conservar"
+          ],
+          "assertionType": "NORMALIZED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "CANCELLED_AMOUNT",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Importe anulado"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "NEW_AMOUNT",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Nueva liquidación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "REFUND_AMOUNT",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Devolución"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "INTEREST",
+          "type": "MONEY",
+          "required": false,
+          "labelVariants": [
+            "Intereses"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        }
+      ],
+      "states": [
+        "FULL_EXECUTION",
+        "PARTIAL_EXECUTION",
+        "NEW_ASSESSMENT",
+        "REFUND_ORDER",
+        "RETROACTION"
+      ],
+      "deadlineRuleIds": [
+        "REVIEW_EXECUTION_ISSUE"
+      ],
+      "relationRuleIds": [
+        "EXECUTES_REVIEW_RESOLUTION",
+        "CANCELS",
+        "REPLACES",
+        "CREATES_REFUND",
+        "CREATES_NEW_ASSESSMENT",
+        "MAY_BE_CHALLENGED_AS_EXECUTION"
+      ],
+      "explanationTemplate": {
+        "whatItIs": "Es el acto que aplica materialmente lo decidido en un recurso, reclamación o sentencia.",
+        "result": "Anula, conserva, recalcula, retrotrae o devuelve únicamente dentro del alcance indicado.",
+        "whatToDo": "Compara el acuerdo con la resolución que ejecuta y revisa que importes y alcance coincidan.",
+        "deadline": "La normativa exige notificar los actos de ejecución en un mes desde que la resolución entra en el registro del órgano competente.",
+        "after": "Puede aparecer una nueva liquidación, devolución, anulación o impugnación específica de la ejecución.",
+        "notProven": "No reabre todo el procedimiento original ni demuestra por sí solo que una devolución ya se haya pagado."
+      },
+      "notProvenByDocument": [
+        "Ejecución completa fuera del alcance impreso.",
+        "Pago de una devolución.",
+        "Suspensión automática de un nuevo acto.",
+        "Que el acto de ejecución forme parte del procedimiento original."
+      ],
+      "officialSourceIds": [
+        "BOE_RD520_ART66"
+      ],
+      "maturity": "NORMATIVE_STRONG_VISUAL_PENDING",
+      "requiredTests": [
+        "Ejecución que anula totalmente.",
+        "Ejecución parcial con nueva liquidación.",
+        "Retroacción de actuaciones.",
+        "Resolución favorable sin acuerdo de ejecución: no marcar ejecutada.",
+        "Acto de ejecución separado del acto original."
+      ],
+      "warnings": []
+    },
+    {
+      "profileId": "certificate.specialized",
+      "titleEs": "Certificado tributario especializado",
+      "procedurePhase": "CERTIFICATE",
+      "recognition": {
+        "strongAnchorSets": [
+          [
+            "CERTIFICADO TRIBUTARIO",
+            "CERTIFICA"
+          ],
+          [
+            "CERTIFICADO",
+            "SITUACIÓN CENSAL"
+          ],
+          [
+            "CERTIFICADO",
+            "CONTRATISTAS Y SUBCONTRATISTAS"
+          ],
+          [
+            "CERTIFICADO",
+            "IRPF"
+          ]
+        ],
+        "weakAnchors": [
+          "positivo",
+          "negativo",
+          "sin datos",
+          "alcance",
+          "fecha de referencia"
+        ],
+        "incompatibleAnchors": [
+          "LIQUIDACIÓN",
+          "REQUERIMIENTO",
+          "DENEGACIÓN DE SOLICITUD DE DEVOLUCIÓN"
+        ],
+        "titlePrecedence": "EXACT_OR_NEAR_EXACT_TITLE_BEATS_GENERIC_BODY_TERMS",
+        "minimumStrongSetsRequired": 1
+      },
+      "expectedParts": [
+        {
+          "kind": "certificate.main",
+          "pattern": "Clase, alcance, resultado y fecha",
+          "effect": "CERTIFICACIÓN"
+        },
+        {
+          "kind": "verification.footer",
+          "pattern": "CSV y firma",
+          "effect": "AUTENTICIDAD"
+        }
+      ],
+      "canonicalFields": [
+        {
+          "id": "CERTIFICATE_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Número de certificado",
+            "Referencia"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "CERTIFICATE_KIND",
+          "type": "ENUM",
+          "required": true,
+          "labelVariants": [
+            "Tipo de certificado",
+            "Concepto"
+          ],
+          "assertionType": "NORMALIZED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ISSUE_DATE",
+          "type": "DATE",
+          "required": true,
+          "labelVariants": [
+            "Fecha de expedición"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "REFERENCE_DATE",
+          "type": "DATE",
+          "required": false,
+          "labelVariants": [
+            "A fecha de",
+            "Período certificado"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "CERTIFICATE_RESULT",
+          "type": "ENUM",
+          "required": true,
+          "labelVariants": [
+            "Positivo",
+            "Negativo",
+            "Sin datos",
+            "No se puede certificar"
+          ],
+          "assertionType": "NORMALIZED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "CERTIFICATE_SCOPE",
+          "type": "TYPED_LIST",
+          "required": true,
+          "labelVariants": [
+            "Alcance",
+            "Circunstancias certificadas"
+          ],
+          "assertionType": "PRINTED_SUMMARY_ONLY",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "VALID_UNTIL",
+          "type": "DATE_OR_RULE",
+          "required": false,
+          "labelVariants": [
+            "Validez"
+          ],
+          "assertionType": "PRINTED_OR_CALCULATED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "REASON",
+          "type": "TYPED_TEXT",
+          "required": false,
+          "labelVariants": [
+            "Motivo"
+          ],
+          "assertionType": "PRINTED_SUMMARY_ONLY",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "CSV",
+          "type": "SENSITIVE_REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "CSV",
+            "Código Seguro de Verificación"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "FINGERPRINT_ONLY",
+          "notes": ""
+        }
+      ],
+      "states": [
+        "POSITIVE",
+        "NEGATIVE",
+        "NO_DATA",
+        "CANNOT_CERTIFY"
+      ],
+      "deadlineRuleIds": [
+        "CERTIFICATE_DISAGREEMENT",
+        "CERTIFICATE_GENERAL_VALIDITY"
+      ],
+      "relationRuleIds": [
+        "CERTIFIES_STATUS",
+        "MAY_BE_CORRECTED",
+        "REPLACES_PRIOR_CERTIFICATE"
+      ],
+      "explanationTemplate": {
+        "whatItIs": "Es una certificación oficial sobre un hecho concreto y para el alcance y fecha indicados.",
+        "result": "El resultado puede ser positivo, negativo, sin datos o no certificable.",
+        "whatToDo": "Comprueba el tipo, alcance, fecha y destinatario del certificado.",
+        "deadline": "No se recurre como una liquidación; si contiene datos incorrectos puede presentarse disconformidad en diez días desde la recepción.",
+        "after": "La AEAT puede emitir un certificado corregido o comunicar motivadamente que no procede modificarlo.",
+        "notProven": "No acredita el estado actual fuera de su fecha, alcance o período de validez."
+      },
+      "notProvenByDocument": [
+        "Deuda liquidada por el certificado.",
+        "Estado tributario permanente.",
+        "Validez universal para cualquier destinatario.",
+        "Recurso ordinario contra el certificado."
+      ],
+      "officialSourceIds": [
+        "AEAT_CERT_CONTRACTORS_G303",
+        "AEAT_CERT_CENSUS_G313",
+        "AEAT_CERT_GENERAL_FAQ"
+      ],
+      "maturity": "OFFICIAL_MULTI_KIND_VISUAL_PARTIAL",
+      "requiredTests": [
+        "Certificado positivo y negativo.",
+        "Certificado de situación censal.",
+        "Certificado de contratistas.",
+        "Certificado IRPF.",
+        "Mismo certificado fuera de validez: no mostrar como actual.",
+        "Documento llamado certificado que en realidad es justificante: clasificación negativa."
+      ],
+      "warnings": []
+    },
+    {
+      "profileId": "certificate.correction_or_disagreement",
+      "titleEs": "Disconformidad y corrección de un certificado tributario",
+      "procedurePhase": "CORRECTION",
+      "recognition": {
+        "strongAnchorSets": [
+          [
+            "DISCONFORMIDAD",
+            "CERTIFICADO"
+          ],
+          [
+            "SOLICITUD DE MODIFICACIÓN",
+            "CERTIFICADO TRIBUTARIO"
+          ],
+          [
+            "NUEVO CERTIFICADO",
+            "CORRECCIÓN"
+          ]
+        ],
+        "weakAnchors": [
+          "10 días",
+          "datos incorrectos",
+          "elementos de prueba",
+          "nuevo certificado"
+        ],
+        "incompatibleAnchors": [
+          "RECURSO DE REPOSICIÓN",
+          "RECLAMACIÓN ECONÓMICO-ADMINISTRATIVA"
+        ],
+        "titlePrecedence": "EXACT_OR_NEAR_EXACT_TITLE_BEATS_GENERIC_BODY_TERMS",
+        "minimumStrongSetsRequired": 1
+      },
+      "expectedParts": [
+        {
+          "kind": "correction.request",
+          "pattern": "Certificado cuestionado, campo y pruebas",
+          "effect": "SOLICITUD"
+        },
+        {
+          "kind": "correction.decision",
+          "pattern": "Aceptación y nuevo certificado o negativa motivada",
+          "effect": "DECISIÓN"
+        }
+      ],
+      "canonicalFields": [
+        {
+          "id": "FILING_RECEIPT_ID",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "Entrada de registro"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "CERTIFICATE_ID",
+          "type": "REFERENCE",
+          "required": true,
+          "labelVariants": [
+            "Certificado afectado"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "FILING_DATE",
+          "type": "DATE",
+          "required": false,
+          "labelVariants": [
+            "Fecha de disconformidad"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "ISSUE_DATE",
+          "type": "DATE",
+          "required": false,
+          "labelVariants": [
+            "Fecha de decisión"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "DISPUTED_FIELD",
+          "type": "ENUM_TEXT",
+          "required": true,
+          "labelVariants": [
+            "Dato incorrecto"
+          ],
+          "assertionType": "PRINTED_SUMMARY_ONLY",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "CORRECTION_RESULT",
+          "type": "ENUM",
+          "required": false,
+          "labelVariants": [
+            "Corregir",
+            "No procede"
+          ],
+          "assertionType": "NORMALIZED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "REPLACEMENT_CERTIFICATE_ID",
+          "type": "REFERENCE",
+          "required": false,
+          "labelVariants": [
+            "Nuevo certificado"
+          ],
+          "assertionType": "PRINTED",
+          "privacy": "PERSIST",
+          "notes": ""
+        },
+        {
+          "id": "DECISION_REASON",
+          "type": "TYPED_TEXT",
+          "required": false,
+          "labelVariants": [
+            "Motivación"
+          ],
+          "assertionType": "PRINTED_SUMMARY_ONLY",
+          "privacy": "PERSIST",
+          "notes": ""
+        }
+      ],
+      "states": [
+        "CORRECTION_REQUESTED",
+        "CORRECTED",
+        "DENIED"
+      ],
+      "deadlineRuleIds": [
+        "CERTIFICATE_DISAGREEMENT",
+        "CERTIFICATE_REISSUE"
+      ],
+      "relationRuleIds": [
+        "CHALLENGES_CERTIFICATE_DATA",
+        "CORRECTS_CERTIFICATE",
+        "REPLACES_PRIOR_CERTIFICATE"
+      ],
+      "explanationTemplate": {
+        "whatItIs": "Es la vía específica para pedir que se corrijan datos de un certificado.",
+        "result": "La AEAT puede emitir uno nuevo o comunicar motivadamente que no procede.",
+        "whatToDo": "Identifica el dato incorrecto y aporta la prueba correspondiente.",
+        "deadline": "La disconformidad se presenta en diez días desde el día siguiente a la recepción del certificado.",
+        "after": "Si se acepta, el nuevo certificado sustituye al anterior en los extremos corregidos.",
+        "notProven": "La solicitud no modifica automáticamente el certificado inicial."
+      },
+      "notProvenByDocument": [
+        "Recurso de reposición.",
+        "Suspensión de otros procedimientos.",
+        "Corrección automática al presentar el escrito."
+      ],
+      "officialSourceIds": [
+        "AEAT_CERT_CONTRACTORS_G303",
+        "AEAT_CERT_CENSUS_G313"
+      ],
+      "maturity": "OFFICIAL_FLOW_VISUAL_PENDING",
+      "requiredTests": [
+        "Solicitud dentro de diez días.",
+        "Nuevo certificado que reemplaza al anterior.",
+        "Negativa motivada.",
+        "Escrito genérico de recurso: clasificación negativa."
+      ],
+      "warnings": []
+    }
+  ]
+}

@@ -8,6 +8,12 @@ import {
   type AeatOfficialCatalogProfileIdV9,
 } from "./knowledge/official-catalog-expansion.v9";
 import {
+  AEAT_P0_DEEP_PROFILES_V10,
+  isAeatP0DeepProfileIdV10,
+  resolveAeatP0DeepProfileV10,
+} from "./knowledge/p0-deep-contracts.v10";
+import { AEAT_P0_DEEP_REVIEW_CONTROLLED_LABELS_V10 } from "./p0-deep-review-labels.v10";
+import {
   FISCAL_NOTIFICATION_INPUT_LIMITS,
   assertNonNegativeIntegerCents,
 } from "./input-contract";
@@ -428,6 +434,8 @@ const SAFE_SUBTITLE_VALUES = new Set([
   "Título, autoridad y estructura coinciden",
   "Coincidencia oficial; revisión obligatoria",
   "Clasificación histórica amplia",
+  "Datos estructurados listos para revisar",
+  "Revisa los datos detectados y completa los que falten",
 ]);
 const REAL_CORPUS_SAFE_LABELS_V2 = new Set([
   "Referencia",
@@ -1443,6 +1451,7 @@ function parseReviewDocument(
   const familyId = item.familyId as FiscalNotificationReviewFamilyIdV9;
   const canonicalTitle =
     resolveFamilyRuleV2(familyId)?.canonicalTitle ??
+    resolveAeatP0DeepProfileV10(familyId)?.titleEs ??
     resolveAeatOfficialCatalogProfileV9(familyId)?.nameEs;
   if (
     (item.title !== FAMILY_TITLE[familyId] &&
@@ -1592,6 +1601,13 @@ function parseReviewField(
 }
 
 function isControlledFieldLabel(value: string): boolean {
+  if (
+    AEAT_P0_DEEP_REVIEW_CONTROLLED_LABELS_V10.includes(value) ||
+    value === "Título y anclas estructurales" ||
+    AEAT_P0_DEEP_PROFILES_V10.some((profile) =>
+      profile.canonicalFields.some((field) => field.labelVariants.includes(value)),
+    )
+  ) return true;
   if (REAL_CORPUS_SAFE_LABELS_V2.has(value)) return true;
   if (
     [
@@ -1802,6 +1818,7 @@ function assertSerializableFieldPrivacy(
   const canonicalType = String(item.canonicalType);
   const displayValue = item.displayValue as string;
   const normalizedValue = item.normalizedValue as string | null;
+  if (assertAeatP0DeepSerializableFieldPrivacyV10(item)) return;
   if (
     (semantic === "DETAIL" || semantic === "OBLIGATION") &&
     (assertRealCorpusSerializableFieldPrivacyV2(item) ||
@@ -1902,6 +1919,70 @@ function assertSerializableFieldPrivacy(
     default:
       throw invalidReview();
   }
+}
+
+function assertAeatP0DeepSerializableFieldPrivacyV10(
+  item: Readonly<Record<string, unknown>>,
+): boolean {
+  const fieldId = String(item.fieldId);
+  if (!fieldId.startsWith("p0-v10:")) return false;
+  const semantic = String(item.semantic);
+  const canonicalType = String(item.canonicalType);
+  const display = String(item.displayValue);
+  const normalized = typeof item.normalizedValue === "string" ? item.normalizedValue : null;
+  if (fieldId === "p0-v10:recognition:0") {
+    const familyId = normalized?.slice("P0_V10:".length) ?? null;
+    if (
+      semantic !== "DETAIL" || canonicalType !== "FACT_OR_GROUND" ||
+      display !== "Estructura oficial reconocida" ||
+      !normalized?.startsWith("P0_V10:") || !isAeatP0DeepProfileIdV10(familyId)
+    ) throw invalidReview();
+    return true;
+  }
+  const match = /^p0-v10:([A-Z][A-Z0-9_]{0,159}):\d+$/u.exec(fieldId);
+  if (!match || !AEAT_P0_DEEP_PROFILES_V10.some((profile) => profile.canonicalFields.some((field) => field.id === match[1]))) {
+    throw invalidReview();
+  }
+  if (semantic === "REFERENCE") {
+    if (normalized === null || display !== normalized || safeOfficialReference(canonicalType as ReferenceTypeV1, normalized) !== normalized) throw invalidReview();
+    return true;
+  }
+  if (semantic === "MASKED_VALUE") {
+    if (canonicalType !== "MASKED_ACCOUNT" || display !== "CSV protegido" || !/^sha256:[0-9a-f]{64}$/u.test(normalized ?? "")) throw invalidReview();
+    return true;
+  }
+  if (semantic === "DATE") {
+    if (normalized === null || !isValidIsoDate(normalized) || display !== formatIsoDate(normalized)) throw invalidReview();
+    return true;
+  }
+  if (semantic === "MONEY") {
+    if (normalized !== null || !/^\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(display)) throw invalidReview();
+    return true;
+  }
+  if (semantic === "STATUS") {
+    if (canonicalType !== "DOCUMENT_STATUS" || normalized === null || !/^[A-Z][A-Z0-9_]{0,159}$/u.test(normalized)) throw invalidReview();
+    return true;
+  }
+  if (semantic === "DETAIL") {
+    if (canonicalType !== "FACT_OR_GROUND" || normalized === null) throw invalidReview();
+    if (/^P0_V10_ENUM:[A-Z][A-Z0-9_]{0,159}$/u.test(normalized)) {
+      const expected = normalized.slice("P0_V10_ENUM:".length).replaceAll("_", " ").toLocaleLowerCase("es-ES");
+      if (display !== expected) throw invalidReview();
+      return true;
+    }
+    if (/^P0_V10_TIME:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/u.test(normalized)) {
+      if (display !== normalized.slice("P0_V10_TIME:".length)) throw invalidReview();
+      return true;
+    }
+    if (/^P0_V10_DURATION:P(?:\d{1,4}[DM]|T\d{1,4}H)$/u.test(normalized)) {
+      if (!/^\d{1,4} (?:día|días|mes|meses|hora|horas)$/u.test(display)) throw invalidReview();
+      return true;
+    }
+    if (!/^(?:P0_V10:[A-Z][A-Z0-9_]{0,159}|TRUE|FALSE|\d{1,6})$/u.test(normalized)) throw invalidReview();
+    if (!(display === "Detectado en el documento" || display === "Sí" || display === "No" || /^\d{1,6}$/u.test(display))) throw invalidReview();
+    return true;
+  }
+  throw invalidReview();
 }
 
 const REAL_CORPUS_EXPLANATION_PATTERNS_V2 = Object.freeze([

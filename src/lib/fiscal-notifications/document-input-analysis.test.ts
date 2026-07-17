@@ -184,7 +184,7 @@ describe("fiscal notification document input analysis", () => {
     expect(JSON.stringify(result)).not.toContain(sourceMarker);
   });
 
-  it("adds an official-only V9 profile as a specific review without retaining source text", async () => {
+  it("upgrades an official-only V9 profile to the V10 deep review without retaining source text", async () => {
     const sourceMarker = "PRIVATE-V9-SOURCE-MUST-DISAPPEAR";
     const result = await analyzeFiscalNotificationDocumentInput(
       input(
@@ -202,9 +202,15 @@ describe("fiscal notification document input analysis", () => {
         expect.objectContaining({
           extractorId: "requirement",
           familyId: "procedure.deadline_extension_request",
-          title: "Solicitud o justificante de ampliación de plazo",
-          subtitle: "Coincidencia oficial; revisión obligatoria",
-          warnings: ["profile.OFFICIAL_ONLY_FORMAT_NOT_HARDENED"],
+          title: "Solicitud de ampliación del plazo de un trámite tributario",
+          subtitle: "Revisa los datos detectados y completa los que falten",
+          warnings: expect.arrayContaining([
+            "P0_V10_INCOMPLETE_REQUIRED_FIELDS",
+            "P0_V10_MISSING_PROCEDURE_ID",
+            "P0_V10_MISSING_FILING_DATE",
+            "P0_V10_MISSING_ORIGINAL_DEADLINE",
+            "P0_V10_MISSING_REQUEST_REASON",
+          ]),
         }),
       ],
       retainedSourceContent: "NONE",

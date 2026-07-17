@@ -24,6 +24,8 @@ import {
 import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "./knowledge/aeat-document-knowledge.v1";
 import { isAeatOfficialCatalogProfileIdV9 } from "./knowledge/official-catalog-expansion.v9";
 import { explainAeatOfficialCatalogDocumentV9 } from "./official-catalog-explanation.v9";
+import { isAeatP0DeepProfileIdV10 } from "./knowledge/p0-deep-contracts.v10";
+import { explainAeatP0DeepDocumentV10 } from "./p0-deep-explanation.v10";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
 import type {
   AdministrativeDocumentType,
@@ -649,6 +651,11 @@ function explainStoredFiscalNotification(input: {
   readonly money: readonly FiscalNotificationStructuredHistoryMoneyV1[];
   readonly profileInput: FiscalNotificationDocumentExplanationInputV2 | null;
 }): FiscalNotificationDocumentExplanationV1 {
+  if (isAeatP0DeepProfileIdV10(input.documentSubtype)) {
+    return projectExplanationV2ForHistory(
+      explainAeatP0DeepDocumentV10(input.documentSubtype),
+    );
+  }
   if (isAeatOfficialCatalogProfileIdV9(input.documentSubtype)) {
     return projectExplanationV2ForHistory(
       explainAeatOfficialCatalogDocumentV9(input.documentSubtype),

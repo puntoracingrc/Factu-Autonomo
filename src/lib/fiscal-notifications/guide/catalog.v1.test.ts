@@ -13,6 +13,7 @@ import {
 } from "@/lib/fiscal-notifications/knowledge/aeat-document-knowledge.v1";
 import { FISCAL_NOTIFICATION_DOCUMENT_FAMILIES_V2 } from "@/lib/fiscal-notifications/knowledge/document-families.v2";
 import { AEAT_OFFICIAL_CATALOG_PROFILES_V9 } from "@/lib/fiscal-notifications/knowledge/official-catalog-expansion.v9";
+import { resolveAeatP0DeepProfileV10 } from "@/lib/fiscal-notifications/knowledge/p0-deep-contracts.v10";
 
 describe("fiscal notification guide catalog v1", () => {
   it("projects the 87 existing families and 35 additive V9 profiles without activating operations", () => {
@@ -179,10 +180,15 @@ describe("fiscal notification guide catalog v1", () => {
     });
     expect(rectification.entry.sources.length).toBeGreaterThan(0);
     expect(rectification.entry.summary).toBe(
-      AEAT_OFFICIAL_CATALOG_PROFILES_V9.find(
-        (profile) => profile.id === "assessment.rectification_request",
-      )?.whatItIs,
+      resolveAeatP0DeepProfileV10("assessment.rectification_request")?.explanationTemplate.whatItIs,
     );
+    expect(rectification.entry.coverage).toMatchObject({
+      explicitFactExtractorImplemented: true,
+      legalRuleActive: false,
+      operationalActionActive: false,
+      blockers: ["LEGAL_REVIEW_PENDING", "OPERATIONAL_ACTIVATION_PROHIBITED"],
+    });
+    expect(rectification.entry.plainLanguage.usualNextStep).toContain("presentación original");
     expect(verifactu.entry.recognitionMode).toBe("MANUAL_REVIEW_ONLY");
     expect(verifactu.entry.recognitionMaturity).toBe("OFFICIAL_ONLY");
   });
