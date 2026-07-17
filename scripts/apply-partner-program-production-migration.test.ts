@@ -27,8 +27,19 @@ describe("Partner production migration gate", () => {
     expect(source).toContain("sql.end");
   });
 
+  it("reloads PostgREST and verifies every Partner table without reading rows", () => {
+    expect(source).toContain("notify pgrst, 'reload schema'");
+    expect(source).toContain("verifyPostgrestSchema");
+    expect(source).toContain("partner_accounts");
+    expect(source).toContain("partner_commission_entries");
+    expect(source).toContain("partner_payouts");
+    expect(source).toContain("limit=0");
+    expect(source).toContain("redirect: \"error\"");
+  });
+
   it("never prints or embeds the production connection value", () => {
     expect(source).not.toMatch(/console\.(?:log|error)\([^)]*connectionString/);
     expect(source).not.toMatch(/postgres(?:ql)?:\/\/[^\s"']+@/i);
+    expect(source).not.toMatch(/console\.(?:log|error)\([^)]*serviceKey/);
   });
 });

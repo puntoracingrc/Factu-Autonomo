@@ -13,6 +13,11 @@ const REQUIRED_TABLES = [
   "partner_commission_entries",
   "partner_payouts",
 ];
+const POSTGREST_TABLE_CHECKS = [
+  ["partner_accounts", "user_id"],
+  ["partner_commission_entries", "id"],
+  ["partner_payouts", "id"],
+];
 
 function isProductionVercelBuild() {
   return process.env.VERCEL === "1" && process.env.VERCEL_ENV === "production";
@@ -43,6 +48,40 @@ const sql = postgres(connectionString, {
   ssl: "require",
   onnotice: () => {},
 });
+
+async function verifyPostgrestSchema() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(/\/$/, "");
+  const serviceKey = process.env.SUPABASE_SECRET_KEY;
+  if (!supabaseUrl || !serviceKey) {
+    throw new Error("Partner schema: PostgREST verification credentials are unavailable.");
+  }
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    let allReady = true;
+    for (const [table, column] of POSTGREST_TABLE_CHECKS) {
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/${table}?select=${column}&limit=0`,
+        {
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+            Accept: "application/json",
+          },
+          redirect: "error",
+          signal: AbortSignal.timeout(10_000),
+        },
+      );
+      if (!response.ok) {
+        allReady = false;
+        break;
+      }
+    }
+    if (allReady) return;
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+  }
+
+  throw new Error("Partner schema: PostgREST did not expose the reviewed tables.");
+}
 
 try {
   await sql.begin(async (transaction) => {
@@ -76,7 +115,11 @@ try {
       throw new Error("Partner schema: post-migration security verification failed.");
     }
   });
-  console.log("Partner schema: migration and security verification completed.");
+  await sql.unsafe("notify pgrst, 'reload schema'");
+  await verifyPostgrestSchema();
+  console.log(
+    "Partner schema: migration, security and PostgREST verification completed.",
+  );
 } catch {
   throw new Error("Partner schema: transactional deployment failed.");
 } finally {
