@@ -155,17 +155,23 @@ jobs:
   production-domain:
     name: Production Domain
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     needs:
       - quality
       - supabase-acceptance
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     env:
       PRODUCTION_DOMAIN: facturacion-autonomos.app
+      VERCEL_PROJECT: factu-autonomo
       VERCEL_SCOPE: team_igEbPlyUgBxnP6cO2sUObD5a
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
     steps:
+      - name: Checkout deployment history
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
       - name: Check Vercel token
         run: |
           if [ -z "$VERCEL_TOKEN" ]; then
@@ -175,6 +181,7 @@ jobs:
 
       - name: Wait for Vercel production deployment
         env:
+          EXPECTED_GITHUB_REPOSITORY_ID: ${{ github.repository_id }}
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
@@ -189,9 +196,212 @@ jobs:
             exit 0
           }
 
-          for attempt in {1..60}; do
+          inspect_vercel_deployment() {
+            local deployment_uid="$1"
+            local deployment_json
+
+            if [[ ! "$deployment_uid" =~ ^dpl_[a-zA-Z0-9]+$ ]]; then
+              return 1
+            fi
+
+            if ! deployment_json="$(
+              curl \
+                --fail \
+                --silent \
+                --show-error \
+                --connect-timeout 3 \
+                --max-time 8 \
+                --get "https://api.vercel.com/v13/deployments/${deployment_uid}" \
+                -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+                --data-urlencode "teamId=${VERCEL_SCOPE}" \
+                --data-urlencode "withGitRepoInfo=true" \
+                2>/dev/null
+            )"; then
+              return 1
+            fi
+
+            jq -er \
+              --arg deployment_uid "$deployment_uid" \
+              --arg project_id "$VERCEL_PROJECT_ID" \
+              --arg project_name "$VERCEL_PROJECT" \
+              --arg repository_id "$EXPECTED_GITHUB_REPOSITORY_ID" \
+              'select(
+                .id == $deployment_uid
+                and .projectId == $project_id
+                and .name == $project_name
+                and .target == "production"
+                and .gitSource.type == "github"
+                and ((.gitSource.repoId | tostring) == $repository_id)
+                and .gitSource.ref == "main"
+                and ((.gitSource.sha | type) == "string")
+                and ((.readyState // .state // "") | type == "string")
+                and (.url | type == "string")
+                and (.buildSkipped | type == "boolean")
+                and (.createdAt | type == "number")
+              )
+              | [
+                  .gitSource.sha,
+                  (.readyState // .state),
+                  .url,
+                  .buildSkipped,
+                  .createdAt
+                ]
+              | map(tostring)
+              | join("|")' \
+              <<< "$deployment_json" \
+              2>/dev/null
+          }
+
+          find_vercel_deployment_for_sha() {
+            local expected_sha="$1"
+            local deployments_json
+            local deployment_count
+            local deployment_index
+            local deployment_uid
+            local inspected_deployment
+            local actual_sha
+            local state
+            local host
+            local build_skipped
+            local created_at
+            local newest_created_at=-1
+            local newest_state=""
+            local newest_host=""
+            local newest_build_skipped="false"
+
+            if ! deployments_json="$(
+              curl \
+                --fail \
+                --silent \
+                --show-error \
+                --connect-timeout 3 \
+                --max-time 8 \
+                --get "https://api.vercel.com/v7/deployments" \
+                -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+                --data-urlencode "teamId=${VERCEL_SCOPE}" \
+                --data-urlencode "projectId=${VERCEL_PROJECT_ID}" \
+                --data-urlencode "sha=${expected_sha}" \
+                --data-urlencode "target=production" \
+                --data-urlencode "limit=5" \
+                2>/dev/null
+            )"; then
+              return 1
+            fi
+
+            if ! deployment_count="$(
+              jq -er '.deployments | length' \
+                <<< "$deployments_json" \
+                2>/dev/null
+            )"; then
+              return 1
+            fi
+
+            if [ "$deployment_count" -eq 0 ]; then
+              printf 'ABSENT||false\n'
+              return 0
+            fi
+
+            deployment_index=0
+            while [ "$deployment_index" -lt "$deployment_count" ]; do
+              deployment_uid="$(
+                jq -r ".deployments[$deployment_index].uid // empty" \
+                  <<< "$deployments_json"
+              )"
+
+              if inspected_deployment="$(inspect_vercel_deployment "$deployment_uid")"; then
+                IFS='|' read -r actual_sha state host build_skipped created_at \
+                  <<< "$inspected_deployment"
+                if [ "$actual_sha" = "$expected_sha" ] \
+                  && [ "$created_at" -gt "$newest_created_at" ]; then
+                  newest_created_at="$created_at"
+                  newest_state="$state"
+                  newest_host="$host"
+                  newest_build_skipped="$build_skipped"
+                fi
+              fi
+
+              deployment_index=$((deployment_index + 1))
+            done
+
+            if [ -n "$newest_state" ]; then
+              printf '%s|%s|%s\n' \
+                "$newest_state" \
+                "$newest_host" \
+                "$newest_build_skipped"
+              return 0
+            fi
+
+            return 1
+          }
+
+          is_deploy_equivalent_sha() {
+            local candidate_sha="$1"
+            if [[ ! "$candidate_sha" =~ ^[0-9a-f]{40}$ ]]; then
+              return 1
+            fi
+            if ! git merge-base --is-ancestor "$candidate_sha" "$GITHUB_SHA"; then
+              return 1
+            fi
+            git diff --quiet \
+              "$candidate_sha" \
+              "$GITHUB_SHA" \
+              -- \
+              . \
+              ':(exclude).github/workflows/ci.yml'
+          }
+
+          if [[ ! "$EXPECTED_GITHUB_REPOSITORY_ID" =~ ^[0-9]+$ ]]; then
+            echo "GitHub repository ID is unavailable."
+            exit 1
+          fi
+
+          if ! vercel_project_json="$(
+            curl \
+              --fail \
+              --silent \
+              --show-error \
+              --connect-timeout 3 \
+              --max-time 8 \
+              --get "https://api.vercel.com/v9/projects/${VERCEL_PROJECT}" \
+              -H "Authorization: Bearer ${VERCEL_TOKEN}" \
+              --data-urlencode "teamId=${VERCEL_SCOPE}" \
+              2>/dev/null
+          )"; then
+            echo "Unable to resolve the Vercel project identity."
+            exit 1
+          fi
+
+          if ! VERCEL_PROJECT_ID="$(
+            jq -er \
+              --arg project_name "$VERCEL_PROJECT" \
+              'select(.name == $project_name)
+              | .id
+              | select(test("^prj_[a-zA-Z0-9]+$"))' \
+              <<< "$vercel_project_json" \
+              2>/dev/null
+          )"; then
+            echo "Vercel returned an unexpected project identity."
+            exit 1
+          fi
+
+          mapfile -t deploy_equivalent_shas < <(
+            git rev-list --first-parent --max-count=5 "${GITHUB_SHA}^" |
+              while IFS= read -r candidate_sha; do
+                if is_deploy_equivalent_sha "$candidate_sha"; then
+                  printf '%s\n' "$candidate_sha"
+                else
+                  break
+                fi
+              done
+          )
+
+          deadline=$((SECONDS + 720))
+          attempt=0
+          github_terminal_state=""
+          while [ "$SECONDS" -lt "$deadline" ]; do
+            attempt=$((attempt + 1))
             if deployments_json="$(
-              gh api \
+              timeout 8s gh api \
                 -H "Accept: application/vnd.github+json" \
                 "/repos/${GITHUB_REPOSITORY}/deployments?sha=${GITHUB_SHA}&environment=Production" \
                 2>/dev/null
@@ -200,7 +410,7 @@ jobs:
 
               if [ -n "$statuses_url" ]; then
                 if statuses_json="$(
-                  gh api \
+                  timeout 8s gh api \
                     -H "Accept: application/vnd.github+json" \
                     "$statuses_url" \
                     2>/dev/null
@@ -213,54 +423,69 @@ jobs:
                   fi
 
                   if [ "$state" = "failure" ] || [ "$state" = "error" ]; then
-                    echo "Vercel deployment failed with state: $state"
-                    exit 1
+                    github_terminal_state="$state"
                   fi
                 else
-                  echo "GitHub deployment status API is temporarily unavailable (attempt ${attempt}/60); checking Vercel directly."
+                  echo "GitHub deployment status API is temporarily unavailable (attempt ${attempt}); checking Vercel directly."
                 fi
               fi
             else
-              echo "GitHub deployments API is temporarily unavailable (attempt ${attempt}/60); checking Vercel directly."
+              echo "GitHub deployments API is temporarily unavailable (attempt ${attempt}); checking Vercel directly."
             fi
 
-            if vercel_deployments_json="$(
-              curl \
-                --fail \
-                --silent \
-                --show-error \
-                --connect-timeout 3 \
-                --max-time 8 \
-                --get "https://api.vercel.com/v7/deployments" \
-                -H "Authorization: Bearer ${VERCEL_TOKEN}" \
-                --data-urlencode "teamId=${VERCEL_SCOPE}" \
-                --data-urlencode "sha=${GITHUB_SHA}" \
-                --data-urlencode "target=production" \
-                --data-urlencode "limit=1" \
-                2>/dev/null
-            )"; then
-              if vercel_state="$(
-                jq -er '.deployments[0].readyState // .deployments[0].state // empty' \
-                  <<< "$vercel_deployments_json" \
-                  2>/dev/null
-              )"; then
-                vercel_target="$(jq -r '.deployments[0].target // empty' <<< "$vercel_deployments_json")"
-                vercel_host="$(jq -r '.deployments[0].url // empty' <<< "$vercel_deployments_json")"
+            allow_deploy_equivalent=false
+            if current_deployment="$(find_vercel_deployment_for_sha "$GITHUB_SHA")"; then
+              IFS='|' read -r current_state current_host current_build_skipped \
+                <<< "$current_deployment"
 
-                if [ "$vercel_state" = "READY" ] && [ "$vercel_target" = "production" ] && [ -n "$vercel_host" ]; then
-                  accept_deployment_url "https://${vercel_host}"
-                fi
+              if [ "$current_state" = "READY" ] && [ -n "$current_host" ]; then
+                accept_deployment_url "https://${current_host}"
+              fi
 
-                if [ "$vercel_state" = "ERROR" ] || [ "$vercel_state" = "CANCELED" ] || [ "$vercel_state" = "BLOCKED" ]; then
-                  echo "Vercel deployment failed with state: $vercel_state"
+              if [ "$current_state" = "ABSENT" ]; then
+                if [ -n "$github_terminal_state" ]; then
+                  echo "GitHub reported a failed deployment without a verifiable skipped build."
                   exit 1
                 fi
+                allow_deploy_equivalent=true
+              elif [ "$current_state" = "CANCELED" ] \
+                && [ "$current_build_skipped" = "true" ]; then
+                allow_deploy_equivalent=true
+              elif [ "$current_state" = "ERROR" ] \
+                || [ "$current_state" = "CANCELED" ] \
+                || [ "$current_state" = "BLOCKED" ]; then
+                echo "Vercel deployment failed with state: $current_state"
+                exit 1
+              elif [ -n "$github_terminal_state" ]; then
+                echo "GitHub reported a failed deployment that Vercel did not mark as skipped."
+                exit 1
               fi
             else
-              echo "Vercel deployments API is temporarily unavailable (attempt ${attempt}/60); retrying."
+              echo "Vercel deployment details are temporarily unavailable (attempt ${attempt}); retrying."
             fi
 
-            sleep 10
+            if [ "$allow_deploy_equivalent" = "true" ]; then
+              for candidate_sha in "${deploy_equivalent_shas[@]}"; do
+                if inspected_deployment="$(find_vercel_deployment_for_sha "$candidate_sha")"; then
+                  IFS='|' read -r vercel_state vercel_host _build_skipped \
+                    <<< "$inspected_deployment"
+                  if [ "$vercel_state" = "READY" ] && [ -n "$vercel_host" ]; then
+                    echo "Using a deploy-equivalent Vercel build because only the production workflow differs."
+                    accept_deployment_url "https://${vercel_host}"
+                  fi
+                fi
+              done
+            fi
+
+            remaining=$((deadline - SECONDS))
+            if [ "$remaining" -le 0 ]; then
+              break
+            fi
+            if [ "$remaining" -gt 10 ]; then
+              sleep 10
+            else
+              sleep "$remaining"
+            fi
           done
 
           echo "Timed out waiting for a successful Vercel production deployment."
