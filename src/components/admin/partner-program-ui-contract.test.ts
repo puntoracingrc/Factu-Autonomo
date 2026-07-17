@@ -39,6 +39,13 @@ describe("Partner UI contracts", () => {
     expect(partnerPageSource).not.toContain("referred_user_id");
   });
 
+  it("shows administrators the real Partner layout as a read-only preview", () => {
+    expect(partnerPageSource).toContain("Vista previa de Partner");
+    expect(partnerPageSource).toContain("isAdminPreview");
+    expect(partnerPageSource).toContain("ADMIN_PREVIEW_PLAN_COUNTS");
+    expect(partnerPageSource).not.toContain("Abrir gestión de Partners");
+  });
+
   it("keeps payout details masked and manual in the foundation phase", () => {
     expect(partnerPageSource).toContain("ibanMasked");
     expect(partnerPageSource).not.toContain("payout_iban");
