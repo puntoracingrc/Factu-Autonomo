@@ -148,7 +148,7 @@ describe("AEAT real corpus extractor V7", () => {
         value: "PERSONA ULTRAPRIVADA",
         evidence: Object.freeze({ pageNumbers: Object.freeze([1]), assertionType: "EXPLICIT_IN_DOCUMENT" as const }),
       })],
-    })).toThrow("FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_INVALID");
+    })).toThrow("FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_PRIVACY_REJECTED");
   });
 
   it("keeps publication, effective notification and signature dates separate", async () => {

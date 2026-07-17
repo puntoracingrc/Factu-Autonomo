@@ -290,6 +290,19 @@ type ReviewPersistenceState =
 
 type ReviewSaveDestination = "ACCOUNT" | "DRIVE" | "BOTH";
 
+function saveStageLabel(
+  stage: "CORE" | "ENRICHMENT" | "RELATIONS" | "RECONCILIATION" | "COMMIT",
+): string {
+  const labels = {
+    CORE: "No se han podido validar los datos básicos del documento",
+    ENRICHMENT: "No se ha podido completar el detalle opcional",
+    RELATIONS: "No se han podido revisar las relaciones documentales",
+    RECONCILIATION: "No se ha podido conciliar el expediente",
+    COMMIT: "No se ha podido confirmar el guardado",
+  } as const;
+  return labels[stage];
+}
+
 type FiscalNotificationArchiveCandidateStatus =
   "READY" | "ARCHIVING" | "ARCHIVED" | "ERROR";
 
@@ -1041,7 +1054,10 @@ function FiscalNotificationReviewWorkspace({
               analysis: pendingReview.analysis,
             });
       if (saveOperationRef.current !== operation) return;
-      if (accountWrite.status !== "applied") {
+      if (
+        accountWrite.status !== "applied" &&
+        accountWrite.status !== "applied_with_warnings"
+      ) {
         applyStructuredSaveFailure(activeId, accountWrite);
         return;
       }
@@ -1156,26 +1172,32 @@ function FiscalNotificationReviewWorkspace({
       typeof runSaveFiscalNotificationStructuredReviewCommandV1
     >,
   ): void {
-    if (write.status === "applied") return;
-    if (write.status === "indeterminate") {
-      updateStoredReview(activeId, "indeterminate", false);
-      setPersistenceState("indeterminate");
-    } else if (
-      write.status === "blocked" &&
-      write.reason === "no_structured_facts"
+    if (
+      write.status === "applied" ||
+      write.status === "applied_with_warnings"
     ) {
+      return;
+    }
+    if (write.safeCode === "CORE_INVALID_INPUT") {
       updateStoredReview(activeId, "no_structured_facts", false);
       setPersistenceState("no_structured_facts");
-    } else if (
-      write.status === "blocked" &&
-      write.reason === "invalid_structured_review"
-    ) {
+    } else if (write.safeCode === "CORE_WORKSPACE_INTEGRITY_FAILED") {
       updateStoredReview(activeId, "invalid_structured_review", false);
       setPersistenceState("invalid_structured_review");
+    } else if (
+      write.safeCode === "DURABILITY_CONFLICT" &&
+      "reason" in write &&
+      write.reason === "storage_state_unknown"
+    ) {
+      updateStoredReview(activeId, "indeterminate", false);
+      setPersistenceState("indeterminate");
     } else {
       updateStoredReview(activeId, "blocked", false);
       setPersistenceState("blocked");
     }
+    setError(
+      `${saveStageLabel(write.stage)}. Código: ${write.safeCode}. Ningún dato previo se ha sustituido.`,
+    );
   }
 
   function setDriveSaveFailure(

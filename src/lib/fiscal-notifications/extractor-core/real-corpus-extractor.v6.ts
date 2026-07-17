@@ -51,7 +51,7 @@ export type RealCorpusSegmentTypeV6 =
   | "DEBT_ANNEX"
   | "ASSET_ANNEX"
   | "SCHEDULE"
-  | "INTEREST_ASSESSMENT"
+  | "ANNEX_INTEREST_CALCULATION"
   | "PAYMENT_FORM"
   | "PAYMENT_INSTRUCTIONS"
   | "INFORMATION"
@@ -269,6 +269,19 @@ function buildIndex(document: BoundedDocumentInput): DocumentIndexV6 {
     lines: Object.freeze(lines),
     normalizedText: lines.map((line) => line.normalized).join("\n"),
     blankPageNumbers,
+  });
+}
+
+function indexForPages(
+  index: DocumentIndexV6,
+  pageNumbers: readonly number[],
+): DocumentIndexV6 {
+  const selected = new Set(pageNumbers);
+  const lines = index.lines.filter((line) => selected.has(line.pageNumber));
+  return Object.freeze({
+    lines: Object.freeze(lines),
+    normalizedText: lines.map((line) => line.normalized).join("\n"),
+    blankPageNumbers: new Set<number>(),
   });
 }
 
@@ -610,11 +623,18 @@ function segmentType(page: BoundedDocumentInput["pages"][number]): RealCorpusSeg
   const text = normalize(page.text);
   if (page.isBlank || !text) return "BLANK";
   if (/ENTREGA ANTERIOR FALLIDA|NUEVO INTENTO DE NOTIFICACION|COMUNICACION DE REENVIO/u.test(text)) return "DELIVERY_COVER";
-  if (/PROVIDENCIA DE APREMIO|CONCESION DEL APLAZAMIENTO\/FRACCIONAMIENTO|DENEGACION DEL APLAZAMIENTO\/FRACCIONAMIENTO|LIQUIDACION INDEPENDIENTE DE INTERESES|ACUERDO DE LIQUIDACION DE INTERESES|RESOLUCION DEL PROCEDIMIENTO SANCIONADOR|EXIGENCIA DE REDUCCION DE SANCION|PERDIDA DE REDUCCION DE SANCION|DILIGENCIA DE EMBARGO DE BIEN MUEBLE|DILIGENCIA DE EMBARGO DE BIEN INMUEBLE/u.test(text)) return "PRIMARY_ACT";
+  if (/PROVIDENCIA DE APREMIO|CONCESION DEL APLAZAMIENTO\/FRACCIONAMIENTO|DENEGACION DEL APLAZAMIENTO\/FRACCIONAMIENTO|LIQUIDACION INDEPENDIENTE DE INTERESES|RESOLUCION DEL PROCEDIMIENTO SANCIONADOR|EXIGENCIA DE REDUCCION DE SANCION|PERDIDA DE REDUCCION DE SANCION|DILIGENCIA DE EMBARGO DE BIEN MUEBLE|DILIGENCIA DE EMBARGO DE BIEN INMUEBLE/u.test(text)) return "PRIMARY_ACT";
+  if (
+    /ACUERDO DE LIQUIDACION DE INTERESES/u.test(text) &&
+    /IDENTIFICACION DEL DOCUMENTO/u.test(text) &&
+    /CLAVE DE LA LIQUIDACION DE INTERESES/u.test(text) &&
+    /PLAZOS? DE PAGO/u.test(text) &&
+    /RECURSOS?/u.test(text)
+  ) return "PRIMARY_ACT";
   if (/CARTA DE PAGO|DOCUMENTO DE INGRESO|EJEMPLAR DEL INTERESADO|COPIA PARA LA ENTIDAD/u.test(text)) return "PAYMENT_FORM";
   if (/CANALES DE PAGO|INSTRUCCIONES DE PAGO|INFORMACION PARA PAGAR/u.test(text)) return "PAYMENT_INSTRUCTIONS";
   if (/CALENDARIO DE CUOTAS|ANEXO I: DEUDAS Y PLAZOS/u.test(text)) return "SCHEDULE";
-  if (/CALCULO DE INTERESES|ANEXO DE INTERESES/u.test(text)) return "INTEREST_ASSESSMENT";
+  if (/ANEXO II|CALCULO DE INTERESES|ANEXO DE INTERESES|LIQUIDACION DE INTERESES DE DEMORA/u.test(text)) return "ANNEX_INTEREST_CALCULATION";
   if (/ANEXO DEL BIEN|DATOS DEL BIEN|BIEN EMBARGADO/u.test(text)) return "ASSET_ANNEX";
   if (/DEUDA EMBARGADA|ANEXO DE DEUDAS|DEUDAS DEL EXPEDIENTE EJECUTIVO/u.test(text)) return "DEBT_ANNEX";
   return "INFORMATION";
@@ -653,6 +673,8 @@ function segmentDocument(document: BoundedDocumentInput): readonly RealCorpusSeg
 
 function specializedFields(
   index: DocumentIndexV6,
+  primaryIndex: DocumentIndexV6,
+  paymentFormIndex: DocumentIndexV6,
   familyId: RealCorpusFamilyIdV6,
   baseFields: readonly RealCorpusFieldV2[],
   sanction: RealCorpusSanctionResolutionV6 | null,
@@ -661,9 +683,18 @@ function specializedFields(
   seizure: RealCorpusSeizureSnapshotV6 | null,
 ): readonly RealCorpusFieldV2[] {
   const fields: (RealCorpusFieldV2 | null)[] = [
-    ...baseFields,
-    dateField("ISSUE_DATE", "Fecha del documento", firstValue(index, ["Fecha del documento", "Fecha de emisión"])),
-    dateField("ACTION_DATE", "Fecha del acto", firstValue(index, ["Fecha del acto", "Fecha del acuerdo", "Fecha de la resolución"])),
+    ...baseFields.filter((item) =>
+      item.fieldCode !== "ISSUE_DATE" &&
+      item.fieldCode !== "DOCUMENT_DATE" &&
+      item.fieldCode !== "TAX_MODEL" &&
+      item.fieldCode !== "PAYMENT_FORM_REFERENCE"
+    ),
+    dateField("ISSUE_DATE", "Fecha del documento", firstValue(primaryIndex, ["Fecha del documento", "Fecha de emisión"])),
+    dateField("ACTION_DATE", "Fecha del acto", firstValue(primaryIndex, ["Fecha del acto", "Fecha del acuerdo", "Fecha de la resolución"])),
+    referenceField("TAX_MODEL", "Modelo tributario", firstValue(primaryIndex, ["Modelo tributario"])),
+    dateField("PAYMENT_FORM_DATE", "Fecha de la carta de pago", firstValue(paymentFormIndex, ["Fecha de la carta de pago", "Fecha del documento", "Fecha"])),
+    referenceField("PAYMENT_FORM_MODEL", "Modelo de ingreso", firstValue(paymentFormIndex, ["Modelo de ingreso", "Modelo"])),
+    referenceField("PAYMENT_FORM_REFERENCE", "Referencia de la carta de pago", firstValue(paymentFormIndex, ["Referencia de pago", "Referencia de la carta de pago", "Referencia"])),
   ];
   if (familyId === "collection.enforcement_order") {
     fields.push(
@@ -708,8 +739,8 @@ function specializedFields(
       moneyField("PRINTED_INTEREST", "Intereses indicados", firstValue(index, ["Intereses impresos"])),
       moneyField("PRINTED_COSTS", "Costas indicadas", firstValue(index, ["Costas impresas"])),
       moneyField("SEIZE_LIMIT", "Límite del embargo", firstValue(index, ["Límite del embargo"])),
-      moneyField("PAYMENT_FORM_PRINTED_TOTAL", "Total indicado en la carta", firstValue(index, ["Total impreso en la carta"])),
-      moneyField("PAYMENT_FORM_AMOUNT", "Importe de la carta de pago", firstValue(index, ["Importe de la carta de pago"])),
+      moneyField("PAYMENT_FORM_PRINTED_TOTAL", "Total indicado en la carta", firstValue(paymentFormIndex, ["Total impreso en la carta"])),
+      moneyField("PAYMENT_FORM_AMOUNT", "Importe de la carta de pago", firstValue(paymentFormIndex, ["Importe de la carta de pago"])),
       textField(
         "PRINTED_AMOUNT_COMPARISON",
         "Comparación de importes",
@@ -790,14 +821,14 @@ export async function extractAeatRealCorpusDocumentV6(
     return unknown(document, index);
 
   const base = await extractAeatRealCorpusDocumentV5(document);
-  const newFamily = recognizeNewFamily(index);
-  const familyId = newFamily ?? (
+  const baseFamily =
     base.status === "REVIEW_REQUIRED" &&
     base.familyId &&
     (REAL_CORPUS_FAMILY_IDS_V6 as readonly string[]).includes(base.familyId)
       ? base.familyId as RealCorpusFamilyIdV6
-      : null
-  );
+      : null;
+  const newFamily = recognizeNewFamily(index);
+  const familyId = baseFamily ?? newFamily;
   if (!familyId) return unknown(document, index);
 
   const sanction = familyId === "sanction.resolution" ? parseSanctionResolution(index) : null;
@@ -817,6 +848,12 @@ export async function extractAeatRealCorpusDocumentV6(
 
   const segments = segmentDocument(document);
   const paymentFormSegments = segments.filter((segment) => segment.type === "PAYMENT_FORM");
+  const primaryPageNumbers = segments
+    .filter((segment) => segment.type === "PRIMARY_ACT")
+    .flatMap((segment) => segment.pageNumbers);
+  const paymentFormPageNumbers = paymentFormSegments.flatMap((segment) => segment.pageNumbers);
+  const primaryIndex = indexForPages(index, primaryPageNumbers);
+  const paymentFormIndex = indexForPages(index, paymentFormPageNumbers);
   const result: RealCorpusExtractorOutcomeV6 = Object.freeze({
     schemaVersion: REAL_CORPUS_EXTRACTOR_SCHEMA_VERSION_V6,
     extractorVersion: REAL_CORPUS_EXTRACTOR_VERSION_V6,
@@ -829,6 +866,8 @@ export async function extractAeatRealCorpusDocumentV6(
     contentPageCount: document.pages.length - index.blankPageNumbers.size,
     fields: specializedFields(
       index,
+      primaryIndex,
+      paymentFormIndex,
       familyId,
       base.status === "REVIEW_REQUIRED" && base.familyId === familyId ? base.fields : Object.freeze([]),
       sanction,

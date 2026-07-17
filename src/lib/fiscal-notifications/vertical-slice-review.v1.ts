@@ -232,6 +232,8 @@ const REFERENCE_LABEL: Readonly<Record<ReferenceTypeV1, string>> =
     REGISTRY_ID: "Registro",
     FILING_RECEIPT_ID: "Justificante de presentación",
     PAYMENT_RECEIPT_ID: "Justificante de pago",
+    PAYMENT_FORM_REFERENCE: "Referencia de la carta de pago",
+    PAYMENT_FORM_MODEL: "Modelo de ingreso",
     NRC: "NRC",
     CSV: "CSV",
     NIF: "NIF",
@@ -247,10 +249,16 @@ const REFERENCE_LABEL: Readonly<Record<ReferenceTypeV1, string>> =
 const MONEY_LABEL: Readonly<Record<MonetaryComponentTypeV1, string>> =
   Object.freeze({
     PRINCIPAL: "Principal",
+    ORIGINAL_TAX_PRINCIPAL: "Principal tributario original",
+    OUTSTANDING_PRINCIPAL: "Principal pendiente",
     TAX_QUOTA: "Cuota",
     PENALTY: "Sanción",
     SURCHARGE: "Recargo",
     EXECUTIVE_SURCHARGE: "Recargo ejecutivo",
+    EXECUTIVE_SURCHARGE_5: "Recargo ejecutivo del 5 %",
+    EXECUTIVE_SURCHARGE_10: "Recargo reducido del 10 %",
+    EXECUTIVE_SURCHARGE_20: "Recargo ordinario del 20 %",
+    DEFERRAL_INTEREST: "Intereses del aplazamiento",
     LATE_INTEREST: "Intereses",
     COSTS: "Costas",
     PAYMENT_ON_ACCOUNT: "Ingreso a cuenta",
@@ -265,6 +273,7 @@ const MONEY_LABEL: Readonly<Record<MonetaryComponentTypeV1, string>> =
     COMPENSATED_AMOUNT: "Importe compensado",
     SEIZED_AMOUNT: "Importe embargado",
     RELEASED_AMOUNT: "Importe liberado",
+    PAYMENT_OPTION_AMOUNT: "Importe de la carta de pago",
     OTHER: "Importe",
   });
 
@@ -282,6 +291,9 @@ const DATE_LABEL: Readonly<Record<ProceduralDateTypeV1, string>> =
     RESPONSE_DEADLINE: "Plazo de respuesta",
     APPEAL_DEADLINE: "Plazo de recurso",
     INSTALLMENT_DUE_DATE: "Vencimiento del plazo",
+    INTEREST_START_DATE: "Inicio del período de intereses",
+    INTEREST_END_DATE: "Fin del período de intereses",
+    PAYMENT_FORM_DATE: "Fecha de la carta de pago",
     PAYMENT_DATE: "Fecha de pago",
     SEIZURE_DATE: "Fecha de embargo",
     RELEASE_DATE: "Fecha de levantamiento",
@@ -433,6 +445,14 @@ const SAFE_SUBTITLE_VALUES = new Set([
   "Clasificación histórica amplia",
   "Datos estructurados listos para revisar",
   "Revisa los datos detectados y completa los que falten",
+  "1 documento reconocido",
+  "1 documento reconocido · incluye calendario",
+  "1 documento reconocido · incluye anexo de intereses",
+  "1 documento reconocido · incluye carta de pago",
+  "1 documento reconocido · incluye calendario y anexo de intereses",
+  "1 documento reconocido · incluye calendario y carta de pago",
+  "1 documento reconocido · incluye anexo de intereses y carta de pago",
+  "1 documento reconocido · incluye calendario, anexo de intereses y carta de pago",
 ]);
 const REAL_CORPUS_SAFE_LABELS_V2 = new Set([
   "Referencia",
@@ -641,8 +661,8 @@ export function parseFiscalNotificationVerticalSliceReviewV1(
 }
 
 export class FiscalNotificationVerticalSliceReviewErrorV1 extends Error {
-  constructor() {
-    super("FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_INVALID");
+  constructor(readonly code: "INVALID" | "PRIVACY_REJECTED" = "INVALID") {
+    super(`FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_${code}`);
     this.name = "FiscalNotificationVerticalSliceReviewErrorV1";
   }
 }
@@ -1579,7 +1599,16 @@ function parseReviewField(
   }
   assertConfidence(item.confidence);
   if (item.reviewStatus !== "REVIEW_REQUIRED") throw invalidReview();
-  assertSerializableFieldPrivacy(item);
+  try {
+    assertSerializableFieldPrivacy(item);
+  } catch (error) {
+    if (error instanceof FiscalNotificationVerticalSliceReviewErrorV1) {
+      throw new FiscalNotificationVerticalSliceReviewErrorV1(
+        "PRIVACY_REJECTED",
+      );
+    }
+    throw error;
+  }
   return Object.freeze({
     fieldId: item.fieldId as string,
     semantic: item.semantic as FiscalNotificationVerticalSliceFieldSemanticV1,
@@ -2534,6 +2563,24 @@ const REAL_CORPUS_CLOSED_VALUES_V6 = new Set([
   "PRINTED_AMOUNTS_MATCH",
 ]);
 
+const REAL_CORPUS_CLOSED_VALUE_LABELS_V6: Readonly<Record<string, string>> =
+  Object.freeze({
+    DIRECT_DEBIT: "Domiciliación bancaria",
+    NO_GUARANTEE: "Sin garantía",
+    PRIMARY_DEBTOR: "Obligado al pago",
+    HISTORICAL_PRINTED_VALUE: "Porcentaje indicado en el documento",
+    REDUCTION_ONLY_NOT_FULL_SANCTION:
+      "Solo se reclama la reducción perdida, no la sanción completa",
+    SEPARATE_FROM_PRINCIPAL: "Importe separado de la deuda principal",
+    MOVABLE_ASSET: "Bien mueble",
+    REAL_ESTATE: "Inmueble",
+    DISCREPANCY_PRESERVED_WITH_EVIDENCE:
+      "Los importes de las partes del documento no coinciden y se muestran por separado",
+    PRINTED_AMOUNTS_MATCH: "Los importes coinciden",
+    DEPENDS_ON_EFFECTIVE_RECEIPT:
+      "El plazo depende de la fecha efectiva de recepción",
+  });
+
 /** Closed V6 exception. Raw text, PII and arbitrary OCR values are rejected. */
 function assertRealCorpusSerializableFieldPrivacyV6(
   item: Readonly<Record<string, unknown>>,
@@ -2588,7 +2635,11 @@ function assertRealCorpusSerializableFieldPrivacyV6(
   }
   const closed = /^V6:TEXT:[A-Z0-9_]+:([A-Z0-9_]+)$/u.exec(normalized);
   if (closed) {
-    if (!REAL_CORPUS_CLOSED_VALUES_V6.has(closed[1]!) || display !== closed[1])
+    const value = closed[1]!;
+    if (
+      !REAL_CORPUS_CLOSED_VALUES_V6.has(value) ||
+      display !== (REAL_CORPUS_CLOSED_VALUE_LABELS_V6[value] ?? value)
+    )
       throw invalidReview();
     return true;
   }

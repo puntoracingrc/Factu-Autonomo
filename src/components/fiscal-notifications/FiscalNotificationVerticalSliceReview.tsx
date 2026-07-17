@@ -9,9 +9,7 @@ import {
   type FiscalNotificationDocumentExplanationV2,
   type FiscalNotificationExplanationSectionIdV2,
 } from "@/lib/fiscal-notifications/structured-document-explanation.v2";
-import {
-  AEAT_DOCUMENT_PROFILE_IDS_V1,
-} from "@/lib/fiscal-notifications/knowledge/aeat-document-knowledge.v1";
+import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "@/lib/fiscal-notifications/knowledge/aeat-document-knowledge.v1";
 import { projectProfileDrivenExplanationInputV2 } from "@/lib/fiscal-notifications/profile-driven-explanation-input.v2";
 import { isAeatOfficialCatalogProfileIdV9 } from "@/lib/fiscal-notifications/knowledge/official-catalog-expansion.v9";
 import { explainAeatOfficialCatalogDocumentV9 } from "@/lib/fiscal-notifications/official-catalog-explanation.v9";
@@ -90,8 +88,7 @@ export function FiscalNotificationVerticalSliceReview({
         h(
           "header",
           {
-            className:
-              "border-b border-emerald-100 bg-emerald-50 p-4 sm:p-5",
+            className: "border-b border-emerald-100 bg-emerald-50 p-4 sm:p-5",
           },
           h(
             "div",
@@ -121,8 +118,7 @@ export function FiscalNotificationVerticalSliceReview({
               h(
                 "p",
                 {
-                  className:
-                    "mt-1 text-sm font-semibold text-emerald-900",
+                  className: "mt-1 text-sm font-semibold text-emerald-900",
                 },
                 document.subtitle,
               ),
@@ -145,16 +141,7 @@ export function FiscalNotificationVerticalSliceReview({
           ),
         ),
         h(FamilyGuidance, { document }),
-        h(
-          "dl",
-          {
-            className:
-              "grid gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-3",
-          },
-          document.fields.map((field) =>
-            h(ExtractedField, { key: field.fieldId, field }),
-          ),
-        ),
+        h(ExtractedFields, { fields: document.fields }),
       ),
     ),
     h(
@@ -177,9 +164,7 @@ function FamilyGuidance({
   if (!explanation) return null;
 
   const officialSources = explanation.officialSources.filter(
-    (
-      source,
-    ): source is typeof source & { readonly canonicalUrl: string } =>
+    (source): source is typeof source & { readonly canonicalUrl: string } =>
       source.canonicalUrl !== null &&
       source.authority !== "DOCUMENT" &&
       isOfficialHttpsUrl(source.canonicalUrl),
@@ -327,7 +312,7 @@ function ExtractedField({
     field.normalizedValue &&
     /^\d{4}-\d{2}-\d{2}$/u.test(field.normalizedValue)
       ? h("time", { dateTime: field.normalizedValue }, field.displayValue)
-      : field.displayValue;
+      : humanDisplayValue(field);
 
   return h(
     "div",
@@ -341,8 +326,7 @@ function ExtractedField({
     h(
       "dt",
       {
-        className:
-          "text-xs font-bold uppercase tracking-wide text-slate-500",
+        className: "text-xs font-bold uppercase tracking-wide text-slate-500",
       },
       field.label,
     ),
@@ -361,6 +345,180 @@ function ExtractedField({
       `${pagesLabel(field.sourcePageNumbers)} · según el documento`,
     ),
   );
+}
+
+function ExtractedFields({
+  fields,
+}: {
+  readonly fields: readonly FiscalNotificationVerticalSliceReviewFieldV1[];
+}) {
+  const installments = fields.flatMap(projectInstallmentRow);
+  const visible = deduplicateFields(
+    fields.filter((field) => !isInstallmentField(field)),
+  );
+  return h(
+    "div",
+    { className: "space-y-4 p-4 sm:p-5" },
+    visible.length > 0
+      ? h(
+          "dl",
+          { className: "grid gap-3 sm:grid-cols-2 lg:grid-cols-3" },
+          visible.map((field) =>
+            h(ExtractedField, { key: field.fieldId, field }),
+          ),
+        )
+      : null,
+    installments.length > 0
+      ? h(
+          "div",
+          { className: "overflow-x-auto rounded-xl border border-slate-200" },
+          h(
+            "table",
+            { className: "min-w-full divide-y divide-slate-200 text-sm" },
+            h(
+              "caption",
+              {
+                className:
+                  "bg-slate-50 px-4 py-3 text-left font-bold text-slate-950",
+              },
+              "Calendario de cuotas",
+            ),
+            h(
+              "thead",
+              { className: "bg-slate-50 text-left text-xs text-slate-600" },
+              h(
+                "tr",
+                null,
+                ...["Cuota", "Vence", "Principal", "Intereses", "Total"].map(
+                  (label) =>
+                    h("th", { key: label, className: "px-4 py-2" }, label),
+                ),
+              ),
+            ),
+            h(
+              "tbody",
+              { className: "divide-y divide-slate-100 bg-white" },
+              installments.map((item) =>
+                h(
+                  "tr",
+                  { key: `${item.sequence}:${item.dueDate}` },
+                  h(
+                    "td",
+                    { className: "px-4 py-3 font-semibold" },
+                    item.sequence,
+                  ),
+                  h(
+                    "td",
+                    { className: "px-4 py-3" },
+                    formatIsoDate(item.dueDate),
+                  ),
+                  h(
+                    "td",
+                    { className: "px-4 py-3" },
+                    formatEuro(item.principalCents),
+                  ),
+                  h(
+                    "td",
+                    { className: "px-4 py-3" },
+                    formatEuro(item.interestCents),
+                  ),
+                  h(
+                    "td",
+                    { className: "px-4 py-3 font-bold" },
+                    formatEuro(item.totalCents),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        )
+      : null,
+  );
+}
+
+interface InstallmentRow {
+  readonly sequence: string;
+  readonly dueDate: string;
+  readonly principalCents: number;
+  readonly interestCents: number;
+  readonly totalCents: number;
+}
+
+function isInstallmentField(
+  field: FiscalNotificationVerticalSliceReviewFieldV1,
+): boolean {
+  return /^V6:INSTALLMENT:/u.test(field.normalizedValue ?? "");
+}
+
+function projectInstallmentRow(
+  field: FiscalNotificationVerticalSliceReviewFieldV1,
+): readonly InstallmentRow[] {
+  const match =
+    /^V6:INSTALLMENT:([1-9]\d*):((?:19|20)\d{2}-\d{2}-\d{2}):(\d+):(\d+):(\d+)$/u.exec(
+      field.normalizedValue ?? "",
+    );
+  if (!match) return [];
+  return [
+    {
+      sequence: match[1]!,
+      dueDate: match[2]!,
+      principalCents: Number(match[3]),
+      interestCents: Number(match[4]),
+      totalCents: Number(match[5]),
+    },
+  ];
+}
+
+function deduplicateFields(
+  fields: readonly FiscalNotificationVerticalSliceReviewFieldV1[],
+): readonly FiscalNotificationVerticalSliceReviewFieldV1[] {
+  const identities = new Set<string>();
+  return fields.filter((field) => {
+    const identity = JSON.stringify([
+      field.semantic,
+      field.canonicalType,
+      field.normalizedValue ?? field.displayValue,
+      field.sourcePageNumbers,
+    ]);
+    if (identities.has(identity)) return false;
+    identities.add(identity);
+    return true;
+  });
+}
+
+const HUMAN_DISPLAY_VALUES: Readonly<Record<string, string>> = Object.freeze({
+  DIRECT_DEBIT: "Domiciliación bancaria",
+  NO_GUARANTEE: "Sin garantía",
+  PRIMARY_DEBTOR: "Obligado al pago",
+  TAXPAYER: "Obligado tributario",
+  PAYMENT_FORM_ONLY: "Carta de pago adjunta",
+  PAYMENT_FORM_FOR: "Carta de pago del documento",
+  ANNEX_ONLY: "Anexo del documento",
+  DELIVERY_ATTEMPT_FOR: "Intento de entrega del documento",
+});
+
+function humanDisplayValue(
+  field: FiscalNotificationVerticalSliceReviewFieldV1,
+): string {
+  if (field.semantic === "REFERENCE" || field.semantic === "MONEY") {
+    return field.displayValue;
+  }
+  return HUMAN_DISPLAY_VALUES[field.displayValue] ?? field.displayValue;
+}
+
+function formatIsoDate(value: string): string {
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
+}
+
+function formatEuro(amountCents: number): string {
+  return new Intl.NumberFormat("es-ES", {
+    style: "currency",
+    currency: "EUR",
+    minimumFractionDigits: 2,
+  })
+    .format(amountCents / 100)
+    .replace(/\s?€/u, "\u00a0€");
 }
 
 function pageRangeLabel(pageFrom: number, pageTo: number): string {

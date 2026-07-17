@@ -454,15 +454,23 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     const writeFlow = componentSource.slice(saveStart, saveStart + 4_000);
     expect(saveStart).toBeGreaterThan(-1);
     expect(writeFlow).toContain('accountWrite.status !== "applied"');
+    expect(writeFlow).toContain(
+      'accountWrite.status !== "applied_with_warnings"',
+    );
     expect(writeFlow).toContain('destination === "ACCOUNT"');
     expect(writeFlow).toContain(
       "advanceAfterSuccessfulSave(activeId, savedDocumentId)",
     );
-    expect(componentSource).toContain('write.status === "indeterminate"');
-    expect(componentSource).toContain('write.reason === "no_structured_facts"');
     expect(componentSource).toContain(
-      'write.reason === "invalid_structured_review"',
+      'write.safeCode === "CORE_INVALID_INPUT"',
     );
+    expect(componentSource).toContain(
+      'write.safeCode === "CORE_WORKSPACE_INTEGRITY_FAILED"',
+    );
+    expect(componentSource).toContain(
+      'write.safeCode === "DURABILITY_CONFLICT"',
+    );
+    expect(componentSource).toContain("Código: ${write.safeCode}");
     expect(componentSource).not.toContain('setPersistenceState("saved")');
     expect(componentSource).toContain("No se ha guardado una tarjeta vacía");
     expect(componentSource).toContain(

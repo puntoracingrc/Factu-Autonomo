@@ -15,7 +15,10 @@ import type {
   FiscalNotificationLocalReviewResult,
 } from "./local-review-flow";
 import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "./structured-review-save-command.v1";
+import { appendStructuredReviewRelationSuggestionsV1 } from "./structured-review-relation-suggestions.v1";
 import { projectFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
+import { enrichVerticalSliceSpecializedFactsV1 } from "./vertical-slice-specialized-facts.v1";
+import { appendWorkspaceGlobalReconciliationV8 } from "./workspace-global-reconciliation.v8";
 
 const OWNER = "user:00000000-0000-4000-8000-000000000071";
 const FOREIGN_OWNER = "user:00000000-0000-4000-8000-000000000072";
@@ -574,6 +577,98 @@ describe("structured fiscal notification save command v1", () => {
     expect(input.persist).toHaveBeenCalledTimes(1);
   });
 
+  it("guarda el core validado cuando el enriquecimiento opcional necesita revisión", async () => {
+    const input = commandInput();
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1(
+      {
+        ...input.value,
+        analysis: await verticalDeferralAnalysis(),
+      },
+      {
+        enrich: () => {
+          throw new Error("SYNTHETIC_ENRICHMENT_REVIEW_REQUIRED");
+        },
+        relate: appendStructuredReviewRelationSuggestionsV1,
+        reconcile: appendWorkspaceGlobalReconciliationV8,
+      },
+    );
+
+    expect(result.status).toBe("applied_with_warnings");
+    if (result.status !== "applied_with_warnings") return;
+    expect(result).toMatchObject({
+      stage: "ENRICHMENT",
+      safeCode: "SPECIALIZED_ENRICHMENT_REVIEW_REQUIRED",
+      warningCodes: ["SPECIALIZED_ENRICHMENT_SKIPPED"],
+    });
+    expect(result.data.fiscalNotificationsWorkspace?.documents).toHaveLength(1);
+    expect(result.data.fiscalNotificationsWorkspace?.paymentOptions).toEqual(
+      [],
+    );
+    expect(
+      result.data.fiscalNotificationsWorkspace?.analysisSnapshots[0]
+        ?.validationWarnings,
+    ).toContain("SPECIALIZED_ENRICHMENT_SKIPPED");
+    expect(input.persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("guarda el core cuando una sugerencia de relación queda pendiente", async () => {
+    const input = commandInput();
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1(
+      {
+        ...input.value,
+        analysis: await verticalDeferralAnalysis(),
+      },
+      {
+        enrich: enrichVerticalSliceSpecializedFactsV1,
+        relate: ({ workspace }) => ({
+          status: "REVIEW_REQUIRED" as const,
+          reason: "RESULT_INVALID" as const,
+          addedRelationIds: [] as const,
+          workspace,
+        }),
+        reconcile: appendWorkspaceGlobalReconciliationV8,
+      },
+    );
+
+    expect(result.status).toBe("applied_with_warnings");
+    if (result.status !== "applied_with_warnings") return;
+    expect(result).toMatchObject({
+      stage: "RELATIONS",
+      safeCode: "RELATION_SUGGESTION_REVIEW_REQUIRED",
+      warningCodes: ["RELATION_RECONCILIATION_PENDING"],
+    });
+    expect(input.persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("guarda el último workspace válido cuando la reconciliación global queda pendiente", async () => {
+    const input = commandInput();
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1(
+      {
+        ...input.value,
+        analysis: await verticalDeferralAnalysis(),
+      },
+      {
+        enrich: enrichVerticalSliceSpecializedFactsV1,
+        relate: appendStructuredReviewRelationSuggestionsV1,
+        reconcile: ({ workspace }) => ({
+          status: "REVIEW_REQUIRED" as const,
+          reason: "RECONCILIATION_BLOCKED" as const,
+          changedRelationIds: [] as const,
+          workspace,
+        }),
+      },
+    );
+
+    expect(result.status).toBe("applied_with_warnings");
+    if (result.status !== "applied_with_warnings") return;
+    expect(result).toMatchObject({
+      stage: "RECONCILIATION",
+      safeCode: "GLOBAL_RECONCILIATION_REVIEW_REQUIRED",
+      warningCodes: ["RELATION_RECONCILIATION_PENDING"],
+    });
+    expect(input.persist).toHaveBeenCalledTimes(1);
+  });
+
   it("guarda créditos y deudas compensadas como datos consultables, sin efectos operativos", () => {
     const input = commandInput();
     const result = runSaveFiscalNotificationStructuredReviewCommandV1({
@@ -624,6 +719,9 @@ describe("structured fiscal notification save command v1", () => {
       runSaveFiscalNotificationStructuredReviewCommandV1(input.value),
     ).toEqual({
       status: "blocked",
+      stage: "COMMIT",
+      safeCode: "DURABILITY_CONFLICT",
+      warningCodes: [],
       reason: "stale_precondition",
     });
     expect(input.persist).not.toHaveBeenCalled();
@@ -635,7 +733,10 @@ describe("structured fiscal notification save command v1", () => {
     expect(
       runSaveFiscalNotificationStructuredReviewCommandV1(input.value),
     ).toEqual({
-      status: "indeterminate",
+      status: "blocked",
+      stage: "COMMIT",
+      safeCode: "DURABILITY_CONFLICT",
+      warningCodes: [],
       reason: "storage_state_unknown",
     });
   });
@@ -656,7 +757,9 @@ describe("structured fiscal notification save command v1", () => {
       runSaveFiscalNotificationStructuredReviewCommandV1(foreign.value),
     ).toEqual({
       status: "blocked",
-      reason: "invalid_structured_review",
+      stage: "CORE",
+      safeCode: "CORE_WORKSPACE_INTEGRITY_FAILED",
+      warningCodes: [],
     });
     expect(foreign.persist).not.toHaveBeenCalled();
   });
@@ -835,6 +938,32 @@ describe("structured fiscal notification save command v1", () => {
     });
   });
 
+  it("bloquea con diagnóstico de privacidad si una proyección intenta persistir texto libre", async () => {
+    const input = commandInput();
+    const candidate = structuredClone(await seizureAnalysis()) as unknown as {
+      ephemeralVerticalSliceReview: {
+        documents: Array<{
+          fields: Array<{ displayValue: string }>;
+        }>;
+      };
+    };
+    candidate.ephemeralVerticalSliceReview.documents[0]!.fields[0]!.displayValue =
+      "PERSONA SINTÉTICA 12345678Z";
+
+    expect(
+      runSaveFiscalNotificationStructuredReviewCommandV1({
+        ...input.value,
+        analysis: candidate as unknown as FiscalNotificationLocalAnalysisResult,
+      }),
+    ).toEqual({
+      status: "blocked",
+      stage: "CORE",
+      safeCode: "CORE_PRIVACY_REJECTED",
+      warningCodes: [],
+    });
+    expect(input.persist).not.toHaveBeenCalled();
+  });
+
   it("no guarda una clasificación sin hechos estructurados exactos", () => {
     const input = commandInput();
     const emptyAnalysis: FiscalNotificationLocalAnalysisResult = {
@@ -849,7 +978,12 @@ describe("structured fiscal notification save command v1", () => {
         ...input.value,
         analysis: emptyAnalysis,
       }),
-    ).toEqual({ status: "blocked", reason: "no_structured_facts" });
+    ).toEqual({
+      status: "blocked",
+      stage: "CORE",
+      safeCode: "CORE_INVALID_INPUT",
+      warningCodes: [],
+    });
     expect(input.persist).not.toHaveBeenCalled();
   });
 });

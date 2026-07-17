@@ -302,7 +302,7 @@ describe("AEAT real corpus extractor V5", () => {
           }),
         ],
       }),
-    ).toThrow("FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_INVALID");
+    ).toThrow("FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_PRIVACY_REJECTED");
   });
 
   it("keeps every result bound to fileId + sha256 + documentId", async () => {
