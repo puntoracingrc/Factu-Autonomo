@@ -40,9 +40,10 @@ describe("Partner UI contracts", () => {
   });
 
   it("shows administrators the real Partner layout as a read-only preview", () => {
-    expect(partnerPageSource).toContain("Vista previa de Partner");
+    expect(partnerPageSource).toContain("Vista previa del panel que verá un Partner autorizado.");
     expect(partnerPageSource).toContain("isAdminPreview");
     expect(partnerPageSource).toContain("ADMIN_PREVIEW_PLAN_COUNTS");
+    expect(partnerPageSource).not.toContain("Estás viendo la misma estructura que verá una gestoría autorizada");
     expect(partnerPageSource).not.toContain("Abrir gestión de Partners");
   });
 
