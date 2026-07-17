@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "@/lib/fiscal-notifications/extractor-core/vertical-slice-orchestrator.v1";
+import { analyzeFiscalNotificationDocumentInput } from "@/lib/fiscal-notifications/document-input-analysis";
 import type { BoundedDocumentInput } from "@/lib/fiscal-notifications/input-contract";
 import {
   type FiscalNotificationVerticalSliceReviewV1,
@@ -58,6 +59,47 @@ const BANK_SEIZURE = [
   "Fecha del embargo: 04/03/2026",
 ].join("\n");
 
+function realSixPageBankSeizure(): BoundedDocumentInput {
+  const content = [
+    [
+      "AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA",
+      "NOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE CUENTAS Y DEPÓSITOS",
+      "Número de diligencia: SYN-SEIZURE-D11",
+      "Fecha de la diligencia: 24-10-2025",
+      "Se le notifica en condición de OBLIGADO AL PAGO",
+    ].join("\n"),
+    "Información sobre recursos y oposición",
+    "Continuación de la diligencia",
+    "",
+    [
+      "DEUDAS DEL EXPEDIENTE EJECUTIVO",
+      "CONCEPTO | PER/EJER | Nº LIQUIDACIÓN | IMP. PENDIENTE",
+      "IVA sintético | 4T/2024 | SYN-DEBT-D11 | 276,00 EUR",
+      "IMPORTE PENDIENTE TOTAL: 276,00 EUR",
+      "IMPORTE A EMBARGAR: 276,00 EUR",
+      "DEPÓSITOS Y CUENTAS",
+      "IDENTIFICADOR INTERNO | IMPORTE EMBARGADO",
+      "ACTIVO-1 | 276,00 EUR",
+      "IBAN ES0012345678901234567890",
+      "Banco Privado Sintético",
+    ].join("\n"),
+    "",
+  ];
+  return Object.freeze({
+    ownerScope: "user:synthetic-ui-v3",
+    documentId: "document:synthetic-ui-v3-d11",
+    pages: Object.freeze(
+      content.map((text, index) =>
+        Object.freeze({
+          pageNumber: index + 1,
+          text,
+          isBlank: text.length === 0,
+        }),
+      ),
+    ),
+  });
+}
+
 function document(text: string): BoundedDocumentInput {
   return Object.freeze({
     ownerScope: "user:synthetic-ui",
@@ -68,7 +110,9 @@ function document(text: string): BoundedDocumentInput {
   });
 }
 
-function reviewForFamily(familyId: string): FiscalNotificationVerticalSliceReviewV1 {
+function reviewForFamily(
+  familyId: string,
+): FiscalNotificationVerticalSliceReviewV1 {
   return {
     schemaVersion: 1,
     reviewVersion: "1.0.0",
@@ -144,9 +188,7 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).toContain(
       "Fuentes oficiales en las que se basa nuestro escáner",
     );
-    expect(html).toContain(
-      "No se consulta internet durante el escaneo",
-    );
+    expect(html).toContain("No se consulta internet durante el escaneo");
     expect(html).not.toMatch(/posible familia/iu);
   });
 
@@ -193,6 +235,32 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).not.toContain("ES00 0000 0000 0000 1234");
   });
 
+  it("shows the real six-page bank-seizure fields in plain language without bank data", async () => {
+    const analysis = await analyzeFiscalNotificationDocumentInput(
+      realSixPageBankSeizure(),
+    );
+    const html = renderToStaticMarkup(
+      createElement(FiscalNotificationVerticalSliceReview, {
+        review: analysis.verticalSliceReview,
+      }),
+    );
+
+    expect(html).toContain("Embargo de cuenta o depósito");
+    expect(html).toContain("SYN-SEIZURE-D11");
+    expect(html).toContain("SYN-DEBT-D11");
+    expect(html).toContain("Obligado al pago");
+    expect(html).toContain("Límite del embargo");
+    expect(html).toContain("Importe embargado");
+    expect(html).toContain("276,00\u00a0€");
+    expect(html).toContain(
+      "Esta diligencia no demuestra por sí sola que el banco ya los haya transferido al Tesoro",
+    );
+    expect(html).not.toContain("PRIMARY_DEBTOR");
+    expect(html).not.toContain("BANK_ACCOUNT_OR_DEPOSIT");
+    expect(html).not.toContain("Banco Privado Sintético");
+    expect(html).not.toContain("ES0012345678901234567890");
+  });
+
   it("shows family-specific plain-language guidance for every one of the 87 covered families", () => {
     expect(AEAT_DOCUMENT_PROFILE_IDS_V1).toHaveLength(87);
 
@@ -233,22 +301,24 @@ describe("FiscalNotificationVerticalSliceReview", () => {
       );
       expect(html, profile.id).toContain("Qué significa este documento");
       expect(html, profile.id).toContain(
-        resolveAeatP0DeepProfileV10(profile.id)?.explanationTemplate.whatItIs ?? profile.whatItIs,
+        resolveAeatP0DeepProfileV10(profile.id)?.explanationTemplate.whatItIs ??
+          profile.whatItIs,
       );
       expect(html, profile.id).toContain("Qué no demuestra");
       expect(html, profile.id).toContain(
         "Fuentes oficiales en las que se basa nuestro escáner",
       );
       expect(html, profile.id).toMatch(/href="https:\/\//u);
-      expect(html, profile.id).not.toContain("El tipo exacto del documento todavía no se ha identificado");
+      expect(html, profile.id).not.toContain(
+        "El tipo exacto del documento todavía no se ha identificado",
+      );
     }
   });
 
   it("keeps the legacy result unchanged when the family is not a V2 profile", () => {
     const review = structuredClone(reviewForFamily("payment.receipt"));
-    (
-      review.documents[0] as unknown as { familyId: string }
-    ).familyId = "legacy.family.outside-v2";
+    (review.documents[0] as unknown as { familyId: string }).familyId =
+      "legacy.family.outside-v2";
 
     const html = renderToStaticMarkup(
       createElement(FiscalNotificationVerticalSliceReview, { review }),

@@ -69,15 +69,52 @@ function canonicalDateType(
   }
 }
 
+function canonicalMoneyType(
+  fieldCode: string,
+): FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"] {
+  switch (fieldCode) {
+    case "PENDING_DEBT":
+    case "PENDING_DEBT_TOTAL":
+      return "TOTAL_PENDING";
+    case "SEIZURE_LIMIT":
+      return "SEIZURE_LIMIT";
+    case "SEIZED_AMOUNT":
+      return "SEIZED_AMOUNT";
+    case "REMITTED_AMOUNT":
+      return "THIRD_PARTY_TRANSFERRED";
+    default:
+      return "OTHER";
+  }
+}
+
+function canonicalReferenceType(
+  fieldCode: string,
+  familyId: RealCorpusExtractorOutcomeV3["familyId"],
+): FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"] {
+  switch (fieldCode) {
+    case "SEIZURE_ORDER_ID":
+      return "SEIZURE_ORDER_ID";
+    case "DEBT_KEY":
+      return familyId === "seizure.bank_account"
+        ? "LIQUIDATION_KEY"
+        : "DEBT_KEY";
+    case "LIQUIDATION_KEY":
+      return "LIQUIDATION_KEY";
+    default:
+      return "OTHER_OFFICIAL_REFERENCE";
+  }
+}
+
 function projectField(
   item: RealCorpusFieldV2,
   index: number,
+  familyId: RealCorpusExtractorOutcomeV3["familyId"],
 ): FiscalNotificationVerticalSliceReviewFieldV1 {
   if (item.kind === "MONEY") {
     return field({
       fieldId: `real-corpus-v3:${item.fieldCode}:${index}`,
       semantic: "MONEY",
-      canonicalType: "OTHER",
+      canonicalType: canonicalMoneyType(item.fieldCode),
       label: item.label,
       displayValue: formatMoney(item.amountCents),
       normalizedValue: String(item.amountCents),
@@ -89,7 +126,7 @@ function projectField(
     return field({
       fieldId: `real-corpus-v3:${item.fieldCode}:${index}`,
       semantic: "REFERENCE",
-      canonicalType: "OTHER_OFFICIAL_REFERENCE",
+      canonicalType: canonicalReferenceType(item.fieldCode, familyId),
       label: item.label,
       displayValue: item.value,
       normalizedValue: item.value,
@@ -104,6 +141,42 @@ function projectField(
       label: item.label,
       displayValue: item.value.split("-").reverse().join("/"),
       normalizedValue: item.value,
+      sourcePageNumbers: item.evidence.pageNumbers,
+    });
+  }
+  if (item.kind === "TEXT" && item.fieldCode === "RECIPIENT_ROLE") {
+    const role =
+      item.value === "PRIMARY_DEBTOR" ? "PRIMARY_DEBTOR" : "FINANCIAL_ENTITY";
+    return field({
+      fieldId: `real-corpus-v3:${item.fieldCode}:${index}`,
+      semantic: "DETAIL",
+      canonicalType: "SEIZURE_RECIPIENT_ROLE",
+      label: item.label,
+      displayValue:
+        role === "PRIMARY_DEBTOR" ? "Obligado al pago" : "Entidad financiera",
+      normalizedValue: `V3:TEXT:RECIPIENT_ROLE:${role}`,
+      sourcePageNumbers: item.evidence.pageNumbers,
+    });
+  }
+  if (item.kind === "TEXT" && item.fieldCode === "ASSET_KIND") {
+    return field({
+      fieldId: `real-corpus-v3:${item.fieldCode}:${index}`,
+      semantic: "DETAIL",
+      canonicalType: "ACCOUNT_OR_DEPOSIT",
+      label: item.label,
+      displayValue: "Cuenta o depósito",
+      normalizedValue: "V3:TEXT:ASSET_KIND:BANK_ACCOUNT_OR_DEPOSIT",
+      sourcePageNumbers: item.evidence.pageNumbers,
+    });
+  }
+  if (item.kind === "TEXT" && item.fieldCode === "OPAQUE_ASSET_ORDINAL") {
+    return field({
+      fieldId: `real-corpus-v3:${item.fieldCode}:${index}`,
+      semantic: "DETAIL",
+      canonicalType: "ACCOUNT_OR_DEPOSIT",
+      label: item.label,
+      displayValue: `Cuenta o depósito ${item.value}`,
+      normalizedValue: `V3:INTEGER:OPAQUE_ASSET_ORDINAL:${item.value}`,
       sourcePageNumbers: item.evidence.pageNumbers,
     });
   }
@@ -202,7 +275,9 @@ export function projectRealCorpusReviewV3(
       normalizedValue: "V3:EXACT_TITLE_AUTHORITY_STRUCTURE",
       sourcePageNumbers: Object.freeze([1]),
     }),
-    ...outcome.fields.map(projectField),
+    ...outcome.fields.map((item, index) =>
+      projectField(item, index, outcome.familyId),
+    ),
     ...outcome.installments.map(projectInstallment),
     ...(outcome.paymentFormStatus === "PAYMENT_FORM_ONLY"
       ? [
