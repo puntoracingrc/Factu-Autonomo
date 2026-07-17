@@ -74,7 +74,11 @@ function isMissingPartnerSchemaError(error: { code?: string; message?: string } 
   if (!error) return false;
   return (
     error.code === "42P01" ||
+    error.code === "PGRST205" ||
     /relation .*partner_(accounts|commission_entries|payouts).* does not exist/i.test(
+      error.message ?? "",
+    ) ||
+    /could not find the table .*partner_(accounts|commission_entries|payouts).*schema cache/i.test(
       error.message ?? "",
     )
   );
