@@ -1,4 +1,5 @@
 import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
+import { getPartnerSupabaseAdmin } from "@/lib/partners/admin-client";
 import {
   grantPartnerAccess,
   listAdminPartners,
@@ -15,7 +16,6 @@ import {
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
 import { readJsonBody } from "@/lib/server/request-body";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 function unavailableResponse() {
   return partnerJsonResponse(
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
   if (!rateLimit.allowed) {
     return withPartnerPrivateHeaders(rateLimitExceededResponse(rateLimit));
   }
-  const admin = getSupabaseAdmin();
+  const admin = getPartnerSupabaseAdmin();
   if (!admin) return unavailableResponse();
 
   try {
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
   if (!rateLimit.allowed) {
     return withPartnerPrivateHeaders(rateLimitExceededResponse(rateLimit));
   }
-  const admin = getSupabaseAdmin();
+  const admin = getPartnerSupabaseAdmin();
   if (!admin) return unavailableResponse();
 
   const bodyResult = await readJsonBody<{ email?: unknown }>(request, {

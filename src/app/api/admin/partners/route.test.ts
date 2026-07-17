@@ -6,7 +6,7 @@ import {
   PartnerSchemaUnavailableError,
 } from "@/lib/partners/repository";
 import { checkRateLimit, type RateLimitResult } from "@/lib/server/rate-limit";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getPartnerSupabaseAdmin } from "@/lib/partners/admin-client";
 import { GET, POST } from "./route";
 
 vi.mock("@/lib/admin/server-access", () => ({
@@ -24,7 +24,9 @@ vi.mock("@/lib/server/rate-limit", async () => {
   );
   return { ...actual, checkRateLimit: vi.fn() };
 });
-vi.mock("@/lib/supabase/admin", () => ({ getSupabaseAdmin: vi.fn() }));
+vi.mock("@/lib/partners/admin-client", () => ({
+  getPartnerSupabaseAdmin: vi.fn(),
+}));
 
 const ALLOWED_RATE_LIMIT: RateLimitResult = {
   allowed: true,
@@ -53,7 +55,7 @@ describe("Admin Partner API", () => {
       ok: true,
       user: { id: "22222222-2222-4222-8222-222222222222" },
     } as never);
-    vi.mocked(getSupabaseAdmin).mockReturnValue({} as never);
+    vi.mocked(getPartnerSupabaseAdmin).mockReturnValue({} as never);
     vi.mocked(checkRateLimit).mockResolvedValue(ALLOWED_RATE_LIMIT);
     vi.mocked(listAdminPartners).mockResolvedValue([]);
   });
@@ -67,7 +69,7 @@ describe("Admin Partner API", () => {
     const response = await GET(request());
 
     expect(response.status).toBe(403);
-    expect(getSupabaseAdmin).not.toHaveBeenCalled();
+    expect(getPartnerSupabaseAdmin).not.toHaveBeenCalled();
     expect(listAdminPartners).not.toHaveBeenCalled();
   });
 

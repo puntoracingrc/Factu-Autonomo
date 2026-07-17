@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { isAdminEmail } from "@/lib/admin/access";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
-import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import { getPartnerSupabaseAdmin } from "./admin-client";
 import { normalizePartnerEmail, type PartnerAccessRole } from "./contracts";
 import {
   getPartnerAccountRecord,
@@ -33,7 +33,7 @@ export async function getPartnerAccessFromRequest(
     };
   }
 
-  const admin = getSupabaseAdmin();
+  const admin = getPartnerSupabaseAdmin();
   if (!admin) {
     return {
       ok: false,
