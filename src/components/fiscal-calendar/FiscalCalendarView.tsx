@@ -360,7 +360,11 @@ function EventCard({
           ) : null}
         </div>
         <h2 className="mt-3 text-lg font-bold leading-snug text-slate-900 dark:text-slate-100">
-          <LinkedEventText text={event.title} modelLinks={modelLinks} onModelOpen={onModelOpen} />
+          <LinkedEventText
+            text={event.title}
+            modelLinks={modelLinks}
+            onModelOpen={onModelOpen}
+          />
         </h2>
         <time
           className="mt-2 block text-sm font-semibold text-blue-700 dark:text-blue-300"
@@ -469,12 +473,14 @@ export function FiscalCalendarView({
     () =>
       buildFiscalCalendarDescriptionFilterContext({
         session: appData.profile.taxModelDiagnostic,
-        manualModelCodes,
         obligationViewStatus: obligationView.status,
+        mineModelCodes: obligationView.mineModelCodes,
+        resolvableModelCodes: new Set(modelLinks.keys()),
       }),
     [
       appData.profile.taxModelDiagnostic,
-      manualModelCodes,
+      modelLinks,
+      obligationView.mineModelCodes,
       obligationView.status,
     ],
   );
@@ -533,11 +539,14 @@ export function FiscalCalendarView({
       : 0;
 
   useEffect(() => {
-    void recordTaxProductEvent({
-      eventType: "tax_calendar_opened",
-      page: "CALENDAR",
-      properties: { scope: effectiveScope },
-    }, { dedupeKey: `calendar-opened:${effectiveScope}` });
+    void recordTaxProductEvent(
+      {
+        eventType: "tax_calendar_opened",
+        page: "CALENDAR",
+        properties: { scope: effectiveScope },
+      },
+      { dedupeKey: `calendar-opened:${effectiveScope}` },
+    );
   }, [effectiveScope]);
 
   useEffect(() => {
@@ -629,14 +638,22 @@ export function FiscalCalendarView({
     });
     const rangeDays = Math.max(
       1,
-      Math.round((new Date(endDateInclusive).getTime() - new Date(startDate).getTime()) / 86_400_000) + 1,
+      Math.round(
+        (new Date(endDateInclusive).getTime() - new Date(startDate).getTime()) /
+          86_400_000,
+      ) + 1,
     );
     void recordTaxProductEvent({
       eventType: "tax_calendar_filters_used",
       page: "CALENDAR",
       properties: {
         categoryCount: selectedCategories.length,
-        dateRangeBucket: rangeDays <= 31 ? "UP_TO_31_DAYS" : rangeDays <= 92 ? "32_TO_92_DAYS" : "OVER_92_DAYS",
+        dateRangeBucket:
+          rangeDays <= 31
+            ? "UP_TO_31_DAYS"
+            : rangeDays <= 92
+              ? "32_TO_92_DAYS"
+              : "OVER_92_DAYS",
       },
     });
   }
@@ -694,11 +711,13 @@ export function FiscalCalendarView({
             <p className="font-bold">Información general de la fuente</p>
             <p>
               Los resultados se cargan desde los cinco calendarios iCalendar
-              públicos enlazados por la Agencia Tributaria para estas categorías.
+              públicos enlazados por la Agencia Tributaria para estas
+              categorías.
             </p>
             <p className="mt-2">
-              Se conserva la fecha y el texto publicados por la fuente. Los filtros
-              no determinan qué modelos debe presentar cada contribuyente.
+              Se conserva la fecha y el texto publicados por la fuente. Los
+              filtros no determinan qué modelos debe presentar cada
+              contribuyente.
             </p>
             <p className="mt-2">
               «Mis obligaciones» organiza los eventos mediante la última foto
@@ -716,8 +735,8 @@ export function FiscalCalendarView({
               Vista del calendario
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">
-              Elige entre todos los vencimientos o una vista organizada según
-              tu diagnóstico y los modelos que hayas añadido manualmente.
+              Elige entre todos los vencimientos o una vista organizada según tu
+              diagnóstico y los modelos que hayas añadido manualmente.
             </p>
           </div>
           <div className="space-y-3">
@@ -728,14 +747,16 @@ export function FiscalCalendarView({
               mineLabel="Mis obligaciones"
               mineCount={
                 personalizationAvailable
-                  ? obligationView.status === "ORIENTATIVE"
-                    ? obligationView.recommendedEventIds.size
-                    : obligationView.visibleEventIds.size
+                  ? obligationView.mineModelCodes.size
                   : 0
               }
               allCount={events.length}
               mineDisabled={!personalizationAvailable}
             />
+            <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
+              «Mis obligaciones» cuenta modelos únicos, no el número de
+              vencimientos que generan.
+            </p>
             {!appReady ? (
               <p
                 className="text-sm text-slate-600 dark:text-slate-300"
@@ -769,11 +790,11 @@ export function FiscalCalendarView({
                     aria-hidden="true"
                   />
                   <p>
-                    <strong>Calendario recomendado orientativo.</strong>{" "}
-                    Muestra los modelos probablemente necesarios, posibles,
-                    pendientes de información y los que hayas añadido. La
-                    vista «Todos» conserva siempre el calendario completo.
-                    Revisa o actualiza tu foto en{" "}
+                    <strong>Calendario recomendado orientativo.</strong> Muestra
+                    los modelos probablemente necesarios, posibles, pendientes
+                    de información y los que hayas añadido. La vista «Todos»
+                    conserva siempre el calendario completo. Revisa o actualiza
+                    tu foto en{" "}
                     <Link
                       href="/consultor-fiscal/diagnostico"
                       className="font-bold underline underline-offset-2 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
@@ -831,8 +852,8 @@ export function FiscalCalendarView({
               id="fiscal-calendar-category-help"
               className="mt-1 max-w-3xl text-sm leading-5 text-slate-600 dark:text-slate-400"
             >
-              La AEAT publica «Renta», «Renta y Sociedades» y «Sociedades»
-              como calendarios separados. «Renta y Sociedades» es su categoría
+              La AEAT publica «Renta», «Renta y Sociedades» y «Sociedades» como
+              calendarios separados. «Renta y Sociedades» es su categoría
               conjunta, no una repetición.
             </p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">

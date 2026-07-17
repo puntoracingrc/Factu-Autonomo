@@ -1,11 +1,5 @@
 import type { TaxModelDiagnosticSession } from "@/lib/tax-model-diagnostic/contracts";
-import {
-  buildTaxModelRecommendationsV1,
-  normalizeTaxObligationModelCode,
-  selectStoredTaxObligationsAssessment,
-  type TaxModelRecommendationItemV1,
-  type TaxObligationModelCode,
-} from "@/lib/tax-obligations";
+import { selectStoredTaxObligationsAssessment } from "@/lib/tax-obligations";
 
 import { extractFiscalCalendarModelCodes } from "./model-reference-links";
 import type { FiscalCalendarEvent } from "./types";
@@ -14,28 +8,19 @@ export const MAX_RENDERED_FISCAL_CALENDAR_DESCRIPTION_LINES = 100;
 
 export type FiscalCalendarDescriptionScope = "ALL" | "MINE";
 export type FiscalCalendarObligationViewStatus =
-  | "ALL_ONLY"
-  | "ORIENTATIVE"
-  | "PERSONALIZED";
-
-interface FiscalCalendarLineRecommendation {
-  engineRecommendationStatus: TaxModelRecommendationItemV1["engineRecommendationStatus"];
-  manuallySelected: boolean;
-}
+  "ALL_ONLY" | "ORIENTATIVE" | "PERSONALIZED";
 
 export interface FiscalCalendarDescriptionFilterContext {
   enabled: boolean;
   fiscalYear: number | null;
-  recommendations: ReadonlyMap<
-    TaxObligationModelCode,
-    FiscalCalendarLineRecommendation
-  >;
+  mineModelCodes: ReadonlySet<string>;
+  resolvableModelCodes: ReadonlySet<string>;
 }
 
 export interface FiscalCalendarDescriptionLine {
   sourceIndex: number;
   text: string;
-  modelCode: TaxObligationModelCode | null;
+  modelCode: string | null;
 }
 
 export interface FiscalCalendarDescriptionView {
@@ -62,27 +47,12 @@ function eventYearInMadrid(event: FiscalCalendarEvent): number | null {
   return Number.isInteger(year) ? year : null;
 }
 
-function normalizedManualModelCodes(
-  manualModelCodes: readonly string[],
-): readonly TaxObligationModelCode[] {
-  return [
-    ...new Set(
-      manualModelCodes.flatMap((code) => {
-        const normalized = normalizeTaxObligationModelCode(code);
-        return normalized ? [normalized] : [];
-      }),
-    ),
-  ];
-}
-
 function disabledContext(): FiscalCalendarDescriptionFilterContext {
   return Object.freeze({
     enabled: false,
     fiscalYear: null,
-    recommendations: new Map<
-      TaxObligationModelCode,
-      FiscalCalendarLineRecommendation
-    >(),
+    mineModelCodes: new Set<string>(),
+    resolvableModelCodes: new Set<string>(),
   });
 }
 
@@ -92,12 +62,14 @@ function disabledContext(): FiscalCalendarDescriptionFilterContext {
  */
 export function buildFiscalCalendarDescriptionFilterContext({
   session,
-  manualModelCodes = [],
   obligationViewStatus,
+  mineModelCodes,
+  resolvableModelCodes,
 }: {
   session: TaxModelDiagnosticSession | null | undefined;
-  manualModelCodes?: readonly string[];
   obligationViewStatus: FiscalCalendarObligationViewStatus;
+  mineModelCodes: ReadonlySet<string>;
+  resolvableModelCodes: ReadonlySet<string>;
 }): FiscalCalendarDescriptionFilterContext {
   if (obligationViewStatus === "ALL_ONLY") return disabledContext();
 
@@ -113,28 +85,11 @@ export function buildFiscalCalendarDescriptionFilterContext({
     return disabledContext();
   }
 
-  const snapshot = buildTaxModelRecommendationsV1({
-    assessment,
-    manualModelCodes: normalizedManualModelCodes(manualModelCodes),
-  });
-  const recommendations = new Map<
-    TaxObligationModelCode,
-    FiscalCalendarLineRecommendation
-  >(
-    snapshot.recommendations.map((recommendation) => [
-      recommendation.modelCode,
-      Object.freeze({
-        engineRecommendationStatus:
-          recommendation.engineRecommendationStatus,
-        manuallySelected: recommendation.manuallySelected,
-      }),
-    ]),
-  );
-
   return Object.freeze({
     enabled: true,
     fiscalYear: assessment.fiscalYear,
-    recommendations,
+    mineModelCodes: new Set(mineModelCodes),
+    resolvableModelCodes: new Set(resolvableModelCodes),
   });
 }
 
@@ -166,10 +121,10 @@ function fullDescriptionView(
 }
 
 /**
- * Groups only an explicit, single, known model whose underlying engine result
- * is UNLIKELY_REQUIRED and which the user has not selected manually. Grouping
- * is reversible presentation: every source line remains in `allLines` and
- * either `directLines` or `otherModelLines`.
+ * Groups only an explicit, single model resolved by Calendar's canonical
+ * Model-page links and absent from the user's recommended/manual model set.
+ * Grouping is reversible presentation: every source line remains in
+ * `allLines` and either `directLines` or `otherModelLines`.
  */
 export function buildFiscalCalendarDescriptionView({
   event,
@@ -200,21 +155,17 @@ export function buildFiscalCalendarDescriptionView({
       continue;
     }
 
-    const modelCode = normalizeTaxObligationModelCode(candidates[0]);
-    if (!modelCode) {
+    const modelCode = candidates[0];
+    if (!context.resolvableModelCodes.has(modelCode)) {
       directLines.push(line);
       continue;
     }
 
-    const recommendation = context.recommendations.get(modelCode);
     const identifiedLine = Object.freeze({ ...line, modelCode });
-    if (
-      recommendation?.engineRecommendationStatus === "UNLIKELY_REQUIRED" &&
-      !recommendation.manuallySelected
-    ) {
-      otherModelLines.push(identifiedLine);
-    } else {
+    if (context.mineModelCodes.has(modelCode)) {
       directLines.push(identifiedLine);
+    } else {
+      otherModelLines.push(identifiedLine);
     }
   }
 

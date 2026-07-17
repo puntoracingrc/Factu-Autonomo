@@ -45,6 +45,7 @@ export interface FiscalCalendarObligationView {
   status: "ALL_ONLY" | "ORIENTATIVE" | "PERSONALIZED";
   fallbackReason: FiscalCalendarObligationFallbackReason | null;
   decisions: readonly FiscalCalendarEventObligationDecision[];
+  mineModelCodes: ReadonlySet<string>;
   visibleEventIds: ReadonlySet<string>;
   recommendedEventIds: ReadonlySet<string>;
   reviewEventIds: ReadonlySet<string>;
@@ -124,6 +125,7 @@ function fallbackView(
     status: "ALL_ONLY",
     fallbackReason: reason,
     decisions: Object.freeze(decisions),
+    mineModelCodes: frozenSet([]),
     visibleEventIds: frozenSet(events.map((event) => event.id)),
     recommendedEventIds: frozenSet(events.map((event) => event.id)),
     reviewEventIds: frozenSet([]),
@@ -280,11 +282,19 @@ export function buildFiscalCalendarObligationView({
   const assessment = selectStoredTaxObligationsAssessment(session);
   if (!assessment) return fallbackView(events, "NO_PUBLISHED_ASSESSMENT");
   const pendingReason = orientativeReason(assessment);
-  const exclusionAuthorized =
-    isTaxObligationExclusionAuthorized(assessment);
+  const exclusionAuthorized = isTaxObligationExclusionAuthorized(assessment);
+  const manual = new Set(
+    manualModelCodes.flatMap((code) => {
+      if (typeof code !== "string") return [];
+      const normalized = code.trim().toUpperCase();
+      return /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/.test(normalized)
+        ? [normalized]
+        : [];
+    }),
+  );
   const recommendationSnapshot = buildTaxModelRecommendationsV1({
     assessment,
-    manualModelCodes,
+    manualModelCodes: [...manual],
   });
   const recommendations = new Map(
     recommendationSnapshot.recommendations.map((recommendation) => [
@@ -303,13 +313,15 @@ export function buildFiscalCalendarObligationView({
       },
     ]),
   );
-  const manual = new Set(
-    manualModelCodes.filter(
-      (code): code is string =>
-        typeof code === "string" &&
-        /^(?:\d{2,3}|\d{2}[A-Z]|[A-Z]\d{2})$/.test(code),
-    ),
-  );
+  const mineModelCodes = new Set<string>(manual);
+  for (const recommendation of recommendationSnapshot.recommendations) {
+    if (
+      recommendation.manuallySelected ||
+      recommendation.engineRecommendationStatus !== "UNLIKELY_REQUIRED"
+    ) {
+      mineModelCodes.add(recommendation.modelCode);
+    }
+  }
   const decisions = events.map((event) =>
     decisionForEvent({
       event,
@@ -341,6 +353,7 @@ export function buildFiscalCalendarObligationView({
     status: exclusionAuthorized ? "PERSONALIZED" : "ORIENTATIVE",
     fallbackReason: pendingReason,
     decisions: Object.freeze(decisions),
+    mineModelCodes: frozenSet([...mineModelCodes]),
     visibleEventIds: frozenSet(visible),
     recommendedEventIds: frozenSet(recommended),
     reviewEventIds: frozenSet(review),

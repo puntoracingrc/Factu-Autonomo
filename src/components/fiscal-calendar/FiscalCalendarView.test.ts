@@ -66,9 +66,7 @@ describe("contrato de interfaz del calendario fiscal", () => {
     expect(componentSource).toContain(
       "La AEAT publica «Renta», «Renta y Sociedades» y «Sociedades»",
     );
-    expect(componentSource).toContain(
-      "«Renta y Sociedades» es su categoría",
-    );
+    expect(componentSource).toContain("«Renta y Sociedades» es su categoría");
     expect(componentSource).toContain("conjunta, no una repetición");
     expect(componentSource).toContain(
       'aria-describedby="fiscal-calendar-category-help"',
@@ -126,8 +124,16 @@ describe("contrato de interfaz del calendario fiscal", () => {
       "normalizeFiscalAdvisoryModelPreferencesV1",
     );
     expect(componentSource).toContain('mineLabel="Mis obligaciones"');
-    expect(componentSource).toContain('groupLabel="Elegir vista del calendario"');
-    expect(componentSource).toContain("mineDisabled={!personalizationAvailable}");
+    expect(componentSource).toContain("obligationView.mineModelCodes.size");
+    expect(componentSource).toContain(
+      "«Mis obligaciones» cuenta modelos únicos",
+    );
+    expect(componentSource).toContain(
+      'groupLabel="Elegir vista del calendario"',
+    );
+    expect(componentSource).toContain(
+      "mineDisabled={!personalizationAvailable}",
+    );
     expect(componentSource).toContain("Abrir diagnóstico");
     expect(componentSource).toContain("Calendario recomendado orientativo.");
     expect(componentSource).toContain("Puede afectarte · por confirmar");
@@ -137,9 +143,11 @@ describe("contrato de interfaz del calendario fiscal", () => {
       "orientationPriorityEventIds.has(event.id)",
     );
     expect(componentSource).toContain(
-      "vista «Todos» conserva siempre el calendario completo",
+      "conserva siempre el calendario completo",
     );
-    expect(componentSource).toContain('obligationView.status === "ORIENTATIVE"');
+    expect(componentSource).toContain(
+      'obligationView.status === "ORIENTATIVE"',
+    );
     expect(componentSource).toContain("orientationPriorityEventIds");
     expect(componentSource).toContain("relacionados destacados");
     expect(componentSource).toContain(
@@ -155,8 +163,9 @@ describe("contrato de interfaz del calendario fiscal", () => {
       "buildFiscalCalendarDescriptionFilterContext",
     );
     expect(componentSource).toContain(
-      "Otros modelos publicados por la AEAT",
+      "resolvableModelCodes: new Set(modelLinks.keys())",
     );
+    expect(componentSource).toContain("Otros modelos publicados por la AEAT");
     expect(componentSource).toContain(
       'aria-label="Detalle visible del vencimiento"',
     );
@@ -183,9 +192,7 @@ describe("contrato de interfaz del calendario fiscal", () => {
 
     expect(componentSource).toContain("createFiscalCalendarReminderDraft");
     expect(componentSource).toContain("storeFiscalCalendarReminderDraft");
-    expect(componentSource).toContain(
-      "FISCAL_CALENDAR_REMINDER_TARGET_HREF",
-    );
+    expect(componentSource).toContain("FISCAL_CALENDAR_REMINDER_TARGET_HREF");
     expect(componentSource).toContain("Crear recordatorio");
     expect(componentSource).toContain(
       "No hemos podido preparar el recordatorio",
