@@ -172,8 +172,7 @@ export interface FiscalNotificationVerticalSliceReviewDocumentV1 {
 }
 
 export type FiscalNotificationReviewFamilyIdV9 =
-  | FiscalNotificationDocumentFamilyIdV3
-  | AeatOfficialCatalogProfileIdV9;
+  FiscalNotificationDocumentFamilyIdV3 | AeatOfficialCatalogProfileIdV9;
 
 export interface FiscalNotificationVerticalSliceReviewV1 {
   readonly schemaVersion: 1;
@@ -351,12 +350,10 @@ const SEIZURE_SPECIFIC_LABEL: Readonly<
   TRANSFER_RECEIPT: "Justificante del ingreso",
 });
 
-const FAMILY_IDS = new Set<FiscalNotificationReviewFamilyIdV9>(
-  [
-    ...FISCAL_NOTIFICATION_DOCUMENT_FAMILY_IDS_V3,
-    ...AEAT_OFFICIAL_CATALOG_PROFILE_IDS_V9,
-  ],
-);
+const FAMILY_IDS = new Set<FiscalNotificationReviewFamilyIdV9>([
+  ...FISCAL_NOTIFICATION_DOCUMENT_FAMILY_IDS_V3,
+  ...AEAT_OFFICIAL_CATALOG_PROFILE_IDS_V9,
+]);
 const EXTRACTOR_IDS = new Set<BaseExtractorIdV1>(BASE_EXTRACTOR_IDS_V1);
 const REFERENCE_TYPES = new Set(Object.keys(REFERENCE_LABEL));
 const MONEY_TYPES = new Set([
@@ -1605,9 +1602,12 @@ function isControlledFieldLabel(value: string): boolean {
     AEAT_P0_DEEP_REVIEW_CONTROLLED_LABELS_V10.includes(value) ||
     value === "Título y anclas estructurales" ||
     AEAT_P0_DEEP_PROFILES_V10.some((profile) =>
-      profile.canonicalFields.some((field) => field.labelVariants.includes(value)),
+      profile.canonicalFields.some((field) =>
+        field.labelVariants.includes(value),
+      ),
     )
-  ) return true;
+  )
+    return true;
   if (REAL_CORPUS_SAFE_LABELS_V2.has(value)) return true;
   if (
     [
@@ -1660,11 +1660,16 @@ function isControlledFieldLabel(value: string): boolean {
       "Total del plan",
       "Forma prevista de pago",
       "Referencia de la diligencia",
+      "Número de liquidación",
+      "Fecha de la diligencia",
       "Fecha del embargo",
       "Deuda pendiente",
       "Importe embargado",
       "Total pendiente",
+      "Límite del embargo",
       "Importe remitido al Tesoro",
+      "Destinatario",
+      "Bien afectado",
       "Destinatario operativo",
       "Modelo periódico citado",
       "Modelo anual esperado",
@@ -1929,57 +1934,105 @@ function assertAeatP0DeepSerializableFieldPrivacyV10(
   const semantic = String(item.semantic);
   const canonicalType = String(item.canonicalType);
   const display = String(item.displayValue);
-  const normalized = typeof item.normalizedValue === "string" ? item.normalizedValue : null;
+  const normalized =
+    typeof item.normalizedValue === "string" ? item.normalizedValue : null;
   if (fieldId === "p0-v10:recognition:0") {
     const familyId = normalized?.slice("P0_V10:".length) ?? null;
     if (
-      semantic !== "DETAIL" || canonicalType !== "FACT_OR_GROUND" ||
+      semantic !== "DETAIL" ||
+      canonicalType !== "FACT_OR_GROUND" ||
       display !== "Estructura oficial reconocida" ||
-      !normalized?.startsWith("P0_V10:") || !isAeatP0DeepProfileIdV10(familyId)
-    ) throw invalidReview();
+      !normalized?.startsWith("P0_V10:") ||
+      !isAeatP0DeepProfileIdV10(familyId)
+    )
+      throw invalidReview();
     return true;
   }
   const match = /^p0-v10:([A-Z][A-Z0-9_]{0,159}):\d+$/u.exec(fieldId);
-  if (!match || !AEAT_P0_DEEP_PROFILES_V10.some((profile) => profile.canonicalFields.some((field) => field.id === match[1]))) {
+  if (
+    !match ||
+    !AEAT_P0_DEEP_PROFILES_V10.some((profile) =>
+      profile.canonicalFields.some((field) => field.id === match[1]),
+    )
+  ) {
     throw invalidReview();
   }
   if (semantic === "REFERENCE") {
-    if (normalized === null || display !== normalized || safeOfficialReference(canonicalType as ReferenceTypeV1, normalized) !== normalized) throw invalidReview();
+    if (
+      normalized === null ||
+      display !== normalized ||
+      safeOfficialReference(canonicalType as ReferenceTypeV1, normalized) !==
+        normalized
+    )
+      throw invalidReview();
     return true;
   }
   if (semantic === "MASKED_VALUE") {
-    if (canonicalType !== "MASKED_ACCOUNT" || display !== "CSV protegido" || !/^sha256:[0-9a-f]{64}$/u.test(normalized ?? "")) throw invalidReview();
+    if (
+      canonicalType !== "MASKED_ACCOUNT" ||
+      display !== "CSV protegido" ||
+      !/^sha256:[0-9a-f]{64}$/u.test(normalized ?? "")
+    )
+      throw invalidReview();
     return true;
   }
   if (semantic === "DATE") {
-    if (normalized === null || !isValidIsoDate(normalized) || display !== formatIsoDate(normalized)) throw invalidReview();
+    if (
+      normalized === null ||
+      !isValidIsoDate(normalized) ||
+      display !== formatIsoDate(normalized)
+    )
+      throw invalidReview();
     return true;
   }
   if (semantic === "MONEY") {
-    if (normalized !== null || !/^\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(display)) throw invalidReview();
+    if (normalized !== null || !/^\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(display))
+      throw invalidReview();
     return true;
   }
   if (semantic === "STATUS") {
-    if (canonicalType !== "DOCUMENT_STATUS" || normalized === null || !/^[A-Z][A-Z0-9_]{0,159}$/u.test(normalized)) throw invalidReview();
+    if (
+      canonicalType !== "DOCUMENT_STATUS" ||
+      normalized === null ||
+      !/^[A-Z][A-Z0-9_]{0,159}$/u.test(normalized)
+    )
+      throw invalidReview();
     return true;
   }
   if (semantic === "DETAIL") {
-    if (canonicalType !== "FACT_OR_GROUND" || normalized === null) throw invalidReview();
+    if (canonicalType !== "FACT_OR_GROUND" || normalized === null)
+      throw invalidReview();
     if (/^P0_V10_ENUM:[A-Z][A-Z0-9_]{0,159}$/u.test(normalized)) {
-      const expected = normalized.slice("P0_V10_ENUM:".length).replaceAll("_", " ").toLocaleLowerCase("es-ES");
+      const expected = normalized
+        .slice("P0_V10_ENUM:".length)
+        .replaceAll("_", " ")
+        .toLocaleLowerCase("es-ES");
       if (display !== expected) throw invalidReview();
       return true;
     }
-    if (/^P0_V10_TIME:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/u.test(normalized)) {
-      if (display !== normalized.slice("P0_V10_TIME:".length)) throw invalidReview();
+    if (
+      /^P0_V10_TIME:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/u.test(normalized)
+    ) {
+      if (display !== normalized.slice("P0_V10_TIME:".length))
+        throw invalidReview();
       return true;
     }
     if (/^P0_V10_DURATION:P(?:\d{1,4}[DM]|T\d{1,4}H)$/u.test(normalized)) {
-      if (!/^\d{1,4} (?:día|días|mes|meses|hora|horas)$/u.test(display)) throw invalidReview();
+      if (!/^\d{1,4} (?:día|días|mes|meses|hora|horas)$/u.test(display))
+        throw invalidReview();
       return true;
     }
-    if (!/^(?:P0_V10:[A-Z][A-Z0-9_]{0,159}|TRUE|FALSE|\d{1,6})$/u.test(normalized)) throw invalidReview();
-    if (!(display === "Detectado en el documento" || display === "Sí" || display === "No" || /^\d{1,6}$/u.test(display))) throw invalidReview();
+    if (
+      !/^(?:P0_V10:[A-Z][A-Z0-9_]{0,159}|TRUE|FALSE|\d{1,6})$/u.test(normalized)
+    )
+      throw invalidReview();
+    if (!(
+      display === "Detectado en el documento" ||
+      display === "Sí" ||
+      display === "No" ||
+      /^\d{1,6}$/u.test(display)
+    ))
+      throw invalidReview();
     return true;
   }
   throw invalidReview();
@@ -2101,11 +2154,11 @@ const REAL_CORPUS_EXPLANATIONS_V3 = new Set([
   "Mantén saldo suficiente para cada vencimiento y revisa por separado cualquier cuota que ya estuviera vencida al notificarse el acuerdo.",
   "Cada cuota tiene su propia fecha. El plazo de diez días del texto solo aplica a cuotas ya vencidas o que venzan dentro de ese período y no hayan podido cargarse.",
   "El impago de una cuota puede iniciar o continuar el apremio y, según el caso, anticipar el vencimiento de cuotas pendientes.",
-  "La AEAT ha dictado una diligencia que afecta saldos bancarios para cobrar una deuda en ejecutiva.",
-  "El anexo identifica la deuda y el importe que el documento declara embargado.",
-  "Comprueba la deuda de origen, el importe y la fecha de recepción. Los motivos de oposición a la diligencia son limitados.",
-  "El recurso se cuenta desde la recepción, no desde la fecha de la diligencia ni la firma.",
-  "La entidad puede retener e ingresar fondos hasta el límite indicado, pero la diligencia no prueba que ya se hayan remitido al Tesoro.",
+  "La AEAT ha ordenado embargar dinero de una o varias cuentas o depósitos para cobrar una deuda que ya está en vía ejecutiva.",
+  "La tabla identifica la deuda pendiente; el límite indica cuánto puede alcanzar la orden y cada fila de cuenta muestra cuánto declara embargado el documento.",
+  "Comprueba que reconoces la deuda y los importes. Si ya estaba pagada, suspendida, aplazada o existe otra causa de oposición, revisa el expediente antes de actuar.",
+  "El plazo para recurrir empieza con la notificación efectiva, no con la fecha impresa, la firma ni el día en que subiste el PDF.",
+  "El banco puede retener fondos hasta el límite ordenado. Esta diligencia no demuestra por sí sola que el banco ya los haya transferido al Tesoro ni que la deuda haya quedado extinguida.",
   "Es un recordatorio informativo sobre una declaración anual que la AEAT espera por los modelos periódicos presentados.",
   "Indica el modelo y ejercicio, pero no acredita que falte la presentación ni que exista una sanción o deuda.",
   "Comprueba si el modelo anual ya fue presentado y conserva su justificante.",
@@ -2210,6 +2263,38 @@ function assertRealCorpusSerializableFieldPrivacyV3(
     }
     return true;
   }
+  if (/^real-corpus-v3:RECIPIENT_ROLE:\d+$/u.test(fieldId)) {
+    const role =
+      /^V3:TEXT:RECIPIENT_ROLE:(PRIMARY_DEBTOR|FINANCIAL_ENTITY)$/u.exec(
+        normalized,
+      )?.[1];
+    if (
+      !role ||
+      display !==
+        (role === "PRIMARY_DEBTOR" ? "Obligado al pago" : "Entidad financiera")
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (/^real-corpus-v3:ASSET_KIND:\d+$/u.test(fieldId)) {
+    if (
+      normalized !== "V3:TEXT:ASSET_KIND:BANK_ACCOUNT_OR_DEPOSIT" ||
+      display !== "Cuenta o depósito"
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (/^real-corpus-v3:OPAQUE_ASSET_ORDINAL:\d+$/u.test(fieldId)) {
+    const ordinal = /^V3:INTEGER:OPAQUE_ASSET_ORDINAL:([1-9]\d*)$/u.exec(
+      normalized,
+    )?.[1];
+    if (!ordinal || display !== `Cuenta o depósito ${ordinal}`) {
+      throw invalidReview();
+    }
+    return true;
+  }
   const closed = /^V3:TEXT:[A-Z0-9_]+:([A-Z0-9_]+)$/u.exec(normalized);
   if (closed) {
     if (
@@ -2275,33 +2360,49 @@ function assertRealCorpusSerializableFieldPrivacyV4(
     if (
       display !== "Título, autoridad y estructura coinciden" ||
       normalized !== "V4:EXACT_TITLE_AUTHORITY_STRUCTURE"
-    ) throw invalidReview();
+    )
+      throw invalidReview();
     return true;
   }
   if (fieldId === "real-corpus-v4:payment-form-status") {
     if (
-      display !== "Sirve para pagar; no acredita que el pago se haya realizado" ||
+      display !==
+        "Sirve para pagar; no acredita que el pago se haya realizado" ||
       normalized !== "V4:PAYMENT_FORM_ONLY"
-    ) throw invalidReview();
+    )
+      throw invalidReview();
     return true;
   }
-  if (/^real-corpus-v4:explanation:(?:what_is|action|deadline|consequence)$/u.test(fieldId)) {
+  if (
+    /^real-corpus-v4:explanation:(?:what_is|action|deadline|consequence)$/u.test(
+      fieldId,
+    )
+  ) {
     if (
-      !/^V4:EXPLANATION:(?:identity\.clave_registration_receipt|seizure\.release|assessment\.final_provisional_assessment|seizure\.compliance_reiteration|assessment\.allegations_and_proposal|seizure\.commercial_credits|seizure\.bank_account|collection\.enforcement_order|collection\.deferral_grant|seizure\.movable_asset):(?:WHAT_IS|ACTION|DEADLINE|CONSEQUENCE)$/u.test(normalized) ||
+      !/^V4:EXPLANATION:(?:identity\.clave_registration_receipt|seizure\.release|assessment\.final_provisional_assessment|seizure\.compliance_reiteration|assessment\.allegations_and_proposal|seizure\.commercial_credits|seizure\.bank_account|collection\.enforcement_order|collection\.deferral_grant|seizure\.movable_asset):(?:WHAT_IS|ACTION|DEADLINE|CONSEQUENCE)$/u.test(
+        normalized,
+      ) ||
       !REAL_CORPUS_EXPLANATION_TEXT_V4.has(display)
-    ) throw invalidReview();
+    )
+      throw invalidReview();
     return true;
   }
   if (/^real-corpus-v4:installment:\d+$/u.test(fieldId)) {
     if (
-      !/^V4:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):-?\d+:-?\d+:-?\d+$/u.test(normalized) ||
-      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal -?\d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés -?\d{1,3}(?:\.\d{3})*,\d{2}\s€ · total -?\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(display)
-    ) throw invalidReview();
+      !/^V4:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):-?\d+:-?\d+:-?\d+$/u.test(
+        normalized,
+      ) ||
+      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal -?\d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés -?\d{1,3}(?:\.\d{3})*,\d{2}\s€ · total -?\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
+        display,
+      )
+    )
+      throw invalidReview();
     return true;
   }
   const closed = /^V4:TEXT:[A-Z0-9_]+:([A-Z0-9_]+)$/u.exec(normalized);
   if (closed) {
-    if (!REAL_CORPUS_CLOSED_VALUES_V4.has(closed[1]!) || display !== closed[1]) throw invalidReview();
+    if (!REAL_CORPUS_CLOSED_VALUES_V4.has(closed[1]!) || display !== closed[1])
+      throw invalidReview();
     return true;
   }
   if (/^V4:BOOLEAN:[A-Z0-9_]+:(?:TRUE|FALSE)$/u.test(normalized)) {
@@ -2446,7 +2547,8 @@ function assertRealCorpusSerializableFieldPrivacyV6(
     if (
       display !== "Título, autoridad y estructura coinciden" ||
       normalized !== "V6:EXACT_TITLE_AUTHORITY_STRUCTURE"
-    ) throw invalidReview();
+    )
+      throw invalidReview();
     return true;
   }
   if (fieldId === "real-corpus-v6:payment-form-status") {
@@ -2454,7 +2556,8 @@ function assertRealCorpusSerializableFieldPrivacyV6(
       display !==
         "Sirve para pagar; sus copias son una sola operación y no acreditan el pago" ||
       normalized !== "V6:PAYMENT_FORM_ONLY"
-    ) throw invalidReview();
+    )
+      throw invalidReview();
     return true;
   }
   if (
@@ -2467,7 +2570,8 @@ function assertRealCorpusSerializableFieldPrivacyV6(
         normalized,
       ) ||
       !REAL_CORPUS_EXPLANATION_TEXT_V6.has(display)
-    ) throw invalidReview();
+    )
+      throw invalidReview();
     return true;
   }
   if (/^real-corpus-v6:installment:\d+$/u.test(fieldId)) {
@@ -2478,7 +2582,8 @@ function assertRealCorpusSerializableFieldPrivacyV6(
       !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés \d{1,3}(?:\.\d{3})*,\d{2}\s€ · total \d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
         display,
       )
-    ) throw invalidReview();
+    )
+      throw invalidReview();
     return true;
   }
   const closed = /^V6:TEXT:[A-Z0-9_]+:([A-Z0-9_]+)$/u.exec(normalized);
@@ -2544,31 +2649,48 @@ function assertRealCorpusSerializableFieldPrivacyV7(
     if (
       display !== "Título, autoridad y estructura coinciden" ||
       normalized !== "V7:EXACT_TITLE_AUTHORITY_STRUCTURE"
-    ) throw invalidReview();
+    )
+      throw invalidReview();
     return true;
   }
   if (fieldId === "real-corpus-v7:payment-form-status") {
     if (
-      display !== "Las copias representan una sola operación y no acreditan el pago" ||
+      display !==
+        "Las copias representan una sola operación y no acreditan el pago" ||
       normalized !== "V7:PAYMENT_FORM_ONE_OPERATION_NOT_PAYMENT"
-    ) throw invalidReview();
+    )
+      throw invalidReview();
     return true;
   }
-  if (/^real-corpus-v7:explanation:(?:what_is|action|deadline|consequence)$/u.test(fieldId)) {
+  if (
+    /^real-corpus-v7:explanation:(?:what_is|action|deadline|consequence)$/u.test(
+      fieldId,
+    )
+  ) {
     if (
-      !/^V7:EXPLANATION:(?:sanction\.initiation_and_hearing|compliance\.formal_filing_requirement|seizure\.bank_account|collection\.enforcement_order|collection\.offset_ex_officio|registry\.tax_registration_resolution|collection\.deferral_grant|collection\.offset_requested|collection\.deferral_modification|collection\.external_debt|compliance\.document_request|assessment\.final_provisional_assessment):(?:WHAT_IS|ACTION|DEADLINE|CONSEQUENCE)$/u.test(normalized) ||
+      !/^V7:EXPLANATION:(?:sanction\.initiation_and_hearing|compliance\.formal_filing_requirement|seizure\.bank_account|collection\.enforcement_order|collection\.offset_ex_officio|registry\.tax_registration_resolution|collection\.deferral_grant|collection\.offset_requested|collection\.deferral_modification|collection\.external_debt|compliance\.document_request|assessment\.final_provisional_assessment):(?:WHAT_IS|ACTION|DEADLINE|CONSEQUENCE)$/u.test(
+        normalized,
+      ) ||
       !REAL_CORPUS_EXPLANATION_TEXT_V7.has(display)
-    ) throw invalidReview();
+    )
+      throw invalidReview();
     return true;
   }
   if (/^real-corpus-v7:installment:\d+$/u.test(fieldId)) {
     if (
-      !/^V7:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):\d+:\d+:\d+$/u.test(normalized) ||
-      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d+(?:\.\d{3})*,\d{2}\s€ · interés \d+(?:\.\d{3})*,\d{2}\s€ · total \d+(?:\.\d{3})*,\d{2}\s€$/u.test(display)
-    ) throw invalidReview();
+      !/^V7:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):\d+:\d+:\d+$/u.test(
+        normalized,
+      ) ||
+      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d+(?:\.\d{3})*,\d{2}\s€ · interés \d+(?:\.\d{3})*,\d{2}\s€ · total \d+(?:\.\d{3})*,\d{2}\s€$/u.test(
+        display,
+      )
+    )
+      throw invalidReview();
     return true;
   }
-  const syntheticReference = /^V7:SYNTHETIC_REFERENCE:(SYN-[A-Z0-9-]+)$/u.exec(normalized);
+  const syntheticReference = /^V7:SYNTHETIC_REFERENCE:(SYN-[A-Z0-9-]+)$/u.exec(
+    normalized,
+  );
   if (syntheticReference) {
     if (display !== syntheticReference[1]) throw invalidReview();
     return true;

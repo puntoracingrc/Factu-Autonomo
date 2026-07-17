@@ -94,12 +94,66 @@ function deferralSource(input: {
   );
 }
 
+function bankSeizureSource(input: {
+  id: string;
+  title?: string;
+  debtHeader?: string;
+  accountsHeader?: string;
+  recipientText?: string;
+  debtKey?: string;
+  pending?: string;
+  total?: string;
+  limit?: string;
+  seizedAmounts?: readonly string[];
+}): BoundedDocumentInput {
+  const seizedAmounts = input.seizedAmounts ?? ["276,00"];
+  return document(
+    input.id,
+    pages(6, {
+      1: `${AEAT}\n${input.title ?? "NOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE CUENTAS Y DEPÓSITOS"}\nNúmero de diligencia: SYN-SEIZURE-D11\nFecha de la diligencia: 24-10-2025\n${input.recipientText ?? "Se le notifica en condición de OBLIGADO AL PAGO"}`,
+      2: "Información sobre recursos y oposición",
+      3: "Continuación de la diligencia",
+      5: [
+        "DEUDAS DEL EXPEDIENTE EJECUTIVO",
+        `CONCEPTO | PER/EJER | ${input.debtHeader ?? "Nº LIQUIDACIÓN"} | IMP. PENDIENTE`,
+        `IVA sintético | 4T/2024 | ${input.debtKey ?? "SYN-DEBT-D11"} | ${input.pending ?? "276,00"} EUR`,
+        `IMPORTE PENDIENTE TOTAL: ${input.total ?? "276,00"} EUR`,
+        `IMPORTE A EMBARGAR: ${input.limit ?? "276,00"} EUR`,
+        input.accountsHeader ?? "DEPÓSITOS Y CUENTAS",
+        "IDENTIFICADOR INTERNO | IMPORTE EMBARGADO",
+        ...seizedAmounts.map(
+          (amount, index) => `ACTIVO-${index + 1} | ${amount} EUR`,
+        ),
+        "IBAN ES0012345678901234567890",
+        "Banco Privado Sintético",
+      ].join("\n"),
+    }),
+    [4, 6],
+  );
+}
+
 function fieldAmount(
   outcome: RealCorpusExtractorOutcomeV3,
   code: string,
 ): number | null {
   const item = outcome.fields.find((candidate) => candidate.fieldCode === code);
   return item?.kind === "MONEY" ? item.amountCents : null;
+}
+
+function fieldText(
+  outcome: RealCorpusExtractorOutcomeV3,
+  code: string,
+): string | null {
+  const item = outcome.fields.find((candidate) => candidate.fieldCode === code);
+  return item?.kind === "TEXT" ? item.value : null;
+}
+
+function fieldReference(
+  outcome: RealCorpusExtractorOutcomeV3,
+  code: string,
+): string | null {
+  const item = outcome.fields.find((candidate) => candidate.fieldCode === code);
+  return item?.kind === "REFERENCE" ? item.value : null;
 }
 
 describe("AEAT real corpus extractor V3", () => {
@@ -364,25 +418,178 @@ describe("AEAT real corpus extractor V3", () => {
     expect(result.installments).toHaveLength(3);
   });
 
-  it("extracts seized amount without inventing a remitted amount", async () => {
+  it("extracts the real six-page Nº LIQUIDACIÓN structure without inventing a transfer", async () => {
     const result = await extractAeatRealCorpusDocumentV3(
-      document(
-        "SYN-V3-BANK-SEIZURE-D",
-        pages(6, {
-          1: `${AEAT}\nNOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE CUENTAS Y DEPÓSITOS\nNúmero de diligencia: SYN-SEIZURE-D\nFecha de la diligencia: 24-10-2025`,
-          5: "ANEXO DEUDA Y CUENTA\nClave de liquidación: A9999900010004004\nDeuda pendiente: 276,00 EUR\nImporte embargado: 276,00 EUR\nImporte remitido al Tesoro: 276,00 EUR\nIBAN ES0012345678901234567890\nBanco Privado Sintético",
-        }),
-        [4, 6],
-      ),
+      bankSeizureSource({ id: "SYN-V3-BANK-SEIZURE-D11" }),
     );
     expect(result.familyId).toBe("seizure.bank_account");
+    expect(fieldReference(result, "SEIZURE_ORDER_ID")).toBe("SYN-SEIZURE-D11");
+    expect(fieldReference(result, "DEBT_KEY")).toBe("SYN-DEBT-D11");
+    expect(fieldAmount(result, "PENDING_DEBT")).toBe(27600);
+    expect(fieldAmount(result, "PENDING_DEBT_TOTAL")).toBe(27600);
+    expect(fieldAmount(result, "SEIZURE_LIMIT")).toBe(27600);
     expect(fieldAmount(result, "SEIZED_AMOUNT")).toBe(27600);
+    expect(fieldText(result, "RECIPIENT_ROLE")).toBe("PRIMARY_DEBTOR");
+    expect(fieldText(result, "ASSET_KIND")).toBe("BANK_ACCOUNT_OR_DEPOSIT");
     expect(
       result.fields.some((item) => item.fieldCode === "REMITTED_AMOUNT"),
     ).toBe(false);
     expect(JSON.stringify(result)).not.toContain("ES0012345678901234567890");
     expect(JSON.stringify(result)).not.toContain("Banco Privado Sintético");
     expect(result.contentPageCount).toBe(4);
+  });
+
+  it.each([
+    "NÚMERO LIQUIDACIÓN",
+    "NUMERO LIQUIDACION",
+    "Nº LIQUIDACIÓN",
+    "N.º LIQUIDACIÓN",
+  ])(
+    "accepts the official liquidation header variant %s",
+    async (debtHeader) => {
+      const result = await extractAeatRealCorpusDocumentV3(
+        bankSeizureSource({ id: `SYN-V3-BANK-${debtHeader}`, debtHeader }),
+      );
+      expect(result.familyId).toBe("seizure.bank_account");
+      expect(fieldReference(result, "DEBT_KEY")).toBe("SYN-DEBT-D11");
+    },
+  );
+
+  it("keeps the historical cuentas bancarias title and block compatible", async () => {
+    const result = await extractAeatRealCorpusDocumentV3(
+      bankSeizureSource({
+        id: "SYN-V3-BANK-HISTORICAL",
+        title: "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+        debtHeader: "CLAVE DE LIQUIDACIÓN",
+        accountsHeader: "CUENTAS BANCARIAS",
+      }),
+    );
+    expect(result.familyId).toBe("seizure.bank_account");
+    expect(fieldReference(result, "DEBT_KEY")).toBe("SYN-DEBT-D11");
+  });
+
+  it("uses the financial-entity role only for the separate recipient variant", async () => {
+    const result = await extractAeatRealCorpusDocumentV3(
+      bankSeizureSource({
+        id: "SYN-V3-BANK-FINANCIAL-RECIPIENT",
+        recipientText: "Notificación dirigida a la entidad financiera",
+      }),
+    );
+    expect(result.familyId).toBe("seizure.bank_account");
+    expect(fieldText(result, "RECIPIENT_ROLE")).toBe("FINANCIAL_ENTITY");
+  });
+
+  it("keeps multiple accounts separate by ordinal without retaining identifiers", async () => {
+    const result = await extractAeatRealCorpusDocumentV3(
+      bankSeizureSource({
+        id: "SYN-V3-BANK-MULTI-ASSET",
+        seizedAmounts: ["200,00", "76,00"],
+      }),
+    );
+    expect(
+      result.fields
+        .filter((item) => item.fieldCode === "SEIZED_AMOUNT")
+        .map((item) => (item.kind === "MONEY" ? item.amountCents : null)),
+    ).toEqual([20000, 7600]);
+    expect(
+      result.fields
+        .filter((item) => item.fieldCode === "OPAQUE_ASSET_ORDINAL")
+        .map((item) => (item.kind === "TEXT" ? item.value : null)),
+    ).toEqual(["1", "2"]);
+    expect(JSON.stringify(result)).not.toContain("ACTIVO-1");
+    expect(JSON.stringify(result)).not.toContain("ACTIVO-2");
+  });
+
+  it("does not classify an isolated debt-and-account annex", async () => {
+    const result = await extractAeatRealCorpusDocumentV3(
+      document(
+        "SYN-V3-BANK-ANNEX-ONLY",
+        pages(6, {
+          5: `${AEAT}\nDEUDAS DEL EXPEDIENTE EJECUTIVO\nCONCEPTO | PER/EJER | Nº LIQUIDACIÓN | IMP. PENDIENTE\nIVA | 4T/2024 | SYN-DEBT-D11 | 276,00 EUR\nIMPORTE PENDIENTE TOTAL: 276,00 EUR\nIMPORTE A EMBARGAR: 276,00 EUR\nDEPÓSITOS Y CUENTAS\nCUENTA | IMPORTE EMBARGADO\nACTIVO-1 | 276,00 EUR`,
+        }),
+        [1, 2, 3, 4, 6],
+      ),
+    );
+    expect(result.status).toBe("UNKNOWN");
+    expect(result.familyId).toBeNull();
+  });
+
+  it("does not confuse a commercial-credit seizure with a bank seizure", async () => {
+    const source = bankSeizureSource({ id: "SYN-V3-COMMERCIAL-CREDIT" });
+    const changed = Object.freeze({
+      ...source,
+      pages: Object.freeze(
+        source.pages.map((page) =>
+          page.pageNumber === 1
+            ? Object.freeze({
+                ...page,
+                text: `${AEAT}\nDILIGENCIA DE EMBARGO DE CRÉDITOS COMERCIALES\nNúmero de diligencia: SYN-SEIZURE-D11\nFecha de la diligencia: 24-10-2025`,
+              })
+            : page,
+        ),
+      ),
+    });
+    const result = await extractAeatRealCorpusDocumentV3(changed);
+    expect(result.status).toBe("UNKNOWN");
+    expect(result.familyId).toBeNull();
+  });
+
+  it("requires the complete six-page structure and every strong structural anchor", async () => {
+    const source = bankSeizureSource({ id: "SYN-V3-BANK-STRICT-SHAPE" });
+    const fivePages = Object.freeze({
+      ...source,
+      pages: Object.freeze(source.pages.slice(0, 5)),
+    });
+    const sevenPages = Object.freeze({
+      ...source,
+      pages: Object.freeze([
+        ...source.pages,
+        Object.freeze({ pageNumber: 7, text: "Apéndice", isBlank: false }),
+      ]),
+    });
+    const missingLimit = Object.freeze({
+      ...source,
+      pages: Object.freeze(
+        source.pages.map((page) =>
+          page.pageNumber === 5
+            ? Object.freeze({
+                ...page,
+                text: page.text.replace(
+                  "IMPORTE A EMBARGAR: 276,00 EUR",
+                  "Dato no identificado: 276,00 EUR",
+                ),
+              })
+            : page,
+        ),
+      ),
+    });
+
+    for (const candidate of [fivePages, sevenPages, missingLimit]) {
+      const result = await extractAeatRealCorpusDocumentV3(candidate);
+      expect(result.status).toBe("UNKNOWN");
+      expect(result.familyId).toBeNull();
+    }
+  });
+
+  it("extracts a remitted amount only when a later bank response or proof says so", async () => {
+    const source = bankSeizureSource({ id: "SYN-V3-BANK-REMITTED-PROOF" });
+    const withProof = Object.freeze({
+      ...source,
+      pages: Object.freeze(
+        source.pages.map((page) =>
+          page.pageNumber === 3
+            ? Object.freeze({
+                ...page,
+                text: `${page.text}\nRESPUESTA DE LA ENTIDAD FINANCIERA\nImporte remitido al Tesoro: 276,00 EUR`,
+              })
+            : page,
+        ),
+      ),
+    });
+    const result = await extractAeatRealCorpusDocumentV3(withProof);
+    expect(result.familyId).toBe("seizure.bank_account");
+    expect(fieldAmount(result, "REMITTED_AMOUNT")).toBe(27_600);
+    expect(result.confirmsPayment).toBe(false);
   });
 
   it("treats the bilingual reminder as one act and no formal requirement", async () => {
@@ -590,6 +797,49 @@ describe("AEAT real corpus extractor V3", () => {
     expect(persisted.permitsDebtCreation).toBe(false);
   });
 
+  it("runs the real bank-seizure structure through Worker analysis and the review boundary", async () => {
+    const analysis = await analyzeFiscalNotificationDocumentInput(
+      bankSeizureSource({ id: "SYN-V3-BANK-SEIZURE-PIPELINE" }),
+    );
+    const persisted = parseFiscalNotificationVerticalSliceReviewV1(
+      JSON.parse(JSON.stringify(analysis.verticalSliceReview)),
+    );
+    const seizures = persisted.documents.filter(
+      (item) => item.familyId === "seizure.bank_account",
+    );
+    expect(seizures).toHaveLength(1);
+    expect(seizures[0]?.pageFrom).toBe(1);
+    expect(seizures[0]?.pageTo).toBe(6);
+    expect(seizures[0]?.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalType: "SEIZURE_ORDER_ID",
+          displayValue: "SYN-SEIZURE-D11",
+        }),
+        expect.objectContaining({
+          canonicalType: "LIQUIDATION_KEY",
+          displayValue: "SYN-DEBT-D11",
+        }),
+        expect.objectContaining({
+          canonicalType: "SEIZURE_LIMIT",
+          amountCents: 27_600,
+        }),
+        expect.objectContaining({
+          canonicalType: "SEIZED_AMOUNT",
+          amountCents: 27_600,
+        }),
+        expect.objectContaining({
+          canonicalType: "SEIZURE_RECIPIENT_ROLE",
+          displayValue: "Obligado al pago",
+        }),
+      ]),
+    );
+    expect(JSON.stringify(persisted)).not.toContain("ES0012345678901234567890");
+    expect(JSON.stringify(persisted)).not.toContain("Banco Privado Sintético");
+    expect(persisted.permitsDebtCreation).toBe(false);
+    expect(persisted.permitsPaymentAction).toBe(false);
+  });
+
   it("projects all eight V3 families through the same UI and persistence contract", async () => {
     const sources: readonly BoundedDocumentInput[] = [
       enforcementSource({
@@ -616,14 +866,14 @@ describe("AEAT real corpus extractor V3", () => {
           },
         ],
       }),
-      document(
-        "SYN-V3-UI-SEIZURE",
-        pages(6, {
-          1: `${AEAT}\nNOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE CUENTAS Y DEPÓSITOS\nNúmero de diligencia: SYN-SEIZURE-UI\nFecha de la diligencia: 24-10-2025`,
-          5: "Clave de liquidación: A9999900010008008\nDeuda pendiente: 144,00 EUR\nImporte embargado: 144,00 EUR",
-        }),
-        [4, 6],
-      ),
+      bankSeizureSource({
+        id: "SYN-V3-UI-SEIZURE",
+        debtKey: "A9999900010008008",
+        pending: "144,00",
+        total: "144,00",
+        limit: "144,00",
+        seizedAmounts: ["144,00"],
+      }),
       document(
         "SYN-V3-UI-REMINDER",
         pages(6, {

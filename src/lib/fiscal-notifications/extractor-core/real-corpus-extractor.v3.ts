@@ -10,7 +10,7 @@ import type {
 
 export const REAL_CORPUS_EXTRACTOR_SCHEMA_VERSION_V3 = 3 as const;
 export const REAL_CORPUS_EXTRACTOR_VERSION_V3 =
-  "aeat-real-corpus-extractor.2026-07-17.v3" as const;
+  "aeat-real-corpus-extractor.2026-07-17.v3.1" as const;
 
 export const REAL_CORPUS_FAMILY_IDS_V3 = Object.freeze([
   "collection.enforcement_order",
@@ -128,6 +128,16 @@ interface DocumentIndexV3 {
   readonly blankPageNumbers: readonly number[];
 }
 
+interface BankSeizureDebtRowV3 {
+  readonly debtKey: Readonly<{ value: string; pageNumber: number }>;
+  readonly pendingDebt: Readonly<{ value: string; pageNumber: number }>;
+}
+
+interface BankSeizureAssetRowV3 {
+  readonly ordinal: number;
+  readonly seizedAmount: Readonly<{ value: string; pageNumber: number }>;
+}
+
 const CONTROL = /[\u0000-\u001f\u007f-\u009f]/u;
 const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/u;
 const SPANISH_DATE = /^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/u;
@@ -164,15 +174,15 @@ const EXPLANATIONS: Readonly<
   }),
   "seizure.bank_account": Object.freeze({
     whatIs:
-      "La AEAT ha dictado una diligencia que afecta saldos bancarios para cobrar una deuda en ejecutiva.",
+      "La AEAT ha ordenado embargar dinero de una o varias cuentas o depósitos para cobrar una deuda que ya está en vía ejecutiva.",
     result:
-      "El anexo identifica la deuda y el importe que el documento declara embargado.",
+      "La tabla identifica la deuda pendiente; el límite indica cuánto puede alcanzar la orden y cada fila de cuenta muestra cuánto declara embargado el documento.",
     action:
-      "Comprueba la deuda de origen, el importe y la fecha de recepción. Los motivos de oposición a la diligencia son limitados.",
+      "Comprueba que reconoces la deuda y los importes. Si ya estaba pagada, suspendida, aplazada o existe otra causa de oposición, revisa el expediente antes de actuar.",
     deadline:
-      "El recurso se cuenta desde la recepción, no desde la fecha de la diligencia ni la firma.",
+      "El plazo para recurrir empieza con la notificación efectiva, no con la fecha impresa, la firma ni el día en que subiste el PDF.",
     consequence:
-      "La entidad puede retener e ingresar fondos hasta el límite indicado, pero la diligencia no prueba que ya se hayan remitido al Tesoro.",
+      "El banco puede retener fondos hasta el límite ordenado. Esta diligencia no demuestra por sí sola que el banco ya los haya transferido al Tesoro ni que la deuda haya quedado extinguida.",
   }),
   "information.model_filing_reminder": Object.freeze({
     whatIs:
@@ -330,6 +340,103 @@ function lineValue(
   return null;
 }
 
+function tableCells(line: IndexedLineV3): readonly string[] {
+  return Object.freeze(line.raw.split("|").map((cell) => cell.trim()));
+}
+
+function isLiquidationNumberHeader(value: string): boolean {
+  const normalized = normalize(value).replace(/[^A-Z0-9]/gu, "");
+  return (
+    normalized === "NLIQUIDACION" ||
+    normalized === "NOLIQUIDACION" ||
+    normalized === "NUMLIQUIDACION" ||
+    normalized === "NUMEROLIQUIDACION" ||
+    normalized === "CLAVEDELIQUIDACION" ||
+    normalized === "CLAVEDEDEUDA"
+  );
+}
+
+function isPendingAmountHeader(value: string): boolean {
+  const normalized = normalize(value).replace(/[^A-Z0-9]/gu, "");
+  return (
+    normalized === "IMPPENDIENTE" ||
+    normalized === "IMPORTEPENDIENTE" ||
+    normalized === "DEUDAPENDIENTE"
+  );
+}
+
+function bankSeizureDebtRow(
+  index: DocumentIndexV3,
+): BankSeizureDebtRowV3 | null {
+  for (let position = 0; position < index.lines.length - 1; position += 1) {
+    const header = index.lines[position]!;
+    const headers = tableCells(header);
+    const debtColumn = headers.findIndex(isLiquidationNumberHeader);
+    const pendingColumn = headers.findIndex(isPendingAmountHeader);
+    if (debtColumn < 0 || pendingColumn < 0) continue;
+    const row = index.lines[position + 1]!;
+    if (row.pageNumber !== header.pageNumber) continue;
+    const cells = tableCells(row);
+    const debtKey = safeReference(cells[debtColumn] ?? "");
+    const pendingDebt = parseMoney(cells[pendingColumn] ?? "");
+    if (!debtKey || pendingDebt === null || pendingDebt < 0) continue;
+    return Object.freeze({
+      debtKey: Object.freeze({ value: debtKey, pageNumber: row.pageNumber }),
+      pendingDebt: Object.freeze({
+        value: cells[pendingColumn]!,
+        pageNumber: row.pageNumber,
+      }),
+    });
+  }
+  return null;
+}
+
+function bankSeizureAssetRows(
+  index: DocumentIndexV3,
+): readonly BankSeizureAssetRowV3[] {
+  const rows: BankSeizureAssetRowV3[] = [];
+  for (let position = 0; position < index.lines.length - 1; position += 1) {
+    const header = index.lines[position]!;
+    const headers = tableCells(header);
+    const amountColumn = headers.findIndex(
+      (cell) =>
+        normalize(cell).replace(/[^A-Z0-9]/gu, "") === "IMPORTEEMBARGADO",
+    );
+    if (amountColumn < 0) continue;
+    for (
+      let rowPosition = position + 1;
+      rowPosition < index.lines.length;
+      rowPosition += 1
+    ) {
+      const row = index.lines[rowPosition]!;
+      if (row.pageNumber !== header.pageNumber) break;
+      const cells = tableCells(row);
+      const rawAmount = cells[amountColumn];
+      if (!rawAmount || parseMoney(rawAmount) === null) break;
+      rows.push(
+        Object.freeze({
+          ordinal: rows.length + 1,
+          seizedAmount: Object.freeze({
+            value: rawAmount,
+            pageNumber: row.pageNumber,
+          }),
+        }),
+      );
+    }
+    if (rows.length > 0) break;
+  }
+  if (rows.length === 0) {
+    const fallback = lineValue(index, [
+      "Importe embargado",
+      "Cantidad embargada",
+    ]);
+    if (fallback && parseMoney(fallback.value) !== null) {
+      rows.push(Object.freeze({ ordinal: 1, seizedAmount: fallback }));
+    }
+  }
+  return Object.freeze(rows);
+}
+
 function markerValue(
   index: DocumentIndexV3,
   markers: readonly string[],
@@ -484,6 +591,15 @@ function textField(
     value,
     evidence: evidence(pageNumber),
   });
+}
+
+function integerField(
+  code: string,
+  label: string,
+  value: number,
+  pageNumber: number,
+): RealCorpusFieldV2 {
+  return textField(code, label, String(value), pageNumber);
 }
 
 function booleanField(
@@ -1007,15 +1123,48 @@ function bankSeizure(
     hasLinePrefix(
       index,
       "NOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE CUENTAS Y DEPÓSITOS",
-    ) || hasLinePrefix(index, "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS");
+    ) ||
+    hasLinePrefix(
+      index,
+      "NOTIFICACIÓN AL DEUDOR DE DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+    ) ||
+    hasLinePrefix(index, "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS");
+  const seizureOrder = lineValue(index, [
+    "Número de diligencia",
+    "Nº de diligencia",
+    "Nº diligencia",
+    "Referencia de la diligencia",
+  ]);
+  const seizureDate = lineValue(index, [
+    "Fecha de la diligencia",
+    "Fecha del embargo",
+  ]);
+  const debtRow = bankSeizureDebtRow(index);
+  const pendingDebtTotal = lineValue(index, [
+    "Importe pendiente total",
+    "Total pendiente",
+    "Deuda pendiente total",
+  ]);
+  const seizureLimit = lineValue(index, [
+    "Importe a embargar",
+    "Límite del embargo",
+  ]);
+  const assetRows = bankSeizureAssetRows(index);
+  const hasAccountsBlock =
+    contains(index, "DEPÓSITOS Y CUENTAS") ||
+    contains(index, "CUENTAS BANCARIAS");
   if (
     !exactTitle ||
-    document.pages.length < 5 ||
-    !contains(index, "EMBARG") ||
-    (!contains(index, "CLAVE DE LIQUIDACIÓN") &&
-      !contains(index, "CLAVE DE DEUDA")) ||
-    (!contains(index, "IMPORTE EMBARGADO") &&
-      !contains(index, "CANTIDAD EMBARGADA"))
+    document.pages.length !== 6 ||
+    !isAeat(index) ||
+    !seizureOrder ||
+    !seizureDate ||
+    !contains(index, "DEUDAS DEL EXPEDIENTE EJECUTIVO") ||
+    !debtRow ||
+    !pendingDebtTotal ||
+    !seizureLimit ||
+    !hasAccountsBlock ||
+    assetRows.length === 0
   ) {
     return null;
   }
@@ -1031,40 +1180,39 @@ function bankSeizure(
     referenceField(
       "SEIZURE_ORDER_ID",
       "Referencia de la diligencia",
-      lineValue(index, [
-        "Número de diligencia",
-        "Referencia de la diligencia",
-        "Diligencia",
-      ]),
+      seizureOrder,
     ),
-    dateField(
-      "SEIZURE_DATE",
-      "Fecha del embargo",
-      lineValue(index, ["Fecha de la diligencia", "Fecha del embargo"]),
-    ),
-    referenceField(
-      "DEBT_KEY",
-      "Clave de deuda",
-      lineValue(index, ["Clave de liquidación", "Clave de deuda"]),
-    ),
-    moneyField(
-      "PENDING_DEBT",
-      "Deuda pendiente",
-      lineValue(index, ["Deuda pendiente", "Importe pendiente"]),
-    ),
-    moneyField(
-      "SEIZED_AMOUNT",
-      "Importe embargado",
-      lineValue(index, ["Importe embargado", "Cantidad embargada"]),
-    ),
+    dateField("SEIZURE_DATE", "Fecha de la diligencia", seizureDate),
+    referenceField("DEBT_KEY", "Número de liquidación", debtRow.debtKey),
+    moneyField("PENDING_DEBT", "Deuda pendiente", debtRow.pendingDebt),
+    moneyField("PENDING_DEBT_TOTAL", "Total pendiente", pendingDebtTotal),
+    moneyField("SEIZURE_LIMIT", "Límite del embargo", seizureLimit),
+    ...assetRows.flatMap((asset) => [
+      integerField(
+        "OPAQUE_ASSET_ORDINAL",
+        "Cuenta o depósito",
+        asset.ordinal,
+        asset.seizedAmount.pageNumber,
+      ),
+      moneyField("SEIZED_AMOUNT", "Importe embargado", asset.seizedAmount),
+    ]),
     ...(remitted
       ? [moneyField("REMITTED_AMOUNT", "Importe remitido al Tesoro", remitted)]
       : []),
     textField(
       "RECIPIENT_ROLE",
-      "Destinatario operativo",
-      "FINANCIAL_ENTITY",
+      "Destinatario",
+      contains(index, "CONDICIÓN DE OBLIGADO AL PAGO") ||
+        contains(index, "CONDICION DE OBLIGADO AL PAGO")
+        ? "PRIMARY_DEBTOR"
+        : "FINANCIAL_ENTITY",
       1,
+    ),
+    textField(
+      "ASSET_KIND",
+      "Bien afectado",
+      "BANK_ACCOUNT_OR_DEPOSIT",
+      assetRows[0]!.seizedAmount.pageNumber,
     ),
     dateField(
       "SIGNING_DATE",

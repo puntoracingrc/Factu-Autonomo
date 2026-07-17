@@ -169,7 +169,9 @@ function analysis(): FiscalNotificationLocalAnalysisResult {
   });
 }
 
-function analysisWithHash(sha256: string): FiscalNotificationLocalAnalysisResult {
+function analysisWithHash(
+  sha256: string,
+): FiscalNotificationLocalAnalysisResult {
   const value = analysis();
   return Object.freeze({
     ...value,
@@ -204,10 +206,77 @@ async function seizureAnalysis(): Promise<FiscalNotificationLocalAnalysisResult>
   value.ephemeralEnforcementMoneyFacts = null;
   value.ephemeralEnforcementExplicitFields = null;
   value.ephemeralEnforcementPartyFacts = null;
-  value.ephemeralVerticalSliceReview = projectFiscalNotificationVerticalSliceReviewV1(
-    await analyzeFiscalNotificationVerticalSliceV1(input),
-  );
-  return Object.freeze(value) as unknown as FiscalNotificationLocalAnalysisResult;
+  value.ephemeralVerticalSliceReview =
+    projectFiscalNotificationVerticalSliceReviewV1(
+      await analyzeFiscalNotificationVerticalSliceV1(input),
+    );
+  return Object.freeze(
+    value,
+  ) as unknown as FiscalNotificationLocalAnalysisResult;
+}
+
+async function realSixPageBankSeizureAnalysis(
+  debtKey = "SYN-DEBT-D11",
+): Promise<FiscalNotificationLocalAnalysisResult> {
+  const pageTexts = [
+    [
+      "AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA",
+      "NOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE CUENTAS Y DEPÓSITOS",
+      "Número de diligencia: SYN-SEIZURE-D11",
+      "Fecha de la diligencia: 24-10-2025",
+      "Se le notifica en condición de OBLIGADO AL PAGO",
+    ].join("\n"),
+    "Información sobre recursos y oposición",
+    "Continuación de la diligencia",
+    "",
+    [
+      "DEUDAS DEL EXPEDIENTE EJECUTIVO",
+      "CONCEPTO | PER/EJER | Nº LIQUIDACIÓN | IMP. PENDIENTE",
+      `IVA sintético | 4T/2024 | ${debtKey} | 276,00 EUR`,
+      "IMPORTE PENDIENTE TOTAL: 276,00 EUR",
+      "IMPORTE A EMBARGAR: 276,00 EUR",
+      "DEPÓSITOS Y CUENTAS",
+      "IDENTIFICADOR INTERNO | IMPORTE EMBARGADO",
+      "ACTIVO-1 | 276,00 EUR",
+      "IBAN ES0012345678901234567890",
+      "Banco Privado Sintético",
+    ].join("\n"),
+    "",
+  ];
+  const input: BoundedDocumentInput = Object.freeze({
+    ownerScope: OWNER,
+    documentId: "notification-review:synthetic-seizure-save-v3-d11",
+    pages: Object.freeze(
+      pageTexts.map((text, index) =>
+        Object.freeze({
+          pageNumber: index + 1,
+          text,
+          isBlank: text.length === 0,
+        }),
+      ),
+    ),
+  });
+  const analyzed = await analyzeFiscalNotificationDocumentInput(input);
+  const value = structuredClone(analysis()) as unknown as {
+    technicalReview: FiscalNotificationLocalReviewResult;
+    ephemeralEnforcementMoneyFacts: FiscalNotificationLocalAnalysisResult["ephemeralEnforcementMoneyFacts"];
+    ephemeralEnforcementExplicitFields: FiscalNotificationLocalAnalysisResult["ephemeralEnforcementExplicitFields"];
+    ephemeralEnforcementPartyFacts: FiscalNotificationLocalAnalysisResult["ephemeralEnforcementPartyFacts"];
+    ephemeralVerticalSliceReview?: unknown;
+  };
+  value.technicalReview = Object.freeze({
+    ...value.technicalReview,
+    pageCount: 6,
+    byteLength: 8_192,
+    sha256: "f".repeat(64),
+  });
+  value.ephemeralEnforcementMoneyFacts = null;
+  value.ephemeralEnforcementExplicitFields = null;
+  value.ephemeralEnforcementPartyFacts = null;
+  value.ephemeralVerticalSliceReview = analyzed.verticalSliceReview;
+  return Object.freeze(
+    value,
+  ) as unknown as FiscalNotificationLocalAnalysisResult;
 }
 
 function deferralAnalysis(): FiscalNotificationLocalAnalysisResult {
@@ -369,7 +438,10 @@ function commandInput(options?: {
     options?.persistStatus === "blocked"
       ? ({ status: "blocked", reason: "write_failed" } as const)
       : options?.persistStatus === "indeterminate"
-        ? ({ status: "indeterminate", reason: "storage_state_unknown" } as const)
+        ? ({
+            status: "indeterminate",
+            reason: "storage_state_unknown",
+          } as const)
         : ({ status: "applied" } as const),
   );
   const commit = <T>(
@@ -408,7 +480,9 @@ describe("structured fiscal notification save command v1", () => {
     if (result.status !== "applied") return;
     expect(result.replayed).toBe(false);
     expect(result.value.status).toBe("APPLIED");
-    expect(result.data.fiscalNotificationsWorkspace?.documents[0]).toMatchObject({
+    expect(
+      result.data.fiscalNotificationsWorkspace?.documents[0],
+    ).toMatchObject({
       titleRaw: "Providencia de apremio AEAT",
       subjectParty: {
         displayName: "PERSONA SINTETICA",
@@ -416,8 +490,8 @@ describe("structured fiscal notification save command v1", () => {
       },
     });
     expect(
-      result.data.fiscalNotificationsWorkspace?.analysisSnapshots[0]?.structuredData
-        .administrativeDomain?.moneyFacts,
+      result.data.fiscalNotificationsWorkspace?.analysisSnapshots[0]
+        ?.structuredData.administrativeDomain?.moneyFacts,
     ).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -521,8 +595,14 @@ describe("structured fiscal notification save command v1", () => {
     ).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ kind: "CREDIT_TOTAL", amountCents: 102_000 }),
-        expect.objectContaining({ kind: "TOTAL_BEFORE_OFFSET", amountCents: 90_000 }),
-        expect.objectContaining({ kind: "REMAINING_AFTER_OFFSET", amountCents: 0 }),
+        expect.objectContaining({
+          kind: "TOTAL_BEFORE_OFFSET",
+          amountCents: 90_000,
+        }),
+        expect.objectContaining({
+          kind: "REMAINING_AFTER_OFFSET",
+          amountCents: 0,
+        }),
       ]),
     );
     expect(workspace?.debts).toEqual([]);
@@ -540,7 +620,9 @@ describe("structured fiscal notification save command v1", () => {
       current: { ...expected, customers: [{ id: "changed" }] as never },
     });
 
-    expect(runSaveFiscalNotificationStructuredReviewCommandV1(input.value)).toEqual({
+    expect(
+      runSaveFiscalNotificationStructuredReviewCommandV1(input.value),
+    ).toEqual({
       status: "blocked",
       reason: "stale_precondition",
     });
@@ -550,7 +632,9 @@ describe("structured fiscal notification save command v1", () => {
   it("propaga un estado de almacenamiento indeterminado sin afirmar guardado", () => {
     const input = commandInput({ persistStatus: "indeterminate" });
 
-    expect(runSaveFiscalNotificationStructuredReviewCommandV1(input.value)).toEqual({
+    expect(
+      runSaveFiscalNotificationStructuredReviewCommandV1(input.value),
+    ).toEqual({
       status: "indeterminate",
       reason: "storage_state_unknown",
     });
@@ -568,7 +652,9 @@ describe("structured fiscal notification save command v1", () => {
       ownerScope: FOREIGN_OWNER,
     });
 
-    expect(runSaveFiscalNotificationStructuredReviewCommandV1(foreign.value)).toEqual({
+    expect(
+      runSaveFiscalNotificationStructuredReviewCommandV1(foreign.value),
+    ).toEqual({
       status: "blocked",
       reason: "invalid_structured_review",
     });
@@ -617,9 +703,9 @@ describe("structured fiscal notification save command v1", () => {
     expect(secondResult.status).toBe("applied");
     if (secondResult.status !== "applied") return;
     expect(second.persist).toHaveBeenCalledTimes(1);
-    expect(secondResult.data.fiscalNotificationsWorkspace?.documents).toHaveLength(
-      2,
-    );
+    expect(
+      secondResult.data.fiscalNotificationsWorkspace?.documents,
+    ).toHaveLength(2);
     expect(secondResult.data.fiscalNotificationsWorkspace?.relations).toEqual([
       expect.objectContaining({
         relationType: "POSSIBLY_RELATED",
@@ -668,6 +754,85 @@ describe("structured fiscal notification save command v1", () => {
       accountingDrafts: [],
     });
     expect(JSON.stringify(secondResult.data)).not.toContain(SEIZURE_TEXT);
+  });
+
+  it("persists the real six-page bank seizure without bank data or operational effects", async () => {
+    const input = commandInput();
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1({
+      ...input.value,
+      reviewId: "review:00000000-0000-4000-8000-000000000077",
+      createdAt: "2026-07-14T10:04:00.000Z",
+      analysis: await realSixPageBankSeizureAnalysis(),
+    });
+
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    const workspace = result.data.fiscalNotificationsWorkspace;
+    expect(workspace?.documents).toEqual([
+      expect.objectContaining({
+        documentType: "AEAT_SEIZURE_ORDER",
+        documentSubtype: "seizure.bank_account",
+        titleRaw: "Embargo de cuenta o depósito",
+      }),
+    ]);
+    expect(
+      workspace?.analysisSnapshots[0]?.structuredData.administrativeDomain
+        ?.moneyFacts,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ amountCents: 27_600 }),
+      ]),
+    );
+    expect(workspace).toMatchObject({
+      debts: [],
+      obligations: [],
+      installments: [],
+      paymentPlans: [],
+      accountingDrafts: [],
+    });
+    const serialized = JSON.stringify(result.data);
+    expect(serialized).toContain("SYN-SEIZURE-D11");
+    expect(serialized).toContain("SYN-DEBT-D11");
+    expect(serialized).not.toContain("Banco Privado Sintético");
+    expect(serialized).not.toContain("ES0012345678901234567890");
+    expect(serialized).not.toContain("ACTIVO-1");
+    expect(input.persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("links the real bank seizure to the previous enforcement order by the same liquidation", async () => {
+    const first = commandInput();
+    const enforcement = runSaveFiscalNotificationStructuredReviewCommandV1(
+      first.value,
+    );
+    expect(enforcement.status).toBe("applied");
+    if (enforcement.status !== "applied") return;
+
+    const second = commandInput({ expected: enforcement.data });
+    const seizure = runSaveFiscalNotificationStructuredReviewCommandV1({
+      ...second.value,
+      reviewId: "review:00000000-0000-4000-8000-000000000078",
+      createdAt: "2026-07-14T10:05:00.000Z",
+      analysis: await realSixPageBankSeizureAnalysis("LQ-SYNTH-071"),
+    });
+
+    expect(seizure.status).toBe("applied");
+    if (seizure.status !== "applied") return;
+    expect(seizure.data.fiscalNotificationsWorkspace?.relations).toEqual([
+      expect.objectContaining({
+        relationType: "ENFORCES",
+        status: "SYSTEM_CONFIRMED_EXACT",
+        confidenceBand: "EXACT",
+        evidence: expect.objectContaining({
+          matchingReferenceTypes: ["LIQUIDATION_KEY"],
+        }),
+      }),
+    ]);
+    expect(seizure.data.fiscalNotificationsWorkspace).toMatchObject({
+      debts: [],
+      obligations: [],
+      paymentPlans: [],
+      accountingDrafts: [],
+    });
   });
 
   it("no guarda una clasificación sin hechos estructurados exactos", () => {
