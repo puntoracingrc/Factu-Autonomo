@@ -234,7 +234,7 @@ export async function buildPartnerDashboard(
       .eq("partner_user_id", input.account.user_id)
       .order("created_at", { ascending: false })
       .limit(20),
-    getOrCreateReferralCode(input.account.user_id),
+    getOrCreateReferralCode(input.account.user_id, admin),
   ]);
   throwPartnerQueryError(payoutResult.error, "partner_payouts");
 
@@ -344,7 +344,7 @@ export async function grantPartnerAccess(
     )
     .single();
   throwPartnerQueryError(error, "partner_grant");
-  await getOrCreateReferralCode(user.id);
+  await getOrCreateReferralCode(user.id, admin);
   return accountSummary(data as PartnerAccountRecord);
 }
 

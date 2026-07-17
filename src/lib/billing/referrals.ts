@@ -1,4 +1,5 @@
 import { randomBytes } from "crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import {
   normalizeReferralCode,
@@ -31,8 +32,11 @@ function isMissingReferralSchemaError(error: { code?: string; message?: string }
   );
 }
 
-export async function getOrCreateReferralCode(userId: string): Promise<string | null> {
-  const admin = getSupabaseAdmin();
+export async function getOrCreateReferralCode(
+  userId: string,
+  adminOverride?: SupabaseClient,
+): Promise<string | null> {
+  const admin = adminOverride ?? getSupabaseAdmin();
   if (!admin) return null;
 
   const { data: existing, error: existingError } = await admin

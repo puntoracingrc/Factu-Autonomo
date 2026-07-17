@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { getOrCreateReferralCode } from "./referrals";
 import {
   buildReferralShareUrl,
   normalizeReferralCode,
@@ -18,5 +19,21 @@ describe("referral codes", () => {
     expect(buildReferralShareUrl("https://app.test", "ABC12XY9")).toBe(
       "https://app.test/configuracion?ref=ABC12XY9",
     );
+  });
+
+  it("uses the explicit server client for Partner links", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: { code: "PARTNER8" },
+      error: null,
+    });
+    const eq = vi.fn().mockReturnValue({ maybeSingle });
+    const select = vi.fn().mockReturnValue({ eq });
+    const from = vi.fn().mockReturnValue({ select });
+
+    await expect(
+      getOrCreateReferralCode("partner-user-id", { from } as never),
+    ).resolves.toBe("PARTNER8");
+    expect(from).toHaveBeenCalledWith("referral_codes");
+    expect(eq).toHaveBeenCalledWith("user_id", "partner-user-id");
   });
 });
