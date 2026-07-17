@@ -25,6 +25,10 @@ describe("Partner UI contracts", () => {
     expect(adminPanelSource).toContain("Pausar");
     expect(adminPanelSource).toContain("Reactivar");
     expect(adminPanelSource).toContain("/api/admin/partners");
+    expect(adminPanelSource).toContain("schemaReady");
+    expect(adminPanelSource).toContain(
+      "La estructura del programa está preparada",
+    );
   });
 
   it("shows only aggregate customer metrics in the Partner dashboard", () => {
