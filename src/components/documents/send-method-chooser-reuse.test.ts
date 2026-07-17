@@ -15,8 +15,9 @@ const modalSource = readFileSync(
 );
 
 describe("shared send method chooser", () => {
-  it("reutiliza el mismo selector en documentos y en el envío al gestor", () => {
+  it("reutiliza el mismo selector en documentos y envíos al gestor o cliente", () => {
     expect(listSource).toContain("SendMethodChooserModal");
+    expect(listSource).toContain("Enviar facturas al cliente");
     expect(documentShareSource).toContain("SendMethodChooserModal");
     expect(modalSource).toContain("Usar siempre este método");
     expect(modalSource).toContain("Podrás cambiarlo en Ajustes, Preferencias.");

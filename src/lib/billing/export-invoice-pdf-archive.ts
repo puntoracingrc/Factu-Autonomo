@@ -1,9 +1,6 @@
 import { zipSync } from "fflate";
 import { buildPdfViewModelForDocument } from "@/lib/document-integrity/pdf-source";
-import {
-  buildDocumentPdfBlob,
-  documentPdfFilename,
-} from "@/lib/pdf";
+import { buildDocumentPdfBlob, documentPdfFilename } from "@/lib/pdf";
 import type { BusinessProfile, Document } from "@/lib/types";
 import { buildInvoicePeriodSummaryPdf } from "./invoice-period-summary-pdf";
 import { selectCanonicalFiscalDocumentsForExport } from "./fiscal-export-documents";
@@ -31,6 +28,7 @@ export interface InvoicePdfExportPeriod {
 
 export type InvoicePdfPeriodExportErrorCode =
   | "invalid_period"
+  | "invalid_selection"
   | "no_invoices"
   | "blocked_documents"
   | "pdf_generation_failed";
@@ -54,14 +52,18 @@ export interface InvoicePdfPeriodArchive {
   invoiceCount: number;
 }
 
+export interface InvoicePdfDocumentSelection {
+  documentIds: string[];
+  fileLabel: string;
+  summaryLabel: string;
+}
+
 interface InvoiceArchiveRecord {
   stored: Document;
   canonical: Document;
 }
 
-function assertInvoicePdfExportPeriod(
-  period: InvoicePdfExportPeriod,
-): void {
+function assertInvoicePdfExportPeriod(period: InvoicePdfExportPeriod): void {
   const validYear =
     Number.isInteger(period.year) && period.year >= 1000 && period.year <= 9999;
   const validMonths =
@@ -163,11 +165,30 @@ export function invoicePdfSummaryFileName(
   return `Resumen Facturas ${invoicePdfExportPackagePeriodLabel(period)}.pdf`;
 }
 
+export function normalizeInvoicePdfSelectionLabel(value: string): string {
+  return (
+    value
+      .normalize("NFC")
+      .replace(/[<>:"/\\|?*\u0000-\u001f]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 90) || "Selección"
+  );
+}
+
+export function invoicePdfSelectionFolderName(fileLabel: string): string {
+  return `Facturas ${normalizeInvoicePdfSelectionLabel(fileLabel)}`;
+}
+
+export function invoicePdfSelectionSummaryFileName(fileLabel: string): string {
+  return `Resumen Facturas ${normalizeInvoicePdfSelectionLabel(fileLabel)}.pdf`;
+}
+
 function isPotentialInvoice(document: Document | undefined): boolean {
   return Boolean(
     document &&
-      (document.type === "factura" ||
-        document.documentSnapshot?.documentType === "factura"),
+    (document.type === "factura" ||
+      document.documentSnapshot?.documentType === "factura"),
   );
 }
 
@@ -179,8 +200,7 @@ function isBlockedInvoiceInPeriod(
   if (!isPotentialInvoice(stored)) return false;
   return [referenceDate, stored?.documentSnapshot?.date, stored?.date].some(
     (date) =>
-      typeof date === "string" &&
-      isDateInInvoicePdfExportPeriod(date, period),
+      typeof date === "string" && isDateInInvoicePdfExportPeriod(date, period),
   );
 }
 
@@ -251,6 +271,13 @@ function selectInvoiceArchiveRecords(
     }))
     .sort(compareArchiveRecords);
 
+  return validateRenderableInvoiceArchiveRecords(records, profile);
+}
+
+function validateRenderableInvoiceArchiveRecords(
+  records: InvoiceArchiveRecord[],
+  profile: BusinessProfile,
+): InvoiceArchiveRecord[] {
   const renderBlocked: string[] = [];
   for (const record of records) {
     try {
@@ -276,6 +303,66 @@ function selectInvoiceArchiveRecords(
   }
 
   return records;
+}
+
+function selectInvoiceArchiveRecordsByDocumentIds(
+  documents: Document[],
+  profile: BusinessProfile,
+  documentIds: string[],
+): InvoiceArchiveRecord[] {
+  const selectedIds = new Set(documentIds.filter(Boolean));
+  if (selectedIds.size === 0) {
+    throw new InvoicePdfPeriodExportError(
+      "invalid_selection",
+      "La búsqueda no contiene facturas para exportar.",
+    );
+  }
+
+  const storedById = new Map(
+    documents.map((document) => [document.id, document]),
+  );
+  const selection = selectCanonicalFiscalDocumentsForExport(
+    documents,
+    profile,
+    () => true,
+  );
+  const blockedReferences = selection.blockedDocuments
+    .filter((blocked) => selectedIds.has(blocked.id))
+    .map((blocked) => blocked.referenceNumber);
+
+  if (blockedReferences.length > 0) {
+    throw new InvoicePdfPeriodExportError(
+      "blocked_documents",
+      "Hay facturas de la selección con integridad pendiente. Revísalas antes de crear el paquete PDF.",
+      [...new Set(blockedReferences)],
+    );
+  }
+
+  const resolvedIds = new Set(
+    selection.documents.map((document) => document.id),
+  );
+  const unresolvedReferences = [...selectedIds]
+    .filter((id) => !resolvedIds.has(id))
+    .map((id) => storedById.get(id)?.number ?? id);
+  if (unresolvedReferences.length > 0) {
+    throw new InvoicePdfPeriodExportError(
+      "invalid_selection",
+      "La selección contiene documentos que no son facturas emitidas exportables.",
+      unresolvedReferences,
+    );
+  }
+
+  const records = selection.documents
+    .filter(
+      (document) => document.type === "factura" && selectedIds.has(document.id),
+    )
+    .map((canonical) => ({
+      canonical,
+      stored: storedById.get(canonical.id) ?? canonical,
+    }))
+    .sort(compareArchiveRecords);
+
+  return validateRenderableInvoiceArchiveRecords(records, profile);
 }
 
 async function renderPdfBytes(
@@ -317,9 +404,49 @@ export async function buildInvoicePdfPeriodArchive(
   period: InvoicePdfExportPeriod,
 ): Promise<InvoicePdfPeriodArchive> {
   const records = selectInvoiceArchiveRecords(documents, profile, period);
-  const pdfBytes = await renderPdfBytes(records, profile);
   const folderName = invoicePdfExportFolderName(period);
   const summaryFileName = invoicePdfSummaryFileName(period);
+  return buildInvoicePdfArchiveFromRecords(
+    records,
+    profile,
+    folderName,
+    summaryFileName,
+    invoicePdfExportPackagePeriodLabel(period),
+  );
+}
+
+export async function buildInvoicePdfSelectionArchive(
+  documents: Document[],
+  profile: BusinessProfile,
+  selection: InvoicePdfDocumentSelection,
+): Promise<InvoicePdfPeriodArchive> {
+  const records = selectInvoiceArchiveRecordsByDocumentIds(
+    documents,
+    profile,
+    selection.documentIds,
+  );
+  const folderName = invoicePdfSelectionFolderName(selection.fileLabel);
+  const summaryFileName = invoicePdfSelectionSummaryFileName(
+    selection.fileLabel,
+  );
+  return buildInvoicePdfArchiveFromRecords(
+    records,
+    profile,
+    folderName,
+    summaryFileName,
+    selection.summaryLabel.trim() ||
+      normalizeInvoicePdfSelectionLabel(selection.fileLabel),
+  );
+}
+
+async function buildInvoicePdfArchiveFromRecords(
+  records: InvoiceArchiveRecord[],
+  profile: BusinessProfile,
+  folderName: string,
+  summaryFileName: string,
+  summaryLabel: string,
+): Promise<InvoicePdfPeriodArchive> {
+  const pdfBytes = await renderPdfBytes(records, profile);
   const files: Record<string, Uint8Array> = {};
   const usedNames = new Map<string, number>();
 
@@ -335,7 +462,7 @@ export async function buildInvoicePdfPeriodArchive(
     const summaryPdf = buildInvoicePeriodSummaryPdf(
       records.map((record) => record.canonical),
       profile,
-      invoicePdfExportPackagePeriodLabel(period),
+      summaryLabel,
     );
     files[`${folderName}/${summaryFileName}`] = new Uint8Array(
       summaryPdf.output("arraybuffer"),
@@ -379,6 +506,20 @@ export async function downloadInvoicePdfPeriodArchive(
     documents,
     profile,
     period,
+  );
+  triggerArchiveDownload(archive.blob, archive.fileName);
+  return archive;
+}
+
+export async function downloadInvoicePdfSelectionArchive(
+  documents: Document[],
+  profile: BusinessProfile,
+  selection: InvoicePdfDocumentSelection,
+): Promise<InvoicePdfPeriodArchive> {
+  const archive = await buildInvoicePdfSelectionArchive(
+    documents,
+    profile,
+    selection,
   );
   triggerArchiveDownload(archive.blob, archive.fileName);
   return archive;

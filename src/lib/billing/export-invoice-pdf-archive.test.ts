@@ -10,10 +10,13 @@ import {
 } from "@/lib/types";
 import {
   buildInvoicePdfPeriodArchive,
+  buildInvoicePdfSelectionArchive,
   invoicePdfExportFolderName,
   invoicePdfExportPackagePeriodLabel,
   invoicePdfExportPeriodFromQuarter,
   invoicePdfExportPeriodLabel,
+  invoicePdfSelectionFolderName,
+  invoicePdfSelectionSummaryFileName,
   invoicePdfSummaryFileName,
   InvoicePdfPeriodExportError,
   isDateInInvoicePdfExportPeriod,
@@ -62,9 +65,14 @@ function draftInvoice(
   };
 }
 
-function issuedInvoice(id: string, number: string, date: string): Document {
+function issuedInvoice(
+  id: string,
+  number: string,
+  date: string,
+  overrides: Partial<Document> = {},
+): Document {
   return issueDocument(
-    draftInvoice(id, number, date),
+    draftInvoice(id, number, date, overrides),
     PROFILE,
     `${date}T10:00:00.000Z`,
   );
@@ -87,9 +95,7 @@ describe("invoice PDF period naming", () => {
     expect(invoicePdfExportFolderName(period)).toBe(
       "Facturas Trimestre 2 2026",
     );
-    expect(invoicePdfExportPackagePeriodLabel(period)).toBe(
-      "Trimestre 2 2026",
-    );
+    expect(invoicePdfExportPackagePeriodLabel(period)).toBe("Trimestre 2 2026");
   });
 
   it("nombra un mes y un rango no trimestral con sus meses", () => {
@@ -124,6 +130,18 @@ describe("invoice PDF period naming", () => {
     expect(
       invoicePdfSummaryFileName(invoicePdfExportPeriodFromQuarter(2026, 2)),
     ).toBe("Resumen Facturas Trimestre 2 2026.pdf");
+  });
+
+  it("crea nombres seguros para una selección de cliente", () => {
+    expect(invoicePdfSelectionFolderName("Catal-pur SL")).toBe(
+      "Facturas Catal-pur SL",
+    );
+    expect(invoicePdfSelectionSummaryFileName("Catal-pur SL")).toBe(
+      "Resumen Facturas Catal-pur SL.pdf",
+    );
+    expect(invoicePdfSelectionFolderName("Cliente: Norte/Sur * 2026")).toBe(
+      "Facturas Cliente Norte Sur 2026",
+    );
   });
 
   it("rechaza rangos invertidos, inválidos o superiores a tres meses", () => {
@@ -287,5 +305,125 @@ describe("invoice PDF period archive", () => {
     );
 
     expect(error).toMatchObject({ code: "no_invoices" });
+  });
+});
+
+describe("invoice PDF customer selection archive", () => {
+  it("incluye todas las facturas seleccionadas aunque pertenezcan a años distintos", async () => {
+    const oldInvoice = issuedInvoice(
+      "customer-old",
+      "Factura/2413/",
+      "2021-08-04",
+      { customerId: "customer-catal" },
+    );
+    const recentInvoice = issuedInvoice(
+      "customer-recent",
+      "F-2026-2956",
+      "2026-07-15",
+      { customerId: "customer-catal" },
+    );
+    const otherCustomer = issuedInvoice(
+      "customer-other",
+      "F-2026-2999",
+      "2026-07-16",
+      { customerId: "customer-other" },
+    );
+
+    const result = await buildInvoicePdfSelectionArchive(
+      [otherCustomer, oldInvoice, recentInvoice],
+      PROFILE,
+      {
+        documentIds: [recentInvoice.id, oldInvoice.id],
+        fileLabel: "Catal-pur SL",
+        summaryLabel: "Cliente Catal-pur SL · todo el historial",
+      },
+    );
+    const files = await archiveFiles(result.blob);
+
+    expect(result).toMatchObject({
+      folderName: "Facturas Catal-pur SL",
+      fileName: "Facturas Catal-pur SL.zip",
+      summaryFileName: "Resumen Facturas Catal-pur SL.pdf",
+      invoiceCount: 2,
+    });
+    expect(Object.keys(files)).toEqual([
+      "Facturas Catal-pur SL/Factura_2413_.pdf",
+      "Facturas Catal-pur SL/F-2026-2956.pdf",
+      "Facturas Catal-pur SL/Resumen Facturas Catal-pur SL.pdf",
+    ]);
+    expect(JSON.stringify(Object.keys(files))).not.toContain("2999");
+  });
+
+  it("bloquea la selección completa si una de sus facturas está corrupta", async () => {
+    const selected = issuedInvoice(
+      "selected-valid",
+      "F-2026-0100",
+      "2026-06-01",
+    );
+    const issued = issuedInvoice(
+      "selected-corrupt",
+      "F-2026-0101",
+      "2026-06-02",
+    );
+    const corrupt: Document = {
+      ...issued,
+      documentSnapshot: {
+        ...issued.documentSnapshot!,
+        items: [{ ...issued.documentSnapshot!.items[0], unitPrice: 999 }],
+      },
+    };
+
+    const error = await captureExportError(() =>
+      buildInvoicePdfSelectionArchive([selected, corrupt], PROFILE, {
+        documentIds: [selected.id, corrupt.id],
+        fileLabel: "Cliente",
+        summaryLabel: "Cliente · selección",
+      }),
+    );
+
+    expect(error).toMatchObject({
+      code: "blocked_documents",
+      documentReferences: ["F-2026-0101"],
+    });
+  });
+
+  it("ignora un documento bloqueado ajeno y rechaza una selección vacía", async () => {
+    const selected = issuedInvoice(
+      "only-selected",
+      "F-2026-0200",
+      "2026-06-01",
+    );
+    const otherIssued = issuedInvoice(
+      "other-corrupt",
+      "F-2026-0201",
+      "2026-06-02",
+    );
+    const otherCorrupt: Document = {
+      ...otherIssued,
+      documentSnapshot: {
+        ...otherIssued.documentSnapshot!,
+        number: "ALTERADA",
+      },
+    };
+
+    const result = await buildInvoicePdfSelectionArchive(
+      [selected, otherCorrupt],
+      PROFILE,
+      {
+        documentIds: [selected.id],
+        fileLabel: "Cliente",
+        summaryLabel: "Cliente · selección",
+      },
+    );
+    expect(result.invoiceCount).toBe(1);
+
+    const error = await captureExportError(() =>
+      buildInvoicePdfSelectionArchive([selected], PROFILE, {
+        documentIds: [],
+        fileLabel: "Cliente",
+        summaryLabel: "Cliente · selección",
+      }),
+    );
+    expect(error).toMatchObject({ code: "invalid_selection" });
   });
 });
