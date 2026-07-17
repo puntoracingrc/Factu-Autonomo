@@ -3,6 +3,7 @@ import {
   STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
   STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
 } from "./structured-review-relation-suggestions.v1";
+import { GLOBAL_RECONCILIATION_RULE_VERSION_V8 } from "./global-reconciliation.v8";
 import {
   FISCAL_NOTIFICATION_DOCUMENT_CHAINS_V2,
   type FiscalNotificationDocumentChainIdV2,
@@ -16,6 +17,7 @@ import {
 import type {
   AdministrativeDocument,
   DocumentRelationType,
+  GlobalReconciliationRelationTypeV8,
   ExternalReference,
   ExternalReferenceType,
 } from "./types";
@@ -111,6 +113,7 @@ const REFERENCE_LABELS: Readonly<Partial<Record<ExternalReferenceType, string>>>
 const PROTECTED_REFERENCE_TYPES = new Set<ExternalReferenceType>([
   "CSV",
   "NRC",
+  "VEHICLE_OR_FINE_REFERENCE",
 ]);
 const PROTECTED_REFERENCE_FINGERPRINT = /^[0-9a-f]{64}$/u;
 
@@ -154,7 +157,8 @@ export function projectStructuredReviewRelationsV1(
         relation.algorithmVersion !==
           STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1 &&
         relation.algorithmVersion !==
-          STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2
+          STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2 &&
+        relation.algorithmVersion !== GLOBAL_RECONCILIATION_RULE_VERSION_V8
       ) ||
       relation.status === "USER_REJECTED"
     ) {
@@ -174,6 +178,9 @@ export function projectStructuredReviewRelationsV1(
       status: relation.status,
       algorithmVersion: relation.algorithmVersion,
       chainId: relation.evidence.chainId ?? null,
+      globalRelationType:
+        relation.reconciliationHistory?.at(-1)?.globalRelationType ?? null,
+      globalExplanation: relation.evidence.citedText ?? null,
     });
     entries.push(
       Object.freeze({
@@ -353,6 +360,12 @@ function isExactTimelineRelation(
   entry: StructuredReviewRelationEntryV1,
 ): boolean {
   if (
+    entry.algorithmVersion === GLOBAL_RECONCILIATION_RULE_VERSION_V8 &&
+    entry.relationStatus === "SYSTEM_CONFIRMED_EXACT"
+  ) {
+    return true;
+  }
+  if (
     entry.algorithmVersion ===
       STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2 &&
     entry.chainId !== null &&
@@ -371,6 +384,9 @@ function isExactTimelineRelation(
 }
 
 function timelineLinkLabel(entry: StructuredReviewRelationEntryV1): string {
+  if (entry.algorithmVersion === GLOBAL_RECONCILIATION_RULE_VERSION_V8) {
+    return "Vínculo documental exacto";
+  }
   if (
     entry.algorithmVersion ===
       STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2 &&
@@ -457,6 +473,8 @@ function relationPresentation(input: Readonly<{
   status: "SUGGESTED" | "USER_CONFIRMED" | "SYSTEM_CONFIRMED_EXACT";
   algorithmVersion: string;
   chainId: FiscalNotificationDocumentChainIdV2 | null;
+  globalRelationType: GlobalReconciliationRelationTypeV8 | null;
+  globalExplanation: string | null;
 }>): Readonly<{
   title: string;
   statusLabel:
@@ -464,6 +482,39 @@ function relationPresentation(input: Readonly<{
     | "Referencia exacta · revisar efectos";
   explanation: string;
 }> {
+  if (
+    input.algorithmVersion === GLOBAL_RECONCILIATION_RULE_VERSION_V8 &&
+    input.globalRelationType
+  ) {
+    const titles: Readonly<Record<GlobalReconciliationRelationTypeV8, string>> = {
+      RESOLUTION_ENFORCED: "Liquidación y providencia relacionadas",
+      ENFORCES_REMAINING_PLAN_PRINCIPAL:
+        "Plan y cobro del principal restante relacionados",
+      ENFORCES: "Providencia y embargo relacionados",
+      CITED_AS_EXISTING_EXECUTIVE_DEBT:
+        "Deuda ejecutiva citada en la denegación",
+      OFFSET_APPLIES_TO_MODIFIED_PAYMENT_PLAN:
+        "Compensación aplicada al plan modificado",
+      RELEASES_SEIZURE: "Embargo y levantamiento relacionados",
+      RELEASED_ASSET_LATER_RESEIZED:
+        "Bien liberado y embargado de nuevo",
+      POSSIBLY_PRECEDES_ASSESSMENT:
+        "Posible antecedente informativo de la comprobación",
+      NOTIFICATION_EVIDENCE_FOR: "Acto y justificante de notificación relacionados",
+    };
+    return Object.freeze({
+      title: titles[input.globalRelationType],
+      statusLabel:
+        input.status === "SYSTEM_CONFIRMED_EXACT"
+          ? ("Referencia exacta · revisar efectos" as const)
+          : ("Relación detectada · revisar" as const),
+      explanation:
+        input.globalExplanation ??
+        (input.status === "SUGGESTED"
+          ? FISCAL_NOTIFICATION_SUGGESTED_RELATION_PHRASE_V2
+          : FISCAL_NOTIFICATION_EXACT_LINK_NEUTRAL_PHRASE_V2),
+    });
+  }
   if (
     input.algorithmVersion ===
       STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2 &&

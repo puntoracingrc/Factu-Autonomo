@@ -870,6 +870,7 @@ function referenceType(value: string): ExternalReferenceType {
     TAX_PERIOD: "TAX_PERIOD",
     BANK_REFERENCE: "PAYMENT_JUSTIFICANTE",
     THIRD_PARTY_RESPONSE_ID: "OFFICIAL_REGISTRY_NUMBER",
+    VEHICLE_OR_FINE_REFERENCE: "VEHICLE_OR_FINE_REFERENCE",
     OTHER_OFFICIAL_REFERENCE: "OTHER",
   };
   const mapped = mapping[value];

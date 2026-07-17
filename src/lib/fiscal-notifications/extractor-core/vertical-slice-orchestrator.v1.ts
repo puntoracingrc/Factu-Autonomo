@@ -39,9 +39,10 @@ import {
   FISCAL_NOTIFICATION_EXTRACTOR_CORE_RELEASE_V1,
   FISCAL_NOTIFICATION_EXTRACTOR_CORE_VERSION_V1,
 } from "./shared.v1";
+import { createOwnerScopedAssetFingerprintV8 } from "../global-reconciliation.v8";
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_ORCHESTRATOR_VERSION_V1 =
-  "1.2.0" as const;
+  "1.3.0" as const;
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_EXTRACTOR_ORDER_V1 =
   Object.freeze([
@@ -74,6 +75,12 @@ export interface FiscalNotificationVerticalSliceAnalysisV1 {
   readonly releaseId: typeof FISCAL_NOTIFICATION_EXTRACTOR_CORE_RELEASE_V1;
   readonly status: "REVIEW_REQUIRED" | "INFORMATION_PENDING" | "BLOCKED";
   readonly documentId: string;
+  /**
+   * Huella opaca, limitada a la cuenta, calculada mientras el identificador
+   * directo del bien sigue en memoria. El identificador original no forma
+   * parte del análisis ni de la ficha revisable.
+   */
+  readonly seizureAssetFingerprintSha256: string | null;
   readonly segmentation: DocumentSegmentationResultV1;
   readonly extractionOrder: readonly FiscalNotificationVerticalSliceExtractorIdV1[];
   readonly extractions: FiscalNotificationVerticalSliceExtractionsV1;
@@ -189,6 +196,10 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
         : output.warnings.map((warning) => `${id}.${warning}`),
     ),
   ]);
+  const seizureAssetFingerprintSha256 =
+    seizure.status === "REVIEW_REQUIRED"
+      ? assetFingerprintFromSeizure(document.ownerScope, seizure)
+      : null;
 
   return Object.freeze({
     schemaVersion: 1,
@@ -203,6 +214,7 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
           ? "BLOCKED"
           : "INFORMATION_PENDING",
     documentId: document.documentId,
+    seizureAssetFingerprintSha256,
     segmentation,
     extractionOrder: FISCAL_NOTIFICATION_VERTICAL_SLICE_EXTRACTOR_ORDER_V1,
     extractions: Object.freeze({
@@ -233,6 +245,45 @@ export async function analyzeFiscalNotificationVerticalSliceV1(
     permitsPaymentAction: false,
     permitsAccountingAction: false,
   });
+}
+
+const ASSET_IDENTITY_PRIORITY = Object.freeze([
+  Object.freeze({ fieldId: "PROPERTY_NUMBER", namespace: "PROPERTY" }),
+  Object.freeze({ fieldId: "CADASTRAL_REFERENCE", namespace: "CADASTRAL" }),
+  Object.freeze({ fieldId: "TERMINAL_OR_MERCHANT", namespace: "TERMINAL" }),
+  Object.freeze({ fieldId: "SEIZED_RIGHT", namespace: "ASSET" }),
+  Object.freeze({ fieldId: "RELEASED_ASSET_OR_RIGHT", namespace: "ASSET" }),
+] as const);
+
+function assetFingerprintFromSeizure(
+  ownerScope: string,
+  output: SeizureExtractorOutputV1,
+): string | null {
+  for (const candidate of ASSET_IDENTITY_PRIORITY) {
+    const fact = output.seizureFacts.specificFacts.find(
+      (item) => item.fieldId === candidate.fieldId,
+    );
+    if (!fact) continue;
+    const normalized = normalizeTransientAssetIdentifier(fact.printedValue);
+    if (!normalized) continue;
+    return createOwnerScopedAssetFingerprintV8(
+      ownerScope,
+      `${candidate.namespace}:${normalized}`,
+    ).slice("opaque:".length);
+  }
+  return null;
+}
+
+function normalizeTransientAssetIdentifier(value: string): string | null {
+  const normalized = value
+    .normalize("NFKC")
+    .toLocaleUpperCase("es")
+    .replace(/[‐‑‒–—−]/gu, "-")
+    .replace(/[\t \u00a0]+/gu, "")
+    .trim();
+  return normalized.length >= 2 && normalized.length <= 160
+    ? normalized
+    : null;
 }
 
 function isSupersededCompetingExtractorBlock(

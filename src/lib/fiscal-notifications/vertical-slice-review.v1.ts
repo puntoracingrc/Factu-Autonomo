@@ -226,6 +226,7 @@ const REFERENCE_LABEL: Readonly<Record<ReferenceTypeV1, string>> =
     TAX_PERIOD: "Periodo",
     BANK_REFERENCE: "Referencia bancaria",
     THIRD_PARTY_RESPONSE_ID: "Contestación de tercero",
+    VEHICLE_OR_FINE_REFERENCE: "Bien relacionado",
     OTHER_OFFICIAL_REFERENCE: "Referencia oficial",
   });
 
@@ -354,6 +355,7 @@ const SENSITIVE_REFERENCE_TYPES = new Set<ReferenceTypeV1>([
   "CSV",
   "NRC",
   "BANK_REFERENCE",
+  "VEHICLE_OR_FINE_REFERENCE",
 ]);
 const SHA256_FINGERPRINT = /^[0-9a-f]{64}$/u;
 const ISO_DATE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/u;
@@ -507,7 +509,12 @@ export function projectFiscalNotificationVerticalSliceReviewV1(
     documents.push(projectPaymentEvidence(extractions.paymentEvidence));
   }
   if (extractions.seizure) {
-    documents.push(projectSeizure(extractions.seizure));
+    documents.push(
+      projectSeizure(
+        extractions.seizure,
+        analysis.seizureAssetFingerprintSha256,
+      ),
+    );
   }
   return parseFiscalNotificationVerticalSliceReviewV1({
     schemaVersion: 1,
@@ -916,8 +923,24 @@ function projectSeizure(
   output: NonNullable<
     FiscalNotificationVerticalSliceAnalysisV1["extractions"]["seizure"]
   >,
+  assetFingerprintSha256: string | null,
 ) {
   const fields = commonFields(output, { includeMoney: false });
+  if (assetFingerprintSha256) {
+    fields.push(
+      field({
+        fieldId: "reference:asset-fingerprint",
+        semantic: "REFERENCE",
+        canonicalType: "VEHICLE_OR_FINE_REFERENCE",
+        label: REFERENCE_LABEL.VEHICLE_OR_FINE_REFERENCE,
+        displayValue: `Huella protegida ${assetFingerprintSha256.slice(0, 12)}…`,
+        normalizedValue: assetFingerprintSha256,
+        sourcePageNumbers: pagesForOutput(output),
+        sourceLabel: REFERENCE_LABEL.VEHICLE_OR_FINE_REFERENCE,
+        confidence: 1,
+      }),
+    );
+  }
   const state = seizureStateLabel(output.seizureFacts.printedState);
   addStatus(fields, state, pagesForOutput(output));
   if (output.seizureFacts.recipientRole !== "UNKNOWN") {

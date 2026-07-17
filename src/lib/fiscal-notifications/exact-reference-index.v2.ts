@@ -29,6 +29,7 @@ export const FISCAL_NOTIFICATION_REFERENCE_TYPES_V2 = Object.freeze([
   "SEIZURE_ORDER_ID",
   "TAX_PERIOD",
   "THIRD_PARTY_RESPONSE_ID",
+  "VEHICLE_OR_FINE_REFERENCE",
 ] as const);
 
 export type FiscalNotificationReferenceTypeV2 =

@@ -30,6 +30,7 @@ export const REFERENCE_TYPES_V1 = Object.freeze([
   "TAX_PERIOD",
   "BANK_REFERENCE",
   "THIRD_PARTY_RESPONSE_ID",
+  "VEHICLE_OR_FINE_REFERENCE",
   "OTHER_OFFICIAL_REFERENCE",
 ] as const);
 export type ReferenceTypeV1 = (typeof REFERENCE_TYPES_V1)[number];
