@@ -52,7 +52,7 @@ describe("GET /api/admin/capabilities", () => {
     },
   );
 
-  it("conserva aprendizaje IA sin conceder admin completo", async () => {
+  it("reconoce a persianasalmar como administrador propietario completo", async () => {
     vi.mocked(getUserFromBearer).mockResolvedValue({
       id: "user-empresa",
       email: "persianasalmar@gmail.com",
@@ -63,10 +63,10 @@ describe("GET /api/admin/capabilities", () => {
 
     expect(response.status).toBe(200);
     expect(body).toMatchObject({
-      fullAdmin: false,
-      adminEmailAuthorized: false,
+      fullAdmin: true,
+      adminEmailAuthorized: true,
       aiLearning: true,
-      learningLabel: "persianas_almar",
+      learningLabel: "admin",
     });
   });
 });
