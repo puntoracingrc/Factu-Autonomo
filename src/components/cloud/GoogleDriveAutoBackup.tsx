@@ -120,6 +120,7 @@ export function GoogleDriveAutoBackup() {
         uploadAppBackupToGoogleDrive(data, {
           clientId,
           prompt: "",
+          automatic: true,
         }),
       );
       runningRef.current = false;

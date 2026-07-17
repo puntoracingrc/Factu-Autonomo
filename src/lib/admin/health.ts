@@ -135,6 +135,78 @@ const ABUSE_NAMESPACE_THRESHOLDS: Record<string, AbuseThresholds> = {
     watchMaxRequests: 300,
     actionMaxRequests: 800,
   },
+  data_access_event: {
+    watchRequests: 100,
+    actionRequests: 300,
+    watchBuckets: 20,
+    actionBuckets: 50,
+    watchMaxRequests: 60,
+    actionMaxRequests: 180,
+  },
+  data_backup_local: {
+    watchRequests: 6,
+    actionRequests: 15,
+    watchBuckets: 4,
+    actionBuckets: 12,
+    watchMaxRequests: 5,
+    actionMaxRequests: 10,
+  },
+  data_backup_local_large: {
+    watchRequests: 2,
+    actionRequests: 5,
+    watchBuckets: 2,
+    actionBuckets: 5,
+    watchMaxRequests: 2,
+    actionMaxRequests: 4,
+  },
+  data_backup_drive: {
+    watchRequests: 6,
+    actionRequests: 15,
+    watchBuckets: 4,
+    actionBuckets: 12,
+    watchMaxRequests: 5,
+    actionMaxRequests: 10,
+  },
+  data_backup_drive_large: {
+    watchRequests: 2,
+    actionRequests: 5,
+    watchBuckets: 2,
+    actionBuckets: 5,
+    watchMaxRequests: 2,
+    actionMaxRequests: 4,
+  },
+  data_backup_drive_auto: {
+    watchRequests: 40,
+    actionRequests: 120,
+    watchBuckets: 12,
+    actionBuckets: 30,
+    watchMaxRequests: 20,
+    actionMaxRequests: 60,
+  },
+  data_backup_drive_auto_large: {
+    watchRequests: 20,
+    actionRequests: 60,
+    watchBuckets: 8,
+    actionBuckets: 24,
+    watchMaxRequests: 12,
+    actionMaxRequests: 40,
+  },
+  data_cloud_pull: {
+    watchRequests: 40,
+    actionRequests: 120,
+    watchBuckets: 12,
+    actionBuckets: 30,
+    watchMaxRequests: 20,
+    actionMaxRequests: 60,
+  },
+  data_cloud_pull_large: {
+    watchRequests: 6,
+    actionRequests: 20,
+    watchBuckets: 5,
+    actionBuckets: 15,
+    watchMaxRequests: 4,
+    actionMaxRequests: 12,
+  },
 };
 
 const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
@@ -158,6 +230,15 @@ const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
   billing_portal: "Billing: portal",
   billing_trial: "Billing: prueba",
   customers_parse: "IA: parseo clientes",
+  data_access_event: "Datos: actividad observada",
+  data_backup_drive: "Datos: copia manual en Drive",
+  data_backup_drive_auto: "Datos: copia automática en Drive",
+  data_backup_drive_auto_large: "Datos: copia automática grande en Drive",
+  data_backup_drive_large: "Datos: copia manual grande en Drive",
+  data_backup_local: "Datos: copia descargada",
+  data_backup_local_large: "Datos: copia descargada grande",
+  data_cloud_pull: "Datos: descarga desde la nube",
+  data_cloud_pull_large: "Datos: descarga grande desde la nube",
   email: "Email",
   email_payment_reminder: "Email: recordatorios",
   email_payment_reminder_daily: "Email: recordatorios diarios",
@@ -337,21 +418,36 @@ export function buildAdminAbuseSummary(
       .sort((a, b) => new Date(String(b)).getTime() - new Date(String(a)).getTime())[0] ??
     null;
   const level = maxLevel(namespaces.map((item) => item.level));
+  const dataAccessLevel = maxLevel(
+    namespaces
+      .filter((item) => item.namespace.startsWith("data_"))
+      .map((item) => item.level),
+  );
+  const dataAccessAction = dataAccessLevel === "action";
+  const dataAccessWatch = dataAccessLevel === "watch";
 
   return {
     level,
     label:
-      level === "action"
-        ? "Ataque probable"
-        : level === "watch"
-          ? "Vigilar"
-          : "Sin señales",
+      dataAccessAction
+        ? "Extracción probable"
+        : dataAccessWatch
+          ? "Vigilar extracción"
+          : level === "action"
+            ? "Ataque probable"
+            : level === "watch"
+              ? "Vigilar"
+              : "Sin señales",
     headline:
-      level === "action"
-        ? "Hay actividad anómala que conviene revisar."
-        : level === "watch"
-          ? "Hay más actividad de lo normal en rutas protegidas."
-          : "Sin señales claras de scraping o abuso.",
+      dataAccessAction
+        ? "Hay un volumen anómalo de copias o descargas de datos."
+        : dataAccessWatch
+          ? "Hay más copias o descargas de datos de lo habitual."
+          : level === "action"
+            ? "Hay actividad anómala que conviene revisar."
+            : level === "watch"
+              ? "Hay más actividad de lo normal en rutas protegidas."
+              : "Sin señales claras de scraping o abuso.",
     totalBuckets,
     totalRequests,
     latestAt,
@@ -492,7 +588,14 @@ export function buildAdminHealthSnapshot(rawValue: unknown): AdminHealthSnapshot
     recommendations.push("Vigilar señales de abuso: revisar rutas e IPs si se repite.");
   }
   if (abuse.level === "action") {
-    recommendations.push("Posible scraping/abuso: revisar logs y valorar WAF/bot protection.");
+    const dataAlert = abuse.namespaces.some(
+      (item) => item.namespace.startsWith("data_") && item.level === "action",
+    );
+    recommendations.push(
+      dataAlert
+        ? "Posible extracción de datos: revisar copias, sesiones y descargas del usuario afectado."
+        : "Posible scraping/abuso: revisar logs y valorar WAF/bot protection.",
+    );
   }
 
   return {

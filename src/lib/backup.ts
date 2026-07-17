@@ -1,6 +1,10 @@
 import { APP_BRAND_NAME } from "./brand";
 import { sha256Hex } from "./document-integrity/snapshot-hash";
 import { normalizeLoadedData, projectAppDataForPersistence } from "./storage";
+import {
+  appDataRecordCount,
+  dispatchDataAccessEvent,
+} from "./security/data-access-events";
 import type { AppData } from "./types";
 
 export const BACKUP_FILE_PREFIX = "factu-autonomo-backup";
@@ -633,6 +637,11 @@ export function downloadBackup(
     anchor.download = filename;
     anchor.rel = "noopener";
     anchor.click();
+    dispatchDataAccessEvent({
+      type: "backup_local",
+      itemCount: appDataRecordCount(data),
+      byteLength: artifact.byteLength,
+    });
     return {
       ok: true,
       filename,

@@ -1,4 +1,8 @@
 import { createBackupData, createBackupPayload } from "@/lib/backup";
+import {
+  appDataRecordCount,
+  dispatchDataAccessEvent,
+} from "@/lib/security/data-access-events";
 import type { AppData } from "@/lib/types";
 
 export const DRIVE_BACKUP_SCOPE = "https://www.googleapis.com/auth/drive.file";
@@ -793,6 +797,7 @@ export async function uploadAppBackupToGoogleDrive(
     clientId: string;
     prompt?: "consent" | "";
     now?: () => Date;
+    automatic?: boolean;
   },
 ): Promise<DriveBackupUploadResult> {
   try {
@@ -809,6 +814,7 @@ export async function uploadAppBackupToGoogleDrive(
       accessToken,
       {
         now: options.now,
+        automatic: options.automatic,
       },
     );
   } catch (error) {
@@ -827,6 +833,7 @@ export async function uploadAppBackupToGoogleDriveWithAccessToken(
   accessToken: string,
   options: {
     now?: () => Date;
+    automatic?: boolean;
   } = {},
 ): Promise<DriveBackupUploadResult> {
   try {
@@ -853,6 +860,12 @@ export async function uploadAppBackupToGoogleDriveWithAccessToken(
           "Drive recibió el archivo, pero no devolvió una copia idéntica. No se ha marcado como copia válida.",
       };
     }
+    dispatchDataAccessEvent({
+      type: "backup_drive",
+      itemCount: appDataRecordCount(data),
+      byteLength: new TextEncoder().encode(jsonText).byteLength,
+      automatic: options.automatic,
+    });
     let cleanupWarning: string | undefined;
     let retention = {
       limit: DRIVE_BACKUP_RETENTION_LIMIT,

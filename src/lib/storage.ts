@@ -1506,6 +1506,41 @@ export function saveData(
   return { status: "blocked", reason: "verification_failed" };
 }
 
+export function clearPersistedAppData(expected: AppData): SaveDataResult {
+  if (typeof window === "undefined") {
+    return { status: "blocked", reason: "storage_unavailable" };
+  }
+
+  let storage: Storage;
+  let storageKey: string;
+  let beforeRaw: string | null;
+  try {
+    storage = localStorage;
+    storageKey = currentStorageKey();
+    beforeRaw = storage.getItem(storageKey);
+  } catch {
+    return { status: "blocked", reason: "storage_unavailable" };
+  }
+
+  if (!storedRawMatchesExpected(beforeRaw, expected, storageKey)) {
+    return { status: "blocked", reason: "stale_precondition" };
+  }
+
+  try {
+    storage.removeItem(storageKey);
+  } catch {
+    return { status: "blocked", reason: "write_failed" };
+  }
+
+  try {
+    return storage.getItem(storageKey) === null
+      ? { status: "applied" }
+      : { status: "blocked", reason: "verification_failed" };
+  } catch {
+    return { status: "indeterminate", reason: "storage_state_unknown" };
+  }
+}
+
 /** @deprecated Usar assignNextDocumentNumber desde documents.ts */
 export function nextDocumentNumber(
   type: DocumentType,

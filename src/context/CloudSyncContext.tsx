@@ -47,6 +47,7 @@ import {
   startGoogleLoginRedirect,
 } from "@/lib/google-auth/browser";
 import { getGoogleAuthClientId } from "@/lib/google-auth/config";
+import { clearDriveAccessToken } from "@/lib/google-drive/backup";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { isCloudEnabled, isGoogleAuthEnabled } from "@/lib/supabase/config";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
@@ -56,10 +57,16 @@ import {
 } from "@/lib/auth/email-confirmation";
 import { validateNewAccountPassword } from "@/lib/auth/password-policy";
 import { setDemoWorkspaceMode } from "@/lib/demo-workspace";
-import { loadData } from "@/lib/storage";
+import { clearPersistedAppData, loadData } from "@/lib/storage";
+import { EMPTY_DATA } from "@/lib/types";
 import { pickNewerAppData } from "@/lib/cloud/sync";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
 import { reportAppError } from "@/lib/monitoring/client";
+import {
+  appDataRecordCount,
+  dispatchDataAccessEvent,
+} from "@/lib/security/data-access-events";
+import { clearSecondaryDeviceData } from "@/lib/security/device-data-clear";
 import {
   isRetryableWelcomeStatus,
   WELCOME_MAX_CLIENT_RETRIES,
@@ -105,6 +112,7 @@ interface CloudSyncValue {
   signInWithGoogle: () => Promise<string | null>;
   resendConfirmationEmail: () => Promise<string | null>;
   signOut: () => Promise<void>;
+  signOutAndClearDevice: () => Promise<string | null>;
   syncNow: () => Promise<void>;
   saveLocalDataToAccount: () => Promise<void>;
   keepLocalDataOnDevice: () => void;
@@ -485,6 +493,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
           setSyncStatus("syncing");
           const since = workingData.meta?.lastSyncedAt;
           let remoteChanges = await pullSyncChanges(user.id, since);
+          if (remoteChanges.length > 0) {
+            dispatchDataAccessEvent({
+              type: "cloud_pull",
+              itemCount: remoteChanges.length,
+            });
+          }
 
           if (remoteChanges.length === 0) {
             const entityCount = await countSyncEntities(user.id);
@@ -704,6 +718,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         const remoteChanges = await pullSyncChanges(user.id);
 
         if (remoteChanges.length > 0) {
+          dispatchDataAccessEvent({
+            type: "cloud_pull",
+            itemCount: remoteChanges.length,
+          });
           const { data: normalized, applied } =
             rebuildCloudSnapshot(remoteChanges);
           const synced = markFullySynced(normalized);
@@ -722,6 +740,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
         const legacy = await fetchLegacyCloudBackup(user.id);
         if (legacy) {
+          dispatchDataAccessEvent({
+            type: "cloud_pull",
+            itemCount: appDataRecordCount(legacy.data),
+          });
           const synced = markFullySynced(legacy.data, legacy.updated_at);
           clearSyncPending();
           replaceLocalDataFromCloud(synced);
@@ -1203,6 +1225,21 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     return null;
   }, [email]);
 
+  const finishSignedOutSession = useCallback(
+    (message: string) => {
+      if (pushTimer.current) clearTimeout(pushTimer.current);
+      if (retryTimer.current) clearInterval(retryTimer.current);
+      pushTimer.current = null;
+      retryTimer.current = null;
+      pulledForUser.current = null;
+      syncing.current = false;
+      setUser(null);
+      setSyncMessage(message);
+      setSyncStatus(cloudEnabled ? "idle" : "disabled");
+    },
+    [cloudEnabled],
+  );
+
   const signOut = useCallback(async () => {
     const supabase = await getSupabaseClientAsync();
     if (supabase) {
@@ -1213,16 +1250,56 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         return;
       }
     }
-    if (pushTimer.current) clearTimeout(pushTimer.current);
-    if (retryTimer.current) clearInterval(retryTimer.current);
-    pushTimer.current = null;
-    retryTimer.current = null;
-    pulledForUser.current = null;
-    syncing.current = false;
-    setUser(null);
-    setSyncMessage("Sesión cerrada");
-    setSyncStatus(cloudEnabled ? "idle" : "disabled");
-  }, [cloudEnabled]);
+    finishSignedOutSession("Sesión cerrada");
+  }, [finishSignedOutSession]);
+
+  const signOutAndClearDevice = useCallback(async (): Promise<string | null> => {
+    if (!user) return "No hay una sesión iniciada.";
+    if (demoMode) return "Sal de la demo antes de borrar este dispositivo.";
+    if (!emailConfirmed || handoffPausesCloud) {
+      return "Guarda primero estos datos en tu cuenta y confirma el email antes de borrarlos del dispositivo.";
+    }
+
+    const synced = await flushPendingUpload(false);
+    if (!synced) {
+      return "No se ha podido confirmar la copia en la nube. No se ha borrado ningún dato local.";
+    }
+
+    const expected = dataRef.current;
+    const supabase = await getSupabaseClientAsync();
+    if (!supabase) return "La nube no está disponible en este momento.";
+    const { error } = await supabase.auth.signOut();
+    if (error) return error.message;
+
+    finishSignedOutSession("Sesión cerrada de forma segura");
+    const cleared = clearPersistedAppData(expected);
+    if (cleared.status !== "applied") {
+      return "La sesión se cerró, pero el navegador no confirmó el borrado local. No uses este dispositivo como compartido hasta reintentar.";
+    }
+
+    clearDriveAccessToken();
+    const secondary = clearSecondaryDeviceData(user.id);
+    skipPush.current = true;
+    try {
+      replaceData({ ...EMPTY_DATA }, { fromRemote: true });
+      dataRef.current = EMPTY_DATA;
+    } finally {
+      skipPush.current = false;
+    }
+
+    if (!secondary.ok) {
+      return "Los datos principales se borraron, pero no se pudo confirmar la limpieza de todos los ajustes locales.";
+    }
+    return null;
+  }, [
+    demoMode,
+    emailConfirmed,
+    finishSignedOutSession,
+    flushPendingUpload,
+    handoffPausesCloud,
+    replaceData,
+    user,
+  ]);
 
   const importBackup = useCallback(
     async (file: File) => {
@@ -1283,6 +1360,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       signInWithGoogle,
       resendConfirmationEmail,
       signOut,
+      signOutAndClearDevice,
       syncNow,
       saveLocalDataToAccount,
       keepLocalDataOnDevice,
@@ -1308,6 +1386,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       signInWithGoogle,
       resendConfirmationEmail,
       signOut,
+      signOutAndClearDevice,
       syncNow,
       saveLocalDataToAccount,
       keepLocalDataOnDevice,

@@ -172,6 +172,7 @@ export function GoogleDriveBackupCard() {
         uploadAppBackupToGoogleDrive(data, {
           clientId,
           prompt: settings.enabled ? "" : "consent",
+          automatic: options.automatic,
         }),
       );
 
