@@ -30,6 +30,7 @@ import {
 } from "./extractor-core/extractor-contract.v1";
 import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
 import { PROFILE_FIELD_LABELS_V2 } from "./extractor-core/profile-field-labels.v2";
+import { REAL_CORPUS_EXPLANATIONS_V4 } from "./extractor-core/real-corpus-extractor.v4";
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1 =
   "1.0.0" as const;
@@ -1605,6 +1606,7 @@ function isControlledFieldLabel(value: string): boolean {
       "Fecha del embargo",
       "Deuda pendiente",
       "Importe embargado",
+      "Total pendiente",
       "Importe remitido al Tesoro",
       "Destinatario operativo",
       "Modelo periódico citado",
@@ -1633,6 +1635,52 @@ function isControlledFieldLabel(value: string): boolean {
       "Fecha del certificado",
       "Motivo indicado",
       "Carta de pago adjunta",
+      "Referencia del documento",
+      "Referencia del procedimiento",
+      "Referencia del acto",
+      "Referencia de notificación",
+      "Notificación anterior",
+      "Número de diligencia",
+      "Clave de deuda",
+      "Fecha de firma",
+      "Fecha del acto",
+      "Fecha de la diligencia citada",
+      "Fecha de notificación de la propuesta",
+      "Fin del período voluntario",
+      "Principal pendiente",
+      "Cuota final",
+      "Cuota propuesta",
+      "Intereses de demora",
+      "Total del documento",
+      "Retenciones anuales declaradas",
+      "Pagos periódicos declarados",
+      "Principal original",
+      "Intereses del aplazamiento",
+      "Modelo tributario",
+      "Modelo relacionado",
+      "Ejercicio fiscal",
+      "Estado del alta",
+      "Nivel de registro",
+      "Método de registro",
+      "Fecha de alta",
+      "Términos adjuntos",
+      "Tipo de bien o derecho",
+      "Alcance del levantamiento",
+      "Regla del plazo",
+      "Papel del tercero",
+      "Cuenta o depósito",
+      "Forma de pago",
+      "Garantía",
+      "Documentación necesaria",
+      "Aviso sancionador",
+      "Obligación de contestar",
+      "Obligación si existe crédito",
+      "Momento del ingreso",
+      "Alcance de los créditos",
+      "Motivo de la reiteración",
+      "Consecuencia indicada",
+      "Espera antes del ingreso bancario",
+      "Estado de la notificación anterior",
       "Qué es",
       "Qué resultado muestra",
       "Qué conviene hacer",
@@ -1657,7 +1705,8 @@ function assertSerializableFieldPrivacy(
   if (
     (semantic === "DETAIL" || semantic === "OBLIGATION") &&
     (assertRealCorpusSerializableFieldPrivacyV2(item) ||
-      assertRealCorpusSerializableFieldPrivacyV3(item))
+      assertRealCorpusSerializableFieldPrivacyV3(item) ||
+      assertRealCorpusSerializableFieldPrivacyV4(item))
   ) {
     return;
   }
@@ -1989,6 +2038,95 @@ function assertRealCorpusSerializableFieldPrivacyV3(
   }
   if (/^V3:BOOLEAN:[A-Z0-9_]+:(?:TRUE|FALSE)$/u.test(normalized)) {
     if (display !== "Sí" && display !== "No") throw invalidReview();
+    return true;
+  }
+  throw invalidReview();
+}
+
+const REAL_CORPUS_EXPLANATION_TEXT_V4 = new Set(
+  Object.values(REAL_CORPUS_EXPLANATIONS_V4).flatMap((explanation) => [
+    explanation.whatIs,
+    explanation.action,
+    explanation.deadline,
+    explanation.consequence,
+  ]),
+);
+
+const REAL_CORPUS_CLOSED_VALUES_V4 = new Set([
+  "REGISTERED",
+  "HIGH",
+  "CERTIFICATE_OR_IN_PERSON",
+  "MOVABLE_VEHICLE",
+  "REAL_ESTATE",
+  "COMMERCIAL_CREDITS",
+  "TOTAL_IF_PRINTED",
+  "AS_PRINTED",
+  "FINAL_PROVISIONAL_ASSESSMENT",
+  "10_BUSINESS_DAYS_FROM_RECEIPT",
+  "PAYER_WITHOUT_IDENTITY",
+  "EXISTS_WITHOUT_DIGITS",
+  "DIRECT_DEBIT",
+  "NO_GUARANTEE",
+  "DOCUMENTATION_REQUIRED_AS_PRINTED",
+  "SEPARATE_SANCTION_PROCEDURE_WARNING",
+  "RESPOND",
+  "WITHHOLD_AND_REMIT_IF_CREDIT_EXISTS",
+  "WHEN_CREDIT_BECOMES_DUE",
+  "COMMERCIAL_CREDITS_UP_TO_PRINTED_LIMIT",
+  "ANNEX_NOT_RECEIVED",
+  "SECOND_REQUEST_PRINTED_CONSEQUENCE",
+  "PREVIOUS_DELIVERY_FAILED",
+]);
+
+/** Closed V4 exception. Raw text, PII and arbitrary values are rejected. */
+function assertRealCorpusSerializableFieldPrivacyV4(
+  item: Readonly<Record<string, unknown>>,
+): boolean {
+  const fieldId = String(item.fieldId);
+  if (!fieldId.startsWith("real-corpus-v4:")) return false;
+  const display = String(item.displayValue);
+  const normalized =
+    typeof item.normalizedValue === "string" ? item.normalizedValue : "";
+  if (fieldId === "real-corpus-v4:recognized-family") {
+    if (
+      display !== "Título, autoridad y estructura coinciden" ||
+      normalized !== "V4:EXACT_TITLE_AUTHORITY_STRUCTURE"
+    ) throw invalidReview();
+    return true;
+  }
+  if (fieldId === "real-corpus-v4:payment-form-status") {
+    if (
+      display !== "Sirve para pagar; no acredita que el pago se haya realizado" ||
+      normalized !== "V4:PAYMENT_FORM_ONLY"
+    ) throw invalidReview();
+    return true;
+  }
+  if (/^real-corpus-v4:explanation:(?:what_is|action|deadline|consequence)$/u.test(fieldId)) {
+    if (
+      !/^V4:EXPLANATION:(?:identity\.clave_registration_receipt|seizure\.release|assessment\.final_provisional_assessment|seizure\.compliance_reiteration|assessment\.allegations_and_proposal|seizure\.commercial_credits|seizure\.bank_account|collection\.enforcement_order|collection\.deferral_grant|seizure\.movable_asset):(?:WHAT_IS|ACTION|DEADLINE|CONSEQUENCE)$/u.test(normalized) ||
+      !REAL_CORPUS_EXPLANATION_TEXT_V4.has(display)
+    ) throw invalidReview();
+    return true;
+  }
+  if (/^real-corpus-v4:installment:\d+$/u.test(fieldId)) {
+    if (
+      !/^V4:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):-?\d+:-?\d+:-?\d+$/u.test(normalized) ||
+      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal -?\d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés -?\d{1,3}(?:\.\d{3})*,\d{2}\s€ · total -?\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(display)
+    ) throw invalidReview();
+    return true;
+  }
+  const closed = /^V4:TEXT:[A-Z0-9_]+:([A-Z0-9_]+)$/u.exec(normalized);
+  if (closed) {
+    if (!REAL_CORPUS_CLOSED_VALUES_V4.has(closed[1]!) || display !== closed[1]) throw invalidReview();
+    return true;
+  }
+  if (/^V4:BOOLEAN:[A-Z0-9_]+:(?:TRUE|FALSE)$/u.test(normalized)) {
+    if (display !== "Sí" && display !== "No") throw invalidReview();
+    return true;
+  }
+  const integer = /^V4:INTEGER:[A-Z0-9_]+:(\d+)$/u.exec(normalized);
+  if (integer) {
+    if (display !== integer[1]) throw invalidReview();
     return true;
   }
   throw invalidReview();
