@@ -35,5 +35,7 @@ confirmacion de email y recuperacion de contraseña.
 
 Next.js · React · TypeScript · Tailwind CSS · Supabase · Stripe · Vercel · PWA
 
-La configuracion real de produccion y seguridad se documenta en
-`docs/VERCEL_PRODUCCION.md` y `docs/operacion/`.
+El estado de seguridad vigente se concentra en
+`docs/operacion/security-current-state.md`. La configuración de despliegue y
+secretos está en `docs/VERCEL_PRODUCCION.md`. El PDF consolidado está en
+`output/pdf/estado-actual-seguridad.pdf`.
