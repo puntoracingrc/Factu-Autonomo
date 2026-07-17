@@ -8,7 +8,6 @@ import {
   CalendarDays,
   CircleAlert,
   ExternalLink,
-  Info,
   Loader2,
   RefreshCw,
   TriangleAlert,
@@ -701,33 +700,6 @@ export function FiscalCalendarView({
         subtitle="Vencimientos generales publicados por la Agencia Tributaria"
       />
 
-      <Card className="mb-5 border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/50">
-        <div className="flex gap-3">
-          <Info
-            className="mt-0.5 h-5 w-5 shrink-0 text-blue-700 dark:text-blue-300"
-            aria-hidden="true"
-          />
-          <div className="text-sm leading-6 text-blue-950 dark:text-blue-100">
-            <p className="font-bold">Información general de la fuente</p>
-            <p>
-              Los resultados se cargan desde los cinco calendarios iCalendar
-              públicos enlazados por la Agencia Tributaria para estas
-              categorías.
-            </p>
-            <p className="mt-2">
-              Se conserva la fecha y el texto publicados por la fuente. Los
-              filtros no determinan qué modelos debe presentar cada
-              contribuyente.
-            </p>
-            <p className="mt-2">
-              «Mis obligaciones» organiza los eventos mediante la última foto
-              guardada de tu diagnóstico fiscal. «Todos» conserva siempre el
-              calendario completo.
-            </p>
-          </div>
-        </div>
-      </Card>
-
       <Card className="mb-5 dark:border-slate-700 dark:bg-slate-900">
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
           <div>
@@ -753,10 +725,6 @@ export function FiscalCalendarView({
               allCount={events.length}
               mineDisabled={!personalizationAvailable}
             />
-            <p className="text-xs leading-5 text-slate-500 dark:text-slate-400">
-              «Mis obligaciones» cuenta modelos únicos, no el número de
-              vencimientos que generan.
-            </p>
             {!appReady ? (
               <p
                 className="text-sm text-slate-600 dark:text-slate-300"
@@ -782,30 +750,7 @@ export function FiscalCalendarView({
                   </p>
                 </div>
               </div>
-            ) : obligationView.status === "ORIENTATIVE" ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-100">
-                <div className="flex items-start gap-2">
-                  <CircleAlert
-                    className="mt-1 h-4 w-4 shrink-0"
-                    aria-hidden="true"
-                  />
-                  <p>
-                    <strong>Calendario recomendado orientativo.</strong> Muestra
-                    los modelos probablemente necesarios, posibles, pendientes
-                    de información y los que hayas añadido. La vista «Todos»
-                    conserva siempre el calendario completo. Revisa o actualiza
-                    tu foto en{" "}
-                    <Link
-                      href="/consultor-fiscal/diagnostico"
-                      className="font-bold underline underline-offset-2 focus-visible:rounded focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                    >
-                      Diagnóstico fiscal
-                    </Link>
-                    .
-                  </p>
-                </div>
-              </div>
-            ) : (
+            ) : obligationView.status === "ORIENTATIVE" ? null : (
               <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">
                 Se ocultan únicamente modelos marcados como no aplicables con
                 evidencia suficiente. Los demás siguen visibles. Gestiona tus
