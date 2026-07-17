@@ -10,6 +10,10 @@ import {
   resolveAeatDocumentProfileV1,
 } from "./knowledge/aeat-document-knowledge.v1";
 import type { FiscalNotificationDocumentFamilyIdV3 } from "./knowledge/document-families.v3";
+import {
+  resolveAeatOfficialCatalogProfileV9,
+  type AeatOfficialCatalogProfileIdV9,
+} from "./knowledge/official-catalog-expansion.v9";
 import type { DocumentRelationReconciliationRecordV8 } from "./types";
 
 export const LEGACY_ONLY_DOCUMENT_RELATION_TYPES_V2 = [
@@ -176,6 +180,10 @@ export const LEGACY_ADMINISTRATIVE_DOCUMENT_TYPES_V2 = [
 export type LegacyAdministrativeDocumentTypeV2 =
   (typeof LEGACY_ADMINISTRATIVE_DOCUMENT_TYPES_V2)[number];
 
+export type PersistedDocumentFamilyIdV2 =
+  | FiscalNotificationDocumentFamilyIdV3
+  | AeatOfficialCatalogProfileIdV9;
+
 export interface AccountHolderIdentityV2 {
   ownerScope: string;
   role: "ACCOUNT_HOLDER";
@@ -186,7 +194,7 @@ export interface AccountHolderIdentityV2 {
 export interface PersistedDocumentV2 {
   id: string;
   ownerScope: string;
-  familyId: FiscalNotificationDocumentFamilyIdV3 | null;
+  familyId: PersistedDocumentFamilyIdV2 | null;
   legacyDocumentType: LegacyAdministrativeDocumentTypeV2 | null;
   recognitionStatus: "EXACT_FAMILY" | "LEGACY_TYPE_ONLY" | "UNKNOWN";
   issuerCode: IssuerCodeV2;
@@ -470,8 +478,10 @@ function technical(value: unknown): string {
   return parsed;
 }
 
-function familyId(value: unknown): FiscalNotificationDocumentFamilyIdV3 {
-  const profile = resolveAeatDocumentProfileV1(value);
+function familyId(value: unknown): PersistedDocumentFamilyIdV2 {
+  const profile =
+    resolveAeatDocumentProfileV1(value) ??
+    resolveAeatOfficialCatalogProfileV9(value);
   if (!profile) fail();
   return profile.id;
 }

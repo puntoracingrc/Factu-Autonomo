@@ -1,5 +1,6 @@
 import type { FiscalNotificationDocumentFamilyIdV2 } from "@/lib/fiscal-notifications/knowledge/document-families.v2";
 import type { FiscalNotificationOfficialSourceIdV4 } from "@/lib/fiscal-notifications/knowledge/official-sources.v4";
+import type { AeatOfficialCatalogProfileIdV9 } from "@/lib/fiscal-notifications/knowledge/official-catalog-expansion.v9";
 
 export const FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_SCHEMA_VERSION_V1 =
   1 as const;
@@ -11,7 +12,9 @@ export interface FiscalNotificationPlainLanguageGuidanceV1 {
   readonly releaseId: typeof FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_RELEASE_ID_V1;
   readonly profileId: string;
   readonly profileVersion: "1.0.0";
-  readonly familyId: FiscalNotificationDocumentFamilyIdV2;
+  readonly familyId:
+    | FiscalNotificationDocumentFamilyIdV2
+    | AeatOfficialCatalogProfileIdV9;
   readonly status: "GENERAL_CONTEXT_EXPLAINED";
   readonly inShort: string;
   readonly whyItUsuallyArrives: string;
@@ -23,7 +26,7 @@ export interface FiscalNotificationPlainLanguageGuidanceV1 {
   }>;
   readonly keyPoints: readonly string[];
   readonly searchTerms: readonly string[];
-  readonly sourceIds: readonly FiscalNotificationOfficialSourceIdV4[];
+  readonly sourceIds: readonly string[];
   readonly documentPolicy: "DOCUMENT_IS_PRIMARY";
   readonly networkPolicy: "NO_RUNTIME_NETWORK";
   readonly inferencePolicy: "NO_DOCUMENT_SPECIFIC_INFERENCE";

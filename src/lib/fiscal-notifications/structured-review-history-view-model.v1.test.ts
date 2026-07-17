@@ -444,6 +444,32 @@ describe("structured fiscal notification history view model v1", () => {
     expect(JSON.stringify(result)).not.toContain("12345678Z");
   });
 
+  it("reabre una familia V9 con su explicación específica y fuentes oficiales", () => {
+    const value = workspace();
+    const document = value.documents[0]!;
+    document.documentType = "GENERIC_ADMINISTRATIVE_NOTICE";
+    document.documentSubtype = "procedure.deadline_extension_request";
+    document.titleRaw = "Solicitud o justificante de ampliación de plazo";
+    document.titleNormalized =
+      "SOLICITUD O JUSTIFICANTE DE AMPLIACION DE PLAZO";
+
+    const result = projectFiscalNotificationStructuredHistoryV1(value, OWNER);
+
+    expect(result.status).toBe("READY");
+    if (result.status !== "READY") return;
+    expect(result.entries[0]?.explanation).toMatchObject({
+      ruleId:
+        "profile.procedure.deadline_extension_request.explanation.v2",
+      whatItIs: expect.stringContaining("más tiempo"),
+      officialSources: expect.arrayContaining([
+        expect.objectContaining({ authority: "AEAT" }),
+      ]),
+    });
+    expect(result.entries[0]?.explanation.whatItIs).not.toContain(
+      "no se ha identificado",
+    );
+  });
+
   it("reconstruye un efecto variable controlado al reabrir sin conservar la frase fuente", () => {
     const value = workspace();
     const document = value.documents[0]!;

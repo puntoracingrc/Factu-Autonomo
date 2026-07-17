@@ -14,16 +14,14 @@ const coverageSource = readSource("./FiscalNotificationGuideCoverageSummary.tsx"
 const combinedSource = `${viewSource}\n${detailSource}\n${coverageSource}`;
 
 describe("FiscalNotificationGuideView UI contract", () => {
-  it("renders the real catalog as 87 automatic families and no pending cards", () => {
+  it("renders the expanded catalog with sector profiles kept manual", () => {
     const html = renderToStaticMarkup(
       createElement(FiscalNotificationGuideCoverageSummary),
     );
 
-    // Independent product acceptance count from the signed-off 87-family pack.
-    // Deliberately do not derive this expectation from the runtime registry.
-    expect(html).toContain("Hay 87 guías explicadas:");
-    expect(html).toContain("87 con lectura automática");
-    expect(html).toContain("0 disponibles para consulta manual");
+    expect(html).toContain("Hay 122 guías explicadas:");
+    expect(html).toContain("118 con lectura automática");
+    expect(html).toContain("4 disponibles para consulta manual");
     expect(html).not.toContain("En preparación");
     expect(viewSource).not.toContain("<FiscalNotificationGuideCoverageSummary />");
   });

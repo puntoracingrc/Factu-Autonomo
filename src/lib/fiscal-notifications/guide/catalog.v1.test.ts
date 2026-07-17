@@ -12,17 +12,21 @@ import {
   AEAT_DOCUMENT_RELATION_TYPE_IDS_V1,
 } from "@/lib/fiscal-notifications/knowledge/aeat-document-knowledge.v1";
 import { FISCAL_NOTIFICATION_DOCUMENT_FAMILIES_V2 } from "@/lib/fiscal-notifications/knowledge/document-families.v2";
+import { AEAT_OFFICIAL_CATALOG_PROFILES_V9 } from "@/lib/fiscal-notifications/knowledge/official-catalog-expansion.v9";
 
 describe("fiscal notification guide catalog v1", () => {
-  it("projects every v2 family without activating rules or operations", () => {
-    expect(FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1).toHaveLength(87);
+  it("projects the 87 existing families and 35 additive V9 profiles without activating operations", () => {
+    expect(FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1).toHaveLength(122);
     expect(
       FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.map((entry) => entry.familyId),
     ).toEqual(
-      FISCAL_NOTIFICATION_DOCUMENT_FAMILIES_V2.map((family) => family.id),
+      [
+        ...FISCAL_NOTIFICATION_DOCUMENT_FAMILIES_V2.map((family) => family.id),
+        ...AEAT_OFFICIAL_CATALOG_PROFILES_V9.map((profile) => profile.id),
+      ],
     );
 
-    for (const entry of FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1) {
+    for (const entry of FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.slice(0, 87)) {
       expect(entry.schemaVersion).toBe(1);
       expect(entry.legalReviewStatus).toBe("LEGAL_REVIEW_PENDING");
       expect(entry.requiresHumanReview).toBe(true);
@@ -96,19 +100,19 @@ describe("fiscal notification guide catalog v1", () => {
     expect(paymentReceipt.entry.plainLanguage.inShort).toContain("evidencia");
   });
 
-  it("adds individual official guidance to all 87 families", () => {
+  it("adds individual official guidance to all 122 families", () => {
     const explained = FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1;
-    expect(explained).toHaveLength(87);
+    expect(explained).toHaveLength(122);
     expect(
       explained.filter(
         (entry) => entry.recognitionMode === "AUTOMATIC_REVIEW_ONLY",
       ),
-    ).toHaveLength(87);
+    ).toHaveLength(118);
     expect(
       explained.filter(
         (entry) => entry.recognitionMode === "MANUAL_REVIEW_ONLY",
       ),
-    ).toHaveLength(0);
+    ).toHaveLength(4);
 
     expect(
       explained.find((entry) => entry.familyId === "collection.deferral_denial")
@@ -147,6 +151,40 @@ describe("fiscal notification guide catalog v1", () => {
       },
     });
     expect(sanction?.summary).not.toContain("El catálogo registra");
+  });
+
+  it("exposes V9 maturity, official sources and sector gates without generic fallback", () => {
+    const rectification = resolveFiscalNotificationGuideSelectionV1(
+      "assessment.rectification_request",
+    );
+    const verifactu = resolveFiscalNotificationGuideSelectionV1(
+      "verifactu.technical_response",
+    );
+    expect(rectification.status).toBe("SELECTED");
+    expect(verifactu.status).toBe("SELECTED");
+    if (rectification.status !== "SELECTED" || verifactu.status !== "SELECTED") {
+      throw new Error("Expected V9 guide entries");
+    }
+    expect(rectification.entry).toMatchObject({
+      recognitionMode: "AUTOMATIC_REVIEW_ONLY",
+      recognitionMaturity: "OFFICIAL_ONLY",
+      plainLanguage: {
+        familyId: "assessment.rectification_request",
+        networkPolicy: "NO_RUNTIME_NETWORK",
+      },
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+      permitsAccountingAction: false,
+    });
+    expect(rectification.entry.sources.length).toBeGreaterThan(0);
+    expect(rectification.entry.summary).toBe(
+      AEAT_OFFICIAL_CATALOG_PROFILES_V9.find(
+        (profile) => profile.id === "assessment.rectification_request",
+      )?.whatItIs,
+    );
+    expect(verifactu.entry.recognitionMode).toBe("MANUAL_REVIEW_ONLY");
+    expect(verifactu.entry.recognitionMaturity).toBe("OFFICIAL_ONLY");
   });
 
   it("derives only suggested before/after context from all 15 declared chains", () => {

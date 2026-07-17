@@ -9,6 +9,7 @@ import {
   projectFiscalNotificationVerticalSliceReviewV1,
 } from "@/lib/fiscal-notifications/vertical-slice-review.v1";
 import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "@/lib/fiscal-notifications/knowledge/aeat-document-knowledge.v1";
+import { AEAT_OFFICIAL_CATALOG_PROFILES_V9 } from "@/lib/fiscal-notifications/knowledge/official-catalog-expansion.v9";
 import { FiscalNotificationVerticalSliceReview } from "./FiscalNotificationVerticalSliceReview";
 
 const RAW_ACCOUNT = "ES12 3456 7890 1234 5678 9012";
@@ -218,6 +219,25 @@ describe("FiscalNotificationVerticalSliceReview", () => {
       );
       expect(html, familyId).toMatch(/href="https:\/\//u);
       expect(html, familyId).not.toMatch(/(?:NIF|IBAN)\s*:\s*[A-Z0-9]/u);
+    }
+  });
+
+  it("shows a specific official explanation for every V9 profile", () => {
+    expect(AEAT_OFFICIAL_CATALOG_PROFILES_V9).toHaveLength(35);
+    for (const profile of AEAT_OFFICIAL_CATALOG_PROFILES_V9) {
+      const html = renderToStaticMarkup(
+        createElement(FiscalNotificationVerticalSliceReview, {
+          review: reviewForFamily(profile.id),
+        }),
+      );
+      expect(html, profile.id).toContain("Qué significa este documento");
+      expect(html, profile.id).toContain(profile.whatItIs);
+      expect(html, profile.id).toContain("Qué no demuestra");
+      expect(html, profile.id).toContain(
+        "Fuentes oficiales en las que se basa nuestro escáner",
+      );
+      expect(html, profile.id).toMatch(/href="https:\/\//u);
+      expect(html, profile.id).not.toContain("El tipo exacto del documento todavía no se ha identificado");
     }
   });
 

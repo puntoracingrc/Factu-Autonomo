@@ -20,6 +20,7 @@ import {
   type FiscalNotificationDocumentExplanationInputV1,
   type FiscalNotificationDocumentExplanationV1,
 } from "./structured-document-explanation.v1";
+import type { AeatOfficialCatalogProfileIdV9 } from "./knowledge/official-catalog-expansion.v9";
 
 export const FISCAL_NOTIFICATION_DOCUMENT_EXPLANATION_ENGINE_ID_V2 =
   "fiscal-notification-document-explanation" as const;
@@ -228,16 +229,23 @@ export interface FiscalNotificationDocumentExplanationV2 {
   readonly schemaVersion: typeof FISCAL_NOTIFICATION_DOCUMENT_EXPLANATION_SCHEMA_VERSION_V2;
   readonly engineId: typeof FISCAL_NOTIFICATION_DOCUMENT_EXPLANATION_ENGINE_ID_V2;
   readonly engineVersion: typeof FISCAL_NOTIFICATION_DOCUMENT_EXPLANATION_ENGINE_VERSION_V2;
-  readonly knowledgeReleaseId: typeof AEAT_DOCUMENT_KNOWLEDGE_RELEASE_ID_V1;
+  readonly knowledgeReleaseId:
+    | typeof AEAT_DOCUMENT_KNOWLEDGE_RELEASE_ID_V1
+    | "aeat-official-catalog-expansion.2026-07-17.v9";
   readonly status: "EXPLAINED" | "INFORMATION_PENDING" | "REVIEW_REQUIRED";
-  readonly familyId: FiscalNotificationDocumentFamilyIdV2 | null;
+  readonly familyId:
+    | FiscalNotificationDocumentFamilyIdV2
+    | AeatOfficialCatalogProfileIdV9
+    | null;
   readonly familyName: string | null;
   readonly specializationId: string;
   readonly fallbackUsed: boolean;
   readonly sections: readonly FiscalNotificationExplanationSectionV2[];
   readonly relationships: readonly FiscalNotificationRelationExplanationV2[];
   readonly officialSources: readonly FiscalNotificationExplanationOfficialSourceV2[];
-  readonly deadlineTrigger: AeatDocumentProfileV1["plainLanguage"]["deadlineRule"]["trigger"];
+  readonly deadlineTrigger:
+    | AeatDocumentProfileV1["plainLanguage"]["deadlineRule"]["trigger"]
+    | string;
   readonly deadlineTriggerAvailable: boolean;
   readonly missingData: readonly (
     | "STRUCTURED_FACTS"
@@ -246,11 +254,11 @@ export interface FiscalNotificationDocumentExplanationV2 {
     | "DEADLINE_TRIGGER"
   )[];
   readonly missingProfileFields: Readonly<{
-    references: readonly FiscalNotificationReferenceCodeV2[];
-    dates: readonly FiscalNotificationDateCodeV2[];
-    money: readonly FiscalNotificationMoneyCodeV2[];
-    facts: readonly FiscalNotificationFactCodeV2[];
-    participantRoles: readonly FiscalNotificationRoleCodeV2[];
+    references: readonly string[];
+    dates: readonly string[];
+    money: readonly string[];
+    facts: readonly string[];
+    participantRoles: readonly string[];
   }>;
   readonly ambiguities: readonly (
     | "CONFLICTING_EFFECT_CODES"

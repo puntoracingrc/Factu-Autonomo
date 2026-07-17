@@ -19,6 +19,10 @@ import {
 } from "./persisted-workspace.v2";
 import type { FiscalNotificationDocumentFamilyIdV3 } from "./knowledge/document-families.v3";
 import { resolveAeatDocumentProfileV1 } from "./knowledge/aeat-document-knowledge.v1";
+import {
+  resolveAeatOfficialCatalogProfileV9,
+  type AeatOfficialCatalogProfileIdV9,
+} from "./knowledge/official-catalog-expansion.v9";
 import { normalizeFiscalNotificationReferenceV2 } from "./exact-reference-index.v2";
 import {
   createSensitiveReferenceV2Sync,
@@ -92,7 +96,7 @@ const EXACT_LEGACY_FAMILY_MAP: Readonly<
 function recognizedFamilyForDocument(
   document: AdministrativeDocument,
   workspace: FiscalNotificationsWorkspace,
-): FiscalNotificationDocumentFamilyIdV3 | null {
+): FiscalNotificationDocumentFamilyIdV3 | AeatOfficialCatalogProfileIdV9 | null {
   if (
     document.documentType === "AEAT_OFFSET_AGREEMENT" &&
     issuerForDocument(document, workspace) === "AEAT"
@@ -103,6 +107,15 @@ function recognizedFamilyForDocument(
     if (document.documentSubtype === "EX_OFFICIO") {
       return "collection.offset_ex_officio";
     }
+  }
+  const officialCatalogProfile = resolveAeatOfficialCatalogProfileV9(
+    document.documentSubtype,
+  );
+  if (
+    officialCatalogProfile &&
+    issuerForDocument(document, workspace) === "AEAT"
+  ) {
+    return officialCatalogProfile.id;
   }
   const snapshots = document.analysisSnapshotIds
     .map((id) => workspace.analysisSnapshots.find((entry) => entry.id === id))

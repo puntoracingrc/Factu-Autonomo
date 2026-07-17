@@ -184,6 +184,55 @@ describe("fiscal notification document input analysis", () => {
     expect(JSON.stringify(result)).not.toContain(sourceMarker);
   });
 
+  it("adds an official-only V9 profile as a specific review without retaining source text", async () => {
+    const sourceMarker = "PRIVATE-V9-SOURCE-MUST-DISAPPEAR";
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input(
+        [
+          "AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA",
+          "Solicitud o justificante de ampliación de plazo",
+          sourceMarker,
+        ].join("\n"),
+      ),
+    );
+
+    expect(result.verticalSliceReview).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      documents: [
+        expect.objectContaining({
+          extractorId: "requirement",
+          familyId: "procedure.deadline_extension_request",
+          title: "Solicitud o justificante de ampliación de plazo",
+          subtitle: "Coincidencia oficial; revisión obligatoria",
+          warnings: ["profile.OFFICIAL_ONLY_FORMAT_NOT_HARDENED"],
+        }),
+      ],
+      retainedSourceContent: "NONE",
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+      permitsAccountingAction: false,
+    });
+    expect(JSON.stringify(result)).not.toContain(sourceMarker);
+  });
+
+  it("keeps V9 sector profiles outside ordinary classification", async () => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input(
+        [
+          "AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA",
+          "Respuesta técnica o rechazo de registros de facturación",
+        ].join("\n"),
+      ),
+    );
+
+    expect(
+      result.verticalSliceReview.documents.some(
+        (document) => document.familyId === "verifactu.technical_response",
+      ),
+    ).toBe(false);
+  });
+
   it("separates multiple acts in one PDF even when they share an extractor", async () => {
     const result = await analyzeFiscalNotificationDocumentInput(
       multipageInput([

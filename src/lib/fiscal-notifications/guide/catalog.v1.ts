@@ -31,6 +31,7 @@ import {
   type FiscalNotificationRelationTypeIdV2,
 } from "@/lib/fiscal-notifications/document-chain-rules.v2";
 import {
+  FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_RELEASE_ID_V1,
   resolveFiscalNotificationPlainLanguageGuidanceV1,
   type FiscalNotificationPlainLanguageGuidanceV1,
 } from "@/lib/fiscal-notifications/guide/plain-language-guidance.v1";
@@ -39,10 +40,33 @@ import {
   type FiscalNotificationGuideRecognitionModeV2,
 } from "@/lib/fiscal-notifications/guide/knowledge-guidance-adapter.v2";
 import type { AeatDocumentOfficialSourceIdV1 } from "@/lib/fiscal-notifications/knowledge/aeat-document-knowledge.v1";
+import {
+  AEAT_OFFICIAL_CATALOG_PROFILES_V9,
+  AEAT_OFFICIAL_CATALOG_SOURCES_V9,
+  type AeatOfficialCatalogMaturityV9,
+  type AeatOfficialCatalogProfileIdV9,
+  type AeatOfficialCatalogProfileV9,
+} from "@/lib/fiscal-notifications/knowledge/official-catalog-expansion.v9";
+import { AEAT_OFFICIAL_CATALOG_CHAINS_V9 } from "@/lib/fiscal-notifications/official-catalog-relations.v9";
 
 export const FISCAL_NOTIFICATION_GUIDE_SCHEMA_VERSION_V1 = 1 as const;
 export const FISCAL_NOTIFICATION_GUIDE_RELEASE_ID_V1 =
-  "fiscal-notification-guide.2026-07-16.v2" as const;
+  "fiscal-notification-guide.2026-07-17.v3" as const;
+
+export type FiscalNotificationGuideFamilyIdV1 =
+  | FiscalNotificationDocumentFamilyIdV2
+  | AeatOfficialCatalogProfileIdV9;
+
+export type FiscalNotificationGuideCategoryV1 =
+  | FiscalNotificationDocumentFamilyCategoryV2
+  | "EVIDENCE"
+  | "PROCEDURE"
+  | "FILING"
+  | "REPRESENTATION"
+  | "CENSUS"
+  | "INSOLVENCY"
+  | "CUSTOMS"
+  | "TECHNICAL";
 
 interface CategoryPresentationV1 {
   readonly label: string;
@@ -122,6 +146,50 @@ const CATEGORY_PRESENTATION_V1 = Object.freeze({
   Record<FiscalNotificationDocumentFamilyCategoryV2, CategoryPresentationV1>
 >);
 
+const OFFICIAL_CATALOG_CATEGORY_PRESENTATION_V9: Readonly<
+  Record<string, CategoryPresentationV1>
+> = Object.freeze({
+  EVIDENCE: Object.freeze({
+    label: "Justificantes y evidencias",
+    aliases: Object.freeze(["justificante", "registro", "presentación"]),
+  }),
+  PROCEDURE: Object.freeze({
+    label: "Trámites y plazos",
+    aliases: Object.freeze(["trámite", "plazo", "ampliación"]),
+  }),
+  ASSESSMENT: CATEGORY_PRESENTATION_V1.ASSESSMENT,
+  FILING: Object.freeze({
+    label: "Declaraciones presentadas",
+    aliases: Object.freeze(["autoliquidación", "rectificativa", "complementaria"]),
+  }),
+  REVIEW: CATEGORY_PRESENTATION_V1.REVIEW,
+  NOTIFICATION: CATEGORY_PRESENTATION_V1.NOTIFICATION,
+  REPRESENTATION: Object.freeze({
+    label: "Apoderamientos",
+    aliases: Object.freeze(["poder", "representante", "revocación"]),
+  }),
+  CENSUS: Object.freeze({
+    label: "Registros tributarios",
+    aliases: Object.freeze(["REDEME", "SII", "registro"]),
+  }),
+  CERTIFICATE: CATEGORY_PRESENTATION_V1.CERTIFICATE,
+  COLLECTION: CATEGORY_PRESENTATION_V1.COLLECTION,
+  SANCTION: CATEGORY_PRESENTATION_V1.SANCTION,
+  REFUND: CATEGORY_PRESENTATION_V1.REFUND,
+  INSOLVENCY: Object.freeze({
+    label: "Insolvencia y concurso",
+    aliases: Object.freeze(["concurso", "insolvencia", "microempresa"]),
+  }),
+  CUSTOMS: Object.freeze({
+    label: "Aduanas e importación",
+    aliases: Object.freeze(["aduana", "importación", "levante"]),
+  }),
+  TECHNICAL: Object.freeze({
+    label: "Respuestas técnicas",
+    aliases: Object.freeze(["VERI*FACTU", "registro de facturación", "rechazo técnico"]),
+  }),
+});
+
 const PROHIBITED_INFERENCE_LABELS_V1 = Object.freeze({
   PAYMENT_FORM_IS_PAYMENT_RECEIPT:
     "Una carta o documento para pagar no acredita que el pago se haya realizado.",
@@ -157,7 +225,8 @@ export const FISCAL_NOTIFICATION_GUIDE_DOCUMENT_CHECKS_V1 = Object.freeze([
 export interface FiscalNotificationGuideSourceV1 {
   readonly sourceId:
     | FiscalNotificationOfficialSourceIdV4
-    | AeatDocumentOfficialSourceIdV1;
+    | AeatDocumentOfficialSourceIdV1
+    | string;
   readonly title: string;
   readonly authority: "AEAT" | "BOE" | "Gobierno de España";
   readonly sourceKind: "PROCEDURE_INFORMATION" | "LEGAL_TEXT";
@@ -166,7 +235,8 @@ export interface FiscalNotificationGuideSourceV1 {
     | "2026-07-12"
     | "2026-07-13"
     | "2026-07-15"
-    | "2026-07-16";
+    | "2026-07-16"
+    | "2026-07-17";
   readonly verificationStatus: "OFFICIAL_URL_VERIFIED";
   readonly legalReviewStatus: "LEGAL_REVIEW_PENDING";
   readonly usagePolicy: "CONTEXT_ONLY";
@@ -215,19 +285,23 @@ export interface FiscalNotificationGuideProhibitionV1 {
 export interface FiscalNotificationGuideEntryV1 {
   readonly schemaVersion: typeof FISCAL_NOTIFICATION_GUIDE_SCHEMA_VERSION_V1;
   readonly releaseId: typeof FISCAL_NOTIFICATION_GUIDE_RELEASE_ID_V1;
-  readonly familyId: FiscalNotificationDocumentFamilyIdV2;
+  readonly familyId: FiscalNotificationGuideFamilyIdV1;
   readonly nameEs: string;
-  readonly category: FiscalNotificationDocumentFamilyCategoryV2;
+  readonly category: FiscalNotificationGuideCategoryV1;
   readonly categoryLabel: string;
   readonly aliases: readonly string[];
-  readonly knowledgePriority: FiscalNotificationKnowledgePriorityV2;
+  readonly knowledgePriority: FiscalNotificationKnowledgePriorityV2 | "P2";
   readonly recognitionMode: FiscalNotificationGuideRecognitionModeV2;
+  readonly recognitionMaturity:
+    | "LEGACY_CATALOG"
+    | AeatOfficialCatalogMaturityV9;
   readonly summary: string;
   readonly plainLanguage: FiscalNotificationPlainLanguageGuidanceV1;
   readonly documentChecks: readonly string[];
   readonly possiblePrevious: readonly FiscalNotificationGuideRelatedFamilyV1[];
   readonly possibleNext: readonly FiscalNotificationGuideRelatedFamilyV1[];
   readonly abstractRelationContexts: readonly FiscalNotificationGuideAbstractRelationContextV1[];
+  readonly relationHints: readonly string[];
   readonly sources: readonly FiscalNotificationGuideSourceV1[];
   readonly coverage: Readonly<{
     status: FiscalNotificationGuideCoverageStatusV1;
@@ -454,12 +528,14 @@ function guideEntry(
   const plainLanguage = knowledge.guidance;
 
   const legacySources = Array.from(
-    new Set<FiscalNotificationOfficialSourceIdV4>([
+    new Set<string>([
       ...family.sourceIds,
       ...(legacyGuidance?.sourceIds ?? []),
     ]),
   ).map((sourceId) => {
-    const source = sourceById.get(sourceId);
+    const source = sourceById.get(
+      sourceId as FiscalNotificationOfficialSourceIdV4,
+    );
     if (!source) throw new Error("Missing fiscal notification guide source");
     return Object.freeze({
       sourceId: source.id,
@@ -494,12 +570,14 @@ function guideEntry(
     ]),
     knowledgePriority: family.knowledgePriority,
     recognitionMode: knowledge.recognitionMode,
+    recognitionMaturity: "LEGACY_CATALOG",
     summary: plainLanguage.inShort,
     plainLanguage,
     documentChecks: FISCAL_NOTIFICATION_GUIDE_DOCUMENT_CHECKS_V1,
     possiblePrevious: relatedFamilies(family.id, "POSSIBLE_PREVIOUS"),
     possibleNext: relatedFamilies(family.id, "POSSIBLE_NEXT"),
     abstractRelationContexts: abstractRelationContexts(family.id),
+    relationHints: Object.freeze([]),
     sources: Object.freeze(sources),
     coverage: Object.freeze({
       status: knowledge.recognitionMode,
@@ -535,8 +613,148 @@ function guideEntry(
   });
 }
 
+const OFFICIAL_CATALOG_GUIDE_BLOCKERS_V9 = Object.freeze([
+  "EXPLICIT_FACT_EXTRACTOR_MISSING",
+  "OFFICIAL_CONTEXT_ONLY_NOT_A_RULE",
+  "LEGAL_REVIEW_PENDING",
+  "OPERATIONAL_ACTIVATION_PROHIBITED",
+] as const satisfies readonly FiscalNotificationKnowledgeBlockerV2[]);
+
+function officialCatalogGuideEntryV9(
+  profile: AeatOfficialCatalogProfileV9,
+): FiscalNotificationGuideEntryV1 {
+  const category = OFFICIAL_CATALOG_CATEGORY_PRESENTATION_V9[profile.category];
+  if (!category) throw new Error("Missing official catalog category presentation");
+  const sources = profile.officialSourceIds.map((sourceId) => {
+    const source = AEAT_OFFICIAL_CATALOG_SOURCES_V9[sourceId];
+    if (!source) throw new Error("Missing official catalog source");
+    return Object.freeze({
+      sourceId: source.sourceId,
+      title: source.title,
+      authority: "AEAT" as const,
+      sourceKind: "PROCEDURE_INFORMATION" as const,
+      canonicalUrl: source.url,
+      urlCheckedOn: "2026-07-17" as const,
+      verificationStatus: "OFFICIAL_URL_VERIFIED" as const,
+      legalReviewStatus: "LEGAL_REVIEW_PENDING" as const,
+      usagePolicy: "CONTEXT_ONLY" as const,
+    });
+  });
+  const relationHints = AEAT_OFFICIAL_CATALOG_CHAINS_V9
+    .filter((chain) => chain.nodes.includes(profile.id))
+    .flatMap((chain) => [
+      chain.explanation,
+      `No permite concluir: ${chain.forbiddenInference}`,
+    ]);
+  const expectedFieldNames = [
+    ...profile.mustExtract.references,
+    ...profile.mustExtract.dates,
+    ...profile.mustExtract.money,
+    ...profile.mustExtract.facts,
+  ].map((fieldId) => fieldId.toLocaleLowerCase("es").replaceAll("_", " "));
+  const plainLanguage: FiscalNotificationPlainLanguageGuidanceV1 = Object.freeze({
+    schemaVersion: 1,
+    releaseId: FISCAL_NOTIFICATION_PLAIN_LANGUAGE_GUIDANCE_RELEASE_ID_V1,
+    profileId: profile.id,
+    profileVersion: "1.0.0",
+    familyId: profile.id,
+    status: "GENERAL_CONTEXT_EXPLAINED",
+    inShort: profile.whatItIs,
+    whyItUsuallyArrives:
+      profile.notes ||
+      `La AEAT lo emite dentro de ${category.label.toLocaleLowerCase("es")} para comunicar el paso y el resultado que figuran en el propio documento.`,
+    usualNextStep:
+      `Comprueba el resultado, las referencias y las fechas impresas. El analizador buscará, entre otros, estos campos: ${expectedFieldNames.slice(0, 6).join(", ")}.`,
+    deadline: Object.freeze({
+      title:
+        profile.deadlineTrigger === "NONE"
+          ? "No crea un plazo por sí solo"
+          : "Localiza el inicio exacto del plazo",
+      detail:
+        profile.deadlineTrigger === "NONE"
+          ? "Este perfil no atribuye un plazo a este documento. Si el PDF incluye uno, debe revisarse literalmente y no se calcula desde la fecha de subida."
+          : "El plazo depende del hecho o la fecha que indique el documento y, cuando proceda, de la notificación efectiva. Nunca se calcula desde la fecha de escaneo o subida.",
+      basis: "RECEIPT_OR_DOCUMENT_ONLY",
+    }),
+    keyPoints: Object.freeze([...profile.notProvenByThisDocument]),
+    searchTerms: Object.freeze([
+      ...profile.id.split(/[._-]/u).filter(Boolean),
+      ...profile.phases,
+      ...profile.relationRules,
+      profile.nameEs,
+      category.label,
+    ]),
+    sourceIds: Object.freeze([...profile.officialSourceIds]),
+    documentPolicy: "DOCUMENT_IS_PRIMARY",
+    networkPolicy: "NO_RUNTIME_NETWORK",
+    inferencePolicy: "NO_DOCUMENT_SPECIFIC_INFERENCE",
+    deadlinePolicy: "NEVER_CALCULATE_FROM_ISSUE_OR_SCAN_DATE",
+    operationalPolicy: "INFORMATION_ONLY_NO_AUTOMATIC_ACTION",
+  });
+
+  return Object.freeze({
+    schemaVersion: FISCAL_NOTIFICATION_GUIDE_SCHEMA_VERSION_V1,
+    releaseId: FISCAL_NOTIFICATION_GUIDE_RELEASE_ID_V1,
+    familyId: profile.id,
+    nameEs: profile.nameEs,
+    category: profile.category as FiscalNotificationGuideCategoryV1,
+    categoryLabel: category.label,
+    aliases: Object.freeze([
+      ...category.aliases,
+      ...profile.id.split(/[._-]/u).filter(Boolean),
+      ...profile.phases,
+      ...profile.relationRules,
+    ]),
+    knowledgePriority: profile.priority,
+    recognitionMode:
+      profile.priority === "P2"
+        ? "MANUAL_REVIEW_ONLY"
+        : "AUTOMATIC_REVIEW_ONLY",
+    recognitionMaturity: profile.recognitionMaturity,
+    summary: profile.whatItIs,
+    plainLanguage,
+    documentChecks: FISCAL_NOTIFICATION_GUIDE_DOCUMENT_CHECKS_V1,
+    possiblePrevious: Object.freeze([]),
+    possibleNext: Object.freeze([]),
+    abstractRelationContexts: Object.freeze([]),
+    relationHints: Object.freeze(relationHints),
+    sources: Object.freeze(sources),
+    coverage: Object.freeze({
+      status:
+        profile.priority === "P2"
+          ? "MANUAL_REVIEW_ONLY"
+          : "AUTOMATIC_REVIEW_ONLY",
+      candidateHandlerImplemented: true,
+      explicitFactExtractorImplemented: false,
+      syntheticTestCaseAvailable: true,
+      legalRuleActive: false,
+      operationalActionActive: false,
+      automaticRelationConfirmationActive: false,
+      blockers: OFFICIAL_CATALOG_GUIDE_BLOCKERS_V9,
+    }),
+    prohibitions: Object.freeze(
+      FISCAL_NOTIFICATION_PROHIBITED_INFERENCE_IDS_V2.map((id) =>
+        Object.freeze({ id, label: PROHIBITED_INFERENCE_LABELS_V1[id] }),
+      ),
+    ),
+    printedDocumentPolicy: "EXTRACT_EXACTLY_THEN_REQUIRE_REVIEW",
+    officialContextPolicy: "INTERPRET_ONLY_NEVER_OVERRIDE_DOCUMENT",
+    legalReviewStatus: "LEGAL_REVIEW_PENDING",
+    operationalPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+    requiresHumanReview: true,
+    permitsDebtCreation: false,
+    permitsDeadlineCreation: false,
+    permitsPaymentAction: false,
+    permitsAccountingAction: false,
+    permitsAutomaticRelationConfirmation: false,
+  });
+}
+
 export const FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1 = Object.freeze(
-  FISCAL_NOTIFICATION_DOCUMENT_FAMILIES_V2.map(guideEntry),
+  [
+    ...FISCAL_NOTIFICATION_DOCUMENT_FAMILIES_V2.map(guideEntry),
+    ...AEAT_OFFICIAL_CATALOG_PROFILES_V9.map(officialCatalogGuideEntryV9),
+  ],
 ) satisfies readonly FiscalNotificationGuideEntryV1[];
 
 const guideEntryByFamilyId = new Map(
@@ -574,7 +792,7 @@ export function resolveFiscalNotificationGuideSelectionV1(
     return Object.freeze({ status: "UNKNOWN_OR_INVALID", entry: null });
   }
   const entry = guideEntryByFamilyId.get(
-    rawFamilyId as FiscalNotificationDocumentFamilyIdV2,
+    rawFamilyId as FiscalNotificationGuideFamilyIdV1,
   );
   return entry
     ? Object.freeze({ status: "SELECTED", entry })
