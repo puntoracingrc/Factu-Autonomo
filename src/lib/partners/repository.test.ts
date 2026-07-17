@@ -36,8 +36,14 @@ describe("Partner repository schema detection", () => {
       from: vi.fn().mockReturnValue({ select }),
     };
 
-    await expect(
-      getPartnerAccountRecord(admin as never, "owner-user-id"),
-    ).rejects.toThrow("No se pudieron consultar los datos del programa Partners.");
+    const result = getPartnerAccountRecord(admin as never, "owner-user-id");
+
+    await expect(result).rejects.toThrow(
+      "No se pudieron consultar los datos del programa Partners.",
+    );
+    await expect(result).rejects.toMatchObject({
+      operation: "partner_account",
+      databaseCode: "42501",
+    });
   });
 });

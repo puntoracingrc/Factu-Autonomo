@@ -70,6 +70,15 @@ export class PartnerSchemaUnavailableError extends Error {
   }
 }
 
+export class PartnerRepositoryError extends Error {
+  constructor(
+    readonly operation: string,
+    readonly databaseCode: string | null,
+  ) {
+    super("No se pudieron consultar los datos del programa Partners.");
+  }
+}
+
 function isMissingPartnerSchemaError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
   return (
@@ -84,10 +93,13 @@ function isMissingPartnerSchemaError(error: { code?: string; message?: string } 
   );
 }
 
-function throwPartnerQueryError(error: { code?: string; message?: string } | null): void {
+function throwPartnerQueryError(
+  error: { code?: string; message?: string } | null,
+  operation: string,
+): void {
   if (!error) return;
   if (isMissingPartnerSchemaError(error)) throw new PartnerSchemaUnavailableError();
-  throw new Error("No se pudieron consultar los datos del programa Partners.");
+  throw new PartnerRepositoryError(operation, error.code ?? null);
 }
 
 function safeNonNegativeInteger(value: unknown, fallback: number): number {
@@ -132,7 +144,7 @@ export async function getPartnerAccountRecord(
     )
     .eq("user_id", userId)
     .maybeSingle();
-  throwPartnerQueryError(error);
+  throwPartnerQueryError(error, "partner_account");
   return (data as PartnerAccountRecord | null) ?? null;
 }
 
@@ -146,7 +158,7 @@ async function referralRowsForPartners(
     .select("referrer_user_id,referee_user_id")
     .in("referrer_user_id", partnerUserIds)
     .limit(PARTNER_MAX_REFERRALS);
-  if (error) throw new Error("No se pudieron consultar los referidos.");
+  throwPartnerQueryError(error, "partner_referrals");
   return (data ?? []) as ReferralRow[];
 }
 
@@ -159,7 +171,7 @@ async function subscriptionRowsForUsers(
     .from("user_subscriptions")
     .select("user_id,plan,status,current_period_end")
     .in("user_id", userIds.slice(0, PARTNER_MAX_REFERRALS));
-  if (error) throw new Error("No se pudieron consultar las suscripciones referidas.");
+  throwPartnerQueryError(error, "partner_subscriptions");
   return (data ?? []) as SubscriptionRow[];
 }
 
@@ -176,7 +188,7 @@ async function commissionRowsForPartners(
     .in("partner_user_id", partnerUserIds)
     .order("earned_at", { ascending: false })
     .limit(PARTNER_MAX_REFERRALS);
-  throwPartnerQueryError(error);
+  throwPartnerQueryError(error, "partner_commissions");
   return (data ?? []) as CommissionRow[];
 }
 
@@ -222,7 +234,7 @@ export async function buildPartnerDashboard(
       .limit(20),
     getOrCreateReferralCode(input.account.user_id),
   ]);
-  throwPartnerQueryError(payoutResult.error);
+  throwPartnerQueryError(payoutResult.error, "partner_payouts");
 
   const safeAccount = accountSummary(input.account);
   const metrics = buildPartnerPlanCounts(
@@ -329,7 +341,7 @@ export async function grantPartnerAccess(
       "user_id,email,status,commission_bps,payout_threshold_cents,payout_holder_name,payout_iban,payout_details_updated_at,created_at,updated_at",
     )
     .single();
-  throwPartnerQueryError(error);
+  throwPartnerQueryError(error, "partner_grant");
   await getOrCreateReferralCode(user.id);
   return accountSummary(data as PartnerAccountRecord);
 }
@@ -346,7 +358,7 @@ export async function setPartnerAccountStatus(
       "user_id,email,status,commission_bps,payout_threshold_cents,payout_holder_name,payout_iban,payout_details_updated_at,created_at,updated_at",
     )
     .single();
-  throwPartnerQueryError(error);
+  throwPartnerQueryError(error, "partner_status");
   return accountSummary(data as PartnerAccountRecord);
 }
 
@@ -368,7 +380,7 @@ export async function updatePartnerPayoutProfile(
       "user_id,email,status,commission_bps,payout_threshold_cents,payout_holder_name,payout_iban,payout_details_updated_at,created_at,updated_at",
     )
     .single();
-  throwPartnerQueryError(error);
+  throwPartnerQueryError(error, "partner_payout_profile");
   return accountSummary(data as PartnerAccountRecord);
 }
 
@@ -382,7 +394,7 @@ export async function listAdminPartners(
     )
     .order("created_at", { ascending: false })
     .limit(PARTNER_MAX_ACCOUNTS);
-  throwPartnerQueryError(error);
+  throwPartnerQueryError(error, "partner_list");
   const accounts = (data ?? []) as PartnerAccountRecord[];
   const partnerIds = accounts.map((row) => row.user_id);
   const referrals = await referralRowsForPartners(admin, partnerIds);
