@@ -1,8 +1,9 @@
-import { createBackupData, createBackupPayload } from "@/lib/backup";
+import { createBackupData } from "@/lib/backup";
 import {
   appDataRecordCount,
   dispatchDataAccessEvent,
 } from "@/lib/security/data-access-events";
+import { createProtectedBackupArtifact } from "@/lib/security/protected-backup";
 import type { AppData } from "@/lib/types";
 
 export const DRIVE_BACKUP_SCOPE = "https://www.googleapis.com/auth/drive.file";
@@ -842,10 +843,18 @@ export async function uploadAppBackupToGoogleDriveWithAccessToken(
     }
 
     const exportedAt = (options.now?.() ?? new Date()).toISOString();
-    const folder = await findOrCreateBackupFolder(accessToken);
     const fileName = buildDriveBackupFileName(exportedAt);
-    const payload = createBackupPayload(data, exportedAt);
-    const jsonText = JSON.stringify(payload, null, 2);
+    const artifact = await createProtectedBackupArtifact(data, exportedAt, {
+      requireEncryption: true,
+    });
+    if (!artifact.encrypted) {
+      return {
+        ok: false,
+        error: "No se ha podido confirmar el cifrado de la copia de Drive.",
+      };
+    }
+    const jsonText = artifact.text;
+    const folder = await findOrCreateBackupFolder(accessToken);
     const uploaded = await uploadJsonBackup(
       accessToken,
       folder.id,

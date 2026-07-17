@@ -500,7 +500,7 @@ export function CloudAccountCard() {
                 </Button>
                 <Button
                   variant="secondary"
-                  onClick={exportBackup}
+                  onClick={() => void exportBackup()}
                   disabled={busy}
                 >
                   <Download className="h-4 w-4" />

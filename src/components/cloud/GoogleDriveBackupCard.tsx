@@ -215,10 +215,10 @@ export function GoogleDriveBackupCard() {
       setFeedback({
         tone: result.cleanupWarning ? "info" : "success",
         message: result.cleanupWarning
-          ? `Copia guardada en Drive, pero no se pudieron retirar copias antiguas: ${result.cleanupWarning}`
+          ? `Copia cifrada guardada en Drive, pero no se pudieron retirar copias antiguas: ${result.cleanupWarning}`
           : options.automatic
-            ? `Copia automática guardada en Drive: ${result.fileName}`
-            : `Copia guardada en la carpeta de Drive: ${result.fileName}`,
+            ? `Copia automática cifrada guardada en Drive: ${result.fileName}`
+            : `Copia cifrada guardada en la carpeta de Drive: ${result.fileName}`,
       });
     },
     [
@@ -371,7 +371,7 @@ export function GoogleDriveBackupCard() {
               </h2>
               <p className="mt-1 text-sm text-slate-600">
                 Drive no sirve para iniciar sesión. Solo guarda una copia extra
-                si lo conectas aquí, además de la nube de Factu.
+                cifrada si lo conectas aquí, además de la nube de Factu.
               </p>
             </div>
           </div>
@@ -389,8 +389,9 @@ export function GoogleDriveBackupCard() {
           pedimos leer todo tu Drive ni gestionar carpetas ajenas.
         </div>
         <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-          Guardamos las {DRIVE_BACKUP_RETENTION_LIMIT} últimas copias. Al subir
-          una nueva, las más antiguas se retiran de la carpeta de Drive.
+          Las copias se cifran antes de salir del navegador. Guardamos las{" "}
+          {DRIVE_BACKUP_RETENTION_LIMIT} últimas; al subir una nueva, las más
+          antiguas se retiran de la carpeta de Drive.
         </div>
         <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
           {BACKUP_SCOPE_NOTICE}

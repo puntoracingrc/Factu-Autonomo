@@ -159,7 +159,7 @@ export default function GoogleDriveCallbackPage() {
 
         setStatus({
           state: "success",
-          message: "Copia guardada en Google Drive.",
+          message: "Copia cifrada guardada en Google Drive.",
           fileName: result.fileName,
           webViewLink: result.webViewLink,
           folderWebViewLink: result.folderWebViewLink,

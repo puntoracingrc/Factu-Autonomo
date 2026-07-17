@@ -14,6 +14,11 @@ import {
 } from "@/lib/backup";
 import type { BackupRestoreDraft } from "@/lib/backup";
 import { runBackupRestoreWithSafetyCopy } from "@/lib/backup-restore-command";
+import {
+  downloadProtectedBackup,
+  prepareProtectedBackupCandidate,
+} from "@/lib/security/protected-backup";
+import { MAX_ENCRYPTED_BACKUP_BYTES } from "@/lib/security/backup-envelope";
 import { testDocumentRetirementTenantFingerprintForUserId } from "@/lib/test-document-retirement-persistence";
 
 export function DataOwnershipCard() {
@@ -27,6 +32,7 @@ export function DataOwnershipCard() {
     tone: "success" | "error";
     message: string;
   } | null>(null);
+  const [backupInProgress, setBackupInProgress] = useState(false);
   const [selectedBackupFile, setSelectedBackupFile] = useState<File | null>(
     null,
   );
@@ -49,12 +55,17 @@ export function DataOwnershipCard() {
     confirmedReplacement,
   });
 
-  function handleBackupExport() {
-    const result = downloadBackup(data);
+  async function handleBackupExport() {
+    if (backupInProgress) return;
+    setBackupInProgress(true);
+    const result = await downloadProtectedBackup(data);
+    setBackupInProgress(false);
     if (result.ok) {
       setBackupFeedback({
         tone: "success",
-        message: `Copia descargada: ${result.filename}`,
+        message: result.encrypted
+          ? `Copia cifrada descargada: ${result.filename}`
+          : `Copia local descargada sin cifrar: ${result.filename}. Inicia sesión para que las próximas copias queden cifradas.`,
       });
       return;
     }
@@ -99,14 +110,24 @@ export function DataOwnershipCard() {
     setConfirmedReplacement(false);
     setRestoreFeedback(null);
 
+    if (selectedBackupFile.size > MAX_ENCRYPTED_BACKUP_BYTES) {
+      setImportError("El archivo es demasiado grande para revisarlo.");
+      return;
+    }
+
     try {
       const rawText = await readSelectedBackupFile(selectedBackupFile);
-      const result = buildBackupRestoreDraft({
+      const prepared = await prepareProtectedBackupCandidate({
         fileName: selectedBackupFile.name,
         mimeType: selectedBackupFile.type,
         byteLength: selectedBackupFile.size,
         rawText,
       });
+      if (!prepared.ok) {
+        setImportError(prepared.error);
+        return;
+      }
+      const result = buildBackupRestoreDraft(prepared.candidate);
 
       if (!result.ok) {
         setImportError(result.error);
@@ -261,18 +282,23 @@ export function DataOwnershipCard() {
           Copia de seguridad
         </h3>
         <p className="mt-1 text-sm text-slate-600">
-          Descarga una copia JSON de tus datos locales. Guárdala en un lugar
-          seguro.
+          Descarga una copia JSON de tus datos locales. Con sesión iniciada se
+          cifra automáticamente para que no pueda leerse fuera de tu cuenta.
         </p>
         <p className="mt-2 text-xs text-slate-500">
-          Esta copia puede contener datos personales y fiscales. No se sube a
-          ningún servidor y no aplica datos automáticamente.
+          El archivo se genera en este navegador y no aplica datos
+          automáticamente. Sin sesión iniciada, la copia será legible y deberás
+          guardarla en un lugar seguro.
         </p>
         <p className="mt-2 text-xs text-slate-500">{BACKUP_SCOPE_NOTICE}</p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-          <Button variant="secondary" onClick={handleBackupExport}>
+          <Button
+            variant="secondary"
+            onClick={() => void handleBackupExport()}
+            disabled={backupInProgress}
+          >
             <Download className="h-5 w-5" />
-            Exportar copia de seguridad
+            {backupInProgress ? "Cifrando copia…" : "Exportar copia de seguridad"}
           </Button>
         </div>
         {backupFeedback && (
@@ -294,8 +320,8 @@ export function DataOwnershipCard() {
           Importar copia de seguridad
         </h3>
         <p className="mt-1 text-sm text-slate-600">
-          Selecciona una copia JSON para revisarla antes de restaurar. No se
-          aplicarán cambios.
+          Selecciona una copia JSON, cifrada o antigua, para revisarla antes de
+          restaurar. No se aplicarán cambios.
         </p>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row">
           <Button

@@ -1,4 +1,12 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const protectionMocks = vi.hoisted(() => ({
+  createProtectedBackupArtifact: vi.fn(),
+}));
+
+vi.mock("@/lib/security/protected-backup", () => ({
+  createProtectedBackupArtifact: protectionMocks.createProtectedBackupArtifact,
+}));
 import {
   buildGoogleDriveAuthorizationUrl,
   buildDriveBackupFileName,
@@ -127,6 +135,23 @@ function importantSettings(data: AppData) {
 }
 
 describe("Google Drive backup", () => {
+  beforeEach(() => {
+    protectionMocks.createProtectedBackupArtifact.mockReset();
+    protectionMocks.createProtectedBackupArtifact.mockImplementation(
+      async (data: AppData, exportedAt: string) => {
+        const text = JSON.stringify(createBackupPayload(data, exportedAt), null, 2);
+        return {
+          blob: new Blob([text], { type: "application/json" }),
+          text,
+          contentSha256: "sha256:test",
+          byteLength: new TextEncoder().encode(text).byteLength,
+          encrypted: true,
+          keyVersion: 1,
+        };
+      },
+    );
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     clearDriveAccessToken();
@@ -616,6 +641,12 @@ describe("Google Drive backup", () => {
       cleanupWarning: undefined,
     });
 
+    expect(protectionMocks.createProtectedBackupArtifact).toHaveBeenCalledWith(
+      sourceData,
+      NOW.toISOString(),
+      { requireEncryption: true },
+    );
+
     expect(fetchMock).toHaveBeenCalledTimes(5);
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain(
       "https://www.googleapis.com/drive/v3/files",
@@ -644,6 +675,30 @@ describe("Google Drive backup", () => {
     );
     expect(uploadInit.body).toContain('"documents"');
     expect(uploadInit.body).toContain('"exportVersion"');
+  });
+
+  it("rechaza una copia de Drive si no puede confirmar que esta cifrada", async () => {
+    protectionMocks.createProtectedBackupArtifact.mockResolvedValueOnce({
+      blob: new Blob(["{}"], { type: "application/json" }),
+      text: "{}",
+      contentSha256: "sha256:test",
+      byteLength: 2,
+      encrypted: false,
+    });
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      uploadAppBackupToGoogleDriveWithAccessToken(
+        dataWithDocument("2026-06-29T10:00:00.000Z"),
+        "access-token",
+        { now: () => NOW },
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      error: "No se ha podido confirmar el cifrado de la copia de Drive.",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("retira de Drive las copias antiguas y conserva solo las diez últimas", async () => {
