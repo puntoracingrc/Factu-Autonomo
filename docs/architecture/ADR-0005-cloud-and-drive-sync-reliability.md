@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 3
-- Fecha: 2026-07-16
+- Versión: 4
+- Fecha: 2026-07-17
 
 ## Contexto
 
@@ -56,7 +56,7 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
    archivos JSON creados por la app dentro de su carpeta y con su prefijo. Un
    fallo de limpieza no invalida la copia verificada.
 
-### Originales fiscales en el Drive del usuario
+### Originales de notificaciones fiscales en el Drive del usuario
 
 1. El archivado es voluntario y requiere un clic explícito por PDF. Conectar
    Drive, seleccionar un archivo o reconocer un duplicado nunca inicia por sí
@@ -96,6 +96,32 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
    relee el estado remoto y, si después falla el borrado durable de la ficha,
    se intenta restaurar el original con `trashed: false` y otra relectura.
 
+### Originales de facturas de gastos en el Drive del usuario
+
+1. El usuario activa o desactiva expresamente en Ajustes el archivado de
+   originales de gastos. Conectar Drive, escanear o recibir un email no sube
+   nada: el botón que guarda cada gasto es el disparador explícito y aplica la
+   preferencia vigente.
+2. Se aceptan únicamente PDF, JPEG, PNG, WebP y GIF dentro de los límites del
+   escáner y con firma binaria coherente con el MIME. Para originales del buzón
+   se exige además la misma huella SHA-256 guardada durante la recepción.
+3. El destino es `Factu - facturas de gastos/AAAA/MM`, derivado solo de la
+   fecha documental confirmada en el formulario. El nombre remoto se genera a
+   partir de fecha, proveedor saneado y prefijo de huella; nunca se persiste ni
+   reutiliza el nombre local o el asunto del email.
+4. Subida, búsqueda idempotente y readback comparten el bloqueo exclusivo de
+   Drive. Solo `SHA256_READBACK_MATCH` permite que el gasto conserve el recibo
+   versionado `originalArchive`; ese recibo contiene procedencia, MIME, huella,
+   fecha e IDs opacos de Drive, pero no bytes, nombre, texto, enlace ni token.
+5. Si el consentimiento está activo y no puede verificarse Drive, no se publica
+   el gasto en memoria, no se navega y el documento del buzón no pasa a
+   `processed`. El formulario permanece abierto con un error reintentable. Si
+   Drive aceptó el archivo antes de fallar el commit local, el siguiente intento
+   lo localiza por política+huella y lo relee antes de reutilizarlo.
+6. Desactivar la preferencia evita nuevas subidas y no borra archivos ya
+   custodiados por el usuario. Los gastos anteriores sin original no se suben
+   automáticamente porque Factu no conserva esos bytes.
+
 ## Consecuencias
 
 - La aplicación evita carreras entre sincronización manual y automática.
@@ -104,6 +130,9 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
   aceptación de la subida.
 - Un usuario puede archivar y recuperar sus originales sin que Factu custodie
   el PDF ni use la fecha de escaneo como fecha documental.
+- Las facturas de gastos escaneadas o recibidas por email pueden archivarse por
+  preferencia explícita sin convertir Drive en base de datos ni conservar PII
+  o contenido binario en Factu.
 - Borrar una ficha y retirar su original son decisiones independientes; la
   segunda es reversible desde la papelera de Drive y nunca afecta a archivos
   ajenos o compartidos.
@@ -123,6 +152,10 @@ deben superar:
 - `src/lib/google-drive/backup.test.ts`
 - `src/lib/google-drive/fiscal-notification-original-archive.v1.test.ts`
 - `src/lib/google-drive/fiscal-notification-original-delete.v1.test.ts`
+- `src/lib/google-drive/expense-original-archive.v1.test.ts`
+- `src/lib/google-drive/expense-original-archive-client.test.ts`
+- `src/lib/expense-original-archive-persistence.test.ts`
+- `src/app/api/expense-inbox/[id]/original/route.test.ts`
 - `src/lib/fiscal-notifications/drive-original-archive.v1.test.ts`
 - `src/lib/fiscal-notifications/drive-original-archive-command.v1.test.ts`
 

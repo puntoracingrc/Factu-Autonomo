@@ -78,6 +78,9 @@ Contrato: [ADR-0004](ADR-0004-expense-inbox-email-reliability.md).
 - Guardar o descartar cierra la entrada. La copia usa el subdominio autenticado
   y solo `delivered` confirma éxito; un fallo nunca se convierte en éxito
   silencioso.
+- La descarga autenticada de un original propio es temporal, `no-store` y
+  exige tamaño+SHA-256 exactos; nunca persiste bytes ni expone PII. Un fallo no
+  cierra la entrada ni publica el gasto.
 
 Regresiones mínimas: `expense-inbox-reliability-contract.test.ts`,
 `expense-inbox-copy.test.ts` y `expense-inbox-download.test.ts`.
@@ -94,9 +97,15 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
 - Aislamiento por usuario, CAS e integridad fiscal continúan fail-closed.
 - Drive usa `drive.file`, compara por readback exacto antes de confirmar y solo
   después aplica retención. Manual, automático y callback no se solapan.
-- Un original fiscal exige acción expresa y coincidencia SHA-256 tras relectura.
+- Un original de notificación fiscal exige acción expresa y coincidencia
+  SHA-256 tras relectura.
   Factu no conserva sus bytes, texto o nombre; la carpeta usa fecha documental
   `AAAA/MM` o «Fecha pendiente», jamás la fecha de escaneo.
+- Los originales de gastos requieren consentimiento persistente en Ajustes y
+  el guardado explícito de cada gasto. PDF/imágenes válidos van a
+  `Factu - facturas de gastos/AAAA/MM`; sin readback SHA-256 no se guarda el
+  gasto ni se cierra el buzón. Solo se persiste un recibo versionado sin bytes,
+  nombre, texto, enlace o token.
 - La papelera local conserva Drive por omisión. Enviar también un original a la
   papelera remota exige una elección separada, que sea exclusivo de esa ficha,
   coincidencia exacta de ID/política/SHA-256 y readback; nunca usa borrado
@@ -105,7 +114,10 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
 Regresiones mínimas: `cloud-drive-sync-reliability-contract.test.ts`,
 `sync-operation.test.ts`, `sync-queue.test.ts`, `repository.test.ts`,
 `google-drive/operation.test.ts`, `google-drive/backup.test.ts` y
-`google-drive/fiscal-notification-original-delete.v1.test.ts`.
+`google-drive/fiscal-notification-original-delete.v1.test.ts`,
+`google-drive/expense-original-archive.v1.test.ts`,
+`google-drive/expense-original-archive-client.test.ts` y
+`expense-original-archive-persistence.test.ts`.
 
 ### 6. Maestro de clientes y vínculos documentales
 

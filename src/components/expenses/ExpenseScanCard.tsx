@@ -51,7 +51,7 @@ import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 interface ExpenseScanCardProps {
   onScanned: (
     payload: ExpenseScanPayload,
-    options?: { fileName?: string; append?: boolean },
+    options?: { fileName?: string; file?: File; append?: boolean },
   ) => void;
   onScanProgress?: (
     progress: { current: number; total: number; fileName?: string } | null,
@@ -360,6 +360,7 @@ export function ExpenseScanCard({
         );
         onScanned(data, {
           fileName: item.file.name,
+          file: item.file,
           append: imported > 0,
         });
         imported += 1;

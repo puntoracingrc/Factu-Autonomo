@@ -155,6 +155,11 @@ La decisión obligatoria y versionada está en
   como `ignored`. La lista solo muestra estados abiertos. El gasto conserva el
   ID opaco de origen para que un fallo posterior de cierre nunca cree otro
   gasto al reintentar.
+- La descarga autenticada del original de una entrada propia solo existe para
+  archivarlo transitoriamente en Drive durante el guardado. Exige cuenta
+  confirmada, `no-store`, límite de peticiones y coincidencia exacta de tamaño
+  y SHA-256; no expone PII ni persiste bytes. Un fallo conserva el formulario y
+  no marca la entrada como `processed`.
 - Cualquier cambio en inbound, descargas, alias, middleware, billing, Supabase
   o sus migraciones debe ejecutar `expense-inbox-reliability-contract.test.ts`,
   `expense-inbox-copy.test.ts` y `expense-inbox-download.test.ts`. Una auditoría
@@ -184,10 +189,17 @@ La decisión obligatoria y versionada está en
 - Drive usa solo `drive.file`, callback propio con `state`, token temporal en
   sesión y destinos oficiales de Google. Una copia solo se marca válida tras
   releer el archivo recién creado y comparar exactamente el JSON exportado.
-- Un original fiscal solo se archiva tras un clic explícito, relectura remota y
+- Un original de notificación fiscal solo se archiva tras un clic explícito,
+  relectura remota y
   coincidencia SHA-256 exacta. Factu no conserva PDF, nombre ni texto; guarda
   identificadores opacos, huella y estado. La ruta usa la fecha documental
   `AAAA/MM` o «Fecha pendiente», nunca la fecha de escaneo.
+- Los originales de gastos requieren una preferencia explícita en Ajustes y el
+  clic que guarda cada gasto. Solo admite PDF/imágenes válidos y los archiva en
+  `Factu - facturas de gastos/AAAA/MM` según fecha documental. Si Drive no
+  confirma readback SHA-256 exacto, no se publica el gasto ni se cierra el
+  buzón. Factu persiste únicamente el recibo `originalArchive` versionado, sin
+  bytes, nombre local, texto, enlace ni token.
 - Eliminar una ficha conserva Drive por omisión. Solo una elección separada
   puede enviar a la papelera un original exclusivo y verificado: se comprueban
   ID, política administrada y SHA-256, se relee `trashed: true`, nunca se borra
@@ -202,7 +214,10 @@ La decisión obligatoria y versionada está en
   `google-drive/backup.test.ts` y las regresiones
   `fiscal-notification-original-archive.v1.test.ts` y
   `fiscal-notification-original-delete.v1.test.ts` y
-  `drive-original-archive.v1.test.ts`.
+  `drive-original-archive.v1.test.ts`,
+  `expense-original-archive.v1.test.ts`,
+  `expense-original-archive-client.test.ts` y
+  `expense-original-archive-persistence.test.ts`.
 
 ## Fiabilidad del maestro de clientes
 

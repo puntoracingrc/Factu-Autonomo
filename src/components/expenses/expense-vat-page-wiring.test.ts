@@ -34,9 +34,9 @@ describe("expense VAT page fail-closed wiring", () => {
     const scanPreparation = scanSave.indexOf("prepareExpenseVatForSave(");
     const scanBlockedReturn = scanSave.indexOf("if (!vatPreparation.ok)");
     const duplicateReturn = scanSave.indexOf(
-      "if (duplicate && !upgradeTarget) return false",
+      "if (duplicate && !upgradeTarget) return { ok: false }",
     );
-    const atomicSupplierUpsert = scanSave.indexOf("ensureExpenseSupplier(");
+    const atomicSupplierUpsert = scanSave.indexOf("ensureSupplierForExpense(");
     expect(scanPreparation).toBeGreaterThanOrEqual(0);
     expect(scanBlockedReturn).toBeGreaterThan(scanPreparation);
     expect(duplicateReturn).toBeGreaterThan(scanBlockedReturn);

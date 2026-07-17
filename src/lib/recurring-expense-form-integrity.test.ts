@@ -204,7 +204,7 @@ describe("recurring expense form integrity", () => {
       submitStart,
     );
     const supplierGate = newExpenseForm.indexOf(
-      "resolved.create && !usesDurableFixedSave",
+      "const resolved = hasSupplierName",
       submitStart,
     );
     const durableSave = newExpenseForm.indexOf(

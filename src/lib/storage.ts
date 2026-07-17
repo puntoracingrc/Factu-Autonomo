@@ -29,6 +29,7 @@ import {
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./fiscal-notifications/workspace-persistence.v1";
 import { normalizeSupplierNif, supplierCompareKey } from "./suppliers";
 import { normalizeRecurringExpense } from "./recurring-expenses";
+import { normalizeExpenseOriginalArchiveOnExpense } from "./expense-original-archive";
 import {
   enforceAppliedTestDocumentRetirements,
   normalizeTestDocumentRetirementBatches,
@@ -765,7 +766,8 @@ export function normalizeLoadedData(
       typeof value.description === "string" &&
       typeof value.amount === "number" &&
       typeof value.ivaPercent === "number",
-    normalize: (value) => value as unknown as Expense,
+    normalize: (value) =>
+      normalizeExpenseOriginalArchiveOnExpense(value as unknown as Expense),
   });
   const expenses = linkLooseExpensesToExistingSuppliers(
     normalizedExpenses,

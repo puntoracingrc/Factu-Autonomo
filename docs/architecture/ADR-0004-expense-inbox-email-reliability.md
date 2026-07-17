@@ -1,8 +1,8 @@
 # ADR-0004 - Fiabilidad del buzón de gastos por email
 
 - Estado: aceptada
-- Versión: 4
-- Fecha: 2026-07-15
+- Versión: 5
+- Fecha: 2026-07-17
 - Ámbito: recepción de facturas de proveedores por email mediante Resend
 
 ## Contexto
@@ -103,6 +103,14 @@ de host exacta, HTTPS y las restricciones SSRF. No se siguen redirecciones.
     mismo ID y el registro de compatibilidad conserva su ID, alias, hash y
     estado. Un cambio de esquema no puede convertir un error recuperable en un
     duplicado opaco ni ocultarlo de la lista.
+19. El navegador autenticado puede recuperar temporalmente el original de una
+    entrada propia `pending` o `processed` únicamente para archivarlo en el
+    Drive del usuario durante el guardado del gasto. La ruta exige cuenta
+    confirmada, límite de peticiones y `no-store`; vuelve a descargar desde la
+    procedencia autenticada, contrasta tamaño y SHA-256 con el registro y no
+    devuelve nombre, remitente, asunto, URL firmada ni identificadores del
+    proveedor. Factu no persiste esos bytes y un error conserva tanto el
+    formulario como la entrada sin marcarla `processed`.
 
 ## Pruebas y despliegue
 
@@ -114,6 +122,8 @@ idempotente, el remitente alineado, la confirmación `delivered`, el bloqueo de
 bucles, el cierre `processed`/`ignored` y la compatibilidad de lectura y
 reintento con `sync_entities`. La prueba de descarga reproduce el host real
 `cdn.resend.app` y mantiene casos adversariales para dominios imitadores.
+La ruta autenticada del original cubre además aislamiento por propietario,
+rate limit, `no-store`, bytes exactos y errores sin PII.
 
 Antes de fusionar se ejecutan pruebas dirigidas, lint, typecheck y la suite CI.
 Tras fusionar, `Production Domain` debe asignar y verificar

@@ -83,6 +83,12 @@ export interface ExpenseInboxIngestResult {
   message: string;
 }
 
+export interface ExpenseInboxOriginalDownload {
+  readonly buffer: Buffer;
+  readonly contentType: string;
+  readonly sourceSha256: string;
+}
+
 const ALIAS_ENTITY_TYPE = "expense_inbox_alias";
 const ALIAS_HISTORY_ENTITY_TYPE = "expense_inbox_alias_history";
 const ITEM_ENTITY_TYPE = "expense_inbox_item";
@@ -1147,6 +1153,100 @@ export async function getExpenseInboxItem(
   return data
     ? mapItem(data as unknown as ExpenseInboxItemRow)
     : getExpenseInboxItemFromSyncEntities(userId, itemId);
+}
+
+/**
+ * Recupera temporalmente el adjunto exacto para que el navegador pueda
+ * archivarlo en el Drive del usuario. Los bytes no se persisten en Factu.
+ */
+export async function getExpenseInboxOriginalAttachment(input: {
+  userId: string;
+  itemId: string;
+}): Promise<ExpenseInboxOriginalDownload | null> {
+  const admin = ensureAdmin();
+  const baseColumns = [
+    "id",
+    "user_id",
+    "alias_token",
+    "from_email",
+    "from_name",
+    "subject",
+    "received_at",
+    "attachment_filename",
+    "attachment_content_type",
+    "attachment_size",
+    "attachment_hash",
+    "status",
+    "scan_payload",
+    "scan_error",
+    "created_at",
+  ];
+  const selectRow = (includeProviderIds: boolean) =>
+    admin
+      .from("expense_inbox_items")
+      .select(
+        [
+          ...baseColumns,
+          ...(includeProviderIds
+            ? ["source_email_id", "source_attachment_id"]
+            : []),
+        ].join(", "),
+      )
+      .eq("user_id", input.userId)
+      .eq("id", input.itemId)
+      .maybeSingle();
+
+  let { data, error } = await selectRow(true);
+  if (error && isMissingRetryMetadataError(error)) {
+    ({ data, error } = await selectRow(false));
+  }
+  let row: ExpenseInboxItemRow | null = null;
+  if (error) {
+    if (!isMissingInboxTableError(error)) throw error;
+    row = (
+      await getExpenseInboxItemRecordFromSyncEntities(
+        input.userId,
+        input.itemId,
+      )
+    )?.row ?? null;
+  } else if (data) {
+    row = {
+      ...(data as unknown as ExpenseInboxItemRow),
+      source_email_id:
+        (data as unknown as ExpenseInboxItemRow).source_email_id ?? null,
+      source_attachment_id:
+        (data as unknown as ExpenseInboxItemRow).source_attachment_id ?? null,
+    };
+  } else {
+    row = (
+      await getExpenseInboxItemRecordFromSyncEntities(
+        input.userId,
+        input.itemId,
+      )
+    )?.row ?? null;
+  }
+  if (!row || (row.status !== "pending" && row.status !== "processed")) {
+    return null;
+  }
+
+  const recovered = await recoverRetryAttachment(row);
+  const contentBase64 = recovered.contentBase64?.trim();
+  const contentType = resolveExpenseInboxAttachmentMimeType(recovered);
+  if (!contentBase64 || !contentType) {
+    throw new Error("El original del buzón no tiene un formato permitido.");
+  }
+  const buffer = Buffer.from(contentBase64, "base64");
+  if (
+    buffer.byteLength !== recovered.size ||
+    attachmentHash(buffer) !== row.attachment_hash
+  ) {
+    throw new Error("El adjunto recuperado no coincide con el original.");
+  }
+  return Object.freeze({
+    buffer,
+    contentType,
+    sourceSha256: row.attachment_hash,
+  });
 }
 
 export async function updateExpenseInboxItemStatus(input: {

@@ -100,10 +100,12 @@ describe("product expenses/providers polish wiring", () => {
     expect(formPage).toContain(
       "nif: purchaseDocument.supplierNif ?? supplierNif",
     );
-    expect(formPage).toContain("const resolved = ensureExpenseSupplier({");
-    expect(formPage).toContain("const supplierId = resolved.supplierId");
+    expect(formPage).toContain("ensureSupplierForExpense(expected.suppliers");
+    expect(formPage).toContain("saveScannedExpenseDurably(durableExpense");
+    expect(formPage).toContain("supplierId: resolved.supplierId");
     expect(formPage).toContain("const created = addSupplier(resolved.create)");
     expect(appStore).toContain("upsertSupplierForExpense(prev.suppliers, input");
+    expect(appStore).toContain("buildScannedExpenseDurableTransition");
     expect(appStore).toContain("suppliers === prev.suppliers");
   });
 
