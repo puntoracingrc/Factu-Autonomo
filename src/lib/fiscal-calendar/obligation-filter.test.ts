@@ -88,10 +88,7 @@ describe("buildFiscalCalendarObligationView", () => {
   it.each([
     [undefined, "NO_PUBLISHED_ASSESSMENT"],
     [assessment([], { territory: "ES_CANARY" }), "UNSUPPORTED_TERRITORY"],
-    [
-      assessment([], { resolutionState: "BLOCKED" }),
-      "ASSESSMENT_NOT_RESOLVED",
-    ],
+    [assessment([], { resolutionState: "BLOCKED" }), "ASSESSMENT_NOT_RESOLVED"],
   ] as const)("mantiene Todos con fallback %s", (stored, reason) => {
     const events = [event("a", "Modelo 303")];
     const result = buildFiscalCalendarObligationView({
@@ -271,10 +268,7 @@ describe("buildFiscalCalendarObligationView", () => {
 
   it("no excluye NOT_APPLICABLE si conserva datos pendientes o conflictos", () => {
     const result = buildFiscalCalendarObligationView({
-      events: [
-        event("missing", "Modelo 303"),
-        event("conflict", "Modelo 390"),
-      ],
+      events: [event("missing", "Modelo 303"), event("conflict", "Modelo 390")],
       session: session(
         assessment([
           obligation("303", "NOT_APPLICABLE", {
@@ -316,9 +310,7 @@ describe("buildFiscalCalendarObligationView", () => {
     ];
     const result = buildFiscalCalendarObligationView({
       events,
-      session: session(
-        assessment([obligation("303", "NOT_APPLICABLE")]),
-      ),
+      session: session(assessment([obligation("303", "NOT_APPLICABLE")])),
     });
 
     expect([...result.visibleEventIds]).toEqual(events.map(({ id }) => id));
@@ -334,9 +326,7 @@ describe("buildFiscalCalendarObligationView", () => {
   it("filtra candidatos desconocidos antes de consultar un único código canónico", () => {
     const result = buildFiscalCalendarObligationView({
       events: [event("mixed", "Modelos 303 y 999")],
-      session: session(
-        assessment([obligation("303", "NOT_APPLICABLE")]),
-      ),
+      session: session(assessment([obligation("303", "NOT_APPLICABLE")])),
     });
 
     expect(result.decisions[0]).toMatchObject({
@@ -349,9 +339,7 @@ describe("buildFiscalCalendarObligationView", () => {
   it("normaliza un único código 36 al modelo 036", () => {
     const result = buildFiscalCalendarObligationView({
       events: [event("normalized", "Modelo 36")],
-      session: session(
-        assessment([obligation("036", "NOT_APPLICABLE")]),
-      ),
+      session: session(assessment([obligation("036", "NOT_APPLICABLE")])),
     });
 
     expect(result.decisions[0]).toMatchObject({
@@ -364,9 +352,7 @@ describe("buildFiscalCalendarObligationView", () => {
   it("mantiene una selección manual aunque el Motor confirme que no aplica", () => {
     const result = buildFiscalCalendarObligationView({
       events: [event("manual", "Modelo 303")],
-      session: session(
-        assessment([obligation("303", "NOT_APPLICABLE")]),
-      ),
+      session: session(assessment([obligation("303", "NOT_APPLICABLE")])),
       manualModelCodes: ["303"],
     });
 
@@ -376,6 +362,38 @@ describe("buildFiscalCalendarObligationView", () => {
       manuallySelected: true,
     });
     expect([...result.manuallySelectedEventIds]).toEqual(["manual"]);
+  });
+
+  it("cuenta modelos únicos recomendados y manuales, no eventIds", () => {
+    const events = Array.from({ length: 17 }, (_, index) =>
+      event(`event-${index}`, index % 2 === 0 ? "Modelo 130" : "Modelo 303"),
+    );
+    const result = buildFiscalCalendarObligationView({
+      events,
+      session: session(
+        assessment([
+          obligation("130", "REQUIRED"),
+          obligation("303", "REQUIRED"),
+          obligation("349", "REVIEW_REQUIRED"),
+          obligation("390", "UNKNOWN"),
+          obligation("115", "REQUIRED"),
+          obligation("180", "NOT_APPLICABLE"),
+        ]),
+      ),
+      manualModelCodes: ["180", "380", "380"],
+    });
+
+    expect(result.decisions).toHaveLength(17);
+    expect([...result.mineModelCodes]).toEqual([
+      "180",
+      "380",
+      "130",
+      "303",
+      "349",
+      "390",
+      "115",
+    ]);
+    expect(result.mineModelCodes.size).toBe(7);
   });
 
   it("conserva la selección manual en un evento con varios modelos", () => {
@@ -416,9 +434,7 @@ describe("buildFiscalCalendarObligationView", () => {
     ];
     const result = buildFiscalCalendarObligationView({
       events,
-      session: session(
-        assessment([obligation("303", "NOT_APPLICABLE")]),
-      ),
+      session: session(assessment([obligation("303", "NOT_APPLICABLE")])),
     });
 
     expect([...result.visibleEventIds]).toEqual(events.map(({ id }) => id));

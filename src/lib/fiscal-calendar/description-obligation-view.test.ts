@@ -106,6 +106,17 @@ const pendingAssessment = assessment([
   obligation("341", "NOT_APPLICABLE"),
 ]);
 
+const resolvableModelCodes = new Set([
+  "130",
+  "303",
+  "308",
+  "309",
+  "341",
+  "349",
+  "380",
+]);
+const mineModelCodes = new Set(["303"]);
+
 describe("vista de líneas del calendario por obligación", () => {
   it("agrupa reversiblemente otros modelos dentro de un evento compuesto", () => {
     const calendarEvent = event(compoundDescription);
@@ -117,6 +128,8 @@ describe("vista de líneas del calendario por obligación", () => {
     const context = buildFiscalCalendarDescriptionFilterContext({
       session: storedSession,
       obligationViewStatus: obligationView.status,
+      mineModelCodes: obligationView.mineModelCodes,
+      resolvableModelCodes,
     });
     const result = buildFiscalCalendarDescriptionView({
       event: calendarEvent,
@@ -129,22 +142,21 @@ describe("vista de líneas del calendario por obligación", () => {
     expect(result.mode).toBe("GROUPED");
     expect(result.directLines.map(({ text }) => text)).toEqual([
       "Segundo trimestre 2026. Autoliquidación: 303",
-      "Segundo trimestre 2026. Operaciones asimiladas a las importaciones: 380",
     ]);
     expect(result.otherModelLines.map(({ modelCode }) => modelCode)).toEqual([
       "349",
       "309",
+      "380",
       "308",
       "308",
       "341",
     ]);
-    expect(result.otherModelCount).toBe(4);
-    expect([
-      ...result.directLines,
-      ...result.otherModelLines,
-    ].map(({ text }) => text).sort()).toEqual(
-      result.allLines.map(({ text }) => text).sort(),
-    );
+    expect(result.otherModelCount).toBe(5);
+    expect(
+      [...result.directLines, ...result.otherModelLines]
+        .map(({ text }) => text)
+        .sort(),
+    ).toEqual(result.allLines.map(({ text }) => text).sort());
   });
 
   it("Todos conserva el texto completo, el orden y los duplicados", () => {
@@ -152,6 +164,8 @@ describe("vista de líneas del calendario por obligación", () => {
     const context = buildFiscalCalendarDescriptionFilterContext({
       session: session(pendingAssessment),
       obligationViewStatus: "ORIENTATIVE",
+      mineModelCodes,
+      resolvableModelCodes,
     });
     const result = buildFiscalCalendarDescriptionView({
       event: calendarEvent,
@@ -171,8 +185,9 @@ describe("vista de líneas del calendario por obligación", () => {
     const calendarEvent = event("Modelo 349\nAutoliquidación: 303");
     const context = buildFiscalCalendarDescriptionFilterContext({
       session: session(pendingAssessment),
-      manualModelCodes: ["349"],
       obligationViewStatus: "ORIENTATIVE",
+      mineModelCodes: new Set(["303", "349"]),
+      resolvableModelCodes,
     });
     const result = buildFiscalCalendarDescriptionView({
       event: calendarEvent,
@@ -188,12 +203,12 @@ describe("vista de líneas del calendario por obligación", () => {
   });
 
   it("trata como una sola referencia el mismo código repetido en una línea", () => {
-    const calendarEvent = event(
-      "Modelo 349. Declaración recapitulativa: 349",
-    );
+    const calendarEvent = event("Modelo 349. Declaración recapitulativa: 349");
     const context = buildFiscalCalendarDescriptionFilterContext({
       session: session(pendingAssessment),
       obligationViewStatus: "ORIENTATIVE",
+      mineModelCodes,
+      resolvableModelCodes,
     });
     const result = buildFiscalCalendarDescriptionView({
       event: calendarEvent,
@@ -208,7 +223,7 @@ describe("vista de líneas del calendario por obligación", () => {
     expect(result.otherModelCount).toBe(1);
   });
 
-  it("deja directas las líneas ambiguas, desconocidas o ausentes", () => {
+  it("deja directas las líneas ambiguas o no resolubles y pliega las demás", () => {
     const description = [
       "Información general sin modelo",
       "Modelos 303 y 349",
@@ -222,6 +237,8 @@ describe("vista de líneas del calendario por obligación", () => {
     const context = buildFiscalCalendarDescriptionFilterContext({
       session: session(pendingAssessment),
       obligationViewStatus: "ORIENTATIVE",
+      mineModelCodes,
+      resolvableModelCodes,
     });
     const result = buildFiscalCalendarDescriptionView({
       event: calendarEvent,
@@ -229,10 +246,15 @@ describe("vista de líneas del calendario por obligación", () => {
       context,
     });
 
-    expect(result.directLines.map(({ text }) => text)).toEqual(
-      description.split("\n").slice(0, 6),
-    );
+    expect(result.directLines.map(({ text }) => text)).toEqual([
+      "Información general sin modelo",
+      "Modelos 303 y 349",
+      "Modelos 303 y 999",
+      "Modelo 999",
+      "Autoliquidación: 303",
+    ]);
     expect(result.otherModelLines.map(({ text }) => text)).toEqual([
+      "Modelo 130",
       "Modelo 349",
     ]);
   });
@@ -262,6 +284,8 @@ describe("vista de líneas del calendario por obligación", () => {
       const context = buildFiscalCalendarDescriptionFilterContext({
         session: session(storedAssessment),
         obligationViewStatus,
+        mineModelCodes,
+        resolvableModelCodes,
       });
       const result = buildFiscalCalendarDescriptionView({
         event: calendarEvent,
@@ -284,6 +308,8 @@ describe("vista de líneas del calendario por obligación", () => {
     const context = buildFiscalCalendarDescriptionFilterContext({
       session: session(pendingAssessment),
       obligationViewStatus: "ORIENTATIVE",
+      mineModelCodes,
+      resolvableModelCodes,
     });
     const result = buildFiscalCalendarDescriptionView({
       event: calendarEvent,
@@ -304,6 +330,8 @@ describe("vista de líneas del calendario por obligación", () => {
     const context = buildFiscalCalendarDescriptionFilterContext({
       session: session(pendingAssessment),
       obligationViewStatus: "ORIENTATIVE",
+      mineModelCodes,
+      resolvableModelCodes,
     });
     const result = buildFiscalCalendarDescriptionView({
       event: calendarEvent,
