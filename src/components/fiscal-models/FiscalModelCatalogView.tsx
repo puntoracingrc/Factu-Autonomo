@@ -4,7 +4,6 @@ import {
   ArrowRight,
   BookOpenCheck,
   History,
-  ShieldAlert,
 } from "lucide-react";
 import { Card } from "@/components/ui/Card";
 import {
@@ -1209,7 +1208,9 @@ export function FiscalModelCatalogView({
   calendarContext: PublicAeatModelCalendarDetailContextResultV1;
   officialContents: readonly PublicAeatOfficialModelContentV1[];
 }) {
-  const matchingIds = new Set(result.data.map((page) => page.catalogCardId));
+  const initialVisibleIds = new Set(
+    result.data.slice(0, 30).map((page) => page.catalogCardId),
+  );
   const calendarNavigation =
     calendarContext.status === "FROM_CALENDAR" ? calendarContext.data : null;
   const focusedCardId = calendarNavigation?.catalogCardId ?? null;
@@ -1250,32 +1251,6 @@ export function FiscalModelCatalogView({
           el BOE.
         </p>
       </header>
-
-      <Card
-        className="border-amber-200 bg-amber-50/80 dark:border-amber-800 dark:bg-amber-950/40"
-        role="note"
-        aria-labelledby="revision-modelos-title"
-      >
-        <div className="flex items-start gap-3">
-          <ShieldAlert
-            className="mt-0.5 h-5 w-5 shrink-0 text-amber-700 dark:text-amber-300"
-            aria-hidden="true"
-          />
-          <div className="min-w-0">
-            <h2
-              id="revision-modelos-title"
-              className="font-bold text-amber-950 dark:text-amber-100"
-            >
-              Algunas fichas siguen en preparación
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-amber-900 dark:text-amber-200">
-              Las tarjetas con la etiqueta «Revisión pendiente» conservan solo
-              la estructura del índice oficial. Las fichas ya completadas
-              muestran información contrastada con las fuentes enlazadas.
-            </p>
-          </div>
-        </div>
-      </Card>
 
       <FiscalModelCatalogBrowser
         entries={searchEntries}
@@ -1330,7 +1305,7 @@ export function FiscalModelCatalogView({
                   data-fiscal-model-card="true"
                   data-fiscal-model-code={page.code}
                   tabIndex={fromCalendar ? -1 : undefined}
-                  hidden={!matchingIds.has(page.catalogCardId)}
+                  hidden={!initialVisibleIds.has(page.catalogCardId)}
                   className={`flex min-w-0 scroll-mt-6 flex-col dark:border-slate-700 dark:bg-slate-900 ${
                     historical
                       ? "border-rose-200 bg-rose-50/50 dark:border-rose-800 dark:bg-rose-950/30"
@@ -1427,12 +1402,13 @@ export function FiscalModelCatalogView({
           </div>
         </section>
 
-        <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
-          La cobertura se limita a las fichas que aparecen en este catálogo. La
-          ausencia de un código no implica una conclusión sobre su existencia,
-          vigencia o aplicación fiscal.
-        </p>
       </FiscalModelCatalogBrowser>
+
+      <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
+        La cobertura se limita a las fichas que aparecen en este catálogo. La
+        ausencia de un código no implica una conclusión sobre su existencia,
+        vigencia o aplicación fiscal.
+      </p>
     </div>
   );
 }
