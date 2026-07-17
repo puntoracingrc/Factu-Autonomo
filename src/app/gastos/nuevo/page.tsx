@@ -85,9 +85,11 @@ import {
   mergeProviderSummaryWithOriginal,
 } from "@/lib/provider-summary-expenses";
 import type {
+  AppData,
   Expense,
   ExpenseBusinessKind,
   ExpenseDeductibility,
+  ExpenseOriginalArchiveV1,
   ExpensePurchaseDocument,
   ExpensePurchaseLine,
   RecurringDueTiming,
@@ -96,6 +98,10 @@ import type {
 } from "@/lib/types";
 import type { ExpenseInboxItem } from "@/lib/expense-inbox";
 import { expenseAlreadySavedFromInbox } from "@/lib/expense-inbox-lifecycle";
+import {
+  archiveExpenseOriginalForSavedExpense,
+  type ExpenseOriginalArchiveCandidate,
+} from "@/lib/google-drive/expense-original-archive-client";
 
 function emptyPurchaseLine(
   partial: Partial<ExpensePurchaseLine> = {},
@@ -131,6 +137,7 @@ interface PendingExpenseScan {
   id: string;
   payload: ExpenseScanPayload;
   fileName?: string;
+  original?: ExpenseOriginalArchiveCandidate;
 }
 
 interface ExpenseInboxItemResponse {
@@ -173,7 +180,7 @@ export default function NuevoGastoPage() {
     addExpense,
     updateExpense,
     addSupplier,
-    ensureExpenseSupplier,
+    saveScannedExpenseDurably,
     saveFixedExpenseWithRecurringTemplate,
   } = useAppStore();
 
@@ -431,6 +438,11 @@ export default function NuevoGastoPage() {
           id: body.item.id,
           payload: body.item.scanPayload,
           fileName: body.item.attachmentFilename,
+          original: {
+            kind: "expense_inbox",
+            itemId: body.item.id,
+            expectedSha256: body.item.attachmentHash,
+          },
         });
         setScanFormCollapsed(false);
         setActiveInboxItemId(body.item.id);
@@ -490,12 +502,15 @@ export default function NuevoGastoPage() {
 
   function applyScanResult(
     payload: ExpenseScanPayload,
-    options?: { fileName?: string; append?: boolean },
+    options?: { fileName?: string; file?: File; append?: boolean },
   ) {
     const review: PendingExpenseScan = {
       id: crypto.randomUUID(),
       payload,
       fileName: options?.fileName,
+      original: options?.file
+        ? { kind: "scan", file: options.file }
+        : undefined,
     };
 
     if (options?.append) {
@@ -1179,14 +1194,36 @@ export default function NuevoGastoPage() {
     return "ready";
   }
 
-  function saveScanPayload(
+  async function prepareExpenseOriginalArchive(input: {
+    candidate?: ExpenseOriginalArchiveCandidate;
+    documentDate: string;
+    supplierName: string;
+  }): Promise<
+    | { ok: true; archive?: ExpenseOriginalArchiveV1 }
+    | { ok: false }
+  > {
+    const result = await archiveExpenseOriginalForSavedExpense(input);
+    if (result.status === "blocked") {
+      setSaveSubmitError(result.error);
+      return { ok: false };
+    }
+    return {
+      ok: true,
+      archive: result.status === "archived" ? result.archive : undefined,
+    };
+  }
+
+  async function saveScanPayload(
     review: PendingExpenseScan,
     savedPayloads: ExpenseScanPayload[] = [],
-  ): boolean {
+    expected: AppData = data,
+  ): Promise<{ ok: true; data: AppData } | { ok: false }> {
     const { payload } = review;
-    if (payload.expense.businessKind === "fixed") return false;
+    if (payload.expense.businessKind === "fixed") return { ok: false };
     const rawVatResolution = vatResolutionForScanPayload(payload);
-    if (payload.expense.amount > 0 && rawVatResolution.blocked) return false;
+    if (payload.expense.amount > 0 && rawVatResolution.blocked) {
+      return { ok: false };
+    }
     const vatPreparation = prepareExpenseVatForSave(
       {
         amount: payload.expense.amount,
@@ -1198,12 +1235,12 @@ export default function NuevoGastoPage() {
       },
       vatExempt,
     );
-    if (!vatPreparation.ok) return false;
+    if (!vatPreparation.ok) return { ok: false };
     const currentDuplicateCandidate = duplicateCandidateForScanPayload(payload);
     const duplicate = duplicateForScanPayload(payload);
     const upgradeTarget =
       duplicate && isProviderSummaryPendingOriginal(duplicate) ? duplicate : null;
-    if (duplicate && !upgradeTarget) return false;
+    if (duplicate && !upgradeTarget) return { ok: false };
     if (
       savedPayloads.some((savedPayload) =>
         purchaseExpenseDuplicateMatches(
@@ -1212,10 +1249,17 @@ export default function NuevoGastoPage() {
         ),
       )
     ) {
-      return false;
+      return { ok: false };
     }
 
-    const resolved = ensureExpenseSupplier({
+    const originalArchive = await prepareExpenseOriginalArchive({
+      candidate: review.original,
+      documentDate: payload.expense.date,
+      supplierName: payload.supplier.name,
+    });
+    if (!originalArchive.ok) return { ok: false };
+
+    const resolved = ensureSupplierForExpense(expected.suppliers, {
       name: payload.supplier.name,
       nif:
         payload.expense.purchaseDocument?.supplierNif ??
@@ -1224,7 +1268,6 @@ export default function NuevoGastoPage() {
       category: payload.expense.category,
       saveSupplier: true,
     });
-    const supplierId = resolved.supplierId;
     const purchaseDocument = sanitizeExpensePurchaseDocument({
       ...(payload.expense.purchaseDocument ?? {}),
       issueDate: payload.expense.purchaseDocument?.issueDate ?? payload.expense.date,
@@ -1240,14 +1283,13 @@ export default function NuevoGastoPage() {
         ? line
         : { ...line, catalogProduct: false },
     );
-
     const expensePayload: Omit<Expense, "id" | "createdAt"> = {
       date: payload.expense.date,
       sourceInboxItemId:
         activeInboxItemId && review.id === activeInboxItemId
           ? activeInboxItemId
           : undefined,
-      supplierId,
+      supplierId: resolved.supplierId,
       supplierName: resolved.supplierName,
       description: payload.expense.description,
       amount: payload.expense.amount,
@@ -1259,13 +1301,36 @@ export default function NuevoGastoPage() {
       purchaseLines: purchaseLines.length > 0 ? purchaseLines : undefined,
       origin: "scan",
       businessKind: payload.expense.businessKind ?? "purchase_invoice",
+      originalArchive: originalArchive.archive,
     };
-    if (upgradeTarget) {
-      updateExpense(mergeProviderSummaryWithOriginal(upgradeTarget, expensePayload));
-    } else {
-      addExpense(expensePayload);
+    const durableExpense = upgradeTarget
+      ? mergeProviderSummaryWithOriginal(upgradeTarget, expensePayload)
+      : expensePayload;
+    const result = saveScannedExpenseDurably(durableExpense, {
+      expected,
+      operationId: review.id,
+      supplier: resolved.create,
+    });
+    if (result.status !== "applied") {
+      reportDurableExpenseSaveFailure(result);
+      return { ok: false };
     }
-    return true;
+    return { ok: true, data: result.data };
+  }
+
+  function reportDurableExpenseSaveFailure(
+    result:
+      | { status: "blocked"; reason: string }
+      | { status: "indeterminate"; reason: "storage_state_unknown" },
+  ) {
+    if (result.status === "indeterminate") setStorageStateUnknown(true);
+    setSaveSubmitError(
+      result.status === "indeterminate"
+        ? "No hemos podido confirmar el almacenamiento del gasto. Conservamos el formulario y no hemos cerrado el documento del buzón. Recarga y exporta una copia antes de continuar."
+        : result.reason === "stale_precondition"
+          ? "Los datos cambiaron antes de guardar el gasto. Conservamos el formulario; revisa la información y vuelve a intentarlo."
+          : "No se pudo guardar el gasto de forma duradera. Conservamos el formulario y el documento del buzón sigue pendiente.",
+    );
   }
 
   async function handleSaveReadyScans() {
@@ -1288,11 +1353,14 @@ export default function NuevoGastoPage() {
     if (ready.length === 0) return;
     const savedPayloads: ExpenseScanPayload[] = [];
     const savedReviewIds = new Set<string>();
-    ready.forEach((review) => {
-      if (!saveScanPayload(review, savedPayloads)) return;
+    let expected = data;
+    for (const review of ready) {
+      const saved = await saveScanPayload(review, savedPayloads, expected);
+      if (!saved.ok) continue;
+      expected = saved.data;
       savedPayloads.push(review.payload);
       savedReviewIds.add(review.id);
-    });
+    }
     if (savedReviewIds.size === 0) return;
     if (activeInboxItemId && savedReviewIds.has(activeInboxItemId)) {
       const closed = await markInboxItemProcessed();
@@ -1333,7 +1401,7 @@ export default function NuevoGastoPage() {
     if (review.id === activeScanReview?.id && businessKind === "fixed") return;
     if (scanReviewStatus(review) !== "ready") return;
     if (review.id === activeScanReview?.id && !scanFormCollapsed) return;
-    if (!saveScanPayload(review)) return;
+    if (!(await saveScanPayload(review)).ok) return;
 
     if (activeInboxItemId && review.id === activeInboxItemId) {
       const closed = await markInboxItemProcessed();
@@ -1538,6 +1606,20 @@ export default function NuevoGastoPage() {
       return;
     }
 
+    const expenseDate =
+      businessKind === "fixed" && !editingRecurringExpense
+        ? fixedStartDate
+        : date;
+    const originalArchive = await prepareExpenseOriginalArchive({
+      candidate: activeScanReview?.original,
+      documentDate: expenseDate,
+      supplierName: supplierName.trim() || "Sin proveedor",
+    });
+    if (!originalArchive.ok) return;
+    const usesDurableScannedSave = Boolean(
+      businessKind !== "fixed" && (activeScanReview || activeInboxItemId),
+    );
+
     const hasSupplierName = Boolean(supplierName.trim());
     const resolved = hasSupplierName
       ? ensureSupplierForExpense(data.suppliers, {
@@ -1554,17 +1636,17 @@ export default function NuevoGastoPage() {
         };
 
     let supplierId = resolved.supplierId;
-    if (resolved.create && !usesDurableFixedSave) {
+    if (
+      resolved.create &&
+      !usesDurableFixedSave &&
+      !usesDurableScannedSave
+    ) {
       const created = addSupplier(resolved.create);
       supplierId = created.id;
     }
 
     const cleanedPurchaseDocument =
       sanitizeExpensePurchaseDocument(purchaseDocument);
-    const expenseDate =
-      businessKind === "fixed" && !editingRecurringExpense
-        ? fixedStartDate
-        : date;
     const payload: Omit<Expense, "id" | "createdAt"> = {
       date: expenseDate,
       sourceInboxItemId: activeInboxItemId ?? undefined,
@@ -1586,6 +1668,7 @@ export default function NuevoGastoPage() {
         : workDocumentId || undefined,
       origin: expenseOrigin,
       businessKind,
+      originalArchive: originalArchive.archive,
     };
 
     if (businessKind === "fixed") {
@@ -1665,6 +1748,24 @@ export default function NuevoGastoPage() {
           );
           return;
         }
+      }
+    } else if (usesDurableScannedSave) {
+      const durableExpense = editingExpense
+        ? { ...editingExpense, ...payload }
+        : providerSummaryUpgradeTarget
+          ? mergeProviderSummaryWithOriginal(
+              providerSummaryUpgradeTarget,
+              payload,
+            )
+          : payload;
+      const result = saveScannedExpenseDurably(durableExpense, {
+        expected: data,
+        operationId: activeInboxItemId ?? activeScanReview!.id,
+        supplier: resolved.create,
+      });
+      if (result.status !== "applied") {
+        reportDurableExpenseSaveFailure(result);
+        return;
       }
     } else if (editingExpense) {
       updateExpense({

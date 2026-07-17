@@ -167,6 +167,7 @@ describe("Google Drive backup", () => {
     ).toEqual({
       enabled: true,
       frequency: "manual",
+      archiveExpenseOriginals: false,
       lastBackupAt: "2026-06-29T10:00:00.000Z",
       lastAutoSignature: undefined,
       lastFileId: undefined,
@@ -174,6 +175,27 @@ describe("Google Drive backup", () => {
       lastFolderWebViewLink: undefined,
       lastWebViewLink: undefined,
     });
+  });
+
+  it("solo activa el archivo de originales de gastos con consentimiento explícito", () => {
+    expect(
+      normalizeDriveBackupSettings({
+        enabled: true,
+        frequency: "important",
+        archiveExpenseOriginals: true,
+      }),
+    ).toMatchObject({
+      enabled: true,
+      frequency: "important",
+      archiveExpenseOriginals: true,
+    });
+    expect(
+      normalizeDriveBackupSettings({
+        enabled: true,
+        frequency: "important",
+        archiveExpenseOriginals: "yes",
+      }),
+    ).toMatchObject({ archiveExpenseOriginals: false });
   });
 
   it("conserva el enlace a la carpeta de Drive si existe", () => {

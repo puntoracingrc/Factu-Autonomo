@@ -8,6 +8,7 @@ import type {
   TestDocumentRetirementBatchV1,
 } from "../types";
 import { EMPTY_DATA } from "../types";
+import { normalizeExpenseOriginalArchiveOnExpense } from "../expense-original-archive";
 import {
   applyRecurringOccurrenceExclusionToData,
   mergeRecurringExpenseOccurrenceExclusions,
@@ -653,9 +654,21 @@ function applyOneChange(data: AppData, change: SyncChange): AppData {
         customers: applyListChange(data.customers, change),
       };
     case "expense":
+      if (change.deleted) {
+        return {
+          ...data,
+          expenses: applyListChange(data.expenses, change),
+        };
+      }
+      if (!change.payload || typeof change.payload !== "object") return data;
       return {
         ...data,
-        expenses: applyListChange(data.expenses, change),
+        expenses: applyListChange(data.expenses, {
+          ...change,
+          payload: normalizeExpenseOriginalArchiveOnExpense(
+            change.payload as AppData["expenses"][number],
+          ),
+        }),
       };
     case "recurring_expense":
       if (change.deleted) {

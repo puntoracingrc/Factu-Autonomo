@@ -61,6 +61,32 @@ describe("cloud and Drive reliability contract", () => {
     expect(domain).not.toMatch(/originalFilename|rawText|accessToken/u);
   });
 
+  it("archiva originales de gastos solo con consentimiento y readback exacto", () => {
+    const settings = source("src/lib/google-drive/backup.ts");
+    const card = source(
+      "src/components/cloud/GoogleDriveBackupCard.tsx",
+    );
+    const client = source(
+      "src/lib/google-drive/expense-original-archive-client.ts",
+    );
+    const archive = source(
+      "src/lib/google-drive/expense-original-archive.v1.ts",
+    );
+    const form = source("src/app/gastos/nuevo/page.tsx");
+    const types = source("src/lib/types.ts");
+
+    expect(settings).toContain("archiveExpenseOriginals");
+    expect(card).toContain("Guardar en Drive las facturas de gastos escaneadas");
+    expect(client).toContain("archiveExpenseOriginalForSavedExpense");
+    expect(client).toContain("runExclusiveDriveOperation");
+    expect(archive).toContain("Factu - facturas de gastos");
+    expect(archive).toContain("verifyDriveFileHash");
+    expect(archive).toContain("SHA256_READBACK_MATCH");
+    expect(form).toContain("await prepareExpenseOriginalArchive");
+    expect(types).toContain("originalArchive?: ExpenseOriginalArchiveV1");
+    expect(client).not.toMatch(/originalFilename|rawText|accessToken:/u);
+  });
+
   it("solo envía a la papelera el original exclusivo verificado y puede restaurarlo", () => {
     const library = source(
       "src/components/fiscal-notifications/FiscalNotificationDocumentLibrary.tsx",
@@ -95,5 +121,7 @@ describe("cloud and Drive reliability contract", () => {
     expect(adr).toContain("Fecha pendiente");
     expect(adr).toContain("SHA256_READBACK_MATCH");
     expect(adr).toContain("trashed: true");
+    expect(adr).toContain("Factu - facturas de gastos/AAAA/MM");
+    expect(adr).toContain("originalArchive");
   });
 });

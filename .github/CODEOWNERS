@@ -22,6 +22,9 @@
 # ADR-0004 and its contract tests must be reviewed before these paths change.
 /src/app/api/expense-inbox/**                          @puntoracingrc
 /src/lib/expense-inbox*                                @puntoracingrc
+/src/lib/expense-original-archive*                     @puntoracingrc
+/src/components/expenses/ExpenseScanCard.tsx           @puntoracingrc
+/src/app/gastos/nuevo/page.tsx                         @puntoracingrc
 /supabase/migrations/*expense_inbox*                   @puntoracingrc
 /src/middleware.ts                                     @puntoracingrc
 

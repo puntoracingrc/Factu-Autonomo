@@ -105,6 +105,20 @@ describe("expense inbox reliability contract", () => {
     expect(types).toContain("sourceInboxItemId?: string");
   });
 
+  it("entrega el original propio solo de forma transitoria y verificable", () => {
+    const route = source("src/app/api/expense-inbox/[id]/original/route.ts");
+    const server = source("src/lib/expense-inbox-server.ts");
+
+    expect(route).toContain("getUserFromBearer");
+    expect(route).toContain("requireEmailConfirmed: true");
+    expect(route).toContain("expense_inbox_original_download");
+    expect(route).toContain("private, no-store");
+    expect(route).toContain("X-Factu-Source-Sha256");
+    expect(server).toContain("getExpenseInboxOriginalAttachment");
+    expect(server).toContain("recoverRetryAttachment(row)");
+    expect(server).toContain("attachmentHash(buffer) !== row.attachment_hash");
+  });
+
   it("protege la regeneración y evita reutilizar alias retirados", () => {
     const route = source("src/app/api/expense-inbox/route.ts");
     const server = source("src/lib/expense-inbox-server.ts");

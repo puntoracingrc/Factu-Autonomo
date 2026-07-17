@@ -103,6 +103,10 @@ import {
   type FixedExpenseBundleValue,
 } from "@/lib/app-data-durability";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
+import {
+  buildScannedExpenseDurableTransition,
+  type ScannedExpenseDurableValue,
+} from "@/lib/scanned-expense-durability";
 import { normalizeDocumentPhrases } from "@/lib/document-phrases";
 import { normalizeDocumentPaymentMethods } from "@/lib/document-payment-methods";
 import { normalizeDocumentTemplate } from "@/lib/document-templates";
@@ -323,6 +327,14 @@ interface AppStoreValue {
   addExpense: (expense: Omit<Expense, "id" | "createdAt">) => void;
   updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
+  saveScannedExpenseDurably: (
+    expense: Omit<Expense, "id" | "createdAt"> | Expense,
+    options: {
+      expected: AppData;
+      operationId: string;
+      supplier?: Omit<Supplier, "id" | "createdAt">;
+    },
+  ) => AppDataDurabilityResult<ScannedExpenseDurableValue>;
   saveFixedExpenseWithRecurringTemplate: (
     expense: Omit<Expense, "id" | "createdAt"> | Expense,
     item: RecurringExpenseDraft,
@@ -1537,6 +1549,27 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const saveScannedExpenseDurably = useCallback(
+    (
+      expense: Omit<Expense, "id" | "createdAt"> | Expense,
+      options: {
+        expected: AppData;
+        operationId: string;
+        supplier?: Omit<Supplier, "id" | "createdAt">;
+      },
+    ): AppDataDurabilityResult<ScannedExpenseDurableValue> =>
+      commitDurableAppData(options.expected, (previous) =>
+        buildScannedExpenseDurableTransition({
+          data: previous,
+          expense,
+          operationId: options.operationId,
+          now: new Date().toISOString(),
+          supplier: options.supplier,
+        }),
+      ),
+    [commitDurableAppData],
+  );
+
   const saveFixedExpenseWithRecurringTemplate = useCallback(
     (
       expense: Omit<Expense, "id" | "createdAt"> | Expense,
@@ -2280,6 +2313,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addExpense,
       updateExpense,
       deleteExpense,
+      saveScannedExpenseDurably,
       saveFixedExpenseWithRecurringTemplate,
       addProduct,
       updateProduct,
@@ -2344,6 +2378,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addExpense,
       updateExpense,
       deleteExpense,
+      saveScannedExpenseDurably,
       saveFixedExpenseWithRecurringTemplate,
       addProduct,
       updateProduct,

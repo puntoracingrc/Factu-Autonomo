@@ -26,6 +26,8 @@ export type DriveBackupFrequency =
 export interface DriveBackupSettings {
   enabled: boolean;
   frequency: DriveBackupFrequency;
+  /** Consentimiento persistente para archivar originales de gastos al guardarlos. */
+  archiveExpenseOriginals?: boolean;
   lastBackupAt?: string;
   lastFileId?: string;
   lastFileName?: string;
@@ -137,6 +139,7 @@ let cachedToken: { accessToken: string; expiresAt: number } | null = null;
 export const DEFAULT_DRIVE_BACKUP_SETTINGS: DriveBackupSettings = {
   enabled: false,
   frequency: "manual",
+  archiveExpenseOriginals: false,
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -161,6 +164,7 @@ export function normalizeDriveBackupSettings(
   return {
     enabled: raw.enabled === true,
     frequency: normalizeFrequency(raw.frequency),
+    archiveExpenseOriginals: raw.archiveExpenseOriginals === true,
     lastBackupAt: safeString(raw.lastBackupAt),
     lastFileId: safeString(raw.lastFileId),
     lastFileName: safeString(raw.lastFileName),

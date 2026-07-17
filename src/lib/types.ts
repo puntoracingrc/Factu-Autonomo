@@ -471,12 +471,36 @@ export interface ExpenseWorkAllocationCostRepair {
   events: ExpenseWorkAllocationCostRepairEvent[];
 }
 
+/**
+ * Referencia mínima a un original de gasto verificado en el Drive del usuario.
+ * Factu no conserva nombre local, ruta, bytes, texto ni token de Google.
+ */
+export interface ExpenseOriginalArchiveV1 {
+  schemaVersion: 1;
+  status: "archived_verified";
+  source: "scan" | "expense_inbox";
+  sourceSha256: string;
+  sourceMimeType:
+    | "application/pdf"
+    | "image/jpeg"
+    | "image/png"
+    | "image/webp"
+    | "image/gif";
+  driveFileId: string;
+  driveFolderId: string;
+  documentDate: string;
+  verification: "SHA256_READBACK_MATCH";
+  archivedAt: string;
+}
+
 export interface Expense {
   id: string;
   date: string;
   origin?: "manual" | "scan" | "import" | "recurring";
   /** Entrada del buzón que originó el gasto; evita duplicarlo si falla su cierre. */
   sourceInboxItemId?: string;
+  /** Original PDF/imagen verificado en el Drive del usuario; nunca contiene bytes. */
+  originalArchive?: ExpenseOriginalArchiveV1;
   /** Clasificación práctica para separar compras, facturas recibidas, tickets y fijos. */
   businessKind?: ExpenseBusinessKind;
   supplierId?: string;
