@@ -33,6 +33,7 @@ import { PROFILE_FIELD_LABELS_V2 } from "./extractor-core/profile-field-labels.v
 import { REAL_CORPUS_EXPLANATIONS_V4 } from "./extractor-core/real-corpus-extractor.v4";
 import { REAL_CORPUS_EXPLANATIONS_V5 } from "./extractor-core/real-corpus-extractor.v5";
 import { REAL_CORPUS_EXPLANATIONS_V6 } from "./extractor-core/real-corpus-extractor.v6";
+import { REAL_CORPUS_EXPLANATIONS_V7 } from "./extractor-core/real-corpus-extractor.v7";
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1 =
   "1.0.0" as const;
@@ -1713,6 +1714,35 @@ function isControlledFieldLabel(value: string): boolean {
       "Límite del embargo",
       "Total indicado en la carta",
       "Comparación de importes",
+      "Sanción propuesta",
+      "Reducción propuesta",
+      "Sanción reducida propuesta",
+      "Días hábiles para alegaciones",
+      "Estado del procedimiento sancionador",
+      "Estado del formulario de respuesta",
+      "Días hábiles para responder",
+      "Efecto del requerimiento",
+      "Total de la deuda",
+      "Importe anterior",
+      "Compensación aplicada",
+      "Saldo pendiente",
+      "Crédito aplicado",
+      "Fecha de publicación",
+      "Fecha efectiva de notificación",
+      "Fecha de solicitud",
+      "Fecha de efectos",
+      "Estado actual",
+      "Principal del plan",
+      "Intereses del plan",
+      "Acuerdo sustituido",
+      "Estado del calendario",
+      "Organismo de origen",
+      "Organismo recaudador",
+      "Inicio de comprobación",
+      "Saldo declarado rechazado",
+      "Estado del procedimiento",
+      "Modelo y período",
+      "Ejercicio solicitado",
       "Qué es",
       "Qué resultado muestra",
       "Qué conviene hacer",
@@ -1722,7 +1752,7 @@ function isControlledFieldLabel(value: string): boolean {
   ) {
     return true;
   }
-  return /^(?:Documentación|Consecuencia indicada|Hecho o fundamento|Recurso indicado|Deuda afectada|Vencimiento original|Cuota|Organismo público|Deducción|Referencia de la deducción|Deuda ejecutiva citada|Importe de deuda ejecutiva citada|Deuda incluida|Importe de deuda incluida) [1-9]\d*$/u.test(
+  return /^(?:Documentación|Consecuencia indicada|Hecho o fundamento|Recurso indicado|Deuda afectada|Vencimiento original|Cuota|Organismo público|Deducción|Referencia de la deducción|Deuda ejecutiva citada|Importe de deuda ejecutiva citada|Deuda incluida|Importe de deuda incluida|Importe anterior|Compensación aplicada|Saldo pendiente) [1-9]\d*$/u.test(
     value,
   );
 }
@@ -1740,7 +1770,8 @@ function assertSerializableFieldPrivacy(
       assertRealCorpusSerializableFieldPrivacyV3(item) ||
       assertRealCorpusSerializableFieldPrivacyV4(item) ||
       assertRealCorpusSerializableFieldPrivacyV5(item) ||
-      assertRealCorpusSerializableFieldPrivacyV6(item))
+      assertRealCorpusSerializableFieldPrivacyV6(item) ||
+      assertRealCorpusSerializableFieldPrivacyV7(item))
   ) {
     return;
   }
@@ -2342,6 +2373,98 @@ function assertRealCorpusSerializableFieldPrivacyV6(
     return true;
   }
   const integer = /^V6:INTEGER:[A-Z0-9_]+:(\d+)$/u.exec(normalized);
+  if (integer) {
+    if (display !== integer[1]) throw invalidReview();
+    return true;
+  }
+  throw invalidReview();
+}
+
+const REAL_CORPUS_EXPLANATION_TEXT_V7 = new Set(
+  Object.values(REAL_CORPUS_EXPLANATIONS_V7).flatMap((explanation) => [
+    explanation.whatIs,
+    explanation.action,
+    explanation.deadline,
+    explanation.consequence,
+  ]),
+);
+
+const REAL_CORPUS_CLOSED_VALUES_V7 = new Set([
+  "PROPOSAL_NOT_FINAL",
+  "BLANK_FORM_NOT_SUBMITTED",
+  "NOT_DEBT_NOT_SANCTION",
+  "NOT_EVIDENCED",
+  "REMAINING_PLAN_PRINCIPAL",
+  "SINGLE_INSTALLMENT_OR_DEBT",
+  "REGISTERED",
+  "NOT_INFERRED",
+  "MODIFIED_SCHEDULE_REPLACES_ORIGINAL",
+  "EXTERNAL_PUBLIC_BODY",
+  "AEAT",
+  "EXPLICITLY_NOT_STARTED",
+  "POSSIBLE_LATER_SANCTION_ONLY",
+  "FINAL_FOR_CURRENT_PROCEDURE",
+  "ONE_OPERATION_NOT_PAYMENT_EVIDENCE",
+  "INVOICES",
+  "RECORD_BOOKS",
+  "BANK_RECORDS",
+  "SUPPORTING_DOCUMENTS",
+  "REJECTED_CARRYFORWARD",
+]);
+
+/** Closed V7 exception. It accepts only enumerated explanations and facts. */
+function assertRealCorpusSerializableFieldPrivacyV7(
+  item: Readonly<Record<string, unknown>>,
+): boolean {
+  const fieldId = String(item.fieldId);
+  if (!fieldId.startsWith("real-corpus-v7:")) return false;
+  const display = String(item.displayValue);
+  const normalized =
+    typeof item.normalizedValue === "string" ? item.normalizedValue : "";
+  if (fieldId === "real-corpus-v7:recognized-family") {
+    if (
+      display !== "Título, autoridad y estructura coinciden" ||
+      normalized !== "V7:EXACT_TITLE_AUTHORITY_STRUCTURE"
+    ) throw invalidReview();
+    return true;
+  }
+  if (fieldId === "real-corpus-v7:payment-form-status") {
+    if (
+      display !== "Las copias representan una sola operación y no acreditan el pago" ||
+      normalized !== "V7:PAYMENT_FORM_ONE_OPERATION_NOT_PAYMENT"
+    ) throw invalidReview();
+    return true;
+  }
+  if (/^real-corpus-v7:explanation:(?:what_is|action|deadline|consequence)$/u.test(fieldId)) {
+    if (
+      !/^V7:EXPLANATION:(?:sanction\.initiation_and_hearing|compliance\.formal_filing_requirement|seizure\.bank_account|collection\.enforcement_order|collection\.offset_ex_officio|registry\.tax_registration_resolution|collection\.deferral_grant|collection\.offset_requested|collection\.deferral_modification|collection\.external_debt|compliance\.document_request|assessment\.final_provisional_assessment):(?:WHAT_IS|ACTION|DEADLINE|CONSEQUENCE)$/u.test(normalized) ||
+      !REAL_CORPUS_EXPLANATION_TEXT_V7.has(display)
+    ) throw invalidReview();
+    return true;
+  }
+  if (/^real-corpus-v7:installment:\d+$/u.test(fieldId)) {
+    if (
+      !/^V7:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):\d+:\d+:\d+$/u.test(normalized) ||
+      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d+(?:\.\d{3})*,\d{2}\s€ · interés \d+(?:\.\d{3})*,\d{2}\s€ · total \d+(?:\.\d{3})*,\d{2}\s€$/u.test(display)
+    ) throw invalidReview();
+    return true;
+  }
+  const syntheticReference = /^V7:SYNTHETIC_REFERENCE:(SYN-[A-Z0-9-]+)$/u.exec(normalized);
+  if (syntheticReference) {
+    if (display !== syntheticReference[1]) throw invalidReview();
+    return true;
+  }
+  const closed = /^V7:TEXT:[A-Z0-9_]+:([A-Z0-9_]+)$/u.exec(normalized);
+  if (closed) {
+    if (!REAL_CORPUS_CLOSED_VALUES_V7.has(closed[1]!) || display !== closed[1])
+      throw invalidReview();
+    return true;
+  }
+  if (/^V7:BOOLEAN:[A-Z0-9_]+:(?:TRUE|FALSE)$/u.test(normalized)) {
+    if (display !== "Sí" && display !== "No") throw invalidReview();
+    return true;
+  }
+  const integer = /^V7:INTEGER:[A-Z0-9_]+:(\d+)$/u.exec(normalized);
   if (integer) {
     if (display !== integer[1]) throw invalidReview();
     return true;

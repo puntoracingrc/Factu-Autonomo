@@ -16,6 +16,7 @@ import { extractAeatRealCorpusDocumentV3 } from "./extractor-core/real-corpus-ex
 import { extractAeatRealCorpusDocumentV4 } from "./extractor-core/real-corpus-extractor.v4";
 import { extractAeatRealCorpusDocumentV5 } from "./extractor-core/real-corpus-extractor.v5";
 import { extractAeatRealCorpusDocumentV6 } from "./extractor-core/real-corpus-extractor.v6";
+import { extractAeatRealCorpusDocumentV7 } from "./extractor-core/real-corpus-extractor.v7";
 import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
 import {
@@ -27,6 +28,7 @@ import { projectRealCorpusReviewV3 } from "./real-corpus-review.v3";
 import { projectRealCorpusReviewV4 } from "./real-corpus-review.v4";
 import { projectRealCorpusReviewV5 } from "./real-corpus-review.v5";
 import { projectRealCorpusReviewV6 } from "./real-corpus-review.v6";
+import { projectRealCorpusReviewV7 } from "./real-corpus-review.v7";
 import {
   projectFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewV1,
@@ -92,6 +94,7 @@ export async function analyzeFiscalNotificationDocumentInput(
     realCorpusOutcomeV4,
     realCorpusOutcomeV5,
     realCorpusOutcomeV6,
+    realCorpusOutcomeV7,
   ] = await Promise.all([
     analyzeFiscalNotificationVerticalSliceV1(documentInput),
     hasText
@@ -114,6 +117,9 @@ export async function analyzeFiscalNotificationDocumentInput(
       : Promise.resolve(null),
     hasText
       ? extractAeatRealCorpusDocumentV6(documentInput)
+      : Promise.resolve(null),
+    hasText
+      ? extractAeatRealCorpusDocumentV7(documentInput)
       : Promise.resolve(null),
   ]);
   const legacyReview =
@@ -165,6 +171,10 @@ export async function analyzeFiscalNotificationDocumentInput(
     realCorpusOutcomeV6?.status === "REVIEW_REQUIRED"
       ? realCorpusOutcomeV6.familyId
       : null;
+  const v7FamilyId =
+    realCorpusOutcomeV7?.status === "REVIEW_REQUIRED"
+      ? realCorpusOutcomeV7.familyId
+      : null;
   const reviewsOutsideLatestFamily = profileReviews.filter(
     (review) =>
       (v3FamilyId === null ||
@@ -174,7 +184,9 @@ export async function analyzeFiscalNotificationDocumentInput(
       (v5FamilyId === null ||
         review.documents.every((document) => document.familyId !== v5FamilyId)) &&
       (v6FamilyId === null ||
-        review.documents.every((document) => document.familyId !== v6FamilyId)),
+        review.documents.every((document) => document.familyId !== v6FamilyId)) &&
+      (v7FamilyId === null ||
+        review.documents.every((document) => document.familyId !== v7FamilyId)),
   );
   const verticalSliceReview = mergeProfileDrivenReviewsV2(legacyReview, [
     ...reviewsOutsideLatestFamily,
@@ -182,25 +194,33 @@ export async function analyzeFiscalNotificationDocumentInput(
     realCorpusOutcome.familyId !== v3FamilyId &&
     realCorpusOutcome.familyId !== v4FamilyId &&
     realCorpusOutcome.familyId !== v5FamilyId &&
-    realCorpusOutcome.familyId !== v6FamilyId
+    realCorpusOutcome.familyId !== v6FamilyId &&
+    realCorpusOutcome.familyId !== v7FamilyId
       ? [projectRealCorpusReviewV2(realCorpusOutcome)]
       : []),
     ...(realCorpusOutcomeV3 &&
     realCorpusOutcomeV3.familyId !== v4FamilyId &&
     realCorpusOutcomeV3.familyId !== v5FamilyId &&
-    realCorpusOutcomeV3.familyId !== v6FamilyId
+    realCorpusOutcomeV3.familyId !== v6FamilyId &&
+    realCorpusOutcomeV3.familyId !== v7FamilyId
       ? [projectRealCorpusReviewV3(realCorpusOutcomeV3)]
       : []),
     ...(realCorpusOutcomeV4 &&
     realCorpusOutcomeV4.familyId !== v5FamilyId &&
-    realCorpusOutcomeV4.familyId !== v6FamilyId
+    realCorpusOutcomeV4.familyId !== v6FamilyId &&
+    realCorpusOutcomeV4.familyId !== v7FamilyId
       ? [projectRealCorpusReviewV4(realCorpusOutcomeV4)]
       : []),
-    ...(realCorpusOutcomeV5 && realCorpusOutcomeV5.familyId !== v6FamilyId
+    ...(realCorpusOutcomeV5 &&
+    realCorpusOutcomeV5.familyId !== v6FamilyId &&
+    realCorpusOutcomeV5.familyId !== v7FamilyId
       ? [projectRealCorpusReviewV5(realCorpusOutcomeV5)]
       : []),
-    ...(realCorpusOutcomeV6
+    ...(realCorpusOutcomeV6 && realCorpusOutcomeV6.familyId !== v7FamilyId
       ? [projectRealCorpusReviewV6(realCorpusOutcomeV6)]
+      : []),
+    ...(realCorpusOutcomeV7
+      ? [projectRealCorpusReviewV7(realCorpusOutcomeV7)]
       : []),
   ]);
 
