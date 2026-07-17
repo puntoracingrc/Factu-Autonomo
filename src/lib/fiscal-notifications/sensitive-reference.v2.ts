@@ -4,6 +4,7 @@ export const SENSITIVE_REFERENCE_TYPES_V2 = Object.freeze([
   "CSV",
   "NRC",
   "BANK_REFERENCE",
+  "VEHICLE_OR_FINE_REFERENCE",
 ] as const);
 
 export type SensitiveReferenceTypeV2 =
@@ -70,6 +71,10 @@ const TYPE_STRENGTH_RULES: Readonly<
   BANK_REFERENCE: Object.freeze({
     minLength: 8,
     minDistinctCharacters: 4,
+  }),
+  VEHICLE_OR_FINE_REFERENCE: Object.freeze({
+    minLength: 4,
+    minDistinctCharacters: 3,
   }),
 });
 

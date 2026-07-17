@@ -5,6 +5,7 @@ import type {
 import type { AppData } from "../types";
 import type { FiscalNotificationLocalAnalysisResult } from "./local-review-flow";
 import { appendStructuredReviewRelationSuggestionsV1 } from "./structured-review-relation-suggestions.v1";
+import { appendWorkspaceGlobalReconciliationV8 } from "./workspace-global-reconciliation.v8";
 import {
   appendAeatDeferralStructuredReviewV1,
   appendAeatEnforcementStructuredReviewV1,
@@ -112,6 +113,19 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
           ...prepared,
           workspace: relations.workspace,
         });
+      }
+      const globalReconciliation = appendWorkspaceGlobalReconciliationV8({
+        ownerScope: input.ownerScope,
+        workspace: prepared.workspace,
+        reevaluatedAt: input.createdAt,
+      });
+      if (globalReconciliation.status === "APPLIED") {
+        prepared = Object.freeze({
+          ...prepared,
+          workspace: globalReconciliation.workspace,
+        });
+      } else if (globalReconciliation.status === "REVIEW_REQUIRED") {
+        return { status: "blocked", reason: "invalid_structured_review" };
       }
     }
   } catch (error) {

@@ -116,7 +116,7 @@ const ENTITY_KEYS: Readonly<Record<CollectionName, ReadonlySet<string>>> = {
   relations: new Set([
     "id", "ownerScope", "sourceDocumentId", "targetDocumentId", "relationType",
     "confidenceBand", "score", "evidence", "algorithmVersion", "status", "createdAt",
-    "confirmedAt", "confirmedBy",
+    "confirmedAt", "confirmedBy", "reconciliationHistory",
   ]),
   analysisSnapshots: new Set([
     "id", "ownerScope", "documentId", "version", "extractorVersion", "rulesVersion",
@@ -625,6 +625,56 @@ const RELATION_EVIDENCE_ARRAY_FIELDS = [
   "matchingDates",
   "differences",
 ] as const;
+const RECONCILIATION_HISTORY_KEYS = new Set([
+  "ruleVersion",
+  "previousStatus",
+  "newStatus",
+  "resultClassification",
+  "previousRelationType",
+  "newRelationType",
+  "globalRelationType",
+  "evidenceKinds",
+  "reasonCode",
+  "reevaluatedAt",
+  "rowAssignmentReviewRequired",
+]);
+const RECONCILIATION_STATUSES = new Set([
+  "ABSENT",
+  "SUGGESTED",
+  "USER_CONFIRMED",
+  "USER_REJECTED",
+  "SYSTEM_CONFIRMED_EXACT",
+]);
+const RECONCILIATION_RESULT_CLASSIFICATIONS = new Set([
+  "SUGGESTED",
+  "SYSTEM_CONFIRMED_EXACT",
+  "SYSTEM_CONFIRMED_EXACT_CASE_LEVEL",
+  "SYSTEM_CONFIRMED_EXACT_ASSET",
+]);
+const RECONCILIATION_GLOBAL_RELATION_TYPES = new Set([
+  "RESOLUTION_ENFORCED",
+  "ENFORCES_REMAINING_PLAN_PRINCIPAL",
+  "ENFORCES",
+  "CITED_AS_EXISTING_EXECUTIVE_DEBT",
+  "OFFSET_APPLIES_TO_MODIFIED_PAYMENT_PLAN",
+  "RELEASES_SEIZURE",
+  "RELEASED_ASSET_LATER_RESEIZED",
+  "POSSIBLY_PRECEDES_ASSESSMENT",
+  "NOTIFICATION_EVIDENCE_FOR",
+]);
+const RECONCILIATION_EVIDENCE_KINDS = new Set([
+  "EXACT_REFERENCE",
+  "PAYMENT_FORM_PART",
+  "COMPATIBLE_AMOUNT",
+  "REMAINING_PLAN_PRINCIPAL",
+  "EXECUTIVE_DEBT_CITATION",
+  "MODIFIED_PLAN_STRUCTURE",
+  "RECALCULATED_OFFSET_ROWS",
+  "EXACT_SEIZURE_REFERENCE",
+  "OWNER_SCOPED_OPAQUE_ASSET",
+  "MODEL_AND_FISCAL_YEAR",
+  "NOTIFICATION_PROOF_REFERENCE",
+]);
 const OBLIGATION_STATUSES = new Set([
   "DRAFT",
   "PENDING_CONFIRMATION",
@@ -2476,6 +2526,96 @@ function validateEntityStructure(
         assertBoundedId(value.confirmedBy, `${path}.confirmedBy`);
       } catch {
         addIssue("INVALID_WORKSPACE", `${path}.confirmedBy`);
+      }
+    }
+    if (value.reconciliationHistory !== undefined) {
+      const history = validateArray(
+        value.reconciliationHistory,
+        `${path}.reconciliationHistory`,
+      );
+      if (!history || history.length > 32) {
+        addIssue("INVALID_WORKSPACE", `${path}.reconciliationHistory`);
+      } else {
+        value.reconciliationHistory = history;
+        history.forEach((candidate, index) => {
+          const entryPath = `${path}.reconciliationHistory[${index}]`;
+          const entry = snapshotKnownDataRecord(
+            candidate,
+            RECONCILIATION_HISTORY_KEYS,
+          );
+          if (!entry) {
+            addIssue("INVALID_WORKSPACE", entryPath);
+            return;
+          }
+          const enumChecks: readonly [string, ReadonlySet<string>][] = [
+            ["previousStatus", RECONCILIATION_STATUSES],
+            ["newStatus", RECONCILIATION_STATUSES],
+            ["resultClassification", RECONCILIATION_RESULT_CLASSIFICATIONS],
+            ["globalRelationType", RECONCILIATION_GLOBAL_RELATION_TYPES],
+            [
+              "reasonCode",
+              new Set([
+                "NEW_DIRECT_EDGE",
+                "SUGGESTION_UPGRADED_BY_EXACT_EVIDENCE",
+                "NEW_EVIDENCE_CHANGED_CLASSIFICATION",
+              ]),
+            ],
+          ];
+          for (const [field, allowed] of enumChecks) {
+            if (typeof entry[field] !== "string" || !allowed.has(entry[field] as string)) {
+              addIssue("INVALID_WORKSPACE", `${entryPath}.${field}`);
+            }
+          }
+          if (entry.ruleVersion !== "global-reconcile-v8") {
+            addIssue("INVALID_WORKSPACE", `${entryPath}.ruleVersion`);
+          }
+          if (
+            typeof entry.previousRelationType !== "string" ||
+            (entry.previousRelationType !== "ABSENT" &&
+              !DOCUMENT_RELATION_TYPES.has(entry.previousRelationType))
+          ) {
+            addIssue("INVALID_WORKSPACE", `${entryPath}.previousRelationType`);
+          }
+          if (
+            typeof entry.newRelationType !== "string" ||
+            !DOCUMENT_RELATION_TYPES.has(entry.newRelationType)
+          ) {
+            addIssue("INVALID_WORKSPACE", `${entryPath}.newRelationType`);
+          }
+          if (!isIsoTimestamp(entry.reevaluatedAt)) {
+            addIssue("INVALID_WORKSPACE", `${entryPath}.reevaluatedAt`);
+          }
+          if (typeof entry.rowAssignmentReviewRequired !== "boolean") {
+            addIssue(
+              "INVALID_WORKSPACE",
+              `${entryPath}.rowAssignmentReviewRequired`,
+            );
+          }
+          const evidenceKinds = validateArray(
+            entry.evidenceKinds,
+            `${entryPath}.evidenceKinds`,
+          );
+          if (!evidenceKinds || evidenceKinds.length > 16) {
+            addIssue("INVALID_WORKSPACE", `${entryPath}.evidenceKinds`);
+          } else {
+            entry.evidenceKinds = evidenceKinds;
+            const seen = new Set<string>();
+            evidenceKinds.forEach((kind, evidenceIndex) => {
+              if (
+                typeof kind !== "string" ||
+                !RECONCILIATION_EVIDENCE_KINDS.has(kind) ||
+                seen.has(kind)
+              ) {
+                addIssue(
+                  "INVALID_WORKSPACE",
+                  `${entryPath}.evidenceKinds[${evidenceIndex}]`,
+                );
+              } else {
+                seen.add(kind);
+              }
+            });
+          }
+        });
       }
     }
   }

@@ -65,6 +65,16 @@ const BANK_SEIZURE = [
   "Instrucciones: CONTESTAR POR LA SEDE ELECTRÓNICA",
 ].join("\n");
 
+const MOVABLE_ASSET_SEIZURE = [
+  "Agencia Tributaria",
+  "sede.agenciatributaria.gob.es",
+  "DILIGENCIA DE EMBARGO DE BIENES INMUEBLES",
+  "Número de diligencia: EMB-SYN-ASSET-001",
+  "Clave de deuda: DEBT-SYN-ASSET-001",
+  "Número de finca: FINCA-SINTÉTICA-REF-001",
+  "Fecha del embargo: 04/03/2026",
+].join("\n");
+
 function document(text: string): BoundedDocumentInput {
   return Object.freeze({
     ownerScope: "user:synthetic-review-projection",
@@ -268,6 +278,36 @@ describe("fiscal notification vertical-slice review v1", () => {
       /ES00 0000 0000 0000 1234|12345678Z|A12345674|PERSONA DEUDORA SINTÉTICA|BANCO SINTÉTICO|MASKED_ACCOUNT|DEBTOR_TAX_ID|RECIPIENT_TAX_ID/iu,
     );
     expect(JSON.stringify(review)).not.toContain(BANK_SEIZURE);
+  });
+
+  it("replaces a direct asset identifier with an owner-scoped opaque fingerprint", async () => {
+    const firstInput = document(MOVABLE_ASSET_SEIZURE);
+    const secondInput = Object.freeze({
+      ...firstInput,
+      ownerScope: "user:synthetic-review-projection-other",
+    });
+    const firstAnalysis = await analyzeFiscalNotificationVerticalSliceV1(firstInput);
+    const secondAnalysis = await analyzeFiscalNotificationVerticalSliceV1(secondInput);
+    const first = projectFiscalNotificationVerticalSliceReviewV1(firstAnalysis);
+    const second = projectFiscalNotificationVerticalSliceReviewV1(secondAnalysis);
+    const firstReference = first.documents[0]?.fields.find(
+      (item) => item.canonicalType === "VEHICLE_OR_FINE_REFERENCE",
+    );
+    const secondReference = second.documents[0]?.fields.find(
+      (item) => item.canonicalType === "VEHICLE_OR_FINE_REFERENCE",
+    );
+
+    expect(firstAnalysis.seizureAssetFingerprintSha256).toMatch(/^[a-f0-9]{64}$/u);
+    expect(firstReference).toMatchObject({
+      semantic: "REFERENCE",
+      label: "Bien relacionado",
+      normalizedValue: firstAnalysis.seizureAssetFingerprintSha256,
+      confidence: 1,
+    });
+    expect(firstReference?.normalizedValue).not.toBe(
+      secondReference?.normalizedValue,
+    );
+    expect(JSON.stringify(first)).not.toContain("FINCA-SINTÉTICA-REF-001");
   });
 
   it("returns an empty information-pending review for unsupported content", async () => {

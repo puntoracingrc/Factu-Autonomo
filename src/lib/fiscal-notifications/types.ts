@@ -434,6 +434,65 @@ export interface RelationEvidence {
   differences: string[];
 }
 
+export type GlobalReconciliationRelationTypeV8 =
+  | "RESOLUTION_ENFORCED"
+  | "ENFORCES_REMAINING_PLAN_PRINCIPAL"
+  | "ENFORCES"
+  | "CITED_AS_EXISTING_EXECUTIVE_DEBT"
+  | "OFFSET_APPLIES_TO_MODIFIED_PAYMENT_PLAN"
+  | "RELEASES_SEIZURE"
+  | "RELEASED_ASSET_LATER_RESEIZED"
+  | "POSSIBLY_PRECEDES_ASSESSMENT"
+  | "NOTIFICATION_EVIDENCE_FOR";
+
+export type GlobalReconciliationEvidenceKindV8 =
+  | "EXACT_REFERENCE"
+  | "PAYMENT_FORM_PART"
+  | "COMPATIBLE_AMOUNT"
+  | "REMAINING_PLAN_PRINCIPAL"
+  | "EXECUTIVE_DEBT_CITATION"
+  | "MODIFIED_PLAN_STRUCTURE"
+  | "RECALCULATED_OFFSET_ROWS"
+  | "EXACT_SEIZURE_REFERENCE"
+  | "OWNER_SCOPED_OPAQUE_ASSET"
+  | "MODEL_AND_FISCAL_YEAR"
+  | "NOTIFICATION_PROOF_REFERENCE";
+
+/**
+ * Traza técnica durable de una reevaluación global. Solo admite códigos
+ * cerrados y metadatos estructurados no personales; nunca texto del PDF ni
+ * identificadores patrimoniales directos.
+ */
+export interface DocumentRelationReconciliationRecordV8 {
+  ruleVersion: "global-reconcile-v8";
+  previousStatus:
+    | "ABSENT"
+    | "SUGGESTED"
+    | "USER_CONFIRMED"
+    | "USER_REJECTED"
+    | "SYSTEM_CONFIRMED_EXACT";
+  newStatus:
+    | "SUGGESTED"
+    | "USER_CONFIRMED"
+    | "USER_REJECTED"
+    | "SYSTEM_CONFIRMED_EXACT";
+  resultClassification:
+    | "SUGGESTED"
+    | "SYSTEM_CONFIRMED_EXACT"
+    | "SYSTEM_CONFIRMED_EXACT_CASE_LEVEL"
+    | "SYSTEM_CONFIRMED_EXACT_ASSET";
+  previousRelationType: DocumentRelationType | "ABSENT";
+  newRelationType: DocumentRelationType;
+  globalRelationType: GlobalReconciliationRelationTypeV8;
+  evidenceKinds: GlobalReconciliationEvidenceKindV8[];
+  reasonCode:
+    | "NEW_DIRECT_EDGE"
+    | "SUGGESTION_UPGRADED_BY_EXACT_EVIDENCE"
+    | "NEW_EVIDENCE_CHANGED_CLASSIFICATION";
+  reevaluatedAt: string;
+  rowAssignmentReviewRequired: boolean;
+}
+
 export interface DocumentRelation {
   id: string;
   ownerScope: string;
@@ -452,6 +511,7 @@ export interface DocumentRelation {
   createdAt: string;
   confirmedAt?: string;
   confirmedBy?: string;
+  reconciliationHistory?: DocumentRelationReconciliationRecordV8[];
 }
 
 export interface UnknownExtractedField {

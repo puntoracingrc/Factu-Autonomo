@@ -25,6 +25,7 @@ import type {
 } from "./types";
 import { projectFiscalNotificationsWorkspacePrivacyV2 } from "./workspace-privacy-projection.v2";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
+import { appendWorkspaceGlobalReconciliationV8 } from "./workspace-global-reconciliation.v8";
 
 export const FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_KIND_V2 =
   "FISCAL_NOTIFICATIONS_PRIVACY_WORKSPACE_V2" as const;
@@ -541,25 +542,34 @@ function reconcileWithBase(
     ),
     ...projected.documents.filter((entry) => newDocumentIds.has(entry.id)),
   ];
-  const relationIds = new Set<string>();
-  const relations = [
-    ...base.workspace.relations.filter(
-      (entry) =>
-        liveDocumentIds.has(entry.sourceDocumentId) &&
-        liveDocumentIds.has(entry.targetDocumentId),
-    ),
-    ...projected.relations.filter(
-      (entry) =>
-        (newDocumentIds.has(entry.sourceDocumentId) ||
-          newDocumentIds.has(entry.targetDocumentId)) &&
-        liveDocumentIds.has(entry.sourceDocumentId) &&
-        liveDocumentIds.has(entry.targetDocumentId),
-    ),
-  ].filter((entry) => {
-    if (relationIds.has(entry.id)) return false;
-    relationIds.add(entry.id);
-    return true;
-  });
+  const relationsById = new Map(
+    base.workspace.relations
+      .filter(
+        (entry) =>
+          liveDocumentIds.has(entry.sourceDocumentId) &&
+          liveDocumentIds.has(entry.targetDocumentId),
+      )
+      .map((entry) => [entry.id, entry] as const),
+  );
+  for (const entry of projected.relations) {
+    if (
+      !liveDocumentIds.has(entry.sourceDocumentId) ||
+      !liveDocumentIds.has(entry.targetDocumentId)
+    ) continue;
+    const previous = relationsById.get(entry.id);
+    if (
+      !previous
+        ? newDocumentIds.has(entry.sourceDocumentId) ||
+          newDocumentIds.has(entry.targetDocumentId) ||
+          entry.algorithmVersion === "global-reconcile-v8"
+        : shouldReplacePersistedRelation(previous, entry)
+    ) {
+      relationsById.set(entry.id, entry);
+    }
+  }
+  const relations = [...relationsById.values()].sort((left, right) =>
+    left.id.localeCompare(right.id),
+  );
   return {
     ...projected,
     accountHolder:
@@ -936,6 +946,16 @@ export function restoreFiscalNotificationsWorkspaceFromStorageV2(
         algorithmVersion: relation.algorithmVersion,
         status: relation.status,
         createdAt: relation.createdAt,
+        ...(relation.reconciliationHistory
+          ? {
+              reconciliationHistory: relation.reconciliationHistory.map(
+                (entry) => ({
+                  ...entry,
+                  evidenceKinds: [...entry.evidenceKinds],
+                }),
+              ),
+            }
+          : {}),
       };
     }),
     analysisSnapshots: [],
@@ -994,8 +1014,38 @@ export function restoreFiscalNotificationsWorkspaceFromStorageV2(
     persisted.ownerScope,
   );
   if (!parsed) return null;
-  memoryEnvelopeByWorkspace.set(parsed, envelope);
-  return parsed;
+  const reconciled = appendWorkspaceGlobalReconciliationV8({
+    ownerScope: persisted.ownerScope,
+    workspace: parsed,
+    reevaluatedAt: persisted.updatedAt,
+  });
+  const restored =
+    reconciled.status === "APPLIED" ? reconciled.workspace : parsed;
+  memoryEnvelopeByWorkspace.set(restored, envelope);
+  return restored;
+}
+
+function shouldReplacePersistedRelation(
+  previous: FiscalNotificationsPersistedWorkspaceV2["relations"][number],
+  next: FiscalNotificationsPersistedWorkspaceV2["relations"][number],
+): boolean {
+  if (
+    previous.ownerScope !== next.ownerScope ||
+    previous.sourceDocumentId !== next.sourceDocumentId ||
+    previous.targetDocumentId !== next.targetDocumentId ||
+    previous.status === "USER_CONFIRMED" ||
+    previous.status === "USER_REJECTED" ||
+    (previous.status === "SYSTEM_CONFIRMED_EXACT" && next.status === "SUGGESTED")
+  ) return false;
+  const previousRank = previous.status === "SYSTEM_CONFIRMED_EXACT" ? 2 : 1;
+  const nextRank = next.status === "SYSTEM_CONFIRMED_EXACT" ? 2 : 1;
+  if (nextRank > previousRank) return true;
+  return (
+    nextRank === previousRank &&
+    next.algorithmVersion === "global-reconcile-v8" &&
+    (next.reconciliationHistory?.length ?? 0) >
+      (previous.reconciliationHistory?.length ?? 0)
+  );
 }
 
 function collectionContainsPrefix<T>(

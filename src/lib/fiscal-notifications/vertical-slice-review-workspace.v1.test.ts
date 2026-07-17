@@ -41,6 +41,16 @@ const BANK_SEIZURE = [
   "Fecha del embargo: 04/03/2026",
 ].join("\n");
 
+const REAL_ESTATE_SEIZURE = [
+  "Agencia Tributaria",
+  "sede.agenciatributaria.gob.es",
+  "DILIGENCIA DE EMBARGO DE BIENES INMUEBLES",
+  "Número de diligencia: EMB-SYN-WORKSPACE-ASSET-001",
+  "Clave de deuda: DEBT-SYN-WORKSPACE-ASSET-001",
+  "Número de finca: FINCA-SINTÉTICA-WORKSPACE-001",
+  "Fecha del embargo: 04/03/2026",
+].join("\n");
+
 function field(
   overrides: Record<string, unknown>,
 ): FiscalNotificationVerticalSliceReviewFieldV1 {
@@ -386,6 +396,31 @@ async function seizureAnalysis(): Promise<FiscalNotificationLocalAnalysisResult>
   return source as unknown as FiscalNotificationLocalAnalysisResult;
 }
 
+async function assetSeizureAnalysis(): Promise<FiscalNotificationLocalAnalysisResult> {
+  const boundedDocument: BoundedDocumentInput = Object.freeze({
+    ownerScope: OWNER,
+    documentId: "document:synthetic-asset-seizure-workspace",
+    pages: Object.freeze([
+      Object.freeze({
+        pageNumber: 1,
+        text: REAL_ESTATE_SEIZURE,
+        isBlank: false,
+      }),
+    ]),
+  });
+  const review = projectFiscalNotificationVerticalSliceReviewV1(
+    await analyzeFiscalNotificationVerticalSliceV1(boundedDocument),
+  );
+  const source = structuredClone(analysis()) as unknown as {
+    technicalReview: { pageCount: number; byteLength: number };
+    ephemeralVerticalSliceReview: unknown;
+  };
+  source.technicalReview.pageCount = 1;
+  source.technicalReview.byteLength = 2_345;
+  source.ephemeralVerticalSliceReview = review;
+  return source as unknown as FiscalNotificationLocalAnalysisResult;
+}
+
 describe("vertical slice structured workspace v1", () => {
   it("persiste una diligencia exacta con importes y referencias sin identidades ni cuentas", async () => {
     const result = appendFiscalNotificationVerticalSliceReviewV1({
@@ -430,6 +465,32 @@ describe("vertical slice structured workspace v1", () => {
       valid: true,
       issues: [],
     });
+  });
+
+  it("persiste solo la huella opaca del bien usada por la reconciliación global", async () => {
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: await assetSeizureAnalysis(),
+    });
+    const assetReference = result.workspace.references.find(
+      (item) => item.referenceType === "VEHICLE_OR_FINE_REFERENCE",
+    );
+
+    expect(assetReference).toMatchObject({
+      confidence: "EXACT",
+      confirmationStatus: "PENDING",
+      extractionMethod: "RULE",
+    });
+    expect(assetReference?.normalizedValue).toMatch(/^[a-f0-9]{64}$/u);
+    expect(JSON.stringify(result.workspace)).not.toContain(
+      "FINCA-SINTÉTICA-WORKSPACE-001",
+    );
+    expect(
+      validateFiscalNotificationsWorkspaceIntegrity(result.workspace, OWNER),
+    ).toEqual({ valid: true, issues: [] });
   });
 
   it("persiste el sobre electrónico y todos sus datos visibles sin conservar el PDF", () => {

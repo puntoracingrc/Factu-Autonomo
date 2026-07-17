@@ -27,7 +27,11 @@ import {
 } from "./sensitive-reference.v2";
 import { resolveFiscalNotificationChronologyV2 } from "./chronology-date.v2";
 
-const SENSITIVE_REFERENCE_TYPES = new Set(["CSV", "NRC"]);
+const SENSITIVE_REFERENCE_TYPES = new Set([
+  "CSV",
+  "NRC",
+  "VEHICLE_OR_FINE_REFERENCE",
+]);
 const PROFILE_DATE_FIELD_KINDS = new Set<string>([
   "ISSUE_DATE",
   "SIGNING_DATE",
@@ -645,7 +649,10 @@ function projectReferences(
   const result: PersistedReferenceV2[] = [];
   for (const reference of workspace.references) {
     const document = documentsById.get(reference.documentId);
-    const sensitiveType = reference.referenceType as "CSV" | "NRC";
+    const sensitiveType = reference.referenceType as
+      | "CSV"
+      | "NRC"
+      | "VEHICLE_OR_FINE_REFERENCE";
     const protectedCarrier = SENSITIVE_REFERENCE_TYPES.has(
       reference.referenceType,
     )
@@ -956,6 +963,37 @@ export function projectFiscalNotificationsWorkspacePrivacyV2(
     const uniqueExact = [...new Set(exactReferenceIds)].filter((id) =>
       relationReferences.has(id),
     );
+    const sourceAmounts = amounts.filter(
+      (entry) => entry.documentId === relation.sourceDocumentId,
+    );
+    const targetAmounts = amounts.filter(
+      (entry) => entry.documentId === relation.targetDocumentId,
+    );
+    const contextualAmountFactIds = sourceAmounts.flatMap((source) => {
+      const matching = targetAmounts.find(
+        (target) =>
+          target.componentType === source.componentType &&
+          target.amountCents === source.amountCents &&
+          relation.evidence.matchingAmountTypes.includes(
+            source.componentType as (typeof relation.evidence.matchingAmountTypes)[number],
+          ),
+      );
+      return matching ? [source.id, matching.id] : [];
+    });
+    const sourceDates = dates.filter(
+      (entry) => entry.documentId === relation.sourceDocumentId,
+    );
+    const targetDates = dates.filter(
+      (entry) => entry.documentId === relation.targetDocumentId,
+    );
+    const contextualDateFactIds = sourceDates.flatMap((source) => {
+      const matching = targetDates.find(
+        (target) =>
+          target.value === source.value &&
+          relation.evidence.matchingDates.includes(source.value),
+      );
+      return matching ? [source.id, matching.id] : [];
+    });
     if (
       !isLegacyOnly &&
       relation.status === "SYSTEM_CONFIRMED_EXACT" &&
@@ -974,10 +1012,23 @@ export function projectFiscalNotificationsWorkspacePrivacyV2(
             ? ("SUGGESTED" as const)
             : relation.status,
         exactReferenceIds: uniqueExact,
-        contextualDateFactIds: [],
-        contextualAmountFactIds: [],
-        algorithmVersion: "v1-projected-1",
+        contextualDateFactIds: [...new Set(contextualDateFactIds)],
+        contextualAmountFactIds: [...new Set(contextualAmountFactIds)],
+        algorithmVersion:
+          relation.algorithmVersion === "global-reconcile-v8"
+            ? relation.algorithmVersion
+            : "v1-projected-1",
         createdAt: relation.createdAt,
+        ...(relation.reconciliationHistory
+          ? {
+              reconciliationHistory: relation.reconciliationHistory.map(
+                (entry) => ({
+                  ...entry,
+                  evidenceKinds: [...entry.evidenceKinds],
+                }),
+              ),
+            }
+          : {}),
       },
     ];
   });

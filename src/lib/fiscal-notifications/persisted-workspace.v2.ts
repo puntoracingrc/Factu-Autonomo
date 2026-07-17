@@ -10,6 +10,7 @@ import {
   resolveAeatDocumentProfileV1,
 } from "./knowledge/aeat-document-knowledge.v1";
 import type { FiscalNotificationDocumentFamilyIdV3 } from "./knowledge/document-families.v3";
+import type { DocumentRelationReconciliationRecordV8 } from "./types";
 
 export const LEGACY_ONLY_DOCUMENT_RELATION_TYPES_V2 = [
   "BELONGS_TO_CASE",
@@ -336,6 +337,7 @@ export interface PersistedDocumentRelationV2 {
   contextualAmountFactIds: string[];
   algorithmVersion: string;
   createdAt: string;
+  reconciliationHistory?: DocumentRelationReconciliationRecordV8[];
 }
 
 export interface PersistedDriveArchiveV2 {
@@ -1060,6 +1062,7 @@ function parseRelation(
     "contextualAmountFactIds",
     "algorithmVersion",
     "createdAt",
+    "reconciliationHistory",
   ]);
   const result: PersistedDocumentRelationV2 = {
     id: id(required(source, "id")),
@@ -1088,6 +1091,11 @@ function parseRelation(
     ),
     createdAt: timestamp(required(source, "createdAt")),
   };
+  if (source.reconciliationHistory !== undefined) {
+    result.reconciliationHistory = parseReconciliationHistory(
+      source.reconciliationHistory,
+    );
+  }
   if (result.sourceDocumentId === result.targetDocumentId) fail();
   if (
     result.status === "SYSTEM_CONFIRMED_EXACT" &&
@@ -1102,6 +1110,103 @@ function parseRelation(
   )
     fail();
   return result;
+}
+
+function parseReconciliationHistory(
+  value: unknown,
+): DocumentRelationReconciliationRecordV8[] {
+  const entries = array(value, 32);
+  return entries.map((entry) => {
+    const source = record(entry, [
+      "ruleVersion",
+      "previousStatus",
+      "newStatus",
+      "resultClassification",
+      "previousRelationType",
+      "newRelationType",
+      "globalRelationType",
+      "evidenceKinds",
+      "reasonCode",
+      "reevaluatedAt",
+      "rowAssignmentReviewRequired",
+    ]);
+    const previousRelationType = enumValue(
+      required(source, "previousRelationType"),
+      ["ABSENT", ...PERSISTED_DOCUMENT_RELATION_TYPES_V2] as const,
+    );
+    const rowAssignmentReviewRequired = required(
+      source,
+      "rowAssignmentReviewRequired",
+    );
+    if (typeof rowAssignmentReviewRequired !== "boolean") fail();
+    const result: DocumentRelationReconciliationRecordV8 = {
+      ruleVersion: enumValue(required(source, "ruleVersion"), [
+        "global-reconcile-v8",
+      ] as const),
+      previousStatus: enumValue(required(source, "previousStatus"), [
+        "ABSENT",
+        "SUGGESTED",
+        "USER_CONFIRMED",
+        "USER_REJECTED",
+        "SYSTEM_CONFIRMED_EXACT",
+      ] as const),
+      newStatus: enumValue(required(source, "newStatus"), [
+        "SUGGESTED",
+        "USER_CONFIRMED",
+        "USER_REJECTED",
+        "SYSTEM_CONFIRMED_EXACT",
+      ] as const),
+      resultClassification: enumValue(
+        required(source, "resultClassification"),
+        [
+          "SUGGESTED",
+          "SYSTEM_CONFIRMED_EXACT",
+          "SYSTEM_CONFIRMED_EXACT_CASE_LEVEL",
+          "SYSTEM_CONFIRMED_EXACT_ASSET",
+        ] as const,
+      ),
+      previousRelationType: previousRelationType as DocumentRelationReconciliationRecordV8["previousRelationType"],
+      newRelationType: enumValue(
+        required(source, "newRelationType"),
+        PERSISTED_DOCUMENT_RELATION_TYPES_V2,
+      ),
+      globalRelationType: enumValue(required(source, "globalRelationType"), [
+        "RESOLUTION_ENFORCED",
+        "ENFORCES_REMAINING_PLAN_PRINCIPAL",
+        "ENFORCES",
+        "CITED_AS_EXISTING_EXECUTIVE_DEBT",
+        "OFFSET_APPLIES_TO_MODIFIED_PAYMENT_PLAN",
+        "RELEASES_SEIZURE",
+        "RELEASED_ASSET_LATER_RESEIZED",
+        "POSSIBLY_PRECEDES_ASSESSMENT",
+        "NOTIFICATION_EVIDENCE_FOR",
+      ] as const),
+      evidenceKinds: array(required(source, "evidenceKinds"), 16).map(
+        (kind) => enumValue(kind, [
+          "EXACT_REFERENCE",
+          "PAYMENT_FORM_PART",
+          "COMPATIBLE_AMOUNT",
+          "REMAINING_PLAN_PRINCIPAL",
+          "EXECUTIVE_DEBT_CITATION",
+          "MODIFIED_PLAN_STRUCTURE",
+          "RECALCULATED_OFFSET_ROWS",
+          "EXACT_SEIZURE_REFERENCE",
+          "OWNER_SCOPED_OPAQUE_ASSET",
+          "MODEL_AND_FISCAL_YEAR",
+          "NOTIFICATION_PROOF_REFERENCE",
+        ] as const),
+      ),
+      reasonCode: enumValue(required(source, "reasonCode"), [
+        "NEW_DIRECT_EDGE",
+        "SUGGESTION_UPGRADED_BY_EXACT_EVIDENCE",
+        "NEW_EVIDENCE_CHANGED_CLASSIFICATION",
+      ] as const),
+      reevaluatedAt: timestamp(required(source, "reevaluatedAt")),
+      rowAssignmentReviewRequired,
+    };
+    if (new Set(result.evidenceKinds).size !== result.evidenceKinds.length) fail();
+    return result;
+  });
 }
 
 function parseDriveArchive(
