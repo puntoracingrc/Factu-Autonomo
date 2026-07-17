@@ -18,8 +18,33 @@ import {
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { useCloudSync } from "@/context/CloudSyncContext";
-import type { PartnerDashboard } from "@/lib/partners/contracts";
+import type {
+  PartnerAccountSummary,
+  PartnerDashboard,
+  PartnerPlanCount,
+} from "@/lib/partners/contracts";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
+
+const ADMIN_PREVIEW_ACCOUNT: PartnerAccountSummary = {
+  userId: "admin-preview",
+  email: "",
+  status: "active",
+  commissionBps: 1000,
+  payoutThresholdCents: 6000,
+  payoutProfile: {
+    holderName: "",
+    ibanMasked: null,
+    configured: false,
+    updatedAt: null,
+  },
+  createdAt: "",
+  updatedAt: "",
+};
+
+const ADMIN_PREVIEW_PLAN_COUNTS: readonly PartnerPlanCount[] = [
+  { plan: "pro", label: "Pro", registered: 0, paying: 0 },
+  { plan: "pro_plus", label: "Pro+ IA", registered: 0, paying: 0 },
+];
 
 function formatMoney(cents: number): string {
   return new Intl.NumberFormat("es-ES", {
@@ -174,37 +199,53 @@ export default function PartnersPage() {
     );
   }
 
-  if (!dashboard.account && dashboard.role === "admin") {
-    return (
-      <div className="mx-auto max-w-3xl">
-        <PageHeader title="Área Partners" subtitle="Vista de administración del programa de colaboradores." />
-        <Card className="space-y-4">
-          <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white"><ShieldCheck className="h-5 w-5" /></span>
-            <div>
-              <h2 className="text-xl font-bold">Cuenta administradora</h2>
-              <p className="mt-1 text-slate-600">Gestiona altas, pausas y métricas desde el panel interno. Para disponer de un enlace propio, autoriza también este email como Partner.</p>
-            </div>
-          </div>
-          <ButtonLink href="/admin?seccion=partners">Abrir gestión de Partners</ButtonLink>
-        </Card>
-      </div>
-    );
-  }
-
-  const account = dashboard.account!;
+  const isAdminPreview = !dashboard.account && dashboard.role === "admin";
+  const account = dashboard.account ?? ADMIN_PREVIEW_ACCOUNT;
+  const planCounts = isAdminPreview
+    ? ADMIN_PREVIEW_PLAN_COUNTS
+    : dashboard.referral.planCounts;
+  const shareUrlValue = isAdminPreview
+    ? "El enlace aparecerá al activar una cuenta Partner"
+    : (dashboard.referral.shareUrl ?? "Enlace no disponible");
 
   return (
     <div className="mx-auto max-w-7xl">
       <PageHeader
         title="Área Partners"
-        subtitle="Tus registros, suscripciones y comisiones en un único panel."
+        subtitle={
+          isAdminPreview
+            ? "Vista previa del panel que verá un Partner autorizado."
+            : "Tus registros, suscripciones y comisiones en un único panel."
+        }
         action={
-          <Button type="button" variant="secondary" onClick={() => void load()}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => void load()}
+            disabled={isAdminPreview}
+          >
             <RefreshCw className="h-4 w-4" /> Actualizar
           </Button>
         }
       />
+
+      {isAdminPreview && (
+        <Card className="mb-4 border-amber-200 bg-amber-50">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white">
+              <ShieldCheck className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-lg font-bold text-amber-950">
+                Vista previa de Partner
+              </h2>
+              <p className="mt-1 text-sm text-amber-900">
+                Estás viendo la misma estructura que verá una gestoría autorizada. Esta vista no crea referidos, comisiones ni datos de cobro.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <Card className="mb-4 border-blue-200 bg-blue-50">
         <div className="flex items-start gap-3">
@@ -248,12 +289,16 @@ export default function PartnersPage() {
             <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 readOnly
-                value={dashboard.referral.shareUrl ?? "Enlace no disponible"}
+                value={shareUrlValue}
                 onFocus={(event) => event.currentTarget.select()}
                 aria-label="Enlace Partner"
                 className="min-h-12 min-w-0 flex-1 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm font-semibold text-slate-700"
               />
-              <Button type="button" onClick={() => void copyReferral()} disabled={!dashboard.referral.shareUrl}>
+              <Button
+                type="button"
+                onClick={() => void copyReferral()}
+                disabled={isAdminPreview || !dashboard.referral.shareUrl}
+              >
                 <Copy className="h-4 w-4" /> Copiar
               </Button>
             </div>
@@ -270,7 +315,7 @@ export default function PartnersPage() {
                   <tr><th className="px-2 py-3">Plan</th><th className="px-2 py-3">Registrados</th><th className="px-2 py-3">Pagando</th></tr>
                 </thead>
                 <tbody>
-                  {dashboard.referral.planCounts.map((item) => (
+                  {planCounts.map((item) => (
                     <tr key={item.plan} className="border-b border-slate-100 last:border-0">
                       <td className="px-2 py-3 font-bold">{item.label}</td>
                       <td className="px-2 py-3">{item.registered}</td>
@@ -313,6 +358,7 @@ export default function PartnersPage() {
                   onChange={(event) => setHolderName(event.target.value)}
                   maxLength={160}
                   required
+                  disabled={isAdminPreview}
                   autoComplete="name"
                   className="min-h-12 w-full rounded-2xl border border-slate-200 px-4 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
@@ -326,10 +372,11 @@ export default function PartnersPage() {
                   autoComplete="off"
                   spellCheck={false}
                   required
+                  disabled={isAdminPreview}
                   className="min-h-12 w-full rounded-2xl border border-slate-200 px-4 font-mono outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </label>
-              <Button type="submit" disabled={busy} fullWidth>
+              <Button type="submit" disabled={busy || isAdminPreview} fullWidth>
                 <Save className="h-4 w-4" /> {account.payoutProfile.configured ? "Sustituir datos de cobro" : "Guardar datos de cobro"}
               </Button>
             </form>
