@@ -24,6 +24,25 @@ function coverageLabel(entry: FiscalNotificationGuideEntryV1): string {
     : "Guía disponible · revisión manual";
 }
 
+function maturityLabel(entry: FiscalNotificationGuideEntryV1): string {
+  if (entry.recognitionMaturity === "OFFICIAL_ONLY") {
+    return "Significado oficial conocido · formato pendiente de validar";
+  }
+  if (entry.recognitionMaturity === "SYNTHETIC_VALIDATED") {
+    return "Contrato validado con casos sintéticos";
+  }
+  if (entry.recognitionMaturity === "REAL_VARIANT_OBSERVED") {
+    return "Una variante documental observada";
+  }
+  if (entry.recognitionMaturity === "MULTI_VARIANT_HARDENED") {
+    return "Varias estructuras documentales verificadas";
+  }
+  if (entry.recognitionMaturity === "PRODUCTION_STRONG_SIGNATURE") {
+    return "Firma estructural fuerte en producción";
+  }
+  return "Catálogo anterior compatible";
+}
+
 function PlainLanguageExplanation({
   guidance,
 }: {
@@ -226,6 +245,10 @@ export function FiscalNotificationGuideDetail({
             <dd className="mt-0.5 text-slate-800 dark:text-slate-200">{coverageLabel(entry)}</dd>
           </div>
           <div>
+            <dt className="font-semibold text-slate-500 dark:text-slate-400">Madurez del reconocimiento</dt>
+            <dd className="mt-0.5 text-slate-800 dark:text-slate-200">{maturityLabel(entry)}</dd>
+          </div>
+          <div>
             <dt className="font-semibold text-slate-500 dark:text-slate-400">Revisión jurídica</dt>
             <dd className="mt-0.5 font-semibold text-amber-800 dark:text-amber-200">
               Revisión jurídica pendiente
@@ -288,6 +311,20 @@ export function FiscalNotificationGuideDetail({
             entries={entry.possibleNext}
           />
         </div>
+        {entry.relationHints.length > 0 && (
+          <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50/60 p-4 dark:border-blue-800 dark:bg-blue-950/30">
+            <h5 className="font-bold text-blue-950 dark:text-blue-100">
+              Cómo puede encajar en un expediente
+            </h5>
+            <ul className="mt-2 space-y-2">
+              {entry.relationHints.map((hint) => (
+                <li key={hint} className="text-sm leading-6 text-blue-950 dark:text-blue-100">
+                  {hint}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </Card>
 
       <Card className="dark:border-slate-700 dark:bg-slate-900">

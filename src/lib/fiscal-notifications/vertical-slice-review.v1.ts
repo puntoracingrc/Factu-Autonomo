@@ -3,6 +3,11 @@ import {
   type FiscalNotificationDocumentFamilyIdV3,
 } from "./knowledge/document-families.v3";
 import {
+  AEAT_OFFICIAL_CATALOG_PROFILE_IDS_V9,
+  resolveAeatOfficialCatalogProfileV9,
+  type AeatOfficialCatalogProfileIdV9,
+} from "./knowledge/official-catalog-expansion.v9";
+import {
   FISCAL_NOTIFICATION_INPUT_LIMITS,
   assertNonNegativeIntegerCents,
 } from "./input-contract";
@@ -149,7 +154,7 @@ export interface FiscalNotificationVerticalSliceReviewFieldV1 {
 export interface FiscalNotificationVerticalSliceReviewDocumentV1 {
   readonly reviewDocumentId: string;
   readonly extractorId: BaseExtractorIdV1;
-  readonly familyId: FiscalNotificationDocumentFamilyIdV3;
+  readonly familyId: FiscalNotificationReviewFamilyIdV9;
   readonly title: string;
   readonly subtitle: string;
   readonly pageFrom: number;
@@ -159,6 +164,10 @@ export interface FiscalNotificationVerticalSliceReviewDocumentV1 {
   readonly warnings: readonly string[];
   readonly requiresHumanReview: true;
 }
+
+export type FiscalNotificationReviewFamilyIdV9 =
+  | FiscalNotificationDocumentFamilyIdV3
+  | AeatOfficialCatalogProfileIdV9;
 
 export interface FiscalNotificationVerticalSliceReviewV1 {
   readonly schemaVersion: 1;
@@ -176,7 +185,7 @@ export interface FiscalNotificationVerticalSliceReviewV1 {
 }
 
 const FAMILY_TITLE: Readonly<
-  Partial<Record<FiscalNotificationDocumentFamilyIdV3, string>>
+  Partial<Record<FiscalNotificationReviewFamilyIdV9, string>>
 > = Object.freeze({
   "notification.delivery_attempt": "Aviso o intento de notificación",
   "notification.publication_or_appearance":
@@ -336,8 +345,11 @@ const SEIZURE_SPECIFIC_LABEL: Readonly<
   TRANSFER_RECEIPT: "Justificante del ingreso",
 });
 
-const FAMILY_IDS = new Set<FiscalNotificationDocumentFamilyIdV3>(
-  FISCAL_NOTIFICATION_DOCUMENT_FAMILY_IDS_V3,
+const FAMILY_IDS = new Set<FiscalNotificationReviewFamilyIdV9>(
+  [
+    ...FISCAL_NOTIFICATION_DOCUMENT_FAMILY_IDS_V3,
+    ...AEAT_OFFICIAL_CATALOG_PROFILE_IDS_V9,
+  ],
 );
 const EXTRACTOR_IDS = new Set<BaseExtractorIdV1>(BASE_EXTRACTOR_IDS_V1);
 const REFERENCE_TYPES = new Set(Object.keys(REFERENCE_LABEL));
@@ -414,6 +426,7 @@ const SAFE_SUBTITLE_VALUES = new Set([
   "La AEAT ha denegado la solicitud; revisa motivo, pago y recurso",
   "Orden de pago · no acredita pago",
   "Título, autoridad y estructura coinciden",
+  "Coincidencia oficial; revisión obligatoria",
   "Clasificación histórica amplia",
 ]);
 const REAL_CORPUS_SAFE_LABELS_V2 = new Set([
@@ -1417,7 +1430,7 @@ function parseReviewDocument(
   assertBoundedString(item.reviewDocumentId, 160);
   if (!EXTRACTOR_IDS.has(item.extractorId as BaseExtractorIdV1))
     throw invalidReview();
-  if (!FAMILY_IDS.has(item.familyId as FiscalNotificationDocumentFamilyIdV3))
+  if (!FAMILY_IDS.has(item.familyId as FiscalNotificationReviewFamilyIdV9))
     throw invalidReview();
   assertBoundedString(
     item.title,
@@ -1427,8 +1440,10 @@ function parseReviewDocument(
     item.subtitle,
     FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_LIMITS_V1.maxLabelChars,
   );
-  const familyId = item.familyId as FiscalNotificationDocumentFamilyIdV3;
-  const canonicalTitle = resolveFamilyRuleV2(familyId)?.canonicalTitle;
+  const familyId = item.familyId as FiscalNotificationReviewFamilyIdV9;
+  const canonicalTitle =
+    resolveFamilyRuleV2(familyId)?.canonicalTitle ??
+    resolveAeatOfficialCatalogProfileV9(familyId)?.nameEs;
   if (
     (item.title !== FAMILY_TITLE[familyId] &&
       item.title !== canonicalTitle &&
@@ -1470,7 +1485,7 @@ function parseReviewDocument(
   return Object.freeze({
     reviewDocumentId: item.reviewDocumentId as string,
     extractorId: item.extractorId as BaseExtractorIdV1,
-    familyId: item.familyId as FiscalNotificationDocumentFamilyIdV3,
+    familyId: item.familyId as FiscalNotificationReviewFamilyIdV9,
     title: item.title as string,
     subtitle: item.subtitle as string,
     pageFrom: Number(item.pageFrom),

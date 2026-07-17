@@ -181,9 +181,11 @@ describe("manual sections", () => {
     expect(fiscalManual).toContain("Una carta de pago no acredita el ingreso");
     expect(fiscalManual).toContain("no se consulta la web de la AEAT");
     expect(fiscalManual).toContain("fecha real de notificación o recepción");
-    expect(fiscalManual).toContain("87 familias documentales");
-    expect(fiscalManual).toContain("87 fichas");
-    expect(fiscalManual).toContain("15 cadenas procedimentales");
+    expect(fiscalManual).toContain("122 familias documentales");
+    expect(fiscalManual).toContain("122 fichas");
+    expect(fiscalManual).toContain("118 tienen lectura automática");
+    expect(fiscalManual).toContain("15 cadenas procedimentales anteriores");
+    expect(fiscalManual).toContain("se añaden 11 cadenas");
     expect(fiscalManual).toContain("48 tipos de relación");
     expect(fiscalManual).toContain("hasta 16 fichas del mismo PDF");
     expect(fiscalManual).toContain("no conserva esos valores");

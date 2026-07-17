@@ -10,6 +10,7 @@ import {
 } from "./input-contract";
 import type { ProjectFiscalNotificationPdfWorkerAnalysisInput } from "./pdf-worker-analysis-contract";
 import { extractProfileDrivenFamilyV2 } from "./extractor-core/profile-driven-extractor.v2";
+import { extractAeatOfficialCatalogDocumentV9 } from "./extractor-core/official-catalog-extractor.v9";
 import { segmentProfileDrivenDocumentV2 } from "./extractor-core/profile-driven-document-segments.v2";
 import { extractAeatRealCorpusDocumentV2 } from "./extractor-core/real-corpus-extractor.v2";
 import { extractAeatRealCorpusDocumentV3 } from "./extractor-core/real-corpus-extractor.v3";
@@ -29,6 +30,7 @@ import { projectRealCorpusReviewV4 } from "./real-corpus-review.v4";
 import { projectRealCorpusReviewV5 } from "./real-corpus-review.v5";
 import { projectRealCorpusReviewV6 } from "./real-corpus-review.v6";
 import { projectRealCorpusReviewV7 } from "./real-corpus-review.v7";
+import { projectAeatOfficialCatalogReviewV9 } from "./official-catalog-review.v9";
 import {
   projectFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewV1,
@@ -88,6 +90,7 @@ export async function analyzeFiscalNotificationDocumentInput(
   const [
     legacyAnalysis,
     profileDrivenOutcome,
+    officialCatalogOutcomeV9,
     profileDrivenSegments,
     realCorpusOutcome,
     realCorpusOutcomeV3,
@@ -99,6 +102,9 @@ export async function analyzeFiscalNotificationDocumentInput(
     analyzeFiscalNotificationVerticalSliceV1(documentInput),
     hasText
       ? extractProfileDrivenFamilyV2({ document: documentInput })
+      : Promise.resolve(null),
+    hasText
+      ? extractAeatOfficialCatalogDocumentV9({ document: documentInput })
       : Promise.resolve(null),
     hasText && pageCount > 1
       ? segmentProfileDrivenDocumentV2({ document: documentInput })
@@ -189,6 +195,9 @@ export async function analyzeFiscalNotificationDocumentInput(
         review.documents.every((document) => document.familyId !== v7FamilyId)),
   );
   const verticalSliceReview = mergeProfileDrivenReviewsV2(legacyReview, [
+    ...(officialCatalogOutcomeV9?.status === "REVIEW_REQUIRED"
+      ? [projectAeatOfficialCatalogReviewV9(officialCatalogOutcomeV9)]
+      : []),
     ...reviewsOutsideLatestFamily,
     ...(realCorpusOutcome &&
     realCorpusOutcome.familyId !== v3FamilyId &&

@@ -106,14 +106,14 @@ describe("fiscal notification guide search v1", () => {
     );
   });
 
-  it("returns all 87 entries for an empty query without mutating the input", () => {
+  it("returns all 122 entries for an empty query without mutating the input", () => {
     const input = [...FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1];
     const before = input.map((entry) => entry.familyId);
     const result = searchFiscalNotificationGuideV1(input, "   ");
     expect(result.status).toBe("READY");
     if (result.status !== "READY") throw new Error("Expected ready search");
     expect(result.query).toBe("");
-    expect(result.total).toBe(87);
+    expect(result.total).toBe(122);
     expect(input.map((entry) => entry.familyId)).toEqual(before);
     expect(Object.isFrozen(result)).toBe(true);
     expect(Object.isFrozen(result.entries)).toBe(true);

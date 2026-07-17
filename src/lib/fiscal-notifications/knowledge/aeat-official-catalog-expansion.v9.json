@@ -1,0 +1,1732 @@
+{
+  "meta": {
+    "title": "Ampliación oficial propuesta del catálogo documental AEAT",
+    "version": "9.0.0",
+    "createdAt": "2026-07-17",
+    "currentProfileCount": 87,
+    "proposedAdditionCount": 35,
+    "realCorpusRowsReviewed": 120,
+    "realCorpusFamiliesObserved": 31,
+    "scope": "Autónomos y empresarios individuales en territorio común; módulos sectoriales separados.",
+    "exhaustiveness": "Versionado y de alta cobertura, no garantía absoluta de todos los documentos posibles de la AEAT."
+  },
+  "officialSources": {
+    "AEAT_RECTIFICATION_AUTOLIQ": {
+      "title": "Rectificación de autoliquidaciones de Gestión Tributaria",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/GZ28.shtml"
+    },
+    "AEAT_RECTIFICATION_DECLARATIONS": {
+      "title": "Rectificación de declaraciones de Gestión Tributaria",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/GZ81.shtml"
+    },
+    "AEAT_VAT_RECTIFYING_RETURN": {
+      "title": "Autoliquidación rectificativa del modelo 303",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/todas-gestiones/impuestos-tasas/iva/modelo-303-iva-autoliquidacion_/autoliquidacion-rectificativa/preguntas-frecuentes-sobre-autoliquidacion-rectificativa-303.html"
+    },
+    "AEAT_REDEME": {
+      "title": "Gestión y control del Registro de Devolución Mensual",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/G302.shtml"
+    },
+    "AEAT_REDEME_CAUTIONARY": {
+      "title": "Bajas cautelares en el REDEME",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/G327.shtml"
+    },
+    "AEAT_SII": {
+      "title": "Suministro Inmediato de Información del IVA",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/iva/suministro-inmediato-informacion/informacion-general.html"
+    },
+    "AEAT_CERTIFICATES": {
+      "title": "Certificados tributarios",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/empresas/tramites-censales-que-afectan-empresas/certificados-tributarios.html"
+    },
+    "AEAT_CERT_CONTRACTORS": {
+      "title": "Certificado de contratistas y subcontratistas",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/G303.shtml"
+    },
+    "AEAT_CERT_IRPF": {
+      "title": "Certificado tributario de IRPF",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/G306.shtml"
+    },
+    "AEAT_CERT_CENSUS": {
+      "title": "Certificado de situación censal",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/G313.shtml"
+    },
+    "AEAT_CERT_GENERIC": {
+      "title": "Certificado tributario genérico",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/G317.shtml"
+    },
+    "AEAT_APODERAMIENTOS": {
+      "title": "Registro de apoderamientos",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/ZP01.shtml"
+    },
+    "AEAT_NOTIFICATIONS": {
+      "title": "Notificaciones y asignación de medios electrónicos",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/ZN01.shtml"
+    },
+    "AEAT_ECONOMIC_CLAIM": {
+      "title": "Reclamación económico-administrativa",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/GZ53.shtml"
+    },
+    "AEAT_GENERIC_REVIEW": {
+      "title": "Procedimiento genérico de revisión",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientoini/ZZ01.shtml"
+    },
+    "AEAT_AUCTIONS": {
+      "title": "Enajenación mediante subasta",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/RF02.shtml"
+    },
+    "AEAT_AUCTION_DEBTOR": {
+      "title": "Información al obligado al pago en subastas",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/deudas-apremios-embargos-subastas/subastas/obligado-pago.html"
+    },
+    "AEAT_PAYMENT_IN_KIND": {
+      "title": "Pago de deudas con bienes del Patrimonio Histórico Español",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/RD04.shtml"
+    },
+    "AEAT_APREMIO": {
+      "title": "Procedimiento de apremio",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/RA19.shtml"
+    },
+    "AEAT_REVENUE_HUB": {
+      "title": "Deudas, apremios, embargos, subastas y concursos",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/deudas-apremios-embargos-subastas.html"
+    },
+    "AEAT_BUSINESS_PROFESSIONALS": {
+      "title": "Empresarios individuales y profesionales",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/empresarios-individuales-profesionales.html"
+    },
+    "AEAT_IMPORT": {
+      "title": "Importación y eventual liquidación provisional aduanera",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/procedimientos/DB01.shtml"
+    },
+    "AEAT_VERIFACTU": {
+      "title": "Sistemas informáticos de facturación y VERI*FACTU",
+      "url": "https://sede.agenciatributaria.gob.es/Sede/iva/sistemas-informaticos-facturacion-verifactu.html"
+    }
+  },
+  "proposedProfiles": [
+    {
+      "id": "evidence.submission_receipt",
+      "nameEs": "Justificante de presentación o contestación electrónica",
+      "category": "EVIDENCE",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P0",
+      "whatItIs": "Acredita que se presentó una contestación, escrito, alegación, recurso o documentación a través de un registro electrónico.",
+      "phases": [
+        "SUBMITTED",
+        "REGISTERED",
+        "REJECTED_OR_INCOMPLETE"
+      ],
+      "mustExtract": {
+        "references": [
+          "FILING_RECEIPT_ID",
+          "PROCEDURE_ID",
+          "ACT_ID",
+          "NOTIFICATION_ID"
+        ],
+        "dates": [
+          "FILING_DATE",
+          "FILING_TIME"
+        ],
+        "money": [],
+        "facts": [
+          "SUBMISSION_CHANNEL",
+          "SUBMITTED_DOCUMENT_COUNT",
+          "SUBMISSION_RESULT"
+        ]
+      },
+      "relationRules": [
+        "RESPONSE_TO",
+        "FILES_AGAINST",
+        "SUPPLIES_DOCUMENTS_FOR"
+      ],
+      "deadlineTrigger": "NONE",
+      "notProvenByThisDocument": [
+        "Que la AEAT haya aceptado el contenido.",
+        "Que el trámite esté resuelto.",
+        "Que un recurso suspenda el acto."
+      ],
+      "officialSourceIds": [
+        "AEAT_GENERIC_REVIEW"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Muy alta: cualquier justificante real o captura del registro permite endurecer el reconocimiento.",
+      "notes": "Es una carencia transversal importante: el modelo de datos ya contempla FILING_RECEIPT_ID, pero falta una familia visible propia."
+    },
+    {
+      "id": "procedure.deadline_extension_request",
+      "nameEs": "Solicitud o justificante de ampliación de plazo",
+      "category": "PROCEDURE",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P0",
+      "whatItIs": "Acredita que se pidió más tiempo para atender un trámite concreto.",
+      "phases": [
+        "REQUESTED"
+      ],
+      "mustExtract": {
+        "references": [
+          "FILING_RECEIPT_ID",
+          "PROCEDURE_ID",
+          "ACT_ID"
+        ],
+        "dates": [
+          "FILING_DATE",
+          "ORIGINAL_DEADLINE"
+        ],
+        "money": [],
+        "facts": [
+          "REQUESTED_EXTENSION",
+          "REASON",
+          "SUBMISSION_RESULT"
+        ]
+      },
+      "relationRules": [
+        "EXTENSION_REQUEST_FOR"
+      ],
+      "deadlineTrigger": "ORIGINAL_DEADLINE_UNLESS_GRANTED",
+      "notProvenByThisDocument": [
+        "Que el plazo haya sido ampliado.",
+        "Que la solicitud suspenda automáticamente el plazo original."
+      ],
+      "officialSourceIds": [
+        "AEAT_RECTIFICATION_AUTOLIQ",
+        "AEAT_ECONOMIC_CLAIM"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media: el justificante electrónico es suficiente para aprender estructura.",
+      "notes": ""
+    },
+    {
+      "id": "procedure.deadline_extension_decision",
+      "nameEs": "Acuerdo que concede o deniega una ampliación de plazo",
+      "category": "PROCEDURE",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P0",
+      "whatItIs": "Decide una solicitud de ampliación y fija, cuando se concede, la nueva fecha o duración.",
+      "phases": [
+        "GRANTED",
+        "PARTIALLY_GRANTED",
+        "DENIED"
+      ],
+      "mustExtract": {
+        "references": [
+          "ACT_ID",
+          "PROCEDURE_ID",
+          "FILING_RECEIPT_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE",
+          "NEW_DEADLINE"
+        ],
+        "money": [],
+        "facts": [
+          "DECISION_RESULT",
+          "REASON"
+        ]
+      },
+      "relationRules": [
+        "DECIDES_EXTENSION_REQUEST",
+        "UPDATES_DEADLINE_FOR"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE_OR_EXPLICIT_NEW_DEADLINE",
+      "notProvenByThisDocument": [
+        "Que cambie otros plazos del expediente.",
+        "Que una denegación reabra un plazo ya vencido."
+      ],
+      "officialSourceIds": [
+        "AEAT_RECTIFICATION_AUTOLIQ",
+        "AEAT_ECONOMIC_CLAIM"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Alta: hace falta al menos un acuerdo real para variantes de redacción.",
+      "notes": ""
+    },
+    {
+      "id": "assessment.rectification_request",
+      "nameEs": "Solicitud de rectificación de autoliquidación o declaración",
+      "category": "ASSESSMENT",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P0",
+      "whatItIs": "Es la petición para corregir una autoliquidación o declaración que el interesado considera perjudicial o incorrecta.",
+      "phases": [
+        "REQUESTED"
+      ],
+      "mustExtract": {
+        "references": [
+          "FILING_RECEIPT_ID",
+          "ORIGINAL_FILING_RECEIPT_ID",
+          "MODEL",
+          "FISCAL_YEAR",
+          "TAX_PERIOD"
+        ],
+        "dates": [
+          "FILING_DATE",
+          "ORIGINAL_FILING_DATE"
+        ],
+        "money": [
+          "ORIGINAL_RESULT",
+          "REQUESTED_RESULT",
+          "REQUESTED_REFUND"
+        ],
+        "facts": [
+          "RECTIFICATION_REASON",
+          "RECTIFICATION_SCOPE"
+        ]
+      },
+      "relationRules": [
+        "RECTIFIES_FILING",
+        "STARTS_RECTIFICATION_PROCEDURE"
+      ],
+      "deadlineTrigger": "NONE",
+      "notProvenByThisDocument": [
+        "Que la rectificación haya sido aceptada.",
+        "Que exista ya devolución reconocida.",
+        "Que la deuda original esté suspendida."
+      ],
+      "officialSourceIds": [
+        "AEAT_RECTIFICATION_AUTOLIQ",
+        "AEAT_RECTIFICATION_DECLARATIONS"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media: puede entrenarse con justificantes de presentación y contratos oficiales.",
+      "notes": ""
+    },
+    {
+      "id": "assessment.rectification_requirement",
+      "nameEs": "Requerimiento dentro de una rectificación",
+      "category": "ASSESSMENT",
+      "changeKind": "NEW_SUBTYPE",
+      "priority": "P0",
+      "whatItIs": "La AEAT pide pruebas, aclaraciones o subsanación para resolver una rectificación solicitada.",
+      "phases": [
+        "REQUIREMENT"
+      ],
+      "mustExtract": {
+        "references": [
+          "PROCEDURE_ID",
+          "ORIGINAL_FILING_RECEIPT_ID",
+          "NOTIFICATION_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE",
+          "RESPONSE_DEADLINE"
+        ],
+        "money": [],
+        "facts": [
+          "DOCUMENTATION_REQUIRED",
+          "RECTIFICATION_SCOPE"
+        ]
+      },
+      "relationRules": [
+        "CONTINUES_RECTIFICATION",
+        "RESPONSE_EXPECTED"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE",
+      "notProvenByThisDocument": [
+        "Que la rectificación vaya a ser estimada o denegada.",
+        "Que la aportación ya se haya realizado."
+      ],
+      "officialSourceIds": [
+        "AEAT_RECTIFICATION_AUTOLIQ",
+        "AEAT_RECTIFICATION_DECLARATIONS"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Alta: las etiquetas concretas del requerimiento ayudan a evitar confusión con una comprobación iniciada de oficio.",
+      "notes": ""
+    },
+    {
+      "id": "assessment.rectification_proposal",
+      "nameEs": "Propuesta de resolución de rectificación y audiencia",
+      "category": "ASSESSMENT",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P0",
+      "whatItIs": "La AEAT anticipa cómo pretende resolver la rectificación y abre un trámite para alegar.",
+      "phases": [
+        "PROPOSED_FULL_GRANT",
+        "PROPOSED_PARTIAL_GRANT",
+        "PROPOSED_DENIAL"
+      ],
+      "mustExtract": {
+        "references": [
+          "PROCEDURE_ID",
+          "ORIGINAL_FILING_RECEIPT_ID",
+          "ACT_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE",
+          "ALLEGATION_DEADLINE"
+        ],
+        "money": [
+          "PROPOSED_REFUND",
+          "PROPOSED_DEBT_ADJUSTMENT"
+        ],
+        "facts": [
+          "PROPOSAL_RESULT",
+          "REASON"
+        ]
+      },
+      "relationRules": [
+        "CONTINUES_RECTIFICATION",
+        "PRECEDES_RECTIFICATION_RESOLUTION"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE",
+      "notProvenByThisDocument": [
+        "Que exista una resolución definitiva.",
+        "Que se haya pagado o devuelto el importe propuesto."
+      ],
+      "officialSourceIds": [
+        "AEAT_RECTIFICATION_AUTOLIQ",
+        "AEAT_RECTIFICATION_DECLARATIONS"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Alta: se necesita distinguirla de una propuesta de liquidación iniciada por la AEAT.",
+      "notes": ""
+    },
+    {
+      "id": "assessment.rectification_resolution",
+      "nameEs": "Resolución de rectificación",
+      "category": "ASSESSMENT",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P0",
+      "whatItIs": "Resuelve la solicitud de rectificación: puede estimarla total o parcialmente, desestimarla o reconocer una devolución.",
+      "phases": [
+        "FULL_GRANT",
+        "PARTIAL_GRANT",
+        "DENIAL",
+        "ARCHIVAL"
+      ],
+      "mustExtract": {
+        "references": [
+          "ACT_ID",
+          "PROCEDURE_ID",
+          "ORIGINAL_FILING_RECEIPT_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE"
+        ],
+        "money": [
+          "RECOGNIZED_REFUND",
+          "ADJUSTED_DEBT",
+          "INTEREST"
+        ],
+        "facts": [
+          "FINAL_RESULT",
+          "REASON",
+          "APPEAL_INFORMATION"
+        ]
+      },
+      "relationRules": [
+        "RESOLVES_RECTIFICATION",
+        "CREATES_REFUND",
+        "MODIFIES_ORIGINAL_FILING"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE",
+      "notProvenByThisDocument": [
+        "Que el importe reconocido ya se haya transferido.",
+        "Que una desestimación sea una nueva liquidación salvo que lo diga."
+      ],
+      "officialSourceIds": [
+        "AEAT_RECTIFICATION_AUTOLIQ",
+        "AEAT_RECTIFICATION_DECLARATIONS"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Alta: la resolución real es necesaria para validar variantes estimatoria/denegatoria.",
+      "notes": ""
+    },
+    {
+      "id": "filing.rectifying_self_assessment_receipt",
+      "nameEs": "Justificante de autoliquidación rectificativa",
+      "category": "FILING",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P0",
+      "whatItIs": "Es el justificante de una autoliquidación posterior que rectifica, completa o modifica otra anterior.",
+      "phases": [
+        "FILED",
+        "ACCEPTED_TECHNICALLY",
+        "REJECTED_TECHNICALLY"
+      ],
+      "mustExtract": {
+        "references": [
+          "FILING_RECEIPT_ID",
+          "ORIGINAL_FILING_RECEIPT_ID",
+          "MODEL",
+          "FISCAL_YEAR",
+          "TAX_PERIOD"
+        ],
+        "dates": [
+          "FILING_DATE"
+        ],
+        "money": [
+          "PREVIOUS_RESULT",
+          "RECTIFIED_RESULT",
+          "DIFFERENCE",
+          "REQUESTED_REFUND"
+        ],
+        "facts": [
+          "RECTIFICATION_REASON",
+          "DOMICILIATION_CHANGE"
+        ]
+      },
+      "relationRules": [
+        "RECTIFIES_FILING",
+        "MAY_UPDATE_PAYMENT_ORDER",
+        "MAY_UPDATE_REFUND_REQUEST"
+      ],
+      "deadlineTrigger": "NONE",
+      "notProvenByThisDocument": [
+        "Que la AEAT comparta el criterio jurídico declarado.",
+        "Que la devolución solicitada haya sido reconocida."
+      ],
+      "officialSourceIds": [
+        "AEAT_VAT_RECTIFYING_RETURN"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Muy alta: los justificantes del modelo 303 desde 3T/09-2024 son especialmente valiosos.",
+      "notes": "Debe versionarse por tributo y período porque la figura no se implantó simultáneamente en todos los modelos."
+    },
+    {
+      "id": "filing.complementary_self_assessment_receipt",
+      "nameEs": "Justificante de autoliquidación complementaria",
+      "category": "FILING",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Acredita una autoliquidación complementaria que aumenta el ingreso o reduce una devolución/compensación previa.",
+      "phases": [
+        "FILED"
+      ],
+      "mustExtract": {
+        "references": [
+          "FILING_RECEIPT_ID",
+          "ORIGINAL_FILING_RECEIPT_ID",
+          "MODEL",
+          "FISCAL_YEAR",
+          "TAX_PERIOD"
+        ],
+        "dates": [
+          "FILING_DATE"
+        ],
+        "money": [
+          "PREVIOUS_RESULT",
+          "COMPLEMENTARY_RESULT",
+          "ADDITIONAL_AMOUNT"
+        ],
+        "facts": [
+          "COMPLEMENTARY_REASON"
+        ]
+      },
+      "relationRules": [
+        "COMPLEMENTS_FILING",
+        "MAY_CREATE_PAYMENT_FORM"
+      ],
+      "deadlineTrigger": "NONE",
+      "notProvenByThisDocument": [
+        "Que el importe adicional se haya pagado.",
+        "Que sustituya por completo la declaración anterior."
+      ],
+      "officialSourceIds": [
+        "AEAT_VAT_RECTIFYING_RETURN"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media: útil para un programa de facturación aunque no sea una notificación recibida.",
+      "notes": ""
+    },
+    {
+      "id": "review.execution_resolution",
+      "nameEs": "Acuerdo de ejecución de recurso, reclamación o sentencia",
+      "category": "REVIEW",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P0",
+      "whatItIs": "Aplica materialmente una resolución administrativa o judicial: anula, recalcula, devuelve, conserva o sustituye actos anteriores.",
+      "phases": [
+        "FULL_EXECUTION",
+        "PARTIAL_EXECUTION",
+        "NEW_ASSESSMENT",
+        "REFUND_ORDER"
+      ],
+      "mustExtract": {
+        "references": [
+          "ACT_ID",
+          "REVIEW_RESOLUTION_ID",
+          "ORIGINAL_ACT_ID",
+          "DEBT_KEY"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE",
+          "EXECUTION_DATE"
+        ],
+        "money": [
+          "CANCELLED_AMOUNT",
+          "NEW_AMOUNT",
+          "REFUND_AMOUNT",
+          "INTEREST"
+        ],
+        "facts": [
+          "EXECUTION_SCOPE",
+          "FINAL_RESULT"
+        ]
+      },
+      "relationRules": [
+        "EXECUTES_REVIEW_RESOLUTION",
+        "CANCELS",
+        "REPLACES",
+        "CREATES_REFUND"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE",
+      "notProvenByThisDocument": [
+        "Que la resolución se haya ejecutado correctamente fuera del alcance impreso.",
+        "Que cualquier recurso suspenda el nuevo acto."
+      ],
+      "officialSourceIds": [
+        "AEAT_GENERIC_REVIEW",
+        "AEAT_ECONOMIC_CLAIM"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Alta: es imprescindible para cerrar cadenas de recursos.",
+      "notes": ""
+    },
+    {
+      "id": "review.execution_challenge",
+      "nameEs": "Recurso contra la ejecución de una resolución",
+      "category": "REVIEW",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Impugna cómo se ha ejecutado una resolución, sin reabrir necesariamente todo el fondo del asunto.",
+      "phases": [
+        "FILED",
+        "ADMITTED",
+        "RESOLVED"
+      ],
+      "mustExtract": {
+        "references": [
+          "FILING_RECEIPT_ID",
+          "EXECUTION_ACT_ID",
+          "REVIEW_RESOLUTION_ID"
+        ],
+        "dates": [
+          "FILING_DATE",
+          "APPEAL_DEADLINE"
+        ],
+        "money": [],
+        "facts": [
+          "CHALLENGE_SCOPE",
+          "REASON"
+        ]
+      },
+      "relationRules": [
+        "CHALLENGES_EXECUTION"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE_OF_EXECUTION_ACT",
+      "notProvenByThisDocument": [
+        "Que la ejecución quede suspendida.",
+        "Que el fondo de la resolución vuelva a revisarse."
+      ],
+      "officialSourceIds": [
+        "AEAT_ECONOMIC_CLAIM"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media: puede construirse con contrato oficial y justificante sintético.",
+      "notes": ""
+    },
+    {
+      "id": "review.annulment_or_higher_appeal",
+      "nameEs": "Recurso de anulación o alzada económico-administrativa",
+      "category": "REVIEW",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Es una impugnación posterior a una resolución económico-administrativa en los supuestos y plazos específicos aplicables.",
+      "phases": [
+        "ANNULMENT_APPEAL",
+        "ORDINARY_HIGHER_APPEAL"
+      ],
+      "mustExtract": {
+        "references": [
+          "FILING_RECEIPT_ID",
+          "REVIEW_RESOLUTION_ID"
+        ],
+        "dates": [
+          "FILING_DATE",
+          "APPEAL_DEADLINE"
+        ],
+        "money": [],
+        "facts": [
+          "APPEAL_KIND",
+          "REASON"
+        ]
+      },
+      "relationRules": [
+        "APPEALS_REVIEW_RESOLUTION"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE_OF_REVIEW_RESOLUTION",
+      "notProvenByThisDocument": [
+        "Que la resolución quede suspendida.",
+        "Que cualquier motivo sea admisible."
+      ],
+      "officialSourceIds": [
+        "AEAT_ECONOMIC_CLAIM"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Baja-media: menos frecuente para autónomos, pero necesaria para un grafo completo.",
+      "notes": ""
+    },
+    {
+      "id": "review.extraordinary_review",
+      "nameEs": "Recurso extraordinario de revisión",
+      "category": "REVIEW",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Impugna actos o resoluciones firmes únicamente por causas extraordinarias legalmente previstas.",
+      "phases": [
+        "FILED",
+        "INADMITTED",
+        "GRANTED",
+        "DENIED"
+      ],
+      "mustExtract": {
+        "references": [
+          "FILING_RECEIPT_ID",
+          "FINAL_ACT_ID",
+          "REVIEW_RESOLUTION_ID"
+        ],
+        "dates": [
+          "FILING_DATE",
+          "APPEAL_DEADLINE"
+        ],
+        "money": [],
+        "facts": [
+          "EXTRAORDINARY_GROUND",
+          "FINAL_RESULT"
+        ]
+      },
+      "relationRules": [
+        "EXTRAORDINARY_REVIEW_OF"
+      ],
+      "deadlineTrigger": "DATE_TRIGGER_DEFINED_BY_GROUND",
+      "notProvenByThisDocument": [
+        "Que sea una segunda apelación ordinaria.",
+        "Que suspenda automáticamente el acto firme."
+      ],
+      "officialSourceIds": [
+        "AEAT_ECONOMIC_CLAIM"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Baja-media.",
+      "notes": ""
+    },
+    {
+      "id": "review.inadmissibility_or_archival",
+      "nameEs": "Inadmisión, desistimiento o archivo de recurso/reclamación",
+      "category": "REVIEW",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Cierra una vía de revisión sin resolver necesariamente el fondo por inadmisión, desistimiento, falta de subsanación u otra causa formal.",
+      "phases": [
+        "INADMITTED",
+        "WITHDRAWN",
+        "ARCHIVED"
+      ],
+      "mustExtract": {
+        "references": [
+          "ACT_ID",
+          "FILING_RECEIPT_ID",
+          "ORIGINAL_ACT_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE"
+        ],
+        "money": [],
+        "facts": [
+          "CLOSURE_REASON",
+          "APPEAL_INFORMATION"
+        ]
+      },
+      "relationRules": [
+        "CLOSES_REVIEW_WITHOUT_MERITS_DECISION"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE",
+      "notProvenByThisDocument": [
+        "Que el acto original haya sido confirmado sobre el fondo.",
+        "Que haya suspensión vigente."
+      ],
+      "officialSourceIds": [
+        "AEAT_GENERIC_REVIEW"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media.",
+      "notes": ""
+    },
+    {
+      "id": "notification.electronic_assignment",
+      "nameEs": "Acuerdo o comunicación de asignación a notificaciones electrónicas",
+      "category": "NOTIFICATION",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Informa de la inclusión o asignación en un sistema de notificaciones electrónicas y de cuándo empieza a producir efectos.",
+      "phases": [
+        "ASSIGNED",
+        "INCLUDED",
+        "EXCLUDED_OR_CHANGED"
+      ],
+      "mustExtract": {
+        "references": [
+          "ACT_ID",
+          "NOTIFICATION_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE"
+        ],
+        "money": [],
+        "facts": [
+          "ELECTRONIC_NOTIFICATION_STATUS",
+          "CHANNEL"
+        ]
+      },
+      "relationRules": [
+        "PRECEDES_ELECTRONIC_NOTIFICATIONS"
+      ],
+      "deadlineTrigger": "EXPLICIT_EFFECTIVE_DATE",
+      "notProvenByThisDocument": [
+        "Que una notificación concreta haya sido puesta a disposición.",
+        "Que todos los procedimientos estén incluidos si no se indica."
+      ],
+      "officialSourceIds": [
+        "AEAT_NOTIFICATIONS"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media: los acuerdos reales ayudan a diferenciar asignación de un simple sobre DEHú.",
+      "notes": ""
+    },
+    {
+      "id": "representation.power_registration",
+      "nameEs": "Alta o justificante de apoderamiento tributario",
+      "category": "REPRESENTATION",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Acredita que se ha otorgado o solicitado un poder para trámites tributarios generales o específicos.",
+      "phases": [
+        "REQUESTED",
+        "REGISTERED",
+        "PENDING_CONFIRMATION"
+      ],
+      "mustExtract": {
+        "references": [
+          "REGISTRY_ID",
+          "FILING_RECEIPT_ID"
+        ],
+        "dates": [
+          "FILING_DATE",
+          "EFFECTIVE_DATE",
+          "EXPIRATION_DATE"
+        ],
+        "money": [],
+        "facts": [
+          "POWER_SCOPE",
+          "REPRESENTATION_STATUS"
+        ]
+      },
+      "relationRules": [
+        "AUTHORIZES_REPRESENTATIVE_FOR"
+      ],
+      "deadlineTrigger": "NONE",
+      "notProvenByThisDocument": [
+        "Que el poder abarque trámites no incluidos.",
+        "Que siga vigente después de su fecha de expiración."
+      ],
+      "officialSourceIds": [
+        "AEAT_APODERAMIENTOS"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media: conservar solo rol, alcance y estado; la identidad ya vive en el módulo de clientes/proveedores si procede.",
+      "notes": ""
+    },
+    {
+      "id": "representation.power_change",
+      "nameEs": "Confirmación, prórroga, revocación o renuncia de apoderamiento",
+      "category": "REPRESENTATION",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Modifica o termina un apoderamiento ya registrado.",
+      "phases": [
+        "CONFIRMED",
+        "EXTENDED",
+        "REVOKED",
+        "RENOUNCED"
+      ],
+      "mustExtract": {
+        "references": [
+          "REGISTRY_ID",
+          "PREVIOUS_REGISTRY_ID"
+        ],
+        "dates": [
+          "ACTION_DATE",
+          "EFFECTIVE_DATE",
+          "NEW_EXPIRATION_DATE"
+        ],
+        "money": [],
+        "facts": [
+          "POWER_SCOPE",
+          "CHANGE_KIND",
+          "REPRESENTATION_STATUS"
+        ]
+      },
+      "relationRules": [
+        "UPDATES_REPRESENTATION",
+        "REVOKES_REPRESENTATION"
+      ],
+      "deadlineTrigger": "EXPLICIT_EFFECTIVE_DATE",
+      "notProvenByThisDocument": [
+        "Que afecte a otros poderes.",
+        "Que invalide actuaciones realizadas antes de la fecha efectiva."
+      ],
+      "officialSourceIds": [
+        "AEAT_APODERAMIENTOS"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media.",
+      "notes": ""
+    },
+    {
+      "id": "registry.redeme_requirement",
+      "nameEs": "Requerimiento de comprobación del REDEME",
+      "category": "CENSUS",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Pide aclarar o justificar datos para acceder o permanecer en el Registro de Devolución Mensual del IVA.",
+      "phases": [
+        "REQUIREMENT"
+      ],
+      "mustExtract": {
+        "references": [
+          "PROCEDURE_ID",
+          "REGISTRY_ID",
+          "MODEL"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE",
+          "RESPONSE_DEADLINE"
+        ],
+        "money": [],
+        "facts": [
+          "DOCUMENTATION_REQUIRED",
+          "REDEME_SCOPE"
+        ]
+      },
+      "relationRules": [
+        "PRECEDES_REDEME_PROPOSAL",
+        "RESPONSE_EXPECTED"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE",
+      "notProvenByThisDocument": [
+        "Que el alta o permanencia esté concedida.",
+        "Que el SII haya comenzado o terminado."
+      ],
+      "officialSourceIds": [
+        "AEAT_REDEME"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Alta para negocios con devoluciones mensuales.",
+      "notes": ""
+    },
+    {
+      "id": "registry.redeme_proposal",
+      "nameEs": "Propuesta sobre alta, denegación o exclusión del REDEME",
+      "category": "CENSUS",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Anticipa la decisión censal sobre el REDEME y abre diez días para alegar.",
+      "phases": [
+        "PROPOSED_REGISTRATION",
+        "PROPOSED_DENIAL",
+        "PROPOSED_EXCLUSION"
+      ],
+      "mustExtract": {
+        "references": [
+          "PROCEDURE_ID",
+          "REGISTRY_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE",
+          "ALLEGATION_DEADLINE"
+        ],
+        "money": [],
+        "facts": [
+          "PROPOSAL_RESULT",
+          "REASON"
+        ]
+      },
+      "relationRules": [
+        "PRECEDES_REDEME_RESOLUTION"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE",
+      "notProvenByThisDocument": [
+        "Que el resultado sea definitivo.",
+        "Que cambie ya el período de liquidación."
+      ],
+      "officialSourceIds": [
+        "AEAT_REDEME"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Alta.",
+      "notes": ""
+    },
+    {
+      "id": "registry.redeme_resolution",
+      "nameEs": "Resolución de alta, denegación o exclusión del REDEME",
+      "category": "CENSUS",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Decide la inscripción o permanencia en el REDEME y fija la fecha de efectos.",
+      "phases": [
+        "REGISTERED",
+        "DENIED",
+        "EXCLUDED",
+        "CLOSED_WITHOUT_CHANGE"
+      ],
+      "mustExtract": {
+        "references": [
+          "ACT_ID",
+          "REGISTRY_ID",
+          "MODEL"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE"
+        ],
+        "money": [],
+        "facts": [
+          "REDEME_STATUS",
+          "REASON",
+          "APPEAL_INFORMATION"
+        ]
+      },
+      "relationRules": [
+        "RESOLVES_REDEME_PROCEDURE",
+        "MAY_UPDATE_SII_STATUS"
+      ],
+      "deadlineTrigger": "EXPLICIT_EFFECTIVE_DATE",
+      "notProvenByThisDocument": [
+        "Que la devolución mensual concreta haya sido reconocida.",
+        "Que la exclusión sea retroactiva si no se indica."
+      ],
+      "officialSourceIds": [
+        "AEAT_REDEME",
+        "AEAT_SII"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Alta.",
+      "notes": ""
+    },
+    {
+      "id": "registry.redeme_cautionary_deregistration",
+      "nameEs": "Baja cautelar y baja definitiva del REDEME",
+      "category": "CENSUS",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Suspende cautelarmente o acuerda definitivamente la baja del REDEME, con posibles efectos sobre el SII.",
+      "phases": [
+        "CAUTIONARY_DEREGISTRATION",
+        "FINAL_DEREGISTRATION"
+      ],
+      "mustExtract": {
+        "references": [
+          "ACT_ID",
+          "REGISTRY_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_DATE",
+          "ALLEGATION_DEADLINE"
+        ],
+        "money": [],
+        "facts": [
+          "REDEME_STATUS",
+          "REASON"
+        ]
+      },
+      "relationRules": [
+        "PRECEDES_FINAL_DEREGISTRATION",
+        "MAY_END_SII_OBLIGATION"
+      ],
+      "deadlineTrigger": "EXPLICIT_EFFECTIVE_DATE",
+      "notProvenByThisDocument": [
+        "Que desaparezcan otras obligaciones de IVA.",
+        "Que la baja cautelar sea ya definitiva."
+      ],
+      "officialSourceIds": [
+        "AEAT_REDEME_CAUTIONARY",
+        "AEAT_SII"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media-alta.",
+      "notes": ""
+    },
+    {
+      "id": "registry.sii_inclusion_or_exclusion",
+      "nameEs": "Comunicación de inclusión, opción, renuncia o exclusión del SII",
+      "category": "CENSUS",
+      "changeKind": "NEW_SUBTYPE",
+      "priority": "P1",
+      "whatItIs": "Informa del comienzo o fin de la obligación/opción de llevar los libros de IVA mediante el SII.",
+      "phases": [
+        "INCLUDED",
+        "VOLUNTARY_OPTION",
+        "RENOUNCED",
+        "EXCLUDED"
+      ],
+      "mustExtract": {
+        "references": [
+          "ACT_ID",
+          "REGISTRY_ID",
+          "MODEL"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_DATE"
+        ],
+        "money": [],
+        "facts": [
+          "SII_STATUS",
+          "SII_REASON"
+        ]
+      },
+      "relationRules": [
+        "UPDATES_SII_STATUS",
+        "MAY_FOLLOW_REDEME_RESOLUTION"
+      ],
+      "deadlineTrigger": "EXPLICIT_EFFECTIVE_DATE",
+      "notProvenByThisDocument": [
+        "Que los libros hayan sido enviados correctamente.",
+        "Que la exclusión elimine toda obligación de IVA."
+      ],
+      "officialSourceIds": [
+        "AEAT_SII",
+        "AEAT_REDEME"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media.",
+      "notes": ""
+    },
+    {
+      "id": "certificate.specialized",
+      "nameEs": "Certificado tributario especializado",
+      "category": "CERTIFICATE",
+      "changeKind": "NEW_SUBTYPE_ENGINE",
+      "priority": "P0",
+      "whatItIs": "Certifica un hecho concreto: contratistas/subcontratistas, situación censal, IAE, IRPF, residencia fiscal, condición de sujeto pasivo de IVA o un extremo genérico.",
+      "phases": [
+        "POSITIVE",
+        "NEGATIVE",
+        "NO_DATA",
+        "CANNOT_CERTIFY"
+      ],
+      "mustExtract": {
+        "references": [
+          "REGISTRY_ID",
+          "PROCEDURE_ID",
+          "CSV"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "VALIDITY_DATE",
+          "REFERENCE_DATE"
+        ],
+        "money": [],
+        "facts": [
+          "CERTIFICATE_KIND",
+          "CERTIFICATE_RESULT",
+          "CERTIFICATE_SCOPE",
+          "REASON"
+        ]
+      },
+      "relationRules": [
+        "CERTIFIES_STATUS",
+        "MAY_BE_CORRECTED"
+      ],
+      "deadlineTrigger": "NONE_OR_TEN_DAY_DISAGREEMENT",
+      "notProvenByThisDocument": [
+        "Que el resultado valga fuera de su fecha y alcance.",
+        "Que un certificado negativo sea una liquidación."
+      ],
+      "officialSourceIds": [
+        "AEAT_CERTIFICATES",
+        "AEAT_CERT_CONTRACTORS",
+        "AEAT_CERT_IRPF",
+        "AEAT_CERT_CENSUS",
+        "AEAT_CERT_GENERIC"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Alta: conviene obtener muestras de cada clase; un solo perfil con CERTIFICATE_KIND evita duplicar lógica.",
+      "notes": "Subtipos mínimos: CONTRACTORS, CENSUS, IAE, IRPF, TAX_RESIDENCE, VAT_TAXPAYER, GENERIC."
+    },
+    {
+      "id": "certificate.correction_or_disagreement",
+      "nameEs": "Solicitud y resolución de corrección de un certificado",
+      "category": "CERTIFICATE",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Permite manifestar disconformidad con datos de un certificado y recibir una corrección o denegación.",
+      "phases": [
+        "CORRECTION_REQUESTED",
+        "CORRECTED",
+        "DENIED"
+      ],
+      "mustExtract": {
+        "references": [
+          "FILING_RECEIPT_ID",
+          "REGISTRY_ID",
+          "CERTIFICATE_ID"
+        ],
+        "dates": [
+          "FILING_DATE",
+          "ISSUE_DATE",
+          "RESPONSE_DEADLINE"
+        ],
+        "money": [],
+        "facts": [
+          "DISPUTED_FIELD",
+          "FINAL_RESULT"
+        ]
+      },
+      "relationRules": [
+        "CHALLENGES_CERTIFICATE_DATA",
+        "CORRECTS_CERTIFICATE"
+      ],
+      "deadlineTrigger": "TEN_DAYS_FROM_RECEIPT_WHEN_APPLICABLE",
+      "notProvenByThisDocument": [
+        "Que la solicitud cambie automáticamente el certificado.",
+        "Que el certificado inicial quede anulado sin resolución."
+      ],
+      "officialSourceIds": [
+        "AEAT_CERT_CONTRACTORS",
+        "AEAT_CERTIFICATES"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media.",
+      "notes": ""
+    },
+    {
+      "id": "collection.asset_valuation",
+      "nameEs": "Valoración de bienes embargados y discrepancia de valoración",
+      "category": "COLLECTION",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Fija o comunica el valor de un bien embargado antes de su enajenación y puede abrir una vía de discrepancia.",
+      "phases": [
+        "VALUATION",
+        "VALUATION_DISPUTE",
+        "FINAL_VALUATION"
+      ],
+      "mustExtract": {
+        "references": [
+          "SEIZURE_ORDER_ID",
+          "ACT_ID",
+          "ASSET_OPAQUE_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE",
+          "DISPUTE_DEADLINE"
+        ],
+        "money": [
+          "VALUATION",
+          "CHARGES",
+          "AUCTION_VALUE"
+        ],
+        "facts": [
+          "VALUATION_METHOD",
+          "VALUATION_STATUS"
+        ]
+      },
+      "relationRules": [
+        "VALUES_SEIZED_ASSET",
+        "PRECEDES_AUCTION"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE_OR_EXPLICIT_DEADLINE",
+      "notProvenByThisDocument": [
+        "Que el bien se haya vendido.",
+        "Que la valoración sea el precio final de adjudicación."
+      ],
+      "officialSourceIds": [
+        "AEAT_AUCTIONS",
+        "AEAT_AUCTION_DEBTOR"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Alta: hace falta una muestra real porque el formato varía según el bien.",
+      "notes": ""
+    },
+    {
+      "id": "collection.auction_announcement",
+      "nameEs": "Acuerdo o anuncio de subasta/enajenación",
+      "category": "COLLECTION",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Abre o anuncia la venta de bienes embargados o aportados como garantía.",
+      "phases": [
+        "ANNOUNCED",
+        "OPEN",
+        "SUSPENDED",
+        "CANCELLED"
+      ],
+      "mustExtract": {
+        "references": [
+          "SEIZURE_ORDER_ID",
+          "AUCTION_ID",
+          "ASSET_OPAQUE_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "AUCTION_START_DATE",
+          "AUCTION_END_DATE"
+        ],
+        "money": [
+          "APPRAISAL_VALUE",
+          "AUCTION_VALUE",
+          "DEPOSIT_AMOUNT"
+        ],
+        "facts": [
+          "AUCTION_STATUS",
+          "ASSET_KIND"
+        ]
+      },
+      "relationRules": [
+        "FOLLOWS_ASSET_VALUATION",
+        "PRECEDES_AUCTION_ADJUDICATION"
+      ],
+      "deadlineTrigger": "EXPLICIT_AUCTION_DATES",
+      "notProvenByThisDocument": [
+        "Que el bien se haya adjudicado.",
+        "Que el importe de salida sea el obtenido finalmente."
+      ],
+      "officialSourceIds": [
+        "AEAT_AUCTIONS"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Alta.",
+      "notes": ""
+    },
+    {
+      "id": "collection.auction_adjudication",
+      "nameEs": "Adjudicación, certificado de cierre o aplicación del producto de subasta",
+      "category": "COLLECTION",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Comunica el resultado de la subasta o adjudicación y, cuando procede, la aplicación del importe obtenido.",
+      "phases": [
+        "ADJUDICATED",
+        "UNSOLD",
+        "CLOSED",
+        "PROCEEDS_APPLIED"
+      ],
+      "mustExtract": {
+        "references": [
+          "AUCTION_ID",
+          "SEIZURE_ORDER_ID",
+          "ASSET_OPAQUE_ID",
+          "ACT_ID"
+        ],
+        "dates": [
+          "ADJUDICATION_DATE",
+          "CERTIFICATE_DATE"
+        ],
+        "money": [
+          "AWARD_AMOUNT",
+          "PROCEEDS_APPLIED",
+          "REMAINING_DEBT"
+        ],
+        "facts": [
+          "AUCTION_RESULT",
+          "BUYER_ROLE"
+        ]
+      },
+      "relationRules": [
+        "RESOLVES_AUCTION",
+        "APPLIES_PROCEEDS_TO_DEBT"
+      ],
+      "deadlineTrigger": "NONE",
+      "notProvenByThisDocument": [
+        "Que toda la deuda haya quedado extinguida si no se imprime.",
+        "Que la adjudicación y la transferencia registral sean el mismo acto."
+      ],
+      "officialSourceIds": [
+        "AEAT_AUCTIONS"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media-alta.",
+      "notes": ""
+    },
+    {
+      "id": "collection.auction_suspension_or_release",
+      "nameEs": "Suspensión, cancelación o liberación del bien antes de adjudicación",
+      "category": "COLLECTION",
+      "changeKind": "NEW_SUBTYPE",
+      "priority": "P1",
+      "whatItIs": "Interrumpe la subasta o libera el bien antes de su adjudicación por pago, resolución u otra causa.",
+      "phases": [
+        "SUSPENDED",
+        "CANCELLED",
+        "ASSET_RELEASED"
+      ],
+      "mustExtract": {
+        "references": [
+          "AUCTION_ID",
+          "SEIZURE_ORDER_ID",
+          "ASSET_OPAQUE_ID"
+        ],
+        "dates": [
+          "ACTION_DATE"
+        ],
+        "money": [
+          "AMOUNT_REQUIRED_FOR_RELEASE"
+        ],
+        "facts": [
+          "ACTION_REASON"
+        ]
+      },
+      "relationRules": [
+        "SUSPENDS_AUCTION",
+        "RELEASES_ASSET_BEFORE_ADJUDICATION"
+      ],
+      "deadlineTrigger": "NONE",
+      "notProvenByThisDocument": [
+        "Que todas las deudas del expediente estén extinguidas.",
+        "Que otros bienes queden liberados."
+      ],
+      "officialSourceIds": [
+        "AEAT_AUCTION_DEBTOR",
+        "AEAT_AUCTIONS"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media.",
+      "notes": ""
+    },
+    {
+      "id": "collection.payment_in_kind",
+      "nameEs": "Solicitud o resolución de pago en especie",
+      "category": "COLLECTION",
+      "changeKind": "OPTIONAL_SECTOR_PROFILE",
+      "priority": "P2",
+      "whatItIs": "Solicita o decide el pago de una deuda mediante bienes legalmente admitidos, como determinados bienes del Patrimonio Histórico.",
+      "phases": [
+        "REQUESTED",
+        "SUBSTANTIATION_REQUIRED",
+        "ACCEPTED",
+        "DENIED",
+        "ARCHIVED"
+      ],
+      "mustExtract": {
+        "references": [
+          "FILING_RECEIPT_ID",
+          "ACT_ID",
+          "DEBT_KEY"
+        ],
+        "dates": [
+          "FILING_DATE",
+          "ISSUE_DATE",
+          "RESPONSE_DEADLINE"
+        ],
+        "money": [
+          "DEBT_AMOUNT",
+          "ASSET_VALUATION"
+        ],
+        "facts": [
+          "PAYMENT_IN_KIND_STATUS",
+          "REASON"
+        ]
+      },
+      "relationRules": [
+        "REQUESTS_PAYMENT_IN_KIND",
+        "RESOLVES_PAYMENT_IN_KIND"
+      ],
+      "deadlineTrigger": "VARIES_BY_PHASE",
+      "notProvenByThisDocument": [
+        "Que la mera solicitud suspenda siempre el cobro.",
+        "Que el bien haya sido aceptado por su valor propuesto."
+      ],
+      "officialSourceIds": [
+        "AEAT_PAYMENT_IN_KIND"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Baja: muy poco frecuente para el autónomo medio.",
+      "notes": ""
+    },
+    {
+      "id": "sanction.termination_without_penalty",
+      "nameEs": "Terminación o archivo del expediente sancionador sin sanción",
+      "category": "SANCTION",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Cierra un expediente sancionador sin imponer multa por inexistencia de infracción, caducidad u otra causa.",
+      "phases": [
+        "NO_INFRINGEMENT",
+        "ARCHIVED",
+        "EXPIRED"
+      ],
+      "mustExtract": {
+        "references": [
+          "ACT_ID",
+          "SANCTION_REFERENCE"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE"
+        ],
+        "money": [],
+        "facts": [
+          "CLOSURE_REASON",
+          "FINAL_RESULT"
+        ]
+      },
+      "relationRules": [
+        "RESOLVES_SANCTION_WITHOUT_PENALTY"
+      ],
+      "deadlineTrigger": "NONE_OR_APPEAL_FROM_RECEIPT",
+      "notProvenByThisDocument": [
+        "Que desaparezca una liquidación tributaria separada.",
+        "Que otros períodos estén afectados."
+      ],
+      "officialSourceIds": [
+        "AEAT_GENERIC_REVIEW"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media: completa la cadena sancionadora sin obligar a usar una resolución genérica.",
+      "notes": ""
+    },
+    {
+      "id": "refund.bank_data_requirement",
+      "nameEs": "Requerimiento de datos bancarios o subsanación para una devolución",
+      "category": "REFUND",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Pide corregir o aportar datos necesarios para ordenar una devolución, como una cuenta válida o acreditación de titularidad.",
+      "phases": [
+        "REQUIREMENT"
+      ],
+      "mustExtract": {
+        "references": [
+          "PROCEDURE_ID",
+          "REFUND_REFERENCE",
+          "NOTIFICATION_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE",
+          "RESPONSE_DEADLINE"
+        ],
+        "money": [],
+        "facts": [
+          "DOCUMENTATION_REQUIRED",
+          "BANK_DATA_STATUS"
+        ]
+      },
+      "relationRules": [
+        "CONTINUES_REFUND",
+        "PRECEDES_REFUND_PAYMENT"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE",
+      "notProvenByThisDocument": [
+        "Que la devolución esté reconocida por el importe solicitado.",
+        "Que el dinero haya sido transferido."
+      ],
+      "officialSourceIds": [
+        "AEAT_RECTIFICATION_AUTOLIQ"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Alta si se consigue una muestra; mientras tanto, contrato oficial y fixture sintético.",
+      "notes": ""
+    },
+    {
+      "id": "refund.denial_or_prescription",
+      "nameEs": "Denegación, archivo o prescripción del derecho a devolución",
+      "category": "REFUND",
+      "changeKind": "NEW_PROFILE",
+      "priority": "P1",
+      "whatItIs": "Niega o cierra una devolución solicitada, o declara prescrito el derecho, indicando motivos y vías de recurso.",
+      "phases": [
+        "DENIED",
+        "ARCHIVED",
+        "PRESCRIBED"
+      ],
+      "mustExtract": {
+        "references": [
+          "ACT_ID",
+          "REFUND_REFERENCE",
+          "PROCEDURE_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "EFFECTIVE_NOTIFICATION_DATE"
+        ],
+        "money": [
+          "DENIED_AMOUNT"
+        ],
+        "facts": [
+          "FINAL_RESULT",
+          "REASON",
+          "APPEAL_INFORMATION"
+        ]
+      },
+      "relationRules": [
+        "RESOLVES_REFUND_WITHOUT_PAYMENT"
+      ],
+      "deadlineTrigger": "EFFECTIVE_NOTIFICATION_DATE",
+      "notProvenByThisDocument": [
+        "Que exista una nueva deuda salvo que el acto la liquide.",
+        "Que la denegación afecte a otros ejercicios."
+      ],
+      "officialSourceIds": [
+        "AEAT_ECONOMIC_CLAIM",
+        "AEAT_RECTIFICATION_AUTOLIQ"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Media.",
+      "notes": ""
+    },
+    {
+      "id": "insolvency.tax_debt_notice",
+      "nameEs": "Comunicación tributaria en preconcurso, concurso o procedimiento especial de microempresa",
+      "category": "INSOLVENCY",
+      "changeKind": "OPTIONAL_SECTOR_PROFILE",
+      "priority": "P2",
+      "whatItIs": "Relaciona deudas tributarias con un procedimiento concursal o especial de microempresa.",
+      "phases": [
+        "CLAIM_COMMUNICATED",
+        "PLAN_AFFECTS_DEBT",
+        "LIQUIDATION_PHASE"
+      ],
+      "mustExtract": {
+        "references": [
+          "COURT_PROCEEDING_ID",
+          "DEBT_KEY",
+          "ACT_ID"
+        ],
+        "dates": [
+          "ISSUE_DATE",
+          "COURT_DATE"
+        ],
+        "money": [
+          "TAX_CLAIM_AMOUNT",
+          "PRIVILEGED_AMOUNT",
+          "ORDINARY_AMOUNT"
+        ],
+        "facts": [
+          "INSOLVENCY_PHASE",
+          "CREDITOR_STATUS"
+        ]
+      },
+      "relationRules": [
+        "RELATES_TAX_DEBT_TO_INSOLVENCY"
+      ],
+      "deadlineTrigger": "COURT_OR_EXPLICIT_DATE",
+      "notProvenByThisDocument": [
+        "Que la deuda esté condonada.",
+        "Que el procedimiento suspenda toda actuación sin comprobar su alcance."
+      ],
+      "officialSourceIds": [
+        "AEAT_REVENUE_HUB"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Baja-media: importante solo para usuarios afectados.",
+      "notes": ""
+    },
+    {
+      "id": "customs.import_release_or_provisional_assessment",
+      "nameEs": "Levante aduanero o liquidación provisional de importación",
+      "category": "CUSTOMS",
+      "changeKind": "OPTIONAL_SECTOR_PROFILE",
+      "priority": "P2",
+      "whatItIs": "Documenta el control de una importación, el levante de mercancías y, en su caso, una liquidación provisional.",
+      "phases": [
+        "RELEASED",
+        "CONTROLLED",
+        "PROVISIONAL_ASSESSMENT"
+      ],
+      "mustExtract": {
+        "references": [
+          "CUSTOMS_DECLARATION_ID",
+          "ACT_ID"
+        ],
+        "dates": [
+          "DECLARATION_DATE",
+          "RELEASE_DATE",
+          "ASSESSMENT_DATE"
+        ],
+        "money": [
+          "DUTY_AMOUNT",
+          "IMPORT_VAT",
+          "GUARANTEE_AMOUNT"
+        ],
+        "facts": [
+          "CUSTOMS_RESULT",
+          "CONTROL_CHANNEL"
+        ]
+      },
+      "relationRules": [
+        "FOLLOWS_IMPORT_DECLARATION",
+        "MAY_CREATE_PAYMENT_FORM"
+      ],
+      "deadlineTrigger": "EXPLICIT_CUSTOMS_DEADLINE",
+      "notProvenByThisDocument": [
+        "Que todo autónomo necesite este módulo.",
+        "Que el levante confirme una liquidación definitiva."
+      ],
+      "officialSourceIds": [
+        "AEAT_IMPORT"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Sectorial: comercio exterior.",
+      "notes": ""
+    },
+    {
+      "id": "verifactu.technical_response",
+      "nameEs": "Respuesta técnica o rechazo de registros de facturación",
+      "category": "TECHNICAL",
+      "changeKind": "OPTIONAL_TECHNICAL_PROFILE",
+      "priority": "P2",
+      "whatItIs": "Es una respuesta técnica de validación o rechazo de registros de facturación; no es por sí sola una notificación administrativa sancionadora.",
+      "phases": [
+        "ACCEPTED",
+        "PARTIALLY_ACCEPTED",
+        "REJECTED"
+      ],
+      "mustExtract": {
+        "references": [
+          "SUBMISSION_ID",
+          "SOFTWARE_RECORD_ID"
+        ],
+        "dates": [
+          "SUBMISSION_DATE"
+        ],
+        "money": [],
+        "facts": [
+          "TECHNICAL_STATUS",
+          "ERROR_CODE",
+          "ERROR_FIELD"
+        ]
+      },
+      "relationRules": [
+        "RESPONDS_TO_INVOICE_RECORD_SUBMISSION"
+      ],
+      "deadlineTrigger": "NONE",
+      "notProvenByThisDocument": [
+        "Que exista una sanción.",
+        "Que el rechazo técnico sea una liquidación o requerimiento formal."
+      ],
+      "officialSourceIds": [
+        "AEAT_VERIFACTU"
+      ],
+      "recognitionMaturity": "OFFICIAL_ONLY_UNTIL_REAL_SAMPLE",
+      "sampleAcquisitionNeed": "Emergente: debe mantenerse separado del escáner jurídico de notificaciones.",
+      "notes": ""
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 import { resolveAeatDocumentProfileV1 } from "./knowledge/aeat-document-knowledge.v1";
+import { resolveAeatOfficialCatalogProfileV9 } from "./knowledge/official-catalog-expansion.v9";
 import {
   parseFiscalNotificationsWorkspaceForPersistenceV2,
   type DocumentDateKindV2,
@@ -659,7 +660,8 @@ function issuerAuthorityId(issuerCode: string): string {
 
 function legacyDocumentTitle(document: PersistedDocumentV2): string {
   const profile = document.familyId
-    ? resolveAeatDocumentProfileV1(document.familyId)
+    ? resolveAeatDocumentProfileV1(document.familyId) ??
+      resolveAeatOfficialCatalogProfileV9(document.familyId)
     : null;
   if (profile) return profile.nameEs;
   return document.legacyDocumentType === "UNKNOWN" || !document.legacyDocumentType

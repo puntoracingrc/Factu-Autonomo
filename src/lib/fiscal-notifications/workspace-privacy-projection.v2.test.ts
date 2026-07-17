@@ -314,6 +314,22 @@ describe("workspace privacy projection v2", () => {
     });
   });
 
+  it("preserves an exact reviewed V9 family for an AEAT document", async () => {
+    const input = workspace();
+    input.documents[0]!.documentType = "GENERIC_ADMINISTRATIVE_NOTICE";
+    input.documents[0]!.documentSubtype =
+      "procedure.deadline_extension_request";
+    const projected = await projectFiscalNotificationsWorkspacePrivacyV2(
+      input,
+      OWNER,
+    );
+    expect(projected?.documents[0]).toMatchObject({
+      familyId: "procedure.deadline_extension_request",
+      recognitionStatus: "EXACT_FAMILY",
+      issuerCode: "AEAT",
+    });
+  });
+
   it.each([
     "BELONGS_TO_CASE",
     "DUPLICATE_COPY_OF",

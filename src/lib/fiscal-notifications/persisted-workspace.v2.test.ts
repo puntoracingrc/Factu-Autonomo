@@ -185,6 +185,23 @@ function workspaceWithExactRelation(
 }
 
 describe("persisted fiscal notifications workspace v2", () => {
+  it("persists a reviewed V9 family id without changing the workspace schema", () => {
+    const candidate = workspace();
+    candidate.documents[0]!.familyId = "procedure.deadline_extension_request";
+    candidate.documents[0]!.legacyDocumentType = "GENERIC_ADMINISTRATIVE_NOTICE";
+
+    const parsed = parseFiscalNotificationsWorkspaceForPersistenceV2(
+      candidate,
+      OWNER,
+    );
+
+    expect(parsed?.schemaVersion).toBe(2);
+    expect(parsed?.documents[0]?.familyId).toBe(
+      "procedure.deadline_extension_request",
+    );
+    expect(Object.isFrozen(parsed?.documents[0])).toBe(true);
+  });
+
   it("accepts canonical UUIDv7 and synthetic opaque owner scopes", () => {
     for (const ownerScope of [
       "user:019f7e00-0000-7000-8000-000000000001",

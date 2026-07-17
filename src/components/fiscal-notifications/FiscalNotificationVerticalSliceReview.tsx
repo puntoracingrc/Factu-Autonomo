@@ -13,6 +13,8 @@ import {
   AEAT_DOCUMENT_PROFILE_IDS_V1,
 } from "@/lib/fiscal-notifications/knowledge/aeat-document-knowledge.v1";
 import { projectProfileDrivenExplanationInputV2 } from "@/lib/fiscal-notifications/profile-driven-explanation-input.v2";
+import { isAeatOfficialCatalogProfileIdV9 } from "@/lib/fiscal-notifications/knowledge/official-catalog-expansion.v9";
+import { explainAeatOfficialCatalogDocumentV9 } from "@/lib/fiscal-notifications/official-catalog-explanation.v9";
 
 export interface FiscalNotificationVerticalSliceReviewProps {
   readonly review: FiscalNotificationVerticalSliceReviewV1;
@@ -278,9 +280,13 @@ function FamilyGuidance({
 function resolveFamilyExplanation(
   document: FiscalNotificationVerticalSliceReviewDocumentV1,
 ): FiscalNotificationDocumentExplanationV2 | null {
-  if (!PROFILE_IDS.has(document.familyId)) return null;
-  const input = projectProfileDrivenExplanationInputV2(document);
-  return input ? explainFiscalNotificationDocumentV2(input) : null;
+  if (PROFILE_IDS.has(document.familyId)) {
+    const input = projectProfileDrivenExplanationInputV2(document);
+    return input ? explainFiscalNotificationDocumentV2(input) : null;
+  }
+  return isAeatOfficialCatalogProfileIdV9(document.familyId)
+    ? explainAeatOfficialCatalogDocumentV9(document.familyId)
+    : null;
 }
 
 function isOfficialHttpsUrl(value: string): boolean {

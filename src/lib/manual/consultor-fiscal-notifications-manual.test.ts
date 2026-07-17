@@ -58,4 +58,16 @@ describe("manual de Notificaciones y expedientes", () => {
     expect(text).toContain("¿Quieres eliminar también el documento original");
     expect(text).toContain("papelera de Drive");
   });
+
+  it("documenta la expansión V9 y sus límites de madurez", () => {
+    const text = notificationManualText();
+
+    expect(text).toContain("122 familias documentales");
+    expect(text).toContain("118 tienen lectura automática");
+    expect(text).toContain("4 familias sectoriales");
+    expect(text).toContain("formato pendiente de validar");
+    expect(text).toContain("se añaden 11 cadenas");
+    expect(text).toContain("Una solicitud de ampliación no cambia el plazo");
+    expect(text).toContain("respuesta técnica VERI*FACTU no es una sanción");
+  });
 });
