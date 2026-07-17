@@ -32,6 +32,7 @@ import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
 import { PROFILE_FIELD_LABELS_V2 } from "./extractor-core/profile-field-labels.v2";
 import { REAL_CORPUS_EXPLANATIONS_V4 } from "./extractor-core/real-corpus-extractor.v4";
 import { REAL_CORPUS_EXPLANATIONS_V5 } from "./extractor-core/real-corpus-extractor.v5";
+import { REAL_CORPUS_EXPLANATIONS_V6 } from "./extractor-core/real-corpus-extractor.v6";
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1 =
   "1.0.0" as const;
@@ -1687,6 +1688,31 @@ function isControlledFieldLabel(value: string): boolean {
       "Regla del plazo tras denegación",
       "Estado de la retención",
       "Estado del ingreso al Tesoro",
+      "Referencia del expediente sancionador",
+      "Clave de la sanción",
+      "Sanción inicial",
+      "Porcentaje histórico de reducción",
+      "Reducción aplicada",
+      "Sanción reducida",
+      "Tratamiento del porcentaje",
+      "Clave de la sanción de origen",
+      "Clave de la reducción exigida",
+      "Reducción perdida exigida",
+      "Alcance de la exigencia",
+      "Clave de la liquidación de intereses",
+      "Referencia de la solicitud",
+      "Clave de la deuda principal",
+      "Principal de la deuda de origen",
+      "Intereses liquidados",
+      "Inicio del cálculo de intereses",
+      "Fin del cálculo de intereses",
+      "Alcance de los intereses",
+      "Subtotal de deudas",
+      "Intereses indicados",
+      "Costas indicadas",
+      "Límite del embargo",
+      "Total indicado en la carta",
+      "Comparación de importes",
       "Qué es",
       "Qué resultado muestra",
       "Qué conviene hacer",
@@ -1696,7 +1722,7 @@ function isControlledFieldLabel(value: string): boolean {
   ) {
     return true;
   }
-  return /^(?:Documentación|Consecuencia indicada|Hecho o fundamento|Recurso indicado|Deuda afectada|Vencimiento original|Cuota|Organismo público|Deducción|Referencia de la deducción|Deuda ejecutiva citada|Importe de deuda ejecutiva citada) [1-9]\d*$/u.test(
+  return /^(?:Documentación|Consecuencia indicada|Hecho o fundamento|Recurso indicado|Deuda afectada|Vencimiento original|Cuota|Organismo público|Deducción|Referencia de la deducción|Deuda ejecutiva citada|Importe de deuda ejecutiva citada|Deuda incluida|Importe de deuda incluida) [1-9]\d*$/u.test(
     value,
   );
 }
@@ -1713,7 +1739,8 @@ function assertSerializableFieldPrivacy(
     (assertRealCorpusSerializableFieldPrivacyV2(item) ||
       assertRealCorpusSerializableFieldPrivacyV3(item) ||
       assertRealCorpusSerializableFieldPrivacyV4(item) ||
-      assertRealCorpusSerializableFieldPrivacyV5(item))
+      assertRealCorpusSerializableFieldPrivacyV5(item) ||
+      assertRealCorpusSerializableFieldPrivacyV6(item))
   ) {
     return;
   }
@@ -2228,6 +2255,93 @@ function assertRealCorpusSerializableFieldPrivacyV5(
     return true;
   }
   const integer = /^V5:INTEGER:[A-Z0-9_]+:(\d+)$/u.exec(normalized);
+  if (integer) {
+    if (display !== integer[1]) throw invalidReview();
+    return true;
+  }
+  throw invalidReview();
+}
+
+const REAL_CORPUS_EXPLANATION_TEXT_V6 = new Set(
+  Object.values(REAL_CORPUS_EXPLANATIONS_V6).flatMap((explanation) => [
+    explanation.whatIs,
+    explanation.action,
+    explanation.deadline,
+    explanation.consequence,
+  ]),
+);
+
+const REAL_CORPUS_CLOSED_VALUES_V6 = new Set([
+  ...REAL_CORPUS_CLOSED_VALUES_V5,
+  "DEPENDS_ON_EFFECTIVE_RECEIPT",
+  "HISTORICAL_PRINTED_VALUE",
+  "REDUCTION_ONLY_NOT_FULL_SANCTION",
+  "SEPARATE_FROM_PRINCIPAL",
+  "MOVABLE_ASSET",
+  "REAL_ESTATE",
+  "DISCREPANCY_PRESERVED_WITH_EVIDENCE",
+  "PRINTED_AMOUNTS_MATCH",
+]);
+
+/** Closed V6 exception. Raw text, PII and arbitrary OCR values are rejected. */
+function assertRealCorpusSerializableFieldPrivacyV6(
+  item: Readonly<Record<string, unknown>>,
+): boolean {
+  const fieldId = String(item.fieldId);
+  if (!fieldId.startsWith("real-corpus-v6:")) return false;
+  const display = String(item.displayValue);
+  const normalized =
+    typeof item.normalizedValue === "string" ? item.normalizedValue : "";
+  if (fieldId === "real-corpus-v6:recognized-family") {
+    if (
+      display !== "Título, autoridad y estructura coinciden" ||
+      normalized !== "V6:EXACT_TITLE_AUTHORITY_STRUCTURE"
+    ) throw invalidReview();
+    return true;
+  }
+  if (fieldId === "real-corpus-v6:payment-form-status") {
+    if (
+      display !==
+        "Sirve para pagar; sus copias son una sola operación y no acreditan el pago" ||
+      normalized !== "V6:PAYMENT_FORM_ONLY"
+    ) throw invalidReview();
+    return true;
+  }
+  if (
+    /^real-corpus-v6:explanation:(?:what_is|action|deadline|consequence)$/u.test(
+      fieldId,
+    )
+  ) {
+    if (
+      !/^V6:EXPLANATION:(?:collection\.enforcement_order|collection\.deferral_grant|collection\.deferral_denial|collection\.interest_assessment|sanction\.resolution|sanction\.loss_of_reduction|seizure\.movable_asset|seizure\.real_estate):(?:WHAT_IS|ACTION|DEADLINE|CONSEQUENCE)$/u.test(
+        normalized,
+      ) ||
+      !REAL_CORPUS_EXPLANATION_TEXT_V6.has(display)
+    ) throw invalidReview();
+    return true;
+  }
+  if (/^real-corpus-v6:installment:\d+$/u.test(fieldId)) {
+    if (
+      !/^V6:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):\d+:\d+:\d+$/u.test(
+        normalized,
+      ) ||
+      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés \d{1,3}(?:\.\d{3})*,\d{2}\s€ · total \d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
+        display,
+      )
+    ) throw invalidReview();
+    return true;
+  }
+  const closed = /^V6:TEXT:[A-Z0-9_]+:([A-Z0-9_]+)$/u.exec(normalized);
+  if (closed) {
+    if (!REAL_CORPUS_CLOSED_VALUES_V6.has(closed[1]!) || display !== closed[1])
+      throw invalidReview();
+    return true;
+  }
+  if (/^V6:BOOLEAN:[A-Z0-9_]+:(?:TRUE|FALSE)$/u.test(normalized)) {
+    if (display !== "Sí" && display !== "No") throw invalidReview();
+    return true;
+  }
+  const integer = /^V6:INTEGER:[A-Z0-9_]+:(\d+)$/u.exec(normalized);
   if (integer) {
     if (display !== integer[1]) throw invalidReview();
     return true;
