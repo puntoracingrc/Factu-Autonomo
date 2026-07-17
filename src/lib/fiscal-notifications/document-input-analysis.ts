@@ -11,6 +11,7 @@ import {
 import type { ProjectFiscalNotificationPdfWorkerAnalysisInput } from "./pdf-worker-analysis-contract";
 import { extractProfileDrivenFamilyV2 } from "./extractor-core/profile-driven-extractor.v2";
 import { extractAeatOfficialCatalogDocumentV9 } from "./extractor-core/official-catalog-extractor.v9";
+import { extractAeatP0DeepDocumentV10 } from "./extractor-core/p0-deep-extractor.v10";
 import { segmentProfileDrivenDocumentV2 } from "./extractor-core/profile-driven-document-segments.v2";
 import { extractAeatRealCorpusDocumentV2 } from "./extractor-core/real-corpus-extractor.v2";
 import { extractAeatRealCorpusDocumentV3 } from "./extractor-core/real-corpus-extractor.v3";
@@ -31,6 +32,7 @@ import { projectRealCorpusReviewV5 } from "./real-corpus-review.v5";
 import { projectRealCorpusReviewV6 } from "./real-corpus-review.v6";
 import { projectRealCorpusReviewV7 } from "./real-corpus-review.v7";
 import { projectAeatOfficialCatalogReviewV9 } from "./official-catalog-review.v9";
+import { projectAeatP0DeepReviewV10 } from "./p0-deep-review.v10";
 import {
   projectFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewV1,
@@ -90,6 +92,7 @@ export async function analyzeFiscalNotificationDocumentInput(
   const [
     legacyAnalysis,
     profileDrivenOutcome,
+    p0DeepOutcomeV10,
     officialCatalogOutcomeV9,
     profileDrivenSegments,
     realCorpusOutcome,
@@ -102,6 +105,9 @@ export async function analyzeFiscalNotificationDocumentInput(
     analyzeFiscalNotificationVerticalSliceV1(documentInput),
     hasText
       ? extractProfileDrivenFamilyV2({ document: documentInput })
+      : Promise.resolve(null),
+    hasText
+      ? Promise.resolve(extractAeatP0DeepDocumentV10(documentInput))
       : Promise.resolve(null),
     hasText
       ? extractAeatOfficialCatalogDocumentV9({ document: documentInput })
@@ -195,7 +201,11 @@ export async function analyzeFiscalNotificationDocumentInput(
         review.documents.every((document) => document.familyId !== v7FamilyId)),
   );
   const verticalSliceReview = mergeProfileDrivenReviewsV2(legacyReview, [
-    ...(officialCatalogOutcomeV9?.status === "REVIEW_REQUIRED"
+    ...(p0DeepOutcomeV10?.status === "REVIEW_REQUIRED"
+      ? [projectAeatP0DeepReviewV10(p0DeepOutcomeV10)]
+      : []),
+    ...(officialCatalogOutcomeV9?.status === "REVIEW_REQUIRED" &&
+    officialCatalogOutcomeV9.familyId !== p0DeepOutcomeV10?.familyId
       ? [projectAeatOfficialCatalogReviewV9(officialCatalogOutcomeV9)]
       : []),
     ...reviewsOutsideLatestFamily,

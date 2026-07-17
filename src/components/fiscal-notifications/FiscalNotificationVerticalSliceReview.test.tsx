@@ -10,6 +10,7 @@ import {
 } from "@/lib/fiscal-notifications/vertical-slice-review.v1";
 import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "@/lib/fiscal-notifications/knowledge/aeat-document-knowledge.v1";
 import { AEAT_OFFICIAL_CATALOG_PROFILES_V9 } from "@/lib/fiscal-notifications/knowledge/official-catalog-expansion.v9";
+import { resolveAeatP0DeepProfileV10 } from "@/lib/fiscal-notifications/knowledge/p0-deep-contracts.v10";
 import { FiscalNotificationVerticalSliceReview } from "./FiscalNotificationVerticalSliceReview";
 
 const RAW_ACCOUNT = "ES12 3456 7890 1234 5678 9012";
@@ -231,7 +232,9 @@ describe("FiscalNotificationVerticalSliceReview", () => {
         }),
       );
       expect(html, profile.id).toContain("Qué significa este documento");
-      expect(html, profile.id).toContain(profile.whatItIs);
+      expect(html, profile.id).toContain(
+        resolveAeatP0DeepProfileV10(profile.id)?.explanationTemplate.whatItIs ?? profile.whatItIs,
+      );
       expect(html, profile.id).toContain("Qué no demuestra");
       expect(html, profile.id).toContain(
         "Fuentes oficiales en las que se basa nuestro escáner",

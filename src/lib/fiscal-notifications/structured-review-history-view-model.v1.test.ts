@@ -460,7 +460,7 @@ describe("structured fiscal notification history view model v1", () => {
     expect(result.entries[0]?.explanation).toMatchObject({
       ruleId:
         "profile.procedure.deadline_extension_request.explanation.v2",
-      whatItIs: expect.stringContaining("más tiempo"),
+      whatItIs: expect.stringContaining("ampliar el tiempo"),
       officialSources: expect.arrayContaining([
         expect.objectContaining({ authority: "AEAT" }),
       ]),
