@@ -21,7 +21,7 @@ describe("partner contracts", () => {
     expect(isValidIban("ES91 2100 0418 4502 0005 1332")).toBe(true);
     expect(isValidIban("ES91 2100 0418 4502 0005 1333")).toBe(false);
     expect(maskPartnerIban("ES91 2100 0418 4502 0005 1332")).toBe(
-      "ES91 •••• •••• •••• 1332",
+      "**** 1332",
     );
   });
 
