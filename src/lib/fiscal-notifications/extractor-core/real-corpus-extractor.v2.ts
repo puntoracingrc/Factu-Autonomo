@@ -6,7 +6,7 @@ import {
 
 export const REAL_CORPUS_EXTRACTOR_SCHEMA_VERSION_V2 = 2 as const;
 export const REAL_CORPUS_EXTRACTOR_VERSION_V2 =
-  "aeat-real-corpus-extractor.2026-07-16.v2" as const;
+  "aeat-real-corpus-extractor.2026-07-18.v2.1" as const;
 
 export const REAL_CORPUS_FAMILY_IDS_V2 = Object.freeze([
   "assessment.allegations_and_proposal",
@@ -216,11 +216,28 @@ function contains(index: DocumentIndexV2, value: string): boolean {
 
 function hasHeaderPrefix(index: DocumentIndexV2, value: string): boolean {
   const expected = normalize(value);
-  return index.headerLines.some(
-    (line) =>
-      line.normalized === expected ||
-      line.normalized.startsWith(`${expected} `),
-  );
+  for (let lineIndex = 0; lineIndex < index.headerLines.length; lineIndex += 1) {
+    const first = index.headerLines[lineIndex]!;
+    if (
+      first.normalized === expected ||
+      first.normalized.startsWith(`${expected} `)
+    ) {
+      return true;
+    }
+    let joined = first.normalized;
+    for (
+      let offset = 1;
+      offset <= 2 && lineIndex + offset < index.headerLines.length;
+      offset += 1
+    ) {
+      const next = index.headerLines[lineIndex + offset]!;
+      if (next.pageNumber !== first.pageNumber) break;
+      joined = `${joined} ${next.normalized}`;
+      if (joined === expected || joined.startsWith(`${expected} `)) return true;
+      if (joined.length > expected.length + 200) break;
+    }
+  }
+  return false;
 }
 
 function lineValue(

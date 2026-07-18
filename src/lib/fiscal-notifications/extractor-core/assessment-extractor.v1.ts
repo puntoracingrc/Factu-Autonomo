@@ -32,7 +32,7 @@ import {
   assertExactDataRecordV1,
 } from "./shared.v1";
 
-export const ASSESSMENT_EXTRACTOR_VERSION_V1 = "1.0.0" as const;
+export const ASSESSMENT_EXTRACTOR_VERSION_V1 = "1.1.0" as const;
 
 export const ASSESSMENT_EXTRACTOR_LIMITS_V1 = Object.freeze({
   maxLines: 10_000,
@@ -335,7 +335,10 @@ function recognizeAssessment(
   }
   const officialDomainPrinted = headerLines.some((line) => OFFICIAL_AEAT_DOMAINS.has(line.folded));
   const trustedSegmentAuthority = mainSegments.every((segment) =>
-    segment.detectedAuthority === "AEAT" && segment.classificationConfidence >= 0.9
+    segment.detectedAuthority === "AEAT" &&
+    (segment.classificationConfidence >= 0.9 ||
+      (segment.detectedTitle !== null &&
+        segment.classificationConfidence >= 0.55))
   );
   if (!officialDomainPrinted && !trustedSegmentAuthority) {
     return { status: "UNKNOWN", warning: null };

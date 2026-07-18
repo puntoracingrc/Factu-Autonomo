@@ -2906,10 +2906,7 @@ function projectBatchReviewSummary(
 
   if (verticalDocuments.length > 0) {
     return {
-      title:
-        verticalDocuments.length === 1
-          ? verticalDocuments[0]!.title
-          : `${verticalDocuments.length} documentos reconocidos en este PDF`,
+      title: verticalDocuments.map((document) => document.title).join(" · "),
       pageCount: technicalReview.pageCount,
       primaryAmount,
     };

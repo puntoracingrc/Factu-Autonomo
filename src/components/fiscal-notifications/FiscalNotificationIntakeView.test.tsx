@@ -1012,6 +1012,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "projectBatchReviewSummary(review.analysis)",
     );
+    expect(componentSource).toContain(
+      'verticalDocuments.map((document) => document.title).join(" · ")',
+    );
+    expect(componentSource).not.toContain(
+      "documentos reconocidos en este PDF",
+    );
     expect(componentSource).toContain('item.kind === "DOCUMENT_TOTAL"');
     expect(componentSource).toContain('item.kind === "OUTSTANDING_PRINCIPAL"');
     expect(componentSource).toContain("pageCount: technicalReview.pageCount");
