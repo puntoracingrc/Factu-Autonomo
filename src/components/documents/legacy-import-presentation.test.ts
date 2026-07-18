@@ -74,6 +74,9 @@ describe("historical imported document presentation", () => {
     expect(deleteSource).toContain("Archivar histórico importado");
     expect(deleteSource).toContain('href="/cuenta#copias-cuenta"');
     expect(deleteSource).not.toContain("cursor-not-allowed bg-slate-50 text-slate-300");
+    expect(listSource.split("<DeleteDocumentButton doc={doc} />")).toHaveLength(
+      3,
+    );
   });
 
   it("documenta la vista previa, copia y alcance fiscal sin afirmar sello moderno", () => {

@@ -1272,11 +1272,10 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                       <p className="mt-1 font-medium">
                         {integrityFeedback.recovery}
                       </p>
-                      {type === "factura" && (
-                        <div className="mt-2 flex justify-start">
-                          <GenerateReceiptButton doc={doc} />
-                        </div>
-                      )}
+                      <div className="mt-2 flex flex-wrap justify-start gap-2">
+                        {type === "factura" && <GenerateReceiptButton doc={doc} />}
+                        <DeleteDocumentButton doc={doc} />
+                      </div>
                     </div>
                   ) : (
                     <div className="action-scroll -mx-1 flex items-center gap-2 self-start overflow-x-auto px-1 pb-0.5 sm:pb-0 md:col-start-1">
