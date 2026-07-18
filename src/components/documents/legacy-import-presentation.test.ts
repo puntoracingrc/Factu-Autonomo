@@ -13,6 +13,10 @@ const pdfActionsSource = readFileSync(
   new URL("./DocumentPdfShareActions.tsx", import.meta.url),
   "utf8",
 );
+const deleteSource = readFileSync(
+  new URL("./DeleteDocumentButton.tsx", import.meta.url),
+  "utf8",
+);
 const manualSource = readFileSync(
   new URL("../../lib/manual/sections/cuenta.ts", import.meta.url),
   "utf8",
@@ -24,7 +28,8 @@ describe("historical imported document presentation", () => {
     expect(actionsSource).toContain("isUsableLegacyImportedDocument(doc)");
     expect(listSource).toContain("Histórico importado");
     expect(listSource).not.toContain("Histórico importado · aceptado por ti");
-    expect(actionsSource).toContain("Histórico importado · aceptado por ti");
+    expect(actionsSource).toContain("Histórico importado");
+    expect(actionsSource).not.toContain("Histórico importado · aceptado por ti");
   });
 
   it("muestra el total central solo si la colección recuperada conserva su integridad", () => {
@@ -63,9 +68,17 @@ describe("historical imported document presentation", () => {
     expect(pdfActionsSource).toContain("no sustituye al original");
   });
 
+  it("no muestra una papelera falsa en documentos protegidos y guía los históricos al mantenimiento real", () => {
+    expect(deleteSource).toContain("if (!policy.allowed)");
+    expect(deleteSource).toContain("if (!hasLegacyImportProtectionClaim(doc)) return null;");
+    expect(deleteSource).toContain("Archivar histórico importado");
+    expect(deleteSource).toContain('href="/cuenta#copias-cuenta"');
+    expect(deleteSource).not.toContain("cursor-not-allowed bg-slate-50 text-slate-300");
+  });
+
   it("documenta la vista previa, copia y alcance fiscal sin afirmar sello moderno", () => {
     for (const copy of [
-      "Histórico importado · aceptado por ti",
+      "Histórico importado",
       "impuestos y rentabilidad",
       "vista previa",
       "copia JSON",

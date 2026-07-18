@@ -1,11 +1,12 @@
 "use client";
 
 import { useId, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Archive, Trash2 } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
-import { Button } from "@/components/ui/Button";
+import { Button, ButtonLink } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { useAppStore } from "@/context/AppStore";
+import { hasLegacyImportProtectionClaim } from "@/lib/document-integrity/legacy-import-attestation";
 import { getDeletePolicy } from "@/lib/rectificativas";
 import type { Document } from "@/lib/types";
 
@@ -25,15 +26,59 @@ export function DeleteDocumentButton({ doc }: DeleteDocumentButtonProps) {
     policy.level === "legal" || policy.level === "legal_strict";
 
   if (!policy.allowed) {
+    if (!hasLegacyImportProtectionClaim(doc)) return null;
+
     return (
-      <IconActionButton
-        label="Borrar"
-        tooltip={policy.message}
-        disabled
-        className="cursor-not-allowed bg-slate-50 text-slate-300"
-      >
-        <Trash2 className="h-5 w-5" />
-      </IconActionButton>
+      <>
+        <IconActionButton
+          label="Archivar"
+          tooltip="Archivar este histórico desde Cuenta → Copias → Mantenimiento"
+          onClick={() => setOpen(true)}
+          className="bg-slate-100 text-slate-700 hover:bg-slate-200"
+        >
+          <Archive className="h-5 w-5" />
+        </IconActionButton>
+
+        <Modal
+          open={open}
+          onClose={handleClose}
+          titleId={titleId}
+          descriptionId={descriptionId}
+          closeOnBackdrop={false}
+          initialFocusSelector="[data-modal-initial-focus]"
+          panelClassName="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200/80 bg-white p-5 shadow-xl supports-[height:100dvh]:max-h-[85dvh]"
+          testId="archive-imported-document-modal"
+        >
+          <h2 id={titleId} className="text-lg font-bold text-slate-900">
+            Archivar histórico importado
+          </h2>
+          <p
+            id={descriptionId}
+            className="mt-3 text-sm leading-relaxed text-slate-700"
+          >
+            Esto no borra ni modifica el PDF, el snapshot ni los datos fiscales.
+            Te lleva al mantenimiento seguro para retirar de las listas activas
+            los documentos importados que ya no quieres ver.
+          </p>
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={handleClose}
+              data-modal-initial-focus
+            >
+              Cancelar
+            </Button>
+            <ButtonLink
+              href="/cuenta#copias-cuenta"
+              fullWidth
+              className="text-center"
+            >
+              Ir a archivar
+            </ButtonLink>
+          </div>
+        </Modal>
+      </>
     );
   }
 

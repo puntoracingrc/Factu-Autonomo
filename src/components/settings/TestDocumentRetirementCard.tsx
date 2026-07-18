@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   CheckCircle2,
-  RefreshCw,
   RotateCcw,
   ShieldAlert,
 } from "lucide-react";
@@ -27,7 +26,6 @@ import {
   runTestDocumentRetirementRollbackWithSafetyCopy,
   runTestDocumentRetirementWithSafetyCopy,
 } from "@/lib/document-integrity/test-document-retirement-command";
-import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import type {
   AppData,
   Document,
@@ -46,12 +44,6 @@ import {
 
 type Feedback = { tone: "success" | "error"; message: string } | null;
 
-interface MfaAssurance {
-  ready: boolean;
-  currentAal: string | null;
-  nextAal: string | null;
-}
-
 interface PreparedRetirement {
   resolution: ExactDocumentNumberResolution;
   preview: TestDocumentRetirementPreview;
@@ -62,27 +54,19 @@ interface PreparedRollback {
   preview: TestDocumentRetirementRollbackPreview;
 }
 
-const EMPTY_MFA_ASSURANCE: MfaAssurance = {
-  ready: false,
-  currentAal: null,
-  nextAal: null,
-};
-
 const READINESS_LABELS: Record<
   TestDocumentRetirementReadinessBlocker,
   string
 > = {
   auth_loading: "La sesión todavía se está comprobando.",
   cloud_disabled: "La nube de Factu no está disponible.",
-  session_missing: "Inicia sesión con la cuenta owner del espacio.",
+  session_missing: "Inicia sesión con la cuenta que contiene estos datos.",
   email_unconfirmed: "Confirma el email de la cuenta antes de continuar.",
   demo_workspace: "Sal de la demo: este mantenimiento no actúa sobre datos ficticios del tour.",
   local_handoff_pending: "Resuelve primero qué hacer con los datos locales de este navegador.",
   sync_not_current: "La nube debe mostrar el estado Sincronizado.",
   pending_changes: "Espera a que terminen de subirse todos los cambios pendientes.",
   never_synced: "Este espacio todavía no tiene una sincronización confirmada.",
-  mfa_check_pending: "No se ha podido confirmar el nivel MFA de esta sesión.",
-  mfa_session_required: "La cuenta tiene MFA: verifica esta sesión en Seguridad.",
 };
 
 const BLOCKER_LABELS: Record<
@@ -183,10 +167,6 @@ export function TestDocumentRetirementCard() {
     () => (userId ? testDocumentRetirementTenantFingerprint(userId) : ""),
     [userId],
   );
-  const [mfaAssurance, setMfaAssurance] = useState<MfaAssurance>(
-    EMPTY_MFA_ASSURANCE,
-  );
-  const [mfaChecking, setMfaChecking] = useState(false);
   const [numberInput, setNumberInput] = useState("");
   const [preparedRetirement, setPreparedRetirement] =
     useState<PreparedRetirement | null>(null);
@@ -203,39 +183,8 @@ export function TestDocumentRetirementCard() {
   const rollbackPreviewRef = useRef<HTMLDivElement>(null);
   const actionLockRef = useRef(false);
 
-  const refreshMfa = useCallback(async (): Promise<MfaAssurance> => {
-    setMfaChecking(true);
-    setMfaAssurance(EMPTY_MFA_ASSURANCE);
-    if (!cloudEnabled || !userId) {
-      setMfaChecking(false);
-      return EMPTY_MFA_ASSURANCE;
-    }
-
-    try {
-      const supabase = await getSupabaseClientAsync();
-      if (!supabase) return EMPTY_MFA_ASSURANCE;
-      const result = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-      if (result.error) return EMPTY_MFA_ASSURANCE;
-      const assurance: MfaAssurance = {
-        ready: true,
-        currentAal: result.data.currentLevel ?? null,
-        nextAal: result.data.nextLevel ?? null,
-      };
-      setMfaAssurance(assurance);
-      return assurance;
-    } catch {
-      return EMPTY_MFA_ASSURANCE;
-    } finally {
-      setMfaChecking(false);
-    }
-  }, [cloudEnabled, userId]);
-
-  useEffect(() => {
-    void refreshMfa();
-  }, [refreshMfa]);
-
   const readinessFor = useCallback(
-    (assurance: MfaAssurance, current: AppData) =>
+    (current: AppData) =>
       testDocumentRetirementReadiness({
         authReady,
         cloudEnabled,
@@ -250,9 +199,6 @@ export function TestDocumentRetirementCard() {
           current.meta?.pendingChanges?.length ?? 0,
         ),
         lastSyncedAt: current.meta?.lastSyncedAt,
-        mfaReady: assurance.ready,
-        currentAal: assurance.currentAal,
-        nextAal: assurance.nextAal,
       }),
     [
       authReady,
@@ -268,8 +214,8 @@ export function TestDocumentRetirementCard() {
   );
 
   const readiness = useMemo(
-    () => readinessFor(mfaAssurance, data),
-    [data, mfaAssurance, readinessFor],
+    () => readinessFor(data),
+    [data, readinessFor],
   );
   const workspaceKey = testDocumentRetirementWorkspaceFingerprint(data);
   const retirementHistoryKey = JSON.stringify(
@@ -328,7 +274,7 @@ export function TestDocumentRetirementCard() {
       setFeedback({
         tone: "error",
         message:
-          "Resuelve todos los requisitos de cuenta, nube y MFA antes de preparar el lote.",
+          "Resuelve todos los requisitos de cuenta y nube antes de preparar el lote.",
       });
       return;
     }
@@ -385,16 +331,12 @@ export function TestDocumentRetirementCard() {
     setBusyAction("retire");
     setFeedback(null);
     try {
-      const currentAssurance = await refreshMfa();
-      const currentReadiness = readinessFor(
-        currentAssurance,
-        getCurrentData(),
-      );
+      const currentReadiness = readinessFor(getCurrentData());
       if (!currentReadiness.ready) {
         setFeedback({
           tone: "error",
           message:
-            "La cuenta, la nube o la sesión MFA dejaron de estar listas. No se preparó la copia ni se archivó nada.",
+            "La cuenta o la nube dejaron de estar listas. No se preparó la copia ni se archivó nada.",
         });
         return;
       }
@@ -459,7 +401,7 @@ export function TestDocumentRetirementCard() {
         tone: "success",
         message: `Archivado reversible completado: ${preparedRetirement.preview.affectedCount} ${preparedRetirement.preview.affectedCount === 1 ? "documento" : "documentos"}. Factu preparó automáticamente la copia ${safetyResult.safetyCopyFilename}, guardó el historial y solicitó la sincronización.`,
       });
-      void syncNow();
+      void syncNow(result.data);
     } finally {
       actionLockRef.current = false;
       setBusyAction(null);
@@ -483,17 +425,13 @@ export function TestDocumentRetirementCard() {
     setBusyAction("rollback");
     setFeedback(null);
     try {
-      const currentAssurance = await refreshMfa();
-      const currentReadiness = readinessFor(
-        currentAssurance,
-        getCurrentData(),
-      );
+      const currentReadiness = readinessFor(getCurrentData());
       if (!currentReadiness.ready) {
         setRollbackPhrase("");
         setFeedback({
           tone: "error",
           message:
-            "La cuenta, la nube o la sesión MFA dejaron de estar listas. No se preparó la copia ni se restauró nada.",
+            "La cuenta o la nube dejaron de estar listas. No se preparó la copia ni se restauró nada.",
         });
         return;
       }
@@ -563,7 +501,7 @@ export function TestDocumentRetirementCard() {
         tone: "success",
         message: `Lote restaurado: ${preparedRollback.preview.affectedCount} ${preparedRollback.preview.affectedCount === 1 ? "documento" : "documentos"}. Descarga previa al rollback solicitada: ${safetyResult.safetyCopyFilename}. La identidad reservada y la auditoría se conservan; se ha solicitado sincronización inmediata.`,
       });
-      void syncNow();
+      void syncNow(result.data);
     } finally {
       actionLockRef.current = false;
       setBusyAction(null);
@@ -633,13 +571,13 @@ export function TestDocumentRetirementCard() {
           <div className="min-w-0" role="status" aria-live="polite">
             <p className="break-words font-semibold text-slate-900">
               {readiness.ready
-                ? `Owner verificado · ${maskAccountEmail(user?.email)}`
+                ? `Cuenta verificada · ${maskAccountEmail(user?.email)}`
                 : "Mantenimiento bloqueado hasta cumplir todos los requisitos"}
             </p>
             {readiness.ready ? (
               <p className="mt-1 text-sm text-slate-700">
-                Nube sincronizada sin pendientes, fuera de demo y nivel MFA de
-                esta sesión resuelto.
+                Nube sincronizada sin pendientes y fuera de demo. El archivo se
+                aplicará solo sobre los datos de esta cuenta.
               </p>
             ) : (
               <ul className="mt-2 space-y-1 text-sm text-slate-700">
@@ -650,20 +588,6 @@ export function TestDocumentRetirementCard() {
             )}
           </div>
         </div>
-        <Button
-          type="button"
-          variant="secondary"
-          fullWidth
-          className="mt-3"
-          onClick={() => void refreshMfa()}
-          disabled={mfaChecking || !cloudEnabled || !userId}
-        >
-          <RefreshCw
-            className={`h-4 w-4 ${mfaChecking ? "animate-spin" : ""}`}
-            aria-hidden="true"
-          />
-          {mfaChecking ? "Comprobando seguridad…" : "Comprobar sesión y MFA"}
-        </Button>
       </div>
 
       <div className="space-y-4 rounded-2xl border border-violet-200 bg-white p-4">

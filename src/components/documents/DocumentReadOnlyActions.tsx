@@ -84,7 +84,7 @@ export function DocumentReadOnlyActions({
       {legacyImportedAccepted && (
         <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
           <span className="block font-bold">
-            Histórico importado · aceptado por ti
+            Histórico importado
           </span>
           <span className="mt-1 block">
             Está congelado y puede usarse en impuestos y rentabilidad. No tiene

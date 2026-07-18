@@ -22,7 +22,7 @@ describe("test document retirement UI gate", () => {
     );
   });
 
-  it("solo queda listo con owner confirmado, workspace sincronizado y MFA satisfecha si existe", () => {
+  it("queda listo para cualquier cuenta autenticada con workspace sincronizado", () => {
     const base = {
       authReady: true,
       cloudEnabled: true,
@@ -34,27 +34,11 @@ describe("test document retirement UI gate", () => {
       pendingUpload: false,
       pendingChangeCount: 0,
       lastSyncedAt: "2026-07-14T06:00:00.000Z",
-      mfaReady: true,
-      currentAal: "aal1",
-      nextAal: "aal1",
     };
     expect(testDocumentRetirementReadiness(base)).toEqual({
       ready: true,
       blockers: [],
     });
-    expect(
-      testDocumentRetirementReadiness({
-        ...base,
-        nextAal: "aal2",
-      }).blockers,
-    ).toContain("mfa_session_required");
-    expect(
-      testDocumentRetirementReadiness({
-        ...base,
-        nextAal: "aal2",
-        currentAal: "aal2",
-      }).ready,
-    ).toBe(true);
   });
 
   it("bloquea demo, handoff, nube no vigente y cambios pendientes", () => {
@@ -68,7 +52,6 @@ describe("test document retirement UI gate", () => {
       syncStatus: "error",
       pendingUpload: true,
       pendingChangeCount: 2,
-      mfaReady: false,
     });
     expect(result.ready).toBe(false);
     expect(result.blockers).toEqual(
@@ -78,7 +61,6 @@ describe("test document retirement UI gate", () => {
         "sync_not_current",
         "pending_changes",
         "never_synced",
-        "mfa_check_pending",
       ]),
     );
   });
