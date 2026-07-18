@@ -191,6 +191,45 @@ describe("admin health helpers", () => {
     ]);
   });
 
+  it("no eleva a vigilancia una descarga moderada de nube desde un único origen", () => {
+    const abuse = buildAdminAbuseSummary({
+      totalRequests: 173,
+      totalBuckets: 19,
+      latestAt: "2026-07-18T11:30:03.799Z",
+      namespaces: [
+        {
+          namespace: "data_cloud_pull",
+          buckets: 1,
+          requests: 64,
+          maxRequests: 64,
+          latestAt: "2026-07-18T10:32:35.640Z",
+        },
+        {
+          namespace: "data_cloud_pull_auto",
+          buckets: 1,
+          requests: 81,
+          maxRequests: 81,
+          latestAt: "2026-07-18T11:30:02.924Z",
+        },
+        {
+          namespace: "expense_scan_quota",
+          buckets: 2,
+          requests: 8,
+          maxRequests: 4,
+          latestAt: "2026-07-18T11:13:27.802Z",
+        },
+      ],
+    });
+
+    expect(abuse.level).toBe("ok");
+    expect(abuse.label).toBe("Sin señales");
+    expect(
+      abuse.namespaces.find((item) => item.namespace === "data_cloud_pull")
+        ?.level,
+    ).toBe("ok");
+    expect(abuse.headline).toBe("Sin señales claras de scraping o abuso.");
+  });
+
   it("calibra el sondeo automático de 45 segundos sin ocultar picos anómalos", () => {
     const normal = buildAdminAbuseSummary({
       namespaces: [
