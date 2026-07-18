@@ -48,10 +48,10 @@ describe("Affiliates UI contract", () => {
     expect(cloudAccountSource).toContain('authMode === "signup"');
   });
 
-  it("captures referral URLs globally and keeps Affiliates out of navigation", () => {
+  it("captures referral URLs globally and exposes Affiliates in navigation", () => {
     expect(appShellSource).toContain("<ReferralCapture />");
     expect(appShellSource).toContain("<ReferralRedeemOnLogin />");
-    expect(navigationSource).not.toContain("/afiliados");
+    expect(navigationSource).toContain('href: "/afiliados"');
   });
 
   it("gives professional Partners a dedicated access surface", () => {

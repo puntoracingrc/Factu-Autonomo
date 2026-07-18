@@ -1,6 +1,7 @@
 import {
   ChartNoAxesCombined,
   FileText,
+  Gift,
   Home,
   Landmark,
   PackageSearch,
@@ -84,6 +85,12 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     icon: Landmark,
   },
   CONSULTOR_FISCAL_NAV_ITEM,
+  {
+    href: "/afiliados",
+    label: "Afiliados",
+    shortLabel: "Afiliados",
+    icon: Gift,
+  },
   {
     href: "/configuracion",
     label: "Ajustes",
