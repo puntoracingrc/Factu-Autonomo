@@ -103,6 +103,12 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
     void loadSubscription();
   }, [loadSubscription]);
 
+  useEffect(() => {
+    const refresh = () => void loadSubscription();
+    window.addEventListener("fa-billing-refresh", refresh);
+    return () => window.removeEventListener("fa-billing-refresh", refresh);
+  }, [loadSubscription]);
+
   const plan = useMemo(() => {
     if (!billingEnabled) return "pro" as PlanId;
     if (!user) return "free" as PlanId;

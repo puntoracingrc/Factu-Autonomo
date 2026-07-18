@@ -1,4 +1,4 @@
-import { isPaidPlan, PLANS, type PlanId } from "./plans";
+import { isPaidPlan, PLANS, type PaidPlanId, type PlanId } from "./plans";
 
 export type SubscriptionStatus =
   | "active"
@@ -15,6 +15,8 @@ export interface UserSubscription {
   stripeSubscriptionId?: string | null;
   trialEndsAt?: string | null;
   currentPeriodEnd?: string | null;
+  promotionalPlan?: PaidPlanId | null;
+  promotionalPlanEndsAt?: string | null;
 }
 
 export function resolveEffectivePlan(
@@ -23,13 +25,27 @@ export function resolveEffectivePlan(
 ): PlanId {
   if (!subscription) return "free";
 
-  const { plan, status, trialEndsAt, currentPeriodEnd } = subscription;
+  const {
+    plan,
+    status,
+    trialEndsAt,
+    currentPeriodEnd,
+    promotionalPlan,
+    promotionalPlanEndsAt,
+  } = subscription;
 
   if (isPaidPlan(plan) && (status === "active" || status === "trialing")) {
-    if (currentPeriodEnd && new Date(currentPeriodEnd) < now) {
-      return "free";
+    if (!currentPeriodEnd || new Date(currentPeriodEnd) >= now) {
+      return plan;
     }
-    return plan;
+  }
+
+  if (
+    promotionalPlan &&
+    promotionalPlanEndsAt &&
+    new Date(promotionalPlanEndsAt) >= now
+  ) {
+    return promotionalPlan;
   }
 
   if (plan === "trial" || status === "trialing") {

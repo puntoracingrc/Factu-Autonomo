@@ -14,6 +14,8 @@ function mapRow(row: Record<string, unknown>): UserSubscription {
     stripeSubscriptionId: row.stripe_subscription_id as string | null | undefined,
     trialEndsAt: row.trial_ends_at as string | null | undefined,
     currentPeriodEnd: row.current_period_end as string | null | undefined,
+    promotionalPlan: row.promotional_plan as "pro" | "pro_plus" | null | undefined,
+    promotionalPlanEndsAt: row.promotional_plan_ends_at as string | null | undefined,
   };
 }
 

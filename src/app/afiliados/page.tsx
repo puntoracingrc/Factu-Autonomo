@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { Gift, ShieldCheck } from "lucide-react";
 import { ReferralCard } from "@/components/referrals/ReferralCard";
+import { PromoCodeRedeemer } from "@/components/promotions/PromoCodeRedeemer";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { REFERRAL_BONUS_SCANS } from "@/lib/billing/referral-codes";
 
@@ -42,6 +43,7 @@ export default function AffiliatesPage() {
       <Suspense fallback={<Card>Cargando Afiliados...</Card>}>
         <ReferralCard />
       </Suspense>
+      <PromoCodeRedeemer />
     </div>
   );
 }

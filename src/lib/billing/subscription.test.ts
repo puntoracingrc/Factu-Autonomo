@@ -58,6 +58,64 @@ describe("subscription", () => {
     expect(plan).toBe("trial");
   });
 
+  it("aplica un plan promocional vigente sin convertirlo en plan Stripe", () => {
+    const plan = resolveEffectivePlan(
+      {
+        userId: "u1",
+        plan: "free",
+        status: "inactive",
+        promotionalPlan: "pro_plus",
+        promotionalPlanEndsAt: "2026-07-31T23:59:59.000Z",
+      },
+      new Date("2026-07-20T00:00:00.000Z"),
+    );
+    expect(plan).toBe("pro_plus");
+  });
+
+  it("mantiene prioridad del plan de pago y descarta la promoción caducada", () => {
+    expect(
+      resolveEffectivePlan(
+        {
+          userId: "u1",
+          plan: "pro",
+          status: "active",
+          currentPeriodEnd: "2026-08-01T00:00:00.000Z",
+          promotionalPlan: "pro_plus",
+          promotionalPlanEndsAt: "2026-09-01T00:00:00.000Z",
+        },
+        new Date("2026-07-20T00:00:00.000Z"),
+      ),
+    ).toBe("pro");
+    expect(
+      resolveEffectivePlan(
+        {
+          userId: "u1",
+          plan: "free",
+          status: "inactive",
+          promotionalPlan: "pro_plus",
+          promotionalPlanEndsAt: "2026-07-01T00:00:00.000Z",
+        },
+        new Date("2026-07-20T00:00:00.000Z"),
+      ),
+    ).toBe("free");
+  });
+
+  it("usa la promoción si el periodo pagado anterior ya terminó", () => {
+    expect(
+      resolveEffectivePlan(
+        {
+          userId: "u1",
+          plan: "pro",
+          status: "active",
+          currentPeriodEnd: "2026-07-01T00:00:00.000Z",
+          promotionalPlan: "pro_plus",
+          promotionalPlanEndsAt: "2026-08-20T00:00:00.000Z",
+        },
+        new Date("2026-07-20T00:00:00.000Z"),
+      ),
+    ).toBe("pro_plus");
+  });
+
   it("calcula días de trial restantes", () => {
     const days = trialDaysRemaining(
       {
