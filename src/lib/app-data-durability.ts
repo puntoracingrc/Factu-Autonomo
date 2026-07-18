@@ -97,6 +97,43 @@ export function commitAppDataDurably<T>(input: {
   };
 }
 
+/**
+ * Reintenta una transición una sola vez cuando el bloqueo procede únicamente
+ * de una referencia durable antigua y el almacenamiento confirma que contiene
+ * exactamente el estado esperado. Nunca rebasa una divergencia real ni repite
+ * una transición inválida.
+ */
+export function commitAppDataDurablyWithStorageRecovery<T>(input: {
+  expected: AppData;
+  storageBaseline?: DurableStorageBaseline;
+  getCurrent: () => AppData;
+  build: (previous: AppData) => AppDataTransition<T>;
+  persist: (candidate: AppData, storageExpected: AppData) => SaveDataResult;
+  inspectPersisted: (expected: AppData) => SaveDataResult;
+}): AppDataDurabilityResult<T> {
+  const attempt = (storageBaseline: DurableStorageBaseline | undefined) =>
+    commitAppDataDurably({
+      expected: input.expected,
+      storageBaseline,
+      getCurrent: input.getCurrent,
+      build: input.build,
+      persist: input.persist,
+    });
+
+  const first = attempt(input.storageBaseline);
+  if (first.status === "applied") return first;
+  if (input.getCurrent() !== input.expected) return first;
+
+  const baselineCanBeRecovered =
+    input.storageBaseline?.status !== "known" ||
+    first.reason === "stale_precondition" ||
+    first.reason === "storage_state_unknown";
+  if (!baselineCanBeRecovered) return first;
+  if (input.inspectPersisted(input.expected).status !== "applied") return first;
+
+  return attempt({ status: "known", data: input.expected });
+}
+
 export interface FixedExpenseBundleIds {
   expenseId: string;
   recurringExpenseId: string;

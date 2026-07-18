@@ -93,9 +93,14 @@ import {
   runReceiptGenerationCommand,
   type ReceiptGenerationCommandResult,
 } from "@/lib/receipt-generation-command";
-import { loadData, saveData, touchAppData } from "@/lib/storage";
 import {
-  commitAppDataDurably,
+  inspectPersistedData,
+  loadData,
+  saveData,
+  touchAppData,
+} from "@/lib/storage";
+import {
+  commitAppDataDurablyWithStorageRecovery,
   durableBaselineContainsFixedExpenseBundle,
   durableStorageBaselineAfterSave,
   fixedExpenseBundleIds,
@@ -609,13 +614,14 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       expected: AppData,
       build: (previous: AppData) => { data: AppData; value: T },
     ): AppDataDurabilityResult<T> => {
-      const result = commitAppDataDurably({
+      const result = commitAppDataDurablyWithStorageRecovery({
         expected,
         storageBaseline: durableStorageBaselineRef.current,
         getCurrent: () => dataRef.current,
         build,
         persist: (candidate, storageExpected) =>
           saveData(candidate, { expected: storageExpected }),
+        inspectPersisted: inspectPersistedData,
       });
       if (result.status === "indeterminate") {
         durableStorageBaselineRef.current = result;
