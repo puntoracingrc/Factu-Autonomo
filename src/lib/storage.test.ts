@@ -13,6 +13,7 @@ import {
 } from "./demo-workspace";
 import {
   clearPersistedAppData,
+  inspectPersistedData,
   loadData,
   normalizeLoadedData,
   saveData,
@@ -1132,6 +1133,45 @@ describe("storage", () => {
     expect(loadData()).toEqual(expected);
     expect(saveData(candidate, { expected })).toEqual({ status: "applied" });
     expect(loadData().profile.name).toBe("Cambio durable");
+  });
+
+  it("comprueba el estado durable exacto sin realizar ninguna escritura", () => {
+    const expected = normalizeLoadedData(sampleData());
+    expect(saveData(expected)).toEqual({ status: "applied" });
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) =>
+        key === STORAGE_KEY ? raw : null,
+      setItem,
+      removeItem: vi.fn(),
+    });
+
+    expect(inspectPersistedData(expected)).toEqual({ status: "applied" });
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("rechaza una recuperación cuando otra pestaña conserva datos distintos", () => {
+    const expected = normalizeLoadedData(sampleData());
+    const divergent = {
+      ...expected,
+      profile: { ...expected.profile, name: "Cambio de otra pestaña" },
+    };
+    expect(saveData(divergent)).toEqual({ status: "applied" });
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const setItem = vi.fn();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) =>
+        key === STORAGE_KEY ? raw : null,
+      setItem,
+      removeItem: vi.fn(),
+    });
+
+    expect(inspectPersistedData(expected)).toEqual({
+      status: "blocked",
+      reason: "stale_precondition",
+    });
+    expect(setItem).not.toHaveBeenCalled();
   });
 
   it("acepta como expected el workspace demo sintetizado antes de su primer raw", () => {

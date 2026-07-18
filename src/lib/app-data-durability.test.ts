@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDemoWorkspaceData } from "./demo-workspace";
 import {
   commitAppDataDurably,
+  commitAppDataDurablyWithStorageRecovery,
   durableBaselineContainsFixedExpenseBundle,
   durableStorageBaselineAfterSave,
   fixedExpenseBundleIds,
@@ -322,6 +323,110 @@ describe("commitAppDataDurably", () => {
     expect(result.status).toBe("applied");
     expect(loadData().profile.name).toBe("Cambio tras sincronizar");
     expect(loadData().expenses).toEqual(expected.expenses);
+  });
+
+  it("recupera una referencia durable obsoleta solo tras comprobar el estado exacto", () => {
+    const expected = appData();
+    const staleBaseline = {
+      ...expected,
+      profile: { ...expected.profile, name: "Referencia anterior" },
+    };
+    const persist = vi.fn(() => ({ status: "applied" }) as const);
+    const inspectPersisted = vi.fn(() => ({ status: "applied" }) as const);
+
+    const result = commitAppDataDurablyWithStorageRecovery({
+      expected,
+      storageBaseline: { status: "known", data: staleBaseline },
+      getCurrent: () => expected,
+      build: (current) => ({
+        data: {
+          ...current,
+          profile: { ...current.profile, name: "Guardado recuperado" },
+        },
+        value: "saved",
+      }),
+      persist: (candidate, storageExpected) => {
+        if (storageExpected === staleBaseline) {
+          return { status: "blocked", reason: "stale_precondition" };
+        }
+        expect(storageExpected).toBe(expected);
+        expect(candidate.profile.name).toBe("Guardado recuperado");
+        return persist();
+      },
+      inspectPersisted,
+    });
+
+    expect(result.status).toBe("applied");
+    expect(inspectPersisted).toHaveBeenCalledWith(expected);
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("recupera un bloqueo durable anterior cuando el almacenamiento vuelve a coincidir", () => {
+    const expected = appData();
+    const build = vi.fn((current: AppData) => ({
+      data: {
+        ...current,
+        profile: { ...current.profile, name: "Reintento seguro" },
+      },
+      value: "saved",
+    }));
+    const persist = vi.fn(() => ({ status: "applied" }) as const);
+
+    const result = commitAppDataDurablyWithStorageRecovery({
+      expected,
+      storageBaseline: { status: "blocked", reason: "quota_exceeded" },
+      getCurrent: () => expected,
+      build,
+      persist,
+      inspectPersisted: () => ({ status: "applied" }),
+    });
+
+    expect(result.status).toBe("applied");
+    expect(build).toHaveBeenCalledTimes(1);
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("mantiene el bloqueo y no escribe cuando el estado durable diverge de verdad", () => {
+    const expected = appData();
+    const build = vi.fn();
+    const persist = vi.fn();
+
+    expect(
+      commitAppDataDurablyWithStorageRecovery({
+        expected,
+        storageBaseline: { status: "blocked", reason: "write_failed" },
+        getCurrent: () => expected,
+        build,
+        persist,
+        inspectPersisted: () => ({
+          status: "blocked",
+          reason: "stale_precondition",
+        }),
+      }),
+    ).toEqual({ status: "blocked", reason: "write_failed" });
+    expect(build).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
+  });
+
+  it("no reintenta una transición inválida aunque el estado previo siga persistido", () => {
+    const expected = appData();
+    const inspectPersisted = vi.fn(() => ({ status: "applied" }) as const);
+    const persist = vi.fn();
+
+    expect(
+      commitAppDataDurablyWithStorageRecovery({
+        expected,
+        storageBaseline: { status: "known", data: expected },
+        getCurrent: () => expected,
+        build: () => {
+          throw new Error("invalid transition");
+        },
+        persist,
+        inspectPersisted,
+      }),
+    ).toEqual({ status: "blocked", reason: "transition_failed" });
+    expect(inspectPersisted).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
   });
 });
 

@@ -1305,6 +1305,28 @@ export interface SaveDataOptions {
   expected?: AppData;
 }
 
+/**
+ * Comprueba sin escribir si el estado durable actual coincide exactamente con
+ * el estado en memoria. Se usa únicamente para recuperar una referencia de
+ * almacenamiento obsoleta tras un fallo anterior; una divergencia real sigue
+ * siendo fail-closed.
+ */
+export function inspectPersistedData(expected: AppData): SaveDataResult {
+  if (typeof window === "undefined") {
+    return { status: "blocked", reason: "storage_unavailable" };
+  }
+
+  try {
+    const storageKey = currentStorageKey();
+    const raw = localStorage.getItem(storageKey);
+    return storedRawMatchesExpected(raw, expected, storageKey)
+      ? { status: "applied" }
+      : { status: "blocked", reason: "stale_precondition" };
+  } catch {
+    return { status: "blocked", reason: "storage_unavailable" };
+  }
+}
+
 function storageWriteFailureReason(error: unknown): SaveDataBlockedReason {
   try {
     const source = error as { name?: unknown; code?: unknown } | null;

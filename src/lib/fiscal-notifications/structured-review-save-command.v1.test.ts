@@ -1,5 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
-import { commitAppDataDurably } from "../app-data-durability";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  commitAppDataDurably,
+  commitAppDataDurablyWithStorageRecovery,
+} from "../app-data-durability";
+import { inspectPersistedData, loadData, saveData } from "../storage";
 import { EMPTY_DATA, type AppData } from "../types";
 import { extractAeatDeferralGrantFactsV1 } from "./aeat-deferral-grant-facts.v1";
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
@@ -25,6 +29,10 @@ const FOREIGN_OWNER = "user:00000000-0000-4000-8000-000000000072";
 const REVIEW_ID = "review:00000000-0000-4000-8000-000000000073";
 const CREATED_AT = "2026-07-14T10:00:00.000Z";
 const HASH = "b".repeat(64);
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 const DEFERRAL_TEXT = [
   "AGENCIA TRIBUTARIA",
@@ -730,6 +738,77 @@ describe("structured fiscal notification save command v1", () => {
       warningCodes: ["RELATION_RECONCILIATION_PENDING"],
     });
     expect(input.persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("guarda dos revisiones consecutivas y recupera un baseline anterior sin perder la primera", async () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
+    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({
+      status: "applied",
+    });
+    let current = loadData();
+
+    const first = runSaveFiscalNotificationStructuredReviewCommandV1({
+      expected: current,
+      ownerScope: OWNER,
+      reviewId: "review:00000000-0000-4000-8000-000000000081",
+      createdAt: "2026-07-14T10:00:00.000Z",
+      analysis: offsetAnalysis(),
+      commit: (expected, build) =>
+        commitAppDataDurably({
+          expected,
+          storageBaseline: { status: "known", data: expected },
+          getCurrent: () => current,
+          build,
+          persist: (candidate, storageExpected) =>
+            saveData(candidate, { expected: storageExpected }),
+        }),
+    });
+    expect(first.status).toBe("applied");
+    if (first.status !== "applied") return;
+    current = first.data;
+    const firstDocumentIds = current.fiscalNotificationsWorkspace?.documents.map(
+      (document) => document.id,
+    );
+    expect(firstDocumentIds).toHaveLength(1);
+
+    const second = runSaveFiscalNotificationStructuredReviewCommandV1({
+      expected: current,
+      ownerScope: OWNER,
+      reviewId: "review:00000000-0000-4000-8000-000000000082",
+      createdAt: "2026-07-14T10:01:00.000Z",
+      analysis: await verticalDeferralAnalysis(),
+      commit: (expected, build) =>
+        commitAppDataDurablyWithStorageRecovery({
+          expected,
+          storageBaseline: { status: "blocked", reason: "write_failed" },
+          getCurrent: () => current,
+          build,
+          persist: (candidate, storageExpected) =>
+            saveData(candidate, { expected: storageExpected }),
+          inspectPersisted: inspectPersistedData,
+        }),
+    });
+
+    expect(second.status).toBe("applied");
+    if (second.status !== "applied") return;
+    const reloaded = loadData();
+    expect(reloaded.fiscalNotificationsWorkspace?.documents).toHaveLength(2);
+    expect(
+      reloaded.fiscalNotificationsWorkspace?.documents.map(
+        (document) => document.id,
+      ),
+    ).toEqual(expect.arrayContaining(firstDocumentIds ?? []));
+    expect(
+      reloaded.fiscalNotificationsWorkspace?.documents.map(
+        (document) => document.documentSubtype,
+      ),
+    ).toContain("collection.deferral_grant");
   });
 
   it("guarda créditos y deudas compensadas como datos consultables, sin efectos operativos", () => {
