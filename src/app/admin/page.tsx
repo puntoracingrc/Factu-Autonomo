@@ -50,7 +50,11 @@ import type {
 } from "@/lib/admin/health";
 import type { AdminOperationsStatus } from "@/lib/admin/operations-status";
 import type { FiscalCalendarAdminHealth } from "@/lib/fiscal-calendar/admin-health";
-import type { FiscalWatchAdminStatus } from "@/lib/fiscal-watch/admin-status";
+import {
+  applyFiscalWatchReviews,
+  fiscalWatchReviewKey,
+  type FiscalWatchAdminStatus,
+} from "@/lib/fiscal-watch/admin-status";
 import {
   type AdminRestoreDataSummary,
   type AdminRestoreDiffSummary,
@@ -177,6 +181,44 @@ interface AdminFiscalWatchResponse {
   reviewStoreAvailable?: boolean;
   reviewed?: boolean;
   error?: string;
+}
+
+const FISCAL_WATCH_DISMISSED_KEYS_STORAGE_KEY =
+  "factu.admin.fiscalWatch.dismissedKeys.v1";
+const FISCAL_WATCH_DISMISSED_KEY_PATTERN =
+  /^(change|baseline):([1-9]\d{0,15})$/;
+
+function readFiscalWatchDismissedKeys(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(
+      FISCAL_WATCH_DISMISSED_KEYS_STORAGE_KEY,
+    );
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return [...new Set(parsed)]
+      .filter(
+        (key): key is string =>
+          typeof key === "string" &&
+          FISCAL_WATCH_DISMISSED_KEY_PATTERN.test(key),
+      )
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+function writeFiscalWatchDismissedKeys(keys: string[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      FISCAL_WATCH_DISMISSED_KEYS_STORAGE_KEY,
+      JSON.stringify(keys),
+    );
+  } catch {
+    // El descarte visible continúa en memoria aunque el navegador no permita
+    // persistirlo localmente.
+  }
 }
 
 interface AdminVercelUsageResource {
@@ -3161,6 +3203,25 @@ function OperationsPanel({
   );
   const [vercelNotice, setVercelNotice] = useState<string | null>(null);
   const [operationsNotice, setOperationsNotice] = useState<string | null>(null);
+  const fiscalWatchDismissedKeysRef = useRef<string[]>(
+    readFiscalWatchDismissedKeys(),
+  );
+
+  const rememberFiscalWatchDismissedKey = useCallback((key: string) => {
+    const current = fiscalWatchDismissedKeysRef.current;
+    const next = current.includes(key) ? current : [...current, key].sort();
+    fiscalWatchDismissedKeysRef.current = next;
+    writeFiscalWatchDismissedKeys(next);
+    return next;
+  }, []);
+
+  const applyVisibleFiscalWatchDismissals = useCallback(
+    (status: FiscalWatchAdminStatus | null, keys?: string[]) =>
+      status
+        ? applyFiscalWatchReviews(status, keys ?? fiscalWatchDismissedKeysRef.current)
+        : null,
+    [],
+  );
 
   const loadOperations = useCallback(async () => {
     setLoading(true);
@@ -3240,7 +3301,9 @@ function OperationsPanel({
           "No se pudo comprobar la vigilancia de fuentes fiscales.",
       );
     } else {
-      nextFiscalWatch = fiscalWatchBody.status ?? null;
+      nextFiscalWatch = applyVisibleFiscalWatchDismissals(
+        fiscalWatchBody.status ?? null,
+      );
       setFiscalWatch(nextFiscalWatch);
       setFiscalWatchReviewStoreAvailable(
         fiscalWatchBody.reviewStoreAvailable === true,
@@ -3346,7 +3409,7 @@ function OperationsPanel({
       }),
     );
     setLoading(false);
-  }, [onSignalsLoaded]);
+  }, [applyVisibleFiscalWatchDismissals, onSignalsLoaded]);
 
   useEffect(() => {
     void loadOperations();
@@ -3359,13 +3422,21 @@ function OperationsPanel({
       );
       if (!confirmed) return;
 
+      const reviewKey = fiscalWatchReviewKey(issue.kind, issue.number);
+      if (!reviewKey) {
+        setFiscalWatchNotice("No se pudo identificar el aviso a descartar.");
+        return;
+      }
+      const nextDismissedKeys = rememberFiscalWatchDismissedKey(reviewKey);
       const issueKey = `${issue.kind}:${issue.number}`;
       setReviewingFiscalWatchIssue(issueKey);
       setFiscalWatchNotice(null);
+      setFiscalWatch((current) =>
+        applyVisibleFiscalWatchDismissals(current, nextDismissedKeys),
+      );
       try {
         const token = await getAccessToken();
         if (!token) {
-          setFiscalWatchNotice("Inicia sesión con una cuenta administradora.");
           return;
         }
         const response = await fetchAdminResponse("/api/admin/fiscal-watch", {
@@ -3384,19 +3455,27 @@ function OperationsPanel({
           ? await readAdminJsonResponse<AdminFiscalWatchResponse>(response)
           : {};
         if (!response?.ok || body.reviewed !== true) {
-          setFiscalWatchNotice(
-            body.error ?? "No se pudo guardar la revisión del aviso.",
-          );
           return;
         }
-        await loadOperations();
+        const nextStatus = applyVisibleFiscalWatchDismissals(
+          body.status ?? fiscalWatch,
+          nextDismissedKeys,
+        );
+        setFiscalWatch(nextStatus);
+        setFiscalWatchReviewStoreAvailable(
+          body.reviewStoreAvailable === true,
+        );
       } catch {
-        setFiscalWatchNotice("No se pudo guardar la revisión del aviso.");
+        // El aviso ya quedó descartado localmente para el administrador.
       } finally {
         setReviewingFiscalWatchIssue(null);
       }
     },
-    [loadOperations],
+    [
+      applyVisibleFiscalWatchDismissals,
+      fiscalWatch,
+      rememberFiscalWatchDismissedKey,
+    ],
   );
 
   const syncErrors = errors.filter((item) => item.area === "sync").length;

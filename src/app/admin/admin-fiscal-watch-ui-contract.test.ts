@@ -15,7 +15,21 @@ describe("integración de la vigilancia fiscal en Admin", () => {
     expect(source).toContain('action: "review"');
     expect(source).toContain("reviewStoreAvailable");
     expect(source).toContain("reviewFiscalWatchIssue");
-    expect(source).toContain("await loadOperations()");
+    expect(source).toContain("applyFiscalWatchReviews");
+    expect(source).toContain("fiscalWatchReviewKey");
+  });
+
+  it("oculta localmente los avisos descartados y conserva el panel verde si ya no quedan", () => {
+    expect(source).toContain("FISCAL_WATCH_DISMISSED_KEYS_STORAGE_KEY");
+    expect(source).toContain("readFiscalWatchDismissedKeys");
+    expect(source).toContain("writeFiscalWatchDismissedKeys");
+    expect(source).toContain("rememberFiscalWatchDismissedKey");
+    expect(source).toContain("applyVisibleFiscalWatchDismissals");
+    expect(source).toContain("setFiscalWatch((current) =>");
+    expect(source).toContain(
+      "applyVisibleFiscalWatchDismissals(current, nextDismissedKeys)",
+    );
+    expect(source).toContain("fiscalWatchBody.status ?? null");
   });
 
   it("conserva a la vez el monitor técnico del calendario y el de cambios", () => {
