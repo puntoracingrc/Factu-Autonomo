@@ -4,19 +4,13 @@ import { useCallback, useEffect, useState } from "react";
 import { Copy, Gift, LogIn, Share2, Users } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Field, Input } from "@/components/ui/Field";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { APP_BRAND_NAME } from "@/lib/brand";
 import {
   fetchReferralProfile,
-  redeemReferralCodeApi,
   type ReferralProfile,
 } from "@/lib/referrals/client";
-import {
-  readPendingReferralCode,
-  storePendingReferralCode,
-} from "@/lib/referrals/storage";
 import { REFERRAL_BONUS_SCANS } from "@/lib/billing/referral-codes";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 
@@ -25,9 +19,6 @@ export function ReferralCard() {
   const { billingEnabled } = useBilling();
   const [profile, setProfile] = useState<ReferralProfile | null>(null);
   const [loading, setLoading] = useState(false);
-  const [inviteCode, setInviteCode] = useState("");
-  const [redeemBusy, setRedeemBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [referralNotice, setReferralNotice] = useState<string | null>(null);
@@ -49,11 +40,6 @@ export function ReferralCard() {
       markFactuFeatureUsed("referrals");
     }
   }, [user, billingEnabled]);
-
-  useEffect(() => {
-    const pending = readPendingReferralCode();
-    if (pending) setInviteCode(pending);
-  }, []);
 
   useEffect(() => {
     function onReferralSuccess(event: Event) {
@@ -94,32 +80,6 @@ export function ReferralCard() {
     await handleCopyLink();
   }
 
-  async function handleRedeemManual() {
-    setError(null);
-    setMessage(null);
-    const code = inviteCode.trim();
-    if (!code) {
-      setError("Introduce el código de quien te invitó.");
-      return;
-    }
-    storePendingReferralCode(code);
-    setRedeemBusy(true);
-    const result = await redeemReferralCodeApi(code);
-    setRedeemBusy(false);
-    if (!result.ok) {
-      setError(result.error);
-      return;
-    }
-    if (result.alreadyRedeemed) {
-      setMessage("Ya habías usado un código de invitación.");
-    } else if (result.bonusScans > 0) {
-      setMessage(
-        `¡Listo! Tú y quien te invitó recibís ${result.bonusScans} escaneos extra.`,
-      );
-    }
-    void loadProfile();
-  }
-
   if (!billingEnabled) {
     return (
       <Card className="mb-6 space-y-3 border-dashed border-violet-200 bg-violet-50/40">
@@ -146,24 +106,15 @@ export function ReferralCard() {
           <Gift className="mt-0.5 h-5 w-5 shrink-0 text-violet-700" />
           <div>
             <h2 className="text-lg font-bold text-slate-900">
-              ¿Te invitó alguien?
+              Crea tu cuenta para participar
             </h2>
             <p className="mt-1 text-sm text-slate-600">
-              Guarda el código y crea tu cuenta para recibir{" "}
-              {REFERRAL_BONUS_SCANS} escaneos extra junto con quien te invitó.
+              Si has llegado desde una invitación, el código ya está guardado y
+              se aplicará automáticamente al crear la cuenta. También puedes
+              escribirlo en el formulario de registro.
             </p>
           </div>
         </div>
-        <Field label="Código de invitación" hint="Opcional">
-          <Input
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-            placeholder="Ej: ABC12XY9"
-            onBlur={() => {
-              if (inviteCode.trim()) storePendingReferralCode(inviteCode);
-            }}
-          />
-        </Field>
         <ButtonLink href="/cuenta?modo=crear#inicio-sesion">
           <LogIn className="h-4 w-4" />
           Crear cuenta
@@ -180,7 +131,7 @@ export function ReferralCard() {
         </div>
         <div>
           <h2 className="text-lg font-bold text-slate-900">
-            Invita a un amigo
+            Tu enlace de afiliado
           </h2>
           <p className="mt-1 text-sm text-slate-600">
             Comparte tu enlace. Cuando se registre con tu código,{" "}
@@ -245,34 +196,10 @@ export function ReferralCard() {
         </p>
       )}
 
-      {profile?.referralsUnavailable ? null : !profile?.hasRedeemed ? (
-        <div className="space-y-3 rounded-xl border border-slate-200 bg-white/80 p-4">
-          <p className="text-sm font-semibold text-slate-800">
-            ¿Alguien te invitó?
-          </p>
-          <Field label="Su código" hint="Solo puedes usar uno">
-            <Input
-              value={inviteCode}
-              onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-              placeholder="Código de invitación"
-            />
-          </Field>
-          <Button
-            variant="secondary"
-            onClick={() => void handleRedeemManual()}
-            disabled={redeemBusy}
-          >
-            {redeemBusy ? "Aplicando…" : "Canjear código"}
-          </Button>
-        </div>
-      ) : (
+      {profile?.hasRedeemed ? (
         <p className="text-sm text-slate-500">
           Ya has usado un código de invitación en esta cuenta.
         </p>
-      )}
-
-      {message ? (
-        <p className="text-sm font-medium text-emerald-700">{message}</p>
       ) : null}
       {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
     </Card>

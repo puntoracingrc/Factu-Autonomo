@@ -27,6 +27,9 @@ describe("Partner UI contracts", () => {
     expect(adminPanelSource).toContain("/api/admin/partners");
     expect(adminPanelSource).toContain("schemaReady");
     expect(adminPanelSource).toContain(
+      '/partners/acceso?modo=crear#inicio-sesion',
+    );
+    expect(adminPanelSource).toContain(
       "La estructura del programa está preparada",
     );
   });

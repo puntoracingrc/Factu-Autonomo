@@ -77,7 +77,11 @@ function GoogleLogoIcon() {
   );
 }
 
-export function CloudAccountCard() {
+export function CloudAccountCard({
+  surface = "app",
+}: {
+  surface?: "app" | "partner";
+} = {}) {
   const {
     cloudEnabled,
     user,
@@ -365,11 +369,12 @@ export function CloudAccountCard() {
         </div>
         <div>
           <h2 className="text-lg font-bold text-slate-900">
-            Acceso a tu cuenta
+            {surface === "partner" ? "Acceso Partner" : "Acceso a tu cuenta"}
           </h2>
           <p className="mt-1 text-sm text-slate-600">
-            Inicia sesión para activar la nube entre móvil y PC, o guarda una
-            copia JSON si prefieres seguir solo en este navegador.
+            {surface === "partner"
+              ? "Crea tu acceso o inicia sesión con el mismo email que autorice el administrador."
+              : "Inicia sesión para activar la nube entre móvil y PC, o guarda una copia JSON si prefieres seguir solo en este navegador."}
           </p>
         </div>
       </div>
@@ -740,7 +745,7 @@ export function CloudAccountCard() {
               </div>
               </Field>
             ) : null}
-            {billingEnabled && authMode === "signup" ? (
+            {surface !== "partner" && billingEnabled && authMode === "signup" ? (
               <Field
                 label="Código de invitación"
                 hint={`Opcional — ${REFERRAL_BONUS_SCANS} escaneos extra para ti y quien te invita`}
