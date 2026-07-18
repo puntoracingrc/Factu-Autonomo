@@ -290,19 +290,6 @@ type ReviewPersistenceState =
 
 type ReviewSaveDestination = "ACCOUNT" | "DRIVE" | "BOTH";
 
-function saveStageLabel(
-  stage: "CORE" | "ENRICHMENT" | "RELATIONS" | "RECONCILIATION" | "COMMIT",
-): string {
-  const labels = {
-    CORE: "No se han podido validar los datos básicos del documento",
-    ENRICHMENT: "No se ha podido completar el detalle opcional",
-    RELATIONS: "No se han podido revisar las relaciones documentales",
-    RECONCILIATION: "No se ha podido conciliar el expediente",
-    COMMIT: "No se ha podido confirmar el guardado",
-  } as const;
-  return labels[stage];
-}
-
 type FiscalNotificationArchiveCandidateStatus =
   "READY" | "ARCHIVING" | "ARCHIVED" | "ERROR";
 
@@ -444,6 +431,7 @@ function FiscalNotificationReviewWorkspace({
   const [partyFactsReview, setPartyFactsReview] =
     useState<PartyFactsReviewViewModelV1 | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [pendingReview, setPendingReview] =
     useState<PendingStructuredReview | null>(null);
   const [persistenceState, setPersistenceState] =
@@ -559,6 +547,7 @@ function FiscalNotificationReviewWorkspace({
 
   function clearReviewDisplay(): void {
     setSaveDestinationOpen(false);
+    setSaveError(null);
     setResult(null);
     setVerticalSliceReview(null);
     setTextAcquisition(null);
@@ -612,6 +601,7 @@ function FiscalNotificationReviewWorkspace({
     if (!item) return;
     const review = reviewsRef.current.get(item.id);
     if (!review) return;
+    setSaveError(null);
     activeDocumentIdRef.current = documentId;
     setActiveDocumentId(documentId);
     const nextAnalysis = review.analysis;
@@ -1024,6 +1014,7 @@ function FiscalNotificationReviewWorkspace({
     saveOperationRef.current = operation;
     setSaveDestinationOpen(false);
     setError(null);
+    setSaveError(null);
     updateStoredReview(activeId, "saving", false);
     setPersistenceState("saving");
     try {
@@ -1195,9 +1186,7 @@ function FiscalNotificationReviewWorkspace({
       updateStoredReview(activeId, "blocked", false);
       setPersistenceState("blocked");
     }
-    setError(
-      `${saveStageLabel(write.stage)}. Código: ${write.safeCode}. Ningún dato previo se ha sustituido.`,
-    );
+    setSaveError(structuredSaveFailureMessage(write));
   }
 
   function setDriveSaveFailure(
@@ -1207,7 +1196,7 @@ function FiscalNotificationReviewWorkspace({
   ): void {
     updateStoredReview(activeId, "drive_failed", accountSaved);
     setPersistenceState("drive_failed");
-    setError(message);
+    setSaveError(message);
   }
 
   function advanceAfterSuccessfulSave(
@@ -1755,6 +1744,7 @@ function FiscalNotificationReviewWorkspace({
           state={persistenceState}
           canSave={pendingReview !== null}
           hasNextReview={hasAnotherReview}
+          errorMessage={saveError}
           onSave={() => setSaveDestinationOpen(true)}
         />
       ) : null}
@@ -1893,17 +1883,18 @@ function ReviewPersistencePanel({
   state,
   canSave,
   hasNextReview,
+  errorMessage,
   onSave,
 }: {
   state: ReviewPersistenceState;
   canSave: boolean;
   hasNextReview: boolean;
+  errorMessage: string | null;
   onSave: () => void;
 }) {
   const copy: Readonly<Record<ReviewPersistenceState, string>> = {
     idle: "Los datos estructurados todavía no se han guardado.",
-    pending:
-      "Revisa los datos y guarda este documento cuando estén correctos.",
+    pending: "Revisa los datos y guarda este documento cuando estén correctos.",
     saving: "Guardando el documento en el destino elegido…",
     saved:
       "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias permitidas, fechas, estados y relaciones estructurados.",
@@ -1962,8 +1953,41 @@ function ReviewPersistencePanel({
           </Button>
         ) : null}
       </div>
+      {errorMessage ? (
+        <div
+          className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium leading-6 text-red-800"
+          role="alert"
+        >
+          {errorMessage}
+        </div>
+      ) : null}
     </Card>
   );
+}
+
+function structuredSaveFailureMessage(
+  write: ReturnType<typeof runSaveFiscalNotificationStructuredReviewCommandV1>,
+): string {
+  if (write.status === "applied" || write.status === "applied_with_warnings") {
+    return "";
+  }
+  if (write.safeCode === "CORE_INVALID_INPUT") {
+    return "No se ha podido preparar esta ficha para guardarla. El documento sigue abierto para que puedas reintentar.";
+  }
+  if (write.safeCode === "CORE_WORKSPACE_INTEGRITY_FAILED") {
+    return "No se ha guardado porque el expediente de esta cuenta necesita revisión. El documento sigue abierto.";
+  }
+  if (
+    write.safeCode === "DURABILITY_CONFLICT" &&
+    "reason" in write &&
+    write.reason === "storage_state_unknown"
+  ) {
+    return "No se puede confirmar si la ficha se guardó. Comprueba el listado antes de reintentar.";
+  }
+  if (write.stage === "COMMIT") {
+    return "No se ha podido confirmar el guardado. El documento sigue abierto y no se ha sustituido ningún dato.";
+  }
+  return "No se ha podido guardar la ficha. El documento sigue abierto y no se ha sustituido ningún dato.";
 }
 
 function SaveDestinationModal({
