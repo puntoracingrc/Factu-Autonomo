@@ -237,12 +237,10 @@ function issueTypeLabel(kind: FiscalWatchAdminIssue["kind"]): string {
 
 function IssueCard({
   issue,
-  canReview,
   reviewing,
   onReview,
 }: {
   issue: DisplayIssue;
-  canReview: boolean;
   reviewing: boolean;
   onReview?: (issue: DisplayIssue) => void;
 }) {
@@ -300,7 +298,7 @@ function IssueCard({
             Examinar aviso
             <ExternalLink aria-hidden="true" className="h-4 w-4" />
           </a>
-          {canReview && onReview && (
+          {onReview && (
             <button
               type="button"
               disabled={reviewing}
@@ -309,7 +307,7 @@ function IssueCard({
               className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-2 text-sm font-black text-emerald-900 hover:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60 dark:border-emerald-700 dark:bg-emerald-950/45 dark:text-emerald-100 dark:hover:bg-emerald-900/60 sm:w-auto"
             >
               <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
-              {reviewing ? "Guardando..." : "Marcar revisado"}
+              {reviewing ? "Guardando..." : "Descartar aviso"}
             </button>
           )}
         </div>
@@ -477,7 +475,6 @@ export function FiscalWatchPanel({
                 <IssueCard
                   key={`${issue.kind}-${issue.number}`}
                   issue={issue}
-                  canReview={reviewStoreAvailable}
                   reviewing={
                     reviewingIssueKey === `${issue.kind}:${issue.number}`
                   }
@@ -489,6 +486,12 @@ export function FiscalWatchPanel({
                 />
               ))}
             </ul>
+            {!reviewStoreAvailable && onReviewIssue && (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-white/70 px-3 py-2 text-sm font-bold text-amber-900 dark:border-amber-900/70 dark:bg-amber-950/45 dark:text-amber-100">
+                Si el descarte no se puede guardar ahora, el aviso seguirá
+                visible para no perder la revisión pendiente.
+              </p>
+            )}
           </div>
         ) : (
           <div className="mt-6 flex min-w-0 items-start gap-3 rounded-2xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-950/40">

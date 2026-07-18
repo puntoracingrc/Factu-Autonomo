@@ -3355,7 +3355,7 @@ function OperationsPanel({
   const reviewFiscalWatchIssue = useCallback(
     async (issue: { number: number; kind: "change" | "baseline" }) => {
       const confirmed = window.confirm(
-        "Confirma que ya has examinado este aviso. Se retirará del panel, pero la incidencia y la fuente oficial seguirán conservadas.",
+        "Confirma que quieres descartar este aviso del panel. La incidencia y la fuente oficial seguirán conservadas.",
       );
       if (!confirmed) return;
 

@@ -42,15 +42,18 @@ describe("FiscalWatchPanel UI contract", () => {
     expect(source).toContain("www.boe.es");
   });
 
-  it("permite retirar un aviso revisado sin afirmar que borra la evidencia", () => {
-    expect(source).toContain("Marcar revisado");
+  it("permite descartar un aviso revisado sin afirmar que borra la evidencia", () => {
+    expect(source).toContain("Descartar aviso");
     expect(source).toContain("Guardando...");
     expect(source).toContain("reviewStoreAvailable");
     expect(source).toContain("reviewingIssueKey");
     expect(source).toContain(
       "Retira el aviso del panel sin borrar la evidencia oficial",
     );
+    expect(source).toContain("el aviso seguirá");
+    expect(source).toContain("visible para no perder la revisión pendiente");
     expect(source).not.toContain("Eliminar incidencia");
+    expect(source).not.toContain("Marcar revisado");
   });
 
   it("explica el límite humano y que un día sin publicaciones es normal", () => {
