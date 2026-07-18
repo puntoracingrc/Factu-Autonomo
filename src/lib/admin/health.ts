@@ -200,12 +200,12 @@ const ABUSE_NAMESPACE_THRESHOLDS: Record<string, AbuseThresholds> = {
     actionMaxRequests: 40,
   },
   data_cloud_pull: {
-    watchRequests: 40,
-    actionRequests: 120,
+    watchRequests: 100,
+    actionRequests: 300,
     watchBuckets: 12,
     actionBuckets: 30,
-    watchMaxRequests: 40,
-    actionMaxRequests: 120,
+    watchMaxRequests: 100,
+    actionMaxRequests: 180,
   },
   data_cloud_pull_auto: {
     watchRequests: 1_000,
