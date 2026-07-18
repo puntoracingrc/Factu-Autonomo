@@ -160,6 +160,68 @@ describe("admin health helpers", () => {
     expect(abuse.namespaces[0].label).toBe("Email: recordatorios diarios");
   });
 
+  it("no presenta una sesión normal de sincronización como extracción", () => {
+    const abuse = buildAdminAbuseSummary({
+      totalRequests: 42,
+      totalBuckets: 2,
+      namespaces: [
+        {
+          namespace: "data_access_event",
+          buckets: 1,
+          requests: 21,
+          maxRequests: 21,
+          latestAt: "2026-07-18T09:56:14.234Z",
+        },
+        {
+          namespace: "data_cloud_pull",
+          buckets: 1,
+          requests: 21,
+          maxRequests: 21,
+          latestAt: "2026-07-18T09:56:14.378Z",
+        },
+      ],
+    });
+
+    expect(abuse.level).toBe("ok");
+    expect(abuse.label).toBe("Sin señales");
+    expect(abuse.totalRequests).toBe(21);
+    expect(abuse.totalBuckets).toBe(1);
+    expect(abuse.namespaces.map((item) => item.namespace)).toEqual([
+      "data_cloud_pull",
+    ]);
+  });
+
+  it("calibra el sondeo automático de 45 segundos sin ocultar picos anómalos", () => {
+    const normal = buildAdminAbuseSummary({
+      namespaces: [
+        {
+          namespace: "data_cloud_pull_auto",
+          buckets: 8,
+          requests: 640,
+          maxRequests: 80,
+          latestAt: "2026-07-18T16:00:00.000Z",
+        },
+      ],
+    });
+    const anomalous = buildAdminAbuseSummary({
+      namespaces: [
+        {
+          namespace: "data_cloud_pull_auto",
+          buckets: 8,
+          requests: 640,
+          maxRequests: 120,
+          latestAt: "2026-07-18T16:00:00.000Z",
+        },
+      ],
+    });
+
+    expect(normal.level).toBe("ok");
+    expect(normal.namespaces[0].label).toBe(
+      "Datos: sincronización automática",
+    );
+    expect(anomalous.level).toBe("watch");
+  });
+
   it("detecta RPC no desplegada", () => {
     expect(
       isMissingAdminHealthRpc({

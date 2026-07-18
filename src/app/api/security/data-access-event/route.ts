@@ -32,7 +32,10 @@ function namespaceFor(body: {
   automatic: boolean;
 }): string[] {
   const suffix =
-    body.type === "backup_drive" && body.automatic ? "_auto" : "";
+    (body.type === "backup_drive" || body.type === "cloud_pull") &&
+    body.automatic
+      ? "_auto"
+      : "";
   const namespaces = [`data_${body.type}${suffix}`];
   if (body.itemCount >= 5_000 || body.byteLength >= 10 * 1024 * 1024) {
     namespaces.push(`data_${body.type}${suffix}_large`);

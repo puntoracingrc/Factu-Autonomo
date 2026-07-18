@@ -143,13 +143,25 @@ describe("admin operations status", () => {
     expect(status.recommendations.join(" ")).toContain("alertas automaticas");
   });
 
-  it("marca rojo si el control programado lleva mas de una hora sin ejecutarse", () => {
+  it("vigila sin declarar una averia si GitHub retrasa el cron algo mas de una hora", () => {
     const input = healthyInput();
     input.githubRuns.workflow_runs[2].updated_at = "2026-07-10T15:00:00.000Z";
 
     const status = buildAdminOperationsStatus(input);
 
+    expect(status.github.schedulerLevel).toBe("watch");
+    expect(status.level).toBe("watch");
+    expect(status.recommendations.join(" ")).toContain("retrasado el cron");
+  });
+
+  it("marca rojo si el control programado lleva mas de cuatro horas sin ejecutarse", () => {
+    const input = healthyInput();
+    input.githubRuns.workflow_runs[2].updated_at = "2026-07-10T12:00:00.000Z";
+
+    const status = buildAdminOperationsStatus(input);
+
     expect(status.github.schedulerLevel).toBe("action");
     expect(status.level).toBe("action");
+    expect(status.recommendations.join(" ")).toContain("cuatro horas");
   });
 });

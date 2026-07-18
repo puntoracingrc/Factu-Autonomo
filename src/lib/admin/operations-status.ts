@@ -128,7 +128,8 @@ function runLevel(run: AdminOperationsRun | null): AdminHealthLevel {
   return run.conclusion === "success" ? "ok" : "action";
 }
 
-const SCHEDULER_STALE_MS = 60 * 60_000;
+const SCHEDULER_WATCH_STALE_MS = 60 * 60_000;
+const SCHEDULER_ACTION_STALE_MS = 4 * 60 * 60_000;
 
 function schedulerRunLevel(
   run: AdminOperationsRun | null,
@@ -138,7 +139,8 @@ function schedulerRunLevel(
   if (baseLevel !== "ok") return baseLevel;
   if (!run?.updatedAt) return "watch";
   const ageMs = now.getTime() - new Date(run.updatedAt).getTime();
-  return ageMs > SCHEDULER_STALE_MS ? "action" : "ok";
+  if (ageMs > SCHEDULER_ACTION_STALE_MS) return "action";
+  return ageMs > SCHEDULER_WATCH_STALE_MS ? "watch" : "ok";
 }
 
 function managedRuleMode(config: Record<string, unknown>, id: string): string {
@@ -291,11 +293,11 @@ export function buildAdminOperationsStatus(
   }
   if (schedulerLevel === "action") {
     recommendations.push(
-      "Las alertas automaticas han fallado o llevan mas de una hora sin ejecutarse.",
+      "Las alertas automaticas han fallado o llevan mas de cuatro horas sin ejecutarse.",
     );
   } else if (schedulerLevel === "watch") {
     recommendations.push(
-      "La ejecucion de alertas automaticas aun no se ha podido confirmar.",
+      "La ultima alerta automatica lleva mas de una hora sin renovarse; GitHub puede haber retrasado el cron.",
     );
   }
   if (alignedWithMain === false || domainPointsToLatest === false) {

@@ -93,7 +93,12 @@ describe("GET /api/admin/operations-status", () => {
           ],
         });
       }
-      if (url.includes("/actions/runs")) {
+      if (url.includes("/actions/workflows?")) {
+        return jsonResponse({
+          workflows: [{ id: 310830691, name: "CodeQL" }],
+        });
+      }
+      if (url.includes("/actions/workflows/310830691/runs")) {
         return jsonResponse({
           workflow_runs: [
             {
@@ -106,6 +111,9 @@ describe("GET /api/admin/operations-status", () => {
             },
           ],
         });
+      }
+      if (url.includes("/actions/runs")) {
+        return jsonResponse({ workflow_runs: [] });
       }
       if (url.includes("/v4/aliases/")) {
         return jsonResponse({ deploymentId: "dpl_current" });
@@ -146,6 +154,7 @@ describe("GET /api/admin/operations-status", () => {
 
     expect(response.status).toBe(200);
     expect(body.operations.level).toBe("ok");
+    expect(body.operations.github.codeql.conclusion).toBe("success");
     expect(body.operations.github.scheduler.conclusion).toBe("success");
     expect(body.operations.deployment.alignedWithMain).toBe(true);
     expect(body.operations.firewall.events24h).toBe(2);
