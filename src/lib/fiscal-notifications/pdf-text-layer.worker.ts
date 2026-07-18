@@ -29,6 +29,7 @@ workerScope.onmessage = (event: MessageEvent<unknown>) => {
 };
 
 async function processMessage(value: unknown): Promise<void> {
+  let stage: "PARSE" | "ANALYZE" = "PARSE";
   let responseIdentity: Readonly<{
     fileId: string;
     documentId: string;
@@ -68,6 +69,7 @@ async function processMessage(value: unknown): Promise<void> {
       documentId: request.documentId,
       bytes: new Uint8Array(request.bytes),
     });
+    stage = "ANALYZE";
     const projected = await analyzeFiscalNotificationDocumentInput(documentInput);
     const analysis = projectFiscalNotificationPdfWorkerAnalysis({
       textLayerStatus: projected.hasText
@@ -97,15 +99,20 @@ async function processMessage(value: unknown): Promise<void> {
       fileId: responseIdentity?.fileId ?? null,
       documentId: responseIdentity?.documentId ?? null,
       sourceSha256: responseIdentity?.sourceSha256 ?? null,
-      code: safeErrorCode(error),
+      code: safeErrorCode(error, stage),
     });
   }
 }
 
-function safeErrorCode(error: unknown): FiscalNotificationPdfErrorCode {
+function safeErrorCode(
+  error: unknown,
+  stage: "PARSE" | "ANALYZE",
+): FiscalNotificationPdfErrorCode {
   return error instanceof FiscalNotificationPdfError
     ? error.code
-    : "INVALID_PDF";
+    : stage === "ANALYZE"
+      ? "INVALID_WORKER_RESPONSE"
+      : "INVALID_PDF";
 }
 
 function snapshotRecord(value: unknown): Record<string, unknown> | null {

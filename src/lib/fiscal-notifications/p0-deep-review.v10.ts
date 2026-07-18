@@ -123,6 +123,14 @@ export function projectAeatP0DeepReviewV10(outcome: AeatP0DeepExtractorOutcomeV1
     confidence: 1,
     reviewStatus: "REVIEW_REQUIRED",
   });
+  const reviewPageNumbers = Object.freeze(
+    Array.from(
+      new Set([
+        ...outcome.matchedPageNumbers,
+        ...outcome.fields.flatMap((field) => field.sourcePageNumbers),
+      ]),
+    ).sort((left, right) => left - right),
+  );
   return parseFiscalNotificationVerticalSliceReviewV1({
     schemaVersion: 1,
     reviewVersion: "1.0.0",
@@ -135,8 +143,8 @@ export function projectAeatP0DeepReviewV10(outcome: AeatP0DeepExtractorOutcomeV1
       subtitle: outcome.missingRequiredFieldIds.length === 0
         ? "Datos estructurados listos para revisar"
         : "Revisa los datos detectados y completa los que falten",
-      pageFrom: outcome.matchedPageNumbers[0]!,
-      pageTo: outcome.matchedPageNumbers.at(-1)!,
+      pageFrom: reviewPageNumbers[0]!,
+      pageTo: reviewPageNumbers.at(-1)!,
       confidence: 1,
       fields: Object.freeze([recognition, ...outcome.fields.map(projectField)]),
       warnings: Object.freeze([
