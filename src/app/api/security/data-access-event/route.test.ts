@@ -72,6 +72,21 @@ describe("POST /api/security/data-access-event", () => {
       .toBe(true);
   });
 
+  it("separa la sincronización automática de una descarga manual", async () => {
+    const response = await POST(
+      request({
+        type: "cloud_pull",
+        itemCount: 1,
+        automatic: true,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      mocks.checkRateLimit.mock.calls.map((call) => call[1].namespace),
+    ).toEqual(["data_access_event", "data_cloud_pull_auto"]);
+  });
+
   it("rechaza tipos y tamaños manipulados", async () => {
     const response = await POST(
       request({ type: "database_dump", itemCount: -1, byteLength: 0 }),

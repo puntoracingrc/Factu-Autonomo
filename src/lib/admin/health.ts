@@ -204,8 +204,16 @@ const ABUSE_NAMESPACE_THRESHOLDS: Record<string, AbuseThresholds> = {
     actionRequests: 120,
     watchBuckets: 12,
     actionBuckets: 30,
-    watchMaxRequests: 20,
-    actionMaxRequests: 60,
+    watchMaxRequests: 40,
+    actionMaxRequests: 120,
+  },
+  data_cloud_pull_auto: {
+    watchRequests: 1_000,
+    actionRequests: 3_000,
+    watchBuckets: 18,
+    actionBuckets: 48,
+    watchMaxRequests: 120,
+    actionMaxRequests: 170,
   },
   data_cloud_pull_large: {
     watchRequests: 6,
@@ -214,6 +222,14 @@ const ABUSE_NAMESPACE_THRESHOLDS: Record<string, AbuseThresholds> = {
     actionBuckets: 15,
     watchMaxRequests: 4,
     actionMaxRequests: 12,
+  },
+  data_cloud_pull_auto_large: {
+    watchRequests: 20,
+    actionRequests: 60,
+    watchBuckets: 8,
+    actionBuckets: 24,
+    watchMaxRequests: 12,
+    actionMaxRequests: 40,
   },
 };
 
@@ -247,7 +263,9 @@ const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
   data_backup_local: "Datos: copia descargada",
   data_backup_local_large: "Datos: copia descargada grande",
   data_cloud_pull: "Datos: descarga desde la nube",
+  data_cloud_pull_auto: "Datos: sincronización automática",
   data_cloud_pull_large: "Datos: descarga grande desde la nube",
+  data_cloud_pull_auto_large: "Datos: sincronización automática grande",
   email: "Email",
   email_payment_reminder: "Email: recordatorios",
   email_payment_reminder_daily: "Email: recordatorios diarios",
@@ -409,23 +427,34 @@ export function buildAdminAbuseSummary(
   rawValue: unknown,
 ): AdminHealthAbuseSummary {
   const raw = asRecord(rawValue);
-  const namespaces = asArray(raw.namespaces)
+  const rawNamespaces = asArray(raw.namespaces);
+  const reportableNamespaces = rawNamespaces
     .map(normalizeAbuseNamespace)
+    // Este namespace es el límite agregado de las mismas operaciones que ya
+    // aparecen desglosadas como data_backup_* y data_cloud_pull*. Mostrarlo
+    // duplicaría cada acceso y exageraría el total del panel.
+    .filter((item) => item.namespace !== "data_access_event");
+  const namespaces = reportableNamespaces
     .sort((a, b) => levelRank(b.level) - levelRank(a.level) || b.requests - a.requests)
     .slice(0, 8);
   const totalBuckets =
-    integerValue(raw.totalBuckets) ||
-    namespaces.reduce((total, item) => total + item.buckets, 0);
+    reportableNamespaces.length > 0
+      ? reportableNamespaces.reduce((total, item) => total + item.buckets, 0)
+      : rawNamespaces.length === 0
+        ? integerValue(raw.totalBuckets)
+        : 0;
   const totalRequests =
-    integerValue(raw.totalRequests) ||
-    namespaces.reduce((total, item) => total + item.requests, 0);
+    reportableNamespaces.length > 0
+      ? reportableNamespaces.reduce((total, item) => total + item.requests, 0)
+      : rawNamespaces.length === 0
+        ? integerValue(raw.totalRequests)
+        : 0;
   const latestAt =
-    stringValue(raw.latestAt) ??
-    namespaces
+    reportableNamespaces
       .map((item) => item.latestAt)
       .filter(Boolean)
       .sort((a, b) => new Date(String(b)).getTime() - new Date(String(a)).getTime())[0] ??
-    null;
+    (rawNamespaces.length === 0 ? stringValue(raw.latestAt) : null);
   const level = maxLevel(namespaces.map((item) => item.level));
   const dataAccessLevel = maxLevel(
     namespaces

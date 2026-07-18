@@ -448,7 +448,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   );
 
   const pullFromCloud = useCallback(
-    async (options?: { allowLocalDataUpload?: boolean }): Promise<boolean> => {
+    async (options?: {
+      allowLocalDataUpload?: boolean;
+      automatic?: boolean;
+    }): Promise<boolean> => {
       if (demoMode) return false;
       if (!user) return false;
       if (requiresEmailConfirmation) {
@@ -500,6 +503,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             dispatchDataAccessEvent({
               type: "cloud_pull",
               itemCount: remoteChanges.length,
+              automatic: options?.automatic === true,
             });
           }
 
@@ -1017,7 +1021,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     if (handoffPausesCloud || localDataHandoffStatus === "syncing") return;
     if (pulledForUser.current === user.id) return;
     pulledForUser.current = user.id;
-    void pullFromCloud();
+    void pullFromCloud({ automatic: true });
   }, [
     demoMode,
     handoffPausesCloud,
@@ -1037,7 +1041,9 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     function handleVisible() {
       if (document.visibilityState === "visible" && isBrowserOnline()) {
         void flushPendingUpload(true).then(() => {
-          if (!hasPendingSyncChanges(data)) void pullFromCloud();
+          if (!hasPendingSyncChanges(data)) {
+            void pullFromCloud({ automatic: true });
+          }
         });
       }
     }
@@ -1061,7 +1067,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     const pullTimer = setInterval(() => {
       if (document.visibilityState !== "visible" || !isBrowserOnline()) return;
       if (syncing.current) return;
-      void pullFromCloud();
+      void pullFromCloud({ automatic: true });
     }, PULL_INTERVAL_MS);
 
     return () => clearInterval(pullTimer);

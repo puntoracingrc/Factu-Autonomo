@@ -76,6 +76,25 @@ function workflowRunsFrom(value: unknown): unknown[] {
   return Array.isArray(runs) ? runs : [];
 }
 
+function workflowIdByName(value: unknown, expectedName: string): number | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const workflows = (value as { workflows?: unknown }).workflows;
+  if (!Array.isArray(workflows)) return null;
+  const expected = expectedName.toLowerCase();
+  for (const workflow of workflows) {
+    if (!workflow || typeof workflow !== "object" || Array.isArray(workflow)) {
+      continue;
+    }
+    const row = workflow as { id?: unknown; name?: unknown };
+    if (typeof row.name !== "string" || row.name.toLowerCase() !== expected) {
+      continue;
+    }
+    const id = Number(row.id);
+    return Number.isSafeInteger(id) && id > 0 ? id : null;
+  }
+  return null;
+}
+
 async function fetchOperationsSources(now: Date) {
   const config = vercelConfig();
   const githubHeaders = {
@@ -104,6 +123,10 @@ async function fetchOperationsSources(now: Date) {
   );
   githubSchedulerRunsUrl.searchParams.set("branch", "main");
   githubSchedulerRunsUrl.searchParams.set("per_page", "1");
+  const githubWorkflowsUrl = new URL(
+    `https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows`,
+  );
+  githubWorkflowsUrl.searchParams.set("per_page", "100");
 
   const vercelReady = Boolean(
     config.token && config.projectId && (config.teamId || config.teamSlug),
@@ -142,6 +165,7 @@ async function fetchOperationsSources(now: Date) {
     githubRecentRuns,
     githubCiRuns,
     githubSchedulerRuns,
+    githubWorkflows,
     vercelAlias,
     vercelDeployments,
     firewall,
@@ -151,15 +175,29 @@ async function fetchOperationsSources(now: Date) {
       readExternalJson(githubRunsUrl, githubHeaders),
       readExternalJson(githubCiRunsUrl, githubHeaders),
       readExternalJson(githubSchedulerRunsUrl, githubHeaders),
+      readExternalJson(githubWorkflowsUrl, githubHeaders),
       vercelReady ? readExternalJson(aliasUrl, vercelHeaders) : null,
       vercelReady ? readExternalJson(deploymentsUrl, vercelHeaders) : null,
       vercelReady ? readExternalJson(firewallConfigUrl, vercelHeaders) : null,
       vercelReady ? readExternalJson(firewallEventsUrl, vercelHeaders) : null,
     ]);
 
+  const codeqlWorkflowId = workflowIdByName(githubWorkflows, "CodeQL");
+  const githubCodeqlRunsUrl = codeqlWorkflowId
+    ? new URL(
+        `https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/workflows/${codeqlWorkflowId}/runs`,
+      )
+    : null;
+  githubCodeqlRunsUrl?.searchParams.set("branch", "main");
+  githubCodeqlRunsUrl?.searchParams.set("per_page", "1");
+  const githubCodeqlRuns = githubCodeqlRunsUrl
+    ? await readExternalJson(githubCodeqlRunsUrl, githubHeaders)
+    : null;
+
   const githubRuns = {
     workflow_runs: [
       ...workflowRunsFrom(githubCiRuns),
+      ...workflowRunsFrom(githubCodeqlRuns),
       ...workflowRunsFrom(githubSchedulerRuns),
       ...workflowRunsFrom(githubRecentRuns),
     ],
@@ -171,7 +209,8 @@ async function fetchOperationsSources(now: Date) {
         githubCommit ||
           githubRecentRuns ||
           githubCiRuns ||
-          githubSchedulerRuns,
+          githubSchedulerRuns ||
+          githubCodeqlRuns,
       ),
       vercel: vercelReady,
     },
