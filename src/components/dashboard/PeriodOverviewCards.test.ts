@@ -24,6 +24,15 @@ describe("PeriodOverviewCards fiscal semantics", () => {
     );
   });
 
+  it("presenta ventas facturadas y no filtra el resumen fiscal por cobro", () => {
+    expect(cardsSource).toContain("Ingresos facturados");
+    expect(cardsSource).toContain("invoicedIncome");
+    expect(panelSource).toContain("taxes.salesBase + taxes.salesIva");
+    expect(panelSource).toContain("invoicedIncome={periodInvoiced}");
+    expect(panelSource).not.toContain("isCollectedDocument");
+    expect(panelSource).not.toContain("collectedSalesTotal");
+  });
+
   it("rotula un neto negativo como saldo a favor sin perder magnitud", () => {
     expect(cardsSource).toContain("expenseBalanceIsCredit");
     expect(cardsSource).toContain('"Saldo a favor" : "Gasto neto"');

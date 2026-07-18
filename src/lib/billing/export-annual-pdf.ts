@@ -2,7 +2,6 @@ import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatMoney } from "../calculations";
 import { expenseFiscalAmounts, resolveExpenseVat } from "../expenses";
-import { isCollectedDocument } from "../income";
 import { filterExpensesByYear, isDateInYear } from "../periods";
 import { triggerPdfBlobDownload } from "../pdf";
 import {
@@ -12,7 +11,6 @@ import {
 } from "../taxes";
 import type { BusinessProfile, Document, Expense } from "../types";
 import {
-  collectedSalesTotal,
   documentAmounts,
   isVatExempt,
   totalExpensesAmount,
@@ -82,11 +80,7 @@ export function buildAnnualSummaryPdf(
     isDocumentDateInPeriod: (date) => isDateInYear(date, year),
   });
   assertTaxSummaryExportable(taxes);
-  const periodIncome = collectedSalesTotal(
-    yearDocs,
-    vatExempt,
-    isCollectedDocument,
-  );
+  const periodInvoiced = taxes.salesBase + taxes.salesIva;
   const periodSpent = totalExpensesAmount(yearExpenses, vatExempt);
   const generated = new Date().toISOString().split("T")[0];
 
@@ -115,7 +109,7 @@ export function buildAnnualSummaryPdf(
 
   const summaryRows = vatExempt && taxes.salesIva === 0
     ? [
-        ["Ingresos cobrados", formatMoney(periodIncome)],
+        ["Ingresos facturados", formatMoney(periodInvoiced)],
         ["Gasto neto (abonos descontados)", formatMoney(periodSpent)],
         [
           "Coste económico neto de gastos y abonos",
@@ -135,7 +129,7 @@ export function buildAnnualSummaryPdf(
         ],
       ]
     : [
-        ["Cobrado en el año", formatMoney(periodIncome)],
+        ["Facturado en el año", formatMoney(periodInvoiced)],
         ["Gasto neto del año (abonos descontados)", formatMoney(periodSpent)],
         ["Base ventas", formatMoney(taxes.salesBase)],
         ["IVA repercutido", formatMoney(taxes.salesIva)],

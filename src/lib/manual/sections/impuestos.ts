@@ -11,6 +11,7 @@ export const impuestosSection: ManualSection = {
       title: "1. Ver el resumen fiscal",
       paragraphs: [
         "En **Impuestos** eliges **Trimestre**, **Meses**, **Año** o **Todo** y luego seleccionas el periodo concreto. La vista **Meses** admite de uno a tres meses consecutivos del mismo año.",
+        "**Ingresos facturados** suma las facturas y recibos fiscales emitidos del periodo aunque sigan pendientes de cobro. El estado de cobro se usa para tesorería y para mostrar **Por cobrar**, pero no excluye una venta ya facturada del resumen fiscal general.",
         "Verás las bases de ventas y gastos deducibles, el coste económico de los gastos, la posición de IVA, el beneficio económico, la base estimada para IRPF, la reserva orientativa y el resultado económico tras reservarla.",
         "La posición de IVA se muestra aparte: no se descuenta del beneficio ni del resultado económico porque sus bases ya están calculadas sin IVA.",
         "Los gastos marcados como **No deducibles** siguen en el gasto registrado, el balance y la rentabilidad y sí reducen el beneficio económico. Aportan cero a la base e IVA deducibles, por lo que no reducen la base ni la reserva estimada de IRPF. El resumen muestra un aviso con ese coste.",

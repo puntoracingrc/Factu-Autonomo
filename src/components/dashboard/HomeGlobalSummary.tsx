@@ -14,15 +14,20 @@ interface HomeGlobalSummaryProps {
   data: AppData;
   /** Dentro del panel fiscal (sin section externa). */
   embedded?: boolean;
+  /** Total fiscal canónico ya calculado; no depende del estado de cobro. */
+  invoicedIncome?: number;
 }
 
-export function HomeGlobalSummary({ data, embedded = false }: HomeGlobalSummaryProps) {
+export function HomeGlobalSummary({
+  data,
+  embedded = false,
+  invoicedIncome,
+}: HomeGlobalSummaryProps) {
   const vatExempt = isVatExempt(data.profile);
-  const income = collectedSalesTotal(
-    data.documents,
-    vatExempt,
-    isCollectedDocument,
-  );
+  const showsInvoicedIncome = Number.isFinite(invoicedIncome);
+  const income = showsInvoicedIncome
+    ? (invoicedIncome as number)
+    : collectedSalesTotal(data.documents, vatExempt, isCollectedDocument);
   const pending = pendingCollection(data.documents);
   const expenses = totalExpensesAmount(data.expenses, vatExempt);
   const expenseBalanceIsCredit = expenses < 0;
@@ -31,7 +36,9 @@ export function HomeGlobalSummary({ data, embedded = false }: HomeGlobalSummaryP
   const grid = (
     <div className="grid gap-3 sm:grid-cols-2">
       <Card className="border-slate-100 bg-slate-50/60">
-        <p className="text-xs font-medium text-slate-500">Ingresos cobrados</p>
+        <p className="text-xs font-medium text-slate-500">
+          {showsInvoicedIncome ? "Ingresos facturados" : "Ingresos cobrados"}
+        </p>
         <p className="mt-0.5 text-xl font-bold text-slate-800">
           {formatMoney(income)}
         </p>

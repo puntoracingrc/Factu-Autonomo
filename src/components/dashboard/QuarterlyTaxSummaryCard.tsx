@@ -12,7 +12,6 @@ import {
   buildQuarterlyExportCsv,
   downloadQuarterlyCsv,
 } from "@/lib/billing/export-quarterly";
-import { isCollectedDocument } from "@/lib/income";
 import {
   ALL_QUARTERS,
   availableSummaryYears,
@@ -24,11 +23,9 @@ import {
 } from "@/lib/periods";
 import {
   calculateTaxSummary,
-  selectTaxableFiscalDocumentsForPeriod,
 } from "@/lib/taxes";
 import type { AppData } from "@/lib/types";
 import {
-  collectedSalesTotal,
   isVatExempt,
   totalExpensesAmount,
 } from "@/lib/vat-regime";
@@ -56,14 +53,6 @@ export function QuarterlyTaxSummaryCard({ data }: QuarterlyTaxSummaryCardProps) 
   );
   const isDocumentDateInPeriod = (date: string) =>
     isDateInQuarter(date, year, quarter);
-  const quarterDocuments = selectTaxableFiscalDocumentsForPeriod(
-    data.documents,
-    {
-      profile: data.profile,
-      isDocumentDateInPeriod,
-    },
-  ).documents;
-
   const taxes = calculateTaxSummary(data.documents, quarterExpenses, {
     irpfPercent: data.profile.irpfPercent,
     vatExempt,
@@ -75,11 +64,7 @@ export function QuarterlyTaxSummaryCard({ data }: QuarterlyTaxSummaryCardProps) 
     taxes.unsupportedRectificationDocuments > 0 ||
     taxes.unsupportedMixedVatExpenses > 0;
 
-  const quarterIncome = collectedSalesTotal(
-    quarterDocuments,
-    vatExempt,
-    isCollectedDocument,
-  );
+  const quarterInvoiced = taxes.salesBase + taxes.salesIva;
   const quarterSpent = totalExpensesAmount(quarterExpenses, vatExempt);
   const quarterExpenseBalanceIsCredit = quarterSpent < 0;
 
@@ -172,8 +157,10 @@ export function QuarterlyTaxSummaryCard({ data }: QuarterlyTaxSummaryCardProps) 
       highlights={
         <div className="mb-4 grid grid-cols-2 gap-3">
           <div className="rounded-xl bg-white px-3 py-2">
-            <p className="text-xs text-slate-500">Cobrado en el trimestre</p>
-            <p className="font-bold text-green-800">{formatMoney(quarterIncome)}</p>
+            <p className="text-xs text-slate-500">Facturado en el trimestre</p>
+            <p className="font-bold text-green-800">
+              {formatMoney(quarterInvoiced)}
+            </p>
           </div>
           <div className="rounded-xl bg-white px-3 py-2">
             <p className="text-xs text-slate-500">
