@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  FISCAL_NOTIFICATION_PDF_STANDARD_FONT_DATA_URL,
   parseFiscalNotificationLocalOcrResult,
   recognizeFiscalNotificationPdfLocally,
   type FiscalNotificationLocalOcrDependencies,
@@ -41,6 +42,18 @@ function dependencies(
   const cleanup = vi.fn();
   const destroyDocument = vi.fn(async () => undefined);
   const destroyLoadingTask = vi.fn(async () => undefined);
+  const getDocument = vi.fn(() => ({
+    promise: Promise.resolve({
+      numPages: 1,
+      getPage: async () => ({
+        getViewport: () => ({ width: 800, height: 1_000 }),
+        render: () => ({ promise: Promise.resolve() }),
+        cleanup,
+      }),
+      destroy: destroyDocument,
+    }),
+    destroy: destroyLoadingTask,
+  }));
   const deps: FiscalNotificationLocalOcrDependencies = {
     digestSha256: vi.fn(async () => new Uint8Array(32).buffer),
     createCanvas: vi.fn(() => ({ canvas: {}, context: {}, release })),
@@ -52,30 +65,35 @@ function dependencies(
       terminate,
     })),
     loadPdfJs: vi.fn(async () => ({
-      getDocument: () => ({
-        promise: Promise.resolve({
-          numPages: 1,
-          getPage: async () => ({
-            getViewport: () => ({ width: 800, height: 1_000 }),
-            render: () => ({ promise: Promise.resolve() }),
-            cleanup,
-          }),
-          destroy: destroyDocument,
-        }),
-        destroy: destroyLoadingTask,
-      }),
+      getDocument,
     })),
     timeoutMs: 2_000,
     ...overrides,
   };
-  return { deps, terminate, release, cleanup, destroyDocument, destroyLoadingTask };
+  return {
+    deps,
+    terminate,
+    release,
+    cleanup,
+    destroyDocument,
+    destroyLoadingTask,
+    getDocument,
+  };
 }
 
 describe("local PDF OCR", () => {
   it("reads a scanned historical template locally and returns only structured data", async () => {
     const file = pdfFile();
     const source = request(file);
-    const { deps, terminate, release, cleanup, destroyDocument, destroyLoadingTask } =
+    const {
+      deps,
+      terminate,
+      release,
+      cleanup,
+      destroyDocument,
+      destroyLoadingTask,
+      getDocument,
+    } =
       dependencies();
 
     const result = await recognizeFiscalNotificationPdfLocally(source, deps);
@@ -107,6 +125,10 @@ describe("local PDF OCR", () => {
     expect(cleanup).toHaveBeenCalledOnce();
     expect(destroyDocument).toHaveBeenCalledOnce();
     expect(destroyLoadingTask).toHaveBeenCalledOnce();
+    expect(getDocument).toHaveBeenCalledWith({
+      data: expect.any(Uint8Array),
+      standardFontDataUrl: FISCAL_NOTIFICATION_PDF_STANDARD_FONT_DATA_URL,
+    });
     expect(Object.isFrozen(result)).toBe(true);
   });
 
@@ -259,7 +281,7 @@ describe("local PDF OCR", () => {
     expect(() =>
       parseFiscalNotificationLocalOcrResult({
         schemaVersion: 1,
-        ocrVersion: "1.0.0",
+        ocrVersion: "1.1.0",
         status: "NO_READABLE_TEXT",
         pageCount: 1,
         averageConfidence: null,

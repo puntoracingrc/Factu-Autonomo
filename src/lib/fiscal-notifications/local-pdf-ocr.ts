@@ -25,7 +25,9 @@ import {
 } from "./vertical-slice-review.v1";
 
 export const FISCAL_NOTIFICATION_LOCAL_OCR_SCHEMA_VERSION = 1 as const;
-export const FISCAL_NOTIFICATION_LOCAL_OCR_VERSION = "1.0.0" as const;
+export const FISCAL_NOTIFICATION_LOCAL_OCR_VERSION = "1.1.0" as const;
+export const FISCAL_NOTIFICATION_PDF_STANDARD_FONT_DATA_URL =
+  "/pdfjs/standard_fonts/" as const;
 export const FISCAL_NOTIFICATION_LOCAL_OCR_LIMITS = Object.freeze({
   dpi: 160,
   maxPixelsPerPage: 4_000_000,
@@ -45,7 +47,7 @@ export interface FiscalNotificationLocalOcrRequest {
 
 export interface FiscalNotificationLocalOcrResult {
   readonly schemaVersion: 1;
-  readonly ocrVersion: "1.0.0";
+  readonly ocrVersion: "1.1.0";
   readonly status: "OCR_TEXT_AVAILABLE" | "NO_READABLE_TEXT";
   readonly pageCount: number;
   readonly averageConfidence: number | null;
@@ -91,7 +93,10 @@ interface PdfPageLike {
 }
 
 interface PdfJsLike {
-  getDocument(input: { data: Uint8Array }): PdfLoadingTaskLike;
+  getDocument(input: {
+    data: Uint8Array;
+    standardFontDataUrl: typeof FISCAL_NOTIFICATION_PDF_STANDARD_FONT_DATA_URL;
+  }): PdfLoadingTaskLike;
 }
 
 interface OcrWorkerLike {
@@ -239,7 +244,10 @@ export async function recognizeFiscalNotificationPdfLocally(
       request.signal,
       deadline,
     );
-    loadingTask = pdfJs.getDocument({ data: bytes });
+    loadingTask = pdfJs.getDocument({
+      data: bytes,
+      standardFontDataUrl: FISCAL_NOTIFICATION_PDF_STANDARD_FONT_DATA_URL,
+    });
     pdfDocument = await withinDeadline(
       loadingTask.promise,
       request.signal,

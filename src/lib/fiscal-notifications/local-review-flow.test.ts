@@ -190,7 +190,7 @@ function scannedRequest() {
 function noReadableOcrResult() {
   return Object.freeze({
     schemaVersion: 1 as const,
-    ocrVersion: "1.0.0" as const,
+    ocrVersion: "1.1.0" as const,
     status: "NO_READABLE_TEXT" as const,
     pageCount: 1,
     averageConfidence: null,
@@ -209,7 +209,7 @@ function availableOcrResult(text: string) {
   const parsed = source.analysis;
   return Object.freeze({
     schemaVersion: 1 as const,
-    ocrVersion: "1.0.0" as const,
+    ocrVersion: "1.1.0" as const,
     status: "OCR_TEXT_AVAILABLE" as const,
     pageCount: parsed.pageCount,
     averageConfidence: 0.93,

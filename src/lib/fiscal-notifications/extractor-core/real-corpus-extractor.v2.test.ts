@@ -815,6 +815,24 @@ describe("AEAT real corpus extractor V2", () => {
     },
   );
 
+  it("recognizes the spouse suspension title when local OCR splits it across lines", async () => {
+    const source = spouseFixture("SYN-AEAT-OCR-SPOUSE", false, "2010");
+    const split = document("SYN-AEAT-OCR-SPOUSE", [
+      source.pages[0]!.text.replace(
+        "NOTIFICACIÓN DEL ACUERDO DE SUSPENSIÓN DEL INGRESO (COMPENSACIÓN ENTRE CÓNYUGES)",
+        "NOTIFICACIÓN DEL ACUERDO DE SUSPENSIÓN DEL INGRESO\n(COMPENSACIÓN ENTRE CÓNYUGES)",
+      ),
+      null,
+    ]);
+
+    const result = await extractEndToEnd(split);
+
+    expect(result).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "irpf.spouse_refund_suspension",
+    });
+  });
+
   it.each([
     ["SYN-AEAT-011", 120000, 120000, 0, "REQUESTED"],
     ["SYN-AEAT-012", 160000, 150000, 10000, "REQUESTED"],
@@ -840,6 +858,28 @@ describe("AEAT real corpus extractor V2", () => {
       );
     },
   );
+
+  it("recognizes a publication certificate title split across OCR lines", async () => {
+    const source = publicationFixture(
+      "SYN-AEAT-OCR-PUBLICATION",
+      "CERTIFICATE",
+      "EXECUTIVE_LIQUIDATION",
+    );
+    const split = document("SYN-AEAT-OCR-PUBLICATION", [
+      source.pages[0]!.text.replace(
+        "CERTIFICADO DE PUBLICACIÓN EN EL BOLETÍN OFICIAL DEL ESTADO DEL ANUNCIO DE CITACIÓN PARA NOTIFICACIÓN POR COMPARECENCIA",
+        "CERTIFICADO DE PUBLICACIÓN EN EL BOLETÍN OFICIAL DEL ESTADO\nDEL ANUNCIO DE CITACIÓN PARA NOTIFICACIÓN POR COMPARECENCIA",
+      ),
+      null,
+    ]);
+
+    const result = await extractEndToEnd(split);
+
+    expect(result).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "notification.publication_or_appearance",
+    });
+  });
 
   it.each([
     ["SYN-AEAT-015", "DILIGENCE", "EXECUTIVE_LIQUIDATION", null],

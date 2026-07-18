@@ -88,6 +88,7 @@ function segment(
   pageTo = pageFrom,
   suffix = String(pageFrom),
   detectedAuthority: "AEAT" | "UNKNOWN" = "AEAT",
+  classificationConfidence = 1,
 ): DocumentSegmentV1 {
   return createDocumentSegmentV1({
     segmentId: `segment:${suffix}`,
@@ -97,7 +98,7 @@ function segment(
     pageTo,
     detectedTitle: type === "MAIN_ADMINISTRATIVE_ACT" ? "Liquidación sintética" : "Contenido auxiliar sintético",
     detectedAuthority,
-    classificationConfidence: 1,
+    classificationConfidence,
     extractionStatus: "EXTRACTED_REVIEW_REQUIRED",
     contentHash: `sha256:${suffix.padEnd(64, "a").slice(0, 64)}`,
     canGenerateAdministrativeFacts: ["MAIN_ADMINISTRATIVE_ACT", "DEBT_LIST", "PAYMENT_DOCUMENT"].includes(type),
@@ -328,6 +329,28 @@ describe("assessment extractor v1", () => {
     expect(unsupported.entities).toEqual([]);
   });
 
+  it("keeps an exact AEAT assessment title readable when blank continuation pages lower segment confidence", () => {
+    const withoutDomain = FINAL_PAGE.replace("sede.agenciatributaria.gob.es\n", "");
+    const output = extractAssessmentV1({
+      document: document(withoutDomain, ""),
+      segments: [
+        segment(
+          "MAIN_ADMINISTRATIVE_ACT",
+          1,
+          2,
+          "b",
+          "AEAT",
+          0.55,
+        ),
+      ],
+    });
+
+    expect(output.status).toBe("REVIEW_REQUIRED");
+    expect(output.familyCandidates[0]?.familyId).toBe(
+      "assessment.final_provisional_assessment",
+    );
+  });
+
   it("does not promote values printed only in generic instructions", () => {
     const main = PROPOSAL_PAGE
       .replace("Cuota propuesta: 210,00 euros\n", "")
@@ -397,7 +420,7 @@ describe("assessment extractor v1", () => {
 
   it("publishes versioned official sources without using them as document facts", () => {
     expect(ASSESSMENT_EXTRACTOR_RELEASE_V1).toMatchObject({
-      version: "1.0.0",
+      version: "1.1.0",
       sourcePriority: "DOCUMENT_LITERAL_CONTROLS_FACTS",
       deadlinePolicy: "NO_COMPUTED_DEADLINE",
       proposalPolicy: "PROPOSAL_NEVER_CREATES_DEBT_CLAIM",
