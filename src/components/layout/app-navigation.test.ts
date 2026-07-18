@@ -70,6 +70,24 @@ describe("app navigation", () => {
     );
   });
 
+  it("shows Affiliates in the desktop menu and mobile More menu", () => {
+    expect(
+      APP_NAV_ITEMS.find((item) => item.href === "/afiliados"),
+    ).toMatchObject({
+      label: "Afiliados",
+      shortLabel: "Afiliados",
+    });
+    expect(
+      MOBILE_PRIMARY_NAV_ITEMS.some((item) => item.href === "/afiliados"),
+    ).toBe(false);
+    expect(
+      MOBILE_MORE_NAV_ITEMS.some((item) => item.href === "/afiliados"),
+    ).toBe(true);
+    expect(findActiveAppNavItem("/afiliados", APP_NAV_ITEMS)?.href).toBe(
+      "/afiliados",
+    );
+  });
+
   it("abre Asesoría fiscal en el configurador cuando está habilitado", () => {
     expect(
       APP_NAV_ITEMS.find(
