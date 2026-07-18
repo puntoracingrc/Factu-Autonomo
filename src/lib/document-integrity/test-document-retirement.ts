@@ -325,6 +325,18 @@ function protectedRectificationReference(document: Document): string | undefined
   );
 }
 
+function isSurvivingRectificationReference(
+  document: Document,
+  referencedId: string,
+): boolean {
+  return Boolean(
+    document.type === "factura" &&
+      (document.rectification?.originalDocumentId === referencedId ||
+        document.documentSnapshot?.rectification?.originalDocumentId ===
+          referencedId),
+  );
+}
+
 function validateReceiptRelationships(
   documents: readonly Document[],
   selectedIds: ReadonlySet<string>,
@@ -336,8 +348,7 @@ function validateReceiptRelationships(
   for (const document of selectedDocuments) {
     if (
       document.rectification ||
-      document.documentSnapshot?.rectification ||
-      document.rectifiedById
+      document.documentSnapshot?.rectification
     ) {
       addBlocker(blockers, {
         reason: "rectification_relationship",
@@ -434,6 +445,9 @@ function validateReceiptRelationships(
     ].filter((value): value is string => Boolean(value));
     for (const referencedId of references) {
       if (selectedIds.has(referencedId)) {
+        if (isSurvivingRectificationReference(document, referencedId)) {
+          continue;
+        }
         addBlocker(blockers, {
           reason: "external_reference",
           documentId: referencedId,

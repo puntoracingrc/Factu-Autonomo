@@ -146,11 +146,11 @@ describe("manual sections", () => {
     expect(accountManual).toContain("un caso híbrido queda fuera");
   });
 
-  it("documenta el archivo reversible y gobernado de documentos de prueba", () => {
+  it("documenta el archivo reversible y gobernado de documentos descartados", () => {
     const accountManual = JSON.stringify(getManualSection("cuenta"));
 
     expect(accountManual).toContain(
-      "Mantenimiento · archivar documentos de prueba",
+      "Mantenimiento · archivar documentos descartados",
     );
     expect(accountManual).toContain("cuenta owner");
     expect(accountManual).toContain("nube en **Sincronizado**");
@@ -158,6 +158,7 @@ describe("manual sections", () => {
     expect(accountManual).toContain("número completo y exacto");
     expect(accountManual).toContain("copia JSON previa");
     expect(accountManual).toContain("rollback");
+    expect(accountManual).toContain("rectificativa superviviente");
     expect(accountManual).toContain("no libera la identidad");
     expect(accountManual).toContain("sincronización inmediata");
   });

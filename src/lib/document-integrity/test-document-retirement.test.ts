@@ -429,7 +429,6 @@ describe("explicit test document retirement", () => {
   it.each([
     "rectification",
     "snapshot_rectification",
-    "rectified_by",
   ] as const)(
     "blocks retiring only the receipt when its surviving invoice has protected %s evidence",
     (evidence) => {
@@ -453,8 +452,6 @@ describe("explicit test document retirement", () => {
           type: "correccion",
           reason: "Corrección sintética",
         };
-      } else {
-        invoice.rectifiedById = "synthetic-rectification";
       }
 
       const before = clone(data);
@@ -466,16 +463,103 @@ describe("explicit test document retirement", () => {
       expect(preview.blockers).toContainEqual({
         reason: "rectification_relationship",
         documentId: "test-receipt-a",
-        relatedDocumentId:
-          evidence === "rectified_by"
-            ? "synthetic-rectification"
-            : "synthetic-original",
+        relatedDocumentId: "synthetic-original",
       });
       expect(preview.candidate).toBeNull();
       expect(data).toEqual(before);
       expect(invoice.receiptDocumentId).toBe("test-receipt-a");
     },
   );
+
+  it("allows explicitly retiring a rectified original while preserving the surviving rectification", () => {
+    const original = withModernBundle(
+      baseDocument("historical-original", "F/1026", "factura", {
+        status: "anulada",
+        rectifiedById: "historical-rectification",
+      }),
+    );
+    const rectification = withModernBundle(
+      baseDocument("historical-rectification", "FR/1026", "factura", {
+        status: "pagado",
+        rectification: {
+          originalDocumentId: original.id,
+          originalNumber: original.number,
+          originalDate: original.date,
+          type: "anulacion",
+          reason: "Anulación importada sintética",
+        },
+      }),
+    );
+    rectification.documentSnapshot!.rectification = clone(
+      rectification.rectification,
+    );
+    const data: TestDocumentRetirementWorkspace = {
+      ...fixture(),
+      documents: [original, rectification],
+    };
+    const before = clone(data);
+    const preview = buildTestDocumentRetirementPreview(data, {
+      selectedDocumentIds: [original.id],
+      tenantFingerprint: TENANT,
+    });
+
+    expect(preview.blockers).toEqual([]);
+    expect(preview.affectedCount).toBe(1);
+
+    const result = applyTestDocumentRetirement(
+      data,
+      preview,
+      APPLIED_AT,
+      TENANT,
+      backup(testDocumentRetirementExportableDataFingerprint(data)),
+    );
+    expect(result.status).toBe("applied");
+    if (result.status === "blocked") return;
+
+    expect(result.data.documents).toEqual([rectification]);
+    expect(
+      result.data.testDocumentRetirementBatches?.[0]?.retiredDocuments[0]
+        ?.document,
+    ).toEqual(before.documents[0]);
+    expect(
+      result.data.testDocumentRetirementBatches?.[0]?.backlinkChanges,
+    ).toEqual([]);
+    expect(data).toEqual(before);
+  });
+
+  it("still blocks retiring the rectification itself", () => {
+    const original = withModernBundle(
+      baseDocument("historical-original", "F/1026", "factura", {
+        status: "anulada",
+        rectifiedById: "historical-rectification",
+      }),
+    );
+    const rectification = withModernBundle(
+      baseDocument("historical-rectification", "FR/1026", "factura", {
+        rectification: {
+          originalDocumentId: original.id,
+          originalNumber: original.number,
+          originalDate: original.date,
+          type: "anulacion",
+          reason: "Anulación importada sintética",
+        },
+      }),
+    );
+    const preview = buildTestDocumentRetirementPreview(
+      { ...fixture(), documents: [original, rectification] },
+      {
+        selectedDocumentIds: [rectification.id],
+        tenantFingerprint: TENANT,
+      },
+    );
+
+    expect(preview.blockers).toContainEqual({
+      reason: "rectification_relationship",
+      documentId: rectification.id,
+      relatedDocumentId: original.id,
+    });
+    expect(preview.candidate).toBeNull();
+  });
 
   it("blocks expense and reminder references without changing their data", () => {
     const expenseData = fixture();

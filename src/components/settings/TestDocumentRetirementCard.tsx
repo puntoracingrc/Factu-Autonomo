@@ -94,9 +94,9 @@ const BLOCKER_LABELS: Record<
   invalid_tenant_fingerprint: "No se pudo vincular la operación a la cuenta owner.",
   duplicate_document_id: "Hay un identificador interno duplicado y el caso requiere revisión manual.",
   unknown_document: "Algún documento dejó de existir desde que se preparó la selección.",
-  unsupported_document_type: "Solo se pueden archivar facturas y recibos de prueba.",
+  unsupported_document_type: "Solo se pueden archivar facturas y recibos.",
   verifactu_protected: "Hay evidencia Veri*Factu protegida; el documento queda excluido.",
-  rectification_relationship: "Una relación de rectificación impide automatizar este archivo.",
+  rectification_relationship: "La rectificativa seleccionada sigue protegida; retira solo la factura original si corresponde.",
   relationship_ambiguous: "La relación factura–recibo no es completa o inequívoca.",
   external_reference: "Otro registro operativo todavía referencia uno de estos documentos.",
   identity_reserved: "La identidad o numeración ya está reservada por un lote anterior.",
@@ -600,13 +600,13 @@ export function TestDocumentRetirementCard() {
         </div>
         <div className="min-w-0">
           <h3 className="font-bold text-slate-950">
-            Mantenimiento · archivar documentos de prueba
+            Mantenimiento · archivar documentos descartados
           </h3>
           <p className="mt-1 text-sm leading-6 text-slate-700">
             Retira de las listas activas únicamente facturas o recibos que tú
-            identificas como pruebas. Factu no los clasifica automáticamente.
-            La operación conserva una copia exacta, auditoría e historial para
-            rollback; nunca libera ni reutiliza su número.
+            identificas expresamente como descartados. Factu no los clasifica
+            automáticamente. La operación conserva una copia exacta, auditoría
+            e historial para rollback; nunca libera ni reutiliza su número.
           </p>
         </div>
       </div>
@@ -818,8 +818,8 @@ export function TestDocumentRetirementCard() {
                     {busyAction === "retire"
                       ? "Comprobando y guardando…"
                       : preparedRetirement.preview.affectedCount === 1
-                        ? "Retirar este documento de prueba"
-                        : `Retirar estos ${preparedRetirement.preview.affectedCount} documentos de prueba`}
+                        ? "Retirar este documento"
+                        : `Retirar estos ${preparedRetirement.preview.affectedCount} documentos`}
                   </Button>
                 </>
               )}
@@ -841,7 +841,7 @@ export function TestDocumentRetirementCard() {
         </div>
         {ownerBatches.length === 0 ? (
           <p className="text-sm text-slate-500">
-            Esta cuenta no tiene lotes de prueba archivados.
+            Esta cuenta no tiene lotes archivados.
           </p>
         ) : (
           <ul className="space-y-3">

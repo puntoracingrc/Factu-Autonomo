@@ -52,8 +52,10 @@ describe("AppIssuedDocumentRecoveryCard wiring", () => {
     expect(cardSource).not.toContain(
       "initialPreview.manualReview.length > 0",
     );
-    expect(cardSource).toContain("Si el documento fue solo una prueba");
-    expect(cardSource).toContain("Archivar documentos de prueba");
+    expect(cardSource).toContain(
+      "Si el documento no debe seguir en tus listas activas",
+    );
+    expect(cardSource).toContain("Archivar documentos descartados");
   });
 
   it("exige descarga, relectura y confirmación ligadas a identidad, precondición y grupo", () => {
