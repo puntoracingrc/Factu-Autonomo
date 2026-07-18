@@ -1199,7 +1199,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                       </div>
                     )}
                     {statusHint &&
-                      !(type === "factura" && doc.status === "pagado") && (
+                      !(type === "factura" && isCollectedDocument(doc)) && (
                         <p className="mt-1 text-xs text-slate-500">
                           {statusHint}
                         </p>
@@ -1292,10 +1292,9 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                           basePath={basePath}
                         />
                       )}
-                      {!legacyImportAttested &&
-                        (type === "factura" || type === "recibo") && (
-                          <MarkAsPaidButton doc={doc} />
-                        )}
+                      {(type === "factura" || type === "recibo") && (
+                        <MarkAsPaidButton doc={doc} />
+                      )}
                       {!legacyImportAttested && type === "factura" && (
                         <GenerateReceiptButton doc={doc} />
                       )}

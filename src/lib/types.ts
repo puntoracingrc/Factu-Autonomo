@@ -27,6 +27,12 @@ export type DocumentDeliveryStatus = "not_sent" | "sent";
 export type DocumentPaymentStatus =
   "not_applicable" | "pending" | "paid" | "overdue";
 
+export interface DocumentCollectionStatusOverrideV1 {
+  schemaVersion: 1;
+  status: "collected" | "pending";
+  updatedAt: string;
+}
+
 export type DocumentAcceptanceStatus =
   "not_applicable" | "pending" | "accepted" | "rejected";
 
@@ -217,6 +223,11 @@ export interface Document {
   sentAt?: string;
   paidAt?: string;
   acceptedAt?: string;
+  /**
+   * Estado de cobro operativo elegido por el usuario para un histórico
+   * importado. No modifica ni forma parte de su contenido fiscal atestado.
+   */
+  collectionStatusOverride?: DocumentCollectionStatusOverrideV1;
   /** Presupuesto desde el que se creó esta factura en borrador. */
   sourceQuoteDocumentId?: string;
   sourceQuoteNumber?: string;

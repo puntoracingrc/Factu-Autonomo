@@ -46,6 +46,7 @@ describe("historical imported document governance", () => {
       "contexto VeriFactu copiado del perfil no es un registro",
     );
     expect(agents).toContain("hash/sello inválido");
+    expect(agents).toContain("`collectionStatusOverride`");
 
     expect(adr).toContain("Estado: Aceptado");
     expect(adr).toContain("LegacyImportAttestationV1");
@@ -58,13 +59,15 @@ describe("historical imported document governance", () => {
     expect(adr).toContain("sourceRecord");
     expect(adr).toContain("base, IVA, total");
     expect(adr).toContain("`acceptedState`");
-    expect(adr).toContain("Cambiar después su estado o relaciones");
+    expect(adr).toContain("Cambiar después los campos de estado");
     expect(adr).toContain("fingerprint de grupo común");
     expect(adr).toContain("La confirmación V3 es atómica");
     expect(adr).toContain("attestNewImportedDocument");
     expect(adr).toContain("Una auditoría de seguridad");
     expect(adr).toContain("migración versionada");
-    expect(adr).toContain("Versión de la decisión: 4");
+    expect(adr).toContain("Versión de la decisión: 5");
+    expect(adr).toContain("`collectionStatusOverride` V1");
+    expect(adr).toContain("no modifica `status`, `paymentStatus`");
     expect(adr).toContain("`verified_importer_rollout_bundle`");
     expect(adr).toContain("snapshot + PDF técnico + sello");
     expect(adr).toContain("La copia JSON");

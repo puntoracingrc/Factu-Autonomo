@@ -33,6 +33,11 @@ import type { FiscalNotificationsWorkspace } from "./fiscal-notifications/types"
 import { EMPTY_DATA } from "./types";
 import { hasWorkspaceContent } from "./workspace-state";
 import { documentAmounts } from "./vat-regime";
+import {
+  hasPendingCollectionOverride,
+  isCollectedDocument,
+  withHistoricalCollectionStatus,
+} from "./income";
 
 const STORAGE_KEY = "factura-autonomo-data";
 const NOW = "2026-06-24T10:00:00.000Z";
@@ -2386,7 +2391,14 @@ describe("storage", () => {
     });
     expect(documentAmounts(actuallyCorrupt.documents[0], false).total).toBe(0);
 
-    expect(saveData(repaired.data)).toEqual({ status: "applied" });
+    const pendingHistorical = withHistoricalCollectionStatus(
+      repaired.data.documents[0]!,
+      "pending",
+      "2026-07-18T12:05:00.000Z",
+    );
+    expect(
+      saveData({ ...repaired.data, documents: [pendingHistorical] }),
+    ).toEqual({ status: "applied" });
     const reloaded = loadData();
     expect(reloaded.documents[0]).toMatchObject({
       documentSnapshot: { source: "legacy_import_attested" },
@@ -2395,6 +2407,11 @@ describe("storage", () => {
         importer: "pcfacturacion",
       },
       integrityLock: "locked",
+      collectionStatusOverride: {
+        schemaVersion: 1,
+        status: "pending",
+        updatedAt: "2026-07-18T12:05:00.000Z",
+      },
     });
     expect(reloaded.documents[0]?.legacyImportAttestation).toEqual(
       expectedAttestation,
@@ -2408,6 +2425,8 @@ describe("storage", () => {
     expect(reloaded.documents[0].snapshotSeal).toBeUndefined();
     expect(reloaded.documents[0].snapshotIntegrityRequired).toBeUndefined();
     expect(reloaded.documents[0].snapshotIntegrity).toBeUndefined();
+    expect(hasPendingCollectionOverride(reloaded.documents[0]!)).toBe(true);
+    expect(isCollectedDocument(reloaded.documents[0]!)).toBe(false);
     expect(documentAmounts(reloaded.documents[0], false)).toEqual({
       subtotal: 100,
       iva: 21,

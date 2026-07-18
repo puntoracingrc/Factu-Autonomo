@@ -1,8 +1,8 @@
 # ADR-0001: documentos históricos importados y atestados por el usuario
 
 - Estado: Aceptado
-- Versión de la decisión: 4
-- Fecha: 2026-07-13
+- Versión de la decisión: 5
+- Fecha: 2026-07-18
 - Responsables: Producto e Integridad fiscal
 
 ## Contexto
@@ -62,6 +62,13 @@ exportadores.
   `acceptedState` del documento, y se persiste como
   `legacyImportAttestation`. Ese estado congela `status`, lifecycle, lock,
   entrega, pago, aceptación, timestamps operativos y relaciones de procedencia.
+- La consideración de cobro posterior elegida por el usuario es un dato de
+  gestión distinto. Solo se expresa mediante
+  `collectionStatusOverride` V1 (`collected` o `pending`, con timestamp ISO),
+  queda fuera de `acceptedState` y no modifica `status`, `paymentStatus`,
+  `paidAt`, `updatedAt`, snapshots, relaciones ni hashes del histórico. No
+  acredita un movimiento bancario, no crea un recibo y no cambia el devengo ni
+  los importes fiscales.
 - La procedencia aceptada se conserva en save/load, cloud y backups, y la
   reimportación debe ser idempotente.
 - Los borradores externos que siguen siendo editables conservan
@@ -70,10 +77,13 @@ exportadores.
 - La referencia a la evidencia original sigue siendo preservable. Si la app no
   almacena el archivo fuente, la atestación lo declara como evidencia gestionada
   por el usuario y nunca afirma haberlo incorporado.
-- Un histórico atestado es read-only. Los cálculos consumen su contenido fiscal
-  congelado y verificado por la política central, no campos vivos divergentes.
-  Cambiar después su estado o relaciones invalida la atestación y lo bloquea;
-  nunca se corrige ni reproyecta silenciosamente al cargar.
+- El contenido fiscal y documental de un histórico atestado es read-only. Los
+  cálculos consumen ese contenido congelado y verificado por la política
+  central, no campos vivos divergentes. Cambiar después los campos de estado o
+  las relaciones que pertenecen a `acceptedState` invalida la atestación y lo
+  bloquea; nunca se corrige ni reproyecta silenciosamente al cargar. El overlay
+  operativo de cobro es la única excepción y su ausencia conserva exactamente
+  el comportamiento histórico importado.
 - No se fabrica `pdfSnapshot`, `snapshotSeal`, hash moderno ni estado VeriFactu,
   ni se presenta al usuario que tales garantías existen.
 - La política central puede reconocer un `verified_importer_rollout_bundle`
@@ -175,12 +185,14 @@ se recalculan silenciosamente los importes declarados ni se muta durante load.
 ## Experiencia de usuario
 
 La UI identifica el estado como «Histórico importado · aceptado por el usuario»
-y explica que está congelado y disponible para Panel, facturación, cobros,
-impuestos, ingresos, beneficio, periodos, Rentabilidad Real e informes. Las
-carencias antiguas son visibles y no equivalen a una validación formal nueva. El
-documento no posee un sello moderno ni una certificación VeriFactu creada por
-esta app. Un fallo de evidencia moderna se presenta como bloqueo de integridad,
-no como histórico.
+y explica que su contenido está congelado y disponible para Panel, facturación,
+cobros, impuestos, ingresos, beneficio, periodos, Rentabilidad Real e informes.
+Las carencias antiguas son visibles y no equivalen a una validación formal
+nueva. Una factura histórica puede marcarse o desmarcarse como cobrada en la
+gestión de Factu; la etiqueta y los totales de cobro usan el overlay, mientras
+la factura importada conserva su estado original. El documento no posee un
+sello moderno ni una certificación VeriFactu creada por esta app. Un fallo de
+evidencia moderna se presenta como bloqueo de integridad, no como histórico.
 Cuando se reconoce un paquete técnico del rollout, la UI separa expresamente
 «bundle verificado» de «sello de emisión» y exige descargar una copia completa
 del estado vigente antes de habilitar la confirmación. Cualquier cambio del

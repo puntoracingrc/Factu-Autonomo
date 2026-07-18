@@ -3,7 +3,10 @@
 import { CheckCircle2, Circle } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { useAppStore } from "@/context/AppStore";
-import { canMarkAsCollected, isCollectedDocument } from "@/lib/income";
+import {
+  canToggleCollectionStatus,
+  isCollectedDocument,
+} from "@/lib/income";
 import { collectionActionCopy } from "@/lib/invoice-status-actions";
 import type { Document } from "@/lib/types";
 
@@ -15,7 +18,7 @@ export function MarkAsPaidButton({ doc }: MarkAsPaidButtonProps) {
   const { markAsCollected, unmarkAsCollected } = useAppStore();
 
   if (doc.type === "recibo" && doc.sourceDocumentId) return null;
-  if (!canMarkAsCollected(doc)) return null;
+  if (!canToggleCollectionStatus(doc)) return null;
 
   const collected = isCollectedDocument(doc);
   const copy = collectionActionCopy(doc, collected);

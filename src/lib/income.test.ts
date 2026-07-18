@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   canMarkAsCollected,
+  canToggleCollectionStatus,
   canUnmarkAsCollected,
   collectedIncome,
+  hasPendingCollectionOverride,
   isCollectedDocument,
   isPendingInvoicePayment,
   pendingCollection,
   statusAfterUnmarkingCollection,
+  withHistoricalCollectionStatus,
 } from "./income";
 import {
   buildCustomerInvoicedTotals,
@@ -18,6 +21,7 @@ import {
   applyLegacyImportRepair,
   attestNewImportedDocument,
   buildLegacyImportRepairPreview,
+  inspectLegacyImportAttestation,
 } from "./document-integrity/legacy-import-attestation";
 import { captureIssuerSnapshot } from "./issuer-snapshot";
 import {
@@ -381,6 +385,120 @@ describe("income helpers", () => {
     };
     expect(collectedIncome([rawIssuedWithoutAnySignal])).toBe(0);
     expect(pendingCollection([rawIssuedWithoutAnySignal])).toBe(0);
+  });
+
+  it("permite corregir el cobro histórico sin alterar su estado ni su atestación", () => {
+    const historical = attestNewImportedDocument(
+      {
+        ...invoice("borrador", 121, {
+          id: "pcfacturacion:factura:F-2024-0042",
+          number: "F-2024-0042",
+          date: "2024-04-30",
+          issuer: captureIssuerSnapshot(
+            IMPORT_PROFILE,
+            "2024-04-30T10:00:00.000Z",
+          ),
+        }),
+        status: "pagado",
+        paymentStatus: "paid",
+        paidAt: "2024-05-02T10:00:00.000Z",
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+      },
+      IMPORT_PROFILE,
+      "pcfacturacion",
+      "2026-07-18T12:00:00.000Z",
+    );
+    const frozen = {
+      status: historical.status,
+      paymentStatus: historical.paymentStatus,
+      paidAt: historical.paidAt,
+      updatedAt: historical.updatedAt,
+      legacyImportAttestation: historical.legacyImportAttestation,
+      documentSnapshot: historical.documentSnapshot,
+    };
+
+    expect(isCollectedDocument(historical)).toBe(true);
+    expect(canUnmarkAsCollected(historical)).toBe(true);
+    expect(canToggleCollectionStatus(historical)).toBe(true);
+
+    const pending = withHistoricalCollectionStatus(
+      historical,
+      "pending",
+      "2026-07-18T12:05:00.000Z",
+    );
+
+    expect(pending).not.toBe(historical);
+    expect(historical.collectionStatusOverride).toBeUndefined();
+    expect(pending).toMatchObject(frozen);
+    expect(pending.collectionStatusOverride).toEqual({
+      schemaVersion: 1,
+      status: "pending",
+      updatedAt: "2026-07-18T12:05:00.000Z",
+    });
+    expect(inspectLegacyImportAttestation(pending)).toMatchObject({ ok: true });
+    expect(hasPendingCollectionOverride(pending)).toBe(true);
+    expect(isCollectedDocument(pending)).toBe(false);
+    expect(isPendingInvoicePayment(pending)).toBe(true);
+    expect(collectedIncome([pending])).toBe(0);
+    expect(pendingCollection([pending])).toBeCloseTo(121, 2);
+    expect(canMarkAsCollected(pending)).toBe(true);
+    expect(canUnmarkAsCollected(pending)).toBe(false);
+
+    const collectedAgain = withHistoricalCollectionStatus(
+      pending,
+      "collected",
+      "2026-07-18T12:06:00.000Z",
+    );
+    expect(collectedAgain).toMatchObject(frozen);
+    expect(inspectLegacyImportAttestation(collectedAgain)).toMatchObject({
+      ok: true,
+    });
+    expect(isCollectedDocument(collectedAgain)).toBe(true);
+    expect(isPendingInvoicePayment(collectedAgain)).toBe(false);
+    expect(collectedIncome([collectedAgain])).toBeCloseTo(121, 2);
+
+    expect(
+      withHistoricalCollectionStatus(
+        historical,
+        "pending",
+        "fecha-no-valida",
+      ),
+    ).toBe(historical);
+  });
+
+  it("ignora un override histórico malformado o con claves inesperadas", () => {
+    const historical = attestNewImportedDocument(
+      {
+        ...invoice("borrador", 121, {
+          id: "pcfacturacion:factura:F-2024-0043",
+          number: "F-2024-0043",
+          issuer: captureIssuerSnapshot(
+            IMPORT_PROFILE,
+            "2024-04-30T10:00:00.000Z",
+          ),
+        }),
+        status: "pagado",
+        documentLifecycle: "issued",
+        integrityLock: "locked",
+      },
+      IMPORT_PROFILE,
+      "pcfacturacion",
+      "2026-07-18T12:00:00.000Z",
+    );
+    const malformed = {
+      ...historical,
+      collectionStatusOverride: {
+        schemaVersion: 1,
+        status: "pending",
+        updatedAt: "2026-07-18T12:05:00.000Z",
+        paidAt: "2020-01-01T00:00:00.000Z",
+      },
+    } as unknown as Document;
+
+    expect(hasPendingCollectionOverride(malformed)).toBe(false);
+    expect(isCollectedDocument(malformed)).toBe(true);
+    expect(inspectLegacyImportAttestation(malformed)).toMatchObject({ ok: true });
   });
 
   it("cuenta 121 euros de un PCF histórico v2 aceptado aunque falten datos formales", () => {

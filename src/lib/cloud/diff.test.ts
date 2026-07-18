@@ -44,6 +44,11 @@ import {
   trackDataDiff,
 } from "./incremental";
 import { buildCloudUploadChanges } from "./sync-queue";
+import {
+  hasPendingCollectionOverride,
+  isCollectedDocument,
+  withHistoricalCollectionStatus,
+} from "../income";
 
 function customer(id: string, name: string): Customer {
   const [firstName, ...rest] = name.split(" ");
@@ -654,6 +659,55 @@ describe("sync por cambios", () => {
         (document) => inspectLegacyImportAttestation(document).ok,
       ),
     ).toBe(true);
+  });
+
+  it("sincroniza la corrección de cobro sin modificar la evidencia histórica", () => {
+    const baseline = attestedHistoricalReceiptData();
+    const original = baseline.documents[0]!;
+    const pending = withHistoricalCollectionStatus(
+      original,
+      "pending",
+      "2026-07-18T12:05:00.000Z",
+    );
+    const source = {
+      ...baseline,
+      documents: [pending, baseline.documents[1]!],
+    };
+
+    const changes = diffAppData(baseline, source);
+    expect(changes).toHaveLength(1);
+    expect(changes[0]).toMatchObject({
+      entityType: "document",
+      entityId: original.id,
+      payload: {
+        status: original.status,
+        updatedAt: original.updatedAt,
+        collectionStatusOverride: {
+          schemaVersion: 1,
+          status: "pending",
+          updatedAt: "2026-07-18T12:05:00.000Z",
+        },
+      },
+    });
+    const payload = changes[0]?.payload as Document;
+    expect(payload.paymentStatus).toBe(original.paymentStatus);
+    expect(payload.paidAt).toBe(original.paidAt);
+
+    const rebuilt = rebuildCloudSnapshot(
+      diffAppData(emptyCloudBootstrapData(), source),
+    ).data;
+    const rebuiltInvoice = rebuilt.documents.find(
+      (document) => document.id === original.id,
+    )!;
+    expect(rebuiltInvoice.legacyImportAttestation).toEqual(
+      original.legacyImportAttestation,
+    );
+    expect(rebuiltInvoice.documentSnapshot).toEqual(original.documentSnapshot);
+    expect(inspectLegacyImportAttestation(rebuiltInvoice)).toMatchObject({
+      ok: true,
+    });
+    expect(hasPendingCollectionOverride(rebuiltInvoice)).toBe(true);
+    expect(isCollectedDocument(rebuiltInvoice)).toBe(false);
   });
 
   it("sincroniza una reparación reversible cambiando solo la entidad expense", () => {

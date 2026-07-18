@@ -35,12 +35,20 @@ describe("historical imported document presentation", () => {
     expect(listSource).toContain("{formatMoney(total)}");
   });
 
-  it("no ofrece mutaciones fiscales incompatibles con un histórico congelado", () => {
+  it("solo ofrece la corrección operativa de cobro sobre el histórico congelado", () => {
     expect(listSource).toContain('!legacyImportAttested && type === "factura"');
     expect(actionsSource).toContain(
       '!legacyImportAttested && doc.type === "presupuesto"',
     );
     expect(actionsSource).toContain("!legacyImportAttested &&");
+    expect(listSource).toContain('<MarkAsPaidButton doc={doc} />');
+    expect(actionsSource).toContain('<MarkAsPaidButton doc={doc} />');
+    expect(listSource).not.toContain(
+      '!legacyImportAttested &&\n                        (type === "factura" || type === "recibo")',
+    );
+    expect(actionsSource).not.toContain(
+      '!legacyImportAttested &&\n            (doc.type === "factura" || doc.type === "recibo")',
+    );
     expect(listSource).toContain(
       "isDocumentUsableForFinancialCalculations(doc)",
     );

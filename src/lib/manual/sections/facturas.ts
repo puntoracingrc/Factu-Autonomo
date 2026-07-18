@@ -79,7 +79,8 @@ export const facturasSection: ManualSection = {
     {
       title: "6. Marcar como cobrada",
       paragraphs: [
-        "Pulsa el círculo **Cobrar** cuando el cliente pague. La factura pasará a estado **Cobrado**. Esto no genera un recibo por sí solo.",
+        "Pulsa el círculo **Cobrar** cuando el cliente pague. La factura pasará a estado **Cobrada**. Esto no genera un recibo por sí solo.",
+        "Las facturas históricas importadas pueden venir marcadas como cobradas. Si una no lo está, vuelve a pulsar el mismo círculo para dejarla **Pendiente de cobro**. Puedes marcarla otra vez después. Factu conserva intactos el documento y el estado con el que se importó; esta elección solo corrige tu seguimiento de cobros.",
         "Si el cliente te pide recibo, usa el botón **Recibo** de la factura cobrada para generarlo y dejarlo vinculado. El recibo aparecerá automáticamente en la cadena de documentos de la factura. Si ya existe, el mismo acceso abre ese recibo en vez de crear otro.",
         "Si no se puede generar, la app muestra el motivo: por ejemplo, que la factura todavía no está cobrada, que ya tiene un vínculo incoherente o que su integridad está bloqueada. No se crea ni se guarda un recibo a medias.",
         "Si te equivocas, vuelve a pulsar para desmarcar.",
