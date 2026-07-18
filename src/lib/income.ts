@@ -9,6 +9,41 @@ import { hasAppIssuedRecoveryProtectionClaim } from "./document-integrity/app-is
 import type { Document } from "./types";
 import { documentAmounts } from "./vat-regime";
 
+const COLLECTION_OVERRIDE_KEYS = new Set([
+  "schemaVersion",
+  "status",
+  "updatedAt",
+]);
+
+function isIsoDateTime(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    Number.isFinite(Date.parse(value)) &&
+    new Date(value).toISOString() === value
+  );
+}
+
+function historicalCollectionOverride(
+  doc: Document,
+): Document["collectionStatusOverride"] | undefined {
+  if (doc.type !== "factura" || !isUsableLegacyImportedDocument(doc)) {
+    return undefined;
+  }
+  const value = doc.collectionStatusOverride;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  if (
+    Object.keys(value).some((key) => !COLLECTION_OVERRIDE_KEYS.has(key)) ||
+    value.schemaVersion !== 1 ||
+    (value.status !== "collected" && value.status !== "pending") ||
+    !isIsoDateTime(value.updatedAt)
+  ) {
+    return undefined;
+  }
+  return value;
+}
+
 function historicalDocumentTotal(document: Document): number {
   return documentAmounts(document, false).total;
 }
@@ -21,21 +56,36 @@ export function canMarkAsCollected(doc: Document): boolean {
   if (doc.type !== "factura" && doc.type !== "recibo") return false;
   if (hasAppIssuedRecoveryProtectionClaim(doc)) return false;
   if (!hasUsableDocumentIntegrity(doc)) return false;
-  if (isUsableLegacyImportedDocument(doc)) return false;
   if (doc.status === "anulada" || doc.rectifiedById) return false;
   if (deriveDocumentLifecycle(doc) !== "issued") return false;
+  if (isUsableLegacyImportedDocument(doc)) {
+    if (doc.type !== "factura") return false;
+    return !isCollectedDocument(doc);
+  }
   return true;
 }
 
 export function canUnmarkAsCollected(doc: Document): boolean {
   if (doc.type !== "factura" && doc.type !== "recibo") return false;
   if (hasAppIssuedRecoveryProtectionClaim(doc)) return false;
+  if (!hasUsableDocumentIntegrity(doc)) return false;
+  if (doc.status === "anulada" || doc.rectifiedById) return false;
+  if (deriveDocumentLifecycle(doc) !== "issued") return false;
+  if (isUsableLegacyImportedDocument(doc)) {
+    if (doc.type !== "factura") return false;
+    return isCollectedDocument(doc);
+  }
   return doc.status === "pagado";
 }
 
 export function isCollectedDocument(doc: Document): boolean {
   if (doc.type !== "factura" && doc.type !== "recibo") return false;
-  if (!hasUsableDocumentIntegrity(doc) || doc.status !== "pagado") return false;
+  if (!hasUsableDocumentIntegrity(doc)) return false;
+  const override = historicalCollectionOverride(doc);
+  const collected = override
+    ? override.status === "collected"
+    : doc.status === "pagado";
+  if (!collected) return false;
   // Una rectificativa de anulacion liquida el ingreso de su original; no es
   // un cobro independiente. La clase fiscal congelada prevalece sobre cualquier
   // deriva viva posterior, igual que los importes usados en el cálculo.
@@ -68,12 +118,44 @@ export function isPendingInvoicePayment(doc: Document): boolean {
   return (
     doc.type === "factura" &&
     hasUsableDocumentIntegrity(doc) &&
-    doc.status !== "pagado" &&
+    !isCollectedDocument(doc) &&
     doc.status !== "anulada" &&
     doc.status !== "borrador" &&
     !doc.rectifiedById &&
     historicalDocumentTotal(doc) > 0
   );
+}
+
+export function hasPendingCollectionOverride(doc: Document): boolean {
+  return historicalCollectionOverride(doc)?.status === "pending";
+}
+
+export function canToggleCollectionStatus(doc: Document): boolean {
+  return isCollectedDocument(doc)
+    ? canUnmarkAsCollected(doc)
+    : canMarkAsCollected(doc);
+}
+
+export function withHistoricalCollectionStatus(
+  doc: Document,
+  status: "collected" | "pending",
+  updatedAt: string,
+): Document {
+  if (
+    doc.type !== "factura" ||
+    !isUsableLegacyImportedDocument(doc) ||
+    !isIsoDateTime(updatedAt)
+  ) {
+    return doc;
+  }
+  return {
+    ...doc,
+    collectionStatusOverride: {
+      schemaVersion: 1,
+      status,
+      updatedAt,
+    },
+  };
 }
 
 export function pendingCollection(documents: Document[]): number {

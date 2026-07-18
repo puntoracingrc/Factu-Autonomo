@@ -8,10 +8,15 @@ import {
   documentStatusLabel,
 } from "./invoice-status-actions";
 import { issueDocument, markDocumentPaid, markDocumentSent } from "./document-integrity";
-import { canMarkAsCollected } from "./income";
+import {
+  canMarkAsCollected,
+  withHistoricalCollectionStatus,
+} from "./income";
 import { canShowPaymentReminder } from "./payment-reminder-client";
 import { buildShareMessage } from "./share";
 import { DEFAULT_PROFILE, type Document } from "./types";
+import { attestNewImportedDocument } from "./document-integrity/legacy-import-attestation";
+import { captureIssuerSnapshot } from "./issuer-snapshot";
 
 const ISSUED_AT = "2026-06-24T10:00:00.000Z";
 
@@ -88,6 +93,46 @@ describe("invoice status action copy", () => {
     expect(documentStatusHint(issuedInvoice({ status: "vencido" }))).toContain(
       "preparar un recordatorio",
     );
+  });
+
+  it("presenta como pendiente una cobrada histórica desmarcada", () => {
+    const profile = {
+      ...DEFAULT_PROFILE,
+      name: "Negocio histórico",
+      nif: "12345678Z",
+      address: "Calle Mayor 1",
+      city: "Madrid",
+      postalCode: "28001",
+    };
+    const historical = attestNewImportedDocument(
+      {
+        ...baseDocument({
+          id: "pcfacturacion:factura:F-2024-0001",
+          number: "F-2024-0001",
+          date: "2024-04-01",
+          status: "pagado",
+          documentLifecycle: "issued",
+          integrityLock: "locked",
+          issuer: captureIssuerSnapshot(
+            profile,
+            "2024-04-01T10:00:00.000Z",
+          ),
+        }),
+      },
+      profile,
+      "pcfacturacion",
+      "2026-07-18T12:00:00.000Z",
+    );
+    const pending = withHistoricalCollectionStatus(
+      historical,
+      "pending",
+      "2026-07-18T12:05:00.000Z",
+    );
+
+    expect(documentStatusLabel(pending)).toBe("Pendiente de cobro");
+    expect(documentStatusColor(pending)).toContain("amber");
+    expect(documentStatusHint(pending)).toContain("estado original importado");
+    expect(collectionActionCopy(pending, false).label).toBe("Cobrar");
   });
 
   it("muestra como rectificada una factura original con rectificativa asociada", () => {

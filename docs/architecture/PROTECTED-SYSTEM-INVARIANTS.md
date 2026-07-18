@@ -24,6 +24,10 @@ Contrato: [ADR-0001](ADR-0001-historical-imported-documents.md).
 
 - `legacy_imported + user_attested` es un registro histórico válido, congelado
   y utilizable en impuestos y rentabilidad.
+- Su estado importado y su atestación no se reescriben. El usuario puede
+  corregir únicamente la consideración operativa de cobro mediante
+  `collectionStatusOverride`, un overlay versionado, sincronizable y separado
+  que no acredita el pago, no altera impuestos y no crea recibos.
 - No se le exigen ni fabrican snapshots, sellos o evidencia VeriFactu moderna.
 - Nunca se reclasifica por fecha ni por carecer de datos exigidos actualmente.
 - Evidencia moderna realmente inválida sigue bloqueada y nunca se degrada a

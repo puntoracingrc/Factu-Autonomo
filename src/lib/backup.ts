@@ -6,6 +6,10 @@ import {
   dispatchDataAccessEvent,
 } from "./security/data-access-events";
 import type { AppData } from "./types";
+import {
+  hasPendingCollectionOverride,
+  isCollectedDocument,
+} from "./income";
 
 export const BACKUP_FILE_PREFIX = "factu-autonomo-backup";
 export const BACKUP_VERSION = 1;
@@ -427,7 +431,10 @@ function normalizeBackupDataForImport(
       ).length,
       paidInvoices: invoices.filter(
         (document) =>
-          document.status === "pagado" || document.paymentStatus === "paid",
+          !hasPendingCollectionOverride(document) &&
+          (isCollectedDocument(document) ||
+            document.status === "pagado" ||
+            document.paymentStatus === "paid"),
       ).length,
       expenses: normalized.expenses.length,
       suppliers: normalized.suppliers.length,

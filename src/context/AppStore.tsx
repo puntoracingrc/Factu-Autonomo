@@ -68,7 +68,9 @@ import type { DocumentKind } from "@/lib/types";
 import {
   canMarkAsCollected,
   canUnmarkAsCollected,
+  isCollectedDocument,
   statusAfterUnmarkingCollection,
+  withHistoricalCollectionStatus,
 } from "@/lib/income";
 import {
   canMarkQuoteAsAccepted,
@@ -1125,12 +1127,20 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       setAppData((prev) => {
         const doc = findUniqueDocumentById(prev.documents, id);
-        if (!doc || !canMarkAsCollected(doc) || doc.status === "pagado") {
+        if (!doc || !canMarkAsCollected(doc) || isCollectedDocument(doc)) {
           return prev;
         }
 
         const now = new Date().toISOString();
-        const paid = markDocumentPaidWithIntegrity(doc, now);
+        const historical = withHistoricalCollectionStatus(
+          doc,
+          "collected",
+          now,
+        );
+        const paid =
+          historical === doc
+            ? markDocumentPaidWithIntegrity(doc, now)
+            : historical;
 
         return {
           ...prev,
@@ -1162,6 +1172,15 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         if (!doc || !canUnmarkAsCollected(doc)) return prev;
 
         const now = new Date().toISOString();
+        const historical = withHistoricalCollectionStatus(doc, "pending", now);
+        if (historical !== doc) {
+          return {
+            ...prev,
+            documents: prev.documents.map((d) =>
+              d.id === id ? historical : d,
+            ),
+          };
+        }
         const newStatus = statusAfterUnmarkingCollection(doc);
         const numbering = prev.profile.numbering;
 

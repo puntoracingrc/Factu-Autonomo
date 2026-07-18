@@ -1,5 +1,8 @@
 import { deriveDocumentLifecycle } from "./document-integrity";
-import { isCollectedDocument } from "./income";
+import {
+  hasPendingCollectionOverride,
+  isCollectedDocument,
+} from "./income";
 import { isAcceptedQuote, isRejectedQuote } from "./quotes";
 import { isQuoteExpired } from "./quote-validity";
 import { isRectificativa } from "./rectificativas";
@@ -49,6 +52,9 @@ export function documentStatusLabel(
 
   if (type === "factura" && isCollectedDocument(doc)) return "Cobrada";
   if (type === "recibo" && isCollectedDocument(doc)) return "Cobrado";
+  if (type === "factura" && hasPendingCollectionOverride(doc)) {
+    return "Pendiente de cobro";
+  }
 
   if (type === "factura") {
     if (doc.status === "enviado") {
@@ -78,6 +84,9 @@ export function documentStatusColor(doc: Document): string {
   }
   if (doc.type === "presupuesto" && (isAcceptedQuote(doc) || isRejectedQuote(doc))) {
     return STATUS_COLORS[doc.status];
+  }
+  if (doc.type === "factura" && hasPendingCollectionOverride(doc)) {
+    return "bg-amber-100 text-amber-700";
   }
   if (isIssuedNotSent(doc)) return "bg-blue-100 text-blue-700";
   return STATUS_COLORS[doc.status];
@@ -118,6 +127,10 @@ export function documentStatusHint(
 
   if (doc.rectifiedById) {
     return "Factura original rectificada. Se conserva bloqueada con su PDF y QR.";
+  }
+
+  if (hasPendingCollectionOverride(doc)) {
+    return "Pendiente de cobro en tu registro de Factu. El estado original importado se conserva intacto.";
   }
 
   switch (doc.status) {

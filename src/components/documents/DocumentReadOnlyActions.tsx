@@ -146,10 +146,9 @@ export function DocumentReadOnlyActions({
           {!legacyImportAttested && doc.type === "presupuesto" && (
             <ConvertQuoteToInvoiceButton doc={doc} />
           )}
-          {!legacyImportAttested &&
-            (doc.type === "factura" || doc.type === "recibo") && (
-              <MarkAsPaidButton doc={doc} />
-            )}
+          {(doc.type === "factura" || doc.type === "recibo") && (
+            <MarkAsPaidButton doc={doc} />
+          )}
           {doc.type === "factura" && canShowPaymentReminder(contactDoc) && (
             <PaymentReminderButton
               doc={contactDoc}

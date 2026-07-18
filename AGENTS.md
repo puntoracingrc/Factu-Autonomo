@@ -41,9 +41,12 @@ La decisión obligatoria y versionada está en
 [`docs/architecture/ADR-0001-historical-imported-documents.md`](docs/architecture/ADR-0001-historical-imported-documents.md).
 
 - `legacy_imported + user_attested` es válido para impuestos y rentabilidad,
-  permanece congelado/read-only —incluidos estado operativo y relaciones— y
-  conserva su procedencia y evidencia original preservable; no se le fabrica ni
-  exige un sello moderno o VeriFactu de esta app.
+  mantiene congelados su contenido fiscal, estado importado, timestamps y
+  relaciones atestados, y conserva su procedencia y evidencia original
+  preservable; no se le fabrica ni exige un sello moderno o VeriFactu de esta
+  app. Una corrección de cobro elegida por el usuario solo puede vivir en el
+  overlay versionado `collectionStatusOverride`: nunca reescribe la atestación,
+  acredita un pago ni crea un recibo.
 - En V2, base, IVA y total almacenados y confirmados por el usuario son la
   referencia histórica aunque falten NIF, dirección u otros campos exigidos hoy;
   esas carencias se conservan como avisos y el documento participa en Panel,
