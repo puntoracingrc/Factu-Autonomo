@@ -176,6 +176,9 @@ export function AdminPartnersPanel() {
               <p className="mt-1 max-w-3xl text-sm text-slate-600">
                 Concede acceso por email a gestorías o colaboradores. La comisión base es del 10% y el pago se prepara al alcanzar 60 €. Los abonos siguen siendo manuales.
               </p>
+              <p className="mt-2 max-w-3xl text-sm font-medium text-blue-800">
+                Primero el Partner crea su acceso independiente; después autoriza aquí ese mismo email.
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -184,6 +187,12 @@ export function AdminPartnersPanel() {
               className="inline-flex min-h-11 items-center justify-center rounded-2xl border-2 border-blue-200 bg-white px-4 text-sm font-bold text-blue-700 hover:bg-blue-50"
             >
               Ver Área Partners
+            </Link>
+            <Link
+              href="/partners/acceso?modo=crear#inicio-sesion"
+              className="inline-flex min-h-11 items-center justify-center rounded-2xl border-2 border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-50"
+            >
+              Abrir registro Partner
             </Link>
             <Button type="button" variant="secondary" onClick={() => void load()} disabled={loading} className="min-h-11 px-4 text-sm">
               <RefreshCw className="h-4 w-4" />

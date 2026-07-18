@@ -172,6 +172,7 @@ export const config = {
     "/admin/:path*",
     "/auth/callback/:path*",
     "/avisos/:path*",
+    "/afiliados/:path*",
     "/ayuda/consultor-fiscal/:path*",
     "/clientes/:path*",
     "/configuracion/:path*",

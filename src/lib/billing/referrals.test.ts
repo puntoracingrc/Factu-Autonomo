@@ -15,9 +15,9 @@ describe("referral codes", () => {
     expect(normalizeReferralCode(" abc-12xy ")).toBe("ABC12XY");
   });
 
-  it("incluye ref en configuracion", () => {
+  it("abre el registro con el codigo de invitacion", () => {
     expect(buildReferralShareUrl("https://app.test", "ABC12XY9")).toBe(
-      "https://app.test/configuracion?ref=ABC12XY9",
+      "https://app.test/cuenta?modo=crear&ref=ABC12XY9#inicio-sesion",
     );
   });
 

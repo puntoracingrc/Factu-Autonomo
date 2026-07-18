@@ -1,10 +1,10 @@
 "use client";
 
 import { Suspense, type ReactNode } from "react";
-import dynamic from "next/dynamic";
 import {
   Cloud,
   CreditCard,
+  Gift,
   HardDrive,
   LogIn,
   RefreshCw,
@@ -25,17 +25,6 @@ import { ImportedLegacyDocumentRepairCard } from "@/components/settings/Imported
 import { TestDocumentRetirementCard } from "@/components/settings/TestDocumentRetirementCard";
 import { ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
-
-const ReferralCard = dynamic(
-  () =>
-    import("@/components/referrals/ReferralCard").then(
-      (mod) => mod.ReferralCard,
-    ),
-  {
-    ssr: false,
-    loading: () => null,
-  },
-);
 
 const ACCOUNT_NAV_ITEMS: Array<{
   href: string;
@@ -126,15 +115,28 @@ export default function CuentaPage() {
       <AccountSection
         id="plan-cuenta"
         title="Plan"
-        description="Consulta tu plan, límites de uso, facturación y ventajas de invitación."
+        description="Consulta tu plan, límites de uso y facturación."
         Icon={CreditCard}
       >
         <PlanStatusCard />
         <AiUsageMeterCard />
         <SubscriptionBillingCard />
-        <Suspense fallback={null}>
-          <ReferralCard />
-        </Suspense>
+        <Card className="mb-6 flex flex-col gap-4 border-violet-200 bg-violet-50/60 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+              <Gift className="h-5 w-5" />
+            </span>
+            <div>
+              <h3 className="font-bold text-slate-900">Afiliados</h3>
+              <p className="mt-1 text-sm text-slate-600">
+                Comparte tu enlace y consulta las ventajas conseguidas por tus invitaciones.
+              </p>
+            </div>
+          </div>
+          <ButtonLink href="/afiliados" variant="secondary">
+            Abrir Afiliados
+          </ButtonLink>
+        </Card>
       </AccountSection>
 
       <AccountSection

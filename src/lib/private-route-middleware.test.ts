@@ -36,6 +36,19 @@ describe("private route middleware", () => {
     );
   });
 
+  it("keeps the Affiliates area non-indexable and non-cacheable", () => {
+    const response = middleware(
+      new NextRequest("https://facturacion-autonomos.app/afiliados"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(response.headers.get("cache-control")).toContain("no-store");
+    expect(response.headers.get("x-robots-tag")).toBe(
+      "noindex, nofollow, noarchive",
+    );
+  });
+
   it("cierra página y ayuda del Consultor fiscal con un 404 real", () => {
     vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "false");
 

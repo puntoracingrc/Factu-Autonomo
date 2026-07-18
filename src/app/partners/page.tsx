@@ -187,7 +187,12 @@ export default function PartnersPage() {
         <Card className="space-y-4">
           <h2 className="text-xl font-bold">Inicia sesión</h2>
           <p className="text-slate-600">El Área Partners solo está disponible para administradores y emails autorizados.</p>
-          <ButtonLink href="/cuenta#inicio-sesion">Iniciar sesión</ButtonLink>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <ButtonLink href="/partners/acceso#inicio-sesion">Iniciar sesión</ButtonLink>
+            <ButtonLink href="/partners/acceso?modo=crear#inicio-sesion" variant="secondary">
+              Crear acceso Partner
+            </ButtonLink>
+          </div>
         </Card>
       </div>
     );

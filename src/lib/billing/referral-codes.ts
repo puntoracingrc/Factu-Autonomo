@@ -7,5 +7,5 @@ export function normalizeReferralCode(value: string): string {
 
 export function buildReferralShareUrl(origin: string, code: string): string {
   const base = origin.replace(/\/$/, "");
-  return `${base}/configuracion?ref=${encodeURIComponent(code)}`;
+  return `${base}/cuenta?modo=crear&ref=${encodeURIComponent(code)}#inicio-sesion`;
 }
