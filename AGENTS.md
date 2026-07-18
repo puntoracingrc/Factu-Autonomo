@@ -102,14 +102,19 @@ Esta política solo puede cambiar mediante una decisión explícita de producto 
 una migración versionada. Una auditoría de seguridad no puede eliminarla por
 considerarla menos estricta.
 
-## Retirada explícita de documentos de prueba
+## Retirada explícita de documentos descartados
 
 La decisión versionada está en
 [`docs/architecture/ADR-0003-explicit-test-document-retirement.md`](docs/architecture/ADR-0003-explicit-test-document-retirement.md).
 
 - Un documento emitido nunca se vuelve borrable mediante el botón genérico ni
-  se relaja `DeletePolicy`. La retirada de pruebas es un flujo distinto,
+  se relaja `DeletePolicy`. La retirada explícita es un flujo distinto,
   explícito, reversible y ligado a la sesión propietaria sincronizada.
+- También cubre históricos importados que el propietario decide descartar de la
+  vista activa: las importaciones antiguas son representativas y utilizables,
+  no una emisión moderna de Factu. Si un histórico antiguo queda mal importado
+  o no interesa, puede archivarse por selección exacta sin fabricar ni destruir
+  integridad.
 - La selección se realiza en tiempo de ejecución; están prohibidos emails,
   tenants, IDs o números de documento codificados en el repositorio.
 - Antes de aplicar o revertir se exige vista previa exacta, generación del JSON
@@ -127,6 +132,9 @@ La decisión versionada está en
   producción o asociada a contexto de producción bloquea la retirada. Un
   artefacto local de TEST puede conservarse dentro del archivo, pero nunca se
   presenta como envío a la AEAT.
+- Una factura original histórica ya marcada como anulada/rectificada puede
+  retirarse explícitamente sin borrar ni modificar la rectificativa
+  superviviente. Retirar la propia rectificativa sigue bloqueado.
 - La nube conserva intactas las filas documentales: la retirada se sincroniza
   como un único overlay versionado y los clientes actuales proyectan el estado
   activo. No se suben tombstones ni backlinks reescritos. Un cliente antiguo
@@ -135,8 +143,9 @@ La decisión versionada está en
   compatibles, el único camino de vuelta es el rollback explícito del lote.
 
 Esta excepción solo sirve para retirar datos declarados expresamente como
-pruebas. No es una herramienta para borrar operaciones fiscales reales ni para
-silenciar una incidencia de integridad.
+descartados por el propietario. No es un borrado físico ni una herramienta para
+reescribir operaciones fiscales reales o silenciar una incidencia de integridad
+en documentos modernos emitidos por Factu.
 
 ## Fiabilidad del buzón de gastos por email
 

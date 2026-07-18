@@ -51,7 +51,7 @@ Regresiones mínimas: `app-issued-recovery-protection.test.ts`,
 `app-issued-recovery-governance.test.ts` y
 `app-issued-recovery-consumers-persistence.test.ts`.
 
-### 3. Retirada explícita de documentos de prueba
+### 3. Retirada explícita de documentos descartados
 
 Contrato: [ADR-0003](ADR-0003-explicit-test-document-retirement.md).
 
@@ -59,8 +59,13 @@ Contrato: [ADR-0003](ADR-0003-explicit-test-document-retirement.md).
   numeración.
 - Exige selección en ejecución, preview, copia vigente, precondición fresca y
   confirmación tipada.
-- Es reversible, conserva la evidencia byte-semánticamente y no sirve para
-  retirar operaciones fiscales reales.
+- Es reversible, conserva la evidencia byte-semánticamente y solo archiva de la
+  vista activa documentos descartados expresamente por el propietario.
+- Las importaciones antiguas son representativas: un histórico importado que no
+  interesa o quedó mal importado puede retirarse explícitamente sin convertirlo
+  en emisión moderna ni borrar su archivo auditable. Una original histórica
+  anulada mediante rectificativa puede retirarse sin alterar la rectificativa
+  superviviente.
 
 Regresiones mínimas: `test-document-retirement-governance.test.ts`,
 `test-document-retirement-command.test.ts` y

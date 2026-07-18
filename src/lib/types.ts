@@ -1246,7 +1246,7 @@ export interface UserReminder {
   updatedAt: string;
 }
 
-/** Copia exacta de un documento retirado mediante el flujo explícito de pruebas. */
+/** Copia exacta de un documento retirado mediante el flujo explícito. */
 export interface RetiredTestDocumentV1 {
   originalIndex: number;
   document: Document;
@@ -1289,13 +1289,14 @@ export interface TestDocumentRetirementEventV1 {
 }
 
 /**
- * Registro append-only del retiro explícito de documentos de prueba.
+ * Registro append-only del retiro explícito de documentos descartados.
  * Conserva la evidencia exacta necesaria para preview, auditoría y rollback.
  */
 export interface TestDocumentRetirementBatchV1 {
   schemaVersion: 1;
   kind: "explicit_test_document_retirement_v1";
   batchId: string;
+  /** Valor V1 conservado por compatibilidad; semántica de producto ADR-0003 V2. */
   reason: "explicit_test_cleanup";
   status: "applied" | "rolled_back";
   tenantFingerprint: string;

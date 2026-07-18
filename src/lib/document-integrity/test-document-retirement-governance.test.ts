@@ -8,7 +8,7 @@ function readRepositoryFile(path: string): string {
 const ADR_PATH =
   "docs/architecture/ADR-0003-explicit-test-document-retirement.md";
 
-describe("explicit test document retirement governance", () => {
+describe("explicit discarded document retirement governance", () => {
   it("loads the narrow reversible exception for every repository agent", () => {
     const agents = readRepositoryFile("AGENTS.md");
     const adr = readRepositoryFile(ADR_PATH);
@@ -22,7 +22,10 @@ describe("explicit test document retirement governance", () => {
     expect(agents).toContain("no se\n  regeneran ni reinterpretan");
     expect(agents).toContain("No se suben tombstones");
 
-    expect(adr).toContain("Versión: 1");
+    expect(adr).toContain("Versión: 2");
+    expect(adr).toContain("documentos descartados");
+    expect(adr).toContain("importaciones históricas");
+    expect(adr).toContain("rectificativa superviviente");
     expect(adr).toContain("sesión propietaria confirmada");
     expect(adr).toContain("selección es explícita");
     expect(adr).toContain("commit es atómico y durable");
@@ -32,7 +35,7 @@ describe("explicit test document retirement governance", () => {
     expect(adr).toContain("cliente antiguo puede");
     expect(adr).toContain("update\ncondicional");
     expect(adr).toContain("RPC transaccional");
-    expect(adr).toContain("no puede ampliarse a operaciones reales");
+    expect(adr).toContain("no puede convertirse en un borrado general");
   });
 
   it("keeps preview, apply and rollback behind one versioned policy", () => {

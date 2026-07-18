@@ -1,9 +1,9 @@
-# ADR-0003 — Retirada explícita y reversible de documentos de prueba
+# ADR-0003 — Retirada explícita y reversible de documentos descartados
 
 - Estado: aceptada
-- Versión: 1
-- Fecha: 2026-07-14
-- Ámbito: documentos emitidos de Factu creados exclusivamente durante pruebas
+- Versión: 2
+- Fecha: 2026-07-18
+- Ámbito: documentos que el propietario descarta expresamente de la vista activa
 
 ## Contexto
 
@@ -14,17 +14,31 @@ un workspace sincronizado. Activar el borrado genérico, identificar una cuenta
 por email en el código o modificar directamente la nube convertiría una
 necesidad puntual en una puerta de pérdida fiscal.
 
+Además, las importaciones históricas de programas antiguos, Word, Excel o PDFs
+no son emisiones modernas de Factu. Sirven para representar cifras, consulta,
+impuestos y rentabilidad según la atestación del usuario, pero no deben
+convertirse en una cárcel de errores por no cumplir contratos internos que no
+existían cuando se crearon. Si el propietario identifica un histórico concreto
+como mal importado, irrelevante o descartado, debe poder sacarlo de las listas
+activas sin que Factu fabrique integridad, borre físicamente evidencia ni
+reutilice numeración.
+
 ## Decisión
 
-Factu ofrece un flujo separado de **retirada de pruebas**. La operación quita
-los documentos seleccionados del conjunto activo, pero guarda un lote completo
-y reversible dentro de `AppData`. No reclasifica documentos, no corrige su
-contenido y no fabrica integridad.
+Factu ofrece un flujo separado de **retirada explícita de documentos
+descartados**. La operación quita los documentos seleccionados del conjunto
+activo, pero guarda un lote completo y reversible dentro de `AppData`. No
+reclasifica documentos, no corrige su contenido y no fabrica integridad.
 
 El flujo solo se habilita en la sesión propietaria confirmada, fuera de demo,
 con el handoff resuelto y la nube sincronizada sin cambios pendientes. La
 identidad del tenant se liga mediante una huella opaca; nunca mediante un email,
 NIF, ID o número codificado en el repositorio.
+
+La V2 conserva el almacenamiento V1 `explicit_test_document_retirement_v1` por
+compatibilidad con clientes y copias existentes, pero su semántica de producto
+es "documento descartado explícitamente". Los lotes antiguos siguen siendo
+válidos.
 
 ## Invariantes
 
@@ -46,6 +60,10 @@ NIF, ID o número codificado en el repositorio.
 6. Solo puede eliminarse `receiptDocumentId` de una factura superviviente si el
    recibo retirado es su única pareja recíproca. Cualquier otra referencia,
    gasto, recordatorio, rectificativa o relación ambigua bloquea el lote.
+   Excepción V2: una factura original ya marcada como anulada/rectificada puede
+   retirarse explícitamente aunque exista una rectificativa superviviente que la
+   referencie. Esa rectificativa no se borra, no se edita y no recibe backlinks
+   nuevos. Retirar la propia rectificativa sigue bloqueado.
 7. No se reducen contadores ni secuencias y no cambia el contenido documental.
    La normalización puede elevar el suelo de numeración hasta una identidad ya
    reservada. Las identidades retiradas quedan reservadas para siempre, incluso
@@ -98,8 +116,7 @@ esta ADR no atribuye esa garantía al navegador.
 
 ## Gobernanza
 
-Esta política no puede ampliarse a operaciones reales ni convertirse en un
-borrado general mediante una auditoría, refactor o mejora de UX. Cualquier
-cambio exige una decisión explícita de producto, una nueva versión del contrato
-y una migración auditable con pruebas de storage, cloud, backups, numeración,
-integridad documental y VeriFactu.
+Esta política no puede convertirse en un borrado general mediante una auditoría,
+refactor o mejora de UX. Cualquier cambio exige una decisión explícita de
+producto, una nueva versión del contrato y una migración auditable con pruebas
+de storage, cloud, backups, numeración, integridad documental y VeriFactu.

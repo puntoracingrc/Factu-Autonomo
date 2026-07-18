@@ -52,7 +52,8 @@ describe("TestDocumentRetirementCard wiring", () => {
     expect(cardSource).not.toContain("testDocumentRetirementConfirmationPhrase(");
     expect(cardSource).not.toContain("retirementPhrase");
     expect(cardSource).toContain("retiredDocuments.map(");
-    expect(cardSource).toContain("Factu no los clasifica automáticamente");
+    expect(cardSource).toContain("Factu no los clasifica");
+    expect(cardSource).toContain("automáticamente. La operación conserva");
     expect(cardSource).toContain("Factu preparará automáticamente una copia");
     expect(cardSource).toContain(
       "Retirar estos ${preparedRetirement.preview.affectedCount}",
