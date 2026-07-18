@@ -9,6 +9,17 @@ import {
 } from "./app-navigation";
 
 describe("app navigation", () => {
+  it("keeps suppliers between expenses and products in every menu", () => {
+    const hrefs = APP_NAV_ITEMS.map((item) => item.href);
+
+    expect(hrefs.indexOf("/proveedores")).toBe(
+      hrefs.indexOf("/gastos") + 1,
+    );
+    expect(hrefs.indexOf("/productos")).toBe(
+      hrefs.indexOf("/proveedores") + 1,
+    );
+  });
+
   it("limits the persistent mobile bar to four priority destinations", () => {
     expect(MOBILE_PRIMARY_NAV_HREFS).toEqual([
       "/",

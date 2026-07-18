@@ -3,15 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Building2,
-  Check,
-  Crown,
-  Ellipsis,
-  LogIn,
-  X,
-} from "lucide-react";
+import { ArrowLeft, Building2, Check, Crown, LogIn } from "lucide-react";
 import { usePathname } from "next/navigation";
 import {
   CloudSyncHeaderIndicator,
@@ -43,10 +35,7 @@ import {
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import {
   APP_NAV_ITEMS,
-  findActiveAppNavItem,
   isAppNavItemActive,
-  MOBILE_MORE_NAV_ITEMS,
-  MOBILE_PRIMARY_NAV_ITEMS,
 } from "@/components/layout/app-navigation";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -56,13 +45,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { isPro, billingEnabled, plan } = useBilling();
   const demoMode = useDemoWorkspaceMode();
   const [factuDismissed, setFactuDismissed] = useState(false);
-  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
-  const mobileMoreButtonRef = useRef<HTMLButtonElement>(null);
-  const mobileMoreMenuRef = useRef<HTMLDivElement>(null);
-  const firstMobileMoreLinkRef = useRef<HTMLAnchorElement>(null);
+  const mobileNavRef = useRef<HTMLDivElement>(null);
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
   const appNavItems = APP_NAV_ITEMS;
-  const mobileMoreNavItems = MOBILE_MORE_NAV_ITEMS;
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const resolvedTheme =
     appPreferences.theme === "system" ? systemTheme : appPreferences.theme;
@@ -73,10 +58,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ? appStartPageHref(appPreferences.startPage)
     : "/inicio";
   const brandAriaLabel = user ? "Ir a la pantalla inicial" : "Ir al inicio";
-  const activeMobileMoreItem = findActiveAppNavItem(
-    pathname,
-    mobileMoreNavItems,
-  );
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -114,52 +95,23 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setMobileMoreOpen(false);
-  }, [pathname]);
+    const nav = mobileNavRef.current;
+    const activeLink = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !activeLink) return;
 
-  useEffect(() => {
-    if (!mobileMoreOpen) return;
-
-    const focusFrame = window.requestAnimationFrame(() => {
-      firstMobileMoreLinkRef.current?.focus();
+    const frame = window.requestAnimationFrame(() => {
+      const targetLeft =
+        activeLink.offsetLeft - (nav.clientWidth - activeLink.offsetWidth) / 2;
+      nav.scrollTo({
+        left: Math.max(0, targetLeft),
+        behavior: appPreferences.reduceMotion ? "auto" : "smooth",
+      });
     });
 
-    function handlePointerDown(event: PointerEvent) {
-      if (!(event.target instanceof Node)) return;
-      if (mobileMoreMenuRef.current?.contains(event.target)) return;
-      if (mobileMoreButtonRef.current?.contains(event.target)) return;
-      const focusWasInside = mobileMoreMenuRef.current?.contains(
-        document.activeElement,
-      );
-      setMobileMoreOpen(false);
-      if (focusWasInside) {
-        window.requestAnimationFrame(() => {
-          const activeElement = document.activeElement;
-          if (
-            !activeElement ||
-            activeElement === document.body ||
-            mobileMoreMenuRef.current?.contains(activeElement)
-          ) {
-            mobileMoreButtonRef.current?.focus();
-          }
-        });
-      }
-    }
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      setMobileMoreOpen(false);
-      window.requestAnimationFrame(() => mobileMoreButtonRef.current?.focus());
-    }
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
     return () => {
-      window.cancelAnimationFrame(focusFrame);
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
+      window.cancelAnimationFrame(frame);
     };
-  }, [mobileMoreOpen]);
+  }, [appPreferences.reduceMotion, pathname]);
 
   return (
     <div
@@ -475,148 +427,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       >
         <div className="relative mx-auto max-w-3xl">
           <div
-            id="app-mobile-more-sections"
-            ref={mobileMoreMenuRef}
-            hidden={!mobileMoreOpen}
-            className="app-mobile-more-panel absolute bottom-full left-0 right-0 max-h-[65vh] overflow-y-auto overscroll-contain border-t border-slate-200 bg-white px-3 pb-3 pt-2 shadow-[0_-16px_35px_rgba(15,23,42,0.16)]"
-            aria-labelledby="app-mobile-more-title"
-            role="region"
+            ref={mobileNavRef}
+            className="nav-scroll overflow-x-auto overscroll-x-contain px-2 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
-            <div className="mb-2 flex min-h-11 items-center justify-between gap-3">
-              <p
-                id="app-mobile-more-title"
-                className="text-sm font-bold text-slate-900"
-              >
-                Más secciones
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setMobileMoreOpen(false);
-                  mobileMoreButtonRef.current?.focus();
-                }}
-                className="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                aria-label="Cerrar más secciones"
-              >
-                <X className="h-5 w-5" aria-hidden="true" />
-              </button>
-            </div>
-
-            <ul className="grid grid-cols-1 gap-2 min-[260px]:grid-cols-2 sm:grid-cols-3">
-              {mobileMoreNavItems.map(
-                ({ href, activeBase, label, icon: Icon }, index) => {
-                  const active = isAppNavItemActive(
-                    pathname,
-                    href,
-                    activeBase,
-                  );
+            <div className="flex w-max min-w-full items-stretch gap-1">
+              {appNavItems.map(
+                ({ href, activeBase, shortLabel, icon: Icon }) => {
+                  const active = isAppNavItemActive(pathname, href, activeBase);
                   return (
-                    <li key={href}>
-                      <Link
-                        ref={index === 0 ? firstMobileMoreLinkRef : undefined}
-                        href={href}
-                        aria-current={active ? "page" : undefined}
-                        onClick={() => setMobileMoreOpen(false)}
-                        className={`relative flex min-h-14 w-full items-center gap-3 rounded-xl border px-3 py-2 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                          active
-                            ? "border-blue-600 bg-blue-600 text-white shadow-sm"
-                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-100"
-                        }`}
-                      >
-                        <Icon
-                          className="h-5 w-5 shrink-0"
-                          strokeWidth={active ? 2.5 : 2}
+                    <Link
+                      key={href}
+                      href={href}
+                      aria-current={active ? "page" : undefined}
+                      className={`relative flex h-16 w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 py-2 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                        active
+                          ? "bg-blue-600 text-white shadow-md shadow-blue-600/25"
+                          : "text-slate-600 hover:bg-slate-100"
+                      }`}
+                    >
+                      <Icon
+                        className="h-5 w-5 shrink-0"
+                        strokeWidth={active ? 2.5 : 2}
+                        aria-hidden="true"
+                      />
+                      {active ? (
+                        <Check
+                          className="absolute right-1 top-1 h-3.5 w-3.5"
                           aria-hidden="true"
                         />
-                        <span className="min-w-0 flex-1 leading-tight">
-                          {label}
-                        </span>
-                        {active ? (
-                          <span className="flex shrink-0 items-center gap-1 text-xs font-extrabold">
-                            Actual
-                            <Check className="h-4 w-4" aria-hidden="true" />
-                          </span>
-                        ) : null}
-                        {href === "/configuracion" && <CloudSyncNavBadge />}
-                      </Link>
-                    </li>
+                      ) : null}
+                      <span className="w-full truncate text-center text-[10px] font-semibold leading-tight sm:text-[11px]">
+                        {shortLabel}
+                      </span>
+                    </Link>
                   );
                 },
               )}
-            </ul>
-          </div>
-
-          <div className="grid grid-cols-5 items-stretch gap-1 px-2 py-2">
-            {MOBILE_PRIMARY_NAV_ITEMS.map(
-              ({ href, activeBase, shortLabel, icon: Icon }) => {
-                const active = isAppNavItemActive(
-                  pathname,
-                  href,
-                  activeBase,
-                );
-                return (
-                  <Link
-                    key={href}
-                    href={href}
-                    aria-current={active ? "page" : undefined}
-                    className={`relative flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                      active
-                        ? "bg-blue-600 text-white shadow-md shadow-blue-600/25"
-                        : "text-slate-600 hover:bg-slate-100"
-                    }`}
-                  >
-                    <Icon
-                      className="h-5 w-5 shrink-0"
-                      strokeWidth={active ? 2.5 : 2}
-                      aria-hidden="true"
-                    />
-                    {active ? (
-                      <Check
-                        className="absolute right-1.5 top-1.5 h-3.5 w-3.5"
-                        aria-hidden="true"
-                      />
-                    ) : null}
-                    <span className="w-full text-center text-[11px] font-semibold leading-tight">
-                      {shortLabel}
-                    </span>
-                  </Link>
-                );
-              },
-            )}
-
-            <button
-              ref={mobileMoreButtonRef}
-              type="button"
-              onClick={() => setMobileMoreOpen((open) => !open)}
-              aria-expanded={mobileMoreOpen}
-              aria-controls="app-mobile-more-sections"
-              aria-current={
-                activeMobileMoreItem && !mobileMoreOpen ? "page" : undefined
-              }
-              aria-label={
-                activeMobileMoreItem
-                  ? `Más secciones. Sección actual: ${activeMobileMoreItem.label}`
-                  : "Más secciones"
-              }
-              className={`relative flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-2 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                activeMobileMoreItem
-                  ? "bg-blue-600 text-white shadow-md shadow-blue-600/25"
-                  : mobileMoreOpen
-                    ? "bg-slate-200 text-slate-950"
-                    : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <Ellipsis className="h-5 w-5 shrink-0" aria-hidden="true" />
-              {activeMobileMoreItem ? (
-                <Check
-                  className="absolute right-1.5 top-1.5 h-3.5 w-3.5"
-                  aria-hidden="true"
-                />
-              ) : null}
-              <span className="w-full text-center text-[11px] font-semibold leading-tight">
-                {activeMobileMoreItem ? "Más · Actual" : "Más"}
-              </span>
-            </button>
+            </div>
           </div>
         </div>
       </nav>

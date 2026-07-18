@@ -37,54 +37,35 @@ describe("AppShell accessibility contracts", () => {
     expect(layoutSource).not.toContain("minimumScale");
   });
 
-  it("uses a reflowing mobile disclosure instead of eleven scrolling links", () => {
-    expect(appShellSource).toContain("MOBILE_PRIMARY_NAV_ITEMS");
-    expect(appShellSource).toContain("MOBILE_MORE_NAV_ITEMS");
-    expect(appShellSource).toContain("grid-cols-5");
-    expect(appShellSource).toContain("grid-cols-1");
-    expect(appShellSource).toContain("min-[260px]:grid-cols-2");
-    expect(appShellSource).toContain('aria-expanded={mobileMoreOpen}');
-    expect(appShellSource).toContain(
-      'aria-controls="app-mobile-more-sections"',
-    );
-    expect(appShellSource).toContain('role="region"');
-    expect(appShellSource).toContain("hidden={!mobileMoreOpen}");
-    expect(appShellSource).not.toContain("overflow-x-auto");
-    expect(appShellSource).not.toContain("canScrollLeft");
-    expect(appShellSource).not.toContain("canScrollRight");
-    expect(gettingStartedManualSource).toContain("Pulsa **Más**");
-    expect(gettingStartedManualSource).not.toContain("deslizar la barra");
-    expect(gettingStartedManualSource).not.toContain("flechas laterales");
+  it("keeps every mobile destination in one horizontally scrollable bar", () => {
+    expect(appShellSource).toContain("appNavItems.map");
+    expect(appShellSource).toContain("overflow-x-auto");
+    expect(appShellSource).toContain("overscroll-x-contain");
+    expect(appShellSource).toContain("w-[4.75rem] shrink-0");
+    expect(appShellSource).toContain("mobileNavRef");
+    expect(appShellSource).toContain("nav.scrollTo");
+    expect(appShellSource).not.toContain("mobileMoreOpen");
+    expect(gettingStartedManualSource).toContain("desplaza la barra");
     expect(gettingStartedManualSource).not.toContain(
       "/ayuda/capturas/navegacion-inferior.png",
     );
   });
 
-  it("exposes current-page state through ARIA, text, and an icon", () => {
+  it("exposes current-page state without resizing or overlapping links", () => {
     expect(appShellSource).toContain(
       'aria-current={active ? "page" : undefined}',
     );
-    expect(appShellSource).toContain(
-      'activeMobileMoreItem && !mobileMoreOpen ? "page" : undefined',
-    );
-    expect(appShellSource).toContain("Más · Actual");
-    expect(appShellSource).toContain("Sección actual:");
     expect(appShellSource).toContain("<Check");
-    expect(appShellSource).toContain("Actual");
+    expect(appShellSource).toContain("w-full truncate text-center");
     expect(appShellSource).toContain(
       "isAppNavItemActive(pathname, href, activeBase)",
     );
   });
 
   it("keeps mobile targets and keyboard focus visible", () => {
-    expect(appShellSource).toContain("min-h-16 min-w-0");
-    expect(appShellSource).toContain("min-h-14 w-full");
+    expect(appShellSource).toContain("h-16 w-[4.75rem]");
     expect(appShellSource).toContain("min-h-11 min-w-11");
     expect(appShellSource).toContain("focus-visible:outline");
-    expect(appShellSource).toContain('event.key !== "Escape"');
-    expect(appShellSource).toContain("mobileMoreButtonRef.current?.focus()");
-    expect(appShellSource).toContain("focusWasInside");
-    expect(appShellSource).toContain("activeElement === document.body");
     expect(helpButtonSource).toContain("h-11 w-11");
     expect(helpButtonSource).toContain("focus-visible:outline");
     expect(cloudIndicatorSource).toContain("min-h-11 min-w-11");

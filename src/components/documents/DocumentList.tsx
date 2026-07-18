@@ -2,8 +2,8 @@
 
 import { Fragment, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Eye, FileWarning, Pencil, Search, Send } from "lucide-react";
-import { IconActionButton, IconActionLink } from "@/components/ui/IconAction";
+import { Download, FileWarning, Pencil, Search, Send } from "lucide-react";
+import { IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
 import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuoteToInvoiceButton";
@@ -50,7 +50,6 @@ import {
   sortDocumentsByNumberDesc,
   sortInvoicesByPeriodAndNumberDesc,
 } from "@/lib/documents";
-import { openDocumentPdfPreview } from "@/lib/pdf";
 import {
   downloadInvoicePdfPeriodArchive,
   downloadInvoicePdfSelectionArchive,
@@ -207,9 +206,8 @@ interface InvoiceExportScope {
 export function DocumentList({ type, basePath }: DocumentListProps) {
   const { data, getDocumentsByType, repairDocumentCustomer, updateProfile } =
     useAppStore();
-  const { billingEnabled, isPro, limits } = useBilling();
+  const { limits } = useBilling();
   const vatExempt = isVatExempt(data.profile);
-  const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const [search, setSearch] = useState("");
   const [period, setPeriod] = useState<ProductPeriodSelection>(() => ({
     ...getDefaultProductPeriod(),
@@ -228,9 +226,6 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
   const [rememberInvoiceEmailMethod, setRememberInvoiceEmailMethod] =
     useState(true);
   const [visibleCount, setVisibleCount] = useState(DOCUMENT_LIST_BATCH_SIZE);
-  const [previewingDocumentId, setPreviewingDocumentId] = useState<
-    string | null
-  >(null);
   const [expandedRelationshipDocumentId, setExpandedRelationshipDocumentId] =
     useState<string | null>(null);
   const [expenseAllocationsByDocumentId, setExpenseAllocationsByDocumentId] =
@@ -615,19 +610,6 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
       setInvoicePdfExportFeedback({ kind: "error", message });
     } finally {
       setInvoicePdfExportBusy(null);
-    }
-  }
-
-  async function handlePdfPreview(doc: Document) {
-    setPreviewingDocumentId(doc.id);
-    try {
-      await openDocumentPdfPreview(doc, data.profile, pdfOptions);
-    } catch {
-      alert(
-        "No se pudo abrir el PDF. Permite ventanas emergentes o descárgalo.",
-      );
-    } finally {
-      setPreviewingDocumentId(null);
     }
   }
 
@@ -1279,28 +1261,23 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                     </div>
                   ) : (
                     <div className="action-scroll -mx-1 flex items-center gap-2 self-start overflow-x-auto px-1 pb-0.5 sm:pb-0 md:col-start-1">
+                      {/* Mantener el mismo orden visual en facturas, rectificativas, presupuestos y recibos. */}
                       {!legacyImportAttested && type === "presupuesto" && (
                         <MarkAsAcceptedButton doc={doc} />
                       )}
+                      {(type === "factura" || type === "recibo") && (
+                        <MarkAsPaidButton doc={doc} />
+                      )}
                       {!legacyImportAttested && type === "presupuesto" && (
                         <ConvertQuoteToInvoiceButton doc={doc} />
+                      )}
+                      {!legacyImportAttested && type === "factura" && (
+                        <GenerateReceiptButton doc={doc} />
                       )}
                       {type === "presupuesto" && (
                         <DuplicateDocumentButton
                           doc={doc}
                           basePath={basePath}
-                        />
-                      )}
-                      {(type === "factura" || type === "recibo") && (
-                        <MarkAsPaidButton doc={doc} />
-                      )}
-                      {!legacyImportAttested && type === "factura" && (
-                        <GenerateReceiptButton doc={doc} />
-                      )}
-                      {type === "factura" && (
-                        <PaymentReminderButton
-                          doc={contactDoc}
-                          profile={data.profile}
                         />
                       )}
                       <DocumentLinkManagerButton
@@ -1318,8 +1295,13 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                       <DocumentPdfShareActions
                         doc={doc}
                         profile={data.profile}
-                        showPreview={editable}
                       />
+                      {type === "factura" && (
+                        <PaymentReminderButton
+                          doc={contactDoc}
+                          profile={data.profile}
+                        />
+                      )}
                       {rectifiable && (
                         <IconActionLink
                           href={`${basePath}/${doc.id}/rectificar`}
@@ -1330,7 +1312,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                           <FileWarning className="h-5 w-5" />
                         </IconActionLink>
                       )}
-                      {editable ? (
+                      {editable && (
                         <IconActionLink
                           href={`${basePath}/${doc.id}`}
                           label="Editar"
@@ -1339,22 +1321,6 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
                         >
                           <Pencil className="h-5 w-5" />
                         </IconActionLink>
-                      ) : (
-                        <IconActionButton
-                          label={
-                            legacyImportAttested ? "Ver copia PDF" : "Ver PDF"
-                          }
-                          tooltip={
-                            legacyImportAttested
-                              ? "Abrir una reconstrucción desde los datos importados; conserva el original"
-                              : "Ver PDF"
-                          }
-                          onClick={() => void handlePdfPreview(doc)}
-                          disabled={previewingDocumentId === doc.id}
-                          className="bg-slate-100 text-slate-700 hover:bg-slate-200"
-                        >
-                          <Eye className="h-5 w-5" />
-                        </IconActionButton>
                       )}
                       <DeleteDocumentButton doc={doc} />
                     </div>

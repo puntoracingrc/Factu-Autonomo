@@ -61,6 +61,12 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     icon: ShoppingCart,
   },
   {
+    href: "/proveedores",
+    label: "Proveedores",
+    shortLabel: "Proveedor",
+    icon: Truck,
+  },
+  {
     href: "/productos",
     label: "Productos",
     shortLabel: "Productos",
@@ -71,12 +77,6 @@ export const APP_NAV_ITEMS: readonly AppNavItem[] = [
     label: "Rentabilidad Real",
     shortLabel: "Rentab.",
     icon: ChartNoAxesCombined,
-  },
-  {
-    href: "/proveedores",
-    label: "Proveedores",
-    shortLabel: "Proveedor",
-    icon: Truck,
   },
   {
     href: "/impuestos",
@@ -122,9 +122,7 @@ export function isAppNavItemActive(
   activeBase = href,
 ): boolean {
   if (activeBase === "/") return pathname === activeBase;
-  return (
-    pathname === activeBase || pathname.startsWith(`${activeBase}/`)
-  );
+  return pathname === activeBase || pathname.startsWith(`${activeBase}/`);
 }
 
 export function findActiveAppNavItem(
