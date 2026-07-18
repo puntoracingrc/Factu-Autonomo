@@ -8,8 +8,18 @@ export interface ReferralProfile {
   code: string | null;
   shareUrl: string | null;
   bonusPerReferral: number;
-  referralsCount: number;
+  registeredCount: number;
+  payingCount: number;
+  inactiveCount: number;
+  rewardedSubscribersCount: number;
+  rewardEventsCount: number;
   scansEarned: number;
+  planCounts: Array<{
+    plan: "free" | "trial" | "pro" | "pro_plus";
+    label: string;
+    count: number;
+    paying: number;
+  }>;
   hasRedeemed: boolean;
   referralsUnavailable?: boolean;
 }
@@ -35,7 +45,12 @@ export async function fetchReferralProfile(): Promise<ReferralProfile | null> {
 export async function redeemReferralCodeApi(
   code: string,
 ): Promise<
-  | { ok: true; bonusScans: number; alreadyRedeemed?: boolean }
+  | {
+      ok: true;
+      bonusScans: number;
+      program: "affiliate" | "partner";
+      alreadyRedeemed?: boolean;
+    }
   | { ok: false; error: string }
 > {
   const token = await getAccessToken();
@@ -57,6 +72,7 @@ export async function redeemReferralCodeApi(
     error?: string;
     bonusScans?: number;
     alreadyRedeemed?: boolean;
+    program?: "affiliate" | "partner";
   };
 
   if (!res.ok || !body.ok) {
@@ -66,6 +82,7 @@ export async function redeemReferralCodeApi(
   return {
     ok: true,
     bonusScans: body.bonusScans ?? 0,
+    program: body.program === "partner" ? "partner" : "affiliate",
     alreadyRedeemed: body.alreadyRedeemed,
   };
 }
@@ -79,8 +96,7 @@ export async function tryRedeemPendingReferral(): Promise<string | null> {
 
   if (!result.ok) return result.error;
   if (result.alreadyRedeemed) return null;
-  if (result.bonusScans > 0) {
-    return `¡Invitación aplicada! Tú y quien te invitó recibís ${result.bonusScans} escaneos extra.`;
-  }
-  return null;
+  return result.program === "affiliate"
+    ? "Invitación registrada. Los créditos se activarán cuando Stripe confirme el primer pago válido."
+    : "Invitación registrada correctamente.";
 }

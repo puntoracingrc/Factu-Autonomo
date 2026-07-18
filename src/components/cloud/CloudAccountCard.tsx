@@ -748,7 +748,7 @@ export function CloudAccountCard({
             {surface !== "partner" && billingEnabled && authMode === "signup" ? (
               <Field
                 label="Código de invitación"
-                hint={`Opcional — ${REFERRAL_BONUS_SCANS} escaneos extra para ti y quien te invita`}
+                hint={`Opcional — ${REFERRAL_BONUS_SCANS} créditos IA para ambos después de un pago válido`}
               >
                 <Input
                   value={referralCode}

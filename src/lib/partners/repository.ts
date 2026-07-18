@@ -159,6 +159,7 @@ async function referralRowsForPartners(
     .from("referral_redemptions")
     .select("referrer_user_id,referee_user_id")
     .in("referrer_user_id", partnerUserIds)
+    .eq("program", "partner")
     .limit(PARTNER_MAX_REFERRALS);
   throwPartnerQueryError(error, "partner_referrals");
   return (data ?? []) as ReferralRow[];

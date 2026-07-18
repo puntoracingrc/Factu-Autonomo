@@ -20,6 +20,21 @@ continuar sin pedir permiso adicional, pero debe revisar el ADR aplicable,
 respetar `CODEOWNERS` y ejecutar sus pruebas de contrato. El test
 `protected-system-invariants-contract.test.ts` protege esta lectura obligatoria.
 
+## Afiliados y recompensas por pagos
+
+La decisión obligatoria y versionada está en
+[`docs/architecture/ADR-0007-paid-affiliate-rewards.md`](docs/architecture/ADR-0007-paid-affiliate-rewards.md).
+
+- Registrar o canjear un código solo atribuye y nunca concede valor.
+- Afiliados y Partners son programas separados.
+- Solo un pago de suscripción confirmado por el webhook firmado de Stripe,
+  validado contra Price, Customer, Subscription, usuario y estado persistido,
+  puede conceder créditos.
+- La concesión a invitante e invitado es atómica, privada, append-only e
+  idempotente por Event e Invoice. El panel solo expone agregados sin PII.
+- Cualquier cambio en referidos, promociones, Stripe, planes o créditos debe
+  ejecutar las regresiones de ADR-0007.
+
 ## Integridad de documentos históricos importados
 
 La decisión obligatoria y versionada está en

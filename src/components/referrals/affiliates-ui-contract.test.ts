@@ -41,11 +41,21 @@ describe("Affiliates UI contract", () => {
     expect(accountPageSource).toContain('href="/afiliados"');
   });
 
-  it("keeps manual referral entry only in registration", () => {
-    expect(referralCardSource).not.toContain("Canjear código");
-    expect(referralCardSource).not.toContain("handleRedeemManual");
+  it("accepts manual Affiliate attribution without granting value", () => {
+    expect(referralCardSource).toContain("handleRedeemManual");
+    expect(referralCardSource).toContain("Asociar código");
+    expect(referralCardSource).toContain("primer pago válido");
     expect(cloudAccountSource).toContain('label="Código de invitación"');
     expect(cloudAccountSource).toContain('authMode === "signup"');
+  });
+
+  it("explains paid recurring rewards and exposes aggregate results", () => {
+    expect(affiliatesPageSource).toContain("cada renovación pagada y verificada");
+    expect(affiliatesPageSource).toContain("un plan anual, cuando se confirma su pago anual");
+    expect(referralCardSource).toContain("profile.registeredCount");
+    expect(referralCardSource).toContain("profile.payingCount");
+    expect(referralCardSource).toContain("profile.planCounts.map");
+    expect(referralCardSource).not.toContain("email");
   });
 
   it("captures referral URLs globally and exposes Affiliates in navigation", () => {

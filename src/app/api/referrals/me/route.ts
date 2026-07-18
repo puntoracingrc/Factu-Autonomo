@@ -12,12 +12,24 @@ import {
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
 
+export const dynamic = "force-dynamic";
+
+const PRIVATE_NO_STORE = {
+  "Cache-Control": "private, no-store, max-age=0",
+  "CDN-Cache-Control": "no-store",
+  "Vercel-CDN-Cache-Control": "no-store",
+} as const;
+
+function privateJson(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: PRIVATE_NO_STORE });
+}
+
 export async function GET(request: Request) {
   const user = await getUserFromBearer(request.headers.get("authorization"), {
     requireEmailConfirmed: true,
   });
   if (!user) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    return privateJson({ error: "No autorizado" }, 401);
   }
   const rateLimit = await checkRateLimit(
     request,
@@ -31,12 +43,17 @@ export async function GET(request: Request) {
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
   if (!isBillingEnforced()) {
-    return NextResponse.json({
+    return privateJson({
       code: "DEV",
       shareUrl: buildReferralShareUrl(new URL(request.url).origin, "DEV"),
       bonusPerReferral: REFERRAL_BONUS_SCANS,
-      referralsCount: 0,
+      registeredCount: 0,
+      payingCount: 0,
+      inactiveCount: 0,
+      rewardedSubscribersCount: 0,
+      rewardEventsCount: 0,
       scansEarned: 0,
+      planCounts: [],
       hasRedeemed: false,
       billingDisabled: true,
     });
@@ -44,12 +61,17 @@ export async function GET(request: Request) {
 
   const code = await getOrCreateReferralCode(user.id);
   if (!code) {
-    return NextResponse.json({
+    return privateJson({
       code: null,
       shareUrl: null,
       bonusPerReferral: REFERRAL_BONUS_SCANS,
-      referralsCount: 0,
+      registeredCount: 0,
+      payingCount: 0,
+      inactiveCount: 0,
+      rewardedSubscribersCount: 0,
+      rewardEventsCount: 0,
       scansEarned: 0,
+      planCounts: [],
       hasRedeemed: false,
       referralsUnavailable: true,
     });
@@ -58,12 +80,17 @@ export async function GET(request: Request) {
   const stats = await getReferralStats(user.id);
   const origin = new URL(request.url).origin;
 
-  return NextResponse.json({
+  return privateJson({
     code,
     shareUrl: buildReferralShareUrl(origin, code),
     bonusPerReferral: REFERRAL_BONUS_SCANS,
-    referralsCount: stats.referralsCount,
+    registeredCount: stats.registeredCount,
+    payingCount: stats.payingCount,
+    inactiveCount: stats.inactiveCount,
+    rewardedSubscribersCount: stats.rewardedSubscribersCount,
+    rewardEventsCount: stats.rewardEventsCount,
     scansEarned: stats.scansEarned,
+    planCounts: stats.planCounts,
     hasRedeemed: stats.hasRedeemed,
   });
 }

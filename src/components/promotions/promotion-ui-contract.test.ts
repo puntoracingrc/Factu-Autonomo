@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 const adminPage = readFileSync(new URL("../../app/admin/page.tsx", import.meta.url), "utf8");
 const adminPanel = readFileSync(new URL("../admin/AdminPromotionsPanel.tsx", import.meta.url), "utf8");
 const affiliatesPage = readFileSync(new URL("../../app/afiliados/page.tsx", import.meta.url), "utf8");
+const accountPage = readFileSync(new URL("../../app/cuenta/page.tsx", import.meta.url), "utf8");
 const redeemer = readFileSync(new URL("./PromoCodeRedeemer.tsx", import.meta.url), "utf8");
 const billingContext = readFileSync(new URL("../../context/BillingContext.tsx", import.meta.url), "utf8");
 
@@ -24,7 +25,8 @@ describe("promotion UI contract", () => {
   });
 
   it("keeps user redemption separate from referral attribution", () => {
-    expect(affiliatesPage).toContain("<PromoCodeRedeemer />");
+    expect(affiliatesPage).not.toContain("<PromoCodeRedeemer />");
+    expect(accountPage).toContain("<PromoCodeRedeemer />");
     expect(redeemer).toContain("/api/promotions/redeem");
     expect(redeemer).not.toContain("/api/referrals/redeem");
     expect(redeemer).not.toContain("stripe");

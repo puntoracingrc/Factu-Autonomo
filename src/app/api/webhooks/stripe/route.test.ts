@@ -15,9 +15,22 @@ import {
 } from "@/lib/billing/payment-receipt-email";
 import { syncBillingProfileFromCustomerId } from "@/lib/billing/sync-billing-profile";
 import { SCAN_PACK_ATOMIC_LEDGER_CUTOVER_UNIX } from "@/lib/billing/scan-packs";
+import { grantPaidReferralReward } from "@/lib/billing/paid-referral-rewards";
 
 vi.mock("@/lib/billing/stripe", () => ({
   getStripe: vi.fn(),
+  planFromStripePriceId: vi.fn((priceId: string | null | undefined) => {
+    if (priceId === "price_pro_monthly" || priceId === "price_pro_yearly") {
+      return "pro";
+    }
+    if (
+      priceId === "price_pro_plus_monthly" ||
+      priceId === "price_pro_plus_yearly"
+    ) {
+      return "pro_plus";
+    }
+    return null;
+  }),
 }));
 
 vi.mock("@/lib/billing/stripe-events", () => ({
@@ -42,6 +55,13 @@ vi.mock("@/lib/billing/sync-billing-profile", () => ({
   syncBillingProfileFromCustomerId: vi.fn(async () => null),
 }));
 
+vi.mock("@/lib/billing/paid-referral-rewards", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/billing/paid-referral-rewards")
+  >("@/lib/billing/paid-referral-rewards");
+  return { ...actual, grantPaidReferralReward: vi.fn() };
+});
+
 function stripeRequest() {
   return new Request("http://localhost/api/webhooks/stripe", {
     method: "POST",
@@ -50,10 +70,13 @@ function stripeRequest() {
   });
 }
 
-function fakeStripe(event: unknown) {
+function fakeStripe(event: unknown, subscription?: unknown) {
   return {
     webhooks: {
       constructEvent: vi.fn(() => event),
+    },
+    subscriptions: {
+      retrieve: vi.fn(async () => subscription),
     },
   };
 }
@@ -116,6 +139,7 @@ describe("POST /api/webhooks/stripe", () => {
     vi.mocked(receiptFromCheckoutSession).mockReturnValue(null);
     vi.mocked(sendPaymentReceiptEmail).mockResolvedValue({ sent: true });
     vi.mocked(findUserIdByStripeCustomer).mockResolvedValue(null);
+    vi.mocked(grantPaidReferralReward).mockResolvedValue("not_attributed");
   });
 
   afterEach(() => {
@@ -652,6 +676,110 @@ describe("POST /api/webhooks/stripe", () => {
     );
     expect(markStripeEventProcessed).not.toHaveBeenCalled();
     expect(markStripeEventFailed).not.toHaveBeenCalled();
+  });
+
+  it("concede la recompensa Affiliate solo desde una renovación pagada y activa", async () => {
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_test");
+    vi.stubEnv("STRIPE_PRICE_MONTHLY", "price_pro_monthly");
+    const event = {
+      id: "evt_affiliate_paid",
+      type: "invoice.paid",
+      data: {
+        object: {
+          id: "in_affiliate_paid",
+          billing_reason: "subscription_cycle",
+          customer: "cus_affiliate_paid",
+          customer_email: "buyer@example.test",
+          amount_paid: 599,
+          paid_out_of_band: false,
+          collection_method: "charge_automatically",
+          currency: "eur",
+          created: 1_784_376_000,
+          status_transitions: { paid_at: 1_784_376_000 },
+          parent: {
+            subscription_details: { subscription: "sub_affiliate_paid" },
+          },
+          lines: { data: [{ description: "Plan Pro" }] },
+        },
+      },
+    };
+    const subscription = {
+      id: "sub_affiliate_paid",
+      status: "active",
+      customer: "cus_affiliate_paid",
+      metadata: {
+        user_id: "11111111-1111-4111-8111-111111111111",
+        plan: "pro",
+      },
+      items: {
+        data: [
+          {
+            current_period_end: 1_786_944_000,
+            price: { id: "price_pro_monthly" },
+          },
+        ],
+      },
+    };
+    const upsert = vi.fn().mockResolvedValue({ error: null });
+    vi.mocked(getStripe).mockReturnValue(
+      fakeStripe(event, subscription) as never,
+    );
+    vi.mocked(getSupabaseAdmin).mockReturnValue(
+      { from: vi.fn(() => ({ upsert })) } as never,
+    );
+    vi.mocked(reserveStripeEvent).mockResolvedValue(acquiredReservation());
+    vi.mocked(findUserIdByStripeCustomer).mockResolvedValue(null);
+
+    const response = await POST(stripeRequest());
+
+    expect(response.status).toBe(200);
+    expect(grantPaidReferralReward).toHaveBeenCalledWith({
+      refereeUserId: "11111111-1111-4111-8111-111111111111",
+      stripeEventId: "evt_affiliate_paid",
+      stripeInvoiceId: "in_affiliate_paid",
+      stripeSubscriptionId: "sub_affiliate_paid",
+      stripeCustomerId: "cus_affiliate_paid",
+      plan: "pro",
+      amountPaidCents: 599,
+      currency: "eur",
+      billingReason: "subscription_cycle",
+      collectionMethod: "charge_automatically",
+      paidOutOfBand: false,
+      paidAt: new Date("2026-07-18T12:00:00.000Z"),
+    });
+    expect(markStripeEventProcessed).toHaveBeenCalledOnce();
+  });
+
+  it("no concede recompensas por facturas gratuitas o cambios de plan", async () => {
+    vi.stubEnv("STRIPE_WEBHOOK_SECRET", "whsec_test");
+    const event = {
+      id: "evt_affiliate_free",
+      type: "invoice.paid",
+      data: {
+        object: {
+          id: "in_affiliate_free",
+          billing_reason: "subscription_update",
+          customer: "cus_affiliate_free",
+          amount_paid: 0,
+          currency: "eur",
+          created: 1_784_352_000,
+          status_transitions: { paid_at: 1_784_352_000 },
+          parent: {
+            subscription_details: { subscription: "sub_affiliate_free" },
+          },
+          lines: { data: [] },
+        },
+      },
+    };
+    const stripe = fakeStripe(event, null);
+    vi.mocked(getStripe).mockReturnValue(stripe as never);
+    vi.mocked(reserveStripeEvent).mockResolvedValue(acquiredReservation());
+
+    const response = await POST(stripeRequest());
+
+    expect(response.status).toBe(200);
+    expect(stripe.subscriptions.retrieve).not.toHaveBeenCalled();
+    expect(grantPaidReferralReward).not.toHaveBeenCalled();
   });
 
   it("bloquea un checkout de pago sin tipo de efecto conocido", async () => {
