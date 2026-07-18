@@ -226,6 +226,28 @@ function addBlockedDocument(
   );
 }
 
+const PERIOD_LOCATABLE_BLOCKING_ISSUES = new Set<DocumentSnapshotIntegrityIssue>([
+  "document_snapshot_missing",
+  "pdf_snapshot_missing",
+  "pdf_without_document_snapshot",
+  "snapshot_seal_missing",
+]);
+
+function blockedDocumentAffectsPeriod(
+  document: FiscalExportBlockedDocument,
+  isDateInPeriod: (date: string) => boolean,
+): boolean {
+  // Una ausencia histórica conserva una fecha de referencia utilizable para
+  // ubicar el aviso. Si hay hashes, sellos o relaciones incoherentes, la fecha
+  // también podría estar alterada: ese bloqueo debe seguir siendo global para
+  // que cambiar una fecha viva no permita ocultarlo.
+  return document.issues.every((issue) =>
+    PERIOD_LOCATABLE_BLOCKING_ISSUES.has(issue),
+  )
+    ? isDateInPeriod(document.referenceDate)
+    : true;
+}
+
 function hasOperationalFiscalStatus(doc: Document): boolean {
   return (
     doc.status === "enviado" ||
@@ -433,5 +455,13 @@ export function selectCanonicalFiscalDocumentsForExport(
     }
   }
 
-  return { documents: selected, blockedDocuments: [...blockedById.values()] };
+  return {
+    documents: selected,
+    // Las ausencias históricas con fecha localizable solo afectan a su periodo.
+    // Las incoherencias que podrían comprometer esa fecha siguen fail-closed en
+    // todos los periodos y no se pueden ocultar cambiando el dato vivo.
+    blockedDocuments: [...blockedById.values()].filter((document) =>
+      blockedDocumentAffectsPeriod(document, isDateInPeriod),
+    ),
+  };
 }

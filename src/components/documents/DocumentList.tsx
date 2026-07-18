@@ -61,6 +61,7 @@ import {
   type InvoicePdfExportPeriod,
 } from "@/lib/billing/export-invoice-pdf-archive";
 import { buildInvoiceCustomerEmail } from "@/lib/billing/invoice-customer-email";
+import { selectCanonicalFiscalDocumentsForExport } from "@/lib/billing/fiscal-export-documents";
 import {
   resolveInvoiceCustomerExportContext,
   type InvoiceCustomerExportContext,
@@ -157,7 +158,8 @@ type DocumentStatusFilter =
   | "issued"
   | "collected"
   | "pending"
-  | "rectified";
+  | "rectified"
+  | "blocked";
 
 const DOCUMENT_STATUS_OPTIONS: Record<
   DocumentType,
@@ -170,6 +172,7 @@ const DOCUMENT_STATUS_OPTIONS: Record<
     { value: "collected", label: "Cobrada" },
     { value: "pending", label: "Pendiente de cobro" },
     { value: "rectified", label: "Rectificada" },
+    { value: "blocked", label: "Bloqueadas" },
   ],
   presupuesto: [
     { value: "all", label: "Todos los estados" },
@@ -239,6 +242,25 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     () => availableProductPeriodYears(allDocuments, []),
     [allDocuments],
   );
+  const fiscalBlockedDocumentIds = useMemo(
+    () =>
+      new Set(
+        selectCanonicalFiscalDocumentsForExport(
+          data.documents,
+          data.profile,
+          () => true,
+        ).blockedDocuments.map((document) => document.id),
+      ),
+    [data.documents, data.profile],
+  );
+
+  useEffect(() => {
+    if (type !== "factura") return;
+    const requestedStatus = new URLSearchParams(window.location.search).get(
+      "estado",
+    );
+    if (requestedStatus === "bloqueadas") setStatusFilter("blocked");
+  }, [type]);
 
   const documents = useMemo(() => {
     const periodDocuments = filterDocumentsByProductPeriod(
@@ -246,7 +268,12 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
       period,
     );
     const statusDocuments = periodDocuments.filter((document) =>
-      matchesDocumentStatusFilter(document, statusFilter, data.documents),
+      matchesDocumentStatusFilter(
+        document,
+        statusFilter,
+        data.documents,
+        fiscalBlockedDocumentIds,
+      ),
     );
     const sorted =
       type === "factura"
@@ -260,6 +287,7 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
     allDocuments,
     data.documents,
     data.profile.numbering,
+    fiscalBlockedDocumentIds,
     period,
     search,
     statusFilter,
@@ -983,9 +1011,10 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
               isDocumentUsableForFinancialCalculations(doc),
             );
             const integrityBlocked =
-              !appIssuedRecovered &&
-              (doc.snapshotIntegrity?.status === "blocked" ||
-                hasAppIssuedRecoveryProtectionClaim(doc));
+              fiscalBlockedDocumentIds.has(doc.id) ||
+              (!appIssuedRecovered &&
+                (doc.snapshotIntegrity?.status === "blocked" ||
+                  hasAppIssuedRecoveryProtectionClaim(doc)));
             const integrityFeedback = getDocumentIntegrityBlockedFeedback(
               doc.snapshotIntegrity?.issues,
             );
@@ -1389,8 +1418,10 @@ function matchesDocumentStatusFilter(
   document: Document,
   filter: DocumentStatusFilter,
   allDocuments: Document[],
+  fiscalBlockedDocumentIds: ReadonlySet<string>,
 ): boolean {
   if (filter === "all") return true;
+  if (filter === "blocked") return fiscalBlockedDocumentIds.has(document.id);
   if (filter === "draft") {
     return document.type === "presupuesto"
       ? document.status === "borrador"

@@ -487,7 +487,7 @@ export function TaxSummaryCard({
             por integridad. Sus importes no están incluidos en estos cálculos.
           </p>
           <Link
-            href="/facturas"
+            href="/facturas?estado=bloqueadas"
             className="mt-2 inline-flex text-sm font-semibold text-red-800 underline"
           >
             Revisar documentos bloqueados

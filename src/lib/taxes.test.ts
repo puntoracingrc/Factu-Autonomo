@@ -982,6 +982,36 @@ describe("calculateTaxSummary", () => {
     expect(blocked.integrityBlockedDocuments).toBe(1);
   });
 
+  it("cuenta únicamente los documentos bloqueados del periodo fiscal visible", () => {
+    const blockedInFirstQuarter: Document = invoice("enviado", 100, {
+      id: "blocked-first-quarter",
+      date: "2026-03-15",
+      snapshotIntegrity: {
+        status: "blocked",
+        issues: [
+          "document_snapshot_missing",
+          "pdf_snapshot_missing",
+          "snapshot_seal_missing",
+        ],
+      },
+      snapshotIntegrityRequired: true,
+      documentLifecycle: "issued",
+      integrityLock: "locked",
+    });
+
+    const firstQuarter = calculateTaxSummary([blockedInFirstQuarter], [], {
+      profile: TEST_PROFILE,
+      isDocumentDateInPeriod: (date) => isDateInQuarter(date, 2026, 1),
+    });
+    const secondQuarter = calculateTaxSummary([blockedInFirstQuarter], [], {
+      profile: TEST_PROFILE,
+      isDocumentDateInPeriod: (date) => isDateInQuarter(date, 2026, 2),
+    });
+
+    expect(firstQuarter.integrityBlockedDocuments).toBe(1);
+    expect(secondQuarter.integrityBlockedDocuments).toBe(0);
+  });
+
   it("bloquea en tiempo real una factura sellada disfrazada de presupuesto borrador", () => {
     const issued = issueDocument(
       invoice("borrador", 100),
