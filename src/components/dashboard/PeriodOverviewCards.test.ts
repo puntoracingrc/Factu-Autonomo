@@ -13,8 +13,9 @@ const panelSource = readFileSync(
 describe("PeriodOverviewCards fiscal semantics", () => {
   it("distingue el gasto operativo de la base estimada para IRPF", () => {
     expect(cardsSource).toContain("hasNonDeductibleExpenses");
-    expect(cardsSource).toContain("Beneficio económico est.");
-    expect(cardsSource).toContain("Base estimada para IRPF");
+    expect(cardsSource).toContain("Resumen rápido");
+    expect(cardsSource).toContain("Te queda aprox.");
+    expect(cardsSource).toContain("base IRPF");
     expect(cardsSource).toContain("estimatedIrpfBase");
     expect(panelSource).toContain(
       "taxes.nonDeductibleExpenseCount > 0",
@@ -25,7 +26,7 @@ describe("PeriodOverviewCards fiscal semantics", () => {
   });
 
   it("presenta ventas facturadas y no filtra el resumen fiscal por cobro", () => {
-    expect(cardsSource).toContain("Ingresos facturados");
+    expect(cardsSource).toContain("Has facturado");
     expect(cardsSource).toContain("invoicedIncome");
     expect(panelSource).toContain("taxes.salesBase + taxes.salesIva");
     expect(panelSource).toContain("invoicedIncome={periodInvoiced}");
@@ -35,9 +36,17 @@ describe("PeriodOverviewCards fiscal semantics", () => {
 
   it("rotula un neto negativo como saldo a favor sin perder magnitud", () => {
     expect(cardsSource).toContain("expenseBalanceIsCredit");
-    expect(cardsSource).toContain('"Saldo a favor" : "Gasto neto"');
+    expect(cardsSource).toContain('"Tienes saldo a favor" : "Has gastado"');
     expect(cardsSource).toContain("Math.abs(spent)");
     expect(panelSource).toContain("periodExpenseBalanceIsCredit");
     expect(panelSource).toContain("Math.abs(periodSpent)");
+  });
+
+  it("enseña de un vistazo cuánto apartar para impuestos", () => {
+    expect(cardsSource).toContain("Aparta para impuestos");
+    expect(cardsSource).toContain("totalToSetAside");
+    expect(cardsSource).toContain("ivaToPay + irpfEstimate");
+    expect(cardsSource).toContain("IVA {formatMoney(ivaToPay)}");
+    expect(cardsSource).toContain("IRPF {formatMoney(irpfEstimate)}");
   });
 });

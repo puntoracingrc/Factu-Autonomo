@@ -35,11 +35,10 @@ describe("TaxSummaryCard integrity warning", () => {
 
 describe("TaxSummaryCard fiscal semantics", () => {
   it("presenta el resultado tras IRPF sin mezclarlo con la posición de IVA", () => {
-    expect(source).toContain("Resultado económico tras reservar IRPF");
+    expect(source).toContain("Te queda aprox. después de guardar IRPF");
     expect(source).toContain("taxes.profitAfterIrpfReserve");
-    expect(source).toContain("el IVA va aparte");
-    expect(source).toContain("Beneficio económico antes de reservar IRPF");
-    expect(source).toContain("Base estimada para IRPF");
+    expect(source).toContain("IRPF: dinero a guardar");
+    expect(source).toContain("Base sobre la que se calcula");
     expect(source).toContain("taxes.estimatedIrpfBase");
     expect(source).not.toContain("Beneficio neto");
     expect(source).not.toContain("Después de IVA neto");
@@ -88,10 +87,12 @@ describe("TaxSummaryCard fiscal semantics", () => {
   });
 
   it("presenta bases firmadas como netas sin dibujar barras negativas", () => {
-    expect(source).toContain("IVA deducible neto (gastos y abonos)");
-    expect(source).toContain("Gasto neto deducible en IRPF");
-    expect(source).toContain("coste económico neto de gastos y abonos");
-    expect(source).toContain("Math.max(0, value)");
+    expect(source).toContain("IVA que puedes descontar");
+    expect(source).toContain("Gastos que cuentan para IRPF");
+    expect(source).toContain("IVA: toca pagar");
+    expect(source).toContain("IVA: queda a compensar");
+    expect(source).not.toContain("MetricBar");
+    expect(source).not.toContain("IrpfSplitChart");
     expect(source).toContain("taxes.lineVatExpenseCount > 0");
     expect(source).toContain("taxes.headerVatExpenseCount > 0");
   });

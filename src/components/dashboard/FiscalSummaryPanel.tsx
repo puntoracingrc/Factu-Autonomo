@@ -429,6 +429,10 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
             spent={periodSpent}
             grossProfit={taxes.grossProfit}
             estimatedIrpfBase={taxes.estimatedIrpfBase}
+            ivaToPay={taxes.ivaToPay}
+            ivaCredit={taxes.ivaCredit}
+            irpfEstimate={taxes.irpfEstimate}
+            profitAfterIrpfReserve={taxes.profitAfterIrpfReserve}
             hasNonDeductibleExpenses={
               taxes.nonDeductibleExpenseCount > 0
             }
