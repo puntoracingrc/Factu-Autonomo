@@ -470,7 +470,8 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       'write.safeCode === "DURABILITY_CONFLICT"',
     );
-    expect(componentSource).toContain("Código: ${write.safeCode}");
+    expect(componentSource).not.toContain("Código: ${write.safeCode}");
+    expect(componentSource).toContain("errorMessage={saveError}");
     expect(componentSource).not.toContain('setPersistenceState("saved")');
     expect(componentSource).toContain("No se ha guardado una tarjeta vacía");
     expect(componentSource).toContain(
@@ -1005,6 +1006,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain("advanceAfterSuccessfulSave(");
     expect(componentSource).toContain("showReview(nextReview.documentId)");
     expect(componentSource).toContain("setScannerOpen(false)");
+    expect(componentSource).toContain("errorMessage={saveError}");
+    expect(componentSource).toContain('role="alert"');
+    expect(componentSource).toContain(
+      "El documento sigue abierto para que puedas reintentar.",
+    );
+    expect(componentSource).not.toContain("Código: ${write.safeCode}");
     expect(componentSource).not.toContain("Guardar todo lo listo");
     expect(componentSource).toContain(
       "const review = reviewsRef.current.get(item.id)",
@@ -1015,9 +1022,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       'verticalDocuments.map((document) => document.title).join(" · ")',
     );
-    expect(componentSource).not.toContain(
-      "documentos reconocidos en este PDF",
-    );
+    expect(componentSource).not.toContain("documentos reconocidos en este PDF");
     expect(componentSource).toContain('item.kind === "DOCUMENT_TOTAL"');
     expect(componentSource).toContain('item.kind === "OUTSTANDING_PRINCIPAL"');
     expect(componentSource).toContain("pageCount: technicalReview.pageCount");

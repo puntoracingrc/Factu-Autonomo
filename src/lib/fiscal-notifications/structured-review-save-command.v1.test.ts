@@ -470,6 +470,24 @@ function commandInput(options?: {
   };
 }
 
+function withProductionSourceIdentity(
+  value: FiscalNotificationLocalAnalysisResult,
+  sourceSha256 = value.technicalReview.sha256,
+): FiscalNotificationLocalAnalysisResult {
+  const result = { ...value } as FiscalNotificationLocalAnalysisResult;
+  Object.defineProperty(result, "sourceIdentity", {
+    value: Object.freeze({
+      fileId: "notification-file:00000000-0000-4000-8000-000000000074",
+      documentId: "notification-document:00000000-0000-4000-8000-000000000075",
+      sourceSha256,
+    }),
+    enumerable: false,
+    writable: false,
+    configurable: false,
+  });
+  return Object.freeze(result);
+}
+
 describe("structured fiscal notification save command v1", () => {
   it("guarda una única transición durable con los hechos exactos", () => {
     const input = commandInput();
@@ -506,6 +524,51 @@ describe("structured fiscal notification save command v1", () => {
     expect(input.persist).toHaveBeenCalledTimes(1);
     expect(input.value.expected).toEqual(before);
     expect(JSON.stringify(result.data)).not.toContain(DOCUMENT_TEXT);
+  });
+
+  it("valida la identidad efímera de producción sin intentar persistirla", async () => {
+    const input = commandInput();
+    const analysisWithIdentity = withProductionSourceIdentity(
+      await verticalDeferralAnalysis(),
+    );
+
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1({
+      ...input.value,
+      analysis: analysisWithIdentity,
+    });
+
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    expect(input.persist).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(result.data)).not.toContain("notification-file:");
+    expect(
+      Object.getOwnPropertyDescriptor(analysisWithIdentity, "sourceIdentity"),
+    ).toMatchObject({
+      enumerable: false,
+      writable: false,
+      configurable: false,
+    });
+  });
+
+  it("bloquea una identidad efímera que no corresponde al PDF analizado", async () => {
+    const input = commandInput();
+    const mismatched = withProductionSourceIdentity(
+      await verticalDeferralAnalysis(),
+      "a".repeat(64),
+    );
+
+    expect(
+      runSaveFiscalNotificationStructuredReviewCommandV1({
+        ...input.value,
+        analysis: mismatched,
+      }),
+    ).toEqual({
+      status: "blocked",
+      stage: "CORE",
+      safeCode: "CORE_INVALID_INPUT",
+      warningCodes: [],
+    });
+    expect(input.persist).not.toHaveBeenCalled();
   });
 
   it("guarda las cuotas de una concesión como datos consultables, no como plan activo", () => {

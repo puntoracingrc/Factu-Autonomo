@@ -4,6 +4,7 @@ import type {
   AppDataTransition,
 } from "../app-data-durability";
 import type { AppData } from "../types";
+import { freezeFiscalNotificationBatchAnalysisIdentityV2 } from "./batch-analysis-identity.v2";
 import type { FiscalNotificationLocalAnalysisResult } from "./local-review-flow";
 import { appendStructuredReviewRelationSuggestionsV1 } from "./structured-review-relation-suggestions.v1";
 import { appendWorkspaceGlobalReconciliationV8 } from "./workspace-global-reconciliation.v8";
@@ -104,7 +105,10 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
   input: SaveFiscalNotificationStructuredReviewCommandInputV1,
   dependencies: StructuredReviewSaveDependenciesV1 = DEFAULT_DEPENDENCIES,
 ): DurableFiscalNotificationStructuredReviewSaveResultV1 {
-  const preflight = validateExistingWorkspace(input);
+  const analysis = analysisForPersistence(input.analysis);
+  if (!analysis) return blocked("CORE", "CORE_INVALID_INPUT");
+  const safeInput = Object.freeze({ ...input, analysis });
+  const preflight = validateExistingWorkspace(safeInput);
   if (preflight) return preflight;
 
   let prepared: StructuredReviewAppendResultV1;
@@ -114,22 +118,22 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
   let warningSafeCode: FiscalNotificationStructuredReviewSaveSafeCodeV1 | null =
     null;
   try {
-    if (hasStructuredVerticalSlice(input.analysis)) {
+    if (hasStructuredVerticalSlice(analysis)) {
       const vertical = appendFiscalNotificationVerticalSliceReviewV1({
-        ownerScope: input.ownerScope,
-        reviewId: input.reviewId,
-        createdAt: input.createdAt,
-        workspace: input.expected.fiscalNotificationsWorkspace ?? null,
-        analysis: input.analysis,
+        ownerScope: safeInput.ownerScope,
+        reviewId: safeInput.reviewId,
+        createdAt: safeInput.createdAt,
+        workspace: safeInput.expected.fiscalNotificationsWorkspace ?? null,
+        analysis,
       });
       if (vertical.status === "APPLIED") {
         try {
           const enrichment = dependencies.enrich({
-            ownerScope: input.ownerScope,
-            createdAt: input.createdAt,
+            ownerScope: safeInput.ownerScope,
+            createdAt: safeInput.createdAt,
             workspace: vertical.workspace,
             documentIds: vertical.documentIds,
-            analysis: input.analysis,
+            analysis,
           });
           prepared = Object.freeze({
             ...vertical,
@@ -145,25 +149,25 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
         prepared = vertical;
       }
     } else {
-      const append = input.analysis.ephemeralOffsetAgreementFacts
+      const append = analysis.ephemeralOffsetAgreementFacts
         ? appendAeatOffsetStructuredReviewV1
-        : input.analysis.ephemeralDeferralGrantFacts
+        : analysis.ephemeralDeferralGrantFacts
           ? appendAeatDeferralStructuredReviewV1
           : appendAeatEnforcementStructuredReviewV1;
       prepared = append({
-        ownerScope: input.ownerScope,
-        reviewId: input.reviewId,
-        createdAt: input.createdAt,
-        workspace: input.expected.fiscalNotificationsWorkspace ?? null,
-        analysis: input.analysis,
+        ownerScope: safeInput.ownerScope,
+        reviewId: safeInput.reviewId,
+        createdAt: safeInput.createdAt,
+        workspace: safeInput.expected.fiscalNotificationsWorkspace ?? null,
+        analysis,
       });
     }
     if (prepared.status === "APPLIED") {
       try {
         const relations = dependencies.relate({
-          ownerScope: input.ownerScope,
+          ownerScope: safeInput.ownerScope,
           workspace: prepared.workspace,
-          createdAt: input.createdAt,
+          createdAt: safeInput.createdAt,
         });
         if (relations.status === "APPLIED") {
           prepared = Object.freeze({
@@ -182,9 +186,9 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
       }
       try {
         const globalReconciliation = dependencies.reconcile({
-          ownerScope: input.ownerScope,
+          ownerScope: safeInput.ownerScope,
           workspace: prepared.workspace,
-          reevaluatedAt: input.createdAt,
+          reevaluatedAt: safeInput.createdAt,
         });
         if (globalReconciliation.status === "APPLIED") {
           prepared = Object.freeze({
@@ -208,7 +212,7 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
             prepared.workspace,
             prepared,
             warningCodes,
-            input.ownerScope,
+            safeInput.ownerScope,
           ),
         });
       }
@@ -237,13 +241,13 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
       stage: "COMMIT",
       safeCode: "APPLIED",
       warningCodes: Object.freeze([]),
-      data: input.expected,
+      data: safeInput.expected,
       value: prepared,
       replayed: true,
     };
   }
 
-  const committed = input.commit(input.expected, (previous) => ({
+  const committed = safeInput.commit(safeInput.expected, (previous) => ({
     data: {
       ...previous,
       fiscalNotificationsWorkspace: prepared.workspace,
@@ -256,6 +260,46 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
     warningStage,
     warningSafeCode,
   );
+}
+
+/**
+ * La identidad del lote protege el resultado asíncrono mientras vive en
+ * memoria, pero no forma parte de la ficha persistida. Se valida antes de
+ * crear una copia enumerable sin ese metadato. Cualquier descriptor oculto
+ * adicional continúa siendo inválido para no relajar el contrato estricto.
+ */
+function analysisForPersistence(
+  value: FiscalNotificationLocalAnalysisResult,
+): FiscalNotificationLocalAnalysisResult | null {
+  try {
+    if (!value || typeof value !== "object" || Array.isArray(value))
+      return null;
+    for (const key of Reflect.ownKeys(value)) {
+      if (typeof key !== "string") return null;
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+      if (!descriptor || !("value" in descriptor)) return null;
+      if (key !== "sourceIdentity") {
+        if (!descriptor.enumerable) return null;
+        continue;
+      }
+      if (
+        descriptor.enumerable ||
+        descriptor.writable ||
+        descriptor.configurable
+      ) {
+        return null;
+      }
+      const identity = freezeFiscalNotificationBatchAnalysisIdentityV2(
+        descriptor.value as Parameters<
+          typeof freezeFiscalNotificationBatchAnalysisIdentityV2
+        >[0],
+      );
+      if (identity.sourceSha256 !== value.technicalReview.sha256) return null;
+    }
+    return Object.freeze({ ...value });
+  } catch {
+    return null;
+  }
 }
 
 function validateExistingWorkspace(
