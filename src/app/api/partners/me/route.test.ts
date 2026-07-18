@@ -149,7 +149,7 @@ describe("Partner dashboard API", () => {
       payoutThresholdCents: 6000,
       payoutProfile: {
         holderName: "Gestoría Ejemplo",
-        ibanMasked: "ES91 •••• •••• •••• 1332",
+        ibanMasked: "**** 1332",
         configured: true,
         updatedAt: "2026-07-17T00:00:00.000Z",
       },

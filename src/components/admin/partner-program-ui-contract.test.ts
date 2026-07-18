@@ -50,22 +50,19 @@ describe("Partner UI contracts", () => {
   it("keeps payout details masked and manual in the foundation phase", () => {
     expect(partnerPageSource).toContain("ibanMasked");
     expect(partnerPageSource).not.toContain("payout_iban");
-    expect(partnerPageSource).toContain("El IBAN completo nunca vuelve a mostrarse");
+    expect(partnerPageSource).toContain("solo mostramos los cuatro últimos dígitos");
+    expect(partnerPageSource).toContain("Cambiar cuenta");
+    expect(partnerPageSource).toContain("Guardar nueva cuenta");
     expect(partnerPageSource).toContain("Los pagos se revisan manualmente");
     expect(partnerPageSource).toContain(
       "La generación automática de movimientos y la orden de transferencia",
     );
   });
 
-  it("only injects the hidden destination after server authorization", () => {
-    const defaultNavigation = navigationSource.slice(
-      navigationSource.indexOf("export const APP_NAV_ITEMS"),
-      navigationSource.indexOf("export const PARTNER_NAV_ITEM"),
-    );
-    expect(navigationSource).toContain("PARTNER_NAV_ITEM");
-    expect(defaultNavigation).not.toContain("/partners");
-    expect(appShellSource).toContain('fetch("/api/partners/access"');
-    expect(appShellSource).toContain("partnerAuthorized");
-    expect(appShellSource).toContain("[...APP_NAV_ITEMS, PARTNER_NAV_ITEM]");
+  it("keeps the private destination out of desktop and mobile navigation", () => {
+    expect(navigationSource).not.toContain("/partners");
+    expect(navigationSource).not.toContain("PARTNER_NAV_ITEM");
+    expect(appShellSource).not.toContain('fetch("/api/partners/access"');
+    expect(appShellSource).not.toContain("partnerAuthorized");
   });
 });

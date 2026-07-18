@@ -155,7 +155,7 @@ export function validatePartnerPayoutInput(
 export function maskPartnerIban(value: unknown): string | null {
   const iban = normalizeIban(value);
   if (!iban) return null;
-  return `${iban.slice(0, 4)} •••• •••• •••• ${iban.slice(-4)}`;
+  return `**** ${iban.slice(-4)}`;
 }
 
 export function calculatePartnerCommissionCents(

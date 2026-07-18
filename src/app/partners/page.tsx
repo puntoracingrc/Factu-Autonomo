@@ -8,6 +8,7 @@ import {
   CreditCard,
   Handshake,
   Link2,
+  PencilLine,
   RefreshCw,
   Save,
   UserCheck,
@@ -68,6 +69,7 @@ export default function PartnersPage() {
   const [notice, setNotice] = useState<string | null>(null);
   const [holderName, setHolderName] = useState("");
   const [iban, setIban] = useState("");
+  const [editingPayout, setEditingPayout] = useState(false);
 
   const load = useCallback(async () => {
     if (!user) {
@@ -95,7 +97,10 @@ export default function PartnersPage() {
         throw new Error(body.error ?? "No se pudo abrir el Área Partners.");
       }
       setDashboard(body.dashboard);
-      setHolderName(body.dashboard.account?.payoutProfile.holderName ?? "");
+      const payoutProfile = body.dashboard.account?.payoutProfile;
+      setHolderName(payoutProfile?.holderName ?? "");
+      setIban("");
+      setEditingPayout(!payoutProfile?.configured);
     } catch (loadError) {
       setDashboard(null);
       setError(
@@ -135,7 +140,8 @@ export default function PartnersPage() {
       const body = (await response.json()) as { error?: string };
       if (!response.ok) throw new Error(body.error ?? "No se pudieron guardar los datos.");
       setIban("");
-      setNotice("Datos de cobro guardados. El IBAN se mostrará siempre enmascarado.");
+      setEditingPayout(false);
+      setNotice("Cuenta bancaria guardada. Solo mostramos sus cuatro últimos dígitos.");
       await load();
     } catch (saveError) {
       setError(
@@ -316,51 +322,90 @@ export default function PartnersPage() {
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-100 text-emerald-700"><CreditCard className="h-5 w-5" /></span>
               <div>
                 <h2 className="text-lg font-bold">Datos de cobro</h2>
-                <p className="mt-1 text-sm text-slate-600">El IBAN completo nunca vuelve a mostrarse después de guardarlo.</p>
+                <p className="mt-1 text-sm text-slate-600">Por seguridad, después de guardarla solo mostramos los cuatro últimos dígitos.</p>
               </div>
             </div>
             {account.payoutProfile.configured ? (
-              <div className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
-                <p className="flex items-center gap-2 font-bold"><Check className="h-4 w-4" /> Cuenta configurada</p>
-                <p className="mt-1">{account.payoutProfile.holderName} · {account.payoutProfile.ibanMasked}</p>
+              <div className="flex flex-col gap-3 rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-900 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="flex items-center gap-2 font-bold"><Check className="h-4 w-4" /> Cuenta configurada</p>
+                  <p className="mt-1">{account.payoutProfile.holderName} · <span className="font-mono font-bold">{account.payoutProfile.ibanMasked}</span></p>
+                </div>
+                {!isAdminPreview && !editingPayout ? (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    onClick={() => {
+                      setIban("");
+                      setError(null);
+                      setNotice(null);
+                      setEditingPayout(true);
+                    }}
+                  >
+                    <PencilLine className="h-4 w-4" /> Cambiar cuenta
+                  </Button>
+                ) : null}
               </div>
             ) : null}
-            <form
-              className="space-y-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void savePayout();
-              }}
-            >
-              <label className="block space-y-1">
-                <span className="text-sm font-bold text-slate-700">Titular de la cuenta</span>
-                <input
-                  value={holderName}
-                  onChange={(event) => setHolderName(event.target.value)}
-                  maxLength={160}
-                  required
-                  disabled={isAdminPreview}
-                  autoComplete="name"
-                  className="min-h-12 w-full rounded-2xl border border-slate-200 px-4 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </label>
-              <label className="block space-y-1">
-                <span className="text-sm font-bold text-slate-700">IBAN</span>
-                <input
-                  value={iban}
-                  onChange={(event) => setIban(event.target.value)}
-                  placeholder={account.payoutProfile.ibanMasked ?? "ES00 0000 0000 0000 0000 0000"}
-                  autoComplete="off"
-                  spellCheck={false}
-                  required
-                  disabled={isAdminPreview}
-                  className="min-h-12 w-full rounded-2xl border border-slate-200 px-4 font-mono outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                />
-              </label>
-              <Button type="submit" disabled={busy || isAdminPreview} fullWidth>
-                <Save className="h-4 w-4" /> {account.payoutProfile.configured ? "Sustituir datos de cobro" : "Guardar datos de cobro"}
-              </Button>
-            </form>
+            {editingPayout ? (
+              <form
+                className="space-y-3"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void savePayout();
+                }}
+              >
+                {account.payoutProfile.configured ? (
+                  <p className="text-sm text-slate-600">Introduce la nueva cuenta. La anterior seguirá activa hasta que guardes el cambio.</p>
+                ) : null}
+                <label className="block space-y-1">
+                  <span className="text-sm font-bold text-slate-700">Titular de la cuenta</span>
+                  <input
+                    value={holderName}
+                    onChange={(event) => setHolderName(event.target.value)}
+                    maxLength={160}
+                    required
+                    disabled={isAdminPreview}
+                    autoComplete="name"
+                    className="min-h-12 w-full rounded-2xl border border-slate-200 px-4 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+                <label className="block space-y-1">
+                  <span className="text-sm font-bold text-slate-700">Nuevo IBAN</span>
+                  <input
+                    value={iban}
+                    onChange={(event) => setIban(event.target.value)}
+                    placeholder="ES00 0000 0000 0000 0000 0000"
+                    autoComplete="off"
+                    spellCheck={false}
+                    required
+                    disabled={isAdminPreview}
+                    className="min-h-12 w-full rounded-2xl border border-slate-200 px-4 font-mono outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  {account.payoutProfile.configured ? (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      disabled={busy}
+                      fullWidth
+                      onClick={() => {
+                        setHolderName(account.payoutProfile.holderName);
+                        setIban("");
+                        setError(null);
+                        setEditingPayout(false);
+                      }}
+                    >
+                      Cancelar
+                    </Button>
+                  ) : null}
+                  <Button type="submit" disabled={busy || isAdminPreview} fullWidth>
+                    <Save className="h-4 w-4" /> {account.payoutProfile.configured ? "Guardar nueva cuenta" : "Guardar datos de cobro"}
+                  </Button>
+                </div>
+              </form>
+            ) : null}
           </Card>
 
           <Card className="space-y-3">
