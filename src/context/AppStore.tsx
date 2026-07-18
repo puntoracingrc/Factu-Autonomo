@@ -582,6 +582,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const skipNextSave = useRef(true);
   const durablyPersistedDataRef = useRef<AppData | null>(null);
+  const lastKnownDurableDataRef = useRef<AppData>(EMPTY_DATA);
   const durableStorageBaselineRef = useRef<DurableStorageBaseline>({
     status: "known",
     data: EMPTY_DATA,
@@ -617,6 +618,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const result = commitAppDataDurablyWithStorageRecovery({
         expected,
         storageBaseline: durableStorageBaselineRef.current,
+        lastKnownStorageBaseline: lastKnownDurableDataRef.current,
         getCurrent: () => dataRef.current,
         build,
         persist: (candidate, storageExpected) =>
@@ -632,6 +634,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         status: "known",
         data: result.data,
       };
+      lastKnownDurableDataRef.current = result.data;
       durablyPersistedDataRef.current = result.data;
       dataRef.current = result.data;
       setData(result.data);
@@ -643,6 +646,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const persisted = loadData();
     durableStorageBaselineRef.current = { status: "known", data: persisted };
+    lastKnownDurableDataRef.current = persisted;
     const loaded = syncRecurringExpenses(persisted);
     dataRef.current = loaded;
     setData(loaded);
@@ -663,6 +667,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const result = saveData(data);
+    if (result.status === "applied") {
+      lastKnownDurableDataRef.current = data;
+    }
     durableStorageBaselineRef.current = durableStorageBaselineAfterSave(
       data,
       result,
@@ -679,6 +686,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         dataRef.current = next;
         setData(next);
         const result = saveData(next);
+        if (result.status === "applied") {
+          lastKnownDurableDataRef.current = next;
+        }
         durableStorageBaselineRef.current = durableStorageBaselineAfterSave(
           next,
           result,

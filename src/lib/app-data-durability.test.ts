@@ -386,6 +386,84 @@ describe("commitAppDataDurably", () => {
     expect(persist).toHaveBeenCalledTimes(1);
   });
 
+  it("recupera un bloqueo anterior cuando solo cambió la cola de sincronización", () => {
+    const lastKnown = appData();
+    const expected = {
+      ...lastKnown,
+      meta: {
+        ...lastKnown.meta,
+        lastModified: "2026-07-12T08:30:00.000Z",
+        pendingChanges: [
+          {
+            entityType: "profile" as const,
+            entityId: "profile",
+            deleted: false,
+            payload: lastKnown.profile,
+            updatedAt: "2026-07-12T08:30:00.000Z",
+          },
+        ],
+      },
+    };
+    const persist = vi.fn(() => ({ status: "applied" }) as const);
+    const inspectPersisted = vi.fn((candidate: AppData) =>
+      candidate === lastKnown
+        ? ({ status: "applied" } as const)
+        : ({ status: "blocked", reason: "stale_precondition" } as const),
+    );
+
+    const result = commitAppDataDurablyWithStorageRecovery({
+      expected,
+      storageBaseline: { status: "blocked", reason: "write_failed" },
+      lastKnownStorageBaseline: lastKnown,
+      getCurrent: () => expected,
+      build: (current) => ({
+        data: {
+          ...current,
+          profile: { ...current.profile, name: "Guardado local" },
+        },
+        value: "saved",
+      }),
+      persist: (candidate, storageExpected) => {
+        expect(storageExpected).toBe(lastKnown);
+        expect(candidate.profile.name).toBe("Guardado local");
+        return persist();
+      },
+      inspectPersisted,
+    });
+
+    expect(result.status).toBe("applied");
+    expect(inspectPersisted).toHaveBeenNthCalledWith(1, expected);
+    expect(inspectPersisted).toHaveBeenNthCalledWith(2, lastKnown);
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("no usa la última referencia durable si cambió algún dato de negocio", () => {
+    const lastKnown = appData();
+    const expected = {
+      ...lastKnown,
+      profile: { ...lastKnown.profile, name: "Cambio no persistido" },
+    };
+    const persist = vi.fn();
+    const inspectPersisted = vi.fn(() => ({
+      status: "blocked" as const,
+      reason: "stale_precondition" as const,
+    }));
+
+    expect(
+      commitAppDataDurablyWithStorageRecovery({
+        expected,
+        storageBaseline: { status: "blocked", reason: "write_failed" },
+        lastKnownStorageBaseline: lastKnown,
+        getCurrent: () => expected,
+        build: (current) => ({ data: current, value: "blocked" }),
+        persist,
+        inspectPersisted,
+      }),
+    ).toEqual({ status: "blocked", reason: "write_failed" });
+    expect(inspectPersisted).toHaveBeenCalledTimes(1);
+    expect(persist).not.toHaveBeenCalled();
+  });
+
   it("mantiene el bloqueo y no escribe cuando el estado durable diverge de verdad", () => {
     const expected = appData();
     const build = vi.fn();
