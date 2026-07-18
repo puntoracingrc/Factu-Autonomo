@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       bonusScans: 0,
+      program: "affiliate",
       alreadyRedeemed: false,
       billingDisabled: true,
     });
@@ -55,6 +56,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     ok: true,
     bonusScans: result.bonusScans,
+    program: result.program,
     alreadyRedeemed: result.alreadyRedeemed ?? false,
   });
 }

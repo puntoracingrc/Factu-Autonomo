@@ -9,6 +9,7 @@
 /docs/architecture/ADR-0004-expense-inbox-email-reliability.md @puntoracingrc
 /docs/architecture/ADR-0005-cloud-and-drive-sync-reliability.md @puntoracingrc
 /docs/architecture/ADR-0006-customer-master-reliability.md @puntoracingrc
+/docs/architecture/ADR-0007-paid-affiliate-rewards.md @puntoracingrc
 /src/lib/storage.ts                                    @puntoracingrc
 /src/lib/document-integrity/**                         @puntoracingrc
 /src/lib/importers/**                                  @puntoracingrc
@@ -47,3 +48,16 @@
 /src/app/clientes/**                                   @puntoracingrc
 /src/components/clients/**                             @puntoracingrc
 /src/components/forms/DocumentForm.tsx                 @puntoracingrc
+
+# Paid Affiliate attribution, Stripe rewards and private reward ledger.
+# ADR-0007 and its contract tests must be reviewed before these paths change.
+/src/lib/billing/referrals.ts                          @puntoracingrc
+/src/lib/billing/paid-referral-rewards.ts              @puntoracingrc
+/src/lib/referrals/**                                  @puntoracingrc
+/src/app/api/referrals/**                              @puntoracingrc
+/src/app/api/webhooks/stripe/**                        @puntoracingrc
+/src/app/afiliados/**                                  @puntoracingrc
+/src/components/referrals/**                           @puntoracingrc
+/supabase/migrations/*affiliate*reward*                @puntoracingrc
+/supabase/referrals.sql                                @puntoracingrc
+/src/lib/supabase-rls-table-audit.test.ts              @puntoracingrc

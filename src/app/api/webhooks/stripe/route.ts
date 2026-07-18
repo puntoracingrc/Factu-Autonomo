@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import type { PaidPlanId } from "@/lib/billing/plans";
 import {
+  grantPaidReferralReward,
+  isEligiblePaidReferralInvoice,
+} from "@/lib/billing/paid-referral-rewards";
+import {
   findUserIdByStripeCustomer,
   receiptFromCheckoutSession,
   sendPaymentReceiptEmail,
@@ -49,6 +53,48 @@ function subscriptionPlanFromStripe(
     subscription.items?.data?.[0]?.price?.id,
   );
   return metadataPlan ?? pricePlan ?? fallbackPlan ?? "pro";
+}
+
+function strictPaidPlanFromStripe(
+  subscription: Stripe.Subscription,
+): PaidPlanId | null {
+  const pricePlan = planFromStripePriceId(
+    subscription.items?.data?.[0]?.price?.id,
+  );
+  if (!pricePlan) return null;
+  const metadataPlan = subscription.metadata?.plan;
+  if (
+    metadataPlan !== undefined &&
+    metadataPlan !== "pro" &&
+    metadataPlan !== "pro_plus"
+  ) {
+    return null;
+  }
+  if (metadataPlan && metadataPlan !== pricePlan) {
+    throw new InvalidCheckoutStateError("subscription_plan_mismatch");
+  }
+  return pricePlan;
+}
+
+function invoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const compatible = invoice as unknown as {
+    subscription?: string | { id?: string } | null;
+    parent?: {
+      subscription_details?: {
+        subscription?: string | { id?: string } | null;
+      } | null;
+    } | null;
+  };
+  const subscription =
+    compatible.parent?.subscription_details?.subscription ??
+    compatible.subscription;
+  if (typeof subscription === "string") return subscription;
+  return subscription?.id ?? null;
+}
+
+function stripeObjectId(value: string | { id?: string } | null): string | null {
+  if (typeof value === "string") return value;
+  return value?.id ?? null;
 }
 
 async function upsertPaidSubscription(params: {
@@ -273,16 +319,77 @@ async function handleCheckoutCompleted(
 }
 
 async function handleInvoicePaid(
+  stripe: Stripe,
   invoice: Stripe.Invoice,
   eventId: string,
 ): Promise<boolean> {
-  if (invoice.billing_reason === "subscription_create") return false;
-
   const customerId =
     typeof invoice.customer === "string"
       ? invoice.customer
       : invoice.customer?.id;
   if (!customerId) return false;
+
+  const amountPaidCents = invoice.amount_paid;
+  const currency = invoice.currency?.toLowerCase() ?? "";
+  const paidAt = new Date(
+    (invoice.status_transitions?.paid_at ?? invoice.created) * 1000,
+  );
+  if (
+    isEligiblePaidReferralInvoice({
+      amountPaidCents,
+      currency,
+      billingReason: invoice.billing_reason,
+      collectionMethod: invoice.collection_method,
+      paidOutOfBand:
+        (invoice as Stripe.Invoice & { paid_out_of_band?: boolean })
+          .paid_out_of_band === true,
+    })
+  ) {
+    const subscriptionId = invoiceSubscriptionId(invoice);
+    if (subscriptionId) {
+      const subscription = (await stripe.subscriptions.retrieve(
+        subscriptionId,
+      )) as unknown as Stripe.Subscription;
+      const subscriptionCustomerId = stripeObjectId(subscription.customer);
+      const refereeUserId = subscription.metadata?.user_id;
+      const plan = strictPaidPlanFromStripe(subscription);
+      if (
+        subscription.status === "active" &&
+        subscriptionCustomerId === customerId &&
+        refereeUserId &&
+        plan
+      ) {
+        await upsertPaidSubscription({
+          userId: refereeUserId,
+          plan,
+          customerId,
+          subscriptionId,
+          status: subscription.status,
+          currentPeriodEnd: subscriptionPeriodEnd(subscription),
+        });
+        await grantPaidReferralReward({
+          refereeUserId,
+          stripeEventId: eventId,
+          stripeInvoiceId: invoice.id,
+          stripeSubscriptionId: subscriptionId,
+          stripeCustomerId: customerId,
+          plan,
+          amountPaidCents,
+          currency,
+          billingReason: invoice.billing_reason,
+          collectionMethod: invoice.collection_method,
+          paidOutOfBand:
+            (invoice as Stripe.Invoice & { paid_out_of_band?: boolean })
+              .paid_out_of_band === true,
+          paidAt,
+        });
+      }
+    }
+  }
+
+  // Checkout already sends the first-payment receipt. The invoice event is
+  // still the only authority for an Affiliate reward.
+  if (invoice.billing_reason === "subscription_create") return false;
 
   const userId = await findUserIdByStripeCustomer(customerId);
   if (!userId) return false;
@@ -310,9 +417,7 @@ async function handleInvoicePaid(
     customerProfile: billingProfile,
     invoiceUrl: invoice.hosted_invoice_url,
     isRenewal: true,
-    paidAt: new Date(
-      (invoice.status_transitions?.paid_at ?? invoice.created) * 1000,
-    ),
+    paidAt,
   });
 }
 
@@ -320,7 +425,13 @@ async function reconcileProcessedPaymentReceipt(
   event: Stripe.Event,
 ): Promise<boolean> {
   if (event.type === "invoice.paid") {
-    return handleInvoicePaid(event.data.object as Stripe.Invoice, event.id);
+    const stripe = getStripe();
+    if (!stripe) throw new Error("Stripe unavailable");
+    return handleInvoicePaid(
+      stripe,
+      event.data.object as Stripe.Invoice,
+      event.id,
+    );
   }
   return reconcileProcessedCheckoutReceipt(event);
 }
@@ -447,7 +558,7 @@ export async function POST(request: Request) {
       }
       case "invoice.paid": {
         const invoice = event.data.object as Stripe.Invoice;
-        receiptManualReview = await handleInvoicePaid(invoice, event.id);
+        receiptManualReview = await handleInvoicePaid(stripe, invoice, event.id);
         break;
       }
       case "customer.subscription.updated": {

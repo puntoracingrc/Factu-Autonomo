@@ -1,4 +1,4 @@
--- Programa de referidos: escaneos extra para quien invita y quien se registra.
+-- Atribución de Afiliados y Partners. Registrar un código no concede valor.
 -- Ejecutar en Supabase SQL Editor después de billing.sql.
 
 create table if not exists public.referral_codes (
@@ -16,12 +16,19 @@ create table if not exists public.referral_redemptions (
   referrer_user_id uuid not null references auth.users (id) on delete cascade,
   referee_user_id uuid not null references auth.users (id) on delete cascade,
   referral_code text not null,
+  program text not null default 'affiliate',
+  -- Campos legacy conservados por compatibilidad; no autorizan recompensas.
   referrer_bonus_granted boolean not null default false,
   referee_bonus_granted boolean not null default false,
   created_at timestamptz not null default now(),
   constraint referral_redemptions_referee_unique unique (referee_user_id),
-  constraint referral_redemptions_no_self check (referrer_user_id <> referee_user_id)
+  constraint referral_redemptions_no_self check (referrer_user_id <> referee_user_id),
+  constraint referral_redemptions_program_check
+    check (program in ('affiliate', 'partner'))
 );
+
+alter table public.referral_redemptions
+  add column if not exists program text not null default 'affiliate';
 
 create index if not exists referral_redemptions_referrer_idx
   on public.referral_redemptions (referrer_user_id);

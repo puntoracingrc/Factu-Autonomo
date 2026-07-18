@@ -18,6 +18,7 @@ import { SubscriptionBillingCard } from "@/components/billing/SubscriptionBillin
 import { CloudAccountCard } from "@/components/cloud/CloudAccountCard";
 import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard";
 import { LegalLinksCard } from "@/components/legal/LegalLinksCard";
+import { PromoCodeRedeemer } from "@/components/promotions/PromoCodeRedeemer";
 import { DataOwnershipCard } from "@/components/settings/DataOwnershipCard";
 import { ExpenseWorkAllocationRepairCard } from "@/components/settings/ExpenseWorkAllocationRepairCard";
 import { AppIssuedDocumentRecoveryCard } from "@/components/settings/AppIssuedDocumentRecoveryCard";
@@ -121,6 +122,7 @@ export default function CuentaPage() {
         <PlanStatusCard />
         <AiUsageMeterCard />
         <SubscriptionBillingCard />
+        <PromoCodeRedeemer />
         <Card className="mb-6 flex flex-col gap-4 border-violet-200 bg-violet-50/60 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">

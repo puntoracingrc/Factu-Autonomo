@@ -139,6 +139,27 @@ Regresiones mínimas: `customer-master-reliability-contract.test.ts`,
 `document-integrity/customer-merge.test.ts`, `master-record-deletion.test.ts`,
 `cloud/diff.test.ts`, `cloud/sync.test.ts` y `backup.test.ts`.
 
+### 7. Recompensas de Afiliados por pagos verificados
+
+Contrato: [ADR-0007](ADR-0007-paid-affiliate-rewards.md).
+
+- Introducir un código o registrar una cuenta solo atribuye; nunca concede
+  créditos, planes, módulos o comisiones.
+- Afiliados y Partners son programas distintos aunque compartan códigos. Una
+  recompensa de Afiliados nunca entra en el libro mayor de Partners.
+- Solo un `invoice.paid` firmado, con cobro automático real, importe mínimo,
+  Price conocido, suscripción activa e identidad completa coincidente puede
+  crear una recompensa.
+- Un RPC privado concede a ambos usuarios dentro de la misma transacción. Event
+  e Invoice son únicos, los replays son idempotentes y el libro mayor es
+  append-only y no legible por usuarios.
+- El panel muestra agregados sin identidades. Un plan anual solo premia tras su
+  pago anual verificado; no se fabrican renovaciones mensuales.
+
+Regresiones mínimas: `affiliate-reward-protection.test.ts`,
+`paid-referral-rewards.test.ts`, `referrals.test.ts`, el webhook de Stripe y los
+contratos UI de Afiliados y promociones.
+
 ## Prohibido sin autorización expresa
 
 - Debilitar el fail-closed de documentos nuevos emitidos por la app.
@@ -152,6 +173,8 @@ Regresiones mínimas: `customer-master-reliability-contract.test.ts`,
   una operación obligatoria quedó incompleta.
 - Unir clientes con NIF contradictorios, reescribir el cliente congelado de un
   documento emitido o convertir el blindaje interno en fricción para el usuario.
+- Conceder valor al introducir un código, premiar una factura no cobrada,
+  mezclar Afiliados con Partners o procesar dos veces el mismo pago de Stripe.
 - Borrar, renumerar o alterar evidencia fiscal existente para hacer pasar una
   validación.
 
@@ -167,5 +190,5 @@ Regresiones mínimas: `customer-master-reliability-contract.test.ts`,
    sistema nuevo.
 
 `src/lib/protected-system-invariants-contract.test.ts` hace fallar CI si esta
-lectura deja de estar enlazada desde la raíz, si falta alguno de los seis ADR o
+lectura deja de estar enlazada desde la raíz, si falta alguno de los siete ADR o
 si el registro deja de estar protegido por `CODEOWNERS`.
