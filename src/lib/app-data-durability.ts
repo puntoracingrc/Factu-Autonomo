@@ -106,6 +106,7 @@ export function commitAppDataDurably<T>(input: {
 export function commitAppDataDurablyWithStorageRecovery<T>(input: {
   expected: AppData;
   storageBaseline?: DurableStorageBaseline;
+  lastKnownStorageBaseline?: AppData;
   getCurrent: () => AppData;
   build: (previous: AppData) => AppDataTransition<T>;
   persist: (candidate: AppData, storageExpected: AppData) => SaveDataResult;
@@ -129,9 +130,30 @@ export function commitAppDataDurablyWithStorageRecovery<T>(input: {
     first.reason === "stale_precondition" ||
     first.reason === "storage_state_unknown";
   if (!baselineCanBeRecovered) return first;
-  if (input.inspectPersisted(input.expected).status !== "applied") return first;
+  if (input.inspectPersisted(input.expected).status === "applied") {
+    return attempt({ status: "known", data: input.expected });
+  }
 
-  return attempt({ status: "known", data: input.expected });
+  if (
+    input.storageBaseline?.status === "blocked" &&
+    input.lastKnownStorageBaseline &&
+    appDataDomainEquals(input.expected, input.lastKnownStorageBaseline) &&
+    input.inspectPersisted(input.lastKnownStorageBaseline).status === "applied"
+  ) {
+    return attempt({
+      status: "known",
+      data: input.lastKnownStorageBaseline,
+    });
+  }
+
+  return first;
+}
+
+function appDataDomainEquals(left: AppData, right: AppData): boolean {
+  return jsonEqual(
+    { ...left, meta: undefined },
+    { ...right, meta: undefined },
+  );
 }
 
 export interface FixedExpenseBundleIds {
