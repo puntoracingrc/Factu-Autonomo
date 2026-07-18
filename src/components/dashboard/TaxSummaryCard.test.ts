@@ -107,6 +107,9 @@ describe("FiscalSummaryPanel invoice PDF archive", () => {
     expect(fiscalPanelSource).toContain("invoicePdfExportPeriodFromQuarter");
     expect(fiscalPanelSource).toContain("downloadInvoicePdfPeriodArchive");
     expect(fiscalPanelSource).toContain("Facturas PDF");
+    expect(fiscalPanelSource).toContain("Enviar al gestor");
+    expect(fiscalPanelSource).toContain("SendMethodChooserModal");
+    expect(fiscalPanelSource).toContain("buildInvoicePeriodAdvisorEmail");
     expect(fiscalPanelSource).toContain(
       "Selecciona Trimestre o Meses (máximo tres meses)",
     );

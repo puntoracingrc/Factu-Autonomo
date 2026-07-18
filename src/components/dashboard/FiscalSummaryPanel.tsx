@@ -2,15 +2,19 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Lock } from "lucide-react";
+import { Download, Lock, Send } from "lucide-react";
 import { TaxSummaryCard } from "@/components/dashboard/TaxSummaryCard";
-import { HomeGlobalSummary } from "@/components/dashboard/HomeGlobalSummary";
-import { PeriodOverviewCards } from "@/components/dashboard/PeriodOverviewCards";
+import {
+  PeriodOverviewCards,
+  type MonthlyBenefitRow,
+} from "@/components/dashboard/PeriodOverviewCards";
+import { SendMethodChooserModal } from "@/components/documents/SendMethodChooserModal";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
-import { formatMoney } from "@/lib/calculations";
 import { downloadAnnualSummaryPdf } from "@/lib/billing/export-annual-pdf";
+import { buildInvoicePeriodAdvisorEmail } from "@/lib/billing/invoice-period-advisor-email";
 import {
   downloadInvoicePdfPeriodArchive,
   INVOICE_PDF_EXPORT_MONTH_NAMES,
@@ -39,24 +43,88 @@ import {
   calculateTaxSummary,
   selectTaxableFiscalDocumentsForPeriod,
 } from "@/lib/taxes";
-import type { AppData } from "@/lib/types";
+import { validateAdvisorContact } from "@/lib/advisor-contact";
 import {
+  DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS,
+  normalizeAppPreferences,
+} from "@/lib/app-preferences";
+import { isPendingInvoicePayment } from "@/lib/income";
+import {
+  canShareFileNatively,
+  NativeDocumentShareUnavailableError,
+  openExternalUrl,
+  reserveExternalShareWindow,
+  shareFileNatively,
+} from "@/lib/share";
+import type { AppData, DocumentEmailSendPreference } from "@/lib/types";
+import {
+  documentAmounts,
   isVatExempt,
   totalExpensesAmount,
 } from "@/lib/vat-regime";
 
 type FiscalPeriodMode = "quarter" | "months" | "year" | "all";
+type ConcreteEmailMethod = Exclude<DocumentEmailSendPreference, "ask">;
+type InvoicePdfExportBusy = "download" | "advisor";
 
 interface InvoicePdfExportFeedback {
   kind: "success" | "error";
   message: string;
+  action?: "advisor";
 }
 
 interface FiscalSummaryPanelProps {
   data: AppData;
 }
 
+function monthKeyFromDate(date: string): string | null {
+  const match = /^(\d{4})-(\d{2})/.exec(date);
+  return match ? `${match[1]}-${match[2]}` : null;
+}
+
+function monthKey(year: number, month: number): string {
+  return `${year}-${String(month).padStart(2, "0")}`;
+}
+
+function monthLabelFromKey(key: string): string {
+  const [year, rawMonth] = key.split("-");
+  const monthIndex = Number(rawMonth) - 1;
+  const monthName =
+    INVOICE_PDF_EXPORT_MONTH_NAMES[monthIndex]?.toLowerCase() ?? rawMonth;
+  return `${monthName.charAt(0).toUpperCase()}${monthName.slice(1)} ${year}`;
+}
+
+function selectedMonthKeys(
+  mode: FiscalPeriodMode,
+  year: number,
+  quarter: Quarter,
+  startMonth: number,
+  endMonth: number,
+  movementKeys: string[],
+): string[] {
+  if (mode === "quarter") {
+    const firstMonth = (quarter - 1) * 3 + 1;
+    return [firstMonth, firstMonth + 1, firstMonth + 2].map((month) =>
+      monthKey(year, month),
+    );
+  }
+
+  if (mode === "months") {
+    return Array.from(
+      { length: endMonth - startMonth + 1 },
+      (_, index) => monthKey(year, startMonth + index),
+    );
+  }
+
+  if (mode === "year") {
+    return Array.from({ length: 12 }, (_, index) => monthKey(year, index + 1));
+  }
+
+  return movementKeys;
+}
+
 export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
+  const { updateProfile } = useAppStore();
   const { billingEnabled, limits } = useBilling();
   const current = getCurrentQuarter();
   const currentMonth = new Date().getMonth() + 1;
@@ -65,10 +133,15 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
   const [quarter, setQuarter] = useState<Quarter>(current.quarter);
   const [startMonth, setStartMonth] = useState(currentMonth);
   const [endMonth, setEndMonth] = useState(currentMonth);
-  const [invoicePdfExportBusy, setInvoicePdfExportBusy] = useState(false);
+  const [invoicePdfExportBusy, setInvoicePdfExportBusy] =
+    useState<InvoicePdfExportBusy | null>(null);
   const [invoicePdfExportFeedback, setInvoicePdfExportFeedback] =
     useState<InvoicePdfExportFeedback | null>(null);
+  const [advisorEmailMethodOpen, setAdvisorEmailMethodOpen] = useState(false);
+  const [rememberAdvisorEmailMethod, setRememberAdvisorEmailMethod] =
+    useState(true);
   const locked = billingEnabled && !limits.quarterlySummary;
+  const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
 
   const monthPeriod: InvoicePdfExportPeriod = {
     year,
@@ -139,8 +212,76 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
   // Cobrar o no una factura es tesorería y no debe excluirla de esta cifra.
   const periodInvoiced = taxes.salesBase + taxes.salesIva;
   const periodSpent = totalExpensesAmount(periodExpenses, vatExempt);
-  const periodExpenseBalanceIsCredit = periodSpent < 0;
-  const periodBalance = periodInvoiced - periodSpent;
+  const monthlyBenefitRows = useMemo<MonthlyBenefitRow[]>(() => {
+    const salesByMonth = new Map<string, number>();
+    const expensesByMonth = new Map<string, number>();
+    const pendingNumbersByMonth = new Map<string, string[]>();
+    const pendingTotalByMonth = new Map<string, number>();
+    const movementKeys = new Set<string>();
+
+    for (const document of fiscalDocuments) {
+      const key = monthKeyFromDate(document.date);
+      if (!key) continue;
+      movementKeys.add(key);
+      const total = documentAmounts(document, vatExempt).total;
+      salesByMonth.set(key, (salesByMonth.get(key) ?? 0) + total);
+
+      if (isPendingInvoicePayment(document)) {
+        pendingNumbersByMonth.set(key, [
+          ...(pendingNumbersByMonth.get(key) ?? []),
+          document.number,
+        ]);
+        pendingTotalByMonth.set(
+          key,
+          (pendingTotalByMonth.get(key) ?? 0) + total,
+        );
+      }
+    }
+
+    for (const expense of periodExpenses) {
+      const key = monthKeyFromDate(expense.date);
+      if (!key) continue;
+      movementKeys.add(key);
+      expensesByMonth.set(
+        key,
+        (expensesByMonth.get(key) ?? 0) +
+          totalExpensesAmount([expense], vatExempt),
+      );
+    }
+
+    return selectedMonthKeys(
+      mode,
+      year,
+      quarter,
+      startMonth,
+      endMonth,
+      Array.from(movementKeys).sort(),
+    ).map((key) => {
+      const invoiced = salesByMonth.get(key) ?? 0;
+      const spent = expensesByMonth.get(key) ?? 0;
+      const pendingTotal = pendingTotalByMonth.get(key) ?? 0;
+      const benefit = invoiced - spent;
+      return {
+        key,
+        label: monthLabelFromKey(key),
+        invoiced,
+        spent,
+        benefit,
+        pendingInvoiceNumbers: pendingNumbersByMonth.get(key) ?? [],
+        pendingTotal,
+        realBenefitToday: benefit - pendingTotal,
+      };
+    });
+  }, [
+    fiscalDocuments,
+    mode,
+    periodExpenses,
+    quarter,
+    startMonth,
+    endMonth,
+    vatExempt,
+    year,
+  ]);
 
   const title =
     mode === "all"
@@ -183,7 +324,17 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
     );
   }
 
-  async function handleExportInvoicePdfs() {
+  function saveAdvisorEmailMethod(method: ConcreteEmailMethod) {
+    updateProfile({
+      ...data.profile,
+      appPreferences: normalizeAppPreferences({
+        ...appPreferences,
+        documentEmailMethod: method,
+      }),
+    });
+  }
+
+  function handleAdvisorEmailExportClick() {
     if (!invoicePdfExportPeriod) {
       setInvoicePdfExportFeedback({
         kind: "error",
@@ -193,28 +344,130 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
       return;
     }
 
+    if (!validateAdvisorContact(data.profile.advisorContact).value) {
+      setInvoicePdfExportFeedback({
+        kind: "error",
+        message:
+          "Completa primero el nombre, email y teléfono de tu gestor en Ajustes.",
+        action: "advisor",
+      });
+      return;
+    }
+
+    if (appPreferences.documentEmailMethod === "ask") {
+      setRememberAdvisorEmailMethod(true);
+      setAdvisorEmailMethodOpen(true);
+      return;
+    }
+
+    void handleExportInvoicePdfs(appPreferences.documentEmailMethod);
+  }
+
+  async function chooseAdvisorEmailMethod(method: ConcreteEmailMethod) {
+    if (rememberAdvisorEmailMethod) saveAdvisorEmailMethod(method);
+    setAdvisorEmailMethodOpen(false);
+    await handleExportInvoicePdfs(method);
+  }
+
+  async function handleExportInvoicePdfs(emailMethod?: ConcreteEmailMethod) {
+    if (!invoicePdfExportPeriod) {
+      setInvoicePdfExportFeedback({
+        kind: "error",
+        message:
+          "Selecciona Trimestre o Meses para exportar un máximo de tres meses.",
+      });
+      return;
+    }
+
+    if (emailMethod && !validateAdvisorContact(data.profile.advisorContact).value) {
+      setInvoicePdfExportFeedback({
+        kind: "error",
+        message:
+          "Completa primero el nombre, email y teléfono de tu gestor en Ajustes.",
+        action: "advisor",
+      });
+      return;
+    }
+
+    if (
+      emailMethod === "native" &&
+      !canShareFileNatively("Facturas.zip", "application/zip")
+    ) {
+      setRememberAdvisorEmailMethod(true);
+      setAdvisorEmailMethodOpen(true);
+      setInvoicePdfExportFeedback({
+        kind: "error",
+        message:
+          "Compartir del dispositivo no admite este ZIP aquí. Elige Gmail o Correo del dispositivo.",
+      });
+      return;
+    }
+
+    const useExternalEmailClient =
+      emailMethod === "gmail" || emailMethod === "mailto";
+    const reservedEmailWindow = useExternalEmailClient
+      ? reserveExternalShareWindow()
+      : null;
     setInvoicePdfExportFeedback(null);
-    setInvoicePdfExportBusy(true);
+    setInvoicePdfExportBusy(emailMethod ? "advisor" : "download");
     try {
       const result = await downloadInvoicePdfPeriodArchive(
         data.documents,
         data.profile,
         invoicePdfExportPeriod,
       );
+      if (emailMethod) {
+        const email = buildInvoicePeriodAdvisorEmail(
+          data.profile,
+          invoicePdfExportPeriodLabel(invoicePdfExportPeriod),
+          result.fileName,
+          result.summaryFileName,
+          result.invoiceCount,
+        );
+        if (!email) throw new Error("advisor_contact_unavailable");
+
+        if (emailMethod === "native") {
+          await shareFileNatively({
+            blob: result.blob,
+            fileName: result.fileName,
+            title: email.subject,
+            text: email.body,
+          });
+        } else {
+          const emailUrl =
+            emailMethod === "gmail" ? email.gmailComposeUrl : email.mailtoUrl;
+          const opened = openExternalUrl(emailUrl, reservedEmailWindow);
+          if (!opened) window.location.assign(emailUrl);
+        }
+      }
       setInvoicePdfExportFeedback({
         kind: "success",
-        message: `Descargado ${result.folderName}: ${result.invoiceCount} factura${result.invoiceCount === 1 ? "" : "s"} en PDF.`,
+        message: emailMethod
+          ? emailMethod === "native"
+            ? `Descargado ${result.fileName} y abierto Compartir con el ZIP incluido.`
+            : `Descargado ${result.fileName} y abierto ${emailMethod === "gmail" ? "Gmail" : "el correo del dispositivo"} para tu gestor. Adjunta el ZIP antes de enviarlo.`
+          : `Descargado ${result.folderName}: ${result.invoiceCount} factura${result.invoiceCount === 1 ? "" : "s"} en PDF.`,
       });
     } catch (error) {
-      const message =
-        error instanceof InvoicePdfPeriodExportError
+      if (reservedEmailWindow && !reservedEmailWindow.closed) {
+        reservedEmailWindow.close();
+      }
+      const nativeShareUnavailable =
+        error instanceof NativeDocumentShareUnavailableError;
+      if (nativeShareUnavailable) {
+        setRememberAdvisorEmailMethod(true);
+        setAdvisorEmailMethodOpen(true);
+      }
+      const message = nativeShareUnavailable
+        ? "El ZIP se ha descargado, pero Compartir no pudo abrirse. Elige Gmail o Correo del dispositivo."
+        : error instanceof InvoicePdfPeriodExportError
           ? error.documentReferences.length > 0
             ? `${error.message} Documentos: ${error.documentReferences.join(", ")}.`
             : error.message
           : "No se pudo preparar el paquete de facturas. No se ha descargado un archivo incompleto.";
       setInvoicePdfExportFeedback({ kind: "error", message });
     } finally {
-      setInvoicePdfExportBusy(false);
+      setInvoicePdfExportBusy(null);
     }
   }
 
@@ -380,19 +633,37 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
             </div>
           )}
           {limits.quarterlyExport && (
-            <Button
-              variant="secondary"
-              onClick={() => void handleExportInvoicePdfs()}
-              disabled={invoicePdfExportBusy || !invoicePdfExportPeriod}
-              title={
-                invoicePdfExportPeriod
-                  ? "Descargar las facturas del periodo en una carpeta ZIP"
-                  : "Selecciona Trimestre o Meses (máximo tres meses)"
-              }
-            >
-              <Download className="h-4 w-4" />
-              {invoicePdfExportBusy ? "Preparando…" : "Facturas PDF"}
-            </Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => void handleExportInvoicePdfs()}
+                disabled={Boolean(invoicePdfExportBusy) || !invoicePdfExportPeriod}
+                title={
+                  invoicePdfExportPeriod
+                    ? "Descargar las facturas del periodo en una carpeta ZIP"
+                    : "Selecciona Trimestre o Meses (máximo tres meses)"
+                }
+              >
+                <Download className="h-4 w-4" />
+                {invoicePdfExportBusy === "download"
+                  ? "Preparando…"
+                  : "Facturas PDF"}
+              </Button>
+              <Button
+                onClick={handleAdvisorEmailExportClick}
+                disabled={Boolean(invoicePdfExportBusy) || !invoicePdfExportPeriod}
+                title={
+                  invoicePdfExportPeriod
+                    ? "Descargar el ZIP y elegir cómo enviarlo a tu gestor"
+                    : "Selecciona Trimestre o Meses (máximo tres meses)"
+                }
+              >
+                <Send className="h-4 w-4" />
+                {invoicePdfExportBusy === "advisor"
+                  ? "Preparando correo…"
+                  : "Enviar al gestor"}
+              </Button>
+            </div>
           )}
           {!invoicePdfExportPeriod && limits.quarterlyExport ? (
             <p className="max-w-sm text-xs text-slate-500">
@@ -412,55 +683,47 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
               }`}
             >
               {invoicePdfExportFeedback.message}
+              {invoicePdfExportFeedback.action === "advisor" ? (
+                <Link
+                  href="/configuracion#ajustes-gestor"
+                  className="ml-2 underline underline-offset-2"
+                >
+                  Completar datos del gestor
+                </Link>
+              ) : null}
             </p>
           ) : null}
+          <SendMethodChooserModal
+            open={advisorEmailMethodOpen}
+            title="Enviar facturas al gestor"
+            description={`${invoicePdfExportPeriod ? invoicePdfExportPeriodLabel(invoicePdfExportPeriod) : title} · ${
+              data.profile.advisorContact?.advisorName?.trim() || "Gestor"
+            }`}
+            options={DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS}
+            rememberMethod={rememberAdvisorEmailMethod}
+            onRememberMethodChange={setRememberAdvisorEmailMethod}
+            onChoose={(method) => void chooseAdvisorEmailMethod(method)}
+            onClose={() => {
+              if (!invoicePdfExportBusy) setAdvisorEmailMethodOpen(false);
+            }}
+            busy={invoicePdfExportBusy === "advisor"}
+            testId="tax-summary-advisor-email-method-modal"
+          />
         </div>
       }
       highlights={
-        mode === "all" ? (
-          <HomeGlobalSummary
-            data={{ ...data, documents: fiscalDocuments }}
-            embedded
-            invoicedIncome={periodInvoiced}
-          />
-        ) : mode === "quarter" || mode === "months" ? (
-          <PeriodOverviewCards
-            invoicedIncome={periodInvoiced}
-            spent={periodSpent}
-            grossProfit={taxes.grossProfit}
-            estimatedIrpfBase={taxes.estimatedIrpfBase}
-            ivaToPay={taxes.ivaToPay}
-            ivaCredit={taxes.ivaCredit}
-            irpfEstimate={taxes.irpfEstimate}
-            profitAfterIrpfReserve={taxes.profitAfterIrpfReserve}
-            hasNonDeductibleExpenses={
-              taxes.nonDeductibleExpenseCount > 0
-            }
-          />
-        ) : (
-          <div className="mb-4 grid grid-cols-2 gap-3">
-            <div className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
-              <p className="text-xs text-slate-500">Facturado en el periodo</p>
-              <p className="font-bold text-green-800">
-                {formatMoney(periodInvoiced)}
-              </p>
-            </div>
-            <div className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
-              <p className="text-xs text-slate-500">
-                {periodExpenseBalanceIsCredit
-                  ? "Saldo a favor en el periodo"
-                  : "Gasto neto en el periodo"}
-              </p>
-              <p className="font-bold text-red-700">
-                {formatMoney(Math.abs(periodSpent))}
-              </p>
-            </div>
-            <div className="col-span-2 rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
-              <p className="text-xs text-slate-500">Balance del año</p>
-              <p className="font-bold text-blue-800">{formatMoney(periodBalance)}</p>
-            </div>
-          </div>
-        )
+        <PeriodOverviewCards
+          invoicedIncome={periodInvoiced}
+          spent={periodSpent}
+          grossProfit={taxes.grossProfit}
+          estimatedIrpfBase={taxes.estimatedIrpfBase}
+          ivaToPay={taxes.ivaToPay}
+          ivaCredit={taxes.ivaCredit}
+          irpfEstimate={taxes.irpfEstimate}
+          profitAfterIrpfReserve={taxes.profitAfterIrpfReserve}
+          hasNonDeductibleExpenses={taxes.nonDeductibleExpenseCount > 0}
+          monthlyBenefitRows={monthlyBenefitRows}
+        />
       }
     />
   );

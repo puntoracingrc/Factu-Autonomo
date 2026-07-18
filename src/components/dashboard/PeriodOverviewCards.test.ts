@@ -38,8 +38,7 @@ describe("PeriodOverviewCards fiscal semantics", () => {
     expect(cardsSource).toContain("expenseBalanceIsCredit");
     expect(cardsSource).toContain('"Tienes saldo a favor" : "Has gastado"');
     expect(cardsSource).toContain("Math.abs(spent)");
-    expect(panelSource).toContain("periodExpenseBalanceIsCredit");
-    expect(panelSource).toContain("Math.abs(periodSpent)");
+    expect(panelSource).toContain("spent={periodSpent}");
   });
 
   it("enseña de un vistazo cuánto apartar para impuestos", () => {
@@ -48,5 +47,18 @@ describe("PeriodOverviewCards fiscal semantics", () => {
     expect(cardsSource).toContain("ivaToPay + irpfEstimate");
     expect(cardsSource).toContain("IVA {formatMoney(ivaToPay)}");
     expect(cardsSource).toContain("IRPF {formatMoney(irpfEstimate)}");
+  });
+
+  it("desglosa el beneficio por mes y el cobro pendiente del filtro elegido", () => {
+    expect(cardsSource).toContain("Resultado por meses");
+    expect(cardsSource).toContain("Beneficio {row.label}");
+    expect(cardsSource).toContain("Falta por cobrar");
+    expect(cardsSource).toContain("Tu beneficio real a día de hoy");
+    expect(panelSource).toContain("selectedMonthKeys");
+    expect(panelSource).toContain("isPendingInvoicePayment");
+    expect(panelSource).toContain("monthlyBenefitRows={monthlyBenefitRows}");
+    expect(panelSource).toContain("mode === \"quarter\"");
+    expect(panelSource).toContain("mode === \"months\"");
+    expect(panelSource).toContain("mode === \"year\"");
   });
 });
