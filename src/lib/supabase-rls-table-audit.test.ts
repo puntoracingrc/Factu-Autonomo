@@ -37,6 +37,13 @@ const partnerProgramMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const promotionMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260718120000_promotion_codes.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -60,6 +67,9 @@ const serviceOnlyTables = [
   "partner_accounts",
   "partner_commission_entries",
   "partner_payouts",
+  "promo_campaigns",
+  "promo_redemptions",
+  "promo_module_entitlements",
 ];
 
 const browserSyncTables = ["user_backups", "sync_entities"];
@@ -117,7 +127,9 @@ describe("Supabase table-by-table RLS audit hardening", () => {
   it("keeps internal tables unavailable to browser roles", () => {
     for (const table of serviceOnlyTables) {
       const source =
-        table.startsWith("partner_")
+        table.startsWith("promo_")
+          ? promotionMigrationSource
+          : table.startsWith("partner_")
           ? partnerProgramMigrationSource
           : table === "admin_mfa_recovery_challenges"
           ? adminMfaRecoveryMigrationSource

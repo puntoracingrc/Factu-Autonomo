@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   TrendingUp,
   Trash2,
+  TicketPercent,
   UserCog,
   Users,
 } from "lucide-react";
@@ -29,6 +30,7 @@ import { useSearchParams } from "next/navigation";
 import { FiscalCalendarHealthPanel } from "@/components/admin/FiscalCalendarHealthPanel";
 import { FiscalWatchPanel } from "@/components/admin/FiscalWatchPanel";
 import { AdminPartnersPanel } from "@/components/admin/AdminPartnersPanel";
+import { AdminPromotionsPanel } from "@/components/admin/AdminPromotionsPanel";
 import { ExpenseScanCard } from "@/components/expenses/ExpenseScanCard";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import type { ExpenseScanPayload } from "@/lib/expense-scan/schema";
@@ -68,6 +70,7 @@ import { Card, PageHeader } from "@/components/ui/Card";
 type AdminSection =
   | "usuarios"
   | "partners"
+  | "promociones"
   | "sistema"
   | "supabase"
   | "vercel"
@@ -77,7 +80,7 @@ type AdminSection =
 
 type OperationsSection = Exclude<
   AdminSection,
-  "usuarios" | "partners" | "aprendizaje"
+  "usuarios" | "partners" | "promociones" | "aprendizaje"
 >;
 
 const ADMIN_MFA_UI_ENABLED = false;
@@ -277,6 +280,12 @@ const ADMIN_MENU: Array<{
     label: "Partners",
     description: "Accesos, referidos, comisiones y datos de cobro.",
     Icon: Handshake,
+  },
+  {
+    id: "promociones",
+    label: "Promociones",
+    description: "Códigos, ventajas, caducidad y límites de canje.",
+    Icon: TicketPercent,
   },
   {
     id: "supabase",
@@ -4280,9 +4289,13 @@ export default function AdminPage() {
       {capabilities?.fullAdmin && section === "partners" && (
         <AdminPartnersPanel />
       )}
+      {capabilities?.fullAdmin && section === "promociones" && (
+        <AdminPromotionsPanel />
+      )}
       {capabilities?.fullAdmin &&
         section !== "usuarios" &&
         section !== "partners" &&
+        section !== "promociones" &&
         section !== "aprendizaje" && (
         <OperationsPanel section={section} onSignalsLoaded={handleSignalsLoaded} />
       )}
