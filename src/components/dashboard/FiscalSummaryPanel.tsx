@@ -24,7 +24,6 @@ import {
   buildQuarterlyExportCsv,
   downloadQuarterlyCsv,
 } from "@/lib/billing/export-quarterly";
-import { isCollectedDocument } from "@/lib/income";
 import {
   ALL_QUARTERS,
   availableSummaryYears,
@@ -42,7 +41,6 @@ import {
 } from "@/lib/taxes";
 import type { AppData } from "@/lib/types";
 import {
-  collectedSalesTotal,
   isVatExempt,
   totalExpensesAmount,
 } from "@/lib/vat-regime";
@@ -137,14 +135,12 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
     ? "Revisa los bloqueos indicados en el resumen antes de exportar"
     : undefined;
 
-  const periodIncome = collectedSalesTotal(
-    fiscalDocuments,
-    vatExempt,
-    isCollectedDocument,
-  );
+  // El resumen fiscal sigue el devengo canónico de las ventas emitidas.
+  // Cobrar o no una factura es tesorería y no debe excluirla de esta cifra.
+  const periodInvoiced = taxes.salesBase + taxes.salesIva;
   const periodSpent = totalExpensesAmount(periodExpenses, vatExempt);
   const periodExpenseBalanceIsCredit = periodSpent < 0;
-  const periodBalance = periodIncome - periodSpent;
+  const periodBalance = periodInvoiced - periodSpent;
 
   const title =
     mode === "all"
@@ -425,10 +421,11 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
           <HomeGlobalSummary
             data={{ ...data, documents: fiscalDocuments }}
             embedded
+            invoicedIncome={periodInvoiced}
           />
         ) : mode === "quarter" || mode === "months" ? (
           <PeriodOverviewCards
-            income={periodIncome}
+            invoicedIncome={periodInvoiced}
             spent={periodSpent}
             grossProfit={taxes.grossProfit}
             estimatedIrpfBase={taxes.estimatedIrpfBase}
@@ -439,9 +436,9 @@ export function FiscalSummaryPanel({ data }: FiscalSummaryPanelProps) {
         ) : (
           <div className="mb-4 grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">
-              <p className="text-xs text-slate-500">Cobrado en el periodo</p>
+              <p className="text-xs text-slate-500">Facturado en el periodo</p>
               <p className="font-bold text-green-800">
-                {formatMoney(periodIncome)}
+                {formatMoney(periodInvoiced)}
               </p>
             </div>
             <div className="rounded-xl bg-white px-3 py-2 ring-1 ring-slate-100">

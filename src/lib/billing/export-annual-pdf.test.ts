@@ -180,6 +180,22 @@ describe("export annual pdf", () => {
     expect(pdf.getNumberOfPages()).toBeGreaterThanOrEqual(1);
   });
 
+  it("incluye como facturada una factura emitida aunque siga pendiente de cobro", () => {
+    const issuedUnpaid = issueDocument(
+      { ...draftDoc, id: "issued-unpaid", number: "F-2026-0099" },
+      profile,
+      "2026-05-10T10:00:00.000Z",
+    );
+    const commands = pdfCommands(
+      buildAnnualSummaryPdf([issuedUnpaid], [], profile, 2026),
+    );
+
+    expect(issuedUnpaid.status).not.toBe("pagado");
+    expect(commands).toContain("Facturado en el año");
+    expect(commands).toContain("121,00");
+    expect(commands).not.toContain("Cobrado en el año");
+  });
+
   it("separa el IVA del resultado tras reservar el IRPF", () => {
     const commands = pdfCommands(
       buildAnnualSummaryPdf([doc], [expense], profile, 2026),

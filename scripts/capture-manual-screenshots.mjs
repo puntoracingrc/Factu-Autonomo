@@ -98,7 +98,7 @@ async function main() {
   await page.getByRole("button", { name: "Trimestre", exact: true }).click();
   await page.waitForTimeout(400);
   await shot(page, "impuestos-trimestre", {
-    locator: "text=Ingresos cobrados >> xpath=ancestor::div[contains(@class,'grid')][1]",
+    locator: "text=Ingresos facturados >> xpath=ancestor::div[contains(@class,'grid')][1]",
   });
   await shot(page, "impuestos-resumen", { fullPage: true });
   await shot(page, "impuestos-csv", { locator: "button:has-text('CSV')" });

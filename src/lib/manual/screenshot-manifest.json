@@ -663,7 +663,7 @@
         "stateId": "tax-quarter-cards",
         "setupId": "manual-demo-data",
         "expectedMarkers": [
-          "Ingresos cobrados",
+          "Ingresos facturados",
           "Gasto neto",
           "Beneficio económico"
         ]

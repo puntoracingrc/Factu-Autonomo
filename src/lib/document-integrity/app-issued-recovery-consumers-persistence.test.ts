@@ -734,7 +734,7 @@ describe("app-issued recovery consumer and persistence regression", () => {
     const annualPdfCommands = pdfCommands(
       buildAnnualSummaryPdf(recovered.documents, [], PROFILE, 2026),
     );
-    expect(annualPdfCommands).toContain("Cobrado en el año");
+    expect(annualPdfCommands).toContain("Facturado en el año");
     expect(annualPdfCommands).toContain("F-SYNTH-STANDALONE-001");
     expect(annualPdfCommands).toContain("121,00");
 

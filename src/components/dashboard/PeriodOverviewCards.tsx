@@ -4,7 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { formatMoney } from "@/lib/calculations";
 
 interface PeriodOverviewCardsProps {
-  income: number;
+  invoicedIncome: number;
   spent: number;
   grossProfit: number;
   estimatedIrpfBase: number;
@@ -13,21 +13,23 @@ interface PeriodOverviewCardsProps {
 
 /** Cuatro métricas del periodo (trimestre): ingresos, gastos, balance y beneficio bruto. */
 export function PeriodOverviewCards({
-  income,
+  invoicedIncome,
   spent,
   grossProfit,
   estimatedIrpfBase,
   hasNonDeductibleExpenses = false,
 }: PeriodOverviewCardsProps) {
-  const balance = income - spent;
+  const balance = invoicedIncome - spent;
   const expenseBalanceIsCredit = spent < 0;
 
   return (
     <div className="mb-4 grid gap-4 sm:grid-cols-2">
       <Card className="border-green-200 bg-green-50">
-        <p className="text-sm font-medium text-green-700">Ingresos cobrados</p>
+        <p className="text-sm font-medium text-green-700">
+          Ingresos facturados
+        </p>
         <p className="mt-1 text-2xl font-bold text-green-900">
-          {formatMoney(income)}
+          {formatMoney(invoicedIncome)}
         </p>
       </Card>
       <Card className="border-red-200 bg-red-50">
