@@ -47,8 +47,8 @@ export const primerosPasosSection: ManualSection = {
     {
       title: "4. Aprende la barra de navegación",
       paragraphs: [
-        "En móvil, la barra inferior mantiene a la vista **Panel**, **Clientes**, **Facturas** y **Gastos**. Así no tienes que desplazar una lista larga de iconos.",
-        "Pulsa **Más** para abrir **Presupuestos**, **Recibos**, **Productos**, **Rentabilidad Real**, **Proveedores**, **Impuestos** y **Ajustes**. La sección actual aparece marcada también con texto y un icono.",
+        "En móvil, desplaza la barra inferior hacia los lados para acceder a todas las secciones. La opción actual aparece resaltada y la barra la acerca automáticamente al centro.",
+        "El orden es el mismo que en ordenador: **Proveedores** aparece entre **Gastos** y **Productos**.",
         "La cabecera se adapta al tamaño de pantalla: en móvil muestra menos texto para dejar espacio a las acciones importantes, y en ordenador enseña más contexto.",
         "Arriba verás el icono de ayuda **?**. Abre la sección del manual correspondiente a la pantalla en la que estés.",
       ],

@@ -132,21 +132,17 @@ describe("MVP usability polish", () => {
     expect(iconActionSource).toContain("MobileLabel");
   });
 
-  it("prioriza la navegacion movil y conserva el resto en Mas", () => {
+  it("mantiene toda la navegacion movil desplazable y sin solapes", () => {
     const appShellSource = readFileSync(
       new URL("../components/layout/AppShell.tsx", import.meta.url),
       "utf8",
     );
 
-    expect(appShellSource).toContain("MOBILE_PRIMARY_NAV_ITEMS");
-    expect(appShellSource).toContain("MOBILE_MORE_NAV_ITEMS");
-    expect(appShellSource).toContain("Más secciones");
-    expect(appShellSource).toContain('aria-expanded={mobileMoreOpen}');
-    expect(appShellSource).toContain(
-      'aria-controls="app-mobile-more-sections"',
-    );
-    expect(appShellSource).toContain("grid-cols-5");
-    expect(appShellSource).not.toContain("overflow-x-auto");
+    expect(appShellSource).toContain("appNavItems.map");
+    expect(appShellSource).toContain("overflow-x-auto");
+    expect(appShellSource).toContain("w-[4.75rem] shrink-0");
+    expect(appShellSource).toContain("w-full truncate text-center");
+    expect(appShellSource).not.toContain("mobileMoreOpen");
   });
 
   it("mantiene la cabecera movil compacta sin estrujar la marca", () => {
