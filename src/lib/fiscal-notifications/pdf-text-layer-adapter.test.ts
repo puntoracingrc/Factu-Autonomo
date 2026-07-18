@@ -1162,6 +1162,9 @@ describe("fiscal notification PDF text-layer adapter", () => {
     expect(workerSource).toContain(
       "await analyzeFiscalNotificationDocumentInput(documentInput)",
     );
+    expect(workerSource).toContain('stage = "ANALYZE"');
+    expect(workerSource).toContain('stage === "ANALYZE"');
+    expect(workerSource).toContain('"INVALID_WORKER_RESPONSE"');
     expect(workerSource).toContain(
       "enforcementExplicitFields: projected.enforcementExplicitFields",
     );
