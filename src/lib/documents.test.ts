@@ -591,8 +591,8 @@ describe("buscador de documentos", () => {
     expect(
       sortInvoicesByPeriodAndNumberDesc(mixedPeriods).map((item) => item.id),
     ).toEqual([
-      "app-july",
       "rect-july",
+      "app-july",
       "legacy-june",
       "app-june",
       "old-high",
@@ -602,6 +602,40 @@ describe("buscador de documentos", () => {
         item.date.slice(0, 7),
       ),
     ).toEqual(["2026-07", "2026-07", "2026-06", "2026-06", "2009-12"]);
+  });
+
+  it("coloca cada rectificativa justo encima de su factura original dentro del mes", () => {
+    const invoices: Document[] = [
+      issuedInvoice({
+        ...doc("older", "factura", "F-2026-2950", "Pere"),
+        date: "2026-07-05",
+      }),
+      issuedInvoice({
+        ...doc("original", "factura", "F-2026-2951", "Artec"),
+        date: "2026-07-06",
+        status: "rectificada",
+        rectifiedById: "rectification",
+      }),
+      issuedInvoice({
+        ...doc("rectification", "factura", "FR-2026-0001", "Dosartec"),
+        date: "2026-07-06",
+        rectification: {
+          originalDocumentId: "original",
+          originalNumber: "F-2026-2951",
+          originalDate: "2026-07-06",
+          reason: "Corrección de datos",
+          type: "correccion" as const,
+        },
+      }),
+      issuedInvoice({
+        ...doc("newer", "factura", "F-2026-2952", "Juan"),
+        date: "2026-07-07",
+      }),
+    ];
+
+    expect(
+      sortInvoicesByPeriodAndNumberDesc(invoices).map((item) => item.id),
+    ).toEqual(["newer", "rectification", "original", "older"]);
   });
 
   it("ignora cualquier prefijo y el año del formato al priorizar la secuencia final dentro del mismo mes", () => {

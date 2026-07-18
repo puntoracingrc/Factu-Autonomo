@@ -10,9 +10,7 @@ export type TestDocumentRetirementReadinessBlocker =
   | "local_handoff_pending"
   | "sync_not_current"
   | "pending_changes"
-  | "never_synced"
-  | "mfa_check_pending"
-  | "mfa_session_required";
+  | "never_synced";
 
 export interface TestDocumentRetirementReadinessInput {
   authReady: boolean;
@@ -32,9 +30,6 @@ export interface TestDocumentRetirementReadinessInput {
   pendingUpload: boolean;
   pendingChangeCount: number;
   lastSyncedAt?: string;
-  mfaReady: boolean;
-  currentAal?: string | null;
-  nextAal?: string | null;
 }
 
 export interface ExactDocumentNumberResolution {
@@ -73,10 +68,6 @@ export function testDocumentRetirementReadiness(
     blockers.push("pending_changes");
   }
   if (!input.lastSyncedAt) blockers.push("never_synced");
-  if (!input.mfaReady) blockers.push("mfa_check_pending");
-  if (input.nextAal === "aal2" && input.currentAal !== "aal2") {
-    blockers.push("mfa_session_required");
-  }
   return { ready: blockers.length === 0, blockers };
 }
 

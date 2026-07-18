@@ -152,9 +152,9 @@ describe("manual sections", () => {
     expect(accountManual).toContain(
       "Mantenimiento · archivar documentos descartados",
     );
-    expect(accountManual).toContain("cuenta owner");
+    expect(accountManual).toContain("cuenta autenticada");
     expect(accountManual).toContain("nube en **Sincronizado**");
-    expect(accountManual).toContain("nivel MFA de la sesión resuelto");
+    expect(accountManual).not.toContain("nivel MFA de la sesión resuelto");
     expect(accountManual).toContain("número completo y exacto");
     expect(accountManual).toContain("copia JSON previa");
     expect(accountManual).toContain("rollback");

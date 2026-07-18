@@ -248,11 +248,11 @@ export function ImportedLegacyDocumentRepairCard() {
           </h3>
           <p className="mt-1 text-sm leading-6 text-slate-700">
             La reparación conserva estos documentos como históricos importados,
-            aceptados por ti y de solo lectura. La base, el IVA y el total que
-            confirmes podrán usarse en el Panel, impuestos, ingresos,
-            rentabilidad e informes aunque falten campos que Factu exige hoy. No
-            se les atribuye un sello moderno ni registro Veri*Factu de Factu. Un
-            paquete técnico coherente que creó el rollout antiguo durante la
+            de solo lectura. La base, el IVA y el total que confirmes podrán
+            usarse en el Panel, impuestos, ingresos, rentabilidad e informes
+            aunque falten campos que Factu exige hoy. No se les atribuye un
+            sello moderno ni registro Veri*Factu de Factu. Un paquete técnico
+            coherente que creó el rollout antiguo durante la
             importación tampoco equivale a un sello de emisión ni a un registro
             Veri*Factu real: se valida, queda auditado y se retira al aceptar.
             Las relaciones históricas inequívocas se aceptan siempre con todos

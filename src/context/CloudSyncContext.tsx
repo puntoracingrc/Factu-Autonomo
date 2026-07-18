@@ -57,7 +57,7 @@ import {
 import { validateNewAccountPassword } from "@/lib/auth/password-policy";
 import { setDemoWorkspaceMode } from "@/lib/demo-workspace";
 import { clearPersistedAppData, loadData } from "@/lib/storage";
-import { EMPTY_DATA } from "@/lib/types";
+import { EMPTY_DATA, type AppData } from "@/lib/types";
 import { pickNewerAppData } from "@/lib/cloud/sync";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
 import { reportAppError } from "@/lib/monitoring/client";
@@ -116,7 +116,7 @@ interface CloudSyncValue {
   resendConfirmationEmail: () => Promise<string | null>;
   signOut: () => Promise<void>;
   signOutAndClearDevice: () => Promise<string | null>;
-  syncNow: () => Promise<void>;
+  syncNow: (freshLocalData?: AppData) => Promise<void>;
   saveLocalDataToAccount: () => Promise<void>;
   keepLocalDataOnDevice: () => void;
   forceDownloadFromCloud: () => Promise<void>;
@@ -635,9 +635,16 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   pullFromCloudRef.current = pullFromCloud;
 
   /** Referencia estable: evita bucles si un efecto depende de syncNow tras cada pull. */
-  const syncNow = useCallback(async () => {
-    await pullFromCloudRef.current();
-  }, []);
+  const syncNow = useCallback(
+    async (freshLocalData?: AppData) => {
+      if (freshLocalData) {
+        dataRef.current = freshLocalData;
+        await flushPendingUpload(false, freshLocalData);
+      }
+      await pullFromCloudRef.current();
+    },
+    [flushPendingUpload],
+  );
 
   const saveLocalDataToAccount = useCallback(async () => {
     if (!user) return;

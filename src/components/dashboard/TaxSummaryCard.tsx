@@ -222,34 +222,6 @@ function ProfitBridge({ taxes }: { taxes: TaxSummary }) {
   );
 }
 
-function NonDeductibleExpensesNotice({
-  taxes,
-}: {
-  taxes: TaxSummary;
-}) {
-  if (taxes.nonDeductibleExpenseCount === 0) return null;
-
-  return (
-    <div
-      role="status"
-      className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950"
-    >
-      <p className="text-sm font-bold">
-        {taxes.nonDeductibleExpenseCount}{" "}
-        {taxes.nonDeductibleExpenseCount === 1
-          ? "movimiento no deducible"
-          : "movimientos no deducibles"}
-      </p>
-      <p className="mt-1 text-sm leading-relaxed">
-        Su saldo económico neto de {formatMoney(taxes.nonDeductibleExpenseTotal)}
-        {" "}sigue en Gastos, balance y rentabilidad. Un gasto reduce el beneficio
-        económico y un abono revierte coste; ambos aportan 0 al gasto deducible
-        de IRPF y al IVA deducible, y no alteran la estimación fiscal de IRPF.
-      </p>
-    </div>
-  );
-}
-
 function UnsupportedMixedVatNotice({ taxes }: { taxes: TaxSummary }) {
   if (taxes.unsupportedMixedVatExpenses === 0) return null;
 
@@ -272,30 +244,6 @@ function UnsupportedMixedVatNotice({ taxes }: { taxes: TaxSummary }) {
       >
         Revisar gastos
       </Link>
-    </div>
-  );
-}
-
-function HeaderVatCalculationNotice({ taxes }: { taxes: TaxSummary }) {
-  if (taxes.vatExempt || taxes.headerVatExpenseCount === 0) return null;
-
-  return (
-    <div
-      role="status"
-      className="mb-4 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sky-950"
-    >
-      <p className="text-sm font-bold">
-        Cabecera o contrato de importe íntegro
-      </p>
-      <p className="mt-1 text-sm leading-relaxed">
-        {taxes.headerVatExpenseCount} {" "}
-        {taxes.headerVatExpenseCount === 1
-          ? "movimiento no usa"
-          : "movimientos no usan"}
-        {" "}un desglose conciliado para el cálculo: conservan la cabecera o el
-        contrato de importe íntegro no desgravable. La cifra está incluida, pero
-        revisa las líneas si alguna factura contiene varios tipos de IVA.
-      </p>
     </div>
   );
 }
@@ -513,10 +461,6 @@ export function TaxSummaryCard({
       )}
 
       <UnsupportedMixedVatNotice taxes={taxes} />
-
-      <HeaderVatCalculationNotice taxes={taxes} />
-
-      <NonDeductibleExpensesNotice taxes={taxes} />
 
       {!hasSummaryData ? (
         <p className="text-sm text-slate-500">

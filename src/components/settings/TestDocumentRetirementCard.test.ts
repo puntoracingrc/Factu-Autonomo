@@ -23,7 +23,7 @@ describe("TestDocumentRetirementCard wiring", () => {
     );
   });
 
-  it("exige owner, nube vigente, cero pendientes, fuera de demo y MFA resuelta", () => {
+  it("exige cuenta autenticada, nube vigente, cero pendientes y fuera de demo", () => {
     expect(cardSource).toContain("testDocumentRetirementReadiness({");
     expect(cardSource).toContain("authReady,");
     expect(cardSource).toContain("cloudEnabled,");
@@ -34,9 +34,9 @@ describe("TestDocumentRetirementCard wiring", () => {
     expect(cardSource).toContain("pendingUpload,");
     expect(cardSource).toContain("pendingChangeCount: Math.max(");
     expect(cardSource).toContain("lastSyncedAt: current.meta?.lastSyncedAt");
-    expect(cardSource).toContain("getAuthenticatorAssuranceLevel()");
-    expect(cardSource).toContain("currentAal: result.data.currentLevel");
-    expect(cardSource).toContain("nextAal: result.data.nextLevel");
+    expect(cardSource).not.toContain("getAuthenticatorAssuranceLevel()");
+    expect(cardSource).not.toContain("currentAal");
+    expect(cardSource).not.toContain("nextAal");
     expect(cardSource).toContain("maskAccountEmail(user?.email)");
     expect(cardSource).not.toContain("user.id}");
   });
@@ -113,9 +113,9 @@ describe("TestDocumentRetirementCard wiring", () => {
     expect(cardSource).toContain("apply: applyTestDocumentRetirement");
     expect(cardSource).toContain('result.status === "indeterminate"');
     expect(cardSource).toContain('result.status === "blocked"');
-    expect(cardSource).toContain("void syncNow();");
+    expect(cardSource).toContain("void syncNow(result.data);");
     expect(cardSource.indexOf("setFeedback({\n        tone: \"success\"")).toBeLessThan(
-      cardSource.lastIndexOf("void syncNow();"),
+      cardSource.lastIndexOf("void syncNow(result.data);"),
     );
     expect(cardSource).not.toContain("replaceData");
     expect(cardSource).not.toContain("filter((document) => !");

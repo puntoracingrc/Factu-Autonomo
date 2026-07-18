@@ -735,6 +735,10 @@ type InvoiceListPeriodOrder = {
   key: string;
 };
 
+type InvoiceListNumberOrder = InvoiceDocumentNumberSeries & {
+  rectifiesAnotherInvoice: boolean;
+};
+
 function invoiceListPeriodOrder(date: string): InvoiceListPeriodOrder {
   const match = date.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return { valid: false, key: "" };
@@ -758,6 +762,29 @@ function invoiceListPeriodOrder(date: string): InvoiceListPeriodOrder {
     : { valid: false, key: "" };
 }
 
+function invoiceListNumberOrder(
+  document: Document,
+  numbering?: NumberingSettings,
+): InvoiceListNumberOrder {
+  if (!isRectificativa(document) || !document.rectification?.originalNumber) {
+    return {
+      ...describeInvoiceDocumentSeries(document, numbering),
+      rectifiesAnotherInvoice: false,
+    };
+  }
+
+  const originalNumberDocument: Document = {
+    ...document,
+    number: document.rectification.originalNumber,
+    rectification: undefined,
+  };
+
+  return {
+    ...describeInvoiceDocumentSeries(originalNumberDocument, numbering),
+    rectifiesAnotherInvoice: true,
+  };
+}
+
 /**
  * Contrato del listado de facturas:
  *
@@ -765,7 +792,9 @@ function invoiceListPeriodOrder(date: string): InvoiceListPeriodOrder {
  *    forma que una factura antigua nunca se inserta bajo un mes moderno.
  * 2. Dentro del mismo periodo, la secuencia es el último bloque numérico útil
  *    del número, con independencia de cualquier prefijo o del año incluido en
- *    él. Los formatos configurados y las revisiones decimales se respetan.
+ *    él. Las rectificativas heredan la posición de su factura original y se
+ *    muestran justo encima de ella como evento posterior. Los formatos
+ *    configurados y las revisiones decimales se respetan.
  * 3. Prefijo, serie, procedencia y texto completo solo desempatan; nunca crean
  *    bloques que repitan meses ni cambian la prioridad de la secuencia.
  *
@@ -783,8 +812,8 @@ export function compareInvoicesByPeriodAndNumberDesc(
   if (periodA.valid !== periodB.valid) return periodA.valid ? -1 : 1;
   if (periodA.key !== periodB.key) return periodB.key.localeCompare(periodA.key);
 
-  const numberA = describeInvoiceDocumentSeries(a, numbering);
-  const numberB = describeInvoiceDocumentSeries(b, numbering);
+  const numberA = invoiceListNumberOrder(a, numbering);
+  const numberB = invoiceListNumberOrder(b, numbering);
   if (numberA.hasNumber !== numberB.hasNumber) {
     return numberA.hasNumber ? -1 : 1;
   }
@@ -794,6 +823,10 @@ export function compareInvoicesByPeriodAndNumberDesc(
     numberB.exactSequence,
   );
   if (byExactSequence !== 0) return byExactSequence;
+
+  if (numberA.rectifiesAnotherInvoice !== numberB.rectifiesAnotherInvoice) {
+    return numberA.rectifiesAnotherInvoice ? -1 : 1;
+  }
 
   const byExactRevision = compareExactUnsignedIntegersDesc(
     numberA.exactRevision,

@@ -46,13 +46,10 @@ describe("TaxSummaryCard fiscal semantics", () => {
     expect(source).not.toContain("taxes.estimatedNetProfit");
   });
 
-  it("separa cabecera o importe íntegro del bloqueo por IVA mixto incompleto", () => {
+  it("mantiene cabecera o importe íntegro fuera de los avisos visibles", () => {
     expect(source).toContain("taxes.headerVatExpenseCount");
-    expect(source).toContain("Cabecera o contrato de importe íntegro");
-    expect(source).toContain("contrato de importe íntegro no desgravable");
-    expect(source).toContain(
-      "if (taxes.vatExempt || taxes.headerVatExpenseCount === 0) return null",
-    );
+    expect(source).not.toContain("Cabecera o contrato de importe íntegro");
+    expect(source).not.toContain("contrato de importe íntegro no desgravable");
     expect(source).toContain("taxes.unsupportedMixedVatExpenses");
     expect(source).toContain("Evidencia fiscal de gasto incompleta");
     expect(source).toContain(
@@ -73,15 +70,14 @@ describe("TaxSummaryCard fiscal semantics", () => {
     }
   });
 
-  it("explica los gastos no deducibles sin ocultar que siguen en control", () => {
+  it("cuenta los gastos no deducibles sin mostrar un aviso informativo", () => {
     expect(source).toContain("taxes.nonDeductibleExpenseCount");
-    expect(source).toContain("taxes.nonDeductibleExpenseTotal");
-    expect(source).toContain("movimiento no deducible");
-    expect(source).toContain("sigue en Gastos, balance y rentabilidad");
-    expect(source).toContain("Un gasto reduce el beneficio");
-    expect(source).toContain("un abono revierte coste");
-    expect(source).toContain("aportan 0 al gasto deducible");
-    expect(source).toContain("no alteran la estimación fiscal de IRPF");
+    expect(source).not.toContain("movimiento no deducible");
+    expect(source).not.toContain("sigue en Gastos, balance y rentabilidad");
+    expect(source).not.toContain("Un gasto reduce el beneficio");
+    expect(source).not.toContain("un abono revierte coste");
+    expect(source).not.toContain("aportan 0 al gasto deducible");
+    expect(source).not.toContain("no alteran la estimación fiscal de IRPF");
     expect(source).toMatch(
       /const hasSummaryData =[\s\S]*taxes\.nonDeductibleExpenseCount > 0[\s\S]*taxes\.unsupportedMixedVatExpenses > 0;/,
     );
