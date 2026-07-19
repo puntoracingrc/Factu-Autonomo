@@ -8,6 +8,7 @@ import {
   FileUp,
   Files,
   Loader2,
+  Mail,
   RotateCcw,
   ScanLine,
   ShieldCheck,
@@ -74,6 +75,7 @@ import {
 import { projectFiscalNotificationReviewGuidanceV1 } from "@/lib/fiscal-notifications/review-guidance.v1";
 import { projectFiscalNotificationDocumentLibraryV1 } from "@/lib/fiscal-notifications/structured-review-document-library.v1";
 import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "@/lib/fiscal-notifications/structured-review-save-command.v1";
+import { buildFiscalNotificationSupportMailtoHrefV1 } from "@/lib/fiscal-notifications/support-report.v1";
 import type { FiscalNotificationVerticalSliceReviewV1 } from "@/lib/fiscal-notifications/vertical-slice-review.v1";
 import {
   inspectFiscalNotificationDriveArchiveCandidateV1,
@@ -1344,6 +1346,19 @@ function FiscalNotificationReviewWorkspace({
     );
   }
 
+  function buildAnalysisSupportHref(
+    item: FiscalNotificationBatchItem,
+  ): string {
+    return buildFiscalNotificationSupportMailtoHrefV1({
+      stage: "LOCAL_ANALYSIS",
+      status: item.status,
+      message: item.errorMessage ?? "Documento no leído por el lector local.",
+      route: "/consultor-fiscal/notificaciones",
+      fileByteLength: item.byteLength,
+      mimeType: item.mimeType,
+    });
+  }
+
   const saving = persistenceState === "saving";
   const archiving = archiveCandidates.some(
     (item) => item.status === "ARCHIVING",
@@ -1391,6 +1406,22 @@ function FiscalNotificationReviewWorkspace({
     ? projectFiscalNotificationReviewGuidanceV1({
         technicalReview: result,
         ephemeralEnforcementMoneyFacts: ephemeralMoneyFacts,
+      })
+    : null;
+  const activeReviewSummary = pendingReview
+    ? projectBatchReviewSummary(pendingReview.analysis)
+    : null;
+  const saveSupportHref = saveError
+    ? buildFiscalNotificationSupportMailtoHrefV1({
+        stage: "STRUCTURED_SAVE",
+        status: persistenceState,
+        message: saveError,
+        route: "/consultor-fiscal/notificaciones",
+        fileByteLength: activeBatchItem?.byteLength,
+        mimeType: activeBatchItem?.mimeType,
+        pageCount: result?.pageCount,
+        recognizedTitle: activeReviewSummary?.title,
+        persistenceState,
       })
     : null;
 
@@ -1627,6 +1658,15 @@ function FiscalNotificationReviewWorkspace({
                                 Reintentar
                               </Button>
                             ) : null}
+                            {item.status === "ERROR" && item.errorMessage ? (
+                              <a
+                                href={buildAnalysisSupportHref(item)}
+                                className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
+                              >
+                                <Mail aria-hidden="true" className="h-4 w-4" />
+                                Enviar caso a soporte
+                              </a>
+                            ) : null}
                             <button
                               type="button"
                               disabled={busy}
@@ -1745,6 +1785,7 @@ function FiscalNotificationReviewWorkspace({
           canSave={pendingReview !== null}
           hasNextReview={hasAnotherReview}
           errorMessage={saveError}
+          supportHref={saveSupportHref}
           onSave={() => setSaveDestinationOpen(true)}
         />
       ) : null}
@@ -1884,12 +1925,14 @@ function ReviewPersistencePanel({
   canSave,
   hasNextReview,
   errorMessage,
+  supportHref,
   onSave,
 }: {
   state: ReviewPersistenceState;
   canSave: boolean;
   hasNextReview: boolean;
   errorMessage: string | null;
+  supportHref: string | null;
   onSave: () => void;
 }) {
   const copy: Readonly<Record<ReviewPersistenceState, string>> = {
@@ -1954,11 +1997,17 @@ function ReviewPersistencePanel({
         ) : null}
       </div>
       {errorMessage ? (
-        <div
-          className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium leading-6 text-red-800"
-          role="alert"
-        >
-          {errorMessage}
+        <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium leading-6 text-red-800">
+          <p role="alert">{errorMessage}</p>
+          {supportHref ? (
+            <a
+              href={supportHref}
+              className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-red-200 bg-white px-3 text-sm font-bold text-red-800 hover:bg-red-100"
+            >
+              <Mail aria-hidden="true" className="h-4 w-4" />
+              Enviar caso a soporte
+            </a>
+          ) : null}
         </div>
       ) : null}
     </Card>
