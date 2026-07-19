@@ -1253,6 +1253,24 @@ export function loadData(): AppData {
   }
 }
 
+/**
+ * Lee el estado durable actual sin escribir normalizaciones en localStorage.
+ * Permite recuperar una precondición obsoleta cuando el dominio de negocio
+ * sigue intacto y solo cambiaron metadatos de sincronización.
+ */
+export function readPersistedDataSnapshot(): AppData | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(currentStorageKey());
+    if (!raw) {
+      return isDemoWorkspaceMode() ? normalizedDemoWorkspaceData() : EMPTY_DATA;
+    }
+    return normalizeLoadedData(parseStoredData(raw));
+  } catch {
+    return null;
+  }
+}
+
 function profileDiffersFromDefault(
   profile: Partial<BusinessProfile> | undefined,
 ): boolean {

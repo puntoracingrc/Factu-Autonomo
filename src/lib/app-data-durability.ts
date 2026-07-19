@@ -101,8 +101,8 @@ export function commitAppDataDurably<T>(input: {
 /**
  * Reintenta una transición una sola vez cuando el bloqueo procede únicamente
  * de una referencia durable antigua y el almacenamiento confirma que contiene
- * exactamente el estado esperado. Nunca rebasa una divergencia real ni repite
- * una transición inválida.
+ * el mismo dominio de negocio (aunque hayan avanzado metadatos de sync). Nunca
+ * rebasa una divergencia real ni repite una transición inválida.
  */
 export function commitAppDataDurablyWithStorageRecovery<T>(input: {
   expected: AppData;
@@ -112,6 +112,7 @@ export function commitAppDataDurablyWithStorageRecovery<T>(input: {
   build: (previous: AppData) => AppDataTransition<T>;
   persist: (candidate: AppData, storageExpected: AppData) => SaveDataResult;
   inspectPersisted: (expected: AppData) => SaveDataResult;
+  readPersisted?: () => AppData | null;
 }): AppDataDurabilityResult<T> {
   const attempt = (storageBaseline: DurableStorageBaseline | undefined) =>
     commitAppDataDurably({
@@ -133,6 +134,11 @@ export function commitAppDataDurablyWithStorageRecovery<T>(input: {
   if (!baselineCanBeRecovered) return first;
   if (input.inspectPersisted(input.expected).status === "applied") {
     return attempt({ status: "known", data: input.expected });
+  }
+
+  const persisted = input.readPersisted?.() ?? null;
+  if (persisted && appDataDomainEquals(input.expected, persisted)) {
+    return attempt({ status: "known", data: persisted });
   }
 
   if (

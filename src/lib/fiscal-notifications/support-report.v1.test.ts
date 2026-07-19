@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildFiscalNotificationSupportReportV1,
   buildFiscalNotificationSupportMailtoHrefV1,
   FISCAL_NOTIFICATION_SUPPORT_EMAIL_V1,
+  formatFiscalNotificationSupportReportTextV1,
+  parseFiscalNotificationSupportReportV1,
 } from "./support-report.v1";
 
 describe("fiscal notification support report v1", () => {
@@ -48,5 +51,55 @@ describe("fiscal notification support report v1", () => {
 
     expect(decoded).not.toMatch(/\b(?:fileName|displayName|rawText|textLayer|sha256)=/i);
     expect(decoded).toContain("persistenceState=indeterminate");
+  });
+
+  it("crea un payload estricto y saneado para envío desde Factu", () => {
+    const report = buildFiscalNotificationSupportReportV1(
+      {
+        stage: "STRUCTURED_SAVE",
+        status: "DURABILITY_CONFLICT:stale_precondition",
+        message: "No se guardó B12345678 ni 1.234,56 €.",
+        route: "/consultor-fiscal/notificaciones",
+        fileByteLength: 49_000,
+        mimeType: "application/pdf",
+        pageCount: 6,
+        persistenceState: "blocked",
+      },
+      "case:00000000-0000-4000-8000-000000000001",
+    );
+
+    expect(report).not.toBeNull();
+    const text = formatFiscalNotificationSupportReportTextV1(report!);
+    expect(text).toContain("caseId=case:00000000-0000-4000-8000-000000000001");
+    expect(text).toContain("DURABILITY_CONFLICT:stale_precondition");
+    expect(text).toContain("[dato oculto]");
+    expect(text).not.toContain("B12345678");
+    expect(text).not.toContain("1.234,56");
+  });
+
+  it("rechaza claves extra, identificadores inválidos y límites imposibles", () => {
+    const base = {
+      schemaVersion: 1,
+      caseId: "case:00000000-0000-4000-8000-000000000001",
+      stage: "LOCAL_ANALYSIS",
+      status: "ERROR",
+      message: "No leído",
+      route: "/consultor-fiscal/notificaciones",
+      mimeType: "application/pdf",
+    };
+
+    expect(parseFiscalNotificationSupportReportV1(base)).not.toBeNull();
+    expect(
+      parseFiscalNotificationSupportReportV1({ ...base, rawText: "privado" }),
+    ).toBeNull();
+    expect(
+      parseFiscalNotificationSupportReportV1({ ...base, caseId: "case:bad" }),
+    ).toBeNull();
+    expect(
+      parseFiscalNotificationSupportReportV1({
+        ...base,
+        fileByteLength: 4 * 1024 * 1024 + 1,
+      }),
+    ).toBeNull();
   });
 });

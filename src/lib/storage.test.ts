@@ -16,6 +16,7 @@ import {
   inspectPersistedData,
   loadData,
   normalizeLoadedData,
+  readPersistedDataSnapshot,
   saveData,
 } from "./storage";
 import {
@@ -473,6 +474,20 @@ describe("storage", () => {
 
     expect(clearPersistedAppData(current)).toEqual({ status: "applied" });
     expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+  });
+
+  it("lee una instantánea durable sin reescribir el almacenamiento", () => {
+    const current = normalizeLoadedData(sampleData());
+    expect(saveData(current)).toEqual({ status: "applied" });
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const setItem = vi.spyOn(localStorage, "setItem");
+    setItem.mockClear();
+
+    const snapshot = readPersistedDataSnapshot();
+
+    expect(snapshot?.profile.name).toBe(current.profile.name);
+    expect(localStorage.getItem(STORAGE_KEY)).toBe(raw);
+    expect(setItem).not.toHaveBeenCalled();
   });
 
   it("rehidrata únicamente preferencias manuales de modelos válidas", () => {

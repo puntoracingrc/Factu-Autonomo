@@ -3,7 +3,12 @@ import {
   commitAppDataDurably,
   commitAppDataDurablyWithStorageRecovery,
 } from "../app-data-durability";
-import { inspectPersistedData, loadData, saveData } from "../storage";
+import {
+  inspectPersistedData,
+  loadData,
+  readPersistedDataSnapshot,
+  saveData,
+} from "../storage";
 import { EMPTY_DATA, type AppData } from "../types";
 import { extractAeatDeferralGrantFactsV1 } from "./aeat-deferral-grant-facts.v1";
 import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
@@ -900,6 +905,47 @@ describe("structured fiscal notification save command v1", () => {
         (change) => change.entityType === "fiscal_notifications_workspace",
       ),
     ).toBe(true);
+  });
+
+  it("guarda la ficha completa usando el snapshot durable actual cuando el baseline de la UI quedó obsoleto", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
+    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({ status: "applied" });
+    const persisted = loadData();
+    const current: AppData = {
+      ...persisted,
+      meta: {
+        ...persisted.meta,
+        lastModified: "2026-07-14T10:04:30.000Z",
+      },
+    };
+
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1({
+      expected: current,
+      ownerScope: OWNER,
+      reviewId: "review:00000000-0000-4000-8000-000000000085",
+      createdAt: "2026-07-14T10:05:00.000Z",
+      analysis: offsetAnalysis(),
+      commit: (expected, build) =>
+        commitAppDataDurablyWithStorageRecovery({
+          expected,
+          storageBaseline: { status: "blocked", reason: "write_failed" },
+          getCurrent: () => current,
+          build,
+          persist: (candidate, storageExpected) =>
+            saveData(candidate, { expected: storageExpected }),
+          inspectPersisted: inspectPersistedData,
+          readPersisted: readPersistedDataSnapshot,
+        }),
+    });
+
+    expect(result.status).toMatch(/applied/);
+    expect(loadData().fiscalNotificationsWorkspace?.documents).toHaveLength(1);
   });
 
   it("guarda en Mi cuenta cuando el historial fiscal local quedó vacío tras borrar fichas", () => {

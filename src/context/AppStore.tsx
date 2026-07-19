@@ -96,6 +96,7 @@ import {
 import {
   inspectPersistedData,
   loadData,
+  readPersistedDataSnapshot,
   saveData,
   touchAppData,
 } from "@/lib/storage";
@@ -644,6 +645,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         persist: (candidate, storageExpected) =>
           saveData(candidate, { expected: storageExpected }),
         inspectPersisted: inspectPersistedData,
+        readPersisted: readPersistedDataSnapshot,
       });
       if (result.status === "indeterminate") {
         durableStorageBaselineRef.current = result;
