@@ -40,6 +40,7 @@ describe("product dashboard home", () => {
     expect(component).toContain("icon={AlertCircle}");
     expect(component).toContain("<PaymentReminderButton");
     expect(component).toContain("profile={data.profile}");
+    expect(component).toContain("showUnavailable");
     expect(component).toContain("TODO COBRADO :)");
     expect(component).not.toContain("Resumen por periodo");
     expect(periodSelectorIndex).toBeGreaterThan(-1);

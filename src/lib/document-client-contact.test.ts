@@ -43,6 +43,77 @@ describe("documentWithCurrentCustomerContact", () => {
     expect(doc.client.email).toBeUndefined();
   });
 
+  it("recupera el contacto actualizado de un duplicado histórico inequívoco", () => {
+    const hydrated = documentWithCurrentCustomerContact(
+      {
+        ...doc,
+        client: { name: "Antonio Muñoz Guerra" },
+      },
+      [
+        {
+          ...customers[0],
+          id: "customer-1",
+          firstName: "Antonio",
+          lastName: "Muñoz Guerra",
+          name: "Antonio Muñoz Guerra",
+          email: undefined,
+          phone: undefined,
+        },
+        {
+          ...customers[0],
+          id: "customer-current",
+          firstName: "Antonio",
+          lastName: "Muñoz Guerra",
+          name: "Antonio Muñoz Guerra",
+          email: undefined,
+          phone: "612 345 678",
+        },
+      ],
+    );
+
+    expect(hydrated.client.phone).toBe("612 345 678");
+  });
+
+  it("no elige un contacto si los duplicados históricos discrepan", () => {
+    const hydrated = documentWithCurrentCustomerContact(
+      {
+        ...doc,
+        client: { name: "Antonio Muñoz Guerra" },
+      },
+      [
+        {
+          ...customers[0],
+          id: "customer-1",
+          firstName: "Antonio",
+          lastName: "Muñoz Guerra",
+          name: "Antonio Muñoz Guerra",
+          email: undefined,
+          phone: undefined,
+        },
+        {
+          ...customers[0],
+          id: "customer-a",
+          firstName: "Antonio",
+          lastName: "Muñoz Guerra",
+          name: "Antonio Muñoz Guerra",
+          email: undefined,
+          phone: "612 345 678",
+        },
+        {
+          ...customers[0],
+          id: "customer-b",
+          firstName: "Antonio",
+          lastName: "Muñoz Guerra",
+          name: "Antonio Muñoz Guerra",
+          email: undefined,
+          phone: "687 654 321",
+        },
+      ],
+    );
+
+    expect(hydrated.client.phone).toBeUndefined();
+  });
+
   it("no pisa un contacto válido que ya esté congelado en el documento", () => {
     const hydrated = documentWithCurrentCustomerContact(
       {

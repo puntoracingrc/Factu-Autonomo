@@ -29,12 +29,14 @@ interface PaymentReminderButtonProps {
   doc: Document;
   profile: BusinessProfile;
   variant?: "icon" | "button";
+  showUnavailable?: boolean;
 }
 
 export function PaymentReminderButton({
   doc,
   profile,
   variant = "icon",
+  showUnavailable = false,
 }: PaymentReminderButtonProps) {
   const { data } = useAppStore();
   const { billingEnabled, isPro } = useBilling();
@@ -56,13 +58,16 @@ export function PaymentReminderButton({
   );
   const [message, setMessage] = useState(defaultMessage);
 
-  if (!canShowPaymentReminder(contactDoc)) {
+  const reminderAvailable = canShowPaymentReminder(contactDoc);
+
+  if (!reminderAvailable && !showUnavailable) {
     return null;
   }
 
   const canEmail = canSendPaymentReminder(contactDoc, "email");
   const canWhatsApp = canSendPaymentReminder(contactDoc, "whatsapp");
   const accountCanSend = Boolean(user && emailConfirmed);
+  const triggerEnabled = reminderAvailable && accountCanSend;
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
 
   function handleOpen() {
@@ -158,18 +163,22 @@ export function PaymentReminderButton({
       <IconActionButton
         label={PAYMENT_REMINDER_COPY.triggerLabel}
         tooltip={
-          accountCanSend
-            ? PAYMENT_REMINDER_COPY.triggerTooltip
-            : user
-              ? "Confirma tu email para enviar recordatorios"
-              : "Inicia sesión para enviar recordatorios"
+          !reminderAvailable
+            ? "Añade un email o teléfono al cliente para enviar recordatorios"
+            : accountCanSend
+              ? PAYMENT_REMINDER_COPY.triggerTooltip
+              : user
+                ? "Confirma tu email para enviar recordatorios"
+                : "Inicia sesión para enviar recordatorios"
         }
         onClick={handleOpen}
-        disabled={!accountCanSend}
+        disabled={!triggerEnabled}
         className={
-          accountCanSend
+          triggerEnabled
             ? "bg-amber-50 text-amber-800 hover:bg-amber-100"
-            : "cursor-not-allowed bg-slate-100 text-slate-300"
+            : !reminderAvailable
+              ? "cursor-not-allowed bg-amber-50 text-amber-300"
+              : "cursor-not-allowed bg-slate-100 text-slate-300"
         }
       >
         <Bell className="h-5 w-5" />

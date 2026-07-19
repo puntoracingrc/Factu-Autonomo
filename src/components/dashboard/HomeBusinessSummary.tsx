@@ -532,7 +532,11 @@ function PendingInvoicesCard({
                 documentAmounts(document, vatExempt).total,
               )}
               action={
-                <PaymentReminderButton doc={document} profile={data.profile} />
+                <PaymentReminderButton
+                  doc={document}
+                  profile={data.profile}
+                  showUnavailable
+                />
               }
             />
           ))
