@@ -75,7 +75,8 @@ import {
 import { projectFiscalNotificationReviewGuidanceV1 } from "@/lib/fiscal-notifications/review-guidance.v1";
 import { projectFiscalNotificationDocumentLibraryV1 } from "@/lib/fiscal-notifications/structured-review-document-library.v1";
 import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "@/lib/fiscal-notifications/structured-review-save-command.v1";
-import { buildFiscalNotificationSupportMailtoHrefV1 } from "@/lib/fiscal-notifications/support-report.v1";
+import type { FiscalNotificationSupportReportInputV1 } from "@/lib/fiscal-notifications/support-report.v1";
+import { sendFiscalNotificationSupportReportV1 } from "@/lib/fiscal-notifications/support-report-client.v1";
 import type { FiscalNotificationVerticalSliceReviewV1 } from "@/lib/fiscal-notifications/vertical-slice-review.v1";
 import {
   inspectFiscalNotificationDriveArchiveCandidateV1,
@@ -434,6 +435,12 @@ function FiscalNotificationReviewWorkspace({
     useState<PartyFactsReviewViewModelV1 | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [lastSaveFailure, setLastSaveFailure] = useState<{
+    safeCode: ReturnType<
+      typeof runSaveFiscalNotificationStructuredReviewCommandV1
+    >["safeCode"];
+    reason?: string;
+  } | null>(null);
   const [pendingReview, setPendingReview] =
     useState<PendingStructuredReview | null>(null);
   const [persistenceState, setPersistenceState] =
@@ -1017,6 +1024,7 @@ function FiscalNotificationReviewWorkspace({
     setSaveDestinationOpen(false);
     setError(null);
     setSaveError(null);
+    setLastSaveFailure(null);
     updateStoredReview(activeId, "saving", false);
     setPersistenceState("saving");
     try {
@@ -1171,6 +1179,12 @@ function FiscalNotificationReviewWorkspace({
     ) {
       return;
     }
+    setLastSaveFailure({
+      safeCode: write.safeCode,
+      ...(write.status === "blocked" && "reason" in write && write.reason
+        ? { reason: write.reason }
+        : {}),
+    });
     if (write.safeCode === "CORE_INVALID_INPUT") {
       updateStoredReview(activeId, "no_structured_facts", false);
       setPersistenceState("no_structured_facts");
@@ -1346,17 +1360,17 @@ function FiscalNotificationReviewWorkspace({
     );
   }
 
-  function buildAnalysisSupportHref(
+  function buildAnalysisSupportReport(
     item: FiscalNotificationBatchItem,
-  ): string {
-    return buildFiscalNotificationSupportMailtoHrefV1({
+  ): FiscalNotificationSupportReportInputV1 {
+    return {
       stage: "LOCAL_ANALYSIS",
       status: item.status,
       message: item.errorMessage ?? "Documento no leído por el lector local.",
       route: "/consultor-fiscal/notificaciones",
       fileByteLength: item.byteLength,
       mimeType: item.mimeType,
-    });
+    };
   }
 
   const saving = persistenceState === "saving";
@@ -1408,22 +1422,21 @@ function FiscalNotificationReviewWorkspace({
         ephemeralEnforcementMoneyFacts: ephemeralMoneyFacts,
       })
     : null;
-  const activeReviewSummary = pendingReview
-    ? projectBatchReviewSummary(pendingReview.analysis)
-    : null;
-  const saveSupportHref = saveError
-    ? buildFiscalNotificationSupportMailtoHrefV1({
+  const saveSupportReport: FiscalNotificationSupportReportInputV1 | null =
+    saveError
+      ? {
         stage: "STRUCTURED_SAVE",
-        status: persistenceState,
+        status: lastSaveFailure
+          ? `${lastSaveFailure.safeCode}:${lastSaveFailure.reason ?? "unspecified"}`
+          : persistenceState,
         message: saveError,
         route: "/consultor-fiscal/notificaciones",
         fileByteLength: activeBatchItem?.byteLength,
         mimeType: activeBatchItem?.mimeType,
         pageCount: result?.pageCount,
-        recognizedTitle: activeReviewSummary?.title,
         persistenceState,
-      })
-    : null;
+        }
+      : null;
 
   return (
     <>
@@ -1659,13 +1672,9 @@ function FiscalNotificationReviewWorkspace({
                               </Button>
                             ) : null}
                             {item.status === "ERROR" && item.errorMessage ? (
-                              <a
-                                href={buildAnalysisSupportHref(item)}
-                                className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-blue-200 bg-white px-3 text-sm font-semibold text-blue-700 hover:bg-blue-50"
-                              >
-                                <Mail aria-hidden="true" className="h-4 w-4" />
-                                Enviar caso a soporte
-                              </a>
+                              <SupportCaseButton
+                                report={buildAnalysisSupportReport(item)}
+                              />
                             ) : null}
                             <button
                               type="button"
@@ -1785,7 +1794,7 @@ function FiscalNotificationReviewWorkspace({
           canSave={pendingReview !== null}
           hasNextReview={hasAnotherReview}
           errorMessage={saveError}
-          supportHref={saveSupportHref}
+          supportReport={saveSupportReport}
           onSave={() => setSaveDestinationOpen(true)}
         />
       ) : null}
@@ -1925,14 +1934,14 @@ function ReviewPersistencePanel({
   canSave,
   hasNextReview,
   errorMessage,
-  supportHref,
+  supportReport,
   onSave,
 }: {
   state: ReviewPersistenceState;
   canSave: boolean;
   hasNextReview: boolean;
   errorMessage: string | null;
-  supportHref: string | null;
+  supportReport: FiscalNotificationSupportReportInputV1 | null;
   onSave: () => void;
 }) {
   const copy: Readonly<Record<ReviewPersistenceState, string>> = {
@@ -1999,18 +2008,74 @@ function ReviewPersistencePanel({
       {errorMessage ? (
         <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium leading-6 text-red-800">
           <p role="alert">{errorMessage}</p>
-          {supportHref ? (
-            <a
-              href={supportHref}
-              className="mt-3 inline-flex min-h-10 items-center gap-2 rounded-lg border border-red-200 bg-white px-3 text-sm font-bold text-red-800 hover:bg-red-100"
-            >
-              <Mail aria-hidden="true" className="h-4 w-4" />
-              Enviar caso a soporte
-            </a>
+          {supportReport ? (
+            <div className="mt-3">
+              <SupportCaseButton report={supportReport} tone="error" />
+            </div>
           ) : null}
         </div>
       ) : null}
     </Card>
+  );
+}
+
+function SupportCaseButton({
+  report,
+  tone = "default",
+}: {
+  report: FiscalNotificationSupportReportInputV1;
+  tone?: "default" | "error";
+}) {
+  const [state, setState] = useState<
+    | { status: "idle" | "sending" }
+    | { status: "sent"; caseId: string }
+    | { status: "failed"; error: string }
+  >({ status: "idle" });
+
+  async function submit(): Promise<void> {
+    if (state.status === "sending" || state.status === "sent") return;
+    setState({ status: "sending" });
+    const result = await sendFiscalNotificationSupportReportV1(report);
+    setState(
+      result.ok
+        ? { status: "sent", caseId: result.caseId }
+        : { status: "failed", error: result.error },
+    );
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        disabled={state.status === "sending" || state.status === "sent"}
+        onClick={() => void submit()}
+        className={`inline-flex min-h-10 items-center gap-2 rounded-lg border bg-white px-3 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-70 ${
+          tone === "error"
+            ? "border-red-200 text-red-800 hover:bg-red-100"
+            : "border-blue-200 text-blue-700 hover:bg-blue-50"
+        }`}
+      >
+        {state.status === "sending" ? (
+          <Loader2 aria-hidden="true" className="h-4 w-4 animate-spin" />
+        ) : (
+          <Mail aria-hidden="true" className="h-4 w-4" />
+        )}
+        {state.status === "sending"
+          ? "Enviando…"
+          : state.status === "sent"
+            ? "Caso enviado"
+            : "Enviar caso a soporte"}
+      </button>
+      {state.status === "sent" ? (
+        <p className="mt-2 text-xs font-semibold text-emerald-700">
+          Recibido por soporte · {state.caseId}
+        </p>
+      ) : state.status === "failed" ? (
+        <p role="alert" className="mt-2 text-xs font-semibold text-red-700">
+          {state.error}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

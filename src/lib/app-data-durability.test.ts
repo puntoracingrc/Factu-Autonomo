@@ -473,6 +473,83 @@ describe("commitAppDataDurably", () => {
     expect(persist).toHaveBeenCalledTimes(1);
   });
 
+  it("recupera contra la lectura durable vigente cuando solo cambiaron metadatos", () => {
+    const expected = {
+      ...appData(),
+      meta: {
+        lastModified: "2026-07-12T08:45:00.000Z",
+        pendingChanges: [
+          {
+            entityType: "profile" as const,
+            entityId: "profile",
+            deleted: false,
+            payload: appData().profile,
+            updatedAt: "2026-07-12T08:45:00.000Z",
+          },
+        ],
+      },
+    };
+    const persisted = {
+      ...expected,
+      meta: {
+        lastModified: "2026-07-12T08:46:00.000Z",
+        pendingChanges: undefined,
+      },
+    };
+    const persist = vi.fn(() => ({ status: "applied" }) as const);
+
+    const result = commitAppDataDurablyWithStorageRecovery({
+      expected,
+      storageBaseline: { status: "blocked", reason: "write_failed" },
+      getCurrent: () => expected,
+      build: (current) => ({
+        data: {
+          ...current,
+          profile: { ...current.profile, name: "Guardado tras sincronizar" },
+        },
+        value: "saved",
+      }),
+      persist: (candidate, storageExpected) => {
+        expect(storageExpected).toBe(persisted);
+        expect(candidate.profile.name).toBe("Guardado tras sincronizar");
+        return persist();
+      },
+      inspectPersisted: () => ({
+        status: "blocked",
+        reason: "stale_precondition",
+      }),
+      readPersisted: () => persisted,
+    });
+
+    expect(result.status).toBe("applied");
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("no usa la lectura durable vigente cuando cambió un dato de negocio", () => {
+    const expected = appData();
+    const persisted = {
+      ...expected,
+      profile: { ...expected.profile, name: "Otro estado durable" },
+    };
+    const persist = vi.fn();
+
+    expect(
+      commitAppDataDurablyWithStorageRecovery({
+        expected,
+        storageBaseline: { status: "blocked", reason: "write_failed" },
+        getCurrent: () => expected,
+        build: (current) => ({ data: current, value: "blocked" }),
+        persist,
+        inspectPersisted: () => ({
+          status: "blocked",
+          reason: "stale_precondition",
+        }),
+        readPersisted: () => persisted,
+      }),
+    ).toEqual({ status: "blocked", reason: "write_failed" });
+    expect(persist).not.toHaveBeenCalled();
+  });
+
   it("recupera un bloqueo anterior cuando solo queda un expediente fiscal vacío", () => {
     const lastKnown = appData();
     const expected: AppData = {
