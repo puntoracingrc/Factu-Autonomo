@@ -1020,6 +1020,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "El documento sigue abierto para que puedas reintentar.",
     );
+    expect(componentSource).toContain(
+      "El almacenamiento local del navegador está lleno.",
+    );
+    expect(componentSource).toContain(
+      "El navegador no permite guardar datos locales ahora.",
+    );
     expect(componentSource).not.toContain("Código: ${write.safeCode}");
     expect(componentSource).not.toContain("Guardar todo lo listo");
     expect(componentSource).toContain(
