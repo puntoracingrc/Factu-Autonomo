@@ -124,4 +124,33 @@ describe("MVP document smoke", () => {
       "popup_blocked",
     );
   });
+
+  it("ofrece un botón propio de impresión cuando el navegador bloquea el disparo automático", async () => {
+    let html = "";
+    const opened = {
+      document: {
+        open: vi.fn(),
+        write: vi.fn((chunk: string) => {
+          html += chunk;
+        }),
+        close: vi.fn(),
+      },
+    };
+    vi.stubGlobal("window", {
+      open: vi.fn(() => opened),
+      setTimeout: vi.fn(),
+    });
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn(() => "blob:document-pdf"),
+      revokeObjectURL: vi.fn(),
+    });
+
+    await printDocumentPdf(quote, profile);
+
+    expect(html).toContain("Imprimir ahora");
+    expect(html).toContain(
+      "Tu navegador ha bloqueado la impresión automática. Pulsa Imprimir ahora.",
+    );
+    expect(html).not.toContain("botón de imprimir del visor");
+  });
 });

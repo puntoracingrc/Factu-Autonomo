@@ -716,20 +716,24 @@ function renderPdfWindow(
     <script>
       const frame = document.getElementById("pdf-frame");
       const status = document.getElementById("print-status");
+      const printButton = document.getElementById("print-button");
       let attempted = false;
-      function printPdf() {
-        if (attempted) return;
+      function printPdf(force) {
+        if (attempted && !force) return;
         attempted = true;
         try {
           frame.contentWindow.focus();
           frame.contentWindow.print();
-          status.textContent = "Impresión preparada. Si no aparece el diálogo, usa el botón de imprimir del visor.";
+          status.textContent = "Impresión preparada. Si no aparece el diálogo, pulsa Imprimir ahora.";
+          printButton.hidden = false;
         } catch (error) {
-          status.textContent = "No se pudo abrir el diálogo automáticamente. Usa el botón de imprimir del visor.";
+          status.textContent = "Tu navegador ha bloqueado la impresión automática. Pulsa Imprimir ahora.";
+          printButton.hidden = false;
         }
       }
-      frame.addEventListener("load", () => window.setTimeout(printPdf, 350));
-      window.setTimeout(printPdf, 1800);
+      printButton.addEventListener("click", () => printPdf(true));
+      frame.addEventListener("load", () => window.setTimeout(() => printPdf(false), 350));
+      window.setTimeout(() => printPdf(false), 1800);
     </script>`
     : "";
 
@@ -745,7 +749,11 @@ function renderPdfWindow(
       body { display: flex; flex-direction: column; }
       header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .75rem 1rem; background: #fff; border-bottom: 1px solid #e2e8f0; }
       h1 { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .95rem; }
-      a { border-radius: .75rem; background: #2563eb; color: #fff; padding: .55rem .85rem; text-decoration: none; font-size: .85rem; font-weight: 700; }
+      .actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: .5rem; }
+      button, a { border: 0; border-radius: .75rem; background: #2563eb; color: #fff; padding: .55rem .85rem; text-decoration: none; font: inherit; font-size: .85rem; font-weight: 700; cursor: pointer; }
+      a { display: inline-flex; align-items: center; }
+      button { background: #0f172a; }
+      button[hidden] { display: none; }
       iframe { flex: 1; width: 100%; min-height: 0; border: 0; background: #fff; }
       .fallback { margin: 0; padding: .5rem 1rem; background: #fef3c7; color: #78350f; font-size: .85rem; }
     </style>
@@ -753,7 +761,10 @@ function renderPdfWindow(
   <body>
     <header>
       <h1>${title}</h1>
-      <a href="${src}" download="${title}">Descargar PDF</a>
+      <div class="actions">
+        ${options.print ? '<button id="print-button" type="button" hidden>Imprimir ahora</button>' : ""}
+        <a href="${src}" download="${title}">Descargar PDF</a>
+      </div>
     </header>
     <p id="print-status" class="fallback">${options.print ? "Preparando impresión del PDF seleccionado..." : "Vista previa del PDF seleccionado."}</p>
     <iframe id="pdf-frame" src="${src}" title="${title}"></iframe>
