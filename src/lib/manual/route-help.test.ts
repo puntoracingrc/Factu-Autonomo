@@ -63,5 +63,9 @@ describe("manual route help", () => {
     expect(manualHelpHref("/consultor-fiscal/notificaciones")).toBe(
       "/ayuda?from=%2Fconsultor-fiscal%2Fnotificaciones",
     );
+    expect(resolveManualSlug("/consultor-fiscal/notificaciones/guia")).toBeNull();
+    expect(manualHelpHref("/consultor-fiscal/notificaciones/guia")).toBe(
+      "/ayuda?from=%2Fconsultor-fiscal%2Fnotificaciones%2Fguia",
+    );
   });
 });

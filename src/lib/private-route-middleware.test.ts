@@ -189,30 +189,40 @@ describe("private route middleware", () => {
     }
   });
 
-  it("publica únicamente Notificaciones literal sin abrir el analizador", () => {
+  it("publica únicamente Notificaciones y su guía literal sin abrir el analizador", () => {
     for (const enabled of ["false", "true"]) {
       vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", enabled);
 
-      const notifications = middleware(
-        new NextRequest(
-          "https://facturacion-autonomos.app/consultor-fiscal/notificaciones",
-        ),
-      );
-      expect(notifications.status, enabled).toBe(200);
-      expect(notifications.headers.get("x-middleware-next"), enabled).toBe("1");
-      expect(notifications.headers.get("Cache-Control"), enabled).toBe(
-        "no-store, max-age=0",
-      );
-      expect(notifications.headers.get("X-Robots-Tag"), enabled).toBe(
-        "noindex, nofollow, noarchive",
-      );
+      for (const pathname of [
+        "/consultor-fiscal/notificaciones",
+        "/consultor-fiscal/notificaciones/guia",
+      ]) {
+        const notifications = middleware(
+          new NextRequest("https://facturacion-autonomos.app" + pathname),
+        );
+        expect(notifications.status, `${enabled} ${pathname}`).toBe(200);
+        expect(
+          notifications.headers.get("x-middleware-next"),
+          `${enabled} ${pathname}`,
+        ).toBe("1");
+        expect(
+          notifications.headers.get("Cache-Control"),
+          `${enabled} ${pathname}`,
+        ).toBe("no-store, max-age=0");
+        expect(
+          notifications.headers.get("X-Robots-Tag"),
+          `${enabled} ${pathname}`,
+        ).toBe("noindex, nofollow, noarchive");
+      }
     }
 
     vi.stubEnv("NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED", "false");
     for (const pathname of [
       "/consultor-fiscal/Notificaciones",
       "/consultor-fiscal/notificaciones/extra",
+      "/consultor-fiscal/notificaciones/guia/extra",
       "/consultor-fiscal/notificaciones%2Fextra",
+      "/consultor-fiscal/notificaciones%2Fguia",
       "/consultor-fiscal/analisis",
     ]) {
       const response = middleware(

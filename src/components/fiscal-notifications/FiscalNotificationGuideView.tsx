@@ -79,7 +79,7 @@ export function FiscalNotificationGuideView({
             registrada. No se ha aproximado ni sustituido por otra ficha.
           </p>
           <Link
-            href="/consultor-fiscal/notificaciones#guia-notificaciones"
+            href="/consultor-fiscal/notificaciones/guia#guia-notificaciones"
             className={`mt-3 inline-flex min-h-11 items-center rounded-xl px-2 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950 ${focusRing}`}
           >
             Abrir el índice completo
@@ -198,7 +198,7 @@ export function FiscalNotificationGuideView({
                   </p>
                   <div className="flex-1" />
                   <Link
-                    href={`/consultor-fiscal/notificaciones?guia=${encodeURIComponent(entry.familyId)}#guia-notificaciones`}
+                    href={`/consultor-fiscal/notificaciones/guia?guia=${encodeURIComponent(entry.familyId)}#guia-notificaciones`}
                     className={`mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-blue-200 bg-white px-4 text-center font-semibold text-blue-800 transition-colors hover:bg-blue-50 dark:border-blue-800 dark:bg-slate-950 dark:text-blue-200 dark:hover:bg-blue-950 ${focusRing}`}
                   >
                     Ver ficha
