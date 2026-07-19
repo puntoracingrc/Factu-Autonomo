@@ -20,6 +20,7 @@ import { productosSection } from "./productos";
 import { presupuestosSection, recibosSection } from "./presupuestos-recibos";
 import { primerosPasosSection } from "./primeros-pasos";
 import { rentabilidadRealSection } from "./rentabilidad-real";
+import { testAutonomosSection } from "./test-autonomos";
 
 export function buildManualSections(
   consultorFiscalEnabled: boolean,
@@ -34,6 +35,7 @@ export function buildManualSections(
     recibosSection,
     gastosSection,
     calendarioFiscalSection,
+    testAutonomosSection,
     productosSection,
     impuestosSection,
     ...(consultorFiscalEnabled ? [consultorFiscalSection] : []),

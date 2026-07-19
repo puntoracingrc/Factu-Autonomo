@@ -43,6 +43,12 @@ describe("manual sections", () => {
     expect(
       withConsultor.filter((section) => section.slug === "calendario-fiscal"),
     ).toHaveLength(1);
+    expect(
+      withoutConsultor.filter((section) => section.slug === "test-autonomos"),
+    ).toHaveLength(1);
+    expect(
+      withConsultor.filter((section) => section.slug === "test-autonomos"),
+    ).toHaveLength(1);
   });
 
   it("documenta los flujos recientes de entrada, cuenta y confianza", () => {
@@ -223,22 +229,28 @@ describe("manual sections", () => {
   });
 
   it("documenta el flujo completo y persistente del test de autónomos", () => {
-    const fiscalManual = JSON.stringify(getManualSection("consultor-fiscal"));
+    const testManual = JSON.stringify(getManualSection("test-autonomos"));
+    const consultorManual = JSON.stringify(
+      buildManualSections(true).find(
+        (section) => section.slug === "consultor-fiscal",
+      ),
+    );
 
-    expect(fiscalManual).toContain("Completar y mantener el test de autónomos");
-    expect(fiscalManual).toContain("hasta **8 archivos**");
-    expect(fiscalManual).toContain("no empieza automáticamente");
-    expect(fiscalManual).toContain("¿Qué modelos y documentos reconoce el lector?");
-    expect(fiscalManual).toContain("Cómo encontrar la información en Hacienda");
-    expect(fiscalManual).toContain("Confirmar datos seleccionados");
-    expect(fiscalManual).toContain("cada confirmación se suma al perfil");
-    expect(fiscalManual).toContain("Ninguna respuesta manual aparece seleccionada");
-    expect(fiscalManual).toContain("aparecen en verde");
-    expect(fiscalManual).toContain("Generar mis modelos");
-    expect(fiscalManual).toContain("se guardan en tu perfil");
-    expect(fiscalManual).toContain("incluidos provisionalmente");
-    expect(fiscalManual).toContain("Editar respuestas");
-    expect(fiscalManual).toContain("vuelve a generar");
-    expect(fiscalManual).toContain("no presenta declaraciones");
+    expect(testManual).toContain("Abrir o retomar el test");
+    expect(testManual).toContain("hasta **8 archivos**");
+    expect(testManual).toContain("Añadir archivos no inicia el análisis");
+    expect(testManual).toContain("¿Qué modelos y documentos reconoce el lector?");
+    expect(testManual).toContain("Cómo encontrar la información en Hacienda");
+    expect(testManual).toContain("Confirmar datos seleccionados");
+    expect(testManual).toContain("cada confirmación se suma al perfil");
+    expect(testManual).toContain("Ninguna respuesta manual aparece seleccionada");
+    expect(testManual).toContain("aparecen en verde");
+    expect(testManual).toContain("Generar mis modelos");
+    expect(testManual).toContain("se guardan en tu perfil");
+    expect(testManual).toContain("incluidos provisionalmente");
+    expect(testManual).toContain("Editar respuestas");
+    expect(testManual).toContain("vuelve a generar");
+    expect(testManual).toContain("no presenta declaraciones");
+    expect(consultorManual).not.toContain("Test de autónomos");
   });
 });
