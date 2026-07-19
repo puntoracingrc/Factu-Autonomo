@@ -45,7 +45,10 @@ describe("PeriodOverviewCards fiscal semantics", () => {
     expect(cardsSource).toContain("Aparta para impuestos");
     expect(cardsSource).toContain("totalToSetAside");
     expect(cardsSource).toContain("ivaToPay + irpfEstimate");
-    expect(cardsSource).toContain("IVA {formatMoney(ivaToPay)}");
+    expect(cardsSource).toContain("ivaSummary");
+    expect(cardsSource).toContain("IVA a pagar:");
+    expect(cardsSource).toContain("IVA a compensar a tu favor:");
+    expect(cardsSource).not.toContain("· a compensar");
     expect(cardsSource).toContain("IRPF {formatMoney(irpfEstimate)}");
   });
 

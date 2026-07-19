@@ -90,7 +90,9 @@ describe("TaxSummaryCard fiscal semantics", () => {
     expect(source).toContain("IVA que puedes descontar");
     expect(source).toContain("Gastos que cuentan para IRPF");
     expect(source).toContain("IVA: toca pagar");
-    expect(source).toContain("IVA: queda a compensar");
+    expect(source).toContain("IVA: saldo a compensar a tu favor");
+    expect(source).toContain("IVA a compensar a tu favor");
+    expect(source).toContain("IVA: sin importe a pagar");
     expect(source).not.toContain("MetricBar");
     expect(source).not.toContain("IrpfSplitChart");
     expect(source).toContain("taxes.lineVatExpenseCount > 0");
