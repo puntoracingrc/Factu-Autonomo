@@ -77,6 +77,9 @@ const driveArchiveUploadSource = readSource(
 const driveOriginalDeleteSource = readSource(
   "../../lib/google-drive/fiscal-notification-original-delete.v1.ts",
 );
+const supportReportSource = readSource(
+  "../../lib/fiscal-notifications/support-report.v1.ts",
+);
 const manualSource = readSource(
   "../../lib/manual/sections/consultor-fiscal.ts",
 );
@@ -1029,6 +1032,23 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "batchContext.position} de ${batchContext.total",
     );
+  });
+
+  it("permite preparar un caso de soporte saneado cuando falla lectura o guardado", () => {
+    expect(componentSource).toContain(
+      'import { buildFiscalNotificationSupportMailtoHrefV1 } from "@/lib/fiscal-notifications/support-report.v1"',
+    );
+    expect(componentSource).toContain("buildAnalysisSupportHref(item)");
+    expect(componentSource).toContain("supportHref={saveSupportHref}");
+    expect(componentSource).toContain("Enviar caso a soporte");
+    expect(supportReportSource).toContain(
+      'FISCAL_NOTIFICATION_SUPPORT_EMAIL_V1 =\n  "soporte-tecnico@facturacion-autonomos.app"',
+    );
+    expect(supportReportSource).toContain("mailto:");
+    expect(supportReportSource).toContain(
+      "privacy=no_pdf_no_text_no_filename_no_nif_no_amounts_no_references",
+    );
+    expect(supportReportSource).not.toMatch(/fetch\s*\(|\/api\/|localStorage/);
   });
 
   it("ofrece archivar voluntariamente un duplicado registrado sin custodiar el PDF", () => {
