@@ -51,10 +51,12 @@ describe("manual route help", () => {
     );
   });
 
-  it("envía el calendario al índice público sin abrir la ayuda fiscal protegida", () => {
-    expect(resolveManualSlug("/consultor-fiscal/calendario")).toBeNull();
+  it("envía el calendario a su sección pública propia", () => {
+    expect(resolveManualSlug("/consultor-fiscal/calendario")).toBe(
+      "calendario-fiscal",
+    );
     expect(manualHelpHref("/consultor-fiscal/calendario")).toBe(
-      "/ayuda?from=%2Fconsultor-fiscal%2Fcalendario",
+      "/ayuda/calendario-fiscal?from=%2Fconsultor-fiscal%2Fcalendario",
     );
   });
 

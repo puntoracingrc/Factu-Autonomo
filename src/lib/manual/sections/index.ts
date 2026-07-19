@@ -5,6 +5,7 @@
  */
 import type { ManualSection } from "../types";
 import { isConsultorFiscalEnabled } from "@/lib/expense-deductibility/config";
+import { calendarioFiscalSection } from "./calendario-fiscal";
 import { clientesSection } from "./clientes";
 import { consultorFiscalSection } from "./consultor-fiscal";
 import { cuentaSection } from "./cuenta";
@@ -32,6 +33,7 @@ export function buildManualSections(
     presupuestosSection,
     recibosSection,
     gastosSection,
+    calendarioFiscalSection,
     productosSection,
     impuestosSection,
     ...(consultorFiscalEnabled ? [consultorFiscalSection] : []),
