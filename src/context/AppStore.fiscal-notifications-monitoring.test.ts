@@ -34,4 +34,11 @@ describe("AppStore fiscal notifications monitoring", () => {
     expect(helper).not.toMatch(/\b(amount|importe|reference|referencia)\b/i);
     expect(helper).not.toContain("analysis");
   });
+
+  it("guarda y borra Notificaciones sobre el estado vigente de la cuenta", () => {
+    expect(source).toContain("const commitLatestDurableAppData = useCallback(");
+    expect(source).toContain("expected: dataRef.current,");
+    expect(source).toContain("commit: commitLatestDurableAppData,");
+    expect(source).not.toContain('reason: "UNSYNCED_WORKSPACE"');
+  });
 });

@@ -26,6 +26,7 @@ import type {
 } from "./local-review-flow";
 import type { FiscalNotificationsWorkspace } from "./types";
 import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "./structured-review-save-command.v1";
+import { runDeleteFiscalNotificationDocumentCommandV1 } from "./document-deletion-command.v1";
 import { appendStructuredReviewRelationSuggestionsV1 } from "./structured-review-relation-suggestions.v1";
 import { projectFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
 import { enrichVerticalSliceSpecializedFactsV1 } from "./vertical-slice-specialized-facts.v1";
@@ -958,6 +959,56 @@ describe("structured fiscal notification save command v1", () => {
         (change) => change.entityType === "fiscal_notifications_workspace",
       ),
     ).toBe(true);
+  });
+
+  it("guarda y permite borrar inmediatamente la ficha aunque su sincronización siga pendiente", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
+    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({
+      status: "applied",
+    });
+    let current = loadData();
+    const saved = runSaveFiscalNotificationStructuredReviewCommandV1({
+      expected: current,
+      ownerScope: OWNER,
+      reviewId: "review:00000000-0000-4000-8000-000000000094",
+      createdAt: "2026-07-14T10:04:00.000Z",
+      analysis: offsetAnalysis(),
+      commit: (_expected, build) =>
+        commitLatestAppDataDurably({
+          getCurrent: () => current,
+          build,
+          persist: (candidate) => saveData(candidate),
+        }),
+    });
+    expect(saved.status).toMatch(/^applied/u);
+    current = loadData();
+    const documentId =
+      current.fiscalNotificationsWorkspace?.documents[0]?.id;
+    expect(documentId).toBeTruthy();
+
+    const deleted = runDeleteFiscalNotificationDocumentCommandV1({
+      expected: current,
+      ownerScope: OWNER,
+      documentId: documentId!,
+      deletedAt: "2026-07-14T10:05:00.000Z",
+      commit: (_expected, build) =>
+        commitLatestAppDataDurably({
+          getCurrent: () => current,
+          build,
+          persist: (candidate) => saveData(candidate),
+        }),
+    });
+
+    expect(deleted.status).toBe("applied");
+    expect(loadData().fiscalNotificationsWorkspace?.documents ?? []).toEqual(
+      [],
+    );
   });
 
   it("guarda aunque una cola fiscal antigua ya no cumpla el envelope privado actual", () => {

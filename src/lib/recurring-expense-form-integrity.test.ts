@@ -125,11 +125,16 @@ describe("recurring expense form integrity", () => {
         /durableStorageBaselineRef\.current\.status === "indeterminate"/g,
       )?.length,
     ).toBeGreaterThanOrEqual(4);
+    expect(appStore).toContain("const commitLatestDurableAppData");
     expect(appStore).toContain(
-      'if (baseline.status !== "known") return baseline;',
+      "commitLatestDurableAppData(options.expected, (previous) =>",
     );
-    expect(appStore).toContain("durableBaselineContainsFixedExpenseBundle");
-    expect(appStore).toContain("() => inspected.transition");
+    expect(appStore).toContain(
+      "prepareFixedExpenseBundle(previous, command, { now })",
+    );
+    expect(appStore).toContain(
+      'if (prepared.status === "blocked")',
+    );
   });
 
   it("mantiene abierto Gastos fijos ante bloqueo o estado indeterminado", () => {

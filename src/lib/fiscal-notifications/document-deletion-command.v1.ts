@@ -16,8 +16,7 @@ export type DurableFiscalNotificationDocumentDeletionResultV1 =
   | Extract<
       DeleteFiscalNotificationDocumentResultV1,
       { status: "BLOCKED" | "NOT_FOUND" }
-    >
-  | Readonly<{ status: "BLOCKED"; reason: "UNSYNCED_WORKSPACE" }>;
+    >;
 
 export function runDeleteFiscalNotificationDocumentCommandV1(input: {
   readonly expected: AppData;
@@ -29,13 +28,6 @@ export function runDeleteFiscalNotificationDocumentCommandV1(input: {
     build: (previous: AppData) => AppDataTransition<T>,
   ) => AppDataDurabilityResult<T>;
 }): DurableFiscalNotificationDocumentDeletionResultV1 {
-  if (
-    input.expected.meta?.pendingChanges?.some(
-      (change) => change.entityType === "fiscal_notifications_workspace",
-    )
-  ) {
-    return Object.freeze({ status: "BLOCKED", reason: "UNSYNCED_WORKSPACE" });
-  }
   const prepared = deleteFiscalNotificationDocumentV1({
     workspace: input.expected.fiscalNotificationsWorkspace,
     ownerScope: input.ownerScope,

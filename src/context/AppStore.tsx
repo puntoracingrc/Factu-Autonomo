@@ -103,7 +103,6 @@ import {
 import {
   commitLatestAppDataDurably,
   commitAppDataDurablyWithStorageRecovery,
-  durableBaselineContainsFixedExpenseBundle,
   durableStorageBaselineAfterSave,
   fixedExpenseBundleIds,
   prepareFixedExpenseBundle,
@@ -666,7 +665,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const commitFiscalNotificationAppData = useCallback(
+  const commitLatestDurableAppData = useCallback(
     <T,>(
       _expected: AppData,
       build: (previous: AppData) => { data: AppData; value: T },
@@ -864,12 +863,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const result = runSaveFiscalNotificationStructuredReviewCommandV1({
         ...input,
         expected: dataRef.current,
-        commit: commitFiscalNotificationAppData,
+        commit: commitLatestDurableAppData,
       });
       reportFiscalNotificationStructuredReviewSaveFailure(result);
       return result;
     },
-    [commitFiscalNotificationAppData],
+    [commitLatestDurableAppData],
   );
 
   const archiveFiscalNotificationOriginal = useCallback(
@@ -895,9 +894,10 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }): DurableFiscalNotificationDocumentDeletionResultV1 =>
       runDeleteFiscalNotificationDocumentCommandV1({
         ...input,
-        commit: commitDurableAppData,
+        expected: dataRef.current,
+        commit: commitLatestDurableAppData,
       }),
-    [commitDurableAppData],
+    [commitLatestDurableAppData],
   );
 
   const repairFiscalNotificationEmptyHistory = useCallback(
@@ -1649,7 +1649,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         supplier?: Omit<Supplier, "id" | "createdAt">;
       },
     ): AppDataDurabilityResult<ScannedExpenseDurableValue> =>
-      commitDurableAppData(options.expected, (previous) =>
+      commitLatestDurableAppData(options.expected, (previous) =>
         buildScannedExpenseDurableTransition({
           data: previous,
           expense,
@@ -1658,7 +1658,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
           supplier: options.supplier,
         }),
       ),
-    [commitDurableAppData],
+    [commitLatestDurableAppData],
   );
 
   const saveFixedExpenseWithRecurringTemplate = useCallback(
@@ -1687,31 +1687,19 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
         return { status: "blocked", reason: "transition_failed" };
       }
 
-      if (inspected.status === "already_applied") {
-        const baseline = durableStorageBaselineRef.current;
-        if (baseline.status !== "known") return baseline;
-        if (
-          !durableBaselineContainsFixedExpenseBundle(baseline.data, command, {
-            now,
-          })
-        ) {
-          return { status: "blocked", reason: "stale_precondition" };
-        }
-        return {
-          status: "applied",
-          data: current,
-          value: inspected.value,
-          replayed: true,
-        };
-      }
-      if (current !== options.expected) {
-        return { status: "blocked", reason: "stale_precondition" };
-      }
       if (inspected.status === "blocked") return inspected;
 
-      return commitDurableAppData(options.expected, () => inspected.transition);
+      return commitLatestDurableAppData(options.expected, (previous) => {
+        const prepared = prepareFixedExpenseBundle(previous, command, { now });
+        if (prepared.status === "blocked") {
+          throw new Error(`FIXED_EXPENSE_${prepared.reason}`);
+        }
+        return prepared.status === "already_applied"
+          ? { data: previous, value: prepared.value }
+          : prepared.transition;
+      });
     },
-    [commitDurableAppData],
+    [commitLatestDurableAppData],
   );
 
   const addProduct = useCallback(

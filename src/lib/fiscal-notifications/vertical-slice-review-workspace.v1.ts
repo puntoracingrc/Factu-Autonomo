@@ -158,16 +158,21 @@ export function appendFiscalNotificationVerticalSliceReviewV1(
   const review = parseFiscalNotificationVerticalSliceReviewV1(
     analysis.ephemeralVerticalSliceReview,
   );
-  if (review.status !== "REVIEW_REQUIRED" || review.documents.length === 0) {
+  const structuredDocuments = review.documents.filter(
+    hasPersistableDocumentFacts,
+  );
+  if (review.status !== "REVIEW_REQUIRED" || structuredDocuments.length === 0) {
     throw new FiscalNotificationVerticalSliceWorkspaceErrorV1(
       "NO_STRUCTURED_FACTS",
     );
   }
-  if (review.documents.some((document) => document.pageTo > source.pageCount)) {
+  if (
+    structuredDocuments.some((document) => document.pageTo > source.pageCount)
+  ) {
     throw invalidInput();
   }
   const workspace = parseWorkspace(input.workspace, ownerScope, createdAt);
-  preflightReview(review.documents, source, workspace);
+  preflightReview(structuredDocuments, source, workspace);
   const sourceMatch = findSourceFile(workspace, source.sha256, ownerScope);
   if (
     sourceMatch &&
@@ -182,7 +187,7 @@ export function appendFiscalNotificationVerticalSliceReviewV1(
     assertUnusedId(workspace.packages, packageId);
     assertUnusedId(workspace.files, fileId);
   }
-  const plannedDocuments = planReviewDocuments(review.documents);
+  const plannedDocuments = planReviewDocuments(structuredDocuments);
   const documentIds: string[] = [];
   const missingDocuments: PlannedReviewDocumentV1[] = [];
   for (const planned of plannedDocuments) {
@@ -251,6 +256,19 @@ export function appendFiscalNotificationVerticalSliceReviewV1(
   );
   if (!validation.valid) throw invalidInput();
   return freezeResult("APPLIED", documentIds, workspace);
+}
+
+function hasPersistableDocumentFacts(
+  document: FiscalNotificationVerticalSliceReviewDocumentV1,
+): boolean {
+  return document.fields.some(
+    (field) =>
+      field.semantic !== "STATUS" &&
+      !(
+        field.semantic === "PARTY" &&
+        field.canonicalType === "ISSUING_AUTHORITY"
+      ),
+  );
 }
 
 function appendDocument(input: {

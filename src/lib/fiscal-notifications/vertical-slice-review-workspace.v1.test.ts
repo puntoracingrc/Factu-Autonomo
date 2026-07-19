@@ -922,7 +922,7 @@ describe("vertical slice structured workspace v1", () => {
         status: "INFORMATION_PENDING",
         documents: [],
       },
-    } as FiscalNotificationLocalAnalysisResult;
+    } as unknown as FiscalNotificationLocalAnalysisResult;
     expect(() =>
       appendFiscalNotificationVerticalSliceReviewV1({
         ownerScope: OWNER,
@@ -933,6 +933,83 @@ describe("vertical slice structured workspace v1", () => {
       }),
     ).toThrowError(
       expect.objectContaining({ code: "NO_STRUCTURED_FACTS" }),
+    );
+
+    const recognizedSource = structuredClone(source) as unknown as {
+      ephemeralVerticalSliceReview: {
+        status: string;
+        documents: Array<{
+          pageFrom: number;
+          fields: unknown[];
+          [key: string]: unknown;
+        }>;
+        [key: string]: unknown;
+      };
+      [key: string]: unknown;
+    };
+    const recognizedButEmpty = {
+      ...recognizedSource,
+      ephemeralVerticalSliceReview: {
+        ...recognizedSource.ephemeralVerticalSliceReview,
+        status: "REVIEW_REQUIRED",
+        documents: recognizedSource.ephemeralVerticalSliceReview.documents.map(
+          (document) => ({
+            ...document,
+            fields: [
+              field({ sourcePageNumbers: [document.pageFrom] }),
+              field({
+                fieldId: "party:issuer",
+                semantic: "PARTY",
+                canonicalType: "ISSUING_AUTHORITY",
+                label: "Órgano emisor",
+                sourcePageNumbers: [document.pageFrom],
+              }),
+            ],
+          }),
+        ),
+      },
+    } as unknown as FiscalNotificationLocalAnalysisResult;
+    expect(() =>
+      appendFiscalNotificationVerticalSliceReviewV1({
+        ownerScope: OWNER,
+        reviewId: REVIEW_ID,
+        createdAt: CREATED_AT,
+        workspace: null,
+        analysis: recognizedButEmpty,
+      }),
+    ).toThrowError(
+      expect.objectContaining({ code: "NO_STRUCTURED_FACTS" }),
+    );
+  });
+
+  it("omite un segmento sin datos útiles y conserva los documentos estructurados", () => {
+    const source = structuredClone(analysis()) as unknown as {
+      ephemeralVerticalSliceReview: {
+        documents: Array<{ fields: unknown[]; title: string }>;
+      };
+    };
+    source.ephemeralVerticalSliceReview.documents[1]!.fields = [
+      field({ sourcePageNumbers: [3] }),
+      field({
+        fieldId: "party:issuer",
+        semantic: "PARTY",
+        canonicalType: "ISSUING_AUTHORITY",
+        label: "Órgano emisor",
+        sourcePageNumbers: [3],
+      }),
+    ];
+
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: source as unknown as FiscalNotificationLocalAnalysisResult,
+    });
+
+    expect(result.workspace.documents).toHaveLength(1);
+    expect(result.workspace.documents[0]?.titleRaw).toBe(
+      "Liquidación provisional",
     );
   });
 });
