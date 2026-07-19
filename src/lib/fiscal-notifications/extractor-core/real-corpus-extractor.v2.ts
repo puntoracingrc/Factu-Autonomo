@@ -894,7 +894,6 @@ function taxData(
         lineValue(index, ["Fecha de emisión", "Data d'emissió"]),
         "DATE",
       ),
-      booleanField("DRAFT_AVAILABLE", "Borrador disponible", false, 1),
       field(
         "DRAFT_UNAVAILABLE_REASON",
         "Motivo de ausencia de borrador",
@@ -904,7 +903,6 @@ function taxData(
         ]),
         "TEXT",
       ),
-      integerField("PARTICIPANT_COUNT", "Participantes", participantCount, 1),
       onlineStart
         ? field(
             "CAMPAIGN_ONLINE_START",
@@ -932,12 +930,6 @@ function taxData(
             "DATE",
           )
         : null,
-      integerField(
-        "SECTION_ROW_COUNT",
-        "Filas conservadas",
-        rows.length,
-        rows[0]?.pageNumber ?? 1,
-      ),
     ]),
     sectionRows: rows,
     missingReturns: Object.freeze([]),
@@ -1229,25 +1221,12 @@ function publication(
         lineValue(index, ["Número de publicación"]),
         "REFERENCE",
       ),
-      integerField("APPEARANCE_DURATION", "Plazo de comparecencia", 15, 1),
-      field(
-        "APPEARANCE_UNIT",
-        "Unidad del plazo",
-        { value: "CALENDAR_DAYS", pageNumber: 1 },
-        "TEXT",
-      ),
       effective,
       field(
         "ISSUE_DATE",
         "Fecha de emisión",
         lineValue(index, ["Fecha de emisión"]),
         "DATE",
-      ),
-      booleanField(
-        "PROVES_UNDERLYING_ACT_CONTENT",
-        "Explica el contenido del acto citado",
-        false,
-        1,
       ),
     ]),
     sectionRows: Object.freeze([]),

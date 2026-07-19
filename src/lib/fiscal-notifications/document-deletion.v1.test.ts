@@ -150,6 +150,71 @@ function relatedWorkspace(): FiscalNotificationsWorkspace {
   return result.workspace;
 }
 
+function threeDocumentWorkspaceWithUnrelatedRelation(): FiscalNotificationsWorkspace {
+  const result = structuredClone(workspace());
+  result.packages.push({
+    id: "package:2",
+    ownerScope: OWNER,
+    fileIds: ["file:2"],
+    sourceChannel: "MANUAL_UPLOAD",
+    processingStatus: "NEEDS_REVIEW",
+    securityScanStatus: "NOT_AVAILABLE",
+    uploadedAt: NOW,
+  });
+  result.files.push({
+    id: "file:2",
+    packageId: "package:2",
+    ownerScope: OWNER,
+    role: "PRIMARY",
+    mimeType: "application/pdf",
+    fileSize: 1_002,
+    pageCount: 1,
+    sha256: "c".repeat(64),
+    contentFingerprint: "c".repeat(64),
+    sourceContentRetention: "NOT_RETAINED",
+    uploadedAt: NOW,
+  });
+  result.documents.push({
+    ...result.documents[1]!,
+    id: "document:2",
+    packageId: "package:2",
+    fileId: "file:2",
+    titleRaw: "Providencia sintética 3",
+    titleNormalized: "PROVIDENCIA SINTETICA 3",
+    referenceIds: ["reference:2"],
+  });
+  result.references.push({
+    ...result.references[1]!,
+    id: "reference:2",
+    documentId: "document:2",
+    occurrenceIds: ["evidence:2"],
+  });
+  result.evidence.push({
+    ...result.evidence[1]!,
+    id: "evidence:2",
+    documentId: "document:2",
+  });
+  result.relations.push({
+    id: "relation:survivors",
+    ownerScope: OWNER,
+    sourceDocumentId: "document:1",
+    targetDocumentId: "document:2",
+    relationType: "POSSIBLY_RELATED",
+    confidenceBand: "MEDIUM",
+    score: 50,
+    evidence: {
+      matchingReferenceTypes: ["LIQUIDATION_KEY"],
+      matchingAmountTypes: [],
+      matchingDates: [],
+      differences: [],
+    },
+    algorithmVersion: "synthetic-delete-regression/v1",
+    status: "SUGGESTED",
+    createdAt: NOW,
+  });
+  return result;
+}
+
 describe("fiscal notification document deletion v1", () => {
   it("elimina la ficha y su vínculo local, preservando explícitamente el original de Drive", () => {
     const input = relatedWorkspace();
@@ -255,5 +320,41 @@ describe("fiscal notification document deletion v1", () => {
         deletedAt: DELETED_AT,
       }),
     ).toEqual({ status: "NOT_FOUND" });
+  });
+
+  it("borra una de varias fichas y conserva documentos y relaciones ajenas", () => {
+    const input = threeDocumentWorkspaceWithUnrelatedRelation();
+
+    const result = deleteFiscalNotificationDocumentV1({
+      workspace: input,
+      ownerScope: OWNER,
+      documentId: "document:0",
+      deletedAt: DELETED_AT,
+    });
+
+    expect(result.status).toBe("APPLIED");
+    if (result.status !== "APPLIED") return;
+    expect(result.workspace.documents.map((item) => item.id)).toEqual([
+      "document:1",
+      "document:2",
+    ]);
+    expect(result.workspace.references.map((item) => item.documentId)).toEqual([
+      "document:1",
+      "document:2",
+    ]);
+    expect(result.workspace.evidence.map((item) => item.documentId)).toEqual([
+      "document:1",
+      "document:2",
+    ]);
+    expect(result.workspace.relations).toEqual([
+      expect.objectContaining({
+        id: "relation:survivors",
+        sourceDocumentId: "document:1",
+        targetDocumentId: "document:2",
+      }),
+    ]);
+    expect(
+      validateFiscalNotificationsWorkspaceIntegrity(result.workspace, OWNER),
+    ).toEqual({ valid: true, issues: [] });
   });
 });

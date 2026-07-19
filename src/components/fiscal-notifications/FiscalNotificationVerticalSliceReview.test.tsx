@@ -253,7 +253,10 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).toContain("Importe embargado");
     expect(html).toContain("276,00\u00a0€");
     expect(html).toContain(
-      "Esta diligencia no demuestra por sí sola que el banco ya los haya transferido al Tesoro",
+      "Que la deuda esté pagada por existir una retención.",
+    );
+    expect(html).toContain(
+      "Que el importe máximo sea el efectivamente ingresado.",
     );
     expect(html).not.toContain("PRIMARY_DEBTOR");
     expect(html).not.toContain("BANK_ACCOUNT_OR_DEPOSIT");
@@ -365,6 +368,63 @@ describe("FiscalNotificationVerticalSliceReview", () => {
 
     expect(html.match(/Domiciliación bancaria/gu)).toHaveLength(1);
     expect(html).not.toContain("DIRECT_DEBIT");
+  });
+
+  it("hides internal recognition and explanation fields from the review presenter", () => {
+    const review = structuredClone(
+      reviewForFamily("notification.publication_or_appearance"),
+    );
+    const document = review.documents[0]!;
+    const template = document.fields[0]!;
+    (document as unknown as { fields: unknown[] }).fields = [
+      {
+        ...template,
+        fieldId: "real-corpus:recognized-family",
+        semantic: "DETAIL",
+        canonicalType: "FACT_OR_GROUND",
+        label: "Reconocimiento documental",
+        displayValue: "Título y autoridad coinciden",
+        normalizedValue: "EXACT_TITLE_AND_AUTHORITY",
+      },
+      {
+        ...template,
+        fieldId: "real-corpus:plain-explanation",
+        semantic: "DETAIL",
+        canonicalType: "EXPLICIT_CONSEQUENCE",
+        label: "Qué significa",
+        displayValue:
+          "La diligencia acredita la publicación sin crear una deuda.",
+        normalizedValue:
+          "EXPLANATION:notification.publication_or_appearance:PUBLICATION_DILIGENCE",
+      },
+      {
+        ...template,
+        fieldId: "real-corpus:APPEARANCE_DURATION:0",
+        semantic: "DETAIL",
+        canonicalType: "FACT_OR_GROUND",
+        label: "Plazo de comparecencia",
+        displayValue: "15",
+        normalizedValue: "INTEGER:APPEARANCE_DURATION:15",
+      },
+      {
+        ...template,
+        fieldId: "real-corpus:UNDERLYING_ACT_REFERENCE:1",
+        semantic: "REFERENCE",
+        canonicalType: "OTHER_OFFICIAL_REFERENCE",
+        label: "Referencia del acto citado",
+        displayValue: "ACT-SYN-PRESENTER-001",
+        normalizedValue: "ACT-SYN-PRESENTER-001",
+      },
+    ];
+
+    const html = renderToStaticMarkup(
+      createElement(FiscalNotificationVerticalSliceReview, { review }),
+    );
+
+    expect(html).toContain("ACT-SYN-PRESENTER-001");
+    expect(html).not.toMatch(
+      /Reconocimiento documental|EXACT_TITLE_AND_AUTHORITY|EXPLANATION:|INTEGER:APPEARANCE_DURATION|Plazo de comparecencia/u,
+    );
   });
 
   it("groups installment facts in a familiar table instead of scattered cards", () => {

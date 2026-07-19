@@ -205,6 +205,42 @@ describe("structured review document library v1", () => {
     expect(JSON.stringify(result)).not.toContain("latestReceivedAt");
   });
 
+  it("mantiene visible el listado tras borrar una ficha de un conjunto mayor", () => {
+    const result = composeFiscalNotificationDocumentLibraryV1(
+      { status: "READY", entries: [JANUARY, MARCH, JUNE] },
+      {
+        status: "READY",
+        entries: relations().entries.filter(
+          (entry) => entry.key === "relation:march-january",
+        ),
+        timelines: [
+          {
+            ...relations().timelines[0]!,
+            steps: relations().timelines[0]!.steps.filter(
+              (step) => step.id !== APRIL.key,
+            ),
+            links: relations().timelines[0]!.links.filter(
+              (link) => link.key === "relation:march-january",
+            ),
+          },
+        ],
+      },
+    );
+
+    expect(result.status).toBe("READY");
+    if (result.status !== "READY") return;
+    expect(result.documents.map((item) => item.key)).toEqual([
+      JANUARY.key,
+      MARCH.key,
+      JUNE.key,
+    ]);
+    expect(result.groups.flatMap((group) => group.documents)).toHaveLength(3);
+    expect(result.groups.map((group) => group.documents.map((item) => item.key))).toEqual([
+      [JUNE.key],
+      [JANUARY.key, MARCH.key],
+    ]);
+  });
+
   it("bloquea toda la biblioteca si falla el ownerScope o una relación parcial", () => {
     const blocked: FiscalNotificationDocumentLibraryViewModelV1 =
       composeFiscalNotificationDocumentLibraryV1(

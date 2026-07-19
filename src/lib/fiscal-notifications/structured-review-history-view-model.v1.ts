@@ -27,6 +27,7 @@ import { explainAeatOfficialCatalogDocumentV9 } from "./official-catalog-explana
 import { isAeatP0DeepProfileIdV10 } from "./knowledge/p0-deep-contracts.v10";
 import { explainAeatP0DeepDocumentV10 } from "./p0-deep-explanation.v10";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
+import { isInternalFiscalNotificationFieldArtifact } from "./document-fact-observation.v1";
 import type {
   AdministrativeDocumentType,
   ExternalReference,
@@ -350,7 +351,14 @@ export function projectFiscalNotificationStructuredHistoryV1(
           if (
             metadata?.semantic === "MONEY" ||
             metadata?.semantic === "REFERENCE" ||
-            isProfileControlField(metadata?.fieldId ?? null)
+            isProfileControlField(metadata?.fieldId ?? null) ||
+            isInternalFiscalNotificationFieldArtifact({
+              fieldId: metadata?.fieldId ?? null,
+              label: metadata?.label ?? field.labelRaw,
+              value: field.valueRaw,
+              semantic: metadata?.semantic ?? null,
+              canonicalType: metadata?.canonicalType ?? null,
+            })
           ) {
             return [];
           }
@@ -979,7 +987,14 @@ function projectOrderedFacts(input: {
     if (
       metadata?.semantic === "MONEY" ||
       metadata?.semantic === "REFERENCE" ||
-      isProfileControlField(metadata?.fieldId ?? null)
+      isProfileControlField(metadata?.fieldId ?? null) ||
+      isInternalFiscalNotificationFieldArtifact({
+        fieldId: metadata?.fieldId ?? null,
+        label: metadata?.label ?? fact.labelRaw,
+        value: fact.valueRaw,
+        semantic: metadata?.semantic ?? null,
+        canonicalType: metadata?.canonicalType ?? null,
+      })
     ) {
       return;
     }

@@ -25,7 +25,11 @@ const PROJECTABLE_TEXT_FIELD_CODES_V2 = new Set([
 
 function isProjectableField(item: RealCorpusFieldV2): boolean {
   return (
-    item.kind !== "TEXT" || PROJECTABLE_TEXT_FIELD_CODES_V2.has(item.fieldCode)
+    (item.kind === "REFERENCE" ||
+      item.kind === "DATE" ||
+      item.kind === "MONEY" ||
+      (item.kind === "TEXT" &&
+        PROJECTABLE_TEXT_FIELD_CODES_V2.has(item.fieldCode)))
   );
 }
 
@@ -83,7 +87,7 @@ function projectField(
   const value =
     item.kind === "BOOLEAN" ? (item.value ? "Sí" : "No") : String(item.value);
   const normalizedValue =
-    item.kind === "REFERENCE" || item.kind === "DATE"
+    item.kind === "REFERENCE" || item.kind === "DATE" || item.kind === "TEXT"
       ? String(item.value)
       : `${item.kind}:${item.fieldCode}:${String(item.value).toUpperCase()}`;
   const displayValue =
@@ -191,27 +195,9 @@ export function projectRealCorpusReviewV2(
   const rule = resolveFamilyRuleV2(outcome.familyId);
   if (!rule) return emptyReview();
   const fields = [
-    reviewField({
-      fieldId: "real-corpus:recognized-family",
-      semantic: "DETAIL",
-      canonicalType: "FACT_OR_GROUND",
-      label: "Reconocimiento documental",
-      displayValue: "Título y autoridad coinciden",
-      normalizedValue: "EXACT_TITLE_AND_AUTHORITY",
-      sourcePageNumbers: Object.freeze([1]),
-    }),
     ...outcome.fields.filter(isProjectableField).map(projectField),
     ...outcome.sectionRows.map(projectSectionRow),
     ...outcome.missingReturns.map(projectMissingReturn),
-    reviewField({
-      fieldId: "real-corpus:plain-explanation",
-      semantic: "DETAIL",
-      canonicalType: "EXPLICIT_CONSEQUENCE",
-      label: "Qué significa",
-      displayValue: outcome.explanation,
-      normalizedValue: `EXPLANATION:${outcome.familyId}:${outcome.subtype ?? "GENERAL"}`,
-      sourcePageNumbers: Object.freeze([1]),
-    }),
   ];
   return parseFiscalNotificationVerticalSliceReviewV1({
     schemaVersion: 1,
