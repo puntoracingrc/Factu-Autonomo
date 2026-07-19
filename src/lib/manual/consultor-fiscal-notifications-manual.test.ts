@@ -24,11 +24,10 @@ describe("manual de Notificaciones y expedientes", () => {
     expect(text).toContain("se abre automáticamente el siguiente");
     expect(text).toContain("se cierra");
     expect(text).toContain("señala en verde la ficha recién guardada");
-    expect(text).toContain("**Mi cuenta**");
-    expect(text).toContain("**Google Drive**");
-    expect(text).toContain("**Ambas**");
-    expect(text).toContain("no necesitas seleccionarlo ni escanearlo otra vez");
-    expect(text).toContain("Factu nunca custodia el PDF");
+    expect(text).toContain("se guarda directamente en Factu");
+    expect(text).toContain("no aparece un selector de destinos");
+    expect(text).toContain("ni se intenta subir el PDF a Google Drive");
+    expect(text).toContain("nunca el PDF original");
     expect(text).toContain("documentación solicitada");
     expect(text).toContain("denegación de aplazamiento o fraccionamiento");
     expect(text).toContain("motivo impreso");
@@ -40,17 +39,17 @@ describe("manual de Notificaciones y expedientes", () => {
     expect(text).toContain("no crea automáticamente una deuda");
   });
 
-  it("documenta el archivado voluntario y verificable en Drive", () => {
+  it("documenta que no se archivan originales nuevos y preserva los anteriores", () => {
     const text = notificationManualText();
 
-    expect(text).toContain("Original registrado sin archivar");
-    expect(text).toContain("Archivar original en Drive");
-    expect(text).toContain("Conectar Drive y archivar");
-    expect(text).toContain("Factu - documentos oficiales/AAAA/MM");
-    expect(text).toContain("Fecha pendiente");
-    expect(text).toContain("fecha del propio documento");
+    expect(text).toContain(
+      "El escáner ya no ofrece archivar originales nuevos en Google Drive",
+    );
+    expect(text).toContain(
+      "Los originales que se archivaron antes de este cambio permanecen",
+    );
     expect(text).toContain("Abrir o descargar");
-    expect(text).toContain("se rechaza como duplicado");
+    expect(text).toContain("se trata como duplicado");
   });
 
   it("documenta la biblioteca cronológica y las relaciones revisables", () => {

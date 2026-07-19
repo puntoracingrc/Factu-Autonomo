@@ -64,10 +64,7 @@ export function commitAppDataDurably<T>(input: {
   let resolved: AppData;
   try {
     transition = input.build(input.expected);
-    resolved = trackDataDiff(
-      input.expected,
-      touchAppData(transition.data),
-    );
+    resolved = trackDataDiff(input.expected, touchAppData(transition.data));
   } catch {
     return { status: "blocked", reason: "transition_failed" };
   }
@@ -80,16 +77,57 @@ export function commitAppDataDurably<T>(input: {
 
   let persistence: SaveDataResult;
   try {
-    persistence = input.persist(
-      resolved,
-      storageBaseline.data,
-    );
+    persistence = input.persist(resolved, storageBaseline.data);
   } catch {
     return { status: "indeterminate", reason: "storage_state_unknown" };
   }
 
   if (persistence.status === "blocked") return persistence;
   if (persistence.status === "indeterminate") return persistence;
+  return {
+    status: "applied",
+    data: resolved,
+    value: transition.value,
+    replayed: false,
+  };
+}
+
+/**
+ * Guarda una transición construida sobre el estado vigente en el instante del
+ * clic, sin exigir que coincida con una referencia capturada antes. Está
+ * reservado al alta de fichas estructuradas de Notificaciones, cuyo análisis
+ * puede permanecer abierto mientras la sincronización actualiza metadatos de
+ * la cuenta. La escritura sigue pasando por la proyección privada, la
+ * protección anti-vaciado y el readback de `saveData`.
+ */
+export function commitLatestAppDataDurably<T>(input: {
+  storageBaseline?: DurableStorageBaseline;
+  getCurrent: () => AppData;
+  build: (previous: AppData) => AppDataTransition<T>;
+  persist: (candidate: AppData) => SaveDataResult;
+}): AppDataDurabilityResult<T> {
+  if (input.storageBaseline?.status === "indeterminate") {
+    return input.storageBaseline;
+  }
+
+  const current = input.getCurrent();
+  let transition: AppDataTransition<T>;
+  let resolved: AppData;
+  try {
+    transition = input.build(current);
+    resolved = trackDataDiff(current, touchAppData(transition.data));
+  } catch {
+    return { status: "blocked", reason: "transition_failed" };
+  }
+
+  let persistence: SaveDataResult;
+  try {
+    persistence = input.persist(resolved);
+  } catch {
+    return { status: "indeterminate", reason: "storage_state_unknown" };
+  }
+
+  if (persistence.status !== "applied") return persistence;
   return {
     status: "applied",
     data: resolved,
@@ -163,7 +201,10 @@ export function commitAppDataDurablyWithStorageRecovery<T>(input: {
 }
 
 function appDataDomainEquals(left: AppData, right: AppData): boolean {
-  return jsonEqual(appDataDomainComparable(left), appDataDomainComparable(right));
+  return jsonEqual(
+    appDataDomainComparable(left),
+    appDataDomainComparable(right),
+  );
 }
 
 /**
@@ -273,8 +314,7 @@ export function inspectFixedExpenseBundle(
       (entry) => !recurringProvenanceMatches(entry, ids.recurringExpenseId),
     ) ||
     operationSuppliers.length > 1 ||
-    (seeds[0].supplierId === ids.supplierId &&
-      operationSuppliers.length !== 1)
+    (seeds[0].supplierId === ids.supplierId && operationSuppliers.length !== 1)
   ) {
     return { status: "ambiguous" };
   }
@@ -442,10 +482,7 @@ export function prepareFixedExpenseBundle(
     };
   }
 
-  if (
-    linkedExpenses.length > 0 ||
-    supplier
-  ) {
+  if (linkedExpenses.length > 0 || supplier) {
     return { status: "blocked", reason: "identifier_collision" };
   }
 

@@ -101,6 +101,7 @@ import {
   touchAppData,
 } from "@/lib/storage";
 import {
+  commitLatestAppDataDurably,
   commitAppDataDurablyWithStorageRecovery,
   durableBaselineContainsFixedExpenseBundle,
   durableStorageBaselineAfterSave,
@@ -665,6 +666,35 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const commitFiscalNotificationAppData = useCallback(
+    <T,>(
+      _expected: AppData,
+      build: (previous: AppData) => { data: AppData; value: T },
+    ): AppDataDurabilityResult<T> => {
+      const result = commitLatestAppDataDurably({
+        storageBaseline: durableStorageBaselineRef.current,
+        getCurrent: () => dataRef.current,
+        build,
+        persist: (candidate) => saveData(candidate),
+      });
+      if (result.status === "indeterminate") {
+        durableStorageBaselineRef.current = result;
+      }
+      if (result.status !== "applied") return result;
+
+      durableStorageBaselineRef.current = {
+        status: "known",
+        data: result.data,
+      };
+      lastKnownDurableDataRef.current = result.data;
+      durablyPersistedDataRef.current = result.data;
+      dataRef.current = result.data;
+      setData(result.data);
+      return result;
+    },
+    [],
+  );
+
   useEffect(() => {
     const persisted = loadData();
     durableStorageBaselineRef.current = { status: "known", data: persisted };
@@ -833,12 +863,13 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     }): DurableFiscalNotificationStructuredReviewSaveResultV1 => {
       const result = runSaveFiscalNotificationStructuredReviewCommandV1({
         ...input,
-        commit: commitDurableAppData,
+        expected: dataRef.current,
+        commit: commitFiscalNotificationAppData,
       });
       reportFiscalNotificationStructuredReviewSaveFailure(result);
       return result;
     },
-    [commitDurableAppData],
+    [commitFiscalNotificationAppData],
   );
 
   const archiveFiscalNotificationOriginal = useCallback(
@@ -2170,8 +2201,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString();
       const id = newId();
       let result:
-        | { ok: true; customer: Customer }
-        | { ok: false; error: string } = {
+        { ok: true; customer: Customer } | { ok: false; error: string } = {
         ok: false,
         error: "No se pudo guardar el cliente",
       };
@@ -2200,8 +2230,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     ): { ok: true; customer: Customer } | { ok: false; error: string } => {
       const now = new Date().toISOString();
       let result:
-        | { ok: true; customer: Customer }
-        | { ok: false; error: string } = {
+        { ok: true; customer: Customer } | { ok: false; error: string } = {
         ok: false,
         error: "No se pudo guardar el cliente",
       };

@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  CheckCircle2,
-  CloudUpload,
   FileText,
   FileSearch,
   FileUp,
@@ -27,7 +25,6 @@ import {
 } from "react";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
-import { Modal } from "@/components/ui/Modal";
 import { FiscalNotificationExplicitFieldsReview } from "@/components/fiscal-notifications/FiscalNotificationExplicitFieldsReview";
 import {
   FiscalNotificationDocumentDetail,
@@ -78,17 +75,6 @@ import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "@/lib/fiscal
 import type { FiscalNotificationSupportReportInputV1 } from "@/lib/fiscal-notifications/support-report.v1";
 import { sendFiscalNotificationSupportReportV1 } from "@/lib/fiscal-notifications/support-report-client.v1";
 import type { FiscalNotificationVerticalSliceReviewV1 } from "@/lib/fiscal-notifications/vertical-slice-review.v1";
-import {
-  inspectFiscalNotificationDriveArchiveCandidateV1,
-  type FiscalNotificationDriveArchiveCandidateV1,
-} from "@/lib/fiscal-notifications/drive-original-archive.v1";
-import { uploadFiscalNotificationOriginalToGoogleDriveV1 } from "@/lib/google-drive/fiscal-notification-original-archive.v1";
-import { hasUsableDriveToken } from "@/lib/google-drive/backup";
-import {
-  getGoogleDriveClientId,
-  isGoogleDriveBackupEnabled,
-} from "@/lib/google-drive/config";
-import { runExclusiveDriveOperation } from "@/lib/google-drive/operation";
 
 const FAMILY_LABELS = {
   AEAT_ENFORCEMENT_ORDER_CANDIDATE: "Providencia de apremio",
@@ -285,25 +271,10 @@ type ReviewPersistenceState =
   | "pending"
   | "saving"
   | "saved"
-  | "drive_failed"
   | "no_structured_facts"
   | "invalid_structured_review"
   | "blocked"
   | "indeterminate";
-
-type ReviewSaveDestination = "ACCOUNT" | "DRIVE" | "BOTH";
-
-type FiscalNotificationArchiveCandidateStatus =
-  "READY" | "ARCHIVING" | "ARCHIVED" | "ERROR";
-
-interface FiscalNotificationArchiveCandidateItem {
-  readonly id: string;
-  readonly byteLength: number;
-  readonly displayName: string;
-  readonly candidate: FiscalNotificationDriveArchiveCandidateV1;
-  readonly status: FiscalNotificationArchiveCandidateStatus;
-  readonly errorMessage: string | null;
-}
 
 export function FiscalNotificationIntakeView({
   selectedDocumentId,
@@ -384,24 +355,18 @@ function FiscalNotificationReviewWorkspace({
     ready: appStoreReady,
     getCurrentData,
     saveFiscalNotificationStructuredReview,
-    archiveFiscalNotificationOriginal,
     repairFiscalNotificationEmptyHistory,
   } = useAppStore();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const filesRef = useRef(new Map<string, File>());
-  const archiveFilesRef = useRef(new Map<string, File>());
   const reviewsRef = useRef(new Map<string, FiscalNotificationBatchReview>());
   const queueRef = useRef<readonly FiscalNotificationBatchItem[]>([]);
-  const archiveCandidatesRef = useRef<
-    readonly FiscalNotificationArchiveCandidateItem[]
-  >([]);
   const activeDocumentIdRef = useRef<string | null>(null);
   const admissionControllerRef = useRef<AbortController | null>(null);
   const admittingRef = useRef(false);
   const controllerRef = useRef<AbortController | null>(null);
   const processingRef = useRef(false);
   const saveOperationRef = useRef<symbol | null>(null);
-  const archiveOperationRef = useRef<symbol | null>(null);
   const repairingDuplicateHistoryRef = useRef(false);
   const emptyHistoryAutoRepairAttemptedRef = useRef(false);
   const blockedDuplicateFilesRef = useRef<readonly File[]>([]);
@@ -409,9 +374,6 @@ function FiscalNotificationReviewWorkspace({
   const [queue, setQueue] = useState<readonly FiscalNotificationBatchItem[]>(
     [],
   );
-  const [archiveCandidates, setArchiveCandidates] = useState<
-    readonly FiscalNotificationArchiveCandidateItem[]
-  >([]);
   const [activeDocumentId, setActiveDocumentId] = useState<string | null>(null);
   const [admitting, setAdmitting] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -445,7 +407,6 @@ function FiscalNotificationReviewWorkspace({
     useState<PendingStructuredReview | null>(null);
   const [persistenceState, setPersistenceState] =
     useState<ReviewPersistenceState>("idle");
-  const [saveDestinationOpen, setSaveDestinationOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(true);
   const [recentlySavedDocumentId, setRecentlySavedDocumentId] = useState<
     string | null
@@ -519,12 +480,10 @@ function FiscalNotificationReviewWorkspace({
   useEffect(() => {
     const fileInput = fileInputRef.current;
     const files = filesRef.current;
-    const archiveFiles = archiveFilesRef.current;
     const reviews = reviewsRef.current;
 
     return () => {
       saveOperationRef.current = null;
-      archiveOperationRef.current = null;
       admittingRef.current = false;
       processingRef.current = false;
       admissionControllerRef.current?.abort();
@@ -533,10 +492,8 @@ function FiscalNotificationReviewWorkspace({
       controllerRef.current = null;
       controller?.abort();
       files.clear();
-      archiveFiles.clear();
       reviews.clear();
       queueRef.current = [];
-      archiveCandidatesRef.current = [];
       activeDocumentIdRef.current = null;
       blockedDuplicateFilesRef.current = [];
       if (fileInput) fileInput.value = "";
@@ -555,7 +512,6 @@ function FiscalNotificationReviewWorkspace({
   }
 
   function clearReviewDisplay(): void {
-    setSaveDestinationOpen(false);
     setSaveError(null);
     setResult(null);
     setVerticalSliceReview(null);
@@ -580,24 +536,6 @@ function FiscalNotificationReviewWorkspace({
   ): void {
     replaceQueue(
       queueRef.current.map((item) =>
-        item.id === id ? Object.freeze({ ...item, ...patch }) : item,
-      ),
-    );
-  }
-
-  function replaceArchiveCandidates(
-    next: readonly FiscalNotificationArchiveCandidateItem[],
-  ): void {
-    archiveCandidatesRef.current = next;
-    setArchiveCandidates(next);
-  }
-
-  function updateArchiveCandidate(
-    id: string,
-    patch: Partial<FiscalNotificationArchiveCandidateItem>,
-  ): void {
-    replaceArchiveCandidates(
-      archiveCandidatesRef.current.map((item) =>
         item.id === id ? Object.freeze({ ...item, ...patch }) : item,
       ),
     );
@@ -651,8 +589,7 @@ function FiscalNotificationReviewWorkspace({
       files.length === 0 ||
       admittingRef.current ||
       processingRef.current ||
-      saveOperationRef.current ||
-      archiveOperationRef.current
+      saveOperationRef.current
     ) {
       return;
     }
@@ -698,22 +635,12 @@ function FiscalNotificationReviewWorkspace({
     admittingRef.current = true;
     setAdmitting(true);
     setError(null);
-    const duplicateHashes = new Set([
-      ...queueRef.current.map((item) => item.sha256),
-      ...archiveCandidatesRef.current.map(
-        (item) => item.candidate.sourceSha256,
-      ),
-    ]);
-    const capacityHashes = new Set([
-      ...queueRef.current.map((item) => item.sha256),
-      ...archiveCandidatesRef.current.flatMap((item) =>
-        item.status === "ARCHIVED" ? [] : [item.candidate.sourceSha256],
-      ),
-    ]);
+    const duplicateHashes = new Set(
+      queueRef.current.map((item) => item.sha256),
+    );
+    const capacityHashes = new Set(queueRef.current.map((item) => item.sha256));
     const persistedHashes = new Set(persisted.sha256);
     const accepted: FiscalNotificationBatchItem[] = [];
-    const acceptedArchiveCandidates: FiscalNotificationArchiveCandidateItem[] =
-      [];
     const rejected: string[] = [];
     try {
       for (const file of files) {
@@ -735,32 +662,8 @@ function FiscalNotificationReviewWorkspace({
             continue;
           }
           if (persistedHashes.has(fingerprint.sha256)) {
-            const inspection = inspectFiscalNotificationDriveArchiveCandidateV1(
-              persistedData.fiscalNotificationsWorkspace,
-              ownerScope,
-              fingerprint.sha256,
-            );
-            if (inspection.status === "READY_TO_ARCHIVE") {
-              const id = `notification-drive-archive:${randomUUID.call(globalThis.crypto)}`;
-              duplicateHashes.add(fingerprint.sha256);
-              capacityHashes.add(fingerprint.sha256);
-              archiveFilesRef.current.set(id, file);
-              acceptedArchiveCandidates.push(
-                Object.freeze({
-                  id,
-                  byteLength: fingerprint.byteLength,
-                  displayName: fingerprint.displayName,
-                  candidate: inspection.candidate,
-                  status: "READY" as const,
-                  errorMessage: null,
-                }),
-              );
-              continue;
-            }
             rejected.push(
-              inspection.status === "ALREADY_ARCHIVED"
-                ? `${fingerprint.displayName}: ya estaba escaneado y su original ya está archivado en Drive`
-                : `${fingerprint.displayName}: la ficha registrada no permite archivar este original con seguridad`,
+              `${fingerprint.displayName}: este documento ya está guardado en Factu`,
             );
             continue;
           }
@@ -794,12 +697,6 @@ function FiscalNotificationReviewWorkspace({
       if (accepted.length > 0) {
         replaceQueue([...queueRef.current, ...accepted]);
       }
-      if (acceptedArchiveCandidates.length > 0) {
-        replaceArchiveCandidates([
-          ...archiveCandidatesRef.current,
-          ...acceptedArchiveCandidates,
-        ]);
-      }
       if (rejected.length > 0) setError(rejected.join(" · "));
     } finally {
       if (admissionControllerRef.current === controller) {
@@ -812,12 +709,7 @@ function FiscalNotificationReviewWorkspace({
   }
 
   function removeItem(id: string): void {
-    if (
-      processingRef.current ||
-      saveOperationRef.current ||
-      archiveOperationRef.current
-    )
-      return;
+    if (processingRef.current || saveOperationRef.current) return;
     const removed = queueRef.current.find((item) => item.id === id);
     filesRef.current.delete(id);
     reviewsRef.current.delete(id);
@@ -829,31 +721,11 @@ function FiscalNotificationReviewWorkspace({
     }
   }
 
-  function removeArchiveCandidate(id: string): void {
-    if (
-      processingRef.current ||
-      saveOperationRef.current ||
-      archiveOperationRef.current
-    )
-      return;
-    archiveFilesRef.current.delete(id);
-    replaceArchiveCandidates(
-      archiveCandidatesRef.current.filter((item) => item.id !== id),
-    );
-  }
-
   function clearQueue(): void {
-    if (
-      processingRef.current ||
-      saveOperationRef.current ||
-      archiveOperationRef.current
-    )
-      return;
+    if (processingRef.current || saveOperationRef.current) return;
     filesRef.current.clear();
-    archiveFilesRef.current.clear();
     reviewsRef.current.clear();
     replaceQueue([]);
-    replaceArchiveCandidates([]);
     activeDocumentIdRef.current = null;
     setActiveDocumentId(null);
     clearReviewDisplay();
@@ -871,7 +743,6 @@ function FiscalNotificationReviewWorkspace({
     if (
       processingRef.current ||
       saveOperationRef.current ||
-      archiveOperationRef.current ||
       admittingRef.current
     ) {
       return;
@@ -971,13 +842,7 @@ function FiscalNotificationReviewWorkspace({
 
   function handleDragEnter(event: DragEvent<HTMLDivElement>): void {
     event.preventDefault();
-    if (
-      admitting ||
-      processing ||
-      saveOperationRef.current ||
-      archiveOperationRef.current
-    )
-      return;
+    if (admitting || processing || saveOperationRef.current) return;
     dragDepthRef.current += 1;
     setDragging(true);
   }
@@ -997,31 +862,20 @@ function FiscalNotificationReviewWorkspace({
     event.preventDefault();
     dragDepthRef.current = 0;
     setDragging(false);
-    if (
-      admitting ||
-      processing ||
-      saveOperationRef.current ||
-      archiveOperationRef.current
-    )
-      return;
+    if (admitting || processing || saveOperationRef.current) return;
     void addFiles(Array.from(event.dataTransfer.files));
   }
 
-  async function saveStructuredReview(
-    destination: ReviewSaveDestination,
-  ): Promise<void> {
+  function saveStructuredReview(): void {
     if (!pendingReview || saveOperationRef.current) return;
     const activeId = queueRef.current.find(
       (item) => item.documentId === activeDocumentIdRef.current,
     )?.id;
     if (!activeId) return;
-    const activeItem = queueRef.current.find((item) => item.id === activeId);
-    const activeFile = filesRef.current.get(activeId);
-    if (!activeItem || !activeFile) return;
+    if (!filesRef.current.has(activeId)) return;
 
     const operation = Symbol("structured-review-save");
     saveOperationRef.current = operation;
-    setSaveDestinationOpen(false);
     setError(null);
     setSaveError(null);
     setLastSaveFailure(null);
@@ -1029,31 +883,13 @@ function FiscalNotificationReviewWorkspace({
     setPersistenceState("saving");
     try {
       const currentData = getCurrentData();
-      const accountWrite =
-        destination === "DRIVE"
-          ? runSaveFiscalNotificationStructuredReviewCommandV1({
-              expected: currentData,
-              ownerScope,
-              reviewId: pendingReview.reviewId,
-              createdAt: pendingReview.createdAt,
-              analysis: pendingReview.analysis,
-              commit: (expected, build) => {
-                const transition = build(expected);
-                return {
-                  status: "applied" as const,
-                  data: transition.data,
-                  value: transition.value,
-                  replayed: false,
-                };
-              },
-            })
-          : saveFiscalNotificationStructuredReview({
-              expected: currentData,
-              ownerScope,
-              reviewId: pendingReview.reviewId,
-              createdAt: pendingReview.createdAt,
-              analysis: pendingReview.analysis,
-            });
+      const accountWrite = saveFiscalNotificationStructuredReview({
+        expected: currentData,
+        ownerScope,
+        reviewId: pendingReview.reviewId,
+        createdAt: pendingReview.createdAt,
+        analysis: pendingReview.analysis,
+      });
       if (saveOperationRef.current !== operation) return;
       if (
         accountWrite.status !== "applied" &&
@@ -1064,99 +900,9 @@ function FiscalNotificationReviewWorkspace({
       }
 
       const savedDocumentId =
-        destination === "DRIVE"
-          ? null
-          : "documentIds" in accountWrite.value
-            ? (accountWrite.value.documentIds[0] ?? null)
-            : accountWrite.value.documentId;
-      if (destination === "ACCOUNT") {
-        filesRef.current.delete(activeId);
-        advanceAfterSuccessfulSave(activeId, savedDocumentId);
-        return;
-      }
-
-      const inspection = inspectFiscalNotificationDriveArchiveCandidateV1(
-        accountWrite.data.fiscalNotificationsWorkspace,
-        ownerScope,
-        activeItem.sha256,
-      );
-      if (inspection.status === "ALREADY_ARCHIVED") {
-        filesRef.current.delete(activeId);
-        advanceAfterSuccessfulSave(activeId, savedDocumentId);
-        return;
-      }
-      if (inspection.status !== "READY_TO_ARCHIVE") {
-        setDriveSaveFailure(
-          activeId,
-          destination !== "DRIVE",
-          "No se ha podido preparar el original para Google Drive.",
-        );
-        return;
-      }
-      if (!isGoogleDriveBackupEnabled()) {
-        setDriveSaveFailure(
-          activeId,
-          destination !== "DRIVE",
-          "Google Drive no está disponible en esta instalación de Factu.",
-        );
-        return;
-      }
-
-      const execution = await runExclusiveDriveOperation(() =>
-        uploadFiscalNotificationOriginalToGoogleDriveV1(
-          {
-            file: activeFile,
-            expectedSha256: inspection.candidate.sourceSha256,
-            documentDate: inspection.candidate.documentDate,
-            documentTitle: inspection.candidate.documentTitle,
-          },
-          {
-            clientId: getGoogleDriveClientId(),
-            prompt: hasUsableDriveToken() ? "" : "consent",
-          },
-        ),
-      );
-      if (saveOperationRef.current !== operation) return;
-      if (!execution.started) {
-        setDriveSaveFailure(
-          activeId,
-          destination !== "DRIVE",
-          "Google Drive ya está realizando otra operación. Inténtalo de nuevo cuando termine.",
-        );
-        return;
-      }
-      if (!execution.value.ok) {
-        setDriveSaveFailure(
-          activeId,
-          destination !== "DRIVE",
-          execution.value.error,
-        );
-        return;
-      }
-
-      if (destination === "BOTH") {
-        const archiveWrite = archiveFiscalNotificationOriginal({
-          expected: getCurrentData(),
-          ownerScope,
-          receipt: {
-            sourceSha256: execution.value.sourceSha256,
-            driveFileId: execution.value.fileId,
-            driveFolderId: execution.value.folderId,
-            documentDate: execution.value.documentDate,
-            verification: execution.value.verification,
-          },
-          archivedAt: new Date().toISOString(),
-        });
-        if (saveOperationRef.current !== operation) return;
-        if (archiveWrite.status !== "applied") {
-          setDriveSaveFailure(
-            activeId,
-            true,
-            "El original está en tu Drive, pero Factu no pudo guardar ahora el enlace verificado. Pulsa Guardar y elige Ambas para comprobarlo de nuevo sin volver a escanear.",
-          );
-          return;
-        }
-      }
+        "documentIds" in accountWrite.value
+          ? (accountWrite.value.documentIds[0] ?? null)
+          : accountWrite.value.documentId;
 
       filesRef.current.delete(activeId);
       advanceAfterSuccessfulSave(activeId, savedDocumentId);
@@ -1205,16 +951,6 @@ function FiscalNotificationReviewWorkspace({
     setSaveError(structuredSaveFailureMessage(write));
   }
 
-  function setDriveSaveFailure(
-    activeId: string,
-    accountSaved: boolean,
-    message: string,
-  ): void {
-    updateStoredReview(activeId, "drive_failed", accountSaved);
-    setPersistenceState("drive_failed");
-    setSaveError(message);
-  }
-
   function advanceAfterSuccessfulSave(
     savedItemId: string,
     savedDocumentId: string | null,
@@ -1252,97 +988,6 @@ function FiscalNotificationReviewWorkspace({
     setScannerOpen(false);
   }
 
-  async function archiveOriginalInDrive(id: string): Promise<void> {
-    if (
-      archiveOperationRef.current ||
-      processingRef.current ||
-      saveOperationRef.current ||
-      admittingRef.current
-    ) {
-      return;
-    }
-    const item = archiveCandidatesRef.current.find(
-      (candidate) => candidate.id === id,
-    );
-    const file = archiveFilesRef.current.get(id);
-    if (!item || !file || item.status === "ARCHIVED") return;
-    if (!isGoogleDriveBackupEnabled()) {
-      updateArchiveCandidate(id, {
-        status: "ERROR",
-        errorMessage:
-          "Google Drive no está disponible en esta instalación de Factu.",
-      });
-      return;
-    }
-
-    const operation = Symbol("fiscal-notification-drive-archive");
-    archiveOperationRef.current = operation;
-    updateArchiveCandidate(id, { status: "ARCHIVING", errorMessage: null });
-    try {
-      const execution = await runExclusiveDriveOperation(() =>
-        uploadFiscalNotificationOriginalToGoogleDriveV1(
-          {
-            file,
-            expectedSha256: item.candidate.sourceSha256,
-            documentDate: item.candidate.documentDate,
-            documentTitle: item.candidate.documentTitle,
-          },
-          {
-            clientId: getGoogleDriveClientId(),
-            prompt: hasUsableDriveToken() ? "" : "consent",
-          },
-        ),
-      );
-      if (archiveOperationRef.current !== operation) return;
-      if (!execution.started) {
-        updateArchiveCandidate(id, {
-          status: "ERROR",
-          errorMessage:
-            "Google Drive ya está realizando otra operación. Inténtalo de nuevo cuando termine.",
-        });
-        return;
-      }
-      if (!execution.value.ok) {
-        updateArchiveCandidate(id, {
-          status: "ERROR",
-          errorMessage: execution.value.error,
-        });
-        return;
-      }
-
-      const write = archiveFiscalNotificationOriginal({
-        expected: data,
-        ownerScope,
-        receipt: {
-          sourceSha256: execution.value.sourceSha256,
-          driveFileId: execution.value.fileId,
-          driveFolderId: execution.value.folderId,
-          documentDate: execution.value.documentDate,
-          verification: execution.value.verification,
-        },
-        archivedAt: new Date().toISOString(),
-      });
-      if (archiveOperationRef.current !== operation) return;
-      if (write.status !== "applied") {
-        updateArchiveCandidate(id, {
-          status: "ERROR",
-          errorMessage:
-            "El original está en tu Drive, pero Factu no pudo guardar ahora el enlace verificado. Vuelve a seleccionarlo: se reutilizará el mismo archivo sin duplicarlo.",
-        });
-        return;
-      }
-      archiveFilesRef.current.delete(id);
-      updateArchiveCandidate(id, {
-        status: "ARCHIVED",
-        errorMessage: null,
-      });
-    } finally {
-      if (archiveOperationRef.current === operation) {
-        archiveOperationRef.current = null;
-      }
-    }
-  }
-
   function updateStoredReview(
     id: string,
     nextState: ReviewPersistenceState,
@@ -1374,16 +1019,8 @@ function FiscalNotificationReviewWorkspace({
   }
 
   const saving = persistenceState === "saving";
-  const archiving = archiveCandidates.some(
-    (item) => item.status === "ARCHIVING",
-  );
-  const batchCapacityCount = new Set([
-    ...queue.map((item) => item.sha256),
-    ...archiveCandidates.flatMap((item) =>
-      item.status === "ARCHIVED" ? [] : [item.candidate.sourceSha256],
-    ),
-  ]).size;
-  const busy = admitting || processing || saving || archiving;
+  const batchCapacityCount = new Set(queue.map((item) => item.sha256)).size;
+  const busy = admitting || processing || saving;
   const pendingCount = queue.filter(
     (item) =>
       (item.status === "PREPARED" || item.status === "ERROR") &&
@@ -1425,16 +1062,16 @@ function FiscalNotificationReviewWorkspace({
   const saveSupportReport: FiscalNotificationSupportReportInputV1 | null =
     saveError
       ? {
-        stage: "STRUCTURED_SAVE",
-        status: lastSaveFailure
-          ? `${lastSaveFailure.safeCode}:${lastSaveFailure.reason ?? "unspecified"}`
-          : persistenceState,
-        message: saveError,
-        route: "/consultor-fiscal/notificaciones",
-        fileByteLength: activeBatchItem?.byteLength,
-        mimeType: activeBatchItem?.mimeType,
-        pageCount: result?.pageCount,
-        persistenceState,
+          stage: "STRUCTURED_SAVE",
+          status: lastSaveFailure
+            ? `${lastSaveFailure.safeCode}:${lastSaveFailure.reason ?? "unspecified"}`
+            : persistenceState,
+          message: saveError,
+          route: "/consultor-fiscal/notificaciones",
+          fileByteLength: activeBatchItem?.byteLength,
+          mimeType: activeBatchItem?.mimeType,
+          pageCount: result?.pageCount,
+          persistenceState,
         }
       : null;
 
@@ -1539,8 +1176,9 @@ function FiscalNotificationReviewWorkspace({
             id="fiscal-notification-file-help"
             className="mt-3 text-sm leading-6 text-slate-500"
           >
-            El análisis es local. Al guardar eliges Factu, Google Drive o ambos.
-            Los documentos duplicados se detectan automáticamente.
+            El análisis es local y la ficha se guarda en Factu. El PDF original
+            no se conserva. Los documentos duplicados se detectan
+            automáticamente.
           </p>
 
           {queue.length > 0 ? (
@@ -1753,15 +1391,6 @@ function FiscalNotificationReviewWorkspace({
         </div>
       )}
 
-      {archiveCandidates.length > 0 ? (
-        <DriveArchiveCandidatesPanel
-          candidates={archiveCandidates}
-          busy={busy}
-          onArchive={(id) => void archiveOriginalInDrive(id)}
-          onRemove={removeArchiveCandidate}
-        />
-      ) : null}
-
       {scannerOpen && result ? (
         <ReviewResult
           result={result}
@@ -1795,15 +1424,9 @@ function FiscalNotificationReviewWorkspace({
           hasNextReview={hasAnotherReview}
           errorMessage={saveError}
           supportReport={saveSupportReport}
-          onSave={() => setSaveDestinationOpen(true)}
+          onSave={saveStructuredReview}
         />
       ) : null}
-      <SaveDestinationModal
-        open={saveDestinationOpen}
-        busy={saving}
-        onClose={() => setSaveDestinationOpen(false)}
-        onSelect={(destination) => void saveStructuredReview(destination)}
-      />
       <div id="documentos-guardados" className="scroll-mt-6">
         <FiscalNotificationDocumentLibrary
           viewModel={documentLibrary}
@@ -1812,120 +1435,6 @@ function FiscalNotificationReviewWorkspace({
         />
       </div>
     </>
-  );
-}
-
-function DriveArchiveCandidatesPanel({
-  candidates,
-  busy,
-  onArchive,
-  onRemove,
-}: {
-  candidates: readonly FiscalNotificationArchiveCandidateItem[];
-  busy: boolean;
-  onArchive: (id: string) => void;
-  onRemove: (id: string) => void;
-}) {
-  return (
-    <section
-      className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4"
-      aria-labelledby="fiscal-notification-drive-archive-heading"
-    >
-      <div className="flex items-start gap-3">
-        <CloudUpload
-          aria-hidden="true"
-          className="mt-0.5 h-6 w-6 shrink-0 text-emerald-700"
-        />
-        <div>
-          <h3
-            id="fiscal-notification-drive-archive-heading"
-            className="font-bold text-emerald-950"
-          >
-            Original registrado sin archivar
-          </h3>
-          <p className="mt-1 text-sm leading-6 text-emerald-900">
-            La ficha ya existe. Puedes guardar ahora el PDF original en tu Drive
-            sin repetir el análisis. En escaneos antiguos, Factu reconoce el
-            mismo contenido al reseleccionarlo. Nada se sube hasta que pulses el
-            botón de cada documento.
-          </p>
-        </div>
-      </div>
-      <ul className="mt-4 space-y-3">
-        {candidates.map((item) => {
-          const path = item.candidate.documentDate
-            ? driveArchiveDatePath(item.candidate.documentDate)
-            : "Fecha pendiente";
-          return (
-            <li
-              key={item.id}
-              className="rounded-xl border border-emerald-200 bg-white p-4"
-            >
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <p className="truncate font-bold text-slate-950">
-                    {item.displayName}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-700">
-                    {item.candidate.documentTitle}
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    PDF · {formatBytes(item.byteLength)} · Carpeta: {path}
-                  </p>
-                </div>
-                {item.status === "ARCHIVED" ? (
-                  <span className="inline-flex w-fit items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-900">
-                    <CheckCircle2 aria-hidden="true" className="h-4 w-4" />
-                    Original archivado
-                  </span>
-                ) : null}
-              </div>
-              {item.errorMessage ? (
-                <p className="mt-3 text-sm font-semibold text-red-700">
-                  {item.errorMessage}
-                </p>
-              ) : null}
-              <div className="mt-3 flex flex-wrap gap-2">
-                {item.status !== "ARCHIVED" ? (
-                  <Button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => onArchive(item.id)}
-                  >
-                    {item.status === "ARCHIVING" ? (
-                      <Loader2
-                        aria-hidden="true"
-                        className="h-4 w-4 animate-spin"
-                      />
-                    ) : (
-                      <CloudUpload aria-hidden="true" className="h-4 w-4" />
-                    )}
-                    {item.status === "ARCHIVING"
-                      ? "Verificando en Drive…"
-                      : hasUsableDriveToken()
-                        ? "Archivar original en Drive"
-                        : "Conectar Drive y archivar"}
-                  </Button>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => onRemove(item.id)}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <X aria-hidden="true" className="h-4 w-4" />
-                  Quitar
-                </button>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
-      <p className="mt-3 text-xs leading-5 text-emerald-900">
-        Se organizará por la fecha del documento. Si no existe una fecha exacta,
-        irá a “Fecha pendiente”; nunca se usa la fecha de escaneo.
-      </p>
-    </section>
   );
 }
 
@@ -1947,17 +1456,15 @@ function ReviewPersistencePanel({
   const copy: Readonly<Record<ReviewPersistenceState, string>> = {
     idle: "Los datos estructurados todavía no se han guardado.",
     pending: "Revisa los datos y guarda este documento cuando estén correctos.",
-    saving: "Guardando el documento en el destino elegido…",
+    saving: "Guardando el documento en Factu…",
     saved:
       "Ficha guardada en los datos de tu cuenta. Ya puedes volver a consultar sus importes, referencias permitidas, fechas, estados y relaciones estructurados.",
-    drive_failed:
-      "La ficha sigue abierta porque Google Drive no ha completado el archivado. Puedes reintentar sin volver a escanear el PDF.",
     no_structured_facts:
       "Este análisis no contiene todavía campos exactos compatibles con la ficha estructurada. No se ha guardado una tarjeta vacía.",
     invalid_structured_review:
       "Los datos no superan la validación de integridad y no se han guardado. El resultado visible sigue disponible para revisarlo.",
     blocked:
-      "No se ha podido guardar porque los datos de la cuenta cambiaron o el almacenamiento está bloqueado. Ninguna ficha existente se ha sustituido.",
+      "No se ha podido completar la escritura en Factu. Ninguna ficha existente se ha sustituido.",
     indeterminate:
       "No se puede confirmar el estado de la escritura. Comprueba el historial antes de volver a intentarlo.",
   };
@@ -1980,7 +1487,8 @@ function ReviewPersistencePanel({
             {copy[state]}
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Al guardar podrás elegir Mi cuenta, Google Drive o ambas opciones.
+            Se guardará la ficha estructurada en Factu. El PDF original no se
+            conserva.
           </p>
         </div>
         {canSave ? (
@@ -2108,9 +1616,6 @@ function structuredSaveFailureMessage(
     if (write.reason === "serialization_failed") {
       return "No se ha podido preparar el expediente para guardarlo. La ficha sigue abierta y no se ha sustituido ningún dato.";
     }
-    if (write.reason === "stale_precondition") {
-      return "Los datos de la cuenta han cambiado mientras guardabas. La ficha sigue abierta; vuelve a intentarlo.";
-    }
     if (write.reason === "protected_existing_data") {
       return "El guardado se ha detenido para proteger los datos existentes. La ficha sigue abierta.";
     }
@@ -2125,95 +1630,6 @@ function structuredSaveFailureMessage(
     return "No se ha podido confirmar el guardado. El documento sigue abierto y no se ha sustituido ningún dato.";
   }
   return "No se ha podido guardar la ficha. El documento sigue abierto y no se ha sustituido ningún dato.";
-}
-
-function SaveDestinationModal({
-  open,
-  busy,
-  onClose,
-  onSelect,
-}: {
-  open: boolean;
-  busy: boolean;
-  onClose: () => void;
-  onSelect: (destination: ReviewSaveDestination) => void;
-}) {
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      titleId="notification-save-destination-title"
-      descriptionId="notification-save-destination-description"
-      initialFocusSelector='[data-save-destination="both"]'
-      closeOnBackdrop={!busy}
-      closeOnEscape={!busy}
-    >
-      <div className="p-5 sm:p-6">
-        <h2
-          id="notification-save-destination-title"
-          className="text-lg font-bold text-slate-950"
-        >
-          ¿Dónde quieres guardar este documento?
-        </h2>
-        <p
-          id="notification-save-destination-description"
-          className="mt-2 text-sm leading-6 text-slate-600"
-        >
-          El PDF sigue disponible en memoria: no tendrás que seleccionarlo ni
-          escanearlo otra vez.
-        </p>
-        <div className="mt-5 grid gap-3">
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onSelect("ACCOUNT")}
-            className="rounded-xl border border-slate-200 p-4 text-left transition hover:border-blue-300 hover:bg-blue-50 disabled:opacity-50"
-          >
-            <span className="block font-bold text-slate-950">Mi cuenta</span>
-            <span className="mt-1 block text-sm leading-5 text-slate-600">
-              Guarda la ficha y sus datos estructurados en Factu. El PDF no se
-              conserva.
-            </span>
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onSelect("DRIVE")}
-            className="rounded-xl border border-slate-200 p-4 text-left transition hover:border-emerald-300 hover:bg-emerald-50 disabled:opacity-50"
-          >
-            <span className="block font-bold text-slate-950">Google Drive</span>
-            <span className="mt-1 block text-sm leading-5 text-slate-600">
-              Archiva solo el PDF original en tu Drive, ordenado por la fecha
-              del documento. No crea una ficha en Factu.
-            </span>
-          </button>
-          <button
-            type="button"
-            data-save-destination="both"
-            disabled={busy}
-            onClick={() => onSelect("BOTH")}
-            className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-left transition hover:border-emerald-500 hover:bg-emerald-100 disabled:opacity-50"
-          >
-            <span className="block font-bold text-emerald-950">Ambas</span>
-            <span className="mt-1 block text-sm leading-5 text-emerald-900">
-              Guarda la ficha en Factu y archiva ahora el PDF original en tu
-              Google Drive.
-            </span>
-          </button>
-        </div>
-        <div className="mt-5 flex justify-end">
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={busy}
-            onClick={onClose}
-          >
-            Cancelar
-          </Button>
-        </div>
-      </div>
-    </Modal>
-  );
 }
 
 function ReviewResult({
@@ -2544,9 +1960,9 @@ function EphemeralMoneyFactsPanel({
         </p>
       ) : null}
       <p className="mt-3 text-xs leading-5 text-blue-900">
-        Permanecen solo en memoria hasta que pulses <strong>Guardar</strong> y
-        elijas el destino. Si los guardas en Factu, se conserva la cifra
-        estructurada y su procedencia, nunca el PDF ni el texto completo.
+        Permanecen solo en memoria hasta que pulses <strong>Guardar</strong>.
+        Factu conserva la cifra estructurada y su procedencia, nunca el PDF ni
+        el texto completo.
       </p>
     </section>
   );
@@ -3188,11 +2604,6 @@ function safeAnalysisError(value: unknown): string {
     return ERROR_COPY[value.code];
   }
   return "No se ha podido completar el análisis local de forma segura.";
-}
-
-function driveArchiveDatePath(value: string): string {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value);
-  return match ? `${match[1]}/${match[2]}` : "Fecha pendiente";
 }
 
 function formatBytes(value: number): string {

@@ -107,7 +107,9 @@ describe("fiscal notification knowledge coverage v1", () => {
       "referencias administrativas seguras, importes, fechas impresas",
     );
     expect(manual).toContain("roles se guardan sin identidad");
-    expect(manual).toContain("Factu nunca custodia el PDF");
+    expect(manual).toContain(
+      "Factu conserva los datos estructurados y su procedencia, pero nunca el PDF original",
+    );
     expect(manual).toContain("**Relaciones entre documentos**");
     expect(manual).toContain("**Relación detectada · revisar**");
     expect(manual).toContain(

@@ -41,7 +41,7 @@ describe("cloud and Drive reliability contract", () => {
     expect(tokenRoute).toContain("AbortSignal.timeout");
   });
 
-  it("archiva originales fiscales solo por decisión expresa y readback SHA-256", () => {
+  it("guarda notificaciones solo en Factu y preserva el lector seguro de originales anteriores", () => {
     const intake = source(
       "src/components/fiscal-notifications/FiscalNotificationIntakeView.tsx",
     );
@@ -52,8 +52,11 @@ describe("cloud and Drive reliability contract", () => {
       "src/lib/fiscal-notifications/drive-original-archive.v1.ts",
     );
 
-    expect(intake).toContain("Archivar original en Drive");
-    expect(intake).toContain("runExclusiveDriveOperation");
+    expect(intake).not.toContain("Archivar original en Drive");
+    expect(intake).not.toContain("runExclusiveDriveOperation");
+    expect(intake.replace(/\s+/gu, " ")).toContain(
+      "la ficha se guarda en Factu. El PDF original no se conserva",
+    );
     expect(archive).toContain("verifyDriveFileHash");
     expect(archive).toContain("SHA256_READBACK_MATCH");
     expect(archive).toContain("Fecha pendiente");
@@ -61,11 +64,9 @@ describe("cloud and Drive reliability contract", () => {
     expect(domain).not.toMatch(/originalFilename|rawText|accessToken/u);
   });
 
-  it("archiva originales de gastos solo con consentimiento y readback exacto", () => {
+  it("guarda gastos sin Drive y conserva la verificación de originales anteriores", () => {
     const settings = source("src/lib/google-drive/backup.ts");
-    const card = source(
-      "src/components/cloud/GoogleDriveBackupCard.tsx",
-    );
+    const card = source("src/components/cloud/GoogleDriveBackupCard.tsx");
     const client = source(
       "src/lib/google-drive/expense-original-archive-client.ts",
     );
@@ -76,13 +77,16 @@ describe("cloud and Drive reliability contract", () => {
     const types = source("src/lib/types.ts");
 
     expect(settings).toContain("archiveExpenseOriginals");
-    expect(card).toContain("Guardar en Drive las facturas de gastos escaneadas");
+    expect(card).not.toContain(
+      "Guardar en Drive las facturas de gastos escaneadas",
+    );
     expect(client).toContain("archiveExpenseOriginalForSavedExpense");
     expect(client).toContain("runExclusiveDriveOperation");
     expect(archive).toContain("Factu - facturas de gastos");
     expect(archive).toContain("verifyDriveFileHash");
     expect(archive).toContain("SHA256_READBACK_MATCH");
-    expect(form).toContain("await prepareExpenseOriginalArchive");
+    expect(form).not.toContain("prepareExpenseOriginalArchive");
+    expect(form).not.toContain("archiveExpenseOriginalForSavedExpense");
     expect(types).toContain("originalArchive?: ExpenseOriginalArchiveV1");
     expect(client).not.toMatch(/originalFilename|rawText|accessToken:/u);
   });
@@ -96,7 +100,9 @@ describe("cloud and Drive reliability contract", () => {
     );
 
     expect(library).toContain("trashFiscalNotificationOriginalInGoogleDriveV1");
-    expect(library).toContain("restoreFiscalNotificationOriginalInGoogleDriveV1");
+    expect(library).toContain(
+      "restoreFiscalNotificationOriginalInGoogleDriveV1",
+    );
     expect(library).toContain("archive.documentIds.length === 1");
     expect(deletion).toContain("factuSourceSha256");
     expect(deletion).toContain("factuManaged");
@@ -118,10 +124,11 @@ describe("cloud and Drive reliability contract", () => {
     expect(codeowners).toContain("/src/lib/google-drive/**");
     expect(adr).toContain("drive.file");
     expect(adr).toContain("coincide exactamente");
-    expect(adr).toContain("Fecha pendiente");
-    expect(adr).toContain("SHA256_READBACK_MATCH");
     expect(adr).toContain("trashed: true");
-    expect(adr).toContain("Factu - facturas de gastos/AAAA/MM");
+    expect(adr).toContain("persiste únicamente");
+    expect(adr).toContain("`AppData` vigente");
+    expect(adr).toContain("Se retira la creación de nuevos originales");
+    expect(adr).toContain("no borra, mueve ni reescribe");
     expect(adr).toContain("originalArchive");
   });
 });
