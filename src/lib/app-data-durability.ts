@@ -115,9 +115,15 @@ export function commitAppDataDurablyWithStorageRecovery<T>(input: {
   inspectPersisted: (expected: AppData) => SaveDataResult;
   readPersisted?: () => AppData | null;
 }): AppDataDurabilityResult<T> {
+  const firstCurrent = input.getCurrent();
+  const effectiveExpected =
+    firstCurrent !== input.expected &&
+    appDataDomainEquals(input.expected, firstCurrent)
+      ? firstCurrent
+      : input.expected;
   const attempt = (storageBaseline: DurableStorageBaseline | undefined) =>
     commitAppDataDurably({
-      expected: input.expected,
+      expected: effectiveExpected,
       storageBaseline,
       getCurrent: input.getCurrent,
       build: input.build,
@@ -126,19 +132,19 @@ export function commitAppDataDurablyWithStorageRecovery<T>(input: {
 
   const first = attempt(input.storageBaseline);
   if (first.status === "applied") return first;
-  if (input.getCurrent() !== input.expected) return first;
+  if (input.getCurrent() !== effectiveExpected) return first;
 
   const baselineCanBeRecovered =
     input.storageBaseline?.status !== "known" ||
     first.reason === "stale_precondition" ||
     first.reason === "storage_state_unknown";
   if (!baselineCanBeRecovered) return first;
-  if (input.inspectPersisted(input.expected).status === "applied") {
-    return attempt({ status: "known", data: input.expected });
+  if (input.inspectPersisted(effectiveExpected).status === "applied") {
+    return attempt({ status: "known", data: effectiveExpected });
   }
 
   const persisted = input.readPersisted?.() ?? null;
-  if (persisted && appDataDomainEquals(input.expected, persisted)) {
+  if (persisted && appDataDomainEquals(effectiveExpected, persisted)) {
     return attempt({ status: "known", data: persisted });
   }
 
@@ -158,6 +164,20 @@ export function commitAppDataDurablyWithStorageRecovery<T>(input: {
 
 function appDataDomainEquals(left: AppData, right: AppData): boolean {
   return jsonEqual(appDataDomainComparable(left), appDataDomainComparable(right));
+}
+
+/**
+ * Renueva una precondición capturada antes de una operación asíncrona solo
+ * cuando el dominio de negocio sigue siendo exactamente el mismo. Esto evita
+ * que una sincronización que únicamente limpió o actualizó metadatos bloquee el
+ * guardado posterior, sin rebasar cambios reales en gastos, proveedores,
+ * perfil ni ningún otro dato de la cuenta.
+ */
+export function refreshDurableExpectedAfterAsync(
+  expected: AppData,
+  current: AppData,
+): AppData {
+  return appDataDomainEquals(expected, current) ? current : expected;
 }
 
 function appDataDomainComparable(value: AppData): AppData {

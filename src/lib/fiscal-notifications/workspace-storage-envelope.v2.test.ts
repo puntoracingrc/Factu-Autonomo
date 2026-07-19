@@ -329,6 +329,20 @@ describe("runtime privacy storage envelope v2", () => {
     );
   });
 
+  it("persists source ids whose opaque hash contains a phone-like digit run", () => {
+    const input = JSON.parse(
+      JSON.stringify(workspace()).replaceAll(
+        "privacy-runtime",
+        "h863456789abcdef",
+      ),
+    ) as FiscalNotificationsWorkspace;
+
+    const encoded = encodeFiscalNotificationsWorkspaceForStorageV2(input);
+
+    expect(encoded).not.toBeNull();
+    expect(encoded?.sources).toHaveLength(1);
+  });
+
   it("roundtrips into a safe in-memory V1 view without losing dates, cents or replay", () => {
     const encoded = encodeFiscalNotificationsWorkspaceForStorageV2(workspace())!;
     const restored = restoreFiscalNotificationsWorkspaceFromStorageV2(

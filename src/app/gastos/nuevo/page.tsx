@@ -25,7 +25,10 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
-import { inspectFixedExpenseBundle } from "@/lib/app-data-durability";
+import {
+  inspectFixedExpenseBundle,
+  refreshDurableExpectedAfterAsync,
+} from "@/lib/app-data-durability";
 import { formatDate, formatMoney, todayISO } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { filterDocumentsByQuery, sortDocumentsByNewest } from "@/lib/documents";
@@ -169,6 +172,7 @@ export default function NuevoGastoPage() {
   const router = useRouter();
   const {
     data,
+    getCurrentData,
     addExpense,
     updateExpense,
     addSupplier,
@@ -1262,7 +1266,12 @@ export default function NuevoGastoPage() {
     });
     if (!originalArchive.ok) return { ok: false };
 
-    const resolved = ensureSupplierForExpense(expected.suppliers, {
+    const durableExpected = refreshDurableExpectedAfterAsync(
+      expected,
+      getCurrentData(),
+    );
+
+    const resolved = ensureSupplierForExpense(durableExpected.suppliers, {
       name: payload.supplier.name,
       nif:
         payload.expense.purchaseDocument?.supplierNif ??
@@ -1311,7 +1320,7 @@ export default function NuevoGastoPage() {
       ? mergeProviderSummaryWithOriginal(upgradeTarget, expensePayload)
       : expensePayload;
     const result = saveScannedExpenseDurably(durableExpense, {
-      expected,
+      expected: durableExpected,
       operationId: review.id,
       supplier: resolved.create,
     });
@@ -1625,13 +1634,17 @@ export default function NuevoGastoPage() {
       supplierName: supplierName.trim() || "Sin proveedor",
     });
     if (!originalArchive.ok) return;
+    const durableExpected = refreshDurableExpectedAfterAsync(
+      data,
+      getCurrentData(),
+    );
     const usesDurableScannedSave = Boolean(
       businessKind !== "fixed" && (activeScanReview || activeInboxItemId),
     );
 
     const hasSupplierName = Boolean(supplierName.trim());
     const resolved = hasSupplierName
-      ? ensureSupplierForExpense(data.suppliers, {
+      ? ensureSupplierForExpense(durableExpected.suppliers, {
           name: supplierName,
           nif: purchaseDocument.supplierNif ?? supplierNif,
           category,
@@ -1720,7 +1733,7 @@ export default function NuevoGastoPage() {
           fixedExpense,
           recurringPayload,
           {
-            expected: data,
+            expected: durableExpected,
             operationId: fixedSaveOperationId(),
             supplier: resolved.create,
           },
@@ -1763,7 +1776,7 @@ export default function NuevoGastoPage() {
             )
           : payload;
       const result = saveScannedExpenseDurably(durableExpense, {
-        expected: data,
+        expected: durableExpected,
         operationId: activeInboxItemId ?? activeScanReview!.id,
         supplier: resolved.create,
       });

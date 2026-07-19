@@ -8,6 +8,7 @@ import {
   fixedExpenseBundleIds,
   inspectFixedExpenseBundle,
   prepareFixedExpenseBundle,
+  refreshDurableExpectedAfterAsync,
   type FixedExpenseBundleCommand,
 } from "./app-data-durability";
 import { syncRecurringExpenses } from "./recurring-expenses";
@@ -115,6 +116,79 @@ function fixedCommand(input?: {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+});
+
+describe("refreshDurableExpectedAfterAsync", () => {
+  it("guarda el gasto fijo si durante Drive solo cambiaron metadatos de sincronización", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(NOW));
+    const beforeDrive = appData();
+    const afterDrive: AppData = {
+      ...beforeDrive,
+      meta: {
+        lastModified: "2026-07-12T09:01:00.000Z",
+        pendingChanges: [],
+      },
+    };
+    const expected = refreshDurableExpectedAfterAsync(beforeDrive, afterDrive);
+    const prepared = prepareFixedExpenseBundle(
+      afterDrive,
+      fixedCommand({ operationId: "scan-after-drive" }),
+      { now: NOW, referenceDate: "2026-07-12" },
+    );
+    expect(prepared.status).toBe("ready");
+    if (prepared.status !== "ready") return;
+
+    const persist = vi.fn(() => ({ status: "applied" }) as const);
+    const result = commitAppDataDurably({
+      expected,
+      storageBaseline: { status: "known", data: afterDrive },
+      getCurrent: () => afterDrive,
+      build: () => prepared.transition,
+      persist,
+    });
+
+    expect(expected).toBe(afterDrive);
+    expect(result.status).toBe("applied");
+    expect(persist).toHaveBeenCalledTimes(1);
+    if (result.status === "applied") {
+      expect(result.value.expense.id).toBe("fixed-expense-scan-after-drive");
+      expect(result.data.recurringExpenses).toHaveLength(1);
+    }
+  });
+
+  it("mantiene el bloqueo si durante la espera cambió un dato de negocio", () => {
+    const beforeDrive = appData();
+    const afterDrive: AppData = {
+      ...beforeDrive,
+      expenses: [
+        {
+          id: "expense-remote",
+          createdAt: NOW,
+          date: "2026-07-12",
+          supplierName: "Proveedor remoto",
+          description: "Cambio real",
+          amount: 25,
+          ivaPercent: 21,
+          category: "Otros",
+          paymentMethod: "Transferencia",
+        },
+      ],
+    };
+    const expected = refreshDurableExpectedAfterAsync(beforeDrive, afterDrive);
+    const persist = vi.fn();
+
+    expect(expected).toBe(beforeDrive);
+    expect(
+      commitAppDataDurably({
+        expected,
+        getCurrent: () => afterDrive,
+        build: (current) => ({ data: current, value: "blocked" }),
+        persist,
+      }),
+    ).toEqual({ status: "blocked", reason: "stale_precondition" });
+    expect(persist).not.toHaveBeenCalled();
+  });
 });
 
 describe("commitAppDataDurably", () => {
@@ -395,6 +469,60 @@ describe("commitAppDataDurably", () => {
     expect(result.status).toBe("applied");
     expect(inspectPersisted).toHaveBeenCalledWith(expected);
     expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("renueva la identidad esperada si la sincronización solo cambió metadatos", () => {
+    const expected = appData();
+    const synchronized: AppData = {
+      ...expected,
+      meta: {
+        lastModified: "2026-07-12T08:31:00.000Z",
+        pendingChanges: [],
+      },
+    };
+    const build = vi.fn((current: AppData) => ({
+      data: {
+        ...current,
+        profile: { ...current.profile, name: "Guardado tras sincronizar" },
+      },
+      value: "saved",
+    }));
+    const persist = vi.fn(() => ({ status: "applied" }) as const);
+
+    const result = commitAppDataDurablyWithStorageRecovery({
+      expected,
+      storageBaseline: { status: "known", data: synchronized },
+      getCurrent: () => synchronized,
+      build,
+      persist,
+      inspectPersisted: () => ({ status: "applied" }),
+    });
+
+    expect(result.status).toBe("applied");
+    expect(build).toHaveBeenCalledWith(synchronized);
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("no renueva la identidad esperada si la sincronización cambió negocio", () => {
+    const expected = appData();
+    const synchronized: AppData = {
+      ...expected,
+      profile: { ...expected.profile, name: "Cambio remoto real" },
+    };
+    const build = vi.fn();
+    const persist = vi.fn();
+
+    expect(
+      commitAppDataDurablyWithStorageRecovery({
+        expected,
+        getCurrent: () => synchronized,
+        build,
+        persist,
+        inspectPersisted: () => ({ status: "applied" }),
+      }),
+    ).toEqual({ status: "blocked", reason: "stale_precondition" });
+    expect(build).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
   });
 
   it("recupera un bloqueo durable anterior cuando el almacenamiento vuelve a coincidir", () => {

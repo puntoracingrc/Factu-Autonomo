@@ -389,9 +389,10 @@ const TECHNICAL_PATTERN = /^[A-Z0-9][A-Z0-9_.:\-]{0,95}$/u;
 const HASH_PATTERN = /^[0-9a-f]{64}$/u;
 const NORMALIZED_REFERENCE_PATTERN = /^[\p{L}\p{N}]+$/u;
 const TAX_ID_TOKEN =
-  /(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])/iu;
-const IBAN_TOKEN = /ES\d{22}/iu;
-const PHONE_TOKEN = /(?:^|\D)(?:34)?[6789]\d{8}(?:$|\D)/u;
+  /(?:^|[^A-Z0-9])(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])(?=$|[^A-Z0-9])/iu;
+const IBAN_TOKEN = /(?:^|[^A-Z0-9])ES\d{22}(?=$|[^A-Z0-9])/iu;
+const PHONE_TOKEN =
+  /(?:^|[^A-Z0-9])(?:34)?[6789]\d{8}(?=$|[^A-Z0-9])/iu;
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
 const DATE_TIME_PATTERN =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/u;

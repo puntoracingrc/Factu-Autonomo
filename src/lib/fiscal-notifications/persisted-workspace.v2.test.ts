@@ -219,6 +219,36 @@ describe("persisted fiscal notifications workspace v2", () => {
     }
   });
 
+  it("accepts opaque hash ids without mistaking numeric hash runs for a phone", () => {
+    const candidate = workspace();
+    const hashId =
+      "document:sha256:abc863456789def0123456789abcdef0123456789abcdef";
+    candidate.documents[0]!.id = hashId;
+    candidate.references[0]!.documentId = hashId;
+    candidate.dates[0]!.documentId = hashId;
+    candidate.amounts[0]!.documentId = hashId;
+    candidate.facts[0]!.documentId = hashId;
+    candidate.evidence[0]!.documentId = hashId;
+    candidate.thirdParties[0]!.documentId = hashId;
+    candidate.driveArchives[0]!.documentIds = [hashId];
+
+    expect(
+      parseFiscalNotificationsWorkspaceForPersistenceV2(candidate, OWNER),
+    ).not.toBeNull();
+  });
+
+  it.each([
+    "document:12345678Z",
+    "document:ES1200000000000000000000",
+    "document:612345678",
+  ])("still rejects a delimited sensitive token in an id: %s", (unsafeId) => {
+    const candidate = workspace();
+    candidate.documents[0]!.id = unsafeId;
+    expect(
+      parseFiscalNotificationsWorkspaceForPersistenceV2(candidate, OWNER),
+    ).toBeNull();
+  });
+
   it("rejects false exactness for every legacy-only relation at the direct boundary", () => {
     expect(
       parseFiscalNotificationsWorkspaceForPersistenceV2(
