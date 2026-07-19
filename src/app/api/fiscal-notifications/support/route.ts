@@ -13,6 +13,7 @@ import {
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
 import { readJsonBody } from "@/lib/server/request-body";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
@@ -71,28 +72,82 @@ export async function POST(request: Request) {
       { status: 400 },
     );
   }
-  if (!isEmailConfigured()) {
-    return privateJson(
-      { ok: false, error: "El envío a soporte no está disponible ahora." },
-      { status: 503 },
-    );
-  }
-
   const text = formatFiscalNotificationSupportReportTextV1(report);
-  const result = await sendEmail({
-    to: FISCAL_NOTIFICATION_SUPPORT_EMAIL_V1,
-    subject: `Caso lector AEAT · ${report.caseId}`,
-    text,
-    html: `<pre style="font-family:ui-monospace,monospace;white-space:pre-wrap">${escapeHtml(text)}</pre>`,
-    idempotencyKey: `fiscal-notification-support-v1/${user.id}/${report.caseId}`,
+  const result = isEmailConfigured()
+    ? await sendEmail({
+        to: FISCAL_NOTIFICATION_SUPPORT_EMAIL_V1,
+        subject: `Caso lector AEAT · ${report.caseId}`,
+        text,
+        html: `<pre style="font-family:ui-monospace,monospace;white-space:pre-wrap">${escapeHtml(text)}</pre>`,
+        idempotencyKey: `fiscal-notification-support-v1/${user.id}/${report.caseId}`,
+      })
+    : {
+        ok: false as const,
+        skipped: true,
+        failureKind: "known" as const,
+        retryable: false,
+      };
+  const recorded = await recordSupportCase({
+    userId: user.id,
+    report,
+    emailDelivered: result.ok,
+    emailStatus: "status" in result ? result.status : undefined,
+    providerCode: "providerCode" in result ? result.providerCode : undefined,
   });
-  if (!result.ok) {
+  if (!result.ok && !recorded) {
     return privateJson(
       { ok: false, error: "No se pudo enviar el caso. Inténtalo de nuevo." },
       { status: result.retryable ? 503 : 502 },
     );
   }
-  return privateJson({ ok: true, caseId: report.caseId });
+  return privateJson(
+    {
+      ok: true,
+      caseId: report.caseId,
+      delivery: result.ok ? "EMAIL" : "ADMIN_LOG",
+    },
+    { status: result.ok ? 200 : 202 },
+  );
+}
+
+async function recordSupportCase(input: {
+  userId: string;
+  report: NonNullable<
+    ReturnType<typeof parseFiscalNotificationSupportReportV1>
+  >;
+  emailDelivered: boolean;
+  emailStatus?: number;
+  providerCode?: string;
+}): Promise<boolean> {
+  try {
+    const admin = getSupabaseAdmin();
+    if (!admin) return false;
+    const { error } = await admin.from("app_error_events").insert({
+      user_id: input.userId,
+      severity: input.emailDelivered ? "warning" : "error",
+      area: "fiscal_notifications_support",
+      code: input.emailDelivered
+        ? "support_case_sent"
+        : "support_case_email_fallback",
+      message: `Caso saneado recibido · ${input.report.caseId} · ${input.report.stage} · ${input.report.status}`,
+      route: input.report.route,
+      user_agent: null,
+      metadata: {
+        caseId: input.report.caseId,
+        stage: input.report.stage,
+        status: input.report.status,
+        persistenceState: input.report.persistenceState ?? null,
+        pageCount: input.report.pageCount ?? null,
+        fileByteLength: input.report.fileByteLength ?? null,
+        emailDelivered: input.emailDelivered,
+        emailStatus: input.emailStatus ?? null,
+        providerCode: input.providerCode ?? null,
+      },
+    });
+    return !error;
+  } catch {
+    return false;
+  }
 }
 
 function escapeHtml(value: string): string {

@@ -51,20 +51,23 @@ export async function sendFiscalNotificationSupportReportV1(
       body?.ok === true &&
       body.caseId === report.caseId;
 
-    void reportAppError({
-      severity: sent ? "warning" : "error",
-      area: "fiscal_notifications_support",
-      code: sent ? "support_case_sent" : "support_case_failed",
-      message: sent
-        ? "El usuario envió un caso técnico saneado del lector fiscal."
-        : "No se pudo enviar un caso técnico saneado del lector fiscal.",
-      metadata: {
-        caseId: report.caseId,
-        stage: report.stage,
-        status: report.status,
-        httpStatus: response.status,
-      },
-    });
+    // El endpoint registra de forma autoritativa cada caso aceptado. Solo se
+    // usa el monitor cliente si fallan tanto el correo como el registro del
+    // servidor, evitando duplicar un mismo caso en Admin.
+    if (!sent) {
+      void reportAppError({
+        severity: "error",
+        area: "fiscal_notifications_support",
+        code: "support_case_failed",
+        message: "No se pudo enviar un caso técnico saneado del lector fiscal.",
+        metadata: {
+          caseId: report.caseId,
+          stage: report.stage,
+          status: report.status,
+          httpStatus: response.status,
+        },
+      });
+    }
 
     if (sent) return { ok: true, caseId: report.caseId };
     return {

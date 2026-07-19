@@ -3,6 +3,7 @@ import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { isEmailConfigured } from "@/lib/email/config";
 import { sendEmail } from "@/lib/email/send";
 import { checkRateLimit } from "@/lib/server/rate-limit";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { POST } from "./route";
 
 vi.mock("@/lib/billing/server-auth", () => ({
@@ -16,6 +17,7 @@ vi.mock("@/lib/server/rate-limit", () => ({
     Response.json({ ok: false, error: "rate_limited" }, { status: 429 }),
   ),
 }));
+vi.mock("@/lib/supabase/admin", () => ({ getSupabaseAdmin: vi.fn() }));
 
 const report = {
   schemaVersion: 1,
@@ -42,6 +44,8 @@ function request(body: unknown, authorization = "Bearer access-token") {
 }
 
 describe("POST /api/fiscal-notifications/support", () => {
+  const insert = vi.fn();
+
   beforeEach(() => {
     vi.mocked(getUserFromBearer).mockResolvedValue({
       id: "owner-user",
@@ -57,6 +61,10 @@ describe("POST /api/fiscal-notifications/support", () => {
       backend: "memory",
     });
     vi.mocked(sendEmail).mockResolvedValue({ ok: true, id: "email-1" });
+    insert.mockResolvedValue({ error: null });
+    vi.mocked(getSupabaseAdmin).mockReturnValue({
+      from: vi.fn(() => ({ insert })),
+    } as never);
   });
 
   afterEach(() => {
@@ -70,6 +78,7 @@ describe("POST /api/fiscal-notifications/support", () => {
     await expect(response.json()).resolves.toEqual({
       ok: true,
       caseId: report.caseId,
+      delivery: "EMAIL",
     });
     expect(sendEmail).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -84,6 +93,17 @@ describe("POST /api/fiscal-notifications/support", () => {
     expect(email).not.toHaveProperty("replyTo");
     expect(response.headers.get("cache-control")).toContain("no-store");
     expect(response.headers.get("vary")).toBe("Authorization");
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "owner-user",
+        area: "fiscal_notifications_support",
+        code: "support_case_sent",
+        metadata: expect.objectContaining({
+          caseId: report.caseId,
+          emailDelivered: true,
+        }),
+      }),
+    );
   });
 
   it("requiere cuenta confirmada y rate limit distribuido", async () => {
@@ -116,12 +136,53 @@ describe("POST /api/fiscal-notifications/support", () => {
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
-  it("mantiene visible un fallo real del proveedor", async () => {
+  it("registra el caso en admin si el proveedor de correo falla", async () => {
     vi.mocked(sendEmail).mockResolvedValue({
       ok: false,
       retryable: true,
       failureKind: "ambiguous",
     });
+
+    const response = await POST(request(report));
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      caseId: report.caseId,
+      delivery: "ADMIN_LOG",
+    });
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        code: "support_case_email_fallback",
+        metadata: expect.objectContaining({ emailDelivered: false }),
+      }),
+    );
+  });
+
+  it("acepta el caso en admin cuando el correo no está configurado", async () => {
+    vi.mocked(isEmailConfigured).mockReturnValue(false);
+
+    const response = await POST(request(report));
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      caseId: report.caseId,
+      delivery: "ADMIN_LOG",
+    });
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({ code: "support_case_email_fallback" }),
+    );
+  });
+
+  it("informa del fallo si tampoco puede registrar el caso saneado", async () => {
+    vi.mocked(sendEmail).mockResolvedValue({
+      ok: false,
+      retryable: true,
+      failureKind: "ambiguous",
+    });
+    insert.mockResolvedValue({ error: { message: "unavailable" } });
 
     const response = await POST(request(report));
 

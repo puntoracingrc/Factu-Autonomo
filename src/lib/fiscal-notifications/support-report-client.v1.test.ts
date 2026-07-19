@@ -65,14 +65,7 @@ describe("fiscal notification support report client v1", () => {
     });
     expect(body).not.toHaveProperty("fileName");
     expect(body).not.toHaveProperty("rawText");
-    expect(reportAppError).toHaveBeenCalledWith(
-      expect.objectContaining({
-        code: "support_case_sent",
-        metadata: expect.objectContaining({
-          caseId: "case:00000000-0000-4000-8000-000000000001",
-        }),
-      }),
-    );
+    expect(reportAppError).not.toHaveBeenCalled();
   });
 
   it("no envía sin sesión y muestra un error accionable", async () => {
