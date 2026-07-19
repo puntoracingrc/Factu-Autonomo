@@ -191,4 +191,21 @@ describe("manual sections", () => {
     expect(fiscalManual).toContain("hasta 16 fichas del mismo PDF");
     expect(fiscalManual).toContain("no conserva esos valores");
   });
+
+  it("documenta el flujo actual del calendario fiscal sin automatizar trámites", () => {
+    const fiscalManual = JSON.stringify(getManualSection("consultor-fiscal"));
+
+    expect(fiscalManual).toContain(
+      "Consultar y organizar el calendario fiscal",
+    );
+    expect(fiscalManual).toContain("Asesoría fiscal → Calendario fiscal");
+    expect(fiscalManual).toContain("modelos únicos");
+    expect(fiscalManual).toContain("Renta y Sociedades");
+    expect(fiscalManual).toContain("Otros modelos publicados por la AEAT");
+    expect(fiscalManual).toContain("Volver al Calendario");
+    expect(fiscalManual).toContain("Crear recordatorio");
+    expect(fiscalManual).toContain("El borrador no se guarda automáticamente");
+    expect(fiscalManual).toContain("No presenta modelos");
+    expect(fiscalManual).toContain("no marca un trámite como realizado");
+  });
 });
