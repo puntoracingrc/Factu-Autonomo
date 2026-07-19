@@ -57,9 +57,10 @@ interface FlowSegment {
 
 export function HomeBusinessSummary({ data }: HomeBusinessSummaryProps) {
   const [expanded, setExpanded] = useState(true);
-  const [period, setPeriod] = useState<ProductPeriodSelection>(() =>
-    getDefaultProductPeriod(),
-  );
+  const [period, setPeriod] = useState<ProductPeriodSelection>(() => ({
+    ...getDefaultProductPeriod(),
+    kind: "quarter",
+  }));
   const years = useMemo(
     () => availableProductPeriodYears(data.documents, data.expenses),
     [data.documents, data.expenses],

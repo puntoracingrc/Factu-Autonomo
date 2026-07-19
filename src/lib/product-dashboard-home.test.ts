@@ -48,6 +48,7 @@ describe("product dashboard home", () => {
     expect(flowChartIndex).toBeGreaterThan(-1);
     expect(periodSelectorIndex).toBeLessThan(flowChartIndex);
     expect(component).toContain("compactPeriodSelectClass");
+    expect(component).toContain('kind: "quarter"');
     expect(component).toContain(
       "amount={safeSignedDisplayAmount(\n                documentAmounts(document, vatExempt).total",
     );
