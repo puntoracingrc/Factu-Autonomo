@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
+import { isAdminUser } from "@/lib/admin/access";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { readJsonBody } from "@/lib/server/request-body";
 import { checkRateLimit, rateLimitExceededResponse } from "@/lib/server/rate-limit";
 
 const MAX_EVENT_BODY_BYTES = 1_024;
+const STANDARD_DATA_OPERATION_LIMIT = 180;
+const ADMIN_DATA_OPERATION_LIMIT = 1_200;
 const EVENT_TYPES = new Set([
   "backup_local",
   "backup_drive",
@@ -30,15 +33,17 @@ function namespaceFor(body: {
   itemCount: number;
   byteLength: number;
   automatic: boolean;
+  adminAutomatic: boolean;
 }): string[] {
   const suffix =
     (body.type === "backup_drive" || body.type === "cloud_pull") &&
     body.automatic
       ? "_auto"
       : "";
-  const namespaces = [`data_${body.type}${suffix}`];
+  const prefix = body.adminAutomatic ? "data_admin_" : "data_";
+  const namespaces = [`${prefix}${body.type}${suffix}`];
   if (body.itemCount >= 5_000 || body.byteLength >= 10 * 1024 * 1024) {
-    namespaces.push(`data_${body.type}${suffix}_large`);
+    namespaces.push(`${prefix}${body.type}${suffix}_large`);
   }
   return namespaces;
 }
@@ -50,6 +55,7 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  const adminUser = isAdminUser(user);
 
   const bodyResult = await readJsonBody<DataAccessBody>(request, {
     maxBytes: MAX_EVENT_BODY_BYTES,
@@ -68,12 +74,22 @@ export async function POST(request: Request) {
   if (!EVENT_TYPES.has(type) || itemCount === null || byteLength === null) {
     return NextResponse.json({ error: "Evento no válido" }, { status: 400 });
   }
+  const automatic = bodyResult.data.automatic === true;
+  const adminAutomatic =
+    adminUser &&
+    automatic &&
+    (type === "backup_drive" || type === "cloud_pull");
+  const operationLimit = adminAutomatic
+    ? ADMIN_DATA_OPERATION_LIMIT
+    : STANDARD_DATA_OPERATION_LIMIT;
 
   const generalLimit = await checkRateLimit(
     request,
     {
-      namespace: "data_access_event",
-      limit: 180,
+      namespace: adminAutomatic
+        ? "admin_data_access_event"
+        : "data_access_event",
+      limit: operationLimit,
       windowMs: 60 * 60_000,
     },
     user.id,
@@ -89,12 +105,13 @@ export async function POST(request: Request) {
     type,
     itemCount,
     byteLength,
-    automatic: bodyResult.data.automatic === true,
+    automatic,
+    adminAutomatic,
   });
   for (const namespace of namespaces) {
     await checkRateLimit(
       request,
-      { namespace, limit: 180, windowMs: 60 * 60_000 },
+      { namespace, limit: operationLimit, windowMs: 60 * 60_000 },
       user.id,
     );
   }

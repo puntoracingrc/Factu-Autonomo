@@ -1,21 +1,26 @@
 import { NextResponse } from "next/server";
+import { isAdminUser } from "@/lib/admin/access";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { deriveUserBackupKey } from "@/lib/security/backup-key-server";
 import { checkRateLimit, rateLimitExceededResponse } from "@/lib/server/rate-limit";
 
 export const runtime = "nodejs";
 
+const STANDARD_BACKUP_KEY_LIMIT = 60;
+const ADMIN_BACKUP_KEY_LIMIT = 1_200;
+
 export async function GET(request: Request) {
   const user = await getUserFromBearer(request.headers.get("authorization"));
   if (!user) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
+  const adminUser = isAdminUser(user);
 
   const limit = await checkRateLimit(
     request,
     {
-      namespace: "backup_key",
-      limit: 60,
+      namespace: adminUser ? "admin_backup_key" : "backup_key",
+      limit: adminUser ? ADMIN_BACKUP_KEY_LIMIT : STANDARD_BACKUP_KEY_LIMIT,
       windowMs: 60 * 60_000,
     },
     user.id,

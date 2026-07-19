@@ -57,6 +57,31 @@ describe("GET /api/security/backup-key", () => {
       algorithm: "AES-GCM",
       version: 1,
     });
+    expect(mocks.checkRateLimit).toHaveBeenCalledWith(
+      expect.any(Request),
+      expect.objectContaining({ namespace: "backup_key", limit: 60 }),
+      "user-1",
+    );
+  });
+
+  it("registra aparte las claves de copia de una cuenta administrativa ilimitada", async () => {
+    mocks.getUserFromBearer.mockResolvedValue({
+      id: "admin-1",
+      email: "persianasalmar@gmail.com",
+    });
+
+    const response = await GET(
+      new Request("http://localhost/api/security/backup-key", {
+        headers: { Authorization: "Bearer session-token" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.checkRateLimit).toHaveBeenCalledWith(
+      expect.any(Request),
+      expect.objectContaining({ namespace: "admin_backup_key", limit: 1_200 }),
+      "admin-1",
+    );
   });
 
   it("falla cerrado si falta la clave maestra", async () => {
