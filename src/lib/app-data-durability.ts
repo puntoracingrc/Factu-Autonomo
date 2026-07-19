@@ -95,10 +95,11 @@ export function commitAppDataDurably<T>(input: {
 /**
  * Guarda una transición construida sobre el estado vigente en el instante del
  * clic, sin exigir que coincida con una referencia capturada antes. Está
- * reservado al alta de fichas estructuradas de Notificaciones, cuyo análisis
- * puede permanecer abierto mientras la sincronización actualiza metadatos de
- * la cuenta. La escritura sigue pasando por la proyección privada, la
- * protección anti-vaciado y el readback de `saveData`.
+ * reservado a revisiones locales largas (notificaciones y gastos escaneados),
+ * que pueden permanecer abiertas mientras la sincronización actualiza la
+ * cuenta. La transición se reconstruye sobre el estado vigente y la escritura
+ * sigue pasando por la proyección privada, la protección anti-vaciado y el
+ * readback de `saveData`.
  */
 export function commitLatestAppDataDurably<T>(input: {
   storageBaseline?: DurableStorageBaseline;

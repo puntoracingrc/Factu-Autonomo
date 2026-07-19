@@ -104,10 +104,20 @@ describe("product expenses/providers polish wiring", () => {
       "ensureSupplierForExpense(durableExpected.suppliers",
     );
     expect(formPage).toContain("saveScannedExpenseDurably(durableExpense");
+    expect(formPage).toContain('title="Tipo de gasto"');
+    expect(formPage).toContain(
+      'hint="La app lo usa para separar compras, facturas recibidas, tickets y fijos. Puedes corregirlo antes de guardar."',
+    );
+    expect(formPage).toContain("setBusinessKind(option.value)");
+    expect(formPage).toContain('businessKind === "fixed"');
+    expect(formPage).toContain('businessKind !== "fixed"');
     expect(formPage).toContain("supplierId: resolved.supplierId");
     expect(formPage).toContain("const created = addSupplier(resolved.create)");
     expect(appStore).toContain("upsertSupplierForExpense(prev.suppliers, input");
     expect(appStore).toContain("buildScannedExpenseDurableTransition");
+    expect(appStore).toContain(
+      "commitLatestDurableAppData(options.expected, (previous) =>",
+    );
     expect(appStore).toContain("suppliers === prev.suppliers");
   });
 

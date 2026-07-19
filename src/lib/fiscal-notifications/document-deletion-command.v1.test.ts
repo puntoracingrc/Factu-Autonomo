@@ -52,7 +52,7 @@ describe("durable fiscal notification document deletion command v1", () => {
     expect(commit).not.toHaveBeenCalled();
   });
 
-  it("bloquea una segunda reducción mientras la cabeza fiscal sigue pendiente", () => {
+  it("permite borrar localmente aunque la cabeza fiscal siga pendiente de sincronizar", () => {
     const expected: AppData = {
       ...structuredClone(EMPTY_DATA),
       meta: {
@@ -68,15 +68,22 @@ describe("durable fiscal notification document deletion command v1", () => {
         ],
       },
     };
-    const commit = vi.fn();
+    deleteMock.mockReturnValue({
+      status: "APPLIED",
+      workspace: emptyWorkspace(),
+      removedDocumentId: "document:161",
+      removedRelationCount: 0,
+      driveFileIdsPreserved: [],
+      drivePolicy: "PRESERVE_USER_DRIVE_ORIGINAL",
+    });
+    const commit = applyingCommit();
 
-    expect(
-      runDeleteFiscalNotificationDocumentCommandV1(
-        input(commit as unknown as Commit, expected),
-      ),
-    ).toEqual({ status: "BLOCKED", reason: "UNSYNCED_WORKSPACE" });
-    expect(deleteMock).not.toHaveBeenCalled();
-    expect(commit).not.toHaveBeenCalled();
+    const result = runDeleteFiscalNotificationDocumentCommandV1(
+      input(commit, expected),
+    );
+
+    expect(result.status).toBe("applied");
+    expect(deleteMock).toHaveBeenCalledTimes(1);
   });
 
   it("bloquea antes del commit si no puede registrar la reducción", () => {
