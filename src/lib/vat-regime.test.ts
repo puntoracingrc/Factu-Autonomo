@@ -3,6 +3,7 @@ import {
   documentAmounts,
   expenseAmount,
   isVatExempt,
+  totalExpensesAmount,
   zeroIvaItems,
 } from "./vat-regime";
 import { buildDocumentSnapshot, issueDocument } from "./document-integrity";
@@ -132,6 +133,27 @@ describe("vat-regime", () => {
     };
     expect(expenseAmount(expense, true)).toBe(80);
     expect(expenseAmount(expense, false)).toBeCloseTo(96.8, 1);
+  });
+
+  it("excluye los movimientos personales del gasto total del negocio", () => {
+    const base: Expense = {
+      id: "business",
+      date: "2026-07-19",
+      supplierName: "P",
+      description: "Gasto",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Otros",
+      paymentMethod: "Tarjeta",
+      createdAt: "2026-07-19",
+    };
+
+    expect(
+      totalExpensesAmount(
+        [base, { ...base, id: "personal", deductibility: "personal" }],
+        false,
+      ),
+    ).toBe(121);
   });
 
   it("usa el total mixto conciliado en el control de gastos", () => {

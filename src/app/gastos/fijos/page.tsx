@@ -16,15 +16,15 @@ import {
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate, todayISO } from "@/lib/calculations";
-import {
-  decimalInputFromNumber,
-  parseDecimalInput,
-} from "@/lib/decimal-input";
+import { decimalInputFromNumber, parseDecimalInput } from "@/lib/decimal-input";
 import { ExpenseAmountFields } from "@/components/expenses/ExpenseAmountFields";
 import { fixedExpenseValidationErrors } from "@/components/expenses/fixed-expense-validation";
 import { RecurringDueBanner } from "@/components/expenses/RecurringDueBanner";
 import { RecurringUpcomingList } from "@/components/expenses/RecurringUpcomingList";
-import { isExpenseFiscalDeductible } from "@/lib/expenses";
+import {
+  expenseFiscalTreatmentLabel,
+  isExpenseFiscalDeductible,
+} from "@/lib/expenses";
 import {
   isRecurringExpenseApplicableOn,
   normalizeRecurringOccurrenceCount,
@@ -57,10 +57,7 @@ const EMPTY_FORM = {
   paymentMethod: PAYMENT_METHODS[0] as string,
   frequency: "monthly" as RecurringExpenseFrequency,
   dueKind: "end_of_month" as
-    | "start_of_month"
-    | "mid_of_month"
-    | "end_of_month"
-    | "day_of_month",
+    "start_of_month" | "mid_of_month" | "end_of_month" | "day_of_month",
   dueDay: "1",
   dueMonth: "1",
   durationKind: "indefinite" as RecurringDuration["kind"],
@@ -90,9 +87,7 @@ function recurringExpenseForm(item: RecurringExpense) {
     frequency: item.frequency,
     dueKind: item.dueTiming.kind,
     dueDay:
-      item.dueTiming.kind === "day_of_month"
-        ? String(item.dueTiming.day)
-        : "1",
+      item.dueTiming.kind === "day_of_month" ? String(item.dueTiming.day) : "1",
     dueMonth: String(recurringAnnualDueMonth(item)),
     durationKind: item.duration.kind,
     endDate: item.duration.kind === "until_date" ? item.duration.endDate : "",
@@ -122,8 +117,7 @@ export default function GastosFijosPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editApplyMode, setEditApplyMode] =
-    useState<EditApplyMode>("today");
+  const [editApplyMode, setEditApplyMode] = useState<EditApplyMode>("today");
   const [effectiveDate, setEffectiveDate] = useState(today);
   const [persistenceError, setPersistenceError] = useState<string | null>(null);
   const [storageStateUnknown, setStorageStateUnknown] = useState(false);
@@ -255,8 +249,7 @@ export default function GastosFijosPage() {
       return {
         kind: "occurrences",
         count:
-          normalizeRecurringOccurrenceCount(Number(form.occurrenceCount)) ??
-          1,
+          normalizeRecurringOccurrenceCount(Number(form.occurrenceCount)) ?? 1,
       };
     }
     return { kind: "indefinite" };
@@ -290,16 +283,13 @@ export default function GastosFijosPage() {
       description: form.description.trim(),
       amount,
       ivaPercent:
-        vatExempt || form.deductibility === "non_deductible"
-          ? 0
-          : form.ivaPercent,
+        vatExempt || !isExpenseFiscalDeductible(form) ? 0 : form.ivaPercent,
       deductibility: form.deductibility,
       category: form.category,
       paymentMethod: form.paymentMethod,
       frequency: form.frequency,
       dueTiming: buildDueTiming(),
-      dueMonth:
-        form.frequency === "annual" ? Number(form.dueMonth) : undefined,
+      dueMonth: form.frequency === "annual" ? Number(form.dueMonth) : undefined,
       duration: buildDuration(),
       startDate,
       enabled: true,
@@ -331,11 +321,16 @@ export default function GastosFijosPage() {
         showPersistenceError("La regla ya no existe. No se ha modificado nada.");
         return;
       }
-      const result = applyRecurringExpenseChange(editingId, payload, startDate, {
+      const result = applyRecurringExpenseChange(
+        editingId,
+        payload,
+        startDate,
+        {
         precondition: preview.precondition,
         referenceDate: preview.referenceDate,
         expected: data,
-      });
+        },
+      );
       if (result.status === "indeterminate") {
         setStorageStateUnknown(true);
         showPersistenceError(
@@ -440,8 +435,8 @@ export default function GastosFijosPage() {
 
       <Card className="mb-6 border-sky-200 bg-sky-50">
         <p className="text-sm text-sky-900">
-          Configura el importe, la frecuencia y cuándo vence. La app crea el gasto
-          automáticamente en la fecha indicada y aparece en{" "}
+          Configura el importe, la frecuencia y cuándo vence. La app crea el
+          gasto automáticamente en la fecha indicada y aparece en{" "}
           <strong>Gastos y compras</strong> como cualquier otro.
         </p>
       </Card>
@@ -473,17 +468,22 @@ export default function GastosFijosPage() {
               <p className="text-sm font-bold text-slate-900">
                 Tratamiento del gasto
               </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 {[
                   {
                     value: "deductible" as ExpenseDeductibility,
-                    label: "Normal con factura o ticket",
-                    hint: "Para gastos deducibles habituales con su documento.",
+                    label: "Empresa y deducible",
+                    hint: "Relacionado con la actividad y fiscalmente deducible.",
                   },
                   {
                     value: "non_deductible" as ExpenseDeductibility,
-                    label: "Gasto extra no desgravable",
-                    hint: "Para comidas, parking u otros pagos que quieres recordar, sin deducirlos.",
+                    label: "Empresa, no deducible",
+                    hint: "Es de la actividad, pero no se incluirá como deducción.",
+                  },
+                  {
+                    value: "personal" as ExpenseDeductibility,
+                    label: "Personal / no empresarial",
+                    hint: "Se conserva para control, fuera de la actividad.",
                   },
                 ].map((option) => {
                   const selected = form.deductibility === option.value;
@@ -496,7 +496,7 @@ export default function GastosFijosPage() {
                           ...prev,
                           deductibility: option.value,
                           ivaPercent:
-                            option.value === "non_deductible"
+                            option.value !== "deductible"
                               ? 0
                               : vatExempt
                                 ? 0
@@ -690,16 +690,17 @@ export default function GastosFijosPage() {
                 setForm((prev) => ({ ...prev, amountText }));
               }}
               ivaPercent={form.ivaPercent}
-              vatExempt={vatExempt || form.deductibility === "non_deductible"}
+              vatExempt={vatExempt || !isExpenseFiscalDeductible(form)}
               amountInputId="recurring-amount"
               amountError={validationErrorFor("recurring-amount")}
             />
-            {form.deductibility === "non_deductible" ? (
+            {!isExpenseFiscalDeductible(form) ? (
               <div className="rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:col-span-2">
-                Se guardará como gasto extra no desgravable. Cuenta entero, con
-                IVA 0.
+                Se guardará como gasto no deducible. Conserva el coste entero,
+                con IVA fiscal 0.
               </div>
-            ) : !vatExempt && (
+            ) : (
+              !vatExempt && (
               <Field label="IVA %">
                 <IvaPercentSelect
                   value={form.ivaPercent}
@@ -708,6 +709,7 @@ export default function GastosFijosPage() {
                   }
                 />
               </Field>
+              )
             )}
             <Field label="Categoría">
               <Select
@@ -913,7 +915,9 @@ export default function GastosFijosPage() {
                       setForm((prev) => ({ ...prev, endDate: e.target.value }));
                     }}
                     aria-invalid={
-                      validationErrorFor("recurring-end-date") ? true : undefined
+                      validationErrorFor("recurring-end-date")
+                        ? true
+                        : undefined
                     }
                     aria-describedby={
                       validationErrorFor("recurring-end-date")
@@ -945,11 +949,7 @@ export default function GastosFijosPage() {
             </div>
           </div>
 
-          <Button
-            fullWidth
-            onClick={handleSave}
-            disabled={storageStateUnknown}
-          >
+          <Button fullWidth onClick={handleSave} disabled={storageStateUnknown}>
             {storageStateUnknown
               ? "Recarga antes de continuar"
               : editingId
@@ -961,8 +961,8 @@ export default function GastosFijosPage() {
 
       {templates.length === 0 ? (
         <Card className="text-center text-slate-500">
-          No hay gastos fijos configurados. Ejemplos: cuota de autónomos (mensual,
-          fin de mes), seguro anual o plan de pago con Hacienda.
+          No hay gastos fijos configurados. Ejemplos: cuota de autónomos
+          (mensual, fin de mes), seguro anual o plan de pago con Hacienda.
         </Card>
       ) : (
         <div className="space-y-3">
@@ -1002,7 +1002,7 @@ export default function GastosFijosPage() {
                     </span>
                     {!isExpenseFiscalDeductible(item) && (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
-                        No desgravable
+                        {expenseFiscalTreatmentLabel(item)}
                       </span>
                     )}
                   </div>

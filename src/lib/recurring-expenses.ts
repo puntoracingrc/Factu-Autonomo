@@ -130,7 +130,11 @@ function compareIso(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
-function addMonths(year: number, month: number, delta: number): {
+function addMonths(
+  year: number,
+  month: number,
+  delta: number,
+): {
   year: number;
   month: number;
 } {
@@ -141,10 +145,7 @@ function addMonths(year: number, month: number, delta: number): {
   };
 }
 
-const RECURRING_FREQUENCY_MONTHS: Record<
-  RecurringExpenseFrequency,
-  number
-> = {
+const RECURRING_FREQUENCY_MONTHS: Record<RecurringExpenseFrequency, number> = {
   monthly: 1,
   quarterly: 3,
   annual: 12,
@@ -210,10 +211,7 @@ export function isRecurringExpenseApplicableOn(
 }
 
 export type RecurringExpenseStatus =
-  | "active"
-  | "paused"
-  | "upcoming"
-  | "closed";
+  "active" | "paused" | "upcoming" | "closed";
 
 export function recurringExpenseStatusOn(
   template: RecurringExpense,
@@ -253,10 +251,7 @@ function isIsoCalendarDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const { year, month, day } = parseIso(value);
   return (
-    month >= 1 &&
-    month <= 12 &&
-    day >= 1 &&
-    day <= lastDayOfMonth(year, month)
+    month >= 1 && month <= 12 && day >= 1 && day <= lastDayOfMonth(year, month)
   );
 }
 
@@ -300,10 +295,7 @@ export function normalizeRecurringExpense(
         ? candidate.excludedAt
         : template.updatedAt || template.createdAt;
     const current = byKey.get(key);
-    if (
-      !current ||
-      Date.parse(excludedAt) > Date.parse(current.excludedAt)
-    ) {
+    if (!current || Date.parse(excludedAt) > Date.parse(current.excludedAt)) {
       byKey.set(key, { key, excludedAt });
     }
   }
@@ -488,23 +480,13 @@ export function listRecurringOccurrenceDates(
   const anchor = parseIso(recurringScheduleAnchorDate(template));
   const startMonthIndex = start.year * 12 + (start.month - 1);
   const anchorMonthIndex = anchor.year * 12 + (anchor.month - 1);
-  const cadenceOffset = Math.ceil(
-    (startMonthIndex - anchorMonthIndex) / step,
-  );
-  let cursor = addMonths(
-    anchor.year,
-    anchor.month,
-    cadenceOffset * step,
-  );
+  const cadenceOffset = Math.ceil((startMonthIndex - anchorMonthIndex) / step);
+  let cursor = addMonths(anchor.year, anchor.month, cadenceOffset * step);
   let guard = 0;
 
   while (guard < 600) {
     guard += 1;
-    const date = resolveDueDate(
-      cursor.year,
-      cursor.month,
-      template.dueTiming,
-    );
+    const date = resolveDueDate(cursor.year, cursor.month, template.dueTiming);
     if (compareIso(date, upToDate) > 0) break;
     if (compareIso(date, template.startDate) >= 0) {
       if (durationAllows(template, date, occurrenceIndex)) {
@@ -530,7 +512,10 @@ export function expenseFromRecurring(
     supplierName: template.supplierName,
     description: template.description,
     amount: template.amount,
-    ivaPercent: deductibility === "non_deductible" ? 0 : template.ivaPercent,
+    ivaPercent:
+      deductibility === "non_deductible" || deductibility === "personal"
+        ? 0
+        : template.ivaPercent,
     deductibility,
     category: template.category,
     paymentMethod: template.paymentMethod,
@@ -670,7 +655,10 @@ export function recurringExpenseTotals(
   vatExempt = false,
 ) {
   const ivaPercent =
-    template.deductibility === "non_deductible" ? 0 : template.ivaPercent;
+    template.deductibility === "non_deductible" ||
+    template.deductibility === "personal"
+      ? 0
+      : template.ivaPercent;
   return expenseTotalsFromBase(template.amount, ivaPercent, vatExempt);
 }
 
@@ -705,10 +693,7 @@ export function deleteExpenseFromData(
   const expense = data.expenses.find((entry) => entry.id === id);
   if (!expense) return data;
 
-  const template = recurringTemplateForExpense(
-    data.recurringExpenses,
-    expense,
-  );
+  const template = recurringTemplateForExpense(data.recurringExpenses, expense);
   if (!template || !expense.recurringOccurrenceKey) {
     return {
       ...data,
@@ -749,7 +734,9 @@ export function deleteRecurringExpenseFromData(
   if (!data.recurringExpenses.some((entry) => entry.id === id)) return data;
   return {
     ...data,
-    recurringExpenses: data.recurringExpenses.filter((entry) => entry.id !== id),
+    recurringExpenses: data.recurringExpenses.filter(
+      (entry) => entry.id !== id,
+    ),
   };
 }
 
@@ -839,7 +826,9 @@ export function previewRecurringExpenseChangeToData(
 ): RecurringExpenseChangePreview {
   const referenceDate =
     options.referenceDate ?? new Date().toISOString().split("T")[0];
-  const sourceEntries = data.recurringExpenses.filter((entry) => entry.id === id);
+  const sourceEntries = data.recurringExpenses.filter(
+    (entry) => entry.id === id,
+  );
   const relatedExpenses = recurringExpenseChangeRelatedExpenses(data, id);
   const precondition = recurringExpenseChangePrecondition(
     sourceEntries,
@@ -963,9 +952,7 @@ export function previewRecurringExpenseChangeToData(
       reason: "invalid_exclusion",
     });
   }
-  const rawExclusions = Array.isArray(sourceExclusions)
-    ? sourceExclusions
-    : [];
+  const rawExclusions = Array.isArray(sourceExclusions) ? sourceExclusions : [];
   for (const exclusion of rawExclusions) {
     const key =
       exclusion && typeof exclusion.key === "string" ? exclusion.key : "";
@@ -1060,7 +1047,9 @@ export function applyRecurringExpenseChangeToData(
     return { status: "blocked", reason: "stale_preview", data, preview };
   }
 
-  const sourceEntries = data.recurringExpenses.filter((entry) => entry.id === id);
+  const sourceEntries = data.recurringExpenses.filter(
+    (entry) => entry.id === id,
+  );
   if (sourceEntries.length !== 1) {
     return { status: "blocked", reason: "not_found", data, preview };
   }

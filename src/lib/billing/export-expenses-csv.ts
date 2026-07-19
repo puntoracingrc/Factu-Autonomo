@@ -1,6 +1,7 @@
 import { formatShortDate } from "../calculations";
 import {
   expenseFiscalAmounts,
+  expenseFiscalTreatmentLabel,
   isExpenseMixedVatBlocked,
   resolveExpenseVat,
   type ExpenseVatResolution,
@@ -19,6 +20,7 @@ export interface ExpensesCsvMeta {
   profile: BusinessProfile;
   periodLabel: string;
   supplierFilterLabel?: string;
+  exportScopeLabel?: string;
 }
 
 const EXPENSE_HEADERS = [
@@ -44,10 +46,10 @@ const EXPENSE_HEADERS = [
 ] as const;
 
 function expenseTreatmentLabel(
-  deductible: boolean,
+  expense: Expense,
   registeredTotal: number,
 ): string {
-  const fiscalLabel = deductible ? "Deducible" : "No deducible";
+  const fiscalLabel = expenseFiscalTreatmentLabel(expense);
   return registeredTotal < 0
     ? `Abono / saldo a favor · ${fiscalLabel}`
     : fiscalLabel;
@@ -274,10 +276,7 @@ export function buildExpensesTableSection(
         expense.supplierName,
         resolveSupplierNif(expense, nifs),
         expense.description,
-        expenseTreatmentLabel(
-          fiscal.deductible,
-          fiscal.registeredTotal,
-        ),
+        expenseTreatmentLabel(expense, fiscal.registeredTotal),
         formatCsvAmount(fiscal.registeredBase),
         vatTypesLabel(vat),
         vatBreakdownLabel(vat),
@@ -285,9 +284,7 @@ export function buildExpensesTableSection(
         formatCsvAmount(fiscal.registeredIva),
         fiscal.registeredEquivalenceSurchargePercent === undefined
           ? ""
-          : formatVatPercent(
-              fiscal.registeredEquivalenceSurchargePercent,
-            ),
+          : formatVatPercent(fiscal.registeredEquivalenceSurchargePercent),
         formatCsvAmount(fiscal.registeredEquivalenceSurcharge ?? 0),
         formatCsvAmount(fiscal.registeredTotal),
         formatCsvAmount(fiscal.deductibleIrpfExpense),
@@ -340,6 +337,9 @@ export function buildExpensesExportCsv(
   if (meta.supplierFilterLabel) {
     extraRows.push(["Filtro proveedor", meta.supplierFilterLabel]);
   }
+  if (meta.exportScopeLabel) {
+    extraRows.push(["Gastos incluidos", meta.exportScopeLabel]);
+  }
 
   const lines = [
     ...buildProfileHeaderRows(
@@ -354,9 +354,6 @@ export function buildExpensesExportCsv(
   return `${lines.join("\n")}\n`;
 }
 
-export function downloadExpensesCsv(
-  csv: string,
-  filenameStem: string,
-): void {
+export function downloadExpensesCsv(csv: string, filenameStem: string): void {
   downloadCsvFile(csv, `${filenameStem}.csv`);
 }

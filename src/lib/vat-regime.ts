@@ -3,7 +3,7 @@ import { withDocumentFinancialIntegritySignals } from "./document-integrity/fina
 import { inspectUsableHistoricalDocumentEvidence } from "./document-integrity/legacy-import-attestation";
 import { hasAppIssuedRecoveryProtectionClaim } from "./document-integrity/app-issued-recovery-protection";
 import { detectLegacyImportSource } from "./document-integrity/legacy-import-attestation";
-import { expenseTotals } from "./expenses";
+import { expenseTotals, isExpenseBusinessRelated } from "./expenses";
 import type { BusinessProfile, Document, Expense, LineItem } from "./types";
 
 export function isVatExempt(
@@ -87,8 +87,7 @@ export function totalExpensesAmount(
   expenses: Expense[],
   vatExempt: boolean,
 ): number {
-  return expenses.reduce(
-    (sum, expense) => sum + expenseAmount(expense, vatExempt),
-    0,
-  );
+  return expenses
+    .filter(isExpenseBusinessRelated)
+    .reduce((sum, expense) => sum + expenseAmount(expense, vatExempt), 0);
 }

@@ -71,14 +71,18 @@ function draft(
 
 describe("resolveDueDate", () => {
   it("usa el último día del mes", () => {
-    expect(resolveDueDate(2026, 2, { kind: "end_of_month" })).toBe("2026-02-28");
+    expect(resolveDueDate(2026, 2, { kind: "end_of_month" })).toBe(
+      "2026-02-28",
+    );
   });
 
   it("resuelve inicio y mediados de mes", () => {
     expect(resolveDueDate(2026, 6, { kind: "start_of_month" })).toBe(
       "2026-06-01",
     );
-    expect(resolveDueDate(2026, 6, { kind: "mid_of_month" })).toBe("2026-06-15");
+    expect(resolveDueDate(2026, 6, { kind: "mid_of_month" })).toBe(
+      "2026-06-15",
+    );
   });
 
   it("ajusta días que no existen en el mes", () => {
@@ -90,7 +94,10 @@ describe("resolveDueDate", () => {
 
 describe("recurringScheduleAnchorDate", () => {
   it("usa startDate para datos legacy o anclas inválidas", () => {
-    const legacy = template({ frequency: "quarterly", startDate: "2026-01-01" });
+    const legacy = template({
+      frequency: "quarterly",
+      startDate: "2026-01-01",
+    });
 
     expect(recurringScheduleAnchorDate(legacy)).toBe("2026-01-01");
     expect(
@@ -140,9 +147,10 @@ describe("recurringDueLabel", () => {
 
     expect(recurringAnnualDueMonth(legacy)).toBe(7);
     expect(recurringDueLabel(legacy)).toBe("Último día de julio");
-    expect(
-      listRecurringOccurrenceDates(legacy, "2028-12-31"),
-    ).toEqual(["2027-07-31", "2028-07-31"]);
+    expect(listRecurringOccurrenceDates(legacy, "2028-12-31")).toEqual([
+      "2027-07-31",
+      "2028-07-31",
+    ]);
   });
 
   it("descarta meses anuales inválidos sin cambiar el mes de inicio", () => {
@@ -199,9 +207,7 @@ describe("saveFixedExpenseWithRecurringTemplateToData", () => {
       frequency: "monthly",
       startDate: "2026-07-11",
     });
-    expect(result.data.recurringExpenses).toEqual([
-      result.recurringExpense,
-    ]);
+    expect(result.data.recurringExpenses).toEqual([result.recurringExpense]);
     expect(result.data.expenses).toHaveLength(1);
     expect(result.data.expenses[0]).toMatchObject({
       id: "fixed-expense",
@@ -268,18 +274,9 @@ describe("listRecurringOccurrenceDates", () => {
 
   it("aplica todas las opciones anuales en el mes de vencimiento", () => {
     const cases = [
-      [
-        { kind: "start_of_month" } as const,
-        ["2027-02-01", "2028-02-01"],
-      ],
-      [
-        { kind: "mid_of_month" } as const,
-        ["2027-02-15", "2028-02-15"],
-      ],
-      [
-        { kind: "end_of_month" } as const,
-        ["2027-02-28", "2028-02-29"],
-      ],
+      [{ kind: "start_of_month" } as const, ["2027-02-01", "2028-02-01"]],
+      [{ kind: "mid_of_month" } as const, ["2027-02-15", "2028-02-15"]],
+      [{ kind: "end_of_month" } as const, ["2027-02-28", "2028-02-29"]],
       [
         { kind: "day_of_month", day: 20 } as const,
         ["2027-02-20", "2028-02-20"],
@@ -394,9 +391,7 @@ describe("collectRecurringOccurrencePreviews", () => {
       60,
     );
 
-    expect(previews.map((preview) => preview.date)).not.toContain(
-      "2026-06-15",
-    );
+    expect(previews.map((preview) => preview.date)).not.toContain("2026-06-15");
     expect(previews.map((preview) => preview.date)).toContain("2026-07-15");
   });
 });
@@ -527,6 +522,23 @@ describe("syncRecurringExpenses", () => {
     expect(expense.amount).toBe(120);
   });
 
+  it("materializa un gasto fijo personal con IVA fiscal 0", () => {
+    const recurring = template({
+      frequency: "monthly",
+      amount: 80,
+      ivaPercent: 21,
+      deductibility: "personal",
+    });
+
+    const expense = expenseFromRecurring(recurring, "2026-07-31");
+
+    expect(expense).toMatchObject({
+      amount: 80,
+      ivaPercent: 0,
+      deductibility: "personal",
+    });
+  });
+
   it("no regenera con otro UUID una ocurrencia borrada al sincronizar de nuevo", () => {
     const recurring = template({
       id: "seguro",
@@ -551,8 +563,7 @@ describe("syncRecurringExpenses", () => {
 
     expect(
       afterReloadSync.expenses.some(
-        (expense) =>
-          expense.recurringOccurrenceKey === "seguro:2026-01-31",
+        (expense) => expense.recurringOccurrenceKey === "seguro:2026-01-31",
       ),
     ).toBe(false);
     expect(afterReloadSync.expenses).toHaveLength(1);
@@ -706,7 +717,10 @@ describe("applyRecurringExpenseChangeToData", () => {
       },
     );
 
-    expect(result).toMatchObject({ status: "blocked", reason: "manual_review" });
+    expect(result).toMatchObject({
+      status: "blocked",
+      reason: "manual_review",
+    });
     expect(result.data).toBe(synced);
   });
 
@@ -756,7 +770,10 @@ describe("applyRecurringExpenseChangeToData", () => {
       },
     );
 
-    expect(result).toMatchObject({ status: "blocked", reason: "manual_review" });
+    expect(result).toMatchObject({
+      status: "blocked",
+      reason: "manual_review",
+    });
     expect(result.data).toBe(withExclusion);
   });
 
@@ -1210,7 +1227,11 @@ describe("applyRecurringExpenseChangeToData", () => {
   });
 
   it.each([
-    { effectiveDate: "", referenceDate: "2026-02-28", reason: "invalid_effective_date" },
+    {
+      effectiveDate: "",
+      referenceDate: "2026-02-28",
+      reason: "invalid_effective_date",
+    },
     {
       effectiveDate: "2026-02-31",
       referenceDate: "2026-02-28",
@@ -1247,7 +1268,10 @@ describe("applyRecurringExpenseChangeToData", () => {
           expectedPrecondition: preview.precondition,
         },
       );
-      expect(result).toMatchObject({ status: "blocked", reason: "manual_review" });
+      expect(result).toMatchObject({
+        status: "blocked",
+        reason: "manual_review",
+      });
       expect(result.data).toBe(data);
     },
   );

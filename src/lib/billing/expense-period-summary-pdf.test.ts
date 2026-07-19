@@ -14,7 +14,9 @@ const SUPPLIERS: Supplier[] = [
   },
 ];
 
-function expense(input: Partial<Expense> & Pick<Expense, "id" | "date" | "amount">): Expense {
+function expense(
+  input: Partial<Expense> & Pick<Expense, "id" | "date" | "amount">,
+): Expense {
   return {
     supplierName: "Proveedor Uno",
     supplierId: "supplier-1",
@@ -53,6 +55,7 @@ describe("expense period summary PDF", () => {
           id: "expense-2",
           date: "2026-04-05",
           amount: -20,
+          deductibility: "personal",
           purchaseDocument: { invoiceNumber: "AB-2" },
         }),
       ],
@@ -72,6 +75,10 @@ describe("expense period summary PDF", () => {
     expect(model.rows.map((row) => row.originalStatus)).toEqual([
       "Archivado en Drive",
       "Sin original archivado",
+    ]);
+    expect(model.rows.map((row) => row.fiscalTreatment)).toEqual([
+      "Deducible",
+      "Personal / no empresarial",
     ]);
   });
 

@@ -1,7 +1,10 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { formatMoney, roundMoneySymmetric } from "@/lib/calculations";
-import { expenseFiscalAmounts } from "@/lib/expenses";
+import {
+  expenseFiscalAmounts,
+  expenseFiscalTreatmentLabel,
+} from "@/lib/expenses";
 import type { BusinessProfile, Expense, Supplier } from "@/lib/types";
 import { isVatExempt } from "@/lib/vat-regime";
 
@@ -11,6 +14,7 @@ export interface ExpensePeriodSummaryRow {
   supplierName: string;
   supplierTaxId: string;
   category: string;
+  fiscalTreatment: string;
   registeredBase: number;
   registeredIva: number;
   registeredTotal: number;
@@ -59,7 +63,8 @@ export function buildExpensePeriodSummaryModel(
       return {
         date: expense.date,
         invoiceNumber: expense.purchaseDocument?.invoiceNumber?.trim() || "—",
-        supplierName: expense.supplierName.trim() || "Proveedor sin identificar",
+        supplierName:
+          expense.supplierName.trim() || "Proveedor sin identificar",
         supplierTaxId:
           expense.purchaseDocument?.supplierNif?.trim() ||
           (expense.supplierId
@@ -67,6 +72,7 @@ export function buildExpensePeriodSummaryModel(
             : undefined) ||
           "—",
         category: expense.category,
+        fiscalTreatment: expenseFiscalTreatmentLabel(expense),
         registeredBase: fiscal.registeredBase,
         registeredIva: fiscal.registeredIva,
         registeredTotal: fiscal.registeredTotal,
@@ -183,7 +189,7 @@ export function buildExpensePeriodSummaryPdf(
         "Fecha",
         "Factura",
         "Proveedor / NIF",
-        "Categoría",
+        "Tratamiento",
         "Base",
         "IVA",
         "Total",
@@ -194,7 +200,7 @@ export function buildExpensePeriodSummaryPdf(
       formatIsoDate(row.date),
       row.invoiceNumber,
       `${row.supplierName}\n${row.supplierTaxId}`,
-      row.category,
+      row.fiscalTreatment,
       formatMoney(row.registeredBase),
       formatMoney(row.registeredIva),
       formatMoney(row.registeredTotal),
@@ -222,11 +228,11 @@ export function buildExpensePeriodSummaryPdf(
       0: { cellWidth: 18 },
       1: { cellWidth: 22 },
       2: { cellWidth: 43 },
-      3: { cellWidth: 24 },
+      3: { cellWidth: 30 },
       4: { cellWidth: 20, halign: "right" },
       5: { cellWidth: 18, halign: "right" },
       6: { cellWidth: 21, halign: "right" },
-      7: { cellWidth: 28 },
+      7: { cellWidth: 22 },
     },
   });
 
