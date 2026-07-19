@@ -45,7 +45,10 @@ describe("security headers config", () => {
       "'wasm-unsafe-eval'",
     );
     expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
-      "frame-src 'self' https://accounts.google.com https://challenges.cloudflare.com",
+      "frame-src 'self' blob: https://accounts.google.com https://challenges.cloudflare.com",
+    );
+    expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
+      "frame-src 'self' blob:",
     );
     expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
