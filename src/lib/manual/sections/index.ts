@@ -16,6 +16,7 @@ import { gastosSection } from "./gastos";
 import { importacionSection } from "./importacion";
 import { impuestosSection } from "./impuestos";
 import { inicioSection } from "./inicio";
+import { modelosAeatSection } from "./modelos-aeat";
 import { productosSection } from "./productos";
 import { presupuestosSection, recibosSection } from "./presupuestos-recibos";
 import { primerosPasosSection } from "./primeros-pasos";
@@ -36,6 +37,7 @@ export function buildManualSections(
     gastosSection,
     calendarioFiscalSection,
     testAutonomosSection,
+    modelosAeatSection,
     productosSection,
     impuestosSection,
     ...(consultorFiscalEnabled ? [consultorFiscalSection] : []),

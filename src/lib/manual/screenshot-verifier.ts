@@ -34,6 +34,8 @@ export const MANUAL_SCREENSHOT_ROUTE_TEMPLATES = [
   "/consultor-fiscal",
   "/consultor-fiscal/calendario",
   "/consultor-fiscal/diagnostico",
+  "/consultor-fiscal/modelos",
+  "/consultor-fiscal/modelos/[codigo]",
   "/cuenta",
   "/demo",
   "/facturas",
