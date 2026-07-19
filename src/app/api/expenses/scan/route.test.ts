@@ -215,4 +215,30 @@ describe("POST /api/expenses/scan", () => {
     expect(fileToBase64).not.toHaveBeenCalled();
     expect(extractExpenseFromImage).not.toHaveBeenCalled();
   });
+
+  it("devuelve mantenimiento tipado sin filtrar el error de cuota del proveedor", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    mockSuccessfulScan();
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "admin-1",
+      email: "admin@example.com",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(isAdminUser).mockReturnValue(true);
+    vi.mocked(extractExpenseFromImage).mockResolvedValue({
+      error:
+        "El servicio de escáner está en mantenimiento. Prueba de nuevo en las próximas 24 horas.",
+      errorCode: "SCAN_SERVICE_UNAVAILABLE",
+    });
+
+    const response = await POST(scanPostRequest("token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(503);
+    expect(body).toMatchObject({
+      code: "SCAN_SERVICE_UNAVAILABLE",
+      error:
+        "El servicio de escáner está en mantenimiento. Prueba de nuevo en las próximas 24 horas.",
+    });
+    expect(JSON.stringify(body)).not.toContain("current quota");
+  });
 });

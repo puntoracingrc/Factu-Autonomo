@@ -24,7 +24,15 @@ describe("ExpenseScanCard interaction contract", () => {
     expect(source).toContain("Analizando");
     expect(source).toContain("Leído");
     expect(source).toContain("Necesita revisión");
+    expect(source).toContain("En mantenimiento");
     expect(source).toContain("No reconocido");
+  });
+
+  it("keeps provider outages retryable without presenting files as unrecognized", () => {
+    expect(source).toContain('body.code === "SCAN_SERVICE_UNAVAILABLE"');
+    expect(source).toContain('item.status === "SERVICE_UNAVAILABLE"');
+    expect(source).toContain("EXPENSE_SCAN_MAINTENANCE_MESSAGE");
+    expect(source).not.toContain("You exceeded your current quota");
   });
 
   it("keeps the existing public scanner callbacks and payload contract", () => {

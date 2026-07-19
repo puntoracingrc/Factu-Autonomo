@@ -40,6 +40,7 @@ import {
 import { scanPackLabel } from "@/lib/billing/scan-packs";
 import { prepareScanFile } from "@/lib/expense-scan/prepare-scan-file";
 import {
+  EXPENSE_SCAN_MAINTENANCE_MESSAGE,
   enqueueExpenseScanFiles,
   updateExpenseScanQueueItem,
   type ExpenseScanQueueItem,
@@ -77,6 +78,10 @@ const QUEUE_STATUS_COPY: Readonly<
   },
   NEEDS_REVIEW: {
     label: "Necesita revisión",
+    className: "border-amber-200 bg-amber-50 text-amber-800",
+  },
+  SERVICE_UNAVAILABLE: {
+    label: "En mantenimiento",
     className: "border-amber-200 bg-amber-50 text-amber-800",
   },
   NOT_RECOGNIZED: {
@@ -135,7 +140,8 @@ export function ExpenseScanCard({
     ? "todos los que necesites"
     : `hasta ${MAX_SCAN_FILES}`;
   const preparedCount = scanQueue.filter(
-    (item) => item.status === "PREPARED",
+    (item) =>
+      item.status === "PREPARED" || item.status === "SERVICE_UNAVAILABLE",
   ).length;
 
   const loadQuota = useCallback(async () => {
@@ -182,6 +188,7 @@ export function ExpenseScanCard({
   async function scanFile(file: File): Promise<{
     data?: ExpenseScanPayload;
     error?: string;
+    code?: "SCAN_SERVICE_UNAVAILABLE";
     quota?: ScanQuota;
   }> {
     let uploadFile = file;
@@ -214,18 +221,24 @@ export function ExpenseScanCard({
       headers,
       body: form,
     });
-    const body = (await res.json()) as {
+    const body = (await res.json().catch(() => ({}))) as {
       data?: ExpenseScanPayload;
       error?: string;
+      code?: "SCAN_SERVICE_UNAVAILABLE";
       quota?: ScanQuota;
     };
+    const serviceUnavailable =
+      body.code === "SCAN_SERVICE_UNAVAILABLE" || res.status >= 500;
 
     return {
       data: res.ok ? body.data : undefined,
       error:
         !res.ok || !body.data
-          ? body.error ?? "No se pudo escanear la factura."
+          ? serviceUnavailable
+            ? EXPENSE_SCAN_MAINTENANCE_MESSAGE
+            : body.error ?? "No se pudo escanear la factura."
           : undefined,
+      code: serviceUnavailable ? "SCAN_SERVICE_UNAVAILABLE" : undefined,
       quota: body.quota,
     };
   }
@@ -282,7 +295,8 @@ export function ExpenseScanCard({
 
   async function analyzeQueuedFiles() {
     const itemsToAnalyze = scanQueue.filter(
-      (item) => item.status === "PREPARED",
+      (item) =>
+        item.status === "PREPARED" || item.status === "SERVICE_UNAVAILABLE",
     );
     if (itemsToAnalyze.length === 0 || scanning) return;
 
@@ -330,6 +344,25 @@ export function ExpenseScanCard({
 
         if (!result.data) {
           const message = result.error ?? "No se pudo leer el archivo.";
+          if (result.code === "SCAN_SERVICE_UNAVAILABLE") {
+            const pendingIds = new Set(
+              itemsToAnalyze.slice(index).map((pending) => pending.id),
+            );
+            errors.push(message);
+            setScanQueue((current) =>
+              current.map((queued) =>
+                pendingIds.has(queued.id)
+                  ? {
+                      ...queued,
+                      status: "SERVICE_UNAVAILABLE",
+                      message,
+                    }
+                  : queued,
+              ),
+            );
+            activeQueueItemId = null;
+            break;
+          }
           errors.push(`${item.file.name}: ${message}`);
           setScanQueue((current) =>
             updateExpenseScanQueueItem(current, item.id, {
@@ -632,6 +665,11 @@ export function ExpenseScanCard({
                             className="h-4 w-4 shrink-0 text-amber-600"
                             aria-hidden="true"
                           />
+                        ) : item.status === "SERVICE_UNAVAILABLE" ? (
+                          <TriangleAlert
+                            className="h-4 w-4 shrink-0 text-amber-600"
+                            aria-hidden="true"
+                          />
                         ) : item.status === "NOT_RECOGNIZED" ? (
                           <TriangleAlert
                             className="h-4 w-4 shrink-0 text-red-600"
@@ -651,7 +689,8 @@ export function ExpenseScanCard({
                         >
                           {status.label}
                         </span>
-                        {item.status === "NOT_RECOGNIZED" && (
+                        {(item.status === "NOT_RECOGNIZED" ||
+                          item.status === "SERVICE_UNAVAILABLE") && (
                           <button
                             type="button"
                             disabled={scanning}
