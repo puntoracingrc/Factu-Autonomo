@@ -1037,7 +1037,7 @@ describe("MVP usability polish", () => {
     expect(customersPageSource).toContain("Mostrando");
   });
 
-  it("carga facturas, presupuestos y recibos por bloques", () => {
+  it("carga facturas, presupuestos y recibos de 10 en 10", () => {
     const documentListSource = readFileSync(
       new URL("../components/documents/DocumentList.tsx", import.meta.url),
       "utf8",
@@ -1047,7 +1047,7 @@ describe("MVP usability polish", () => {
       "utf8",
     );
 
-    expect(documentListSource).toContain("DOCUMENT_LIST_BATCH_SIZE = 30");
+    expect(documentListSource).toContain("DOCUMENT_LIST_BATCH_SIZE = 10");
     expect(documentListSource).toContain('"factura"');
     expect(documentListSource).toContain('"presupuesto"');
     expect(documentListSource).toContain('"recibo"');
