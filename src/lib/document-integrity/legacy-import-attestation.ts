@@ -291,6 +291,21 @@ function hasKnownImportPrefix(document: Document): boolean {
   return Object.values(SOURCE_PREFIXES).includes(prefix);
 }
 
+/**
+ * Identifica cualquier documento cuya procedencia sea una importacion externa,
+ * con independencia de que su atestacion sea utilizable para calculos.
+ */
+export function hasLegacyImportOrigin(document: Document): boolean {
+  const snapshotSource = document.documentSnapshot?.source;
+  return Boolean(
+    document.legacyImportAttestation ||
+      document.legacyImportProvenance ||
+      hasKnownImportPrefix(document) ||
+      snapshotSource === "legacy_import_attested" ||
+      snapshotSource === "legacy_backfill",
+  );
+}
+
 function attestationHashPayload(attestation: unknown): unknown {
   return attestation;
 }

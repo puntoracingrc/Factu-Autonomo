@@ -1,4 +1,5 @@
 import { showFactuToast } from "./factu/occasional";
+import { hasLegacyImportOrigin } from "./document-integrity/legacy-import-attestation";
 import { isPendingInvoicePayment } from "./income";
 import { paymentReminderSubject } from "./payment-reminder";
 import { MAX_PAYMENT_REMINDER_MESSAGE_LENGTH } from "./email/payment-reminder-request";
@@ -41,6 +42,10 @@ function validatePaymentReminderMessage(
   message: string,
   channel: PaymentReminderChannel,
 ): string | null {
+  if (hasLegacyImportOrigin(doc)) {
+    return "Los recordatorios solo estan disponibles para facturas creadas en la aplicacion.";
+  }
+
   if (!isPendingInvoicePayment(doc)) {
     return "La factura ya está cobrada o no admite recordatorio.";
   }
@@ -222,12 +227,15 @@ export function canSendPaymentReminder(
   doc: Document,
   channel: PaymentReminderChannel,
 ): boolean {
+  if (hasLegacyImportOrigin(doc)) return false;
   if (!isPendingInvoicePayment(doc)) return false;
   return channel === "email" ? hasClientEmail(doc) : hasClientPhone(doc);
 }
 
 export function canShowPaymentReminder(doc: Document): boolean {
   return (
-    isPendingInvoicePayment(doc) && (hasClientEmail(doc) || hasClientPhone(doc))
+    !hasLegacyImportOrigin(doc) &&
+    isPendingInvoicePayment(doc) &&
+    (hasClientEmail(doc) || hasClientPhone(doc))
   );
 }
