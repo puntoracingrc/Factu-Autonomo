@@ -147,6 +147,33 @@ describe("documentWithCurrentCustomerContact", () => {
     expect(hydrated.client.phone).toBeUndefined();
   });
 
+  it("recupera el contacto si el NIF personal legacy no es una identidad válida", () => {
+    const hydrated = documentWithCurrentCustomerContact(
+      {
+        ...doc,
+        customerId: undefined,
+        client: {
+          name: "Antonio Muñoz Guerra",
+          nif: "3917465",
+        },
+      },
+      [
+        {
+          ...customers[0],
+          id: "customer-current",
+          firstName: "Antonio",
+          lastName: "Muñoz Guerra",
+          name: "Antonio Muñoz Guerra",
+          nif: "3917465G",
+          email: undefined,
+          phone: "610724941",
+        },
+      ],
+    );
+
+    expect(hydrated.client.phone).toBe("610724941");
+  });
+
   it("no elige un contacto si los duplicados históricos discrepan", () => {
     const hydrated = documentWithCurrentCustomerContact(
       {

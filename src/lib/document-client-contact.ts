@@ -47,6 +47,30 @@ function hasUsablePhone(phone?: string): boolean {
   return Boolean(phone?.trim() && normalizePhoneForWhatsApp(phone));
 }
 
+const DNI_CONTROL_LETTERS = "TRWAGMYFPDXBNJZSQVHLCKE";
+
+function isValidSpanishPersonalTaxId(nif: string): boolean {
+  const dni = nif.match(/^(\d{7,8})([A-Z])$/);
+  if (dni) {
+    const number = Number(dni[1].padStart(8, "0"));
+    return DNI_CONTROL_LETTERS[number % 23] === dni[2];
+  }
+
+  const nie = nif.match(/^([XYZ])(\d{7})([A-Z])$/);
+  if (!nie) return false;
+
+  const prefix = nie[1] === "X" ? "0" : nie[1] === "Y" ? "1" : "2";
+  const number = Number(`${prefix}${nie[2]}`);
+  return DNI_CONTROL_LETTERS[number % 23] === nie[3];
+}
+
+function isMalformedSpanishPersonalTaxId(nif: string): boolean {
+  return (
+    /^(?:\d{7,8}|[XYZ]\d{7})[A-Z]$/.test(nif) &&
+    !isValidSpanishPersonalTaxId(nif)
+  );
+}
+
 function contactIdentityMatchesCustomer(
   doc: Document,
   customer: Customer,
@@ -56,7 +80,17 @@ function contactIdentityMatchesCustomer(
   const customerNif = normalizeCustomerNif(migrated.nif);
 
   if (documentNif && customerNif) {
-    return documentNif === customerNif;
+    if (documentNif === customerNif) return true;
+
+    // A valid, different identity remains authoritative. Legacy imports can
+    // contain truncated or mistyped personal NIFs; those must not prevent an
+    // otherwise unique exact-name match from recovering current contact data.
+    if (
+      !isMalformedSpanishPersonalTaxId(documentNif) &&
+      !isMalformedSpanishPersonalTaxId(customerNif)
+    ) {
+      return false;
+    }
   }
   if (clientMatchesCustomer(doc.client, migrated)) return true;
 
