@@ -38,9 +38,10 @@ const SHA256 = /^[0-9a-f]{64}$/u;
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9_.:/\-]{0,159}$/u;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u;
 const TAX_ID =
-  /(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])/iu;
-const IBAN = /ES\d{22}/iu;
-const PHONE = /(?:^|\D)(?:34)?[6789]\d{8}(?:$|\D)/u;
+  /(?:^|[^A-Z0-9])(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])(?=$|[^A-Z0-9])/iu;
+const IBAN = /(?:^|[^A-Z0-9])ES\d{22}(?=$|[^A-Z0-9])/iu;
+const PHONE =
+  /(?:^|[^A-Z0-9])(?:34)?[6789]\d{8}(?=$|[^A-Z0-9])/iu;
 const DATE_TIME =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/u;
 const MAX_SOURCES = 5_000;

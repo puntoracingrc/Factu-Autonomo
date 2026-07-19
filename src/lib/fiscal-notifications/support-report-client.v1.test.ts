@@ -86,4 +86,66 @@ describe("fiscal notification support report client v1", () => {
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("confirma el caso si el registro común de Admin verifica el fallback", async () => {
+    vi.stubGlobal("crypto", {
+      randomUUID: () => "00000000-0000-4000-8000-000000000001",
+    });
+    vi.mocked(getSupabaseClientAsync).mockResolvedValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { access_token: "access-token" } },
+        }),
+      },
+    } as never);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json(
+          { ok: false, error: "No se pudo enviar el caso." },
+          { status: 503 },
+        ),
+      ),
+    );
+    vi.mocked(reportAppError).mockResolvedValue(true);
+
+    await expect(sendFiscalNotificationSupportReportV1(input)).resolves.toEqual({
+      ok: true,
+      caseId: "case:00000000-0000-4000-8000-000000000001",
+    });
+    expect(reportAppError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        area: "fiscal_notifications_support",
+        metadata: expect.objectContaining({ httpStatus: 503 }),
+      }),
+    );
+  });
+
+  it("mantiene el error si ninguna ruta confirma la recepción", async () => {
+    vi.stubGlobal("crypto", {
+      randomUUID: () => "00000000-0000-4000-8000-000000000001",
+    });
+    vi.mocked(getSupabaseClientAsync).mockResolvedValue({
+      auth: {
+        getSession: vi.fn().mockResolvedValue({
+          data: { session: { access_token: "access-token" } },
+        }),
+      },
+    } as never);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json(
+          { ok: false, error: "No se pudo enviar el caso." },
+          { status: 503 },
+        ),
+      ),
+    );
+    vi.mocked(reportAppError).mockResolvedValue(false);
+
+    await expect(sendFiscalNotificationSupportReportV1(input)).resolves.toEqual({
+      ok: false,
+      error: "No se pudo enviar el caso.",
+    });
+  });
 });
