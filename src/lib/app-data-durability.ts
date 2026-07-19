@@ -100,9 +100,10 @@ export function commitAppDataDurably<T>(input: {
 
 /**
  * Reintenta una transición una sola vez cuando el bloqueo procede únicamente
- * de una referencia durable antigua y el almacenamiento confirma que contiene
- * el mismo dominio de negocio (aunque hayan avanzado metadatos de sync). Nunca
- * rebasa una divergencia real ni repite una transición inválida.
+ * de una referencia durable antigua. Recupera contra la lectura actual cuando
+ * conserva el mismo dominio de negocio o contra la última base conocida cuando
+ * el almacenamiento confirma byte-semánticamente que sigue intacta. Nunca
+ * rebasa una divergencia durable real ni repite una transición inválida.
  */
 export function commitAppDataDurablyWithStorageRecovery<T>(input: {
   expected: AppData;
@@ -144,7 +145,6 @@ export function commitAppDataDurablyWithStorageRecovery<T>(input: {
   if (
     input.storageBaseline?.status === "blocked" &&
     input.lastKnownStorageBaseline &&
-    appDataDomainEquals(input.expected, input.lastKnownStorageBaseline) &&
     input.inspectPersisted(input.lastKnownStorageBaseline).status === "applied"
   ) {
     return attempt({

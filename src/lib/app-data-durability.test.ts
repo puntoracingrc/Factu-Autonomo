@@ -473,6 +473,86 @@ describe("commitAppDataDurably", () => {
     expect(persist).toHaveBeenCalledTimes(1);
   });
 
+  it("recupera cambios de negocio legítimos en memoria si la última base durable sigue intacta", () => {
+    const lastKnown = appData();
+    const expected = {
+      ...lastKnown,
+      profile: {
+        ...lastKnown.profile,
+        name: "Cambio pendiente en memoria",
+      },
+    };
+    const persist = vi.fn(() => ({ status: "applied" }) as const);
+    const inspectPersisted = vi.fn((candidate: AppData) =>
+      candidate === lastKnown
+        ? ({ status: "applied" } as const)
+        : ({ status: "blocked", reason: "stale_precondition" } as const),
+    );
+
+    const result = commitAppDataDurablyWithStorageRecovery({
+      expected,
+      storageBaseline: { status: "blocked", reason: "write_failed" },
+      lastKnownStorageBaseline: lastKnown,
+      getCurrent: () => expected,
+      build: (current) => ({
+        data: {
+          ...current,
+          products: [
+            {
+              id: "product-recovered",
+              key: "producto-recuperado",
+              name: "Producto recuperado",
+              family: "prueba",
+              pvp: 10,
+              ivaPercent: 21,
+              unit: "unidad",
+              source: "manual",
+              createdAt: NOW,
+              updatedAt: NOW,
+            },
+          ],
+        },
+        value: "saved",
+      }),
+      persist: (candidate, storageExpected) => {
+        expect(storageExpected).toBe(lastKnown);
+        expect(candidate.profile.name).toBe("Cambio pendiente en memoria");
+        return persist();
+      },
+      inspectPersisted,
+    });
+
+    expect(result.status).toBe("applied");
+    expect(inspectPersisted).toHaveBeenNthCalledWith(1, expected);
+    expect(inspectPersisted).toHaveBeenNthCalledWith(2, lastKnown);
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("no recupera contra la última base si el almacenamiento ya no coincide exactamente", () => {
+    const lastKnown = appData();
+    const expected = {
+      ...lastKnown,
+      profile: { ...lastKnown.profile, name: "Cambio en memoria" },
+    };
+    const persist = vi.fn();
+
+    expect(
+      commitAppDataDurablyWithStorageRecovery({
+        expected,
+        storageBaseline: { status: "blocked", reason: "write_failed" },
+        lastKnownStorageBaseline: lastKnown,
+        getCurrent: () => expected,
+        build: (current) => ({ data: current, value: "blocked" }),
+        persist,
+        inspectPersisted: () => ({
+          status: "blocked",
+          reason: "stale_precondition",
+        }),
+      }),
+    ).toEqual({ status: "blocked", reason: "write_failed" });
+    expect(persist).not.toHaveBeenCalled();
+  });
+
   it("recupera contra la lectura durable vigente cuando solo cambiaron metadatos", () => {
     const expected = {
       ...appData(),
@@ -605,7 +685,7 @@ describe("commitAppDataDurably", () => {
     expect(persist).toHaveBeenCalledTimes(1);
   });
 
-  it("no usa la última referencia durable si cambió algún dato de negocio", () => {
+  it("no usa la última referencia durable si el almacenamiento no confirma su contenido exacto", () => {
     const lastKnown = appData();
     const expected = {
       ...lastKnown,
@@ -628,7 +708,8 @@ describe("commitAppDataDurably", () => {
         inspectPersisted,
       }),
     ).toEqual({ status: "blocked", reason: "write_failed" });
-    expect(inspectPersisted).toHaveBeenCalledTimes(1);
+    expect(inspectPersisted).toHaveBeenNthCalledWith(1, expected);
+    expect(inspectPersisted).toHaveBeenNthCalledWith(2, lastKnown);
     expect(persist).not.toHaveBeenCalled();
   });
 

@@ -2098,6 +2098,29 @@ function structuredSaveFailureMessage(
   ) {
     return "No se puede confirmar si la ficha se guardó. Comprueba el listado antes de reintentar.";
   }
+  if (write.safeCode === "DURABILITY_CONFLICT" && "reason" in write) {
+    if (write.reason === "quota_exceeded") {
+      return "El almacenamiento local del navegador está lleno. La ficha sigue abierta y no se ha sustituido ningún dato.";
+    }
+    if (write.reason === "storage_unavailable") {
+      return "El navegador no permite guardar datos locales ahora. La ficha sigue abierta para que puedas reintentar.";
+    }
+    if (write.reason === "serialization_failed") {
+      return "No se ha podido preparar el expediente para guardarlo. La ficha sigue abierta y no se ha sustituido ningún dato.";
+    }
+    if (write.reason === "stale_precondition") {
+      return "Los datos de la cuenta han cambiado mientras guardabas. La ficha sigue abierta; vuelve a intentarlo.";
+    }
+    if (write.reason === "protected_existing_data") {
+      return "El guardado se ha detenido para proteger los datos existentes. La ficha sigue abierta.";
+    }
+    if (
+      write.reason === "write_failed" ||
+      write.reason === "verification_failed"
+    ) {
+      return "El navegador no ha confirmado la escritura local. La ficha sigue abierta y no se ha sustituido ningún dato.";
+    }
+  }
   if (write.stage === "COMMIT") {
     return "No se ha podido confirmar el guardado. El documento sigue abierto y no se ha sustituido ningún dato.";
   }

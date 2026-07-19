@@ -948,6 +948,52 @@ describe("structured fiscal notification save command v1", () => {
     expect(loadData().fiscalNotificationsWorkspace?.documents).toHaveLength(1);
   });
 
+  it("guarda y recarga la ficha sin perder cambios de cuenta pendientes cuando la base durable anterior sigue verificada", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
+    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({ status: "applied" });
+    const lastKnown = loadData();
+    const current: AppData = {
+      ...lastKnown,
+      profile: {
+        ...lastKnown.profile,
+        name: "Perfil pendiente ya visible en la cuenta",
+      },
+    };
+
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1({
+      expected: current,
+      ownerScope: OWNER,
+      reviewId: "review:00000000-0000-4000-8000-000000000086",
+      createdAt: "2026-07-14T10:06:00.000Z",
+      analysis: offsetAnalysis(),
+      commit: (expected, build) =>
+        commitAppDataDurablyWithStorageRecovery({
+          expected,
+          storageBaseline: { status: "blocked", reason: "write_failed" },
+          lastKnownStorageBaseline: lastKnown,
+          getCurrent: () => current,
+          build,
+          persist: (candidate, storageExpected) =>
+            saveData(candidate, { expected: storageExpected }),
+          inspectPersisted: inspectPersistedData,
+          readPersisted: readPersistedDataSnapshot,
+        }),
+    });
+
+    expect(result.status).toMatch(/applied/);
+    const reloaded = loadData();
+    expect(reloaded.profile.name).toBe(
+      "Perfil pendiente ya visible en la cuenta",
+    );
+    expect(reloaded.fiscalNotificationsWorkspace?.documents).toHaveLength(1);
+  });
+
   it("guarda en Mi cuenta cuando el historial fiscal local quedó vacío tras borrar fichas", () => {
     const store = new Map<string, string>();
     vi.stubGlobal("window", {});
