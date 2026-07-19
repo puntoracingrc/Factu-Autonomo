@@ -11,18 +11,21 @@ export const consultorFiscalSection: ManualSection = {
     "El **Consultor fiscal** ejecuta primero reglas locales, versionadas y auditables. Si el fallback opcional está habilitado y no existe coincidencia, puede pedir a una IA una clasificación auxiliar; nunca crea asientos ni sustituye a tu asesor.",
     "La versión Beta solo cubre autónomos persona física en estimación directa y territorio común. Canarias, territorios forales, Ceuta/Melilla y sociedades se muestran como no implementados para evitar aplicar una regla incorrecta.",
     "Puedes analizar un gasto ya registrado o introducir un caso manual. El análisis no crea una copia del gasto ni modifica su estado.",
-    "La primera vez puedes importar un certificado censal de la AEAT, rellenar el perfil fiscal manualmente o continuar sin completarlo. El PDF se lee localmente y siempre debes confirmar los datos detectados.",
+    "Para configurar tu actividad puedes mezclar modelos, certificados, informes y capturas de la AEAT. El lector trabaja en este dispositivo, solo incorpora los campos que confirmes y deja el resto para que los respondas manualmente.",
   ],
   steps: [
     {
-      title: "1. Configurar actividad y modelos",
+      title: "1. Completar y mantener el test de autónomos",
       paragraphs: [
-        "Abre **Asesoría fiscal → Configurar mi actividad**. Recorre los bloques A–N; **No lo sé** es una respuesta válida y mantiene el dato como pendiente.",
-        "Puedes seleccionar opcionalmente un certificado censal o modelo 036 en PDF. Se lee localmente, el archivo no se guarda y debes revisar la identidad y confirmar cada propuesta antes de incorporarla.",
-        "En el último bloque indica si has consultado una situación censal actual y qué obligaciones aparecen expresamente. El sistema cruza ese dato con los hechos confirmados y señala las discrepancias sin modificar el censo.",
-        "Antes de generar los modelos debes confirmar que has revisado las respuestas. El resultado separa recomendaciones, casos incompletos y modelos improbables, con evidencia, sujeto, períodos, siguiente paso y fuentes oficiales. Mientras el ruleset esté pendiente de revisión fiscal, los modelos improbables siguen visibles y no se aplican exclusiones.",
+        "Abre la primera opción de **Asesoría fiscal → Configurar mi actividad**. Si ya terminaste el test, verás el último resultado guardado: pulsa **Editar respuestas** para corregirlo. **Empezar de nuevo** borra las respuestas, los datos documentales confirmados y el resultado después de pedirte confirmación.",
+        "La ayuda documental es opcional. Arrastra o selecciona en una única zona hasta **8 archivos** PDF, PNG, JPG o WebP, mezclados y sin tener que clasificarlos. Puedes añadir o quitar archivos de la cola; el lector no empieza automáticamente y espera a que pulses **Analizar archivos**. El análisis se realiza en este dispositivo y los originales no se envían ni se guardan.",
+        "Abre **¿Qué modelos y documentos reconoce el lector?** para consultar las 30 familias de modelos fiscales, los 9 documentos sin número y las capturas de Hacienda compatibles. En **Cómo encontrar la información en Hacienda** tienes la ruta Área personal → Mis datos censales para localizar **Mis actividades económicas**, **Mi situación tributaria** y **Mis obligaciones**. Un archivo que no se reconoce no responde ninguna pregunta.",
+        "Después del análisis revisa **Archivos identificados** y **Datos leídos para que los confirmes**. Desmarca cualquier propuesta que no quieras usar, marca la confirmación humana y pulsa **Confirmar datos seleccionados**. Si dos archivos o una respuesta anterior contienen valores distintos, el sistema avisa y no sustituye el dato sin tu confirmación. Puedes repetir el proceso con más archivos: cada confirmación se suma al perfil ya guardado.",
+        "Recorre los bloques A–N. Ninguna respuesta manual aparece seleccionada antes de que la pulses; **No lo sé** solo se muestra en las preguntas que admiten conservar esa duda. Los datos obtenidos de un documento confirmado aparecen en verde, cuentan como respondidos y siguen siendo editables. El desplegable **Por qué lo preguntamos y qué documento ayuda** explica cada término, ofrece un ejemplo y señala los modelos relacionados.",
+        "Usa **Guardar y continuar** para pasar al bloque siguiente y **Revisar respuestas** al terminar. Puedes generar el resultado con datos pendientes, pero antes debes confirmar que has revisado la situación del ejercicio y pulsar **Generar mis modelos**. Las respuestas, su procedencia y el resultado se guardan en tu perfil; los PDF y las capturas no.",
+        "La página final distingue **Probablemente necesarios**, **Podrían ser necesarios**, **Falta información** y, cuando existen, **Añadidos por ti**. Los verdes ya están incluidos automáticamente; los posibles se conservan por precaución y los que necesitan información quedan incluidos provisionalmente hasta resolver la duda. Pulsa **Editar respuestas** y vuelve a generar para sustituir el resultado anterior con la nueva configuración.",
       ],
-      tip: "El resultado es orientativo; no presenta declaraciones ni sustituye la revisión profesional.",
+      tip: "El test guarda una orientación en tu perfil; no presenta declaraciones, no modifica tu censo y no sustituye la revisión profesional.",
     },
     {
       title: "2. Preparar el perfil fiscal para gastos",
