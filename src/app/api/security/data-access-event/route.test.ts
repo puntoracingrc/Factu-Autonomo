@@ -87,6 +87,61 @@ describe("POST /api/security/data-access-event", () => {
     ).toEqual(["data_access_event", "data_cloud_pull_auto"]);
   });
 
+  it("separa y amplía solo las operaciones automáticas del administrador", async () => {
+    mocks.getUserFromBearer.mockResolvedValue({
+      id: "admin-1",
+      email: "persianasalmar@gmail.com",
+    });
+
+    const response = await POST(
+      request({
+        type: "backup_drive",
+        itemCount: 5_000,
+        byteLength: 11 * 1024 * 1024,
+        automatic: true,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      mocks.checkRateLimit.mock.calls.map((call) => call[1].namespace),
+    ).toEqual([
+      "admin_data_access_event",
+      "data_admin_backup_drive_auto",
+      "data_admin_backup_drive_auto_large",
+    ]);
+    expect(
+      mocks.checkRateLimit.mock.calls.every((call) => call[1].limit === 1_200),
+    ).toBe(true);
+  });
+
+  it("no amplía una descarga manual aunque la realice un administrador", async () => {
+    mocks.getUserFromBearer.mockResolvedValue({
+      id: "admin-1",
+      email: "persianasalmar@gmail.com",
+    });
+
+    const response = await POST(
+      request({
+        type: "backup_local",
+        itemCount: 5_000,
+        byteLength: 11 * 1024 * 1024,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(
+      mocks.checkRateLimit.mock.calls.map((call) => call[1].namespace),
+    ).toEqual([
+      "data_access_event",
+      "data_backup_local",
+      "data_backup_local_large",
+    ]);
+    expect(
+      mocks.checkRateLimit.mock.calls.every((call) => call[1].limit === 180),
+    ).toBe(true);
+  });
+
   it("rechaza tipos y tamaños manipulados", async () => {
     const response = await POST(
       request({ type: "database_dump", itemCount: -1, byteLength: 0 }),

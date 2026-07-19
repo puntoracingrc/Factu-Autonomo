@@ -261,6 +261,111 @@ describe("admin health helpers", () => {
     expect(anomalous.level).toBe("watch");
   });
 
+  it("no presenta como extracción el lote automático que originó el aviso de Drive", () => {
+    const abuse = buildAdminAbuseSummary({
+      namespaces: [
+        {
+          namespace: "data_backup_drive_auto_large",
+          buckets: 1,
+          requests: 41,
+          maxRequests: 41,
+          latestAt: "2026-07-19T14:44:42.111Z",
+        },
+        {
+          namespace: "data_backup_drive_auto",
+          buckets: 1,
+          requests: 41,
+          maxRequests: 41,
+          latestAt: "2026-07-19T14:44:41.996Z",
+        },
+        {
+          namespace: "backup_key",
+          buckets: 1,
+          requests: 41,
+          maxRequests: 41,
+          latestAt: "2026-07-19T14:44:36.390Z",
+        },
+        {
+          namespace: "data_cloud_pull_auto",
+          buckets: 1,
+          requests: 35,
+          maxRequests: 35,
+          latestAt: "2026-07-19T14:45:46.232Z",
+        },
+        {
+          namespace: "admin_expenses_scan",
+          buckets: 1,
+          requests: 24,
+          maxRequests: 24,
+          latestAt: "2026-07-19T14:45:34.899Z",
+        },
+      ],
+    });
+
+    expect(abuse.level).toBe("ok");
+    expect(abuse.label).toBe("Sin señales");
+    expect(
+      abuse.namespaces.find(
+        (item) => item.namespace === "data_backup_drive_auto_large",
+      )?.level,
+    ).toBe("ok");
+  });
+
+  it("mantiene visibles los picos anómalos aunque exista actividad admin", () => {
+    const abuse = buildAdminAbuseSummary({
+      namespaces: [
+        {
+          namespace: "admin_expenses_scan",
+          buckets: 1,
+          requests: 24,
+          maxRequests: 24,
+        },
+        {
+          namespace: "data_backup_drive_auto_large",
+          buckets: 1,
+          requests: 401,
+          maxRequests: 401,
+        },
+      ],
+    });
+
+    expect(abuse.level).toBe("action");
+    expect(abuse.label).toBe("Extracción probable");
+  });
+
+  it("aplica umbrales propios a las operaciones administrativas nuevas", () => {
+    const normal = buildAdminAbuseSummary({
+      namespaces: [
+        {
+          namespace: "admin_backup_key",
+          buckets: 1,
+          requests: 100,
+          maxRequests: 100,
+        },
+        {
+          namespace: "data_admin_backup_drive_auto_large",
+          buckets: 1,
+          requests: 100,
+          maxRequests: 100,
+        },
+      ],
+    });
+    const anomalous = buildAdminAbuseSummary({
+      namespaces: [
+        {
+          namespace: "data_admin_backup_drive_auto_large",
+          buckets: 12,
+          requests: 1_200,
+          maxRequests: 800,
+        },
+      ],
+    });
+
+    expect(normal.level).toBe("ok");
+    expect(normal.namespaces[0].label).toContain("Admin:");
+    expect(anomalous.level).toBe("action");
+  });
+
   it("detecta RPC no desplegada", () => {
     expect(
       isMissingAdminHealthRpc({

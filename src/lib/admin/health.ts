@@ -127,6 +127,22 @@ const DEFAULT_ABUSE_THRESHOLDS: AbuseThresholds = {
 };
 
 const ABUSE_NAMESPACE_THRESHOLDS: Record<string, AbuseThresholds> = {
+  admin_backup_key: {
+    watchRequests: 500,
+    actionRequests: 1_200,
+    watchBuckets: 4,
+    actionBuckets: 12,
+    watchMaxRequests: 300,
+    actionMaxRequests: 800,
+  },
+  admin_data_access_event: {
+    watchRequests: 500,
+    actionRequests: 1_200,
+    watchBuckets: 4,
+    actionBuckets: 12,
+    watchMaxRequests: 300,
+    actionMaxRequests: 800,
+  },
   admin_expenses_scan: {
     watchRequests: 500,
     actionRequests: 1_200,
@@ -136,11 +152,11 @@ const ABUSE_NAMESPACE_THRESHOLDS: Record<string, AbuseThresholds> = {
     actionMaxRequests: 800,
   },
   backup_key: {
-    watchRequests: 30,
-    actionRequests: 100,
+    watchRequests: 50,
+    actionRequests: 60,
     watchBuckets: 10,
     actionBuckets: 30,
-    watchMaxRequests: 20,
+    watchMaxRequests: 50,
     actionMaxRequests: 60,
   },
   data_access_event: {
@@ -184,20 +200,20 @@ const ABUSE_NAMESPACE_THRESHOLDS: Record<string, AbuseThresholds> = {
     actionMaxRequests: 4,
   },
   data_backup_drive_auto: {
-    watchRequests: 40,
-    actionRequests: 120,
+    watchRequests: 100,
+    actionRequests: 180,
     watchBuckets: 12,
     actionBuckets: 30,
-    watchMaxRequests: 20,
-    actionMaxRequests: 60,
+    watchMaxRequests: 100,
+    actionMaxRequests: 180,
   },
   data_backup_drive_auto_large: {
-    watchRequests: 20,
-    actionRequests: 60,
+    watchRequests: 60,
+    actionRequests: 120,
     watchBuckets: 8,
     actionBuckets: 24,
-    watchMaxRequests: 12,
-    actionMaxRequests: 40,
+    watchMaxRequests: 60,
+    actionMaxRequests: 120,
   },
   data_cloud_pull: {
     watchRequests: 100,
@@ -231,9 +247,43 @@ const ABUSE_NAMESPACE_THRESHOLDS: Record<string, AbuseThresholds> = {
     watchMaxRequests: 12,
     actionMaxRequests: 40,
   },
+  data_admin_backup_drive_auto: {
+    watchRequests: 500,
+    actionRequests: 1_200,
+    watchBuckets: 4,
+    actionBuckets: 12,
+    watchMaxRequests: 300,
+    actionMaxRequests: 800,
+  },
+  data_admin_backup_drive_auto_large: {
+    watchRequests: 500,
+    actionRequests: 1_200,
+    watchBuckets: 4,
+    actionBuckets: 12,
+    watchMaxRequests: 300,
+    actionMaxRequests: 800,
+  },
+  data_admin_cloud_pull_auto: {
+    watchRequests: 1_000,
+    actionRequests: 3_000,
+    watchBuckets: 18,
+    actionBuckets: 48,
+    watchMaxRequests: 300,
+    actionMaxRequests: 800,
+  },
+  data_admin_cloud_pull_auto_large: {
+    watchRequests: 500,
+    actionRequests: 1_200,
+    watchBuckets: 4,
+    actionBuckets: 12,
+    watchMaxRequests: 300,
+    actionMaxRequests: 800,
+  },
 };
 
 const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
+  admin_backup_key: "Admin: claves de copia cifrada",
+  admin_data_access_event: "Admin: operaciones de datos",
   admin_capabilities: "Admin: capacidades",
   admin_ai_learning_correct: "Admin: corregir IA",
   admin_ai_learning_feedback: "Admin: feedback IA",
@@ -256,6 +306,12 @@ const ABUSE_NAMESPACE_LABELS: Record<string, string> = {
   backup_key: "Seguridad: claves de copia cifrada",
   customers_parse: "IA: parseo clientes",
   data_access_event: "Datos: actividad observada",
+  data_admin_backup_drive_auto: "Admin: copia automática en Drive",
+  data_admin_backup_drive_auto_large:
+    "Admin: copia automática grande en Drive",
+  data_admin_cloud_pull_auto: "Admin: sincronización automática",
+  data_admin_cloud_pull_auto_large:
+    "Admin: sincronización automática grande",
   data_backup_drive: "Datos: copia manual en Drive",
   data_backup_drive_auto: "Datos: copia automática en Drive",
   data_backup_drive_auto_large: "Datos: copia automática grande en Drive",
@@ -433,7 +489,11 @@ export function buildAdminAbuseSummary(
     // Este namespace es el límite agregado de las mismas operaciones que ya
     // aparecen desglosadas como data_backup_* y data_cloud_pull*. Mostrarlo
     // duplicaría cada acceso y exageraría el total del panel.
-    .filter((item) => item.namespace !== "data_access_event");
+    .filter(
+      (item) =>
+        item.namespace !== "data_access_event" &&
+        item.namespace !== "admin_data_access_event",
+    );
   const namespaces = reportableNamespaces
     .sort((a, b) => levelRank(b.level) - levelRank(a.level) || b.requests - a.requests)
     .slice(0, 8);
