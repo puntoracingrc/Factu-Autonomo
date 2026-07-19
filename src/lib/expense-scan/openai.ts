@@ -5,12 +5,21 @@ import {
   type ExpenseScanPayload,
   type ExpenseScanPurchaseLine,
 } from "./schema";
+import { EXPENSE_SCAN_MAINTENANCE_MESSAGE } from "./scan-queue";
 
 const EXPENSE_SCAN_MODEL =
   process.env.OPENAI_EXPENSE_SCAN_MODEL?.trim() || "gpt-4o";
 const DEFAULT_EXPENSE_SCAN_MAX_TOKENS = 6000;
 const MIN_EXPENSE_SCAN_MAX_TOKENS = 2000;
 const MAX_EXPENSE_SCAN_MAX_TOKENS = 12000;
+
+export type ExpenseScanProviderErrorCode = "SCAN_SERVICE_UNAVAILABLE";
+
+export interface ExpenseScanExtractionResult {
+  readonly data?: ExpenseScanPayload;
+  readonly error?: string;
+  readonly errorCode?: ExpenseScanProviderErrorCode;
+}
 
 export function isOpenAiConfigured(): boolean {
   return Boolean(process.env.OPENAI_API_KEY?.trim());
@@ -148,10 +157,14 @@ function buildScanContent(base64: string, mimeType: string, pdfTextRows = "") {
 export async function extractExpenseFromImage(
   base64: string,
   mimeType: string,
-): Promise<{ data?: ExpenseScanPayload; error?: string }> {
+): Promise<ExpenseScanExtractionResult> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
-    return { error: "Escaneo no configurado en el servidor (falta OPENAI_API_KEY)." };
+    console.error("[expense-scan] Scanner provider is not configured");
+    return {
+      error: EXPENSE_SCAN_MAINTENANCE_MESSAGE,
+      errorCode: "SCAN_SERVICE_UNAVAILABLE",
+    };
   }
 
   const pdfHints =
@@ -168,34 +181,49 @@ export async function extractExpenseFromImage(
     });
   }
 
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: EXPENSE_SCAN_MODEL,
-      temperature: 0.1,
-      max_tokens: resolveExpenseScanMaxTokens(),
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "user",
-          content: buildScanContent(base64, mimeType, pdfHints?.textRows),
-        },
-      ],
-    }),
-  });
+  let response: Response;
+  try {
+    response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: EXPENSE_SCAN_MODEL,
+        temperature: 0.1,
+        max_tokens: resolveExpenseScanMaxTokens(),
+        response_format: { type: "json_object" },
+        messages: [
+          {
+            role: "user",
+            content: buildScanContent(base64, mimeType, pdfHints?.textRows),
+          },
+        ],
+      }),
+    });
+  } catch {
+    console.error("[expense-scan] Scanner provider request failed", {
+      reason: "NETWORK_ERROR",
+    });
+    return {
+      error: EXPENSE_SCAN_MAINTENANCE_MESSAGE,
+      errorCode: "SCAN_SERVICE_UNAVAILABLE",
+    };
+  }
 
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as {
-      error?: { message?: string };
+      error?: { code?: string; type?: string };
     };
+    console.error("[expense-scan] Scanner provider rejected request", {
+      status: response.status,
+      code: body.error?.code ?? "UNKNOWN",
+      type: body.error?.type ?? "UNKNOWN",
+    });
     return {
-      error:
-        body.error?.message ??
-        `No se pudo analizar el documento (error ${response.status}).`,
+      error: EXPENSE_SCAN_MAINTENANCE_MESSAGE,
+      errorCode: "SCAN_SERVICE_UNAVAILABLE",
     };
   }
 

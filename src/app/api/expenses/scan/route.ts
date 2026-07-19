@@ -134,8 +134,12 @@ export async function POST(request: Request) {
   );
   if (result.error) {
     return NextResponse.json(
-      { error: result.error, quota: gate.quota },
-      { status: 422 },
+      {
+        error: result.error,
+        code: result.errorCode,
+        quota: gate.quota,
+      },
+      { status: result.errorCode === "SCAN_SERVICE_UNAVAILABLE" ? 503 : 422 },
     );
   }
 

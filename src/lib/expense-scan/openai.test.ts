@@ -1,11 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { MAX_IMAGE_BYTES } from "./limits";
 import { resolveScanMimeType, validateScanFile } from "./file-validation";
 import {
   filterWarningsAfterPdfLineExtraction,
+  extractExpenseFromImage,
   mergePdfPurchaseLineVat,
   resolveExpenseScanMaxTokens,
 } from "./openai";
+import { EXPENSE_SCAN_MAINTENANCE_MESSAGE } from "./scan-queue";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+  vi.unstubAllGlobals();
+});
 
 function mockFile(name: string, type: string, size = 1000): File {
   return { name, type, size } as File;
@@ -49,6 +57,49 @@ describe("resolveExpenseScanMaxTokens", () => {
     expect(resolveExpenseScanMaxTokens("4200")).toBe(4200);
     expect(resolveExpenseScanMaxTokens("1200")).toBe(2000);
     expect(resolveExpenseScanMaxTokens("15000")).toBe(12000);
+  });
+});
+
+describe("extractExpenseFromImage provider failures", () => {
+  it("oculta el mensaje de cuota del proveedor y devuelve mantenimiento tipado", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json(
+          {
+            error: {
+              code: "insufficient_quota",
+              type: "insufficient_quota",
+              message: "You exceeded your current quota.",
+            },
+          },
+          { status: 429 },
+        ),
+      ),
+    );
+
+    const result = await extractExpenseFromImage("base64", "image/jpeg");
+
+    expect(result).toEqual({
+      error: EXPENSE_SCAN_MAINTENANCE_MESSAGE,
+      errorCode: "SCAN_SERVICE_UNAVAILABLE",
+    });
+    expect(JSON.stringify(result)).not.toContain("current quota");
+  });
+
+  it("presenta una caida de red como mantenimiento sin perder el contrato de reintento", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network down")));
+
+    await expect(
+      extractExpenseFromImage("base64", "image/jpeg"),
+    ).resolves.toEqual({
+      error: EXPENSE_SCAN_MAINTENANCE_MESSAGE,
+      errorCode: "SCAN_SERVICE_UNAVAILABLE",
+    });
   });
 });
 

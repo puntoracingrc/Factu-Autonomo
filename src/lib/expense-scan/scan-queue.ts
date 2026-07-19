@@ -3,7 +3,11 @@ export type ExpenseScanQueueStatus =
   | "ANALYZING"
   | "READ"
   | "NEEDS_REVIEW"
+  | "SERVICE_UNAVAILABLE"
   | "NOT_RECOGNIZED";
+
+export const EXPENSE_SCAN_MAINTENANCE_MESSAGE =
+  "El servicio de escáner está en mantenimiento. Prueba de nuevo en las próximas 24 horas.";
 
 export interface ExpenseScanFileIdentity {
   readonly name: string;
