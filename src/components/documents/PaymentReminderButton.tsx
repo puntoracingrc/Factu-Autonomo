@@ -11,6 +11,7 @@ import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import { Field, Textarea } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
+import { hasLegacyImportOrigin } from "@/lib/document-integrity/legacy-import-attestation";
 import { showFactuToast } from "@/lib/factu/occasional";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 import {
@@ -61,6 +62,10 @@ export function PaymentReminderButton({
   const [message, setMessage] = useState(defaultMessage);
 
   const reminderAvailable = canShowPaymentReminder(contactDoc);
+
+  if (hasLegacyImportOrigin(doc)) {
+    return null;
+  }
 
   if (!reminderAvailable && !showUnavailable) {
     return null;

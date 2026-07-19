@@ -17,4 +17,12 @@ describe("disponibilidad del recordatorio de pago", () => {
     expect(source).toContain("bg-amber-50 text-amber-300");
     expect(source).toContain("showTooltip={!hideTooltip}");
   });
+
+  it("no representa ninguna campana para documentos importados", () => {
+    expect(source).toContain("if (hasLegacyImportOrigin(doc))");
+    expect(source).toContain("return null;");
+    expect(source.indexOf("if (hasLegacyImportOrigin(doc))")).toBeLessThan(
+      source.indexOf("if (!reminderAvailable && !showUnavailable)"),
+    );
+  });
 });

@@ -2,6 +2,7 @@ import { buildDocumentPdfBlob } from "../pdf";
 import { buildPaymentReminderEmail } from "./templates/payment-reminder";
 import { MAX_PAYMENT_REMINDER_MESSAGE_LENGTH } from "./payment-reminder-request";
 import { issuerDisplayName, resolveIssuerForDocument } from "../issuer-snapshot";
+import { hasLegacyImportOrigin } from "../document-integrity/legacy-import-attestation";
 import { isPendingInvoicePayment } from "../income";
 import { hasClientEmail } from "../share";
 import type { BusinessProfile, Document } from "../types";
@@ -38,6 +39,9 @@ export interface SendPaymentReminderResult {
 export function validatePaymentReminderInput(
   input: SendPaymentReminderInput,
 ): string | null {
+  if (hasLegacyImportOrigin(input.doc)) {
+    return "Los recordatorios solo estan disponibles para facturas creadas en la aplicacion.";
+  }
   if (!isPendingInvoicePayment(input.doc)) {
     return "Solo se pueden enviar recordatorios de facturas pendientes de cobro.";
   }

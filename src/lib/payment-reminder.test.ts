@@ -100,4 +100,23 @@ describe("payment reminder", () => {
     });
     expect(canSendPaymentReminder(withPhone, "whatsapp")).toBe(true);
   });
+
+  it("oculta los recordatorios de todos los documentos importados", () => {
+    const imported = {
+      ...pendingInvoice,
+      legacyImportProvenance: {
+        schemaVersion: 2 as const,
+        kind: "external_import" as const,
+        importer: "generic_documents" as const,
+        importedAt: "2026-02-01T10:00:00.000Z",
+        provenanceRecordedAt: "2026-02-01T10:00:00.000Z",
+        issuerOrigin: "source_document" as const,
+        documentStateAtImport: "issued" as const,
+      },
+    };
+
+    expect(canShowPaymentReminder(imported)).toBe(false);
+    expect(canSendPaymentReminder(imported, "email")).toBe(false);
+    expect(canShowPaymentReminder(pendingInvoice)).toBe(true);
+  });
 });

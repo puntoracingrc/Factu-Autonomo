@@ -50,6 +50,7 @@ export type {
   SnapshotHashVerification,
 } from "@/lib/document-integrity/snapshots";
 export {
+  hasLegacyImportOrigin,
   hasLegacyImportProtectionClaim,
   inspectLegacyImportAttestation,
   inspectUsableHistoricalDocumentEvidence,
