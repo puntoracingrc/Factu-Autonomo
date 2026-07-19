@@ -60,6 +60,15 @@ describe("manual route help", () => {
     );
   });
 
+  it("envía el test de autónomos a su sección pública propia", () => {
+    expect(resolveManualSlug("/consultor-fiscal/diagnostico")).toBe(
+      "test-autonomos",
+    );
+    expect(manualHelpHref("/consultor-fiscal/diagnostico")).toBe(
+      "/ayuda/test-autonomos?from=%2Fconsultor-fiscal%2Fdiagnostico",
+    );
+  });
+
   it("envía Notificaciones al índice público sin abrir la ayuda fiscal protegida", () => {
     expect(resolveManualSlug("/consultor-fiscal/notificaciones")).toBeNull();
     expect(manualHelpHref("/consultor-fiscal/notificaciones")).toBe(

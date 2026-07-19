@@ -22,6 +22,7 @@ export const APP_ROUTES_WITH_MANUAL = [
   "/impuestos",
   "/consultor-fiscal",
   "/consultor-fiscal/calendario",
+  "/consultor-fiscal/diagnostico",
   "/proveedores",
   "/configuracion",
   ...RENTABILIDAD_REAL_ROUTES_WITH_MANUAL,

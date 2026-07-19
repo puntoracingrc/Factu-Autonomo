@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import { consultorFiscalSection } from "./sections/consultor-fiscal";
 
 function notificationManualText(): string {
+  const notificationStart = consultorFiscalSection.steps.findIndex((step) =>
+    step.title.includes("Preparar y analizar un lote de notificaciones"),
+  );
+
   return consultorFiscalSection.steps
-    .filter(
-      (step) =>
-        /^\d+\. /u.test(step.title) && Number.parseInt(step.title, 10) >= 7,
-    )
+    .slice(notificationStart)
     .flatMap((step) => [step.title, ...step.paragraphs, step.tip ?? ""])
     .join("\n");
 }
