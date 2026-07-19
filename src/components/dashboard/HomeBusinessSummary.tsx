@@ -536,6 +536,7 @@ function PendingInvoicesCard({
                   doc={document}
                   profile={data.profile}
                   showUnavailable
+                  hideTooltip
                 />
               }
             />

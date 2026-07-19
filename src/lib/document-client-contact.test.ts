@@ -74,6 +74,79 @@ describe("documentWithCurrentCustomerContact", () => {
     expect(hydrated.client.phone).toBe("612 345 678");
   });
 
+  it("tolera que una importación histórica separase nombre y apellidos de otro modo", () => {
+    const hydrated = documentWithCurrentCustomerContact(
+      {
+        ...doc,
+        customerId: "customer-old",
+        client: {
+          name: "Antonio Muñoz Guerra",
+          firstName: "Antonio Muñoz",
+          lastName: "Guerra",
+        },
+      },
+      [
+        {
+          ...customers[0],
+          id: "customer-old",
+          firstName: "Antonio Muñoz",
+          lastName: "Guerra",
+          name: "Antonio Muñoz Guerra",
+          email: undefined,
+          phone: undefined,
+        },
+        {
+          ...customers[0],
+          id: "customer-current",
+          firstName: "Antonio",
+          lastName: "Muñoz Guerra",
+          name: "Antonio Muñoz Guerra",
+          email: undefined,
+          phone: "610724941",
+        },
+      ],
+    );
+
+    expect(hydrated.client.phone).toBe("610724941");
+  });
+
+  it("no usa una coincidencia de nombre completo cuando los NIF discrepan", () => {
+    const hydrated = documentWithCurrentCustomerContact(
+      {
+        ...doc,
+        customerId: "customer-old",
+        client: {
+          name: "Antonio Muñoz Guerra",
+          nif: "11111111H",
+        },
+      },
+      [
+        {
+          ...customers[0],
+          id: "customer-old",
+          firstName: "Antonio",
+          lastName: "Muñoz Guerra",
+          name: "Antonio Muñoz Guerra",
+          nif: "11111111H",
+          email: undefined,
+          phone: undefined,
+        },
+        {
+          ...customers[0],
+          id: "customer-current",
+          firstName: "Antonio",
+          lastName: "Muñoz Guerra",
+          name: "Antonio Muñoz Guerra",
+          nif: "22222222J",
+          email: undefined,
+          phone: "610724941",
+        },
+      ],
+    );
+
+    expect(hydrated.client.phone).toBeUndefined();
+  });
+
   it("no elige un contacto si los duplicados históricos discrepan", () => {
     const hydrated = documentWithCurrentCustomerContact(
       {

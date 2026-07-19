@@ -33,6 +33,7 @@ function MobileLabel({ text }: { text: string }) {
 type IconActionCommon = {
   label: string;
   tooltip?: string;
+  showTooltip?: boolean;
   children: ReactNode;
   className?: string;
 };
@@ -40,6 +41,7 @@ type IconActionCommon = {
 export function IconActionButton({
   label,
   tooltip,
+  showTooltip = true,
   children,
   className,
   title,
@@ -51,11 +53,11 @@ export function IconActionButton({
     <button
       type="button"
       aria-label={tip}
-      title={title ?? tip}
+      title={showTooltip ? (title ?? tip) : undefined}
       className={actionShellClass(className)}
       {...props}
     >
-      <TooltipBubble text={tip} />
+      {showTooltip && <TooltipBubble text={tip} />}
       {children}
       <MobileLabel text={label} />
     </button>
@@ -65,6 +67,7 @@ export function IconActionButton({
 export function IconActionLink({
   label,
   tooltip,
+  showTooltip = true,
   children,
   className,
   href,
@@ -75,10 +78,10 @@ export function IconActionLink({
     <Link
       href={href}
       aria-label={tip}
-      title={tip}
+      title={showTooltip ? tip : undefined}
       className={actionShellClass(className)}
     >
-      <TooltipBubble text={tip} />
+      {showTooltip && <TooltipBubble text={tip} />}
       {children}
       <MobileLabel text={label} />
     </Link>
