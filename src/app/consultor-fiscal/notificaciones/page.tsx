@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { FiscalNotificationIntakeView } from "@/components/fiscal-notifications/FiscalNotificationIntakeView";
-import { FiscalNotificationGuideView } from "@/components/fiscal-notifications/FiscalNotificationGuideView";
-import { resolveFiscalNotificationGuideSelectionV1 } from "@/lib/fiscal-notifications/guide/catalog.v1";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +17,37 @@ interface FiscalNotificationsPageProps {
 
 function FiscalNotificationAnalyzerSection() {
   return <FiscalNotificationIntakeView />;
+}
+
+function FiscalNotificationGuideLinkSection() {
+  return (
+    <section
+      aria-labelledby="fiscal-notification-guide-link-title"
+      className="mx-auto mt-4 w-full max-w-6xl px-4 pb-12 sm:px-6"
+    >
+      <div className="rounded-2xl border border-blue-100 bg-white p-5 shadow-sm">
+        <p className="text-sm font-bold uppercase tracking-wide text-blue-700">
+          Qué tipos podemos leer hasta ahora
+        </p>
+        <h2
+          id="fiscal-notification-guide-link-title"
+          className="mt-1 text-xl font-bold text-slate-950"
+        >
+          Guía de notificaciones
+        </h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          Consulta las familias documentales que conoce el lector, qué
+          significan y qué conviene revisar, sin mezclarlo con el escáner.
+        </p>
+        <Link
+          href="/consultor-fiscal/notificaciones/guia"
+          className="mt-4 inline-flex min-h-11 items-center rounded-xl border-2 border-blue-200 bg-white px-4 font-semibold text-blue-800 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+        >
+          Ver guía de notificaciones
+        </Link>
+      </div>
+    </section>
+  );
 }
 
 export default async function FiscalNotificationsPage({
@@ -40,30 +70,8 @@ export default async function FiscalNotificationsPage({
     );
   }
 
-  const requestedGuideFamily = resolvedSearchParams.guia;
-  const guideSelection =
-    resolveFiscalNotificationGuideSelectionV1(requestedGuideFamily);
-
   return (
     <>
-      <nav
-        aria-label="Herramientas de Notificaciones y expedientes"
-        className="mx-auto mb-2 grid w-full max-w-6xl gap-3 px-4 sm:grid-cols-2 sm:px-6"
-      >
-        <a
-          href="#analizar-documento"
-          className="inline-flex min-h-12 items-center justify-center rounded-2xl border-2 border-blue-200 bg-white px-4 text-center font-semibold text-blue-800 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-        >
-          Analizar documento
-        </a>
-        <a
-          href="#guia-notificaciones"
-          className="inline-flex min-h-12 items-center justify-center rounded-2xl border-2 border-blue-200 bg-white px-4 text-center font-semibold text-blue-800 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-        >
-          Guía de notificaciones
-        </a>
-      </nav>
-
       <section
         id="analizar-documento"
         className="scroll-mt-6"
@@ -71,14 +79,7 @@ export default async function FiscalNotificationsPage({
       >
         <FiscalNotificationAnalyzerSection />
       </section>
-
-      <section
-        id="guia-notificaciones"
-        className="scroll-mt-6"
-        aria-label="Guía de notificaciones"
-      >
-        <FiscalNotificationGuideView selection={guideSelection} />
-      </section>
+      <FiscalNotificationGuideLinkSection />
     </>
   );
 }

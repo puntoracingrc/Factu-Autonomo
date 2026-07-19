@@ -32,6 +32,8 @@ describe("FiscalNotificationGuideView UI contract", () => {
     expect(viewSource).toContain('aria-live="polite"');
     expect(viewSource).toContain("searchFiscalNotificationGuideV1(");
     expect(viewSource).toContain("?guia=${encodeURIComponent(entry.familyId)}");
+    expect(viewSource).toContain("/consultor-fiscal/notificaciones/guia");
+    expect(detailSource).toContain("/consultor-fiscal/notificaciones/guia");
     expect(viewSource).toContain("#guia-notificaciones");
     expect(coverageSource).toContain(
       "FISCAL_NOTIFICATION_GUIDE_ENTRIES_V1.length",

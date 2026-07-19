@@ -155,7 +155,7 @@ function RelatedFamilies({
               className="rounded-xl bg-slate-50 p-3 dark:bg-slate-950"
             >
               <Link
-                href={`/consultor-fiscal/notificaciones?guia=${encodeURIComponent(related.familyId)}#guia-notificaciones`}
+                href={`/consultor-fiscal/notificaciones/guia?guia=${encodeURIComponent(related.familyId)}#guia-notificaciones`}
                 className={`inline-flex min-h-11 items-center gap-2 break-words font-semibold text-blue-800 hover:text-blue-950 dark:text-blue-200 dark:hover:text-blue-100 ${focusRing}`}
               >
                 {related.nameEs}
@@ -183,7 +183,7 @@ export function FiscalNotificationGuideDetail({
       className="space-y-5"
     >
       <Link
-        href="/consultor-fiscal/notificaciones#guia-notificaciones"
+        href="/consultor-fiscal/notificaciones/guia#guia-notificaciones"
         className={`inline-flex min-h-11 items-center gap-2 rounded-xl px-2 font-semibold text-blue-800 hover:bg-blue-50 dark:text-blue-200 dark:hover:bg-blue-950 ${focusRing}`}
       >
         <ArrowLeft className="h-4 w-4" aria-hidden="true" />
