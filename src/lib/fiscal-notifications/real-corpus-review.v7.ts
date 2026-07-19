@@ -2,7 +2,6 @@ import type { BaseExtractorIdV1 } from "./extractor-core/extractor-contract.v1";
 import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
 import type { RealCorpusFieldV2 } from "./extractor-core/real-corpus-extractor.v2";
 import type {
-  RealCorpusExplanationV7,
   RealCorpusExtractorOutcomeV7,
   RealCorpusInstallmentV7,
 } from "./extractor-core/real-corpus-extractor.v7";
@@ -101,24 +100,6 @@ function projectInstallment(item: RealCorpusInstallmentV7, index: number): Fisca
   });
 }
 
-function projectExplanation(familyId: string, explanation: RealCorpusExplanationV7): readonly FiscalNotificationVerticalSliceReviewFieldV1[] {
-  const entries = [
-    ["WHAT_IS", "Qué es", explanation.whatIs],
-    ["ACTION", "Qué conviene hacer", explanation.action],
-    ["DEADLINE", "Cómo se cuenta el plazo", explanation.deadline],
-    ["CONSEQUENCE", "Qué puede ocurrir", explanation.consequence],
-  ] as const;
-  return Object.freeze(entries.map(([code, label, displayValue]) => field({
-    fieldId: `real-corpus-v7:explanation:${code.toLowerCase()}`,
-    semantic: "DETAIL",
-    canonicalType: "EXPLICIT_CONSEQUENCE",
-    label,
-    displayValue,
-    normalizedValue: `V7:EXPLANATION:${familyId}:${code}`,
-    sourcePageNumbers: Object.freeze([1]),
-  })));
-}
-
 function emptyReview(): FiscalNotificationVerticalSliceReviewV1 {
   return parseFiscalNotificationVerticalSliceReviewV1({
     schemaVersion: 1,
@@ -142,27 +123,8 @@ export function projectRealCorpusReviewV7(outcome: RealCorpusExtractorOutcomeV7)
   const rule = resolveFamilyRuleV2(outcome.familyId);
   if (!rule) return emptyReview();
   const fields = [
-    field({
-      fieldId: "real-corpus-v7:recognized-family",
-      semantic: "DETAIL",
-      canonicalType: "FACT_OR_GROUND",
-      label: "Reconocimiento documental",
-      displayValue: "Título, autoridad y estructura coinciden",
-      normalizedValue: "V7:EXACT_TITLE_AUTHORITY_STRUCTURE",
-      sourcePageNumbers: Object.freeze([1]),
-    }),
     ...outcome.fields.map(projectField),
     ...outcome.installments.map(projectInstallment),
-    ...(outcome.paymentFormOperationCount > 0 ? [field({
-      fieldId: "real-corpus-v7:payment-form-status",
-      semantic: "DETAIL",
-      canonicalType: "FACT_OR_GROUND",
-      label: "Carta de pago adjunta",
-      displayValue: "Las copias representan una sola operación y no acreditan el pago",
-      normalizedValue: "V7:PAYMENT_FORM_ONE_OPERATION_NOT_PAYMENT",
-      sourcePageNumbers: Object.freeze([1]),
-    })] : []),
-    ...projectExplanation(outcome.familyId, outcome.explanation),
   ];
   return parseFiscalNotificationVerticalSliceReviewV1({
     schemaVersion: 1,

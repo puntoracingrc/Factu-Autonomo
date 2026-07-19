@@ -1,10 +1,7 @@
 import type { BaseExtractorIdV1 } from "./extractor-core/extractor-contract.v1";
 import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
 import type { RealCorpusFieldV2 } from "./extractor-core/real-corpus-extractor.v2";
-import type {
-  RealCorpusExplanationV5,
-  RealCorpusInstallmentV5,
-} from "./extractor-core/real-corpus-extractor.v5";
+import type { RealCorpusInstallmentV5 } from "./extractor-core/real-corpus-extractor.v5";
 import type { RealCorpusExtractorOutcomeV6 } from "./extractor-core/real-corpus-extractor.v6";
 import {
   parseFiscalNotificationVerticalSliceReviewV1,
@@ -221,31 +218,6 @@ function projectInstallment(
   });
 }
 
-function projectExplanation(
-  familyId: string,
-  explanation: RealCorpusExplanationV5,
-): readonly FiscalNotificationVerticalSliceReviewFieldV1[] {
-  const entries = [
-    ["WHAT_IS", "Qué es", explanation.whatIs],
-    ["ACTION", "Qué conviene hacer", explanation.action],
-    ["DEADLINE", "Cómo se cuenta el plazo", explanation.deadline],
-    ["CONSEQUENCE", "Qué puede ocurrir", explanation.consequence],
-  ] as const;
-  return Object.freeze(
-    entries.map(([code, label, displayValue]) =>
-      field({
-        fieldId: `real-corpus-v6:explanation:${code.toLowerCase()}`,
-        semantic: "DETAIL",
-        canonicalType: "EXPLICIT_CONSEQUENCE",
-        label,
-        displayValue,
-        normalizedValue: `V6:EXPLANATION:${familyId}:${code}`,
-        sourcePageNumbers: Object.freeze([1]),
-      }),
-    ),
-  );
-}
-
 function documentPartsSummary(outcome: RealCorpusExtractorOutcomeV6): string {
   const parts: string[] = [];
   if (outcome.segments.some((segment) => segment.type === "SCHEDULE")) {
@@ -298,36 +270,9 @@ export function projectRealCorpusReviewV6(
     return emptyReview();
   const rule = resolveFamilyRuleV2(outcome.familyId);
   if (!rule) return emptyReview();
-  const paymentPage =
-    outcome.segments.find((segment) => segment.type === "PAYMENT_FORM")
-      ?.pageNumbers[0] ?? 1;
   const fields = [
-    field({
-      fieldId: "real-corpus-v6:recognized-family",
-      semantic: "DETAIL",
-      canonicalType: "FACT_OR_GROUND",
-      label: "Reconocimiento documental",
-      displayValue: "Título, autoridad y estructura coinciden",
-      normalizedValue: "V6:EXACT_TITLE_AUTHORITY_STRUCTURE",
-      sourcePageNumbers: Object.freeze([1]),
-    }),
     ...outcome.fields.map(projectField),
     ...outcome.installments.map(projectInstallment),
-    ...(outcome.paymentFormOperationCount > 0
-      ? [
-          field({
-            fieldId: "real-corpus-v6:payment-form-status",
-            semantic: "DETAIL",
-            canonicalType: "FACT_OR_GROUND",
-            label: "Carta de pago adjunta",
-            displayValue:
-              "Sirve para pagar; sus copias son una sola operación y no acreditan el pago",
-            normalizedValue: "V6:PAYMENT_FORM_ONLY",
-            sourcePageNumbers: Object.freeze([paymentPage]),
-          }),
-        ]
-      : []),
-    ...projectExplanation(outcome.familyId, outcome.explanation),
   ];
   return parseFiscalNotificationVerticalSliceReviewV1({
     schemaVersion: 1,

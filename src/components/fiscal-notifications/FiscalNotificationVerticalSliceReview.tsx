@@ -15,6 +15,7 @@ import { isAeatOfficialCatalogProfileIdV9 } from "@/lib/fiscal-notifications/kno
 import { explainAeatOfficialCatalogDocumentV9 } from "@/lib/fiscal-notifications/official-catalog-explanation.v9";
 import { isAeatP0DeepProfileIdV10 } from "@/lib/fiscal-notifications/knowledge/p0-deep-contracts.v10";
 import { explainAeatP0DeepDocumentV10 } from "@/lib/fiscal-notifications/p0-deep-explanation.v10";
+import { shouldExposeFiscalNotificationField } from "@/lib/fiscal-notifications/document-fact-observation.v1";
 
 export interface FiscalNotificationVerticalSliceReviewProps {
   readonly review: FiscalNotificationVerticalSliceReviewV1;
@@ -352,9 +353,10 @@ function ExtractedFields({
 }: {
   readonly fields: readonly FiscalNotificationVerticalSliceReviewFieldV1[];
 }) {
-  const installments = fields.flatMap(projectInstallmentRow);
+  const sourceFields = fields.filter(shouldExposeFiscalNotificationField);
+  const installments = sourceFields.flatMap(projectInstallmentRow);
   const visible = deduplicateFields(
-    fields.filter((field) => !isInstallmentField(field)),
+    sourceFields.filter((field) => !isInstallmentField(field)),
   );
   return h(
     "div",

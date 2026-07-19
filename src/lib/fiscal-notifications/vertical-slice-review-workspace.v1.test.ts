@@ -537,13 +537,13 @@ describe("vertical slice structured workspace v1", () => {
           valueRaw: "2026-07-12",
           page: 1,
         }),
-        expect.objectContaining({
-          labelRaw: "VSR2|detail:subject|DETAIL|NOTIFICATION_SUBJECT|Asunto",
-          valueRaw: "NOTIFICATION_SUBJECT",
-          page: 1,
-        }),
       ]),
     );
+    expect(
+      JSON.stringify(
+        result.workspace.analysisSnapshots[0]?.structuredData.unknownFields,
+      ),
+    ).not.toMatch(/NOTIFICATION_SUBJECT|ROLE:/u);
     expect(JSON.stringify(result.workspace)).not.toMatch(
       /PERSONA SINTÉTICA|12345678Z|Resolución sintética notificada/iu,
     );
@@ -980,6 +980,120 @@ describe("vertical slice structured workspace v1", () => {
     ).toThrowError(
       expect.objectContaining({ code: "NO_STRUCTURED_FACTS" }),
     );
+
+    const recognizedWithInternalTokens = {
+      ...recognizedSource,
+      ephemeralVerticalSliceReview: {
+        ...recognizedSource.ephemeralVerticalSliceReview,
+        status: "REVIEW_REQUIRED",
+        documents: [
+          {
+            ...recognizedSource.ephemeralVerticalSliceReview.documents[0]!,
+            familyId: "notification.publication_or_appearance",
+            title: "Publicación o comparecencia para notificación",
+            fields: [
+              {
+                ...field({
+                  fieldId: "real-corpus:recognized-family",
+                  semantic: "DETAIL",
+                  canonicalType: "FACT_OR_GROUND",
+                  label: "Reconocimiento documental",
+                  sourcePageNumbers: [1],
+                }),
+                displayValue: "Título y autoridad coinciden",
+                normalizedValue: "EXACT_TITLE_AND_AUTHORITY",
+              },
+              {
+                ...field({
+                  fieldId: "real-corpus:plain-explanation",
+                  semantic: "DETAIL",
+                  canonicalType: "EXPLICIT_CONSEQUENCE",
+                  label: "Qué significa",
+                  sourcePageNumbers: [1],
+                }),
+                displayValue:
+                  "La diligencia acredita la publicación, pero no permite afirmar la fecha efectiva de notificación.",
+                normalizedValue:
+                  "EXPLANATION:notification.publication_or_appearance:PUBLICATION_DILIGENCE",
+              },
+              {
+                ...field({
+                  fieldId: "real-corpus:APPEARANCE_DURATION:0",
+                  semantic: "DETAIL",
+                  canonicalType: "FACT_OR_GROUND",
+                  label: "Plazo de comparecencia",
+                  sourcePageNumbers: [1],
+                }),
+                displayValue: "15",
+                normalizedValue: "INTEGER:APPEARANCE_DURATION:15",
+              },
+              {
+                ...field({
+                  fieldId: "real-corpus:PROVES_UNDERLYING_ACT_CONTENT:1",
+                  semantic: "DETAIL",
+                  canonicalType: "FACT_OR_GROUND",
+                  label: "Explica el contenido del acto citado",
+                  sourcePageNumbers: [1],
+                }),
+                displayValue: "No",
+                normalizedValue:
+                  "BOOLEAN:PROVES_UNDERLYING_ACT_CONTENT:FALSE",
+              },
+            ],
+          },
+        ],
+      },
+    } as unknown as FiscalNotificationLocalAnalysisResult;
+    expect(() =>
+      appendFiscalNotificationVerticalSliceReviewV1({
+        ownerScope: OWNER,
+        reviewId: REVIEW_ID,
+        createdAt: CREATED_AT,
+        workspace: null,
+        analysis: recognizedWithInternalTokens,
+      }),
+    ).toThrowError(
+      expect.objectContaining({ code: "NO_STRUCTURED_FACTS" }),
+    );
+
+    const emptyTaxDataReport = {
+      ...recognizedSource,
+      ephemeralVerticalSliceReview: {
+        ...recognizedSource.ephemeralVerticalSliceReview,
+        status: "REVIEW_REQUIRED",
+        documents: [
+          {
+            ...recognizedSource.ephemeralVerticalSliceReview.documents[0]!,
+            familyId: "information.tax_data_report",
+            title: "Datos fiscales",
+            fields: [
+              {
+                ...field({
+                  fieldId: "real-corpus:recognized-family",
+                  semantic: "DETAIL",
+                  canonicalType: "FACT_OR_GROUND",
+                  label: "Reconocimiento documental",
+                  sourcePageNumbers: [1],
+                }),
+                displayValue: "Título y autoridad coinciden",
+                normalizedValue: "EXACT_TITLE_AND_AUTHORITY",
+              },
+            ],
+          },
+        ],
+      },
+    } as unknown as FiscalNotificationLocalAnalysisResult;
+    expect(() =>
+      appendFiscalNotificationVerticalSliceReviewV1({
+        ownerScope: OWNER,
+        reviewId: REVIEW_ID,
+        createdAt: CREATED_AT,
+        workspace: null,
+        analysis: emptyTaxDataReport,
+      }),
+    ).toThrowError(
+      expect.objectContaining({ code: "NO_STRUCTURED_FACTS" }),
+    );
   });
 
   it("omite un segmento sin datos útiles y conserva los documentos estructurados", () => {
@@ -1010,6 +1124,86 @@ describe("vertical slice structured workspace v1", () => {
     expect(result.workspace.documents).toHaveLength(1);
     expect(result.workspace.documents[0]?.titleRaw).toBe(
       "Liquidación provisional",
+    );
+  });
+
+  it("persiste una ficha válida sin exponer metadatos ni tokens internos", () => {
+    const source = structuredClone(analysis()) as unknown as {
+      ephemeralVerticalSliceReview: {
+        documents: Array<{ fields: unknown[]; [key: string]: unknown }>;
+      };
+    };
+    source.ephemeralVerticalSliceReview.documents = [
+      {
+        ...source.ephemeralVerticalSliceReview.documents[0]!,
+        fields: [
+          {
+            ...field({
+              fieldId: "real-corpus:recognized-family",
+              semantic: "DETAIL",
+              canonicalType: "FACT_OR_GROUND",
+              label: "Reconocimiento documental",
+              sourcePageNumbers: [1],
+            }),
+            displayValue: "Título y autoridad coinciden",
+            normalizedValue: "EXACT_TITLE_AND_AUTHORITY",
+          },
+          {
+            ...field({
+              fieldId: "real-corpus:plain-explanation",
+              semantic: "DETAIL",
+              canonicalType: "EXPLICIT_CONSEQUENCE",
+              label: "Qué significa",
+              sourcePageNumbers: [1],
+            }),
+            displayValue:
+              "La diligencia acredita la publicación, pero no permite afirmar la fecha efectiva de notificación.",
+            normalizedValue:
+              "EXPLANATION:notification.publication_or_appearance:PUBLICATION_DILIGENCE",
+          },
+          field({
+            fieldId: "reference:publication",
+            semantic: "REFERENCE",
+            canonicalType: "ACT_ID",
+            label: "Referencia del acto citado",
+            displayValue: "PUB-SYN-WORKSPACE-001",
+            normalizedValue: "PUB-SYN-WORKSPACE-001",
+            sourcePageNumbers: [1],
+            sourceLabel: "Referencia del acto citado",
+          }),
+          field({
+            fieldId: "date:publication",
+            semantic: "DATE",
+            canonicalType: "ACTION_DATE",
+            label: "Fecha de publicación",
+            normalizedValue: "2026-07-18",
+            sourcePageNumbers: [1],
+            sourceLabel: "Fecha de publicación",
+          }),
+        ],
+      },
+    ];
+
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: source as unknown as FiscalNotificationLocalAnalysisResult,
+    });
+
+    expect(result.status).toBe("APPLIED");
+    expect(result.workspace.documents).toHaveLength(1);
+    expect(result.workspace.references.map((item) => item.rawValue)).toEqual([
+      "PUB-SYN-WORKSPACE-001",
+    ]);
+    const serializedUnknownFields = JSON.stringify(
+      result.workspace.analysisSnapshots[0]?.structuredData.unknownFields,
+    );
+    expect(serializedUnknownFields).toContain("PUB-SYN-WORKSPACE-001");
+    expect(serializedUnknownFields).toContain("2026-07-18");
+    expect(serializedUnknownFields).not.toMatch(
+      /EXACT_|INTEGER:|BOOLEAN:|EXPLANATION:|APPEARANCE_DURATION|UNDERLYING_ACT_CONTENT|SOURCE_PAGE_RANGE|Páginas en el PDF/iu,
     );
   });
 });

@@ -17,6 +17,7 @@ import type {
   FiscalNotificationsWorkspace,
   UnknownExtractedField,
 } from "./types";
+import { isUsefulObservedFiscalNotificationField } from "./document-fact-observation.v1";
 import {
   parseFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewDocumentV1,
@@ -261,14 +262,7 @@ export function appendFiscalNotificationVerticalSliceReviewV1(
 function hasPersistableDocumentFacts(
   document: FiscalNotificationVerticalSliceReviewDocumentV1,
 ): boolean {
-  return document.fields.some(
-    (field) =>
-      field.semantic !== "STATUS" &&
-      !(
-        field.semantic === "PARTY" &&
-        field.canonicalType === "ISSUING_AUTHORITY"
-      ),
-  );
+  return document.fields.some(isUsefulObservedFiscalNotificationField);
 }
 
 function appendDocument(input: {
@@ -297,23 +291,15 @@ function appendDocument(input: {
 
   const evidence: FieldEvidence[] = [];
   const references: FiscalNotificationsWorkspace["references"] = [];
-  const unknownFields: UnknownExtractedField[] = [
-    {
-      labelRaw: "VSR1|DETAIL|SOURCE_PAGE_RANGE|Páginas en el PDF",
-      valueRaw:
-        document.pageFrom === document.pageTo
-          ? String(document.pageFrom)
-          : `${document.pageFrom}–${document.pageTo}`,
-      page: document.pageFrom,
-      confidence: "EXACT",
-    },
-  ];
+  const unknownFields: UnknownExtractedField[] = [];
   const moneyFacts: NonNullable<
     AdministrativeDomainProjection["moneyFacts"]
   >[number][] = [];
   const evidenceIds = new Set<string>();
 
-  document.fields.forEach((field, fieldIndex) => {
+  document.fields
+    .filter(isUsefulObservedFiscalNotificationField)
+    .forEach((field, fieldIndex) => {
     const retainedValue = retainedTypedFieldValue(field);
     const fieldEvidenceIds = field.sourcePageNumbers.map((pageNumber) => {
       const evidenceId = `evidence:${reviewUuid}:vertical:${persistenceKey}:${fieldIndex}:${pageNumber}`;

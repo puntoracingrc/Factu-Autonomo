@@ -379,6 +379,87 @@ describe("fiscal notification document input analysis", () => {
     });
   });
 
+  it("extracts publication or appearance evidence only from observed printed facts", async () => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input(
+        [
+          "Agencia Estatal de Administración Tributaria",
+          "DILIGENCIA DE PUBLICACIÓN DEL ANUNCIO DE CITACIÓN PARA NOTIFICACIÓN POR COMPARECENCIA",
+          "DILIGENCIA DE PUBLICACIÓN",
+          "NOTIFICACIÓN POR COMPARECENCIA",
+          "Identificador: PUB-SYN-PIPELINE-001",
+          "Referencia del acto citado: ACT-SYN-PIPELINE-001",
+          "Tipo del acto citado: EXECUTIVE_LIQUIDATION",
+          "Fecha de publicación: 18/07/2026",
+          "Número de publicación: BOE-SYN-2026-0718",
+          "Fecha de emisión: 19/07/2026",
+        ].join("\n"),
+      ),
+    );
+
+    const document = result.verticalSliceReview.documents.find(
+      (item) => item.familyId === "notification.publication_or_appearance",
+    );
+    expect(document).toMatchObject({
+      extractorId: "notification-envelope",
+      title: "Publicación o comparecencia para notificación",
+      fields: expect.arrayContaining([
+        expect.objectContaining({
+          fieldId: expect.stringContaining("CERTIFICATE_OR_COMMUNICATION_ID"),
+          normalizedValue: "PUB-SYN-PIPELINE-001",
+        }),
+        expect.objectContaining({
+          fieldId: expect.stringContaining("UNDERLYING_ACT_REFERENCE"),
+          normalizedValue: "ACT-SYN-PIPELINE-001",
+        }),
+        expect.objectContaining({
+          fieldId: expect.stringContaining("PUBLICATION_DATE"),
+          normalizedValue: "2026-07-18",
+        }),
+        expect.objectContaining({
+          fieldId: expect.stringContaining("ISSUE_DATE"),
+          normalizedValue: "2026-07-19",
+        }),
+      ]),
+    });
+    expect(JSON.stringify(document?.fields)).not.toMatch(
+      /INTEGER:|BOOLEAN:|APPEARANCE_DURATION|PROVES_UNDERLYING_ACT_CONTENT|EXPLANATION:/u,
+    );
+  });
+
+  it("does not turn a title-only tax data profile into a saveable fact set", async () => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input(
+        [
+          "Agencia Estatal de Administración Tributaria",
+          "sede.agenciatributaria.gob.es",
+          "Datos fiscales",
+        ].join("\n"),
+      ),
+    );
+
+    expect(result.verticalSliceReview).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      documents: [
+        expect.objectContaining({
+          familyId: "information.tax_data_report",
+          title: "Datos fiscales",
+        }),
+      ],
+    });
+    expect(
+      result.verticalSliceReview.documents.flatMap((document) =>
+        document.fields.map((field) => field.fieldId),
+      ),
+    ).not.toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("DRAFT_AVAILABLE"),
+        expect.stringContaining("PARTICIPANT_COUNT"),
+        expect.stringContaining("SECTION_ROW_COUNT"),
+      ]),
+    );
+  });
+
   it("returns no family or facts for a blank bounded input", async () => {
     expect(await analyzeFiscalNotificationDocumentInput(input(""))).toEqual({
       hasText: false,

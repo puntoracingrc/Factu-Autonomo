@@ -2149,11 +2149,16 @@ function assertRealCorpusSerializableFieldPrivacyV2(
     }
     const closedText = /^TEXT:[A-Z0-9_]+:(.+)$/u.exec(normalized);
     if (
-      closedText &&
-      REAL_CORPUS_DETAIL_VALUE_PATTERNS_V2.some((pattern) =>
-        pattern.test(closedText[1]!),
-      ) &&
-      normalizeClosedRealCorpusDisplayV2(display) === closedText[1]
+      ((closedText &&
+        REAL_CORPUS_DETAIL_VALUE_PATTERNS_V2.some((pattern) =>
+          pattern.test(closedText[1]!),
+        ) &&
+        normalizeClosedRealCorpusDisplayV2(display) === closedText[1]) ||
+        (!closedText &&
+          REAL_CORPUS_DETAIL_VALUE_PATTERNS_V2.some((pattern) =>
+            pattern.test(normalized),
+          ) &&
+          normalizeClosedRealCorpusDisplayV2(display) === normalized))
     ) {
       return true;
     }

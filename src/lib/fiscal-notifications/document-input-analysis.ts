@@ -171,6 +171,10 @@ export async function analyzeFiscalNotificationDocumentInput(
     realCorpusOutcomeV3?.status === "REVIEW_REQUIRED"
       ? realCorpusOutcomeV3.familyId
       : null;
+  const v2FamilyId =
+    realCorpusOutcome?.status === "REVIEW_REQUIRED"
+      ? realCorpusOutcome.familyId
+      : null;
   const v4FamilyId =
     realCorpusOutcomeV4?.status === "REVIEW_REQUIRED"
       ? realCorpusOutcomeV4.familyId
@@ -189,6 +193,8 @@ export async function analyzeFiscalNotificationDocumentInput(
       : null;
   const reviewsOutsideLatestFamily = profileReviews.filter(
     (review) =>
+      (v2FamilyId === null ||
+        review.documents.every((document) => document.familyId !== v2FamilyId)) &&
       (v3FamilyId === null ||
         review.documents.every((document) => document.familyId !== v3FamilyId)) &&
       (v4FamilyId === null ||

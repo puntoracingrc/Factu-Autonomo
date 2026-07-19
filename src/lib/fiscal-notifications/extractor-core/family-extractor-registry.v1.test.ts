@@ -65,4 +65,20 @@ describe("family to reusable extractor registry v1", () => {
       ],
     });
   });
+
+  it("wires every catalog family to a concrete field contract", () => {
+    for (const binding of FISCAL_NOTIFICATION_FAMILY_EXTRACTOR_BINDINGS_V1) {
+      const rule = FISCAL_NOTIFICATION_FAMILY_RULES_V2.find(
+        (candidate) => candidate.familyId === binding.familyId,
+      );
+      expect(rule, binding.familyId).toBeDefined();
+      expect(rule?.extractorId, binding.familyId).toBe(binding.extractorId);
+      expect(binding.additionalFieldIds.length, binding.familyId).toBeGreaterThan(
+        0,
+      );
+      expect(binding.presentationViewId, binding.familyId).toContain(
+        `${binding.extractorId}.review-card.v1`,
+      );
+    }
+  });
 });

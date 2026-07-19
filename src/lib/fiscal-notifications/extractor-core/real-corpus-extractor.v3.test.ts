@@ -787,12 +787,16 @@ describe("AEAT real corpus extractor V3", () => {
     expect(familyDocuments[0]?.fields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          fieldId: "real-corpus-v3:installment:0",
+          fieldId: "real-corpus-v3:DEBT_KEY:0",
+          displayValue: "A9999900010005006",
         }),
         expect.objectContaining({
-          fieldId: "real-corpus-v3:explanation:action",
+          fieldId: "real-corpus-v3:installment:0",
         }),
       ]),
+    );
+    expect(JSON.stringify(familyDocuments[0]?.fields)).not.toMatch(
+      /recognized-family|V3:EXPLANATION|V3:EXACT|payment-form-status/u,
     );
     expect(persisted.permitsDebtCreation).toBe(false);
   });
@@ -915,7 +919,15 @@ describe("AEAT real corpus extractor V3", () => {
         JSON.parse(JSON.stringify(review)),
       );
       expect(persisted.documents).toHaveLength(1);
-      expect(persisted.documents[0]?.fields.length).toBeGreaterThan(5);
+      expect(persisted.documents[0]?.fields.length).toBeGreaterThan(0);
+      expect(
+        persisted.documents[0]?.fields.every(
+          (field) => field.sourcePageNumbers.length > 0,
+        ),
+      ).toBe(true);
+      expect(JSON.stringify(persisted.documents[0]?.fields)).not.toMatch(
+        /recognized-family|V3:EXPLANATION|V3:EXACT|payment-form-status/u,
+      );
       expect(persisted.permitsDebtCreation).toBe(false);
       expect(persisted.permitsPaymentAction).toBe(false);
       families.add(String(persisted.documents[0]?.familyId));
