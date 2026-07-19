@@ -34,6 +34,8 @@ export function DocumentPdfShareActions({
   const canShare = canShareDocumentFromList(doc);
   const integrityBlocked = doc.snapshotIntegrity?.status === "blocked";
   const legacyImportedAccepted = isUsableLegacyImportedDocument(doc);
+  // En históricos importados cualquier PDF generado es una reconstrucción:
+  // no sustituye al original ni se usa para marcarlo como enviado desde Factu.
 
   if (integrityBlocked) {
     return (
@@ -77,12 +79,8 @@ export function DocumentPdfShareActions({
     <>
       {showPreview && (
         <IconActionButton
-          label="Abrir PDF"
-          tooltip={
-            legacyImportedAccepted
-              ? "Abre una reconstrucción PDF desde los datos importados; no sustituye al original"
-              : "Abre el PDF en una pestaña nueva; desde el visor puedes imprimirlo exacto"
-          }
+          label="Vista previa"
+          tooltip="Vista previa"
           onClick={() => void handlePdfPreview()}
           disabled={previewLoading}
           className="bg-slate-100 text-slate-700 hover:bg-slate-200"
@@ -92,23 +90,15 @@ export function DocumentPdfShareActions({
       )}
       <IconActionButton
         label="PDF"
-        tooltip={
-          legacyImportedAccepted
-            ? "Descargar una reconstrucción PDF; conserva el original"
-            : "Descargar PDF"
-        }
+        tooltip="Descargar PDF"
         onClick={() => void downloadDocumentPdf(doc, profile, pdfOptions)}
         className="bg-blue-50 text-blue-700 hover:bg-blue-100"
       >
         <Download className="h-5 w-5" />
       </IconActionButton>
       <IconActionButton
-        label="Imprimir PDF"
-        tooltip={
-          legacyImportedAccepted
-            ? "Genera una reconstrucción para imprimir; no sustituye al original"
-            : "Genera e imprime solo el PDF de este documento"
-        }
+        label="Imprimir"
+        tooltip="Imprimir"
         onClick={() => void handlePrint()}
         disabled={printLoading}
         className="bg-slate-100 text-slate-700 hover:bg-slate-200"

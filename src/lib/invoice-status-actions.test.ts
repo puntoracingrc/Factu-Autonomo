@@ -132,7 +132,7 @@ describe("invoice status action copy", () => {
     expect(documentStatusLabel(pending)).toBe("Pendiente de cobro");
     expect(documentStatusColor(pending)).toContain("amber");
     expect(documentStatusHint(pending)).toContain("estado original importado");
-    expect(collectionActionCopy(pending, false).label).toBe("Cobrar");
+    expect(collectionActionCopy(pending, false).label).toBe("Cobrada");
   });
 
   it("muestra como rectificada una factura original con rectificativa asociada", () => {
@@ -207,11 +207,9 @@ describe("invoice status action copy", () => {
     expect(canMarkAsCollected(draft)).toBe(false);
     expect(canMarkAsCollected(quote)).toBe(false);
     expect(canMarkAsCollected(emitted)).toBe(true);
-    expect(collectionActionCopy(emitted, false).tooltip).toContain(
-      "No cobra por banco ni pasarela",
-    );
-    expect(collectionActionCopy(emitted, false).tooltip).not.toContain(
-      "crear un recibo",
+    expect(collectionActionCopy(emitted, false).label).toBe("Cobrada");
+    expect(collectionActionCopy(emitted, false).tooltip).toBe(
+      "Marcar como cobrada",
     );
     expect(collectionActionCopy(markDocumentPaid(emitted), true).label).toBe(
       "Cobrada",
@@ -231,7 +229,7 @@ describe("invoice status action copy", () => {
     expect(PAYMENT_REMINDER_COPY.dialogTitle).toBe(
       "Preparar recordatorio de pago",
     );
-    expect(RECTIFICATION_ACTION_COPY.tooltip).toContain("No envía nada a AEAT");
+    expect(RECTIFICATION_ACTION_COPY.tooltip).toBe("Rectificar factura");
   });
 
   it("solo muestra recordatorio en facturas pendientes con contacto", () => {
