@@ -5,7 +5,7 @@ import {
 } from "./input-contract";
 
 export const REAL_CORPUS_RELATION_ENGINE_VERSION_V4 =
-  "real-corpus-relations.2026-07-17.v4" as const;
+  "real-corpus-relations.2026-07-19.v4.1" as const;
 
 export type RealCorpusRelationTypeV4 =
   | "RESOLVES"
@@ -51,7 +51,6 @@ export interface RealCorpusInstallmentIdentityInputV4 {
   readonly issuer: "AEAT";
   readonly debtKey: string;
   readonly dueDate: string;
-  readonly principalCents: number;
   readonly paymentFormReference: string;
 }
 
@@ -125,10 +124,9 @@ export function buildRealCorpusInstallmentIdentityV4(value: RealCorpusInstallmen
     value.issuer !== "AEAT" ||
     !validReference(value.debtKey) || !value.debtKey ||
     !validDate(value.dueDate) || !value.dueDate ||
-    !validCents(value.principalCents) ||
     !validReference(value.paymentFormReference) || !value.paymentFormReference
   ) throw new Error("INVALID_REAL_CORPUS_INSTALLMENT_IDENTITY_V4");
-  return ["aeat-installment-v4", encodeURIComponent(value.ownerScope), value.issuer, value.debtKey, value.dueDate, String(value.principalCents), value.paymentFormReference].join(":");
+  return ["aeat-installment-v4", encodeURIComponent(value.ownerScope), value.issuer, value.debtKey, value.dueDate, value.paymentFormReference].join(":");
 }
 
 function relation(input: Omit<RealCorpusRelationV4, "engineVersion" | "requiresHumanReview" | "permitsAutomaticAction">): RealCorpusRelationV4 {
@@ -142,7 +140,7 @@ function exact(input: Omit<RealCorpusRelationV4, "engineVersion" | "status" | "r
   return relation({ ...input, status: "SYSTEM_CONFIRMED_EXACT" });
 }
 
-/** Exact relations require owner, issuer and the complete family-specific tuple. */
+/** Exact relations require owner, issuer and strong family-specific identifiers. */
 export function relateRealCorpusDocumentsV4(source: RealCorpusRelationDocumentV4, target: RealCorpusRelationDocumentV4): readonly RealCorpusRelationV4[] {
   if (!validDocument(source) || !validDocument(target) || source.documentId === target.documentId || source.ownerScope !== target.ownerScope || source.issuer !== target.issuer) return Object.freeze([]);
   const results: RealCorpusRelationV4[] = [];
@@ -153,12 +151,12 @@ export function relateRealCorpusDocumentsV4(source: RealCorpusRelationDocumentV4
   }
   const enforcement = source.familyId === "collection.enforcement_order" ? source : target.familyId === "collection.enforcement_order" ? target : null;
   const deferral = source.familyId === "collection.deferral_grant" ? source : target.familyId === "collection.deferral_grant" ? target : null;
-  if (enforcement && deferral && enforcement.debtKey && enforcement.debtKey === deferral.debtKey && enforcement.dueDate && enforcement.dueDate === deferral.dueDate && enforcement.principalCents !== null && enforcement.principalCents === deferral.installmentTotalCents && enforcement.paymentFormReference) {
-    results.push(exact({ relationType: "CLAIMS_UNPAID_INSTALLMENT", sourceDocumentId: enforcement.documentId, targetDocumentId: deferral.documentId, exactReference: enforcement.debtKey, installmentIdentity: buildRealCorpusInstallmentIdentityV4({ ownerScope: source.ownerScope, issuer: "AEAT", debtKey: enforcement.debtKey, dueDate: enforcement.dueDate, principalCents: enforcement.principalCents, paymentFormReference: enforcement.paymentFormReference }), observedAmountCents: enforcement.principalCents, phrase: "Esta providencia reclama la primera cuota del fraccionamiento anterior; el principal coincide con la base de la cuota más su interés." }));
+  if (enforcement && deferral && enforcement.debtKey && enforcement.debtKey === deferral.debtKey && enforcement.dueDate && enforcement.dueDate === deferral.dueDate && enforcement.paymentFormReference) {
+    results.push(exact({ relationType: "CLAIMS_UNPAID_INSTALLMENT", sourceDocumentId: enforcement.documentId, targetDocumentId: deferral.documentId, exactReference: enforcement.debtKey, installmentIdentity: buildRealCorpusInstallmentIdentityV4({ ownerScope: source.ownerScope, issuer: "AEAT", debtKey: enforcement.debtKey, dueDate: enforcement.dueDate, paymentFormReference: enforcement.paymentFormReference }), observedAmountCents: null, phrase: "Esta providencia reclama la cuota del fraccionamiento identificada por la misma deuda y fecha de vencimiento." }));
   }
   const bank = source.familyId === "seizure.bank_account" ? source : target.familyId === "seizure.bank_account" ? target : null;
-  if (enforcement && bank && enforcement.debtKey && enforcement.debtKey === bank.debtKey && enforcement.enforcementOrdinaryTotalCents !== null && enforcement.enforcementOrdinaryTotalCents === bank.seizedAmountCents) {
-    results.push(exact({ relationType: "ENFORCES", sourceDocumentId: bank.documentId, targetDocumentId: enforcement.documentId, exactReference: enforcement.debtKey, installmentIdentity: null, observedAmountCents: bank.seizedAmountCents, phrase: "Este embargo bancario continúa la providencia anterior por la misma deuda y el mismo importe ordinario." }));
+  if (enforcement && bank && enforcement.debtKey && enforcement.debtKey === bank.debtKey) {
+    results.push(exact({ relationType: "ENFORCES", sourceDocumentId: bank.documentId, targetDocumentId: enforcement.documentId, exactReference: enforcement.debtKey, installmentIdentity: null, observedAmountCents: null, phrase: "Este embargo bancario continúa la providencia anterior identificada por la misma deuda." }));
   }
   const credit = source.familyId === "seizure.commercial_credits" ? source : target.familyId === "seizure.commercial_credits" ? target : null;
   const reiteration = source.familyId === "seizure.compliance_reiteration" ? source : target.familyId === "seizure.compliance_reiteration" ? target : null;
@@ -175,15 +173,12 @@ export function relateRealCorpusDocumentsV4(source: RealCorpusRelationDocumentV4
   }
   if (enforcement && credit && enforcement.debtKey) {
     const observation = credit.debtObservations.find((item) => item.debtKey === enforcement.debtKey);
-    if (observation) results.push(exact({ relationType: "INCLUDED_IN_SEIZURE", sourceDocumentId: credit.documentId, targetDocumentId: enforcement.documentId, exactReference: enforcement.debtKey, installmentIdentity: null, observedAmountCents: observation.outstandingAmountCents, phrase: observation.outstandingAmountCents !== null && enforcement.enforcementOrdinaryTotalCents !== null && observation.outstandingAmountCents !== enforcement.enforcementOrdinaryTotalCents ? "La misma deuda aparece después dentro del embargo de créditos, con un saldo pendiente diferente que debe conservarse como observación posterior." : "La deuda de esta providencia aparece como una de las tres deudas incluidas en el embargo de créditos posterior." }));
+    if (observation) results.push(exact({ relationType: "INCLUDED_IN_SEIZURE", sourceDocumentId: credit.documentId, targetDocumentId: enforcement.documentId, exactReference: enforcement.debtKey, installmentIdentity: null, observedAmountCents: null, phrase: "La deuda identificada en esta providencia aparece entre las incluidas en el embargo de créditos posterior." }));
   }
-  if (source.familyId === "collection.enforcement_order" && target.familyId === "collection.enforcement_order" && source.debtKey && source.debtKey === target.debtKey && source.dueDate && target.dueDate && (source.dueDate !== target.dueDate || source.principalCents !== target.principalCents || source.paymentFormReference !== target.paymentFormReference)) {
+  if (source.familyId === "collection.enforcement_order" && target.familyId === "collection.enforcement_order" && source.debtKey && source.debtKey === target.debtKey && source.dueDate && target.dueDate && (source.dueDate !== target.dueDate || (source.paymentFormReference !== null && target.paymentFormReference !== null && source.paymentFormReference !== target.paymentFormReference))) {
     results.push(exact({ relationType: "SAME_PAYMENT_PLAN_DIFFERENT_INSTALLMENTS", sourceDocumentId: source.documentId, targetDocumentId: target.documentId, exactReference: source.debtKey, installmentIdentity: null, observedAmountCents: null, phrase: "Ambas providencias corresponden a vencimientos distintos de la misma liquidación; no son duplicados." }));
   }
   if (results.length > 0) return Object.freeze(results);
-  if (assessment && enforcement && assessment.taxModel && assessment.taxModel === enforcement.taxModel && assessment.fiscalYear && assessment.fiscalYear === enforcement.fiscalYear && assessment.principalCents !== null && assessment.principalCents === enforcement.principalCents && assessment.citedNotificationDate && assessment.citedNotificationDate === enforcement.citedNotificationDate) {
-    return Object.freeze([relation({ relationType: "POSSIBLY_RELATED", status: "SUGGESTED", sourceDocumentId: enforcement.documentId, targetDocumentId: assessment.documentId, exactReference: null, installmentIdentity: null, observedAmountCents: null, phrase: "Puede ser el acto que dio origen a la providencia posterior por coincidir concepto, ejercicio e importe. Revísalo antes de confirmar." })]);
-  }
   return Object.freeze([]);
 }
 

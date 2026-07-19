@@ -24,7 +24,7 @@ interface CorpusCase {
 }
 
 const CASES: readonly CorpusCase[] = Object.freeze([
-  { id: "001", family: "identity.clave_registration_receipt", subtype: "HIGH_LEVEL_REGISTRATION_WITH_TERMS", physical: 4, content: 3, title: "JUSTIFICANTE DE ALTA EN EL SISTEMA DE IDENTIFICACIÓN Y FIRMA CL@VE", anchors: ["NIVEL DE REGISTRO ALTO", "HA SIDO DADO DE ALTA"], extra: "Fecha de alta: 03-08-2020\nTÉRMINOS Y CONDICIONES" },
+  { id: "001", family: "identity.clave_registration_receipt", subtype: "HIGH_LEVEL_REGISTRATION_WITH_TERMS", physical: 4, content: 3, title: "JUSTIFICANTE DE ALTA EN EL SISTEMA DE IDENTIFICACIÓN Y FIRMA CL@VE", anchors: ["NIVEL DE REGISTRO ALTO", "HA SIDO DADO DE ALTA"], extra: "Número de expediente: SYNV4EXPEDIENTE001\nFecha de alta: 03-08-2020\nTÉRMINOS Y CONDICIONES" },
   { id: "002", family: "seizure.release", subtype: "MOVABLE_ASSET_RELEASE_WITH_ASSET_ANNEX", physical: 4, content: 3, title: "LEVANTAMIENTO DE EMBARGO", anchors: ["SE ACUERDA EL LEVANTAMIENTO", "Nº DE LA DILIGENCIA"], extra: "Número de diligencia: SYNSEIZURE002\nFecha del acuerdo: 03-08-2020\nFecha de la diligencia: 02-03-2008\nVEHÍCULO\nLEVANTAMIENTO TOTAL\nCANCELAR LA ANOTACIÓN" },
   { id: "003", family: "seizure.release", subtype: "REAL_ESTATE_RELEASE_WITH_REGISTRY_ANNEX", physical: 4, content: 3, title: "LEVANTAMIENTO DE EMBARGO", anchors: ["SE ACUERDA EL LEVANTAMIENTO", "Nº DE LA DILIGENCIA"], extra: "Número de diligencia: SYNSEIZURE003\nFecha del acuerdo: 03-08-2020\nFecha de la diligencia: 02-03-2008\nINMUEBLE\nREGISTRO DE LA PROPIEDAD" },
   { id: "004", family: "seizure.release", subtype: "COMMERCIAL_CREDIT_RELEASE_TO_THIRD_PARTY", physical: 2, content: 2, title: "LEVANTAMIENTO DE EMBARGO", anchors: ["SE ACUERDA EL LEVANTAMIENTO", "Nº DE LA DILIGENCIA"], extra: "Número de diligencia: SYNSEIZURE004\nFecha del acuerdo: 04-07-2025\nCRÉDITOS COMERCIALES" },
@@ -47,18 +47,18 @@ const CASES: readonly CorpusCase[] = Object.freeze([
 ]);
 
 const EXPECTED_FIELD_CODES: Readonly<Record<string, readonly string[]>> = Object.freeze({
-  "001": ["REGISTRATION_STATUS", "REGISTRATION_LEVEL", "REGISTRATION_METHOD", "REGISTRATION_DATE", "TERMS_ATTACHED"],
+  "001": ["EXPEDIENTE_ID", "REGISTRATION_STATUS", "REGISTRATION_LEVEL", "REGISTRATION_DATE", "TERMS_ATTACHED"],
   "002": ["SEIZURE_ORDER_ID", "RELEASE_DATE", "CITED_SEIZURE_DATE", "ASSET_KIND", "RELEASE_EXTENT", "REGISTRY_CANCELLATION_ORDERED"],
-  "003": ["SEIZURE_ORDER_ID", "RELEASE_DATE", "CITED_SEIZURE_DATE", "ASSET_KIND", "RELEASE_EXTENT"],
-  "004": ["SEIZURE_ORDER_ID", "RELEASE_DATE", "ASSET_KIND", "THIRD_PARTY_ROLE"],
-  "005": ["PROCEDURE_ID", "ACT_ID", "DEBT_KEY", "SIGNING_DATE", "PROPOSAL_NOTIFICATION_DATE", "FINAL_QUOTA", "LATE_PAYMENT_INTEREST", "DOCUMENT_TOTAL", "DECLARED_ANNUAL_WITHHOLDINGS", "PERIODIC_PAYMENTS", "TAX_MODEL", "RELATED_MODEL", "FISCAL_YEAR", "DOCUMENT_STATUS"],
-  "006": ["SEIZURE_ORDER_ID", "ACTION_DATE", "RESPONSE_DEADLINE_RULE", "THIRD_PARTY_ROLE", "REJECTION_REASON", "EXPLICIT_CONSEQUENCE"],
-  "007": ["PROCEDURE_ID", "ACT_ID", "SIGNING_DATE", "TAX_MODEL", "RELATED_MODEL", "FISCAL_YEAR", "PROPOSED_QUOTA", "DECLARED_ANNUAL_WITHHOLDINGS", "PERIODIC_PAYMENTS", "RESPONSE_DEADLINE_RULE", "DOCUMENTATION_REQUIRED", "SANCTION_WARNING"],
-  "008": ["SEIZURE_ORDER_ID", "ACTION_DATE", "SEIZED_AMOUNT", "THIRD_PARTY_ROLE", "OBLIGATION_RESPOND", "OBLIGATION_WITHHOLD_AND_REMIT", "PAYMENT_TIME", "CREDIT_SCOPE"],
+  "003": ["SEIZURE_ORDER_ID", "RELEASE_DATE", "CITED_SEIZURE_DATE", "ASSET_KIND"],
+  "004": ["SEIZURE_ORDER_ID", "RELEASE_DATE", "ASSET_KIND"],
+  "005": ["PROCEDURE_ID", "ACT_ID", "DEBT_KEY", "SIGNING_DATE", "PROPOSAL_NOTIFICATION_DATE", "FINAL_QUOTA", "LATE_PAYMENT_INTEREST", "DOCUMENT_TOTAL", "DECLARED_ANNUAL_WITHHOLDINGS", "PERIODIC_PAYMENTS", "TAX_MODEL", "RELATED_MODEL", "FISCAL_YEAR"],
+  "006": ["SEIZURE_ORDER_ID", "ACTION_DATE", "RESPONSE_BUSINESS_DAYS", "REJECTION_REASON", "EXPLICIT_CONSEQUENCE"],
+  "007": ["PROCEDURE_ID", "ACT_ID", "SIGNING_DATE", "TAX_MODEL", "RELATED_MODEL", "FISCAL_YEAR", "PROPOSED_QUOTA", "DECLARED_ANNUAL_WITHHOLDINGS", "PERIODIC_PAYMENTS", "RESPONSE_BUSINESS_DAYS"],
+  "008": ["SEIZURE_ORDER_ID", "ACTION_DATE", "SEIZED_AMOUNT", "OBLIGATION_RESPOND", "OBLIGATION_WITHHOLD_AND_REMIT"],
   "009": ["SEIZURE_ORDER_ID", "ACTION_DATE", "SIGNING_DATE", "DEBT_KEY", "SEIZED_AMOUNT", "OUTSTANDING_TOTAL", "ACCOUNT_OR_DEPOSIT", "TRANSFER_WAIT_DAYS"],
   "010": ["DEBT_KEY", "VOLUNTARY_PAYMENT_DEADLINE", "OUTSTANDING_PRINCIPAL", "EXECUTIVE_SURCHARGE_20", "TOTAL_WITH_20"],
-  "011": ["AGREEMENT_ID", "DEBT_KEY", "ORIGINAL_TAX_PRINCIPAL", "DEFERRAL_INTEREST", "PAYMENT_METHOD", "GUARANTEE_TYPE"],
-  "012": ["SEIZURE_ORDER_ID", "THIRD_PARTY_ROLE", "OBLIGATION_RESPOND", "OBLIGATION_WITHHOLD_AND_REMIT"],
+  "011": ["AGREEMENT_ID", "DEBT_KEY", "ORIGINAL_TAX_PRINCIPAL", "DEFERRAL_INTEREST", "GUARANTEE_TYPE"],
+  "012": ["SEIZURE_ORDER_ID", "DEBT_KEY"],
   "013": ["DEBT_KEY", "VOLUNTARY_PAYMENT_DEADLINE", "OUTSTANDING_PRINCIPAL"],
   "014": ["DEBT_KEY", "VOLUNTARY_PAYMENT_DEADLINE", "OUTSTANDING_PRINCIPAL"],
   "015": ["NOTIFICATION_ID", "PREVIOUS_NOTIFICATION_ID", "NOTIFICATION_STATE", "DEBT_KEY", "VOLUNTARY_PAYMENT_DEADLINE", "OUTSTANDING_PRINCIPAL"],
@@ -104,6 +104,27 @@ describe("AEAT real corpus extractor V4", () => {
     expect(result.verticalSliceReview).toMatchObject({ retainedSourceContent: "NONE", materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW", permitsDebtCreation: false, permitsDeadlineCreation: false, permitsPaymentAction: false, permitsAccountingAction: false });
   });
 
+  it("does not infer a signing date from a generic date near the signature footer", async () => {
+    const input = source(CASES[8]!);
+    const synthetic = Object.freeze({
+      ...input,
+      documentId: "syn-v4-generic-footer-date",
+      pages: Object.freeze(input.pages.map((page) => Object.freeze({
+        ...page,
+        text: page.text.replace(
+          "Fecha de firma: 11-03-2025",
+          "Documento firmado electrónicamente\nAgencia Tributaria, en fecha 11-03-2025",
+        ),
+      }))),
+    });
+
+    const result = await extractAeatRealCorpusDocumentV4(synthetic);
+
+    expect(result.fields.some(
+      (field) => field.fieldCode === "SIGNING_DATE",
+    )).toBe(false);
+  });
+
   it("does not let a failed-delivery cover hide the substantive act", async () => {
     const result = await extractAeatRealCorpusDocumentV4(source(CASES[14]!));
     expect(result.familyId).toBe("collection.enforcement_order");
@@ -119,6 +140,36 @@ describe("AEAT real corpus extractor V4", () => {
     expect(result.confirmsPayment).toBe(false);
   });
 
+  it("extracts a release header reference without retaining trailing metadata", async () => {
+    const releaseBase = source(CASES[1]!);
+    const release = Object.freeze({
+      ...releaseBase,
+      pages: Object.freeze(
+        releaseBase.pages.map((page) =>
+          page.pageNumber === 1
+            ? Object.freeze({
+                ...page,
+                text: page.text.replace(
+                  "Referencia del documento: SYNV4REF002X",
+                  "Referencia: 700000000001P 0000000000 20",
+                ),
+              })
+            : page,
+        ),
+      ),
+    });
+
+    const releaseResult = await extractAeatRealCorpusDocumentV4(release);
+    expect(releaseResult.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldCode: "DOCUMENT_REFERENCE",
+          value: "700000000001P",
+        }),
+      ]),
+    );
+  });
+
   it("preserves every installment and every multi-debt observation independently", async () => {
     const grant = await extractAeatRealCorpusDocumentV4(source(CASES[10]!));
     const seizure = await extractAeatRealCorpusDocumentV4(source(CASES[11]!));
@@ -126,6 +177,83 @@ describe("AEAT real corpus extractor V4", () => {
     expect(new Set(grant.installments.map((item) => item.dueDate)).size).toBe(3);
     expect(seizure.debtObservations).toHaveLength(3);
     expect(new Set(seizure.debtObservations.map((item) => item.debtKey)).size).toBe(3);
+  });
+
+  it("extracts an embedded registration date and a terminal signing date as typed dates", async () => {
+    const registration = Object.freeze({
+      ownerScope: OWNER,
+      documentId: "syn-v4-historical-registration-date",
+      pages: Object.freeze([
+        Object.freeze({
+          pageNumber: 1,
+          text: [
+            AEAT,
+            "JUSTIFICANTE DE ALTA EN EL SISTEMA DE IDENTIFICACIÓN Y FIRMA CL@VE",
+            "NIVEL DE REGISTRO ALTO",
+            "En fecha 3 de agosto de 2020 ha sido dado de alta en Cl@ve.",
+            "TÉRMINOS Y CONDICIONES",
+          ].join("\n"),
+          isBlank: false,
+        }),
+      ]),
+    });
+    const release = Object.freeze({
+      ownerScope: OWNER,
+      documentId: "syn-v4-historical-release-signing-date",
+      pages: Object.freeze([
+        Object.freeze({
+          pageNumber: 1,
+          text: [
+            AEAT,
+            "LEVANTAMIENTO DE EMBARGO",
+            "SE ACUERDA EL LEVANTAMIENTO",
+            "Nº DE LA DILIGENCIA: SYNSEIZURE-HISTORICAL-1",
+            "Fecha de la diligencia: 02-03-2020",
+            "INMUEBLE",
+          ].join("\n"),
+          isBlank: false,
+        }),
+        Object.freeze({
+          pageNumber: 2,
+          text: "ANEXO DEL BIEN",
+          isBlank: false,
+        }),
+        Object.freeze({
+          pageNumber: 3,
+          text: [
+            "Agencia Estatal de Administración Tributaria",
+            "Documento firmado electrónicamente",
+            "Fecha de firma: 4 de julio de 2025",
+          ].join("\n"),
+          isBlank: false,
+        }),
+      ]),
+    });
+
+    const registrationOutcome = await extractAeatRealCorpusDocumentV4(registration);
+    const releaseOutcome = await extractAeatRealCorpusDocumentV4(release);
+
+    expect(registrationOutcome.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ fieldCode: "REGISTRATION_DATE", kind: "DATE", value: "2020-08-03" }),
+      ]),
+    );
+    expect(releaseOutcome.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ fieldCode: "CITED_SEIZURE_DATE", kind: "DATE", value: "2020-03-02" }),
+        expect.objectContaining({ fieldCode: "SIGNING_DATE", kind: "DATE", value: "2025-07-04" }),
+      ]),
+    );
+    expect(projectRealCorpusReviewV4(releaseOutcome).documents[0]?.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          semantic: "DETAIL",
+          canonicalType: "FACT_OR_GROUND",
+          label: "Fecha de la diligencia citada",
+        }),
+        expect.objectContaining({ semantic: "DATE", canonicalType: "SIGNING_DATE" }),
+      ]),
+    );
   });
 
   it("never returns raw PII, account digits, activation codes or OCR text", async () => {

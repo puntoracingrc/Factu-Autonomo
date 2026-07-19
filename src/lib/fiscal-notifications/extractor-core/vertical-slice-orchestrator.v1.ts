@@ -304,8 +304,8 @@ function normalizePageLines(text: string): readonly string[] {
       line
         .normalize("NFKD")
         .replace(/\p{M}/gu, "")
-        .replace(/[‐‑‒–—−]/gu, "-")
         .toLowerCase()
+        .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
         .replace(/\s+/gu, " ")
         .trim(),
     ),

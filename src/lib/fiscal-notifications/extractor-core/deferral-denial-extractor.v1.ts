@@ -508,9 +508,15 @@ function recognizeDenial(
   if (!officialDomainPrinted && !trustedAuthority)
     return { status: "UNKNOWN", warning: null };
   const titleMatches = mainSegments.some((segment) => {
-    const title = fold(segment.detectedTitle ?? "");
+    const title = closedTitleKey(segment.detectedTitle ?? "");
     return CLOSED_DEFERRAL_DENIAL_MAIN_ACT_TITLES_V1.some(
-      (literal) => title === literal || title.startsWith(`${literal} `),
+      (literal) => {
+        const normalizedLiteral = closedTitleKey(literal);
+        return (
+          title === normalizedLiteral ||
+          title.startsWith(`${normalizedLiteral} `)
+        );
+      },
     );
   });
   const boundedDocumentText = fold(lines.map((line) => line.raw).join(" "));
@@ -1039,6 +1045,13 @@ function fold(value: string): string {
     .replace(/\p{M}/gu, "")
     .replace(/[‐‑‒–—−]/gu, "-")
     .toLowerCase()
+    .replace(/\s+/gu, " ")
+    .trim();
+}
+
+function closedTitleKey(value: string): string {
+  return fold(value)
+    .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
     .replace(/\s+/gu, " ")
     .trim();
 }

@@ -5,7 +5,7 @@ import {
 } from "./input-contract";
 
 export const REAL_CORPUS_RELATION_ENGINE_VERSION_V7 =
-  "real-corpus-relations.2026-07-17.v7.1" as const;
+  "real-corpus-relations.2026-07-19.v7.2" as const;
 
 export type RealCorpusRelationTypeV7 =
   | "DUPLICATE_COPY_OF"
@@ -224,12 +224,6 @@ function exact(input: Parameters<typeof relation>[1]): RealCorpusRelationV7 {
   return relation("SYSTEM_CONFIRMED_EXACT", input);
 }
 
-function suggested(
-  input: Parameters<typeof relation>[1],
-): RealCorpusRelationV7 {
-  return relation("SYSTEM_SUGGESTED", input);
-}
-
 function sameOwner(
   source: RealCorpusRelationDocumentV7,
   target: RealCorpusRelationDocumentV7,
@@ -299,7 +293,7 @@ export function decideRealCorpusDuplicateV7(
   });
 }
 
-/** Deterministic pair relations. Amount or date proximity alone never confirms a relation. */
+/** Deterministic pair relations. Confirmed links use strong identifiers, never amounts. */
 export function relateRealCorpusDocumentsV7(
   source: RealCorpusRelationDocumentV7,
   target: RealCorpusRelationDocumentV7,
@@ -332,9 +326,7 @@ export function relateRealCorpusDocumentsV7(
     notAfter(grant, enforcement)
   ) {
     const installment = grant.installments.find(
-      (item) =>
-        item.dueDate === enforcement.adjustedDueDate &&
-        item.totalCents === enforcement.principalCents,
+      (item) => item.dueDate === enforcement.adjustedDueDate,
     );
     if (installment)
       results.push(
@@ -343,27 +335,23 @@ export function relateRealCorpusDocumentsV7(
           sourceDocumentId: grant.documentId,
           targetDocumentId: enforcement.documentId,
           exactReference: grant.debtKey,
-          observedAmountCents: installment.totalCents,
+          observedAmountCents: null,
           phrase:
             "Esta providencia reclama una cuota concreta del fraccionamiento: principal más intereses del aplazamiento.",
         }),
       );
-    const remainingPrincipal = grant.remainingInstallmentBasesCents.reduce(
-      (sum, amount) => sum + amount,
-      0,
-    );
     if (
-      grant.remainingInstallmentBasesCents.length > 1 &&
-      Number.isSafeInteger(remainingPrincipal) &&
-      remainingPrincipal === enforcement.principalCents
+      grant.agreementId &&
+      grant.agreementId === enforcement.agreementId &&
+      grant.remainingInstallmentBasesCents.length > 1
     )
       results.push(
         exact({
           relationType: "ENFORCES_REMAINING_PLAN_PRINCIPAL",
           sourceDocumentId: grant.documentId,
           targetDocumentId: enforcement.documentId,
-          exactReference: grant.debtKey,
-          observedAmountCents: remainingPrincipal,
+          exactReference: grant.agreementId,
+          observedAmountCents: null,
           phrase:
             "Esta providencia reclama conjuntamente el principal de las fracciones restantes del plan. No es una cuota aislada.",
         }),
@@ -385,9 +373,7 @@ export function relateRealCorpusDocumentsV7(
     notAfter(enforcement, offset)
   ) {
     const row = offset.offsetRows.find(
-      (item) =>
-        item.debtKey === enforcement.debtKey &&
-        item.beforeCents === enforcement.ordinaryTotalCents,
+      (item) => item.debtKey === enforcement.debtKey,
     );
     if (row)
       results.push(
@@ -399,7 +385,7 @@ export function relateRealCorpusDocumentsV7(
           sourceDocumentId: enforcement.documentId,
           targetDocumentId: offset.documentId,
           exactReference: row.debtKey,
-          observedAmountCents: row.appliedCents,
+          observedAmountCents: null,
           phrase:
             row.remainingCents === 0
               ? "La compensación aplica el total de esta fila y deja saldo cero en esta actuación."
@@ -419,8 +405,6 @@ export function relateRealCorpusDocumentsV7(
     seizure &&
     enforcement.debtKey &&
     enforcement.debtKey === seizure.debtKey &&
-    enforcement.ordinaryTotalCents !== null &&
-    enforcement.ordinaryTotalCents === seizure.principalCents &&
     notAfter(enforcement, seizure)
   ) {
     results.push(
@@ -429,7 +413,7 @@ export function relateRealCorpusDocumentsV7(
         sourceDocumentId: enforcement.documentId,
         targetDocumentId: seizure.documentId,
         exactReference: enforcement.debtKey,
-        observedAmountCents: enforcement.ordinaryTotalCents,
+        observedAmountCents: null,
         phrase:
           "Este embargo bancario continúa el cobro iniciado por la providencia anterior sobre la misma deuda.",
       }),
@@ -439,8 +423,7 @@ export function relateRealCorpusDocumentsV7(
     const row = offset.offsetRows.find(
       (item) =>
         item.debtKey === seizure.debtKey &&
-        item.remainingCents > 0 &&
-        item.remainingCents === seizure.principalCents,
+        item.remainingCents > 0,
     );
     if (row)
       results.push(
@@ -449,7 +432,7 @@ export function relateRealCorpusDocumentsV7(
           sourceDocumentId: offset.documentId,
           targetDocumentId: seizure.documentId,
           exactReference: row.debtKey,
-          observedAmountCents: row.remainingCents,
+          observedAmountCents: null,
           phrase:
             "Este embargo continúa el cobro del saldo que quedó después de la compensación parcial.",
         }),
@@ -496,8 +479,6 @@ export function relateRealCorpusDocumentsV7(
     modification.explicitlyModifiesPlan &&
     original.debtKey &&
     original.debtKey === modification.debtKey &&
-    original.planPrincipalCents !== null &&
-    original.planPrincipalCents === modification.planPrincipalCents &&
     original.agreementId &&
     original.agreementId === modification.replacesAgreementId &&
     notAfter(original, modification)
@@ -508,7 +489,7 @@ export function relateRealCorpusDocumentsV7(
         sourceDocumentId: original.documentId,
         targetDocumentId: modification.documentId,
         exactReference: original.debtKey,
-        observedAmountCents: original.planPrincipalCents,
+        observedAmountCents: null,
         phrase:
           "El acuerdo posterior sustituye el calendario anterior para la misma deuda.",
       }),
@@ -539,7 +520,7 @@ export function relateRealCorpusDocumentsV7(
         sourceDocumentId: initiation.documentId,
         targetDocumentId: resolution.documentId,
         exactReference: initiation.sanctionReference,
-        observedAmountCents: resolution.principalCents,
+        observedAmountCents: null,
         phrase:
           "Esta resolución decide el expediente sancionador iniciado anteriormente.",
       }),
@@ -553,23 +534,19 @@ export function relateRealCorpusDocumentsV7(
   if (
     requirement &&
     initiation &&
-    !requirement.sanctionReference &&
-    requirement.modelsPeriods.length > 0 &&
-    requirement.modelsPeriods.length === initiation.modelsPeriods.length &&
-    requirement.modelsPeriods.every((item) =>
-      initiation.modelsPeriods.includes(item),
-    ) &&
+    requirement.sanctionReference &&
+    requirement.sanctionReference === initiation.sanctionReference &&
     notAfter(requirement, initiation)
   )
     results.push(
-      suggested({
+      exact({
         relationType: "POSSIBLY_PRECEDES_SANCTION",
         sourceDocumentId: requirement.documentId,
         targetDocumentId: initiation.documentId,
-        exactReference: null,
+        exactReference: requirement.sanctionReference,
         observedAmountCents: null,
         phrase:
-          "Puede existir relación por modelos y período, pero falta una referencia exacta del expediente sancionador.",
+          "El requerimiento y el inicio sancionador imprimen la misma referencia de expediente.",
       }),
     );
   return Object.freeze(results);
@@ -621,7 +598,6 @@ export function resolveActivePaymentPlansV7(
     if (
       !original ||
       original.debtKey !== modification.debtKey ||
-      original.planPrincipalCents !== modification.planPrincipalCents ||
       !notAfter(original, modification)
     )
       continue;

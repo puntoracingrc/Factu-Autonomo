@@ -323,7 +323,6 @@ export function reconcileGlobalDocumentRelationsV8(input: {
   const debtIndex = buildReferenceIndex(documents, ["DEBT_KEY", "LIQUIDATION_KEY"]);
   const seizureIndex = buildReferenceIndex(documents, ["SEIZURE_ORDER_ID"]);
   const notificationIndex = buildReferenceIndex(documents, ["NOTIFICATION_ID", "DOCUMENT_REFERENCE"]);
-  const modelYearIndex = buildModelYearIndex(documents);
   const assetIndex = new Map<string, GlobalReconciliationDocumentV8[]>();
   for (const document of documents) {
     if (document.opaqueAssetFingerprint) {
@@ -335,7 +334,6 @@ export function reconcileGlobalDocumentRelationsV8(input: {
     hasOversizedGroup(debtIndex) ||
     hasOversizedGroup(seizureIndex) ||
     hasOversizedGroup(notificationIndex) ||
-    hasOversizedGroup(modelYearIndex) ||
     hasOversizedGroup(assetIndex)
   ) {
     return review("RELATION_LIMIT_EXCEEDED");
@@ -345,7 +343,6 @@ export function reconcileGlobalDocumentRelationsV8(input: {
     for (const group of debtIndex.values()) evaluateDebtGroup(group, candidates);
     for (const group of seizureIndex.values()) evaluateSeizureGroup(group, candidates);
     for (const group of notificationIndex.values()) evaluateNotificationGroup(group, candidates);
-    for (const group of modelYearIndex.values()) evaluateModelYearGroup(group, candidates);
     for (const group of assetIndex.values()) evaluateAssetGroup(group, candidates);
   } catch (error) {
     if (error instanceof RelationLimitExceededV8) {
@@ -484,13 +481,20 @@ function evaluateDebtGroup(
         ["DOCUMENT_TOTAL", "PRINCIPAL"],
         enforcement,
         ["PRINCIPAL", "ORDINARY_TOTAL"],
+        exact.normalizedValues,
       );
-      if (exact.referenceIds.length > 0 && compatible.amountIds.length > 0) {
+      if (exact.referenceIds.length > 0) {
         addCandidate(candidates, edge({
           source: assessment,
           target: enforcement,
           relationType: "RESOLUTION_ENFORCED",
-          evidenceKinds: ["EXACT_REFERENCE", "PAYMENT_FORM_PART", "COMPATIBLE_AMOUNT"],
+          evidenceKinds: [
+            "EXACT_REFERENCE",
+            "PAYMENT_FORM_PART",
+            ...(compatible.amountIds.length > 0
+              ? (["COMPATIBLE_AMOUNT"] as const)
+              : []),
+          ],
           matchingReferenceIds: exact.referenceIds,
           matchingAmountIds: compatible.amountIds,
         }));
@@ -507,14 +511,15 @@ function evaluateDebtGroup(
         enforcement,
         ["PRINCIPAL", "ORDINARY_TOTAL"],
         plan.remainingPlanPrincipalCents,
+        exact.normalizedValues,
       );
-      if (exact.length > 0 && amount.length > 0) {
+      if (exact.referenceIds.length > 0 && amount.length > 0) {
         addCandidate(candidates, edge({
           source: plan,
           target: enforcement,
           relationType: "ENFORCES_REMAINING_PLAN_PRINCIPAL",
           evidenceKinds: ["EXACT_REFERENCE", "REMAINING_PLAN_PRINCIPAL", "COMPATIBLE_AMOUNT"],
-          matchingReferenceIds: exact,
+          matchingReferenceIds: exact.referenceIds,
           matchingAmountIds: amount,
         }));
       }
@@ -530,14 +535,20 @@ function evaluateDebtGroup(
         ["ORDINARY_TOTAL", "PRINCIPAL"],
         seizure,
         ["SEIZURE_ROW", "ORDINARY_TOTAL"],
+        exact.normalizedValues,
       );
-      if (exact.length > 0 && compatible.amountIds.length > 0) {
+      if (exact.referenceIds.length > 0) {
         addCandidate(candidates, edge({
           source: enforcement,
           target: seizure,
           relationType: "ENFORCES",
-          evidenceKinds: ["EXACT_REFERENCE", "COMPATIBLE_AMOUNT"],
-          matchingReferenceIds: exact,
+          evidenceKinds: [
+            "EXACT_REFERENCE",
+            ...(compatible.amountIds.length > 0
+              ? (["COMPATIBLE_AMOUNT"] as const)
+              : []),
+          ],
+          matchingReferenceIds: exact.referenceIds,
           matchingAmountIds: compatible.amountIds,
         }));
       }
@@ -553,13 +564,20 @@ function evaluateDebtGroup(
         ["ORDINARY_TOTAL", "PRINCIPAL"],
         denial,
         ["DENIAL_SNAPSHOT"],
+        exact.normalizedValues,
       );
-      if (exact.referenceIds.length > 0 && compatible.amountIds.length > 0) {
+      if (exact.referenceIds.length > 0) {
         addCandidate(candidates, edge({
           source: enforcement,
           target: denial,
           relationType: "CITED_AS_EXISTING_EXECUTIVE_DEBT",
-          evidenceKinds: ["EXACT_REFERENCE", "EXECUTIVE_DEBT_CITATION", "COMPATIBLE_AMOUNT"],
+          evidenceKinds: [
+            "EXACT_REFERENCE",
+            "EXECUTIVE_DEBT_CITATION",
+            ...(compatible.amountIds.length > 0
+              ? (["COMPATIBLE_AMOUNT"] as const)
+              : []),
+          ],
           matchingReferenceIds: exact.referenceIds,
           matchingAmountIds: compatible.amountIds,
         }));
@@ -575,7 +593,7 @@ function evaluateDebtGroup(
         offset.offsetRows < 1
       ) continue;
       const exact = sharedDebtReference(plan, offset);
-      if (exact.length > 0) {
+      if (exact.referenceIds.length > 0) {
         addCandidate(candidates, edge({
           source: plan,
           target: offset,
@@ -587,7 +605,7 @@ function evaluateDebtGroup(
               ? (["RECALCULATED_OFFSET_ROWS"] as const)
               : []),
           ],
-          matchingReferenceIds: exact,
+          matchingReferenceIds: exact.referenceIds,
           matchingAmountIds: [],
           resultClassification: "SYSTEM_CONFIRMED_EXACT_CASE_LEVEL",
           rowAssignmentReviewRequired: offset.offsetRowsRecalculated,
@@ -644,34 +662,6 @@ function evaluateNotificationGroup(
         evidenceKinds: ["EXACT_REFERENCE", "NOTIFICATION_PROOF_REFERENCE"],
         matchingReferenceIds: exact.referenceIds,
         matchingAmountIds: [],
-      }));
-    }
-  }
-}
-
-function evaluateModelYearGroup(
-  group: readonly GlobalReconciliationDocumentV8[],
-  candidates: Map<string, CandidateEdgeV8>,
-): void {
-  const reminders = group.filter(isInformalReminder);
-  const assessments = group.filter(isAssessment);
-  for (const reminder of reminders) {
-    for (const assessment of assessments) {
-      if (
-        !isStrictlyBeforeByDocumentDate(reminder, assessment) ||
-        sharedOfficialReference(reminder, assessment)
-      ) {
-        continue;
-      }
-      addCandidate(candidates, edge({
-        source: reminder,
-        target: assessment,
-        relationType: "POSSIBLY_PRECEDES_ASSESSMENT",
-        evidenceKinds: ["MODEL_AND_FISCAL_YEAR"],
-        matchingReferenceIds: [],
-        matchingAmountIds: [],
-        status: "SUGGESTED",
-        resultClassification: "SUGGESTED",
       }));
     }
   }
@@ -814,51 +804,38 @@ function buildReferenceIndex(
   return result;
 }
 
-function buildModelYearIndex(
-  documents: readonly GlobalReconciliationDocumentV8[],
-): Map<string, GlobalReconciliationDocumentV8[]> {
-  const result = new Map<string, GlobalReconciliationDocumentV8[]>();
-  for (const document of documents) {
-    const models = document.references
-      .filter((reference) => reference.type === "MODEL")
-      .map((reference) => reference.normalizedValue);
-    const years = document.references
-      .filter((reference) => reference.type === "FISCAL_YEAR")
-      .map((reference) => reference.normalizedValue);
-    for (const model of models) {
-      for (const year of years) {
-        pushMap(result, tupleKey([document.ownerScope, document.issuer, model, year]), document);
-      }
-    }
-  }
-  return result;
-}
-
 function sharedDebtReference(
   left: GlobalReconciliationDocumentV8,
   right: GlobalReconciliationDocumentV8,
-): string[] {
+): { referenceIds: string[]; normalizedValues: string[] } {
   return sharedReference(
     left.references.filter((reference) =>
       reference.type === "DEBT_KEY" || reference.type === "LIQUIDATION_KEY"),
     right.references.filter((reference) =>
       reference.type === "DEBT_KEY" || reference.type === "LIQUIDATION_KEY"),
-  ).referenceIds;
+  );
 }
 
 function sharedReference(
   left: readonly GlobalReconciliationReferenceV8[],
   right: readonly GlobalReconciliationReferenceV8[],
-): { referenceIds: string[] } {
+): { referenceIds: string[]; normalizedValues: string[] } {
   const rightByKey = new Map(
     right.map((reference) => [tupleKey([reference.type, reference.normalizedValue]), reference]),
   );
   const ids: string[] = [];
+  const normalizedValues: string[] = [];
   for (const reference of left) {
     const match = rightByKey.get(tupleKey([reference.type, reference.normalizedValue]));
-    if (match) ids.push(reference.referenceId, match.referenceId);
+    if (match) {
+      ids.push(reference.referenceId, match.referenceId);
+      normalizedValues.push(reference.normalizedValue);
+    }
   }
-  return { referenceIds: [...new Set(ids)].sort() };
+  return {
+    referenceIds: [...new Set(ids)].sort(),
+    normalizedValues: [...new Set(normalizedValues)].sort(),
+  };
 }
 
 function matchingAmounts(
@@ -866,18 +843,25 @@ function matchingAmounts(
   leftKinds: readonly GlobalReconciliationAmountKindV8[],
   right: GlobalReconciliationDocumentV8,
   rightKinds: readonly GlobalReconciliationAmountKindV8[],
+  debtKeys: readonly string[],
 ): { amountIds: string[] } {
   const allowedLeft = new Set(leftKinds);
   const allowedRight = new Set(rightKinds);
-  const rightByValue = new Map<number, GlobalReconciliationAmountV8[]>();
+  const allowedDebtKeys = new Set(debtKeys);
+  const rightByValue = new Map<string, GlobalReconciliationAmountV8[]>();
   for (const amount of right.amounts) {
     if (!allowedRight.has(amount.kind)) continue;
-    pushMap(rightByValue, amount.amountCents, amount);
+    const debtKey = resolvedAmountDebtKey(right, amount);
+    if (!debtKey || !allowedDebtKeys.has(debtKey)) continue;
+    pushMap(rightByValue, tupleKey([debtKey, String(amount.amountCents)]), amount);
   }
   const ids: string[] = [];
   for (const amount of left.amounts) {
     if (!allowedLeft.has(amount.kind)) continue;
-    for (const match of rightByValue.get(amount.amountCents) ?? []) {
+    const debtKey = resolvedAmountDebtKey(left, amount);
+    if (!debtKey || !allowedDebtKeys.has(debtKey)) continue;
+    for (const match of
+      rightByValue.get(tupleKey([debtKey, String(amount.amountCents)])) ?? []) {
       ids.push(amount.amountId, match.amountId);
     }
   }
@@ -888,27 +872,22 @@ function amountIdsForExactValue(
   document: GlobalReconciliationDocumentV8,
   kinds: readonly GlobalReconciliationAmountKindV8[],
   value: number,
+  debtKeys: readonly string[],
 ): string[] {
   const allowed = new Set(kinds);
+  const allowedDebtKeys = new Set(debtKeys);
   return document.amounts
-    .filter((amount) => allowed.has(amount.kind) && amount.amountCents === value)
+    .filter((amount) => {
+      const debtKey = resolvedAmountDebtKey(document, amount);
+      return (
+        allowed.has(amount.kind) &&
+        amount.amountCents === value &&
+        debtKey !== null &&
+        allowedDebtKeys.has(debtKey)
+      );
+    })
     .map((amount) => amount.amountId)
     .sort();
-}
-
-function sharedOfficialReference(
-  left: GlobalReconciliationDocumentV8,
-  right: GlobalReconciliationDocumentV8,
-): boolean {
-  const excluded = new Set<GlobalReconciliationReferenceTypeV8>(["MODEL", "FISCAL_YEAR"]);
-  return sharedReference(
-    left.references.filter((reference) => !excluded.has(reference.type)),
-    right.references.filter((reference) => !excluded.has(reference.type)),
-  ).referenceIds.length > 0;
-}
-
-function isAssessment(document: GlobalReconciliationDocumentV8): boolean {
-  return document.familyId === "assessment.final_provisional_assessment";
 }
 
 function isEnforcement(document: GlobalReconciliationDocumentV8): boolean {
@@ -923,6 +902,10 @@ function isPlan(document: GlobalReconciliationDocumentV8): boolean {
 function isOffset(document: GlobalReconciliationDocumentV8): boolean {
   return document.familyId === "collection.offset_requested" ||
     document.familyId === "collection.offset_ex_officio";
+}
+
+function isAssessment(document: GlobalReconciliationDocumentV8): boolean {
+  return document.familyId === "assessment.final_provisional_assessment";
 }
 
 function isDenial(document: GlobalReconciliationDocumentV8): boolean {
@@ -942,16 +925,34 @@ function isNotificationProof(document: GlobalReconciliationDocumentV8): boolean 
     document.familyId === "notification.delivery_attempt";
 }
 
-function isInformalReminder(document: GlobalReconciliationDocumentV8): boolean {
-  return document.familyId === "information.informal_reminder" ||
-    document.familyId === "information.filing_reminder";
-}
-
 function isBefore(
   source: GlobalReconciliationDocumentV8,
   target: GlobalReconciliationDocumentV8,
 ): boolean {
-  return !source.documentDate || !target.documentDate || source.documentDate <= target.documentDate;
+  return Boolean(
+    source.documentDate &&
+      target.documentDate &&
+      source.documentDate <= target.documentDate,
+  );
+}
+
+function resolvedAmountDebtKey(
+  document: GlobalReconciliationDocumentV8,
+  amount: GlobalReconciliationAmountV8,
+): string | null {
+  if (amount.debtKey) return amount.debtKey;
+  const values = [
+    ...new Set(
+      document.references
+        .filter(
+          (reference) =>
+            reference.type === "DEBT_KEY" ||
+            reference.type === "LIQUIDATION_KEY",
+        )
+        .map((reference) => reference.normalizedValue),
+    ),
+  ];
+  return values.length === 1 ? values[0]! : null;
 }
 
 function isStrictlyBeforeByDocumentDate(

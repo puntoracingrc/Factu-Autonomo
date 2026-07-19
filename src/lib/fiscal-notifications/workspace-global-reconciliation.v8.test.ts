@@ -5,6 +5,7 @@ import { projectFiscalNotificationsWorkspacePrivacyV2 } from "./workspace-privac
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
 import { createSensitiveReferenceV2Sync } from "./sensitive-reference.v2";
+import { FISCAL_NOTIFICATION_INPUT_LIMITS } from "./input-contract";
 import {
   encodeFiscalNotificationsWorkspaceForStorageV2,
   restoreFiscalNotificationsWorkspaceFromStorageV2,
@@ -293,6 +294,169 @@ describe("workspace global reconciliation V8", () => {
     expect(restored?.relations[0]?.reconciliationHistory?.[0]).toEqual(
       expect.objectContaining({ globalRelationType: "RESOLUTION_ENFORCED" }),
     );
+  });
+
+  it("links a modified plan to observed offset rows without an internal state token", () => {
+    const input = workspace();
+    const plan = input.documents[0]!;
+    const offset = input.documents[1]!;
+    plan.documentType = "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT";
+    plan.documentSubtype = "collection.deferral_modification";
+    plan.titleRaw = "Modificación sintética del aplazamiento";
+    plan.titleNormalized = "MODIFICACION SINTETICA DEL APLAZAMIENTO";
+    offset.documentType = "AEAT_OFFSET_AGREEMENT";
+    offset.documentSubtype = "collection.offset_ex_officio";
+    offset.titleRaw = "Compensación sintética";
+    offset.titleNormalized = "COMPENSACION SINTETICA";
+    offset.debtIds = ["debt:offset-row"];
+    input.references[1]!.debtId = "debt:offset-row";
+    input.debts = [
+      {
+        id: "debt:offset-row",
+        ownerScope: OWNER,
+        authorityId: "authority:aeat",
+        debtKey: "SYN-DEBT-WORKSPACE",
+        collectionStage: "UNKNOWN",
+        currentStatus: "UNKNOWN",
+        referenceIds: ["reference:enforcement"],
+        documentIds: [offset.id],
+      },
+    ];
+    input.debtObservations = [
+      {
+        id: "debt-observation:offset-row",
+        ownerScope: OWNER,
+        debtId: "debt:offset-row",
+        documentId: offset.id,
+        authorityId: "authority:aeat",
+        observedCollectionStage: "UNKNOWN",
+        observedStatus: "UNKNOWN",
+        referenceIds: ["reference:enforcement"],
+        evidenceIds: ["evidence:enforcement"],
+        observedAt: NOW,
+      },
+    ];
+    input.relations = [];
+
+    const result = appendWorkspaceGlobalReconciliationV8({
+      ownerScope: OWNER,
+      workspace: input,
+      reevaluatedAt: NOW,
+    });
+
+    expect(result.status).toBe("APPLIED");
+    if (result.status !== "APPLIED") return;
+    expect(result.workspace.relations).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        sourceDocumentId: plan.id,
+        targetDocumentId: offset.id,
+        relationType: "COMPENSATES",
+        status: "SYSTEM_CONFIRMED_EXACT",
+        evidence: expect.objectContaining({
+          matchingReferenceTypes: ["LIQUIDATION_KEY"],
+        }),
+      }),
+    ]));
+    expect(JSON.stringify(result.workspace)).not.toContain(
+      "MODIFIED_SCHEDULE_REPLACES_ORIGINAL",
+    );
+  });
+
+  it("creates a bounded deterministic global relation id for long document ids", () => {
+    const input = workspace();
+    input.relations = [];
+    const documentIds = [
+      `document:${"a".repeat(68)}`,
+      `document:${"b".repeat(76)}`,
+    ];
+    input.documents.forEach((document, index) => {
+      const previousId = document.id;
+      document.id = documentIds[index]!;
+      input.references.forEach((reference) => {
+        if (reference.documentId === previousId) {
+          reference.documentId = document.id;
+        }
+      });
+      input.evidence.forEach((evidence) => {
+        if (evidence.documentId === previousId) {
+          evidence.documentId = document.id;
+        }
+      });
+      input.paymentOptions.forEach((paymentOption) => {
+        if (paymentOption.documentId === previousId) {
+          paymentOption.documentId = document.id;
+        }
+      });
+    });
+    const integrity = validateFiscalNotificationsWorkspaceIntegrity(
+      input,
+      OWNER,
+    );
+    if (!integrity.valid) throw new Error(JSON.stringify(integrity.issues));
+
+    const first = appendWorkspaceGlobalReconciliationV8({
+      ownerScope: OWNER,
+      workspace: input,
+      reevaluatedAt: NOW,
+    });
+
+    if (first.status === "REVIEW_REQUIRED") throw new Error(first.reason);
+    expect(first.status).toBe("APPLIED");
+    if (first.status !== "APPLIED") return;
+    expect(first.changedRelationIds).toHaveLength(1);
+    expect(first.changedRelationIds[0]).toMatch(
+      /^relation:global-v8:[a-f0-9]{32}$/u,
+    );
+    expect(first.changedRelationIds[0]!.length).toBeLessThanOrEqual(
+      FISCAL_NOTIFICATION_INPUT_LIMITS.maxIdChars,
+    );
+
+    const replay = appendWorkspaceGlobalReconciliationV8({
+      ownerScope: OWNER,
+      workspace: first.workspace,
+      reevaluatedAt: NOW,
+    });
+    expect(replay.status).toBe("UNCHANGED");
+    expect(replay.workspace.relations).toEqual(first.workspace.relations);
+  });
+
+  it("uses signing and notification dates and rejects reversed chronology", () => {
+    const reversed = workspace();
+    reversed.documents[0]!.issueDate = undefined;
+    reversed.documents[0]!.signatureDate = "2024-07-01";
+    reversed.documents[1]!.issueDate = undefined;
+    reversed.documents[1]!.notificationDates.effectiveAt =
+      "2024-06-01T00:00:00.000Z";
+
+    const rejected = appendWorkspaceGlobalReconciliationV8({
+      ownerScope: OWNER,
+      workspace: reversed,
+      reevaluatedAt: NOW,
+    });
+
+    expect(rejected.status).toBe("UNCHANGED");
+    expect(rejected.workspace.relations[0]).toMatchObject({
+      relationType: "POSSIBLY_RELATED",
+      status: "SUGGESTED",
+    });
+
+    const chronological = workspace();
+    chronological.documents[0]!.issueDate = undefined;
+    chronological.documents[0]!.signatureDate = "2024-05-01";
+    chronological.documents[1]!.issueDate = undefined;
+    chronological.documents[1]!.notificationDates.effectiveAt =
+      "2024-06-01T00:00:00.000Z";
+    const accepted = appendWorkspaceGlobalReconciliationV8({
+      ownerScope: OWNER,
+      workspace: chronological,
+      reevaluatedAt: NOW,
+    });
+    expect(accepted.status).toBe("APPLIED");
+    if (accepted.status !== "APPLIED") return;
+    expect(accepted.workspace.relations[0]).toMatchObject({
+      relationType: "INITIATES_ENFORCEMENT",
+      status: "SYSTEM_CONFIRMED_EXACT",
+    });
   });
 
   it("fingerprints an asset reference before storage and never serializes its direct value", () => {

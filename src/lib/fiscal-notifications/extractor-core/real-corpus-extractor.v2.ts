@@ -6,7 +6,7 @@ import {
 
 export const REAL_CORPUS_EXTRACTOR_SCHEMA_VERSION_V2 = 2 as const;
 export const REAL_CORPUS_EXTRACTOR_VERSION_V2 =
-  "aeat-real-corpus-extractor.2026-07-18.v2.1" as const;
+  "aeat-real-corpus-extractor.2026-07-19.v2.3" as const;
 
 export const REAL_CORPUS_FAMILY_IDS_V2 = Object.freeze([
   "assessment.allegations_and_proposal",
@@ -91,7 +91,7 @@ export type RealCorpusFieldV2 =
 export interface RealCorpusSectionRowV2 {
   readonly sectionKind: string;
   readonly rowOrdinal: number;
-  readonly participantRole: "ACCOUNT_HOLDER" | "SPOUSE";
+  readonly participantRole: "ACCOUNT_HOLDER" | "SPOUSE" | null;
   readonly model: string | null;
   readonly taxPeriod: string | null;
   readonly amountCents: number | null;
@@ -211,7 +211,11 @@ function buildIndex(document: BoundedDocumentInput): DocumentIndexV2 {
 }
 
 function contains(index: DocumentIndexV2, value: string): boolean {
-  return index.normalizedText.includes(normalize(value));
+  const expected = normalize(value);
+  return (
+    index.normalizedText.includes(expected) ||
+    normalize(index.normalizedText).includes(expected)
+  );
 }
 
 function hasHeaderPrefix(index: DocumentIndexV2, value: string): boolean {
@@ -290,6 +294,149 @@ function allLineValues(
   return Object.freeze(values);
 }
 
+function capturedLineValue(
+  index: DocumentIndexV2,
+  pattern: RegExp,
+): Readonly<{ value: string; pageNumber: number }> | null {
+  for (const line of index.lines) {
+    const match = pattern.exec(line.normalized);
+    const value = match?.[1];
+    if (value) {
+      return Object.freeze({ value, pageNumber: line.pageNumber });
+    }
+  }
+  return null;
+}
+
+function publicationDocumentReference(
+  index: DocumentIndexV2,
+): Readonly<{ value: string; pageNumber: number }> | null {
+  return (
+    capturedLineValue(
+      index,
+      /(?:^|\s)N?[.º°O]*\s*CERTIFICADO\s*:\s*(\d{8,20})(?:\s|$)/u,
+    ) ??
+    capturedLineValue(index, /^REFERENCIA\s*:\s*(\d{8,20})(?:\s|$)/u)
+  );
+}
+
+function publicationUnderlyingActLine(
+  index: DocumentIndexV2,
+): IndexedLineV2 | null {
+  return (
+    index.lines.find(
+      (line) =>
+        line.normalized.startsWith("CONCEPTO:") &&
+        /(?:[A-Z]\d{12,20}|\d{12,20}[A-Z])(?:\s|$)/u.test(
+          line.normalized,
+        ),
+    ) ??
+    index.lines.find(
+      (line) =>
+        /(?:EXIGENCIA.*REDUCCION|PROVIDENCIA.*APREMIO|DILIGENCIA.*EMBARGO|ACUERDO.*APLAZAMIENTO|LIQUIDACION)/u.test(
+          line.normalized,
+        ) && /(?:^|\s)\d{13}(?:\s|$)/u.test(line.normalized),
+    ) ??
+    null
+  );
+}
+
+function publicationUnderlyingActReference(
+  index: DocumentIndexV2,
+): Readonly<{ value: string; pageNumber: number }> | null {
+  const line = publicationUnderlyingActLine(index);
+  if (!line) return null;
+  const matches = line.normalized.match(
+    /(?:[A-Z]\d{12,20}|\d{12,20}[A-Z]|\d{13})(?=\s|$)/gu,
+  );
+  const value = matches?.at(-1);
+  return value
+    ? Object.freeze({ value, pageNumber: line.pageNumber })
+    : null;
+}
+
+function publicationUnderlyingActType(
+  index: DocumentIndexV2,
+): Readonly<{ value: string; pageNumber: number }> | null {
+  const line = publicationUnderlyingActLine(index);
+  if (!line) return null;
+  const value = /EMBARGO/u.test(line.normalized)
+    ? "Diligencia de embargo"
+    : /APLAZAMIENTO|FRACCIONAMIENTO/u.test(line.normalized)
+      ? "Acuerdo de aplazamiento o fraccionamiento"
+      : /EXIGENCIA.*REDUCCION/u.test(line.normalized)
+        ? "Exigencia de reducción de sanción"
+        : /APREMIO/u.test(line.normalized)
+          ? "Providencia de apremio"
+          : /LIQ/u.test(line.normalized)
+            ? "Liquidación"
+            : null;
+  return value
+    ? Object.freeze({ value, pageNumber: line.pageNumber })
+    : null;
+}
+
+function publicationSentenceDate(
+  index: DocumentIndexV2,
+): Readonly<{ value: string; pageNumber: number }> | null {
+  return joinedObservedDate(index, (value) =>
+    value.includes("BOLETIN OFICIAL") && value.includes("FECHA"),
+  );
+}
+
+function publicationAnnouncementNumber(
+  index: DocumentIndexV2,
+): Readonly<{ value: string; pageNumber: number }> | null {
+  for (const line of index.lines) {
+    if (!line.normalized.includes("BOLETIN OFICIAL")) continue;
+    const match = /ANUNCIO\s+(\d{4}\/\d{1,6})(?:\s|$)/u.exec(
+      line.normalized,
+    );
+    if (match?.[1]) {
+      return Object.freeze({ value: match[1], pageNumber: line.pageNumber });
+    }
+  }
+  return null;
+}
+
+function publicationEffectiveDate(
+  index: DocumentIndexV2,
+): Readonly<{ value: string; pageNumber: number }> | null {
+  for (const line of index.lines) {
+    if (
+      line.normalized.includes("ACUERDO") &&
+      line.normalized.includes("NOTIFICAD")
+    ) {
+      const value = firstObservedDate(line.raw);
+      if (value) return Object.freeze({ value, pageNumber: line.pageNumber });
+    }
+  }
+  for (let position = 0; position < index.lines.length; position += 1) {
+    const first = index.lines[position]!;
+    let normalized = "";
+    for (let length = 1; length <= 3; length += 1) {
+      const line = index.lines[position + length - 1];
+      if (!line || line.pageNumber !== first.pageNumber) break;
+      normalized = normalized
+        ? `${normalized} ${line.normalized}`
+        : line.normalized;
+      const actIndex = normalized.indexOf("ACTO");
+      if (
+        actIndex < 0 ||
+        !normalized.includes("PUBLICACION") ||
+        !normalized.includes("NOTIFICACION")
+      ) {
+        continue;
+      }
+      const value = firstObservedDate(normalized.slice(actIndex + 4));
+      if (value) {
+        return Object.freeze({ value, pageNumber: first.pageNumber });
+      }
+    }
+  }
+  return null;
+}
+
 function validDate(year: number, month: number, day: number): string | null {
   const date = new Date(Date.UTC(year, month - 1, day));
   return date.getUTCFullYear() === year &&
@@ -309,6 +456,153 @@ function parseDate(raw: string): string | null {
   return spanish
     ? validDate(Number(spanish[3]), Number(spanish[2]), Number(spanish[1]))
     : null;
+}
+
+const SPANISH_MONTHS_V2: Readonly<Record<string, number>> = Object.freeze({
+  ENERO: 1,
+  FEBRERO: 2,
+  MARZO: 3,
+  ABRIL: 4,
+  MAYO: 5,
+  JUNIO: 6,
+  JULIO: 7,
+  AGOSTO: 8,
+  SEPTIEMBRE: 9,
+  SETIEMBRE: 9,
+  OCTUBRE: 10,
+  NOVIEMBRE: 11,
+  DICIEMBRE: 12,
+});
+
+function firstObservedDate(raw: string): string | null {
+  const value = normalize(raw);
+  const iso = /(?:^|\D)((?:19|20)\d{2})-(\d{1,2})-(\d{1,2})(?=\D|$)/u.exec(
+    value,
+  );
+  if (iso) return validDate(Number(iso[1]), Number(iso[2]), Number(iso[3]));
+  const numeric =
+    /(?:^|\D)(\d{1,2})[./-](\d{1,2})[./-]((?:19|20)\d{2})(?=\D|$)/u.exec(
+      value,
+    );
+  if (numeric) {
+    return validDate(
+      Number(numeric[3]),
+      Number(numeric[2]),
+      Number(numeric[1]),
+    );
+  }
+  const written =
+    /(?:^|\D)(\d{1,2})\s+DE\s+(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|SETIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)\s+DE\s+((?:19|20)\d{2})(?=\D|$)/u.exec(
+      value,
+    );
+  return written
+    ? validDate(
+        Number(written[3]),
+        SPANISH_MONTHS_V2[written[2]!]!,
+        Number(written[1]),
+      )
+    : null;
+}
+
+function lastObservedDate(raw: string): string | null {
+  const value = normalize(raw);
+  const matches: Array<Readonly<{ index: number; value: string }>> = [];
+  for (const match of value.matchAll(
+    /(?:^|\D)((?:19|20)\d{2})-(\d{1,2})-(\d{1,2})(?=\D|$)/gu,
+  )) {
+    const parsed = validDate(Number(match[1]), Number(match[2]), Number(match[3]));
+    if (parsed) matches.push(Object.freeze({ index: match.index ?? 0, value: parsed }));
+  }
+  for (const match of value.matchAll(
+    /(?:^|\D)(\d{1,2})[./-](\d{1,2})[./-]((?:19|20)\d{2})(?=\D|$)/gu,
+  )) {
+    const parsed = validDate(Number(match[3]), Number(match[2]), Number(match[1]));
+    if (parsed) matches.push(Object.freeze({ index: match.index ?? 0, value: parsed }));
+  }
+  for (const match of value.matchAll(
+    /(?:^|\D)(\d{1,2})\s+DE\s+(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|SETIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)\s+DE\s+((?:19|20)\d{2})(?=\D|$)/gu,
+  )) {
+    const parsed = validDate(
+      Number(match[3]),
+      SPANISH_MONTHS_V2[match[2]!]!,
+      Number(match[1]),
+    );
+    if (parsed) matches.push(Object.freeze({ index: match.index ?? 0, value: parsed }));
+  }
+  return matches.sort((left, right) => left.index - right.index).at(-1)?.value ?? null;
+}
+
+function joinedObservedDate(
+  index: DocumentIndexV2,
+  predicate: (normalized: string) => boolean,
+  maxLines = 3,
+  selectDate: (raw: string) => string | null = firstObservedDate,
+): Readonly<{ value: string; pageNumber: number }> | null {
+  for (let position = 0; position < index.lines.length; position += 1) {
+    const first = index.lines[position]!;
+    let raw = "";
+    for (let length = 1; length <= maxLines; length += 1) {
+      const line = index.lines[position + length - 1];
+      if (!line || line.pageNumber !== first.pageNumber) break;
+      raw = raw ? `${raw} ${line.raw}` : line.raw;
+      const normalized = normalize(raw);
+      if (!predicate(normalized)) continue;
+      const value = selectDate(raw);
+      if (value) {
+        return Object.freeze({ value, pageNumber: first.pageNumber });
+      }
+    }
+  }
+  return null;
+}
+
+function electronicSigningDate(
+  index: DocumentIndexV2,
+): Readonly<{ value: string; pageNumber: number }> | null {
+  for (let position = 0; position < index.lines.length; position += 1) {
+    const first = index.lines[position]!;
+    if (!first.normalized.includes("DOCUMENTO FIRMADO ELECTRONICAMENTE")) {
+      continue;
+    }
+    for (let offset = 0; offset <= 2; offset += 1) {
+      const line = index.lines[position + offset];
+      if (!line || line.pageNumber !== first.pageNumber) break;
+      if (
+        offset > 0 &&
+        !/(?:FECHA(?: Y HORA)? DE (?:LA )?FIRMA)/u.test(line.normalized)
+      ) continue;
+      const value = lastObservedDate(line.raw);
+      if (value) return Object.freeze({ value, pageNumber: first.pageNumber });
+    }
+  }
+  return null;
+}
+
+function observedDocumentChronologyFields(
+  index: DocumentIndexV2,
+  existing: readonly RealCorpusFieldV2[],
+): readonly RealCorpusFieldV2[] {
+  const fields: RealCorpusFieldV2[] = [];
+  const has = (fieldCode: string) =>
+    existing.some((item) => item.fieldCode === fieldCode);
+  const signing = has("SIGNING_DATE") ? null : electronicSigningDate(index);
+  if (signing) {
+    fields.push(
+      field("SIGNING_DATE", "Fecha de firma", signing, "DATE")!,
+    );
+  }
+  if (has("ISSUE_DATE")) return Object.freeze(fields);
+  const explicit = lineValue(index, [
+    "Fecha del documento",
+    "Fecha de emisión",
+    "Data d'emissió",
+  ]);
+  const explicitValue = explicit ? firstObservedDate(explicit.value) : null;
+  const issue = explicit && explicitValue
+    ? Object.freeze({ value: explicitValue, pageNumber: explicit.pageNumber })
+    : null;
+  if (issue) fields.push(field("ISSUE_DATE", "Fecha de emisión", issue, "DATE")!);
+  return Object.freeze(fields);
 }
 
 function parseMoney(raw: string): number | null {
@@ -349,6 +643,33 @@ function safeClosedText(fieldCode: string, raw: string): string | null {
     return value.includes("ACTIVIDAD") || value.includes("ACTIVITAT")
       ? "ECONOMIC_ACTIVITY_DATA"
       : "OTHER_PRINTED_REASON";
+  }
+  if (fieldCode === "ALLEGATIONS_UNIT" && value === "BUSINESS_DAYS") {
+    return "Días hábiles";
+  }
+  if (fieldCode === "ALLEGATIONS_TRIGGER" && value === "RECEIPT_DATE") {
+    return "Fecha de recepción";
+  }
+  if (fieldCode === "OFFSET_TYPE") {
+    if (value === "REQUESTED") return "Compensación solicitada";
+    if (value === "EX_OFFICIO") return "Compensación de oficio";
+  }
+  if (fieldCode === "UNDERLYING_ACT_TYPE") {
+    const labels: Readonly<Record<string, string>> = Object.freeze({
+      EXECUTIVE_LIQUIDATION: "Liquidación",
+      LIQUIDACION: "Liquidación",
+      BANK_ACCOUNT_SEIZURE: "Diligencia de embargo",
+      DILIGENCIA_DE_EMBARGO: "Diligencia de embargo",
+      DEFERRAL_OR_INSTALLMENT_RESOLUTION:
+        "Acuerdo de aplazamiento o fraccionamiento",
+      ACUERDO_DE_APLAZAMIENTO_O_FRACCIONAMIENTO:
+        "Acuerdo de aplazamiento o fraccionamiento",
+      SANCTION_REDUCTION_CLAWBACK: "Exigencia de reducción de sanción",
+      EXIGENCIA_DE_REDUCCION_DE_SANCION:
+        "Exigencia de reducción de sanción",
+      PROVIDENCIA_DE_APREMIO: "Providencia de apremio",
+    });
+    return labels[value] ?? null;
   }
   return closed[fieldCode]?.has(value) ? value : null;
 }
@@ -492,11 +813,21 @@ function reviewed(
     | "confirmsDeadline"
   >,
 ): RealCorpusExtractorOutcomeV2 {
+  const fields = Object.freeze([
+    ...input.fields,
+    ...(input.familyId
+      ? observedDocumentChronologyFields(
+          index,
+          input.fields,
+        )
+      : []),
+  ]);
   return Object.freeze({
     schemaVersion: REAL_CORPUS_EXTRACTOR_SCHEMA_VERSION_V2,
     extractorVersion: REAL_CORPUS_EXTRACTOR_VERSION_V2,
     status: "REVIEW_REQUIRED" as const,
     ...input,
+    fields,
     physicalPageCount: document.pages.length,
     contentPageCount: document.pages.length - index.blankPageNumbers.length,
     retainedSourceContent: "NONE" as const,
@@ -701,7 +1032,7 @@ function parseSectionRows(
   index: DocumentIndexV2,
 ): readonly RealCorpusSectionRowV2[] {
   const rows: RealCorpusSectionRowV2[] = [];
-  let participantRole: "ACCOUNT_HOLDER" | "SPOUSE" = "ACCOUNT_HOLDER";
+  let participantRole: "ACCOUNT_HOLDER" | "SPOUSE" | null = null;
   const sectionOrdinals = new Map<string, number>();
   for (const line of index.lines) {
     if (line.normalized.startsWith("CONTRIBUYENTE: CONYUGE")) {
@@ -727,9 +1058,11 @@ function parseSectionRows(
       /\s+/gu,
       "_",
     );
-    const rowCount = Number(attributes.get("FILAS") ?? "1");
+    const printedRowCount = attributes.get("FILAS");
+    const rowCount = printedRowCount ? Number(printedRowCount) : null;
     if (
       !TAX_SECTION_KINDS_V2.has(sectionKind) ||
+      rowCount === null ||
       !Number.isSafeInteger(rowCount) ||
       rowCount < 1 ||
       rowCount > 128
@@ -1087,7 +1420,7 @@ function refundPayment(
       field(
         "REFUND_REFERENCE",
         "Referencia de devolución",
-        lineValue(index, ["Referencia de devolución"]),
+        lineValue(index, ["Referencia de devolución", "Referencia"]),
         "REFERENCE",
       ),
       field(
@@ -1167,7 +1500,8 @@ function publication(
     ? field(
         "EFFECTIVE_NOTIFICATION_DATE",
         "Fecha efectiva de notificación",
-        lineValue(index, ["Fecha efectiva de notificación"]),
+        lineValue(index, ["Fecha efectiva de notificación"]) ??
+          publicationEffectiveDate(index),
         "DATE",
       )
     : null;
@@ -1194,31 +1528,36 @@ function publication(
       field(
         "CERTIFICATE_OR_COMMUNICATION_ID",
         "Identificador de la evidencia",
-        lineValue(index, ["Identificador", "Referencia"]),
+        lineValue(index, ["Identificador", "Referencia"]) ??
+          publicationDocumentReference(index),
         "REFERENCE",
       ),
       field(
         "UNDERLYING_ACT_REFERENCE",
         "Referencia del acto citado",
-        lineValue(index, ["Referencia del acto citado"]),
+        lineValue(index, ["Referencia del acto citado"]) ??
+          publicationUnderlyingActReference(index),
         "REFERENCE",
       ),
       field(
         "UNDERLYING_ACT_TYPE",
         "Tipo del acto citado",
-        lineValue(index, ["Tipo del acto citado"]),
+        lineValue(index, ["Tipo del acto citado"]) ??
+          publicationUnderlyingActType(index),
         "TEXT",
       ),
       field(
         "PUBLICATION_DATE",
         "Fecha de publicación",
-        lineValue(index, ["Fecha de publicación"]),
+        lineValue(index, ["Fecha de publicación"]) ??
+          publicationSentenceDate(index),
         "DATE",
       ),
       field(
         "PUBLICATION_NUMBER",
         "Número de publicación",
-        lineValue(index, ["Número de publicación"]),
+        lineValue(index, ["Número de publicación"]) ??
+          publicationAnnouncementNumber(index),
         "REFERENCE",
       ),
       effective,

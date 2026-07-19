@@ -19,9 +19,15 @@ import { extractAeatRealCorpusDocumentV4 } from "./extractor-core/real-corpus-ex
 import { extractAeatRealCorpusDocumentV5 } from "./extractor-core/real-corpus-extractor.v5";
 import { extractAeatRealCorpusDocumentV6 } from "./extractor-core/real-corpus-extractor.v6";
 import { extractAeatRealCorpusDocumentV7 } from "./extractor-core/real-corpus-extractor.v7";
+import {
+  adaptAeatDeferralGrantFactsV1,
+  adaptAeatEnforcementFactsV1,
+  adaptAeatOffsetAgreementFactsV1,
+} from "./extractor-core/existing-extractor-adapters.v1";
 import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
 import {
+  haveConflictingExactDocumentIdentitiesV2,
   mergeProfileDrivenReviewsV2,
   projectProfileDrivenReviewV2,
 } from "./profile-driven-review.v2";
@@ -34,9 +40,16 @@ import { projectRealCorpusReviewV7 } from "./real-corpus-review.v7";
 import { projectAeatOfficialCatalogReviewV9 } from "./official-catalog-review.v9";
 import { projectAeatP0DeepReviewV10 } from "./p0-deep-review.v10";
 import {
+  parseFiscalNotificationVerticalSliceReviewV1,
+  projectFiscalNotificationExtractorOutputReviewV1,
   projectFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewV1,
 } from "./vertical-slice-review.v1";
+import {
+  isUsefulObservedFiscalNotificationField,
+  shouldExposeFiscalNotificationField,
+} from "./document-fact-observation.v1";
+import { appendObservedDocumentChronologyV1 } from "./observed-document-chronology.v1";
 
 export interface FiscalNotificationDocumentInputAnalysis extends Omit<
   ProjectFiscalNotificationPdfWorkerAnalysisInput,
@@ -86,8 +99,17 @@ export async function analyzeFiscalNotificationDocumentInput(
   const extractedOffsetAgreementFacts = offsetCandidate
     ? extractAeatOffsetAgreementFactsV1(documentInput)
     : null;
+  const extractedDeferralGrantFacts = deferralCandidate
+    ? extractAeatDeferralGrantFactsV1(documentInput)
+    : null;
+  const extractedEnforcementMoneyFacts = enforcementCandidate
+    ? extractAeatEnforcementMoneyFacts(documentInput)
+    : null;
   const enforcementExplicitFields = enforcementCandidate
     ? extractAeatEnforcementExplicitFieldsV2(documentInput)
+    : null;
+  const extractedEnforcementPartyFacts = enforcementCandidate
+    ? extractAeatEnforcementPartyFactsV1(documentInput)
     : null;
   const [
     legacyAnalysis,
@@ -136,6 +158,57 @@ export async function analyzeFiscalNotificationDocumentInput(
   ]);
   const legacyReview =
     projectFiscalNotificationVerticalSliceReviewV1(legacyAnalysis);
+  const adapterContext = {
+    ownerScope: documentInput.ownerScope,
+    documentId: documentInput.documentId,
+    segments: legacyAnalysis.segmentation.segments,
+    ...(documentInput.signal ? { signal: documentInput.signal } : {}),
+  };
+  const specializedReviews = [
+    ...(extractedDeferralGrantFacts?.status === "REVIEW_REQUIRED"
+      ? [
+          projectFiscalNotificationExtractorOutputReviewV1(
+            adaptAeatDeferralGrantFactsV1({
+              ...adapterContext,
+              facts: extractedDeferralGrantFacts,
+              ...(realCorpusOutcomeV7?.status === "REVIEW_REQUIRED" &&
+              realCorpusOutcomeV7.familyId ===
+                "collection.deferral_modification"
+                ? { familyId: "collection.deferral_modification" as const }
+                : {}),
+            }),
+          ),
+        ]
+      : []),
+    ...(extractedOffsetAgreementFacts?.status === "REVIEW_REQUIRED"
+      ? [
+          projectFiscalNotificationExtractorOutputReviewV1(
+            adaptAeatOffsetAgreementFactsV1({
+              ...adapterContext,
+              facts: extractedOffsetAgreementFacts,
+            }),
+          ),
+        ]
+      : []),
+    ...(extractedEnforcementMoneyFacts?.status === "REVIEW_REQUIRED" &&
+    enforcementExplicitFields?.status === "REVIEW_REQUIRED" &&
+    extractedEnforcementPartyFacts?.status === "REVIEW_REQUIRED"
+      ? [
+          projectFiscalNotificationExtractorOutputReviewV1(
+            adaptAeatEnforcementFactsV1({
+              ...adapterContext,
+              explicitFields: enforcementExplicitFields,
+              moneyFacts: extractedEnforcementMoneyFacts,
+              partyFacts: extractedEnforcementPartyFacts,
+              ...(realCorpusOutcomeV7?.status === "REVIEW_REQUIRED" &&
+              realCorpusOutcomeV7.familyId === "collection.external_debt"
+                ? { familyId: "collection.external_debt" as const }
+                : {}),
+            }),
+          ),
+        ]
+      : []),
+  ];
   const segmentedOutcomes =
     profileDrivenSegments?.status === "SEGMENTED_REVIEW_REQUIRED"
       ? profileDrivenSegments.segments.map((segment) => ({
@@ -167,46 +240,40 @@ export async function analyzeFiscalNotificationDocumentInput(
         : [];
     },
   );
-  const v3FamilyId =
-    realCorpusOutcomeV3?.status === "REVIEW_REQUIRED"
-      ? realCorpusOutcomeV3.familyId
-      : null;
-  const v2FamilyId =
-    realCorpusOutcome?.status === "REVIEW_REQUIRED"
-      ? realCorpusOutcome.familyId
-      : null;
-  const v4FamilyId =
-    realCorpusOutcomeV4?.status === "REVIEW_REQUIRED"
-      ? realCorpusOutcomeV4.familyId
-      : null;
-  const v5FamilyId =
-    realCorpusOutcomeV5?.status === "REVIEW_REQUIRED"
-      ? realCorpusOutcomeV5.familyId
-      : null;
-  const v6FamilyId =
-    realCorpusOutcomeV6?.status === "REVIEW_REQUIRED"
-      ? realCorpusOutcomeV6.familyId
-      : null;
-  const v7FamilyId =
-    realCorpusOutcomeV7?.status === "REVIEW_REQUIRED"
-      ? realCorpusOutcomeV7.familyId
-      : null;
-  const reviewsOutsideLatestFamily = profileReviews.filter(
-    (review) =>
-      (v2FamilyId === null ||
-        review.documents.every((document) => document.familyId !== v2FamilyId)) &&
-      (v3FamilyId === null ||
-        review.documents.every((document) => document.familyId !== v3FamilyId)) &&
-      (v4FamilyId === null ||
-        review.documents.every((document) => document.familyId !== v4FamilyId)) &&
-      (v5FamilyId === null ||
-        review.documents.every((document) => document.familyId !== v5FamilyId)) &&
-      (v6FamilyId === null ||
-        review.documents.every((document) => document.familyId !== v6FamilyId)) &&
-      (v7FamilyId === null ||
-        review.documents.every((document) => document.familyId !== v7FamilyId)),
+  const rawRealCorpusReviews = [
+    ...(realCorpusOutcome?.status === "REVIEW_REQUIRED"
+      ? [projectRealCorpusReviewV2(realCorpusOutcome)]
+      : []),
+    ...(realCorpusOutcomeV3?.status === "REVIEW_REQUIRED"
+      ? [projectRealCorpusReviewV3(realCorpusOutcomeV3)]
+      : []),
+    ...(realCorpusOutcomeV4?.status === "REVIEW_REQUIRED"
+      ? [projectRealCorpusReviewV4(realCorpusOutcomeV4)]
+      : []),
+    ...(realCorpusOutcomeV5?.status === "REVIEW_REQUIRED"
+      ? [projectRealCorpusReviewV5(realCorpusOutcomeV5)]
+      : []),
+    ...(realCorpusOutcomeV6?.status === "REVIEW_REQUIRED"
+      ? [projectRealCorpusReviewV6(realCorpusOutcomeV6)]
+      : []),
+    ...(realCorpusOutcomeV7?.status === "REVIEW_REQUIRED"
+      ? [projectRealCorpusReviewV7(realCorpusOutcomeV7)]
+      : []),
+  ];
+  const realCorpusReviews = rawRealCorpusReviews.map((review, index) =>
+    filterPreferredMoneyFields(
+      filterConflictingReviewDocuments(
+        review,
+        rawRealCorpusReviews
+          .slice(index + 1)
+          .flatMap((laterReview) => laterReview.documents),
+      ),
+      [...rawRealCorpusReviews.slice(index + 1), ...specializedReviews],
+    ),
   );
-  const verticalSliceReview = mergeProfileDrivenReviewsV2(legacyReview, [
+  const authoritativeDocuments = [...specializedReviews, ...realCorpusReviews]
+    .flatMap((review) => review.documents);
+  const lowerPriorityReviews = [
     ...(p0DeepOutcomeV10?.status === "REVIEW_REQUIRED"
       ? [projectAeatP0DeepReviewV10(p0DeepOutcomeV10)]
       : []),
@@ -214,40 +281,57 @@ export async function analyzeFiscalNotificationDocumentInput(
     officialCatalogOutcomeV9.familyId !== p0DeepOutcomeV10?.familyId
       ? [projectAeatOfficialCatalogReviewV9(officialCatalogOutcomeV9)]
       : []),
-    ...reviewsOutsideLatestFamily,
-    ...(realCorpusOutcome &&
-    realCorpusOutcome.familyId !== v3FamilyId &&
-    realCorpusOutcome.familyId !== v4FamilyId &&
-    realCorpusOutcome.familyId !== v5FamilyId &&
-    realCorpusOutcome.familyId !== v6FamilyId &&
-    realCorpusOutcome.familyId !== v7FamilyId
-      ? [projectRealCorpusReviewV2(realCorpusOutcome)]
-      : []),
-    ...(realCorpusOutcomeV3 &&
-    realCorpusOutcomeV3.familyId !== v4FamilyId &&
-    realCorpusOutcomeV3.familyId !== v5FamilyId &&
-    realCorpusOutcomeV3.familyId !== v6FamilyId &&
-    realCorpusOutcomeV3.familyId !== v7FamilyId
-      ? [projectRealCorpusReviewV3(realCorpusOutcomeV3)]
-      : []),
-    ...(realCorpusOutcomeV4 &&
-    realCorpusOutcomeV4.familyId !== v5FamilyId &&
-    realCorpusOutcomeV4.familyId !== v6FamilyId &&
-    realCorpusOutcomeV4.familyId !== v7FamilyId
-      ? [projectRealCorpusReviewV4(realCorpusOutcomeV4)]
-      : []),
-    ...(realCorpusOutcomeV5 &&
-    realCorpusOutcomeV5.familyId !== v6FamilyId &&
-    realCorpusOutcomeV5.familyId !== v7FamilyId
-      ? [projectRealCorpusReviewV5(realCorpusOutcomeV5)]
-      : []),
-    ...(realCorpusOutcomeV6 && realCorpusOutcomeV6.familyId !== v7FamilyId
-      ? [projectRealCorpusReviewV6(realCorpusOutcomeV6)]
-      : []),
-    ...(realCorpusOutcomeV7
-      ? [projectRealCorpusReviewV7(realCorpusOutcomeV7)]
-      : []),
-  ]);
+    ...profileReviews,
+  ]
+    .map((review) =>
+      filterPreferredMoneyFields(review, [
+        ...realCorpusReviews,
+        ...specializedReviews,
+      ]),
+    )
+    .map((review) =>
+      filterConflictingReviewDocuments(review, authoritativeDocuments),
+    );
+  const mergedVerticalSliceReview = mergeProfileDrivenReviewsV2(
+    filterConflictingReviewDocuments(
+      filterPreferredMoneyFields(legacyReview, [
+        ...realCorpusReviews,
+        ...specializedReviews,
+      ]),
+      authoritativeDocuments,
+    ),
+    [
+      ...lowerPriorityReviews,
+      ...realCorpusReviews,
+      ...specializedReviews,
+    ],
+  );
+  const chronologyReview = appendObservedDocumentChronologyV1(
+    mergedVerticalSliceReview,
+    documentInput,
+  );
+  const observedDocuments = chronologyReview.documents
+    .map((document) =>
+      Object.freeze({
+        ...document,
+        fields: Object.freeze(
+          document.fields.filter(shouldExposeFiscalNotificationField),
+        ),
+      }),
+    )
+    .filter((document) =>
+      document.fields.some(isUsefulObservedFiscalNotificationField),
+    );
+  const verticalSliceReview = parseFiscalNotificationVerticalSliceReviewV1({
+    ...chronologyReview,
+    status:
+      observedDocuments.length > 0
+        ? "REVIEW_REQUIRED"
+        : chronologyReview.status === "BLOCKED"
+          ? "BLOCKED"
+          : "INFORMATION_PENDING",
+    documents: observedDocuments,
+  });
 
   return Object.freeze({
     hasText,
@@ -255,18 +339,110 @@ export async function analyzeFiscalNotificationDocumentInput(
     verticalSliceReview,
     familyAnalysis,
     enforcementMoneyFacts: enforcementCandidate
-      ? extractAeatEnforcementMoneyFacts(documentInput)
+      ? extractedEnforcementMoneyFacts
       : null,
     enforcementExplicitFields,
     enforcementPartyFacts: enforcementCandidate
-      ? extractAeatEnforcementPartyFactsV1(documentInput)
+      ? extractedEnforcementPartyFacts
       : null,
     deferralGrantFacts: deferralCandidate
-      ? extractAeatDeferralGrantFactsV1(documentInput)
+      ? extractedDeferralGrantFacts
       : null,
     offsetAgreementFacts:
       extractedOffsetAgreementFacts?.documentType === "AEAT_OFFSET_AGREEMENT"
         ? extractedOffsetAgreementFacts
         : null,
+  });
+}
+
+function filterConflictingReviewDocuments(
+  review: FiscalNotificationVerticalSliceReviewV1,
+  authoritativeDocuments: readonly FiscalNotificationVerticalSliceReviewV1["documents"][number][],
+): FiscalNotificationVerticalSliceReviewV1 {
+  const documents = review.documents.filter(
+    (document) =>
+      !authoritativeDocuments.some(
+        (authoritative) =>
+          document.pageFrom <= authoritative.pageTo &&
+          authoritative.pageFrom <= document.pageTo &&
+          document.familyId !== authoritative.familyId &&
+          !haveConflictingExactDocumentIdentitiesV2(
+            document,
+            authoritative,
+          ),
+      ),
+  );
+  if (documents.length === review.documents.length) return review;
+  return parseFiscalNotificationVerticalSliceReviewV1({
+    ...review,
+    status:
+      documents.length > 0
+        ? "REVIEW_REQUIRED"
+        : review.status === "BLOCKED"
+          ? "BLOCKED"
+          : "INFORMATION_PENDING",
+    documents,
+  });
+}
+
+function filterPreferredMoneyFields(
+  review: FiscalNotificationVerticalSliceReviewV1,
+  preferredReviews: readonly FiscalNotificationVerticalSliceReviewV1[],
+): FiscalNotificationVerticalSliceReviewV1 {
+  const preferredDocuments = preferredReviews.flatMap(
+    (preferred) => preferred.documents,
+  );
+  const documents = review.documents
+    .map((document) => {
+      const preferredMoney = new Set(
+        preferredDocuments
+          .filter(
+            (preferred) =>
+              preferred.familyId === document.familyId &&
+              document.pageFrom <= preferred.pageTo &&
+              preferred.pageFrom <= document.pageTo &&
+              !haveConflictingExactDocumentIdentitiesV2(
+                preferred,
+                document,
+              ),
+          )
+          .flatMap((preferred) =>
+            preferred.fields.flatMap((field) =>
+              field.semantic === "MONEY" && field.amountCents !== null
+                ? [
+                    `${field.canonicalType}:${field.amountCents}:${field.currency ?? ""}`,
+                  ]
+                : [],
+            ),
+          ),
+      );
+      if (preferredMoney.size === 0) return document;
+      return Object.freeze({
+        ...document,
+        fields: Object.freeze(
+          document.fields.filter(
+            (field) =>
+              field.semantic !== "MONEY" ||
+              field.amountCents === null ||
+              !preferredMoney.has(
+                `${field.canonicalType}:${field.amountCents}:${field.currency ?? ""}`,
+              ),
+          ),
+        ),
+      });
+    })
+    .filter((document) => document.fields.length > 0);
+  if (
+    documents.length === review.documents.length &&
+    documents.every(
+      (document, index) => document === review.documents[index],
+    )
+  ) {
+    return review;
+  }
+  return parseFiscalNotificationVerticalSliceReviewV1({
+    ...review,
+    status: documents.length > 0 ? "REVIEW_REQUIRED" : "INFORMATION_PENDING",
+    documents,
   });
 }

@@ -222,6 +222,18 @@ function contains(index: DocumentIndexV5, value: string): boolean {
   return index.normalizedText.includes(normalize(value));
 }
 
+function firstContaining(
+  index: DocumentIndexV5,
+  values: readonly string[],
+): IndexedLineV5 | null {
+  const markers = values.map(normalize);
+  return (
+    index.lines.find((line) =>
+      markers.some((marker) => line.normalized.includes(marker)),
+    ) ?? null
+  );
+}
+
 function lineValues(index: DocumentIndexV5, labels: readonly string[]): readonly IndexedLineV5[] {
   const normalizedLabels = labels.map(normalize);
   const values: IndexedLineV5[] = [];
@@ -339,15 +351,17 @@ function textField(
   fieldCode: string,
   label: string,
   value: string,
-  pageNumber = 1,
-): RealCorpusFieldV2 {
-  return Object.freeze({
-    fieldCode,
-    label,
-    kind: "TEXT" as const,
-    value,
-    evidence: evidence(pageNumber),
-  });
+  source: IndexedLineV5 | null,
+): RealCorpusFieldV2 | null {
+  return source
+    ? Object.freeze({
+        fieldCode,
+        label,
+        kind: "TEXT" as const,
+        value,
+        evidence: evidence(source.pageNumber),
+      })
+    : null;
 }
 
 function compact(
@@ -575,7 +589,6 @@ function v5Fields(
             evidence: evidence(denied.observedOnPage),
           })
         : null,
-      textField("DENIAL_DEADLINE_RULE", "Regla del plazo tras denegación", "DEPENDS_ON_EFFECTIVE_RECEIPT"),
       ...cited.flatMap((item, indexValue) => [
         Object.freeze({
           fieldCode: `CITED_EXECUTIVE_DEBT_KEY_${indexValue + 1}`,
@@ -597,11 +610,24 @@ function v5Fields(
   }
   if (familyId === "seizure.commercial_credits") {
     fields.push(
-      textField("RECIPIENT_ROLE", "Destinatario operativo", "PRIMARY_DEBTOR"),
-      textField("THIRD_PARTY_ROLE", "Papel del tercero", "GARNISHED_THIRD_PARTY_WITHOUT_IDENTITY"),
-      textField("RESPONSE_OBLIGATION", "Obligación de contestar", "THIRD_PARTY_ONLY"),
-      textField("RETENTION_STATE", "Estado de la retención", "NOT_CONFIRMED"),
-      textField("REMITTANCE_STATE", "Estado del ingreso al Tesoro", "NOT_CONFIRMED"),
+      textField(
+        "RECIPIENT_ROLE",
+        "Destinatario operativo",
+        "Obligado al pago",
+        firstContaining(index, ["OBLIGADO AL PAGO", "DEUDOR DESTINATARIO"]),
+      ),
+      textField(
+        "THIRD_PARTY_ROLE",
+        "Papel del tercero",
+        "Tercero pagador",
+        firstContaining(index, ["TERCERO PAGADOR", "TERCERO DESTINATARIO"]),
+      ),
+      textField(
+        "RESPONSE_OBLIGATION",
+        "Obligación de contestar",
+        "Debe contestar",
+        firstContaining(index, ["OBLIGACIÓN DE CONTESTAR", "OBLIGACION DE CONTESTAR"]),
+      ),
     );
   }
   return compact(fields);

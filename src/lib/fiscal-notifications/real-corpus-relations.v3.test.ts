@@ -54,7 +54,7 @@ describe("AEAT real corpus relations V3", () => {
     ).toBe(identity);
   });
 
-  it("confirms a claimed installment only with the complete exact tuple", () => {
+  it("confirms a claimed installment from the strong debt and installment identity", () => {
     const enforcement = item({
       documentId: "SYN-V3-APREMIO-B4",
       familyId: "collection.enforcement_order",
@@ -91,7 +91,12 @@ describe("AEAT real corpus relations V3", () => {
         ...plan,
         installmentTotalCents: 30001,
       }),
-    ).toEqual([]);
+    ).toEqual([
+      expect.objectContaining({
+        relationType: "CLAIMS_UNPAID_INSTALLMENT",
+        exactReference: "A9999900010002002",
+      }),
+    ]);
   });
 
   it("keeps two enforcement orders for different installments of one debt key", () => {
@@ -169,7 +174,7 @@ describe("AEAT real corpus relations V3", () => {
     ).toEqual([]);
   });
 
-  it("uses model/year only as a suggestion and blocks cross-owner links", () => {
+  it("does not relate documents by model and year alone and blocks cross-owner links", () => {
     const enforcement = item({
       documentId: "SYN-V3-APREMIO-D",
       familyId: "collection.enforcement_order",
@@ -182,13 +187,7 @@ describe("AEAT real corpus relations V3", () => {
       taxModel: "180",
       fiscalYear: "2024",
     });
-    expect(relateRealCorpusDocumentsV3(enforcement, reminder)).toEqual([
-      expect.objectContaining({
-        relationType: "POSSIBLY_RELATED",
-        status: "SUGGESTED",
-        exactReference: null,
-      }),
-    ]);
+    expect(relateRealCorpusDocumentsV3(enforcement, reminder)).toEqual([]);
     expect(
       relateRealCorpusDocumentsV3(enforcement, {
         ...reminder,

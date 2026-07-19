@@ -1,4 +1,5 @@
 import { sha256Hex } from "../document-integrity/snapshot-hash";
+import { resolveFiscalNotificationChronologyV2 } from "./chronology-date.v2";
 import {
   createOwnerScopedAssetFingerprintV8,
   GLOBAL_RECONCILIATION_RULE_VERSION_V8,
@@ -271,6 +272,10 @@ function projectWorkspace(
     workspace.evidence.map((evidence) => [evidence.id, evidence]),
   );
   const partById = new Map(workspace.parts.map((part) => [part.id, part]));
+  const referenceById = new Map(
+    workspace.references.map((reference) => [reference.id, reference]),
+  );
+  const debtById = new Map(workspace.debts.map((debt) => [debt.id, debt]));
   const referencesByDocument = new Map<string, ExternalReference[]>();
   for (const reference of workspace.references) {
     const entries = referencesByDocument.get(reference.documentId) ?? [];
@@ -337,6 +342,7 @@ function projectWorkspace(
       });
       referenceTypesById.set(reference.id, reference.referenceType);
     }
+    const documentDebtKey = uniqueDocumentDebtKey(references);
     const amounts: GlobalReconciliationAmountV8[] = [];
     for (const snapshot of snapshotsByDocument.get(document.id) ?? []) {
       for (const money of snapshot.structuredData.administrativeDomain?.moneyFacts ?? []) {
@@ -346,7 +352,12 @@ function projectWorkspace(
           amountId: money.id,
           kind,
           amountCents: money.amountCents,
-          debtKey: null,
+          debtKey:
+            debtKeyForReferenceId(
+              money.sourceActRefId,
+              document.id,
+              referenceById,
+            ) ?? documentDebtKey,
         });
         amountTypesById.set(money.id, memoryAmountType(money.kind));
       }
@@ -358,7 +369,12 @@ function projectWorkspace(
           amountId: id,
           kind: globalAmountKind("DOCUMENT_TOTAL", familyId)!,
           amountCents: option.totalCents,
-          debtKey: null,
+          debtKey:
+            debtKeyForEvidenceIds(
+              option.evidenceIds,
+              document.id,
+              referencesByDocument,
+            ) ?? documentDebtKey,
         });
         amountTypesById.set(id, "TOTAL_DEBT");
       }
@@ -370,7 +386,12 @@ function projectWorkspace(
           amountId: id,
           kind,
           amountCents: component.amountCents,
-          debtKey: null,
+          debtKey:
+            debtKeyForEvidenceIds(
+              component.evidenceIds,
+              document.id,
+              referencesByDocument,
+            ) ?? documentDebtKey,
         });
         amountTypesById.set(id, component.type);
       });
@@ -382,7 +403,13 @@ function projectWorkspace(
           amountId: id,
           kind: familyId.startsWith("seizure.") ? "SEIZURE_ROW" : "PRINCIPAL",
           amountCents: observation.observedPrincipalCents,
-          debtKey: null,
+          debtKey:
+            debtKeyForObservation(
+              observation,
+              document.id,
+              debtById,
+              referenceById,
+            ) ?? documentDebtKey,
         });
         amountTypesById.set(id, "PRINCIPAL");
       }
@@ -396,7 +423,13 @@ function projectWorkspace(
               ? "DENIAL_SNAPSHOT"
               : "ORDINARY_TOTAL",
           amountCents: observation.observedOutstandingCents,
-          debtKey: null,
+          debtKey:
+            debtKeyForObservation(
+              observation,
+              document.id,
+              debtById,
+              referenceById,
+            ) ?? documentDebtKey,
         });
         amountTypesById.set(id, "TOTAL_DEBT");
       }
@@ -410,23 +443,24 @@ function projectWorkspace(
             .length,
         )
       : 0;
+    const chronology = resolveFiscalNotificationChronologyV2({
+      issueDate: document.issueDate?.slice(0, 10),
+      signingDate: document.signatureDate?.slice(0, 10),
+      effectiveNotificationDate:
+        document.notificationDates.effectiveAt?.slice(0, 10),
+    });
     documents.push({
       ownerScope: workspace.ownerScope,
       documentId: document.id,
       issuer: "AEAT",
       familyId,
-      documentDate: document.issueDate?.slice(0, 10) ?? null,
+      documentDate: chronology.chronologyDate,
       references: uniqueById(references),
       amounts: uniqueById(amounts, "amountId"),
       remainingPlanPrincipalCents: remainingPlanPrincipal(workspace, document.id),
       modifiedPlan: familyId === "collection.deferral_modification",
       compatibleAutomaticOffsetClause:
-        familyId === "collection.deferral_modification" &&
-        snapshots.some((snapshot) =>
-          snapshot.structuredData.unknownFields.some(
-            (field) => field.valueRaw === "MODIFIED_SCHEDULE_REPLACES_ORIGINAL",
-          ),
-        ),
+        familyId === "collection.deferral_modification",
       offsetRows,
       offsetRowsRecalculated:
         familyId.startsWith("collection.offset_") && offsetRows > 1,
@@ -438,6 +472,87 @@ function projectWorkspace(
     referenceTypesById,
     amountTypesById,
   };
+}
+
+function uniqueDocumentDebtKey(
+  references: readonly GlobalReconciliationReferenceV8[],
+): string | null {
+  const values = [
+    ...new Set(
+      references
+        .filter(
+          (reference) =>
+            reference.type === "DEBT_KEY" ||
+            reference.type === "LIQUIDATION_KEY",
+        )
+        .map((reference) => reference.normalizedValue),
+    ),
+  ];
+  return values.length === 1 ? values[0]! : null;
+}
+
+function debtKeyForReferenceId(
+  referenceId: string | undefined,
+  documentId: string,
+  references: ReadonlyMap<string, ExternalReference>,
+): string | null {
+  if (!referenceId) return null;
+  const reference = references.get(referenceId);
+  return reference &&
+      reference.documentId === documentId &&
+      reference.confirmationStatus !== "REJECTED" &&
+      reference.confidence === "EXACT" &&
+      (reference.referenceType === "DEBT_KEY" ||
+        reference.referenceType === "LIQUIDATION_KEY")
+    ? reference.normalizedValue
+    : null;
+}
+
+function debtKeyForEvidenceIds(
+  evidenceIds: readonly string[],
+  documentId: string,
+  referencesByDocument: ReadonlyMap<string, ExternalReference[]>,
+): string | null {
+  const evidence = new Set(evidenceIds);
+  const values = [
+    ...new Set(
+      (referencesByDocument.get(documentId) ?? [])
+        .filter(
+          (reference) =>
+            reference.confirmationStatus !== "REJECTED" &&
+            reference.confidence === "EXACT" &&
+            (reference.referenceType === "DEBT_KEY" ||
+              reference.referenceType === "LIQUIDATION_KEY") &&
+            reference.occurrenceIds.some((id) => evidence.has(id)),
+        )
+        .map((reference) => reference.normalizedValue),
+    ),
+  ];
+  return values.length === 1 ? values[0]! : null;
+}
+
+function debtKeyForObservation(
+  observation: FiscalNotificationsWorkspace["debtObservations"][number],
+  documentId: string,
+  debts: ReadonlyMap<string, FiscalNotificationsWorkspace["debts"][number]>,
+  references: ReadonlyMap<string, ExternalReference>,
+): string | null {
+  const referenceValues = [
+    ...new Set(
+      observation.referenceIds.flatMap((referenceId) => {
+        const value = debtKeyForReferenceId(
+          referenceId,
+          documentId,
+          references,
+        );
+        return value ? [value] : [];
+      }),
+    ),
+  ];
+  if (referenceValues.length === 1) return referenceValues[0]!;
+  if (referenceValues.length > 1) return null;
+  const debt = debts.get(observation.debtId);
+  return debt?.debtKey ?? debt?.liquidationKey ?? null;
 }
 
 function remainingPlanPrincipal(

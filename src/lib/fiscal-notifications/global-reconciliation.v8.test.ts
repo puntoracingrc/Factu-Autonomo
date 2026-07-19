@@ -45,8 +45,9 @@ function amount(
   amountId: string,
   amountCents: number,
   kind: "PRINCIPAL" | "ORDINARY_TOTAL" | "DOCUMENT_TOTAL" | "SEIZURE_ROW" | "DENIAL_SNAPSHOT",
+  debtKey: string | null = null,
 ) {
-  return { amountId, kind, amountCents, debtKey: null } as const;
+  return { amountId, kind, amountCents, debtKey } as const;
 }
 
 describe("global reconciliation V8 synthetic regression pack", () => {
@@ -136,14 +137,17 @@ describe("global reconciliation V8 synthetic regression pack", () => {
 
   it("GLOBAL-S03 keeps remittance unknown across credit and movable seizures", () => {
     const enforcement = document("doc-e3", "collection.enforcement_order", {
+      documentDate: "2025-01-01",
       references: [reference("ref-e3", "SYN-DEBT-3")],
       amounts: [amount("amount-e3", 36_000, "ORDINARY_TOTAL")],
     });
     const credit = document("doc-credit", "seizure.commercial_credits", {
+      documentDate: "2025-02-01",
       references: [reference("ref-credit", "SYN-DEBT-3")],
       amounts: [amount("amount-credit", 36_000, "SEIZURE_ROW")],
     });
     const movable = document("doc-m3", "seizure.movable_asset", {
+      documentDate: "2025-03-01",
       references: [reference("ref-m3", "SYN-DEBT-3")],
       amounts: [amount("amount-m3", 36_000, "SEIZURE_ROW")],
     });
@@ -196,6 +200,43 @@ describe("global reconciliation V8 synthetic regression pack", () => {
         }),
       ]),
     );
+  });
+
+  it("does not attribute a matching amount from another debt in a multi-debt document", () => {
+    const sharedDebt = "SYN-DEBT-MULTI-A";
+    const otherDebt = "SYN-DEBT-MULTI-B";
+    const plan = document("doc-plan-multi", "collection.deferral_grant", {
+      documentDate: "2026-01-01",
+      references: [reference("ref-plan-multi", sharedDebt)],
+      remainingPlanPrincipalCents: 50_000,
+    });
+    const enforcement = document(
+      "doc-enforcement-multi",
+      "collection.enforcement_order",
+      {
+        documentDate: "2026-02-01",
+        references: [
+          reference("ref-enforcement-shared", sharedDebt),
+          reference("ref-enforcement-other", otherDebt),
+        ],
+        amounts: [
+          amount(
+            "amount-enforcement-other",
+            50_000,
+            "ORDINARY_TOTAL",
+            otherDebt,
+          ),
+        ],
+      },
+    );
+
+    const result = reconcileGlobalDocumentRelationsV8({
+      documents: [plan, enforcement],
+      reevaluatedAt: NOW,
+    });
+
+    expect(result.status).toBe("UNCHANGED");
+    expect(result.directEdges).toEqual([]);
   });
 
   it("GLOBAL-S05 confirms modified-plan offset only at case level", () => {
@@ -273,7 +314,46 @@ describe("global reconciliation V8 synthetic regression pack", () => {
     expect(result.directEdges).toEqual([]);
   });
 
-  it("fails closed before evaluating an oversized shared-reference group", () => {
+  it("does not confirm an exact procedural relation when chronology is absent", () => {
+    const assessment = document(
+      "doc-assessment-undated",
+      "assessment.final_provisional_assessment",
+      {
+        references: [
+          reference(
+            "ref-assessment-undated",
+            "SYN-LIQ-UNDATED-001",
+            "PAYMENT_FORM",
+            "LIQUIDATION_KEY",
+          ),
+        ],
+      },
+    );
+    const enforcement = document(
+      "doc-enforcement-undated",
+      "collection.enforcement_order",
+      {
+        references: [
+          reference(
+            "ref-enforcement-undated",
+            "SYN-LIQ-UNDATED-001",
+            "GENERIC",
+            "LIQUIDATION_KEY",
+          ),
+        ],
+      },
+    );
+
+    const result = reconcileGlobalDocumentRelationsV8({
+      documents: [assessment, enforcement],
+      reevaluatedAt: NOW,
+    });
+
+    expect(result.status).toBe("UNCHANGED");
+    expect(result.directEdges).toEqual([]);
+  });
+
+  it("ignores an oversized model/year-only group because it is not a relation key", () => {
     const documents = Array.from({ length: 501 }, (_, index) =>
       document(`doc-bounded-${index}`, "information.informal_reminder", {
         documentDate: "2024-01-01",
@@ -293,15 +373,11 @@ describe("global reconciliation V8 synthetic regression pack", () => {
       reevaluatedAt: NOW,
     });
 
-    expect(result).toMatchObject({
-      status: "REVIEW_REQUIRED",
-      reason: "RELATION_LIMIT_EXCEEDED",
-      changes: [],
-      directEdges: [],
-    });
+    expect(result.status).toBe("UNCHANGED");
+    expect(result.directEdges).toEqual([]);
   });
 
-  it("GLOBAL-S07 leaves model/year-only reminder relation suggested", () => {
+  it("GLOBAL-S07 does not relate documents from model and fiscal year alone", () => {
     const shared = [
       reference("model-reminder", "180", "GENERIC", "MODEL"),
       reference("year-reminder", "2024", "GENERIC", "FISCAL_YEAR"),
@@ -318,13 +394,8 @@ describe("global reconciliation V8 synthetic regression pack", () => {
       ],
     });
     const result = reconcileGlobalDocumentRelationsV8({ documents: [assessment, reminder], reevaluatedAt: NOW });
-    expect(result.status).toBe("APPLIED");
-    if (result.status !== "APPLIED") return;
-    expect(result.changes[0]?.edge).toEqual(expect.objectContaining({
-      relationType: "POSSIBLY_PRECEDES_ASSESSMENT",
-      status: "SUGGESTED",
-      resultClassification: "SUGGESTED",
-    }));
+    expect(result.status).toBe("UNCHANGED");
+    expect(result.directEdges).toEqual([]);
   });
 
   it("is upload-order independent, idempotent with V8 history and derives a four-batch chain", () => {

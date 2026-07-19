@@ -62,4 +62,37 @@ describe("P0 deep review v10", () => {
       ]),
     );
   });
+
+  it("keeps a cited resolution date as context instead of dating the current act", () => {
+    const base = multiPartOutcome();
+    const review = projectAeatP0DeepReviewV10(
+      Object.freeze({
+        ...base,
+        familyId: "review.execution_resolution" as const,
+        title: "Acuerdo de ejecución de una resolución de recurso o reclamación",
+        fields: Object.freeze([
+          Object.freeze({
+            ...base.fields[0]!,
+            fieldId: "p0-v10:REVIEW_RESOLUTION_ENTRY_DATE:1",
+            fieldCode: "REVIEW_RESOLUTION_ENTRY_DATE",
+            sourceLabel: "Entrada en el órgano competente",
+          }),
+        ]),
+      }),
+    );
+
+    expect(review.documents[0]?.fields).toEqual([
+      expect.objectContaining({
+        semantic: "DETAIL",
+        canonicalType: "FACT_OR_GROUND",
+        normalizedValue: "2026-07-18",
+        sourcePageNumbers: [1],
+      }),
+    ]);
+    expect(review.documents[0]?.fields).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ canonicalType: "ACTION_DATE" }),
+      ]),
+    );
+  });
 });

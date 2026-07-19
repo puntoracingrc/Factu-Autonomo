@@ -183,6 +183,7 @@ export function FiscalNotificationDocumentLibrary({
       setDeleteBusy(false);
       setDeleteError(null);
       setDeleteDocumentId(null);
+      setQuery("");
       return;
     }
     let rollbackFailed = false;

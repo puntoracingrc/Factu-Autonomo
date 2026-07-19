@@ -6,6 +6,12 @@ import type {
   RealCorpusInstallmentV7,
 } from "./extractor-core/real-corpus-extractor.v7";
 import {
+  canonicalRealCorpusDateType,
+  canonicalRealCorpusMoneyType,
+  canonicalRealCorpusReferenceType,
+  serializableRealCorpusReference,
+} from "./real-corpus-review-observation.v1";
+import {
   parseFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewFieldV1,
   type FiscalNotificationVerticalSliceReviewV1,
@@ -40,42 +46,42 @@ function field(input: {
   });
 }
 
-function canonicalDateType(code: string): FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"] {
-  if (code === "ISSUE_DATE") return "ISSUE_DATE";
-  if (code === "EFFECTIVE_NOTIFICATION_DATE") return "EFFECTIVE_NOTIFICATION_DATE";
-  if (code === "VOLUNTARY_END_DATE") return "VOLUNTARY_PAYMENT_DEADLINE";
-  return "ACTION_DATE";
-}
-
 function projectField(item: RealCorpusFieldV2, index: number): FiscalNotificationVerticalSliceReviewFieldV1 {
   if (item.kind === "MONEY") return field({
     fieldId: `real-corpus-v7:${item.fieldCode}:${index}`,
     semantic: "MONEY",
-    canonicalType: "OTHER",
+    canonicalType: canonicalRealCorpusMoneyType(item.fieldCode),
     label: item.label,
     displayValue: formatMoney(item.amountCents),
     normalizedValue: String(item.amountCents),
     amountCents: item.amountCents,
     sourcePageNumbers: item.evidence.pageNumbers,
   });
-  if (item.kind === "REFERENCE") return field({
-    fieldId: `real-corpus-v7:${item.fieldCode}:${index}`,
-    semantic: /^SYN-[A-Z0-9-]+$/u.test(item.value) && !/\d/u.test(item.value) ? "DETAIL" : "REFERENCE",
-    canonicalType: /^SYN-[A-Z0-9-]+$/u.test(item.value) && !/\d/u.test(item.value) ? "FACT_OR_GROUND" : "OTHER_OFFICIAL_REFERENCE",
-    label: item.label,
-    displayValue: item.value,
-    normalizedValue: /^SYN-[A-Z0-9-]+$/u.test(item.value) && !/\d/u.test(item.value) ? `V7:SYNTHETIC_REFERENCE:${item.value}` : item.value,
-    sourcePageNumbers: item.evidence.pageNumbers,
-  });
-  if (item.kind === "DATE") return field({
-    fieldId: `real-corpus-v7:${item.fieldCode}:${index}`,
-    semantic: "DATE",
-    canonicalType: canonicalDateType(item.fieldCode),
-    label: item.label,
-    displayValue: item.value.split("-").reverse().join("/"),
-    normalizedValue: item.value,
-    sourcePageNumbers: item.evidence.pageNumbers,
-  });
+  if (item.kind === "REFERENCE") {
+    const canonicalType = canonicalRealCorpusReferenceType(item.fieldCode);
+    const reference = serializableRealCorpusReference(canonicalType, item.value);
+    return field({
+      fieldId: `real-corpus-v7:${item.fieldCode}:${index}`,
+      semantic: "REFERENCE",
+      canonicalType,
+      label: item.label,
+      displayValue: reference.displayValue,
+      normalizedValue: reference.normalizedValue,
+      sourcePageNumbers: item.evidence.pageNumbers,
+    });
+  }
+  if (item.kind === "DATE") {
+    const dateType = canonicalRealCorpusDateType(item.fieldCode);
+    return field({
+      fieldId: `real-corpus-v7:${item.fieldCode}:${index}`,
+      semantic: dateType === null ? "DETAIL" : "DATE",
+      canonicalType: dateType ?? "FACT_OR_GROUND",
+      label: item.label,
+      displayValue: item.value.split("-").reverse().join("/"),
+      normalizedValue: item.value,
+      sourcePageNumbers: item.evidence.pageNumbers,
+    });
+  }
   const displayValue = item.kind === "BOOLEAN" ? (item.value ? "Sí" : "No") : String(item.value);
   return field({
     fieldId: `real-corpus-v7:${item.fieldCode}:${index}`,
@@ -83,7 +89,7 @@ function projectField(item: RealCorpusFieldV2, index: number): FiscalNotificatio
     canonicalType: "FACT_OR_GROUND",
     label: item.label,
     displayValue,
-    normalizedValue: `V7:${item.kind}:${item.fieldCode}:${String(item.value).toUpperCase()}`,
+    normalizedValue: displayValue,
     sourcePageNumbers: item.evidence.pageNumbers,
   });
 }
@@ -95,7 +101,7 @@ function projectInstallment(item: RealCorpusInstallmentV7, index: number): Fisca
     canonicalType: "FACT_OR_GROUND",
     label: `Cuota ${item.sequence}`,
     displayValue: `Vence ${item.dueDate.split("-").reverse().join("/")} · principal ${formatMoney(item.baseCents)} · interés ${formatMoney(item.deferralInterestCents)} · total ${formatMoney(item.totalCents)}`,
-    normalizedValue: `V7:INSTALLMENT:${item.sequence}:${item.dueDate}:${item.baseCents}:${item.deferralInterestCents}:${item.totalCents}`,
+    normalizedValue: `Vence ${item.dueDate.split("-").reverse().join("/")} · principal ${formatMoney(item.baseCents)} · interés ${formatMoney(item.deferralInterestCents)} · total ${formatMoney(item.totalCents)}`,
     sourcePageNumbers: Object.freeze([item.pageNumber]),
   });
 }
@@ -126,6 +132,7 @@ export function projectRealCorpusReviewV7(outcome: RealCorpusExtractorOutcomeV7)
     ...outcome.fields.map(projectField),
     ...outcome.installments.map(projectInstallment),
   ];
+  if (fields.length === 0) return emptyReview();
   return parseFiscalNotificationVerticalSliceReviewV1({
     schemaVersion: 1,
     reviewVersion: "1.0.0",

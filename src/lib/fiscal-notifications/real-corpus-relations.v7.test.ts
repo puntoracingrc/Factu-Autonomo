@@ -86,6 +86,7 @@ describe("AEAT real corpus relations V7", () => {
       familyId: "collection.deferral_grant",
       documentDate: "2027-03-01",
       debtKey: "SYN-DEBT-A1",
+      agreementId: "SYN-PLAN-A1",
       installments: Object.freeze([
         {
           dueDate: "2027-05-05",
@@ -111,14 +112,20 @@ describe("AEAT real corpus relations V7", () => {
       familyId: "collection.enforcement_order",
       documentDate: "2027-10-01",
       debtKey: "SYN-DEBT-A1",
+      agreementId: "SYN-PLAN-A1",
       principalCents: 180_005,
     });
     expect(relateRealCorpusDocumentsV7(grant, installment)).toEqual([
-      expect.objectContaining({ relationType: "CLAIMS_UNPAID_INSTALLMENT" }),
+      expect.objectContaining({
+        relationType: "CLAIMS_UNPAID_INSTALLMENT",
+        observedAmountCents: null,
+      }),
     ]);
     expect(relateRealCorpusDocumentsV7(grant, remaining)).toEqual([
       expect.objectContaining({
         relationType: "ENFORCES_REMAINING_PLAN_PRINCIPAL",
+        exactReference: "SYN-PLAN-A1",
+        observedAmountCents: null,
         phrase:
           "Esta providencia reclama conjuntamente el principal de las fracciones restantes del plan. No es una cuota aislada.",
       }),
@@ -177,7 +184,7 @@ describe("AEAT real corpus relations V7", () => {
     expect(relateRealCorpusDocumentsV7(partial, offset)[0]).toEqual(
       expect.objectContaining({
         relationType: "OFFSET_PARTIALLY_EXTINGUISHES_ENFORCEMENT",
-        observedAmountCents: 8_000,
+        observedAmountCents: null,
         phrase:
           "La compensación reduce parcialmente esta deuda y deja un saldo pendiente concreto.",
       }),
@@ -185,7 +192,7 @@ describe("AEAT real corpus relations V7", () => {
     expect(relateRealCorpusDocumentsV7(offset, seizure)[0]).toEqual(
       expect.objectContaining({
         relationType: "ENFORCES_REMAINING_AFTER_OFFSET",
-        observedAmountCents: 35_000,
+        observedAmountCents: null,
       }),
     );
   });
@@ -217,7 +224,7 @@ describe("AEAT real corpus relations V7", () => {
     ]);
   });
 
-  it("links the bank seizure to the previous enforcement order only by exact debt and amount", () => {
+  it("links the bank seizure by exact debt key without using amounts as identity", () => {
     const enforcement = document({
       documentId: "enforcement-before-bank-seizure-1",
       familyId: "collection.enforcement_order",
@@ -251,7 +258,13 @@ describe("AEAT real corpus relations V7", () => {
         ...seizure,
         principalCents: 27_601,
       }),
-    ).toEqual([]);
+    ).toEqual([
+      expect.objectContaining({
+        relationType: "ENFORCEMENT_ORDER_PRECEDES_BANK_SEIZURE",
+        exactReference: "SYN-DEBT-D11",
+        observedAmountCents: null,
+      }),
+    ]);
     expect(
       relateRealCorpusDocumentsV7(enforcement, {
         ...seizure,
@@ -286,6 +299,18 @@ describe("AEAT real corpus relations V7", () => {
           "El acuerdo posterior sustituye el calendario anterior para la misma deuda.",
       }),
     ]);
+    expect(
+      relateRealCorpusDocumentsV7(original, {
+        ...modified,
+        planPrincipalCents: 999_999,
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        relationType: "MODIFIES_PAYMENT_PLAN",
+        exactReference: "SYN-DEBT-C1",
+        observedAmountCents: null,
+      }),
+    ]);
     expect(resolveActivePaymentPlansV7([original, modified])).toEqual(
       expect.arrayContaining([
         {
@@ -304,7 +329,7 @@ describe("AEAT real corpus relations V7", () => {
     );
   });
 
-  it("confirms sanction resolution only by exact reference and suggests the earlier requirement", () => {
+  it("relates the earlier requirement and sanction only by an exact reference", () => {
     const requirement = document({
       documentId: "requirement-1",
       familyId: "compliance.formal_filing_requirement",
@@ -325,10 +350,15 @@ describe("AEAT real corpus relations V7", () => {
       sanctionReference: "SYN-SANCTION-CASE1",
       principalCents: 15_000,
     });
-    expect(relateRealCorpusDocumentsV7(requirement, initiation)[0]).toEqual(
+    expect(relateRealCorpusDocumentsV7(requirement, initiation)).toEqual([]);
+    expect(relateRealCorpusDocumentsV7({
+      ...requirement,
+      sanctionReference: "SYN-SANCTION-CASE1",
+    }, initiation)[0]).toEqual(
       expect.objectContaining({
         relationType: "POSSIBLY_PRECEDES_SANCTION",
-        status: "SYSTEM_SUGGESTED",
+        status: "SYSTEM_CONFIRMED_EXACT",
+        exactReference: "SYN-SANCTION-CASE1",
       }),
     );
     expect(relateRealCorpusDocumentsV7(initiation, resolution)[0]).toEqual(
@@ -362,5 +392,39 @@ describe("AEAT real corpus relations V7", () => {
     });
     expect(relateRealCorpusDocumentsV7(source, target)).toEqual([]);
     expect(resolveActivePaymentPlansV7([source])).toEqual([]);
+  });
+
+  it("never confirms a relation from equal amounts without a strong identifier", () => {
+    const enforcement = document({
+      documentId: "amount-only-enforcement",
+      familyId: "collection.enforcement_order",
+      debtKey: "SYN-DEBT-AMOUNT-A",
+      principalCents: 50_000,
+      ordinaryTotalCents: 60_000,
+    });
+    const seizure = document({
+      documentId: "amount-only-seizure",
+      familyId: "seizure.bank_account",
+      debtKey: "SYN-DEBT-AMOUNT-B",
+      principalCents: 60_000,
+      seizedAmountCents: 60_000,
+      seizureOrderId: "SYN-SEIZURE-AMOUNT-1",
+      opaqueAssetOrdinal: 1,
+    });
+    const offset = document({
+      documentId: "amount-only-offset",
+      familyId: "collection.offset_ex_officio",
+      offsetRows: Object.freeze([
+        {
+          debtKey: "SYN-DEBT-AMOUNT-C",
+          beforeCents: 60_000,
+          appliedCents: 60_000,
+          remainingCents: 0,
+        },
+      ]),
+    });
+
+    expect(relateRealCorpusDocumentsV7(enforcement, seizure)).toEqual([]);
+    expect(relateRealCorpusDocumentsV7(enforcement, offset)).toEqual([]);
   });
 });

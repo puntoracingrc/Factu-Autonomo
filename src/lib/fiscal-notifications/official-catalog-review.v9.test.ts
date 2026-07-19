@@ -14,25 +14,16 @@ function document(text: string): BoundedDocumentInput {
 }
 
 describe("AEAT official catalog review v9", () => {
-  it("projects a recognized P0 profile without source text or operational effects", () => {
+  it("does not turn a catalog-only recognition into document facts", () => {
     const outcome = extractAeatOfficialCatalogDocumentV9({
       document: document(
         "AGENCIA TRIBUTARIA\nSolicitud de rectificación de autoliquidación o declaración\nPRIVATE_TEXT_NOT_RETAINED",
       ),
     });
     const review = projectAeatOfficialCatalogReviewV9(outcome);
-    expect(review.status).toBe("REVIEW_REQUIRED");
-    expect(review.documents).toHaveLength(1);
-    expect(review.documents[0]).toMatchObject({
-      familyId: "assessment.rectification_request",
-      title: "Solicitud de rectificación de autoliquidación o declaración",
-      subtitle: "Coincidencia oficial; revisión obligatoria",
-      requiresHumanReview: true,
-    });
-    expect(review.documents[0]?.fields).toHaveLength(1);
-    expect(review.documents[0]?.warnings).toEqual([
-      "profile.OFFICIAL_ONLY_FORMAT_NOT_HARDENED",
-    ]);
+    expect(review.status).toBe("INFORMATION_PENDING");
+    expect(review.documents).toEqual([]);
+    expect(JSON.stringify(review)).not.toContain("OFFICIAL_ONLY_");
     expect(JSON.stringify(review)).not.toContain("PRIVATE_TEXT_NOT_RETAINED");
     expect(review.retainedSourceContent).toBe("NONE");
     expect(review.permitsDebtCreation).toBe(false);

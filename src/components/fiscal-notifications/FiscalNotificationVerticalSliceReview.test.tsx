@@ -222,7 +222,9 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).toContain("Diligencia de embargo de cuenta bancaria");
     expect(html).toContain("Diligencia de embargo registrada");
     expect(html).toContain("EMB-SYN-UI-001");
-    expect(html).toContain("Interviniente");
+    expect(html).toContain("Deudor principal");
+    expect(html).toContain("Entidad financiera destinataria");
+    expect(html).not.toContain("SEIZURE_RECIPIENT_ROLE:");
     expect(html).toContain("Límite del embargo");
     expect(html).toContain("1.240,00 €");
     expect(html).toContain("Importe retenido");
@@ -442,7 +444,8 @@ describe("FiscalNotificationVerticalSliceReview", () => {
         label: "Cuota 1",
         displayValue:
           "Vence 20/02/2027 · principal 100,00 € · interés 2,00 € · total 102,00 €",
-        normalizedValue: "V6:INSTALLMENT:1:2027-02-20:10000:200:10200",
+        normalizedValue:
+          "Vence 20/02/2027 · principal 100,00 € · interés 2,00 € · total 102,00 €",
       },
     ];
 
@@ -454,6 +457,7 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).toContain("<table");
     expect(html).toContain("20/02/2027");
     expect(html).toContain("102,00");
+    expect(html).not.toContain("V6:INSTALLMENT:");
   });
 
   it("renders no empty card for information-pending content", () => {
@@ -472,8 +476,12 @@ describe("FiscalNotificationVerticalSliceReview", () => {
         await analyzeFiscalNotificationVerticalSliceV1(document(PAYMENT)),
       ),
     );
+    const visibleReference = review.documents[0]!.fields.find(
+      (field) => field.semantic === "REFERENCE",
+    );
+    expect(visibleReference).toBeDefined();
     (
-      review.documents[0]!.fields[0] as unknown as { displayValue: string }
+      visibleReference as unknown as { displayValue: string }
     ).displayValue = '<img src=x onerror="alert(1)">';
     const html = renderToStaticMarkup(
       createElement(FiscalNotificationVerticalSliceReview, { review }),

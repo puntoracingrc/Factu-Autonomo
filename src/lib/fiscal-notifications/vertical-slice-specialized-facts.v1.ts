@@ -208,9 +208,14 @@ export function enrichVerticalSliceSpecializedFactsV1(
         pageCount,
       );
       if (facts.documentType !== null && facts.debtSchedules.length > 0) {
-        const target = uniqueTarget(targets, ["collection.deferral_grant"]);
-        changed =
-          enrichDeferral(workspace, target, facts, value.createdAt) || changed;
+        const target = optionalUniqueTarget(targets, [
+          "collection.deferral_grant",
+          "collection.deferral_modification",
+        ]);
+        if (target) {
+          changed =
+            enrichDeferral(workspace, target, facts, value.createdAt) || changed;
+        }
       }
     }
 
@@ -229,9 +234,11 @@ export function enrichVerticalSliceSpecializedFactsV1(
           facts.agreementMode === "REQUESTED"
             ? "collection.offset_requested"
             : "collection.offset_ex_officio";
-        const target = uniqueTarget(targets, [expectedFamily]);
-        changed =
-          enrichOffset(workspace, target, facts, value.createdAt) || changed;
+        const target = optionalUniqueTarget(targets, [expectedFamily]);
+        if (target) {
+          changed =
+            enrichOffset(workspace, target, facts, value.createdAt) || changed;
+        }
       }
     }
 
@@ -250,15 +257,19 @@ export function enrichVerticalSliceSpecializedFactsV1(
           ? null
           : parseAeatEnforcementExplicitFieldsV2(explicitValue, pageCount);
       if (facts.facts.length > 0) {
-        const target = uniqueTarget(targets, ["collection.enforcement_order"]);
-        changed =
-          enrichEnforcement(
-            workspace,
-            target,
-            facts,
-            explicit,
-            value.createdAt,
-          ) || changed;
+        const target = optionalUniqueTarget(targets, [
+          "collection.enforcement_order",
+        ]);
+        if (target) {
+          changed =
+            enrichEnforcement(
+              workspace,
+              target,
+              facts,
+              explicit,
+              value.createdAt,
+            ) || changed;
+        }
       }
     }
 
@@ -782,17 +793,17 @@ function moneyFact(
   };
 }
 
-function uniqueTarget(
+function optionalUniqueTarget(
   documents: readonly FiscalNotificationsWorkspace["documents"][number][],
   families: readonly string[],
-): FiscalNotificationsWorkspace["documents"][number] {
+): FiscalNotificationsWorkspace["documents"][number] | null {
   const matches = documents.filter(
     (document) =>
       document.documentSubtype !== undefined &&
       families.includes(document.documentSubtype),
   );
-  if (matches.length !== 1) throw invalid();
-  return matches[0]!;
+  if (matches.length > 1) throw invalid();
+  return matches[0] ?? null;
 }
 
 function parseEnforcementMoneyFacts(

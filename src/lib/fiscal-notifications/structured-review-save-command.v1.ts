@@ -25,7 +25,6 @@ import {
 import { parseFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
 import { FiscalNotificationVerticalSliceReviewErrorV1 } from "./vertical-slice-review.v1";
 import { enrichVerticalSliceSpecializedFactsV1 } from "./vertical-slice-specialized-facts.v1";
-import type { FiscalNotificationsWorkspace } from "./types";
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
 
 export type FiscalNotificationStructuredReviewSaveStageV1 =
@@ -205,17 +204,6 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
         warningStage ??= "RECONCILIATION";
         warningSafeCode ??= "GLOBAL_RECONCILIATION_REVIEW_REQUIRED";
       }
-      if (warningCodes.length > 0) {
-        prepared = Object.freeze({
-          ...prepared,
-          workspace: persistWarningCodes(
-            prepared.workspace,
-            prepared,
-            warningCodes,
-            safeInput.ownerScope,
-          ),
-        });
-      }
     }
   } catch (error) {
     if (
@@ -321,38 +309,6 @@ function addWarning(
   value: FiscalNotificationStructuredReviewSaveWarningCodeV1,
 ): void {
   if (!values.includes(value)) values.push(value);
-}
-
-function persistWarningCodes(
-  value: FiscalNotificationsWorkspace,
-  prepared: StructuredReviewAppendResultV1,
-  warningCodes: readonly FiscalNotificationStructuredReviewSaveWarningCodeV1[],
-  ownerScope: string,
-): FiscalNotificationsWorkspace {
-  const documentIds =
-    "documentIds" in prepared ? prepared.documentIds : [prepared.documentId];
-  const documentIdSet = new Set(documentIds);
-  const candidate: FiscalNotificationsWorkspace = {
-    ...structuredClone(value),
-    analysisSnapshots: value.analysisSnapshots.map((snapshot) =>
-      documentIdSet.has(snapshot.documentId)
-        ? {
-            ...snapshot,
-            validationWarnings: [
-              ...new Set([...snapshot.validationWarnings, ...warningCodes]),
-            ],
-          }
-        : structuredClone(snapshot),
-    ),
-  };
-  const validation = validateFiscalNotificationsWorkspaceIntegrity(
-    candidate,
-    ownerScope,
-  );
-  if (!validation.valid) {
-    throw new FiscalNotificationVerticalSliceWorkspaceErrorV1("INVALID_INPUT");
-  }
-  return candidate;
 }
 
 function mapDurabilityResult(

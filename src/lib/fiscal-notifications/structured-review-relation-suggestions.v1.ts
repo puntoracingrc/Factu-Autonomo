@@ -21,6 +21,7 @@ import {
   normalizeFiscalNotificationIssuerV2,
   normalizeFiscalNotificationReferenceV2,
 } from "./exact-reference-index.v2";
+import { sha256Hex } from "../document-integrity/snapshot-hash";
 
 export const STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1 =
   "fiscal-notification-explicit-reference-relations/1.0.0" as const;
@@ -61,6 +62,7 @@ const STRONG_REFERENCE_TYPES = new Set<ExternalReferenceType>([
   "NRC",
   "NOTIFICATION_ID",
   "REQUEST_NUMBER",
+  "REFUND_REFERENCE",
   "OFFICIAL_REGISTRY_NUMBER",
 ]);
 const ENFORCEMENT_CONTEXT_REFERENCE_TYPES = new Set<ExternalReferenceType>([
@@ -560,7 +562,11 @@ function pairKey(left: string, right: string): string {
 
 function relationId(left: string, right: string): string {
   const [source, target] = left < right ? [left, right] : [right, left];
-  return `relation:explicit:${source}:${target}`;
+  const directId = `relation:explicit:${source}:${target}`;
+  if (directId.length <= FISCAL_NOTIFICATION_INPUT_LIMITS.maxIdChars) {
+    return directId;
+  }
+  return `relation:explicit:${sha256Hex(pairKey(left, right)).slice(0, 32)}`;
 }
 
 function comparePending(left: PendingRelation, right: PendingRelation): number {

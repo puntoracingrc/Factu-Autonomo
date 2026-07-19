@@ -19,7 +19,7 @@ import {
 
 export const REAL_CORPUS_EXTRACTOR_SCHEMA_VERSION_V6 = 6 as const;
 export const REAL_CORPUS_EXTRACTOR_VERSION_V6 =
-  "aeat-real-corpus-extractor.2026-07-17.v6" as const;
+  "aeat-real-corpus-extractor.2026-07-19.v6.1" as const;
 
 export const REAL_CORPUS_FAMILY_IDS_V6 = Object.freeze([
   "collection.enforcement_order",
@@ -28,6 +28,7 @@ export const REAL_CORPUS_FAMILY_IDS_V6 = Object.freeze([
   "collection.interest_assessment",
   "sanction.resolution",
   "sanction.loss_of_reduction",
+  "seizure.commercial_credits",
   "seizure.movable_asset",
   "seizure.real_estate",
 ] as const);
@@ -42,6 +43,7 @@ export type RealCorpusSubtypeV6 =
   | "INDEPENDENT_INTEREST_ASSESSMENT"
   | "SANCTION_RESOLUTION_WITH_HISTORICAL_REDUCTION"
   | "LOSS_OF_SANCTION_REDUCTION_WITH_OWN_DEBT_KEY"
+  | "COMMERCIAL_CREDIT_SEIZURE_WITH_DEBT_ANNEX"
   | "MOVABLE_ASSET_SEIZURE_WITH_DEBT_AND_ASSET_ANNEX"
   | "REAL_ESTATE_SEIZURE_WITH_DEBT_AND_ASSET_ANNEX";
 
@@ -108,14 +110,14 @@ export interface RealCorpusSeizureDebtRowV6 {
 export interface RealCorpusSeizureSnapshotV6 {
   readonly seizureOrderId: string;
   readonly actionDate: string | null;
-  readonly assetKind: "MOVABLE_ASSET" | "REAL_ESTATE";
+  readonly assetKind: "COMMERCIAL_CREDITS" | "MOVABLE_ASSET" | "REAL_ESTATE";
   readonly debtRows: readonly RealCorpusSeizureDebtRowV6[];
-  readonly debtSubtotalCents: number;
-  readonly printedInterestCents: number;
-  readonly printedCostsCents: number;
-  readonly seizeLimitCents: number;
+  readonly debtSubtotalCents: number | null;
+  readonly printedInterestCents: number | null;
+  readonly printedCostsCents: number | null;
+  readonly seizeLimitCents: number | null;
   readonly paymentFormPrintedTotalCents: number | null;
-  readonly paymentFormAmountCents: number;
+  readonly paymentFormAmountCents: number | null;
   readonly hasPrintedAmountDiscrepancy: boolean;
 }
 
@@ -166,7 +168,6 @@ interface DocumentIndexV6 {
   readonly blankPageNumbers: ReadonlySet<number>;
 }
 
-const SPANISH_DATE = /^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/u;
 const REFERENCE = /^[A-Z0-9][A-Z0-9./:_+-]{1,199}$/u;
 const PRIVATE_REFERENCE =
   /^(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J]|ES\d{22}|[6789]\d{8})$/u;
@@ -215,6 +216,16 @@ export const REAL_CORPUS_EXPLANATIONS_V6: Readonly<
       "El plazo se determina con la recepción efectiva de este acto. No se reutiliza automáticamente el plazo de la sanción anterior.",
     consequence:
       "No es una segunda sanción completa: solo reclama la reducción perdida y puede tener una providencia de apremio propia.",
+  }),
+  "seizure.commercial_credits": Object.freeze({
+    whatIs:
+      "La AEAT ha dictado una diligencia para retener créditos comerciales o arrendaticios hasta el límite indicado.",
+    action:
+      "Revisa el número de diligencia, cada deuda incluida y el límite impreso. La persona o entidad pagadora se mantiene solo como rol, sin copiar su identidad.",
+    deadline:
+      "Cualquier oposición se cuenta desde la recepción efectiva. La fecha del acto no sustituye esa recepción.",
+    consequence:
+      "El límite del embargo no demuestra que el tercero haya retenido o ingresado esa cantidad ni acredita el cobro de la deuda.",
   }),
   "seizure.movable_asset": Object.freeze({
     whatIs:
@@ -286,7 +297,21 @@ function indexForPages(
 }
 
 function contains(index: DocumentIndexV6, value: string): boolean {
-  return index.normalizedText.includes(normalize(value));
+  return index.normalizedText
+    .replace(/\s+/gu, " ")
+    .includes(normalize(value));
+}
+
+function firstContaining(
+  index: DocumentIndexV6,
+  values: readonly string[],
+): IndexedLineV6 | null {
+  const markers = values.map(normalize);
+  return (
+    index.lines.find((line) =>
+      markers.some((marker) => line.normalized.includes(marker)),
+    ) ?? null
+  );
 }
 
 function lineValues(index: DocumentIndexV6, labels: readonly string[]): readonly IndexedLineV6[] {
@@ -318,9 +343,156 @@ function firstMoneyValue(
   return lineValues(index, labels).find((line) => parseMoney(line.raw) !== null) ?? null;
 }
 
+function firstMoneyContaining(
+  index: DocumentIndexV6,
+  markers: readonly string[],
+): IndexedLineV6 | null {
+  const normalizedMarkers = markers.map(normalize);
+  return (
+    index.lines.find(
+      (line) =>
+        normalizedMarkers.some((marker) =>
+          line.normalized.includes(marker),
+        ) &&
+        /(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}\s*(?:EUR|€)?/iu.test(line.raw),
+    ) ?? null
+  );
+}
+
+function firstPercentageContaining(
+  index: DocumentIndexV6,
+  markers: readonly string[],
+): IndexedLineV6 | null {
+  const normalizedMarkers = markers.map(normalize);
+  return (
+    index.lines.find(
+      (line) =>
+        normalizedMarkers.some((marker) => line.normalized.includes(marker)) &&
+        /\b\d{1,3}\s*%/u.test(line.normalized),
+    ) ?? null
+  );
+}
+
+function firstStandaloneMoneyStartingWith(
+  index: DocumentIndexV6,
+  labels: readonly string[],
+): IndexedLineV6 | null {
+  const normalizedLabels = labels.map(normalize);
+  return (
+    index.lines.find((line) =>
+      normalizedLabels.some((label) => {
+        if (!line.normalized.startsWith(label)) return false;
+        const suffix = line.normalized.slice(label.length).trim();
+        return /^(?::\s*)?(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}\s*(?:EUR|€)?$/u.test(
+          suffix,
+        );
+      }),
+    ) ?? null
+  );
+}
+
+function paymentFormVerticalMoneySources(
+  index: DocumentIndexV6,
+): Readonly<{
+  debt: IndexedLineV6;
+  interest: IndexedLineV6;
+  total: IndexedLineV6;
+  amountToPay: IndexedLineV6;
+}> | null {
+  const pageNumbers = [...new Set(index.lines.map((line) => line.pageNumber))];
+  for (const pageNumber of pageNumbers) {
+    const lines = index.lines.filter((line) => line.pageNumber === pageNumber);
+    const labelPosition = (label: string): number =>
+      lines.findIndex((line) =>
+        line.normalized.startsWith(normalize(label)),
+      );
+    const debtPosition = labelPosition("Deuda");
+    const interestPosition = labelPosition("Intereses de demora");
+    const totalPosition = labelPosition("Importe total");
+    const amountToPayPosition = labelPosition("Importe a ingresar");
+    if (
+      debtPosition < 0 ||
+      interestPosition <= debtPosition ||
+      totalPosition <= interestPosition ||
+      amountToPayPosition <= totalPosition
+    ) {
+      continue;
+    }
+    const amounts = lines
+      .slice(amountToPayPosition + 1)
+      .filter((line) =>
+        /^\s*(?:\d{1,3}(?:\.\d{3})*|\d+),\d{2}\s*(?:EUR|€)?\s*$/iu.test(
+          line.raw,
+        ),
+      );
+    if (amounts.length < 4) continue;
+    const columns = amounts.slice(-4);
+    return Object.freeze({
+      debt: columns[0]!,
+      interest: columns[1]!,
+      total: columns[2]!,
+      amountToPay: columns[3]!,
+    });
+  }
+  return null;
+}
+
+function sanctionReferenceSource(index: DocumentIndexV6): IndexedLineV6 | null {
+  return firstValue(index, [
+    "Referencia del expediente sancionador",
+    "Referencia del acuerdo sancionador",
+    "Referencia del documento",
+    "Referencia",
+  ]);
+}
+
+function sanctionDebtKeySource(index: DocumentIndexV6): IndexedLineV6 | null {
+  return firstValue(index, [
+    "Clave de la sanción",
+    "Clave de deuda de la sanción",
+    "Clave de liquidación",
+  ]);
+}
+
+function initialSanctionSource(index: DocumentIndexV6): IndexedLineV6 | null {
+  return (
+    firstMoneyValue(index, ["Sanción inicial", "Importe de la sanción"]) ??
+    index.lines.find(
+      (line) =>
+        line.normalized.startsWith("IMPORTE ") &&
+        !line.normalized.includes("REDUCCION") &&
+        parseMoney(line.raw) !== null,
+    ) ??
+    null
+  );
+}
+
+function sanctionReductionSource(index: DocumentIndexV6): IndexedLineV6 | null {
+  return (
+    firstMoneyValue(index, ["Reducción aplicada"]) ??
+    firstMoneyContaining(index, ["REDUCCIÓN", "REDUCCION"])
+  );
+}
+
+function reducedSanctionSource(index: DocumentIndexV6): IndexedLineV6 | null {
+  return (
+    firstMoneyValue(index, ["Sanción reducida"]) ??
+    index.lines.find(
+      (line) =>
+        line.normalized.startsWith("SANCION ") &&
+        parseMoney(line.raw) !== null,
+    ) ??
+    null
+  );
+}
+
 function parseDate(raw: string): string | null {
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(raw.trim());
-  const match = iso ?? SPANISH_DATE.exec(raw.trim());
+  const iso = /(?:^|\D)(\d{4})-(\d{2})-(\d{2})(?:\D|$)/u.exec(raw.trim());
+  const match =
+    iso ??
+    /(?:^|\D)(\d{1,2})[./-](\d{1,2})[./-](\d{4})(?:\D|$)/u.exec(
+      raw.trim(),
+    );
   if (!match) return null;
   const year = Number(iso ? match[1] : match[3]);
   const month = Number(match[2]);
@@ -334,7 +506,13 @@ function parseDate(raw: string): string | null {
 }
 
 function parseMoney(raw: string): number | null {
-  const compact = raw
+  const matches = [
+    ...raw.matchAll(
+      /(?:^|\D)((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*(?:EUR|€)?(?=\D|$)/giu,
+    ),
+  ];
+  const selected = matches.at(-1)?.[1] ?? raw;
+  const compact = selected
     .replace(/\s|€|EUR/giu, "")
     .replace(/\.(?=\d{3}(?:\D|$))/gu, "")
     .replace(",", ".");
@@ -344,14 +522,15 @@ function parseMoney(raw: string): number | null {
 }
 
 function parseInteger(raw: string): number | null {
-  const compact = raw.replace(/\s|%/gu, "");
+  const percentage = /(\d{1,3})\s*%/u.exec(raw)?.[1];
+  const compact = (percentage ?? raw).replace(/\s|%/gu, "");
   if (!/^\d+$/u.test(compact)) return null;
   const value = Number(compact);
   return Number.isSafeInteger(value) && value >= 0 && value <= 100 ? value : null;
 }
 
 function safeReference(raw: string): string | null {
-  const value = raw.trim().toLocaleUpperCase("es-ES");
+  const value = raw.replace(/\s+/gu, "").toLocaleUpperCase("es-ES");
   return REFERENCE.test(value) && /\d/u.test(value) && !PRIVATE_REFERENCE.test(value)
     ? value
     : null;
@@ -412,9 +591,17 @@ function textField(
   fieldCode: string,
   label: string,
   value: string,
-  pageNumber = 1,
-): RealCorpusFieldV2 {
-  return Object.freeze({ fieldCode, label, kind: "TEXT" as const, value, evidence: evidence(pageNumber) });
+  source: IndexedLineV6 | null,
+): RealCorpusFieldV2 | null {
+  return source
+    ? Object.freeze({
+        fieldCode,
+        label,
+        kind: "TEXT" as const,
+        value,
+        evidence: evidence(source.pageNumber),
+      })
+    : null;
 }
 
 function compactFields(
@@ -444,13 +631,28 @@ function requiredDate(index: DocumentIndexV6, labels: readonly string[]): string
 }
 
 function parseSanctionResolution(index: DocumentIndexV6): RealCorpusSanctionResolutionV6 | null {
-  const sanctionReference = requiredReference(index, ["Referencia del expediente sancionador"]);
-  const sanctionDebtKey = requiredReference(index, ["Clave de la sanción", "Clave de deuda de la sanción"]);
-  const initialSanctionCents = requiredMoney(index, ["Sanción inicial"]);
-  const reductionCents = requiredMoney(index, ["Reducción aplicada"]);
-  const reducedSanctionCents = requiredMoney(index, ["Sanción reducida"]);
+  const sanctionReference = safeReference(
+    sanctionReferenceSource(index)?.raw ?? "",
+  );
+  const sanctionDebtKey = safeReference(
+    sanctionDebtKeySource(index)?.raw ?? "",
+  );
+  const initialSanctionCents = parseMoney(
+    initialSanctionSource(index)?.raw ?? "",
+  );
+  const reductionSource = sanctionReductionSource(index);
+  const reductionCents = parseMoney(reductionSource?.raw ?? "");
+  const reducedSanctionCents = parseMoney(
+    reducedSanctionSource(index)?.raw ?? "",
+  );
   const printedHistoricalReductionPercent = parseInteger(
-    firstValue(index, ["Porcentaje histórico de reducción", "Reducción histórica impresa"])?.raw ?? "",
+    firstValue(index, [
+      "Porcentaje histórico de reducción",
+      "Reducción histórica impresa",
+    ])?.raw ??
+      firstPercentageContaining(index, ["REDUCCIÓN", "REDUCCION"])?.raw ??
+      reductionSource?.raw ??
+      "",
   );
   if (
     !sanctionReference ||
@@ -473,10 +675,22 @@ function parseSanctionResolution(index: DocumentIndexV6): RealCorpusSanctionReso
 
 function parseLossOfReduction(index: DocumentIndexV6): RealCorpusLossOfReductionV6 | null {
   const originSanctionDebtKey = requiredReference(index, ["Clave de la sanción de origen"]);
-  const clawbackDebtKey = requiredReference(index, ["Clave de la reducción exigida"]);
-  const clawbackCents = requiredMoney(index, ["Importe de la reducción exigida"]);
+  const clawbackDebtKey = requiredReference(index, [
+    "Clave de la reducción exigida",
+    "Clave de liquidación",
+  ]);
+  const clawbackSource =
+    firstMoneyValue(index, ["Importe de la reducción exigida"]) ??
+    firstMoneyContaining(index, ["REDUCCIÓN", "REDUCCION"]);
+  const clawbackCents = parseMoney(clawbackSource?.raw ?? "");
   const printedHistoricalReductionPercent = parseInteger(
-    firstValue(index, ["Porcentaje histórico de reducción", "Reducción histórica impresa"])?.raw ?? "",
+    firstValue(index, [
+      "Porcentaje histórico de reducción",
+      "Reducción histórica impresa",
+    ])?.raw ??
+      firstPercentageContaining(index, ["REDUCCIÓN", "REDUCCION"])?.raw ??
+      clawbackSource?.raw ??
+      "",
   );
   return originSanctionDebtKey &&
     clawbackDebtKey &&
@@ -531,31 +745,115 @@ function parseDebtRows(index: DocumentIndexV6): readonly RealCorpusSeizureDebtRo
     seen.add(debtKey);
     rows.push(Object.freeze({ debtKey, amountCents, observedOnPage: line.pageNumber }));
   }
+
+  const headerPosition = index.lines.findIndex(
+    (line) =>
+      line.normalized.includes("LIQUIDACION") &&
+      line.normalized.includes("PENDIENTE"),
+  );
+  if (headerPosition >= 0) {
+    const headerPage = index.lines[headerPosition]!.pageNumber;
+    for (
+      let position = headerPosition + 1;
+      position < index.lines.length && rows.length < 100;
+      position += 1
+    ) {
+      const line = index.lines[position]!;
+      if (line.pageNumber !== headerPage) break;
+      if (line.normalized.startsWith("IMPORTE PENDIENTE TOTAL")) break;
+      const amountMatch =
+        /((?:\d{1,3}(?:\.\d{3})*|\d+),\d{2})\s*(?:EUR|€)?\s*$/iu.exec(
+          line.raw,
+        );
+      if (!amountMatch || amountMatch.index === undefined) continue;
+      const amountCents = parseMoney(amountMatch[1]!);
+      if (amountCents === null) continue;
+      const referenceCandidates = [
+        ...line.raw
+          .slice(0, amountMatch.index)
+          .matchAll(/[A-Z0-9][A-Z0-9./:_+-]{7,199}/giu),
+      ]
+        .map((match) => safeReference(match[0]))
+        .filter((value): value is string => value !== null);
+      const debtKey = referenceCandidates.at(-1) ?? null;
+      if (!debtKey || seen.has(debtKey)) continue;
+      seen.add(debtKey);
+      rows.push(
+        Object.freeze({
+          debtKey,
+          amountCents,
+          observedOnPage: line.pageNumber,
+        }),
+      );
+    }
+  }
   return Object.freeze(rows);
 }
 
 function parseSeizure(
   index: DocumentIndexV6,
-  assetKind: "MOVABLE_ASSET" | "REAL_ESTATE",
+  assetKind: "COMMERCIAL_CREDITS" | "MOVABLE_ASSET" | "REAL_ESTATE",
 ): RealCorpusSeizureSnapshotV6 | null {
-  const seizureOrderId = requiredReference(index, ["Número de diligencia", "Referencia de la diligencia"]);
+  const seizureOrderId = requiredReference(index, [
+    "Número de diligencia",
+    "Nº de la diligencia",
+    "N.º de la diligencia",
+    "Referencia de la diligencia",
+  ]);
   const debtRows = parseDebtRows(index);
-  const debtSubtotalCents = requiredMoney(index, ["Subtotal de deudas"]);
-  const printedInterestCents = requiredMoney(index, ["Intereses impresos"]);
-  const printedCostsCents = requiredMoney(index, ["Costas impresas"]);
-  const seizeLimitCents = requiredMoney(index, ["Límite del embargo"]);
-  const paymentFormPrintedTotalCents = requiredMoney(index, ["Total impreso en la carta"]);
-  const paymentFormAmountCents = requiredMoney(index, ["Importe de la carta de pago"]);
+  const debtSubtotalCents = parseMoney(
+    (
+      firstMoneyValue(index, ["Subtotal de deudas"]) ??
+      firstStandaloneMoneyStartingWith(index, ["Importe pendiente total"])
+    )?.raw ?? "",
+  );
+  const printedInterestCents = parseMoney(
+    (
+      firstMoneyValue(index, ["Intereses impresos"]) ??
+      firstStandaloneMoneyStartingWith(index, ["Intereses"])
+    )?.raw ?? "",
+  );
+  const printedCostsCents = parseMoney(
+    (
+      firstMoneyValue(index, ["Costas impresas"]) ??
+      firstStandaloneMoneyStartingWith(index, ["Costas"])
+    )?.raw ?? "",
+  );
+  const seizeLimitCents = parseMoney(
+    (
+      firstMoneyValue(index, ["Límite del embargo"]) ??
+      firstStandaloneMoneyStartingWith(index, ["Importe a embargar"])
+    )?.raw ?? "",
+  );
+  const paymentFormTable = paymentFormVerticalMoneySources(index);
+  const paymentFormPrintedTotalCents = parseMoney(
+    (
+      firstMoneyValue(index, ["Total impreso en la carta"]) ??
+      firstStandaloneMoneyStartingWith(index, ["Total a ingresar"]) ??
+      paymentFormTable?.total
+    )?.raw ?? "",
+  );
+  const paymentFormAmountCents = parseMoney(
+    (
+      firstMoneyValue(index, ["Importe de la carta de pago"]) ??
+      firstStandaloneMoneyStartingWith(index, [
+        "Importe de la carta de pago",
+        "Importe a ingresar",
+      ]) ??
+      paymentFormTable?.amountToPay
+    )?.raw ?? "",
+  );
   const actionDate = requiredDate(index, ["Fecha del acto", "Fecha de la diligencia"]);
   if (
     !seizureOrderId ||
-    debtRows.length === 0 ||
-    debtSubtotalCents === null ||
-    printedInterestCents === null ||
-    printedCostsCents === null ||
-    seizeLimitCents === null ||
-    paymentFormAmountCents === null ||
-    debtRows.reduce((sum, row) => sum + row.amountCents, 0) !== debtSubtotalCents
+    (actionDate === null &&
+      debtRows.length === 0 &&
+      debtSubtotalCents === null &&
+      printedInterestCents === null &&
+      printedCostsCents === null &&
+      seizeLimitCents === null &&
+      paymentFormPrintedTotalCents === null &&
+      paymentFormAmountCents === null)
   ) return null;
   return Object.freeze({
     seizureOrderId,
@@ -570,20 +868,39 @@ function parseSeizure(
     paymentFormAmountCents,
     hasPrintedAmountDiscrepancy:
       paymentFormPrintedTotalCents !== null &&
+      paymentFormAmountCents !== null &&
       paymentFormPrintedTotalCents !== paymentFormAmountCents,
   });
 }
 
 function recognizeNewFamily(index: DocumentIndexV6): RealCorpusFamilyIdV6 | null {
-  if (contains(index, "RESOLUCIÓN DEL PROCEDIMIENTO SANCIONADOR"))
-    return "sanction.resolution";
-  if (contains(index, "EXIGENCIA DE REDUCCIÓN DE SANCIÓN") || contains(index, "PÉRDIDA DE REDUCCIÓN DE SANCIÓN"))
+  if (
+    contains(index, "PÉRDIDA DE REDUCCIÓN DE SANCIÓN") ||
+    (contains(index, "EXIGENCIA") &&
+      contains(index, "REDUCCIÓN") &&
+      contains(index, "SANCIÓN"))
+  )
     return "sanction.loss_of_reduction";
+  if (
+    contains(index, "RESOLUCIÓN DEL PROCEDIMIENTO SANCIONADOR") ||
+    (contains(index, "NOTIFICACIÓN DE ACUERDO") &&
+      contains(index, "SANCIÓN") &&
+      contains(index, "TRIBUTARIA"))
+  )
+    return "sanction.resolution";
   if (contains(index, "LIQUIDACIÓN INDEPENDIENTE DE INTERESES") || contains(index, "ACUERDO DE LIQUIDACIÓN DE INTERESES"))
     return "collection.interest_assessment";
-  if (contains(index, "DILIGENCIA DE EMBARGO DE BIEN MUEBLE"))
+  if (contains(index, "DILIGENCIA DE EMBARGO DE CRÉDITOS"))
+    return "seizure.commercial_credits";
+  if (
+    contains(index, "DILIGENCIA DE EMBARGO DE BIEN MUEBLE") ||
+    contains(index, "DILIGENCIA DE EMBARGO DE BIENES MUEBLES")
+  )
     return "seizure.movable_asset";
-  if (contains(index, "DILIGENCIA DE EMBARGO DE BIEN INMUEBLE"))
+  if (
+    contains(index, "DILIGENCIA DE EMBARGO DE BIEN INMUEBLE") ||
+    contains(index, "DILIGENCIA DE EMBARGO DE BIENES INMUEBLES")
+  )
     return "seizure.real_estate";
   return null;
 }
@@ -596,6 +913,7 @@ function canonicalTitle(familyId: RealCorpusFamilyIdV6): string {
     "collection.interest_assessment": "Liquidación de intereses de demora",
     "sanction.resolution": "Resolución sancionadora",
     "sanction.loss_of_reduction": "Exigencia de reducción de sanción perdida",
+    "seizure.commercial_credits": "Diligencia de embargo de créditos comerciales",
     "seizure.movable_asset": "Diligencia de embargo de bien mueble",
     "seizure.real_estate": "Diligencia de embargo de inmueble",
   };
@@ -615,6 +933,7 @@ function subtypeFor(
   if (familyId === "collection.interest_assessment") return "INDEPENDENT_INTEREST_ASSESSMENT";
   if (familyId === "sanction.resolution") return "SANCTION_RESOLUTION_WITH_HISTORICAL_REDUCTION";
   if (familyId === "sanction.loss_of_reduction") return "LOSS_OF_SANCTION_REDUCTION_WITH_OWN_DEBT_KEY";
+  if (familyId === "seizure.commercial_credits") return "COMMERCIAL_CREDIT_SEIZURE_WITH_DEBT_ANNEX";
   if (familyId === "seizure.movable_asset") return "MOVABLE_ASSET_SEIZURE_WITH_DEBT_AND_ASSET_ANNEX";
   return "REAL_ESTATE_SEIZURE_WITH_DEBT_AND_ASSET_ANNEX";
 }
@@ -623,7 +942,7 @@ function segmentType(page: BoundedDocumentInput["pages"][number]): RealCorpusSeg
   const text = normalize(page.text);
   if (page.isBlank || !text) return "BLANK";
   if (/ENTREGA ANTERIOR FALLIDA|NUEVO INTENTO DE NOTIFICACION|COMUNICACION DE REENVIO/u.test(text)) return "DELIVERY_COVER";
-  if (/PROVIDENCIA DE APREMIO|CONCESION DEL APLAZAMIENTO\/FRACCIONAMIENTO|DENEGACION DEL APLAZAMIENTO\/FRACCIONAMIENTO|LIQUIDACION INDEPENDIENTE DE INTERESES|RESOLUCION DEL PROCEDIMIENTO SANCIONADOR|EXIGENCIA DE REDUCCION DE SANCION|PERDIDA DE REDUCCION DE SANCION|DILIGENCIA DE EMBARGO DE BIEN MUEBLE|DILIGENCIA DE EMBARGO DE BIEN INMUEBLE/u.test(text)) return "PRIMARY_ACT";
+  if (/PROVIDENCIA DE APREMIO|CONCESION DEL APLAZAMIENTO\/FRACCIONAMIENTO|DENEGACION DEL APLAZAMIENTO\/FRACCIONAMIENTO|LIQUIDACION INDEPENDIENTE DE INTERESES|RESOLUCION DEL PROCEDIMIENTO SANCIONADOR|EXIGENCIA DE REDUCCION DE SANCION|PERDIDA DE REDUCCION DE SANCION|DILIGENCIA DE EMBARGO DE CREDITOS|DILIGENCIA DE EMBARGO DE BIEN MUEBLE|DILIGENCIA DE EMBARGO DE BIENES MUEBLES|DILIGENCIA DE EMBARGO DE BIEN INMUEBLE|DILIGENCIA DE EMBARGO DE BIENES INMUEBLES/u.test(text)) return "PRIMARY_ACT";
   if (
     /ACUERDO DE LIQUIDACION DE INTERESES/u.test(text) &&
     /IDENTIFICACION DEL DOCUMENTO/u.test(text) &&
@@ -677,8 +996,6 @@ function specializedFields(
   paymentFormIndex: DocumentIndexV6,
   familyId: RealCorpusFamilyIdV6,
   baseFields: readonly RealCorpusFieldV2[],
-  sanction: RealCorpusSanctionResolutionV6 | null,
-  loss: RealCorpusLossOfReductionV6 | null,
   interest: RealCorpusInterestAssessmentV6 | null,
   seizure: RealCorpusSeizureSnapshotV6 | null,
 ): readonly RealCorpusFieldV2[] {
@@ -687,10 +1004,37 @@ function specializedFields(
       item.fieldCode !== "ISSUE_DATE" &&
       item.fieldCode !== "DOCUMENT_DATE" &&
       item.fieldCode !== "TAX_MODEL" &&
-      item.fieldCode !== "PAYMENT_FORM_REFERENCE"
+      item.fieldCode !== "PAYMENT_FORM_REFERENCE" &&
+      !(
+        familyId === "seizure.commercial_credits" &&
+        (item.fieldCode === "ACTION_DATE" || item.fieldCode === "SEIZED_AMOUNT")
+      )
+    ),
+    referenceField(
+      "DOCUMENT_REFERENCE",
+      "Referencia del documento",
+      firstValue(primaryIndex, [
+        "Referencia del documento",
+        "Número de referencia",
+        "Nº referencia",
+        "Referencia",
+      ]),
     ),
     dateField("ISSUE_DATE", "Fecha del documento", firstValue(primaryIndex, ["Fecha del documento", "Fecha de emisión"])),
-    dateField("ACTION_DATE", "Fecha del acto", firstValue(primaryIndex, ["Fecha del acto", "Fecha del acuerdo", "Fecha de la resolución"])),
+    dateField(
+      familyId === "seizure.commercial_credits" ||
+        familyId === "seizure.movable_asset" ||
+        familyId === "seizure.real_estate"
+        ? "SEIZURE_DATE"
+        : "ACTION_DATE",
+      "Fecha del acto",
+      firstValue(primaryIndex, [
+        "Fecha del acto",
+        "Fecha de la diligencia",
+        "Fecha del acuerdo",
+        "Fecha de la resolución",
+      ]),
+    ),
     referenceField("TAX_MODEL", "Modelo tributario", firstValue(primaryIndex, ["Modelo tributario"])),
     dateField("PAYMENT_FORM_DATE", "Fecha de la carta de pago", firstValue(paymentFormIndex, ["Fecha de la carta de pago", "Fecha del documento", "Fecha"])),
     referenceField("PAYMENT_FORM_MODEL", "Modelo de ingreso", firstValue(paymentFormIndex, ["Modelo de ingreso", "Modelo"])),
@@ -705,22 +1049,29 @@ function specializedFields(
       ),
     );
   }
-  if (sanction) fields.push(
-    referenceField("SANCTION_REFERENCE", "Referencia del expediente sancionador", firstValue(index, ["Referencia del expediente sancionador"])),
-    referenceField("SANCTION_DEBT_KEY", "Clave de la sanción", firstValue(index, ["Clave de la sanción", "Clave de deuda de la sanción"])),
-    moneyField("INITIAL_SANCTION", "Sanción inicial", firstValue(index, ["Sanción inicial"])),
-    integerField("HISTORICAL_REDUCTION_PERCENT", "Porcentaje histórico de reducción", firstValue(index, ["Porcentaje histórico de reducción", "Reducción histórica impresa"])),
-    moneyField("SANCTION_REDUCTION", "Reducción aplicada", firstValue(index, ["Reducción aplicada"])),
-    moneyField("REDUCED_SANCTION", "Sanción reducida", firstValue(index, ["Sanción reducida"])),
-    textField("HISTORICAL_PERCENT_POLICY", "Tratamiento del porcentaje", "HISTORICAL_PRINTED_VALUE"),
+  if (familyId === "sanction.resolution") {
+    const reductionSource = sanctionReductionSource(index);
+    fields.push(
+    referenceField("SANCTION_REFERENCE", "Referencia del expediente sancionador", sanctionReferenceSource(index)),
+    referenceField("SANCTION_DEBT_KEY", "Clave de la sanción", sanctionDebtKeySource(index)),
+    moneyField("INITIAL_SANCTION", "Sanción inicial", initialSanctionSource(index)),
+    integerField("HISTORICAL_REDUCTION_PERCENT", "Porcentaje histórico de reducción", firstValue(index, ["Porcentaje histórico de reducción", "Reducción histórica impresa"]) ?? firstPercentageContaining(index, ["REDUCCIÓN", "REDUCCION"]) ?? reductionSource),
+    moneyField("SANCTION_REDUCTION", "Reducción aplicada", reductionSource),
+    moneyField("REDUCED_SANCTION", "Sanción reducida", reducedSanctionSource(index)),
   );
-  if (loss) fields.push(
+  }
+  if (familyId === "sanction.loss_of_reduction") {
+    const clawbackSource =
+      firstMoneyValue(index, ["Importe de la reducción exigida"]) ??
+      firstMoneyContaining(index, ["REDUCCIÓN", "REDUCCION"]);
+    fields.push(
+    referenceField("CLAWBACK_REFERENCE", "Referencia del documento", firstValue(index, ["Referencia de la exigencia", "Referencia del documento", "Referencia"])),
     referenceField("ORIGIN_SANCTION_DEBT_KEY", "Clave de la sanción de origen", firstValue(index, ["Clave de la sanción de origen"])),
-    referenceField("CLAWBACK_DEBT_KEY", "Clave de la reducción exigida", firstValue(index, ["Clave de la reducción exigida"])),
-    integerField("HISTORICAL_REDUCTION_PERCENT", "Porcentaje histórico de reducción", firstValue(index, ["Porcentaje histórico de reducción", "Reducción histórica impresa"])),
-    moneyField("CLAWBACK_AMOUNT", "Reducción perdida exigida", firstValue(index, ["Importe de la reducción exigida"])),
-    textField("CLAIM_SCOPE", "Alcance de la exigencia", "REDUCTION_ONLY_NOT_FULL_SANCTION"),
+    referenceField("CLAWBACK_DEBT_KEY", "Clave de la reducción exigida", firstValue(index, ["Clave de la reducción exigida", "Clave de liquidación"])),
+    integerField("HISTORICAL_REDUCTION_PERCENT", "Porcentaje histórico de reducción", firstValue(index, ["Porcentaje histórico de reducción", "Reducción histórica impresa"]) ?? firstPercentageContaining(index, ["REDUCCIÓN", "REDUCCION"]) ?? clawbackSource),
+    moneyField("CLAWBACK_AMOUNT", "Reducción perdida exigida", clawbackSource),
   );
+  }
   if (interest) fields.push(
     referenceField("INTEREST_LIQUIDATION_KEY", "Clave de la liquidación de intereses", firstValue(index, ["Clave de la liquidación de intereses"])),
     referenceField("AGREEMENT_ID", "Referencia de la solicitud", firstValue(index, ["Referencia de la solicitud", "Referencia del acuerdo"])),
@@ -729,23 +1080,33 @@ function specializedFields(
     moneyField("ASSESSED_INTEREST", "Intereses liquidados", firstValue(index, ["Intereses liquidados"])),
     dateField("INTEREST_CALCULATION_START", "Inicio del cálculo de intereses", firstValue(index, ["Inicio del cálculo de intereses"])),
     dateField("INTEREST_CALCULATION_END", "Fin del cálculo de intereses", firstValue(index, ["Fin del cálculo de intereses"])),
-    textField("INTEREST_SCOPE", "Alcance de los intereses", "SEPARATE_FROM_PRINCIPAL"),
   );
   if (seizure) {
+    const paymentFormTable = paymentFormVerticalMoneySources(paymentFormIndex);
+    const assetMarker =
+      seizure.assetKind === "REAL_ESTATE"
+        ? firstContaining(index, ["BIEN INMUEBLE", "INMUEBLE"])
+        : seizure.assetKind === "COMMERCIAL_CREDITS"
+          ? firstContaining(index, ["CRÉDITOS COMERCIALES", "CRÉDITOS ARRENDATICIOS", "EMBARGO DE CRÉDITOS"])
+          : firstContaining(index, ["BIEN MUEBLE", "BIENES MUEBLES", "VEHÍCULO", "VEHICULO"]);
     fields.push(
-      referenceField("SEIZURE_ORDER_ID", "Número de diligencia", firstValue(index, ["Número de diligencia", "Referencia de la diligencia"])),
-      textField("ASSET_KIND", "Tipo de bien", seizure.assetKind),
-      moneyField("DEBT_SUBTOTAL", "Subtotal de deudas", firstValue(index, ["Subtotal de deudas"])),
-      moneyField("PRINTED_INTEREST", "Intereses indicados", firstValue(index, ["Intereses impresos"])),
-      moneyField("PRINTED_COSTS", "Costas indicadas", firstValue(index, ["Costas impresas"])),
-      moneyField("SEIZE_LIMIT", "Límite del embargo", firstValue(index, ["Límite del embargo"])),
-      moneyField("PAYMENT_FORM_PRINTED_TOTAL", "Total indicado en la carta", firstValue(paymentFormIndex, ["Total impreso en la carta"])),
-      moneyField("PAYMENT_FORM_AMOUNT", "Importe de la carta de pago", firstValue(paymentFormIndex, ["Importe de la carta de pago"])),
+      referenceField("SEIZURE_ORDER_ID", "Número de diligencia", firstValue(index, ["Número de diligencia", "Nº de la diligencia", "N.º de la diligencia", "Referencia de la diligencia"])),
       textField(
-        "PRINTED_AMOUNT_COMPARISON",
-        "Comparación de importes",
-        seizure.hasPrintedAmountDiscrepancy ? "DISCREPANCY_PRESERVED_WITH_EVIDENCE" : "PRINTED_AMOUNTS_MATCH",
+        "ASSET_KIND",
+        "Tipo de bien",
+        seizure.assetKind === "REAL_ESTATE"
+          ? "Bien inmueble"
+          : seizure.assetKind === "COMMERCIAL_CREDITS"
+            ? "COMMERCIAL_CREDITS"
+            : "Bien mueble",
+        assetMarker,
       ),
+      moneyField("DEBT_SUBTOTAL", "Subtotal de deudas", firstMoneyValue(index, ["Subtotal de deudas"]) ?? firstStandaloneMoneyStartingWith(index, ["Importe pendiente total"])),
+      moneyField("PRINTED_INTEREST", "Intereses indicados", firstMoneyValue(index, ["Intereses impresos"]) ?? firstStandaloneMoneyStartingWith(index, ["Intereses"])),
+      moneyField("PRINTED_COSTS", "Costas indicadas", firstMoneyValue(index, ["Costas impresas"]) ?? firstStandaloneMoneyStartingWith(index, ["Costas"])),
+      moneyField("SEIZE_LIMIT", "Límite del embargo", firstMoneyValue(index, ["Límite del embargo"]) ?? firstStandaloneMoneyStartingWith(index, ["Importe a embargar"])),
+      moneyField("PAYMENT_FORM_PRINTED_TOTAL", "Total indicado en la carta", firstMoneyValue(paymentFormIndex, ["Total impreso en la carta"]) ?? firstStandaloneMoneyStartingWith(paymentFormIndex, ["Total a ingresar"]) ?? paymentFormTable?.total ?? null),
+      moneyField("PAYMENT_FORM_AMOUNT", "Importe de la carta de pago", firstMoneyValue(paymentFormIndex, ["Importe de la carta de pago"]) ?? firstStandaloneMoneyStartingWith(paymentFormIndex, ["Importe de la carta de pago", "Importe a ingresar"]) ?? paymentFormTable?.amountToPay ?? null),
       ...seizure.debtRows.flatMap((row, position) => [
         Object.freeze({
           fieldCode: `SEIZURE_DEBT_KEY_${position + 1}`,
@@ -764,9 +1125,6 @@ function specializedFields(
         }),
       ]),
     );
-  }
-  if (familyId === "collection.deferral_denial") {
-    fields.push(textField("DENIAL_DEADLINE_RULE", "Regla del plazo tras denegación", "DEPENDS_ON_EFFECTIVE_RECEIPT"));
   }
   return compactFields(fields);
 }
@@ -817,7 +1175,12 @@ export async function extractAeatRealCorpusDocumentV6(
   assertBoundedDocumentInput(document);
   assertNotAborted(document.signal);
   const index = buildIndex(document);
-  if (!contains(index, "AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA") && !contains(index, "AEAT"))
+  if (
+    !contains(index, "AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA") &&
+    !contains(index, "AGENCIA TRIBUTARIA") &&
+    !contains(index, "AEAT") &&
+    !(contains(index, "ADMINISTRACIÓN") && contains(index, "TRIBUTARIA"))
+  )
     return unknown(document, index);
 
   const base = await extractAeatRealCorpusDocumentV5(document);
@@ -834,16 +1197,16 @@ export async function extractAeatRealCorpusDocumentV6(
   const sanction = familyId === "sanction.resolution" ? parseSanctionResolution(index) : null;
   const loss = familyId === "sanction.loss_of_reduction" ? parseLossOfReduction(index) : null;
   const interest = familyId === "collection.interest_assessment" ? parseInterestAssessment(index) : null;
-  const seizure = familyId === "seizure.movable_asset"
-    ? parseSeizure(index, "MOVABLE_ASSET")
-    : familyId === "seizure.real_estate"
-      ? parseSeizure(index, "REAL_ESTATE")
-      : null;
+  const seizure = familyId === "seizure.commercial_credits"
+    ? parseSeizure(index, "COMMERCIAL_CREDITS")
+    : familyId === "seizure.movable_asset"
+      ? parseSeizure(index, "MOVABLE_ASSET")
+      : familyId === "seizure.real_estate"
+        ? parseSeizure(index, "REAL_ESTATE")
+        : null;
   if (
-    (familyId === "sanction.resolution" && !sanction) ||
-    (familyId === "sanction.loss_of_reduction" && !loss) ||
     (familyId === "collection.interest_assessment" && !interest) ||
-    ((familyId === "seizure.movable_asset" || familyId === "seizure.real_estate") && !seizure)
+    ((familyId === "seizure.commercial_credits" || familyId === "seizure.movable_asset" || familyId === "seizure.real_estate") && !seizure)
   ) return unknown(document, index);
 
   const segments = segmentDocument(document);
@@ -854,6 +1217,18 @@ export async function extractAeatRealCorpusDocumentV6(
   const paymentFormPageNumbers = paymentFormSegments.flatMap((segment) => segment.pageNumbers);
   const primaryIndex = indexForPages(index, primaryPageNumbers);
   const paymentFormIndex = indexForPages(index, paymentFormPageNumbers);
+  const extractedFields = specializedFields(
+    index,
+    primaryIndex,
+    paymentFormIndex,
+    familyId,
+    base.status === "REVIEW_REQUIRED" && base.familyId === familyId
+      ? base.fields
+      : Object.freeze([]),
+    interest,
+    seizure,
+  );
+  if (extractedFields.length === 0) return unknown(document, index);
   const result: RealCorpusExtractorOutcomeV6 = Object.freeze({
     schemaVersion: REAL_CORPUS_EXTRACTOR_SCHEMA_VERSION_V6,
     extractorVersion: REAL_CORPUS_EXTRACTOR_VERSION_V6,
@@ -864,17 +1239,7 @@ export async function extractAeatRealCorpusDocumentV6(
     canonicalTitle: canonicalTitle(familyId),
     physicalPageCount: document.pages.length,
     contentPageCount: document.pages.length - index.blankPageNumbers.size,
-    fields: specializedFields(
-      index,
-      primaryIndex,
-      paymentFormIndex,
-      familyId,
-      base.status === "REVIEW_REQUIRED" && base.familyId === familyId ? base.fields : Object.freeze([]),
-      sanction,
-      loss,
-      interest,
-      seizure,
-    ),
+    fields: extractedFields,
     installments:
       familyId === "collection.deferral_grant" && base.status === "REVIEW_REQUIRED"
         ? Object.freeze([...base.installments])

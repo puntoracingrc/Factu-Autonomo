@@ -1,5 +1,8 @@
 import type { AeatP0DeepExtractorOutcomeV10, AeatP0ExtractedFieldV10 } from "./extractor-core/p0-deep-extractor.v10";
-import { AEAT_P0_DEEP_REVIEW_FIELD_LABELS_V10 } from "./p0-deep-review-labels.v10";
+import {
+  AEAT_P0_DEEP_REVIEW_FIELD_LABELS_V10,
+  AEAT_P0_DEEP_REVIEW_HUMAN_VALUES_V10,
+} from "./p0-deep-review-labels.v10";
 import {
   createEmptyFiscalNotificationVerticalSliceReviewV1,
   parseFiscalNotificationVerticalSliceReviewV1,
@@ -32,8 +35,6 @@ const DATE_TYPES: Readonly<Record<string, FiscalNotificationVerticalSliceReviewF
   EFFECTIVE_NOTIFICATION_DATE: "EFFECTIVE_NOTIFICATION_DATE",
   CERTIFICATE_RECEIPT_DATE: "EFFECTIVE_NOTIFICATION_DATE",
   FILING_DATE: "ACTION_DATE",
-  REFERENCE_DATE: "ACTION_DATE",
-  REVIEW_RESOLUTION_ENTRY_DATE: "ACTION_DATE",
   ORIGINAL_DEADLINE: "RESPONSE_DEADLINE",
   NEW_DEADLINE: "RESPONSE_DEADLINE",
   RESPONSE_DEADLINE: "RESPONSE_DEADLINE",
@@ -62,40 +63,50 @@ const MONEY_TYPES: Readonly<Record<string, FiscalNotificationVerticalSliceReview
 function canonicalType(field: AeatP0ExtractedFieldV10): FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"] {
   if (field.kind === "REFERENCE") return REFERENCE_TYPES[field.fieldCode] ?? "OTHER_OFFICIAL_REFERENCE";
   if (field.kind === "SENSITIVE_REFERENCE") return "MASKED_ACCOUNT";
-  if (field.kind === "DATE") return DATE_TYPES[field.fieldCode] ?? "ACTION_DATE";
+  if (field.kind === "DATE") return DATE_TYPES[field.fieldCode] ?? "FACT_OR_GROUND";
   if (field.kind === "MONEY") return MONEY_TYPES[field.fieldCode] ?? "OTHER";
-  if (field.kind === "NORMALIZED_STATE") return "DOCUMENT_STATUS";
   return "FACT_OR_GROUND";
 }
 
 function semantic(field: AeatP0ExtractedFieldV10): FiscalNotificationVerticalSliceReviewFieldV1["semantic"] {
   if (field.kind === "REFERENCE") return "REFERENCE";
   if (field.kind === "SENSITIVE_REFERENCE") return "MASKED_VALUE";
-  if (field.kind === "DATE") return "DATE";
+  if (field.kind === "DATE") {
+    return DATE_TYPES[field.fieldCode] ? "DATE" : "DETAIL";
+  }
   if (field.kind === "MONEY") return "MONEY";
-  if (field.kind === "NORMALIZED_STATE") return "STATUS";
   return "DETAIL";
 }
 
-function projectField(field: AeatP0ExtractedFieldV10): FiscalNotificationVerticalSliceReviewFieldV1 {
-  const structuredNormalizedValue = field.kind === "STRUCTURED_PRESENCE"
-    ? `P0_V10:${field.fieldCode}`
-    : field.kind === "NORMALIZED_ENUM"
-      ? `P0_V10_ENUM:${field.normalizedValue}`
-      : field.kind === "TIME"
-        ? `P0_V10_TIME:${field.normalizedValue}`
-        : field.kind === "DURATION"
-          ? `P0_V10_DURATION:${field.normalizedValue}`
-          : field.normalizedValue;
+function projectField(
+  field: AeatP0ExtractedFieldV10,
+): FiscalNotificationVerticalSliceReviewFieldV1 | null {
+  if (field.kind === "STRUCTURED_PRESENCE") return null;
+  const humanValue =
+    field.kind === "NORMALIZED_ENUM" || field.kind === "NORMALIZED_STATE"
+      ? AEAT_P0_DEEP_REVIEW_HUMAN_VALUES_V10[field.normalizedValue ?? ""] ?? null
+      : null;
+  if (
+    (field.kind === "NORMALIZED_ENUM" || field.kind === "NORMALIZED_STATE") &&
+    humanValue === null
+  ) {
+    return null;
+  }
+  const displayValue =
+    field.kind === "DATE" && field.normalizedValue
+      ? field.normalizedValue.split("-").reverse().join("/")
+      : humanValue ?? field.displayValue;
+  const normalizedValue = field.fingerprintSha256
+    ? `sha256:${field.fingerprintSha256}`
+    : humanValue ??
+      (field.kind === "BOOLEAN" ? field.displayValue : field.normalizedValue);
   return Object.freeze({
     fieldId: field.fieldId,
     semantic: semantic(field),
     canonicalType: canonicalType(field),
     label: AEAT_P0_DEEP_REVIEW_FIELD_LABELS_V10[field.fieldCode] ?? field.sourceLabel,
-    displayValue: field.kind === "DATE" && field.normalizedValue
-      ? field.normalizedValue.split("-").reverse().join("/")
-      : field.displayValue,
-    normalizedValue: field.fingerprintSha256 ? `sha256:${field.fingerprintSha256}` : structuredNormalizedValue,
+    displayValue,
+    normalizedValue,
     amountCents: field.amountCents,
     currency: field.currency,
     sourcePageNumbers: field.sourcePageNumbers,
@@ -109,20 +120,18 @@ export function projectAeatP0DeepReviewV10(outcome: AeatP0DeepExtractorOutcomeV1
   if (outcome.status !== "REVIEW_REQUIRED" || !outcome.familyId || !outcome.title || !outcome.extractorId || outcome.matchedPageNumbers.length === 0) {
     return createEmptyFiscalNotificationVerticalSliceReviewV1(outcome.status === "BLOCKED" ? "BLOCKED" : "INFORMATION_PENDING");
   }
-  const recognition: FiscalNotificationVerticalSliceReviewFieldV1 = Object.freeze({
-    fieldId: "p0-v10:recognition:0",
-    semantic: "DETAIL",
-    canonicalType: "FACT_OR_GROUND",
-    label: "Tipo de documento",
-    displayValue: "Estructura oficial reconocida",
-    normalizedValue: `P0_V10:${outcome.familyId}`,
-    amountCents: null,
-    currency: null,
-    sourcePageNumbers: outcome.matchedPageNumbers,
-    sourceLabel: "Título y anclas estructurales",
-    confidence: 1,
-    reviewStatus: "REVIEW_REQUIRED",
-  });
+  const fields = outcome.fields
+    .map(projectField)
+    .filter(
+      (
+        field,
+      ): field is FiscalNotificationVerticalSliceReviewFieldV1 => field !== null,
+    );
+  if (fields.length === 0) {
+    return createEmptyFiscalNotificationVerticalSliceReviewV1(
+      "INFORMATION_PENDING",
+    );
+  }
   const reviewPageNumbers = Object.freeze(
     Array.from(
       new Set([
@@ -146,11 +155,8 @@ export function projectAeatP0DeepReviewV10(outcome: AeatP0DeepExtractorOutcomeV1
       pageFrom: reviewPageNumbers[0]!,
       pageTo: reviewPageNumbers.at(-1)!,
       confidence: 1,
-      fields: Object.freeze([recognition, ...outcome.fields.map(projectField)]),
-      warnings: Object.freeze([
-        ...outcome.issues.map((issue) => `P0_V10_${issue}`),
-        ...outcome.missingRequiredFieldIds.map((fieldId) => `P0_V10_MISSING_${fieldId}`),
-      ]),
+      fields: Object.freeze(fields),
+      warnings: Object.freeze([]),
       requiresHumanReview: true,
     })],
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",

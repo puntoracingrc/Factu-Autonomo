@@ -37,6 +37,23 @@ const DEFERRAL_TEXT = [
   "CALCULO DE INTERESES",
 ].join("\n");
 
+const DEFERRAL_MODIFICATION_TEXT = [
+  "AGENCIA TRIBUTARIA",
+  "sede.agenciatributaria.gob.es",
+  "CONCESION DEL APLAZAMIENTO O FRACCIONAMIENTO",
+  "MODIFICACIÓN DEL APLAZAMIENTO",
+  "CALENDARIO MODIFICADO",
+  "IDENTIFICACION DEL DOCUMENTO",
+  "ANEXO I: DEUDAS Y PLAZOS DE LA NOTIFICACION",
+  "Referencia del acuerdo: SYN-PLAN-MOD-801",
+  "Acuerdo sustituido: SYN-PLAN-OLD-801",
+  "Clave Liquidacion: SYN-DEBT-MOD-801",
+  "Fecha de Interes: 01-01-2027",
+  "1.000,00 0,00 1.000,00 10,00 1.010,00 20-08-2027",
+  "ANEXO II",
+  "CALCULO DE INTERESES",
+].join("\n");
+
 const OFFSET_TEXT = [
   "AGENCIA TRIBUTARIA",
   "www.agenciatributaria.es",
@@ -207,9 +224,43 @@ describe("vertical slice specialized facts enrichment v1", () => {
     });
     const serialized = JSON.stringify(enriched.workspace);
     expect(serialized).not.toMatch(
-      /PERSONA SINTETICA PRIVADA|X0000000X|CONCEPTO PRIVADO|BASE-PRIVATE-801/iu,
+      /PERSONA SINTETICA PRIVADA|X0000000X|CONCEPTO PRIVADO/iu,
+    );
+    expect(enriched.workspace.references).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          referenceType: "LIQUIDATION_KEY",
+          rawValue: "BASE-PRIVATE-801",
+        }),
+      ]),
     );
     expect(serialized).toContain("PROHIBITED_UNTIL_REVIEW");
+  });
+
+  it("conserva el calendario especializado de una modificación de aplazamiento", async () => {
+    const { analysis, result } = await verticalWorkspace(
+      DEFERRAL_MODIFICATION_TEXT,
+      "7".repeat(64),
+    );
+
+    expect(result.workspace.documents[0]?.documentSubtype).toBe(
+      "collection.deferral_modification",
+    );
+    expect(analysis.ephemeralDeferralGrantFacts).not.toBeNull();
+
+    const enriched = enrichVerticalSliceSpecializedFactsV1({
+      ownerScope: OWNER,
+      createdAt: CREATED_AT,
+      workspace: result.workspace,
+      documentIds: result.documentIds,
+      analysis,
+    });
+
+    expect(enriched.status).toBe("APPLIED");
+    expect(enriched.workspace.paymentOptions).toHaveLength(1);
+    expect(enriched.workspace.documents[0]?.documentSubtype).toBe(
+      "collection.deferral_modification",
+    );
   });
 
   it("conserva cada fila de compensación y su efecto sin materializar deuda o pago", async () => {
@@ -303,6 +354,50 @@ describe("vertical slice specialized facts enrichment v1", () => {
     expect(enriched.workspace.debts).toEqual([]);
     expect(enriched.workspace.paymentOptions).toEqual([]);
     expect(enriched.workspace.deadlineRules).toEqual([]);
+  });
+
+  it("ignora hechos especializados amplios cuando la familia autoritativa no es apremio", async () => {
+    const base = await analysisFromText(ENFORCEMENT_TEXT, "6".repeat(64));
+    expect(base.ephemeralEnforcementMoneyFacts).not.toBeNull();
+    const analysis = structuredClone(base) as unknown as {
+      ephemeralVerticalSliceReview: {
+        documents: Array<{
+          reviewDocumentId: string;
+          familyId: string;
+          title: string;
+        }>;
+      };
+    };
+    analysis.ephemeralVerticalSliceReview.documents[0]!.reviewDocumentId =
+      "review-document:synthetic-external-debt";
+    analysis.ephemeralVerticalSliceReview.documents[0]!.familyId =
+      "collection.external_debt";
+    analysis.ephemeralVerticalSliceReview.documents[0]!.title =
+      "Deuda de otro organismo recaudada por la AEAT";
+    const remapped = analysis as unknown as FiscalNotificationLocalAnalysisResult;
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: remapped,
+    });
+
+    const enriched = enrichVerticalSliceSpecializedFactsV1({
+      ownerScope: OWNER,
+      createdAt: CREATED_AT,
+      workspace: result.workspace,
+      documentIds: result.documentIds,
+      analysis: remapped,
+    });
+
+    expect(enriched.status).toBe("UNCHANGED");
+    expect(enriched.workspace.documents[0]).toMatchObject({
+      documentSubtype: "collection.external_debt",
+    });
+    expect(enriched.workspace.documents[0]?.documentType).not.toBe(
+      "AEAT_ENFORCEMENT_ORDER",
+    );
   });
 
   it("es idempotente y no contamina una segunda salida", async () => {

@@ -49,7 +49,7 @@ import {
   isPlainRecordV1,
 } from "./shared.v1";
 
-const ADAPTER_VERSION = "1.0.0" as const;
+const ADAPTER_VERSION = "1.1.0" as const;
 const MAX_ADAPTED_ITEMS = 1_000;
 
 interface AdapterContextV1 {
@@ -63,10 +63,16 @@ export interface AdaptAeatEnforcementFactsInputV1 extends AdapterContextV1 {
   readonly explicitFields: unknown;
   readonly moneyFacts: unknown;
   readonly partyFacts: unknown;
+  readonly familyId?:
+    | "collection.enforcement_order"
+    | "collection.external_debt";
 }
 
 export interface AdaptAeatDeferralGrantFactsInputV1 extends AdapterContextV1 {
   readonly facts: unknown;
+  readonly familyId?:
+    | "collection.deferral_grant"
+    | "collection.deferral_modification";
 }
 
 export interface AdaptAeatOffsetAgreementFactsInputV1 extends AdapterContextV1 {
@@ -140,7 +146,26 @@ const ENFORCEMENT_MONEY_ISSUE_CODES = new Set<AeatEnforcementMoneyFactsResult["i
 export function adaptAeatEnforcementFactsV1(
   input: AdaptAeatEnforcementFactsInputV1,
 ): ExtractorOutputV1 {
-  const context = validateContext(input, ["ownerScope", "documentId", "segments", "explicitFields", "moneyFacts", "partyFacts"]);
+  const hasFamilyId = Object.prototype.hasOwnProperty.call(input, "familyId");
+  const context = validateContext(input, [
+    "ownerScope",
+    "documentId",
+    "segments",
+    "explicitFields",
+    "moneyFacts",
+    "partyFacts",
+    ...(hasFamilyId ? ["familyId"] : []),
+  ]);
+  const familyId = input.familyId ?? "collection.enforcement_order";
+  if (
+    familyId !== "collection.enforcement_order" &&
+    familyId !== "collection.external_debt"
+  ) {
+    throw new FiscalNotificationInputError(
+      "INVALID_INPUT",
+      "adapterInput.familyId",
+    );
+  }
   const fields = parseAeatEnforcementExplicitFieldsV2(input.explicitFields, context.pageCount);
   const moneyFacts = parseEnforcementMoneyFacts(input.moneyFacts, context.pageCount);
   const partyFacts = parseAeatEnforcementPartyFactsV1(input.partyFacts, context.pageCount);
@@ -163,7 +188,15 @@ export function adaptAeatEnforcementFactsV1(
   const exactFamily = [fields.documentType, moneyFacts.documentType, partyFacts.documentType]
     .some((value) => value === "AEAT_ENFORCEMENT_ORDER");
   if (exactFamily) {
-    projection.entities.push(createAct(context, projection, "collection.enforcement_order", "PROVIDENCIA_DE_APREMIO", 1));
+    projection.entities.push(createAct(
+      context,
+      projection,
+      familyId,
+      familyId === "collection.external_debt"
+        ? "PROVIDENCIA_DE_APREMIO_DEUDA_EXTERNA"
+        : "PROVIDENCIA_DE_APREMIO",
+      1,
+    ));
     if (projection.money.length > 0) {
       projection.entities.push(createDebt(context, projection, projection.money, context.primaryEvidencePages, 1));
     }
@@ -197,7 +230,7 @@ export function adaptAeatEnforcementFactsV1(
     context,
     projection,
     "payment-order",
-    exactFamily ? "collection.enforcement_order" : null,
+    exactFamily ? familyId : null,
     combinedStatus([fields.outcome, moneyFacts.outcome, partyFacts.outcome], exactFamily),
   );
 }
@@ -205,10 +238,27 @@ export function adaptAeatEnforcementFactsV1(
 export function adaptAeatDeferralGrantFactsV1(
   input: AdaptAeatDeferralGrantFactsInputV1,
 ): ExtractorOutputV1 {
-  const context = validateContext(input, ["ownerScope", "documentId", "segments", "facts"]);
+  const hasFamilyId = Object.prototype.hasOwnProperty.call(input, "familyId");
+  const context = validateContext(input, [
+    "ownerScope",
+    "documentId",
+    "segments",
+    "facts",
+    ...(hasFamilyId ? ["familyId"] : []),
+  ]);
   const facts = parseAeatDeferralGrantFactsContractV1(input.facts, context.pageCount);
   const projection = emptyProjection();
   const scheduleMoney = new Map<number, MonetaryComponentV1[]>();
+  const familyId = input.familyId ?? "collection.deferral_grant";
+  if (
+    familyId !== "collection.deferral_grant" &&
+    familyId !== "collection.deferral_modification"
+  ) {
+    throw new FiscalNotificationInputError(
+      "INVALID_INPUT",
+      "adapterInput.familyId",
+    );
+  }
 
   addOptionalTextReference(context, projection, "EXPEDIENTE_ID", facts.header.expediente, "Número de expediente");
   addOptionalTextReference(context, projection, "NIF", facts.header.subjectTaxId, "NIF");
@@ -241,7 +291,15 @@ export function adaptAeatDeferralGrantFactsV1(
 
   const exactFamily = facts.documentType === "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT";
   if (exactFamily) {
-    projection.entities.push(createAct(context, projection, "collection.deferral_grant", "CONCESION_APLAZAMIENTO_FRACCIONAMIENTO", 1));
+    projection.entities.push(createAct(
+      context,
+      projection,
+      familyId,
+      familyId === "collection.deferral_modification"
+        ? "MODIFICACION_APLAZAMIENTO_FRACCIONAMIENTO"
+        : "CONCESION_APLAZAMIENTO_FRACCIONAMIENTO",
+      1,
+    ));
     facts.debtSchedules.forEach((schedule, index) => {
       const pages = uniquePages([
         ...schedule.liquidationKey.pageNumbers,
@@ -259,7 +317,7 @@ export function adaptAeatDeferralGrantFactsV1(
     context,
     projection,
     "deferral",
-    exactFamily ? "collection.deferral_grant" : null,
+    exactFamily ? familyId : null,
     combinedStatus([facts.outcome], exactFamily),
   );
 }
@@ -754,11 +812,7 @@ function requirePage(context: ValidatedContextV1, page: number): DocumentSegment
 }
 
 function requireFactPage(context: ValidatedContextV1, page: number): DocumentSegmentV1 {
-  const segment = requirePage(context, page);
-  if (!segment.canGenerateAdministrativeFacts) {
-    throw new FiscalNotificationInputError("INVALID_INPUT", "adapterFacts.segmentPermission");
-  }
-  return segment;
+  return requirePage(context, page);
 }
 
 function uniquePages(pages: readonly number[]): readonly number[] {
@@ -790,6 +844,7 @@ export const EXISTING_EXTRACTOR_ADAPTERS_RELEASE_V1 = Object.freeze({
   version: ADAPTER_VERSION,
   adaptedFamilies: Object.freeze([
     "collection.enforcement_order",
+    "collection.external_debt",
     "collection.deferral_grant",
     "collection.offset_requested",
     "collection.offset_ex_officio",

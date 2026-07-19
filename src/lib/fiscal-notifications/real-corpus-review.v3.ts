@@ -6,6 +6,12 @@ import type {
   RealCorpusInstallmentV3,
 } from "./extractor-core/real-corpus-extractor.v3";
 import {
+  canonicalRealCorpusDateType,
+  canonicalRealCorpusMoneyType,
+  canonicalRealCorpusReferenceType,
+  serializableRealCorpusReference,
+} from "./real-corpus-review-observation.v1";
+import {
   parseFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewFieldV1,
   type FiscalNotificationVerticalSliceReviewV1,
@@ -46,46 +52,6 @@ function field(input: {
   });
 }
 
-function canonicalDateType(
-  fieldCode: string,
-): FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"] {
-  switch (fieldCode) {
-    case "ISSUE_DATE":
-      return "ISSUE_DATE";
-    case "SIGNING_DATE":
-      return "SIGNING_DATE";
-    case "VOLUNTARY_PAYMENT_DEADLINE":
-      return "VOLUNTARY_PAYMENT_DEADLINE";
-    case "PAYMENT_DATE":
-      return "PAYMENT_DATE";
-    case "SEIZURE_DATE":
-    case "SOURCE_SEIZURE_DATE":
-      return "SEIZURE_DATE";
-    case "RELEASE_DATE":
-      return "RELEASE_DATE";
-    default:
-      return "ACTION_DATE";
-  }
-}
-
-function canonicalMoneyType(
-  fieldCode: string,
-): FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"] {
-  switch (fieldCode) {
-    case "PENDING_DEBT":
-    case "PENDING_DEBT_TOTAL":
-      return "TOTAL_PENDING";
-    case "SEIZURE_LIMIT":
-      return "SEIZURE_LIMIT";
-    case "SEIZED_AMOUNT":
-      return "SEIZED_AMOUNT";
-    case "REMITTED_AMOUNT":
-      return "THIRD_PARTY_TRANSFERRED";
-    default:
-      return "OTHER";
-  }
-}
-
 function canonicalReferenceType(
   fieldCode: string,
   familyId: RealCorpusExtractorOutcomeV3["familyId"],
@@ -100,7 +66,7 @@ function canonicalReferenceType(
     case "LIQUIDATION_KEY":
       return "LIQUIDATION_KEY";
     default:
-      return "OTHER_OFFICIAL_REFERENCE";
+      return canonicalRealCorpusReferenceType(fieldCode);
   }
 }
 
@@ -113,7 +79,7 @@ function projectField(
     return field({
       fieldId: `real-corpus-v3:${item.fieldCode}:${index}`,
       semantic: "MONEY",
-      canonicalType: canonicalMoneyType(item.fieldCode),
+      canonicalType: canonicalRealCorpusMoneyType(item.fieldCode),
       label: item.label,
       displayValue: formatMoney(item.amountCents),
       normalizedValue: String(item.amountCents),
@@ -122,21 +88,24 @@ function projectField(
     });
   }
   if (item.kind === "REFERENCE") {
+    const canonicalType = canonicalReferenceType(item.fieldCode, familyId);
+    const reference = serializableRealCorpusReference(canonicalType, item.value);
     return field({
       fieldId: `real-corpus-v3:${item.fieldCode}:${index}`,
       semantic: "REFERENCE",
-      canonicalType: canonicalReferenceType(item.fieldCode, familyId),
+      canonicalType,
       label: item.label,
-      displayValue: item.value,
-      normalizedValue: item.value,
+      displayValue: reference.displayValue,
+      normalizedValue: reference.normalizedValue,
       sourcePageNumbers: item.evidence.pageNumbers,
     });
   }
   if (item.kind === "DATE") {
+    const dateType = canonicalRealCorpusDateType(item.fieldCode);
     return field({
       fieldId: `real-corpus-v3:${item.fieldCode}:${index}`,
-      semantic: "DATE",
-      canonicalType: canonicalDateType(item.fieldCode),
+      semantic: dateType === null ? "DETAIL" : "DATE",
+      canonicalType: dateType ?? "FACT_OR_GROUND",
       label: item.label,
       displayValue: item.value.split("-").reverse().join("/"),
       normalizedValue: item.value,
@@ -144,16 +113,13 @@ function projectField(
     });
   }
   if (item.kind === "TEXT" && item.fieldCode === "RECIPIENT_ROLE") {
-    const role =
-      item.value === "PRIMARY_DEBTOR" ? "PRIMARY_DEBTOR" : "FINANCIAL_ENTITY";
     return field({
       fieldId: `real-corpus-v3:${item.fieldCode}:${index}`,
       semantic: "DETAIL",
       canonicalType: "SEIZURE_RECIPIENT_ROLE",
       label: item.label,
-      displayValue:
-        role === "PRIMARY_DEBTOR" ? "Obligado al pago" : "Entidad financiera",
-      normalizedValue: `V3:TEXT:RECIPIENT_ROLE:${role}`,
+      displayValue: item.value,
+      normalizedValue: item.value,
       sourcePageNumbers: item.evidence.pageNumbers,
     });
   }
@@ -161,10 +127,13 @@ function projectField(
     return field({
       fieldId: `real-corpus-v3:${item.fieldCode}:${index}`,
       semantic: "DETAIL",
-      canonicalType: "ACCOUNT_OR_DEPOSIT",
+      canonicalType:
+        item.value === "Cuenta o depósito bancario"
+          ? "ACCOUNT_OR_DEPOSIT"
+          : "FACT_OR_GROUND",
       label: item.label,
-      displayValue: "Cuenta o depósito",
-      normalizedValue: "V3:TEXT:ASSET_KIND:BANK_ACCOUNT_OR_DEPOSIT",
+      displayValue: item.value,
+      normalizedValue: item.value,
       sourcePageNumbers: item.evidence.pageNumbers,
     });
   }
@@ -175,7 +144,7 @@ function projectField(
       canonicalType: "ACCOUNT_OR_DEPOSIT",
       label: item.label,
       displayValue: `Cuenta o depósito ${item.value}`,
-      normalizedValue: `V3:INTEGER:OPAQUE_ASSET_ORDINAL:${item.value}`,
+      normalizedValue: `Cuenta o depósito ${item.value}`,
       sourcePageNumbers: item.evidence.pageNumbers,
     });
   }
@@ -187,7 +156,7 @@ function projectField(
     canonicalType: "FACT_OR_GROUND",
     label: item.label,
     displayValue,
-    normalizedValue: `V3:${item.kind}:${item.fieldCode}:${String(item.value).toUpperCase()}`,
+    normalizedValue: displayValue,
     sourcePageNumbers: item.evidence.pageNumbers,
   });
 }
@@ -202,7 +171,7 @@ function projectInstallment(
     canonicalType: "FACT_OR_GROUND",
     label: `Cuota ${item.sequence}`,
     displayValue: `Vence ${item.dueDate.split("-").reverse().join("/")} · base ${formatMoney(item.baseCents)} · interés ${formatMoney(item.interestCents)} · total ${formatMoney(item.totalCents)}`,
-    normalizedValue: `V3:INSTALLMENT:${item.sequence}:${item.dueDate}:${item.baseCents}:${item.interestCents}:${item.totalCents}`,
+    normalizedValue: `Vence ${item.dueDate.split("-").reverse().join("/")} · base ${formatMoney(item.baseCents)} · interés ${formatMoney(item.interestCents)} · total ${formatMoney(item.totalCents)}`,
     sourcePageNumbers: Object.freeze([item.pageNumber]),
   });
 }
@@ -244,6 +213,7 @@ export function projectRealCorpusReviewV3(
     ),
     ...outcome.installments.map(projectInstallment),
   ];
+  if (fields.length === 0) return emptyReview();
   return parseFiscalNotificationVerticalSliceReviewV1({
     schemaVersion: 1,
     reviewVersion: "1.0.0",

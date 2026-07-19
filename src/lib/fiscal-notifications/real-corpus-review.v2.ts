@@ -11,6 +11,12 @@ import {
   type FiscalNotificationVerticalSliceReviewFieldV1,
   type FiscalNotificationVerticalSliceReviewV1,
 } from "./vertical-slice-review.v1";
+import {
+  canonicalRealCorpusDateType,
+  canonicalRealCorpusMoneyType,
+  canonicalRealCorpusReferenceType,
+  serializableRealCorpusReference,
+} from "./real-corpus-review-observation.v1";
 
 export const REAL_CORPUS_REVIEW_PROJECTION_VERSION_V2 =
   "real-corpus-review.2026-07-16.v2" as const;
@@ -71,14 +77,17 @@ function projectField(
 ): FiscalNotificationVerticalSliceReviewFieldV1 {
   if (item.kind === "MONEY") {
     const signed = item.amountCents < 0;
+    const displayValue = formatMoney(item.amountCents);
     return reviewField({
       fieldId: `real-corpus:${item.fieldCode}:${index}`,
       semantic: signed ? "DETAIL" : "MONEY",
-      canonicalType: signed ? "FACT_OR_GROUND" : "OTHER",
+      canonicalType: signed
+        ? "FACT_OR_GROUND"
+        : canonicalRealCorpusMoneyType(item.fieldCode),
       label: item.label,
-      displayValue: formatMoney(item.amountCents),
+      displayValue,
       normalizedValue: signed
-        ? `SIGNED_CENTS:${item.amountCents}`
+        ? displayValue
         : String(item.amountCents),
       amountCents: signed ? null : item.amountCents,
       sourcePageNumbers: item.evidence.pageNumbers,
@@ -94,23 +103,35 @@ function projectField(
     item.kind === "DATE"
       ? String(item.value).split("-").reverse().join("/")
       : value;
+  const dateType =
+    item.kind === "DATE" ? canonicalRealCorpusDateType(item.fieldCode) : null;
+  const referenceType =
+    item.kind === "REFERENCE"
+      ? canonicalRealCorpusReferenceType(item.fieldCode)
+      : null;
+  const reference =
+    referenceType === null
+      ? null
+      : serializableRealCorpusReference(referenceType, String(item.value));
   return reviewField({
     fieldId: `real-corpus:${item.fieldCode}:${index}`,
     semantic:
       item.kind === "REFERENCE"
         ? "REFERENCE"
         : item.kind === "DATE"
-          ? "DATE"
+          ? dateType === null
+            ? "DETAIL"
+            : "DATE"
           : "DETAIL",
     canonicalType:
       item.kind === "REFERENCE"
-        ? "OTHER_OFFICIAL_REFERENCE"
+        ? referenceType!
         : item.kind === "DATE"
-          ? "ACTION_DATE"
+          ? dateType ?? "FACT_OR_GROUND"
           : "FACT_OR_GROUND",
     label: item.label,
-    displayValue,
-    normalizedValue,
+    displayValue: reference?.displayValue ?? displayValue,
+    normalizedValue: reference?.normalizedValue ?? normalizedValue,
     sourcePageNumbers: item.evidence.pageNumbers,
   });
 }
@@ -120,8 +141,12 @@ function projectSectionRow(
   index: number,
 ): FiscalNotificationVerticalSliceReviewFieldV1 {
   const values = [
-    row.participantRole === "SPOUSE" ? "Cónyuge" : "Titular",
-    `fila ${row.rowOrdinal}`,
+    `Fila ${row.rowOrdinal}`,
+    row.participantRole === "SPOUSE"
+      ? "Cónyuge"
+      : row.participantRole === "ACCOUNT_HOLDER"
+        ? "Titular"
+        : null,
     row.model ? `modelo ${row.model}` : null,
     row.taxPeriod ? `periodo ${row.taxPeriod}` : null,
     row.amountCents !== null ? formatMoney(row.amountCents) : null,
@@ -129,24 +154,39 @@ function projectSectionRow(
       ? `retención ${formatMoney(row.withholdingCents)}`
       : null,
   ].filter((value): value is string => value !== null);
+  const displayValue = values.join(" · ");
   return reviewField({
     fieldId: `real-corpus:section:${index}`,
     semantic: "DETAIL",
     canonicalType: "FACT_OR_GROUND",
-    label: row.sectionKind.replace(/_/gu, " "),
-    displayValue: values.join(" · "),
-    normalizedValue: [
-      row.sectionKind,
-      row.participantRole,
-      row.rowOrdinal,
-      row.model ?? "-",
-      row.taxPeriod ?? "-",
-      row.amountCents ?? "-",
-      row.withholdingCents ?? "-",
-    ].join(":"),
+    label: REAL_CORPUS_SECTION_LABELS_V2[row.sectionKind] ??
+      "Dato fiscal observado",
+    displayValue,
+    normalizedValue: displayValue,
     sourcePageNumbers: Object.freeze([row.pageNumber]),
   });
 }
+
+const REAL_CORPUS_SECTION_LABELS_V2: Readonly<Record<string, string>> =
+  Object.freeze({
+    EMPLOYMENT_INCOME: "Rendimientos del trabajo",
+    ECONOMIC_ACTIVITY_INCOME: "Rendimientos de actividades económicas",
+    BANK_INTEREST: "Intereses bancarios",
+    ECONOMIC_ACTIVITY_CENSUS: "Actividades económicas declaradas",
+    ATTRIBUTED_ECONOMIC_ACTIVITY_INCOME:
+      "Rendimientos atribuidos de actividades económicas",
+    ATTRIBUTED_WITHHOLDINGS: "Retenciones atribuidas",
+    DONATIONS: "Donativos",
+    MORTGAGE_LOAN: "Préstamo hipotecario",
+    INSTALLMENT_PAYMENTS: "Pagos fraccionados",
+    SOCIAL_SECURITY_CONTRIBUTIONS:
+      "Cotizaciones a la Seguridad Social",
+    CADASTRAL_PROPERTY: "Inmuebles catastrales",
+    ENTITY_PARTICIPATION: "Participaciones en entidades",
+    MATERNITY_DEDUCTION_CONTRIBUTIONS:
+      "Cotizaciones para deducción por maternidad",
+    MATERNITY_DEDUCTION: "Deducción por maternidad",
+  });
 
 function projectMissingReturn(
   item: RealCorpusMissingReturnV2,
@@ -199,6 +239,7 @@ export function projectRealCorpusReviewV2(
     ...outcome.sectionRows.map(projectSectionRow),
     ...outcome.missingReturns.map(projectMissingReturn),
   ];
+  if (fields.length === 0) return emptyReview();
   return parseFiscalNotificationVerticalSliceReviewV1({
     schemaVersion: 1,
     reviewVersion: "1.0.0",

@@ -105,12 +105,13 @@ function bankSeizureSource(input: {
   total?: string;
   limit?: string;
   seizedAmounts?: readonly string[];
+  extraHeader?: string;
 }): BoundedDocumentInput {
   const seizedAmounts = input.seizedAmounts ?? ["276,00"];
   return document(
     input.id,
     pages(6, {
-      1: `${AEAT}\n${input.title ?? "NOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE CUENTAS Y DEPÓSITOS"}\nNúmero de diligencia: SYN-SEIZURE-D11\nFecha de la diligencia: 24-10-2025\n${input.recipientText ?? "Se le notifica en condición de OBLIGADO AL PAGO"}`,
+      1: `${AEAT}\n${input.title ?? "NOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE CUENTAS Y DEPÓSITOS"}\nNúmero de diligencia: SYN-SEIZURE-D11\nFecha de la diligencia: 24-10-2025\n${input.recipientText ?? "Se le notifica en condición de OBLIGADO AL PAGO"}${input.extraHeader ? `\n${input.extraHeader}` : ""}`,
       2: "Información sobre recursos y oposición",
       3: "Continuación de la diligencia",
       5: [
@@ -429,8 +430,8 @@ describe("AEAT real corpus extractor V3", () => {
     expect(fieldAmount(result, "PENDING_DEBT_TOTAL")).toBe(27600);
     expect(fieldAmount(result, "SEIZURE_LIMIT")).toBe(27600);
     expect(fieldAmount(result, "SEIZED_AMOUNT")).toBe(27600);
-    expect(fieldText(result, "RECIPIENT_ROLE")).toBe("PRIMARY_DEBTOR");
-    expect(fieldText(result, "ASSET_KIND")).toBe("BANK_ACCOUNT_OR_DEPOSIT");
+    expect(fieldText(result, "RECIPIENT_ROLE")).toBe("Obligado al pago");
+    expect(fieldText(result, "ASSET_KIND")).toBe("Cuenta o depósito bancario");
     expect(
       result.fields.some((item) => item.fieldCode === "REMITTED_AMOUNT"),
     ).toBe(false);
@@ -468,6 +469,19 @@ describe("AEAT real corpus extractor V3", () => {
     expect(fieldReference(result, "DEBT_KEY")).toBe("SYN-DEBT-D11");
   });
 
+  it("does not treat a generic document date as a signing date", async () => {
+    const result = await extractAeatRealCorpusDocumentV3(
+      bankSeizureSource({
+        id: "SYN-V3-BANK-GENERIC-DOCUMENT-DATE",
+        extraHeader: "Fecha del documento: 25-10-2025",
+      }),
+    );
+
+    expect(result.fields.some(
+      (field) => field.fieldCode === "SIGNING_DATE",
+    )).toBe(false);
+  });
+
   it("uses the financial-entity role only for the separate recipient variant", async () => {
     const result = await extractAeatRealCorpusDocumentV3(
       bankSeizureSource({
@@ -476,7 +490,9 @@ describe("AEAT real corpus extractor V3", () => {
       }),
     );
     expect(result.familyId).toBe("seizure.bank_account");
-    expect(fieldText(result, "RECIPIENT_ROLE")).toBe("FINANCIAL_ENTITY");
+    expect(fieldText(result, "RECIPIENT_ROLE")).toBe(
+      "Entidad financiera destinataria",
+    );
   });
 
   it("keeps multiple accounts separate by ordinal without retaining identifiers", async () => {
@@ -492,10 +508,8 @@ describe("AEAT real corpus extractor V3", () => {
         .map((item) => (item.kind === "MONEY" ? item.amountCents : null)),
     ).toEqual([20000, 7600]);
     expect(
-      result.fields
-        .filter((item) => item.fieldCode === "OPAQUE_ASSET_ORDINAL")
-        .map((item) => (item.kind === "TEXT" ? item.value : null)),
-    ).toEqual(["1", "2"]);
+      result.fields.some((item) => item.fieldCode === "OPAQUE_ASSET_ORDINAL"),
+    ).toBe(false);
     expect(JSON.stringify(result)).not.toContain("ACTIVO-1");
     expect(JSON.stringify(result)).not.toContain("ACTIVO-2");
   });
@@ -534,7 +548,7 @@ describe("AEAT real corpus extractor V3", () => {
     expect(result.familyId).toBeNull();
   });
 
-  it("requires the complete six-page structure and every strong structural anchor", async () => {
+  it("requires the six-page structure but preserves useful facts when an optional amount is absent", async () => {
     const source = bankSeizureSource({ id: "SYN-V3-BANK-STRICT-SHAPE" });
     const fivePages = Object.freeze({
       ...source,
@@ -564,11 +578,21 @@ describe("AEAT real corpus extractor V3", () => {
       ),
     });
 
-    for (const candidate of [fivePages, sevenPages, missingLimit]) {
+    for (const candidate of [fivePages, sevenPages]) {
       const result = await extractAeatRealCorpusDocumentV3(candidate);
       expect(result.status).toBe("UNKNOWN");
       expect(result.familyId).toBeNull();
     }
+    const partial = await extractAeatRealCorpusDocumentV3(missingLimit);
+    expect(partial).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "seizure.bank_account",
+    });
+    expect(partial.fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fieldCode: "SEIZURE_ORDER_ID" }),
+      expect.objectContaining({ fieldCode: "SEIZURE_DATE" }),
+    ]));
+    expect(partial.fields.some((field) => field.fieldCode === "SEIZE_LIMIT")).toBe(false);
   });
 
   it("extracts a remitted amount only when a later bank response or proof says so", async () => {
@@ -641,15 +665,36 @@ describe("AEAT real corpus extractor V3", () => {
       result.fields
         .filter((item) => item.fieldCode.startsWith("PUBLIC_AUTHORITY_ROLE_"))
         .map((item) => (item.kind === "TEXT" ? item.value : null)),
-    ).toEqual(["SOCIAL_SECURITY", "REGIONAL_TAX_AUTHORITY"]);
+    ).toEqual(["Seguridad Social", "Hacienda autonómica"]);
     expect(
-      result.fields.some(
-        (item) =>
-          item.kind === "TEXT" &&
-          item.value === "TRANSFER_ORDERED_NOT_BANK_CREDIT",
-      ),
-    ).toBe(true);
+      result.fields.some((item) => item.fieldCode === "TRANSFER_STATUS"),
+    ).toBe(false);
+    expect(result.explanation?.whatIs).toContain("se ordenó transferir");
     expect(result.confirmsPayment).toBe(false);
+  });
+
+  it("extracts a refund decision reference printed inside the agreed-amount row", async () => {
+    const result = await extractAeatRealCorpusDocumentV3(
+      document("SYN-V3-REFUND-INLINE-DECISION", [
+        `${AEAT}\nCOMUNICACIÓN DE PAGO DE DEVOLUCIÓN\nReferencia: SYN-REFUND-INLINE-1\nDevolución solicitada: 1.250,00 EUR\nImporte acordado según acuerdo n.º 202600000000001X 1.250,00 EUR\nDevolución ordenada: 1.250,00 EUR\nDeducción organismo público: Seguridad Social | 1.110,00 EUR\nTotal deducciones: 1.110,00 EUR\nLíquido a transferir: 140,00 EUR`,
+        "Detalle de la deducción",
+      ]),
+    );
+
+    expect(result).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "refund.payment_communication",
+    });
+    expect(result.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldCode: "REFUND_DECISION_REFERENCE",
+          kind: "REFERENCE",
+          value: "202600000000001X",
+          evidence: expect.objectContaining({ pageNumbers: [1] }),
+        }),
+      ]),
+    );
   });
 
   it("classifies the model 303 channel change without creating a personal obligation", async () => {
@@ -664,6 +709,27 @@ describe("AEAT real corpus extractor V3", () => {
       "No es un requerimiento, liquidación ni sanción.",
     );
     expect(result.confirmsDeadline).toBe(false);
+  });
+
+  it("extracts a regulatory reference embedded after adjacent identity metadata", async () => {
+    const result = await extractAeatRealCorpusDocumentV3(
+      document("SYN-V3-MODEL303-EMBEDDED-REFERENCE", [
+        `${AEAT}\nN.I.F.: IDENTITY_PRIVATE_SENTINEL Referencia: SYN 000000000000001\nDESAPARECE LA MODALIDAD DE PRESENTACIÓN mediante PREDECLARACIÓN del MODELO 303 para el EJERCICIO 2023 Y SIGUIENTES`,
+        "La presentación será electrónica",
+      ]),
+    );
+
+    expect(result.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldCode: "DOCUMENT_REFERENCE",
+          kind: "REFERENCE",
+          value: "SYN000000000000001",
+          evidence: expect.objectContaining({ pageNumbers: [1] }),
+        }),
+      ]),
+    );
+    expect(JSON.stringify(result)).not.toContain("IDENTITY_PRIVATE_SENTINEL");
   });
 
   it("uses the release date for the current event and does not create a seizure from its annex", async () => {
@@ -695,7 +761,8 @@ describe("AEAT real corpus extractor V3", () => {
       expect.arrayContaining([
         expect.objectContaining({
           fieldId: expect.stringContaining(":SOURCE_SEIZURE_DATE:"),
-          canonicalType: "SEIZURE_DATE",
+          semantic: "DETAIL",
+          canonicalType: "FACT_OR_GROUND",
         }),
         expect.objectContaining({
           fieldId: expect.stringContaining(":RELEASE_DATE:"),

@@ -5,7 +5,7 @@ import {
 } from "./input-contract";
 
 export const REAL_CORPUS_RELATION_ENGINE_VERSION_V3 =
-  "real-corpus-relations.2026-07-17.v3" as const;
+  "real-corpus-relations.2026-07-19.v3.1" as const;
 
 export type RealCorpusRelationTypeV3 =
   | "CLAIMS_UNPAID_INSTALLMENT"
@@ -177,8 +177,6 @@ function enforcementAndDeferral(
     enforcement.debtKey !== plan.debtKey ||
     !enforcement.installmentDueDate ||
     enforcement.installmentDueDate !== plan.installmentDueDate ||
-    enforcement.enforcementPrincipalCents === null ||
-    enforcement.enforcementPrincipalCents !== plan.installmentTotalCents ||
     plan.installmentSequence === null
   ) {
     return Object.freeze([]);
@@ -199,7 +197,7 @@ function enforcementAndDeferral(
       exactReference: plan.debtKey,
       installmentIdentity: identity,
       phrase:
-        "Esta providencia reclama una cuota concreta del aplazamiento. El principal coincide con el total vencido de esa cuota, incluido su interés; el recargo ejecutivo se añade después.",
+        "Esta providencia reclama la cuota del aplazamiento identificada por la misma deuda y fecha de vencimiento.",
     }),
   ]);
 }
@@ -242,10 +240,7 @@ function enforcementAndSeizure(
     seizure.familyId !== "seizure.bank_account" ||
     enforcement.familyId !== "collection.enforcement_order" ||
     !seizure.debtKey ||
-    seizure.debtKey !== enforcement.debtKey ||
-    seizure.pendingDebtCents === null ||
-    enforcement.enforcementOrdinaryTotalCents === null ||
-    seizure.pendingDebtCents !== enforcement.enforcementOrdinaryTotalCents
+    seizure.debtKey !== enforcement.debtKey
   ) {
     return null;
   }
@@ -286,7 +281,7 @@ function releaseRelation(
   });
 }
 
-/** Exact links require owner, issuer and the complete family-specific tuple. */
+/** Exact links require owner, issuer and strong family-specific identifiers. */
 export function relateRealCorpusDocumentsV3(
   source: RealCorpusRelationDocumentV3,
   target: RealCorpusRelationDocumentV3,
@@ -307,24 +302,5 @@ export function relateRealCorpusDocumentsV3(
     releaseRelation(source, target),
   ].filter((item): item is RealCorpusRelationV3 => item !== null);
   if (exact.length > 0) return Object.freeze(exact);
-  if (
-    source.taxModel !== null &&
-    source.taxModel === target.taxModel &&
-    source.fiscalYear !== null &&
-    source.fiscalYear === target.fiscalYear
-  ) {
-    return Object.freeze([
-      relation({
-        relationType: "POSSIBLY_RELATED",
-        status: "SUGGESTED",
-        sourceDocumentId: source.documentId,
-        targetDocumentId: target.documentId,
-        exactReference: null,
-        installmentIdentity: null,
-        phrase:
-          "Puede estar relacionado con otro documento por el modelo y ejercicio coincidentes. Revísalo antes de confirmar la conexión.",
-      }),
-    ]);
-  }
   return Object.freeze([]);
 }

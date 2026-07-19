@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analyzeFiscalNotificationDocumentInput } from "./document-input-analysis";
+import { BASE_EXTRACTOR_IDS_V1 } from "./extractor-core/extractor-contract.v1";
+import { FISCAL_NOTIFICATION_FAMILY_RULES_V2 } from "./extractor-core/family-rule-registry.v2";
 import type { BoundedDocumentInput } from "./input-contract";
 
 function input(text: string): BoundedDocumentInput {
@@ -29,7 +31,58 @@ function multipageInput(pages: readonly (readonly string[])[]): BoundedDocumentI
 }
 
 describe("fiscal notification document input analysis", () => {
-  it("recognizes a closed historical AEAT enforcement template deterministically", async () => {
+  it("wires all 87 families to an extractor and only materializes observed facts", async () => {
+    expect(FISCAL_NOTIFICATION_FAMILY_RULES_V2).toHaveLength(87);
+    expect(
+      new Set(FISCAL_NOTIFICATION_FAMILY_RULES_V2.map((rule) => rule.familyId))
+        .size,
+    ).toBe(87);
+    const extractorIds = new Set<string>(BASE_EXTRACTOR_IDS_V1);
+
+    for (const rule of FISCAL_NOTIFICATION_FAMILY_RULES_V2) {
+      expect(extractorIds.has(rule.extractorId), rule.familyId).toBe(true);
+      const authority = rule.allowedAuthorities[0]?.anchors[0]?.literals[0];
+      expect(authority, rule.familyId).toBeTruthy();
+
+      const titleOnly = await analyzeFiscalNotificationDocumentInput(
+        input([authority!, rule.canonicalTitle].join("\n")),
+      );
+      expect(titleOnly.verticalSliceReview.documents, rule.familyId).toEqual([]);
+
+      const observed = await analyzeFiscalNotificationDocumentInput(
+        input(
+          [
+            authority!,
+            rule.canonicalTitle,
+            ...rule.requiredAnchors.map((anchor) => anchor.literals[0]),
+            "Fecha de emisión: 16/07/2026",
+          ].join("\n"),
+        ),
+      );
+      const familyDocuments = observed.verticalSliceReview.documents.filter(
+        (document) => document.familyId === rule.familyId,
+      );
+      expect(familyDocuments, rule.familyId).toHaveLength(1);
+      expect(
+        familyDocuments[0]?.fields,
+        rule.familyId,
+      ).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            semantic: "DATE",
+            canonicalType: "ISSUE_DATE",
+            normalizedValue: "2026-07-16",
+            sourcePageNumbers: [1],
+          }),
+        ]),
+      );
+      expect(JSON.stringify(familyDocuments), rule.familyId).not.toMatch(
+        /EXACT_|INTEGER:|BOOLEAN:|EXPLANATION:|SIGNED_CENTS:|V[3-7]:INSTALLMENT:|_DURATION|_CONTENT/u,
+      );
+    }
+  });
+
+  it("recognizes a closed historical template without inventing saveable facts", async () => {
     const source = input(
       [
         "AGENCIA TRIBUTARIA",
@@ -57,14 +110,8 @@ describe("fiscal notification document input analysis", () => {
     expect(first).toEqual(second);
     expect(first.verticalSliceReview).toMatchObject({
       schemaVersion: 1,
-      status: "REVIEW_REQUIRED",
-      documents: [
-        expect.objectContaining({
-          extractorId: "payment-order",
-          familyId: "collection.enforcement_order",
-          title: "Providencia de apremio",
-        }),
-      ],
+      status: "INFORMATION_PENDING",
+      documents: [],
       retainedSourceContent: "NONE",
     });
     expect(Object.isFrozen(first)).toBe(true);
@@ -116,21 +163,14 @@ describe("fiscal notification document input analysis", () => {
               canonicalType: "ACT_ID",
               displayValue: "REQ-DOC-SYN-PIPELINE-001",
             }),
-            expect.objectContaining({
-              canonicalType: "DOCUMENTATION_REQUIRED",
-              displayValue: "Detectado en el documento",
-              normalizedValue: "DOCUMENTATION_REQUIRED",
-            }),
-            expect.objectContaining({
-              canonicalType: "EXPLICIT_CONSEQUENCE",
-              displayValue: "Detectado en el documento",
-              normalizedValue: "EXPLICIT_CONSEQUENCE",
-            }),
           ]),
         }),
       ],
       retainedSourceContent: "NONE",
     });
+    expect(JSON.stringify(result.verticalSliceReview)).not.toContain(
+      "Detectado en el documento",
+    );
   });
 
   it("recognizes a profile-driven family and projects only its structured fields", async () => {
@@ -184,7 +224,38 @@ describe("fiscal notification document input analysis", () => {
     expect(JSON.stringify(result)).not.toContain(sourceMarker);
   });
 
-  it("upgrades an official-only V9 profile to the V10 deep review without retaining source text", async () => {
+  it("keeps a request number strongly typed through the profile pipeline", async () => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input(
+        [
+          "Agencia Estatal de Administración Tributaria",
+          "Requerimiento de subsanación o garantía de aplazamiento",
+          "Número de solicitud: REQ-SYN-PROFILE-001",
+          "Fecha de emisión: 18/07/2026",
+        ].join("\n"),
+      ),
+    );
+
+    expect(result.verticalSliceReview).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      documents: [
+        expect.objectContaining({
+          familyId: "collection.deferral_substantiation_requirement",
+          fields: expect.arrayContaining([
+            expect.objectContaining({
+              semantic: "REFERENCE",
+              canonicalType: "REQUEST_NUMBER",
+              displayValue: "REQ-SYN-PROFILE-001",
+              normalizedValue: "REQ-SYN-PROFILE-001",
+              sourcePageNumbers: [1],
+            }),
+          ]),
+        }),
+      ],
+    });
+  });
+
+  it("does not materialize a V10 title without observed required values", async () => {
     const sourceMarker = "PRIVATE-V9-SOURCE-MUST-DISAPPEAR";
     const result = await analyzeFiscalNotificationDocumentInput(
       input(
@@ -197,28 +268,15 @@ describe("fiscal notification document input analysis", () => {
     );
 
     expect(result.verticalSliceReview).toMatchObject({
-      status: "REVIEW_REQUIRED",
-      documents: [
-        expect.objectContaining({
-          extractorId: "requirement",
-          familyId: "procedure.deadline_extension_request",
-          title: "Solicitud de ampliación del plazo de un trámite tributario",
-          subtitle: "Revisa los datos detectados y completa los que falten",
-          warnings: expect.arrayContaining([
-            "P0_V10_INCOMPLETE_REQUIRED_FIELDS",
-            "P0_V10_MISSING_PROCEDURE_ID",
-            "P0_V10_MISSING_FILING_DATE",
-            "P0_V10_MISSING_ORIGINAL_DEADLINE",
-            "P0_V10_MISSING_REQUEST_REASON",
-          ]),
-        }),
-      ],
+      status: "INFORMATION_PENDING",
+      documents: [],
       retainedSourceContent: "NONE",
       permitsDebtCreation: false,
       permitsDeadlineCreation: false,
       permitsPaymentAction: false,
       permitsAccountingAction: false,
     });
+    expect(JSON.stringify(result.verticalSliceReview)).not.toContain("P0_V10");
     expect(JSON.stringify(result)).not.toContain(sourceMarker);
   });
 
@@ -352,10 +410,6 @@ describe("fiscal notification document input analysis", () => {
           title: "Denegación de aplazamiento o fraccionamiento",
           fields: expect.arrayContaining([
             expect.objectContaining({
-              canonicalType: "DOCUMENT_STATUS",
-              displayValue: "Solicitud de aplazamiento denegada",
-            }),
-            expect.objectContaining({
               canonicalType: "ISSUE_DATE",
               normalizedValue: "2017-07-04",
             }),
@@ -363,11 +417,6 @@ describe("fiscal notification document input analysis", () => {
               canonicalType: "TOTAL_CLAIMED",
               amountCents: 72_844,
               currency: "EUR",
-            }),
-            expect.objectContaining({
-              canonicalType: "DEFERRAL_REASON",
-              displayValue: "Detectado en el documento",
-              normalizedValue: "DEFERRAL_REASON",
             }),
           ]),
         }),
@@ -377,6 +426,157 @@ describe("fiscal notification document input analysis", () => {
       permitsDeadlineCreation: false,
       permitsPaymentAction: false,
     });
+    expect(JSON.stringify(result.verticalSliceReview)).not.toContain(
+      "Detectado en el documento",
+    );
+    expect(JSON.stringify(result.verticalSliceReview)).not.toContain(
+      "DOCUMENT_STATUS",
+    );
+  });
+
+  it("projects every observed installment from the structured deferral extractor", async () => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      multipageInput([
+        [
+          "AGENCIA TRIBUTARIA",
+          "sede.agenciatributaria.gob.es",
+          "CONCESIÓN DEL APLAZAMIENTO O FRACCIONAMIENTO DE PAGO SIN GARANTÍA",
+          "Número de expediente: EXP-SYN-PIPELINE-GRANT",
+          "ACUERDO",
+          "Se concede el aplazamiento por el importe de 500,00 euros.",
+        ],
+        [
+          "ANEXO I: DEUDAS Y PLAZOS DE LA NOTIFICACIÓN",
+          "Número Fecha de Importe Fecha de",
+          "Concepto Importe",
+          "Liquidación Intereses del plazo Vencimiento",
+          "L-SYN-PIPELINE-1 CONCEPTO SINTÉTICO 01-01-2026 1.000,00 250,00 20-02-2026",
+          "250,00 20-03-2026",
+          "ANEXO II: LIQUIDACIÓN DE INTERESES DE DEMORA",
+          "CÁLCULO DE INTERESES",
+        ],
+      ]),
+    );
+
+    const documents = result.verticalSliceReview.documents.filter(
+      (document) => document.familyId === "collection.deferral_grant",
+    );
+    expect(documents).toHaveLength(1);
+    expect(documents[0]).toMatchObject({ extractorId: "deferral" });
+    expect(
+      documents[0]?.fields.filter(
+        (field) =>
+          field.semantic === "MONEY" &&
+          field.canonicalType === "OTHER" &&
+          field.amountCents === 25_000,
+      ),
+    ).toHaveLength(2);
+    expect(
+      documents[0]?.fields.filter(
+        (field) => field.canonicalType === "INSTALLMENT_DUE_DATE",
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        normalizedValue: "2026-02-20",
+        sourcePageNumbers: [2],
+      }),
+      expect.objectContaining({
+        normalizedValue: "2026-03-20",
+        sourcePageNumbers: [2],
+      }),
+    ]);
+  });
+
+  it("uses an observed first-page modification statement without losing the replacement schedule", async () => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      multipageInput([
+        [
+          "AGENCIA TRIBUTARIA",
+          "sede.agenciatributaria.gob.es",
+          "CONCESIÓN DEL APLAZAMIENTO O FRACCIONAMIENTO DE PAGO",
+          "Número de expediente: EXP-SYN-PIPELINE-MODIFIED-1",
+          "Solicitud de modificación de aplazamiento concedido: nuevo calendario de pago",
+          "ACUERDO",
+          "Se concede el aplazamiento por el importe de 500,00 euros.",
+        ],
+        [
+          "ANEXO I: DEUDAS Y PLAZOS DE LA NOTIFICACIÓN",
+          "Número Fecha de Importe Fecha de",
+          "Concepto Importe",
+          "Liquidación Intereses del plazo Vencimiento",
+          "L-SYN-PIPELINE-MOD CONCEPTO SINTÉTICO 01-01-2026 1.000,00 250,00 20-04-2026",
+          "250,00 20-05-2026",
+          "ANEXO II: LIQUIDACIÓN DE INTERESES DE DEMORA",
+          "CÁLCULO DE INTERESES",
+        ],
+      ]),
+    );
+
+    expect(result.verticalSliceReview.documents).toHaveLength(1);
+    expect(result.verticalSliceReview.documents[0]).toMatchObject({
+      extractorId: "deferral",
+      familyId: "collection.deferral_modification",
+    });
+    expect(
+      result.verticalSliceReview.documents[0]?.fields.filter(
+        (field) => field.canonicalType === "INSTALLMENT_DUE_DATE",
+      ),
+    ).toHaveLength(2);
+    expect(
+      result.verticalSliceReview.documents.some(
+        (document) => document.familyId === "collection.deferral_grant",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps one external-debt card while reusing the printed enforcement amounts", async () => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      input(
+        [
+          "AGENCIA TRIBUTARIA",
+          "sede.agenciatributaria.gob.es",
+          "NOTIFICACIÓN DE PROVIDENCIA DE APREMIO",
+          "Organismo de origen: TESORERÍA GENERAL DE LA SEGURIDAD SOCIAL",
+          "Clave de liquidación: LQ-SYN-EXTERNAL-001",
+          "Referencia del documento: REF-SYN-EXTERNAL-002",
+          "Fecha de emisión: 05/02/2026",
+          "IMPORTE DE LA DEUDA",
+          "Principal pendiente: 1.234,56 EUR",
+          "Recargo de apremio ordinario (20 %): 246,91 EUR",
+          "Ingreso a cuenta: 0,00 EUR",
+          "Importe total: 1.481,47 EUR",
+          "PLAZOS DE PAGO",
+          "CARTA DE PAGO",
+        ].join("\n"),
+      ),
+    );
+
+    expect(result.verticalSliceReview.documents).toHaveLength(1);
+    expect(result.verticalSliceReview.documents[0]).toMatchObject({
+      extractorId: "payment-order",
+      familyId: "collection.external_debt",
+    });
+    expect(
+      result.verticalSliceReview.documents.some(
+        (document) => document.familyId === "collection.enforcement_order",
+      ),
+    ).toBe(false);
+    expect(result.verticalSliceReview.documents[0]?.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalType: "PRINCIPAL",
+          amountCents: 123_456,
+        }),
+        expect.objectContaining({
+          canonicalType: "TOTAL_CLAIMED",
+          amountCents: 148_147,
+        }),
+        expect.objectContaining({
+          canonicalType: "ISSUE_DATE",
+          normalizedValue: "2026-02-05",
+        }),
+      ]),
+    );
   });
 
   it("extracts publication or appearance evidence only from observed printed facts", async () => {
@@ -439,25 +639,9 @@ describe("fiscal notification document input analysis", () => {
     );
 
     expect(result.verticalSliceReview).toMatchObject({
-      status: "REVIEW_REQUIRED",
-      documents: [
-        expect.objectContaining({
-          familyId: "information.tax_data_report",
-          title: "Datos fiscales",
-        }),
-      ],
+      status: "INFORMATION_PENDING",
+      documents: [],
     });
-    expect(
-      result.verticalSliceReview.documents.flatMap((document) =>
-        document.fields.map((field) => field.fieldId),
-      ),
-    ).not.toEqual(
-      expect.arrayContaining([
-        expect.stringContaining("DRAFT_AVAILABLE"),
-        expect.stringContaining("PARTICIPANT_COUNT"),
-        expect.stringContaining("SECTION_ROW_COUNT"),
-      ]),
-    );
   });
 
   it("returns no family or facts for a blank bounded input", async () => {

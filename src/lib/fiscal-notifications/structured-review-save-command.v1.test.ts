@@ -684,7 +684,18 @@ describe("structured fiscal notification save command v1", () => {
       accountingDrafts: [],
     });
     expect(JSON.stringify(result.data)).not.toMatch(
-      /PERSONA SINTETICA|X0000000X|IRPF SINTETICO|L-SAVE-071/iu,
+      /PERSONA SINTETICA|X0000000X|IRPF SINTETICO/iu,
+    );
+    expect(
+      result.data.fiscalNotificationsWorkspace?.references,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          referenceType: "LIQUIDATION_KEY",
+          rawValue: "L-SAVE-071",
+          normalizedValue: "L-SAVE-071",
+        }),
+      ]),
     );
     expect(input.persist).toHaveBeenCalledTimes(1);
   });
@@ -719,7 +730,10 @@ describe("structured fiscal notification save command v1", () => {
     expect(
       result.data.fiscalNotificationsWorkspace?.analysisSnapshots[0]
         ?.validationWarnings,
-    ).toContain("SPECIALIZED_ENRICHMENT_SKIPPED");
+    ).not.toContain("SPECIALIZED_ENRICHMENT_SKIPPED");
+    expect(
+      JSON.stringify(result.data.fiscalNotificationsWorkspace),
+    ).not.toMatch(/SPECIALIZED_ENRICHMENT_SKIPPED|RELATION_RECONCILIATION_PENDING/u);
     expect(input.persist).toHaveBeenCalledTimes(1);
   });
 

@@ -108,6 +108,7 @@ const REFERENCE_LABELS: Readonly<Partial<Record<ExternalReferenceType, string>>>
   NRC: "Número de Referencia Completo (NRC)",
   NOTIFICATION_ID: "Identificador de notificación",
   REQUEST_NUMBER: "Número de requerimiento",
+  REFUND_REFERENCE: "Referencia de devolución",
   OFFICIAL_REGISTRY_NUMBER: "Número de registro oficial",
 };
 const PROTECTED_REFERENCE_TYPES = new Set<ExternalReferenceType>([
