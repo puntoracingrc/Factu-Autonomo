@@ -1264,6 +1264,65 @@ function profileDiffersFromDefault(
   );
 }
 
+export function fiscalNotificationsWorkspaceHasStoredContent(
+  value: unknown,
+): boolean {
+  if (value === undefined || value === null) return false;
+  if (isEmptyFiscalWorkspacePlaceholder(value)) return false;
+  const envelope = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(value);
+  if (envelope) return envelope.workspace.documents.length > 0;
+  const workspace = parseFiscalNotificationsWorkspaceForPersistenceV1(value);
+  if (workspace) return workspace.documents.length > 0;
+  return true;
+}
+
+function isEmptyFiscalWorkspacePlaceholder(value: unknown): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record);
+  if (keys.length === 0) return true;
+  if (!Array.isArray(record.documents) || record.documents.length > 0) {
+    return false;
+  }
+  return [
+    "packages",
+    "files",
+    "parts",
+    "authorities",
+    "references",
+    "evidence",
+    "debts",
+    "debtObservations",
+    "cases",
+    "relations",
+    "analysisSnapshots",
+    "paymentOptions",
+    "paymentPlans",
+    "installments",
+    "interestCalculations",
+    "deadlineRules",
+    "obligations",
+    "timeline",
+    "accountingDrafts",
+    "auditEvents",
+    "driveArchives",
+  ].every((key) => {
+    const entry = record[key];
+    return entry === undefined || (Array.isArray(entry) && entry.length === 0);
+  });
+}
+
+function pendingChangesHaveContent(
+  pendingChanges: NonNullable<AppData["meta"]>["pendingChanges"],
+): boolean {
+  if (!Array.isArray(pendingChanges)) return false;
+  return pendingChanges.some((change) => {
+    if (change.entityType !== "fiscal_notifications_workspace") return true;
+    if (change.deleted) return false;
+    return fiscalNotificationsWorkspaceHasStoredContent(change.payload);
+  });
+}
+
 function storedDataHasContent(parsed: Partial<AppData>): boolean {
   return (
     (parsed.documents?.length ?? 0) > 0 ||
@@ -1274,9 +1333,11 @@ function storedDataHasContent(parsed: Partial<AppData>): boolean {
     (parsed.suppliers?.length ?? 0) > 0 ||
     (parsed.products?.length ?? 0) > 0 ||
     (parsed.testDocumentRetirementBatches?.length ?? 0) > 0 ||
-    Boolean(parsed.fiscalNotificationsWorkspace) ||
+    fiscalNotificationsWorkspaceHasStoredContent(
+      parsed.fiscalNotificationsWorkspace,
+    ) ||
     (parsed.workspaceIntegrityQuarantine?.length ?? 0) > 0 ||
-    (parsed.meta?.pendingChanges?.length ?? 0) > 0 ||
+    pendingChangesHaveContent(parsed.meta?.pendingChanges) ||
     Object.values(parsed.counters ?? {}).some((value) => (value ?? 0) > 0) ||
     Boolean(parsed.verifactuChain) ||
     profileDiffersFromDefault(parsed.profile)

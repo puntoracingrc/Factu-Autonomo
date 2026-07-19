@@ -18,6 +18,7 @@ import type {
   FiscalNotificationLocalAnalysisResult,
   FiscalNotificationLocalReviewResult,
 } from "./local-review-flow";
+import type { FiscalNotificationsWorkspace } from "./types";
 import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "./structured-review-save-command.v1";
 import { appendStructuredReviewRelationSuggestionsV1 } from "./structured-review-relation-suggestions.v1";
 import { projectFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
@@ -33,6 +34,39 @@ const HASH = "b".repeat(64);
 afterEach(() => {
   vi.unstubAllGlobals();
 });
+
+function emptyFiscalWorkspace(createdAt: string): FiscalNotificationsWorkspace {
+  return {
+    schemaVersion: 1,
+    workspaceId: "fiscal-notifications-workspace-v1",
+    ownerScope: OWNER,
+    revision: 0,
+    createdAt,
+    updatedAt: createdAt,
+    packages: [],
+    files: [],
+    documents: [],
+    parts: [],
+    authorities: [],
+    references: [],
+    evidence: [],
+    debts: [],
+    debtObservations: [],
+    cases: [],
+    relations: [],
+    analysisSnapshots: [],
+    paymentOptions: [],
+    paymentPlans: [],
+    installments: [],
+    interestCalculations: [],
+    deadlineRules: [],
+    obligations: [],
+    timeline: [],
+    accountingDrafts: [],
+    auditEvents: [],
+    driveArchives: [],
+  };
+}
 
 const DEFERRAL_TEXT = [
   "AGENCIA TRIBUTARIA",
@@ -861,6 +895,66 @@ describe("structured fiscal notification save command v1", () => {
     if (!result.status.startsWith("applied")) return;
     const reloaded = loadData();
     expect(reloaded.fiscalNotificationsWorkspace?.documents).toHaveLength(1);
+    expect(
+      reloaded.meta?.pendingChanges?.some(
+        (change) => change.entityType === "fiscal_notifications_workspace",
+      ),
+    ).toBe(true);
+  });
+
+  it("guarda en Mi cuenta cuando el historial fiscal local quedó vacío tras borrar fichas", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
+    const lastKnown = structuredClone(EMPTY_DATA);
+    const emptyWorkspace = emptyFiscalWorkspace("2026-07-14T10:03:00.000Z");
+    const current: AppData = {
+      ...lastKnown,
+      fiscalNotificationsWorkspace: emptyWorkspace,
+      meta: {
+        lastModified: "2026-07-14T10:03:00.000Z",
+        pendingChanges: [
+          {
+            entityType: "fiscal_notifications_workspace",
+            entityId: "fiscal-notifications-workspace-v2",
+            deleted: false,
+            payload: emptyWorkspace,
+            updatedAt: "2026-07-14T10:03:00.000Z",
+          },
+        ],
+      },
+    };
+
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1({
+      expected: current,
+      ownerScope: OWNER,
+      reviewId: "review:00000000-0000-4000-8000-000000000084",
+      createdAt: "2026-07-14T10:04:00.000Z",
+      analysis: offsetAnalysis(),
+      commit: (expected, build) =>
+        commitAppDataDurablyWithStorageRecovery({
+          expected,
+          storageBaseline: { status: "blocked", reason: "write_failed" },
+          lastKnownStorageBaseline: lastKnown,
+          getCurrent: () => current,
+          build,
+          persist: (candidate, storageExpected) =>
+            saveData(candidate, { expected: storageExpected }),
+          inspectPersisted: inspectPersistedData,
+        }),
+    });
+
+    expect(result.status).toMatch(/applied/);
+    if (!result.status.startsWith("applied")) return;
+    const reloaded = loadData();
+    expect(reloaded.fiscalNotificationsWorkspace?.documents).toHaveLength(1);
+    expect(
+      reloaded.fiscalNotificationsWorkspace?.documents[0]?.documentSubtype,
+    ).toBe("collection.offset_requested");
     expect(
       reloaded.meta?.pendingChanges?.some(
         (change) => change.entityType === "fiscal_notifications_workspace",
