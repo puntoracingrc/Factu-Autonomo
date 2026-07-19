@@ -907,6 +907,62 @@ describe("structured fiscal notification save command v1", () => {
     ).toBe(true);
   });
 
+  it("guarda aunque una cola fiscal antigua ya no cumpla el envelope privado actual", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
+    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({ status: "applied" });
+    const lastKnown = loadData();
+    const current: AppData = {
+      ...lastKnown,
+      meta: {
+        ...lastKnown.meta,
+        lastModified: "2026-07-14T10:02:30.000Z",
+        pendingChanges: [
+          {
+            entityType: "fiscal_notifications_workspace",
+            entityId: "fiscal-notifications-workspace-v1",
+            deleted: false,
+            payload: {
+              schemaVersion: 1,
+              rawPdfText: "dato legado que no debe sobrevivir",
+            },
+            updatedAt: "2026-07-14T10:02:30.000Z",
+          },
+        ],
+      },
+    };
+
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1({
+      expected: current,
+      ownerScope: OWNER,
+      reviewId: "review:00000000-0000-4000-8000-000000000088",
+      createdAt: "2026-07-14T10:03:00.000Z",
+      analysis: offsetAnalysis(),
+      commit: (expected, build) =>
+        commitAppDataDurablyWithStorageRecovery({
+          expected,
+          storageBaseline: { status: "blocked", reason: "write_failed" },
+          lastKnownStorageBaseline: lastKnown,
+          getCurrent: () => current,
+          build,
+          persist: (candidate, storageExpected) =>
+            saveData(candidate, { expected: storageExpected }),
+          inspectPersisted: inspectPersistedData,
+          readPersisted: readPersistedDataSnapshot,
+        }),
+    });
+
+    expect(result.status).toMatch(/^applied/u);
+    const raw = [...store.values()].join("\n");
+    expect(raw).not.toContain("dato legado que no debe sobrevivir");
+    expect(loadData().fiscalNotificationsWorkspace?.documents).toHaveLength(1);
+  });
+
   it("guarda la ficha completa usando el snapshot durable actual cuando el baseline de la UI quedó obsoleto", () => {
     const store = new Map<string, string>();
     vi.stubGlobal("window", {});

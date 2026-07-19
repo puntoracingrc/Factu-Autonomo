@@ -632,6 +632,45 @@ describe("storage", () => {
     ).toBe("FISCAL_NOTIFICATIONS_PRIVACY_WORKSPACE_V2");
   });
 
+  it("regenera una cola fiscal obsoleta desde el expediente canónico sin bloquear el guardado", () => {
+    const workspace = emptyFiscalNotificationsWorkspace();
+    const obsoletePayload = {
+      schemaVersion: 1,
+      rawPdfText: "contenido que jamás debe copiarse",
+    };
+    const data: AppData = {
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: workspace,
+      meta: {
+        lastModified: NOW,
+        pendingChanges: [
+          {
+            entityType: "fiscal_notifications_workspace",
+            entityId: workspace.workspaceId,
+            deleted: false,
+            payload: obsoletePayload,
+            updatedAt: NOW,
+          },
+        ],
+      },
+    };
+
+    expect(saveData(data)).toEqual({ status: "applied" });
+    const raw = localStorage.getItem(STORAGE_KEY);
+    expect(raw).not.toBeNull();
+    expect(raw).not.toContain("contenido que jamás debe copiarse");
+    const persisted = JSON.parse(raw!) as {
+      fiscalNotificationsWorkspace: { storageKind: string };
+      meta: { pendingChanges: Array<{ payload: { storageKind: string } }> };
+    };
+    expect(persisted.meta.pendingChanges[0]?.payload).toEqual(
+      persisted.fiscalNotificationsWorkspace,
+    );
+    expect(loadData().fiscalNotificationsWorkspace?.ownerScope).toBe(
+      FISCAL_OWNER,
+    );
+  });
+
   it("rechaza un expediente fiscal malformado sin copiar su PII a cuarentena", () => {
     const malformed = {
       ...emptyFiscalNotificationsWorkspace(),

@@ -202,12 +202,16 @@ export function projectAppDataForPersistence(
 ): unknown {
   const base = isRecord(baseValue) ? baseValue : undefined;
   const result: Record<string, unknown> = { ...data };
+  let canonicalFiscalEnvelope: ReturnType<
+    typeof encodeFiscalNotificationsWorkspaceForStorageV2
+  > = null;
   if (data.fiscalNotificationsWorkspace) {
     const envelope = encodeFiscalNotificationsWorkspaceForStorageV2(
       data.fiscalNotificationsWorkspace,
       base?.fiscalNotificationsWorkspace,
     );
     if (!envelope) throw new Error("fiscal_workspace_privacy_projection_failed");
+    canonicalFiscalEnvelope = envelope;
     result.fiscalNotificationsWorkspace = envelope;
   } else {
     delete result.fiscalNotificationsWorkspace;
@@ -220,10 +224,28 @@ export function projectAppDataForPersistence(
         change,
         basePending.get(change.entityId),
       );
-      if (!projected) {
-        throw new Error("fiscal_pending_change_privacy_projection_failed");
+      if (projected) return projected;
+
+      // pendingChanges es una cola derivada del expediente canónico. Clientes
+      // anteriores pudieron dejar aquí un workspace V1 o un envelope ya
+      // reemplazado que el contrato V2 actual no puede volver a proyectar. No
+      // se copia ni se relaja ese payload: se sustituye por la proyección
+      // privada, ya validada, del expediente que se está guardando. Así una
+      // referencia de sincronización obsoleta no bloquea la ficha local.
+      if (
+        change.entityType === "fiscal_notifications_workspace" &&
+        !change.deleted &&
+        canonicalFiscalEnvelope
+      ) {
+        return {
+          entityType: change.entityType,
+          entityId: change.entityId,
+          deleted: false,
+          payload: canonicalFiscalEnvelope,
+          updatedAt: change.updatedAt,
+        } satisfies SyncChange;
       }
-      return projected;
+      throw new Error("fiscal_pending_change_privacy_projection_failed");
     });
     result.meta = {
       ...data.meta,
