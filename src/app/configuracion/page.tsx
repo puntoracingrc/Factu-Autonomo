@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type SetStateAction,
+} from "react";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -81,6 +89,7 @@ import {
   normalizeProductFamilyMarkupSettings,
 } from "@/lib/product-family-markups";
 import { buildPurchaseProductSummaries } from "@/lib/purchase-products";
+import { resolveSettingsDraftAfterProfileSync } from "@/lib/settings-draft-sync";
 import type {
   AppPreferences,
   AdvisorContact,
@@ -188,10 +197,18 @@ function SettingsSection({
 export default function ConfiguracionPage() {
   const { data, updateProfile } = useAppStore();
   const { billingEnabled, isPro } = useBilling();
-  const [form, setForm] = useState({
+  const [form, setFormState] = useState({
     ...data.profile,
     numbering: normalizeNumbering(data.profile.numbering),
   });
+  const formDirtyRef = useRef(false);
+  const setForm = useCallback(
+    (next: SetStateAction<typeof form>) => {
+      formDirtyRef.current = true;
+      setFormState(next);
+    },
+    [],
+  );
   const [saved, setSaved] = useState(false);
   const [advisorSaveAttempted, setAdvisorSaveAttempted] = useState(false);
   const [ivaError, setIvaError] = useState<string | null>(null);
@@ -231,13 +248,21 @@ export default function ConfiguracionPage() {
   }, []);
 
   useEffect(() => {
-    setForm({
+    const incomingProfile = {
       ...data.profile,
       numbering: normalizeNumbering(data.profile.numbering),
-    });
+    };
+    setFormState((currentDraft) =>
+      resolveSettingsDraftAfterProfileSync({
+        currentDraft,
+        incomingProfile,
+        hasLocalChanges: formDirtyRef.current,
+      }),
+    );
   }, [data.profile]);
 
   function persistProfile(next: BusinessProfile) {
+    formDirtyRef.current = false;
     updateProfile({
       ...next,
       numbering: normalizeNumbering(next.numbering),
@@ -297,7 +322,7 @@ export default function ConfiguracionPage() {
 
     setAdvisorSaveAttempted(false);
     const next = normalizeBusinessProfileForSave(form);
-    setForm(next);
+    setFormState(next);
     persistProfile(next);
   }
 
