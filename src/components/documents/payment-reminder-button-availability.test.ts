@@ -15,5 +15,6 @@ describe("disponibilidad del recordatorio de pago", () => {
     );
     expect(source).toContain("disabled={!triggerEnabled}");
     expect(source).toContain("bg-amber-50 text-amber-300");
+    expect(source).toContain("showTooltip={!hideTooltip}");
   });
 });

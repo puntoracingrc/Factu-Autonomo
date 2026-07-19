@@ -30,6 +30,7 @@ interface PaymentReminderButtonProps {
   profile: BusinessProfile;
   variant?: "icon" | "button";
   showUnavailable?: boolean;
+  hideTooltip?: boolean;
 }
 
 export function PaymentReminderButton({
@@ -37,6 +38,7 @@ export function PaymentReminderButton({
   profile,
   variant = "icon",
   showUnavailable = false,
+  hideTooltip = false,
 }: PaymentReminderButtonProps) {
   const { data } = useAppStore();
   const { billingEnabled, isPro } = useBilling();
@@ -173,6 +175,7 @@ export function PaymentReminderButton({
         }
         onClick={handleOpen}
         disabled={!triggerEnabled}
+        showTooltip={!hideTooltip}
         className={
           triggerEnabled
             ? "bg-amber-50 text-amber-800 hover:bg-amber-100"

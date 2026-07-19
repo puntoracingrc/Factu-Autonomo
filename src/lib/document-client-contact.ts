@@ -4,6 +4,7 @@ import {
   getCustomerDisplayName,
   isValidCustomerEmail,
   migrateCustomer,
+  normalizeCustomerNif,
 } from "./customers";
 import { normalizePhoneForWhatsApp } from "./share";
 import type { Customer, Document } from "./types";
@@ -46,6 +47,24 @@ function hasUsablePhone(phone?: string): boolean {
   return Boolean(phone?.trim() && normalizePhoneForWhatsApp(phone));
 }
 
+function contactIdentityMatchesCustomer(
+  doc: Document,
+  customer: Customer,
+): boolean {
+  const migrated = migrateCustomer(customer);
+  const documentNif = normalizeCustomerNif(doc.client.nif);
+  const customerNif = normalizeCustomerNif(migrated.nif);
+
+  if (documentNif && customerNif) {
+    return documentNif === customerNif;
+  }
+  if (clientMatchesCustomer(doc.client, migrated)) return true;
+
+  const documentName = normalizeLabel(doc.client.name);
+  const customerName = normalizeLabel(getCustomerDisplayName(migrated));
+  return Boolean(documentName && customerName && documentName === customerName);
+}
+
 function uniqueMatchingContact(
   doc: Document,
   customers: Customer[],
@@ -54,7 +73,7 @@ function uniqueMatchingContact(
   const contacts = new Map<string, string>();
 
   customers.forEach((customer) => {
-    if (!clientMatchesCustomer(doc.client, customer)) return;
+    if (!contactIdentityMatchesCustomer(doc, customer)) return;
 
     const value = migrateCustomer(customer)[field]?.trim();
     if (!value) return;
@@ -80,7 +99,7 @@ export function documentWithCurrentCustomerContact(
   const linkedCustomer = findLinkedCustomerForDocument(doc, customers);
   const migrated = linkedCustomer ? migrateCustomer(linkedCustomer) : null;
   const hasMatchingCustomer = customers.some((customer) =>
-    clientMatchesCustomer(doc.client, customer),
+    contactIdentityMatchesCustomer(doc, customer),
   );
   if (!migrated && !hasMatchingCustomer) return doc;
 
