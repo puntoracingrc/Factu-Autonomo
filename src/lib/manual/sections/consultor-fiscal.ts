@@ -25,7 +25,20 @@ export const consultorFiscalSection: ManualSection = {
       tip: "El resultado es orientativo; no presenta declaraciones ni sustituye la revisión profesional.",
     },
     {
-      title: "2. Preparar el perfil fiscal para gastos",
+      title: "2. Consultar y organizar el calendario fiscal",
+      paragraphs: [
+        "Abre **Asesoría fiscal → Calendario fiscal**. La vista **Todos** conserva el calendario completo publicado por la AEAT. Si ya has guardado un diagnóstico fiscal compatible, puedes cambiar a **Mis obligaciones** para organizar los vencimientos según los modelos recomendados y los que hayas añadido manualmente.",
+        "El número de **Mis obligaciones** cuenta modelos únicos, no el número de fechas o tarjetas que generan. **Todos** cuenta los vencimientos cargados para el rango y las categorías aplicados. Si la vista personalizada todavía no está disponible, pulsa **Abrir diagnóstico**, complétalo y vuelve al calendario; **Todos** seguirá accesible en todo momento.",
+        "Indica las fechas **Desde** y **Hasta**, deja marcada al menos una categoría y pulsa **Aplicar filtros**. La AEAT publica **Renta**, **Renta y Sociedades** y **Sociedades** como calendarios separados: la categoría conjunta no es una repetición. También puedes consultar **IVA** y **Declaraciones informativas**.",
+        "Cada tarjeta muestra la categoría, la fecha publicada, el estado disponible y el texto de la fuente. En **Mis obligaciones**, las líneas relacionadas con tus modelos quedan a la vista y las referencias a otros modelos pueden agruparse bajo **Otros modelos publicados por la AEAT**; pulsa **Mostrar** para recuperarlas. Volver a **Todos** presenta de nuevo el contenido íntegro y en el orden original.",
+        "Pulsa el número de un modelo para abrir el catálogo de **Modelos AEAT** desplazado hasta su ficha y resaltarla. Desde esa tarjeta puedes entrar en el detalle y usar **Volver al Calendario** para regresar. Las referencias que no se reconocen con seguridad permanecen como texto, sin fabricar un enlace.",
+        "Pulsa **Crear recordatorio** en un vencimiento para abrir **Avisos** con un borrador personal que incluye el texto y la fecha publicados. El borrador no se guarda automáticamente: revisa **Qué quieres recordar**, corrígelo si hace falta y guarda el recordatorio de forma explícita.",
+        "Si una tarjeta indica **Revisar con gestor**, **Por confirmar** o un estado provisional, conserva esa cautela al actuar. Al final de la página puedes comprobar la **Fuente** y la **Última consulta**; si la carga falla, usa **Reintentar** o acota el rango.",
+      ],
+      tip: "El calendario informa y organiza. No presenta modelos, no paga impuestos y no marca un trámite como realizado.",
+    },
+    {
+      title: "3. Preparar el perfil fiscal para gastos",
       paragraphs: [
         "Abre **Consultor fiscal** desde el menú **Más** en móvil o desde la barra lateral en escritorio.",
         "Elige **Importar certificado censal**, **Rellenar manualmente** o **Continuar sin completar**. Ninguna opción bloquea el acceso al Consultor.",
@@ -35,7 +48,7 @@ export const consultorFiscalSection: ManualSection = {
       ],
     },
     {
-      title: "3. Introducir el gasto",
+      title: "4. Introducir el gasto",
       paragraphs: [
         "Selecciona opcionalmente un gasto existente. El Consultor reutiliza sus datos y el perfil del negocio; si el desglose de IVA o el documento original están bloqueados, te pide resolverlo en Gastos y no convierte esos importes en ceros.",
         "Para un caso que aún no está registrado, indica concepto, fecha, proveedor opcional, medio de pago y justificante. Base, IVA y total solo aparecen si activas **También quiero calcular cuánto podría deducirme**.",
@@ -46,7 +59,7 @@ export const consultorFiscalSection: ManualSection = {
       tip: "Describe el concepto con precisión, por ejemplo «comida cliente», «gasolina» o «peaje».",
     },
     {
-      title: "4. Responder las preguntas del gasto",
+      title: "5. Responder las preguntas del gasto",
       paragraphs: [
         "El motor pide únicamente la información que necesita para la regla seleccionada. En comidas pregunta primero la finalidad; «comida» o «cena de empresa» nunca se resuelven automáticamente.",
         "Aunque el gasto tenga un número de documento, el Consultor puede pedirte confirmar si es factura completa, simplificada o recibo. El número por sí solo no habilita la deducción del IVA.",
@@ -55,7 +68,7 @@ export const consultorFiscalSection: ManualSection = {
       ],
     },
     {
-      title: "5. Interpretar el resultado del gasto",
+      title: "6. Interpretar el resultado del gasto",
       paragraphs: [
         "Los estados **Falta información**, **Necesita revisión**, **Sin regla compatible** y **Caso no implementado** son distintos. La ausencia de datos no se convierte automáticamente en rojo.",
         "Si no indicas territorio, tipo de contribuyente, régimen fiscal o actividad, el resultado permanece en **Falta información** y no anticipa importes. Un caso conocido pero fuera del alcance aparece como **Caso no implementado**.",
@@ -65,7 +78,7 @@ export const consultorFiscalSection: ManualSection = {
       ],
     },
     {
-      title: "6. Revisar antes de contabilizar",
+      title: "7. Revisar antes de contabilizar",
       paragraphs: [
         "El botón **Aplicar propuesta** está deshabilitado en esta fase. Revisa la regla y su versión, conserva las pruebas y consulta a un asesor cuando el caso dependa de interpretación.",
         "La IA no es una fuente jurídica. Una banda de confianza alta no permite aceptar la propuesta automáticamente, y cualquier fallo de proveedor o del validador conserva el resultado local.",
@@ -74,7 +87,7 @@ export const consultorFiscalSection: ManualSection = {
       tip: "No uses este análisis como declaración oficial ni como sustituto de los modelos tributarios.",
     },
     {
-      title: "7. Preparar y analizar un lote de notificaciones",
+      title: "8. Preparar y analizar un lote de notificaciones",
       paragraphs: [
         "Abre **Notificaciones y expedientes** dentro de Asesoría fiscal con una cuenta confirmada. Arrastra los PDF a la zona de escaneo o pulsa **Elegir varios PDF**. Cada lote admite hasta **50 documentos**; cada PDF puede tener como máximo 4 MB y 80 páginas.",
         "Los archivos aparecen primero en una cola con nombre, tamaño y estado. Añadirlos no inicia el análisis: puedes completar el lote, quitar un archivo y después pulsar una sola vez **Analizar**. El flujo mantiene el mismo orden familiar del escáner de gastos: preparar la cola, analizar, revisar cada resultado y confirmar el guardado.",
@@ -85,7 +98,7 @@ export const consultorFiscalSection: ManualSection = {
       tip: "El PDF permanece en el navegador durante el análisis y solo sale de él si eliges expresamente archivarlo en tu Google Drive.",
     },
     {
-      title: "8. Revisar y guardar la ficha estructurada",
+      title: "9. Revisar y guardar la ficha estructurada",
       paragraphs: [
         "Abre cada resultado del lote. La ficha puede mostrar tipo de documento, organismo, roles de los intervinientes sin su identidad, referencias administrativas seguras, importes, fechas impresas, documentación solicitada, plazo literal y consecuencias expresas, siempre que aparezcan bajo una estructura reconocida. Los campos conservan página, etiqueta y procedencia para poder contrastarlos con el PDF.",
         "La guía reúne **122 familias documentales**. El reconocimiento automático y local mantiene las 87 anteriores y añade 31 perfiles oficiales de rectificación, ampliación de plazo, presentación, ejecución, apoderamientos, REDEME/SII, certificados, subastas y devoluciones. Otras 4 familias sectoriales —pago en especie, insolvencia, aduanas y respuesta técnica VERI*FACTU— permanecen solo para consulta manual hasta activar su ámbito. Dentro de esas incorporaciones, 11 familias prioritarias ya disponen de extracción profunda de campos: justificantes de presentación, solicitud y decisión de ampliación, las cuatro fases de rectificación, justificante de autoliquidación rectificativa, acuerdo de ejecución y certificados con su disconformidad. Todas siguen requiriendo revisión humana.",
@@ -106,7 +119,7 @@ export const consultorFiscalSection: ManualSection = {
       tip: "Guardar la ficha y archivar el PDF original son dos decisiones distintas. Puedes conservar solo la ficha.",
     },
     {
-      title: "9. Archivar voluntariamente el original en Google Drive",
+      title: "10. Archivar voluntariamente el original en Google Drive",
       paragraphs: [
         "Después de guardar la ficha aparece el bloque **Original registrado sin archivar**. Si Drive ya está conectado, pulsa **Archivar original en Drive**. Si no lo está, pulsa **Conectar Drive y archivar** y completa el permiso de Google. Conectar Drive es independiente de iniciar sesión en Factu.",
         "Nada se sube al analizar, seleccionar o guardar una ficha: el envío comienza únicamente al pulsar el botón de archivado del documento. Factu vuelve a leer el archivo subido y comprueba que su huella SHA-256 coincide antes de marcarlo como **Original archivado**.",
@@ -117,7 +130,7 @@ export const consultorFiscalSection: ManualSection = {
       tip: "Desconectar Drive o no autorizarlo no elimina la ficha ni los originales que ya estén en tu cuenta de Google.",
     },
     {
-      title: "10. Consultar documentos, expedientes y relaciones",
+      title: "11. Consultar documentos, expedientes y relaciones",
       paragraphs: [
         "La sección **Documentos escaneados y expedientes** reúne las fichas guardadas. Cada tarjeta muestra arriba el organismo abreviado, por ejemplo **AEAT**, seguido del título completo y la fecha exacta del documento cuando está disponible. El estado del original se consulta al abrir el detalle.",
         "Puedes buscar por título, organismo, referencia administrativa segura o importe. El selector **Ordenar filas por** permite usar la **Fecha del primer documento** o la **Fecha del último documento**. La fecha principal siempre es la que figura en el documento; la fecha de guardado solo se muestra como información secundaria.",
@@ -130,7 +143,7 @@ export const consultorFiscalSection: ManualSection = {
       tip: "La biblioteca ordena y relaciona la información confirmada por el usuario; ninguna relación ejecuta por sí sola una acción fiscal o contable.",
     },
     {
-      title: "11. Buscar qué significa una notificación",
+      title: "12. Buscar qué significa una notificación",
       paragraphs: [
         "En **Guía de notificaciones y expedientes** puedes buscar por el nombre técnico o con palabras normales, por ejemplo **cuenta bloqueada**, **declaración omitida**, **carta de pago**, **pago rechazado**, **apremio** o **embargo**. La búsqueda se realiza en el navegador y no envía el texto escrito.",
         "Las fichas con el distintivo **Guía explicada** empiezan por **Lo importante en 30 segundos**: qué significa, por qué suele llegar, qué conviene hacer y qué plazo debes localizar. **Entenderlo un poco mejor** contiene únicamente los matices útiles; el estado técnico y las fuentes quedan en apartados posteriores.",
