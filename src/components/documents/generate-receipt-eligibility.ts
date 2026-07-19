@@ -24,7 +24,7 @@ export function receiptGenerationBlockedMessage(
     case "invoice_not_found":
       return "No se encuentra una única factura de origen. Recarga y comprueba que el documento siga disponible.";
     case "invoice_not_collected":
-      return "Marca primero la factura como cobrada. Generar un recibo no realiza ningún cobro bancario.";
+      return "Marca primero como cobrada.";
     case "invoice_integrity_blocked":
       return "No se puede generar el recibo porque la integridad de la factura está bloqueada. Conserva su PDF y una copia de seguridad para una revisión explícita.";
     case "invoice_rectification":

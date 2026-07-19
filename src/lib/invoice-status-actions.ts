@@ -160,22 +160,20 @@ export function collectionActionCopy(doc: Document, collected: boolean): {
   if (collected) {
     return {
       label: doc.type === "factura" ? "Cobrada" : "Cobrado",
-      tooltip:
-        "Cobro registrado en local. Pulsa para desmarcarlo; no es pasarela ni banco.",
+      tooltip: doc.type === "factura" ? "Cobrada" : "Cobrado",
     };
   }
 
   if (doc.type === "factura") {
     return {
-      label: "Cobrar",
-      tooltip:
-        "Marcar como cobrada en local. Si necesitas recibo, genéralo después desde Recibo. No cobra por banco ni pasarela.",
+      label: "Cobrada",
+      tooltip: "Marcar como cobrada",
     };
   }
 
   return {
-    label: "Cobrar",
-    tooltip: "Marcar como cobrado en local. No cobra por banco ni pasarela.",
+    label: "Cobrado",
+    tooltip: "Marcar como cobrado",
   };
 }
 
@@ -193,7 +191,6 @@ export const PAYMENT_REMINDER_COPY = {
 } as const;
 
 export const RECTIFICATION_ACTION_COPY = {
-  label: "Rectificar",
-  tooltip:
-    "Crear una factura rectificativa vinculada. No envía nada a AEAT ni genera XML por sí sola.",
+  label: "Rectificar factura",
+  tooltip: "Rectificar factura",
 } as const;

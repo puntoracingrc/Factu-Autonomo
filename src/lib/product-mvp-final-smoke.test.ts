@@ -203,8 +203,8 @@ describe("product MVP final smoke", () => {
     expect(sources).toContain("Exportar copia");
     expect(sources).toContain("Resumen del negocio");
     expect(sources).toContain("Periodo:");
-    expect(sources).toContain("Abrir PDF");
-    expect(sources).toContain("Imprimir PDF");
+    expect(sources).toContain("Vista previa");
+    expect(sources).toContain("Imprimir");
     expect(sources).toContain("PDF");
     expect(sources).toContain("WhatsApp");
     expect(sources).toContain("Hazte Pro");

@@ -96,9 +96,12 @@ describe("elegibilidad de GenerateReceiptButton", () => {
 
     for (const reason of reasons) {
       const message = receiptGenerationBlockedMessage(reason);
-      expect(message.length, reason).toBeGreaterThan(45);
+      expect(message.length, reason).toBeGreaterThan(10);
       expect(message, reason).not.toMatch(/undefined|null|error técnico/i);
     }
+    expect(receiptGenerationBlockedMessage("invoice_not_collected")).toBe(
+      "Marca primero como cobrada.",
+    );
     expect(receiptGenerationBlockedMessage("invoice_integrity_blocked")).toContain(
       "integridad",
     );

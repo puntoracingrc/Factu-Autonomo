@@ -25,14 +25,11 @@ export function GenerateReceiptButton({ doc }: GenerateReceiptButtonProps) {
   if (doc.type !== "factura") return null;
 
   if (inspection.status === "existing") {
-    const integrityHint = inspection.integrityBlocked
-      ? " El recibo existe, pero su integridad está bloqueada; ábrelo para ver el motivo."
-      : "";
     return (
       <IconActionLink
         href={documentDetailPath(inspection.receipt)}
         label="Ver recibo"
-        tooltip={`Esta factura ya tiene un recibo. Abrir ${inspection.receipt.number}.${integrityHint}`}
+        tooltip="Ver recibo"
         className="bg-green-50 text-green-700 hover:bg-green-100"
       >
         <FileText className="h-5 w-5" />
@@ -44,10 +41,11 @@ export function GenerateReceiptButton({ doc }: GenerateReceiptButtonProps) {
     const message = receiptGenerationBlockedMessage(inspection.reason);
     return (
       <IconActionButton
-        label="Recibo"
-        tooltip={message}
+        label="Crear recibo"
+        tooltip="Crear recibo"
         onClick={() => showFactuToast(message, 6500)}
-        className="bg-amber-50 text-amber-800 hover:bg-amber-100"
+        disabled
+        className="cursor-not-allowed bg-amber-50 text-amber-800 opacity-50"
       >
         <FileText className="h-5 w-5" />
       </IconActionButton>
@@ -90,8 +88,8 @@ export function GenerateReceiptButton({ doc }: GenerateReceiptButtonProps) {
 
   return (
     <IconActionButton
-      label={saving ? "Guardando" : "Recibo"}
-      tooltip="Generar y guardar un recibo vinculado si el cliente lo solicita. No cobra por banco ni pasarela."
+      label={saving ? "Guardando" : "Crear recibo"}
+      tooltip="Crear recibo"
       onClick={handleGenerate}
       disabled={saving}
       className="bg-green-50 text-green-700 hover:bg-green-100"
