@@ -3,6 +3,7 @@ import { createDemoWorkspaceData } from "./demo-workspace";
 import {
   commitAppDataDurably,
   commitAppDataDurablyWithStorageRecovery,
+  commitLatestAppDataDurably,
   durableBaselineContainsFixedExpenseBundle,
   durableStorageBaselineAfterSave,
   fixedExpenseBundleIds,
@@ -13,7 +14,11 @@ import {
 } from "./app-data-durability";
 import { syncRecurringExpenses } from "./recurring-expenses";
 import { loadData, saveData } from "./storage";
-import { EMPTY_DATA, type AppData, type RecurringExpenseFrequency } from "./types";
+import {
+  EMPTY_DATA,
+  type AppData,
+  type RecurringExpenseFrequency,
+} from "./types";
 
 const NOW = "2026-07-12T09:00:00.000Z";
 
@@ -87,9 +92,7 @@ function fixedCommand(input?: {
       description: "Cuota operativa",
       amount: 100,
       ivaPercent: input?.nonDeductible ? 0 : 21,
-      deductibility: input?.nonDeductible
-        ? "non_deductible"
-        : "deductible",
+      deductibility: input?.nonDeductible ? "non_deductible" : "deductible",
       category: "Otros",
       paymentMethod: "Domiciliación",
     },
@@ -99,9 +102,7 @@ function fixedCommand(input?: {
       description: "Cuota operativa",
       amount: 100,
       ivaPercent: input?.nonDeductible ? 0 : 21,
-      deductibility: input?.nonDeductible
-        ? "non_deductible"
-        : "deductible",
+      deductibility: input?.nonDeductible ? "non_deductible" : "deductible",
       category: "Otros",
       paymentMethod: "Domiciliación",
       frequency: input?.frequency ?? "monthly",
@@ -290,25 +291,25 @@ describe("commitAppDataDurably", () => {
         reason: "storage_state_unknown",
       } as const,
     },
-  ])("no publica un candidato no durable: $persistence.status", ({
-    persistence,
-    expected: expectedResult,
-  }) => {
-    const previous = appData();
-    const current = previous;
-    const result = commitAppDataDurably({
-      expected: previous,
-      getCurrent: () => current,
-      build: (data) => ({
-        data: { ...data, customers: [] },
-        value: "candidate",
-      }),
-      persist: () => persistence,
-    });
+  ])(
+    "no publica un candidato no durable: $persistence.status",
+    ({ persistence, expected: expectedResult }) => {
+      const previous = appData();
+      const current = previous;
+      const result = commitAppDataDurably({
+        expected: previous,
+        getCurrent: () => current,
+        build: (data) => ({
+          data: { ...data, customers: [] },
+          value: "candidate",
+        }),
+        persist: () => persistence,
+      });
 
-    expect(result).toEqual(expectedResult);
-    expect(current).toBe(previous);
-  });
+      expect(result).toEqual(expectedResult);
+      expect(current).toBe(previous);
+    },
+  );
 
   it.each([
     { status: "blocked", reason: "protected_existing_data" } as const,
@@ -407,9 +408,9 @@ describe("commitAppDataDurably", () => {
       createdAt: NOW,
       updatedAt: NOW,
     };
-    expect(
-      saveData({ ...appData(), recurringExpenses: [recurring] }),
-    ).toEqual({ status: "applied" });
+    expect(saveData({ ...appData(), recurringExpenses: [recurring] })).toEqual({
+      status: "applied",
+    });
     const storageExpected = loadData();
     const expected = syncRecurringExpenses(storageExpected, "2026-07-12");
     expect(storageExpected.expenses).toHaveLength(0);
@@ -885,6 +886,98 @@ describe("commitAppDataDurably", () => {
   });
 });
 
+describe("commitLatestAppDataDurably", () => {
+  it("construye sobre la cuenta vigente aunque una referencia anterior haya quedado obsoleta", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(NOW));
+    const current: AppData = {
+      ...appData(),
+      profile: { ...appData().profile, name: "Cambio sincronizado" },
+      expenses: [
+        {
+          id: "expense-preserved",
+          createdAt: NOW,
+          date: "2026-07-12",
+          supplierName: "Proveedor",
+          description: "Gasto ya sincronizado",
+          amount: 25,
+          ivaPercent: 21,
+          category: "Otros",
+          paymentMethod: "Transferencia",
+        },
+      ],
+    };
+    const persist = vi.fn(() => ({ status: "applied" }) as const);
+
+    const result = commitLatestAppDataDurably({
+      storageBaseline: {
+        status: "blocked",
+        reason: "stale_precondition",
+      },
+      getCurrent: () => current,
+      build: (previous) => ({
+        data: {
+          ...previous,
+          fiscalNotificationsWorkspace: emptyFiscalWorkspace("user:owner", NOW),
+        },
+        value: "notification-saved",
+      }),
+      persist,
+    });
+
+    expect(result.status).toBe("applied");
+    expect(persist).toHaveBeenCalledTimes(1);
+    if (result.status !== "applied") return;
+    expect(result.value).toBe("notification-saved");
+    expect(result.data.profile.name).toBe("Cambio sincronizado");
+    expect(result.data.expenses.map((expense) => expense.id)).toEqual([
+      "expense-preserved",
+    ]);
+    expect(result.data.fiscalNotificationsWorkspace?.ownerScope).toBe(
+      "user:owner",
+    );
+  });
+
+  it.each([
+    { status: "blocked", reason: "quota_exceeded" } as const,
+    { status: "blocked", reason: "serialization_failed" } as const,
+    {
+      status: "indeterminate",
+      reason: "storage_state_unknown",
+    } as const,
+  ])("mantiene el bloqueo real de persistencia: $reason", (persistence) => {
+    const result = commitLatestAppDataDurably({
+      getCurrent: appData,
+      build: (previous) => ({ data: previous, value: "candidate" }),
+      persist: () => persistence,
+    });
+
+    expect(result).toEqual(persistence);
+  });
+
+  it("no escribe si el estado durable previo era indeterminado", () => {
+    const build = vi.fn();
+    const persist = vi.fn();
+
+    expect(
+      commitLatestAppDataDurably({
+        storageBaseline: {
+          status: "indeterminate",
+          reason: "storage_state_unknown",
+        },
+        getCurrent: appData,
+        build,
+        persist,
+      }),
+    ).toEqual({
+      status: "indeterminate",
+      reason: "storage_state_unknown",
+    });
+    expect(build).not.toHaveBeenCalled();
+    expect(persist).not.toHaveBeenCalled();
+  });
+});
+
 describe("prepareFixedExpenseBundle", () => {
   it("crea proveedor, gasto fijo y recurrencia como un solo candidato", () => {
     const store = new Map<string, string>();
@@ -1024,12 +1117,9 @@ describe("prepareFixedExpenseBundle", () => {
         (recurring) => recurring.id === command.ids.recurringExpenseId,
       ),
     ).toMatchObject({ ivaPercent: 0, deductibility: "non_deductible" });
-    expect(
-      inspectFixedExpenseBundle(
-        reloaded,
-        "inbox-1",
-      ).status,
-    ).toBe("applied");
+    expect(inspectFixedExpenseBundle(reloaded, "inbox-1").status).toBe(
+      "applied",
+    );
   });
 
   it("reconoce una segunda ejecución exacta sin duplicar entidades", () => {

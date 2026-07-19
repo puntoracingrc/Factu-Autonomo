@@ -106,15 +106,14 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
 - Aislamiento por usuario, CAS e integridad fiscal continúan fail-closed.
 - Drive usa `drive.file`, compara por readback exacto antes de confirmar y solo
   después aplica retención. Manual, automático y callback no se solapan.
-- Un original de notificación fiscal exige acción expresa y coincidencia
-  SHA-256 tras relectura.
-  Factu no conserva sus bytes, texto o nombre; la carpeta usa fecha documental
-  `AAAA/MM` o «Fecha pendiente», jamás la fecha de escaneo.
-- Los originales de gastos requieren consentimiento persistente en Ajustes y
-  el guardado explícito de cada gasto. PDF/imágenes válidos van a
-  `Factu - facturas de gastos/AAAA/MM`; sin readback SHA-256 no se guarda el
-  gasto ni se cierra el buzón. Solo se persiste un recibo versionado sin bytes,
-  nombre, texto, enlace o token.
+- Los escáneres de Notificaciones y Gastos persisten solo la ficha o el gasto
+  estructurado en Factu y no esperan una operación de Drive. Notificaciones
+  guarda sobre el estado vigente y no reutiliza una precondición completa
+  capturada antes del análisis; owner scope, privacidad, anti-vaciado y
+  readback siguen fail-closed.
+- Los originales archivados antes de ADR-0005 V5 se conservan sin reescritura.
+  Sus lecturas, exportaciones y retirada explícita siguen exigiendo ID, política,
+  procedencia y SHA-256 verificados.
 - Exportar originales exige releer y verificar política, carpeta, procedencia,
   MIME, tamaño y SHA-256. Un fallo bloquea el ZIP entero; los gastos sin original
   solo se marcan en el resumen y nunca reciben un archivo fabricado.

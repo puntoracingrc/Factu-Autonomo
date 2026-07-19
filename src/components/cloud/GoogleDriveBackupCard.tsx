@@ -459,38 +459,6 @@ export function GoogleDriveBackupCard() {
           </div>
         </div>
 
-        <label
-          className={`flex items-start gap-3 rounded-2xl border px-4 py-4 ${
-            settings.enabled && tokenReady
-              ? "cursor-pointer border-blue-200 bg-blue-50/70"
-              : "cursor-not-allowed border-slate-200 bg-slate-50 opacity-70"
-          }`}
-        >
-          <input
-            type="checkbox"
-            checked={settings.archiveExpenseOriginals === true}
-            disabled={!settings.enabled || !tokenReady || busy}
-            onChange={(event) =>
-              persistSettings((current) => ({
-                ...current,
-                archiveExpenseOriginals: event.target.checked,
-              }))
-            }
-            className="mt-1 h-5 w-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-          />
-          <span className="min-w-0">
-            <span className="block text-sm font-bold text-slate-900">
-              Guardar en Drive las facturas de gastos escaneadas
-            </span>
-            <span className="mt-1 block text-sm text-slate-600">
-              Incluye PDF e imágenes elegidos aquí o recibidos en el buzón de
-              gastos. Se guardan en Factu - facturas de gastos/Año/Mes usando
-              la fecha del documento. Factu solo conserva la huella y los IDs
-              de Drive, no el archivo.
-            </span>
-          </span>
-        </label>
-
         <div className="grid gap-3 md:grid-cols-3">
           <div className="rounded-2xl bg-slate-50 px-4 py-3">
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">

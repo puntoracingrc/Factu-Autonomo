@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 4
-- Fecha: 2026-07-17
+- Versión: 5
+- Fecha: 2026-07-19
 
 ## Contexto
 
@@ -56,80 +56,44 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
    archivos JSON creados por la app dentro de su carpeta y con su prefijo. Un
    fallo de limpieza no invalida la copia verificada.
 
-### Originales de notificaciones fiscales en el Drive del usuario
+### Guardado de los escáneres en Factu
 
-1. El archivado es voluntario y requiere un clic explícito por PDF. Conectar
-   Drive, seleccionar un archivo o reconocer un duplicado nunca inicia por sí
-   solo una subida.
-2. Factu analiza el PDF localmente y no lo incorpora a sus datos persistidos.
-   Tras un archivado verificado solo conserva `fileId`, `documentIds`, SHA-256,
-   identificadores opacos de Drive, fecha documental, versión, revisión humana,
-   estado y fecha de archivado. No conserva nombre local, ruta, bytes, texto,
-   token ni enlace entregado por Google.
-3. La carpeta creada por la app es `Factu - documentos oficiales`. El destino
-   se deriva únicamente de una fecha documental exacta: `AAAA/MM`. Cuando no
-   existe esa fecha, se usa `Fecha pendiente`; la fecha de selección, escaneo o
-   archivado nunca decide la carpeta.
-4. La huella se calcula antes de la subida y el archivo remoto se relee después.
-   Solo `SHA256_READBACK_MATCH` permite registrar el original como archivado.
-   Una respuesta aceptada, un identificador remoto o una comparación por nombre
-   no bastan.
-5. Los archivos y carpetas se crean con `drive.file`. La huella y la política
-   versionada se añaden como `appProperties` para recuperar idempotentemente el
-   mismo archivo si Drive aceptó la subida pero falló el commit local posterior.
-   Antes de reutilizarlo se vuelve a comprobar el contenido remoto.
-6. Si un PDF ya está registrado pero carece de archivo verificado, volver a
-   seleccionarlo ofrece «Archivar original en Drive». Si ya está archivado, se
-   rechaza como duplicado. Los escaneos históricos deben reseleccionarse porque
-   Factu no conserva sus originales.
-7. El detalle distingue si existe un original verificado en Drive. Abrir o
-   descargar navega al archivo del usuario; Factu no actúa como proxy ni usa el
-   PDF remoto para alterar automáticamente deudas, pagos, plazos o asientos.
-8. La papelera de una ficha nunca modifica Drive por omisión. Si esa ficha es la
-   única vinculada a un original verificado, la confirmación pregunta de forma
-   separada si el usuario quiere conservarlo o enviarlo también a la papelera
-   de Google Drive. Un original compartido por varias fichas no ofrece esa
-   acción remota.
-9. La retirada remota exige otro clic explícito, el mismo bloqueo exclusivo y
-   comprobar `fileId`, PDF, política administrada y SHA-256 mediante
-   `appProperties`. Solo se usa `trashed: true`, nunca un borrado permanente. Se
-   relee el estado remoto y, si después falla el borrado durable de la ficha,
-   se intenta restaurar el original con `trashed: false` y otra relectura.
+1. Guardar una ficha de Notificaciones o un gasto escaneado persiste únicamente
+   sus datos estructurados en Factu. Ninguno de los dos flujos consulta, conecta
+   ni sube un original a Google Drive antes o después del commit.
+2. El alta de Notificaciones construye la transición sobre el `AppData` vigente
+   en el instante del clic. No reutiliza la precondición de identidad capturada
+   antes del análisis ni compara de nuevo toda la cuenta contra una referencia
+   antigua. Conserva owner scope, validación estructural, proyección privada,
+   protección anti-vaciado, límites de almacenamiento y readback de la escritura.
+3. Un estado durable indeterminado continúa bloqueando nuevas escrituras. Una
+   escritura real fallida, cuota agotada, serialización inválida, storage no
+   disponible o readback distinto nunca se convierte en éxito.
+4. El gasto escaneado toma el estado vigente al guardar y no mantiene una espera
+   asíncrona de Drive entre la revisión y el commit. El buzón solo se cierra
+   después de confirmar la ficha en Factu.
+5. El PDF o imagen original vive únicamente en memoria durante el análisis y se
+   descarta al terminar. La huella SHA-256 sigue impidiendo duplicar una ficha,
+   pero volver a seleccionar un documento registrado no ofrece archivarlo.
 
-### Originales de facturas de gastos en el Drive del usuario
+### Originales archivados anteriormente en Drive
 
-1. El usuario activa o desactiva expresamente en Ajustes el archivado de
-   originales de gastos. Conectar Drive, escanear o recibir un email no sube
-   nada: el botón que guarda cada gasto es el disparador explícito y aplica la
-   preferencia vigente.
-2. Se aceptan únicamente PDF, JPEG, PNG, WebP y GIF dentro de los límites del
-   escáner y con firma binaria coherente con el MIME. Para originales del buzón
-   se exige además la misma huella SHA-256 guardada durante la recepción.
-3. El destino es `Factu - facturas de gastos/AAAA/MM`, derivado solo de la
-   fecha documental confirmada en el formulario. El nombre remoto se genera a
-   partir de fecha, proveedor saneado y prefijo de huella; nunca se persiste ni
-   reutiliza el nombre local o el asunto del email.
-4. Subida, búsqueda idempotente y readback comparten el bloqueo exclusivo de
-   Drive. Solo `SHA256_READBACK_MATCH` permite que el gasto conserve el recibo
-   versionado `originalArchive`; ese recibo contiene procedencia, MIME, huella,
-   fecha e IDs opacos de Drive, pero no bytes, nombre, texto, enlace ni token.
-5. Si el consentimiento está activo y no puede verificarse Drive, no se publica
-   el gasto en memoria, no se navega y el documento del buzón no pasa a
-   `processed`. El formulario permanece abierto con un error reintentable. Si
-   Drive aceptó el archivo antes de fallar el commit local, el siguiente intento
-   lo localiza por política+huella y lo relee antes de reutilizarlo.
-6. Desactivar la preferencia evita nuevas subidas y no borra archivos ya
-   custodiados por el usuario. Los gastos anteriores sin original no se suben
-   automáticamente porque Factu no conserva esos bytes.
-7. Una exportación iniciada desde Gastos relee los originales por el ID opaco
-   del recibo persistido. Antes de incluir bytes en el ZIP exige que política
-   administrada, carpeta padre, procedencia, fecha documental, MIME, tamaño y
-   SHA-256 coincidan. Si uno falla, no se descarga un paquete parcial. Los
-   gastos sin recibo `originalArchive` se relacionan como «Sin original
-   archivado» y nunca generan un sustituto artificial.
-8. El ZIP y su resumen se crean solo en el navegador. Gmail y `mailto` reciben
-   texto y destinatario, nunca el token ni los bytes; Compartir recibe el ZIP
-   mediante la API local del dispositivo cuando está disponible.
+1. Se retira la creación de nuevos originales de Notificaciones y Gastos desde
+   los escáneres. La preferencia histórica de originales de gastos deja de
+   mostrarse y no se consulta durante el guardado.
+2. Los recibos `driveArchives` y `originalArchive` ya persistidos se conservan
+   byte-semánticamente. El cambio no borra, mueve ni reescribe archivos del
+   usuario y tampoco elimina los helpers de lectura verificada necesarios para
+   abrir o exportar originales anteriores.
+3. El detalle puede seguir abriendo un original histórico por su ID opaco. Una
+   exportación relee y verifica política, carpeta, procedencia, MIME, tamaño y
+   SHA-256 antes de incluirlo; un fallo bloquea el paquete completo.
+4. Eliminar una ficha conserva Drive por omisión. Para un original histórico
+   exclusivo, la elección separada de enviarlo a la papelera mantiene las
+   comprobaciones de ID, política y SHA-256, usa `trashed: true`, relee el estado
+   y restaura el archivo si falla después la eliminación local.
+5. Las copias JSON manuales o automáticas de la cuenta en Drive siguen siendo
+   una función independiente y no cambian por esta decisión.
 
 ## Consecuencias
 
@@ -137,11 +101,10 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 - Un dispositivo puede seguir trabajando offline sin perder su cola.
 - Drive no puede mostrar una copia como válida basándose únicamente en la
   aceptación de la subida.
-- Un usuario puede archivar y recuperar sus originales sin que Factu custodie
-  el PDF ni use la fecha de escaneo como fecha documental.
-- Las facturas de gastos escaneadas o recibidas por email pueden archivarse por
-  preferencia explícita sin convertir Drive en base de datos ni conservar PII
-  o contenido binario en Factu.
+- Guardar desde los escáneres no espera a Drive ni vuelve a comparar toda la
+  cuenta contra una referencia capturada antes del análisis.
+- Factu conserva la ficha o el gasto estructurado, pero no el original; los
+  archivos archivados en Drive antes de V5 permanecen bajo custodia del usuario.
 - Borrar una ficha y retirar su original son decisiones independientes; la
   segunda es reversible desde la papelera de Drive y nunca afecta a archivos
   ajenos o compartidos.
@@ -154,6 +117,9 @@ Los cambios en nube, AppStore, almacenamiento, Supabase, Drive, OAuth o copias
 deben superar:
 
 - `src/lib/cloud-drive-sync-reliability-contract.test.ts`
+- `src/lib/app-data-durability.test.ts`
+- `src/lib/fiscal-notifications/structured-review-save-command.v1.test.ts`
+- `src/components/fiscal-notifications/FiscalNotificationIntakeView.test.tsx`
 - `src/lib/cloud/sync-operation.test.ts`
 - `src/lib/cloud/sync-queue.test.ts`
 - `src/lib/cloud/repository.test.ts`

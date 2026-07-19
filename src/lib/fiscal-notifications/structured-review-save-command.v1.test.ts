@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   commitAppDataDurably,
   commitAppDataDurablyWithStorageRecovery,
+  commitLatestAppDataDurably,
 } from "../app-data-durability";
 import {
   inspectPersistedData,
@@ -811,9 +812,10 @@ describe("structured fiscal notification save command v1", () => {
     expect(first.status).toBe("applied");
     if (first.status !== "applied") return;
     current = loadData();
-    const firstDocumentIds = current.fiscalNotificationsWorkspace?.documents.map(
-      (document) => document.id,
-    );
+    const firstDocumentIds =
+      current.fiscalNotificationsWorkspace?.documents.map(
+        (document) => document.id,
+      );
     expect(firstDocumentIds).toHaveLength(1);
 
     const second = runSaveFiscalNotificationStructuredReviewCommandV1({
@@ -858,7 +860,9 @@ describe("structured fiscal notification save command v1", () => {
       setItem: (key: string, value: string) => store.set(key, value),
       removeItem: (key: string) => store.delete(key),
     });
-    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({ status: "applied" });
+    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({
+      status: "applied",
+    });
     const lastKnown = loadData();
     const current: AppData = {
       ...lastKnown,
@@ -907,6 +911,55 @@ describe("structured fiscal notification save command v1", () => {
     ).toBe(true);
   });
 
+  it("guarda sobre la cuenta vigente sin exigir la referencia completa anterior", () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
+    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({
+      status: "applied",
+    });
+    const current: AppData = {
+      ...loadData(),
+      profile: {
+        ...loadData().profile,
+        name: "Perfil recibido durante la revisión",
+      },
+    };
+
+    const result = runSaveFiscalNotificationStructuredReviewCommandV1({
+      expected: current,
+      ownerScope: OWNER,
+      reviewId: "review:00000000-0000-4000-8000-000000000093",
+      createdAt: "2026-07-14T10:03:00.000Z",
+      analysis: offsetAnalysis(),
+      commit: (_expected, build) =>
+        commitLatestAppDataDurably({
+          storageBaseline: {
+            status: "blocked",
+            reason: "stale_precondition",
+          },
+          getCurrent: () => current,
+          build,
+          persist: (candidate) => saveData(candidate),
+        }),
+    });
+
+    expect(result.status).toMatch(/applied/u);
+    if (!result.status.startsWith("applied")) return;
+    const reloaded = loadData();
+    expect(reloaded.profile.name).toBe("Perfil recibido durante la revisión");
+    expect(reloaded.fiscalNotificationsWorkspace?.documents).toHaveLength(1);
+    expect(
+      reloaded.meta?.pendingChanges?.some(
+        (change) => change.entityType === "fiscal_notifications_workspace",
+      ),
+    ).toBe(true);
+  });
+
   it("guarda aunque una cola fiscal antigua ya no cumpla el envelope privado actual", () => {
     const store = new Map<string, string>();
     vi.stubGlobal("window", {});
@@ -915,7 +968,9 @@ describe("structured fiscal notification save command v1", () => {
       setItem: (key: string, value: string) => store.set(key, value),
       removeItem: (key: string) => store.delete(key),
     });
-    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({ status: "applied" });
+    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({
+      status: "applied",
+    });
     const lastKnown = loadData();
     const current: AppData = {
       ...lastKnown,
@@ -971,7 +1026,9 @@ describe("structured fiscal notification save command v1", () => {
       setItem: (key: string, value: string) => store.set(key, value),
       removeItem: (key: string) => store.delete(key),
     });
-    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({ status: "applied" });
+    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({
+      status: "applied",
+    });
     const persisted = loadData();
     const current: AppData = {
       ...persisted,
@@ -1012,7 +1069,9 @@ describe("structured fiscal notification save command v1", () => {
       setItem: (key: string, value: string) => store.set(key, value),
       removeItem: (key: string) => store.delete(key),
     });
-    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({ status: "applied" });
+    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({
+      status: "applied",
+    });
     const lastKnown = loadData();
     const current: AppData = {
       ...lastKnown,

@@ -25,10 +25,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
-import {
-  inspectFixedExpenseBundle,
-  refreshDurableExpectedAfterAsync,
-} from "@/lib/app-data-durability";
+import { inspectFixedExpenseBundle } from "@/lib/app-data-durability";
 import { formatDate, formatMoney, todayISO } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { filterDocumentsByQuery, sortDocumentsByNewest } from "@/lib/documents";
@@ -84,7 +81,6 @@ import type {
   Expense,
   ExpenseBusinessKind,
   ExpenseDeductibility,
-  ExpenseOriginalArchiveV1,
   ExpensePurchaseDocument,
   ExpensePurchaseLine,
   RecurringDueTiming,
@@ -93,10 +89,6 @@ import type {
 } from "@/lib/types";
 import type { ExpenseInboxItem } from "@/lib/expense-inbox";
 import { expenseAlreadySavedFromInbox } from "@/lib/expense-inbox-lifecycle";
-import {
-  archiveExpenseOriginalForSavedExpense,
-  type ExpenseOriginalArchiveCandidate,
-} from "@/lib/google-drive/expense-original-archive-client";
 
 function emptyPurchaseLine(
   partial: Partial<ExpensePurchaseLine> = {},
@@ -132,7 +124,6 @@ interface PendingExpenseScan {
   id: string;
   payload: ExpenseScanPayload;
   fileName?: string;
-  original?: ExpenseOriginalArchiveCandidate;
 }
 
 interface ExpenseInboxItemResponse {
@@ -345,67 +336,67 @@ export default function NuevoGastoPage() {
 
   const fillFormFromScan = useCallback(
     (review: PendingExpenseScan) => {
-    const { payload, fileName } = review;
-    setVatSubmitError(null);
-    if (!storageStateUnknown) setSaveSubmitError(null);
-    fixedSaveOperationIdRef.current = null;
-    const scannedSupplierNif =
-      payload.expense.purchaseDocument?.supplierNif ?? payload.supplier.nif;
-    const match = findBestSupplierMatch(data.suppliers, {
-      name: payload.supplier.name,
-      nif: scannedSupplierNif,
-    });
+      const { payload, fileName } = review;
+      setVatSubmitError(null);
+      if (!storageStateUnknown) setSaveSubmitError(null);
+      fixedSaveOperationIdRef.current = null;
+      const scannedSupplierNif =
+        payload.expense.purchaseDocument?.supplierNif ?? payload.supplier.nif;
+      const match = findBestSupplierMatch(data.suppliers, {
+        name: payload.supplier.name,
+        nif: scannedSupplierNif,
+      });
 
-    if (match) {
-      setSupplierName(match.supplier.name);
-      setSelectedSupplierId(match.supplier.id);
-      setSupplierNif(match.supplier.nif ?? scannedSupplierNif ?? undefined);
-      setSupplierHint(buildSupplierMatchHint(match));
-    } else {
-      setSupplierName(payload.supplier.name);
-      setSelectedSupplierId(null);
-      setSupplierNif(scannedSupplierNif ?? undefined);
-      setSupplierHint(null);
-    }
-    setDescription(payload.expense.description);
-    setAmountText(decimalInputFromNumber(payload.expense.amount));
-    setDate(payload.expense.date);
-    if (!vatExempt) setIvaPercent(payload.expense.ivaPercent);
-    setCategory(payload.expense.category);
-    setPaymentMethod(payload.expense.paymentMethod);
-    setBusinessKind(payload.expense.businessKind ?? "purchase_invoice");
-    setFixedDeductibility("deductible");
-    setFixedFrequency("monthly");
-    setFixedDueKind("end_of_month");
-    setFixedDueDay("1");
-    setFixedDueMonth("1");
-    setFixedDurationKind("indefinite");
-    setFixedEndDate("");
-    setFixedOccurrenceCount("12");
-    setFixedStartDate(payload.expense.date);
-    setNotes(payload.expense.notes ?? "");
-    setPurchaseDocument({
-      ...(payload.expense.purchaseDocument ?? {}),
+      if (match) {
+        setSupplierName(match.supplier.name);
+        setSelectedSupplierId(match.supplier.id);
+        setSupplierNif(match.supplier.nif ?? scannedSupplierNif ?? undefined);
+        setSupplierHint(buildSupplierMatchHint(match));
+      } else {
+        setSupplierName(payload.supplier.name);
+        setSelectedSupplierId(null);
+        setSupplierNif(scannedSupplierNif ?? undefined);
+        setSupplierHint(null);
+      }
+      setDescription(payload.expense.description);
+      setAmountText(decimalInputFromNumber(payload.expense.amount));
+      setDate(payload.expense.date);
+      if (!vatExempt) setIvaPercent(payload.expense.ivaPercent);
+      setCategory(payload.expense.category);
+      setPaymentMethod(payload.expense.paymentMethod);
+      setBusinessKind(payload.expense.businessKind ?? "purchase_invoice");
+      setFixedDeductibility("deductible");
+      setFixedFrequency("monthly");
+      setFixedDueKind("end_of_month");
+      setFixedDueDay("1");
+      setFixedDueMonth("1");
+      setFixedDurationKind("indefinite");
+      setFixedEndDate("");
+      setFixedOccurrenceCount("12");
+      setFixedStartDate(payload.expense.date);
+      setNotes(payload.expense.notes ?? "");
+      setPurchaseDocument({
+        ...(payload.expense.purchaseDocument ?? {}),
         issueDate:
           payload.expense.purchaseDocument?.issueDate ?? payload.expense.date,
-      supplierNif:
-        payload.expense.purchaseDocument?.supplierNif ??
-        payload.supplier.nif ??
-        undefined,
-    });
-    setPurchaseLines(
-      payload.expense.purchaseLines?.map((line) => emptyPurchaseLine(line)) ??
-        [],
-    );
-    setSaveSupplier(true);
-    setExpenseOrigin("scan");
-    setActiveScanReview(review);
-    setScanFormCollapsed(true);
-    setScanHint(
-      fileName
-        ? `Datos importados de ${fileName}. Revisa importe, IVA y fecha antes de guardar.`
-        : "Datos importados del escaneo. Revisa importe, IVA y fecha antes de guardar.",
-    );
+        supplierNif:
+          payload.expense.purchaseDocument?.supplierNif ??
+          payload.supplier.nif ??
+          undefined,
+      });
+      setPurchaseLines(
+        payload.expense.purchaseLines?.map((line) => emptyPurchaseLine(line)) ??
+          [],
+      );
+      setSaveSupplier(true);
+      setExpenseOrigin("scan");
+      setActiveScanReview(review);
+      setScanFormCollapsed(true);
+      setScanHint(
+        fileName
+          ? `Datos importados de ${fileName}. Revisa importe, IVA y fecha antes de guardar.`
+          : "Datos importados del escaneo. Revisa importe, IVA y fecha antes de guardar.",
+      );
     },
     [data.suppliers, storageStateUnknown, vatExempt],
   );
@@ -447,11 +438,6 @@ export default function NuevoGastoPage() {
           id: body.item.id,
           payload: body.item.scanPayload,
           fileName: body.item.attachmentFilename,
-          original: {
-            kind: "expense_inbox",
-            itemId: body.item.id,
-            expectedSha256: body.item.attachmentHash,
-          },
         });
         setScanFormCollapsed(false);
         setActiveInboxItemId(body.item.id);
@@ -517,9 +503,6 @@ export default function NuevoGastoPage() {
       id: crypto.randomUUID(),
       payload,
       fileName: options?.fileName,
-      original: options?.file
-        ? { kind: "scan", file: options.file }
-        : undefined,
     };
 
     if (options?.append) {
@@ -850,7 +833,7 @@ export default function NuevoGastoPage() {
         let candidateIndex = 0;
         candidateIndex < candidateLines.length;
         candidateIndex += 1
-        ) {
+      ) {
         if (candidateReview.id === review.id && candidateIndex === lineIndex) {
           return null;
         }
@@ -1200,28 +1183,9 @@ export default function NuevoGastoPage() {
     return "ready";
   }
 
-  async function prepareExpenseOriginalArchive(input: {
-    candidate?: ExpenseOriginalArchiveCandidate;
-    documentDate: string;
-    supplierName: string;
-  }): Promise<
-    { ok: true; archive?: ExpenseOriginalArchiveV1 } | { ok: false }
-  > {
-    const result = await archiveExpenseOriginalForSavedExpense(input);
-    if (result.status === "blocked") {
-      setSaveSubmitError(result.error);
-      return { ok: false };
-    }
-    return {
-      ok: true,
-      archive: result.status === "archived" ? result.archive : undefined,
-    };
-  }
-
   async function saveScanPayload(
     review: PendingExpenseScan,
     savedPayloads: ExpenseScanPayload[] = [],
-    expected: AppData = data,
   ): Promise<{ ok: true; data: AppData } | { ok: false }> {
     const { payload } = review;
     if (payload.expense.businessKind === "fixed") return { ok: false };
@@ -1259,17 +1223,7 @@ export default function NuevoGastoPage() {
       return { ok: false };
     }
 
-    const originalArchive = await prepareExpenseOriginalArchive({
-      candidate: review.original,
-      documentDate: payload.expense.date,
-      supplierName: payload.supplier.name,
-    });
-    if (!originalArchive.ok) return { ok: false };
-
-    const durableExpected = refreshDurableExpectedAfterAsync(
-      expected,
-      getCurrentData(),
-    );
+    const durableExpected = getCurrentData();
 
     const resolved = ensureSupplierForExpense(durableExpected.suppliers, {
       name: payload.supplier.name,
@@ -1314,7 +1268,7 @@ export default function NuevoGastoPage() {
       purchaseLines: purchaseLines.length > 0 ? purchaseLines : undefined,
       origin: "scan",
       businessKind: payload.expense.businessKind ?? "purchase_invoice",
-      originalArchive: originalArchive.archive,
+      originalArchive: upgradeTarget?.originalArchive,
     };
     const durableExpense = upgradeTarget
       ? mergeProviderSummaryWithOriginal(upgradeTarget, expensePayload)
@@ -1368,11 +1322,9 @@ export default function NuevoGastoPage() {
     if (ready.length === 0) return;
     const savedPayloads: ExpenseScanPayload[] = [];
     const savedReviewIds = new Set<string>();
-    let expected = data;
     for (const review of ready) {
-      const saved = await saveScanPayload(review, savedPayloads, expected);
+      const saved = await saveScanPayload(review, savedPayloads);
       if (!saved.ok) continue;
-      expected = saved.data;
       savedPayloads.push(review.payload);
       savedReviewIds.add(review.id);
     }
@@ -1628,16 +1580,7 @@ export default function NuevoGastoPage() {
       businessKind === "fixed" && !editingRecurringExpense
         ? fixedStartDate
         : date;
-    const originalArchive = await prepareExpenseOriginalArchive({
-      candidate: activeScanReview?.original,
-      documentDate: expenseDate,
-      supplierName: supplierName.trim() || "Sin proveedor",
-    });
-    if (!originalArchive.ok) return;
-    const durableExpected = refreshDurableExpectedAfterAsync(
-      data,
-      getCurrentData(),
-    );
+    const durableExpected = getCurrentData();
     const usesDurableScannedSave = Boolean(
       businessKind !== "fixed" && (activeScanReview || activeInboxItemId),
     );
@@ -1685,7 +1628,9 @@ export default function NuevoGastoPage() {
         : workDocumentId || undefined,
       origin: expenseOrigin,
       businessKind,
-      originalArchive: originalArchive.archive,
+      originalArchive:
+        editingExpense?.originalArchive ??
+        providerSummaryUpgradeTarget?.originalArchive,
     };
 
     if (businessKind === "fixed") {
@@ -1961,7 +1906,7 @@ export default function NuevoGastoPage() {
                                     ? "text-red-700"
                                     : status === "ready"
                                       ? "text-green-700"
-                                    : "text-amber-800"
+                                      : "text-amber-800"
                                 }`}
                               >
                                 {warningText}
@@ -2088,8 +2033,8 @@ export default function NuevoGastoPage() {
                               businessKind === "fixed"
                                 ? "Guardar abajo"
                                 : isActive && !scanFormCollapsed
-                                ? "Contraer"
-                                : "Revisar"}
+                                  ? "Contraer"
+                                  : "Revisar"}
                               <ChevronDown className="h-4 w-4" />
                             </button>
                           )}
@@ -2197,48 +2142,48 @@ export default function NuevoGastoPage() {
                   </button>
                 </div>
               ) : null}
-          <FormSection
-            variant="fields"
-            title="Tipo de gasto"
-            hint="La app lo usa para separar compras, facturas recibidas, tickets y fijos. Puedes corregirlo antes de guardar."
-          >
-            <div className="grid gap-2 sm:grid-cols-2">
-              {EXPENSE_BUSINESS_KIND_OPTIONS.map((option) => {
-                const selected = businessKind === option.value;
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => {
-                      setBusinessKind(option.value);
+              <FormSection
+                variant="fields"
+                title="Tipo de gasto"
+                hint="La app lo usa para separar compras, facturas recibidas, tickets y fijos. Puedes corregirlo antes de guardar."
+              >
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {EXPENSE_BUSINESS_KIND_OPTIONS.map((option) => {
+                    const selected = businessKind === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setBusinessKind(option.value);
                           if (
                             option.value === "fixed" &&
                             !editingRecurringExpense
                           ) {
-                        setFixedStartDate(date);
-                      }
-                    }}
-                    aria-pressed={selected}
-                    className={`rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                      selected
-                        ? "border-blue-300 bg-blue-50 text-blue-900"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span className="block text-sm font-bold">
-                      {option.label}
-                    </span>
-                    <span className="mt-1 block text-xs text-slate-500">
-                      {option.hint}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-xs text-slate-500">
-              {expenseBusinessKindHint(businessKind)}
-            </p>
-          </FormSection>
+                            setFixedStartDate(date);
+                          }
+                        }}
+                        aria-pressed={selected}
+                        className={`rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                          selected
+                            ? "border-blue-300 bg-blue-50 text-blue-900"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="block text-sm font-bold">
+                          {option.label}
+                        </span>
+                        <span className="mt-1 block text-xs text-slate-500">
+                          {option.hint}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-xs text-slate-500">
+                  {expenseBusinessKindHint(businessKind)}
+                </p>
+              </FormSection>
 
               <FormSection
                 variant="fields"
@@ -2310,822 +2255,822 @@ export default function NuevoGastoPage() {
                 </div>
               </FormSection>
 
-          {businessKind === "fixed" && (
-            <FormSection
-              variant="fields"
-              title="Configuración de gasto fijo"
-              hint={
-                editingRecurringExpense
-                  ? "Este cargo ya viene de una regla recurrente. Aquí puedes corregir este gasto concreto; cambia la regla completa desde Gastos fijos."
-                  : "Define cómo se repetirá. El gasto actual quedará guardado como primer cargo de la regla."
-              }
-            >
-              {editingRecurringExpense ? (
-                <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-bold">
-                      Gasto fijo ya vinculado a una regla
-                    </p>
-                    <p className="mt-1 text-blue-800">
+              {businessKind === "fixed" && (
+                <FormSection
+                  variant="fields"
+                  title="Configuración de gasto fijo"
+                  hint={
+                    editingRecurringExpense
+                      ? "Este cargo ya viene de una regla recurrente. Aquí puedes corregir este gasto concreto; cambia la regla completa desde Gastos fijos."
+                      : "Define cómo se repetirá. El gasto actual quedará guardado como primer cargo de la regla."
+                  }
+                >
+                  {editingRecurringExpense ? (
+                    <div className="flex flex-col gap-3 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-bold">
+                          Gasto fijo ya vinculado a una regla
+                        </p>
+                        <p className="mt-1 text-blue-800">
                           Los cambios de importe o fechas futuras se gestionan
                           desde la pantalla de Gastos fijos para no tocar el
                           histórico por accidente.
-                    </p>
-                  </div>
-                  <a
-                    href={`/gastos/fijos?editar=${editingExpense?.recurringExpenseId}`}
-                    className="inline-flex shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
-                  >
-                    Abrir regla
-                  </a>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <Field label="Frecuencia">
-                      <Select
-                        value={fixedFrequency}
-                        onChange={(event) =>
-                          setFixedFrequency(
-                            event.target.value as RecurringExpenseFrequency,
-                          )
-                        }
+                        </p>
+                      </div>
+                      <a
+                        href={`/gastos/fijos?editar=${editingExpense?.recurringExpenseId}`}
+                        className="inline-flex shrink-0 items-center justify-center rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 hover:bg-blue-50"
                       >
-                        <option value="monthly">Mensual</option>
-                        <option value="quarterly">Trimestral</option>
-                        <option value="annual">Anual</option>
-                      </Select>
-                    </Field>
-                    <Field label="Desde">
-                      <Input
-                        type="date"
-                        value={fixedStartDate}
-                        onChange={(event) => {
-                          const nextDate = event.target.value;
-                          setFixedStartDate(nextDate);
-                          setDate(nextDate);
-                        }}
-                      />
-                    </Field>
-                    <Field label="Cuándo vence">
-                      <Select
-                        value={fixedDueKind}
-                        onChange={(event) =>
+                        Abrir regla
+                      </a>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        <Field label="Frecuencia">
+                          <Select
+                            value={fixedFrequency}
+                            onChange={(event) =>
+                              setFixedFrequency(
+                                event.target.value as RecurringExpenseFrequency,
+                              )
+                            }
+                          >
+                            <option value="monthly">Mensual</option>
+                            <option value="quarterly">Trimestral</option>
+                            <option value="annual">Anual</option>
+                          </Select>
+                        </Field>
+                        <Field label="Desde">
+                          <Input
+                            type="date"
+                            value={fixedStartDate}
+                            onChange={(event) => {
+                              const nextDate = event.target.value;
+                              setFixedStartDate(nextDate);
+                              setDate(nextDate);
+                            }}
+                          />
+                        </Field>
+                        <Field label="Cuándo vence">
+                          <Select
+                            value={fixedDueKind}
+                            onChange={(event) =>
                               setFixedDueKind(
                                 event.target.value as FixedDueKind,
                               )
-                        }
-                      >
-                        <option value="start_of_month">
-                          Día 1 del mes de vencimiento
-                        </option>
-                        <option value="mid_of_month">
-                          Día 15 del mes de vencimiento
-                        </option>
-                        <option value="end_of_month">
-                          Último día del mes de vencimiento
-                        </option>
-                        <option value="day_of_month">
-                          Día concreto del mes de vencimiento
-                        </option>
-                      </Select>
-                    </Field>
-                    {fixedFrequency === "annual" && (
-                      <Field label="Mes del año">
-                        <Select
-                          value={fixedDueMonth}
-                          onChange={(event) =>
-                            setFixedDueMonth(event.target.value)
-                          }
-                        >
-                          {FIXED_MONTHS.map((month, index) => (
-                            <option key={month} value={index + 1}>
-                              {month}
+                            }
+                          >
+                            <option value="start_of_month">
+                              Día 1 del mes de vencimiento
                             </option>
-                          ))}
-                        </Select>
-                      </Field>
-                    )}
-                    {fixedDueKind === "day_of_month" && (
-                      <Field label="Día del mes (1-31)">
-                        <Input
-                          type="number"
-                          min={1}
-                          max={31}
-                          value={fixedDueDay}
-                          onChange={(event) =>
-                            setFixedDueDay(event.target.value)
-                          }
-                        />
-                      </Field>
-                    )}
-                    <Field label="Duración">
-                      <Select
-                        value={fixedDurationKind}
-                        onChange={(event) =>
-                          setFixedDurationKind(
-                            event.target.value as RecurringDuration["kind"],
-                          )
-                        }
-                      >
+                            <option value="mid_of_month">
+                              Día 15 del mes de vencimiento
+                            </option>
+                            <option value="end_of_month">
+                              Último día del mes de vencimiento
+                            </option>
+                            <option value="day_of_month">
+                              Día concreto del mes de vencimiento
+                            </option>
+                          </Select>
+                        </Field>
+                        {fixedFrequency === "annual" && (
+                          <Field label="Mes del año">
+                            <Select
+                              value={fixedDueMonth}
+                              onChange={(event) =>
+                                setFixedDueMonth(event.target.value)
+                              }
+                            >
+                              {FIXED_MONTHS.map((month, index) => (
+                                <option key={month} value={index + 1}>
+                                  {month}
+                                </option>
+                              ))}
+                            </Select>
+                          </Field>
+                        )}
+                        {fixedDueKind === "day_of_month" && (
+                          <Field label="Día del mes (1-31)">
+                            <Input
+                              type="number"
+                              min={1}
+                              max={31}
+                              value={fixedDueDay}
+                              onChange={(event) =>
+                                setFixedDueDay(event.target.value)
+                              }
+                            />
+                          </Field>
+                        )}
+                        <Field label="Duración">
+                          <Select
+                            value={fixedDurationKind}
+                            onChange={(event) =>
+                              setFixedDurationKind(
+                                event.target.value as RecurringDuration["kind"],
+                              )
+                            }
+                          >
                             <option value="indefinite">
                               Hasta que lo pares
                             </option>
                             <option value="occurrences">
                               Número de cargos
                             </option>
-                        <option value="until_date">Hasta una fecha</option>
-                      </Select>
-                    </Field>
-                    {fixedDurationKind === "occurrences" ? (
-                      <Field label="Cargos">
-                        <Input
-                          type="number"
-                          min={1}
-                          step={1}
-                          value={fixedOccurrenceCount}
-                          onChange={(event) =>
-                            setFixedOccurrenceCount(event.target.value)
-                          }
-                        />
-                      </Field>
-                    ) : null}
-                    {fixedDurationKind === "until_date" ? (
-                      <Field label="Hasta">
-                        <Input
-                          type="date"
-                          value={fixedEndDate}
-                          onChange={(event) =>
-                            setFixedEndDate(event.target.value)
-                          }
-                        />
-                      </Field>
-                    ) : null}
-                  </div>
-                  <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                            <option value="until_date">Hasta una fecha</option>
+                          </Select>
+                        </Field>
+                        {fixedDurationKind === "occurrences" ? (
+                          <Field label="Cargos">
+                            <Input
+                              type="number"
+                              min={1}
+                              step={1}
+                              value={fixedOccurrenceCount}
+                              onChange={(event) =>
+                                setFixedOccurrenceCount(event.target.value)
+                              }
+                            />
+                          </Field>
+                        ) : null}
+                        {fixedDurationKind === "until_date" ? (
+                          <Field label="Hasta">
+                            <Input
+                              type="date"
+                              value={fixedEndDate}
+                              onChange={(event) =>
+                                setFixedEndDate(event.target.value)
+                              }
+                            />
+                          </Field>
+                        ) : null}
+                      </div>
+                      <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
                         Si más adelante cambia el importe, usa la opción de
                         nuevo importe desde una fecha en Gastos fijos. Así no se
                         cambia el histórico anterior.
-                  </p>
-                </div>
+                      </p>
+                    </div>
+                  )}
+                </FormSection>
               )}
-            </FormSection>
-          )}
 
-          <FormSection
-            variant="search"
-            title="Proveedor"
-            hint="Elige uno guardado, escribe el nombre de la tienda o deja este campo vacío si todavía no lo sabes."
-          >
-            <Field label="Nombre de proveedor / tienda">
-              <Input
-                value={supplierName}
-                onChange={(e) => handleSupplierNameChange(e.target.value)}
-                placeholder="Ej: Leroy Merlin"
-                list="suppliers-list"
-              />
-              <datalist id="suppliers-list">
-                {data.suppliers.map((s) => (
-                  <option key={s.id} value={s.name} />
-                ))}
-              </datalist>
-            </Field>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input
-                type="checkbox"
-                checked={saveSupplier}
-                onChange={(e) => setSaveSupplier(e.target.checked)}
-                className="h-5 w-5 rounded"
-              />
-              Guardar este proveedor para la próxima vez
-            </label>
-          </FormSection>
+              <FormSection
+                variant="search"
+                title="Proveedor"
+                hint="Elige uno guardado, escribe el nombre de la tienda o deja este campo vacío si todavía no lo sabes."
+              >
+                <Field label="Nombre de proveedor / tienda">
+                  <Input
+                    value={supplierName}
+                    onChange={(e) => handleSupplierNameChange(e.target.value)}
+                    placeholder="Ej: Leroy Merlin"
+                    list="suppliers-list"
+                  />
+                  <datalist id="suppliers-list">
+                    {data.suppliers.map((s) => (
+                      <option key={s.id} value={s.name} />
+                    ))}
+                  </datalist>
+                </Field>
+                <label className="flex items-center gap-2 text-sm text-slate-600">
+                  <input
+                    type="checkbox"
+                    checked={saveSupplier}
+                    onChange={(e) => setSaveSupplier(e.target.checked)}
+                    className="h-5 w-5 rounded"
+                  />
+                  Guardar este proveedor para la próxima vez
+                </label>
+              </FormSection>
 
-          <FormSection
-            variant="fields"
-            title="Datos de factura del proveedor"
-            hint="Opcional. Se rellena al escanear y ayuda a evitar duplicados, buscar compras y preparar avisos."
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Nº factura proveedor">
-                <Input
-                  value={purchaseDocument.invoiceNumber ?? ""}
-                  onChange={(e) =>
+              <FormSection
+                variant="fields"
+                title="Datos de factura del proveedor"
+                hint="Opcional. Se rellena al escanear y ayuda a evitar duplicados, buscar compras y preparar avisos."
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Nº factura proveedor">
+                    <Input
+                      value={purchaseDocument.invoiceNumber ?? ""}
+                      onChange={(e) =>
                         updatePurchaseDocument({
                           invoiceNumber: e.target.value,
                         })
-                  }
-                  placeholder="Ej: FD-224572"
-                />
-              </Field>
-              <Field label="NIF/CIF proveedor">
-                <Input
-                  value={purchaseDocument.supplierNif ?? ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    updatePurchaseDocument({ supplierNif: value });
-                    setSupplierNif(value || undefined);
-                  }}
-                  placeholder="Ej: B12345678"
-                />
-              </Field>
-              <Field label="Fecha factura">
-                <Input
-                  type="date"
-                  value={purchaseDocument.issueDate ?? ""}
-                  onChange={(e) =>
-                    updatePurchaseDocument({ issueDate: e.target.value })
-                  }
-                />
-              </Field>
-              <Field label="Vencimiento">
-                <Input
-                  type="date"
-                  value={purchaseDocument.dueDate ?? ""}
-                  onChange={(e) =>
-                    updatePurchaseDocument({ dueDate: e.target.value })
-                  }
-                />
-              </Field>
-              <Field label="Código postal">
-                <Input
-                  value={purchaseDocument.supplierPostalCode ?? ""}
-                  onChange={(e) =>
-                    updatePurchaseDocument({
-                      supplierPostalCode: e.target.value,
-                    })
-                  }
-                  placeholder="Ej: 08001"
-                />
-              </Field>
-              <Field label="Ciudad">
-                <Input
-                  value={purchaseDocument.supplierCity ?? ""}
-                  onChange={(e) =>
-                    updatePurchaseDocument({ supplierCity: e.target.value })
-                  }
-                  placeholder="Ej: Barcelona"
-                />
-              </Field>
-              <div className="sm:col-span-2">
-                <Field label="Dirección proveedor">
-                  <Input
-                    value={purchaseDocument.supplierAddress ?? ""}
-                    onChange={(e) =>
-                      updatePurchaseDocument({
-                        supplierAddress: e.target.value,
-                      })
-                    }
-                    placeholder="Calle, número..."
-                  />
-                </Field>
-              </div>
-              <div className="sm:col-span-2">
-                <Field label="Condiciones de pago">
-                  <Input
-                    value={purchaseDocument.paymentTerms ?? ""}
-                    onChange={(e) =>
+                      }
+                      placeholder="Ej: FD-224572"
+                    />
+                  </Field>
+                  <Field label="NIF/CIF proveedor">
+                    <Input
+                      value={purchaseDocument.supplierNif ?? ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        updatePurchaseDocument({ supplierNif: value });
+                        setSupplierNif(value || undefined);
+                      }}
+                      placeholder="Ej: B12345678"
+                    />
+                  </Field>
+                  <Field label="Fecha factura">
+                    <Input
+                      type="date"
+                      value={purchaseDocument.issueDate ?? ""}
+                      onChange={(e) =>
+                        updatePurchaseDocument({ issueDate: e.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label="Vencimiento">
+                    <Input
+                      type="date"
+                      value={purchaseDocument.dueDate ?? ""}
+                      onChange={(e) =>
+                        updatePurchaseDocument({ dueDate: e.target.value })
+                      }
+                    />
+                  </Field>
+                  <Field label="Código postal">
+                    <Input
+                      value={purchaseDocument.supplierPostalCode ?? ""}
+                      onChange={(e) =>
+                        updatePurchaseDocument({
+                          supplierPostalCode: e.target.value,
+                        })
+                      }
+                      placeholder="Ej: 08001"
+                    />
+                  </Field>
+                  <Field label="Ciudad">
+                    <Input
+                      value={purchaseDocument.supplierCity ?? ""}
+                      onChange={(e) =>
+                        updatePurchaseDocument({ supplierCity: e.target.value })
+                      }
+                      placeholder="Ej: Barcelona"
+                    />
+                  </Field>
+                  <div className="sm:col-span-2">
+                    <Field label="Dirección proveedor">
+                      <Input
+                        value={purchaseDocument.supplierAddress ?? ""}
+                        onChange={(e) =>
+                          updatePurchaseDocument({
+                            supplierAddress: e.target.value,
+                          })
+                        }
+                        placeholder="Calle, número..."
+                      />
+                    </Field>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Field label="Condiciones de pago">
+                      <Input
+                        value={purchaseDocument.paymentTerms ?? ""}
+                        onChange={(e) =>
                           updatePurchaseDocument({
                             paymentTerms: e.target.value,
                           })
-                    }
-                    placeholder="Ej: Transferencia 30 días"
-                  />
-                </Field>
-              </div>
-            </div>
-          </FormSection>
-
-          {showWorkDocumentSection && (
-            <FormSection
-              variant="search"
-              title="Trabajo relacionado"
-              hint={
-                workAllocationManagedFromDocuments
-                  ? "Este gasto está repartido desde Facturas. Gestiona allí sus trabajos y líneas para conservar el reparto."
-                  : "Opcional. Vincula esta compra a una factura o presupuesto para controlar el margen real del trabajo."
-              }
-            >
-              {selectedWorkDocument ? (
-                <div className="flex flex-col gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
-                  <span className="font-bold">
-                    {selectedWorkDocument.type === "factura"
-                      ? "Factura"
-                      : "Presupuesto"}{" "}
-                    {documentShortNumber(selectedWorkDocument)} ·{" "}
-                    {selectedWorkDocument.client.name}
-                  </span>
-                  {workAllocationManagedFromDocuments ? (
-                    <span className="text-xs font-bold text-blue-700">
-                      Reparto gestionado desde Facturas
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setWorkDocumentId("")}
-                      className="self-start rounded-xl bg-white px-3 py-2 text-xs font-bold text-blue-700 sm:self-auto"
-                    >
-                      Quitar vínculo
-                    </button>
-                  )}
+                        }
+                        placeholder="Ej: Transferencia 30 días"
+                      />
+                    </Field>
+                  </div>
                 </div>
-              ) : null}
-              {!workAllocationManagedFromDocuments ? (
+              </FormSection>
+
+              {showWorkDocumentSection && (
+                <FormSection
+                  variant="search"
+                  title="Trabajo relacionado"
+                  hint={
+                    workAllocationManagedFromDocuments
+                      ? "Este gasto está repartido desde Facturas. Gestiona allí sus trabajos y líneas para conservar el reparto."
+                      : "Opcional. Vincula esta compra a una factura o presupuesto para controlar el margen real del trabajo."
+                  }
+                >
+                  {selectedWorkDocument ? (
+                    <div className="flex flex-col gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-3 py-3 text-sm text-blue-900 sm:flex-row sm:items-center sm:justify-between">
+                      <span className="font-bold">
+                        {selectedWorkDocument.type === "factura"
+                          ? "Factura"
+                          : "Presupuesto"}{" "}
+                        {documentShortNumber(selectedWorkDocument)} ·{" "}
+                        {selectedWorkDocument.client.name}
+                      </span>
+                      {workAllocationManagedFromDocuments ? (
+                        <span className="text-xs font-bold text-blue-700">
+                          Reparto gestionado desde Facturas
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => setWorkDocumentId("")}
+                          className="self-start rounded-xl bg-white px-3 py-2 text-xs font-bold text-blue-700 sm:self-auto"
+                        >
+                          Quitar vínculo
+                        </button>
+                      )}
+                    </div>
+                  ) : null}
+                  {!workAllocationManagedFromDocuments ? (
                     <>
                       <Field label="Buscar factura o presupuesto">
-                  <Input
-                    value={workDocumentQuery}
+                        <Input
+                          value={workDocumentQuery}
                           onChange={(event) =>
                             setWorkDocumentQuery(event.target.value)
                           }
-                    placeholder="Número, cliente o importe..."
-                  />
-                </Field>
-              <div className="space-y-2">
-                {workDocumentResults.length === 0 ? (
-                  <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500">
-                    No hay documentos que coincidan.
-                  </p>
-                ) : (
-                  workDocumentResults.map((document) => (
-                    <button
-                      key={document.id}
-                      type="button"
-                      onClick={() => {
-                        setWorkDocumentId(document.id);
-                        setWorkDocumentQuery("");
-                      }}
-                      className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                        document.id === workDocumentId
-                          ? "border-blue-300 bg-blue-50 text-blue-900"
-                          : "border-slate-200 bg-white hover:bg-slate-50"
-                      }`}
-                    >
-                      <span>
-                        <span className="block font-bold">
-                          {document.type === "factura"
-                            ? "Factura"
-                            : "Presupuesto"}{" "}
-                          {documentShortNumber(document)}
-                        </span>
-                        <span className="block text-xs text-slate-500">
+                          placeholder="Número, cliente o importe..."
+                        />
+                      </Field>
+                      <div className="space-y-2">
+                        {workDocumentResults.length === 0 ? (
+                          <p className="rounded-xl bg-slate-50 px-3 py-2 text-sm text-slate-500">
+                            No hay documentos que coincidan.
+                          </p>
+                        ) : (
+                          workDocumentResults.map((document) => (
+                            <button
+                              key={document.id}
+                              type="button"
+                              onClick={() => {
+                                setWorkDocumentId(document.id);
+                                setWorkDocumentQuery("");
+                              }}
+                              className={`flex w-full items-center justify-between gap-3 rounded-xl border px-3 py-2 text-left text-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                                document.id === workDocumentId
+                                  ? "border-blue-300 bg-blue-50 text-blue-900"
+                                  : "border-slate-200 bg-white hover:bg-slate-50"
+                              }`}
+                            >
+                              <span>
+                                <span className="block font-bold">
+                                  {document.type === "factura"
+                                    ? "Factura"
+                                    : "Presupuesto"}{" "}
+                                  {documentShortNumber(document)}
+                                </span>
+                                <span className="block text-xs text-slate-500">
                                   {document.client.name} ·{" "}
                                   {formatMoney(
-                            document.items.reduce(
-                              (sum, item) =>
-                                sum +
-                                item.quantity *
-                                  item.unitPrice *
-                                  (1 + item.ivaPercent / 100),
-                              0,
-                            ),
-                          )}
-                        </span>
-                      </span>
-                      {document.id === workDocumentId ? (
-                        <span className="text-xs font-bold text-blue-700">
-                          Vinculado
-                        </span>
-                      ) : null}
-                    </button>
-                  ))
-                )}
-              </div>
-                </>
-              ) : null}
-            </FormSection>
-          )}
+                                    document.items.reduce(
+                                      (sum, item) =>
+                                        sum +
+                                        item.quantity *
+                                          item.unitPrice *
+                                          (1 + item.ivaPercent / 100),
+                                      0,
+                                    ),
+                                  )}
+                                </span>
+                              </span>
+                              {document.id === workDocumentId ? (
+                                <span className="text-xs font-bold text-blue-700">
+                                  Vinculado
+                                </span>
+                              ) : null}
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </>
+                  ) : null}
+                </FormSection>
+              )}
 
-          <FormSection
-            variant="fields"
-            title="Detalle del gasto"
-            hint="Importe, IVA y categoría para tu libro de compras."
-          >
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Fecha">
-                <Input
-                  type="date"
-                  value={date}
-                  onChange={(e) => {
-                    const nextDate = e.target.value;
-                    setDate(nextDate);
+              <FormSection
+                variant="fields"
+                title="Detalle del gasto"
+                hint="Importe, IVA y categoría para tu libro de compras."
+              >
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Fecha">
+                    <Input
+                      type="date"
+                      value={date}
+                      onChange={(e) => {
+                        const nextDate = e.target.value;
+                        setDate(nextDate);
                         if (
                           businessKind === "fixed" &&
                           !editingRecurringExpense
                         ) {
-                      setFixedStartDate(nextDate);
-                    }
-                  }}
-                />
-              </Field>
-              <Field label="¿Qué compraste? *" hint="Describe el gasto">
-                <Input
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Ej: Material de fontanería"
-                />
-              </Field>
-              <ExpenseAmountFields
-                amountText={amountText}
-                onAmountTextChange={setAmountText}
-                ivaPercent={expenseVatExempt ? 0 : ivaPercent}
-                vatExempt={expenseVatExempt}
-                profileVatExempt={vatExempt}
-                businessKind={businessKind}
-                deductibility={currentExpenseVatContext.deductibility}
-                origin={expenseOrigin}
-                recurringExpenseId={editingExpense?.recurringExpenseId}
-                purchaseLines={purchaseLines}
-              />
-              {expenseVatExempt ? (
-                <p className="text-sm text-slate-500 sm:col-span-2">
-                  {businessKind === "fixed" &&
+                          setFixedStartDate(nextDate);
+                        }
+                      }}
+                    />
+                  </Field>
+                  <Field label="¿Qué compraste? *" hint="Describe el gasto">
+                    <Input
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Ej: Material de fontanería"
+                    />
+                  </Field>
+                  <ExpenseAmountFields
+                    amountText={amountText}
+                    onAmountTextChange={setAmountText}
+                    ivaPercent={expenseVatExempt ? 0 : ivaPercent}
+                    vatExempt={expenseVatExempt}
+                    profileVatExempt={vatExempt}
+                    businessKind={businessKind}
+                    deductibility={currentExpenseVatContext.deductibility}
+                    origin={expenseOrigin}
+                    recurringExpenseId={editingExpense?.recurringExpenseId}
+                    purchaseLines={purchaseLines}
+                  />
+                  {expenseVatExempt ? (
+                    <p className="text-sm text-slate-500 sm:col-span-2">
+                      {businessKind === "fixed" &&
                       !isExpenseFiscalDeductible({
                         deductibility: fixedDeductibility,
                       })
                         ? "Gasto fijo no deducible: conserva su coste completo, sin IVA deducible."
-                    : "Sin IVA deducible — tu perfil está marcado como exento de repercusión."}
-                </p>
-              ) : (
-                <Field label="IVA %">
-                  <IvaPercentSelect
-                    value={ivaPercent}
-                    onChange={setIvaPercent}
-                  />
-                </Field>
-              )}
-              <Field label="Categoría">
-                <Select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                >
-                  {EXPENSE_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field label="Forma de pago">
-                <Select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                >
-                  {PAYMENT_METHODS.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <div className="sm:col-span-2">
-                <Field label="Notas">
-                  <Textarea
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    placeholder="Nº factura del proveedor, observaciones..."
-                  />
-                </Field>
-              </div>
-            </div>
-          </FormSection>
+                        : "Sin IVA deducible — tu perfil está marcado como exento de repercusión."}
+                    </p>
+                  ) : (
+                    <Field label="IVA %">
+                      <IvaPercentSelect
+                        value={ivaPercent}
+                        onChange={setIvaPercent}
+                      />
+                    </Field>
+                  )}
+                  <Field label="Categoría">
+                    <Select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                    >
+                      {EXPENSE_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <Field label="Forma de pago">
+                    <Select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value)}
+                    >
+                      {PAYMENT_METHODS.map((m) => (
+                        <option key={m} value={m}>
+                          {m}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
+                  <div className="sm:col-span-2">
+                    <Field label="Notas">
+                      <Textarea
+                        value={notes}
+                        onChange={(e) => setNotes(e.target.value)}
+                        placeholder="Nº factura del proveedor, observaciones..."
+                      />
+                    </Field>
+                  </div>
+                </div>
+              </FormSection>
 
-          <FormSection
-            variant="fields"
-            title="Líneas de compra"
-            hint="Las líneas verdes ya coinciden con Productos. Las marcadas pueden crear o actualizar productos al guardar."
-          >
-            <div className="space-y-3">
-              {purchaseLines.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+              <FormSection
+                variant="fields"
+                title="Líneas de compra"
+                hint="Las líneas verdes ya coinciden con Productos. Las marcadas pueden crear o actualizar productos al guardar."
+              >
+                <div className="space-y-3">
+                  {purchaseLines.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
                       Si el escaneo detecta líneas, aparecerán aquí. También
                       puedes añadirlas a mano.
-                </div>
-              ) : (
-                purchaseLines.map((line, index) => {
-                  const lineInCatalog = purchaseLineHasCatalogProduct(
-                    line,
-                    productKeys,
-                  );
-                  const lineCanFeedCatalog =
-                    expensePurchaseLineIsEligibleForProductCatalog(
-                      { amount: currentAmount },
-                      line,
-                    );
-                  const lineBase = expensePurchaseLineBaseTotal(line);
-                  const lineIvaPercent = vatExempt
-                    ? 0
-                    : (line.ivaPercent ?? ivaPercent);
-                  const lineAmounts = expenseTotalsFromBase(
-                    lineBase,
-                    lineIvaPercent,
-                    vatExempt,
-                  );
-                  const lineIvaOrigin = vatExempt
-                    ? "perfil exento"
-                    : line.ivaPercent === undefined
-                      ? "cabecera"
-                      : "línea";
-                  const lineIsCreditOrReturn =
-                    currentAmount < 0 ||
-                    expensePurchaseLineBaseTotal(line) < 0 ||
-                    line.unitPrice < 0 ||
-                    (line.netUnitPrice ?? 0) < 0;
-                  const lineWillGoToCatalog =
-                    lineCanFeedCatalog && line.catalogProduct !== false;
-                  let cardTone = "border-slate-100 bg-slate-50";
+                    </div>
+                  ) : (
+                    purchaseLines.map((line, index) => {
+                      const lineInCatalog = purchaseLineHasCatalogProduct(
+                        line,
+                        productKeys,
+                      );
+                      const lineCanFeedCatalog =
+                        expensePurchaseLineIsEligibleForProductCatalog(
+                          { amount: currentAmount },
+                          line,
+                        );
+                      const lineBase = expensePurchaseLineBaseTotal(line);
+                      const lineIvaPercent = vatExempt
+                        ? 0
+                        : (line.ivaPercent ?? ivaPercent);
+                      const lineAmounts = expenseTotalsFromBase(
+                        lineBase,
+                        lineIvaPercent,
+                        vatExempt,
+                      );
+                      const lineIvaOrigin = vatExempt
+                        ? "perfil exento"
+                        : line.ivaPercent === undefined
+                          ? "cabecera"
+                          : "línea";
+                      const lineIsCreditOrReturn =
+                        currentAmount < 0 ||
+                        expensePurchaseLineBaseTotal(line) < 0 ||
+                        line.unitPrice < 0 ||
+                        (line.netUnitPrice ?? 0) < 0;
+                      const lineWillGoToCatalog =
+                        lineCanFeedCatalog && line.catalogProduct !== false;
+                      let cardTone = "border-slate-100 bg-slate-50";
                       let checkboxTone =
                         "border-slate-200 bg-white text-slate-700";
-                  if (lineIsCreditOrReturn) {
-                    cardTone = "border-slate-200 bg-slate-50";
-                  } else if (lineInCatalog) {
-                    cardTone = "border-green-200 bg-green-50";
+                      if (lineIsCreditOrReturn) {
+                        cardTone = "border-slate-200 bg-slate-50";
+                      } else if (lineInCatalog) {
+                        cardTone = "border-green-200 bg-green-50";
                         checkboxTone =
                           "border-green-200 bg-white text-green-800";
-                  } else if (lineWillGoToCatalog) {
-                    cardTone = "border-blue-200 bg-blue-50";
-                    checkboxTone = "border-blue-200 bg-white text-blue-800";
-                  }
+                      } else if (lineWillGoToCatalog) {
+                        cardTone = "border-blue-200 bg-blue-50";
+                        checkboxTone = "border-blue-200 bg-white text-blue-800";
+                      }
 
-                  return (
-                    <div
-                      key={line.id}
-                      className={`rounded-2xl border p-3 ${cardTone}`}
-                    >
-                      <div className="mb-3 flex items-center justify-between gap-3">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                            Línea {index + 1}
-                          </p>
-                          {lineIsCreditOrReturn ? (
-                            <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-700 ring-1 ring-slate-200">
-                              Abono: no actualiza precio
-                            </span>
-                          ) : lineInCatalog ? (
-                            <span className="rounded-full bg-green-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-green-800 ring-1 ring-green-200">
-                              Ya está en Productos
-                            </span>
-                          ) : lineWillGoToCatalog ? (
-                            <span className="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-800 ring-1 ring-blue-200">
-                              Se creará al guardar
-                            </span>
-                          ) : null}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPurchaseLines((prev) =>
-                              prev.filter((entry) => entry.id !== line.id),
-                            )
-                          }
-                          className="text-sm font-semibold text-red-600"
+                      return (
+                        <div
+                          key={line.id}
+                          className={`rounded-2xl border p-3 ${cardTone}`}
                         >
-                          Quitar
-                        </button>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(14rem,1fr)_5.5rem_5rem_7.5rem_6rem_6rem] xl:items-start">
-                        <div className="col-span-2 xl:col-span-1">
-                          <Field label="Producto o servicio">
-                            <Input
-                              value={line.description}
-                              onChange={(e) =>
-                                updatePurchaseLine(line.id, {
-                                  description: e.target.value,
-                                })
+                          <div className="mb-3 flex items-center justify-between gap-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                                Línea {index + 1}
+                              </p>
+                              {lineIsCreditOrReturn ? (
+                                <span className="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-slate-700 ring-1 ring-slate-200">
+                                  Abono: no actualiza precio
+                                </span>
+                              ) : lineInCatalog ? (
+                                <span className="rounded-full bg-green-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-green-800 ring-1 ring-green-200">
+                                  Ya está en Productos
+                                </span>
+                              ) : lineWillGoToCatalog ? (
+                                <span className="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-bold uppercase tracking-wide text-blue-800 ring-1 ring-blue-200">
+                                  Se creará al guardar
+                                </span>
+                              ) : null}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPurchaseLines((prev) =>
+                                  prev.filter((entry) => entry.id !== line.id),
+                                )
                               }
-                              placeholder="Ej: Lama persiana"
-                            />
-                          </Field>
-                        </div>
-                        <Field label="Cant.">
-                          <NumericFieldInput
-                            value={line.quantity}
-                            onChange={(quantity) =>
-                              updatePurchaseLine(line.id, { quantity })
-                            }
-                          />
-                        </Field>
-                        <Field label="Ud.">
-                          <Input
-                            value={line.unit ?? ""}
-                            onChange={(e) =>
-                              updatePurchaseLine(line.id, {
-                                unit: e.target.value,
-                              })
-                            }
-                            placeholder="ud"
-                          />
-                        </Field>
-                        <Field label="Precio">
-                          <NumericFieldInput
-                            value={line.unitPrice}
-                            onChange={(unitPrice) =>
-                              updatePurchaseLine(line.id, {
-                                unitPrice,
-                                total: undefined,
-                              })
-                            }
-                          />
-                        </Field>
-                        <Field label="Dto. %">
-                          <NumericFieldInput
-                            value={line.discountPercent ?? 0}
-                            onChange={(discountPercent) =>
+                              className="text-sm font-semibold text-red-600"
+                            >
+                              Quitar
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 xl:grid-cols-[minmax(14rem,1fr)_5.5rem_5rem_7.5rem_6rem_6rem] xl:items-start">
+                            <div className="col-span-2 xl:col-span-1">
+                              <Field label="Producto o servicio">
+                                <Input
+                                  value={line.description}
+                                  onChange={(e) =>
+                                    updatePurchaseLine(line.id, {
+                                      description: e.target.value,
+                                    })
+                                  }
+                                  placeholder="Ej: Lama persiana"
+                                />
+                              </Field>
+                            </div>
+                            <Field label="Cant.">
+                              <NumericFieldInput
+                                value={line.quantity}
+                                onChange={(quantity) =>
+                                  updatePurchaseLine(line.id, { quantity })
+                                }
+                              />
+                            </Field>
+                            <Field label="Ud.">
+                              <Input
+                                value={line.unit ?? ""}
+                                onChange={(e) =>
+                                  updatePurchaseLine(line.id, {
+                                    unit: e.target.value,
+                                  })
+                                }
+                                placeholder="ud"
+                              />
+                            </Field>
+                            <Field label="Precio">
+                              <NumericFieldInput
+                                value={line.unitPrice}
+                                onChange={(unitPrice) =>
+                                  updatePurchaseLine(line.id, {
+                                    unitPrice,
+                                    total: undefined,
+                                  })
+                                }
+                              />
+                            </Field>
+                            <Field label="Dto. %">
+                              <NumericFieldInput
+                                value={line.discountPercent ?? 0}
+                                onChange={(discountPercent) =>
                                   updatePurchaseLine(line.id, {
                                     discountPercent,
                                   })
-                            }
-                          />
-                        </Field>
-                        <Field
-                          label={
-                            !vatExempt && line.ivaPercent === undefined
-                              ? currentVatResolution.blocked
-                                ? "IVA (confirmar)"
-                                : "IVA (cabecera)"
-                              : "IVA"
-                          }
-                        >
-                          <NumericFieldInput
-                            value={lineIvaPercent}
-                            disabled={vatExempt}
-                            className={
-                              !vatExempt &&
-                              line.ivaPercent === undefined &&
-                              currentVatResolution.blocked
-                                ? "border-amber-300 bg-amber-50"
-                                : undefined
-                            }
-                            onChange={(lineIva) =>
-                              updatePurchaseLine(line.id, {
-                                ivaPercent: lineIva,
-                              })
-                            }
-                          />
-                        </Field>
-                      </div>
-                      <p className="mt-3 text-right text-sm font-bold text-slate-700">
-                        Base {formatMoney(lineAmounts.base)} · IVA{" "}
+                                }
+                              />
+                            </Field>
+                            <Field
+                              label={
+                                !vatExempt && line.ivaPercent === undefined
+                                  ? currentVatResolution.blocked
+                                    ? "IVA (confirmar)"
+                                    : "IVA (cabecera)"
+                                  : "IVA"
+                              }
+                            >
+                              <NumericFieldInput
+                                value={lineIvaPercent}
+                                disabled={vatExempt}
+                                className={
+                                  !vatExempt &&
+                                  line.ivaPercent === undefined &&
+                                  currentVatResolution.blocked
+                                    ? "border-amber-300 bg-amber-50"
+                                    : undefined
+                                }
+                                onChange={(lineIva) =>
+                                  updatePurchaseLine(line.id, {
+                                    ivaPercent: lineIva,
+                                  })
+                                }
+                              />
+                            </Field>
+                          </div>
+                          <p className="mt-3 text-right text-sm font-bold text-slate-700">
+                            Base {formatMoney(lineAmounts.base)} · IVA{" "}
                             {lineIvaPercent}% {formatMoney(lineAmounts.iva)} ·
                             Total {formatMoney(lineAmounts.total)}
-                      </p>
-                      <p className="mt-1 text-right text-xs font-semibold text-slate-500">
-                        Origen IVA: {lineIvaOrigin}
-                        {vatExempt && line.ivaPercent !== undefined
-                          ? ` · tipo documental conservado ${line.ivaPercent}%`
-                          : ""}
-                      </p>
-                      {!vatExempt &&
-                      line.ivaPercent === undefined &&
-                      currentVatResolution.blocked ? (
-                        <p className="mt-2 flex flex-wrap items-center justify-end gap-2 text-xs font-semibold text-amber-800">
+                          </p>
+                          <p className="mt-1 text-right text-xs font-semibold text-slate-500">
+                            Origen IVA: {lineIvaOrigin}
+                            {vatExempt && line.ivaPercent !== undefined
+                              ? ` · tipo documental conservado ${line.ivaPercent}%`
+                              : ""}
+                          </p>
+                          {!vatExempt &&
+                          line.ivaPercent === undefined &&
+                          currentVatResolution.blocked ? (
+                            <p className="mt-2 flex flex-wrap items-center justify-end gap-2 text-xs font-semibold text-amber-800">
                               Tipo sin confirmar: se muestra {lineIvaPercent}%
                               de cabecera.
-                          <button
-                            type="button"
-                            onClick={() =>
-                              updatePurchaseLine(line.id, {
-                                ivaPercent: lineIvaPercent,
-                              })
-                            }
-                            className="rounded-lg border border-amber-300 bg-white px-2 py-1 font-bold"
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  updatePurchaseLine(line.id, {
+                                    ivaPercent: lineIvaPercent,
+                                  })
+                                }
+                                className="rounded-lg border border-amber-300 bg-white px-2 py-1 font-bold"
+                              >
+                                Confirmar {lineIvaPercent}%
+                              </button>
+                            </p>
+                          ) : null}
+                          <label
+                            className={`mt-3 flex cursor-pointer flex-col gap-2 rounded-xl border px-3 py-2 text-sm ${checkboxTone}`}
                           >
-                            Confirmar {lineIvaPercent}%
-                          </button>
-                        </p>
-                      ) : null}
-                      <label
-                        className={`mt-3 flex cursor-pointer flex-col gap-2 rounded-xl border px-3 py-2 text-sm ${checkboxTone}`}
-                      >
-                        <span className="flex items-center gap-2 font-bold">
-                          <input
-                            type="checkbox"
-                            checked={lineWillGoToCatalog}
-                            disabled={!lineCanFeedCatalog}
-                            onChange={(e) =>
-                              updatePurchaseLine(line.id, {
-                                catalogProduct: e.target.checked,
-                              })
-                            }
-                            className="h-5 w-5 rounded"
-                          />
-                          {lineIsCreditOrReturn
-                            ? "No actualizar producto desde este abono"
-                            : lineInCatalog
-                              ? "Actualizar producto desde esta línea al guardar"
-                              : "Crear producto desde esta línea al guardar"}
-                        </span>
-                        <span className="text-xs font-bold">
-                          {lineIsCreditOrReturn
-                            ? "Cuenta como importe a tu favor, pero no cambia el coste guardado"
-                            : lineInCatalog
-                              ? "Ya existe en Productos"
-                              : lineWillGoToCatalog
-                                ? "Sí, se llevará a Productos"
-                                : "No se llevará a Productos"}
-                        </span>
-                      </label>
-                      <p className="mt-2 text-xs text-slate-500">
-                        {lineIsCreditOrReturn
-                          ? "Este abono se guarda como importe a tu favor, pero no actualiza el coste del producto."
-                          : "Nada se añade al catálogo solo por escanear. Debes revisar la factura, dejar marcada esta opción y guardar. Desmarca herramientas, gastos internos o servicios sueltos."}
-                      </p>
-                    </div>
-                  );
-                })
-              )}
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={addPurchaseLine}
-                  className="rounded-xl border border-blue-200 px-4 py-2 text-sm font-bold text-blue-700"
-                >
-                  + Añadir línea
-                </button>
-                {purchaseLinesBaseTotal > 0 && (
-                  <>
-                    <p className="text-sm font-semibold text-slate-600">
-                      Base líneas: {formatMoney(purchaseLinesBaseTotal)}
-                    </p>
-                    {canReconcileExpenseAmountWithLineBase(
-                      currentExpenseVatContext,
-                    ) ? (
+                            <span className="flex items-center gap-2 font-bold">
+                              <input
+                                type="checkbox"
+                                checked={lineWillGoToCatalog}
+                                disabled={!lineCanFeedCatalog}
+                                onChange={(e) =>
+                                  updatePurchaseLine(line.id, {
+                                    catalogProduct: e.target.checked,
+                                  })
+                                }
+                                className="h-5 w-5 rounded"
+                              />
+                              {lineIsCreditOrReturn
+                                ? "No actualizar producto desde este abono"
+                                : lineInCatalog
+                                  ? "Actualizar producto desde esta línea al guardar"
+                                  : "Crear producto desde esta línea al guardar"}
+                            </span>
+                            <span className="text-xs font-bold">
+                              {lineIsCreditOrReturn
+                                ? "Cuenta como importe a tu favor, pero no cambia el coste guardado"
+                                : lineInCatalog
+                                  ? "Ya existe en Productos"
+                                  : lineWillGoToCatalog
+                                    ? "Sí, se llevará a Productos"
+                                    : "No se llevará a Productos"}
+                            </span>
+                          </label>
+                          <p className="mt-2 text-xs text-slate-500">
+                            {lineIsCreditOrReturn
+                              ? "Este abono se guarda como importe a tu favor, pero no actualiza el coste del producto."
+                              : "Nada se añade al catálogo solo por escanear. Debes revisar la factura, dejar marcada esta opción y guardar. Desmarca herramientas, gastos internos o servicios sueltos."}
+                          </p>
+                        </div>
+                      );
+                    })
+                  )}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={addPurchaseLine}
+                      className="rounded-xl border border-blue-200 px-4 py-2 text-sm font-bold text-blue-700"
+                    >
+                      + Añadir línea
+                    </button>
+                    {purchaseLinesBaseTotal > 0 && (
                       <>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAmountText(
+                        <p className="text-sm font-semibold text-slate-600">
+                          Base líneas: {formatMoney(purchaseLinesBaseTotal)}
+                        </p>
+                        {canReconcileExpenseAmountWithLineBase(
+                          currentExpenseVatContext,
+                        ) ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAmountText(
                                   decimalInputFromNumber(
                                     purchaseLinesBaseTotal,
                                   ),
-                            );
-                            setVatSubmitError(null);
-                          }}
-                          className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white"
-                        >
-                          Conciliar importe con líneas
-                        </button>
-                        <p className="text-xs text-slate-500">
-                          Usa la suma de bases para que el desglose pueda
-                          validarse.
-                        </p>
+                                );
+                                setVatSubmitError(null);
+                              }}
+                              className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white"
+                            >
+                              Conciliar importe con líneas
+                            </button>
+                            <p className="text-xs text-slate-500">
+                              Usa la suma de bases para que el desglose pueda
+                              validarse.
+                            </p>
+                          </>
+                        ) : (
+                          <p className="text-xs font-semibold text-amber-800">
+                            En un extra no desgravable, el importe es el coste
+                            íntegro y no se reemplaza por la suma de bases.
+                          </p>
+                        )}
                       </>
-                    ) : (
-                      <p className="text-xs font-semibold text-amber-800">
-                        En un extra no desgravable, el importe es el coste
-                        íntegro y no se reemplaza por la suma de bases.
+                    )}
+                  </div>
+                  {purchaseLines.length > 0 ? (
+                    <div
+                      role={currentVatResolution.blocked ? "alert" : "status"}
+                      className={`rounded-xl border px-3 py-2 text-sm ${
+                        currentVatResolution.blocked
+                          ? "border-amber-200 bg-amber-50 text-amber-900"
+                          : "border-blue-100 bg-blue-50 text-blue-900"
+                      }`}
+                    >
+                      <p className="font-bold">
+                        {expenseVatSourceLabel(
+                          currentVatResolution,
+                          vatExempt,
+                          currentExpenseVatContext,
+                        )}
                       </p>
-                    )}
-                  </>
-                )}
-              </div>
-              {purchaseLines.length > 0 ? (
-                <div
-                  role={currentVatResolution.blocked ? "alert" : "status"}
-                  className={`rounded-xl border px-3 py-2 text-sm ${
-                    currentVatResolution.blocked
-                      ? "border-amber-200 bg-amber-50 text-amber-900"
-                      : "border-blue-100 bg-blue-50 text-blue-900"
-                  }`}
-                >
-                  <p className="font-bold">
-                    {expenseVatSourceLabel(
-                      currentVatResolution,
-                      vatExempt,
-                      currentExpenseVatContext,
-                    )}
-                  </p>
-                  {currentVatResolution.blocked ? (
-                    <p className="mt-1">
-                      {expenseVatIssueMessage(currentVatResolution.issue)}
+                      {currentVatResolution.blocked ? (
+                        <p className="mt-1">
+                          {expenseVatIssueMessage(currentVatResolution.issue)}
+                        </p>
+                      ) : (
+                        <p className="mt-1">
+                          Base {formatMoney(currentVatResolution.base)} · IVA{" "}
+                          {formatMoney(currentVatResolution.iva)} · Total{" "}
+                          {formatMoney(currentVatResolution.total)}
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
+                  {vatSubmitError ? (
+                    <p
+                      role="alert"
+                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
+                    >
+                      {vatSubmitError}
                     </p>
-                  ) : (
-                    <p className="mt-1">
-                      Base {formatMoney(currentVatResolution.base)} · IVA{" "}
-                      {formatMoney(currentVatResolution.iva)} · Total{" "}
-                      {formatMoney(currentVatResolution.total)}
+                  ) : null}
+                  {saveSubmitError ? (
+                    <p
+                      role="alert"
+                      className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
+                    >
+                      {saveSubmitError}
                     </p>
-                  )}
+                  ) : null}
                 </div>
-              ) : null}
-              {vatSubmitError ? (
-                <p
-                  role="alert"
-                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
-                >
-                  {vatSubmitError}
-                </p>
-              ) : null}
-              {saveSubmitError ? (
-                <p
-                  role="alert"
-                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
-                >
-                  {saveSubmitError}
-                </p>
-              ) : null}
-            </div>
-          </FormSection>
+              </FormSection>
             </Card>
           </div>
         )}
@@ -3140,17 +3085,17 @@ export default function NuevoGastoPage() {
               : activeInboxItemId &&
                   expenseAlreadySavedFromInbox(data.expenses, activeInboxItemId)
                 ? "Cerrar documento del buzón"
-              : fixedOperationAlreadySaved && activeInboxItemId
-                ? "Cerrar documento del buzón"
-                : blockingDuplicateExpense
-              ? "Factura ya guardada"
-              : providerSummaryUpgradeTarget
-                ? "Completar factura original"
-                : editingExpense
-                ? "Guardar cambios"
-                : pendingScans.length > 0
-                  ? "Guardar y revisar siguiente"
-                  : "Guardar gasto"}
+                : fixedOperationAlreadySaved && activeInboxItemId
+                  ? "Cerrar documento del buzón"
+                  : blockingDuplicateExpense
+                    ? "Factura ya guardada"
+                    : providerSummaryUpgradeTarget
+                      ? "Completar factura original"
+                      : editingExpense
+                        ? "Guardar cambios"
+                        : pendingScans.length > 0
+                          ? "Guardar y revisar siguiente"
+                          : "Guardar gasto"}
           </Button>
         )}
       </div>

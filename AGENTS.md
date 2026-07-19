@@ -216,17 +216,15 @@ La decisión obligatoria y versionada está en
 - Drive usa solo `drive.file`, callback propio con `state`, token temporal en
   sesión y destinos oficiales de Google. Una copia solo se marca válida tras
   releer el archivo recién creado y comparar exactamente el JSON exportado.
-- Un original de notificación fiscal solo se archiva tras un clic explícito,
-  relectura remota y
-  coincidencia SHA-256 exacta. Factu no conserva PDF, nombre ni texto; guarda
-  identificadores opacos, huella y estado. La ruta usa la fecha documental
-  `AAAA/MM` o «Fecha pendiente», nunca la fecha de escaneo.
-- Los originales de gastos requieren una preferencia explícita en Ajustes y el
-  clic que guarda cada gasto. Solo admite PDF/imágenes válidos y los archiva en
-  `Factu - facturas de gastos/AAAA/MM` según fecha documental. Si Drive no
-  confirma readback SHA-256 exacto, no se publica el gasto ni se cierra el
-  buzón. Factu persiste únicamente el recibo `originalArchive` versionado, sin
-  bytes, nombre local, texto, enlace ni token.
+- Los escáneres de Notificaciones y Gastos guardan únicamente datos
+  estructurados en Factu. No consultan ni suben originales a Drive durante el
+  guardado. Notificaciones construye sobre el estado vigente sin la
+  precondición completa capturada antes del análisis, pero conserva owner
+  scope, privacidad, protección anti-vaciado y readback real.
+- Los originales archivados antes de ADR-0005 V5 se preservan
+  byte-semánticamente y siguen sometidos a ID, política y SHA-256 exactos en
+  cualquier lectura, exportación o envío explícito a la papelera. El cambio no
+  borra ni mueve archivos existentes.
 - Exportar originales de gastos es una lectura local solicitada por el usuario:
   cada archivo se relee por su ID opaco y debe conservar política administrada,
   carpeta, MIME, tamaño, procedencia y SHA-256 exactos antes de entrar en el

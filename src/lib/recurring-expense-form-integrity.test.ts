@@ -207,13 +207,9 @@ describe("recurring expense form integrity", () => {
       "const resolved = hasSupplierName",
       submitStart,
     );
-    const driveArchive = newExpenseForm.indexOf(
-      "await prepareExpenseOriginalArchive",
+    const durableExpected = newExpenseForm.indexOf(
+      "const durableExpected = getCurrentData()",
       submitStart,
-    );
-    const refreshedExpected = newExpenseForm.indexOf(
-      "refreshDurableExpectedAfterAsync",
-      driveArchive,
     );
     const durableSave = newExpenseForm.indexOf(
       "saveFixedExpenseWithRecurringTemplate(",
@@ -246,10 +242,11 @@ describe("recurring expense form integrity", () => {
     );
     expect(replayInbox).toBeGreaterThan(replayGate);
     expect(totals).toBeGreaterThan(replayInbox);
-    expect(driveArchive).toBeGreaterThan(totals);
-    expect(refreshedExpected).toBeGreaterThan(driveArchive);
+    expect(durableExpected).toBeGreaterThan(totals);
     expect(supplierGate).toBeGreaterThan(totals);
-    expect(supplierGate).toBeGreaterThan(refreshedExpected);
+    expect(supplierGate).toBeGreaterThan(durableExpected);
+    expect(newExpenseForm).not.toContain("prepareExpenseOriginalArchive");
+    expect(newExpenseForm).not.toContain("refreshDurableExpectedAfterAsync");
     expect(durableSave).toBeGreaterThan(supplierGate);
     expect(appliedGate).toBeGreaterThan(durableSave);
     expect(inbox).toBeGreaterThan(appliedGate);
