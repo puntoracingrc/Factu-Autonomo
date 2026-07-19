@@ -4,7 +4,7 @@ import { gastosSection } from "./sections/gastos";
 describe("manual de validación de gastos fijos", () => {
   it("explica el resumen accesible sin prometer un guardado fallido", () => {
     const fixedExpenses = gastosSection.steps.find(
-      (step) => step.title === "4. Gastos fijos",
+      (step) => step.title === "5. Gastos fijos",
     );
     const text = JSON.stringify(fixedExpenses);
 
