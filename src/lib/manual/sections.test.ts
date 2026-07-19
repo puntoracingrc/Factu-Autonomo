@@ -26,16 +26,23 @@ describe("manual sections", () => {
   });
 
   it("no publica la ayuda de Consultor fiscal cuando la Beta está apagada", () => {
+    const withoutConsultor = buildManualSections(false);
+    const withConsultor = buildManualSections(true);
+
     expect(
-      buildManualSections(false).some(
-        (section) => section.slug === "consultor-fiscal",
-      ),
+      withoutConsultor.some((section) => section.slug === "consultor-fiscal"),
     ).toBe(false);
     expect(
-      buildManualSections(true).some(
-        (section) => section.slug === "consultor-fiscal",
-      ),
+      withConsultor.some((section) => section.slug === "consultor-fiscal"),
     ).toBe(true);
+    expect(
+      withoutConsultor.filter(
+        (section) => section.slug === "calendario-fiscal",
+      ),
+    ).toHaveLength(1);
+    expect(
+      withConsultor.filter((section) => section.slug === "calendario-fiscal"),
+    ).toHaveLength(1);
   });
 
   it("documenta los flujos recientes de entrada, cuenta y confianza", () => {
@@ -193,19 +200,25 @@ describe("manual sections", () => {
   });
 
   it("documenta el flujo actual del calendario fiscal sin automatizar trámites", () => {
-    const fiscalManual = JSON.stringify(getManualSection("consultor-fiscal"));
-
-    expect(fiscalManual).toContain(
-      "Consultar y organizar el calendario fiscal",
+    const calendarManual = JSON.stringify(
+      getManualSection("calendario-fiscal"),
     );
-    expect(fiscalManual).toContain("Asesoría fiscal → Calendario fiscal");
-    expect(fiscalManual).toContain("modelos únicos");
-    expect(fiscalManual).toContain("Renta y Sociedades");
-    expect(fiscalManual).toContain("Otros modelos publicados por la AEAT");
-    expect(fiscalManual).toContain("Volver al Calendario");
-    expect(fiscalManual).toContain("Crear recordatorio");
-    expect(fiscalManual).toContain("El borrador no se guarda automáticamente");
-    expect(fiscalManual).toContain("No presenta modelos");
-    expect(fiscalManual).toContain("no marca un trámite como realizado");
+    const consultorManual = JSON.stringify(
+      buildManualSections(true).find(
+        (section) => section.slug === "consultor-fiscal",
+      ),
+    );
+
+    expect(calendarManual).toContain("Abrir el calendario y elegir la vista");
+    expect(calendarManual).toContain("Asesoría fiscal → Calendario fiscal");
+    expect(calendarManual).toContain("modelos únicos");
+    expect(calendarManual).toContain("Renta y Sociedades");
+    expect(calendarManual).toContain("Otros modelos publicados por la AEAT");
+    expect(calendarManual).toContain("Volver al Calendario");
+    expect(calendarManual).toContain("Crear recordatorio");
+    expect(calendarManual).toContain("El borrador no se guarda automáticamente");
+    expect(calendarManual).toContain("No presenta modelos");
+    expect(calendarManual).toContain("no marca un trámite como realizado");
+    expect(consultorManual).not.toContain("Calendario fiscal");
   });
 });
