@@ -140,7 +140,7 @@ const SEARCH_LABELS: Record<DocumentType, string> = {
   recibo: "recibo",
 };
 
-const DOCUMENT_LIST_BATCH_SIZE = 30;
+const DOCUMENT_LIST_BATCH_SIZE = 10;
 const PAGINATED_DOCUMENT_TYPES: DocumentType[] = [
   "factura",
   "presupuesto",
