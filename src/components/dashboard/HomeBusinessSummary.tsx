@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -11,6 +11,7 @@ import {
   FileText,
   ShoppingCart,
 } from "lucide-react";
+import { PaymentReminderButton } from "@/components/documents/PaymentReminderButton";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Select } from "@/components/ui/Field";
@@ -494,7 +495,9 @@ function PendingInvoicesCard({
   return (
     <Card
       className={`min-w-0 p-4 ${
-        hasPendingInvoices ? "border-orange-300" : "border-emerald-300"
+        hasPendingInvoices
+          ? "!border-orange-300 ring-1 ring-orange-100"
+          : "!border-emerald-300 ring-1 ring-emerald-100"
       }`}
     >
       <SectionTitle
@@ -506,7 +509,16 @@ function PendingInvoicesCard({
             : "bg-emerald-50 text-emerald-700"
         }
       />
-      <div className="mt-3 space-y-2">
+      <div
+        className={`mt-3 space-y-2 ${
+          hasPendingInvoices
+            ? "max-h-64 overflow-y-auto overscroll-contain pr-1"
+            : ""
+        }`}
+        aria-label={
+          hasPendingInvoices ? "Facturas pendientes de cobro" : undefined
+        }
+      >
         {!hasPendingInvoices ? (
           <p className="rounded-xl bg-emerald-50 px-3 py-4 text-center text-sm font-bold text-emerald-800">
             TODO COBRADO :)
@@ -519,6 +531,9 @@ function PendingInvoicesCard({
               amount={safeDisplayAmount(
                 documentAmounts(document, vatExempt).total,
               )}
+              action={
+                <PaymentReminderButton doc={document} profile={data.profile} />
+              }
             />
           ))
         )}
@@ -551,32 +566,36 @@ function SectionTitle({
 function DocumentRow({
   document,
   amount,
+  action,
 }: {
   document: Document;
   amount: number;
+  action?: ReactNode;
 }) {
   return (
-    <Link
-      href={documentHref(document)}
-      className="flex min-w-0 items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2 transition hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-    >
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-semibold text-slate-900">
-          {document.number}
+    <div className="flex min-w-0 items-center gap-1 rounded-xl bg-slate-50 pr-1 transition hover:bg-slate-100">
+      <Link
+        href={documentHref(document)}
+        className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-xl px-3 py-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+      >
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-slate-900">
+            {document.number}
+          </span>
+          <span className="block truncate text-xs text-slate-500">
+            {document.client.name || "Sin cliente"} ·{" "}
+            {document.rectification
+              ? "Rectificativa"
+              : documentStatusLabel(document, document.type)}{" "}
+            · {formatShortDate(document.date)}
+          </span>
         </span>
-        <span className="block truncate text-xs text-slate-500">
-          {document.client.name || "Sin cliente"} ·{" "}
-          {document.rectification
-            ? "Rectificativa"
-            : documentStatusLabel(document, document.type)}{" "}
-          ·{" "}
-          {formatShortDate(document.date)}
+        <span className="shrink-0 text-sm font-bold tabular-nums text-slate-800">
+          {formatMoney(amount)}
         </span>
-      </span>
-      <span className="shrink-0 text-sm font-bold tabular-nums text-slate-800">
-        {formatMoney(amount)}
-      </span>
-    </Link>
+      </Link>
+      {action ? <div className="shrink-0">{action}</div> : null}
+    </div>
   );
 }
 

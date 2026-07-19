@@ -29,10 +29,17 @@ describe("product dashboard home", () => {
     expect(component).not.toContain("IVA neto de gastos y abonos");
     expect(component).not.toContain("summary.salesIvaEstimated");
     expect(component).not.toContain("summary.expenseIvaEstimated");
-    expect(component).toContain("border-orange-300");
-    expect(component).toContain("border-emerald-300");
+    expect(component).toContain("!border-orange-300 ring-1 ring-orange-100");
+    expect(component).toContain("!border-emerald-300 ring-1 ring-emerald-100");
     expect(component).toContain("bg-orange-50 text-orange-700");
     expect(component).toContain("bg-emerald-50 text-emerald-700");
+    expect(component).toContain(
+      "max-h-64 overflow-y-auto overscroll-contain pr-1",
+    );
+    expect(component).toContain("Facturas pendientes de cobro");
+    expect(component).toContain("icon={AlertCircle}");
+    expect(component).toContain("<PaymentReminderButton");
+    expect(component).toContain("profile={data.profile}");
     expect(component).toContain("TODO COBRADO :)");
     expect(component).not.toContain("Resumen por periodo");
     expect(periodSelectorIndex).toBeGreaterThan(-1);
