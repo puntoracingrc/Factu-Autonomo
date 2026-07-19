@@ -209,7 +209,7 @@ function BusinessFlowChart({ summary }: { summary: ProductBusinessSummary }) {
         ))}
       </div>
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+      <div className="mt-5">
         <div className="rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
           <p className="text-xs font-semibold text-slate-500">
             Lo que queda después del gasto neto
@@ -219,18 +219,6 @@ function BusinessFlowChart({ summary }: { summary: ProductBusinessSummary }) {
           </p>
           <p className="mt-1 text-xs text-slate-500">
             Facturas emitidas menos gastos y abonos registrados.
-          </p>
-        </div>
-        <div className="rounded-2xl border border-violet-100 bg-violet-50/70 px-4 py-3">
-          <p className="text-xs font-semibold text-violet-700">
-            IVA neto para orientarte
-          </p>
-          <p className="mt-1 text-xl font-bold tabular-nums text-slate-950">
-            {formatMoney(summary.salesIvaEstimated)} /{" "}
-            {formatMoney(summary.expenseIvaEstimated)}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            Primero el IVA de ventas. Después el IVA neto de gastos y abonos.
           </p>
         </div>
       </div>
@@ -501,13 +489,28 @@ function PendingInvoicesCard({
   summary: ProductBusinessSummary;
 }) {
   const vatExempt = isVatExempt(data.profile);
+  const hasPendingInvoices = summary.pendingInvoices.length > 0;
 
   return (
-    <Card className="min-w-0 p-4">
-      <SectionTitle icon={AlertCircle} title="Pendientes de cobro" />
+    <Card
+      className={`min-w-0 p-4 ${
+        hasPendingInvoices ? "border-orange-300" : "border-emerald-300"
+      }`}
+    >
+      <SectionTitle
+        icon={AlertCircle}
+        title="Pendientes de cobro"
+        iconClassName={
+          hasPendingInvoices
+            ? "bg-orange-50 text-orange-700"
+            : "bg-emerald-50 text-emerald-700"
+        }
+      />
       <div className="mt-3 space-y-2">
-        {summary.pendingInvoices.length === 0 ? (
-          <EmptyLine text="No tienes facturas pendientes ahora." />
+        {!hasPendingInvoices ? (
+          <p className="rounded-xl bg-emerald-50 px-3 py-4 text-center text-sm font-bold text-emerald-800">
+            TODO COBRADO :)
+          </p>
         ) : (
           summary.pendingInvoices.map((document) => (
             <DocumentRow
@@ -527,13 +530,17 @@ function PendingInvoicesCard({
 function SectionTitle({
   icon: Icon,
   title,
+  iconClassName = "bg-slate-100 text-slate-700",
 }: {
   icon: typeof FileText;
   title: string;
+  iconClassName?: string;
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+      <span
+        className={`flex h-9 w-9 items-center justify-center rounded-xl ${iconClassName}`}
+      >
         <Icon className="h-4 w-4" aria-hidden />
       </span>
       <h3 className="font-bold text-slate-900">{title}</h3>
