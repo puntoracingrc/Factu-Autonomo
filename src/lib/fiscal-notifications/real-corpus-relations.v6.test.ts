@@ -221,12 +221,17 @@ describe("AEAT real corpus relations V6", () => {
       ordinaryTotalCents: 6_000,
     });
     expect(findRelation(initiation, resolution, "RESOLVES_SANCTION_PROCEEDING")).toBeDefined();
-    expect(findRelation(requirement, initiation, "POSSIBLY_PRECEDES_SANCTION")).toMatchObject({
-      status: "SYSTEM_SUGGESTED",
+    expect(findRelation(requirement, initiation, "POSSIBLY_PRECEDES_SANCTION")).toBeUndefined();
+    expect(findRelation({
+      ...requirement,
+      exactReferenceToSanction: "SYN-SANCTION-CASE-01",
+    }, initiation, "POSSIBLY_PRECEDES_SANCTION")).toMatchObject({
+      status: "SYSTEM_CONFIRMED_EXACT",
+      exactReference: "SYN-SANCTION-CASE-01",
     });
     expect(findRelation(resolution, sanctionEnforcement, "SANCTION_DECISION_ENFORCED")).toBeDefined();
     expect(findRelation(resolution, loss, "CLAIMS_LOST_SANCTION_REDUCTION")).toMatchObject({
-      observedAmountCents: 5_000,
+      observedAmountCents: null,
     });
     expect(findRelation(loss, clawbackEnforcement, "ENFORCES_LOST_REDUCTION")).toBeDefined();
     expect(findRelation(resolution, clawbackEnforcement, "SANCTION_DECISION_ENFORCED")).toBeUndefined();
@@ -306,12 +311,16 @@ describe("AEAT real corpus relations V6", () => {
       paymentFormAmountCents: 349_660,
     });
     expect(findRelation(movable, realEstate, "SAME_DEBT_SET_MULTIPLE_SEIZURE_ASSETS")).toMatchObject({
-      observedAmountCents: 334_660,
+      observedAmountCents: null,
       confirmsPayment: false,
       confirmsDebtExtinction: false,
     });
     const changed = { ...realEstate, seizureRows: [...rows.slice(0, 4), { debtKey: "SYN-OTHER-DEBT-01", amountCents: 249_999 }] };
-    expect(findRelation(movable, changed, "SAME_DEBT_SET_MULTIPLE_SEIZURE_ASSETS")).toBeUndefined();
+    expect(findRelation(movable, changed, "SAME_DEBT_SET_MULTIPLE_SEIZURE_ASSETS")).toBeDefined();
+    expect(findRelation(movable, {
+      ...realEstate,
+      seizureRows: [...rows.slice(0, 4), { debtKey: "SYN-DIFFERENT-DEBT-01", amountCents: 334_660 }],
+    }, "SAME_DEBT_SET_MULTIPLE_SEIZURE_ASSETS")).toBeUndefined();
 
     const enforcements = [
       enforcement({ id: "sanction", debtKey: "SYN-SANCTION-DEBT-01", voluntaryEndDate: "2027-07-20", principalCents: 15_000, ordinaryTotalCents: 18_000 }),
@@ -346,7 +355,7 @@ describe("AEAT real corpus relations V6", () => {
     expect(findRelation(movable, realRelease, "RELEASES_SEIZURE")).toBeUndefined();
   });
 
-  it("creates one aggregation relation per prior act only for an exact full sum", () => {
+  it("creates one aggregation relation per strongly identified prior act without amount matching", () => {
     const prior = [
       enforcement({ id: "p1", debtKey: "SYN-DEBT-IVA-4T", voluntaryEndDate: "2026-12-31", principalCents: 40_000, ordinaryTotalCents: 48_000 }),
       enforcement({ id: "p2", debtKey: "SYN-DEBT-IVA-4T", voluntaryEndDate: "2027-01-20", principalCents: 10_010, ordinaryTotalCents: 12_012 }),
@@ -369,7 +378,7 @@ describe("AEAT real corpus relations V6", () => {
     expect(relateRealCorpusDocumentSetV6([
       ...prior,
       { ...seizure, seizureRows: [{ debtKey: "SYN-DEBT-IVA-4T", amountCents: 84_071 }] },
-    ])).toEqual([]);
+    ])).toHaveLength(4);
   });
 
   it("keeps one payment operation and never turns the form into evidence", () => {

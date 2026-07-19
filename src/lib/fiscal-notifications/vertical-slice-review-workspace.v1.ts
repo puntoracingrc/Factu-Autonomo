@@ -438,7 +438,6 @@ function appendDocument(input: {
         "AUTHENTICITY_NOT_CHECKED",
         "HUMAN_REVIEW_REQUIRED",
         "NO_OPERATIONAL_EFFECT",
-        "SOURCE_CONTENT_NOT_RETAINED",
       ],
       factSummary: [],
       calculatedSummary: [],
@@ -873,6 +872,8 @@ function referenceType(value: string): ExternalReferenceType {
     TAX_PERIOD: "TAX_PERIOD",
     BANK_REFERENCE: "PAYMENT_JUSTIFICANTE",
     THIRD_PARTY_RESPONSE_ID: "OFFICIAL_REGISTRY_NUMBER",
+    REQUEST_NUMBER: "REQUEST_NUMBER",
+    REFUND_REFERENCE: "REFUND_REFERENCE",
     VEHICLE_OR_FINE_REFERENCE: "VEHICLE_OR_FINE_REFERENCE",
     OTHER_OFFICIAL_REFERENCE: "OTHER",
   };
@@ -882,6 +883,10 @@ function referenceType(value: string): ExternalReferenceType {
 }
 
 function moneyKind(value: string, familyId: string): AdministrativeMoneyKind {
+  const offsetFamily =
+    familyId === "collection.offset_requested" ||
+    familyId === "collection.offset_ex_officio" ||
+    familyId === "collection.offset_resolution";
   switch (value) {
     case "ORIGINAL_TAX_PRINCIPAL":
       return "ORIGINAL_TAX_PRINCIPAL";
@@ -915,8 +920,18 @@ function moneyKind(value: string, familyId: string): AdministrativeMoneyKind {
     case "TOTAL_PAID":
     case "PARTIAL_PAYMENT":
       return "PAYMENT_CONFIRMED";
+    case "REFUND_REQUESTED":
+    case "REFUND_RECOGNIZED":
+      return offsetFamily ? "CREDIT_TOTAL" : "REFUND_CREDIT";
+    case "REFUND_PAID":
+      return "NET_REFUND_PAYMENT";
+    case "CREDIT_APPLIED":
+    case "COMPENSATED_AMOUNT":
+      return "OFFSET_APPLIED";
     case "TOTAL_CLAIMED":
+      return offsetFamily ? "TOTAL_BEFORE_OFFSET" : "DOCUMENT_TOTAL";
     case "TOTAL_PENDING":
+      return offsetFamily ? "REMAINING_AFTER_OFFSET" : "DOCUMENT_TOTAL";
     case "AVAILABLE_BALANCE":
     case "RELEASED_AMOUNT":
     case "OTHER":

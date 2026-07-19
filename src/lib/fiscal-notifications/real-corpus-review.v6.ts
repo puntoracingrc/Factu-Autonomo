@@ -4,6 +4,12 @@ import type { RealCorpusFieldV2 } from "./extractor-core/real-corpus-extractor.v
 import type { RealCorpusInstallmentV5 } from "./extractor-core/real-corpus-extractor.v5";
 import type { RealCorpusExtractorOutcomeV6 } from "./extractor-core/real-corpus-extractor.v6";
 import {
+  canonicalRealCorpusDateType,
+  canonicalRealCorpusMoneyType,
+  canonicalRealCorpusReferenceType,
+  serializableRealCorpusReference,
+} from "./real-corpus-review-observation.v1";
+import {
   parseFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewFieldV1,
   type FiscalNotificationVerticalSliceReviewV1,
@@ -45,60 +51,6 @@ function field(input: {
   });
 }
 
-function canonicalDateType(
-  code: string,
-): FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"] {
-  if (code === "ISSUE_DATE" || code === "DOCUMENT_DATE") return "ISSUE_DATE";
-  if (code === "VOLUNTARY_END_DATE") return "VOLUNTARY_PAYMENT_DEADLINE";
-  if (code === "INTEREST_CALCULATION_START") return "INTEREST_START_DATE";
-  if (code === "INTEREST_CALCULATION_END") return "INTEREST_END_DATE";
-  if (code === "PAYMENT_FORM_DATE") return "PAYMENT_FORM_DATE";
-  return "ACTION_DATE";
-}
-
-function canonicalMoneyType(
-  code: string,
-): FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"] {
-  if (code === "OUTSTANDING_PRINCIPAL" || code === "DENIED_PRINCIPAL") {
-    return "OUTSTANDING_PRINCIPAL";
-  }
-  if (code === "SOURCE_PRINCIPAL" || code === "ORIGINAL_TAX_PRINCIPAL") {
-    return "ORIGINAL_TAX_PRINCIPAL";
-  }
-  if (code === "ORDINARY_SURCHARGE_20" || code === "EXECUTIVE_SURCHARGE_20") {
-    return "EXECUTIVE_SURCHARGE_20";
-  }
-  if (code === "CONDITIONAL_EXECUTIVE_5_SURCHARGE") {
-    return "EXECUTIVE_SURCHARGE_5";
-  }
-  if (code === "DEFERRAL_INTEREST" || code === "PLAN_INTEREST") {
-    return "DEFERRAL_INTEREST";
-  }
-  if (code === "ASSESSED_INTEREST" || code === "LATE_PAYMENT_INTEREST") {
-    return "LATE_INTEREST";
-  }
-  if (code === "SEIZED_AMOUNT") return "SEIZED_AMOUNT";
-  if (code === "SEIZE_LIMIT") return "SEIZURE_LIMIT";
-  if (code === "PRINTED_INTEREST") return "LATE_INTEREST";
-  if (code === "PRINTED_COSTS") return "COSTS";
-  if (
-    code === "PAYMENT_FORM_AMOUNT" ||
-    code === "PAYMENT_FORM_PRINTED_TOTAL" ||
-    code === "REDUCED_10_TOTAL"
-  ) {
-    return "PAYMENT_OPTION_AMOUNT";
-  }
-  if (
-    code === "ORDINARY_TOTAL" ||
-    code === "TOTAL_WITH_20" ||
-    code === "DEBT_SUBTOTAL" ||
-    code === "DOCUMENT_TOTAL"
-  ) {
-    return "TOTAL_CLAIMED";
-  }
-  return "OTHER";
-}
-
 function canonicalReferenceType(
   code: string,
 ): FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"] {
@@ -126,10 +78,7 @@ function canonicalReferenceType(
   ) {
     return "DEBT_KEY";
   }
-  if (code === "DOCUMENT_REFERENCE" || code === "SANCTION_REFERENCE") {
-    return "OTHER_OFFICIAL_REFERENCE";
-  }
-  return "OTHER_OFFICIAL_REFERENCE";
+  return canonicalRealCorpusReferenceType(code);
 }
 
 const HUMAN_VALUE: Readonly<Record<string, string>> = Object.freeze({
@@ -140,6 +89,7 @@ const HUMAN_VALUE: Readonly<Record<string, string>> = Object.freeze({
   REDUCTION_ONLY_NOT_FULL_SANCTION:
     "Solo se reclama la reducción perdida, no la sanción completa",
   SEPARATE_FROM_PRINCIPAL: "Importe separado de la deuda principal",
+  COMMERCIAL_CREDITS: "Créditos comerciales o arrendaticios",
   MOVABLE_ASSET: "Bien mueble",
   REAL_ESTATE: "Inmueble",
   DISCREPANCY_PRESERVED_WITH_EVIDENCE:
@@ -157,7 +107,7 @@ function projectField(
     return field({
       fieldId: `real-corpus-v6:${item.fieldCode}:${index}`,
       semantic: "MONEY",
-      canonicalType: canonicalMoneyType(item.fieldCode),
+      canonicalType: canonicalRealCorpusMoneyType(item.fieldCode),
       label: item.label,
       displayValue: formatMoney(item.amountCents),
       normalizedValue: String(item.amountCents),
@@ -166,21 +116,24 @@ function projectField(
     });
   }
   if (item.kind === "REFERENCE") {
+    const canonicalType = canonicalReferenceType(item.fieldCode);
+    const reference = serializableRealCorpusReference(canonicalType, item.value);
     return field({
       fieldId: `real-corpus-v6:${item.fieldCode}:${index}`,
       semantic: "REFERENCE",
-      canonicalType: canonicalReferenceType(item.fieldCode),
+      canonicalType,
       label: item.label,
-      displayValue: item.value,
-      normalizedValue: item.value,
+      displayValue: reference.displayValue,
+      normalizedValue: reference.normalizedValue,
       sourcePageNumbers: item.evidence.pageNumbers,
     });
   }
   if (item.kind === "DATE") {
+    const dateType = canonicalRealCorpusDateType(item.fieldCode);
     return field({
       fieldId: `real-corpus-v6:${item.fieldCode}:${index}`,
-      semantic: "DATE",
-      canonicalType: canonicalDateType(item.fieldCode),
+      semantic: dateType === null ? "DETAIL" : "DATE",
+      canonicalType: dateType ?? "FACT_OR_GROUND",
       label: item.label,
       displayValue: item.value.split("-").reverse().join("/"),
       normalizedValue: item.value,
@@ -196,7 +149,7 @@ function projectField(
     canonicalType: "FACT_OR_GROUND",
     label: item.label,
     displayValue,
-    normalizedValue: `V6:${item.kind}:${item.fieldCode}:${String(item.value).toUpperCase()}`,
+    normalizedValue: displayValue,
     sourcePageNumbers: item.evidence.pageNumbers,
   });
 }
@@ -213,7 +166,7 @@ function projectInstallment(
     displayValue: `Vence ${item.dueDate.split("-").reverse().join("/")} · principal ${formatMoney(
       item.baseCents,
     )} · interés ${formatMoney(item.deferralInterestCents)} · total ${formatMoney(item.totalCents)}`,
-    normalizedValue: `V6:INSTALLMENT:${item.sequence}:${item.dueDate}:${item.baseCents}:${item.deferralInterestCents}:${item.totalCents}`,
+    normalizedValue: `Vence ${item.dueDate.split("-").reverse().join("/")} · principal ${formatMoney(item.baseCents)} · interés ${formatMoney(item.deferralInterestCents)} · total ${formatMoney(item.totalCents)}`,
     sourcePageNumbers: Object.freeze([item.pageNumber]),
   });
 }
@@ -274,6 +227,7 @@ export function projectRealCorpusReviewV6(
     ...outcome.fields.map(projectField),
     ...outcome.installments.map(projectInstallment),
   ];
+  if (fields.length === 0) return emptyReview();
   return parseFiscalNotificationVerticalSliceReviewV1({
     schemaVersion: 1,
     reviewVersion: "1.0.0",

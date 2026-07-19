@@ -34,21 +34,21 @@ function document(
 }
 
 describe("AEAT real corpus relations V5", () => {
-  it("uses owner + issuer + key + voluntary end + principal + payment form as enforcement identity", () => {
+  it("uses owner, issuer, key, voluntary end and payment form as enforcement identity", () => {
     const identity = buildRealCorpusEnforcementIdentityV5({
       ownerScope: "owner-v5",
       issuer: "AEAT",
       debtKey: "SYN-DEBT-01",
       voluntaryEndDate: "2027-06-20",
-      principalCents: 10_100,
       paymentFormReference: "SYN-PAY-01",
     });
     expect(identity).toContain(
-      "SYN-DEBT-01:2027-06-20:10100:SYN-PAY-01",
+      "SYN-DEBT-01:2027-06-20:SYN-PAY-01",
     );
+    expect(identity).not.toContain("10100");
   });
 
-  it("links an enforcement only to the exact installment date and base plus interest total", () => {
+  it("links an enforcement to the exact debt and installment date without comparing amounts", () => {
     const grant = document({
       documentId: "grant",
       familyId: "collection.deferral_grant",
@@ -74,9 +74,9 @@ describe("AEAT real corpus relations V5", () => {
     expect(relateRealCorpusDocumentsV5(grant, enforcement)[0]).toMatchObject({
       relationType: "CLAIMS_UNPAID_INSTALLMENT",
       status: "SYSTEM_CONFIRMED_EXACT",
-      observedAmountCents: 10_100,
+      observedAmountCents: null,
       phrase:
-        "Esta providencia reclama la cuota del fraccionamiento que vencía en la fecha indicada. El principal coincide con el total de esa cuota: principal más intereses del aplazamiento.",
+        "Esta providencia reclama la cuota del fraccionamiento identificada por la misma deuda y fecha de vencimiento.",
     });
     expect(
       relateRealCorpusDocumentsV5(grant, {
@@ -92,11 +92,12 @@ describe("AEAT real corpus relations V5", () => {
         principalCents: 10_099,
       })[0],
     ).toMatchObject({
-      relationType: "SAME_UNDERLYING_DEBT_NOT_INSTALLMENT_MATCH",
+      relationType: "CLAIMS_UNPAID_INSTALLMENT",
+      observedAmountCents: null,
     });
   });
 
-  it("never deduplicates the same key when date, principal or payment form differs", () => {
+  it("distinguishes strong installment identities without using principal", () => {
     const first = document({
       documentId: "first",
       familyId: "collection.enforcement_order",
@@ -107,7 +108,6 @@ describe("AEAT real corpus relations V5", () => {
     });
     const variants = [
       { ...first, documentId: "different-date", voluntaryEndDate: "2027-07-20" },
-      { ...first, documentId: "different-principal", principalCents: 10_200 },
       { ...first, documentId: "different-form", paymentFormReference: "SYN-PAY-02" },
     ];
     for (const variant of variants) {
@@ -115,6 +115,13 @@ describe("AEAT real corpus relations V5", () => {
         relationType: "SAME_PAYMENT_PLAN_DIFFERENT_INSTALLMENTS",
       });
     }
+    expect(
+      relateRealCorpusDocumentsV5(first, {
+        ...first,
+        documentId: "different-principal",
+        principalCents: 10_200,
+      }),
+    ).toEqual([]);
   });
 
   it("keeps the denied debt and cited executive debts in different relations", () => {
@@ -146,17 +153,17 @@ describe("AEAT real corpus relations V5", () => {
     });
     expect(relateRealCorpusDocumentsV5(denial, deniedEnforcement)[0]).toMatchObject({
       relationType: "DENIAL_PRECEDES_ENFORCEMENT",
-      observedAmountCents: 50_000,
+      observedAmountCents: null,
     });
     expect(relateRealCorpusDocumentsV5(denial, citedEnforcement)[0]).toMatchObject({
       relationType: "CITED_AS_EXISTING_EXECUTIVE_DEBT",
-      observedAmountCents: 12_120,
+      observedAmountCents: null,
       phrase:
         "La denegación cita esta deuda como ya pendiente en vía ejecutiva y la utiliza como parte de su motivación. No la crea ni la incorpora al importe cuya solicitud se deniega.",
     });
   });
 
-  it("creates one aggregation relation per source only for an exact full sum", () => {
+  it("creates one aggregation relation per distinctly identified source without amount matching", () => {
     const first = document({
       documentId: "enforcement-1",
       familyId: "collection.enforcement_order",
@@ -202,7 +209,7 @@ describe("AEAT real corpus relations V5", () => {
           seizureRows: [{ debtKey: "SYN-GROUP-1", amountCents: 35_999 }],
         },
       ]),
-    ).toEqual([]);
+    ).toHaveLength(2);
   });
 
   it("links a single enforcement row and keeps different seizure assets on one debt", () => {
@@ -229,7 +236,7 @@ describe("AEAT real corpus relations V5", () => {
     });
     expect(relateRealCorpusDocumentsV5(enforcement, credits)[0]).toMatchObject({
       relationType: "ENFORCES",
-      observedAmountCents: 12_000,
+      observedAmountCents: null,
     });
     expect(relateRealCorpusDocumentsV5(credits, bank)[0]).toMatchObject({
       relationType: "SAME_DEBT_MULTIPLE_SEIZURE_ASSETS",
@@ -256,6 +263,7 @@ describe("AEAT real corpus relations V5", () => {
     ]);
     expect(relations.filter((item) => item.relationType === "PAYMENT_FORM_FOR")).toHaveLength(1);
     expect(relations.every((item) => item.permitsAutomaticAction === false)).toBe(true);
+    expect(relations.every((item) => item.observedAmountCents === null)).toBe(true);
   });
 
   it("isolates owner scopes", () => {

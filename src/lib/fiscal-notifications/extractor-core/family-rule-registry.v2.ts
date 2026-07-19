@@ -1437,6 +1437,7 @@ export const FISCAL_NOTIFICATION_FAMILY_RULES_V2 = Object.freeze([
         literals: Object.freeze([
           "Embargo de inmueble",
           "diligencia de embargo de bienes inmuebles",
+          "notificación de diligencia de embargo de bienes inmuebles",
         ]),
       }),
     ]),

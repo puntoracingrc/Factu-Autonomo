@@ -5,14 +5,13 @@ import {
   type ProfileFieldEvidenceV2,
 } from "./extractor-core/profile-field-adapter.v2";
 import { extractProfileDrivenFamilyV2 } from "./extractor-core/profile-driven-extractor.v2";
-import { projectProfileDrivenExplanationInputV2 } from "./profile-driven-explanation-input.v2";
-import { explainFiscalNotificationDocumentV2 } from "./structured-document-explanation.v2";
 import {
   createEmptyFiscalNotificationVerticalSliceReviewV1,
   parseFiscalNotificationVerticalSliceReviewV1,
 } from "./vertical-slice-review.v1";
 import {
   mergeProfileDrivenReviewV2,
+  mergeProfileDrivenReviewsV2,
   projectProfileDrivenReviewV2,
 } from "./profile-driven-review.v2";
 
@@ -23,6 +22,201 @@ function evidence(index: number): ProfileFieldEvidenceV2 {
     evidenceBasis: "EXPLICIT_DOCUMENT_FIELD",
     assertionType: "EXPLICIT_IN_DOCUMENT",
     confidence: 1,
+  });
+}
+
+function interestReview(input: {
+  readonly instanceId: string;
+  readonly pageNumber: number;
+  readonly liquidationKey: string;
+  readonly agreementId: string;
+  readonly interestCents?: number;
+}) {
+  const adapter = resolveProfileFieldAdapterV2(
+    "collection.interest_assessment",
+  )!;
+  const candidates: ProfileFieldCandidateV2[] = [
+    {
+      candidateId: `${input.instanceId}:liquidation`,
+      candidateStatus: "EXACT",
+      evidence: Object.freeze({
+        ...evidence(input.pageNumber * 10 + 1),
+        pageNumber: input.pageNumber,
+      }),
+      kind: "REFERENCE",
+      fieldCode: "LIQUIDATION_KEY",
+      normalizedValue: input.liquidationKey,
+      sensitiveReference: null,
+    },
+    {
+      candidateId: `${input.instanceId}:agreement`,
+      candidateStatus: "EXACT",
+      evidence: Object.freeze({
+        ...evidence(input.pageNumber * 10 + 2),
+        pageNumber: input.pageNumber,
+      }),
+      kind: "REFERENCE",
+      fieldCode: "AGREEMENT_ID",
+      normalizedValue: input.agreementId,
+      sensitiveReference: null,
+    },
+    ...(input.interestCents === undefined
+      ? []
+      : [
+          {
+            candidateId: `${input.instanceId}:interest`,
+            candidateStatus: "EXACT" as const,
+            evidence: Object.freeze({
+              ...evidence(input.pageNumber * 10 + 3),
+              pageNumber: input.pageNumber,
+            }),
+            kind: "MONEY" as const,
+            fieldCode: "LATE_PAYMENT_INTEREST" as const,
+            amountCents: input.interestCents,
+            currency: "EUR" as const,
+          },
+        ]),
+  ];
+  const outcome = adapter.adapt({
+    ownerScope: "user:test",
+    documentId: "document:synthetic-interest-bundle",
+    selection: {
+      selectionStatus: "SELECTED",
+      familyId: "collection.interest_assessment",
+      basis: "SYSTEM_EXACT",
+    },
+    candidates,
+  });
+  return projectProfileDrivenReviewV2({
+    outcome,
+    extractorId: "payment-order",
+    canonicalTitle: "Liquidación de intereses de demora",
+    titlePageNumbers: [input.pageNumber],
+    pageCount: 6,
+    documentInstanceId: input.instanceId,
+  });
+}
+
+function identityReview(input: {
+  readonly instanceId: string;
+  readonly canonicalType: "LIQUIDATION_KEY" | "EXPEDIENTE_ID";
+  readonly value: string;
+  readonly amountCents: number;
+  readonly pageNumber?: number;
+}) {
+  const pageNumber = input.pageNumber ?? 1;
+  return parseFiscalNotificationVerticalSliceReviewV1({
+    schemaVersion: 1,
+    reviewVersion: "1.0.0",
+    status: "REVIEW_REQUIRED",
+    documents: [
+      {
+        reviewDocumentId:
+          `review-document:profile:collection.interest_assessment:${input.instanceId}`,
+        extractorId: "payment-order",
+        familyId: "collection.interest_assessment",
+        title: "Liquidación de intereses de demora",
+        subtitle: "Datos observados en el documento",
+        pageFrom: pageNumber,
+        pageTo: pageNumber,
+        confidence: 1,
+        fields: [
+          {
+            fieldId: `reference:${input.instanceId}`,
+            semantic: "REFERENCE",
+            canonicalType: input.canonicalType,
+            label:
+              input.canonicalType === "LIQUIDATION_KEY"
+                ? "Clave de liquidación"
+                : "Número de expediente",
+            displayValue: input.value,
+            normalizedValue: input.value,
+            amountCents: null,
+            currency: null,
+            sourcePageNumbers: [pageNumber],
+            sourceLabel:
+              input.canonicalType === "LIQUIDATION_KEY"
+                ? "Clave de liquidación"
+                : "Número de expediente",
+            confidence: 1,
+            reviewStatus: "REVIEW_REQUIRED",
+          },
+          {
+            fieldId: `money:${input.instanceId}`,
+            semantic: "MONEY",
+            canonicalType: "LATE_INTEREST",
+            label: "Intereses de demora",
+            displayValue: "12,34\u00a0€",
+            normalizedValue: String(input.amountCents),
+            amountCents: input.amountCents,
+            currency: "EUR",
+            sourcePageNumbers: [pageNumber],
+            sourceLabel: "Intereses de demora",
+            confidence: 1,
+            reviewStatus: "REVIEW_REQUIRED",
+          },
+        ],
+        warnings: [],
+        requiresHumanReview: true,
+      },
+    ],
+    sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+    retainedSourceContent: "NONE",
+    requiresHumanReview: true,
+    materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+    permitsDebtCreation: false,
+    permitsDeadlineCreation: false,
+    permitsPaymentAction: false,
+    permitsAccountingAction: false,
+  });
+}
+
+function globalIdentityReview(input: {
+  readonly pageNumber: number;
+  readonly value: string;
+}) {
+  return parseFiscalNotificationVerticalSliceReviewV1({
+    schemaVersion: 1,
+    reviewVersion: "1.0.0",
+    status: "REVIEW_REQUIRED",
+    documents: [
+      {
+        reviewDocumentId: "review-document:real-corpus-v7:synthetic-global",
+        extractorId: "payment-order",
+        familyId: "collection.interest_assessment",
+        title: "Liquidación de intereses de demora",
+        subtitle: "Datos observados en el documento",
+        pageFrom: 1,
+        pageTo: 2,
+        confidence: 1,
+        fields: [
+          {
+            fieldId: "real-corpus-v7:LIQUIDATION_KEY:0",
+            semantic: "REFERENCE",
+            canonicalType: "LIQUIDATION_KEY",
+            label: "Clave de liquidación",
+            displayValue: input.value,
+            normalizedValue: input.value,
+            amountCents: null,
+            currency: null,
+            sourcePageNumbers: [input.pageNumber],
+            sourceLabel: "Clave de liquidación",
+            confidence: 1,
+            reviewStatus: "REVIEW_REQUIRED",
+          },
+        ],
+        warnings: [],
+        requiresHumanReview: true,
+      },
+    ],
+    sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+    retainedSourceContent: "NONE",
+    requiresHumanReview: true,
+    materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+    permitsDebtCreation: false,
+    permitsDeadlineCreation: false,
+    permitsPaymentAction: false,
+    permitsAccountingAction: false,
   });
 }
 
@@ -119,7 +313,7 @@ describe("profile-driven review v2", () => {
     expect(() => parseFiscalNotificationVerticalSliceReviewV1(review)).not.toThrow();
   });
 
-  it("projects variable printed outcomes as controlled review fields", () => {
+  it("does not serialize recognition or printed-effect contract tokens as document facts", () => {
     const adapter = resolveProfileFieldAdapterV2(
       "review.suspension_decision",
     )!;
@@ -151,25 +345,15 @@ describe("profile-driven review v2", () => {
       pageCount: 1,
     });
 
-    expect(review.documents[0]?.fields).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          fieldId: "profile:recognition:document-type:0",
-          normalizedValue: "EXACT_TITLE_AND_AUTHORITY",
-        }),
-        expect.objectContaining({
-          fieldId: "profile:effect:SUSPENSION_GRANTED:0",
-          normalizedValue: "EFFECT:SUSPENSION_GRANTED",
-          displayValue: "Detectado en el documento",
-          reviewStatus: "REVIEW_REQUIRED",
-        }),
-      ]),
-    );
-    expect(JSON.stringify(review)).not.toContain("Suspensión concedida");
+    expect(review).toMatchObject({
+      status: "INFORMATION_PENDING",
+      documents: [],
+    });
+    expect(JSON.stringify(review)).not.toMatch(/EXACT_|EFFECT:/u);
     expect(() => parseFiscalNotificationVerticalSliceReviewV1(review)).not.toThrow();
   });
 
-  it("carries a closed printed effect from ephemeral text to the deterministic explanation", async () => {
+  it("keeps a detected printed effect ephemeral when no source-valued fact was extracted", async () => {
     const outcome = await extractProfileDrivenFamilyV2({
       document: Object.freeze({
         ownerScope: "user:synthetic-variable-effect-e2e",
@@ -195,26 +379,11 @@ describe("profile-driven review v2", () => {
       titlePageNumbers: [1],
       pageCount: 1,
     });
-    const explanationInput = projectProfileDrivenExplanationInputV2(
-      review.documents[0]!,
-    );
-    const explanation = explainFiscalNotificationDocumentV2(
-      explanationInput!,
-    );
-
-    expect(explanationInput?.printedEffects).toEqual([
+    expect(outcome.adaptedFields?.printedEffects).toEqual([
       expect.objectContaining({ effectCode: "SUSPENSION_GRANTED" }),
     ]);
-    expect(explanation.ambiguities).toEqual([]);
-    expect(
-      explanation.sections
-        .find((section) => section.id === "RESULT")
-        ?.assertions.some(
-          (assertion) =>
-            assertion.code === "PRINTED_EFFECT_SUSPENSION_GRANTED",
-        ),
-    ).toBe(true);
-    expect(JSON.stringify(review)).not.toContain("Suspensión concedida");
+    expect(review).toMatchObject({ status: "INFORMATION_PENDING", documents: [] });
+    expect(JSON.stringify(review)).not.toMatch(/EXACT_|EFFECT:|SUSPENSION_GRANTED/u);
   });
 
   it("stays empty without an exact system selection", () => {
@@ -315,6 +484,391 @@ describe("profile-driven review v2", () => {
     expect(legacy).toEqual(before);
     expect(merged.documents).toHaveLength(1);
     expect(Object.isFrozen(merged.documents[0]?.fields)).toBe(true);
+  });
+
+  it("coalesces repeated pages of one act by exact primary identity", () => {
+    const first = interestReview({
+      instanceId: "interest-main",
+      pageNumber: 1,
+      liquidationKey: "SYN-LIQ-001",
+      agreementId: "SYN-AGREEMENT-001",
+    });
+    const annex = interestReview({
+      instanceId: "interest-annex",
+      pageNumber: 5,
+      liquidationKey: "SYN-LIQ-001",
+      agreementId: "SYN-AGREEMENT-001",
+      interestCents: 1_234,
+    });
+
+    const merged = mergeProfileDrivenReviewsV2(
+      createEmptyFiscalNotificationVerticalSliceReviewV1(),
+      [first, annex],
+    );
+
+    expect(merged.documents).toHaveLength(1);
+    expect(merged.documents[0]).toMatchObject({ pageFrom: 1, pageTo: 5 });
+    expect(merged.documents[0]?.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalType: "LIQUIDATION_KEY",
+          sourcePageNumbers: [1, 5],
+        }),
+        expect.objectContaining({
+          canonicalType: "LATE_INTEREST",
+          amountCents: 1_234,
+          sourcePageNumbers: [5],
+        }),
+      ]),
+    );
+  });
+
+  it("does not coalesce distinct acts by agreement or equal amount", () => {
+    const first = interestReview({
+      instanceId: "interest-one",
+      pageNumber: 1,
+      liquidationKey: "SYN-LIQ-001",
+      agreementId: "SYN-AGREEMENT-099",
+      interestCents: 1_234,
+    });
+    const second = interestReview({
+      instanceId: "interest-two",
+      pageNumber: 5,
+      liquidationKey: "SYN-LIQ-002",
+      agreementId: "SYN-AGREEMENT-099",
+      interestCents: 1_234,
+    });
+
+    const merged = mergeProfileDrivenReviewsV2(
+      createEmptyFiscalNotificationVerticalSliceReviewV1(),
+      [first, second],
+    );
+
+    expect(merged.documents).toHaveLength(2);
+  });
+
+  it("does not coalesce overlapping acts with different strong identities", () => {
+    const first = interestReview({
+      instanceId: "interest-overlap-one",
+      pageNumber: 1,
+      liquidationKey: "SYN-LIQ-OVERLAP-001",
+      agreementId: "SYN-AGREEMENT-OVERLAP-001",
+    });
+    const second = interestReview({
+      instanceId: "interest-overlap-two",
+      pageNumber: 1,
+      liquidationKey: "SYN-LIQ-OVERLAP-002",
+      agreementId: "SYN-AGREEMENT-OVERLAP-001",
+    });
+
+    const merged = mergeProfileDrivenReviewsV2(
+      createEmptyFiscalNotificationVerticalSliceReviewV1(),
+      [first, second],
+    );
+
+    expect(merged.documents).toHaveLength(2);
+    expect(
+      merged.documents.map((document) =>
+        document.fields.find(
+          (field) => field.canonicalType === "LIQUIDATION_KEY",
+        )?.normalizedValue,
+      ),
+    ).toEqual(["SYN-LIQ-OVERLAP-001", "SYN-LIQ-OVERLAP-002"]);
+  });
+
+  it("does not coalesce overlapping acts with different identity kinds and the same amount", () => {
+    const first = identityReview({
+      instanceId: "overlap-liquidation",
+      canonicalType: "LIQUIDATION_KEY",
+      value: "SYN-LIQ-IDENTITY-001",
+      amountCents: 1_234,
+    });
+    const second = identityReview({
+      instanceId: "overlap-case",
+      canonicalType: "EXPEDIENTE_ID",
+      value: "SYN-EXP-IDENTITY-002",
+      amountCents: 1_234,
+    });
+
+    const merged = mergeProfileDrivenReviewsV2(
+      createEmptyFiscalNotificationVerticalSliceReviewV1(),
+      [first, second],
+    );
+
+    expect(merged.documents).toHaveLength(2);
+    expect(merged.documents.every((document) =>
+      document.fields.some(
+        (field) => field.semantic === "MONEY" && field.amountCents === 1_234,
+      ),
+    )).toBe(true);
+  });
+
+  it("attaches a global extraction layer to the segment identified by provenance", () => {
+    const first = identityReview({
+      instanceId: "segment-one",
+      canonicalType: "EXPEDIENTE_ID",
+      value: "SYN-EXP-SEGMENT-001",
+      amountCents: 1_111,
+      pageNumber: 1,
+    });
+    const second = identityReview({
+      instanceId: "segment-two",
+      canonicalType: "EXPEDIENTE_ID",
+      value: "SYN-EXP-SEGMENT-002",
+      amountCents: 2_222,
+      pageNumber: 2,
+    });
+    const globalLayer = parseFiscalNotificationVerticalSliceReviewV1({
+      schemaVersion: 1,
+      reviewVersion: "1.0.0",
+      status: "REVIEW_REQUIRED",
+      documents: [
+        {
+          reviewDocumentId: "review-document:real-corpus-v7:synthetic-bundle",
+          extractorId: "payment-order",
+          familyId: "collection.interest_assessment",
+          title: "Liquidación de intereses de demora",
+          subtitle: "Datos observados en el documento",
+          pageFrom: 1,
+          pageTo: 2,
+          confidence: 1,
+          fields: [
+            {
+              fieldId: "real-corpus-v7:LIQUIDATION_KEY:0",
+              semantic: "REFERENCE",
+              canonicalType: "LIQUIDATION_KEY",
+              label: "Clave de liquidación",
+              displayValue: "SYN-LIQ-SEGMENT-002",
+              normalizedValue: "SYN-LIQ-SEGMENT-002",
+              amountCents: null,
+              currency: null,
+              sourcePageNumbers: [2],
+              sourceLabel: "Clave de liquidación",
+              confidence: 1,
+              reviewStatus: "REVIEW_REQUIRED",
+            },
+          ],
+          warnings: [],
+          requiresHumanReview: true,
+        },
+      ],
+      sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+      retainedSourceContent: "NONE",
+      requiresHumanReview: true,
+      materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+      permitsAccountingAction: false,
+    });
+
+    const merged = mergeProfileDrivenReviewsV2(
+      createEmptyFiscalNotificationVerticalSliceReviewV1(),
+      [globalLayer, first, second],
+    );
+
+    expect(merged.documents).toHaveLength(2);
+    expect(merged.documents[0]?.fields.some(
+      (field) => field.normalizedValue === "SYN-LIQ-SEGMENT-002",
+    )).toBe(false);
+    expect(merged.documents[1]?.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalType: "EXPEDIENTE_ID",
+          normalizedValue: "SYN-EXP-SEGMENT-002",
+        }),
+        expect.objectContaining({
+          canonicalType: "LIQUIDATION_KEY",
+          normalizedValue: "SYN-LIQ-SEGMENT-002",
+          sourcePageNumbers: [2],
+        }),
+      ]),
+    );
+  });
+
+  it("does not attach a global identity observed outside the only segment", () => {
+    const segment = identityReview({
+      instanceId: "single-segment",
+      canonicalType: "EXPEDIENTE_ID",
+      value: "SYN-EXP-SINGLE-001",
+      amountCents: 3_333,
+      pageNumber: 1,
+    });
+    const globalLayer = globalIdentityReview({
+      pageNumber: 2,
+      value: "SYN-LIQ-OUTSIDE-002",
+    });
+
+    const merged = mergeProfileDrivenReviewsV2(
+      createEmptyFiscalNotificationVerticalSliceReviewV1(),
+      [segment, globalLayer],
+    );
+
+    expect(merged.documents).toHaveLength(2);
+    expect(merged.documents[0]?.fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        canonicalType: "EXPEDIENTE_ID",
+        normalizedValue: "SYN-EXP-SINGLE-001",
+      }),
+    ]));
+    expect(merged.documents[0]?.fields.some(
+      (field) => field.normalizedValue === "SYN-LIQ-OUTSIDE-002",
+    )).toBe(false);
+    expect(merged.documents[1]?.fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        canonicalType: "LIQUIDATION_KEY",
+        normalizedValue: "SYN-LIQ-OUTSIDE-002",
+        sourcePageNumbers: [2],
+      }),
+    ]));
+  });
+
+  it("keeps overlapping acts from different families when their strong identities conflict", () => {
+    const legacy = parseFiscalNotificationVerticalSliceReviewV1({
+      schemaVersion: 1,
+      reviewVersion: "1.0.0",
+      status: "REVIEW_REQUIRED",
+      documents: [
+        {
+          reviewDocumentId: "review-document:synthetic-enforcement",
+          extractorId: "payment-order",
+          familyId: "collection.enforcement_order",
+          title: "Providencia de apremio",
+          subtitle: "Datos estructurados listos para revisar",
+          pageFrom: 1,
+          pageTo: 1,
+          confidence: 1,
+          fields: [
+            {
+              fieldId: "reference:legacy:LIQUIDATION_KEY",
+              semantic: "REFERENCE",
+              canonicalType: "LIQUIDATION_KEY",
+              label: "Clave de liquidación",
+              displayValue: "SYN-LIQ-LEGACY-001",
+              normalizedValue: "SYN-LIQ-LEGACY-001",
+              amountCents: null,
+              currency: null,
+              sourcePageNumbers: [1],
+              sourceLabel: "Clave de liquidación",
+              confidence: 1,
+              reviewStatus: "REVIEW_REQUIRED",
+            },
+          ],
+          warnings: [],
+          requiresHumanReview: true,
+        },
+      ],
+      sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+      retainedSourceContent: "NONE",
+      requiresHumanReview: true,
+      materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+      permitsAccountingAction: false,
+    });
+    const interest = interestReview({
+      instanceId: "interest-overlapping-other-family",
+      pageNumber: 1,
+      liquidationKey: "SYN-LIQ-INTEREST-002",
+      agreementId: "SYN-AGREEMENT-INTEREST-002",
+    });
+
+    const merged = mergeProfileDrivenReviewsV2(legacy, [interest]);
+
+    expect(merged.documents).toHaveLength(2);
+    expect(
+      merged.documents.map((document) => document.familyId).sort(),
+    ).toEqual([
+      "collection.enforcement_order",
+      "collection.interest_assessment",
+    ]);
+  });
+
+  it("keeps same-family specialized presentation while adding profile fields", () => {
+    const profile = projectProfileDrivenReviewV2({
+      outcome: exactOutcome(),
+      extractorId: "payment-order",
+      canonicalTitle: "Providencia de apremio",
+      titlePageNumbers: [1],
+      pageCount: 1,
+    });
+    const specialized = parseFiscalNotificationVerticalSliceReviewV1({
+      schemaVersion: 1,
+      reviewVersion: "1.0.0",
+      status: "REVIEW_REQUIRED",
+      documents: [
+        {
+          reviewDocumentId: "review-document:specialized:enforcement",
+          extractorId: "payment-order",
+          familyId: "collection.enforcement_order",
+          title: "Providencia de apremio",
+          subtitle: "Datos estructurados listos para revisar",
+          pageFrom: 1,
+          pageTo: 1,
+          confidence: 1,
+          fields: [
+            {
+              fieldId: "reference:1:DEBT_KEY",
+              semantic: "REFERENCE",
+              canonicalType: "DEBT_KEY",
+              label: "Clave de deuda",
+              displayValue: "SYN-DEBT-SPECIALIZED-1",
+              normalizedValue: "SYN-DEBT-SPECIALIZED-1",
+              amountCents: null,
+              currency: null,
+              sourcePageNumbers: [1],
+              sourceLabel: "Clave de deuda",
+              confidence: 1,
+              reviewStatus: "REVIEW_REQUIRED",
+            },
+            {
+              fieldId: "reference:shared:LIQUIDATION_KEY",
+              semantic: "REFERENCE",
+              canonicalType: "LIQUIDATION_KEY",
+              label: "Clave de liquidación",
+              displayValue: "REF/X20/26/001",
+              normalizedValue: "REF/X20/26/001",
+              amountCents: null,
+              currency: null,
+              sourcePageNumbers: [1],
+              sourceLabel: "Clave de liquidación",
+              confidence: 1,
+              reviewStatus: "REVIEW_REQUIRED",
+            },
+          ],
+          warnings: [],
+          requiresHumanReview: true,
+        },
+      ],
+      sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+      retainedSourceContent: "NONE",
+      requiresHumanReview: true,
+      materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+      permitsDebtCreation: false,
+      permitsDeadlineCreation: false,
+      permitsPaymentAction: false,
+      permitsAccountingAction: false,
+    });
+
+    const merged = mergeProfileDrivenReviewV2(specialized, profile);
+
+    expect(merged.documents).toHaveLength(1);
+    expect(merged.documents[0]).toMatchObject({
+      reviewDocumentId: "review-document:specialized:enforcement",
+      title: "Providencia de apremio",
+      subtitle: "Datos estructurados listos para revisar",
+    });
+    expect(merged.documents[0]?.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ fieldId: "reference:1:DEBT_KEY" }),
+        expect.objectContaining({
+          canonicalType: "LIQUIDATION_KEY",
+          normalizedValue: "REF/X20/26/001",
+          sourcePageNumbers: [1],
+        }),
+      ]),
+    );
   });
 
   it("reconciles a broad legacy family that already uses the same extractor", () => {

@@ -6,6 +6,12 @@ import type {
   RealCorpusInstallmentV4,
 } from "./extractor-core/real-corpus-extractor.v4";
 import {
+  canonicalRealCorpusDateType,
+  canonicalRealCorpusMoneyType,
+  canonicalRealCorpusReferenceType,
+  serializableRealCorpusReference,
+} from "./real-corpus-review-observation.v1";
+import {
   parseFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewFieldV1,
   type FiscalNotificationVerticalSliceReviewV1,
@@ -42,20 +48,19 @@ function field(input: {
   });
 }
 
-function canonicalDateType(code: string): FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"] {
-  if (code === "DOCUMENT_DATE") return "ISSUE_DATE";
-  if (code === "SIGNING_DATE") return "SIGNING_DATE";
-  if (code === "VOLUNTARY_PAYMENT_DEADLINE") return "VOLUNTARY_PAYMENT_DEADLINE";
-  if (code === "RELEASE_DATE") return "RELEASE_DATE";
-  return "ACTION_DATE";
-}
-
 function projectField(item: RealCorpusFieldV2, index: number): FiscalNotificationVerticalSliceReviewFieldV1 {
-  if (item.kind === "MONEY") return field({ fieldId: `real-corpus-v4:${item.fieldCode}:${index}`, semantic: "MONEY", canonicalType: "OTHER", label: item.label, displayValue: formatMoney(item.amountCents), normalizedValue: String(item.amountCents), amountCents: item.amountCents, sourcePageNumbers: item.evidence.pageNumbers });
-  if (item.kind === "REFERENCE") return field({ fieldId: `real-corpus-v4:${item.fieldCode}:${index}`, semantic: "REFERENCE", canonicalType: "OTHER_OFFICIAL_REFERENCE", label: item.label, displayValue: item.value, normalizedValue: item.value, sourcePageNumbers: item.evidence.pageNumbers });
-  if (item.kind === "DATE") return field({ fieldId: `real-corpus-v4:${item.fieldCode}:${index}`, semantic: "DATE", canonicalType: canonicalDateType(item.fieldCode), label: item.label, displayValue: item.value.split("-").reverse().join("/"), normalizedValue: item.value, sourcePageNumbers: item.evidence.pageNumbers });
+  if (item.kind === "MONEY") return field({ fieldId: `real-corpus-v4:${item.fieldCode}:${index}`, semantic: "MONEY", canonicalType: canonicalRealCorpusMoneyType(item.fieldCode), label: item.label, displayValue: formatMoney(item.amountCents), normalizedValue: String(item.amountCents), amountCents: item.amountCents, sourcePageNumbers: item.evidence.pageNumbers });
+  if (item.kind === "REFERENCE") {
+    const canonicalType = canonicalRealCorpusReferenceType(item.fieldCode);
+    const reference = serializableRealCorpusReference(canonicalType, item.value);
+    return field({ fieldId: `real-corpus-v4:${item.fieldCode}:${index}`, semantic: "REFERENCE", canonicalType, label: item.label, displayValue: reference.displayValue, normalizedValue: reference.normalizedValue, sourcePageNumbers: item.evidence.pageNumbers });
+  }
+  if (item.kind === "DATE") {
+    const dateType = canonicalRealCorpusDateType(item.fieldCode);
+    return field({ fieldId: `real-corpus-v4:${item.fieldCode}:${index}`, semantic: dateType === null ? "DETAIL" : "DATE", canonicalType: dateType ?? "FACT_OR_GROUND", label: item.label, displayValue: item.value.split("-").reverse().join("/"), normalizedValue: item.value, sourcePageNumbers: item.evidence.pageNumbers });
+  }
   const displayValue = item.kind === "BOOLEAN" ? (item.value ? "Sí" : "No") : String(item.value);
-  return field({ fieldId: `real-corpus-v4:${item.fieldCode}:${index}`, semantic: "DETAIL", canonicalType: "FACT_OR_GROUND", label: item.label, displayValue, normalizedValue: `V4:${item.kind}:${item.fieldCode}:${String(item.value).toUpperCase()}`, sourcePageNumbers: item.evidence.pageNumbers });
+  return field({ fieldId: `real-corpus-v4:${item.fieldCode}:${index}`, semantic: "DETAIL", canonicalType: "FACT_OR_GROUND", label: item.label, displayValue, normalizedValue: displayValue, sourcePageNumbers: item.evidence.pageNumbers });
 }
 
 function projectInstallment(item: RealCorpusInstallmentV4, index: number): FiscalNotificationVerticalSliceReviewFieldV1 {
@@ -65,7 +70,7 @@ function projectInstallment(item: RealCorpusInstallmentV4, index: number): Fisca
     canonicalType: "FACT_OR_GROUND",
     label: `Cuota ${item.sequence}`,
     displayValue: `Vence ${item.dueDate.split("-").reverse().join("/")} · principal ${formatMoney(item.principalCents)} · interés ${formatMoney(item.interestCents)} · total ${formatMoney(item.totalCents)}`,
-    normalizedValue: `V4:INSTALLMENT:${item.sequence}:${item.dueDate}:${item.principalCents}:${item.interestCents}:${item.totalCents}`,
+    normalizedValue: `Vence ${item.dueDate.split("-").reverse().join("/")} · principal ${formatMoney(item.principalCents)} · interés ${formatMoney(item.interestCents)} · total ${formatMoney(item.totalCents)}`,
     sourcePageNumbers: Object.freeze([item.pageNumber]),
   });
 }
@@ -83,6 +88,7 @@ export function projectRealCorpusReviewV4(outcome: RealCorpusExtractorOutcomeV4)
     ...outcome.fields.map(projectField),
     ...outcome.installments.map(projectInstallment),
   ];
+  if (fields.length === 0) return emptyReview();
   return parseFiscalNotificationVerticalSliceReviewV1({
     schemaVersion: 1,
     reviewVersion: "1.0.0",

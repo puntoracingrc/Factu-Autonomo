@@ -171,7 +171,7 @@ describe("AEAT real corpus extractor V6", () => {
       (document) => document.familyId === testCase.family,
     );
     expect(documents).toHaveLength(1);
-    expect(documents[0]?.reviewDocumentId).toContain("real-corpus-v6");
+    expect(documents[0]?.reviewDocumentId).toMatch(/real-corpus-v[67]/u);
     expect(result.verticalSliceReview).toMatchObject({
       retainedSourceContent: "NONE",
       materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
@@ -199,6 +199,39 @@ describe("AEAT real corpus extractor V6", () => {
       printedHistoricalReductionPercent: 25,
       clawbackCents: 5_000,
     });
+  });
+
+  it("does not parse a historical reduction percentage as the clawback amount", async () => {
+    const document: BoundedDocumentInput = Object.freeze({
+      ownerScope: OWNER,
+      documentId: "synthetic-loss-of-reduction-narrative-amount",
+      pages: Object.freeze([
+        Object.freeze({
+          pageNumber: 1,
+          text: [
+            AEAT,
+            "EXIGENCIA DE REDUCCIÓN DE SANCIÓN",
+            "Clave de la sanción de origen: SYN-SANCTION-ORIGIN-094",
+            "Clave de liquidación: SYN-CLAWBACK-094",
+            "Porcentaje histórico de reducción: 25 %",
+            "La reducción aplicada fue del 25 %.",
+            "Se exige el importe de la reducción, 50,00 €.",
+          ].join("\n"),
+          isBlank: false,
+        }),
+      ]),
+    });
+
+    const result = await extractAeatRealCorpusDocumentV6(document);
+    expect(result.lossOfReduction).toMatchObject({
+      printedHistoricalReductionPercent: 25,
+      clawbackCents: 5_000,
+    });
+    expect(result.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ fieldCode: "CLAWBACK_AMOUNT", amountCents: 5_000 }),
+      ]),
+    );
   });
 
   it("keeps denied principal, assessed interest and later surcharge separate", async () => {
@@ -245,6 +278,263 @@ describe("AEAT real corpus extractor V6", () => {
     expect(result.segments.some((segment) => segment.type === "BLANK")).toBe(true);
     expect(result.paymentFormOperationCount).toBe(1);
     expect(result.confirmsPayment).toBe(false);
+  });
+
+  it("keeps plural real-estate notices and space-delimited debt tables in one observed act", async () => {
+    const document: BoundedDocumentInput = Object.freeze({
+      ownerScope: OWNER,
+      documentId: "synthetic-real-estate-notice",
+      pages: Object.freeze(
+        Array.from({ length: 12 }, (_, index) => {
+          const pageNumber = index + 1;
+          const text =
+            pageNumber === 1
+              ? [
+                  AEAT,
+                  "NOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE BIENES INMUEBLES",
+                  "Nº de la diligencia: SYN SEIZURE 091 X",
+                  "Fecha de la diligencia: 14-07-2026",
+                ].join("\n")
+              : pageNumber === 5
+                ? [
+                    "ANEXO 1",
+                    "RELACIÓN DE DEUDAS",
+                    "CONCEPTO PER/EJER Nº LIQUIDACIÓN IMP. PENDIENTE",
+                    "IVA AUTOLIQUIDACIÓN 4T-2025 0000000000000001 100,00",
+                    "SANCIONES TRIBUTARIAS 0000000000000002 200,00",
+                    "IMPORTE PENDIENTE TOTAL 300,00",
+                    "INTERESES 20,00",
+                    "COSTAS 30,00",
+                    "IMPORTE A EMBARGAR 350,00",
+                  ].join("\n")
+                : pageNumber === 9
+                  ? [
+                      AEAT,
+                      "CARTA DE PAGO",
+                      "EJEMPLAR DEL INTERESADO",
+                      "Referencia de pago: SYN-PAY-091",
+                      "Importe de la carta de pago: 350,00 €",
+                    ].join("\n")
+                  : pageNumber === 11
+                    ? [
+                        AEAT,
+                        "CARTA DE PAGO",
+                        "COPIA PARA LA ENTIDAD COLABORADORA",
+                        "Referencia de pago: SYN-PAY-091",
+                        "Importe de la carta de pago: 350,00 €",
+                      ].join("\n")
+                    : `INFORMACIÓN O ANEXO ${pageNumber}`;
+          return Object.freeze({ pageNumber, text, isBlank: false });
+        }),
+      ),
+    });
+
+    const extracted = await extractAeatRealCorpusDocumentV6(document);
+    expect(extracted).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "seizure.real_estate",
+      seizureSnapshot: {
+        seizureOrderId: "SYNSEIZURE091X",
+        actionDate: "2026-07-14",
+        debtSubtotalCents: 30_000,
+        printedInterestCents: 2_000,
+        printedCostsCents: 3_000,
+        seizeLimitCents: 35_000,
+      },
+    });
+    expect(extracted.seizureSnapshot?.debtRows).toEqual([
+      {
+        debtKey: "0000000000000001",
+        amountCents: 10_000,
+        observedOnPage: 5,
+      },
+      {
+        debtKey: "0000000000000002",
+        amountCents: 20_000,
+        observedOnPage: 5,
+      },
+    ]);
+
+    const analyzed = await analyzeFiscalNotificationDocumentInput(document);
+    expect(analyzed.verticalSliceReview.documents).toHaveLength(1);
+    expect(analyzed.verticalSliceReview.documents[0]).toMatchObject({
+      familyId: "seizure.real_estate",
+      pageFrom: 1,
+      pageTo: 12,
+    });
+    expect(analyzed.verticalSliceReview.documents).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ familyId: "payment.payment_form" }),
+      ]),
+    );
+    expect(analyzed.verticalSliceReview.documents[0]?.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalType: "SEIZURE_ORDER_ID",
+          sourcePageNumbers: [1],
+        }),
+        expect.objectContaining({
+          canonicalType: "SEIZURE_DATE",
+          sourcePageNumbers: [1],
+        }),
+        expect.objectContaining({
+          canonicalType: "DEBT_KEY",
+          sourcePageNumbers: [5],
+        }),
+      ]),
+    );
+  });
+
+  it("restores commercial-credit seizure rows without treating the limit as collected", async () => {
+    const document: BoundedDocumentInput = Object.freeze({
+      ownerScope: OWNER,
+      documentId: "synthetic-commercial-credit-seizure",
+      pages: Object.freeze([
+        Object.freeze({
+          pageNumber: 1,
+          text: [
+            AEAT,
+            "NOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE CRÉDITOS COMERCIALES O ARRENDATICIOS",
+            "Nº de la diligencia: SYN SEIZURE CREDIT 066",
+            "Fecha de la diligencia: 14-07-2026",
+            "Importe a embargar 381,28",
+          ].join("\n"),
+          isBlank: false,
+        }),
+        ...Array.from({ length: 3 }, (_, index) =>
+          Object.freeze({
+            pageNumber: index + 2,
+            text: `INFORMACIÓN ${index + 2}`,
+            isBlank: false,
+          }),
+        ),
+        Object.freeze({
+          pageNumber: 5,
+          text: [
+            "ANEXO DE LA NOTIFICACIÓN DE LA DILIGENCIA DE EMBARGO DE CRÉDITOS",
+            "CONCEPTO PER/EJER Nº LIQUIDACIÓN IMP. PENDIENTE",
+            "IVA AUTOLIQUIDACIÓN 1T-2026 0000000000000066 375,00",
+            "IMPORTE PENDIENTE TOTAL 375,00",
+            "INTERESES 5,00",
+            "COSTAS 1,28",
+            "IMPORTE A EMBARGAR 381,28",
+          ].join("\n"),
+          isBlank: false,
+        }),
+        Object.freeze({ pageNumber: 6, text: "INFORMACIÓN 6", isBlank: false }),
+      ]),
+    });
+
+    const extracted = await extractAeatRealCorpusDocumentV6(document);
+
+    expect(extracted).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "seizure.commercial_credits",
+      seizureSnapshot: {
+        seizureOrderId: "SYNSEIZURECREDIT066",
+        actionDate: "2026-07-14",
+        assetKind: "COMMERCIAL_CREDITS",
+        debtSubtotalCents: 37_500,
+        printedInterestCents: 500,
+        printedCostsCents: 128,
+        seizeLimitCents: 38_128,
+      },
+      confirmsPayment: false,
+      confirmsRemittance: false,
+    });
+    expect(extracted.seizureSnapshot?.debtRows).toEqual([
+      {
+        debtKey: "0000000000000066",
+        amountCents: 37_500,
+        observedOnPage: 5,
+      },
+    ]);
+    expect(
+      extracted.fields.some((field) =>
+        ["ACTION_DATE", "SEIZED_AMOUNT"].includes(field.fieldCode),
+      ),
+    ).toBe(false);
+    expect(extracted.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ fieldCode: "SEIZE_LIMIT", amountCents: 38_128 }),
+        expect.objectContaining({
+          fieldCode: "SEIZURE_DEBT_KEY_1",
+          evidence: expect.objectContaining({ pageNumbers: [5] }),
+        }),
+      ]),
+    );
+  });
+
+  it("restores plural movable-asset notices and vertical payment-form amounts", async () => {
+    const document: BoundedDocumentInput = Object.freeze({
+      ownerScope: OWNER,
+      documentId: "synthetic-plural-movable-seizure",
+      pages: Object.freeze(
+        Array.from({ length: 12 }, (_, index) => {
+          const pageNumber = index + 1;
+          const text =
+            pageNumber === 1
+              ? [
+                  AEAT,
+                  "NOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE BIENES MUEBLES",
+                  "Nº de la diligencia: SYN SEIZURE MOVABLE 090",
+                  "Fecha de la diligencia: 18-07-2026",
+                ].join("\n")
+              : pageNumber === 5
+                ? [
+                    "ANEXO 1",
+                    "RELACIÓN DE DEUDAS",
+                    "CONCEPTO PER/EJER Nº LIQUIDACIÓN IMP. PENDIENTE",
+                    "IVA AUTOLIQUIDACIÓN 1T-2026 0000000000000090 1.200,00",
+                    "INTERESES DE DEMORA 2026 0000000000000091 20,00",
+                    "IMPORTE PENDIENTE TOTAL 1.220,00",
+                    "INTERESES 50,00",
+                    "COSTAS 40,00",
+                    "IMPORTE A EMBARGAR 1.310,00",
+                  ].join("\n")
+                : pageNumber === 9 || pageNumber === 11
+                  ? [
+                      AEAT,
+                      "DOCUMENTO DE INGRESO",
+                      "Deuda:",
+                      "Intereses de demora:",
+                      "Importe total:",
+                      "Importe a ingresar:",
+                      "DATOS ADMINISTRATIVOS SIN IMPORTE",
+                      "0,00",
+                      "1.220,00",
+                      "50,00",
+                      "1.310,00",
+                      "1.310,00 €",
+                    ].join("\n")
+                  : `INFORMACIÓN O ANEXO ${pageNumber}`;
+          return Object.freeze({ pageNumber, text, isBlank: false });
+        }),
+      ),
+    });
+
+    const extracted = await extractAeatRealCorpusDocumentV6(document);
+
+    expect(extracted).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "seizure.movable_asset",
+      paymentFormOperationCount: 1,
+      seizureSnapshot: {
+        seizureOrderId: "SYNSEIZUREMOVABLE090",
+        actionDate: "2026-07-18",
+        debtSubtotalCents: 122_000,
+        printedInterestCents: 5_000,
+        printedCostsCents: 4_000,
+        seizeLimitCents: 131_000,
+        paymentFormPrintedTotalCents: 131_000,
+        paymentFormAmountCents: 131_000,
+      },
+    });
+    const analyzed = await analyzeFiscalNotificationDocumentInput(document);
+    expect(analyzed.verticalSliceReview.documents).toHaveLength(1);
+    expect(analyzed.verticalSliceReview.documents[0]?.familyId).toBe(
+      "seizure.movable_asset",
+    );
   });
 
   it("keeps a deferral interest Annex II inside the grant instead of elevating it to another act", async () => {

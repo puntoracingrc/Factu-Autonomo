@@ -238,6 +238,7 @@ const TITLE_DEFINITIONS = Object.freeze([
   title("diligencia de embargo de dinero efectivo devoluciones o creditos frente a la administracion", "SEIZURE_ORDER", "CASH_REFUND_OR_PUBLIC_CREDIT", "seizure.cash_or_refund"),
   title("diligencia de embargo de devoluciones tributarias", "SEIZURE_ORDER", "CASH_REFUND_OR_PUBLIC_CREDIT", "seizure.cash_or_refund"),
   title("diligencia de embargo de bienes inmuebles", "SEIZURE_ORDER", "REAL_ESTATE", "seizure.real_estate"),
+  title("notificacion de diligencia de embargo de bienes inmuebles", "SEIZURE_ORDER", "REAL_ESTATE", "seizure.real_estate"),
   title("levantamiento de diligencia de embargo", "SEIZURE_RELEASE", "RELEASE", "seizure.release"),
   title("orden de levantamiento de embargo", "SEIZURE_RELEASE", "RELEASE", "seizure.release"),
   title("justificante de contestacion a diligencia de embargo", "THIRD_PARTY_RESPONSE", "THIRD_PARTY_RESPONSE", "seizure.third_party_response"),

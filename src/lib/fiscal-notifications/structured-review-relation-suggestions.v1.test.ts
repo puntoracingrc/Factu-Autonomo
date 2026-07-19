@@ -5,6 +5,7 @@ import {
   STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2,
   STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
 } from "./structured-review-relation-suggestions.v1";
+import { FISCAL_NOTIFICATION_INPUT_LIMITS } from "./input-contract";
 import type {
   ExternalReference,
   ExternalReferenceType,
@@ -228,6 +229,26 @@ function configureSeizureAndFollowUp(
   input.documents[1]!.titleRaw = `Seguimiento sintético ${followUpSubtype}`;
 }
 
+function replaceDocumentId(
+  input: FiscalNotificationsWorkspace,
+  documentIndex: number,
+  nextDocumentId: string,
+): void {
+  const document = input.documents[documentIndex]!;
+  const previousDocumentId = document.id;
+  document.id = nextDocumentId;
+  for (const referenceItem of input.references) {
+    if (referenceItem.documentId === previousDocumentId) {
+      referenceItem.documentId = nextDocumentId;
+    }
+  }
+  for (const evidenceItem of input.evidence) {
+    if (evidenceItem.documentId === previousDocumentId) {
+      evidenceItem.documentId = nextDocumentId;
+    }
+  }
+}
+
 describe("structured review relation suggestions v1", () => {
   it("contains no network, AI, browser storage or fiscal materialization", () => {
     const source = readFileSync(
@@ -278,6 +299,33 @@ describe("structured review relation suggestions v1", () => {
     expect(
       validateFiscalNotificationsWorkspaceIntegrity(result.workspace, OWNER),
     ).toEqual({ valid: true, issues: [] });
+  });
+
+  it("uses a bounded deterministic relation id for long document ids", () => {
+    const input = workspace();
+    replaceDocumentId(input, 0, `document:${"a".repeat(68)}`);
+    replaceDocumentId(input, 1, `document:${"b".repeat(76)}`);
+
+    const result = appendStructuredReviewRelationSuggestionsV1({
+      ownerScope: OWNER,
+      workspace: input,
+      createdAt: NOW,
+    });
+
+    expect(result.status).toBe("APPLIED");
+    expect(result.addedRelationIds).toHaveLength(1);
+    expect(result.addedRelationIds[0]).toMatch(/^relation:explicit:[a-f0-9]{32}$/u);
+    expect(result.addedRelationIds[0]!.length).toBeLessThanOrEqual(
+      FISCAL_NOTIFICATION_INPUT_LIMITS.maxIdChars,
+    );
+
+    const replay = appendStructuredReviewRelationSuggestionsV1({
+      ownerScope: OWNER,
+      workspace: result.workspace,
+      createdAt: NOW,
+    });
+    expect(replay.status).toBe("UNCHANGED");
+    expect(replay.workspace.relations).toEqual(result.workspace.relations);
   });
 
   it("types an enforcement-to-seizure edge as exact when a strong key matches", () => {
@@ -400,6 +448,44 @@ describe("structured review relation suggestions v1", () => {
         evidence: expect.objectContaining({
           chainId: "deferral_chain",
           matchingReferenceTypes: ["REQUEST_NUMBER"],
+        }),
+      }),
+    ]);
+  });
+
+  it("links a refund and offset by their exact printed refund reference", () => {
+    const input = workspace();
+    input.documents[0]!.documentType = "GENERIC_ADMINISTRATIVE_NOTICE";
+    input.documents[0]!.documentSubtype = "refund.request_or_recognition";
+    input.documents[0]!.titleRaw = "Reconocimiento de devolución sintético";
+    input.documents[1]!.documentType = "AEAT_OFFSET_AGREEMENT";
+    input.documents[1]!.documentSubtype = "collection.offset_requested";
+    input.documents[1]!.titleRaw = "Compensación solicitada sintética";
+    replaceReferencePair(
+      input,
+      "REFUND_REFERENCE",
+      "REFUND-SYN-REL-001",
+      "REFUND-SYN-REL-001",
+      "refund-offset",
+    );
+
+    const result = appendStructuredReviewRelationSuggestionsV1({
+      ownerScope: OWNER,
+      workspace: input,
+      createdAt: NOW,
+    });
+
+    expect(result.status).toBe("APPLIED");
+    expect(result.workspace.relations).toEqual([
+      expect.objectContaining({
+        sourceDocumentId: "document:1",
+        targetDocumentId: "document:0",
+        relationType: "COMPENSATES",
+        confidenceBand: "EXACT",
+        status: "SYSTEM_CONFIRMED_EXACT",
+        evidence: expect.objectContaining({
+          chainId: "offset_refund_chain",
+          matchingReferenceTypes: ["REFUND_REFERENCE"],
         }),
       }),
     ]);

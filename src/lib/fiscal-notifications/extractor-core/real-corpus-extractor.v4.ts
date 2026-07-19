@@ -11,7 +11,7 @@ import type { RealCorpusAmountScenarioV3 } from "./real-corpus-extractor.v3";
 
 export const REAL_CORPUS_EXTRACTOR_SCHEMA_VERSION_V4 = 4 as const;
 export const REAL_CORPUS_EXTRACTOR_VERSION_V4 =
-  "aeat-real-corpus-extractor.2026-07-17.v4" as const;
+  "aeat-real-corpus-extractor.2026-07-19.v4.3" as const;
 
 export const REAL_CORPUS_FAMILY_IDS_V4 = Object.freeze([
   "identity.clave_registration_receipt",
@@ -135,7 +135,6 @@ interface FamilyMatchV4 {
   readonly canonicalTitle: string;
 }
 
-const SPANISH_DATE = /^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/u;
 const REFERENCE = /^[A-Z0-9][A-Z0-9./:_+-]{1,199}$/u;
 const PRIVATE_REFERENCE =
   /^(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J]|ES\d{22}|[6789]\d{8})$/u;
@@ -278,7 +277,21 @@ function buildIndex(document: BoundedDocumentInput): DocumentIndexV4 {
 }
 
 function contains(index: DocumentIndexV4, value: string): boolean {
-  return index.normalizedText.includes(normalize(value));
+  return index.normalizedText
+    .replace(/\s+/gu, " ")
+    .includes(normalize(value));
+}
+
+function firstContaining(
+  index: DocumentIndexV4,
+  values: readonly string[],
+): IndexedLineV4 | null {
+  const markers = values.map(normalize);
+  return (
+    index.lines.find((line) =>
+      markers.some((marker) => line.normalized.includes(marker)),
+    ) ?? null
+  );
 }
 
 function lineValues(index: DocumentIndexV4, labels: readonly string[]): readonly IndexedLineV4[] {
@@ -312,17 +325,107 @@ function firstValue(index: DocumentIndexV4, labels: readonly string[]): IndexedL
   return lineValues(index, labels)[0] ?? null;
 }
 
+function embeddedReferenceValue(
+  index: DocumentIndexV4,
+  labels: readonly string[],
+  pattern: RegExp,
+): IndexedLineV4 | null {
+  const normalizedLabels = labels.map(normalize);
+  for (const line of index.lines) {
+    for (const label of normalizedLabels) {
+      const marker = `${label}:`;
+      const markerIndex = line.normalized.indexOf(marker);
+      if (markerIndex < 0) continue;
+      const match = pattern.exec(
+        line.normalized.slice(markerIndex + marker.length).trim(),
+      );
+      if (match?.[1]) {
+        return Object.freeze({
+          ...line,
+          raw: match[1],
+          normalized: normalize(match[1]),
+        });
+      }
+    }
+  }
+  return null;
+}
+
 function parseDate(raw: string): string | null {
-  const iso = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(raw.trim());
-  const match = iso ?? SPANISH_DATE.exec(raw.trim());
-  if (!match) return null;
-  const year = Number(iso ? match[1] : match[3]);
-  const month = Number(match[2]);
-  const day = Number(iso ? match[3] : match[1]);
+  const normalized = normalize(raw);
+  const iso = /(?:^|\D)((?:19|20)\d{2})-(\d{1,2})-(\d{1,2})(?=\D|$)/u.exec(
+    normalized,
+  );
+  const numeric = iso
+    ? null
+    : /(?:^|\D)(\d{1,2})[./-](\d{1,2})[./-]((?:19|20)\d{2})(?=\D|$)/u.exec(
+        normalized,
+      );
+  const written =
+    iso || numeric
+      ? null
+      : /(?:^|\D)(\d{1,2})\s+DE\s+(ENERO|FEBRERO|MARZO|ABRIL|MAYO|JUNIO|JULIO|AGOSTO|SEPTIEMBRE|SETIEMBRE|OCTUBRE|NOVIEMBRE|DICIEMBRE)\s+DE\s+((?:19|20)\d{2})(?=\D|$)/u.exec(
+          normalized,
+        );
+  if (!iso && !numeric && !written) return null;
+  const monthNames: Readonly<Record<string, number>> = {
+    ENERO: 1,
+    FEBRERO: 2,
+    MARZO: 3,
+    ABRIL: 4,
+    MAYO: 5,
+    JUNIO: 6,
+    JULIO: 7,
+    AGOSTO: 8,
+    SEPTIEMBRE: 9,
+    SETIEMBRE: 9,
+    OCTUBRE: 10,
+    NOVIEMBRE: 11,
+    DICIEMBRE: 12,
+  };
+  const year = Number(iso?.[1] ?? numeric?.[3] ?? written?.[3]);
+  const month = Number(
+    iso?.[2] ?? numeric?.[2] ?? monthNames[written?.[2] ?? ""],
+  );
+  const day = Number(iso?.[3] ?? numeric?.[1] ?? written?.[1]);
   const date = new Date(Date.UTC(year, month - 1, day));
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
     ? `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
     : null;
+}
+
+function firstDatedContaining(
+  index: DocumentIndexV4,
+  markers: readonly string[],
+): IndexedLineV4 | null {
+  const expected = markers.map(normalize);
+  return (
+    index.lines.find(
+      (line) =>
+        expected.every((marker) => line.normalized.includes(marker)) &&
+        parseDate(line.raw) !== null,
+    ) ?? null
+  );
+}
+
+function terminalSigningDate(index: DocumentIndexV4): IndexedLineV4 | null {
+  for (let position = 0; position < index.lines.length; position += 1) {
+    const marker = index.lines[position]!;
+    if (!marker.normalized.includes("DOCUMENTO FIRMADO ELECTRONICAMENTE")) {
+      continue;
+    }
+    const nearby = index.lines
+      .slice(position, position + 3)
+      .filter((line) => line.pageNumber === marker.pageNumber)
+      .filter(
+        (line, offset) =>
+          offset === 0 ||
+          /(?:FECHA(?: Y HORA)? DE (?:LA )?FIRMA)/u.test(line.normalized),
+      );
+    const dated = nearby.find((line) => parseDate(line.raw) !== null);
+    if (dated) return dated;
+  }
+  return null;
 }
 
 function parseMoney(raw: string): number | null {
@@ -333,8 +436,13 @@ function parseMoney(raw: string): number | null {
 }
 
 function safeReference(raw: string): string | null {
-  const value = raw.trim().toLocaleUpperCase("es-ES");
-  return REFERENCE.test(value) && !PRIVATE_REFERENCE.test(value) ? value : null;
+  const value = raw
+    .trim()
+    .toLocaleUpperCase("es-ES")
+    .replace(/\s+/gu, "");
+  return REFERENCE.test(value) && /\d/u.test(value) && !PRIVATE_REFERENCE.test(value)
+    ? value
+    : null;
 }
 
 function evidence(pageNumber: number): RealCorpusEvidenceV2 {
@@ -356,16 +464,36 @@ function moneyField(code: string, label: string, source: IndexedLineV4 | null): 
   return amountCents !== null && source ? Object.freeze({ fieldCode: code, label, kind: "MONEY" as const, amountCents, currency: "EUR" as const, evidence: evidence(source.pageNumber) }) : null;
 }
 
-function textField(code: string, label: string, value: string, pageNumber = 1): RealCorpusFieldV2 {
-  return Object.freeze({ fieldCode: code, label, kind: "TEXT" as const, value, evidence: evidence(pageNumber) });
+function textField(
+  code: string,
+  label: string,
+  value: string,
+  source: IndexedLineV4 | null,
+): RealCorpusFieldV2 | null {
+  return source
+    ? Object.freeze({ fieldCode: code, label, kind: "TEXT" as const, value, evidence: evidence(source.pageNumber) })
+    : null;
 }
 
-function booleanField(code: string, label: string, value: boolean, pageNumber = 1): RealCorpusFieldV2 {
-  return Object.freeze({ fieldCode: code, label, kind: "BOOLEAN" as const, value, evidence: evidence(pageNumber) });
+function booleanField(
+  code: string,
+  label: string,
+  source: IndexedLineV4 | null,
+): RealCorpusFieldV2 | null {
+  return source
+    ? Object.freeze({ fieldCode: code, label, kind: "BOOLEAN" as const, value: true, evidence: evidence(source.pageNumber) })
+    : null;
 }
 
-function integerField(code: string, label: string, value: number, pageNumber = 1): RealCorpusFieldV2 {
-  return Object.freeze({ fieldCode: code, label, kind: "INTEGER" as const, value, evidence: evidence(pageNumber) });
+function integerField(
+  code: string,
+  label: string,
+  value: number,
+  source: IndexedLineV4 | null,
+): RealCorpusFieldV2 | null {
+  return source
+    ? Object.freeze({ fieldCode: code, label, kind: "INTEGER" as const, value, evidence: evidence(source.pageNumber) })
+    : null;
 }
 
 function compact(values: readonly (RealCorpusFieldV2 | null)[]): readonly RealCorpusFieldV2[] {
@@ -386,11 +514,25 @@ function matchFamily(index: DocumentIndexV4): FamilyMatchV4 | null {
   if (hasAll(index, ["NOTIFICACIÓN DEL TRÁMITE DE ALEGACIONES Y PROPUESTA DE LIQUIDACIÓN PROVISIONAL", "10 DÍAS HÁBILES", "RESULTADO DE LA PROPUESTA", "MODELO PARA EFECTUAR ALEGACIONES"])) {
     return { familyId: "assessment.allegations_and_proposal", subtype: "MODEL_180_115_MISMATCH_LIMITED_CHECK", canonicalTitle: "Propuesta de liquidación provisional y alegaciones" };
   }
-  if (hasAll(index, ["DOCUMENTO DE REITERACIÓN DE CUMPLIMIENTO DE OBLIGACIONES", "SEGUNDO REQUERIMIENTO", "NO CONSTA LA RECEPCIÓN DEL ANEXO", "10 DÍAS HÁBILES"])) {
+  if (
+    hasAll(index, [
+      "DOCUMENTO DE REITERACIÓN",
+      "OBLIGACIONES",
+      "SEGUNDO REQUERIMIENTO",
+      "NO CONSTA",
+      "10 DÍAS HÁBILES",
+    ])
+  ) {
     return { familyId: "seizure.compliance_reiteration", subtype: "THIRD_PARTY_CREDIT_RESPONSE_REITERATION", canonicalTitle: "Reiteración de obligaciones de embargo" };
   }
-  if (hasAll(index, ["LEVANTAMIENTO DE EMBARGO", "SE ACUERDA EL LEVANTAMIENTO", "Nº DE LA DILIGENCIA"])) {
-    const subtype: RealCorpusSubtypeV4 = contains(index, "CRÉDITOS COMERCIALES")
+  if (
+    hasAll(index, ["LEVANTAMIENTO DE EMBARGO", "Nº DE LA DILIGENCIA"]) &&
+    (contains(index, "SE ACUERDA EL LEVANTAMIENTO") ||
+      contains(index, "LEVANTAMIENTO DE EMBARGO DE CRÉDITOS"))
+  ) {
+    const subtype: RealCorpusSubtypeV4 =
+      contains(index, "EMBARGO DE CRÉDITOS") ||
+      contains(index, "CRÉDITOS COMERCIALES")
       ? "COMMERCIAL_CREDIT_RELEASE_TO_THIRD_PARTY"
       : contains(index, "INMUEBLE") || contains(index, "REGISTRO DE LA PROPIEDAD")
         ? "REAL_ESTATE_RELEASE_WITH_REGISTRY_ANNEX"
@@ -403,7 +545,14 @@ function matchFamily(index: DocumentIndexV4): FamilyMatchV4 | null {
   if (hasAll(index, ["NOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE BIENES MUEBLES", "ANEXO 1", "ANEXO 2", "BIENES MUEBLES"])) {
     return { familyId: "seizure.movable_asset", subtype: "FAILED_DELIVERY_COVER_MULTI_DEBT_VEHICLE_SEIZURE", canonicalTitle: "Embargo de bien mueble" };
   }
-  if (hasAll(index, ["DILIGENCIA DE EMBARGO DE CRÉDITOS", "OBLIGACIÓN DE CONTESTAR", "RETENER E INGRESAR"])) {
+  if (
+    hasAll(index, [
+      "DILIGENCIA DE EMBARGO DE CRÉDITOS",
+      "OBLIGACIÓN DE CONTESTAR",
+      "RETENER",
+      "INGRESAR",
+    ])
+  ) {
     return { familyId: "seizure.commercial_credits", subtype: "THIRD_PARTY_PAYER_RESPONSE_AND_MULTIPLE_PAYMENT_FORMS", canonicalTitle: "Embargo de créditos comerciales" };
   }
   if (hasAll(index, ["DILIGENCIA DE EMBARGO DE CRÉDITOS", "DEUDAS DEL EXPEDIENTE EJECUTIVO", "CRÉDITOS A SU FAVOR"])) {
@@ -485,8 +634,49 @@ function installments(index: DocumentIndexV4): readonly RealCorpusInstallmentV4[
 }
 
 function fieldsFor(index: DocumentIndexV4, match: FamilyMatchV4): readonly RealCorpusFieldV2[] {
+  const registrationMethod = firstContaining(index, [
+    "CERTIFICADO ELECTRÓNICO",
+    "CERTIFICADO ELECTRONICO",
+    "REGISTRO PRESENCIAL",
+  ]);
+  const releaseAsset = firstContaining(index, [
+    "CRÉDITOS COMERCIALES",
+    "CREDITOS COMERCIALES",
+    "LEVANTAMIENTO DE EMBARGO DE CRÉDITOS",
+    "LEVANTAMIENTO DE EMBARGO DE CREDITOS",
+    "REGISTRO DE LA PROPIEDAD",
+    "INMUEBLE",
+    "BIENES MUEBLES",
+    "VEHÍCULO",
+    "VEHICULO",
+  ]);
+  const printedSeizureDate = firstValue(index, [
+    "Fecha de la diligencia",
+    "Fecha del embargo",
+  ]);
+  const signingSource =
+    firstValue(index, ["Fecha de firma"]) ??
+    terminalSigningDate(index);
+  const actionSource =
+    firstValue(index, ["Fecha del acto", "Fecha del acuerdo"]) ??
+    (new Set<RealCorpusFamilyIdV4>([
+      "seizure.bank_account",
+      "seizure.commercial_credits",
+      "seizure.movable_asset",
+    ]).has(match.familyId)
+      ? printedSeizureDate
+      : null);
+  const documentReferenceSource =
+    firstValue(index, ["Referencia del documento"]) ??
+    (match.familyId === "seizure.release"
+      ? embeddedReferenceValue(
+          index,
+          ["Referencia"],
+          /^(\d{12}[A-Z])(?:\s|$)/u,
+        )
+      : firstValue(index, ["Referencia"]));
   const fields: (RealCorpusFieldV2 | null)[] = [
-    referenceField("DOCUMENT_REFERENCE", "Referencia del documento", firstValue(index, ["Referencia del documento", "Referencia"])),
+    referenceField("DOCUMENT_REFERENCE", "Referencia del documento", documentReferenceSource),
     referenceField("PROCEDURE_ID", "Referencia del procedimiento", firstValue(index, ["Referencia del procedimiento", "Procedimiento"])),
     referenceField("ACT_ID", "Referencia del acto", firstValue(index, ["Referencia del acto", "Acto"])),
     referenceField("AGREEMENT_ID", "Referencia del acuerdo", firstValue(index, ["Referencia del acuerdo"])),
@@ -495,10 +685,16 @@ function fieldsFor(index: DocumentIndexV4, match: FamilyMatchV4): readonly RealC
     referenceField("SEIZURE_ORDER_ID", "Número de diligencia", firstValue(index, ["Nº de la diligencia", "Número de diligencia"])),
     referenceField("DEBT_KEY", "Clave de deuda", firstValue(index, ["Clave de deuda", "Clave de liquidación"])),
     dateField("DOCUMENT_DATE", "Fecha del documento", firstValue(index, ["Fecha del documento", "Fecha de emisión", "Fecha"])),
-    dateField("SIGNING_DATE", "Fecha de firma", firstValue(index, ["Fecha de firma"])),
-    dateField("ACTION_DATE", "Fecha del acto", firstValue(index, ["Fecha del acto", "Fecha del acuerdo"])),
+    dateField("SIGNING_DATE", "Fecha de firma", signingSource),
+    dateField("ACTION_DATE", "Fecha del acto", actionSource),
     dateField("RELEASE_DATE", "Fecha del levantamiento", firstValue(index, ["Fecha del levantamiento", "Fecha del acuerdo"])),
-    dateField("CITED_SEIZURE_DATE", "Fecha de la diligencia citada", firstValue(index, ["Fecha de la diligencia", "Fecha del embargo citado"])),
+    match.familyId === "seizure.release"
+      ? dateField(
+          "CITED_SEIZURE_DATE",
+          "Fecha de la diligencia citada",
+          printedSeizureDate ?? firstValue(index, ["Fecha del embargo citado"]),
+        )
+      : null,
     dateField("PROPOSAL_NOTIFICATION_DATE", "Fecha de notificación de la propuesta", firstValue(index, ["Fecha de notificación de la propuesta"])),
     dateField("VOLUNTARY_PAYMENT_DEADLINE", "Fin del período voluntario", firstValue(index, ["Fin del período voluntario", "Vencimiento voluntario"])),
     moneyField("OUTSTANDING_PRINCIPAL", "Principal pendiente", firstValue(index, ["Principal pendiente"])),
@@ -519,42 +715,66 @@ function fieldsFor(index: DocumentIndexV4, match: FamilyMatchV4): readonly RealC
     referenceField("FISCAL_YEAR", "Ejercicio fiscal", firstValue(index, ["Ejercicio fiscal", "Ejercicio"])),
   ];
   if (match.familyId === "identity.clave_registration_receipt") fields.push(
-    textField("REGISTRATION_STATUS", "Estado del alta", "REGISTERED"),
-    textField("REGISTRATION_LEVEL", "Nivel de registro", "HIGH"),
-    textField("REGISTRATION_METHOD", "Método de registro", "CERTIFICATE_OR_IN_PERSON"),
-    dateField("REGISTRATION_DATE", "Fecha de alta", firstValue(index, ["Fecha de alta", "Fecha de registro"])),
-    booleanField("TERMS_ATTACHED", "Términos adjuntos", contains(index, "TÉRMINOS Y CONDICIONES")),
+    referenceField(
+      "EXPEDIENTE_ID",
+      "Número de expediente",
+      firstValue(index, ["Número de expediente", "Nº de expediente"]),
+    ),
+    textField("REGISTRATION_STATUS", "Estado del alta", "Alta confirmada", firstContaining(index, ["HA SIDO DADO DE ALTA"])),
+    textField("REGISTRATION_LEVEL", "Nivel de registro", "Nivel alto", firstContaining(index, ["NIVEL DE REGISTRO ALTO"])),
+    textField(
+      "REGISTRATION_METHOD",
+      "Método de registro",
+      registrationMethod?.normalized.includes("PRESENCIAL") ? "Presencial" : "Certificado electrónico",
+      registrationMethod,
+    ),
+    dateField(
+      "REGISTRATION_DATE",
+      "Fecha de alta",
+      firstValue(index, ["Fecha de alta", "Fecha de registro"]) ??
+        firstDatedContaining(index, ["FECHA", "ALTA"]),
+    ),
+    booleanField("TERMS_ATTACHED", "Términos adjuntos", firstContaining(index, ["TÉRMINOS Y CONDICIONES", "TERMINOS Y CONDICIONES"])),
   );
   if (match.familyId === "seizure.release") fields.push(
-    textField("ASSET_KIND", "Tipo de bien o derecho", match.subtype === "REAL_ESTATE_RELEASE_WITH_REGISTRY_ANNEX" ? "REAL_ESTATE" : match.subtype === "COMMERCIAL_CREDIT_RELEASE_TO_THIRD_PARTY" ? "COMMERCIAL_CREDITS" : "MOVABLE_VEHICLE"),
-    textField("RELEASE_EXTENT", "Alcance del levantamiento", contains(index, "LEVANTAMIENTO TOTAL") ? "TOTAL_IF_PRINTED" : "AS_PRINTED"),
-    booleanField("REGISTRY_CANCELLATION_ORDERED", "Cancelación registral ordenada", contains(index, "CANCELACIÓN REGISTRAL") || contains(index, "CANCELAR LA ANOTACIÓN")),
+    textField(
+      "ASSET_KIND",
+      "Tipo de bien o derecho",
+      match.subtype === "REAL_ESTATE_RELEASE_WITH_REGISTRY_ANNEX" ? "Inmueble" : match.subtype === "COMMERCIAL_CREDIT_RELEASE_TO_THIRD_PARTY" ? "Créditos comerciales" : "Vehículo o bien mueble",
+      releaseAsset,
+    ),
+    textField("RELEASE_EXTENT", "Alcance del levantamiento", "Levantamiento total", firstContaining(index, ["LEVANTAMIENTO TOTAL"])),
+    booleanField("REGISTRY_CANCELLATION_ORDERED", "Cancelación registral ordenada", firstContaining(index, ["CANCELACIÓN REGISTRAL", "CANCELACION REGISTRAL", "CANCELAR LA ANOTACIÓN", "CANCELAR LA ANOTACION"])),
   );
-  if (match.familyId === "assessment.final_provisional_assessment") fields.push(textField("DOCUMENT_STATUS", "Estado del documento", "FINAL_PROVISIONAL_ASSESSMENT"));
   if (match.familyId === "assessment.allegations_and_proposal" || match.familyId === "seizure.compliance_reiteration" || match.familyId === "seizure.commercial_credits") {
-    fields.push(textField("RESPONSE_DEADLINE_RULE", "Regla del plazo", "10_BUSINESS_DAYS_FROM_RECEIPT"));
+    fields.push(integerField("RESPONSE_BUSINESS_DAYS", "Días hábiles para responder", 10, firstContaining(index, ["10 DÍAS HÁBILES", "10 DIAS HABILES"])));
   }
   if (match.familyId === "assessment.allegations_and_proposal") fields.push(
-    textField("DOCUMENTATION_REQUIRED", "Documentación necesaria", "DOCUMENTATION_REQUIRED_AS_PRINTED"),
-    textField("SANCTION_WARNING", "Aviso sancionador", "SEPARATE_SANCTION_PROCEDURE_WARNING"),
+    textField("DOCUMENTATION_REQUIRED", "Documentación necesaria", "Documentación requerida", firstContaining(index, ["DOCUMENTACIÓN", "DOCUMENTACION"])),
+    textField("SANCTION_WARNING", "Aviso sancionador", "Posible procedimiento sancionador separado", firstContaining(index, ["PROCEDIMIENTO SANCIONADOR"])),
   );
   if (match.familyId === "seizure.commercial_credits") fields.push(
-    textField("THIRD_PARTY_ROLE", "Papel del tercero", "PAYER_WITHOUT_IDENTITY"),
-    textField("OBLIGATION_RESPOND", "Obligación de contestar", "RESPOND"),
-    textField("OBLIGATION_WITHHOLD_AND_REMIT", "Obligación si existe crédito", "WITHHOLD_AND_REMIT_IF_CREDIT_EXISTS"),
-    textField("PAYMENT_TIME", "Momento del ingreso", "WHEN_CREDIT_BECOMES_DUE"),
-    textField("CREDIT_SCOPE", "Alcance de los créditos", "COMMERCIAL_CREDITS_UP_TO_PRINTED_LIMIT"),
+    textField("THIRD_PARTY_ROLE", "Papel del tercero", "Tercero pagador", firstContaining(index, ["TERCERO PAGADOR", "TERCERO DESTINATARIO", "ENTIDAD"])),
+    textField("OBLIGATION_RESPOND", "Obligación de contestar", "Debe contestar", firstContaining(index, ["OBLIGACIÓN DE CONTESTAR", "OBLIGACION DE CONTESTAR"])),
+    textField("OBLIGATION_WITHHOLD_AND_REMIT", "Obligación si existe crédito", "Retener e ingresar si existe crédito", firstContaining(index, ["RETENER E INGRESAR", "RETENER"])),
+    textField("PAYMENT_TIME", "Momento del ingreso", "Cuando venza el crédito", firstContaining(index, ["CUANDO EL CRÉDITO", "CUANDO EL CREDITO"])),
   );
   if (match.familyId === "seizure.compliance_reiteration") fields.push(
-    textField("THIRD_PARTY_ROLE", "Papel del tercero", "PAYER_WITHOUT_IDENTITY"),
-    textField("REJECTION_REASON", "Motivo de la reiteración", "ANNEX_NOT_RECEIVED"),
-    textField("EXPLICIT_CONSEQUENCE", "Consecuencia indicada", "SECOND_REQUEST_PRINTED_CONSEQUENCE"),
+    textField("THIRD_PARTY_ROLE", "Papel del tercero", "Tercero destinatario", firstContaining(index, ["TERCERO", "ENTIDAD"])),
+    textField("REJECTION_REASON", "Motivo de la reiteración", "No consta la recepción del anexo", firstContaining(index, ["NO CONSTA LA RECEPCIÓN DEL ANEXO", "NO CONSTA LA RECEPCION DEL ANEXO", "NO CONSTA"])),
+    textField("EXPLICIT_CONSEQUENCE", "Consecuencia indicada", "Segundo requerimiento", firstContaining(index, ["SEGUNDO REQUERIMIENTO"])),
   );
-  if (match.familyId === "seizure.release" && match.subtype === "COMMERCIAL_CREDIT_RELEASE_TO_THIRD_PARTY") fields.push(textField("THIRD_PARTY_ROLE", "Papel del tercero", "PAYER_WITHOUT_IDENTITY"));
-  if (match.familyId === "seizure.bank_account") fields.push(textField("ACCOUNT_OR_DEPOSIT", "Cuenta o depósito", "EXISTS_WITHOUT_DIGITS"), integerField("TRANSFER_WAIT_DAYS", "Espera antes del ingreso bancario", contains(index, "20 DÍAS NATURALES") ? 20 : 0));
-  if (match.familyId === "collection.deferral_grant") fields.push(textField("PAYMENT_METHOD", "Forma de pago", "DIRECT_DEBIT"), textField("GUARANTEE_TYPE", "Garantía", "NO_GUARANTEE"));
-  if (match.familyId === "collection.enforcement_order" && contains(index, "ENTREGA ANTERIOR FALLIDA")) fields.push(textField("NOTIFICATION_STATE", "Estado de la notificación anterior", "PREVIOUS_DELIVERY_FAILED"));
-  if (match.familyId === "seizure.movable_asset") fields.push(textField("ASSET_KIND", "Tipo de bien o derecho", "MOVABLE_VEHICLE"));
+  if (match.familyId === "seizure.release" && match.subtype === "COMMERCIAL_CREDIT_RELEASE_TO_THIRD_PARTY") fields.push(textField("THIRD_PARTY_ROLE", "Papel del tercero", "Tercero destinatario", firstContaining(index, ["TERCERO", "ENTIDAD"])));
+  if (match.familyId === "seizure.bank_account") fields.push(
+    textField("ACCOUNT_OR_DEPOSIT", "Cuenta o depósito", "Cuenta bancaria", firstContaining(index, ["SALDOS DE LAS CUENTAS", "CUENTAS BANCARIAS"])),
+    integerField("TRANSFER_WAIT_DAYS", "Espera antes del ingreso bancario", 20, firstContaining(index, ["20 DÍAS NATURALES", "20 DIAS NATURALES"])),
+  );
+  if (match.familyId === "collection.deferral_grant") fields.push(
+    textField("PAYMENT_METHOD", "Forma de pago", "Domiciliación bancaria", firstContaining(index, ["DOMICILIACIÓN", "DOMICILIACION"])),
+    textField("GUARANTEE_TYPE", "Garantía", "Sin garantía", firstContaining(index, ["SIN GARANTÍA", "SIN GARANTIA"])),
+  );
+  if (match.familyId === "collection.enforcement_order") fields.push(textField("NOTIFICATION_STATE", "Estado de la notificación anterior", "Entrega anterior fallida", firstContaining(index, ["ENTREGA ANTERIOR FALLIDA"])));
+  if (match.familyId === "seizure.movable_asset") fields.push(textField("ASSET_KIND", "Tipo de bien o derecho", "Vehículo o bien mueble", firstContaining(index, ["BIENES MUEBLES", "VEHÍCULO", "VEHICULO"])));
   return compact(fields);
 }
 

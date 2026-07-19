@@ -21,6 +21,7 @@ const INTERNAL_VALUE_PATTERNS = Object.freeze([
   /^V[3-7]:EXACT/u,
   /^V[3-7]:EXPLANATION:/u,
   /^V[3-7]:(?:TEXT|INTEGER|BOOLEAN):/u,
+  /^V[3-7]:INSTALLMENT:/u,
   /^V[3-7]:PAYMENT_FORM_/u,
   /^V[3-7]:SYNTHETIC_REFERENCE:/u,
   /^INTEGER:[A-Z0-9_]+:/u,
@@ -28,6 +29,7 @@ const INTERNAL_VALUE_PATTERNS = Object.freeze([
   /^TEXT:[A-Z0-9_]+:/u,
   /^SIGNED_CENTS:/u,
   /^ROLE:/u,
+  /^SEIZURE_RECIPIENT_ROLE:/u,
 ]);
 
 const INTERNAL_CODE_PATTERN =
@@ -87,7 +89,14 @@ export function isUsefulObservedFiscalNotificationField(
     isInternalFiscalNotificationFieldArtifact({
       fieldId: field.fieldId,
       label: field.label,
-      value: field.normalizedValue ?? field.displayValue,
+      value: field.displayValue,
+      semantic: field.semantic,
+      canonicalType: field.canonicalType,
+    }) ||
+    isInternalFiscalNotificationFieldArtifact({
+      fieldId: field.fieldId,
+      label: field.label,
+      value: field.normalizedValue,
       semantic: field.semantic,
       canonicalType: field.canonicalType,
     })
@@ -133,11 +142,25 @@ export function isUsefulObservedFiscalNotificationField(
 export function shouldExposeFiscalNotificationField(
   field: FiscalNotificationVerticalSliceReviewFieldV1,
 ): boolean {
-  return !isInternalFiscalNotificationFieldArtifact({
+  if (field.semantic === "STATUS") return false;
+  const common = {
     fieldId: field.fieldId,
     label: field.label,
-    value: field.displayValue,
     semantic: field.semantic,
     canonicalType: field.canonicalType,
-  });
+  };
+  return (
+    !(
+      (field.semantic === "DETAIL" || field.semantic === "OBLIGATION") &&
+      GENERIC_DISPLAY_VALUES.has(field.displayValue)
+    ) &&
+    !isInternalFiscalNotificationFieldArtifact({
+      ...common,
+      value: field.displayValue,
+    }) &&
+    !isInternalFiscalNotificationFieldArtifact({
+      ...common,
+      value: field.normalizedValue,
+    })
+  );
 }

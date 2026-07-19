@@ -198,6 +198,36 @@ describe("existing fiscal notification extractor adapters v1", () => {
     expect(output.proceduralDates).not.toContainEqual(expect.objectContaining({ rawText: "VTO-SYNTH-005" }));
   });
 
+  it("reuses observed enforcement facts for a debt collected from another authority", () => {
+    const facts = enforcementFacts();
+    const output = adaptAeatEnforcementFactsV1({
+      ownerScope: OWNER_SCOPE,
+      documentId: DOCUMENT_ID,
+      segments: [segment("MAIN_ADMINISTRATIVE_ACT", 1)],
+      familyId: "collection.external_debt",
+      ...facts,
+    });
+
+    expect(output.familyCandidates).toEqual([
+      expect.objectContaining({
+        familyId: "collection.external_debt",
+        confidence: 1,
+      }),
+    ]);
+    expect(output.monetaryComponents).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          componentType: "PRINCIPAL",
+          amountCents: 123_456,
+        }),
+        expect.objectContaining({
+          componentType: "TOTAL_CLAIMED",
+          amountCents: 148_147,
+        }),
+      ]),
+    );
+  });
+
   it("adapts the explicit debt schedule printed in a deferral annex", () => {
     const facts = extractAeatDeferralGrantFactsV1(document(DEFERRAL_MAIN_PAGE, DEFERRAL_ANNEX_PAGE));
     const output = adaptAeatDeferralGrantFactsV1({
@@ -302,14 +332,25 @@ describe("existing fiscal notification extractor adapters v1", () => {
     })).toThrow(FiscalNotificationInputError);
   });
 
-  it("does not promote a generic annex to administrative facts", () => {
+  it("preserves explicit schedule facts printed in an annex without enabling actions", () => {
     const facts = extractAeatDeferralGrantFactsV1(document(DEFERRAL_MAIN_PAGE, DEFERRAL_ANNEX_PAGE));
-    expect(() => adaptAeatDeferralGrantFactsV1({
+    const output = adaptAeatDeferralGrantFactsV1({
       ownerScope: OWNER_SCOPE,
       documentId: DOCUMENT_ID,
       segments: [segment("MAIN_ADMINISTRATIVE_ACT", 1), segment("ANNEX", 2)],
       facts,
-    })).toThrowError(expect.objectContaining({ path: "adapterFacts.segmentPermission" }));
+    });
+
+    expect(output.proceduralDates).toContainEqual(expect.objectContaining({
+      dateType: "INSTALLMENT_DUE_DATE",
+      parsedDate: "2026-02-20",
+    }));
+    expect(output.monetaryComponents).toContainEqual(expect.objectContaining({
+      componentType: "PRINCIPAL",
+      amountCents: 100_000,
+    }));
+    expect(output.permitsDebtCreation).toBe(false);
+    expect(output.permitsPaymentAction).toBe(false);
   });
 
   it("is deterministic, does not mutate inputs and returns defensive immutable outputs", () => {
@@ -346,11 +387,12 @@ describe("existing fiscal notification extractor adapters v1", () => {
     })).toThrowError(expect.objectContaining({ code: "ABORTED" }));
   });
 
-  it("publishes a closed manifest for the four adapted catalog families", () => {
+  it("publishes a closed manifest for the adapted catalog families", () => {
     expect(EXISTING_EXTRACTOR_ADAPTERS_RELEASE_V1).toEqual({
-      version: "1.0.0",
+      version: "1.1.0",
       adaptedFamilies: [
         "collection.enforcement_order",
+        "collection.external_debt",
         "collection.deferral_grant",
         "collection.offset_requested",
         "collection.offset_ex_officio",

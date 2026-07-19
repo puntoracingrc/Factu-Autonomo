@@ -357,4 +357,31 @@ describe("fiscal notification document deletion v1", () => {
       validateFiscalNotificationsWorkspaceIntegrity(result.workspace, OWNER),
     ).toEqual({ valid: true, issues: [] });
   });
+
+  it("trata un segundo borrado de la misma ficha como no encontrado y conserva N-1", () => {
+    const first = deleteFiscalNotificationDocumentV1({
+      workspace: threeDocumentWorkspaceWithUnrelatedRelation(),
+      ownerScope: OWNER,
+      documentId: "document:0",
+      deletedAt: DELETED_AT,
+    });
+    expect(first.status).toBe("APPLIED");
+    if (first.status !== "APPLIED") return;
+    const beforeSecond = structuredClone(first.workspace);
+
+    expect(
+      deleteFiscalNotificationDocumentV1({
+        workspace: first.workspace,
+        ownerScope: OWNER,
+        documentId: "document:0",
+        deletedAt: "2026-07-15T22:02:00.000Z",
+      }),
+    ).toEqual({ status: "NOT_FOUND" });
+    expect(first.workspace).toEqual(beforeSecond);
+    expect(first.workspace.ownerScope).toBe(OWNER);
+    expect(first.workspace.documents.map((item) => item.id)).toEqual([
+      "document:1",
+      "document:2",
+    ]);
+  });
 });

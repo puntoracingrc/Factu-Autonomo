@@ -896,6 +896,33 @@ describe("structured fiscal notification history view model v1", () => {
     ]);
   });
 
+  it("traduce cuotas históricas y nunca presenta el token interno", () => {
+    const value = workspace();
+    value.analysisSnapshots[0]!.structuredData.unknownFields.push({
+      labelRaw:
+        "VSR2|real-corpus-v6:installment:0|DETAIL|FACT_OR_GROUND|Cuota 1",
+      valueRaw: "V6:INSTALLMENT:1:2027-02-20:10000:200:10200",
+      page: 2,
+      confidence: "EXACT",
+    });
+
+    const result = projectFiscalNotificationStructuredHistoryV1(value, OWNER);
+
+    expect(result.status).toBe("READY");
+    if (result.status !== "READY") return;
+    expect(result.entries[0]?.orderedFacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Cuota 1",
+          value:
+            "Vence 20/02/2027 · principal 100,00 € · interés 2,00 € · total 102,00 €",
+          pageNumber: 2,
+        }),
+      ]),
+    );
+    expect(JSON.stringify(result)).not.toContain("V6:INSTALLMENT:");
+  });
+
   it("proyecta las cuotas impresas guardadas con importe, fecha y desglose", () => {
     const value = workspace();
     value.analysisSnapshots[0]!.structuredData.paymentOptionIds = [

@@ -37,20 +37,21 @@ describe("AEAT real corpus relations V4", () => {
     expect(relateRealCorpusDocumentsV4(proposal, { ...final, procedureId: "OTHER" })).toEqual([]);
   });
 
-  it("uses the complete installment identity and never the debt key alone", () => {
-    const identity = buildRealCorpusInstallmentIdentityV4({ ownerScope: "owner-v4", issuer: "AEAT", debtKey: "SYNDEBT010", dueDate: "2024-09-20", principalCents: 35467, paymentFormReference: "SYNPAY010" });
-    expect(identity).toContain("SYNDEBT010:2024-09-20:35467:SYNPAY010");
+  it("uses a strong installment identity without embedding an amount", () => {
+    const identity = buildRealCorpusInstallmentIdentityV4({ ownerScope: "owner-v4", issuer: "AEAT", debtKey: "SYNDEBT010", dueDate: "2024-09-20", paymentFormReference: "SYNPAY010" });
+    expect(identity).toContain("SYNDEBT010:2024-09-20:SYNPAY010");
+    expect(identity).not.toContain("35467");
     const grant = document({ documentId: "grant", familyId: "collection.deferral_grant", debtKey: "SYNDEBT010", dueDate: "2024-09-20", installmentTotalCents: 35467 });
     const enforcement = document({ documentId: "enforcement", familyId: "collection.enforcement_order", debtKey: "SYNDEBT010", dueDate: "2024-09-20", principalCents: 35467, paymentFormReference: "SYNPAY010" });
     expect(relateRealCorpusDocumentsV4(grant, enforcement)[0]).toMatchObject({ relationType: "CLAIMS_UNPAID_INSTALLMENT", installmentIdentity: identity });
-    expect(relateRealCorpusDocumentsV4(grant, { ...enforcement, principalCents: 35468 })).toEqual([]);
+    expect(relateRealCorpusDocumentsV4(grant, { ...enforcement, principalCents: 35468 })[0]).toMatchObject({ relationType: "CLAIMS_UNPAID_INSTALLMENT", observedAmountCents: null });
     expect(relateRealCorpusDocumentsV4(grant, { ...enforcement, paymentFormReference: null })).toEqual([]);
   });
 
-  it("links enforcement to bank seizure by debt key and ordinary total", () => {
+  it("links enforcement to bank seizure by debt key and never by amount", () => {
     const enforcement = document({ documentId: "enforcement", familyId: "collection.enforcement_order", debtKey: "SYNDEBT010", enforcementOrdinaryTotalCents: 42560 });
     const bank = document({ documentId: "bank", familyId: "seizure.bank_account", debtKey: "SYNDEBT010", seizedAmountCents: 42560 });
-    expect(relateRealCorpusDocumentsV4(enforcement, bank)[0]).toMatchObject({ relationType: "ENFORCES", observedAmountCents: 42560, phrase: "Este embargo bancario continúa la providencia anterior por la misma deuda y el mismo importe ordinario." });
+    expect(relateRealCorpusDocumentsV4(enforcement, { ...bank, seizedAmountCents: 1 })[0]).toMatchObject({ relationType: "ENFORCES", observedAmountCents: null, phrase: "Este embargo bancario continúa la providencia anterior identificada por la misma deuda." });
   });
 
   it("links third-party seizure, reiteration and release without confirming retention or payment", () => {
@@ -62,12 +63,12 @@ describe("AEAT real corpus relations V4", () => {
     expect(relateRealCorpusDocumentsV4(reiteration, release)[0]?.relationType).toBe("CLOSES_AFTER_REITERATION");
   });
 
-  it("creates one exact relation per matching annex row and preserves later amounts", () => {
+  it("creates one exact relation per matching annex debt key without copying amounts", () => {
     const seizure = document({ documentId: "multi", familyId: "seizure.commercial_credits", debtObservations: Object.freeze([{ debtKey: "SYNDEBT017", outstandingAmountCents: 148074 }, { debtKey: "SYNDEBT020", outstandingAmountCents: 90000 }, { debtKey: "SYNDEBTOTHER", outstandingAmountCents: 158654 }]) });
     const exact = document({ documentId: "irpf", familyId: "collection.enforcement_order", debtKey: "SYNDEBT017", enforcementOrdinaryTotalCents: 148074 });
     const changed = document({ documentId: "iva", familyId: "collection.enforcement_order", debtKey: "SYNDEBT020", enforcementOrdinaryTotalCents: 96000 });
-    expect(relateRealCorpusDocumentsV4(exact, seizure)[0]).toMatchObject({ relationType: "INCLUDED_IN_SEIZURE", exactReference: "SYNDEBT017", observedAmountCents: 148074, phrase: "La deuda de esta providencia aparece como una de las tres deudas incluidas en el embargo de créditos posterior." });
-    expect(relateRealCorpusDocumentsV4(changed, seizure)[0]).toMatchObject({ exactReference: "SYNDEBT020", observedAmountCents: 90000, phrase: "La misma deuda aparece después dentro del embargo de créditos, con un saldo pendiente diferente que debe conservarse como observación posterior." });
+    expect(relateRealCorpusDocumentsV4(exact, seizure)[0]).toMatchObject({ relationType: "INCLUDED_IN_SEIZURE", exactReference: "SYNDEBT017", observedAmountCents: null, phrase: "La deuda identificada en esta providencia aparece entre las incluidas en el embargo de créditos posterior." });
+    expect(relateRealCorpusDocumentsV4(changed, seizure)[0]).toMatchObject({ exactReference: "SYNDEBT020", observedAmountCents: null });
   });
 
   it("does not deduplicate different installments of the same plan", () => {
@@ -81,10 +82,10 @@ describe("AEAT real corpus relations V4", () => {
     expect(notificationEvidenceForDocumentV4(enclosed)).toMatchObject({ relationType: "NOTIFICATION_EVIDENCE_FOR", sourceDocumentId: "part:enclosed:delivery-cover", targetDocumentId: "enclosed" });
   });
 
-  it("isolates owners and uses prudent wording when the exact reference is absent", () => {
+  it("isolates owners and does not link matching model, year and date without an exact reference", () => {
     const assessment = document({ documentId: "assessment", familyId: "assessment.final_provisional_assessment", taxModel: "180", fiscalYear: "2024", principalCents: 22800, citedNotificationDate: "2025-05-21" });
     const enforcement = document({ documentId: "enforcement", familyId: "collection.enforcement_order", taxModel: "180", fiscalYear: "2024", principalCents: 22800, citedNotificationDate: "2025-05-21" });
-    expect(relateRealCorpusDocumentsV4(assessment, enforcement)[0]).toMatchObject({ relationType: "POSSIBLY_RELATED", status: "SUGGESTED", exactReference: null, phrase: "Puede ser el acto que dio origen a la providencia posterior por coincidir concepto, ejercicio e importe. Revísalo antes de confirmar." });
+    expect(relateRealCorpusDocumentsV4(assessment, { ...enforcement, principalCents: 1 })).toEqual([]);
     expect(relateRealCorpusDocumentsV4(assessment, { ...enforcement, ownerScope: "other-owner" })).toEqual([]);
   });
 });

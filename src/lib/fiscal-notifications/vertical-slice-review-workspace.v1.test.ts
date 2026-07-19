@@ -3,7 +3,9 @@ import { commitAppDataDurably } from "../app-data-durability";
 import { EMPTY_DATA, type AppData } from "../types";
 import type { FiscalNotificationLocalAnalysisResult } from "./local-review-flow";
 import type { BoundedDocumentInput } from "./input-contract";
+import { analyzeFiscalNotificationDocumentInput } from "./document-input-analysis";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
+import { projectFiscalNotificationStructuredHistoryV1 } from "./structured-review-history-view-model.v1";
 import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "./structured-review-save-command.v1";
 import {
   projectFiscalNotificationVerticalSliceReviewV1,
@@ -1125,6 +1127,259 @@ describe("vertical slice structured workspace v1", () => {
     expect(result.workspace.documents[0]?.titleRaw).toBe(
       "Liquidación provisional",
     );
+  });
+
+  it("persiste REQUEST_NUMBER sin degradarlo a una referencia genérica", () => {
+    const source = structuredClone(analysis()) as unknown as {
+      ephemeralVerticalSliceReview: {
+        documents: Array<{ fields: unknown[] }>;
+      };
+    };
+    source.ephemeralVerticalSliceReview.documents = [
+      {
+        ...source.ephemeralVerticalSliceReview.documents[0]!,
+        fields: [
+          field({
+            fieldId: "reference:request-number",
+            semantic: "REFERENCE",
+            canonicalType: "REQUEST_NUMBER",
+            label: "Número de solicitud",
+            displayValue: "REQ-SYN-WORKSPACE-001",
+            normalizedValue: "REQ-SYN-WORKSPACE-001",
+            sourcePageNumbers: [1],
+          }),
+        ],
+      },
+    ];
+
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: source as unknown as FiscalNotificationLocalAnalysisResult,
+    });
+
+    expect(result.workspace.references).toEqual([
+      expect.objectContaining({
+        referenceType: "REQUEST_NUMBER",
+        rawValue: "REQ-SYN-WORKSPACE-001",
+        normalizedValue: "REQ-SYN-WORKSPACE-001",
+      }),
+    ]);
+  });
+
+  it("persiste REFUND_REFERENCE sin degradarlo a una referencia genérica", () => {
+    const source = structuredClone(analysis()) as unknown as {
+      ephemeralVerticalSliceReview: {
+        documents: Array<{ fields: unknown[] }>;
+      };
+    };
+    source.ephemeralVerticalSliceReview.documents = [
+      {
+        ...source.ephemeralVerticalSliceReview.documents[0]!,
+        fields: [
+          field({
+            fieldId: "reference:refund",
+            semantic: "REFERENCE",
+            canonicalType: "REFUND_REFERENCE",
+            label: "Referencia de devolución",
+            displayValue: "REFUND-SYN-WORKSPACE-001",
+            normalizedValue: "REFUND-SYN-WORKSPACE-001",
+            sourcePageNumbers: [1],
+          }),
+        ],
+      },
+    ];
+
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: source as unknown as FiscalNotificationLocalAnalysisResult,
+    });
+
+    expect(result.workspace.references).toEqual([
+      expect.objectContaining({
+        referenceType: "REFUND_REFERENCE",
+        rawValue: "REFUND-SYN-WORKSPACE-001",
+        normalizedValue: "REFUND-SYN-WORKSPACE-001",
+      }),
+    ]);
+  });
+
+  it("persiste y presenta filas fiscales parciales sin enums ni valores ausentes inventados", async () => {
+    const boundedDocument: BoundedDocumentInput = Object.freeze({
+      ownerScope: OWNER,
+      documentId: "document:synthetic-partial-tax-row",
+      pages: Object.freeze([
+        Object.freeze({
+          pageNumber: 1,
+          isBlank: false,
+          text: [
+            "DATOS FISCALES",
+            "Concepto tributario: IRPF",
+            "Ejercicio: 2025",
+            "Los datos fiscales del Impuesto sobre la Renta no vinculan a la Agencia Tributaria",
+            "Referencia: SYN2025PARTIALROW001X",
+            "Datos a fecha de: 15/06/2026",
+            "Fecha de emisión: 16/06/2026",
+            "No se pudo elaborar el borrador: constan actividades económicas",
+            "Inicio otros medios: 02/04/2026",
+            "Fin de campaña: 30/06/2026",
+            "Fin domiciliación: 25/06/2026",
+            "Contribuyente: titular",
+            "Sección: EMPLOYMENT_INCOME; filas: 1; importe: 101,23 €",
+          ].join("\n"),
+        }),
+      ]),
+    });
+    const observed = await analyzeFiscalNotificationDocumentInput(
+      boundedDocument,
+    );
+    const sectionField = observed.verticalSliceReview.documents
+      .flatMap((document) => document.fields)
+      .find((field) => field.fieldId === "real-corpus:section:0");
+    expect(sectionField).toMatchObject({
+      label: "Rendimientos del trabajo",
+      displayValue: "Fila 1 · Titular · 101,23\u00a0€",
+      normalizedValue: "Fila 1 · Titular · 101,23\u00a0€",
+      sourcePageNumbers: [1],
+    });
+
+    const source = structuredClone(analysis()) as unknown as {
+      technicalReview: { pageCount: number; byteLength: number };
+      ephemeralVerticalSliceReview: unknown;
+    };
+    source.technicalReview.pageCount = 1;
+    source.technicalReview.byteLength = 2_048;
+    source.ephemeralVerticalSliceReview = observed.verticalSliceReview;
+    const saved = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: source as unknown as FiscalNotificationLocalAnalysisResult,
+    });
+    const history = projectFiscalNotificationStructuredHistoryV1(
+      saved.workspace,
+      OWNER,
+    );
+    const serialized = JSON.stringify({
+      workspace: saved.workspace,
+      history,
+    });
+
+    expect(history.status).toBe("READY");
+    expect(serialized).toContain("Rendimientos del trabajo");
+    expect(serialized).toContain("Fila 1 · Titular · 101,23");
+    expect(serialized).not.toMatch(
+      /EMPLOYMENT_INCOME|ACCOUNT_HOLDER|SPOUSE|SOURCE_CONTENT_NOT_RETAINED|10123:-|:-:/u,
+    );
+  });
+
+  it("does not persist a tax row when its printed count is absent", async () => {
+    const boundedDocument: BoundedDocumentInput = Object.freeze({
+      ownerScope: OWNER,
+      documentId: "document:synthetic-tax-section-without-count",
+      pages: Object.freeze([
+        Object.freeze({
+          pageNumber: 1,
+          isBlank: false,
+          text: [
+            "DATOS FISCALES",
+            "Concepto tributario: IRPF",
+            "Ejercicio: 2025",
+            "Los datos fiscales del Impuesto sobre la Renta no vinculan a la Agencia Tributaria",
+            "Referencia: SYN2025NOINVENTEDROW001X",
+            "Datos a fecha de: 15/06/2026",
+            "Sección: EMPLOYMENT_INCOME; importe: 101,23 €",
+          ].join("\n"),
+        }),
+      ]),
+    });
+    const observed = await analyzeFiscalNotificationDocumentInput(
+      boundedDocument,
+    );
+    expect(observed.verticalSliceReview.documents
+      .flatMap((document) => document.fields)
+      .some((field) => field.fieldId.startsWith("real-corpus:section:")))
+      .toBe(false);
+
+    const source = structuredClone(analysis()) as unknown as {
+      technicalReview: { pageCount: number; byteLength: number };
+      ephemeralVerticalSliceReview: unknown;
+    };
+    source.technicalReview.pageCount = 1;
+    source.technicalReview.byteLength = 2_048;
+    source.ephemeralVerticalSliceReview = observed.verticalSliceReview;
+    const saved = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: source as unknown as FiscalNotificationLocalAnalysisResult,
+    });
+    const serialized = JSON.stringify({
+      workspace: saved.workspace,
+      history: projectFiscalNotificationStructuredHistoryV1(
+        saved.workspace,
+        OWNER,
+      ),
+    });
+
+    expect(saved.workspace.documents).toHaveLength(1);
+    expect(serialized).not.toMatch(/EMPLOYMENT_INCOME|Fila 1|Titular/u);
+  });
+
+  it("conserva un importe negativo observado como texto humano estructurado", () => {
+    const source = structuredClone(analysis()) as unknown as {
+      ephemeralVerticalSliceReview: {
+        documents: Array<{ fields: unknown[] }>;
+      };
+    };
+    source.ephemeralVerticalSliceReview.documents = [
+      {
+        ...source.ephemeralVerticalSliceReview.documents[0]!,
+        fields: [
+          field({
+            fieldId: "reference:negative-result",
+            semantic: "REFERENCE",
+            canonicalType: "ACT_ID",
+            label: "Acto o requerimiento",
+            displayValue: "ACT-SYN-NEGATIVE-001",
+            normalizedValue: "ACT-SYN-NEGATIVE-001",
+            sourcePageNumbers: [1],
+          }),
+          {
+            ...field({
+              fieldId: "real-corpus:DECLARED_RESULT:0",
+              semantic: "DETAIL",
+              canonicalType: "FACT_OR_GROUND",
+              label: "Resultado declarado",
+              sourcePageNumbers: [2],
+            }),
+            displayValue: "-700,00 €",
+            normalizedValue: "-700,00 €",
+          },
+        ],
+      },
+    ];
+
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: source as unknown as FiscalNotificationLocalAnalysisResult,
+    });
+    const serialized = JSON.stringify(
+      result.workspace.analysisSnapshots[0]?.structuredData.unknownFields,
+    );
+
+    expect(serialized).toContain("-700,00 €");
+    expect(serialized).not.toContain("SIGNED_CENTS:");
   });
 
   it("persiste una ficha válida sin exponer metadatos ni tokens internos", () => {

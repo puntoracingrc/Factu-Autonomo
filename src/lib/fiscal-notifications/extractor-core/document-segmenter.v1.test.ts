@@ -163,6 +163,7 @@ describe("multipage fiscal notification segmenter v1", () => {
       "diligencia de embargo de cobros mediante terminal de punto de venta",
       "diligencia de embargo de devoluciones tributarias",
       "diligencia de embargo de bienes inmuebles",
+      "notificacion de diligencia de embargo de bienes inmuebles",
       "levantamiento de diligencia de embargo",
       "contestacion a diligencia de embargo",
       "justificante de ingreso de diligencia de embargo",

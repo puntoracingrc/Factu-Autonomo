@@ -12,7 +12,10 @@ import {
   isAeatP0DeepProfileIdV10,
   resolveAeatP0DeepProfileV10,
 } from "./knowledge/p0-deep-contracts.v10";
-import { AEAT_P0_DEEP_REVIEW_CONTROLLED_LABELS_V10 } from "./p0-deep-review-labels.v10";
+import {
+  AEAT_P0_DEEP_REVIEW_CONTROLLED_LABELS_V10,
+  AEAT_P0_DEEP_REVIEW_HUMAN_VALUES_V10,
+} from "./p0-deep-review-labels.v10";
 import {
   FISCAL_NOTIFICATION_INPUT_LIMITS,
   assertNonNegativeIntegerCents,
@@ -33,7 +36,6 @@ import type {
 } from "./extractor-core/seizure-extractor.v1";
 import type {
   FiscalNotificationVerticalSliceAnalysisV1,
-  FiscalNotificationVerticalSliceExtractorIdV1,
 } from "./extractor-core/vertical-slice-orchestrator.v1";
 import {
   BASE_EXTRACTOR_IDS_V1,
@@ -202,6 +204,13 @@ const FAMILY_TITLE: Readonly<
   "assessment.allegations_and_proposal": "Propuesta de liquidación provisional",
   "assessment.final_provisional_assessment": "Liquidación provisional",
   "collection.deferral_denial": "Denegación de aplazamiento o fraccionamiento",
+  "collection.deferral_grant": "Concesión de aplazamiento o fraccionamiento",
+  "collection.deferral_modification":
+    "Modificación de aplazamiento o fraccionamiento",
+  "collection.enforcement_order": "Providencia de apremio",
+  "collection.external_debt": "Deuda de otro organismo recaudada por la AEAT",
+  "collection.offset_ex_officio": "Compensación de oficio",
+  "collection.offset_requested": "Compensación solicitada",
   "payment.payment_form": "Carta o documento de pago",
   "payment.receipt": "Justificante de pago",
   "payment.failed_or_reversed": "Incidencia de pago",
@@ -242,6 +251,8 @@ const REFERENCE_LABEL: Readonly<Record<ReferenceTypeV1, string>> =
     TAX_PERIOD: "Periodo",
     BANK_REFERENCE: "Referencia bancaria",
     THIRD_PARTY_RESPONSE_ID: "Contestación de tercero",
+    REQUEST_NUMBER: "Número de solicitud",
+    REFUND_REFERENCE: "Referencia de devolución",
     VEHICLE_OR_FINE_REFERENCE: "Bien relacionado",
     OTHER_OFFICIAL_REFERENCE: "Referencia oficial",
   });
@@ -441,6 +452,7 @@ const SAFE_SUBTITLE_VALUES = new Set([
   "La AEAT ha denegado la solicitud; revisa motivo, pago y recurso",
   "Orden de pago · no acredita pago",
   "Título, autoridad y estructura coinciden",
+  "Datos observados en el documento",
   "Coincidencia oficial; revisión obligatoria",
   "Clasificación histórica amplia",
   "Datos estructurados listos para revisar",
@@ -454,6 +466,72 @@ const SAFE_SUBTITLE_VALUES = new Set([
   "1 documento reconocido · incluye anexo de intereses y carta de pago",
   "1 documento reconocido · incluye calendario, anexo de intereses y carta de pago",
 ]);
+
+type ClosedHumanFactMatcherV1 = string | RegExp;
+
+function assertClosedHumanRealCorpusDetailV1(input: {
+  readonly fieldId: string;
+  readonly prefix: string;
+  readonly display: string;
+  readonly normalized: string;
+  readonly allowed: Readonly<Record<string, readonly ClosedHumanFactMatcherV1[]>>;
+}): boolean {
+  if (!input.fieldId.startsWith(input.prefix)) return false;
+  const identity = input.fieldId.slice(input.prefix.length);
+  const match = /^([A-Z0-9_]+):\d+$/u.exec(identity);
+  if (!match) return false;
+  const allowedValues = input.allowed[match[1]!];
+  if (!allowedValues) return false;
+  if (
+    input.display !== input.normalized ||
+    !allowedValues.some((candidate) =>
+      typeof candidate === "string"
+        ? candidate === input.display
+        : candidate.test(input.display),
+    )
+  ) {
+    throw invalidReview();
+  }
+  return true;
+}
+
+const REAL_CORPUS_CONTEXTUAL_DATE_CODES_V1 = new Set([
+  "CAMPAIGN_END",
+  "CAMPAIGN_ONLINE_START",
+  "CAMPAIGN_OTHER_START",
+  "CITED_SEIZURE_DATE",
+  "DIRECT_DEBIT_END",
+  "INTEREST_CALCULATION_END",
+  "INTEREST_CALCULATION_START",
+  "PRINTED_START_DATE",
+  "PROPOSAL_NOTIFICATION_DATE",
+  "PUBLICATION_CERTIFICATE_EFFECTIVE_DATE",
+  "RECEIPT_DATE",
+  "REQUEST_DATE",
+  "SNAPSHOT_DATE",
+  "SOURCE_SEIZURE_DATE",
+]);
+
+function assertClosedRealCorpusContextualDateV1(input: {
+  readonly fieldId: string;
+  readonly prefix: string;
+  readonly display: string;
+  readonly normalized: string;
+}): boolean {
+  if (!input.fieldId.startsWith(input.prefix)) return false;
+  const identity = input.fieldId.slice(input.prefix.length);
+  const match = /^([A-Z0-9_]+):\d+$/u.exec(identity);
+  if (!match || !REAL_CORPUS_CONTEXTUAL_DATE_CODES_V1.has(match[1]!)) {
+    return false;
+  }
+  if (
+    !ISO_DATE.test(input.normalized) ||
+    input.display !== formatIsoDate(input.normalized)
+  ) {
+    throw invalidReview();
+  }
+  return true;
+}
 const REAL_CORPUS_SAFE_LABELS_V2 = new Set([
   "Referencia",
   "Referencia del informe",
@@ -519,6 +597,21 @@ const REAL_CORPUS_SAFE_LABELS_V2 = new Set([
   "ENTITY PARTICIPATION",
   "MATERNITY DEDUCTION CONTRIBUTIONS",
   "MATERNITY DEDUCTION",
+  "Rendimientos del trabajo",
+  "Rendimientos de actividades económicas",
+  "Intereses bancarios",
+  "Actividades económicas declaradas",
+  "Rendimientos atribuidos de actividades económicas",
+  "Retenciones atribuidas",
+  "Donativos",
+  "Préstamo hipotecario",
+  "Pagos fraccionados",
+  "Cotizaciones a la Seguridad Social",
+  "Inmuebles catastrales",
+  "Participaciones en entidades",
+  "Cotizaciones para deducción por maternidad",
+  "Deducción por maternidad",
+  "Dato fiscal observado",
 ]);
 
 export function projectFiscalNotificationVerticalSliceReviewV1(
@@ -558,6 +651,47 @@ export function projectFiscalNotificationVerticalSliceReviewV1(
     schemaVersion: 1,
     reviewVersion: FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1,
     status: analysis.status,
+    documents,
+    sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+    retainedSourceContent: "NONE",
+    requiresHumanReview: true,
+    materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+    permitsDebtCreation: false,
+    permitsDeadlineCreation: false,
+    permitsPaymentAction: false,
+    permitsAccountingAction: false,
+  });
+}
+
+/**
+ * Projects an already validated observational extractor output into the same
+ * review contract used by the vertical slice. This is the integration point
+ * for the legacy structured adapters; direct identity remains filtered by
+ * commonFields and an act without observable fields cannot create a card.
+ */
+export function projectFiscalNotificationExtractorOutputReviewV1(
+  output: ExtractorOutputV1,
+): FiscalNotificationVerticalSliceReviewV1 {
+  const fields =
+    output.status === "REVIEW_REQUIRED" &&
+    output.familyCandidates.length === 1
+      ? commonFields(output)
+      : [];
+  const documents =
+    fields.length > 0
+      ? [
+          documentProjection(
+            output.extractorId,
+            output,
+            fields,
+            "Datos observados en el documento",
+          ),
+        ]
+      : [];
+  return parseFiscalNotificationVerticalSliceReviewV1({
+    schemaVersion: 1,
+    reviewVersion: FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_VERSION_V1,
+    status: documents.length > 0 ? "REVIEW_REQUIRED" : "INFORMATION_PENDING",
     documents,
     sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
     retainedSourceContent: "NONE",
@@ -982,16 +1116,17 @@ function projectSeizure(
   const state = seizureStateLabel(output.seizureFacts.printedState);
   addStatus(fields, state, pagesForOutput(output));
   if (output.seizureFacts.recipientRole !== "UNKNOWN") {
+    const recipientRole = seizureRecipientRoleLabel(
+      output.seizureFacts.recipientRole,
+    );
     fields.push(
       field({
         fieldId: "detail:SEIZURE_RECIPIENT_ROLE",
         semantic: "DETAIL",
         canonicalType: "SEIZURE_RECIPIENT_ROLE",
         label: "Papel del destinatario",
-        displayValue: seizureRecipientRoleLabel(
-          output.seizureFacts.recipientRole,
-        ),
-        normalizedValue: `SEIZURE_RECIPIENT_ROLE:${output.seizureFacts.recipientRole}`,
+        displayValue: recipientRole,
+        normalizedValue: recipientRole,
         sourcePageNumbers: pagesForOutput(output),
         sourceLabel: "Tipo exacto del documento",
       }),
@@ -1104,13 +1239,13 @@ function commonFields(
           displayValue:
             role === "ISSUING_AUTHORITY"
               ? safeAuthorityRole(entity.displayName!)
-              : `Interviniente ${entityIndex + 1}`,
+              : PARTY_LABEL[role],
           normalizedValue:
             role === "ISSUING_AUTHORITY"
               ? safeAuthorityRole(entity.displayName!) === "AEAT"
                 ? "AEAT"
                 : "OTHER_AUTHORITY"
-              : `ROLE:${role}:${entityIndex + 1}`,
+              : PARTY_LABEL[role],
           sourcePageNumbers: pagesFromEvidence(
             entity.evidence.sourceSegmentIds,
             output,
@@ -1145,7 +1280,7 @@ function addSeizureSpecificFact(
 }
 
 function documentProjection(
-  extractorId: FiscalNotificationVerticalSliceExtractorIdV1,
+  extractorId: BaseExtractorIdV1,
   output: ExtractorOutputV1,
   fields: FiscalNotificationVerticalSliceReviewFieldV1[],
   subtitle: string,
@@ -1904,8 +2039,17 @@ function assertSerializableFieldPrivacy(
         }
         return;
       }
-      const match = /^Interviniente ([1-9]\d*)$/u.exec(displayValue);
-      if (!match || normalizedValue !== `ROLE:${canonicalType}:${match[1]}`) {
+      const humanRole = PARTY_LABEL[canonicalType as PartyRoleV1];
+      const legacyMatch = /^Interviniente ([1-9]\d*)$/u.exec(displayValue);
+      if (
+        !(
+          humanRole &&
+          displayValue === humanRole &&
+          normalizedValue === humanRole
+        ) &&
+        (!legacyMatch ||
+          normalizedValue !== `ROLE:${canonicalType}:${legacyMatch[1]}`)
+      ) {
         throw invalidReview();
       }
       return;
@@ -1914,6 +2058,22 @@ function assertSerializableFieldPrivacy(
       throw invalidReview();
     case "DETAIL":
     case "OBLIGATION":
+      if (
+        canonicalType === "SEIZURE_RECIPIENT_ROLE" &&
+        normalizedValue !== null &&
+        displayValue === normalizedValue &&
+        [
+          "Deudor",
+          "Entidad financiera destinataria",
+          "Pagador comercial o arrendaticio",
+          "Empleador o pagador de pensión",
+          "Proveedor de servicios de pago",
+          "Tercero obligado por el embargo",
+          "Papel pendiente de revisión",
+        ].includes(displayValue)
+      ) {
+        return;
+      }
       if (
         displayValue !== CLOSED_FACT_VALUE &&
         displayValue !== "Título y autoridad coinciden" &&
@@ -2031,6 +2191,27 @@ function assertAeatP0DeepSerializableFieldPrivacyV10(
   if (semantic === "DETAIL") {
     if (canonicalType !== "FACT_OR_GROUND" || normalized === null)
       throw invalidReview();
+    if (
+      display === normalized &&
+      Object.values(AEAT_P0_DEEP_REVIEW_HUMAN_VALUES_V10).includes(display)
+    ) {
+      return true;
+    }
+    if (isValidIsoDate(normalized) && display === formatIsoDate(normalized)) {
+      return true;
+    }
+    if (/^(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/u.test(normalized)) {
+      if (display !== normalized) throw invalidReview();
+      return true;
+    }
+    if (/^P(?:\d{1,4}[DM]|T\d{1,4}H)$/u.test(normalized)) {
+      if (!/^\d{1,4} (?:día|días|mes|meses|hora|horas)$/u.test(display))
+        throw invalidReview();
+      return true;
+    }
+    if (display === normalized && /^(?:Sí|No|\d{1,6})$/u.test(display)) {
+      return true;
+    }
     if (/^P0_V10_ENUM:[A-Z][A-Z0-9_]{0,159}$/u.test(normalized)) {
       const expected = normalized
         .slice("P0_V10_ENUM:".length)
@@ -2082,15 +2263,24 @@ const REAL_CORPUS_DETAIL_VALUE_PATTERNS_V2 = Object.freeze([
   /^(?:BUSINESS_DAYS|CALENDAR_DAYS|RECEIPT_DATE|REQUESTED|EX_OFFICIO)$/u,
   /^(?:EXECUTIVE_LIQUIDATION|BANK_ACCOUNT_SEIZURE|DEFERRAL_OR_INSTALLMENT_RESOLUTION|SANCTION_REDUCTION_CLAWBACK)$/u,
 ]);
+const REAL_CORPUS_HUMAN_DETAIL_VALUES_V2 = new Set([
+  "Días hábiles",
+  "Fecha de recepción",
+  "Compensación solicitada",
+  "Compensación de oficio",
+  "Liquidación",
+  "Diligencia de embargo",
+  "Acuerdo de aplazamiento o fraccionamiento",
+  "Exigencia de reducción de sanción",
+  "Providencia de apremio",
+]);
 const REAL_CORPUS_SECTION_DISPLAY_V2 =
-  /^(?:Titular|Cónyuge) · fila [1-9]\d*(?: · modelo \d{3})?(?: · periodo (?:0A|[1-4]T|0[1-9]|1[0-2]))?(?: · -?\d{1,3}(?:\.\d{3})*,\d{2}\s€)?(?: · retención -?\d{1,3}(?:\.\d{3})*,\d{2}\s€)?$/u;
-const REAL_CORPUS_SECTION_NORMALIZED_V2 =
-  /^(?:EMPLOYMENT_INCOME|ECONOMIC_ACTIVITY_INCOME|BANK_INTEREST|ECONOMIC_ACTIVITY_CENSUS|ATTRIBUTED_ECONOMIC_ACTIVITY_INCOME|ATTRIBUTED_WITHHOLDINGS|DONATIONS|MORTGAGE_LOAN|INSTALLMENT_PAYMENTS|SOCIAL_SECURITY_CONTRIBUTIONS|CADASTRAL_PROPERTY|ENTITY_PARTICIPATION|MATERNITY_DEDUCTION_CONTRIBUTIONS|MATERNITY_DEDUCTION):(?:ACCOUNT_HOLDER|SPOUSE):[1-9]\d*:(?:\d{3}|-):(?:(?:0A|[1-4]T|0[1-9]|1[0-2])|-):(?:-?\d+|-):(?:-?\d+|-)$/u;
+  /^Fila [1-9]\d*(?: · (?:Titular|Cónyuge))?(?: · modelo \d{3})?(?: · periodo (?:0A|[1-4]T|0[1-9]|1[0-2]))?(?: · -?\d{1,3}(?:\.\d{3})*,\d{2}\s€)?(?: · retención -?\d{1,3}(?:\.\d{3})*,\d{2}\s€)?$/u;
 
 /**
- * Closed exception for V2 corpus fields. It permits only generated enums,
- * numbers and source-controlled explanation sentences; arbitrary OCR text,
- * personal identifiers and account data remain invalid.
+ * Closed exception for V2 corpus fields. It permits only human row summaries,
+ * observed numbers and source-controlled explanation sentences; arbitrary OCR
+ * text, personal identifiers and account data remain invalid.
  */
 function assertRealCorpusSerializableFieldPrivacyV2(
   item: Readonly<Record<string, unknown>>,
@@ -2100,6 +2290,16 @@ function assertRealCorpusSerializableFieldPrivacyV2(
   const display = String(item.displayValue);
   const normalized =
     typeof item.normalizedValue === "string" ? item.normalizedValue : "";
+  if (
+    assertClosedRealCorpusContextualDateV1({
+      fieldId,
+      prefix: "real-corpus:",
+      display,
+      normalized,
+    })
+  ) {
+    return true;
+  }
   if (fieldId === "real-corpus:recognized-family") return false;
   if (fieldId === "real-corpus:plain-explanation") {
     if (
@@ -2117,7 +2317,7 @@ function assertRealCorpusSerializableFieldPrivacyV2(
   if (/^real-corpus:section:\d+$/u.test(fieldId)) {
     if (
       !REAL_CORPUS_SECTION_DISPLAY_V2.test(display) ||
-      !REAL_CORPUS_SECTION_NORMALIZED_V2.test(normalized)
+      normalized !== display
     ) {
       throw invalidReview();
     }
@@ -2135,10 +2335,10 @@ function assertRealCorpusSerializableFieldPrivacyV2(
     return true;
   }
   if (/^real-corpus:[A-Z0-9_]+:\d+$/u.test(fieldId)) {
-    if (/^SIGNED_CENTS:-\d+$/u.test(normalized)) {
-      if (!/^-\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(display)) {
-        throw invalidReview();
-      }
+    if (
+      normalized === display &&
+      /^-\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(display)
+    ) {
       return true;
     }
     if (
@@ -2148,6 +2348,12 @@ function assertRealCorpusSerializableFieldPrivacyV2(
       return true;
     }
     const closedText = /^TEXT:[A-Z0-9_]+:(.+)$/u.exec(normalized);
+    if (
+      normalized === display &&
+      REAL_CORPUS_HUMAN_DETAIL_VALUES_V2.has(display)
+    ) {
+      return true;
+    }
     if (
       ((closedText &&
         REAL_CORPUS_DETAIL_VALUE_PATTERNS_V2.some((pattern) =>
@@ -2241,6 +2447,23 @@ const REAL_CORPUS_CLOSED_VALUES_V3 = new Set([
   "EXECUTIVE_DEBTS_OR_SANCTIONS_NOT_SUSPENDED_OR_DEFERRED",
 ]);
 
+const REAL_CORPUS_HUMAN_DETAILS_V3 = Object.freeze({
+  DIRECT_DEBIT_EXISTS: ["Domiciliación bancaria"],
+  RECIPIENT_ROLE: ["Obligado al pago", "Entidad financiera destinataria"],
+  ASSET_KIND: ["Cuenta o depósito bancario", "Vehículo o bien mueble"],
+  ELECTRONIC_CHANNEL: ["Presentación electrónica"],
+  EFFECTIVE_EXERCISES: ["Ejercicio 2023 y siguientes"],
+  REMOVED_CHANNEL: ["Predeclaración en papel retirada"],
+  ALLOWED_IDENTITY_METHODS: ["Presentación electrónica"],
+  RELEASE_EXTENT: ["Levantamiento del embargo"],
+  REGISTRY_CANCELLATION_ORDERED: ["Sí"],
+  CERTIFICATE_RESULT: ["Denegado", "Negativo"],
+  NEGATIVE_REASON: [
+    "Deudas o sanciones en vía ejecutiva",
+    "Deudas o sanciones indicadas en el certificado",
+  ],
+} satisfies Readonly<Record<string, readonly ClosedHumanFactMatcherV1[]>>);
+
 /** Closed V3 exception. Only synthetic enums and source-controlled prose pass. */
 function assertRealCorpusSerializableFieldPrivacyV3(
   item: Readonly<Record<string, unknown>>,
@@ -2250,6 +2473,16 @@ function assertRealCorpusSerializableFieldPrivacyV3(
   const display = String(item.displayValue);
   const normalized =
     typeof item.normalizedValue === "string" ? item.normalizedValue : "";
+  if (
+    assertClosedRealCorpusContextualDateV1({
+      fieldId,
+      prefix: "real-corpus-v3:",
+      display,
+      normalized,
+    })
+  ) {
+    return true;
+  }
   if (fieldId === "real-corpus-v3:recognized-family") {
     if (
       display !== "Título, autoridad y estructura coinciden" ||
@@ -2285,16 +2518,36 @@ function assertRealCorpusSerializableFieldPrivacyV3(
     return true;
   }
   if (/^real-corpus-v3:installment:\d+$/u.test(fieldId)) {
-    if (
-      !/^V3:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):\d+:\d+:\d+$/u.test(
-        normalized,
-      ) ||
-      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · base \d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés \d{1,3}(?:\.\d{3})*,\d{2}\s€ · total \d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
+    const humanDisplay =
+      /^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · base \d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés \d{1,3}(?:\.\d{3})*,\d{2}\s€ · total \d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
         display,
-      )
+      );
+    if (
+      !humanDisplay ||
+      normalized !== display
     ) {
       throw invalidReview();
     }
+    return true;
+  }
+  if (/^real-corpus-v3:PUBLIC_AUTHORITY_ROLE_[1-9]\d*:\d+$/u.test(fieldId)) {
+    if (
+      normalized !== display ||
+      !["Seguridad Social", "Hacienda autonómica"].includes(display)
+    ) {
+      throw invalidReview();
+    }
+    return true;
+  }
+  if (
+    assertClosedHumanRealCorpusDetailV1({
+      fieldId,
+      prefix: "real-corpus-v3:",
+      display,
+      normalized,
+      allowed: REAL_CORPUS_HUMAN_DETAILS_V3,
+    })
+  ) {
     return true;
   }
   if (/^real-corpus-v3:RECIPIENT_ROLE:\d+$/u.test(fieldId)) {
@@ -2381,6 +2634,30 @@ const REAL_CORPUS_CLOSED_VALUES_V4 = new Set([
   "PREVIOUS_DELIVERY_FAILED",
 ]);
 
+const REAL_CORPUS_HUMAN_DETAILS_V4 = Object.freeze({
+  REGISTRATION_STATUS: ["Alta confirmada"],
+  REGISTRATION_LEVEL: ["Nivel alto"],
+  REGISTRATION_METHOD: ["Presencial", "Certificado electrónico"],
+  TERMS_ATTACHED: ["Sí"],
+  ASSET_KIND: ["Inmueble", "Créditos comerciales", "Vehículo o bien mueble"],
+  RELEASE_EXTENT: ["Levantamiento total"],
+  REGISTRY_CANCELLATION_ORDERED: ["Sí"],
+  RESPONSE_BUSINESS_DAYS: [/^10$/u],
+  DOCUMENTATION_REQUIRED: ["Documentación requerida"],
+  SANCTION_WARNING: ["Posible procedimiento sancionador separado"],
+  THIRD_PARTY_ROLE: ["Tercero pagador", "Tercero destinatario"],
+  OBLIGATION_RESPOND: ["Debe contestar"],
+  OBLIGATION_WITHHOLD_AND_REMIT: ["Retener e ingresar si existe crédito"],
+  PAYMENT_TIME: ["Cuando venza el crédito"],
+  REJECTION_REASON: ["No consta la recepción del anexo"],
+  EXPLICIT_CONSEQUENCE: ["Segundo requerimiento"],
+  ACCOUNT_OR_DEPOSIT: ["Cuenta bancaria"],
+  TRANSFER_WAIT_DAYS: [/^20$/u],
+  PAYMENT_METHOD: ["Domiciliación bancaria"],
+  GUARANTEE_TYPE: ["Sin garantía"],
+  NOTIFICATION_STATE: ["Entrega anterior fallida"],
+} satisfies Readonly<Record<string, readonly ClosedHumanFactMatcherV1[]>>);
+
 /** Closed V4 exception. Raw text, PII and arbitrary values are rejected. */
 function assertRealCorpusSerializableFieldPrivacyV4(
   item: Readonly<Record<string, unknown>>,
@@ -2390,6 +2667,16 @@ function assertRealCorpusSerializableFieldPrivacyV4(
   const display = String(item.displayValue);
   const normalized =
     typeof item.normalizedValue === "string" ? item.normalizedValue : "";
+  if (
+    assertClosedRealCorpusContextualDateV1({
+      fieldId,
+      prefix: "real-corpus-v4:",
+      display,
+      normalized,
+    })
+  ) {
+    return true;
+  }
   if (fieldId === "real-corpus-v4:recognized-family") {
     if (
       display !== "Título, autoridad y estructura coinciden" ||
@@ -2422,15 +2709,26 @@ function assertRealCorpusSerializableFieldPrivacyV4(
     return true;
   }
   if (/^real-corpus-v4:installment:\d+$/u.test(fieldId)) {
-    if (
-      !/^V4:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):-?\d+:-?\d+:-?\d+$/u.test(
-        normalized,
-      ) ||
-      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal -?\d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés -?\d{1,3}(?:\.\d{3})*,\d{2}\s€ · total -?\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
+    const humanDisplay =
+      /^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal -?\d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés -?\d{1,3}(?:\.\d{3})*,\d{2}\s€ · total -?\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
         display,
-      )
+      );
+    if (
+      !humanDisplay ||
+      normalized !== display
     )
       throw invalidReview();
+    return true;
+  }
+  if (
+    assertClosedHumanRealCorpusDetailV1({
+      fieldId,
+      prefix: "real-corpus-v4:",
+      display,
+      normalized,
+      allowed: REAL_CORPUS_HUMAN_DETAILS_V4,
+    })
+  ) {
     return true;
   }
   const closed = /^V4:TEXT:[A-Z0-9_]+:([A-Z0-9_]+)$/u.exec(normalized);
@@ -2469,6 +2767,13 @@ const REAL_CORPUS_CLOSED_VALUES_V5 = new Set([
   "NOT_CONFIRMED",
 ]);
 
+const REAL_CORPUS_HUMAN_DETAILS_V5 = Object.freeze({
+  ...REAL_CORPUS_HUMAN_DETAILS_V4,
+  RECIPIENT_ROLE: ["Obligado al pago"],
+  THIRD_PARTY_ROLE: ["Tercero pagador"],
+  RESPONSE_OBLIGATION: ["Debe contestar"],
+} satisfies Readonly<Record<string, readonly ClosedHumanFactMatcherV1[]>>);
+
 /** Closed V5 exception. Raw text, PII and arbitrary values are rejected. */
 function assertRealCorpusSerializableFieldPrivacyV5(
   item: Readonly<Record<string, unknown>>,
@@ -2478,6 +2783,16 @@ function assertRealCorpusSerializableFieldPrivacyV5(
   const display = String(item.displayValue);
   const normalized =
     typeof item.normalizedValue === "string" ? item.normalizedValue : "";
+  if (
+    assertClosedRealCorpusContextualDateV1({
+      fieldId,
+      prefix: "real-corpus-v5:",
+      display,
+      normalized,
+    })
+  ) {
+    return true;
+  }
   if (fieldId === "real-corpus-v5:recognized-family") {
     if (
       display !== "Título, autoridad y estructura coinciden" ||
@@ -2513,16 +2828,27 @@ function assertRealCorpusSerializableFieldPrivacyV5(
     return true;
   }
   if (/^real-corpus-v5:installment:\d+$/u.test(fieldId)) {
-    if (
-      !/^V5:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):\d+:\d+:\d+$/u.test(
-        normalized,
-      ) ||
-      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés \d{1,3}(?:\.\d{3})*,\d{2}\s€ · total \d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
+    const humanDisplay =
+      /^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés \d{1,3}(?:\.\d{3})*,\d{2}\s€ · total \d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
         display,
-      )
+      );
+    if (
+      !humanDisplay ||
+      normalized !== display
     ) {
       throw invalidReview();
     }
+    return true;
+  }
+  if (
+    assertClosedHumanRealCorpusDetailV1({
+      fieldId,
+      prefix: "real-corpus-v5:",
+      display,
+      normalized,
+      allowed: REAL_CORPUS_HUMAN_DETAILS_V5,
+    })
+  ) {
     return true;
   }
   const closed = /^V5:TEXT:[A-Z0-9_]+:([A-Z0-9_]+)$/u.exec(normalized);
@@ -2562,6 +2888,7 @@ const REAL_CORPUS_CLOSED_VALUES_V6 = new Set([
   "HISTORICAL_PRINTED_VALUE",
   "REDUCTION_ONLY_NOT_FULL_SANCTION",
   "SEPARATE_FROM_PRINCIPAL",
+  "COMMERCIAL_CREDITS",
   "MOVABLE_ASSET",
   "REAL_ESTATE",
   "DISCREPANCY_PRESERVED_WITH_EVIDENCE",
@@ -2577,6 +2904,7 @@ const REAL_CORPUS_CLOSED_VALUE_LABELS_V6: Readonly<Record<string, string>> =
     REDUCTION_ONLY_NOT_FULL_SANCTION:
       "Solo se reclama la reducción perdida, no la sanción completa",
     SEPARATE_FROM_PRINCIPAL: "Importe separado de la deuda principal",
+    COMMERCIAL_CREDITS: "Créditos comerciales o arrendaticios",
     MOVABLE_ASSET: "Bien mueble",
     REAL_ESTATE: "Inmueble",
     DISCREPANCY_PRESERVED_WITH_EVIDENCE:
@@ -2585,6 +2913,16 @@ const REAL_CORPUS_CLOSED_VALUE_LABELS_V6: Readonly<Record<string, string>> =
     DEPENDS_ON_EFFECTIVE_RECEIPT:
       "El plazo depende de la fecha efectiva de recepción",
   });
+
+const REAL_CORPUS_HUMAN_DETAILS_V6 = Object.freeze({
+  ...REAL_CORPUS_HUMAN_DETAILS_V5,
+  HISTORICAL_REDUCTION_PERCENT: [/^\d{1,3}$/u],
+  ASSET_KIND: [
+    "Bien mueble",
+    "Bien inmueble",
+    "Créditos comerciales o arrendaticios",
+  ],
+} satisfies Readonly<Record<string, readonly ClosedHumanFactMatcherV1[]>>);
 
 /** Closed V6 exception. Raw text, PII and arbitrary OCR values are rejected. */
 function assertRealCorpusSerializableFieldPrivacyV6(
@@ -2595,6 +2933,16 @@ function assertRealCorpusSerializableFieldPrivacyV6(
   const display = String(item.displayValue);
   const normalized =
     typeof item.normalizedValue === "string" ? item.normalizedValue : "";
+  if (
+    assertClosedRealCorpusContextualDateV1({
+      fieldId,
+      prefix: "real-corpus-v6:",
+      display,
+      normalized,
+    })
+  ) {
+    return true;
+  }
   if (fieldId === "real-corpus-v6:recognized-family") {
     if (
       display !== "Título, autoridad y estructura coinciden" ||
@@ -2627,15 +2975,26 @@ function assertRealCorpusSerializableFieldPrivacyV6(
     return true;
   }
   if (/^real-corpus-v6:installment:\d+$/u.test(fieldId)) {
-    if (
-      !/^V6:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):\d+:\d+:\d+$/u.test(
-        normalized,
-      ) ||
-      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés \d{1,3}(?:\.\d{3})*,\d{2}\s€ · total \d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
+    const humanDisplay =
+      /^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d{1,3}(?:\.\d{3})*,\d{2}\s€ · interés \d{1,3}(?:\.\d{3})*,\d{2}\s€ · total \d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(
         display,
-      )
+      );
+    if (
+      !humanDisplay ||
+      normalized !== display
     )
       throw invalidReview();
+    return true;
+  }
+  if (
+    assertClosedHumanRealCorpusDetailV1({
+      fieldId,
+      prefix: "real-corpus-v6:",
+      display,
+      normalized,
+      allowed: REAL_CORPUS_HUMAN_DETAILS_V6,
+    })
+  ) {
     return true;
   }
   const closed = /^V6:TEXT:[A-Z0-9_]+:([A-Z0-9_]+)$/u.exec(normalized);
@@ -2692,6 +3051,29 @@ const REAL_CORPUS_CLOSED_VALUES_V7 = new Set([
   "REJECTED_CARRYFORWARD",
 ]);
 
+const REAL_CORPUS_HUMAN_DETAILS_V7 = Object.freeze({
+  ...REAL_CORPUS_HUMAN_DETAILS_V6,
+  SANCTION_STAGE: ["Inicio del procedimiento con trámite de audiencia"],
+  ALLEGATION_BUSINESS_DAYS: [/^\d{1,3}$/u],
+  RESPONSE_BUSINESS_DAYS: [/^\d{1,3}$/u],
+  LEGAL_EFFECT: ["No constituye deuda ni sanción"],
+  OPAQUE_ASSET_ORDINAL: [/^[1-9]\d*$/u],
+  ENFORCEMENT_SCOPE: ["Principal restante del plan"],
+  ROI_STATUS: ["Alta en el Registro de Operadores Intracomunitarios"],
+  SCHEDULE_STATE: ["Calendario modificado", "Modificación del aplazamiento"],
+  ORIGINATING_AUTHORITY: ["Otro organismo público"],
+  COLLECTION_AUTHORITY: ["AEAT"],
+  ASSESSMENT_START: ["No inicia procedimiento de comprobación"],
+  DOCUMENT_CATEGORY_1: ["Facturas", "Libros registro", "Documentación bancaria", "Justificantes"],
+  DOCUMENT_CATEGORY_2: ["Facturas", "Libros registro", "Documentación bancaria", "Justificantes"],
+  DOCUMENT_CATEGORY_3: ["Facturas", "Libros registro", "Documentación bancaria", "Justificantes"],
+  DOCUMENT_CATEGORY_4: ["Facturas", "Libros registro", "Documentación bancaria", "Justificantes"],
+  REQUESTED_YEAR: [/^(?:19|20|21)\d{2}$/u],
+  ASSESSMENT_REASON: ["Saldo declarado de otro ejercicio no admitido"],
+  PROCEDURE_STAGE: ["Resolución final del procedimiento"],
+  PAYMENT_FORM_STATUS: ["Carta de pago adjunta"],
+} satisfies Readonly<Record<string, readonly ClosedHumanFactMatcherV1[]>>);
+
 /** Closed V7 exception. It accepts only enumerated explanations and facts. */
 function assertRealCorpusSerializableFieldPrivacyV7(
   item: Readonly<Record<string, unknown>>,
@@ -2701,6 +3083,16 @@ function assertRealCorpusSerializableFieldPrivacyV7(
   const display = String(item.displayValue);
   const normalized =
     typeof item.normalizedValue === "string" ? item.normalizedValue : "";
+  if (
+    assertClosedRealCorpusContextualDateV1({
+      fieldId,
+      prefix: "real-corpus-v7:",
+      display,
+      normalized,
+    })
+  ) {
+    return true;
+  }
   if (fieldId === "real-corpus-v7:recognized-family") {
     if (
       display !== "Título, autoridad y estructura coinciden" ||
@@ -2733,15 +3125,26 @@ function assertRealCorpusSerializableFieldPrivacyV7(
     return true;
   }
   if (/^real-corpus-v7:installment:\d+$/u.test(fieldId)) {
-    if (
-      !/^V7:INSTALLMENT:[1-9]\d*:(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01]):\d+:\d+:\d+$/u.test(
-        normalized,
-      ) ||
-      !/^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d+(?:\.\d{3})*,\d{2}\s€ · interés \d+(?:\.\d{3})*,\d{2}\s€ · total \d+(?:\.\d{3})*,\d{2}\s€$/u.test(
+    const humanDisplay =
+      /^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d+(?:\.\d{3})*,\d{2}\s€ · interés \d+(?:\.\d{3})*,\d{2}\s€ · total \d+(?:\.\d{3})*,\d{2}\s€$/u.test(
         display,
-      )
+      );
+    if (
+      !humanDisplay ||
+      normalized !== display
     )
       throw invalidReview();
+    return true;
+  }
+  if (
+    assertClosedHumanRealCorpusDetailV1({
+      fieldId,
+      prefix: "real-corpus-v7:",
+      display,
+      normalized,
+      allowed: REAL_CORPUS_HUMAN_DETAILS_V7,
+    })
+  ) {
     return true;
   }
   const syntheticReference = /^V7:SYNTHETIC_REFERENCE:(SYN-[A-Z0-9-]+)$/u.exec(

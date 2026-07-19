@@ -147,6 +147,7 @@ export const CLOSED_SEIZURE_MAIN_ACT_TITLES_V1 = Object.freeze([
   "diligencia de embargo de dinero efectivo devoluciones o creditos frente a la administracion",
   "diligencia de embargo de devoluciones tributarias",
   "diligencia de embargo de bienes inmuebles",
+  "notificacion de diligencia de embargo de bienes inmuebles",
   "levantamiento de diligencia de embargo",
   "orden de levantamiento de embargo",
   "justificante de contestacion a diligencia de embargo",
@@ -369,8 +370,8 @@ function classifyExplicitPage(
       header.some((line) =>
         definition.literals.some((literal) =>
           definition.matchMode === "LINE_EXACT"
-            ? line === literal
-            : line === literal || line.startsWith(`${literal} `),
+            ? matchesClosedMarker(line, literal, true)
+            : matchesClosedMarker(line, literal),
         ),
       ),
   );
@@ -378,7 +379,7 @@ function classifyExplicitPage(
     const title =
       header.find((line) =>
         primary.literals.some(
-          (literal) => line === literal || line.startsWith(`${literal} `),
+          (literal) => matchesClosedMarker(line, literal),
         ),
       ) ?? null;
     return Object.freeze({
@@ -390,7 +391,7 @@ function classifyExplicitPage(
   }
   const assessmentTitle = header.find((line) =>
     CLOSED_ASSESSMENT_MAIN_ACT_TITLES.some(
-      (literal) => line === literal || line.startsWith(`${literal} `),
+      (literal) => matchesClosedMarker(line, literal),
     ),
   );
   if (assessmentTitle !== undefined) {
@@ -403,7 +404,7 @@ function classifyExplicitPage(
   }
   const deferralDenialTitle = header.find((line) =>
     CLOSED_DEFERRAL_DENIAL_MAIN_ACT_TITLES_V1.some(
-      (literal) => line === literal || line.startsWith(`${literal} `),
+      (literal) => matchesClosedMarker(line, literal),
     ),
   );
   if (deferralDenialTitle !== undefined) {
@@ -416,7 +417,7 @@ function classifyExplicitPage(
   }
   const seizureTitle = header.find((line) =>
     CLOSED_SEIZURE_MAIN_ACT_TITLES_V1.some(
-      (literal) => line === literal || line.startsWith(`${literal} `),
+      (literal) => matchesClosedMarker(line, literal),
     ),
   );
   if (seizureTitle !== undefined) {
@@ -430,7 +431,7 @@ function classifyExplicitPage(
   for (const definition of CLOSED_PAGE_MARKERS) {
     const title = header.find((line) =>
       definition.titles.some(
-        (literal) => line === literal || line.startsWith(`${literal} `),
+        (literal) => matchesClosedMarker(line, literal),
       ),
     );
     if (title !== undefined) {
@@ -448,6 +449,29 @@ function classifyExplicitPage(
     detectedAuthority: detectAuthority(lines),
     confidence: 0,
   });
+}
+
+function matchesClosedMarker(
+  line: string,
+  literal: string,
+  exact = false,
+): boolean {
+  const normalizedLine = normalizeClosedMarker(line);
+  const normalizedLiteral = normalizeClosedMarker(literal);
+  return exact
+    ? normalizedLine === normalizedLiteral
+    : normalizedLine === normalizedLiteral ||
+        normalizedLine.startsWith(`${normalizedLiteral} `);
+}
+
+function normalizeClosedMarker(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
+    .replace(/\s+/gu, " ")
+    .trim();
 }
 
 function detectAuthority(lines: readonly string[]): DetectedAuthorityV1 {

@@ -449,24 +449,31 @@ interface InstallmentRow {
 function isInstallmentField(
   field: FiscalNotificationVerticalSliceReviewFieldV1,
 ): boolean {
-  return /^V6:INSTALLMENT:/u.test(field.normalizedValue ?? "");
+  return (
+    /^real-corpus-v[3-7]:installment:\d+$/u.test(field.fieldId) &&
+    projectInstallmentRow(field).length === 1
+  );
 }
 
 function projectInstallmentRow(
   field: FiscalNotificationVerticalSliceReviewFieldV1,
 ): readonly InstallmentRow[] {
+  const sequence = /^Cuota ([1-9]\d*)$/u.exec(field.label)?.[1];
   const match =
-    /^V6:INSTALLMENT:([1-9]\d*):((?:19|20)\d{2}-\d{2}-\d{2}):(\d+):(\d+):(\d+)$/u.exec(
-      field.normalizedValue ?? "",
+    /^Vence ((?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2}) · (?:principal|base) (\d{1,3}(?:\.\d{3})*,\d{2})\s€ · interés (\d{1,3}(?:\.\d{3})*,\d{2})\s€ · total (\d{1,3}(?:\.\d{3})*,\d{2})\s€$/u.exec(
+      field.displayValue,
     );
-  if (!match) return [];
+  if (!sequence || !match) return [];
+  const [day, month, year] = match[1]!.split("/");
+  const cents = (value: string): number =>
+    Number(value.replace(/\./gu, "").replace(",", ""));
   return [
     {
-      sequence: match[1]!,
-      dueDate: match[2]!,
-      principalCents: Number(match[3]),
-      interestCents: Number(match[4]),
-      totalCents: Number(match[5]),
+      sequence,
+      dueDate: `${year}-${month}-${day}`,
+      principalCents: cents(match[2]!),
+      interestCents: cents(match[3]!),
+      totalCents: cents(match[4]!),
     },
   ];
 }

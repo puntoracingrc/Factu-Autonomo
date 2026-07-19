@@ -160,8 +160,8 @@ describe("fiscal notification vertical-slice review v1", () => {
       expect.objectContaining({
         semantic: "PARTY",
         canonicalType: "TAXPAYER",
-        displayValue: expect.stringMatching(/^Interviniente \d+$/u),
-        normalizedValue: expect.stringMatching(/^ROLE:TAXPAYER:\d+$/u),
+        displayValue: "Obligado tributario",
+        normalizedValue: "Obligado tributario",
       }),
       expect.objectContaining({
         semantic: "DETAIL",
@@ -255,7 +255,8 @@ describe("fiscal notification vertical-slice review v1", () => {
       expect.objectContaining({
         semantic: "PARTY",
         canonicalType: "PRIMARY_DEBTOR",
-        displayValue: expect.stringMatching(/^Interviniente \d+$/u),
+        displayValue: "Deudor principal",
+        normalizedValue: "Deudor principal",
       }),
       expect.objectContaining({
         semantic: "MONEY",

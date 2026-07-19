@@ -10,7 +10,7 @@ import type {
 
 export const REAL_CORPUS_EXTRACTOR_SCHEMA_VERSION_V3 = 3 as const;
 export const REAL_CORPUS_EXTRACTOR_VERSION_V3 =
-  "aeat-real-corpus-extractor.2026-07-17.v3.1" as const;
+  "aeat-real-corpus-extractor.2026-07-19.v3.2" as const;
 
 export const REAL_CORPUS_FAMILY_IDS_V3 = Object.freeze([
   "collection.enforcement_order",
@@ -289,7 +289,9 @@ function buildIndex(document: BoundedDocumentInput): DocumentIndexV3 {
 }
 
 function contains(index: DocumentIndexV3, value: string): boolean {
-  return index.normalizedText.includes(normalize(value));
+  return index.normalizedText
+    .replace(/\s+/gu, " ")
+    .includes(normalize(value));
 }
 
 function isAeat(index: DocumentIndexV3): boolean {
@@ -338,6 +340,88 @@ function lineValue(
     }
   }
   return null;
+}
+
+function numberedReferenceInLine(
+  index: DocumentIndexV3,
+  markers: readonly string[],
+): Readonly<{ value: string; pageNumber: number }> | null {
+  const normalizedMarkers = markers.map(normalize);
+  for (const line of index.lines) {
+    if (
+      !normalizedMarkers.some((marker) => line.normalized.includes(marker))
+    ) {
+      continue;
+    }
+    const match = /(?:^|\s)(\d{12,20}[A-Z])(?=\s|$)/u.exec(
+      line.normalized,
+    );
+    if (match?.[1]) {
+      return Object.freeze({
+        value: match[1],
+        pageNumber: line.pageNumber,
+      });
+    }
+  }
+  return null;
+}
+
+function embeddedReferenceAfterLabel(
+  index: DocumentIndexV3,
+  label: string,
+  pattern: RegExp,
+): Readonly<{ value: string; pageNumber: number }> | null {
+  const marker = `${normalize(label)}:`;
+  for (const line of index.lines) {
+    const markerIndex = line.normalized.indexOf(marker);
+    if (markerIndex < 0) continue;
+    const match = pattern.exec(
+      line.normalized.slice(markerIndex + marker.length).trim(),
+    );
+    if (match?.[1]) {
+      return Object.freeze({
+        value: match[1],
+        pageNumber: line.pageNumber,
+      });
+    }
+  }
+  return null;
+}
+
+function nextLineAfterContaining(
+  index: DocumentIndexV3,
+  markers: readonly string[],
+): IndexedLineV3 | null {
+  const normalizedMarkers = markers.map(normalize);
+  for (let position = 0; position < index.lines.length - 1; position += 1) {
+    const line = index.lines[position]!;
+    if (!normalizedMarkers.some((marker) => line.normalized.includes(marker))) {
+      continue;
+    }
+    const next = index.lines[position + 1]!;
+    if (
+      next.pageNumber === line.pageNumber &&
+      moneySourceFromLine(next) !== null
+    ) {
+      return next;
+    }
+  }
+  return null;
+}
+
+function moneySourceFromLine(
+  line: IndexedLineV3 | null,
+): Readonly<{ value: string; pageNumber: number }> | null {
+  if (!line) return null;
+  const matches = [
+    ...line.raw.matchAll(
+      /(-)?\s*((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*(?:EUR|€)?/giu,
+    ),
+  ];
+  const match = matches.at(-1);
+  return match?.[0]
+    ? Object.freeze({ value: match[0], pageNumber: line.pageNumber })
+    : null;
 }
 
 function tableCells(line: IndexedLineV3): readonly string[] {
@@ -434,6 +518,13 @@ function bankSeizureAssetRows(
       rows.push(Object.freeze({ ordinal: 1, seizedAmount: fallback }));
     }
   }
+  if (rows.length === 0) {
+    const observedRow = nextLineAfterContaining(index, ["Importe embargado"]);
+    const amount = moneySourceFromLine(observedRow);
+    if (amount && parseMoney(amount.value) !== null) {
+      rows.push(Object.freeze({ ordinal: 1, seizedAmount: amount }));
+    }
+  }
   return Object.freeze(rows);
 }
 
@@ -497,10 +588,11 @@ function parseDate(raw: string): string | null {
 }
 
 function parseMoney(raw: string): number | null {
-  const match =
-    /(-)?\s*((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*(?:EUR|€)?/iu.exec(
-      raw,
-    );
+  const match = [
+    ...raw.matchAll(
+      /(-)?\s*((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*(?:EUR|€)?/giu,
+    ),
+  ].at(-1);
   if (!match) return null;
   const number = Number(match[2].replace(/\./gu, "").replace(",", "."));
   const cents = Math.round(number * 100) * (match[1] ? -1 : 1);
@@ -591,15 +683,6 @@ function textField(
     value,
     evidence: evidence(pageNumber),
   });
-}
-
-function integerField(
-  code: string,
-  label: string,
-  value: number,
-  pageNumber: number,
-): RealCorpusFieldV2 {
-  return textField(code, label, String(value), pageNumber);
 }
 
 function booleanField(
@@ -1054,6 +1137,11 @@ function deferral(
   const debtKey = debt?.kind === "REFERENCE" ? debt.value : null;
   const installments = extractInstallments(document, index, debtKey);
   if (document.pages.length < 8 || installments.length === 0) return null;
+  const directDebit = markerValue(
+    index,
+    ["DOMICILIACIÓN", "DOMICILIACION"],
+    "Domiciliación bancaria",
+  );
   const fields = compact([
     referenceField(
       "AGREEMENT_ID",
@@ -1093,14 +1181,14 @@ function deferral(
         "Fecha del acuerdo",
       ]),
     ),
-    textField(
-      "DIRECT_DEBIT_EXISTS",
-      "Forma prevista de pago",
-      contains(index, "DOMICILIACIÓN")
-        ? "DIRECT_DEBIT_PRESENT"
-        : "PAYMENT_CHANNEL_NOT_PRINTED",
-      1,
-    ),
+    directDebit
+      ? textField(
+          "DIRECT_DEBIT_EXISTS",
+          "Forma prevista de pago",
+          directDebit.value,
+          directDebit.pageNumber,
+        )
+      : null,
   ]);
   return reviewed(document, index, {
     familyId: "collection.deferral_grant",
@@ -1126,11 +1214,16 @@ function bankSeizure(
     ) ||
     hasLinePrefix(
       index,
+      "NOTIFICACIÓN DE DILIGENCIA DE EMBARGO DE CUENTAS",
+    ) ||
+    hasLinePrefix(
+      index,
       "NOTIFICACIÓN AL DEUDOR DE DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
     ) ||
     hasLinePrefix(index, "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS");
   const seizureOrder = lineValue(index, [
     "Número de diligencia",
+    "Nº de la diligencia",
     "Nº de diligencia",
     "Nº diligencia",
     "Referencia de la diligencia",
@@ -1159,12 +1252,7 @@ function bankSeizure(
     !isAeat(index) ||
     !seizureOrder ||
     !seizureDate ||
-    !contains(index, "DEUDAS DEL EXPEDIENTE EJECUTIVO") ||
-    !debtRow ||
-    !pendingDebtTotal ||
-    !seizureLimit ||
-    !hasAccountsBlock ||
-    assetRows.length === 0
+    !hasAccountsBlock
   ) {
     return null;
   }
@@ -1176,6 +1264,33 @@ function bankSeizure(
           "Importe ingresado al Tesoro",
         ])
       : null;
+  const recipient =
+    markerValue(
+      index,
+      ["CONDICIÓN DE OBLIGADO AL PAGO", "CONDICION DE OBLIGADO AL PAGO"],
+      "Obligado al pago",
+    ) ??
+    markerValue(
+      index,
+      [
+        "ENTIDAD FINANCIERA DESTINATARIA",
+        "ENTIDAD DE CRÉDITO DESTINATARIA",
+        "NOTIFICACIÓN DIRIGIDA A LA ENTIDAD FINANCIERA",
+        "NOTIFICACION DIRIGIDA A LA ENTIDAD FINANCIERA",
+      ],
+      "Entidad financiera destinataria",
+    );
+  const bankAsset = markerValue(
+    index,
+    [
+      "SALDOS DE LAS CUENTAS",
+      "CUENTAS BANCARIAS",
+      "CUENTA O DEPÓSITO",
+      "DEPÓSITOS Y CUENTAS",
+      "DEPOSITOS Y CUENTAS",
+    ],
+    "Cuenta o depósito bancario",
+  );
   const fields = compact([
     referenceField(
       "SEIZURE_ORDER_ID",
@@ -1183,41 +1298,40 @@ function bankSeizure(
       seizureOrder,
     ),
     dateField("SEIZURE_DATE", "Fecha de la diligencia", seizureDate),
-    referenceField("DEBT_KEY", "Número de liquidación", debtRow.debtKey),
-    moneyField("PENDING_DEBT", "Deuda pendiente", debtRow.pendingDebt),
+    ...(debtRow
+      ? [
+          referenceField("DEBT_KEY", "Número de liquidación", debtRow.debtKey),
+          moneyField("PENDING_DEBT", "Deuda pendiente", debtRow.pendingDebt),
+        ]
+      : []),
     moneyField("PENDING_DEBT_TOTAL", "Total pendiente", pendingDebtTotal),
     moneyField("SEIZURE_LIMIT", "Límite del embargo", seizureLimit),
-    ...assetRows.flatMap((asset) => [
-      integerField(
-        "OPAQUE_ASSET_ORDINAL",
-        "Cuenta o depósito",
-        asset.ordinal,
-        asset.seizedAmount.pageNumber,
-      ),
+    ...assetRows.map((asset) =>
       moneyField("SEIZED_AMOUNT", "Importe embargado", asset.seizedAmount),
-    ]),
+    ),
     ...(remitted
       ? [moneyField("REMITTED_AMOUNT", "Importe remitido al Tesoro", remitted)]
       : []),
-    textField(
-      "RECIPIENT_ROLE",
-      "Destinatario",
-      contains(index, "CONDICIÓN DE OBLIGADO AL PAGO") ||
-        contains(index, "CONDICION DE OBLIGADO AL PAGO")
-        ? "PRIMARY_DEBTOR"
-        : "FINANCIAL_ENTITY",
-      1,
-    ),
-    textField(
-      "ASSET_KIND",
-      "Bien afectado",
-      "BANK_ACCOUNT_OR_DEPOSIT",
-      assetRows[0]!.seizedAmount.pageNumber,
-    ),
+    recipient
+      ? textField(
+          "RECIPIENT_ROLE",
+          "Destinatario",
+          recipient.value,
+          recipient.pageNumber,
+        )
+      : null,
+    bankAsset
+      ? textField(
+          "ASSET_KIND",
+          "Bien afectado",
+          bankAsset.value,
+          bankAsset.pageNumber,
+        )
+      : null,
     dateField(
       "SIGNING_DATE",
-      "Fecha del documento",
-      lineValue(index, ["Fecha de firma", "Fecha del documento"]),
+      "Fecha de firma",
+      lineValue(index, ["Fecha de firma"]),
     ),
   ]);
   return reviewed(document, index, {
@@ -1246,11 +1360,16 @@ function reminder(
   ) {
     return null;
   }
-  const electronicChannelPrinted =
-    contains(index, "PRESENTACIÓN ELECTRÓNICA") ||
-    contains(index, "PRESENTACION ELECTRONICA") ||
-    contains(index, "VÍA ELECTRÓNICA") ||
-    contains(index, "VIA ELECTRONICA");
+  const electronicChannel = markerValue(
+    index,
+    [
+      "PRESENTACIÓN ELECTRÓNICA",
+      "PRESENTACION ELECTRONICA",
+      "VÍA ELECTRÓNICA",
+      "VIA ELECTRONICA",
+    ],
+    "Presentación electrónica",
+  );
   const fields = compact([
     referenceField(
       "DOCUMENT_REFERENCE",
@@ -1276,20 +1395,14 @@ function reminder(
       lineValue(index, ["Inicio del período", "Fecha de inicio"]) ??
         markerValue(index, ["1 DE ENERO"], "01-01"),
     ),
-    electronicChannelPrinted
+    electronicChannel
       ? textField(
           "ELECTRONIC_CHANNEL",
           "Canal indicado",
-          "ELECTRONIC_CHANNEL",
-          1,
+          electronicChannel.value,
+          electronicChannel.pageNumber,
         )
       : null,
-    textField(
-      "LANGUAGE_STRUCTURE",
-      "Estructura lingüística",
-      "SPANISH_CATALAN_SAME_ACT",
-      1,
-    ),
   ]);
   return reviewed(document, index, {
     familyId: "information.model_filing_reminder",
@@ -1307,36 +1420,48 @@ function reminder(
   });
 }
 
-function publicAuthorityRole(
-  raw: string,
-): "SOCIAL_SECURITY" | "REGIONAL_TAX_AUTHORITY" | "OTHER_PUBLIC_AUTHORITY" {
-  const value = normalize(raw);
-  if (
-    value.includes("SEGURIDAD SOCIAL") ||
-    value.includes("TESORERIA GENERAL") ||
-    /(?:^|\s)TGSS(?:\s|$)/u.test(value)
-  ) {
-    return "SOCIAL_SECURITY";
-  }
-  if (
-    value.includes("COMUNIDAD AUTONOMA") ||
-    value.includes("AGENCIA TRIBUTARIA AUTONOMICA") ||
-    value.includes("HACIENDA AUTONOMICA")
-  ) {
-    return "REGIONAL_TAX_AUTHORITY";
-  }
-  return "OTHER_PUBLIC_AUTHORITY";
-}
-
 function refund(
   document: BoundedDocumentInput,
   index: DocumentIndexV3,
 ): RealCorpusExtractorOutcomeV3 | null {
   if (!hasLinePrefix(index, "COMUNICACIÓN DE PAGO DE DEVOLUCIÓN")) return null;
-  const deductions = allLineValues(index, [
+  const labeledDeductions = allLineValues(index, [
     "Deducción organismo público",
     "Deducción",
-  ]).slice(0, 16);
+  ]);
+  const narrativeDeductions = index.lines.flatMap((line, position) => {
+    if (
+      !line.normalized.includes("DEUDAS") ||
+      (!line.normalized.includes("SEGURIDAD SOCIAL") &&
+        !line.normalized.includes("AGENCIA TRIBUTARIA"))
+    ) {
+      return [];
+    }
+    const authority = line.normalized.includes("SEGURIDAD SOCIAL")
+      ? "Seguridad Social"
+      : "Hacienda autonómica";
+    for (
+      let candidatePosition = position;
+      candidatePosition <= Math.min(position + 2, index.lines.length - 1);
+      candidatePosition += 1
+    ) {
+      const candidate = index.lines[candidatePosition]!;
+      if (candidate.pageNumber !== line.pageNumber) break;
+      const amount = moneySourceFromLine(candidate);
+      if (!amount || !amount.value.includes(",")) continue;
+      return [
+        Object.freeze({
+          value: `${authority} | ${amount.value}`,
+          pageNumber: amount.pageNumber,
+        }),
+      ];
+    }
+    return [];
+  });
+  const deductions = [...labeledDeductions, ...narrativeDeductions].slice(
+    0,
+    16,
+  );
   const deductionReferences = allLineValues(index, [
     "Referencia de deducción",
     "Referencia de la deducción",
@@ -1354,6 +1479,18 @@ function refund(
   ) {
     return null;
   }
+  const observedAuthority = (value: string): string | null => {
+    const authority = normalize(value.split("|")[0] ?? "");
+    if (authority.includes("SEGURIDAD SOCIAL")) return "Seguridad Social";
+    if (
+      authority.includes("HACIENDA AUTONOMICA") ||
+      authority.includes("AGENCIA TRIBUTARIA AUTONOMICA") ||
+      authority.includes("COMUNIDAD AUTONOMA")
+    ) {
+      return "Hacienda autonómica";
+    }
+    return null;
+  };
   const fields = compact([
     referenceField(
       "REFUND_REFERENCE",
@@ -1366,7 +1503,7 @@ function refund(
       lineValue(index, [
         "Referencia del acuerdo de devolución",
         "Referencia de la resolución",
-      ]),
+      ]) ?? numberedReferenceInLine(index, ["Importe acordado"]),
     ),
     moneyField(
       "REFUND_REQUESTED",
@@ -1376,12 +1513,20 @@ function refund(
     moneyField(
       "REFUND_AGREED",
       "Devolución acordada",
-      lineValue(index, ["Devolución acordada", "Importe reconocido"]),
+      lineValue(index, [
+        "Devolución acordada",
+        "Importe acordado",
+        "Importe reconocido",
+      ]),
     ),
     moneyField(
       "REFUND_ORDERED",
       "Devolución ordenada",
-      lineValue(index, ["Devolución ordenada", "Importe ordenado"]),
+      lineValue(index, [
+        "Devolución ordenada",
+        "Importe ordenado",
+        "Total devolución",
+      ]),
     ),
     moneyField(
       "DEDUCTION_TOTAL",
@@ -1398,30 +1543,29 @@ function refund(
       "Fecha del documento",
       lineValue(index, ["Fecha de emisión", "Fecha del documento", "Fecha"]),
     ),
-    ...deductions.flatMap((item, position) => [
-      textField(
-        `PUBLIC_AUTHORITY_ROLE_${position + 1}`,
-        `Organismo público ${position + 1}`,
-        publicAuthorityRole(item.value),
-        item.pageNumber,
-      ),
-      moneyField(
-        `EXTERNAL_DEDUCTION_${position + 1}`,
-        `Deducción ${position + 1}`,
-        item,
-      ),
-      referenceField(
-        `EXTERNAL_DEDUCTION_REFERENCE_${position + 1}`,
-        `Referencia de la deducción ${position + 1}`,
-        deductionReferences[position] ?? null,
-      ),
-    ]),
-    textField(
-      "TRANSFER_STATUS",
-      "Estado de la devolución",
-      "TRANSFER_ORDERED_NOT_BANK_CREDIT",
-      1,
-    ),
+    ...deductions.flatMap((item, position) => {
+      const authority = observedAuthority(item.value);
+      return [
+        authority
+          ? textField(
+              `PUBLIC_AUTHORITY_ROLE_${position + 1}`,
+              `Organismo público ${position + 1}`,
+              authority,
+              item.pageNumber,
+            )
+          : null,
+        moneyField(
+          `EXTERNAL_DEDUCTION_${position + 1}`,
+          `Deducción ${position + 1}`,
+          item,
+        ),
+        referenceField(
+          `EXTERNAL_DEDUCTION_REFERENCE_${position + 1}`,
+          `Referencia de la deducción ${position + 1}`,
+          deductionReferences[position] ?? null,
+        ),
+      ];
+    }),
   ]);
   return reviewed(document, index, {
     familyId: "refund.payment_communication",
@@ -1448,6 +1592,11 @@ function regulatoryChange(
   ) {
     return null;
   }
+  const electronicFiling = markerValue(
+    index,
+    ["PRESENTACIÓN ELECTRÓNICA", "PRESENTACION ELECTRONICA"],
+    "Presentación electrónica",
+  );
   return reviewed(document, index, {
     familyId: "information.regulatory_change",
     canonicalTitle: "Comunicación informativa de cambio normativo o de canal",
@@ -1456,7 +1605,12 @@ function regulatoryChange(
       referenceField(
         "DOCUMENT_REFERENCE",
         "Referencia del documento",
-        lineValue(index, ["Referencia del documento", "Referencia"]),
+        lineValue(index, ["Referencia del documento", "Referencia"]) ??
+          embeddedReferenceAfterLabel(
+            index,
+            "Referencia",
+            /^([A-Z]{1,4}\s*\d{10,20}[A-Z]?)(?:\s|$)/u,
+          ),
       ),
       referenceField(
         "AFFECTED_MODEL",
@@ -1466,21 +1620,25 @@ function regulatoryChange(
       textField(
         "EFFECTIVE_EXERCISES",
         "Ejercicios afectados",
-        "FROM_2023_ONWARDS",
-        1,
+        "Ejercicio 2023 y siguientes",
+        markerValue(index, ["EJERCICIO 2023 Y SIGUIENTES"], "observed")!
+          .pageNumber,
       ),
       textField(
         "REMOVED_CHANNEL",
         "Canal retirado",
-        "PAPER_PREDECLARATION_REMOVED",
-        1,
+        "Predeclaración en papel retirada",
+        markerValue(index, ["DESAPARECE LA MODALIDAD DE PRESENTACIÓN"], "observed")!
+          .pageNumber,
       ),
-      textField(
-        "ALLOWED_IDENTITY_METHODS",
-        "Canal disponible",
-        "ELECTRONIC_FILING",
-        1,
-      ),
+      electronicFiling
+        ? textField(
+            "ALLOWED_IDENTITY_METHODS",
+            "Canal disponible",
+            electronicFiling.value,
+            electronicFiling.pageNumber,
+          )
+        : null,
       dateField(
         "ISSUE_DATE",
         "Fecha del documento",
@@ -1510,6 +1668,21 @@ function release(
       !contains(index, "BASTIDOR"))
   )
     return null;
+  const asset = markerValue(
+    index,
+    ["VEHÍCULO", "VEHICULO", "MATRÍCULA", "MATRICULA", "BASTIDOR"],
+    "Vehículo o bien mueble",
+  );
+  const releaseExtent = markerValue(
+    index,
+    ["LEVANTAMIENTO DE EMBARGO DE BIENES MUEBLES", "SE ACUERDA EL LEVANTAMIENTO"],
+    "Levantamiento del embargo",
+  );
+  const registryCancellation = markerValue(
+    index,
+    ["CANCELACIÓN", "CANCELACION"],
+    "Cancelación registral ordenada",
+  );
   return reviewed(document, index, {
     familyId: "seizure.release",
     canonicalTitle: "Levantamiento de embargo",
@@ -1541,14 +1714,25 @@ function release(
           "Fecha de firma",
         ]),
       ),
-      textField("ASSET_KIND", "Tipo de bien", "MOTOR_VEHICLE", 1),
-      textField("RELEASE_EXTENT", "Alcance", "PRINTED_SEIZURE_RELEASE", 1),
-      booleanField(
-        "REGISTRY_CANCELLATION_ORDERED",
-        "Cancelación registral ordenada",
-        contains(index, "CANCELACIÓN") || contains(index, "CANCELACION"),
-        1,
-      ),
+      asset
+        ? textField("ASSET_KIND", "Tipo de bien", asset.value, asset.pageNumber)
+        : null,
+      releaseExtent
+        ? textField(
+            "RELEASE_EXTENT",
+            "Alcance",
+            releaseExtent.value,
+            releaseExtent.pageNumber,
+          )
+        : null,
+      registryCancellation
+        ? booleanField(
+            "REGISTRY_CANCELLATION_ORDERED",
+            "Cancelación registral ordenada",
+            true,
+            registryCancellation.pageNumber,
+          )
+        : null,
     ]),
     installments: Object.freeze([]),
     amountScenarios: Object.freeze([]),
@@ -1562,13 +1746,34 @@ function certificate(
   document: BoundedDocumentInput,
   index: DocumentIndexV3,
 ): RealCorpusExtractorOutcomeV3 | null {
-  if (
-    !hasLinePrefix(index, "DENEGACIÓN DE CERTIFICADO") ||
-    !contains(index, "DEUDAS O SANCIONES") ||
-    !contains(index, "EJECUTIVA")
-  ) {
+  const classicNegative =
+    hasLinePrefix(index, "DENEGACIÓN DE CERTIFICADO") &&
+    contains(index, "DEUDAS O SANCIONES");
+  const observedCertificateNegative =
+    contains(index, "SOLICITUD DE CERTIFICADO") &&
+    contains(index, "CORRIENTE") &&
+    contains(index, "DEUDAS") &&
+    contains(index, "SANCIONES") &&
+    contains(index, "CERTIFICADO") &&
+    contains(index, "NEGATIVO");
+  if (!classicNegative && !observedCertificateNegative) {
     return null;
   }
+  const negativeResult = markerValue(
+    index,
+    [
+      "DENEGACIÓN DE CERTIFICADO",
+      "DENEGACION DE CERTIFICADO",
+      "CERTIFICADO NEGATIVO",
+      "NEGATIVO",
+    ],
+    "Negativo",
+  );
+  const negativeReason = markerValue(
+    index,
+    ["DEUDAS O SANCIONES", "DEUDAS", "SANCIONES"],
+    "Deudas o sanciones indicadas en el certificado",
+  );
   return reviewed(document, index, {
     familyId: "certificate.tax_compliance",
     canonicalTitle: "Certificado de estar al corriente",
@@ -1580,16 +1785,27 @@ function certificate(
         lineValue(index, [
           "Referencia del certificado",
           "Código de certificado",
+          "Número de referencia",
+          "Nº referencia",
           "Referencia",
         ]),
       ),
-      textField("CERTIFICATE_RESULT", "Resultado", "NEGATIVE", 1),
-      textField(
-        "NEGATIVE_REASON",
-        "Motivo indicado",
-        "EXECUTIVE_DEBTS_OR_SANCTIONS_NOT_SUSPENDED_OR_DEFERRED",
-        1,
-      ),
+      negativeResult
+        ? textField(
+            "CERTIFICATE_RESULT",
+            "Resultado",
+            negativeResult.value,
+            negativeResult.pageNumber,
+          )
+        : null,
+      negativeReason
+        ? textField(
+            "NEGATIVE_REASON",
+            "Motivo indicado",
+            negativeReason.value,
+            negativeReason.pageNumber,
+          )
+        : null,
       dateField(
         "ISSUE_DATE",
         "Fecha del certificado",

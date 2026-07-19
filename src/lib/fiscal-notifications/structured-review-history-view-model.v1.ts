@@ -172,6 +172,7 @@ const REFERENCE_LABELS: Readonly<Record<string, string>> = {
   VTO_RAW: "Referencia Vto.",
   NOTIFICATION_ID: "Identificador de notificación",
   REQUEST_NUMBER: "Número de requerimiento",
+  REFUND_REFERENCE: "Referencia de devolución",
 };
 
 const SENSITIVE_EXTERNAL_REFERENCE_TYPES = new Set<ExternalReferenceType>([
@@ -984,6 +985,8 @@ function projectOrderedFacts(input: {
 
   input.unknownFields.forEach((fact, index) => {
     const metadata = parseVerticalFieldLabel(fact.labelRaw);
+    const visibleValue =
+      humanizeLegacyInstallmentToken(fact.valueRaw) ?? fact.valueRaw;
     if (
       metadata?.semantic === "MONEY" ||
       metadata?.semantic === "REFERENCE" ||
@@ -991,7 +994,7 @@ function projectOrderedFacts(input: {
       isInternalFiscalNotificationFieldArtifact({
         fieldId: metadata?.fieldId ?? null,
         label: metadata?.label ?? fact.labelRaw,
-        value: fact.valueRaw,
+        value: visibleValue,
         semantic: metadata?.semantic ?? null,
         canonicalType: metadata?.canonicalType ?? null,
       })
@@ -1005,7 +1008,7 @@ function projectOrderedFacts(input: {
       key: fact.evidenceId ?? `printed:${fact.page}:${index}`,
       semantic: orderedSemantic(metadata?.semantic, fact.labelRaw),
       label: metadata?.label ?? DATE_LABELS[fact.labelRaw] ?? "Dato",
-      value: fact.valueRaw,
+      value: visibleValue,
       pageNumber: fact.page,
       sourceReference: null,
       order: sourceOrder,
@@ -1068,6 +1071,18 @@ function formatOrderedMoney(
   const decimals = String(absoluteCents % 100).padStart(2, "0");
   const amount = `${amountCents < 0 ? "-" : ""}${whole},${decimals}`;
   return currency === "EUR" ? `${amount} €` : `${amount} · moneda no indicada`;
+}
+
+function humanizeLegacyInstallmentToken(value: string): string | null {
+  const match =
+    /^V([3-7]):INSTALLMENT:([1-9]\d*):((?:19|20)\d{2})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]):(-?\d+):(-?\d+):(-?\d+)$/u.exec(
+      value,
+    );
+  if (!match) return null;
+  const amounts = [match[6], match[7], match[8]].map(Number);
+  if (!amounts.every(Number.isSafeInteger)) return null;
+  const principalLabel = match[1] === "3" ? "base" : "principal";
+  return `Vence ${match[5]}/${match[4]}/${match[3]} · ${principalLabel} ${formatOrderedMoney(amounts[0]!, "EUR")} · interés ${formatOrderedMoney(amounts[1]!, "EUR")} · total ${formatOrderedMoney(amounts[2]!, "EUR")}`;
 }
 
 function normalizeCalendarDate(value: string | undefined): string | null {

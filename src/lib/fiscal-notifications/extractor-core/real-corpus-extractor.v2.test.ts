@@ -711,7 +711,7 @@ function publicationFixture(
     [
       title,
       kind === "PREPUBLICATION"
-        ? "Se va a proceder a su citación"
+        ? "Se va a proceder\na su citación"
         : kind === "DILIGENCE"
           ? "Diligencia de publicación"
           : "Certificado de publicación",
@@ -726,6 +726,59 @@ function publicationFixture(
       ...(kind === "CERTIFICATE"
         ? ["Fecha efectiva de notificación: 2025-02-26"]
         : []),
+    ].join("\n"),
+    null,
+  ]);
+}
+
+function publicationNarrativeFixture(
+  caseId: string,
+  kind: "DILIGENCE" | "CERTIFICATE" | "PREPUBLICATION",
+): BoundedDocumentInput {
+  const title =
+    kind === "DILIGENCE"
+      ? "DILIGENCIA DE PUBLICACIÓN DEL ANUNCIO DE CITACIÓN PARA NOTIFICACIÓN POR COMPARECENCIA EN BOLETÍN OFICIAL DEL ESTADO"
+      : kind === "CERTIFICATE"
+        ? "CERTIFICADO DE PUBLICACIÓN EN EL BOLETÍN OFICIAL DEL ESTADO DEL ANUNCIO DE CITACIÓN PARA NOTIFICACIÓN POR COMPARECENCIA"
+        : "COMUNICACIÓN NOTIFICACIÓN POR COMPARECENCIA";
+  const identity =
+    kind === "PREPUBLICATION"
+      ? [
+          "Referencia: 7000000000001",
+          "Acuerdo",
+          "Tipo de acto:",
+          "Procedimiento expediente sintético",
+          "Exigencia de reducción de sanción 8000000000002 pendiente de notificación",
+        ]
+      : [
+          "N.º Certificado: 7000000000001",
+          kind === "DILIGENCE"
+            ? "Concepto: liquidación provisional L8000000000000022"
+            : "Concepto: diligencia de embargo n.º 800000000000A",
+        ];
+  const publication =
+    kind === "PREPUBLICATION"
+      ? []
+      : kind === "DILIGENCE"
+        ? [
+            "Publicado en el Boletín Oficial del Estado número 123, de fecha 2026-07-10, citación para notificación por comparecencia.",
+          ]
+        : [
+            'Publicado en el "Boletín Oficial del Estado", número de anuncio 2026/321 de fecha 2026-07-10, citación para notificación por comparecencia.',
+            "El 2026-07-26, el acuerdo quedó notificado.",
+          ];
+  return document(caseId, [
+    [
+      title,
+      kind === "PREPUBLICATION"
+        ? "Se va a proceder a su citación"
+        : kind === "DILIGENCE"
+          ? "Diligencia de publicación"
+          : "Certificado de publicación",
+      "Notificación por comparecencia",
+      "Identificación del documento",
+      ...identity,
+      ...publication,
     ].join("\n"),
     null,
   ]);
@@ -758,6 +811,21 @@ describe("AEAT real corpus extractor V2", () => {
     expect(result.explanation).toBe(
       "La AEAT propone cambiar un saldo de 700,00 € a compensar por 1.400,00 € a ingresar; todavía no es liquidación final y abre 10 días hábiles desde la recepción.",
     );
+
+    const review = (
+      await analyzeFiscalNotificationDocumentInput(proposalFixture())
+    ).verticalSliceReview;
+    expect(
+      review.documents
+        .flatMap((document) => document.fields)
+        .find((field) => field.fieldId.includes("DECLARED_RESULT")),
+    ).toMatchObject({
+      semantic: "DETAIL",
+      displayValue: "-700,00 €",
+      normalizedValue: "-700,00 €",
+      sourcePageNumbers: [2],
+    });
+    expect(JSON.stringify(review)).not.toContain("SIGNED_CENTS:");
   });
 
   it.each(TAX_CASES)(
@@ -796,6 +864,40 @@ describe("AEAT real corpus extractor V2", () => {
       }
     },
   );
+
+  it("does not invent a tax row count or participant", async () => {
+    const common = [
+      "DATOS FISCALES",
+      "Concepto tributario: IRPF",
+      "Ejercicio: 2025",
+      "Los datos fiscales del Impuesto sobre la Renta no vinculan a la Agencia Tributaria",
+      "Referencia: SYN-TAX-ROW-OBSERVATION-001",
+    ];
+    const withoutCount = await extractEndToEnd(document(
+      "SYN-TAX-ROW-WITHOUT-COUNT",
+      [[...common, "Sección: EMPLOYMENT_INCOME; importe: 101,23 €"].join("\n")],
+    ));
+    const withoutParticipantSource = document(
+      "SYN-TAX-ROW-WITHOUT-PARTICIPANT",
+      [[...common, "Sección: EMPLOYMENT_INCOME; filas: 1; importe: 101,23 €"].join("\n")],
+    );
+    const withoutParticipant = await extractEndToEnd(
+      withoutParticipantSource,
+    );
+    const review = (
+      await analyzeFiscalNotificationDocumentInput(withoutParticipantSource)
+    ).verticalSliceReview;
+    const section = review.documents
+      .flatMap((item) => item.fields)
+      .find((field) => field.fieldId === "real-corpus:section:0");
+
+    expect(withoutCount.sectionRows).toEqual([]);
+    expect(withoutParticipant.sectionRows).toEqual([
+      expect.objectContaining({ participantRole: null, rowOrdinal: 1 }),
+    ]);
+    expect(section?.displayValue).toBe("Fila 1 · 101,23\u00a0€");
+    expect(section?.displayValue).not.toContain("Titular");
+  });
 
   it.each([
     ["SYN-AEAT-009", true, "2009"],
@@ -850,7 +952,11 @@ describe("AEAT real corpus extractor V2", () => {
       expect(money(result, "REFUND_ORDERED")).toBe(requested);
       expect(money(result, "DEDUCTIONS")).toBe(deductions);
       expect(money(result, "NET_REFUND_PAYMENT")).toBe(net);
-      expect(text(result, "OFFSET_TYPE")).toBe(offsetType);
+      expect(text(result, "OFFSET_TYPE")).toBe(
+        offsetType === "REQUESTED"
+          ? "Compensación solicitada"
+          : "Compensación de oficio",
+      );
       expect(result.explanation).toBe(
         net === 0
           ? "La devolución se aplicó íntegramente a deudas y no queda importe líquido para transferir."
@@ -858,6 +964,20 @@ describe("AEAT real corpus extractor V2", () => {
       );
     },
   );
+
+  it("keeps a refund reference printed under the generic reference label", async () => {
+    const base = paymentFixture("GENERIC-01", 120_000, 120_000, 0, "EX_OFFICIO");
+    const source = document("SYN-AEAT-GENERIC-REFUND-REFERENCE", [
+      base.pages[0]!.text.replace(
+        "Referencia de devolución: SYNREFUND-GENERIC-01",
+        "Referencia: SYNREFUND-GENERIC-01",
+      ),
+      null,
+    ]);
+
+    const result = await extractAeatRealCorpusDocumentV2(source);
+    expect(text(result, "REFUND_REFERENCE")).toBe("SYNREFUND-GENERIC-01");
+  });
 
   it("recognizes a publication certificate title split across OCR lines", async () => {
     const source = publicationFixture(
@@ -899,11 +1019,203 @@ describe("AEAT real corpus extractor V2", () => {
         publicationFixture(caseId, kind, underlyingType),
       );
       expect(result.familyId).toBe("notification.publication_or_appearance");
-      expect(text(result, "UNDERLYING_ACT_TYPE")).toBe(underlyingType);
+      expect(text(result, "UNDERLYING_ACT_TYPE")).toBe(
+        {
+          EXECUTIVE_LIQUIDATION: "Liquidación",
+          BANK_ACCOUNT_SEIZURE: "Diligencia de embargo",
+          DEFERRAL_OR_INSTALLMENT_RESOLUTION:
+            "Acuerdo de aplazamiento o fraccionamiento",
+          SANCTION_REDUCTION_CLAWBACK:
+            "Exigencia de reducción de sanción",
+        }[underlyingType],
+      );
       expect(text(result, "EFFECTIVE_NOTIFICATION_DATE")).toBe(effectiveDate);
       expect(result.confirmsDeadline).toBe(false);
     },
   );
+
+  it.each([
+    ["DILIGENCE", "L8000000000000022", "Liquidación", null, null],
+    [
+      "CERTIFICATE",
+      "800000000000A",
+      "Diligencia de embargo",
+      "2026/321",
+      "2026-07-26",
+    ],
+    [
+      "PREPUBLICATION",
+      "8000000000002",
+      "Exigencia de reducción de sanción",
+      null,
+      null,
+    ],
+  ] as const)(
+    "extracts observed values from the %s narrative layout",
+    async (
+      kind,
+      underlyingReference,
+      underlyingType,
+      publicationNumber,
+      effectiveDate,
+    ) => {
+      const source = publicationNarrativeFixture(
+        `SYN-AEAT-NARRATIVE-${kind}`,
+        kind,
+      );
+      const result = await extractEndToEnd(source);
+      expect(text(result, "CERTIFICATE_OR_COMMUNICATION_ID")).toBe(
+        "7000000000001",
+      );
+      expect(text(result, "UNDERLYING_ACT_REFERENCE")).toBe(
+        underlyingReference,
+      );
+      expect(text(result, "UNDERLYING_ACT_TYPE")).toBe(underlyingType);
+      expect(text(result, "PUBLICATION_DATE")).toBe(
+        kind === "PREPUBLICATION" ? null : "2026-07-10",
+      );
+      expect(text(result, "PUBLICATION_NUMBER")).toBe(publicationNumber);
+      expect(text(result, "EFFECTIVE_NOTIFICATION_DATE")).toBe(effectiveDate);
+
+      const review = (
+        await analyzeFiscalNotificationDocumentInput(source)
+      ).verticalSliceReview;
+      expect(review.documents).toHaveLength(1);
+      expect(review.documents[0]?.fields.every(
+        (field) => field.sourcePageNumbers.length > 0,
+      )).toBe(true);
+      expect(JSON.stringify(review)).not.toMatch(
+        /EXACT_|INTEGER:|BOOLEAN:|EXPLANATION:|ROLE:|SEIZURE_RECIPIENT_ROLE:/u,
+      );
+    },
+  );
+
+  it("extracts historical publication, effective and signing dates from printed narrative wording", async () => {
+    const source = document("SYN-AEAT-NARRATIVE-DATES", [
+      [
+        "CERTIFICADO DE PUBLICACIÓN EN EL BOLETÍN OFICIAL DEL ESTADO DEL ANUNCIO DE CITACIÓN PARA NOTIFICACIÓN POR COMPARECENCIA",
+        "Certificado de publicación",
+        "Notificación por comparecencia",
+        "N.º Certificado: 7000000000001",
+        "Concepto: diligencia de embargo n.º 800000000000A",
+        "Publicado en el Boletín Oficial del Estado, número de anuncio 2026/321 de fecha 10-07-2026.",
+        "Transcurrido el plazo desde la publicación, la notificación del acto se entiende producida",
+        "el 26-07-2026, de acuerdo con la norma indicada.",
+        "Documento firmado electrónicamente",
+        "Fecha de firma: 27 de julio de 2026.",
+      ].join("\n"),
+      null,
+    ]);
+
+    const result = await extractEndToEnd(source);
+
+    expect(text(result, "PUBLICATION_DATE")).toBe("2026-07-10");
+    expect(text(result, "EFFECTIVE_NOTIFICATION_DATE")).toBe("2026-07-26");
+    expect(text(result, "SIGNING_DATE")).toBe("2026-07-27");
+    const review = (
+      await analyzeFiscalNotificationDocumentInput(source)
+    ).verticalSliceReview;
+    expect(review.documents[0]?.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ semantic: "DATE", canonicalType: "ACTION_DATE" }),
+        expect.objectContaining({ semantic: "DATE", canonicalType: "EFFECTIVE_NOTIFICATION_DATE" }),
+        expect.objectContaining({ semantic: "DATE", canonicalType: "SIGNING_DATE" }),
+      ]),
+    );
+  });
+
+  it("does not turn a generic nearby date into a signing date", async () => {
+    const source = document("SYN-AEAT-NARRATIVE-NOT-SIGNING-DATE", [
+      [
+        "CERTIFICADO DE PUBLICACIÓN EN EL BOLETÍN OFICIAL DEL ESTADO DEL ANUNCIO DE CITACIÓN PARA NOTIFICACIÓN POR COMPARECENCIA",
+        "Certificado de publicación",
+        "Notificación por comparecencia",
+        "N.º Certificado: 7000000000002",
+        "Concepto: diligencia de embargo n.º 800000000000B",
+        "Documento firmado electrónicamente",
+        "Agencia Estatal de Administración Tributaria, en fecha 28 de julio de 2026.",
+      ].join("\n"),
+      null,
+    ]);
+
+    const result = await extractEndToEnd(source);
+
+    expect(text(result, "SIGNING_DATE")).toBeNull();
+  });
+
+  it("uses an explicitly labelled printed date as the issue date without capturing legal dates", async () => {
+    const source = document("SYN-AEAT-PROPOSAL-TERMINAL-DATE", [
+      [
+        proposalFixture().pages[0]!.text,
+        "La Ley 99/2020 fue aprobada el 01-01-2020.",
+        "Fecha de emisión: 17 de abril de 2026",
+      ].join("\n"),
+      ...proposalFixture().pages.slice(1).map((page) =>
+        page.isBlank ? null : page.text,
+      ),
+    ]);
+
+    const result = await extractEndToEnd(source);
+
+    expect(text(result, "ISSUE_DATE")).toBe("2026-04-17");
+  });
+
+  it("keeps an explicit issue date for an informative publication document", async () => {
+    const source = document("SYN-AEAT-PUBLICATION-TERMINAL-DATE", [
+      [
+        "DILIGENCIA DE PUBLICACIÓN DEL ANUNCIO DE CITACIÓN PARA NOTIFICACIÓN POR COMPARECENCIA",
+        "Certificado de publicación",
+        "Notificación por comparecencia",
+        "Referencia: SYN-PUBLICATION-TERMINAL-001",
+        "Publicado en el Boletín Oficial del Estado de fecha 10-07-2026.",
+        "Fecha de emisión: 18 de julio de 2026",
+      ].join("\n"),
+      null,
+    ]);
+
+    const result = await extractEndToEnd(source);
+
+    expect(text(result, "PUBLICATION_DATE")).toBe("2026-07-10");
+    expect(text(result, "ISSUE_DATE")).toBe("2026-07-18");
+  });
+
+  it("reads a signing date immediately before the electronic-signature marker", async () => {
+    const source = document("SYN-AEAT-WARNING-SIGNING-DATE", [
+      [
+        "CARTA DE AVISO",
+        "No consta la presentación de determinadas declaraciones",
+        "Regularizar su situación tributaria",
+        "Revise el modelo 036 o la declaración censal si cambió su actividad",
+        "Referencia: SYN-WARNING-SIGNING-001",
+        "Madrid, 19 de julio de 2026. Documento firmado electrónicamente",
+      ].join("\n"),
+      null,
+    ]);
+
+    const result = await extractEndToEnd(source);
+
+    expect(text(result, "SIGNING_DATE")).toBe("2026-07-19");
+    expect(text(result, "ISSUE_DATE")).toBeNull();
+  });
+
+  it("does not promote an unrelated date near the signing footer", async () => {
+    const source = document("SYN-AEAT-WARNING-UNRELATED-DATE", [
+      [
+        "CARTA DE AVISO",
+        "No consta la presentación de determinadas declaraciones",
+        "Regularizar su situación tributaria",
+        "Referencia: SYN-WARNING-UNRELATED-001",
+        "Documento firmado electrónicamente",
+        "Fecha de registro: 19 de julio de 2026",
+      ].join("\n"),
+      null,
+    ]);
+
+    const result = await extractEndToEnd(source);
+
+    expect(text(result, "SIGNING_DATE")).toBeNull();
+    expect(text(result, "ISSUE_DATE")).toBeNull();
+  });
 
   it("creates one missing-return unit per model/period and no formal deadline", async () => {
     const source = document("SYN-AEAT-020", [

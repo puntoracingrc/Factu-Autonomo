@@ -39,13 +39,14 @@ describe("AEAT P0 deep pipeline v10", () => {
     expect(deepDocuments[0]?.fields).toEqual(expect.arrayContaining([
       expect.objectContaining({ canonicalType: "FILING_RECEIPT_ID", normalizedValue: "REG-SYNTHETIC-001" }),
       expect.objectContaining({ canonicalType: "ACTION_DATE", normalizedValue: "2026-07-17" }),
-      expect.objectContaining({ label: "Resultado de la presentación", normalizedValue: "SUBMITTED" }),
+      expect.objectContaining({ label: "Resultado de la presentación", normalizedValue: "Presentación realizada" }),
       expect.objectContaining({ displayValue: "CSV protegido", normalizedValue: expect.stringMatching(/^sha256:[0-9a-f]{64}$/u) }),
     ]));
     expect(result.verticalSliceReview.retainedSourceContent).toBe("NONE");
     expect(result.verticalSliceReview.materializationPolicy).toBe("PROHIBITED_UNTIL_HUMAN_REVIEW");
     expect(JSON.stringify(result)).not.toContain(rawMarker);
     expect(JSON.stringify(result)).not.toContain("CSV-SYNTHETIC-PIPELINE-001");
+    expect(JSON.stringify(result)).not.toMatch(/P0_V10|SUBMITTED/u);
   });
 
   it("keeps a recognized but incomplete resolution visible for human completion", async () => {
@@ -61,6 +62,7 @@ describe("AEAT P0 deep pipeline v10", () => {
     );
     expect(document).toBeDefined();
     expect(document?.subtitle).toBe("Revisa los datos detectados y completa los que falten");
-    expect(document?.warnings.some((warning) => warning.startsWith("P0_V10_MISSING_"))).toBe(true);
+    expect(document?.warnings).toEqual([]);
+    expect(JSON.stringify(document)).not.toContain("P0_V10_MISSING_");
   });
 });

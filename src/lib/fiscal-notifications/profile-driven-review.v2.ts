@@ -6,12 +6,7 @@ import type {
   ProfileMoneyFieldCodeV2,
   ProfileReferenceFieldCodeV2,
 } from "./extractor-core/profile-field-adapter.v2";
-import type { ProfileDrivenPrintedEffectV2 } from "./extractor-core/profile-driven-extractor.v2";
 import { resolveProfileFieldLabelV2 } from "./extractor-core/profile-field-labels.v2";
-import {
-  resolveAllowedPrintedEffectCodesV2,
-  type FiscalNotificationDocumentFamilyIdV2,
-} from "./structured-document-explanation.v2";
 import {
   parseFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewDocumentV1,
@@ -23,10 +18,7 @@ export const FISCAL_NOTIFICATION_PROFILE_DRIVEN_REVIEW_VERSION_V2 =
   "2.0.0" as const;
 
 export interface ProfileDrivenReviewProjectionInputV2 {
-  readonly outcome: ProfileFieldAdapterOutcomeV2 &
-    Readonly<{
-      readonly printedEffects?: readonly ProfileDrivenPrintedEffectV2[];
-    }>;
+  readonly outcome: ProfileFieldAdapterOutcomeV2;
   readonly extractorId: BaseExtractorIdV1;
   readonly canonicalTitle: string;
   readonly titlePageNumbers: readonly number[];
@@ -57,7 +49,7 @@ const REFERENCE_TYPE_MAP: Readonly<
   BANK_REFERENCE: "BANK_REFERENCE",
   THIRD_PARTY_RESPONSE_ID: "THIRD_PARTY_RESPONSE_ID",
   OTHER_OFFICIAL_REFERENCE: "OTHER_OFFICIAL_REFERENCE",
-  REQUEST_NUMBER: "OTHER_OFFICIAL_REFERENCE",
+  REQUEST_NUMBER: "REQUEST_NUMBER",
 });
 
 const MONEY_TYPE_MAP: Readonly<
@@ -157,17 +149,15 @@ export function projectProfileDrivenReviewV2(
     ? closedDocumentInstanceSuffix(input.documentInstanceId)
     : null;
   if (input.documentInstanceId && instanceSuffix === null) return emptyReview();
-  const projectedFields = outcome.fields.map((field, index) =>
-    projectField(field, index),
+  const projectedFields = outcome.fields
+    .map((field, index) => projectField(field, index))
+    .filter(
+      (
+        field,
+      ): field is FiscalNotificationVerticalSliceReviewFieldV1 => field !== null,
   );
-  const projectedEffects = projectPrintedEffects(
-    outcome.familyId as FiscalNotificationDocumentFamilyIdV2,
-    outcome.printedEffects ?? Object.freeze([]),
-    input.pageCount,
-  );
-  const fields = Object.freeze(
-    [recognitionField(titlePages), ...projectedFields, ...projectedEffects],
-  );
+  if (projectedFields.length === 0) return emptyReview();
+  const fields = Object.freeze(projectedFields);
   const allPages = uniqueValidPages(
     [...titlePages, ...fields.flatMap((field) => field.sourcePageNumbers)],
     input.pageCount,
@@ -180,7 +170,7 @@ export function projectProfileDrivenReviewV2(
       extractorId: input.extractorId,
       familyId: outcome.familyId,
       title: input.canonicalTitle,
-      subtitle: "Título, autoridad y estructura coinciden",
+      subtitle: "Datos observados en el documento",
       pageFrom: allPages[0]!,
       pageTo: allPages.at(-1)!,
       confidence: 1,
@@ -207,45 +197,6 @@ export function projectProfileDrivenReviewV2(
   });
 }
 
-function projectPrintedEffects(
-  familyId: FiscalNotificationDocumentFamilyIdV2,
-  effects: readonly ProfileDrivenPrintedEffectV2[],
-  pageCount: number,
-): readonly FiscalNotificationVerticalSliceReviewFieldV1[] {
-  const allowed = new Set(resolveAllowedPrintedEffectCodesV2(familyId));
-  const seen = new Set<string>();
-  const fields: FiscalNotificationVerticalSliceReviewFieldV1[] = [];
-  for (const effect of effects) {
-    if (
-      effect.detectionBasis !== "CLOSED_PRINTED_PHRASE" ||
-      !allowed.has(effect.effectCode) ||
-      seen.has(effect.effectCode)
-    ) {
-      continue;
-    }
-    const pages = uniqueValidPages(effect.pageNumbers, pageCount);
-    if (pages.length === 0) continue;
-    seen.add(effect.effectCode);
-    fields.push(
-      Object.freeze({
-        fieldId: `profile:effect:${effect.effectCode}:${fields.length}`,
-        semantic: "DETAIL" as const,
-        canonicalType: "FACT_OR_GROUND" as const,
-        label: "Estado del documento",
-        displayValue: "Detectado en el documento",
-        normalizedValue: `EFFECT:${effect.effectCode}`,
-        amountCents: null,
-        currency: null,
-        sourcePageNumbers: pages,
-        sourceLabel: "Estado del documento",
-        confidence: 1,
-        reviewStatus: "REVIEW_REQUIRED" as const,
-      }),
-    );
-  }
-  return Object.freeze(fields);
-}
-
 export function mergeProfileDrivenReviewV2(
   legacyReview: FiscalNotificationVerticalSliceReviewV1,
   profileReview: FiscalNotificationVerticalSliceReviewV1,
@@ -257,14 +208,15 @@ export function mergeProfileDrivenReviewsV2(
   legacyReview: FiscalNotificationVerticalSliceReviewV1,
   profileReviews: readonly FiscalNotificationVerticalSliceReviewV1[],
 ): FiscalNotificationVerticalSliceReviewV1 {
-  const profileDocuments = profileReviews.flatMap((review) => review.documents);
+  const profileDocuments = coalesceObservedDocuments(
+    profileReviews.flatMap((review) => review.documents),
+  );
   if (profileDocuments.length === 0) return legacyReview;
   const remainingLegacy = [...legacyReview.documents];
   const mergedProfiles = profileDocuments.map((profileDocument) => {
-    const sameFamilyIndex = remainingLegacy.findIndex(
-      (document) =>
-        document.familyId === profileDocument.familyId &&
-        pageRangesOverlap(document, profileDocument),
+    const sameFamilyIndex = selectSameFamilyMergeCandidateIndex(
+      remainingLegacy,
+      profileDocument,
     );
     const matchingIndex =
       sameFamilyIndex >= 0
@@ -272,7 +224,11 @@ export function mergeProfileDrivenReviewsV2(
         : remainingLegacy.findIndex(
             (document) =>
               document.extractorId === profileDocument.extractorId &&
-              pageRangesOverlap(document, profileDocument),
+              pageRangesOverlap(document, profileDocument) &&
+              !haveConflictingExactDocumentIdentitiesV2(
+                document,
+                profileDocument,
+              ),
           );
     if (matchingIndex < 0) return profileDocument;
     const legacy = remainingLegacy.splice(matchingIndex, 1)[0]!;
@@ -301,6 +257,218 @@ export function mergeProfileDrivenReviewsV2(
     permitsPaymentAction: false,
     permitsAccountingAction: false,
   });
+}
+
+function coalesceObservedDocuments(
+  documents: readonly FiscalNotificationVerticalSliceReviewDocumentV1[],
+): readonly FiscalNotificationVerticalSliceReviewDocumentV1[] {
+  const result: FiscalNotificationVerticalSliceReviewDocumentV1[] = [];
+  const anchoredDocuments = documents.filter(
+    (document) => profileDocumentInstance(document) !== null,
+  );
+  const unanchoredDocuments = documents.filter(
+    (document) => profileDocumentInstance(document) === null,
+  );
+  for (const document of [...anchoredDocuments, ...unanchoredDocuments]) {
+    const matchingIndex = selectSameFamilyMergeCandidateIndex(
+      result,
+      document,
+    );
+    if (matchingIndex < 0) {
+      result.push(document);
+      continue;
+    }
+    const previous = result[matchingIndex]!;
+    const merged = mergeDocumentFields(document, previous);
+    const segmentedAnchor =
+      profileDocumentInstance(previous) !== null
+        ? previous
+        : profileDocumentInstance(document) !== null
+          ? document
+          : null;
+    result[matchingIndex] = segmentedAnchor
+      ? Object.freeze({
+          ...merged,
+          reviewDocumentId: segmentedAnchor.reviewDocumentId,
+        })
+      : merged;
+  }
+  return Object.freeze(result);
+}
+
+function selectSameFamilyMergeCandidateIndex(
+  candidates: readonly FiscalNotificationVerticalSliceReviewDocumentV1[],
+  document: FiscalNotificationVerticalSliceReviewDocumentV1,
+): number {
+  const eligible = candidates.flatMap((candidate, index) =>
+    candidate.familyId === document.familyId &&
+    (sharesExactDocumentIdentity(candidate, document) ||
+      (pageRangesOverlap(candidate, document) &&
+        canMergeSameFamilyExtractionLayersV2(candidate, document)))
+      ? [index]
+      : [],
+  );
+  if (eligible.length === 0) return -1;
+
+  const exact = eligible.filter((index) =>
+    sharesExactDocumentIdentity(candidates[index]!, document),
+  );
+  const exactByPage = selectCandidateByIdentityEvidencePages(
+    candidates,
+    exact,
+    document,
+  );
+  if (exactByPage >= 0) return exactByPage;
+  if (exact.length === 1) return exact[0]!;
+  if (exact.length > 1) return -1;
+
+  const byPage = selectCandidateByIdentityEvidencePages(
+    candidates,
+    eligible,
+    document,
+  );
+  if (byPage >= 0) return byPage;
+  if (primaryIdentityEvidencePages(document).length > 0) return -1;
+  return eligible.length === 1 ? eligible[0]! : -1;
+}
+
+function selectCandidateByIdentityEvidencePages(
+  candidates: readonly FiscalNotificationVerticalSliceReviewDocumentV1[],
+  indexes: readonly number[],
+  document: FiscalNotificationVerticalSliceReviewDocumentV1,
+): number {
+  if (indexes.length === 0) return -1;
+  const pages = primaryIdentityEvidencePages(document);
+  if (pages.length === 0) return -1;
+  const matching = indexes.filter((index) => {
+    const candidate = candidates[index]!;
+    return pages.every(
+      (pageNumber) =>
+        pageNumber >= candidate.pageFrom && pageNumber <= candidate.pageTo,
+    );
+  });
+  return matching.length === 1 ? matching[0]! : -1;
+}
+
+function primaryIdentityEvidencePages(
+  document: FiscalNotificationVerticalSliceReviewDocumentV1,
+): readonly number[] {
+  return [
+    ...new Set(
+      document.fields.flatMap((field) =>
+        field.semantic === "REFERENCE" &&
+        PRIMARY_DOCUMENT_IDENTITY_TYPES.has(field.canonicalType) &&
+        field.normalizedValue
+          ? field.sourcePageNumbers
+          : [],
+      ),
+    ),
+  ].sort((left, right) => left - right);
+}
+
+const PRIMARY_DOCUMENT_IDENTITY_TYPES = new Set<
+  FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"]
+>([
+  "ACT_ID",
+  "DEBT_KEY",
+  "EXPEDIENTE_ID",
+  "LIQUIDATION_KEY",
+  "NOTIFICATION_ID",
+  "PROCEDURE_ID",
+  "REQUEST_NUMBER",
+  "SEIZURE_ORDER_ID",
+]);
+
+function exactDocumentIdentityKeys(
+  document: FiscalNotificationVerticalSliceReviewDocumentV1,
+): ReadonlySet<string> {
+  return new Set(
+    document.fields.flatMap((field) =>
+      field.semantic === "REFERENCE" &&
+      PRIMARY_DOCUMENT_IDENTITY_TYPES.has(field.canonicalType) &&
+      field.normalizedValue
+        ? [`${field.canonicalType}:${field.normalizedValue}`]
+        : [],
+    ),
+  );
+}
+
+function sharesExactDocumentIdentity(
+  left: FiscalNotificationVerticalSliceReviewDocumentV1,
+  right: FiscalNotificationVerticalSliceReviewDocumentV1,
+): boolean {
+  const leftKeys = exactDocumentIdentityKeys(left);
+  if (leftKeys.size === 0) return false;
+  return [...exactDocumentIdentityKeys(right)].some((key) => leftKeys.has(key));
+}
+
+export function haveConflictingExactDocumentIdentitiesV2(
+  left: FiscalNotificationVerticalSliceReviewDocumentV1,
+  right: FiscalNotificationVerticalSliceReviewDocumentV1,
+): boolean {
+  const leftKeys = exactDocumentIdentityKeys(left);
+  const rightKeys = exactDocumentIdentityKeys(right);
+  return (
+    leftKeys.size > 0 &&
+    rightKeys.size > 0 &&
+    ![...leftKeys].some((key) => rightKeys.has(key))
+  );
+}
+
+function canMergeSameFamilyExtractionLayersV2(
+  left: FiscalNotificationVerticalSliceReviewDocumentV1,
+  right: FiscalNotificationVerticalSliceReviewDocumentV1,
+): boolean {
+  if (sharesExactDocumentIdentity(left, right)) return true;
+  if (haveConflictingIdentityValuesOfSameType(left, right)) return false;
+  const leftInstance = profileDocumentInstance(left);
+  const rightInstance = profileDocumentInstance(right);
+  return !(
+    leftInstance !== null &&
+    rightInstance !== null &&
+    leftInstance !== rightInstance
+  );
+}
+
+function haveConflictingIdentityValuesOfSameType(
+  left: FiscalNotificationVerticalSliceReviewDocumentV1,
+  right: FiscalNotificationVerticalSliceReviewDocumentV1,
+): boolean {
+  const leftByType = exactDocumentIdentityValuesByType(left);
+  const rightByType = exactDocumentIdentityValuesByType(right);
+  return [...leftByType.entries()].some(([type, leftValues]) => {
+    const rightValues = rightByType.get(type);
+    return (
+      rightValues !== undefined &&
+      ![...leftValues].some((value) => rightValues.has(value))
+    );
+  });
+}
+
+function exactDocumentIdentityValuesByType(
+  document: FiscalNotificationVerticalSliceReviewDocumentV1,
+): ReadonlyMap<string, ReadonlySet<string>> {
+  const result = new Map<string, Set<string>>();
+  for (const field of document.fields) {
+    if (
+      field.semantic !== "REFERENCE" ||
+      !PRIMARY_DOCUMENT_IDENTITY_TYPES.has(field.canonicalType) ||
+      !field.normalizedValue
+    ) continue;
+    const values = result.get(field.canonicalType) ?? new Set<string>();
+    values.add(field.normalizedValue);
+    result.set(field.canonicalType, values);
+  }
+  return result;
+}
+
+function profileDocumentInstance(
+  document: FiscalNotificationVerticalSliceReviewDocumentV1,
+): string | null {
+  const prefix = `review-document:profile:${document.familyId}:`;
+  return document.reviewDocumentId.startsWith(prefix)
+    ? document.reviewDocumentId.slice(prefix.length) || null
+    : null;
 }
 
 function pageRangesOverlap(
@@ -340,31 +508,77 @@ function mergeDocumentFields(
   legacy: FiscalNotificationVerticalSliceReviewDocumentV1,
   profile: FiscalNotificationVerticalSliceReviewDocumentV1,
 ): FiscalNotificationVerticalSliceReviewDocumentV1 {
-  const seen = new Set(
-    legacy.fields.map(
-      (field) =>
-        `${field.semantic}:${field.canonicalType}:${field.normalizedValue ?? field.displayValue}`,
-    ),
+  const mergedFields = [...legacy.fields];
+  const seen = new Map(
+    mergedFields.map((field, index) => [observedFieldValueKey(field), index]),
   );
-  const additions = profile.fields.filter((field) => {
-    const key = `${field.semantic}:${field.canonicalType}:${field.normalizedValue ?? field.displayValue}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const occupiedLayerSlots = new Set(
+    legacy.fields.flatMap((field) => {
+      const slot = closedLayerFieldSlot(field);
+      return slot ? [slot] : [];
+    }),
+  );
+  for (const field of profile.fields) {
+    const key = observedFieldValueKey(field);
+    const duplicateIndex = seen.get(key);
+    if (duplicateIndex !== undefined) {
+      const duplicate = mergedFields[duplicateIndex]!;
+      mergedFields[duplicateIndex] = Object.freeze({
+        ...duplicate,
+        sourcePageNumbers: Object.freeze(
+          [...new Set([...duplicate.sourcePageNumbers, ...field.sourcePageNumbers])]
+            .sort((left, right) => left - right),
+        ),
+        confidence: Math.max(duplicate.confidence, field.confidence),
+      });
+      continue;
+    }
+    const slot = closedLayerFieldSlot(field);
+    if (slot && occupiedLayerSlots.has(slot)) continue;
+    seen.set(key, mergedFields.length);
+    if (slot) occupiedLayerSlots.add(slot);
+    mergedFields.push(field);
+  }
   return Object.freeze({
     ...legacy,
     pageFrom: Math.min(legacy.pageFrom, profile.pageFrom),
     pageTo: Math.max(legacy.pageTo, profile.pageTo),
-    fields: Object.freeze([...legacy.fields, ...additions]),
+    fields: Object.freeze(mergedFields),
     warnings: Object.freeze([...new Set([...legacy.warnings, ...profile.warnings])]),
   });
+}
+
+function observedFieldValueKey(
+  field: FiscalNotificationVerticalSliceReviewFieldV1,
+): string {
+  const value =
+    field.semantic === "MONEY" && field.amountCents !== null
+      ? `${field.amountCents}:${field.currency ?? ""}`
+      : field.normalizedValue ?? field.displayValue;
+  return `${field.semantic}:${field.canonicalType}:${value}`;
+}
+
+function closedLayerFieldSlot(
+  field: FiscalNotificationVerticalSliceReviewFieldV1,
+): string | null {
+  const match = /^real-corpus-v[2-7]:([A-Z0-9_]+):\d+$/u.exec(field.fieldId);
+  if (!match?.[1]) return null;
+  const fieldCode = match[1];
+  if (
+    fieldCode === "MODEL_PERIOD" ||
+    fieldCode === "REQUESTED_YEAR" ||
+    /^DOCUMENT_CATEGORY_\d+$/u.test(fieldCode) ||
+    /^(?:OFFSET|INSTALLMENT|ROW)_.*_\d+$/u.test(fieldCode)
+  ) {
+    return null;
+  }
+  return `${field.semantic}:${fieldCode}`;
 }
 
 function projectField(
   field: ProfileFieldReviewFieldV2,
   index: number,
-): FiscalNotificationVerticalSliceReviewFieldV1 {
+): FiscalNotificationVerticalSliceReviewFieldV1 | null {
   const label = resolveProfileFieldLabelV2(field.kind, field.fieldCode);
   if (!label) throw new Error("MISSING_PROFILE_FIELD_LABEL_V2");
   const common = {
@@ -416,45 +630,9 @@ function projectField(
         currency: "EUR" as const,
       });
     case "FACT":
-      return Object.freeze({
-        ...common,
-        semantic: "DETAIL" as const,
-        canonicalType: "FACT_OR_GROUND" as const,
-        displayValue: "Detectado en el documento",
-        normalizedValue: field.fieldCode,
-        amountCents: null,
-        currency: null,
-      });
     case "PARTICIPANT_ROLE":
-      return Object.freeze({
-        ...common,
-        semantic: "DETAIL" as const,
-        canonicalType: "FACT_OR_GROUND" as const,
-        displayValue: `Interviniente ${field.ordinal}`,
-        normalizedValue: field.fieldCode,
-        amountCents: null,
-        currency: null,
-      });
+      return null;
   }
-}
-
-function recognitionField(
-  titlePages: readonly number[],
-): FiscalNotificationVerticalSliceReviewFieldV1 {
-  return Object.freeze({
-    fieldId: "profile:recognition:document-type:0",
-    semantic: "DETAIL",
-    canonicalType: "FACT_OR_GROUND",
-    label: "Reconocimiento documental",
-    displayValue: "Título y autoridad coinciden",
-    normalizedValue: "EXACT_TITLE_AND_AUTHORITY",
-    amountCents: null,
-    currency: null,
-    sourcePageNumbers: Object.freeze([...titlePages]),
-    sourceLabel: "Título del documento",
-    confidence: 1,
-    reviewStatus: "REVIEW_REQUIRED",
-  });
 }
 
 function uniqueValidPages(

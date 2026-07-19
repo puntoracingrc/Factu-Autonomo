@@ -142,6 +142,14 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(documentLibraryComponentSource).toContain(
       "restoreFiscalNotificationOriginalInGoogleDriveV1",
     );
+    const appliedDeletion = documentLibraryComponentSource.slice(
+      documentLibraryComponentSource.indexOf('if (result.status === "applied")'),
+      documentLibraryComponentSource.indexOf(
+        "let rollbackFailed",
+        documentLibraryComponentSource.indexOf('if (result.status === "applied")'),
+      ),
+    );
+    expect(appliedDeletion).toContain('setQuery("")');
     expect(documentDeletionSource).toContain(
       'drivePolicy: "PRESERVE_USER_DRIVE_ORIGINAL"',
     );
