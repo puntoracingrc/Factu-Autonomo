@@ -26,10 +26,14 @@ export function resolveManualSlug(pathname: string): string | null {
   if (path === "/consultor-fiscal/calendario") return "calendario-fiscal";
   if (path === "/consultor-fiscal/diagnostico") return "test-autonomos";
   if (
-    path === "/consultor-fiscal/notificaciones" ||
-    path === "/consultor-fiscal/notificaciones/guia" ||
     path === "/consultor-fiscal/modelos" ||
     path.startsWith("/consultor-fiscal/modelos/")
+  ) {
+    return "modelos-aeat";
+  }
+  if (
+    path === "/consultor-fiscal/notificaciones" ||
+    path === "/consultor-fiscal/notificaciones/guia"
   ) {
     return null;
   }

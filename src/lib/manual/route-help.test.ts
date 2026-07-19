@@ -32,7 +32,7 @@ describe("manual route help", () => {
     expect(manualHelpHref("/sin-seccion")).toBe("/ayuda?from=%2Fsin-seccion");
   });
 
-  it("envía las fichas de modelos al índice público sin abrir la ayuda fiscal protegida", () => {
+  it("envía el catálogo y sus fichas a la guía pública de Modelos AEAT", () => {
     for (const pathname of [
       "/consultor-fiscal/modelos",
       "/consultor-fiscal/modelos/036",
@@ -40,14 +40,14 @@ describe("manual route help", () => {
       "/consultor-fiscal/modelos/303",
       "/consultor-fiscal/modelos/130",
     ]) {
-      expect(resolveManualSlug(pathname), pathname).toBeNull();
+      expect(resolveManualSlug(pathname), pathname).toBe("modelos-aeat");
     }
 
     expect(manualHelpHref("/consultor-fiscal/modelos")).toBe(
-      "/ayuda?from=%2Fconsultor-fiscal%2Fmodelos",
+      "/ayuda/modelos-aeat?from=%2Fconsultor-fiscal%2Fmodelos",
     );
     expect(manualHelpHref("/consultor-fiscal/modelos/037")).toBe(
-      "/ayuda?from=%2Fconsultor-fiscal%2Fmodelos%2F037",
+      "/ayuda/modelos-aeat?from=%2Fconsultor-fiscal%2Fmodelos%2F037",
     );
   });
 

@@ -49,6 +49,12 @@ describe("manual sections", () => {
     expect(
       withConsultor.filter((section) => section.slug === "test-autonomos"),
     ).toHaveLength(1);
+    expect(
+      withoutConsultor.filter((section) => section.slug === "modelos-aeat"),
+    ).toHaveLength(1);
+    expect(
+      withConsultor.filter((section) => section.slug === "modelos-aeat"),
+    ).toHaveLength(1);
   });
 
   it("documenta los flujos recientes de entrada, cuenta y confianza", () => {
@@ -226,6 +232,29 @@ describe("manual sections", () => {
     expect(calendarManual).toContain("No presenta modelos");
     expect(calendarManual).toContain("no marca un trámite como realizado");
     expect(consultorManual).not.toContain("Calendario fiscal");
+  });
+
+  it("documenta el flujo público de Modelos AEAT y la selección personal", () => {
+    const modelsManual = JSON.stringify(getManualSection("modelos-aeat"));
+    const consultorManual = JSON.stringify(
+      buildManualSections(true).find(
+        (section) => section.slug === "consultor-fiscal",
+      ),
+    );
+
+    expect(modelsManual).toContain("Asesoría fiscal → Modelos AEAT");
+    expect(modelsManual).toContain("Código, nombre o concepto");
+    expect(modelsManual).toContain("No hace falta pulsar un botón");
+    expect(modelsManual).toContain("Cargar 30 más");
+    expect(modelsManual).toContain("catálogo completo");
+    expect(modelsManual).toContain("Mis modelos");
+    expect(modelsManual).toContain("estrella verde");
+    expect(modelsManual).toContain("marcada automáticamente");
+    expect(modelsManual).toContain("Preguntas frecuentes");
+    expect(modelsManual).toContain("Histórico · no vigente");
+    expect(modelsManual).toContain("Volver al Calendario");
+    expect(modelsManual).toContain("no presenta, firma, paga ni envía");
+    expect(consultorManual).not.toContain("Buscar modelos");
   });
 
   it("documenta el flujo completo y persistente del test de autónomos", () => {
