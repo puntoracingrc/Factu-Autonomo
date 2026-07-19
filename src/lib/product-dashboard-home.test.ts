@@ -25,8 +25,15 @@ describe("product dashboard home", () => {
     expect(component).toContain("Pendiente");
     expect(component).toContain("Gastos");
     expect(component).toContain("Lo que queda después del gasto neto");
-    expect(component).toContain("IVA neto para orientarte");
-    expect(component).toContain("IVA neto de gastos y abonos");
+    expect(component).not.toContain("IVA neto para orientarte");
+    expect(component).not.toContain("IVA neto de gastos y abonos");
+    expect(component).not.toContain("summary.salesIvaEstimated");
+    expect(component).not.toContain("summary.expenseIvaEstimated");
+    expect(component).toContain("border-orange-300");
+    expect(component).toContain("border-emerald-300");
+    expect(component).toContain("bg-orange-50 text-orange-700");
+    expect(component).toContain("bg-emerald-50 text-emerald-700");
+    expect(component).toContain("TODO COBRADO :)");
     expect(component).not.toContain("Resumen por periodo");
     expect(periodSelectorIndex).toBeGreaterThan(-1);
     expect(flowChartIndex).toBeGreaterThan(-1);
