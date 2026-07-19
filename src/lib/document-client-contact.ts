@@ -1,5 +1,5 @@
 import {
-  findCustomerByClient,
+  clientMatchesCustomer,
   findCustomerByIdOrMergedId,
   getCustomerDisplayName,
   isValidCustomerEmail,
@@ -46,22 +46,54 @@ function hasUsablePhone(phone?: string): boolean {
   return Boolean(phone?.trim() && normalizePhoneForWhatsApp(phone));
 }
 
+function uniqueMatchingContact(
+  doc: Document,
+  customers: Customer[],
+  field: "email" | "phone",
+): string | undefined {
+  const contacts = new Map<string, string>();
+
+  customers.forEach((customer) => {
+    if (!clientMatchesCustomer(doc.client, customer)) return;
+
+    const value = migrateCustomer(customer)[field]?.trim();
+    if (!value) return;
+
+    const normalized =
+      field === "email"
+        ? hasUsableEmail(value)
+          ? value.toLowerCase()
+          : null
+        : normalizePhoneForWhatsApp(value);
+    if (normalized && !contacts.has(normalized)) {
+      contacts.set(normalized, value);
+    }
+  });
+
+  return contacts.size === 1 ? [...contacts.values()][0] : undefined;
+}
+
 export function documentWithCurrentCustomerContact(
   doc: Document,
   customers: Customer[],
 ): Document {
-  const customer =
-    findLinkedCustomerForDocument(doc, customers) ??
-    findCustomerByClient(customers, doc.client);
-  if (!customer) return doc;
+  const linkedCustomer = findLinkedCustomerForDocument(doc, customers);
+  const migrated = linkedCustomer ? migrateCustomer(linkedCustomer) : null;
+  const hasMatchingCustomer = customers.some((customer) =>
+    clientMatchesCustomer(doc.client, customer),
+  );
+  if (!migrated && !hasMatchingCustomer) return doc;
 
-  const migrated = migrateCustomer(customer);
   const email = hasUsableEmail(doc.client.email)
     ? doc.client.email
-    : migrated.email;
+    : hasUsableEmail(migrated?.email)
+      ? migrated?.email
+      : uniqueMatchingContact(doc, customers, "email");
   const phone = hasUsablePhone(doc.client.phone)
     ? doc.client.phone
-    : migrated.phone;
+    : hasUsablePhone(migrated?.phone)
+      ? migrated?.phone
+      : uniqueMatchingContact(doc, customers, "phone");
 
   if (email === doc.client.email && phone === doc.client.phone) {
     return doc;
