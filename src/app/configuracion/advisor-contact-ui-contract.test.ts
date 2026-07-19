@@ -44,4 +44,15 @@ describe("settings advisor contact UI contract", () => {
       "advisorContact: normalizeAdvisorContact(profile.advisorContact)",
     );
   });
+
+  it("no sustituye el borrador del gestor durante una sincronización", () => {
+    expect(settingsSource).toContain("formDirtyRef.current = true");
+    expect(settingsSource).toContain(
+      "resolveSettingsDraftAfterProfileSync({",
+    );
+    expect(settingsSource).toContain(
+      "hasLocalChanges: formDirtyRef.current",
+    );
+    expect(settingsSource).toContain("formDirtyRef.current = false");
+  });
 });
