@@ -48,6 +48,10 @@ export function PeriodOverviewCards({
   const balance = invoicedIncome - spent;
   const expenseBalanceIsCredit = spent < 0;
   const totalToSetAside = ivaToPay + irpfEstimate;
+  const ivaSummary =
+    ivaCredit > 0
+      ? `IVA a compensar a tu favor: ${formatMoney(ivaCredit)}`
+      : `IVA a pagar: ${formatMoney(ivaToPay)}`;
   const pendingInvoiceNumbers = monthlyBenefitRows.flatMap(
     (row) => row.pendingInvoiceNumbers,
   );
@@ -91,9 +95,7 @@ export function PeriodOverviewCards({
             {formatMoney(totalToSetAside)}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            IVA {formatMoney(ivaToPay)}
-            {ivaCredit > 0 ? ` · a compensar ${formatMoney(ivaCredit)}` : ""} ·
-            IRPF {formatMoney(irpfEstimate)}
+            {ivaSummary} · IRPF {formatMoney(irpfEstimate)}
           </p>
         </Card>
         <Card className="border-violet-200 bg-white">

@@ -178,7 +178,11 @@ function VatExemptSummary({ taxes }: { taxes: TaxSummary }) {
 
 function VatSummary({ taxes }: { taxes: TaxSummary }) {
   const netLabel =
-    taxes.ivaToPay > 0 ? "IVA a pagar" : "IVA a compensar";
+    taxes.ivaToPay > 0
+      ? "IVA a pagar"
+      : taxes.ivaCredit > 0
+        ? "IVA a compensar a tu favor"
+        : "IVA del periodo";
   const netValue =
     taxes.ivaToPay > 0
       ? formatMoney(taxes.ivaToPay)
@@ -189,7 +193,13 @@ function VatSummary({ taxes }: { taxes: TaxSummary }) {
   return (
     <div className="space-y-4">
       <TaxSection
-        title={taxes.ivaToPay > 0 ? "IVA: toca pagar" : "IVA: queda a compensar"}
+        title={
+          taxes.ivaToPay > 0
+            ? "IVA: toca pagar"
+            : taxes.ivaCredit > 0
+              ? "IVA: saldo a compensar a tu favor"
+              : "IVA: sin importe a pagar"
+        }
         subtitle="El IVA que has cobrado menos el IVA que puedes descontar."
         icon={Receipt}
         tone="violet"
