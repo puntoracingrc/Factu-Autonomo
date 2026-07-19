@@ -820,14 +820,14 @@ describe("expenseTotalsFromBase", () => {
   });
 
   it("mantiene como deducibles los gastos legacy sin marca", () => {
-    expect(
-      expenseFiscalAmounts({ amount: 100, ivaPercent: 21 }),
-    ).toMatchObject({
+    expect(expenseFiscalAmounts({ amount: 100, ivaPercent: 21 })).toMatchObject(
+      {
       deductible: true,
       deductibleBase: 100,
       deductibleIva: 21,
       operatingCost: 100,
-    });
+      },
+    );
   });
 
   it("excluye de fiscalidad valores de deducibilidad desconocidos", () => {
@@ -842,6 +842,22 @@ describe("expenseTotalsFromBase", () => {
       deductibleBase: 0,
       deductibleIva: 0,
       operatingCost: 121,
+    });
+  });
+
+  it("conserva el importe registrado personal pero lo excluye del negocio", () => {
+    expect(
+      expenseFiscalAmounts({
+        amount: 100,
+        ivaPercent: 21,
+        deductibility: "personal",
+      }),
+    ).toMatchObject({
+      deductible: false,
+      registeredTotal: 121,
+      deductibleBase: 0,
+      deductibleIva: 0,
+      operatingCost: 0,
     });
   });
 
@@ -955,22 +971,13 @@ describe("expenseTotalsFromBase", () => {
     };
 
     expect(
-      expensePurchaseLineCanFeedProductCatalog(
-        { amount: 100 },
-        positiveLine,
-      ),
+      expensePurchaseLineCanFeedProductCatalog({ amount: 100 }, positiveLine),
     ).toBe(true);
     expect(
-      expensePurchaseLineCanFeedProductCatalog(
-        { amount: -100 },
-        positiveLine,
-      ),
+      expensePurchaseLineCanFeedProductCatalog({ amount: -100 }, positiveLine),
     ).toBe(false);
     expect(
-      expensePurchaseLineCanFeedProductCatalog(
-        { amount: 100 },
-        negativeLine,
-      ),
+      expensePurchaseLineCanFeedProductCatalog({ amount: 100 }, negativeLine),
     ).toBe(false);
     expect(
       expensePurchaseLineIsEligibleForProductCatalog(
@@ -1110,7 +1117,9 @@ describe("expenseTotalsFromBase", () => {
       deductibleBase: 150.5,
       deductibleIva: 31.61,
     });
-    expect(summarizeWorkDocumentExpensesById(expenses).get("document-2")).toEqual({
+    expect(
+      summarizeWorkDocumentExpensesById(expenses).get("document-2"),
+    ).toEqual({
       count: 1,
       cost: 80,
       deductibleBase: 80,

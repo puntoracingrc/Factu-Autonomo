@@ -3,7 +3,8 @@ import type { ManualSection } from "../types";
 export const gastosSection: ManualSection = {
   slug: "gastos",
   title: "Gastos y compras",
-  summary: "Registra lo que gastas, filtra por periodo y exporta para tu gestor.",
+  summary:
+    "Registra lo que gastas, filtra por periodo y exporta para tu gestor.",
   order: 8,
   steps: [
     {
@@ -11,6 +12,7 @@ export const gastosSection: ManualSection = {
       paragraphs: [
         "Ve a **Gastos** → **+ Añadir gasto**. Indica proveedor, importe base, IVA, categoría y forma de pago.",
         "Marca el **tipo de gasto**: factura de compra, compra a proveedor, ticket/gasto rápido o gasto fijo. Si escaneas un documento, la app propondrá una opción y puedes corregirla antes de guardar.",
+        "En **Uso del gasto** elige una sola clasificación: **Empresa y deducible**, **Empresa, no deducible** o **Personal / no empresarial**. Así no pueden quedar dos casillas contradictorias. Los gastos personales se conservan para control, pero quedan fuera de la actividad y de los cálculos fiscales.",
         "Puedes escanear una factura de compra con la cámara si tienes escaneos disponibles. Pro y Pro+ IA amplían los límites mensuales.",
         "También puedes seleccionar varios PDF o imágenes a la vez. La app procesa hasta 5 archivos por tanda: revisas el primero, lo guardas y pasa al siguiente.",
         "El escaneo usa IA externa. La primera vez verás un aviso para aceptar ese tratamiento; después solo verás un recordatorio pequeño y se consumirán los créditos correspondientes.",
@@ -51,11 +53,11 @@ export const gastosSection: ManualSection = {
       title: "3. Exportar y enviar al gestor",
       paragraphs: [
         "Pulsa **Exportar CSV** en el bloque de filtros para descargar un libro de gastos con cabecera de tu negocio, NIF de proveedores, totales y resumen por categoría.",
-        "Cada fila indica el **tratamiento fiscal**, el coste registrado y, por separado, la base y el IVA deducibles. Un gasto **No deducible** conserva su coste, pero muestra base e IVA deducibles a cero.",
+        "Cada fila indica el **tratamiento fiscal**, el coste registrado y, por separado, la base y el IVA deducibles. Un gasto **Empresa, no deducible** o **Personal / no empresarial** conserva su coste, pero muestra base e IVA deducibles a cero.",
         "Los abonos aparecen como **Abono / saldo a favor**, con importes negativos, y se descuentan de los totales del libro.",
         "El CSV indica también los tipos aplicados, el desglose y si el IVA procede de líneas conciliadas, de la cabecera o del contrato de importe íntegro no deducible. Una factura con evidencia de IVA mixto que no cuadra bloquea la exportación hasta que la revises; no se sustituye silenciosamente por un único porcentaje.",
         "Cuando existe recargo de equivalencia, el CSV lo publica en columnas separadas con su tipo y cuota. También diferencia el gasto deducible en IRPF de la base deducible en IVA; el total registrado incluye base, IVA y recargo una sola vez.",
-        "El archivo respeta los filtros que tengas activos.",
+        "El archivo respeta los filtros que tengas activos. En **Qué incluir**, la opción inicial es **Solo empresa y deducibles**. También puedes incluir todos los gastos de empresa o, si lo eliges expresamente, todo el historial incluyendo los personales.",
         "Con **Exportar gastos y originales**, selecciona un mes o trimestre para descargar un ZIP. Incluye cada PDF o imagen que se archivó voluntariamente en Google Drive y un **Resumen Gastos** en PDF con todos los movimientos filtrados, sus totales y una marca clara para los gastos que todavía no tienen original archivado.",
         "Antes de incluir un original, Factu relee desde Drive su política, carpeta, tipo, tamaño y huella SHA-256. Si un archivo ya no coincide, bloquea el ZIP completo; no entrega un paquete parcial ni sustituye el original por un PDF inventado.",
         "**Exportar y enviar al gestor** descarga el mismo ZIP y prepara un correo para el contacto guardado en **Ajustes → Gestor**. Puedes usar Gmail, el correo del dispositivo o Compartir y recordar la elección. Gmail y el correo del dispositivo no adjuntan archivos automáticamente: adjunta el ZIP descargado antes de enviar; Compartir sí incluye el ZIP cuando el sistema lo admite.",

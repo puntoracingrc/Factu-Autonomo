@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
-  CalendarClock,
   CheckCircle2,
   ChevronDown,
   Trash2,
@@ -26,15 +25,11 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
-import {
-  inspectFixedExpenseBundle,
-} from "@/lib/app-data-durability";
+import { inspectFixedExpenseBundle } from "@/lib/app-data-durability";
 import { formatDate, formatMoney, todayISO } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
-import {
-  filterDocumentsByQuery,
-  sortDocumentsByNewest,
-} from "@/lib/documents";
+import { filterDocumentsByQuery, sortDocumentsByNewest } from "@/lib/documents";
+import { isExpenseFiscalDeductible } from "@/lib/expenses";
 import { documentShortNumber } from "@/lib/document-links";
 import { isVatExempt } from "@/lib/vat-regime";
 import { EXPENSE_CATEGORIES, PAYMENT_METHODS } from "@/lib/types";
@@ -48,10 +43,7 @@ import {
   findBestSupplierMatch,
   findSupplierByExactName,
 } from "@/lib/suppliers";
-import {
-  decimalInputFromNumber,
-  parseDecimalInput,
-} from "@/lib/decimal-input";
+import { decimalInputFromNumber, parseDecimalInput } from "@/lib/decimal-input";
 import {
   expensePurchaseLineCanFeedProductCatalog,
   expensePurchaseLineBaseTotal,
@@ -204,8 +196,9 @@ export default function NuevoGastoPage() {
     null,
   );
   const [scanHint, setScanHint] = useState<string | null>(null);
-  const [expenseOrigin, setExpenseOrigin] =
-    useState<"manual" | "scan">("manual");
+  const [expenseOrigin, setExpenseOrigin] = useState<"manual" | "scan">(
+    "manual",
+  );
   const [businessKind, setBusinessKind] =
     useState<ExpenseBusinessKind>("purchase");
   const [fixedDeductibility, setFixedDeductibility] =
@@ -234,8 +227,12 @@ export default function NuevoGastoPage() {
   const scanFormRef = useRef<HTMLDivElement | null>(null);
   const scanReviewReturnScrollY = useRef<number | null>(null);
   const [inboxItemId, setInboxItemId] = useState<string | null>(null);
-  const [activeInboxItemId, setActiveInboxItemId] = useState<string | null>(null);
-  const [loadedInboxItemId, setLoadedInboxItemId] = useState<string | null>(null);
+  const [activeInboxItemId, setActiveInboxItemId] = useState<string | null>(
+    null,
+  );
+  const [loadedInboxItemId, setLoadedInboxItemId] = useState<string | null>(
+    null,
+  );
   const [inboxLoadError, setInboxLoadError] = useState<string | null>(null);
   const [vatSubmitError, setVatSubmitError] = useState<string | null>(null);
   const [saveSubmitError, setSaveSubmitError] = useState<string | null>(null);
@@ -342,7 +339,8 @@ export default function NuevoGastoPage() {
     vatExempt,
   ]);
 
-  const fillFormFromScan = useCallback((review: PendingExpenseScan) => {
+  const fillFormFromScan = useCallback(
+    (review: PendingExpenseScan) => {
     const { payload, fileName } = review;
     setVatSubmitError(null);
     if (!storageStateUnknown) setSaveSubmitError(null);
@@ -384,7 +382,8 @@ export default function NuevoGastoPage() {
     setNotes(payload.expense.notes ?? "");
     setPurchaseDocument({
       ...(payload.expense.purchaseDocument ?? {}),
-      issueDate: payload.expense.purchaseDocument?.issueDate ?? payload.expense.date,
+        issueDate:
+          payload.expense.purchaseDocument?.issueDate ?? payload.expense.date,
       supplierNif:
         payload.expense.purchaseDocument?.supplierNif ??
         payload.supplier.nif ??
@@ -403,7 +402,9 @@ export default function NuevoGastoPage() {
         ? `Datos importados de ${fileName}. Revisa importe, IVA y fecha antes de guardar.`
         : "Datos importados del escaneo. Revisa importe, IVA y fecha antes de guardar.",
     );
-  }, [data.suppliers, storageStateUnknown, vatExempt]);
+    },
+    [data.suppliers, storageStateUnknown, vatExempt],
+  );
 
   useEffect(() => {
     if (!inboxItemId || loadedInboxItemId === inboxItemId) return;
@@ -416,11 +417,15 @@ export default function NuevoGastoPage() {
         const response = await fetch(`/api/expense-inbox?id=${inboxItemId}`, {
           headers,
         });
-        const body = (await response.json().catch(() => ({}))) as ExpenseInboxItemResponse;
+        const body = (await response
+          .json()
+          .catch(() => ({}))) as ExpenseInboxItemResponse;
         if (cancelled) return;
 
         if (!response.ok || !body.item) {
-          setInboxLoadError(body.error ?? "No se pudo abrir la factura del buzón.");
+          setInboxLoadError(
+            body.error ?? "No se pudo abrir la factura del buzón.",
+          );
           setLoadedInboxItemId(inboxItemId);
           return;
         }
@@ -537,10 +542,7 @@ export default function NuevoGastoPage() {
     setSupplierHint(match ? buildSupplierMatchHint(match) : null);
   }
 
-  function updatePurchaseLine(
-    id: string,
-    patch: Partial<ExpensePurchaseLine>,
-  ) {
+  function updatePurchaseLine(id: string, patch: Partial<ExpensePurchaseLine>) {
     setPurchaseLines((prev) =>
       prev.map((line) => (line.id === id ? { ...line, ...patch } : line)),
     );
@@ -587,11 +589,11 @@ export default function NuevoGastoPage() {
 
   const expenseVatExempt =
     vatExempt ||
-    (businessKind === "fixed" && fixedDeductibility === "non_deductible");
+    (businessKind === "fixed" &&
+      !isExpenseFiscalDeductible({ deductibility: fixedDeductibility }));
   const currentExpenseVatContext = {
     businessKind,
-    deductibility:
-      businessKind === "fixed" ? fixedDeductibility : undefined,
+    deductibility: fixedDeductibility,
     origin: expenseOrigin,
     recurringExpenseId: editingExpense?.recurringExpenseId,
   };
@@ -629,8 +631,7 @@ export default function NuevoGastoPage() {
       return {
         kind: "occurrences",
         count:
-          normalizeRecurringOccurrenceCount(Number(fixedOccurrenceCount)) ??
-          1,
+          normalizeRecurringOccurrenceCount(Number(fixedOccurrenceCount)) ?? 1,
       };
     }
     return { kind: "indefinite" };
@@ -803,10 +804,7 @@ export default function NuevoGastoPage() {
   function newCatalogProductLinesForScanPayload(payload: ExpenseScanPayload) {
     return (payload.expense.purchaseLines ?? []).filter(
       (line) =>
-        expensePurchaseLineIsEligibleForProductCatalog(
-          payload.expense,
-          line,
-        ) &&
+        expensePurchaseLineIsEligibleForProductCatalog(payload.expense, line) &&
         !purchaseLineHasCatalogProduct(line, productKeys),
     );
   }
@@ -842,12 +840,14 @@ export default function NuevoGastoPage() {
     const lineKeySet = new Set(lineKeys);
 
     for (const candidateReview of currentScanReviews) {
-      const candidateLines = candidateReview.payload.expense.purchaseLines ?? [];
-      for (let candidateIndex = 0; candidateIndex < candidateLines.length; candidateIndex += 1) {
-        if (
-          candidateReview.id === review.id &&
-          candidateIndex === lineIndex
+      const candidateLines =
+        candidateReview.payload.expense.purchaseLines ?? [];
+      for (
+        let candidateIndex = 0;
+        candidateIndex < candidateLines.length;
+        candidateIndex += 1
         ) {
+        if (candidateReview.id === review.id && candidateIndex === lineIndex) {
           return null;
         }
 
@@ -925,7 +925,9 @@ export default function NuevoGastoPage() {
     payload: ExpenseScanPayload,
   ) {
     const lines = newCatalogProductLinesForScanPayload(payload);
-    return lines.length > 0 && lines.every((line) => line.catalogProduct === true);
+    return (
+      lines.length > 0 && lines.every((line) => line.catalogProduct === true)
+    );
   }
 
   function scanPayloadWithCatalogProductSelection(
@@ -1199,8 +1201,7 @@ export default function NuevoGastoPage() {
     documentDate: string;
     supplierName: string;
   }): Promise<
-    | { ok: true; archive?: ExpenseOriginalArchiveV1 }
-    | { ok: false }
+    { ok: true; archive?: ExpenseOriginalArchiveV1 } | { ok: false }
   > {
     const result = await archiveExpenseOriginalForSavedExpense(input);
     if (result.status === "blocked") {
@@ -1239,7 +1240,9 @@ export default function NuevoGastoPage() {
     const currentDuplicateCandidate = duplicateCandidateForScanPayload(payload);
     const duplicate = duplicateForScanPayload(payload);
     const upgradeTarget =
-      duplicate && isProviderSummaryPendingOriginal(duplicate) ? duplicate : null;
+      duplicate && isProviderSummaryPendingOriginal(duplicate)
+        ? duplicate
+        : null;
     if (duplicate && !upgradeTarget) return { ok: false };
     if (
       savedPayloads.some((savedPayload) =>
@@ -1270,7 +1273,8 @@ export default function NuevoGastoPage() {
     });
     const purchaseDocument = sanitizeExpensePurchaseDocument({
       ...(payload.expense.purchaseDocument ?? {}),
-      issueDate: payload.expense.purchaseDocument?.issueDate ?? payload.expense.date,
+      issueDate:
+        payload.expense.purchaseDocument?.issueDate ?? payload.expense.date,
       supplierNif:
         payload.expense.purchaseDocument?.supplierNif ??
         payload.supplier.nif ??
@@ -1349,7 +1353,9 @@ export default function NuevoGastoPage() {
       ...(activeScanReview && scanFormCollapsed ? [activeScanReview] : []),
       ...pendingScans,
     ];
-    const ready = reviews.filter((review) => scanReviewStatus(review) === "ready");
+    const ready = reviews.filter(
+      (review) => scanReviewStatus(review) === "ready",
+    );
     if (ready.length === 0) return;
     const savedPayloads: ExpenseScanPayload[] = [];
     const savedReviewIds = new Set<string>();
@@ -1366,7 +1372,9 @@ export default function NuevoGastoPage() {
       const closed = await markInboxItemProcessed();
       if (!closed) return;
     }
-    const remaining = reviews.filter((review) => !savedReviewIds.has(review.id));
+    const remaining = reviews.filter(
+      (review) => !savedReviewIds.has(review.id),
+    );
     setActiveScanReview(null);
     setPendingScans(remaining);
     setScanFormCollapsed(false);
@@ -1408,7 +1416,9 @@ export default function NuevoGastoPage() {
       if (!closed) return;
     }
 
-    const remaining = currentScanReviews.filter((item) => item.id !== review.id);
+    const remaining = currentScanReviews.filter(
+      (item) => item.id !== review.id,
+    );
     setScanHint(
       "Factura guardada. Si el resto del lote trae el mismo producto, aparecerá como ya incluido.",
     );
@@ -1540,8 +1550,7 @@ export default function NuevoGastoPage() {
     const existingRecurringId = editingExpense?.recurringExpenseId;
     const editingCurrentDurableOperation = Boolean(
       currentFixedOperationId &&
-        existingRecurringId ===
-          `fixed-recurring-${currentFixedOperationId}`,
+      existingRecurringId === `fixed-recurring-${currentFixedOperationId}`,
     );
     const usesDurableFixedSave =
       businessKind === "fixed" &&
@@ -1636,11 +1645,7 @@ export default function NuevoGastoPage() {
         };
 
     let supplierId = resolved.supplierId;
-    if (
-      resolved.create &&
-      !usesDurableFixedSave &&
-      !usesDurableScannedSave
-    ) {
+    if (resolved.create && !usesDurableFixedSave && !usesDurableScannedSave) {
       const created = addSupplier(resolved.create);
       supplierId = created.id;
     }
@@ -1655,8 +1660,7 @@ export default function NuevoGastoPage() {
       description: description.trim(),
       amount,
       ivaPercent: totals.ivaPercent,
-      deductibility:
-        businessKind === "fixed" ? fixedDeductibility : undefined,
+      deductibility: fixedDeductibility,
       category,
       paymentMethod,
       notes: notes || undefined,
@@ -1819,8 +1823,8 @@ export default function NuevoGastoPage() {
         )}
         {editingRequested && !editingExpense && (
           <Card className="border-amber-200 bg-amber-50 text-sm text-amber-900">
-            No encuentro ese gasto en tus datos locales. Puedes volver al listado
-            o guardar este formulario como gasto nuevo.
+            No encuentro ese gasto en tus datos locales. Puedes volver al
+            listado o guardar este formulario como gasto nuevo.
           </Card>
         )}
         {inboxLoadError && (
@@ -1863,7 +1867,9 @@ export default function NuevoGastoPage() {
             </div>
             <div className="space-y-2">
               {[activeScanReview, ...pendingScans]
-                .filter((review): review is PendingExpenseScan => Boolean(review))
+                .filter((review): review is PendingExpenseScan =>
+                  Boolean(review),
+                )
                 .map((review) => {
                   const status = scanReviewStatus(review);
                   const warningText = scanReviewWarning(review);
@@ -2192,7 +2198,10 @@ export default function NuevoGastoPage() {
                     type="button"
                     onClick={() => {
                       setBusinessKind(option.value);
-                      if (option.value === "fixed" && !editingRecurringExpense) {
+                          if (
+                            option.value === "fixed" &&
+                            !editingRecurringExpense
+                          ) {
                         setFixedStartDate(date);
                       }
                     }}
@@ -2218,6 +2227,76 @@ export default function NuevoGastoPage() {
             </p>
           </FormSection>
 
+              <FormSection
+                variant="fields"
+                title="Uso del gasto"
+                hint="Elige una sola opción. Esto decide qué se incluye por defecto al exportar para tu gestor."
+              >
+                <div className="grid gap-3 sm:grid-cols-3">
+                  {(
+                    [
+                      {
+                        value: "deductible",
+                        label: "Empresa y deducible",
+                        hint: "Relacionado con tu actividad y fiscalmente deducible.",
+                        icon: CheckCircle2,
+                        selectedClass:
+                          "border-emerald-300 bg-emerald-50 text-emerald-950",
+                      },
+                      {
+                        value: "non_deductible",
+                        label: "Empresa, no deducible",
+                        hint: "Es de la actividad, pero no lo usarás como deducción fiscal.",
+                        icon: AlertTriangle,
+                        selectedClass:
+                          "border-amber-300 bg-amber-50 text-amber-950",
+                      },
+                      {
+                        value: "personal",
+                        label: "Personal / no empresarial",
+                        hint: "Se conserva para control, fuera de la actividad y de los impuestos.",
+                        icon: XCircle,
+                        selectedClass:
+                          "border-slate-400 bg-slate-100 text-slate-950",
+                      },
+                    ] as const
+                  ).map((option) => {
+                    const Icon = option.icon;
+                    const selected = fixedDeductibility === option.value;
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => {
+                          setFixedDeductibility(option.value);
+                          if (
+                            option.value === "deductible" &&
+                            !vatExempt &&
+                            ivaPercent === 0
+                          ) {
+                            setIvaPercent(defaultIva);
+                          }
+                        }}
+                        aria-pressed={selected}
+                        className={`rounded-xl border px-3 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                          selected
+                            ? option.selectedClass
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <span className="flex items-center gap-2 text-sm font-bold">
+                          <Icon className="h-4 w-4" />
+                          {option.label}
+                        </span>
+                        <span className="mt-1 block text-xs text-slate-500">
+                          {option.hint}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </FormSection>
+
           {businessKind === "fixed" && (
             <FormSection
               variant="fields"
@@ -2235,9 +2314,9 @@ export default function NuevoGastoPage() {
                       Gasto fijo ya vinculado a una regla
                     </p>
                     <p className="mt-1 text-blue-800">
-                      Los cambios de importe o fechas futuras se gestionan desde
-                      la pantalla de Gastos fijos para no tocar el histórico por
-                      accidente.
+                          Los cambios de importe o fechas futuras se gestionan
+                          desde la pantalla de Gastos fijos para no tocar el
+                          histórico por accidente.
                     </p>
                   </div>
                   <a
@@ -2249,52 +2328,6 @@ export default function NuevoGastoPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setFixedDeductibility("deductible");
-                        if (!vatExempt && ivaPercent === 0) {
-                          setIvaPercent(defaultIva);
-                        }
-                      }}
-                      aria-pressed={fixedDeductibility === "deductible"}
-                      className={`rounded-2xl border px-4 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                        fixedDeductibility === "deductible"
-                          ? "border-blue-300 bg-blue-50 text-blue-900"
-                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2 text-sm font-bold">
-                        <CalendarClock className="h-4 w-4" />
-                        Gasto fijo normal
-                      </span>
-                      <span className="mt-1 block text-xs text-slate-500">
-                        Factura, ticket o recibo recurrente con IVA si
-                        corresponde.
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFixedDeductibility("non_deductible")}
-                      aria-pressed={fixedDeductibility === "non_deductible"}
-                      className={`rounded-2xl border px-4 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                        fixedDeductibility === "non_deductible"
-                          ? "border-amber-300 bg-amber-50 text-amber-950"
-                          : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      <span className="flex items-center gap-2 text-sm font-bold">
-                        <CalendarClock className="h-4 w-4" />
-                        Extra no desgravable
-                      </span>
-                      <span className="mt-1 block text-xs text-slate-500">
-                        Control interno recurrente. Cuenta entero, sin IVA
-                        deducible.
-                      </span>
-                    </button>
-                  </div>
-
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <Field label="Frecuencia">
                       <Select
@@ -2325,7 +2358,9 @@ export default function NuevoGastoPage() {
                       <Select
                         value={fixedDueKind}
                         onChange={(event) =>
-                          setFixedDueKind(event.target.value as FixedDueKind)
+                              setFixedDueKind(
+                                event.target.value as FixedDueKind,
+                              )
                         }
                       >
                         <option value="start_of_month">
@@ -2380,8 +2415,12 @@ export default function NuevoGastoPage() {
                           )
                         }
                       >
-                        <option value="indefinite">Hasta que lo pares</option>
-                        <option value="occurrences">Número de cargos</option>
+                            <option value="indefinite">
+                              Hasta que lo pares
+                            </option>
+                            <option value="occurrences">
+                              Número de cargos
+                            </option>
                         <option value="until_date">Hasta una fecha</option>
                       </Select>
                     </Field>
@@ -2411,9 +2450,9 @@ export default function NuevoGastoPage() {
                     ) : null}
                   </div>
                   <p className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                    Si más adelante cambia el importe, usa la opción de nuevo
-                    importe desde una fecha en Gastos fijos. Así no se cambia
-                    el histórico anterior.
+                        Si más adelante cambia el importe, usa la opción de
+                        nuevo importe desde una fecha en Gastos fijos. Así no se
+                        cambia el histórico anterior.
                   </p>
                 </div>
               )}
@@ -2459,7 +2498,9 @@ export default function NuevoGastoPage() {
                 <Input
                   value={purchaseDocument.invoiceNumber ?? ""}
                   onChange={(e) =>
-                    updatePurchaseDocument({ invoiceNumber: e.target.value })
+                        updatePurchaseDocument({
+                          invoiceNumber: e.target.value,
+                        })
                   }
                   placeholder="Ej: FD-224572"
                 />
@@ -2531,7 +2572,9 @@ export default function NuevoGastoPage() {
                   <Input
                     value={purchaseDocument.paymentTerms ?? ""}
                     onChange={(e) =>
-                      updatePurchaseDocument({ paymentTerms: e.target.value })
+                          updatePurchaseDocument({
+                            paymentTerms: e.target.value,
+                          })
                     }
                     placeholder="Ej: Transferencia 30 días"
                   />
@@ -2575,10 +2618,13 @@ export default function NuevoGastoPage() {
                 </div>
               ) : null}
               {!workAllocationManagedFromDocuments ? (
-                <><Field label="Buscar factura o presupuesto">
+                    <>
+                      <Field label="Buscar factura o presupuesto">
                   <Input
                     value={workDocumentQuery}
-                    onChange={(event) => setWorkDocumentQuery(event.target.value)}
+                          onChange={(event) =>
+                            setWorkDocumentQuery(event.target.value)
+                          }
                     placeholder="Número, cliente o importe..."
                   />
                 </Field>
@@ -2610,7 +2656,8 @@ export default function NuevoGastoPage() {
                           {documentShortNumber(document)}
                         </span>
                         <span className="block text-xs text-slate-500">
-                          {document.client.name} · {formatMoney(
+                                  {document.client.name} ·{" "}
+                                  {formatMoney(
                             document.items.reduce(
                               (sum, item) =>
                                 sum +
@@ -2649,7 +2696,10 @@ export default function NuevoGastoPage() {
                   onChange={(e) => {
                     const nextDate = e.target.value;
                     setDate(nextDate);
-                    if (businessKind === "fixed" && !editingRecurringExpense) {
+                        if (
+                          businessKind === "fixed" &&
+                          !editingRecurringExpense
+                        ) {
                       setFixedStartDate(nextDate);
                     }
                   }}
@@ -2677,8 +2727,10 @@ export default function NuevoGastoPage() {
               {expenseVatExempt ? (
                 <p className="text-sm text-slate-500 sm:col-span-2">
                   {businessKind === "fixed" &&
-                  fixedDeductibility === "non_deductible"
-                    ? "Gasto extra no desgravable: se guarda como control interno completo, sin IVA deducible."
+                      !isExpenseFiscalDeductible({
+                        deductibility: fixedDeductibility,
+                      })
+                        ? "Gasto fijo no deducible: conserva su coste completo, sin IVA deducible."
                     : "Sin IVA deducible — tu perfil está marcado como exento de repercusión."}
                 </p>
               ) : (
@@ -2733,8 +2785,8 @@ export default function NuevoGastoPage() {
             <div className="space-y-3">
               {purchaseLines.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-                  Si el escaneo detecta líneas, aparecerán aquí. También puedes
-                  añadirlas a mano.
+                      Si el escaneo detecta líneas, aparecerán aquí. También
+                      puedes añadirlas a mano.
                 </div>
               ) : (
                 purchaseLines.map((line, index) => {
@@ -2769,12 +2821,14 @@ export default function NuevoGastoPage() {
                   const lineWillGoToCatalog =
                     lineCanFeedCatalog && line.catalogProduct !== false;
                   let cardTone = "border-slate-100 bg-slate-50";
-                  let checkboxTone = "border-slate-200 bg-white text-slate-700";
+                      let checkboxTone =
+                        "border-slate-200 bg-white text-slate-700";
                   if (lineIsCreditOrReturn) {
                     cardTone = "border-slate-200 bg-slate-50";
                   } else if (lineInCatalog) {
                     cardTone = "border-green-200 bg-green-50";
-                    checkboxTone = "border-green-200 bg-white text-green-800";
+                        checkboxTone =
+                          "border-green-200 bg-white text-green-800";
                   } else if (lineWillGoToCatalog) {
                     cardTone = "border-blue-200 bg-blue-50";
                     checkboxTone = "border-blue-200 bg-white text-blue-800";
@@ -2864,7 +2918,9 @@ export default function NuevoGastoPage() {
                           <NumericFieldInput
                             value={line.discountPercent ?? 0}
                             onChange={(discountPercent) =>
-                              updatePurchaseLine(line.id, { discountPercent })
+                                  updatePurchaseLine(line.id, {
+                                    discountPercent,
+                                  })
                             }
                           />
                         </Field>
@@ -2897,8 +2953,8 @@ export default function NuevoGastoPage() {
                       </div>
                       <p className="mt-3 text-right text-sm font-bold text-slate-700">
                         Base {formatMoney(lineAmounts.base)} · IVA{" "}
-                        {lineIvaPercent}% {formatMoney(lineAmounts.iva)} · Total{" "}
-                        {formatMoney(lineAmounts.total)}
+                            {lineIvaPercent}% {formatMoney(lineAmounts.iva)} ·
+                            Total {formatMoney(lineAmounts.total)}
                       </p>
                       <p className="mt-1 text-right text-xs font-semibold text-slate-500">
                         Origen IVA: {lineIvaOrigin}
@@ -2910,8 +2966,8 @@ export default function NuevoGastoPage() {
                       line.ivaPercent === undefined &&
                       currentVatResolution.blocked ? (
                         <p className="mt-2 flex flex-wrap items-center justify-end gap-2 text-xs font-semibold text-amber-800">
-                          Tipo sin confirmar: se muestra {lineIvaPercent}% de
-                          cabecera.
+                              Tipo sin confirmar: se muestra {lineIvaPercent}%
+                              de cabecera.
                           <button
                             type="button"
                             onClick={() =>
@@ -2986,7 +3042,9 @@ export default function NuevoGastoPage() {
                           type="button"
                           onClick={() => {
                             setAmountText(
-                              decimalInputFromNumber(purchaseLinesBaseTotal),
+                                  decimalInputFromNumber(
+                                    purchaseLinesBaseTotal,
+                                  ),
                             );
                             setVatSubmitError(null);
                           }}
@@ -3067,10 +3125,7 @@ export default function NuevoGastoPage() {
             {storageStateUnknown
               ? "Recarga antes de continuar"
               : activeInboxItemId &&
-                  expenseAlreadySavedFromInbox(
-                    data.expenses,
-                    activeInboxItemId,
-                  )
+                  expenseAlreadySavedFromInbox(data.expenses, activeInboxItemId)
                 ? "Cerrar documento del buzón"
               : fixedOperationAlreadySaved && activeInboxItemId
                 ? "Cerrar documento del buzón"

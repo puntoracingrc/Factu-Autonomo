@@ -247,7 +247,7 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("IRPF estimado (orientativo);20,00");
     expect(csv).toContain("Resultado económico tras reservar IRPF;-65,20");
     expect(csv).toContain(
-      "No deducible;120,00;21%;21%: base 120,00 / IVA 25,20;Cabecera o importe íntegro;25,20;;0,00;145,20;0,00;0,00;0,00",
+      "Empresa, no deducible;120,00;21%;21%: base 120,00 / IVA 25,20;Cabecera o importe íntegro;25,20;;0,00;145,20;0,00;0,00;0,00",
     );
   });
 
@@ -348,7 +348,7 @@ describe("export quarterly csv", () => {
     expect(csv).toContain("Perfil exento — IVA no calculado;1");
     expect(csv).not.toContain("Cabecera o contrato de importe íntegro");
     expect(csv).toContain(
-      "No deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Perfil exento;0,00;;0,00;100,00;0,00;0,00;0,00",
+      "Empresa, no deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Perfil exento;0,00;;0,00;100,00;0,00;0,00;0,00",
     );
   });
 

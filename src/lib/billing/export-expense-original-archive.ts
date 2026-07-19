@@ -73,6 +73,7 @@ export interface ExpenseOriginalExportInput {
   profile: BusinessProfile;
   period: ExpenseOriginalExportPeriod;
   supplierFilterLabel?: string;
+  exportScopeLabel?: string;
 }
 
 type ExpenseOriginalReader = (
@@ -139,11 +140,14 @@ export async function buildExpenseOriginalExportArchive(
   const periodLabel = [
     expenseOriginalExportPeriodLabel(input.period),
     input.supplierFilterLabel?.trim(),
+    input.exportScopeLabel?.trim(),
   ]
     .filter(Boolean)
     .join(" · ");
   const archived = input.expenses.filter(
-    (expense): expense is Expense & { originalArchive: ExpenseOriginalArchiveV1 } =>
+    (
+      expense,
+    ): expense is Expense & { originalArchive: ExpenseOriginalArchiveV1 } =>
       Boolean(expense.originalArchive),
   );
   if (archived.length > 0 && !readOriginal) {
@@ -271,7 +275,9 @@ function assertPeriod(period: ExpenseOriginalExportPeriod): void {
   const valid =
     validYear &&
     (period.kind === "month"
-      ? Number.isInteger(period.month) && period.month >= 1 && period.month <= 12
+      ? Number.isInteger(period.month) &&
+        period.month >= 1 &&
+        period.month <= 12
       : Number.isInteger(period.quarter) &&
         period.quarter >= 1 &&
         period.quarter <= 4);

@@ -1,4 +1,8 @@
-import { resolveExpenseVat, type ExpenseVatIssue } from "@/lib/expenses";
+import {
+  isExpenseFiscalDeductible,
+  resolveExpenseVat,
+  type ExpenseVatIssue,
+} from "@/lib/expenses";
 import type { BusinessProfile, Expense } from "@/lib/types";
 import {
   normalizeComparableText,
@@ -107,7 +111,9 @@ export function adaptExistingExpenseForEvaluation(
       status: "NEEDS_INPUT",
       sourceExpenseId: expense.id,
       input: null,
-      missingInformation: ["El gasto necesita un concepto antes de analizarlo."],
+      missingInformation: [
+        "El gasto necesita un concepto antes de analizarlo.",
+      ],
       warnings: [],
     };
   }
@@ -128,8 +134,7 @@ export function adaptExistingExpenseForEvaluation(
       paymentMethod: paymentMethodFromExpense(expense.paymentMethod),
       invoiceType: invoiceTypeFromExpense(expense),
     },
-    warnings:
-      expense.deductibility === "non_deductible"
+    warnings: !isExpenseFiscalDeductible(expense)
         ? [
             "El gasto ya está marcado como no deducible; el análisis no modifica esa decisión.",
           ]

@@ -35,13 +35,11 @@ import {
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
+import { Select } from "@/components/ui/Field";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
-import {
-  formatTimelineMonthLabel,
-  timelineMonthKey,
-} from "@/lib/timeline";
+import { formatTimelineMonthLabel, timelineMonthKey } from "@/lib/timeline";
 import {
   buildExpensesExportCsv,
   downloadExpensesCsv,
@@ -59,7 +57,9 @@ import {
   normalizeAppPreferences,
 } from "@/lib/app-preferences";
 import {
+  expenseFiscalTreatmentLabel,
   findDuplicatePurchaseExpense,
+  isExpenseBusinessRelated,
   isExpenseFiscalDeductible,
   resolveExpenseEquivalenceSurcharge,
   resolveExpenseVat,
@@ -67,6 +67,12 @@ import {
 import { documentShortNumber } from "@/lib/document-links";
 import { explicitExpenseWorkAllocations } from "@/lib/expense-work-allocations";
 import { expenseEditHref } from "@/lib/expense-links";
+import {
+  EXPENSE_EXPORT_SCOPE_OPTIONS,
+  expenseExportScopeLabel,
+  filterExpensesForExport,
+  type ExpenseExportScope,
+} from "@/lib/expense-export-scope";
 import {
   aggregateExpensesBySupplier,
   EXPENSE_CHART_COLORS,
@@ -85,19 +91,14 @@ import {
   inferExpenseBusinessKind,
   isFixedExpense,
 } from "@/lib/expense-classification";
-import {
-  purchaseProductCatalogKeys,
-} from "@/lib/purchase-products";
+import { purchaseProductCatalogKeys } from "@/lib/purchase-products";
 import {
   isProviderSummaryPendingOriginal,
   planProviderSummaryExpenseImport,
   type ProviderInvoiceSummaryRow,
 } from "@/lib/provider-summary-expenses";
 import { parseProviderSummaryFile } from "@/lib/provider-summary-file";
-import {
-  ensureSupplierForExpense,
-  supplierCompareKey,
-} from "@/lib/suppliers";
+import { ensureSupplierForExpense, supplierCompareKey } from "@/lib/suppliers";
 import type { Quarter } from "@/lib/periods";
 import type {
   DocumentEmailSendPreference,
@@ -168,7 +169,9 @@ function fixedExpenseFilterKey(expense: Expense): string {
 }
 
 function fixedExpenseLabel(expense: Expense): string {
-  return expense.supplierName.trim() || expense.description.trim() || "Gasto fijo";
+  return (
+    expense.supplierName.trim() || expense.description.trim() || "Gasto fijo"
+  );
 }
 
 function aggregateFixedExpenses(
@@ -176,7 +179,9 @@ function aggregateFixedExpenses(
   vatExempt: boolean,
   maxSlices = 8,
 ): SupplierSpendSlice[] {
-  const fixedExpenses = expenses.filter(isFixedExpense);
+  const fixedExpenses = expenses.filter(
+    (expense) => isFixedExpense(expense) && isExpenseBusinessRelated(expense),
+  );
   if (fixedExpenses.length === 0) return [];
 
   const totals = new Map<string, { label: string; amount: number }>();
@@ -246,11 +251,16 @@ function matchesExpenseFilter(
     const mainKeys = fixedSlices
       .filter((slice) => slice.key !== FIXED_EXPENSE_OTHER_KEY)
       .map((slice) => slice.key);
-    return isFixedExpense(expense) && !mainKeys.includes(fixedExpenseFilterKey(expense));
+    return (
+      isFixedExpense(expense) &&
+      !mainKeys.includes(fixedExpenseFilterKey(expense))
+    );
   }
 
   if (filterKey.startsWith("fixed:")) {
-    return isFixedExpense(expense) && fixedExpenseFilterKey(expense) === filterKey;
+    return (
+      isFixedExpense(expense) && fixedExpenseFilterKey(expense) === filterKey
+    );
   }
 
   return (
@@ -341,12 +351,15 @@ export default function GastosPage() {
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const defaultPeriod = getDefaultExpensePeriod();
 
-  const [periodKind, setPeriodKind] =
-    useState<ExpensePeriodKind>(defaultPeriod.kind);
+  const [periodKind, setPeriodKind] = useState<ExpensePeriodKind>(
+    defaultPeriod.kind,
+  );
   const [year, setYear] = useState(defaultPeriod.year);
   const [month, setMonth] = useState(defaultPeriod.month);
   const [quarter, setQuarter] = useState<Quarter>(defaultPeriod.quarter);
   const [supplierFilter, setSupplierFilter] = useState<string | null>(null);
+  const [expenseExportScope, setExpenseExportScope] =
+    useState<ExpenseExportScope>("deductible");
   const [visibleExpenseCount, setVisibleExpenseCount] = useState(
     EXPENSE_LIST_BATCH_SIZE,
   );
@@ -405,8 +418,10 @@ export default function GastosPage() {
       ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
     [pendingOriginalExpenses],
   );
-  const pendingOriginalInvoicePreview =
-    pendingOriginalInvoiceNumbers.slice(0, 10);
+  const pendingOriginalInvoicePreview = pendingOriginalInvoiceNumbers.slice(
+    0,
+    10,
+  );
   const pendingOriginalInvoiceOverflow = Math.max(
     pendingOriginalInvoiceNumbers.length - pendingOriginalInvoicePreview.length,
     0,
@@ -414,18 +429,16 @@ export default function GastosPage() {
 
   const periodExpenses = useMemo(
     () =>
-      filterExpensesByPeriod(
-        data.expenses,
-        periodKind,
-        year,
-        month,
-        quarter,
-      ),
+      filterExpensesByPeriod(data.expenses, periodKind, year, month, quarter),
     [data.expenses, periodKind, year, month, quarter],
   );
 
   const purchaseExpenses = useMemo(
-    () => periodExpenses.filter((expense) => !isFixedExpense(expense)),
+    () =>
+      periodExpenses.filter(
+        (expense) =>
+          !isFixedExpense(expense) && isExpenseBusinessRelated(expense),
+      ),
     [periodExpenses],
   );
 
@@ -439,8 +452,7 @@ export default function GastosPage() {
     [periodExpenses, vatExempt],
   );
 
-  const supplierOptions = useMemo(
-    () => {
+  const supplierOptions = useMemo(() => {
       const supplierOptions = uniqueSupplierOptions(purchaseExpenses);
       const groupedPurchaseOptions = purchaseChartSlices
         .filter((slice) => slice.key === "__otros__")
@@ -463,9 +475,7 @@ export default function GastosPage() {
         label,
       }));
       return [...supplierOptions, ...groupedPurchaseOptions, ...fixedOptions];
-    },
-    [fixedChartSlices, periodExpenses, purchaseChartSlices, purchaseExpenses],
-  );
+  }, [fixedChartSlices, periodExpenses, purchaseChartSlices, purchaseExpenses]);
 
   const filteredExpenses = useMemo(() => {
     const matched = periodExpenses.filter((expense) =>
@@ -479,9 +489,7 @@ export default function GastosPage() {
     return [...matched].sort((a, b) => {
       const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
       if (dateDiff !== 0) return dateDiff;
-      return (
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
   }, [fixedChartSlices, periodExpenses, purchaseChartSlices, supplierFilter]);
 
@@ -491,21 +499,33 @@ export default function GastosPage() {
     0,
   );
 
-  const total = filteredExpenses.reduce(
+  const businessFilteredExpenses = filteredExpenses.filter(
+    isExpenseBusinessRelated,
+  );
+  const total = businessFilteredExpenses.reduce(
     (sum, expense) => sum + expenseAmount(expense, vatExempt),
     0,
   );
-  const filteredCreditCount = filteredExpenses.filter(
+  const filteredCreditCount = businessFilteredExpenses.filter(
     (expense) => expenseAmount(expense, vatExempt) < 0,
   ).length;
   const periodCreditCount = periodExpenses.filter(
-    (expense) => expenseAmount(expense, vatExempt) < 0,
+    (expense) =>
+      isExpenseBusinessRelated(expense) &&
+      expenseAmount(expense, vatExempt) < 0,
   ).length;
+  const personalExpenseCount =
+    filteredExpenses.length - businessFilteredExpenses.length;
   const filteredBalanceIsCredit = total < 0;
-  const blockedVatExpenseCount = countBlockedExpenseVat(
-    filteredExpenses,
+  const expensesForExport = useMemo(
+    () => filterExpensesForExport(filteredExpenses, expenseExportScope),
+    [expenseExportScope, filteredExpenses],
+  );
+  const blockedExportExpenseCount = countBlockedExpenseVat(
+    expensesForExport,
     vatExempt,
   );
+  const currentExportScopeLabel = expenseExportScopeLabel(expenseExportScope);
 
   const selectedSummaryRows = useMemo(() => {
     if (!summaryPreview) return [];
@@ -553,7 +573,7 @@ export default function GastosPage() {
   }
 
   function handleExportCsv() {
-    if (blockedVatExpenseCount > 0) return;
+    if (blockedExportExpenseCount > 0 || expensesForExport.length === 0) return;
     const periodLabel = formatExpensePeriodLabel(
       periodKind,
       year,
@@ -561,13 +581,14 @@ export default function GastosPage() {
       quarter,
     );
     const supplierFilterLabel = supplierFilter
-      ? supplierOptions.find((option) => option.key === supplierFilter)?.label ??
-        supplierLabelFromKey(supplierFilter, data.expenses)
+      ? (supplierOptions.find((option) => option.key === supplierFilter)
+          ?.label ?? supplierLabelFromKey(supplierFilter, data.expenses))
       : undefined;
-    const csv = buildExpensesExportCsv(filteredExpenses, data.suppliers, {
+    const csv = buildExpensesExportCsv(expensesForExport, data.suppliers, {
       profile: data.profile,
       periodLabel,
       supplierFilterLabel,
+      exportScopeLabel: currentExportScopeLabel,
     });
     const stem = expenseExportFilenameStem(periodKind, year, month, quarter);
     const suffix = supplierFilter ? "-filtrado" : "";
@@ -640,17 +661,17 @@ export default function GastosPage() {
     emailMethod?: ConcreteEmailMethod,
   ) {
     const period = currentExpenseExportPeriod();
-    if (!period || filteredExpenses.length === 0) {
+    if (!period || expensesForExport.length === 0) {
       setExpenseArchiveFeedback({
         kind: "error",
         message:
           periodKind === "year"
             ? "Selecciona un mes o un trimestre para exportar un máximo de tres meses."
-            : "No hay gastos en la selección actual.",
+            : "No hay gastos que coincidan con lo que has elegido exportar.",
       });
       return;
     }
-    if (blockedVatExpenseCount > 0) {
+    if (blockedExportExpenseCount > 0) {
       setExpenseArchiveFeedback({
         kind: "error",
         message:
@@ -691,16 +712,18 @@ export default function GastosPage() {
     try {
       const supplierFilterLabel = currentSupplierFilterLabel();
       const result = await downloadExpenseOriginalExportArchive({
-        expenses: filteredExpenses,
+        expenses: expensesForExport,
         suppliers: data.suppliers,
         profile: data.profile,
         period,
         supplierFilterLabel,
+        exportScopeLabel: currentExportScopeLabel,
       });
       if (target && emailMethod) {
         const periodLabel = [
           expenseOriginalExportPeriodLabel(period),
           supplierFilterLabel,
+          currentExportScopeLabel,
         ]
           .filter(Boolean)
           .join(" · ");
@@ -796,7 +819,9 @@ export default function GastosPage() {
         .filter((item) => !item.duplicate)
         .map((item) => item.row);
       const alreadyPendingOriginalCount = rowsWithDuplicates.filter((item) =>
-        item.duplicate ? isProviderSummaryPendingOriginal(item.duplicate) : false,
+        item.duplicate
+          ? isProviderSummaryPendingOriginal(item.duplicate)
+          : false,
       ).length;
 
       setSummaryPreview({
@@ -828,7 +853,9 @@ export default function GastosPage() {
     );
   }
 
-  function handleSaveProviderSummaryExpenses(options: { email?: boolean } = {}) {
+  function handleSaveProviderSummaryExpenses(
+    options: { email?: boolean } = {},
+  ) {
     if (!summaryPreview || selectedSummaryRows.length === 0) return;
     const emailHref = summaryEmailHref;
     const importedAt = new Date().toISOString();
@@ -957,8 +984,8 @@ export default function GastosPage() {
               <p className="mt-1 text-sm text-slate-600">
                 Hemos encontrado {summaryPreview.rows.length} factura
                 {summaryPreview.rows.length === 1 ? "" : "s"} que aún no tenías
-                registrada{summaryPreview.rows.length === 1 ? "" : "s"}.
-                Puedes quitar las que no quieras guardar.
+                registrada{summaryPreview.rows.length === 1 ? "" : "s"}. Puedes
+                quitar las que no quieras guardar.
               </p>
               {summaryPreview.providerName && (
                 <p className="mt-1 text-sm font-semibold text-slate-700">
@@ -983,7 +1010,8 @@ export default function GastosPage() {
               )}
               {summaryPreview.alreadyRegisteredCount > 0 && (
                 <p className="mt-1 text-xs font-semibold text-slate-500">
-                  Ya registradas o pendientes: {summaryPreview.alreadyRegisteredCount}
+                  Ya registradas o pendientes:{" "}
+                  {summaryPreview.alreadyRegisteredCount}
                   {summaryPreview.alreadyPendingOriginalCount > 0
                     ? ` (${summaryPreview.alreadyPendingOriginalCount} ya estaban pendientes de original)`
                     : ""}
@@ -1034,10 +1062,10 @@ export default function GastosPage() {
                       <span>{formatShortDate(row.date)}</span>
                       <span>Base {formatMoney(row.base)}</span>
                       <span>IVA {formatMoney(row.ivaAmount)}</span>
-                      <span>
-                        R.E. {formatMoney(row.recargoAmount ?? 0)}
+                      <span>R.E. {formatMoney(row.recargoAmount ?? 0)}</span>
+                      <span className="font-bold">
+                        Total {formatMoney(row.total)}
                       </span>
-                      <span className="font-bold">Total {formatMoney(row.total)}</span>
                       {removed ? (
                         <button
                           type="button"
@@ -1056,7 +1084,9 @@ export default function GastosPage() {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => handleRemoveSummaryRow(row.invoiceNumber)}
+                          onClick={() =>
+                            handleRemoveSummaryRow(row.invoiceNumber)
+                          }
                           className="rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-700"
                         >
                           Quitar
@@ -1132,13 +1162,21 @@ export default function GastosPage() {
                 {filteredCreditCount === 1 ? "" : "s"} del gasto.
               </p>
             )}
-            {filteredExpenses.length > 0 && (
+            {personalExpenseCount > 0 && (
+              <p className="mt-1 text-xs font-semibold text-slate-600">
+                {personalExpenseCount} gasto
+                {personalExpenseCount === 1 ? "" : "s"}
+                personal{personalExpenseCount === 1 ? "" : "es"} fuera del
+                total.
+              </p>
+            )}
+            {expensesForExport.length > 0 && (
               <button
                 type="button"
                 onClick={handleExportCsv}
-                disabled={blockedVatExpenseCount > 0}
+                disabled={blockedExportExpenseCount > 0}
                 title={
-                  blockedVatExpenseCount > 0
+                  blockedExportExpenseCount > 0
                     ? "Revisa los gastos con evidencia fiscal pendiente antes de exportar"
                     : "Exportar los gastos filtrados en CSV"
                 }
@@ -1148,11 +1186,11 @@ export default function GastosPage() {
                 Exportar CSV
               </button>
             )}
-            {blockedVatExpenseCount > 0 && (
+            {blockedExportExpenseCount > 0 && (
               <p className="mt-1 text-xs font-semibold text-amber-800">
-                Revisa {blockedVatExpenseCount} gasto
-                {blockedVatExpenseCount === 1 ? "" : "s"} con evidencia fiscal
-                pendiente antes de exportar.
+                Revisa {blockedExportExpenseCount} gasto
+                {blockedExportExpenseCount === 1 ? "" : "s"} con evidencia
+                fiscal pendiente antes de exportar.
               </p>
             )}
             {supplierFilter && (
@@ -1163,22 +1201,39 @@ export default function GastosPage() {
               </p>
             )}
             {vatExempt && (
-              <p className="mt-1 text-xs text-emerald-800">
-                Sin IVA deducible
-              </p>
+              <p className="mt-1 text-xs text-emerald-800">Sin IVA deducible</p>
             )}
           </div>
         </div>
         <div className="flex flex-col gap-3 border-t border-slate-100 pt-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="min-w-56 text-xs font-bold text-slate-600">
+              Qué incluir
+              <Select
+                value={expenseExportScope}
+                onChange={(event) => {
+                  setExpenseExportScope(
+                    event.target.value as ExpenseExportScope,
+                  );
+                  setExpenseArchiveFeedback(null);
+                }}
+                className="mt-1"
+              >
+                {EXPENSE_EXPORT_SCOPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            </label>
             <Button
               type="button"
               variant="secondary"
               onClick={() => void handleExpenseArchiveExport()}
               disabled={
                 periodKind === "year" ||
-                filteredExpenses.length === 0 ||
-                blockedVatExpenseCount > 0 ||
+                expensesForExport.length === 0 ||
+                blockedExportExpenseCount > 0 ||
                 expenseArchiveBusy !== null
               }
             >
@@ -1192,8 +1247,8 @@ export default function GastosPage() {
               onClick={handleExpenseAdvisorExportClick}
               disabled={
                 periodKind === "year" ||
-                filteredExpenses.length === 0 ||
-                blockedVatExpenseCount > 0 ||
+                expensesForExport.length === 0 ||
+                blockedExportExpenseCount > 0 ||
                 expenseArchiveBusy !== null
               }
             >
@@ -1204,9 +1259,9 @@ export default function GastosPage() {
             </Button>
           </div>
           <p className="text-xs text-slate-500 lg:max-w-md lg:text-right">
-            Selecciona un mes o un trimestre. El ZIP incluye los originales
-            verificados disponibles en Drive y un resumen PDF; los gastos sin
-            original quedan identificados en el resumen.
+            Se incluirán {expensesForExport.length} de {filteredExpenses.length}{" "}
+            gastos. El ZIP añade los originales verificados de Drive y un
+            resumen PDF; los que no tengan original quedan identificados.
           </p>
         </div>
         <SendMethodChooserModal
@@ -1418,7 +1473,7 @@ export default function GastosPage() {
                         ) : null}
                         {!isExpenseFiscalDeductible(expense) && (
                           <span className="rounded-full bg-amber-50 px-2 py-1 text-amber-800">
-                            No desgravable
+                            {expenseFiscalTreatmentLabel(expense)}
                           </span>
                         )}
                         {workAllocations.length > 1 ? (
@@ -1470,9 +1525,7 @@ export default function GastosPage() {
                   <div className="flex items-center justify-end gap-2">
                     <span
                       className={`font-bold ${
-                        signedExpenseTotal < 0
-                          ? "text-sky-800"
-                          : "text-red-700"
+                        signedExpenseTotal < 0 ? "text-sky-800" : "text-red-700"
                       }`}
                     >
                       {formatMoney(signedExpenseTotal)}

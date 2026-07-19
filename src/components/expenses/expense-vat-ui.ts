@@ -1,6 +1,7 @@
 import {
   expensePurchaseLineBaseTotal,
   expenseTotalsFromBase,
+  isExpenseFiscalDeductible,
   resolveExpenseVat,
   type ExpenseVatInput,
   type ExpenseVatIssue,
@@ -28,10 +29,7 @@ type ExpenseVatContext = Pick<
 >;
 
 function isFixedNonDeductible(context: ExpenseVatContext): boolean {
-  return (
-    isFixedExpense(context) &&
-    context.deductibility === "non_deductible"
-  );
+  return isFixedExpense(context) && !isExpenseFiscalDeductible(context);
 }
 
 export function canReconcileExpenseAmountWithLineBase(
@@ -63,9 +61,7 @@ export function materializeExpensePurchaseLineVat(
   }));
 }
 
-export function expenseVatIssueMessage(
-  issue: ExpenseVatIssue | null,
-): string {
+export function expenseVatIssueMessage(issue: ExpenseVatIssue | null): string {
   switch (issue) {
     case "mixed_vat_missing_rate":
       return "Indica el IVA de todas las líneas antes de guardar este desglose.";
@@ -134,9 +130,7 @@ export function countBlockedExpenseVat(
   );
 }
 
-export function expenseVatRatesLabel(
-  resolution: ExpenseVatResolution,
-): string {
+export function expenseVatRatesLabel(resolution: ExpenseVatResolution): string {
   return resolution.breakdown
     .map((row) => row.ivaPercent)
     .filter((rate, index, rates) => rates.indexOf(rate) === index)

@@ -355,7 +355,7 @@ export interface RecurringExpense {
 export type ExpenseBusinessKind =
   "purchase" | "purchase_invoice" | "quick_ticket" | "fixed";
 
-export type ExpenseDeductibility = "deductible" | "non_deductible";
+export type ExpenseDeductibility = "deductible" | "non_deductible" | "personal";
 
 export type ExpenseLineCalculationBasis =
   "m2" | "ml" | "unit" | "kg" | "hour" | "fixed" | "unknown";
@@ -492,11 +492,7 @@ export interface ExpenseOriginalArchiveV1 {
   source: "scan" | "expense_inbox";
   sourceSha256: string;
   sourceMimeType:
-    | "application/pdf"
-    | "image/jpeg"
-    | "image/png"
-    | "image/webp"
-    | "image/gif";
+    "application/pdf" | "image/jpeg" | "image/png" | "image/webp" | "image/gif";
   driveFileId: string;
   driveFolderId: string;
   documentDate: string;
@@ -975,16 +971,13 @@ export type LegacyImportProvenance =
   LegacyImportProvenanceV1 | LegacyImportProvenanceV2;
 
 export type AppIssuedDocumentRecoveryKindV1 =
-  | "pre_canonical_rectification_v1"
-  | "receipt_source_snapshot_gap_v1";
+  "pre_canonical_rectification_v1" | "receipt_source_snapshot_gap_v1";
 
 export type AppIssuedDocumentRecoveryKindV2 =
-  | "pre_seal_snapshot_pdf_gap_v1"
-  | "receipt_source_and_payment_markers_gap_v1";
+  "pre_seal_snapshot_pdf_gap_v1" | "receipt_source_and_payment_markers_gap_v1";
 
 export type AppIssuedDocumentRecoveryKind =
-  | AppIssuedDocumentRecoveryKindV1
-  | AppIssuedDocumentRecoveryKindV2;
+  AppIssuedDocumentRecoveryKindV1 | AppIssuedDocumentRecoveryKindV2;
 
 export type AppIssuedDocumentRecoveryRole =
   | "original_invoice"
@@ -994,9 +987,7 @@ export type AppIssuedDocumentRecoveryRole =
   | "receipt";
 
 export type AppIssuedDocumentRecoveryVerifactuDispositionV2 =
-  | "none"
-  | "profile_context_only"
-  | "preserved_unattested_test_artifact";
+  "none" | "profile_context_only" | "preserved_unattested_test_artifact";
 
 export interface AppIssuedDocumentRecoveryPdfEvidenceV1 {
   kind: "external_pdf_user_confirmed";

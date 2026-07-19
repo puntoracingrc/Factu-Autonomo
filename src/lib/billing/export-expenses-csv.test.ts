@@ -124,14 +124,10 @@ describe("export expenses csv", () => {
   });
 
   it("exporta tipos, desglose y origen conciliado para IVA mixto", () => {
-    const csv = buildExpensesExportCsv(
-      [mixedVatExpense()],
-      [supplier],
-      {
+    const csv = buildExpensesExportCsv([mixedVatExpense()], [supplier], {
         profile: DEFAULT_PROFILE,
         periodLabel: "2026",
-      },
-    );
+    });
 
     expect(csv).toContain("Tipos IVA aplicados");
     expect(csv).toContain("Desglose IVA aplicado");
@@ -157,25 +153,17 @@ describe("export expenses csv", () => {
 
   it("bloquea el CSV standalone ante un desglose mixto no conciliado", () => {
     expect(() =>
-      buildExpensesExportCsv(
-        [mixedVatExpense({ amount: 250 })],
-        [supplier],
-        {
+      buildExpensesExportCsv([mixedVatExpense({ amount: 250 })], [supplier], {
           profile: DEFAULT_PROFILE,
           periodLabel: "2026",
-        },
-      ),
+      }),
     ).toThrowError(TaxExportBlockedError);
 
     try {
-      buildExpensesExportCsv(
-        [mixedVatExpense({ amount: 250 })],
-        [supplier],
-        {
+      buildExpensesExportCsv([mixedVatExpense({ amount: 250 })], [supplier], {
           profile: DEFAULT_PROFILE,
           periodLabel: "2026",
-        },
-      );
+      });
     } catch (error) {
       expect(error).toMatchObject({ unsupportedMixedVatExpenses: 1 });
     }
@@ -233,7 +221,7 @@ describe("export expenses csv", () => {
     expect(csv).toContain("Base deducible IVA (EUR)");
     expect(csv).toContain("IVA deducible (EUR)");
     expect(csv).toContain(
-      "No deducible;50,00;21%;21%: base 50,00 / IVA 10,50;Cabecera o importe íntegro;10,50;;0,00;60,50;0,00;0,00;0,00",
+      "Empresa, no deducible;50,00;21%;21%: base 50,00 / IVA 10,50;Cabecera o importe íntegro;10,50;;0,00;60,50;0,00;0,00;0,00",
     );
     expect(csv).toContain("Material;1;60,50;0,00;0,00;0,00");
   });
@@ -268,7 +256,7 @@ describe("export expenses csv", () => {
     );
 
     expect(csv).toContain(
-      "No deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Cabecera o importe íntegro;0,00;;0,00;100,00;0,00;0,00;0,00",
+      "Empresa, no deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Cabecera o importe íntegro;0,00;;0,00;100,00;0,00;0,00;0,00",
     );
   });
 
@@ -290,7 +278,7 @@ describe("export expenses csv", () => {
     );
 
     expect(csv).toContain(
-      "No deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Perfil exento;0,00;;0,00;100,00;0,00;0,00;0,00",
+      "Empresa, no deducible;100,00;0%;0%: base 100,00 / IVA 0,00;Perfil exento;0,00;;0,00;100,00;0,00;0,00;0,00",
     );
     expect(csv).not.toContain("Cabecera o importe íntegro");
     expect(csv).toContain("Material;1;100,00;0,00;0,00;0,00");

@@ -189,7 +189,7 @@ describe("product expenses/providers polish wiring", () => {
     expect(listPage).toContain("expense.paymentMethod");
     expect(listPage).toContain("formatMoney(signedExpenseTotal)");
     expect(listPage).toContain("isExpenseFiscalDeductible(expense)");
-    expect(listPage).toContain("No desgravable");
+    expect(listPage).toContain("expenseFiscalTreatmentLabel(expense)");
   });
 
   it("identifica abonos y saldos a favor en gastos, proveedores y panel", () => {

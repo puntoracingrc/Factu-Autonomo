@@ -164,19 +164,16 @@ export function expenseTotals(
 
   const pendingOriginal =
     expense.providerSummary?.status === "pending_original";
-  const documentVat = vatExempt
-    ? resolveExpenseVat(expense, false)
-    : resolved;
+  const documentVat = vatExempt ? resolveExpenseVat(expense, false) : resolved;
   const summaryIva = expense.providerSummary?.summaryIvaAmount;
-  const hasExactSummaryIva =
-    pendingOriginal && Number.isFinite(summaryIva);
+  const hasExactSummaryIva = pendingOriginal && Number.isFinite(summaryIva);
   const documentIva = hasExactSummaryIva
     ? roundMoneySymmetric(summaryIva ?? 0)
     : documentVat.iva;
   const summaryIvaPercent = expense.providerSummary?.summaryIvaPercent;
   const documentIvaPercent =
     pendingOriginal && Number.isFinite(summaryIvaPercent)
-      ? summaryIvaPercent ?? documentVat.headerIvaPercent
+      ? (summaryIvaPercent ?? documentVat.headerIvaPercent)
       : documentVat.headerIvaPercent;
   const iva = vatExempt ? 0 : documentIva;
   const summaryTotal = expense.providerSummary?.summaryInvoiceTotal;
@@ -199,10 +196,7 @@ export function expenseTotals(
 }
 
 export type ExpenseEquivalenceSurchargeSource =
-  | "none"
-  | "provider_summary"
-  | "legacy_summary_total"
-  | "blocked";
+  "none" | "provider_summary" | "legacy_summary_total" | "blocked";
 
 export interface ExpenseEquivalenceSurchargeResolution {
   source: ExpenseEquivalenceSurchargeSource;
@@ -238,10 +232,7 @@ function isOfficialLegacySurchargeRate(
     OFFICIAL_LEGACY_SURCHARGE_PAIRS.some(
       (pair) =>
         withinProviderSummaryTolerance(ivaPercent, pair.ivaPercent) &&
-        withinProviderSummaryTolerance(
-          surchargePercent,
-          pair.surchargePercent,
-        ),
+        withinProviderSummaryTolerance(surchargePercent, pair.surchargePercent),
     ) ||
     withinProviderSummaryTolerance(
       surchargePercent,
@@ -296,9 +287,7 @@ function resolveExpenseEquivalenceSurchargeWithVat(
   const canReconcileSummary =
     Number.isFinite(summaryTotal) && Number.isFinite(summaryIva);
   const summaryDifference = canReconcileSummary
-    ? roundMoneySymmetric(
-        (summaryTotal ?? 0) - base - (summaryIva ?? 0),
-      )
+    ? roundMoneySymmetric((summaryTotal ?? 0) - base - (summaryIva ?? 0))
     : 0;
   const amount = Number.isFinite(rawAmount)
     ? roundMoneySymmetric(rawAmount ?? 0)
@@ -307,9 +296,7 @@ function resolveExpenseEquivalenceSurchargeWithVat(
     base === 0
       ? undefined
       : Math.round(Math.abs((amount / base) * 100) * 10_000) / 10_000;
-  const percent = Number.isFinite(rawPercent)
-    ? rawPercent
-    : inferredPercent;
+  const percent = Number.isFinite(rawPercent) ? rawPercent : inferredPercent;
 
   if (!canReconcileSummary) {
     return hasExplicitSurcharge || hasSummaryTaxEvidence
@@ -317,10 +304,8 @@ function resolveExpenseEquivalenceSurchargeWithVat(
       : { source: "none", amount: 0, blocked: false, issue: null };
   }
 
-  const summaryIvaPercent = Number.isFinite(
-    providerSummary.summaryIvaPercent,
-  )
-    ? providerSummary.summaryIvaPercent ?? documentVat.headerIvaPercent
+  const summaryIvaPercent = Number.isFinite(providerSummary.summaryIvaPercent)
+    ? (providerSummary.summaryIvaPercent ?? documentVat.headerIvaPercent)
     : documentVat.headerIvaPercent;
   const summaryIvaMatchesDocument = withinProviderSummaryTolerance(
     summaryIva ?? 0,
@@ -370,8 +355,7 @@ function resolveExpenseEquivalenceSurchargeWithVat(
   }
 
   if (
-    Math.abs(summaryDifference) <=
-      EXPENSE_PROVIDER_SUMMARY_TAX_TOLERANCE &&
+    Math.abs(summaryDifference) <= EXPENSE_PROVIDER_SUMMARY_TAX_TOLERANCE &&
     summaryIvaMatchesDocument &&
     summaryIvaMatchesRate &&
     signsMatch
@@ -414,6 +398,22 @@ export function isExpenseFiscalDeductible(
   );
 }
 
+/** Los valores legacy sin marca pertenecen a la actividad y eran deducibles. */
+export function isExpenseBusinessRelated(
+  expense: Pick<Expense, "deductibility">,
+): boolean {
+  return expense.deductibility !== "personal";
+}
+
+export function expenseFiscalTreatmentLabel(
+  expense: Pick<Expense, "deductibility">,
+): "Deducible" | "Empresa, no deducible" | "Personal / no empresarial" {
+  if (isExpenseFiscalDeductible(expense)) return "Deducible";
+  return isExpenseBusinessRelated(expense)
+    ? "Empresa, no deducible"
+    : "Personal / no empresarial";
+}
+
 /** Separa el coste registrado del importe que puede alimentar fiscalidad. */
 export function expenseFiscalAmounts(
   expense: ExpenseVatInput,
@@ -436,8 +436,7 @@ export function expenseFiscalAmounts(
   return {
     deductible,
     registeredBase: totals.base,
-    registeredIvaPercent:
-      totals.documentIvaPercent ?? totals.ivaPercent,
+    registeredIvaPercent: totals.documentIvaPercent ?? totals.ivaPercent,
     registeredIva,
     registeredTotal: totals.total,
     ...(hasEquivalenceSurcharge
@@ -456,8 +455,9 @@ export function expenseFiscalAmounts(
     deductibleBase: deductibleIrpfExpense,
     deductibleIva:
       deductible && !vat.blocked && !hasEquivalenceSurcharge ? vat.iva : 0,
-    operatingCost:
-      deductible && !vat.blocked && !hasEquivalenceSurcharge
+    operatingCost: !isExpenseBusinessRelated(expense)
+      ? 0
+      : deductible && !vat.blocked && !hasEquivalenceSurcharge
         ? vat.base
         : totals.total,
     vatSource: vat.source,
@@ -549,9 +549,7 @@ function expenseLineHasValidSignedBase(
   return Number.isFinite(base) && base !== 0;
 }
 
-function buildExpenseVatBreakdown(
-  lines: unknown[],
-): ExpenseVatBreakdownRow[] {
+function buildExpenseVatBreakdown(lines: unknown[]): ExpenseVatBreakdownRow[] {
   const byRate = new Map<number, ExpenseVatBreakdownRow>();
 
   for (const line of lines) {
@@ -660,10 +658,7 @@ function resolveExpenseVatCore(
   vatExempt = false,
 ): ExpenseVatResolution {
   const base = normalizeExpenseAmount(expense.amount);
-  if (
-    isFixedExpense(expense) &&
-    expense.deductibility === "non_deductible"
-  ) {
+  if (isFixedExpense(expense) && !isExpenseFiscalDeductible(expense)) {
     return headerExpenseVatResolution(expense, true);
   }
   if (vatExempt || base === 0) {
@@ -706,8 +701,7 @@ function resolveExpenseVatCore(
   );
   const reconciliationDifference = roundMoneySymmetric(lineBase - base);
   const hasMissingRate = lines.some(
-    (line) =>
-      isExpenseVatLineInput(line) && line.ivaPercent === undefined,
+    (line) => isExpenseVatLineInput(line) && line.ivaPercent === undefined,
   );
   const hasInvalidLine = lines.some(
     (line) =>
@@ -716,8 +710,7 @@ function resolveExpenseVatCore(
       !expenseLineHasValidSignedBase(line),
   );
   const hasBaseMismatch =
-    Math.abs(reconciliationDifference) >
-    EXPENSE_VAT_RECONCILIATION_TOLERANCE;
+    Math.abs(reconciliationDifference) > EXPENSE_VAT_RECONCILIATION_TOLERANCE;
   const hasOppositeNetSign =
     lineBase !== 0 && Math.sign(lineBase) !== Math.sign(base);
 
@@ -794,7 +787,7 @@ export function resolveExpenseVat(
     const iva = roundMoneySymmetric(summaryIva ?? 0);
     const summaryIvaPercent = expense.providerSummary.summaryIvaPercent;
     const ivaPercent = Number.isFinite(summaryIvaPercent)
-      ? summaryIvaPercent ?? resolved.headerIvaPercent
+      ? (summaryIvaPercent ?? resolved.headerIvaPercent)
       : resolved.headerIvaPercent;
     return {
       ...resolved,
@@ -831,11 +824,7 @@ export function expensePurchaseLineTracksProduct(
 
 type ExpenseProductCatalogPriceLine = Pick<
   ExpensePurchaseLine,
-  | "quantity"
-  | "unitPrice"
-  | "discountPercent"
-  | "netUnitPrice"
-  | "total"
+  "quantity" | "unitPrice" | "discountPercent" | "netUnitPrice" | "total"
 >;
 
 function expensePurchaseLineCatalogNetUnitCost(
@@ -937,10 +926,7 @@ export function summarizeWorkDocumentExpensesById(
       const ratio =
         fiscal.operatingCost === 0
           ? 0
-          : Math.min(
-              Math.abs(allocation.amount / fiscal.operatingCost),
-              1,
-            );
+          : Math.min(Math.abs(allocation.amount / fiscal.operatingCost), 1);
       summaries.set(allocation.workDocumentId, {
         count: current.count + 1,
         cost: roundMoneySymmetric(current.cost + allocation.amount),
@@ -1050,11 +1036,11 @@ export function purchaseExpenseDuplicateMatches(
   }
 
   const currentSupplier = normalizeDuplicateSupplierName(current.supplierName);
-  const previousSupplier = normalizeDuplicateSupplierName(previous.supplierName);
+  const previousSupplier = normalizeDuplicateSupplierName(
+    previous.supplierName,
+  );
   return Boolean(
-    currentSupplier &&
-      previousSupplier &&
-      currentSupplier === previousSupplier,
+    currentSupplier && previousSupplier && currentSupplier === previousSupplier,
   );
 }
 
@@ -1118,8 +1104,7 @@ export function findExpensePurchaseLinePriceAlerts(input: {
   const discountThreshold = input.discountChangeThresholdPoints ?? 5;
   const currentExpense = { amount: input.currentExpenseAmount };
   const currentLines = sanitizeExpensePurchaseLines(input.currentLines).filter(
-    (line) =>
-      expensePurchaseLineCanFeedProductCatalog(currentExpense, line),
+    (line) => expensePurchaseLineCanFeedProductCatalog(currentExpense, line),
   );
 
   const previousExpenses = input.expenses

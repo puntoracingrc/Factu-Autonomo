@@ -58,9 +58,14 @@ describe("expense VAT page fail-closed wiring", () => {
   it("deshabilita el CSV si el filtro contiene IVA pendiente", () => {
     const page = source("../../app/gastos/page.tsx");
 
-    expect(page).toContain("const blockedVatExpenseCount = countBlockedExpenseVat(");
-    expect(page).toContain("if (blockedVatExpenseCount > 0) return;");
-    expect(page).toContain("disabled={blockedVatExpenseCount > 0}");
+    expect(page).toContain(
+      "const blockedExportExpenseCount = countBlockedExpenseVat(",
+    );
+    expect(page).toContain("expensesForExport,");
+    expect(page).toContain(
+      "if (blockedExportExpenseCount > 0 || expensesForExport.length === 0) return;",
+    );
+    expect(page).toContain("disabled={blockedExportExpenseCount > 0}");
     expect(page).toContain("con evidencia fiscal");
   });
 
