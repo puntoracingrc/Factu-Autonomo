@@ -4,6 +4,7 @@ import {
   type RecurringExpenseDraft,
 } from "./recurring-expenses";
 import {
+  fiscalNotificationsWorkspaceHasStoredContent,
   touchAppData,
   type SaveDataBlockedReason,
   type SaveDataResult,
@@ -150,10 +151,19 @@ export function commitAppDataDurablyWithStorageRecovery<T>(input: {
 }
 
 function appDataDomainEquals(left: AppData, right: AppData): boolean {
-  return jsonEqual(
-    { ...left, meta: undefined },
-    { ...right, meta: undefined },
-  );
+  return jsonEqual(appDataDomainComparable(left), appDataDomainComparable(right));
+}
+
+function appDataDomainComparable(value: AppData): AppData {
+  const comparable: AppData = { ...value, meta: undefined };
+  if (
+    !fiscalNotificationsWorkspaceHasStoredContent(
+      comparable.fiscalNotificationsWorkspace,
+    )
+  ) {
+    delete comparable.fiscalNotificationsWorkspace;
+  }
+  return comparable;
 }
 
 export interface FixedExpenseBundleIds {

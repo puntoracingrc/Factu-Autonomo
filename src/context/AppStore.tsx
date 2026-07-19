@@ -222,6 +222,7 @@ import {
   runRepairFiscalNotificationEmptyHistoryCommandV1,
   type DurableFiscalNotificationEmptyHistoryRepairResultV1,
 } from "@/lib/fiscal-notifications/empty-history-repair.v1";
+import { reportAppError } from "@/lib/monitoring/client";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -239,6 +240,25 @@ type DurableRecurringExpenseChangeResult =
   | { status: "blocked"; reason: RecurringExpenseChangeBlockedReason };
 
 export type GenerateReceiptForInvoiceResult = ReceiptGenerationCommandResult;
+
+function reportFiscalNotificationStructuredReviewSaveFailure(
+  result: DurableFiscalNotificationStructuredReviewSaveResultV1,
+): void {
+  if (result.status !== "blocked") return;
+
+  void reportAppError({
+    severity: "error",
+    area: "fiscal_notifications",
+    code: `structured_review_save_${result.safeCode.toLowerCase()}`,
+    message: "No se pudo guardar una ficha estructurada de notificaciones.",
+    metadata: {
+      stage: result.stage,
+      safeCode: result.safeCode,
+      reason: result.reason ?? null,
+      warningCount: result.warningCodes.length,
+    },
+  });
+}
 
 interface AppStoreValue {
   data: AppData;
@@ -808,11 +828,14 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       reviewId: string;
       createdAt: string;
       analysis: FiscalNotificationLocalAnalysisResult;
-    }): DurableFiscalNotificationStructuredReviewSaveResultV1 =>
-      runSaveFiscalNotificationStructuredReviewCommandV1({
+    }): DurableFiscalNotificationStructuredReviewSaveResultV1 => {
+      const result = runSaveFiscalNotificationStructuredReviewCommandV1({
         ...input,
         commit: commitDurableAppData,
-      }),
+      });
+      reportFiscalNotificationStructuredReviewSaveFailure(result);
+      return result;
+    },
     [commitDurableAppData],
   );
 

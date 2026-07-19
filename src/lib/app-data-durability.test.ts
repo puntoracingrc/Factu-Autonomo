@@ -24,6 +24,42 @@ function appData(): AppData {
   };
 }
 
+function emptyFiscalWorkspace(
+  ownerScope: string,
+  createdAt: string,
+): NonNullable<AppData["fiscalNotificationsWorkspace"]> {
+  return {
+    schemaVersion: 1,
+    workspaceId: "fiscal-notifications-workspace-v1",
+    ownerScope,
+    revision: 0,
+    createdAt,
+    updatedAt: createdAt,
+    packages: [],
+    files: [],
+    documents: [],
+    parts: [],
+    authorities: [],
+    references: [],
+    evidence: [],
+    debts: [],
+    debtObservations: [],
+    cases: [],
+    relations: [],
+    analysisSnapshots: [],
+    paymentOptions: [],
+    paymentPlans: [],
+    installments: [],
+    interestCalculations: [],
+    deadlineRules: [],
+    obligations: [],
+    timeline: [],
+    accountingDrafts: [],
+    auditEvents: [],
+    driveArchives: [],
+  };
+}
+
 function fixedCommand(input?: {
   operationId?: string;
   frequency?: RecurringExpenseFrequency;
@@ -426,6 +462,61 @@ describe("commitAppDataDurably", () => {
       persist: (candidate, storageExpected) => {
         expect(storageExpected).toBe(lastKnown);
         expect(candidate.profile.name).toBe("Guardado local");
+        return persist();
+      },
+      inspectPersisted,
+    });
+
+    expect(result.status).toBe("applied");
+    expect(inspectPersisted).toHaveBeenNthCalledWith(1, expected);
+    expect(inspectPersisted).toHaveBeenNthCalledWith(2, lastKnown);
+    expect(persist).toHaveBeenCalledTimes(1);
+  });
+
+  it("recupera un bloqueo anterior cuando solo queda un expediente fiscal vacío", () => {
+    const lastKnown = appData();
+    const expected: AppData = {
+      ...lastKnown,
+      fiscalNotificationsWorkspace: emptyFiscalWorkspace(
+        "user:00000000-0000-4000-8000-000000000701",
+        "2026-07-12T08:31:00.000Z",
+      ),
+      meta: {
+        ...lastKnown.meta,
+        lastModified: "2026-07-12T08:31:00.000Z",
+        pendingChanges: [
+          {
+            entityType: "fiscal_notifications_workspace",
+            entityId: "fiscal-notifications-workspace-v2",
+            deleted: false,
+            payload: {},
+            updatedAt: "2026-07-12T08:31:00.000Z",
+          },
+        ],
+      },
+    };
+    const persist = vi.fn(() => ({ status: "applied" }) as const);
+    const inspectPersisted = vi.fn((candidate: AppData) =>
+      candidate === lastKnown
+        ? ({ status: "applied" } as const)
+        : ({ status: "blocked", reason: "stale_precondition" } as const),
+    );
+
+    const result = commitAppDataDurablyWithStorageRecovery({
+      expected,
+      storageBaseline: { status: "blocked", reason: "write_failed" },
+      lastKnownStorageBaseline: lastKnown,
+      getCurrent: () => expected,
+      build: (current) => ({
+        data: {
+          ...current,
+          profile: { ...current.profile, name: "Guardado tras borrar" },
+        },
+        value: "saved",
+      }),
+      persist: (candidate, storageExpected) => {
+        expect(storageExpected).toBe(lastKnown);
+        expect(candidate.profile.name).toBe("Guardado tras borrar");
         return persist();
       },
       inspectPersisted,
