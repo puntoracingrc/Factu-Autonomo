@@ -65,6 +65,7 @@ export function buildSecurityResponseHeaders(): SecurityResponseHeader[] {
       "frame-src",
       [
         "'self'",
+        "blob:",
         "https://accounts.google.com",
         "https://challenges.cloudflare.com",
         "https://drive.google.com",
