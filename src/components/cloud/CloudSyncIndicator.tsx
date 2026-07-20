@@ -2,16 +2,23 @@
 
 import Link from "next/link";
 import { CloudOff, CloudUpload, Loader2, RefreshCw } from "lucide-react";
+import { useBilling } from "@/context/BillingContext";
 import { useCloudSync, type SyncStatus } from "@/context/CloudSyncContext";
+
+function useCloudIndicatorAvailability(): boolean {
+  const { limits, loading } = useBilling();
+  return !loading && limits.cloudSync;
+}
 
 function shouldShowIndicator(
   cloudEnabled: boolean,
+  cloudAvailable: boolean,
   user: unknown,
   pendingChangeCount: number,
   pendingUpload: boolean,
   syncStatus: SyncStatus,
 ): boolean {
-  if (!cloudEnabled || !user) return false;
+  if (!cloudEnabled || !cloudAvailable || !user) return false;
   if (
     syncStatus === "synced" &&
     pendingChangeCount === 0 &&
@@ -29,6 +36,7 @@ function shouldShowIndicator(
 }
 
 export function CloudSyncHeaderIndicator() {
+  const cloudAvailable = useCloudIndicatorAvailability();
   const {
     cloudEnabled,
     user,
@@ -42,6 +50,7 @@ export function CloudSyncHeaderIndicator() {
   if (
     !shouldShowIndicator(
       cloudEnabled,
+      cloudAvailable,
       user,
       pendingChangeCount,
       pendingUpload,
@@ -99,6 +108,7 @@ export function CloudSyncHeaderIndicator() {
 }
 
 export function CloudSyncNavBadge() {
+  const cloudAvailable = useCloudIndicatorAvailability();
   const {
     cloudEnabled,
     user,
@@ -110,6 +120,7 @@ export function CloudSyncNavBadge() {
   if (
     !shouldShowIndicator(
       cloudEnabled,
+      cloudAvailable,
       user,
       pendingChangeCount,
       pendingUpload,
@@ -145,10 +156,13 @@ export function CloudSyncNavBadge() {
 }
 
 export function CloudSyncPendingBanner() {
+  const cloudAvailable = useCloudIndicatorAvailability();
   const { cloudEnabled, user, pendingChangeCount, syncStatus, syncNow } =
     useCloudSync();
 
-  if (!cloudEnabled || !user || pendingChangeCount === 0) return null;
+  if (!cloudEnabled || !cloudAvailable || !user || pendingChangeCount === 0) {
+    return null;
+  }
   if (syncStatus === "syncing") return null;
 
   return (

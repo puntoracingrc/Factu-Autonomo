@@ -19,6 +19,10 @@ const supabaseClient = readFileSync(
   new URL("../supabase/client.ts", import.meta.url),
   "utf8",
 );
+const cloudSyncIndicator = readFileSync(
+  new URL("../../components/cloud/CloudSyncIndicator.tsx", import.meta.url),
+  "utf8",
+);
 
 describe("cloud device policy contract", () => {
   it("keeps device tokens hashed and the registry service-only", () => {
@@ -54,5 +58,23 @@ describe("cloud device policy contract", () => {
       "using ((select auth.uid()) = user_id)",
     );
     expect(rollback).toContain("drop table if exists public.user_devices");
+  });
+
+  it("hides every cloud upload indicator when the plan has no cloud access", () => {
+    expect(cloudSyncIndicator).toContain(
+      'import { useBilling } from "@/context/BillingContext"',
+    );
+    expect(cloudSyncIndicator).toContain(
+      "return !loading && limits.cloudSync",
+    );
+    expect(
+      cloudSyncIndicator.match(/useCloudIndicatorAvailability\(\)/g),
+    ).toHaveLength(4);
+    expect(cloudSyncIndicator).toContain(
+      "!cloudEnabled || !cloudAvailable || !user",
+    );
+    expect(cloudSyncIndicator).toContain(
+      "!cloudEnabled || !cloudAvailable || !user || pendingChangeCount === 0",
+    );
   });
 });
