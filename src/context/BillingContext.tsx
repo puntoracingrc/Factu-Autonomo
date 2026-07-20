@@ -18,8 +18,7 @@ import {
   type PlanId,
 } from "@/lib/billing/plans";
 import {
-  ensureTrialSubscription,
-  fetchUserSubscription,
+  ensureFreeSubscription,
 } from "@/lib/billing/repository";
 import {
   resolveEffectivePlan,
@@ -87,10 +86,7 @@ export function BillingProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     setLoading(true);
-    let sub = await fetchUserSubscription(user.id);
-    if (!sub) {
-      sub = await ensureTrialSubscription(user.id);
-    }
+    const sub = await ensureFreeSubscription(user.id);
     setSubscription(sub);
     setLoading(false);
   }, [billingEnabled, user]);

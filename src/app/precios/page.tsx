@@ -105,7 +105,7 @@ const PRO_FEATURES = [
   "Diseñador Pro de plantillas para facturas, presupuestos y recibos",
   "Sincronización en la nube (móvil + PC)",
   "Resumen trimestral + export CSV",
-  "14 días de prueba al crear cuenta",
+  "Pruebas temporales mediante código promocional",
 ];
 
 const PRO_PLUS_FEATURES = [
@@ -322,7 +322,7 @@ export default function PreciosPage() {
                   <Link href="/cuenta?modo=crear#inicio-sesion" className="font-semibold text-blue-600 underline">
                     Crea una cuenta
                   </Link>{" "}
-                  para activar la prueba de 14 días.
+                  para empezar con el plan Gratis.
                 </p>
               )}
               <Button fullWidth onClick={() => void subscribe("pro", "yearly")} disabled={busy}>

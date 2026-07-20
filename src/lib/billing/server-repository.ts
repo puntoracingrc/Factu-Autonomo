@@ -1,7 +1,7 @@
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import type { PlanId } from "./plans";
 import { AI_UNITS_PER_SCAN, FREE_EXPENSE_SCAN_TRIAL } from "./scan-limits";
-import { defaultTrialEndIso, type UserSubscription } from "./subscription";
+import type { UserSubscription } from "./subscription";
 
 export interface ServerUserSubscription extends UserSubscription {
   scanTrialRemaining: number;
@@ -54,11 +54,57 @@ export async function fetchUserSubscriptionServer(
   return mapSubscriptionRow(data as Record<string, unknown>);
 }
 
-export async function ensureTrialSubscriptionServer(
+async function retireUnattributedTrial(
+  subscription: ServerUserSubscription,
+): Promise<ServerUserSubscription> {
+  if (
+    subscription.plan !== "trial" ||
+    subscription.status !== "trialing" ||
+    subscription.stripeCustomerId ||
+    subscription.stripeSubscriptionId
+  ) {
+    return subscription;
+  }
+
+  const admin = getSupabaseAdmin();
+  if (!admin) return subscription;
+
+  const { data: adminControl, error: adminControlError } = await admin
+    .from("admin_user_controls")
+    .select("user_id")
+    .eq("user_id", subscription.userId)
+    .maybeSingle();
+
+  // Preserve the entitlement if its administrative provenance cannot be checked.
+  if (adminControlError || adminControl) return subscription;
+
+  const { data, error } = await admin
+    .from("user_subscriptions")
+    .update({
+      plan: "free",
+      status: "inactive",
+      trial_ends_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", subscription.userId)
+    .eq("plan", "trial")
+    .eq("status", "trialing")
+    .select("*")
+    .single();
+
+  if (error || !data) {
+    return (
+      (await fetchUserSubscriptionServer(subscription.userId)) ?? subscription
+    );
+  }
+  return mapSubscriptionRow(data as Record<string, unknown>);
+}
+
+export async function ensureFreeSubscriptionServer(
   userId: string,
 ): Promise<ServerUserSubscription | null> {
   const existing = await fetchUserSubscriptionServer(userId);
-  if (existing) return existing;
+  if (existing) return retireUnattributedTrial(existing);
 
   const admin = getSupabaseAdmin();
   if (!admin) return null;
@@ -67,14 +113,15 @@ export async function ensureTrialSubscriptionServer(
     .from("user_subscriptions")
     .insert({
       user_id: userId,
-      plan: "trial",
-      status: "trialing",
-      trial_ends_at: defaultTrialEndIso(),
+      plan: "free",
+      status: "inactive",
       scan_trial_remaining: FREE_EXPENSE_SCAN_TRIAL,
     })
     .select("*")
     .single();
 
-  if (error || !data) return null;
+  if (error || !data) {
+    return fetchUserSubscriptionServer(userId);
+  }
   return mapSubscriptionRow(data as Record<string, unknown>);
 }

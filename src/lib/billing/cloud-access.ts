@@ -1,6 +1,6 @@
 import { isBillingEnforced } from "./config";
 import { getPlanLimits, type PlanId } from "./plans";
-import { ensureTrialSubscription, fetchUserSubscription } from "./repository";
+import { ensureFreeSubscription } from "./repository";
 import { resolveEffectivePlan } from "./subscription";
 
 export async function canUseCloudForUser(
@@ -10,8 +10,7 @@ export async function canUseCloudForUser(
     return { allowed: true };
   }
 
-  const subscription =
-    (await fetchUserSubscription(userId)) ?? (await ensureTrialSubscription(userId));
+  const subscription = await ensureFreeSubscription(userId);
   const plan: PlanId = resolveEffectivePlan(subscription);
 
   if (!getPlanLimits(plan).cloudSync) {

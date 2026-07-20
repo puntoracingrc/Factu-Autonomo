@@ -40,8 +40,9 @@ export default function TerminosPage() {
           cancelar desde el portal de Stripe.
         </p>
         <p>
-          <strong>Prueba:</strong> 14 días de Pro al crear cuenta, salvo abuso o
-          fraude.
+          <strong>Prueba:</strong> el alta comienza en Gratis. El acceso temporal
+          a Pro solo se activa mediante una promoción válida o una asignación
+          administrativa.
         </p>
         <p>
           <strong>Créditos IA:</strong> las funciones de escaneo y autorrelleno
