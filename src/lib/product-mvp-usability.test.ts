@@ -578,6 +578,13 @@ describe("MVP usability polish", () => {
       new URL("../lib/first-use-onboarding.ts", import.meta.url),
       "utf8",
     );
+    const driveOnboardingSource = readFileSync(
+      new URL(
+        "../components/onboarding/FirstUseDriveBackupPanel.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
     const cloudAccountSource = readFileSync(
       new URL("../components/cloud/CloudAccountCard.tsx", import.meta.url),
       "utf8",
@@ -607,6 +614,22 @@ describe("MVP usability polish", () => {
     );
     expect(onboardingLogicSource).toContain(
       "factu:first-use-onboarding:first-document-dismissed",
+    );
+    expect(onboardingSource).toContain("FirstUseDriveBackupPanel");
+    expect(driveOnboardingSource).toContain(
+      "Tus datos ya se sincronizan en la nube de Factu",
+    );
+    expect(driveOnboardingSource).toContain("Conectar con Drive");
+    expect(driveOnboardingSource).toContain("Omitir por ahora");
+    expect(driveOnboardingSource).toContain('variant="onboarding"');
+    expect(driveOnboardingSource).toContain('returnPath="/"');
+    expect(driveOnboardingSource).toContain('frequency: "daily"');
+    expect(driveOnboardingSource).toContain(
+      "onDismiss={dismissDriveSuggestion}",
+    );
+    expect(driveOnboardingSource).toContain("DRIVE_BACKUP_SETTINGS_EVENT");
+    expect(onboardingLogicSource).toContain(
+      "factu:first-use-onboarding:drive-backup-dismissed",
     );
     expect(onboardingLogicSource).toContain(
       "/configuracion?${params.toString()}#${FIRST_USE_ONBOARDING_PROFILE_SECTION_ID}",

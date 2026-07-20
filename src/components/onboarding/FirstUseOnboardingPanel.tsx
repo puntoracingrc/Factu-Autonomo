@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { ButtonLink } from "@/components/ui/Button";
+import { FirstUseDriveBackupPanel } from "@/components/onboarding/FirstUseDriveBackupPanel";
 import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
@@ -78,7 +79,11 @@ export function FirstUseOnboardingPanel() {
     hasUser: Boolean(user),
   });
 
-  if (!state.visible) return null;
+  if (!state.visible) {
+    return user && state.emailConfirmed && state.profileReady ? (
+      <FirstUseDriveBackupPanel userId={user.id} />
+    ) : null;
+  }
 
   const nextStep = state.steps.find((step) => !step.done);
   const businessProfileJustCompleted =

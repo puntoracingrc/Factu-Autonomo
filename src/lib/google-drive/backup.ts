@@ -23,6 +23,8 @@ export type DriveBackupFrequency =
   | "important"
   | "every_change";
 
+export type DriveBackupReturnPath = "/";
+
 export interface DriveBackupSettings {
   enabled: boolean;
   frequency: DriveBackupFrequency;
@@ -40,6 +42,7 @@ export interface PendingDriveBackupRequest {
   state: string;
   frequency: DriveBackupFrequency;
   requestedAt: string;
+  returnPath?: DriveBackupReturnPath;
 }
 
 export interface DriveBackupDueDecision {
@@ -156,6 +159,12 @@ function safeString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
 }
 
+function normalizeDriveBackupReturnPath(
+  value: unknown,
+): DriveBackupReturnPath | undefined {
+  return value === "/" ? value : undefined;
+}
+
 export function normalizeDriveBackupSettings(
   raw: unknown,
 ): DriveBackupSettings {
@@ -208,6 +217,7 @@ function normalizePendingDriveBackupRequest(
     state,
     frequency: normalizeFrequency(raw.frequency),
     requestedAt,
+    returnPath: normalizeDriveBackupReturnPath(raw.returnPath),
   };
 }
 
@@ -270,6 +280,7 @@ export function buildGoogleDriveAuthorizationUrl(input: {
 export function startGoogleDriveBackupRedirect(input: {
   clientId: string;
   frequency: DriveBackupFrequency;
+  returnPath?: DriveBackupReturnPath;
 }): { ok: true } | { ok: false; error: string } {
   if (typeof window === "undefined") {
     return { ok: false, error: "Google Drive solo funciona en el navegador." };
@@ -284,6 +295,7 @@ export function startGoogleDriveBackupRedirect(input: {
     state: createOauthState(),
     frequency: input.frequency,
     requestedAt: new Date().toISOString(),
+    returnPath: input.returnPath,
   };
   sessionStorage.setItem(DRIVE_BACKUP_PENDING_KEY, JSON.stringify(pending));
 

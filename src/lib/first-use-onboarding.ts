@@ -11,6 +11,8 @@ export const FIRST_USE_ONBOARDING_PROFILE_SAVED_VALUE =
   "datos-negocio-guardados";
 export const FIRST_USE_ONBOARDING_DOCUMENT_DISMISSED_STORAGE_PREFIX =
   "factu:first-use-onboarding:first-document-dismissed";
+export const FIRST_USE_ONBOARDING_DRIVE_DISMISSED_STORAGE_PREFIX =
+  "factu:first-use-onboarding:drive-backup-dismissed";
 
 export interface FirstUseStep {
   id: FirstUseStepId;
@@ -51,6 +53,24 @@ export function firstUseProfileSavedHref(): string {
 
 export function firstUseDocumentDismissedStorageKey(userId: string): string {
   return `${FIRST_USE_ONBOARDING_DOCUMENT_DISMISSED_STORAGE_PREFIX}:${userId}`;
+}
+
+export function firstUseDriveDismissedStorageKey(userId: string): string {
+  return `${FIRST_USE_ONBOARDING_DRIVE_DISMISSED_STORAGE_PREFIX}:${userId}`;
+}
+
+export function shouldShowFirstUseDriveBackup(input: {
+  dismissed: boolean;
+  driveConfigured: boolean;
+  driveEnabled: boolean;
+  hydrated: boolean;
+}): boolean {
+  return (
+    input.hydrated &&
+    input.driveConfigured &&
+    !input.dismissed &&
+    !input.driveEnabled
+  );
 }
 
 export function hasFirstBusinessDocument(data: AppData): boolean {

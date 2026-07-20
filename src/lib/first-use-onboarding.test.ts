@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFirstUseOnboardingState,
+  firstUseDriveDismissedStorageKey,
   firstUseDocumentDismissedStorageKey,
   firstUseBusinessProfileHref,
   firstUseProfileSavedHref,
   hasFirstBusinessDocument,
+  shouldShowFirstUseDriveBackup,
 } from "./first-use-onboarding";
 import type { AppData, Document } from "./types";
 import { EMPTY_DATA } from "./types";
@@ -167,6 +169,35 @@ describe("first-use onboarding", () => {
       done: true,
       current: false,
     });
+  });
+
+  it("separa por usuario la decision de omitir la copia extra en Drive", () => {
+    expect(firstUseDriveDismissedStorageKey("user-123")).toBe(
+      "factu:first-use-onboarding:drive-backup-dismissed:user-123",
+    );
+  });
+
+  it("muestra la sugerencia de Drive solo cuando sigue pendiente", () => {
+    const pending = {
+      dismissed: false,
+      driveConfigured: true,
+      driveEnabled: false,
+      hydrated: true,
+    };
+
+    expect(shouldShowFirstUseDriveBackup(pending)).toBe(true);
+    expect(
+      shouldShowFirstUseDriveBackup({ ...pending, hydrated: false }),
+    ).toBe(false);
+    expect(
+      shouldShowFirstUseDriveBackup({ ...pending, driveConfigured: false }),
+    ).toBe(false);
+    expect(
+      shouldShowFirstUseDriveBackup({ ...pending, dismissed: true }),
+    ).toBe(false);
+    expect(
+      shouldShowFirstUseDriveBackup({ ...pending, driveEnabled: true }),
+    ).toBe(false);
   });
 
   it("desaparece cuando la cuenta ya tiene perfil y primer documento", () => {

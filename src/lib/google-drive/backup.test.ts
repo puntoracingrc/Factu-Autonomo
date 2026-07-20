@@ -14,14 +14,17 @@ import {
   cacheDriveAccessToken,
   clearDriveAccessToken,
   DRIVE_BACKUP_CALLBACK_PATH,
+  DRIVE_BACKUP_PENDING_KEY,
   DRIVE_BACKUP_SETTINGS_EVENT,
   DRIVE_BACKUP_SETTINGS_KEY,
   DRIVE_BACKUP_RETENTION_LIMIT,
   DRIVE_BACKUP_SCOPE,
   hasUsableDriveToken,
+  loadPendingDriveBackupRequest,
   normalizeDriveBackupSettings,
   restoreDriveAccessToken,
   saveDriveBackupSettings,
+  startGoogleDriveBackupRedirect,
   shouldRunAutomaticDriveBackup,
   uploadAppBackupToGoogleDriveWithAccessToken,
 } from "./backup";
@@ -256,6 +259,60 @@ describe("Google Drive backup", () => {
     expect(url.searchParams.get("scope")).toBe(DRIVE_BACKUP_SCOPE);
     expect(url.searchParams.get("state")).toBe("state-123");
     expect(url.searchParams.get("prompt")).toBe("consent");
+  });
+
+  it("recuerda un retorno interno al iniciar Drive desde los primeros pasos", () => {
+    const storage = createMemoryStorage();
+    const assign = vi.fn();
+
+    vi.stubGlobal("sessionStorage", storage);
+    vi.stubGlobal("window", {
+      location: {
+        origin: "https://facturacion-autonomos.app",
+        assign,
+      },
+    });
+
+    expect(
+      startGoogleDriveBackupRedirect({
+        clientId: "google-client-id",
+        frequency: "daily",
+        returnPath: "/",
+      }),
+    ).toEqual({ ok: true });
+
+    const pending = JSON.parse(
+      storage.getItem(DRIVE_BACKUP_PENDING_KEY) ?? "null",
+    ) as { returnPath?: string; state?: string };
+
+    expect(pending.returnPath).toBe("/");
+    expect(pending.state).toBeTruthy();
+    expect(assign).toHaveBeenCalledWith(
+      expect.stringContaining("https://accounts.google.com/o/oauth2/v2/auth"),
+    );
+  });
+
+  it("descarta destinos externos manipulados en el retorno de Drive", () => {
+    const storage = createMemoryStorage();
+    const state = "state-safe-return";
+
+    storage.setItem(
+      DRIVE_BACKUP_PENDING_KEY,
+      JSON.stringify({
+        state,
+        frequency: "daily",
+        requestedAt: new Date().toISOString(),
+        returnPath: "https://evil.example",
+      }),
+    );
+    vi.stubGlobal("sessionStorage", storage);
+    vi.stubGlobal("window", {});
+
+    expect(loadPendingDriveBackupRequest(state)).toMatchObject({
+      state,
+      frequency: "daily",
+      returnPath: undefined,
+    });
   });
 
   it("recupera el permiso de Drive sin pedir consentimiento si Google lo mantiene activo", async () => {
