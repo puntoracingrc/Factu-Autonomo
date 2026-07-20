@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -65,6 +66,11 @@ import {
   validateAdvisorContact,
   type AdvisorContactField,
 } from "@/lib/advisor-contact";
+import {
+  FIRST_USE_ONBOARDING_PROFILE_SOURCE_PARAM,
+  FIRST_USE_ONBOARDING_PROFILE_SOURCE_VALUE,
+  firstUseProfileSavedHref,
+} from "@/lib/first-use-onboarding";
 import {
   businessProfileNotices,
   isBusinessProfileReadyForIssuedInvoices,
@@ -186,6 +192,8 @@ function SettingsSection({
 }
 
 export default function ConfiguracionPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { data, updateProfile } = useAppStore();
   const { billingEnabled, isPro } = useBilling();
   const [form, setForm] = useState({
@@ -206,6 +214,9 @@ export default function ConfiguracionPage() {
     taxes: false,
     preferences: false,
   });
+  const returnsToFirstUseOnboarding =
+    searchParams.get(FIRST_USE_ONBOARDING_PROFILE_SOURCE_PARAM) ===
+    FIRST_USE_ONBOARDING_PROFILE_SOURCE_VALUE;
 
   useEffect(() => {
     function openSectionFromHash() {
@@ -299,6 +310,12 @@ export default function ConfiguracionPage() {
     const next = normalizeBusinessProfileForSave(form);
     setForm(next);
     persistProfile(next);
+    if (
+      returnsToFirstUseOnboarding &&
+      isBusinessProfileReadyForIssuedInvoices(next)
+    ) {
+      router.push(firstUseProfileSavedHref());
+    }
   }
 
   function updateNumberingYear(year: number) {

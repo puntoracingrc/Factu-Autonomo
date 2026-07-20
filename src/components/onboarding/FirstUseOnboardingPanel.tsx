@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   ArrowRight,
   Building2,
@@ -17,6 +18,8 @@ import { useAppStore } from "@/context/AppStore";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import {
+  FIRST_USE_ONBOARDING_PROFILE_SAVED_PARAM,
+  FIRST_USE_ONBOARDING_PROFILE_SAVED_VALUE,
   buildFirstUseOnboardingState,
   type FirstUseStepId,
 } from "@/lib/first-use-onboarding";
@@ -30,6 +33,7 @@ const STEP_ICONS: Record<FirstUseStepId, LucideIcon> = {
 export function FirstUseOnboardingPanel() {
   const { data } = useAppStore();
   const { user, emailConfirmed, requiresEmailConfirmation } = useCloudSync();
+  const searchParams = useSearchParams();
   const demoMode = useDemoWorkspaceMode();
   const state = buildFirstUseOnboardingState({
     data,
@@ -41,6 +45,11 @@ export function FirstUseOnboardingPanel() {
   if (!state.visible) return null;
 
   const nextStep = state.steps.find((step) => !step.done);
+  const businessProfileJustCompleted =
+    searchParams.get(FIRST_USE_ONBOARDING_PROFILE_SAVED_PARAM) ===
+      FIRST_USE_ONBOARDING_PROFILE_SAVED_VALUE &&
+    state.profileReady &&
+    !state.hasFirstDocument;
 
   return (
     <section
@@ -69,6 +78,16 @@ export function FirstUseOnboardingPanel() {
         </div>
       </div>
 
+      {businessProfileJustCompleted ? (
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
+          <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" />
+          <p>
+            <strong>Ya tenemos los datos de tu negocio.</strong> Solo falta
+            crear tu primera factura.
+          </p>
+        </div>
+      ) : null}
+
       <div className="mt-5 grid gap-3 lg:grid-cols-3">
         {state.steps.map((step) => {
           const Icon = STEP_ICONS[step.id];
@@ -77,7 +96,9 @@ export function FirstUseOnboardingPanel() {
               key={step.id}
               href={step.href}
               className={`group flex min-h-36 flex-col justify-between rounded-2xl border bg-white p-4 shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                step.current
+                step.done
+                  ? "border-emerald-200 bg-emerald-50/80 hover:border-emerald-300 hover:bg-emerald-50"
+                  : step.current
                   ? "border-blue-300 ring-2 ring-blue-100 hover:bg-blue-50"
                   : "border-slate-200 hover:border-blue-200 hover:bg-slate-50"
               }`}
@@ -105,7 +126,11 @@ export function FirstUseOnboardingPanel() {
                 <span className="mt-1 block text-xs font-medium leading-5 text-slate-600">
                   {step.description}
                 </span>
-                <span className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-blue-700">
+                <span
+                  className={`mt-3 inline-flex items-center gap-1 text-sm font-bold ${
+                    step.done ? "text-emerald-700" : "text-blue-700"
+                  }`}
+                >
                   {step.actionLabel}
                   <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
                 </span>

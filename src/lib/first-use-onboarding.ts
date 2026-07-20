@@ -3,6 +3,13 @@ import type { AppData } from "@/lib/types";
 
 export type FirstUseStepId = "email" | "profile" | "document";
 
+export const FIRST_USE_ONBOARDING_PROFILE_SECTION_ID = "ajustes-negocio";
+export const FIRST_USE_ONBOARDING_PROFILE_SOURCE_PARAM = "origen";
+export const FIRST_USE_ONBOARDING_PROFILE_SOURCE_VALUE = "primeros-pasos";
+export const FIRST_USE_ONBOARDING_PROFILE_SAVED_PARAM = "primerosPasos";
+export const FIRST_USE_ONBOARDING_PROFILE_SAVED_VALUE =
+  "datos-negocio-guardados";
+
 export interface FirstUseStep {
   id: FirstUseStepId;
   title: string;
@@ -21,6 +28,22 @@ export interface FirstUseOnboardingState {
   profileReady: boolean;
   hasFirstDocument: boolean;
   steps: FirstUseStep[];
+}
+
+export function firstUseBusinessProfileHref(): string {
+  const params = new URLSearchParams({
+    [FIRST_USE_ONBOARDING_PROFILE_SOURCE_PARAM]:
+      FIRST_USE_ONBOARDING_PROFILE_SOURCE_VALUE,
+  });
+  return `/configuracion?${params.toString()}#${FIRST_USE_ONBOARDING_PROFILE_SECTION_ID}`;
+}
+
+export function firstUseProfileSavedHref(): string {
+  const params = new URLSearchParams({
+    [FIRST_USE_ONBOARDING_PROFILE_SAVED_PARAM]:
+      FIRST_USE_ONBOARDING_PROFILE_SAVED_VALUE,
+  });
+  return `/?${params.toString()}`;
 }
 
 export function hasFirstBusinessDocument(data: AppData): boolean {
@@ -61,7 +84,7 @@ export function buildFirstUseOnboardingState({
         ? "Los datos fiscales básicos ya están listos para documentos reales."
         : "Completa nombre fiscal, NIF, dirección, código postal y ciudad una sola vez.",
       actionLabel: profileReady ? "Ver ajustes" : "Completar datos",
-      href: "/configuracion#ajustes-negocio",
+      href: firstUseBusinessProfileHref(),
       done: profileReady,
     },
     {
