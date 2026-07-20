@@ -9,6 +9,8 @@ export const FIRST_USE_ONBOARDING_PROFILE_SOURCE_VALUE = "primeros-pasos";
 export const FIRST_USE_ONBOARDING_PROFILE_SAVED_PARAM = "primerosPasos";
 export const FIRST_USE_ONBOARDING_PROFILE_SAVED_VALUE =
   "datos-negocio-guardados";
+export const FIRST_USE_ONBOARDING_DOCUMENT_DISMISSED_STORAGE_PREFIX =
+  "factu:first-use-onboarding:first-document-dismissed";
 
 export interface FirstUseStep {
   id: FirstUseStepId;
@@ -27,6 +29,7 @@ export interface FirstUseOnboardingState {
   emailConfirmed: boolean;
   profileReady: boolean;
   hasFirstDocument: boolean;
+  firstDocumentStepDismissed: boolean;
   steps: FirstUseStep[];
 }
 
@@ -46,6 +49,10 @@ export function firstUseProfileSavedHref(): string {
   return `/?${params.toString()}`;
 }
 
+export function firstUseDocumentDismissedStorageKey(userId: string): string {
+  return `${FIRST_USE_ONBOARDING_DOCUMENT_DISMISSED_STORAGE_PREFIX}:${userId}`;
+}
+
 export function hasFirstBusinessDocument(data: AppData): boolean {
   return data.documents.some((doc) =>
     ["factura", "presupuesto", "recibo"].includes(doc.type),
@@ -56,15 +63,20 @@ export function buildFirstUseOnboardingState({
   data,
   demoMode,
   emailConfirmed,
+  firstDocumentStepDismissed = false,
   hasUser,
 }: {
   data: AppData;
   demoMode: boolean;
   emailConfirmed: boolean;
+  firstDocumentStepDismissed?: boolean;
   hasUser: boolean;
 }): FirstUseOnboardingState {
   const profileReady = isBusinessProfileReadyForIssuedInvoices(data.profile);
   const hasFirstDocument = hasFirstBusinessDocument(data);
+  const documentStepDismissed =
+    profileReady && Boolean(firstDocumentStepDismissed);
+  const documentDone = hasFirstDocument || documentStepDismissed;
 
   const baseSteps: Array<Omit<FirstUseStep, "current">> = [
     {
@@ -92,10 +104,12 @@ export function buildFirstUseOnboardingState({
       title: hasFirstDocument ? "Primer documento creado" : "Primera factura",
       description: hasFirstDocument
         ? "Ya hay actividad real en esta cuenta."
+        : profileReady
+        ? "La ficha de cliente se crea sola al rellenar los datos en una nueva factura. Si lo deseas, omite este paso y ya puedes navegar por tu nuevo software."
         : "No hace falta crear cliente antes: rellena sus datos en la factura y se guarda solo.",
       actionLabel: hasFirstDocument ? "Ver facturas" : "Crear factura",
       href: hasFirstDocument ? "/facturas" : "/facturas/nuevo",
-      done: hasFirstDocument,
+      done: documentDone,
     },
   ];
 
@@ -112,6 +126,7 @@ export function buildFirstUseOnboardingState({
     emailConfirmed,
     profileReady,
     hasFirstDocument,
+    firstDocumentStepDismissed: documentStepDismissed,
     steps,
   };
 }
