@@ -31,6 +31,8 @@ import {
   createSensitiveReferenceV2Sync,
   normalizeSensitiveReferenceForFingerprintV2,
   parseSensitiveReferenceMemoryCarrierV2,
+  SENSITIVE_REFERENCE_TYPES_V2,
+  type SensitiveReferenceTypeV2,
 } from "./sensitive-reference.v2";
 import { resolveFiscalNotificationChronologyV2 } from "./chronology-date.v2";
 import { isInternalFiscalNotificationFieldArtifact } from "./document-fact-observation.v1";
@@ -41,11 +43,9 @@ import {
   STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
 } from "./structured-review-relation-suggestions.v1";
 
-const SENSITIVE_REFERENCE_TYPES = new Set([
-  "CSV",
-  "NRC",
-  "VEHICLE_OR_FINE_REFERENCE",
-]);
+const SENSITIVE_REFERENCE_TYPES = new Set<string>(
+  SENSITIVE_REFERENCE_TYPES_V2,
+);
 const DOCUMENT_DATE_FIELD_KINDS = new Set<string>(DOCUMENT_DATE_KINDS_V2);
 const PROJECTABLE_RELATION_ALGORITHMS = new Set<string>([
   STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
@@ -796,8 +796,7 @@ function projectReferences(
   const result: PersistedReferenceV2[] = [];
   for (const reference of workspace.references) {
     const document = documentsById.get(reference.documentId);
-    const sensitiveType = reference.referenceType as
-      "CSV" | "NRC" | "VEHICLE_OR_FINE_REFERENCE";
+    const sensitiveType = reference.referenceType as SensitiveReferenceTypeV2;
     const protectedCarrier = SENSITIVE_REFERENCE_TYPES.has(
       reference.referenceType,
     )
@@ -826,6 +825,10 @@ function projectReferences(
             normalizedValue: normalizeFiscalNotificationReferenceV2(
               normalized!,
             ),
+            printedValue: reference.rawValue
+              .normalize("NFKC")
+              .replace(/[\p{Z}\s]+/gu, " ")
+              .trim(),
           };
     } catch {
       return null;
@@ -1143,7 +1146,8 @@ function projectTypedFacts(
 /**
  * Projects a validated V1 graph into the minimal V2 privacy model. It never
  * copies party names, tax identifiers, addresses, bank accounts, source text,
- * titles, snippets, raw values, filenames or arbitrary notes.
+ * titles, snippets, filenames or arbitrary notes. Non-sensitive administrative
+ * references retain only their validated printed token and normalized match key.
  */
 export function projectFiscalNotificationsWorkspacePrivacyV2(
   workspace: FiscalNotificationsWorkspace,

@@ -348,6 +348,21 @@ describe("vertical slice specialized facts enrichment v1", () => {
         }),
       ]),
     );
+    expect(projection?.moneyFacts).toHaveLength(4);
+    expect(
+      new Set(
+        projection?.moneyFacts.map(
+          (fact) => `${fact.kind}:${fact.amountCents}:${fact.currency}`,
+        ),
+      ).size,
+    ).toBe(projection?.moneyFacts.length);
+    expect(
+      enriched.workspace.analysisSnapshots[0]?.structuredData.unknownFields.some(
+        (field) =>
+          field.labelRaw ===
+          "SPECIALIZED|ENFORCEMENT|DATE|PRINTED_ISSUE_DATE",
+      ),
+    ).toBe(false);
     expect(JSON.stringify(enriched.workspace)).not.toMatch(
       /PERSONA SINTETICA PRIVADA|12345678Z/iu,
     );

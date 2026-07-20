@@ -7,7 +7,10 @@ import type {
   AeatDeferralGrantFactsResultV1,
   AeatDeferralMoneyFactV1,
 } from "./aeat-deferral-grant-facts.v1";
-import { parseAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-explicit-fields.v2";
+import {
+  parseAeatEnforcementExplicitFieldsV2,
+  type AeatEnforcementPrintedDateFactV2,
+} from "./aeat-enforcement-explicit-fields.v2";
 import type {
   AeatEnforcementMoneyFact,
   AeatEnforcementMoneyFactKind,
@@ -544,6 +547,9 @@ function enrichEnforcement(
   const newUnknown: UnknownExtractedField[] = [];
   const newMoney = [...(snapshot.structuredData.administrativeDomain?.moneyFacts ?? [])];
   facts.facts.forEach((fact, index) => {
+    if (hasEquivalentEnforcementMoney(workspace, document, newMoney, fact)) {
+      return;
+    }
     const evidenceIds = fact.evidence.map((item, evidenceIndex) =>
       addEvidence(
         newEvidence,
@@ -569,6 +575,7 @@ function enrichEnforcement(
     );
   });
   explicit?.printedDateFacts.forEach((fact, index) => {
+    if (hasEquivalentEnforcementDate(snapshot, document, fact)) return;
     const evidenceId = dateEvidence(
       newEvidence,
       document,
@@ -601,6 +608,96 @@ function enrichEnforcement(
   );
   document.updatedAt = createdAt;
   return true;
+}
+
+function hasEquivalentEnforcementMoney(
+  workspace: FiscalNotificationsWorkspace,
+  document: FiscalNotificationsWorkspace["documents"][number],
+  current: NonNullable<
+    FiscalNotificationsWorkspace["analysisSnapshots"][number]["structuredData"]["administrativeDomain"]
+  >["moneyFacts"],
+  candidate: AeatEnforcementMoneyFact,
+): boolean {
+  const candidatePages = uniqueSortedNumbers(
+    candidate.evidence.map((item) => item.pageNumber),
+  );
+  const evidenceById = new Map(
+    workspace.evidence.map((item) => [item.id, item] as const),
+  );
+  return current.some((fact) => {
+    const factPages = uniqueSortedNumbers(
+      fact.evidenceIds.flatMap((evidenceId) => {
+        const evidence = evidenceById.get(evidenceId);
+        return evidence?.documentId === document.id ? [evidence.pageNumber] : [];
+      }),
+    );
+    return (
+      fact.kind === enforcementMoneyKind(candidate.kind) &&
+      fact.amountCents === candidate.amountCents &&
+      fact.currency === candidate.currency &&
+      sameNumbers(factPages, candidatePages)
+    );
+  });
+}
+
+function hasEquivalentEnforcementDate(
+  snapshot: FiscalNotificationsWorkspace["analysisSnapshots"][number],
+  document: FiscalNotificationsWorkspace["documents"][number],
+  candidate: AeatEnforcementPrintedDateFactV2,
+): boolean {
+  if (
+    (candidate.kind === "PRINTED_ISSUE_DATE" &&
+      document.issueDate === candidate.calendarDate) ||
+    (candidate.kind === "PRINTED_SIGNATURE_DATE" &&
+      document.signatureDate === candidate.calendarDate)
+  ) {
+    return true;
+  }
+  const dateCodes = enforcementDateCodes(candidate.kind);
+  return snapshot.structuredData.unknownFields.some((field) => {
+    if (
+      field.valueRaw !== candidate.calendarDate ||
+      !candidate.pageNumbers.includes(field.page)
+    ) {
+      return false;
+    }
+    const parts = field.labelRaw.split("|");
+    const canonicalType =
+      (parts[0] === "VSR1" || parts[0] === "VSR2") && parts[2] === "DATE"
+        ? parts[3]
+        : field.labelRaw;
+    return canonicalType !== undefined && dateCodes.includes(canonicalType);
+  });
+}
+
+function enforcementDateCodes(
+  kind: AeatEnforcementPrintedDateFactV2["kind"],
+): readonly string[] {
+  switch (kind) {
+    case "PRINTED_ISSUE_DATE":
+      return ["ISSUE_DATE", "PRINTED_ISSUE_DATE"];
+    case "PRINTED_SIGNATURE_DATE":
+      return ["SIGNING_DATE", "PRINTED_SIGNATURE_DATE"];
+    case "PRINTED_VOLUNTARY_PERIOD_END_DATE":
+      return [
+        "VOLUNTARY_PAYMENT_DEADLINE",
+        "PRINTED_VOLUNTARY_PERIOD_END_DATE",
+      ];
+  }
+}
+
+function uniqueSortedNumbers(values: readonly number[]): readonly number[] {
+  return [...new Set(values)].sort((left, right) => left - right);
+}
+
+function sameNumbers(
+  left: readonly number[],
+  right: readonly number[],
+): boolean {
+  return (
+    left.length === right.length &&
+    left.every((value, index) => value === right[index])
+  );
 }
 
 function enrichmentContext(

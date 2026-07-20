@@ -376,6 +376,29 @@ describe("runtime privacy storage envelope v2", () => {
     ).toEqual(encoded);
   });
 
+  it("roundtrips the printed form of a non-sensitive administrative reference", () => {
+    const input = workspace();
+    input.references[0]!.referenceType = "LIQUIDATION_KEY";
+    input.references[0]!.rawValue = "LQ-SYNTHETIC-0001";
+    input.references[0]!.normalizedValue = "LQ-SYNTHETIC-0001";
+
+    const encoded = encodeFiscalNotificationsWorkspaceForStorageV2(input)!;
+    const restored = restoreFiscalNotificationsWorkspaceFromStorageV2(
+      encoded,
+      OWNER,
+    );
+
+    expect(encoded.workspace.references[0]?.value).toEqual({
+      storage: "NORMALIZED_REFERENCE",
+      normalizedValue: "LQSYNTHETIC0001",
+      printedValue: "LQ-SYNTHETIC-0001",
+    });
+    expect(restored?.references[0]).toMatchObject({
+      rawValue: "LQ-SYNTHETIC-0001",
+      normalizedValue: "LQSYNTHETIC0001",
+    });
+  });
+
   it("roundtrips observed dates emitted by a specialized extractor", () => {
     const input = workspace();
     const document = input.documents[0]!;

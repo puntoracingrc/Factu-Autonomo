@@ -298,9 +298,7 @@ function appendDocument(input: {
   >[number][] = [];
   const evidenceIds = new Set<string>();
 
-  document.fields
-    .filter(isUsefulObservedFiscalNotificationField)
-    .forEach((field, fieldIndex) => {
+  persistableObservedFields(document).forEach(({ field, fieldIndex }) => {
     const retainedValue = retainedTypedFieldValue(field);
     const fieldEvidenceIds = field.sourcePageNumbers.map((pageNumber) => {
       const evidenceId = `evidence:${reviewUuid}:vertical:${persistenceKey}:${fieldIndex}:${pageNumber}`;
@@ -464,6 +462,68 @@ function appendDocument(input: {
     createdAt,
     createdBySystem: true,
   });
+}
+
+function persistableObservedFields(
+  document: FiscalNotificationVerticalSliceReviewDocumentV1,
+): readonly {
+  readonly field: FiscalNotificationVerticalSliceReviewFieldV1;
+  readonly fieldIndex: number;
+}[] {
+  const fields = document.fields.flatMap((field, fieldIndex) =>
+    isUsefulObservedFiscalNotificationField(field) ? [{ field, fieldIndex }] : [],
+  );
+  if (document.familyId !== "collection.enforcement_order") return fields;
+
+  const selectedMoney = new Map<string, (typeof fields)[number]>();
+  for (const entry of fields) {
+    if (entry.field.semantic !== "MONEY") continue;
+    const key = enforcementMoneyObservationKey(entry.field, document.familyId);
+    const current = selectedMoney.get(key);
+    if (!current || moneyObservationPriority(entry.field) > moneyObservationPriority(current.field)) {
+      selectedMoney.set(key, entry);
+    }
+  }
+  return fields.filter(
+    (entry) =>
+      entry.field.semantic !== "MONEY" ||
+      selectedMoney.get(
+        enforcementMoneyObservationKey(entry.field, document.familyId),
+      )?.fieldIndex === entry.fieldIndex,
+  );
+}
+
+function enforcementMoneyObservationKey(
+  field: FiscalNotificationVerticalSliceReviewFieldV1,
+  familyId: string,
+): string {
+  const kind = moneyKind(field.canonicalType, familyId);
+  const semanticKind =
+    kind === "ORIGINAL_TAX_PRINCIPAL" || kind === "OUTSTANDING_PRINCIPAL"
+      ? "OUTSTANDING_PRINCIPAL"
+      : kind === "EXECUTIVE_SURCHARGE_PRINTED" ||
+          kind === "EXECUTIVE_SURCHARGE_20"
+        ? "EXECUTIVE_SURCHARGE_20"
+        : kind;
+  return [
+    semanticKind,
+    field.amountCents,
+    field.currency,
+    [...field.sourcePageNumbers].sort((left, right) => left - right).join(","),
+  ].join("\u0000");
+}
+
+function moneyObservationPriority(
+  field: FiscalNotificationVerticalSliceReviewFieldV1,
+): number {
+  if (field.fieldId.startsWith("profile:money:")) return 3;
+  if (
+    field.canonicalType === "OUTSTANDING_PRINCIPAL" ||
+    field.canonicalType === "EXECUTIVE_SURCHARGE_20"
+  ) {
+    return 2;
+  }
+  return 1;
 }
 
 function buildAdministrativeDomain(input: {

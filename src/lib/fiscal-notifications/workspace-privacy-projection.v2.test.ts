@@ -224,6 +224,7 @@ describe("workspace privacy projection v2", () => {
     expect(projected?.references[0]?.value).toEqual({
       storage: "NORMALIZED_REFERENCE",
       normalizedValue: "A0000SYNTHETIC",
+      printedValue: "A-0000-SYNTHETIC",
     });
     expect(projected?.accountHolder).toMatchObject({
       identityMatchStatus: "MATCH",
@@ -277,12 +278,48 @@ describe("workspace privacy projection v2", () => {
   it("does not preserve an exact system relation without an exact compatible reference", async () => {
     const input = workspace();
     input.references[1]!.normalizedValue = "DIFFERENT-SYNTHETIC-REFERENCE";
+    input.references[1]!.rawValue = "DIFFERENT-SYNTHETIC-REFERENCE";
     const projected = await projectFiscalNotificationsWorkspacePrivacyV2(
       input,
       OWNER,
     );
     expect(projected?.relations).toEqual([]);
   });
+
+  it.each(["CSV", "NRC", "VEHICLE_OR_FINE_REFERENCE"] as const)(
+    "fingerprints %s references without retaining their printed value",
+    async (referenceType) => {
+      const input = workspace();
+      input.references.forEach((reference) => {
+        reference.referenceType = referenceType;
+        reference.rawValue = "SENSITIVE-SYNTHETIC-REFERENCE-0001";
+        reference.normalizedValue = "SENSITIVE-SYNTHETIC-REFERENCE-0001";
+      });
+
+      const projected = await projectFiscalNotificationsWorkspacePrivacyV2(
+        input,
+        OWNER,
+      );
+
+      expect(projected).not.toBeNull();
+      expect(projected?.references).toHaveLength(2);
+      expect(projected?.references).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            referenceType,
+            value: expect.objectContaining({
+              storage: "FINGERPRINT_ONLY",
+              referenceType,
+              fingerprintSha256: expect.stringMatching(/^[0-9a-f]{64}$/u),
+            }),
+          }),
+        ]),
+      );
+      expect(JSON.stringify(projected?.references)).not.toContain(
+        "SENSITIVE-SYNTHETIC-REFERENCE-0001",
+      );
+    },
+  );
 
   it("does not promote an unknown relation algorithm even with a matching amount or reference", async () => {
     const input = workspace();

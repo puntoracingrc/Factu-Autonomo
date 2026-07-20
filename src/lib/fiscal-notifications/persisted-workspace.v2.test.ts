@@ -53,6 +53,7 @@ function workspace(): FiscalNotificationsPersistedWorkspaceV2 {
         value: {
           storage: "NORMALIZED_REFERENCE",
           normalizedValue: "A0000SYNTHETIC",
+          printedValue: "A-0000-SYNTHETIC",
         },
         assertionType: "EXPLICIT_IN_DOCUMENT",
         evidenceIds: ["evidence:synthetic:1"],
@@ -290,6 +291,27 @@ describe("persisted fiscal notifications workspace v2", () => {
     expect(JSON.stringify(parsed)).not.toMatch(
       /displayName|taxId|nif|address|iban|rawValue|textSnippet|valueRaw|titleRaw|textNormalized|plainLanguage|originalFilename/iu,
     );
+  });
+
+  it("keeps only a printed administrative token that matches its normalized reference", () => {
+    const mismatch = structuredClone(workspace());
+    if (mismatch.references[0]?.value.storage !== "NORMALIZED_REFERENCE") {
+      throw new Error("synthetic_reference_shape_mismatch");
+    }
+    mismatch.references[0].value.printedValue = "OTHER-REFERENCE-001";
+    expect(
+      parseFiscalNotificationsWorkspaceForPersistenceV2(mismatch, OWNER),
+    ).toBeNull();
+
+    const taxId = structuredClone(workspace());
+    if (taxId.references[0]?.value.storage !== "NORMALIZED_REFERENCE") {
+      throw new Error("synthetic_reference_shape_mismatch");
+    }
+    taxId.references[0].value.normalizedValue = "12345678Z";
+    taxId.references[0].value.printedValue = "12345678Z";
+    expect(
+      parseFiscalNotificationsWorkspaceForPersistenceV2(taxId, OWNER),
+    ).toBeNull();
   });
 
   it.each([
