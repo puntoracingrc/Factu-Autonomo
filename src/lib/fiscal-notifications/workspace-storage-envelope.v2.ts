@@ -1,3 +1,4 @@
+import { sha256Hex } from "../document-integrity/snapshot-hash";
 import { resolveAeatDocumentProfileV1 } from "./knowledge/aeat-document-knowledge.v1";
 import { resolveAeatOfficialCatalogProfileV9 } from "./knowledge/official-catalog-expansion.v9";
 import {
@@ -80,6 +81,12 @@ export type FiscalNotificationsWorkspaceTransitionV2 =
       kind: "USER_CONFIRMED_EMPTY_RESTART_V1";
       ownerScope: string;
       confirmedAt: string;
+      baseWorkspaceId?: string;
+      baseCreatedAt?: string;
+      baseRevision?: number;
+      baseUpdatedAt?: string;
+      baseEnvelopeSha256?: string;
+      lineageEnvelopeSha256s?: readonly string[];
     }>
   | Readonly<{
       kind: "AUTO_REPAIRED_EMPTY_HISTORY_V1";
@@ -176,6 +183,8 @@ function parseTransition(
     "baseCreatedAt",
     "baseRevision",
     "baseUpdatedAt",
+    "baseEnvelopeSha256",
+    "lineageEnvelopeSha256s",
     "baseDocumentIds",
     "removedDocumentIds",
   ]);
@@ -195,6 +204,8 @@ function parseTransition(
       own(candidate, "baseCreatedAt") !== undefined ||
       own(candidate, "baseRevision") !== undefined ||
       own(candidate, "baseUpdatedAt") !== undefined ||
+      own(candidate, "baseEnvelopeSha256") !== undefined ||
+      own(candidate, "lineageEnvelopeSha256s") !== undefined ||
       own(candidate, "baseDocumentIds") !== undefined ||
       own(candidate, "removedDocumentIds") !== undefined
     ) {
@@ -204,23 +215,86 @@ function parseTransition(
   }
   if (!confirmedAt || own(candidate, "repairedAt") !== undefined) return null;
   if (kind === "USER_CONFIRMED_EMPTY_RESTART_V1") {
+    const rawBaseFields = [
+      own(candidate, "baseWorkspaceId"),
+      own(candidate, "baseCreatedAt"),
+      own(candidate, "baseRevision"),
+      own(candidate, "baseUpdatedAt"),
+      own(candidate, "baseEnvelopeSha256"),
+    ];
+    const hasBoundBase = rawBaseFields.some((field) => field !== undefined);
+    if (!hasBoundBase) {
+      if (
+        own(candidate, "lineageEnvelopeSha256s") !== undefined ||
+        own(candidate, "baseDocumentIds") !== undefined ||
+        own(candidate, "removedDocumentIds") !== undefined
+      ) {
+        return null;
+      }
+      return deepFreeze({ kind, ownerScope, confirmedAt });
+    }
+    const baseWorkspaceId = safeId(rawBaseFields[0]);
+    const baseCreatedAt = safeTimestamp(rawBaseFields[1]);
+    const baseRevision = safeNonNegativeInteger(rawBaseFields[2]);
+    const baseUpdatedAt = safeTimestamp(rawBaseFields[3]);
+    const baseEnvelopeSha256 = rawBaseFields[4];
+    const rawLineageEnvelopeSha256s = own(
+      candidate,
+      "lineageEnvelopeSha256s",
+    );
+    const lineageEnvelopeSha256s = Array.isArray(
+      rawLineageEnvelopeSha256s,
+    )
+      ? rawLineageEnvelopeSha256s.filter(
+          (value): value is string =>
+            typeof value === "string" && SHA256.test(value),
+        )
+      : undefined;
     if (
-      own(candidate, "baseWorkspaceId") !== undefined ||
-      own(candidate, "baseCreatedAt") !== undefined ||
-      own(candidate, "baseRevision") !== undefined ||
-      own(candidate, "baseUpdatedAt") !== undefined ||
+      !baseWorkspaceId ||
+      !baseCreatedAt ||
+      baseRevision === null ||
+      !baseUpdatedAt ||
+      typeof baseEnvelopeSha256 !== "string" ||
+      !SHA256.test(baseEnvelopeSha256) ||
+      (rawLineageEnvelopeSha256s !== undefined &&
+        (!Array.isArray(rawLineageEnvelopeSha256s) ||
+          lineageEnvelopeSha256s?.length !==
+            rawLineageEnvelopeSha256s.length ||
+          (lineageEnvelopeSha256s?.length ?? 0) > MAX_SOURCES ||
+          new Set(lineageEnvelopeSha256s).size !==
+            lineageEnvelopeSha256s?.length)) ||
+      Date.parse(confirmedAt) <= Date.parse(baseUpdatedAt) ||
       own(candidate, "baseDocumentIds") !== undefined ||
       own(candidate, "removedDocumentIds") !== undefined
     ) {
       return null;
     }
-    return deepFreeze({ kind, ownerScope, confirmedAt });
+    return deepFreeze({
+      kind,
+      ownerScope,
+      confirmedAt,
+      baseWorkspaceId,
+      baseCreatedAt,
+      baseRevision,
+      baseUpdatedAt,
+      baseEnvelopeSha256,
+      ...(lineageEnvelopeSha256s
+        ? { lineageEnvelopeSha256s }
+        : {}),
+    });
   }
   if (kind !== "USER_CONFIRMED_DOCUMENT_REDUCTION_V1") return null;
   const baseWorkspaceId = safeId(own(candidate, "baseWorkspaceId"));
   const baseCreatedAt = safeTimestamp(own(candidate, "baseCreatedAt"));
   const baseRevision = safeNonNegativeInteger(own(candidate, "baseRevision"));
   const baseUpdatedAt = safeTimestamp(own(candidate, "baseUpdatedAt"));
+  if (
+    own(candidate, "baseEnvelopeSha256") !== undefined ||
+    own(candidate, "lineageEnvelopeSha256s") !== undefined
+  ) {
+    return null;
+  }
   const rawBaseDocumentIds = own(candidate, "baseDocumentIds");
   const baseDocumentIds = Array.isArray(rawBaseDocumentIds)
     ? rawBaseDocumentIds.map(safeId)
@@ -676,12 +750,24 @@ export function encodeFiscalNotificationsWorkspaceForStorageV2(
   const base =
     parseFiscalNotificationsWorkspaceStorageEnvelopeV2(baseValue, ownerScope) ??
     registered;
-  const transition = registered?.transition ?? base?.transition;
+  const reconciledWorkspace = reconcileWithBase(projected, base);
+  let transition = registered?.transition ?? base?.transition;
+  if (
+    base &&
+    transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+    base.transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+    sameBoundEmptyRestartRoot(base.transition, transition) &&
+    reconciledWorkspace.workspaceId === base.workspace.workspaceId &&
+    reconciledWorkspace.createdAt === base.workspace.createdAt &&
+    reconciledWorkspace.revision > base.workspace.revision
+  ) {
+    transition = withObservedEmptyRestartBase(transition, base);
+  }
   const envelope = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
     {
       storageKind: FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_KIND_V2,
       storageVersion: FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_VERSION_V2,
-      workspace: reconcileWithBase(projected, base),
+      workspace: reconciledWorkspace,
       sources,
       ...(transition ? { transition } : {}),
     },
@@ -1577,6 +1663,121 @@ function compareChainedDocumentReductions(
   return null;
 }
 
+function emptyRestartHasBoundBase(
+  transition: Extract<
+    FiscalNotificationsWorkspaceTransitionV2,
+    { kind: "USER_CONFIRMED_EMPTY_RESTART_V1" }
+  >,
+): transition is typeof transition & {
+  readonly baseWorkspaceId: string;
+  readonly baseCreatedAt: string;
+  readonly baseRevision: number;
+  readonly baseUpdatedAt: string;
+  readonly baseEnvelopeSha256: string;
+} {
+  return (
+    transition.baseWorkspaceId !== undefined &&
+    transition.baseCreatedAt !== undefined &&
+    transition.baseRevision !== undefined &&
+    transition.baseUpdatedAt !== undefined &&
+    transition.baseEnvelopeSha256 !== undefined
+  );
+}
+
+function sameBoundEmptyRestartRoot(
+  left: Extract<
+    FiscalNotificationsWorkspaceTransitionV2,
+    { kind: "USER_CONFIRMED_EMPTY_RESTART_V1" }
+  >,
+  right: Extract<
+    FiscalNotificationsWorkspaceTransitionV2,
+    { kind: "USER_CONFIRMED_EMPTY_RESTART_V1" }
+  >,
+): boolean {
+  return (
+    emptyRestartHasBoundBase(left) &&
+    emptyRestartHasBoundBase(right) &&
+    left.ownerScope === right.ownerScope &&
+    left.baseWorkspaceId === right.baseWorkspaceId &&
+    left.baseCreatedAt === right.baseCreatedAt &&
+    left.baseRevision === right.baseRevision &&
+    left.baseUpdatedAt === right.baseUpdatedAt &&
+    left.baseEnvelopeSha256 === right.baseEnvelopeSha256
+  );
+}
+
+function withObservedEmptyRestartBase(
+  transition: Extract<
+    FiscalNotificationsWorkspaceTransitionV2,
+    { kind: "USER_CONFIRMED_EMPTY_RESTART_V1" }
+  >,
+  base: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+): FiscalNotificationsWorkspaceTransitionV2 {
+  if (!emptyRestartHasBoundBase(transition)) return transition;
+  return {
+    ...transition,
+    lineageEnvelopeSha256s: appendObservedEnvelopeSha256(
+      transition.lineageEnvelopeSha256s,
+      sha256Hex(stableJson(base)),
+    ),
+  };
+}
+
+function appendObservedEnvelopeSha256(
+  values: readonly string[] | undefined,
+  value: string,
+): readonly string[] {
+  return [...(values ?? []).filter((entry) => entry !== value), value].slice(
+    -MAX_SOURCES,
+  );
+}
+
+function followsObservedEmptyRestartBase(
+  base: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  candidate: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+): boolean {
+  const baseTransition = base.transition;
+  const candidateTransition = candidate.transition;
+  if (
+    baseTransition?.kind !== "USER_CONFIRMED_EMPTY_RESTART_V1" ||
+    candidateTransition?.kind !== "USER_CONFIRMED_EMPTY_RESTART_V1" ||
+    !sameBoundEmptyRestartRoot(baseTransition, candidateTransition) ||
+    !candidateTransition.lineageEnvelopeSha256s?.includes(
+      sha256Hex(stableJson(base)),
+    )
+  ) {
+    return false;
+  }
+  const sameGeneration =
+    candidate.workspace.workspaceId === base.workspace.workspaceId &&
+    candidate.workspace.createdAt === base.workspace.createdAt;
+  return sameGeneration
+    ? candidate.workspace.revision > base.workspace.revision &&
+      candidate.workspace.updatedAt > base.workspace.updatedAt
+    : Date.parse(candidateTransition.confirmedAt) >
+        Date.parse(base.workspace.updatedAt) &&
+      candidate.workspace.updatedAt > base.workspace.updatedAt;
+}
+
+function followsBoundEmptyRestart(
+  base: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  candidate: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+): boolean {
+  const transition = candidate.transition;
+  return Boolean(
+    transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+      emptyRestartHasBoundBase(transition) &&
+      isFiscalNotificationsWorkspaceStorageEnvelopeEmptyV2(base) &&
+      base.workspace.workspaceId === transition.baseWorkspaceId &&
+      base.workspace.createdAt === transition.baseCreatedAt &&
+      base.workspace.revision === transition.baseRevision &&
+      base.workspace.updatedAt === transition.baseUpdatedAt &&
+      sha256Hex(stableJson(base)) === transition.baseEnvelopeSha256 &&
+      Date.parse(transition.confirmedAt) >
+        Date.parse(base.workspace.updatedAt),
+  );
+}
+
 function compareDeclaredTransitions(
   current: FiscalNotificationsWorkspaceStorageEnvelopeV2,
   incoming: FiscalNotificationsWorkspaceStorageEnvelopeV2,
@@ -1586,6 +1787,12 @@ function compareDeclaredTransitions(
     incoming,
   );
   if (chainedReductionComparison) return chainedReductionComparison;
+  if (followsObservedEmptyRestartBase(current, incoming)) {
+    return "INCOMING_ADVANCES";
+  }
+  if (followsObservedEmptyRestartBase(incoming, current)) {
+    return "CURRENT_ADVANCES";
+  }
   if (stableJson(current.transition) === stableJson(incoming.transition)) {
     return null;
   }
@@ -1603,6 +1810,23 @@ function compareDeclaredTransitions(
   }
   if (
     incoming.transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+    emptyRestartHasBoundBase(incoming.transition)
+  ) {
+    return followsBoundEmptyRestart(current, incoming)
+      ? "INCOMING_ADVANCES"
+      : "DIVERGED";
+  }
+  if (
+    current.transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+    emptyRestartHasBoundBase(current.transition)
+  ) {
+    return followsBoundEmptyRestart(incoming, current)
+      ? "CURRENT_ADVANCES"
+      : "DIVERGED";
+  }
+  if (
+    incoming.transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+    isFiscalNotificationsWorkspaceStorageEnvelopeEmptyV2(incoming) &&
     Date.parse(incoming.transition.confirmedAt) >
       Date.parse(current.workspace.updatedAt)
   ) {
@@ -1610,6 +1834,7 @@ function compareDeclaredTransitions(
   }
   if (
     current.transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+    isFiscalNotificationsWorkspaceStorageEnvelopeEmptyV2(current) &&
     Date.parse(current.transition.confirmedAt) >
       Date.parse(incoming.workspace.updatedAt)
   ) {
@@ -1661,6 +1886,27 @@ export function registerFiscalNotificationDocumentReductionTransitionV2(
       base.workspace.documents.length - result.workspace.documents.length
   ) {
     return null;
+  }
+  const previousEmptyRestart =
+    base.transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+    emptyRestartHasBoundBase(base.transition)
+      ? base.transition
+      : null;
+  if (previousEmptyRestart) {
+    const continuedTransition = withObservedEmptyRestartBase(
+      previousEmptyRestart,
+      base,
+    );
+    const marked = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+      {
+        ...result,
+        transition: continuedTransition,
+      },
+      ownerScope,
+    );
+    return marked
+      ? restoreFiscalNotificationsWorkspaceFromStorageV2(marked, ownerScope)
+      : null;
   }
   const previousReduction =
     base.transition?.kind === "USER_CONFIRMED_DOCUMENT_REDUCTION_V1"
@@ -1754,6 +2000,88 @@ export function registerFiscalNotificationEmptyRestartTransitionV2(
   return marked
     ? restoreFiscalNotificationsWorkspaceFromStorageV2(marked, ownerScope)
     : null;
+}
+
+/**
+ * Marca el primer descendiente no vacío de una generación reiniciada. El
+ * comando de guardado crea antes un workspace nuevo con createdAt igual a la
+ * confirmación; el marcador evita heredar una reducción de la generación
+ * anterior cuando el usuario vuelve a añadir documentos tras borrar todos.
+ */
+export function registerFiscalNotificationEmptyRestartDescendantTransitionV2(
+  workspaceValue: unknown,
+  emptyBaseWorkspaceValue: unknown,
+  expectedOwnerScope: string,
+  confirmedAt: string,
+): FiscalNotificationsWorkspace | null {
+  const ownerScope =
+    canonicalFiscalNotificationOwnerScopeV2(expectedOwnerScope);
+  const confirmedTimestamp = safeTimestamp(confirmedAt);
+  const workspace = parseFiscalNotificationsWorkspaceForPersistenceV1(
+    workspaceValue,
+    ownerScope ?? undefined,
+  );
+  const baseEnvelope = encodeFiscalNotificationsWorkspaceForStorageV2(
+    emptyBaseWorkspaceValue,
+  );
+  const envelope = encodeFiscalNotificationsWorkspaceForStorageV2(workspace);
+  if (
+    !ownerScope ||
+    ownerScope !== expectedOwnerScope ||
+    !confirmedTimestamp ||
+    !workspace ||
+    !baseEnvelope ||
+    !envelope ||
+    baseEnvelope.workspace.ownerScope !== ownerScope ||
+    !isFiscalNotificationsWorkspaceStorageEnvelopeEmptyV2(baseEnvelope) ||
+    Date.parse(confirmedTimestamp) <=
+      Date.parse(baseEnvelope.workspace.updatedAt) ||
+    envelope.workspace.ownerScope !== ownerScope ||
+    envelope.workspace.createdAt !== confirmedTimestamp ||
+    Date.parse(envelope.workspace.updatedAt) < Date.parse(confirmedTimestamp) ||
+    envelope.workspace.documents.length === 0
+  ) {
+    return null;
+  }
+  const inheritedRestart =
+    baseEnvelope.transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
+    emptyRestartHasBoundBase(baseEnvelope.transition)
+      ? baseEnvelope.transition
+      : null;
+  const rootBase = inheritedRestart
+    ? {
+        baseWorkspaceId: inheritedRestart.baseWorkspaceId,
+        baseCreatedAt: inheritedRestart.baseCreatedAt,
+        baseRevision: inheritedRestart.baseRevision,
+        baseUpdatedAt: inheritedRestart.baseUpdatedAt,
+        baseEnvelopeSha256: inheritedRestart.baseEnvelopeSha256,
+        lineageEnvelopeSha256s: appendObservedEnvelopeSha256(
+          inheritedRestart.lineageEnvelopeSha256s,
+          sha256Hex(stableJson(baseEnvelope)),
+        ),
+      }
+    : {
+        baseWorkspaceId: baseEnvelope.workspace.workspaceId,
+        baseCreatedAt: baseEnvelope.workspace.createdAt,
+        baseRevision: baseEnvelope.workspace.revision,
+        baseUpdatedAt: baseEnvelope.workspace.updatedAt,
+        baseEnvelopeSha256: sha256Hex(stableJson(baseEnvelope)),
+      };
+  const marked = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+    {
+      ...envelope,
+      transition: {
+        kind: "USER_CONFIRMED_EMPTY_RESTART_V1",
+        ownerScope,
+        confirmedAt: confirmedTimestamp,
+        ...rootBase,
+      },
+    },
+    ownerScope,
+  );
+  if (!marked) return null;
+  memoryEnvelopeByWorkspace.set(workspace, marked);
+  return workspace;
 }
 
 export function registerFiscalNotificationAutomaticEmptyRepairTransitionV2(

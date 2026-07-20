@@ -1387,6 +1387,10 @@ export type SaveDataBlockedReason =
   | "quota_exceeded"
   | "storage_unavailable"
   | "serialization_failed"
+  | "fiscal_workspace_projection_failed"
+  | "fiscal_pending_change_projection_failed"
+  | "fiscal_projection_failed"
+  | "fiscal_serialization_failed"
   | "protected_existing_data"
   | "stale_precondition"
   | "write_failed"
@@ -1405,6 +1409,28 @@ export interface SaveDataOptions {
    * proyeccion y compresion redundante sin base antes de leer localStorage.
    */
   fiscalNotificationsBaseAwareProjection?: boolean;
+}
+
+function fiscalProjectionFailureReason(
+  error: unknown,
+): SaveDataBlockedReason {
+  try {
+    if (
+      error instanceof Error &&
+      error.message === "fiscal_workspace_privacy_projection_failed"
+    ) {
+      return "fiscal_workspace_projection_failed";
+    }
+    if (
+      error instanceof Error &&
+      error.message === "fiscal_pending_change_privacy_projection_failed"
+    ) {
+      return "fiscal_pending_change_projection_failed";
+    }
+  } catch {
+    return "fiscal_projection_failed";
+  }
+  return "fiscal_projection_failed";
 }
 
 /**
@@ -1547,6 +1573,7 @@ export function saveData(
     return { status: "blocked", reason: "stale_precondition" };
   }
 
+  let projected: unknown;
   try {
     let baseValue: unknown;
     try {
@@ -1554,11 +1581,24 @@ export function saveData(
     } catch {
       baseValue = undefined;
     }
-    serialized = serializeStoredData(
-      projectAppDataForPersistence(data, baseValue),
-    );
+    projected = projectAppDataForPersistence(data, baseValue);
+  } catch (error) {
+    return {
+      status: "blocked",
+      reason: options.fiscalNotificationsBaseAwareProjection
+        ? fiscalProjectionFailureReason(error)
+        : "serialization_failed",
+    };
+  }
+  try {
+    serialized = serializeStoredData(projected);
   } catch {
-    return { status: "blocked", reason: "serialization_failed" };
+    return {
+      status: "blocked",
+      reason: options.fiscalNotificationsBaseAwareProjection
+        ? "fiscal_serialization_failed"
+        : "serialization_failed",
+    };
   }
 
   if (beforeRaw && inMemoryDataIsEmpty(data)) {

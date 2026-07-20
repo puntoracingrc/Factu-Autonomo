@@ -891,6 +891,7 @@ function FiscalNotificationReviewWorkspace({
         ownerScope,
         reviewId: pendingReview.reviewId,
         createdAt: pendingReview.createdAt,
+        confirmedAt: new Date().toISOString(),
         analysis: pendingReview.analysis,
       });
       if (saveOperationRef.current !== operation) return;
@@ -1625,7 +1626,13 @@ function structuredSaveFailureMessage(
     if (write.reason === "storage_unavailable") {
       return "El navegador no permite guardar datos locales ahora. La ficha sigue abierta para que puedas reintentar.";
     }
-    if (write.reason === "serialization_failed") {
+    if (
+      write.reason === "serialization_failed" ||
+      write.reason === "fiscal_workspace_projection_failed" ||
+      write.reason === "fiscal_pending_change_projection_failed" ||
+      write.reason === "fiscal_projection_failed" ||
+      write.reason === "fiscal_serialization_failed"
+    ) {
       return "No se ha podido preparar el expediente para guardarlo. La ficha sigue abierta y no se ha sustituido ningún dato.";
     }
     if (write.reason === "protected_existing_data") {

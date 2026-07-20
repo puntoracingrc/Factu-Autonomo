@@ -26,6 +26,7 @@ import { parseFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-r
 import { FiscalNotificationVerticalSliceReviewErrorV1 } from "./vertical-slice-review.v1";
 import { enrichVerticalSliceSpecializedFactsV1 } from "./vertical-slice-specialized-facts.v1";
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
+import { registerFiscalNotificationEmptyRestartDescendantTransitionV2 } from "./workspace-storage-envelope.v2";
 
 export type FiscalNotificationStructuredReviewSaveStageV1 =
   "CORE" | "ENRICHMENT" | "RELATIONS" | "RECONCILIATION" | "COMMIT";
@@ -88,6 +89,7 @@ export interface SaveFiscalNotificationStructuredReviewCommandInputV1 {
   readonly ownerScope: string;
   readonly reviewId: string;
   readonly createdAt: string;
+  readonly confirmedAt?: string;
   readonly analysis: FiscalNotificationLocalAnalysisResult;
   readonly commit: <T>(
     expected: AppData,
@@ -109,6 +111,22 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
   const safeInput = Object.freeze({ ...input, analysis });
   const preflight = validateExistingWorkspace(safeInput);
   if (preflight) return preflight;
+  const existingWorkspace = safeInput.expected.fiscalNotificationsWorkspace;
+  const emptyBaseWorkspace =
+    existingWorkspace?.documents.length === 0 ? existingWorkspace : null;
+  const restartsEmptyHistory = emptyBaseWorkspace !== null;
+  const operationCreatedAt = safeInput.confirmedAt ?? safeInput.createdAt;
+  const operationCreatedTimestamp = Date.parse(operationCreatedAt);
+  if (
+    restartsEmptyHistory &&
+    (!Number.isFinite(operationCreatedTimestamp) ||
+      operationCreatedTimestamp <= Date.parse(emptyBaseWorkspace.updatedAt))
+  ) {
+    return blocked("CORE", "CORE_INVALID_INPUT");
+  }
+  const workspaceForAppend = restartsEmptyHistory
+    ? null
+    : (existingWorkspace ?? null);
 
   let prepared: StructuredReviewAppendResultV1;
   const warningCodes: FiscalNotificationStructuredReviewSaveWarningCodeV1[] =
@@ -121,15 +139,15 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
       const vertical = appendFiscalNotificationVerticalSliceReviewV1({
         ownerScope: safeInput.ownerScope,
         reviewId: safeInput.reviewId,
-        createdAt: safeInput.createdAt,
-        workspace: safeInput.expected.fiscalNotificationsWorkspace ?? null,
+        createdAt: operationCreatedAt,
+        workspace: workspaceForAppend,
         analysis,
       });
       if (vertical.status === "APPLIED") {
         try {
           const enrichment = dependencies.enrich({
             ownerScope: safeInput.ownerScope,
-            createdAt: safeInput.createdAt,
+            createdAt: operationCreatedAt,
             workspace: vertical.workspace,
             documentIds: vertical.documentIds,
             analysis,
@@ -156,8 +174,8 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
       prepared = append({
         ownerScope: safeInput.ownerScope,
         reviewId: safeInput.reviewId,
-        createdAt: safeInput.createdAt,
-        workspace: safeInput.expected.fiscalNotificationsWorkspace ?? null,
+        createdAt: operationCreatedAt,
+        workspace: workspaceForAppend,
         analysis,
       });
     }
@@ -166,7 +184,7 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
         const relations = dependencies.relate({
           ownerScope: safeInput.ownerScope,
           workspace: prepared.workspace,
-          createdAt: safeInput.createdAt,
+          createdAt: operationCreatedAt,
         });
         if (relations.status === "APPLIED") {
           prepared = Object.freeze({
@@ -187,7 +205,7 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
         const globalReconciliation = dependencies.reconcile({
           ownerScope: safeInput.ownerScope,
           workspace: prepared.workspace,
-          reevaluatedAt: safeInput.createdAt,
+          reevaluatedAt: operationCreatedAt,
         });
         if (globalReconciliation.status === "APPLIED") {
           prepared = Object.freeze({
@@ -221,6 +239,23 @@ export function runSaveFiscalNotificationStructuredReviewCommandV1(
       return blocked("CORE", "CORE_INVALID_INPUT");
     }
     return blocked("CORE", "CORE_INVALID_INPUT");
+  }
+
+  if (prepared.status === "APPLIED" && restartsEmptyHistory) {
+    const restartedWorkspace =
+      registerFiscalNotificationEmptyRestartDescendantTransitionV2(
+        prepared.workspace,
+        emptyBaseWorkspace,
+        safeInput.ownerScope,
+        operationCreatedAt,
+      );
+    if (!restartedWorkspace) {
+      return blocked("CORE", "CORE_WORKSPACE_INTEGRITY_FAILED");
+    }
+    prepared = Object.freeze({
+      ...prepared,
+      workspace: restartedWorkspace,
+    });
   }
 
   if (prepared.status === "EXISTING") {

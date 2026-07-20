@@ -42,6 +42,10 @@ export function receiptGenerationBlockedMessage(
     case "storage_unavailable":
       return "El navegador no permite guardar ahora. Habilita el almacenamiento local o prueba de nuevo sin cerrar esta pestaña.";
     case "serialization_failed":
+    case "fiscal_workspace_projection_failed":
+    case "fiscal_pending_change_projection_failed":
+    case "fiscal_projection_failed":
+    case "fiscal_serialization_failed":
       return "No se pudo preparar el guardado durable. El recibo no se ha añadido.";
     case "protected_existing_data":
       return "El guardado se detuvo para no sustituir una copia anterior protegida. Recarga o exporta una copia antes de continuar.";

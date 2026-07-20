@@ -38,7 +38,10 @@ import { appendStructuredReviewRelationSuggestionsV1 } from "./structured-review
 import { projectFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
 import { enrichVerticalSliceSpecializedFactsV1 } from "./vertical-slice-specialized-facts.v1";
 import { appendWorkspaceGlobalReconciliationV8 } from "./workspace-global-reconciliation.v8";
-import { parseFiscalNotificationsWorkspaceStorageEnvelopeV2 } from "./workspace-storage-envelope.v2";
+import {
+  compareFiscalNotificationsWorkspaceStorageEnvelopesV2,
+  parseFiscalNotificationsWorkspaceStorageEnvelopeV2,
+} from "./workspace-storage-envelope.v2";
 
 const OWNER = "user:00000000-0000-4000-8000-000000000071";
 const FOREIGN_OWNER = "user:00000000-0000-4000-8000-000000000072";
@@ -739,6 +742,7 @@ describe("structured fiscal notification save command v1", () => {
       reviewId: string,
       createdAt: string,
       reviewAnalysis: FiscalNotificationLocalAnalysisResult,
+      confirmedAt?: string,
     ) =>
       runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationStructuredReviewSaveResultV1>(
         {
@@ -760,6 +764,7 @@ describe("structured fiscal notification save command v1", () => {
               ownerScope: OWNER,
               reviewId,
               createdAt,
+              ...(confirmedAt ? { confirmedAt } : {}),
               analysis: reviewAnalysis,
               commit,
             }),
@@ -1023,6 +1028,157 @@ describe("structured fiscal notification save command v1", () => {
     ).toEqual({ status: "NOT_FOUND" });
     expect(compressionCount).toBe(0);
     expect(loadData()).toEqual(current);
+
+    for (const [index, documentId] of retainedDocumentIds.entries()) {
+      compressionCount = 0;
+      const cleared = runPersistedDelete(
+        current,
+        documentId,
+        `2026-07-20T01:${27 + index}:00.000Z`,
+      );
+      expect(cleared.status).toBe("applied");
+      expect(compressionCount).toBe(1);
+      current = loadData();
+    }
+    expect(current.fiscalNotificationsWorkspace?.documents).toEqual([]);
+    expect(nonFiscalSnapshot(current)).toEqual(retainedNonFiscalState);
+    expect(unrelatedPendingChanges(current)).toEqual(
+      retainedUnrelatedPending,
+    );
+    expect(fiscalPendingDocumentIds(current)).toEqual([]);
+    const emptyPendingChange = current.meta?.pendingChanges?.find(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+    const emptyPendingEnvelope =
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        emptyPendingChange?.payload,
+        OWNER,
+      );
+    expect(emptyPendingEnvelope).not.toBeNull();
+    if (!emptyPendingEnvelope) return;
+
+    compressionCount = 0;
+    const savedAfterEmptyHistory = runPersistedSave(
+      current,
+      "review:00000000-0000-4000-8000-000000000096",
+      "2026-07-20T01:22:30.000Z",
+      productionAnalysis,
+      "2026-07-20T01:30:00.000Z",
+    );
+    expect(
+      savedAfterEmptyHistory.status,
+      JSON.stringify(savedAfterEmptyHistory),
+    ).toMatch(/^applied/u);
+    expect(compressionCount).toBe(1);
+    current = loadData();
+    expect(current.fiscalNotificationsWorkspace?.documents).toEqual([
+      expect.objectContaining({
+        documentSubtype: "collection.enforcement_order",
+      }),
+    ]);
+    expect(current.fiscalNotificationsWorkspace?.createdAt).toBe(
+      "2026-07-20T01:30:00.000Z",
+    );
+    const restartedDocumentId =
+      current.fiscalNotificationsWorkspace?.documents[0]?.id;
+    expect(restartedDocumentId).toBeTruthy();
+    const restartedPendingChange = current.meta?.pendingChanges?.find(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        restartedPendingChange?.payload,
+        OWNER,
+      )?.transition,
+    ).toMatchObject({
+      kind: "USER_CONFIRMED_EMPTY_RESTART_V1",
+      confirmedAt: "2026-07-20T01:30:00.000Z",
+    });
+
+    compressionCount = 0;
+    const replayAfterEmptyRestart = runPersistedSave(
+      current,
+      "review:00000000-0000-4000-8000-000000000096",
+      "2026-07-20T01:22:30.000Z",
+      productionAnalysis,
+      "2026-07-20T01:30:00.000Z",
+    );
+    expect(replayAfterEmptyRestart.status).toBe("applied");
+    if (replayAfterEmptyRestart.status === "applied") {
+      expect(replayAfterEmptyRestart.replayed).toBe(true);
+    }
+    expect(compressionCount).toBe(0);
+    expect(loadData()).toEqual(current);
+
+    compressionCount = 0;
+    const deletedBeforeRestartSync = runPersistedDelete(
+      current,
+      restartedDocumentId!,
+      "2026-07-20T01:31:00.000Z",
+    );
+    expect(deletedBeforeRestartSync.status).toBe("applied");
+    expect(compressionCount).toBe(1);
+    current = loadData();
+    expect(current.fiscalNotificationsWorkspace?.documents).toEqual([]);
+    const reducedRestartPendingChange = current.meta?.pendingChanges?.find(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+    const reducedRestartEnvelope =
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        reducedRestartPendingChange?.payload,
+        OWNER,
+      );
+    expect(reducedRestartEnvelope?.transition).toMatchObject({
+      kind: "USER_CONFIRMED_EMPTY_RESTART_V1",
+      confirmedAt: "2026-07-20T01:30:00.000Z",
+    });
+    expect(
+      compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        emptyPendingEnvelope,
+        reducedRestartEnvelope,
+        OWNER,
+      ),
+    ).toBe("INCOMING_ADVANCES");
+
+    compressionCount = 0;
+    const savedAfterSecondEmptyHistory = runPersistedSave(
+      current,
+      "review:00000000-0000-4000-8000-000000000097",
+      "2026-07-20T01:32:00.000Z",
+      await seizureAnalysis(),
+      "2026-07-20T01:32:00.000Z",
+    );
+    expect(savedAfterSecondEmptyHistory.status).toMatch(/^applied/u);
+    expect(compressionCount).toBe(1);
+    current = loadData();
+    const secondRestartPendingChange = current.meta?.pendingChanges?.find(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+    const secondRestartEnvelope =
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        secondRestartPendingChange?.payload,
+        OWNER,
+      );
+    expect(secondRestartEnvelope?.workspace.documents).toHaveLength(1);
+    expect(secondRestartEnvelope?.transition).toMatchObject({
+      kind: "USER_CONFIRMED_EMPTY_RESTART_V1",
+      confirmedAt: "2026-07-20T01:32:00.000Z",
+      baseEnvelopeSha256: expect.stringMatching(/^[0-9a-f]{64}$/u),
+      lineageEnvelopeSha256s: expect.arrayContaining([
+        expect.stringMatching(/^[0-9a-f]{64}$/u),
+      ]),
+    });
+    expect(
+      compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        emptyPendingEnvelope,
+        secondRestartEnvelope,
+        OWNER,
+      ),
+    ).toBe("INCOMING_ADVANCES");
+    expect(nonFiscalSnapshot(current)).toEqual(retainedNonFiscalState);
+    expect(unrelatedPendingChanges(current)).toEqual(
+      retainedUnrelatedPending,
+    );
   });
 
   it("guarda una única transición durable con los hechos exactos", () => {

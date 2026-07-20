@@ -304,6 +304,7 @@ interface AppStoreValue {
     ownerScope: string;
     reviewId: string;
     createdAt: string;
+    confirmedAt: string;
     analysis: FiscalNotificationLocalAnalysisResult;
   }) => DurableFiscalNotificationStructuredReviewSaveResultV1;
   archiveFiscalNotificationOriginal: (input: {
@@ -859,6 +860,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       ownerScope: string;
       reviewId: string;
       createdAt: string;
+      confirmedAt: string;
       analysis: FiscalNotificationLocalAnalysisResult;
     }): DurableFiscalNotificationStructuredReviewSaveResultV1 => {
       const result =
