@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFirstUseOnboardingState,
+  firstUseBusinessProfileHref,
+  firstUseProfileSavedHref,
   hasFirstBusinessDocument,
 } from "./first-use-onboarding";
 import type { AppData, Document } from "./types";
@@ -100,11 +102,41 @@ describe("first-use onboarding", () => {
     expect(state.steps[1]).toMatchObject({
       id: "profile",
       current: true,
-      href: "/configuracion#ajustes-negocio",
+      href: firstUseBusinessProfileHref(),
     });
+    expect(firstUseBusinessProfileHref()).toBe(
+      "/configuracion?origen=primeros-pasos#ajustes-negocio",
+    );
+    expect(firstUseProfileSavedHref()).toBe(
+      "/?primerosPasos=datos-negocio-guardados",
+    );
     expect(state.steps[2].description).toContain(
       "No hace falta crear cliente antes",
     );
+  });
+
+  it("marca los datos de negocio como completos cuando los campos obligatorios estan guardados", () => {
+    const state = buildFirstUseOnboardingState({
+      data: readyProfile(baseData()),
+      demoMode: false,
+      emailConfirmed: true,
+      hasUser: true,
+    });
+
+    expect(state.visible).toBe(true);
+    expect(state.completedCount).toBe(2);
+    expect(state.profileReady).toBe(true);
+    expect(state.steps[1]).toMatchObject({
+      id: "profile",
+      title: "Negocio preparado",
+      done: true,
+      current: false,
+    });
+    expect(state.steps[2]).toMatchObject({
+      id: "document",
+      done: false,
+      current: true,
+    });
   });
 
   it("desaparece cuando la cuenta ya tiene perfil y primer documento", () => {

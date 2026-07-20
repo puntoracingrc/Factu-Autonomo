@@ -586,15 +586,26 @@ describe("MVP usability polish", () => {
       new URL("../components/cloud/SignupSuccessPanel.tsx", import.meta.url),
       "utf8",
     );
+    const settingsSource = readFileSync(
+      new URL("../app/configuracion/page.tsx", import.meta.url),
+      "utf8",
+    );
 
     expect(homePageSource).toContain("FirstUseOnboardingPanel");
     expect(onboardingSource).toContain("Primeros pasos");
     expect(onboardingSource).toContain("Prepara tu primera factura real");
+    expect(onboardingSource).toContain("Ya tenemos los datos de tu negocio");
     expect(onboardingSource).toContain("Importar datos");
     expect(onboardingSource).toContain("Registrar gasto");
+    expect(onboardingSource).toContain("border-emerald-200 bg-emerald-50/80");
     expect(onboardingLogicSource).toContain("No hace falta crear cliente antes");
-    expect(onboardingLogicSource).toContain("/configuracion#ajustes-negocio");
+    expect(onboardingLogicSource).toContain(
+      "/configuracion?${params.toString()}#${FIRST_USE_ONBOARDING_PROFILE_SECTION_ID}",
+    );
+    expect(onboardingLogicSource).toContain("datos-negocio-guardados");
     expect(onboardingLogicSource).toContain("/facturas/nuevo");
+    expect(settingsSource).toContain("returnsToFirstUseOnboarding");
+    expect(settingsSource).toContain("router.push(firstUseProfileSavedHref())");
     expect(cloudAccountSource).toContain("Abrir primeros pasos");
     expect(cloudAccountSource).toContain("entrar verás los primeros pasos");
     expect(cloudAccountSource).toContain("en el Panel");
