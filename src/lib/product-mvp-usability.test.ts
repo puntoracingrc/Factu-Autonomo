@@ -616,8 +616,12 @@ describe("MVP usability polish", () => {
       "factu:first-use-onboarding:first-document-dismissed",
     );
     expect(onboardingSource).toContain("FirstUseDriveBackupPanel");
+    expect(driveOnboardingSource).toContain("limits.cloudSync");
     expect(driveOnboardingSource).toContain(
-      "Tus datos ya se sincronizan en la nube de Factu",
+      "Con el plan Gratuito, Factu no guarda tus facturas ni datos",
+    );
+    expect(driveOnboardingSource).toContain(
+      "Descarga copias manuales y guárdalas fuera del dispositivo",
     );
     expect(driveOnboardingSource).toContain("Conectar con Drive");
     expect(driveOnboardingSource).toContain("Omitir por ahora");
@@ -785,7 +789,7 @@ describe("MVP usability polish", () => {
     expect(cloudContextSource).not.toContain("drive.file");
     expect(cloudContextSource).not.toContain("drive.metadata");
     expect(driveConfigSource).toContain("NEXT_PUBLIC_GOOGLE_DRIVE_CLIENT_ID");
-    expect(driveBackupSource).toContain("Copia extra en Google Drive");
+    expect(driveBackupSource).toContain("Copia automática en Google Drive");
     expect(driveBackupSource).toContain("Drive no sirve para iniciar sesión");
     expect(driveBackupSource).toContain("Google pedirá el permiso limitado");
     expect(driveBackupSource).toContain("Drive necesita reconectar");
