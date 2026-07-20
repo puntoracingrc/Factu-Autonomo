@@ -15,6 +15,7 @@ import {
   loadPendingDriveBackupRequest,
   saveDriveBackupSettings,
   uploadAppBackupToGoogleDriveWithAccessToken,
+  type DriveBackupReturnPath,
 } from "@/lib/google-drive/backup";
 import { runExclusiveDriveBackup } from "@/lib/google-drive/operation";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
@@ -28,7 +29,11 @@ type CallbackStatus =
       webViewLink?: string;
       folderWebViewLink?: string;
     }
-  | { state: "error"; message: string };
+  | {
+      state: "error";
+      message: string;
+      returnPath?: DriveBackupReturnPath;
+    };
 
 interface TokenExchangeResponse {
   accessToken?: string;
@@ -36,12 +41,17 @@ interface TokenExchangeResponse {
   error?: string;
 }
 
-function googleErrorMessage(error: string): string {
+function googleErrorMessage(
+  error: string,
+  returnPath?: DriveBackupReturnPath,
+): string {
   if (error === "access_denied") {
     return "Google ha rechazado el permiso. Vuelve a conectar Drive si quieres guardar la copia extra.";
   }
 
-  return "Google no ha devuelto el permiso de Drive. Vuelve a intentarlo desde Cuenta.";
+  return `Google no ha devuelto el permiso de Drive. Vuelve a intentarlo desde ${
+    returnPath ? "el inicio" : "Cuenta"
+  }.`;
 }
 
 async function exchangeCodeForAccessToken(input: {
@@ -90,21 +100,26 @@ export default function GoogleDriveCallbackPage() {
     handledRef.current = true;
 
     async function completeDriveBackup() {
+      let returnPath: DriveBackupReturnPath | undefined;
+
       try {
         const params = new URLSearchParams(window.location.search);
         const googleError = params.get("error")?.trim();
+        const state = params.get("state")?.trim() ?? "";
+        const pending = state ? loadPendingDriveBackupRequest(state) : null;
+        returnPath = pending?.returnPath;
+
         if (googleError) {
           clearPendingDriveBackupRequest();
           setStatus({
             state: "error",
-            message: googleErrorMessage(googleError),
+            message: googleErrorMessage(googleError, returnPath),
+            returnPath,
           });
           return;
         }
 
         const code = params.get("code")?.trim() ?? "";
-        const state = params.get("state")?.trim() ?? "";
-        const pending = loadPendingDriveBackupRequest(state);
 
         if (!code || !pending) {
           setStatus({
@@ -157,6 +172,11 @@ export default function GoogleDriveCallbackPage() {
         });
         clearPendingDriveBackupRequest();
 
+        if (pending.returnPath) {
+          window.location.replace(pending.returnPath);
+          return;
+        }
+
         setStatus({
           state: "success",
           message: "Copia cifrada guardada en Google Drive.",
@@ -172,6 +192,7 @@ export default function GoogleDriveCallbackPage() {
             error instanceof Error
               ? error.message
               : "No se pudo guardar la copia en Drive.",
+          returnPath,
         });
       }
     }
@@ -187,6 +208,8 @@ export default function GoogleDriveCallbackPage() {
     ) : (
       <Loader2 className="h-6 w-6 animate-spin text-blue-700" />
     );
+  const returnsToOnboarding =
+    status.state === "error" && status.returnPath === "/";
 
   return (
     <main className="mx-auto flex min-h-[70vh] w-full max-w-3xl items-center px-4 py-10">
@@ -241,8 +264,12 @@ export default function GoogleDriveCallbackPage() {
         ) : null}
 
         <div className="flex flex-col gap-3 sm:flex-row">
-          <ButtonLink href="/cuenta#drive-backup">Volver a Cuenta</ButtonLink>
-          {status.state === "error" ? (
+          <ButtonLink
+            href={returnsToOnboarding ? "/" : "/cuenta#drive-backup"}
+          >
+            {returnsToOnboarding ? "Volver al inicio" : "Volver a Cuenta"}
+          </ButtonLink>
+          {status.state === "error" && !returnsToOnboarding ? (
             <ButtonLink href="/cuenta#drive-backup" variant="secondary">
               Reintentar desde Cuenta
             </ButtonLink>

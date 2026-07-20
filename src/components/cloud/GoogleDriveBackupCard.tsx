@@ -32,6 +32,7 @@ import {
   startGoogleDriveBackupRedirect,
   uploadAppBackupToGoogleDrive,
   type DriveBackupSettings,
+  type DriveBackupReturnPath,
 } from "@/lib/google-drive/backup";
 import {
   getGoogleDriveClientId,
@@ -84,7 +85,15 @@ function driveStatusCopy(input: { enabled: boolean; tokenReady: boolean }): {
   };
 }
 
-export function GoogleDriveBackupCard() {
+export function GoogleDriveBackupCard({
+  onDismiss,
+  returnPath,
+  variant = "account",
+}: {
+  onDismiss?: () => void;
+  returnPath?: DriveBackupReturnPath;
+  variant?: "account" | "onboarding";
+} = {}) {
   const { data } = useAppStore();
   const { user, emailConfirmed } = useCloudSync();
   const clientId = getGoogleDriveClientId();
@@ -266,6 +275,7 @@ export function GoogleDriveBackupCard() {
     const result = startGoogleDriveBackupRedirect({
       clientId,
       frequency: settings.frequency,
+      returnPath,
     });
 
     if (!result.ok) {
@@ -277,6 +287,7 @@ export function GoogleDriveBackupCard() {
     driveAccountReady,
     driveConfigured,
     runDriveBackup,
+    returnPath,
     settings.enabled,
     settings.frequency,
   ]);
@@ -359,8 +370,14 @@ export function GoogleDriveBackupCard() {
   const fileLink = settings.lastWebViewLink;
 
   return (
-    <section id="drive-backup">
-      <Card className="mb-6 space-y-4 border-blue-100 bg-white">
+    <section
+      id={variant === "account" ? "drive-backup" : "drive-backup-onboarding"}
+    >
+      <Card
+        className={`mb-6 space-y-4 border-blue-100 bg-white ${
+          variant === "onboarding" ? "border-blue-200 shadow-sm" : ""
+        }`}
+      >
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
@@ -454,6 +471,11 @@ export function GoogleDriveBackupCard() {
               >
                 <Unplug className="h-5 w-5" />
                 Desconectar Drive
+              </Button>
+            ) : null}
+            {variant === "onboarding" && !settings.enabled && onDismiss ? (
+              <Button type="button" variant="secondary" onClick={onDismiss}>
+                Omitir por ahora
               </Button>
             ) : null}
           </div>
