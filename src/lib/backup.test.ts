@@ -912,6 +912,7 @@ describe("backup", () => {
       "localStorage.setItem",
     );
     expect(cardSource).toContain("runBackupRestoreWithSafetyCopy");
+    expect(cardSource).toContain("pauseCloudForLocalRestore()");
     expect(cardSource).toContain("getCurrent: getCurrentData");
     expect(cardSource).toContain('purpose: "pre_restore"');
     expect(cardSource).toContain(
@@ -938,6 +939,9 @@ describe("backup", () => {
       cardSource.indexOf("async function handleRestoreBackup"),
     );
     expect(restoreHandler.indexOf("window.requestAnimationFrame")).toBeLessThan(
+      restoreHandler.indexOf("runBackupRestoreWithSafetyCopy({"),
+    );
+    expect(restoreHandler.indexOf("pauseCloudForLocalRestore()")).toBeLessThan(
       restoreHandler.indexOf("runBackupRestoreWithSafetyCopy({"),
     );
   });

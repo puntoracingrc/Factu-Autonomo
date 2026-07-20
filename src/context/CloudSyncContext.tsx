@@ -36,6 +36,7 @@ import {
   markSyncPending,
 } from "@/lib/cloud/sync-queue";
 import { runExclusiveSyncOperation } from "@/lib/cloud/sync-operation";
+import { runCloudDeviceRepair } from "@/lib/cloud/device-repair";
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
 import {
   getAuthCallbackUrl,
@@ -119,6 +120,7 @@ interface CloudSyncValue {
   syncNow: (freshLocalData?: AppData) => Promise<void>;
   saveLocalDataToAccount: () => Promise<void>;
   keepLocalDataOnDevice: () => void;
+  pauseCloudForLocalRestore: () => boolean;
   forceDownloadFromCloud: () => Promise<void>;
   exportBackup: () => Promise<void>;
   importBackup: (file: File) => Promise<string | null>;
@@ -131,6 +133,10 @@ const PULL_INTERVAL_MS = 45_000;
 const LOCAL_DATA_HANDOFF_PREFIX = "factura-autonomo-local-data-handoff";
 
 type LocalDataHandoffDecision = "synced" | "keep_local";
+
+interface CloudRepairRemoteDetails {
+  source: "entities" | "legacy";
+}
 
 function handoffDecisionKey(userId: string): string {
   return `${LOCAL_DATA_HANDOFF_PREFIX}:${userId}`;
@@ -151,7 +157,13 @@ function rememberHandoffDecision(
 }
 
 export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
-  const { data, ready, replaceData } = useAppStore();
+  const {
+    data,
+    ready,
+    replaceData,
+    getCurrentData,
+    replaceCloudSnapshotDurably,
+  } = useAppStore();
   const demoMode = useDemoWorkspaceMode();
   const cloudEnabled = isCloudEnabled();
   const [authReady, setAuthReady] = useState(!cloudEnabled);
@@ -174,11 +186,18 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const welcomeRetryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [welcomeRetryRevision, setWelcomeRetryRevision] = useState(0);
   const syncing = useRef(false);
+  const automaticCloudPaused = useRef(false);
   const dataRef = useRef(data);
 
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
+
+  useEffect(() => {
+    automaticCloudPaused.current = Boolean(
+      user && readHandoffDecision(user.id) === "keep_local",
+    );
+  }, [user]);
 
   const pendingChangeCount = data.meta?.pendingChanges?.length ?? 0;
   const emailConfirmed = isUserEmailConfirmed(user);
@@ -307,7 +326,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
         return false;
       }
-      if (handoffPausesCloud && !options?.allowLocalDataUpload) {
+      if (
+        (automaticCloudPaused.current || handoffPausesCloud) &&
+        !options?.allowLocalDataUpload
+      ) {
         setSyncStatus("idle");
         setSyncMessage(
           localDataHandoffStatus === "kept_local"
@@ -402,7 +424,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (demoMode) return false;
       if (!user) return false;
       if (requiresEmailConfirmation) return false;
-      if (handoffPausesCloud && !options?.allowLocalDataUpload) return false;
+      if (
+        (automaticCloudPaused.current || handoffPausesCloud) &&
+        !options?.allowLocalDataUpload
+      ) {
+        return false;
+      }
       if (!hasPendingSyncChanges(payload) && !hasUnsyncedChanges(payload)) {
         clearSyncPending();
         setSyncStatus("synced");
@@ -459,7 +486,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
         return false;
       }
-      if (handoffPausesCloud && !options?.allowLocalDataUpload) {
+      if (
+        (automaticCloudPaused.current || handoffPausesCloud) &&
+        !options?.allowLocalDataUpload
+      ) {
         setSyncStatus("idle");
         setSyncMessage(
           localDataHandoffStatus === "kept_local"
@@ -657,6 +687,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     const changes = buildCloudReplacementChanges(dataRef.current, queuedAt);
     if (changes.length === 0) {
       rememberHandoffDecision(user.id, "synced");
+      automaticCloudPaused.current = false;
       setLocalDataHandoffStatus("none");
       setSyncMessage("No había datos locales pendientes que guardar.");
       return;
@@ -684,6 +715,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     const ok = await pullFromCloudRef.current({ allowLocalDataUpload: true });
     if (ok) {
       rememberHandoffDecision(user.id, "synced");
+      automaticCloudPaused.current = false;
       setLocalDataHandoffStatus("none");
       setSyncMessage("Datos de este navegador guardados en tu cuenta.");
     } else {
@@ -691,14 +723,40 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [replaceData, requiresEmailConfirmation, user]);
 
+  const pauseAutomaticCloud = useCallback(
+    (message: string) => {
+      if (!user) return;
+      automaticCloudPaused.current = true;
+      if (pushTimer.current) {
+        clearTimeout(pushTimer.current);
+        pushTimer.current = null;
+      }
+      if (retryTimer.current) {
+        clearInterval(retryTimer.current);
+        retryTimer.current = null;
+      }
+      rememberHandoffDecision(user.id, "keep_local");
+      setLocalDataHandoffStatus("kept_local");
+      setSyncStatus("idle");
+      setSyncMessage(message);
+    },
+    [user],
+  );
+
   const keepLocalDataOnDevice = useCallback(() => {
     if (!user) return;
-    rememberHandoffDecision(user.id, "keep_local");
+    pauseAutomaticCloud("Tus datos seguirán solo en este navegador.");
     clearSyncPending();
-    setLocalDataHandoffStatus("kept_local");
-    setSyncStatus("idle");
-    setSyncMessage("Tus datos seguirán solo en este navegador.");
-  }, [user]);
+  }, [pauseAutomaticCloud, user]);
+
+  const pauseCloudForLocalRestore = useCallback((): boolean => {
+    if (!user) return true;
+    if (syncing.current) return false;
+    pauseAutomaticCloud(
+      "Restauración local preparada. Revisa los datos antes de guardarlos en tu cuenta.",
+    );
+    return true;
+  }, [pauseAutomaticCloud, user]);
 
   const forceDownloadFromCloud = useCallback(async () => {
     if (demoMode) {
@@ -711,6 +769,16 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
       return;
     }
+    if (syncing.current) {
+      setSyncMessage(
+        "Ya hay una sincronización en marcha. Espera a que termine y vuelve a reparar.",
+      );
+      return;
+    }
+
+    pauseAutomaticCloud(
+      "Preparando una copia de seguridad antes de reparar este dispositivo…",
+    );
 
     const cloudAccess = await canUseCloudForUser(user.id);
     if (!cloudAccess.allowed) {
@@ -729,48 +797,113 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setSyncStatus("syncing");
 
       try {
-        const remoteChanges = await pullSyncChanges(user.id);
+        const repair = await runCloudDeviceRepair<CloudRepairRemoteDetails>({
+          getCurrent: getCurrentData,
+          downloadCurrent: (current) =>
+            downloadProtectedBackup(current, {
+              purpose: "pre_restore",
+              requireEncryption: true,
+            }),
+          loadRemote: async () => {
+            const remoteChanges = await pullSyncChanges(user.id);
+            if (remoteChanges.length > 0) {
+              dispatchDataAccessEvent({
+                type: "cloud_pull",
+                itemCount: remoteChanges.length,
+              });
+              const { data: normalized } = rebuildCloudSnapshot(remoteChanges);
+              return {
+                data: markFullySynced(normalized),
+                details: {
+                  source: "entities" as const,
+                },
+              };
+            }
 
-        if (remoteChanges.length > 0) {
-          dispatchDataAccessEvent({
-            type: "cloud_pull",
-            itemCount: remoteChanges.length,
-          });
-          const { data: normalized, applied } =
-            rebuildCloudSnapshot(remoteChanges);
-          const synced = markFullySynced(normalized);
-          clearSyncPending();
-          replaceLocalDataFromCloud(synced);
-          rememberHandoffDecision(user.id, "synced");
-          setLocalDataHandoffStatus("none");
-          setSyncStatus("synced");
+            const legacy = await fetchLegacyCloudBackup(user.id);
+            if (!legacy) return null;
+            dispatchDataAccessEvent({
+              type: "cloud_pull",
+              itemCount: appDataRecordCount(legacy.data),
+            });
+            return {
+              data: markFullySynced(legacy.data, legacy.updated_at),
+              details: {
+                source: "legacy" as const,
+              },
+            };
+          },
+          replace: replaceCloudSnapshotDurably,
+        });
+
+        if (repair.status === "backup_failed") {
+          setSyncStatus("error");
           setSyncMessage(
-            applied > 0
-              ? `Descarga completa: ${applied} elemento(s) traído(s) de la nube`
-              : "Descarga completa terminada",
+            `No se reparó el dispositivo: ${repair.error} Los datos locales se conservan y la sincronización queda en pausa.`,
+          );
+          return;
+        }
+        if (repair.status === "stale_precondition") {
+          setSyncStatus("error");
+          setSyncMessage(
+            `Los datos cambiaron durante la reparación. No se reemplazó nada; se solicitó la copia ${repair.safetyCopyFilename} y la sincronización queda en pausa.`,
+          );
+          return;
+        }
+        if (repair.status === "cloud_empty") {
+          setSyncStatus("idle");
+          setSyncMessage(
+            "No hay datos guardados en la nube. Los datos de este dispositivo se conservan y quedan sin subir.",
           );
           return;
         }
 
-        const legacy = await fetchLegacyCloudBackup(user.id);
-        if (legacy) {
-          dispatchDataAccessEvent({
-            type: "cloud_pull",
-            itemCount: appDataRecordCount(legacy.data),
-          });
-          const synced = markFullySynced(legacy.data, legacy.updated_at);
-          clearSyncPending();
-          replaceLocalDataFromCloud(synced);
-          rememberHandoffDecision(user.id, "synced");
-          setLocalDataHandoffStatus("none");
-          await migrateLegacyBackupToEntities(user.id, synced);
-          setSyncStatus("synced");
-          setSyncMessage("Copia antigua descargada y actualizada en la nube");
+        const durable = repair.result;
+        if (durable.status === "indeterminate") {
+          setSyncStatus("error");
+          setSyncMessage(
+            "El navegador no pudo confirmar el guardado de la copia de la nube. No se publicó el reemplazo; exporta lo visible, recarga y vuelve a intentarlo.",
+          );
+          return;
+        }
+        if (durable.status === "blocked") {
+          setSyncStatus("error");
+          setSyncMessage(
+            "No se pudo guardar y verificar la copia de la nube. Los datos locales anteriores se conservan y la sincronización queda en pausa.",
+          );
           return;
         }
 
+        dataRef.current = durable.data;
+        clearSyncPending();
+        automaticCloudPaused.current = false;
+        rememberHandoffDecision(user.id, "synced");
+        setLocalDataHandoffStatus("none");
+
+        let legacyMigrationFailed = false;
+        if (repair.remote.source === "legacy") {
+          try {
+            await migrateLegacyBackupToEntities(user.id, durable.data);
+          } catch (error) {
+            legacyMigrationFailed = true;
+            void reportAppError({
+              severity: "warning",
+              area: "sync",
+              code: "legacy_repair_migration_failed",
+              message:
+                error instanceof Error
+                  ? error.message
+                  : "No se pudo actualizar la copia antigua en la nube",
+            });
+          }
+        }
+
         setSyncStatus("synced");
-        setSyncMessage("No hay datos guardados en la nube para esta cuenta");
+        setSyncMessage(
+          legacyMigrationFailed
+            ? `Dispositivo reparado desde ${repair.safetyCopyFilename}. La copia antigua sigue pendiente de actualizar en la nube.`
+            : `Dispositivo reparado y verificado. Copia previa: ${repair.safetyCopyFilename}.`,
+        );
       } catch (error) {
         void reportAppError({
           severity: "error",
@@ -784,8 +917,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus("error");
         setSyncMessage(
           error instanceof Error
-            ? error.message
-            : "Error al descargar todos los datos de la nube",
+            ? `${error.message}. No se reemplazaron los datos locales y la sincronización queda en pausa.`
+            : "Error al descargar todos los datos de la nube. No se reemplazaron los datos locales y la sincronización queda en pausa.",
         );
       }
     });
@@ -793,7 +926,14 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     if (!operation.started) {
       setSyncMessage("Ya hay una sincronización en marcha.");
     }
-  }, [demoMode, replaceLocalDataFromCloud, requiresEmailConfirmation, user]);
+  }, [
+    demoMode,
+    getCurrentData,
+    pauseAutomaticCloud,
+    replaceCloudSnapshotDurably,
+    requiresEmailConfirmation,
+    user,
+  ]);
 
   const schedulePush = useCallback(() => {
     if (demoMode) return;
@@ -1391,6 +1531,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       syncNow,
       saveLocalDataToAccount,
       keepLocalDataOnDevice,
+      pauseCloudForLocalRestore,
       forceDownloadFromCloud,
       exportBackup,
       importBackup,
@@ -1417,6 +1558,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       syncNow,
       saveLocalDataToAccount,
       keepLocalDataOnDevice,
+      pauseCloudForLocalRestore,
       forceDownloadFromCloud,
       exportBackup,
       authReady,

@@ -23,6 +23,37 @@ describe("cloud and Drive reliability contract", () => {
     expect(operation).toContain("lock.current = false");
   });
 
+  it("repara un dispositivo y restaura JSON sin subir primero datos locales", () => {
+    const context = source("src/context/CloudSyncContext.tsx");
+    const store = source("src/context/AppStore.tsx");
+    const repair = source("src/lib/cloud/device-repair.ts");
+    const ownership = source("src/components/settings/DataOwnershipCard.tsx");
+    const account = source("src/components/cloud/CloudAccountCard.tsx");
+    const forceRepair = context.slice(
+      context.indexOf("const forceDownloadFromCloud"),
+      context.indexOf("const schedulePush"),
+    );
+
+    expect(forceRepair).toContain("pauseAutomaticCloud(");
+    expect(forceRepair.indexOf("pauseAutomaticCloud(")).toBeLessThan(
+      forceRepair.indexOf("await canUseCloudForUser"),
+    );
+    expect(forceRepair).toContain("runCloudDeviceRepair<");
+    expect(forceRepair).toContain("downloadProtectedBackup(current");
+    expect(forceRepair).toContain("requireEncryption: true");
+    expect(forceRepair).not.toContain("pushToCloud(");
+    expect(forceRepair.indexOf("replaceCloudSnapshotDurably")).toBeLessThan(
+      forceRepair.indexOf("clearSyncPending()"),
+    );
+    expect(store).toContain("commitCloudSnapshotDurably({");
+    expect(repair).toContain("input.persist(");
+    expect(repair).not.toContain("trackDataDiff");
+    expect(ownership).toContain("pauseCloudForLocalRestore()");
+    expect(account).toContain(
+      "sin subir antes los cambios de este dispositivo",
+    );
+  });
+
   it("no confirma Drive sin readback exacto ni permite copias simultaneas", () => {
     const backup = source("src/lib/google-drive/backup.ts");
     const automatic = source("src/components/cloud/GoogleDriveAutoBackup.tsx");
@@ -130,5 +161,7 @@ describe("cloud and Drive reliability contract", () => {
     expect(adr).toContain("Se retira la creación de nuevos originales");
     expect(adr).toContain("no borra, mueve ni reescribe");
     expect(adr).toContain("originalArchive");
+    expect(adr).toContain("Reparar con la copia de la nube");
+    expect(adr).toContain("readback exacto");
   });
 });

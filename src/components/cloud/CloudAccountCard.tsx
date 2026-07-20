@@ -349,7 +349,7 @@ export function CloudAccountCard({
 
   async function handleForceDownload() {
     const confirmed = confirm(
-      "Esto sustituirá los datos de este dispositivo por la copia completa de la nube. Úsalo si otro dispositivo tiene los datos correctos. ¿Continuar?",
+      "Factu descargará primero una copia cifrada de seguridad de este dispositivo. Después sustituirá los datos locales por la copia completa de la nube, sin subir antes los cambios de este dispositivo. ¿Continuar?",
     );
     if (!confirmed) return;
 
@@ -604,7 +604,9 @@ export function CloudAccountCard({
               <p>
                 Si este dispositivo no muestra los datos que sí aparecen en
                 otro, puedes repararlo descargando otra vez la copia completa de
-                la nube.
+                la nube. Factu conserva primero una copia cifrada y solo
+                confirma la reparación cuando el navegador verifica el guardado
+                local.
               </p>
               <Button
                 variant="secondary"

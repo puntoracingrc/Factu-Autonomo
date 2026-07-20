@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 5
-- Fecha: 2026-07-19
+- Versión: 6
+- Fecha: 2026-07-20
 
 ## Contexto
 
@@ -36,6 +36,17 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 5. Los cambios recibidos se normalizan y combinan mediante los contratos por
    entidad existentes. Integridad documental, tenant, expedientes fiscales y
    overlays monotónicos permanecen fail-closed.
+6. **Reparar con la copia de la nube** es un reemplazo autoritativo separado de
+   la sincronización ordinaria. Pausa inmediatamente las subidas automáticas,
+   solicita primero una copia cifrada del estado local y no sube la cola local
+   antes del pull completo.
+7. La reparación solo publica el snapshot cloud en memoria y limpia el marcador
+   pendiente después de que el almacenamiento local confirme escritura y
+   readback exacto. Un fallo, una precondición obsoleta o un estado durable
+   indeterminado conserva los datos anteriores y mantiene la nube en pausa.
+8. Restaurar una copia JSON con sesión iniciada pausa la sincronización antes
+   del commit local. El contenido restaurado no se sube automáticamente: el
+   usuario debe revisarlo y elegir expresamente guardarlo en su cuenta.
 
 ### Copias en Google Drive
 
@@ -99,6 +110,10 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 
 - La aplicación evita carreras entre sincronización manual y automática.
 - Un dispositivo puede seguir trabajando offline sin perder su cola.
+- Una reparación no puede sobrescribir la nube con el estado atascado que
+  pretende sustituir ni declarar éxito antes del guardado local verificado.
+- Una restauración histórica queda local hasta una decisión explícita, evitando
+  que un temporizador anterior la publique como estado vigente de la cuenta.
 - Drive no puede mostrar una copia como válida basándose únicamente en la
   aceptación de la subida.
 - Guardar desde los escáneres no espera a Drive ni vuelve a comparar toda la

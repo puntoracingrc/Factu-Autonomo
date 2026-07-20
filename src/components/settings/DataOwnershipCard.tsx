@@ -23,7 +23,7 @@ import { testDocumentRetirementTenantFingerprintForUserId } from "@/lib/test-doc
 
 export function DataOwnershipCard() {
   const { data, getCurrentData, restoreBackupData } = useAppStore();
-  const { user, cloudEnabled } = useCloudSync();
+  const { user, cloudEnabled, pauseCloudForLocalRestore } = useCloudSync();
   const hasCloudSession = Boolean(user);
   const expectedRetirementTenantFingerprint = user?.id
     ? testDocumentRetirementTenantFingerprintForUserId(user.id)
@@ -161,6 +161,14 @@ export function DataOwnershipCard() {
       await new Promise<void>((resolve) =>
         window.requestAnimationFrame(() => resolve()),
       );
+      if (!pauseCloudForLocalRestore()) {
+        setRestoreFeedback({
+          tone: "error",
+          message:
+            "Hay una sincronización en marcha. Espera a que termine y vuelve a restaurar la copia.",
+        });
+        return;
+      }
       const execution = runBackupRestoreWithSafetyCopy({
         restored: restoreDraft.data,
         getCurrent: getCurrentData,
@@ -219,7 +227,9 @@ export function DataOwnershipCard() {
       }
       setRestoreFeedback({
         tone: "success",
-        message: `Copia restaurada y guardada. Antes se solicitó automáticamente la descarga de ${execution.safetyCopyFilename} con el estado reemplazado. La sincronización pendiente queda registrada.`,
+        message: hasCloudSession
+          ? `Copia restaurada y guardada. Antes se solicitó automáticamente la descarga de ${execution.safetyCopyFilename} con el estado reemplazado. La nube queda en pausa hasta que revises los datos y decidas en Acceso si quieres guardarlos en tu cuenta.`
+          : `Copia restaurada y guardada. Antes se solicitó automáticamente la descarga de ${execution.safetyCopyFilename} con el estado reemplazado.`,
       });
       setConfirmedReplacement(false);
     } finally {
