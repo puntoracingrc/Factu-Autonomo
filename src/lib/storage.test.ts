@@ -980,6 +980,43 @@ describe("storage", () => {
     expect(setItem).not.toHaveBeenCalled();
   });
 
+  it("proyecta y comprime una sola vez el comando fiscal sobre su base durable", () => {
+    const expected = normalizeLoadedData(sampleData());
+    const store = new Map([[STORAGE_KEY, JSON.stringify(expected)]]);
+    const setItem = vi.fn((key: string, value: string) => store.set(key, value));
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem,
+      removeItem: (key: string) => store.delete(key),
+    });
+    const nativeBtoa = globalThis.btoa;
+    let compressionCount = 0;
+    vi.stubGlobal("btoa", (value: string) => {
+      compressionCount += 1;
+      if (compressionCount > 1) {
+        throw new Error("redundant compression");
+      }
+      return nativeBtoa(value);
+    });
+    const candidate: AppData = {
+      ...expected,
+      profile: {
+        ...expected.profile,
+        name: "contenido fiscal grande ".repeat(40_000),
+      },
+    };
+
+    expect(
+      saveData(candidate, {
+        expected,
+        fiscalNotificationsBaseAwareProjection: true,
+      }),
+    ).toEqual({ status: "applied" });
+    expect(compressionCount).toBe(1);
+    expect(setItem).toHaveBeenCalledTimes(1);
+    expect(loadData().profile.name).toBe(candidate.profile.name);
+  });
+
   it("clasifica el guard anti-vaciado como bloqueo y conserva el raw", () => {
     const beforeRaw = JSON.stringify(sampleData());
     localStorage.setItem(STORAGE_KEY, beforeRaw);

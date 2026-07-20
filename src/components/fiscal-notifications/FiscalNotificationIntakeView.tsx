@@ -72,7 +72,10 @@ import {
 import { projectFiscalNotificationReviewGuidanceV1 } from "@/lib/fiscal-notifications/review-guidance.v1";
 import { projectFiscalNotificationDocumentLibraryV1 } from "@/lib/fiscal-notifications/structured-review-document-library.v1";
 import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "@/lib/fiscal-notifications/structured-review-save-command.v1";
-import type { FiscalNotificationSupportReportInputV1 } from "@/lib/fiscal-notifications/support-report.v1";
+import {
+  buildFiscalNotificationSupportMailtoHrefV1,
+  type FiscalNotificationSupportReportInputV1,
+} from "@/lib/fiscal-notifications/support-report.v1";
 import { sendFiscalNotificationSupportReportV1 } from "@/lib/fiscal-notifications/support-report-client.v1";
 import type { FiscalNotificationVerticalSliceReviewV1 } from "@/lib/fiscal-notifications/vertical-slice-review.v1";
 
@@ -1579,9 +1582,18 @@ function SupportCaseButton({
           Recibido por soporte · {state.caseId}
         </p>
       ) : state.status === "failed" ? (
-        <p role="alert" className="mt-2 text-xs font-semibold text-red-700">
-          {state.error}
-        </p>
+        <div className="mt-2 flex flex-wrap items-center gap-3 text-xs font-semibold">
+          <p role="alert" className="text-red-700">
+            {state.error}
+          </p>
+          <a
+            href={buildFiscalNotificationSupportMailtoHrefV1(report)}
+            className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-red-200 bg-white px-3 text-red-800 hover:bg-red-100"
+          >
+            <Mail aria-hidden="true" className="h-4 w-4" />
+            Abrir correo saneado
+          </a>
+        </div>
       ) : null}
     </div>
   );

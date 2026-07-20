@@ -1399,6 +1399,12 @@ export type SaveDataResult =
 
 export interface SaveDataOptions {
   expected?: AppData;
+  /**
+   * Los comandos fiscales ya parten de un snapshot durable verificado y su
+   * envelope puede necesitar esa base para conservar la genealogia. Evita la
+   * proyeccion y compresion redundante sin base antes de leer localStorage.
+   */
+  fiscalNotificationsBaseAwareProjection?: boolean;
 }
 
 /**
@@ -1514,14 +1520,13 @@ export function saveData(
     return { status: "blocked", reason: "storage_unavailable" };
   }
 
-  // Mantiene el fallo de serialización/compression anterior a cualquier
-  // lectura de storage. La segunda proyección, ya con la base, solo sirve para
-  // reconciliar fingerprints V2 existentes sin reintroducir el workspace V1.
-  let serialized: string;
-  try {
-    serialized = serializeStoredData(projectAppDataForPersistence(data));
-  } catch {
-    return { status: "blocked", reason: "serialization_failed" };
+  let serialized = "";
+  if (!options.fiscalNotificationsBaseAwareProjection) {
+    try {
+      serialized = serializeStoredData(projectAppDataForPersistence(data));
+    } catch {
+      return { status: "blocked", reason: "serialization_failed" };
+    }
   }
 
   let storage: Storage;

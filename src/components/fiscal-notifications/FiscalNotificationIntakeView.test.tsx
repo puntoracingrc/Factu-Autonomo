@@ -340,7 +340,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(appStoreSource).toContain(
       "readPersisted: readPersistedDataSnapshot",
     );
-    expect(appStoreSource).toContain("saveData(candidate, { expected })");
+    expect(appStoreSource).toContain(
+      "fiscalNotificationsBaseAwareProjection: true",
+    );
   });
 
   it("guarda en Factu solo por acción explícita y sin selector de Drive", () => {
@@ -1068,6 +1070,10 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(componentSource).toContain("Recibido por soporte");
     expect(componentSource).toContain("Enviar caso a soporte");
+    expect(componentSource).toContain(
+      "buildFiscalNotificationSupportMailtoHrefV1(report)",
+    );
+    expect(componentSource).toContain("Abrir correo saneado");
     expect(supportReportSource).toContain(
       'FISCAL_NOTIFICATION_SUPPORT_EMAIL_V1 =\n  "soporte-tecnico@facturacion-autonomos.app"',
     );
