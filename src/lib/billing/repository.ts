@@ -35,12 +35,9 @@ export async function fetchUserSubscription(
   return mapRow(data as Record<string, unknown>);
 }
 
-export async function ensureTrialSubscription(
+export async function ensureFreeSubscription(
   userId: string,
 ): Promise<UserSubscription | null> {
-  const existing = await fetchUserSubscription(userId);
-  if (existing) return existing;
-
   const supabase = await getSupabaseClientAsync();
   if (!supabase) return null;
 
@@ -57,5 +54,6 @@ export async function ensureTrialSubscription(
   const body = (await response.json()) as {
     subscription?: UserSubscription | null;
   };
-  return body.subscription ?? null;
+  if (body.subscription?.userId !== userId) return null;
+  return body.subscription;
 }

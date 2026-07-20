@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
-import { ensureTrialSubscriptionServer } from "@/lib/billing/server-repository";
+import { ensureFreeSubscriptionServer } from "@/lib/billing/server-repository";
 import {
   checkRateLimit,
   rateLimitExceededResponse,
@@ -24,7 +24,9 @@ export async function POST(request: Request) {
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  const subscription = await ensureTrialSubscriptionServer(user.id);
+  // Compatibility endpoint for already deployed clients. Registration now
+  // initializes Gratis; Pro trials only come from promotions or Admin.
+  const subscription = await ensureFreeSubscriptionServer(user.id);
   if (!subscription) {
     return NextResponse.json(
       { error: "Servidor de suscripciones no disponible" },

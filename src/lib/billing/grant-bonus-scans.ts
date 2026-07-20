@@ -2,7 +2,7 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { addScanCredits } from "./add-scan-credits";
 import { isProPlan, type PlanId } from "./plans";
 import { FREE_EXPENSE_SCAN_TRIAL } from "./scan-limits";
-import { defaultTrialEndIso, resolveEffectivePlan } from "./subscription";
+import { resolveEffectivePlan } from "./subscription";
 
 async function fetchSubscriptionRow(userId: string) {
   const admin = getSupabaseAdmin();
@@ -27,9 +27,8 @@ export async function ensureUserSubscriptionRow(userId: string): Promise<boolean
 
   const { error } = await admin.from("user_subscriptions").insert({
     user_id: userId,
-    plan: "trial",
-    status: "trialing",
-    trial_ends_at: defaultTrialEndIso(),
+    plan: "free",
+    status: "inactive",
     scan_trial_remaining: FREE_EXPENSE_SCAN_TRIAL,
   });
 
