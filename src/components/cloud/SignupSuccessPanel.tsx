@@ -100,11 +100,6 @@ export function SignupSuccessPanel({
         </li>
       </ol>
 
-      <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
-        <strong>Importante:</strong> te hemos enviado el enlace de activación a{" "}
-        {email}. Después de confirmar, vuelve aquí e inicia sesión.
-      </p>
-
       <Button fullWidth onClick={onContinueToSignIn}>
         Entendido — ir a iniciar sesión
       </Button>
