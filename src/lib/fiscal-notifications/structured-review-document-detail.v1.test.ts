@@ -61,6 +61,7 @@ function document(
       officialSources: [],
     },
     authenticityLabel: "Autenticidad no comprobada",
+    reviewStatus: "PENDING",
     reviewLabel: "Datos extraídos · revisa antes de actuar",
     sourceContentRetention: "NOT_RETAINED",
     originalArchive: null,
@@ -78,11 +79,22 @@ function group(
   return {
     key: "document-group:synthetic",
     documents,
+    summaries: [],
     links,
     firstDocumentChronologyKey: dated[0] ? `${dated[0]}T00:00:00.000Z` : "",
     latestDocumentChronologyKey: dated.at(-1)
       ? `${dated.at(-1)}T00:00:00.000Z`
       : "",
+    deadlineChronologyKeys: [],
+    dateRangeLabel: dated.length === 0 ? "Fecha pendiente" : "ABR 2026",
+    primaryReference: null,
+    reviewStatus: "PENDING",
+    hasConfirmedRelation: links.some(
+      (link) => link.relationStatus !== "SUGGESTED",
+    ),
+    hasSuggestedRelation: links.some(
+      (link) => link.relationStatus === "SUGGESTED",
+    ),
   };
 }
 
@@ -1045,8 +1057,11 @@ function relation(input: {
 }): FiscalNotificationDocumentLibraryLinkV1 {
   return {
     key: input.key,
+    relationType: "BELONGS_TO_CASE",
     fromDocumentId: input.fromDocumentId,
+    fromDocumentTitle: "Documento origen",
     toDocumentId: input.toDocumentId,
+    toDocumentTitle: "Documento destino",
     label: "Vínculo por expediente",
     explanation: "Los documentos comparten un identificador fuerte.",
     matches: [
@@ -1060,13 +1075,18 @@ function relation(input: {
       },
     ],
     relationStatus: input.relationStatus,
+    visualStatus:
+      input.relationStatus === "SUGGESTED" ? "SUGGESTED" : "CONFIRMED",
+    visualStatusLabel:
+      input.relationStatus === "SUGGESTED"
+        ? "Relación sugerida"
+        : input.relationStatus === "USER_CONFIRMED"
+          ? "Confirmada por el usuario"
+          : "Confirmada por referencia exacta",
     statusLabel:
       input.relationStatus === "SUGGESTED"
         ? "Relación detectada · revisar"
         : "Referencia exacta · revisar efectos",
-    directionSource:
-      input.relationStatus === "SYSTEM_CONFIRMED_EXACT"
-        ? "EXACT_PROCEDURAL_RELATION"
-        : "DOCUMENT_DATE_ORDER",
+    directionSource: "DOMAIN_RELATION",
   };
 }

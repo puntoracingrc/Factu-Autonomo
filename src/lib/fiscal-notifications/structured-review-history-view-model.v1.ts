@@ -111,7 +111,10 @@ export interface FiscalNotificationStructuredHistoryEntryV1 {
   readonly installments: readonly FiscalNotificationStructuredHistoryInstallmentV1[];
   readonly explanation: FiscalNotificationDocumentExplanationV1;
   readonly authenticityLabel: "Autenticidad no comprobada";
-  readonly reviewLabel: "Datos extraídos · revisa antes de actuar";
+  readonly reviewStatus: "PENDING" | "REVIEWED";
+  readonly reviewLabel:
+    | "Datos extraídos · revisa antes de actuar"
+    | "Revisión completada";
   readonly sourceContentRetention: "NOT_RETAINED";
   readonly originalArchive: Readonly<{
     status: "ARCHIVED_VERIFIED";
@@ -550,7 +553,14 @@ export function projectFiscalNotificationStructuredHistoryV1(
         installments: Object.freeze(installments),
         explanation,
         authenticityLabel: "Autenticidad no comprobada" as const,
-        reviewLabel: "Datos extraídos · revisa antes de actuar" as const,
+        reviewStatus:
+          document.humanReviewStatus === "PENDING"
+            ? ("PENDING" as const)
+            : ("REVIEWED" as const),
+        reviewLabel:
+          document.humanReviewStatus === "PENDING"
+            ? ("Datos extraídos · revisa antes de actuar" as const)
+            : ("Revisión completada" as const),
         sourceContentRetention: "NOT_RETAINED" as const,
         originalArchive: driveArchiveByDocumentId.get(document.id) ?? null,
       });

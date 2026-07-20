@@ -55,16 +55,18 @@ describe("manual de Notificaciones y expedientes", () => {
   it("documenta la biblioteca cronológica y las relaciones revisables", () => {
     const text = notificationManualText();
 
-    expect(text).toContain("Documentos escaneados y expedientes");
+    expect(text).toContain("Tus documentos");
     expect(text).toContain("organismo abreviado");
-    expect(text).toContain("meses y años");
-    expect(text).toContain("Fecha del primer documento");
-    expect(text).toContain("Fecha del último documento");
-    expect(text).toContain("de izquierda a derecha");
-    expect(text).toContain("Relación detectada · revisar");
+    expect(text).toContain("cadena horizontal");
+    expect(text).toContain("cronología vertical");
+    expect(text).toContain("primer documento");
+    expect(text).toContain("último documento");
+    expect(text).toContain("Relación sugerida");
     expect(text).toContain("no confirma por sí sola el efecto");
     expect(text).toContain("¿Eliminar este documento?");
     expect(text).toContain("¿Quieres eliminar también el documento original");
+    expect(text).toContain("Solo ficha");
+    expect(text).toContain("Ficha y original");
     expect(text).toContain("papelera de Drive");
   });
 
