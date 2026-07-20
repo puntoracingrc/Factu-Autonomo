@@ -4,6 +4,7 @@ import type {
   FiscalNotificationsWorkspace,
   MoneyComponent,
 } from "./types";
+import { sha256Hex } from "../document-integrity/snapshot-hash";
 import {
   parseFiscalNotificationsWorkspaceForPersistenceV2,
   type AssertionTypeV2,
@@ -30,6 +31,7 @@ import {
   parseSensitiveReferenceMemoryCarrierV2,
 } from "./sensitive-reference.v2";
 import { resolveFiscalNotificationChronologyV2 } from "./chronology-date.v2";
+import { isInternalFiscalNotificationFieldArtifact } from "./document-fact-observation.v1";
 
 const SENSITIVE_REFERENCE_TYPES = new Set([
   "CSV",
@@ -58,6 +60,18 @@ const PROFILE_DATE_FIELD_KINDS = new Set<string>([
   "INTEREST_START_DATE",
   "INTEREST_END_DATE",
 ]);
+
+function projectedEntityId(
+  prefix: "date" | "amount" | "fact",
+  identity: readonly unknown[],
+  existingIds: readonly string[],
+): string {
+  const base = `${prefix}:v2:${sha256Hex(JSON.stringify(identity)).slice(0, 32)}`;
+  const occurrence = existingIds.filter(
+    (id) => id === base || id.startsWith(`${base}:`),
+  ).length;
+  return occurrence === 0 ? base : `${base}:${occurrence}`;
+}
 
 function issuerForDocument(
   document: AdministrativeDocument,
@@ -182,7 +196,6 @@ function identityProjection(workspace: FiscalNotificationsWorkspace) {
 function pushDocumentDates(input: {
   workspace: FiscalNotificationsWorkspace;
   document: AdministrativeDocument;
-  documentIndex: number;
   dates: PersistedDateFactV2[];
 }): void {
   const evidenceById = new Map(
@@ -281,11 +294,22 @@ function pushDocumentDates(input: {
         ].includes(entry.kind),
     ),
   ];
-  for (const [dateIndex, candidate] of candidates.entries()) {
+  for (const candidate of candidates) {
     if (!candidate.value) continue;
     const dateValue = candidate.value.slice(0, 10);
     input.dates.push({
-      id: `date:v1:${input.documentIndex}:${dateIndex}`,
+      id: projectedEntityId(
+        "date",
+        [
+          input.workspace.ownerScope,
+          input.document.id,
+          candidate.fieldId,
+          candidate.kind,
+          dateValue,
+          [...new Set(candidate.evidenceIds)].sort(),
+        ],
+        input.dates.map((date) => date.id),
+      ),
       ownerScope: input.workspace.ownerScope,
       documentId: input.document.id,
       fieldId: candidate.fieldId,
@@ -319,8 +343,20 @@ function addDocumentDate(input: {
   const evidenceIds = (input.evidenceIds ?? []).filter((id) =>
     validEvidenceIds.has(id),
   );
+  const id = projectedEntityId(
+    "date",
+    [
+      input.workspace.ownerScope,
+      input.documentId,
+      input.fieldId,
+      input.kind,
+      input.value,
+      [...new Set(evidenceIds)].sort(),
+    ],
+    input.dates.map((date) => date.id),
+  );
   input.dates.push({
-    id: `date:v1:typed:${input.dates.length}`,
+    id,
     ownerScope: input.workspace.ownerScope,
     documentId: input.documentId,
     fieldId: input.fieldId,
@@ -493,8 +529,38 @@ function addAmount(
       .map((entry) => entry.id),
   );
   const validEvidenceIds = evidenceIds.filter((id) => validEvidence.has(id));
+  const normalizedEvidenceIds = [...new Set(validEvidenceIds)].sort();
+  if (
+    amounts.some(
+      (amount) =>
+        amount.documentId === documentId &&
+        amount.componentType === componentType &&
+        amount.amountCents === amountCents &&
+        amount.assertionType ===
+          (assertion === "EXPLICIT_IN_DOCUMENT" &&
+          normalizedEvidenceIds.length === 0
+            ? "NOT_PROVEN_BY_DOCUMENT"
+            : assertion) &&
+        JSON.stringify([...amount.evidenceIds].sort()) ===
+          JSON.stringify(normalizedEvidenceIds),
+    )
+  ) {
+    return;
+  }
   amounts.push({
-    id: `amount:v1:${amounts.length}`,
+    id: projectedEntityId(
+      "amount",
+      [
+        workspace.ownerScope,
+        documentId,
+        fieldId,
+        componentType,
+        amountCents,
+        assertion,
+        normalizedEvidenceIds,
+      ],
+      amounts.map((amount) => amount.id),
+    ),
     ownerScope: workspace.ownerScope,
     documentId,
     fieldId,
@@ -505,7 +571,7 @@ function addAmount(
       assertion === "EXPLICIT_IN_DOCUMENT" && validEvidenceIds.length === 0
         ? "NOT_PROVEN_BY_DOCUMENT"
         : assertion,
-    evidenceIds: validEvidenceIds,
+    evidenceIds: normalizedEvidenceIds,
   });
 }
 
@@ -534,6 +600,21 @@ function projectAmounts(
   workspace: FiscalNotificationsWorkspace,
 ): PersistedAmountFactV2[] {
   const amounts: PersistedAmountFactV2[] = [];
+  for (const snapshot of workspace.analysisSnapshots) {
+    for (const fact of
+      snapshot.structuredData.administrativeDomain?.moneyFacts ?? []) {
+      addAmount(
+        amounts,
+        workspace,
+        snapshot.documentId,
+        `OBSERVED_MONEY_${sha256Hex(fact.id).slice(0, 24).toUpperCase()}`,
+        fact.kind,
+        fact.amountCents,
+        assertionType(fact.assertionType),
+        fact.evidenceIds,
+      );
+    }
+  }
   for (const option of workspace.paymentOptions) {
     addComponents(
       amounts,
@@ -751,7 +832,17 @@ function pushStateFact(input: {
   if (!input.workspace.documents.some((entry) => entry.id === input.documentId))
     return;
   input.facts.push({
-    id: `fact:v1:typed:${input.facts.length}`,
+    id: projectedEntityId(
+      "fact",
+      [
+        input.workspace.ownerScope,
+        input.documentId,
+        input.fieldId,
+        "STATE",
+        input.stateValue,
+      ],
+      input.facts.map((fact) => fact.id),
+    ),
     ownerScope: input.workspace.ownerScope,
     documentId: input.documentId,
     fieldId: input.fieldId,
@@ -776,8 +867,17 @@ function projectTypedFacts(
   workspace: FiscalNotificationsWorkspace,
 ): PersistedTypedFactV2[] {
   const facts: PersistedTypedFactV2[] = workspace.documents.map(
-    (document, index) => ({
-      id: `fact:v1:${index}`,
+    (document) => ({
+      id: projectedEntityId(
+        "fact",
+        [
+          workspace.ownerScope,
+          document.id,
+          "DOCUMENT_STATE",
+          factState(document),
+        ],
+        [],
+      ),
       ownerScope: workspace.ownerScope,
       documentId: document.id,
       fieldId: "DOCUMENT_STATE",
@@ -839,21 +939,34 @@ function projectTypedFacts(
     });
   }
   for (const [obligationIndex, obligation] of workspace.obligations.entries()) {
+    const fieldId = `OBLIGATION_${obligationIndex}_${obligation.type}`;
+    const evidenceIds = obligation.evidenceIds.filter((evidenceId) =>
+      workspace.evidence.some(
+        (entry) =>
+          entry.id === evidenceId &&
+          entry.documentId === obligation.sourceDocumentId,
+      ),
+    );
     facts.push({
-      id: `fact:v1:typed:${facts.length}`,
+      id: projectedEntityId(
+        "fact",
+        [
+          workspace.ownerScope,
+          obligation.sourceDocumentId,
+          fieldId,
+          "BOOLEAN",
+          true,
+          [...evidenceIds].sort(),
+        ],
+        facts.map((fact) => fact.id),
+      ),
       ownerScope: workspace.ownerScope,
       documentId: obligation.sourceDocumentId,
-      fieldId: `OBLIGATION_${obligationIndex}_${obligation.type}`,
+      fieldId,
       valueType: "BOOLEAN",
       booleanValue: true,
       assertionType: "NOT_PROVEN_BY_DOCUMENT",
-      evidenceIds: obligation.evidenceIds.filter((evidenceId) =>
-        workspace.evidence.some(
-          (entry) =>
-            entry.id === evidenceId &&
-            entry.documentId === obligation.sourceDocumentId,
-        ),
-      ),
+      evidenceIds,
     });
     pushStateFact({
       facts,
@@ -882,18 +995,102 @@ function projectTypedFacts(
             ? "OBLIGATION"
             : null);
       if (!code) continue;
+      const evidenceIds =
+        field.evidenceId && validEvidence.has(field.evidenceId)
+          ? [field.evidenceId]
+          : [];
       facts.push({
-        id: `fact:v1:known:${facts.length}`,
+        id: projectedEntityId(
+          "fact",
+          [
+            workspace.ownerScope,
+            snapshot.documentId,
+            code,
+            fieldIndex,
+            "BOOLEAN",
+            true,
+            evidenceIds,
+          ],
+          facts.map((fact) => fact.id),
+        ),
         ownerScope: workspace.ownerScope,
         documentId: snapshot.documentId,
         fieldId: `${code}_${fieldIndex}`,
         valueType: "BOOLEAN",
         booleanValue: true,
         assertionType: "NOT_PROVEN_BY_DOCUMENT",
-        evidenceIds:
-          field.evidenceId && validEvidence.has(field.evidenceId)
-            ? [field.evidenceId]
-            : [],
+        evidenceIds,
+      });
+    }
+  }
+  for (const snapshot of workspace.analysisSnapshots) {
+    const evidenceById = new Map(
+      workspace.evidence
+        .filter(
+          (entry) =>
+            entry.documentId === snapshot.documentId &&
+            entry.assertionType === "EXPLICIT_IN_DOCUMENT",
+        )
+        .map((entry) => [entry.id, entry] as const),
+    );
+    for (const field of snapshot.structuredData.unknownFields) {
+      const parts = field.labelRaw.split("|");
+      if (
+        parts[0] !== "VSR2" ||
+        parts.length < 5 ||
+        (parts[2] !== "DETAIL" && parts[2] !== "OBLIGATION") ||
+        !field.evidenceId ||
+        !evidenceById.has(field.evidenceId)
+      ) {
+        continue;
+      }
+      const sourceFieldId = parts[1]!;
+      const semantic = parts[2]!;
+      const canonicalType = parts[3]!;
+      const label = parts.slice(4).join("|");
+      if (
+        isInternalFiscalNotificationFieldArtifact({
+          fieldId: sourceFieldId,
+          semantic,
+          canonicalType,
+          label,
+          value: field.valueRaw,
+        })
+      ) {
+        continue;
+      }
+      const profileFact = /^profile:fact:([A-Z0-9_]+):\d+$/u.exec(
+        sourceFieldId,
+      );
+      const restoredFact = /^persisted:fact:((?:PROFILE|OBSERVED)_FACT_[A-Z0-9_]+)$/u.exec(
+        sourceFieldId,
+      );
+      const fieldId = restoredFact
+        ? restoredFact[1]!
+        : profileFact
+          ? `PROFILE_FACT_${profileFact[1]}`
+          : `OBSERVED_FACT_${sha256Hex(sourceFieldId).slice(0, 24).toUpperCase()}`;
+      const evidenceIds = [field.evidenceId];
+      facts.push({
+        id: projectedEntityId(
+          "fact",
+          [
+            workspace.ownerScope,
+            snapshot.documentId,
+            fieldId,
+            "BOOLEAN",
+            true,
+            evidenceIds,
+          ],
+          facts.map((fact) => fact.id),
+        ),
+        ownerScope: workspace.ownerScope,
+        documentId: snapshot.documentId,
+        fieldId,
+        valueType: "BOOLEAN",
+        booleanValue: true,
+        assertionType: "EXPLICIT_IN_DOCUMENT",
+        evidenceIds,
       });
     }
   }
@@ -913,8 +1110,8 @@ export function projectFiscalNotificationsWorkspacePrivacyV2(
   const references = projectReferences(workspace);
   if (!references) return null;
   const dates: PersistedDateFactV2[] = [];
-  workspace.documents.forEach((document, documentIndex) =>
-    pushDocumentDates({ workspace, document, documentIndex, dates }),
+  workspace.documents.forEach((document) =>
+    pushDocumentDates({ workspace, document, dates }),
   );
   pushTypedEntityDates(workspace, dates);
   const amounts = projectAmounts(workspace);

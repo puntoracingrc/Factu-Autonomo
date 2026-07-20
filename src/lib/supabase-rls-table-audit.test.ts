@@ -51,6 +51,13 @@ const affiliateRewardMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const appErrorEventsRepairMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260720084500_repair_app_error_events.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -180,6 +187,24 @@ describe("Supabase table-by-table RLS audit hardening", () => {
     );
     expect(rateLimitMigrationSource).not.toMatch(
       /grant\s+[^;]*server_rate_limit_buckets\s+to\s+(?:public|anon|authenticated)/i,
+    );
+  });
+
+  it("repairs the sanitized error sink without browser access", () => {
+    expect(appErrorEventsRepairMigrationSource).toContain(
+      "create table if not exists public.app_error_events",
+    );
+    expect(appErrorEventsRepairMigrationSource).toContain(
+      "alter table public.app_error_events enable row level security",
+    );
+    expect(appErrorEventsRepairMigrationSource).toContain(
+      "revoke all on table public.app_error_events from public, anon, authenticated",
+    );
+    expect(appErrorEventsRepairMigrationSource).toContain(
+      "grant all on table public.app_error_events to service_role",
+    );
+    expect(appErrorEventsRepairMigrationSource).not.toMatch(
+      /grant\s+[^;]*on table public\.app_error_events\s+to authenticated/iu,
     );
   });
 

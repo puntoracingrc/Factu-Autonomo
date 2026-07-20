@@ -2,6 +2,11 @@ import { sha256Hex } from "../document-integrity/snapshot-hash";
 import { resolveAeatDocumentProfileV1 } from "./knowledge/aeat-document-knowledge.v1";
 import { resolveAeatOfficialCatalogProfileV9 } from "./knowledge/official-catalog-expansion.v9";
 import {
+  resolveProfileFieldLabelV2,
+  type ProfileFieldKindV2,
+} from "./extractor-core/profile-field-labels.v2";
+import type { AdministrativeMoneyKind } from "./administrative-domain";
+import {
   parseFiscalNotificationsWorkspaceForPersistenceV2,
   type DocumentDateKindV2,
   type FiscalNotificationsPersistedWorkspaceV2,
@@ -623,7 +628,11 @@ function entitiesForDocuments<T extends { documentId: string }>(
 function reconcileWithBase(
   projected: Readonly<FiscalNotificationsPersistedWorkspaceV2>,
   base: Readonly<FiscalNotificationsWorkspaceStorageEnvelopeV2> | null,
-): Readonly<FiscalNotificationsPersistedWorkspaceV2> {
+  allowBoundGenerationRestart: boolean,
+): Readonly<FiscalNotificationsPersistedWorkspaceV2> | null {
+  if (base && base.workspace.createdAt !== projected.createdAt) {
+    return allowBoundGenerationRestart ? projected : null;
+  }
   if (
     !base ||
     base.workspace.workspaceId !== projected.workspaceId ||
@@ -750,8 +759,34 @@ export function encodeFiscalNotificationsWorkspaceForStorageV2(
   const base =
     parseFiscalNotificationsWorkspaceStorageEnvelopeV2(baseValue, ownerScope) ??
     registered;
-  const reconciledWorkspace = reconcileWithBase(projected, base);
   let transition = registered?.transition ?? base?.transition;
+  const restartCandidate =
+    base &&
+    base.workspace.createdAt !== projected.createdAt &&
+    registered?.transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1"
+      ? parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+          {
+            storageKind: FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_KIND_V2,
+            storageVersion: FISCAL_NOTIFICATIONS_WORKSPACE_STORAGE_VERSION_V2,
+            workspace: projected,
+            sources,
+            transition: registered.transition,
+          },
+          ownerScope,
+        )
+      : null;
+  const allowBoundGenerationRestart = Boolean(
+    base &&
+      restartCandidate &&
+      (followsBoundEmptyRestart(base, restartCandidate) ||
+        followsObservedEmptyRestartBase(base, restartCandidate)),
+  );
+  const reconciledWorkspace = reconcileWithBase(
+    projected,
+    base,
+    allowBoundGenerationRestart,
+  );
+  if (!reconciledWorkspace) return null;
   if (
     base &&
     transition?.kind === "USER_CONFIRMED_EMPTY_RESTART_V1" &&
@@ -894,8 +929,397 @@ function documentDate(
   kind: DocumentDateKindV2,
 ): string | undefined {
   return workspace.dates.find(
-    (entry) => entry.documentId === documentId && entry.kind === kind,
+    (entry) =>
+      entry.documentId === documentId &&
+      entry.kind === kind &&
+      entry.assertionType === "EXPLICIT_IN_DOCUMENT" &&
+      entry.evidenceIds.some((evidenceId) =>
+        workspace.evidence.some(
+          (evidence) =>
+            evidence.id === evidenceId &&
+            evidence.documentId === documentId &&
+            evidence.assertionType === "EXPLICIT_IN_DOCUMENT",
+        ),
+      ),
   )?.value;
+}
+
+const ADMINISTRATIVE_MONEY_KINDS = new Set<AdministrativeMoneyKind>([
+  "ORIGINAL_TAX_PRINCIPAL",
+  "OUTSTANDING_PRINCIPAL",
+  "PROPOSED_QUOTA",
+  "FINAL_QUOTA",
+  "DEFERRAL_INTEREST",
+  "LATE_PAYMENT_INTEREST",
+  "EXECUTIVE_SURCHARGE_5",
+  "EXECUTIVE_SURCHARGE_10",
+  "EXECUTIVE_SURCHARGE_20",
+  "SANCTION_INITIAL",
+  "SANCTION_REDUCTION",
+  "SANCTION_REDUCED",
+  "COSTS",
+  "REFUND_CREDIT",
+  "CREDIT_TOTAL",
+  "OFFSET_APPLIED",
+  "EXECUTIVE_SURCHARGE_PRINTED",
+  "TOTAL_BEFORE_OFFSET",
+  "REMAINING_AFTER_OFFSET",
+  "NET_REFUND_PAYMENT",
+  "SEIZED_AMOUNT",
+  "RETAINED_AMOUNT",
+  "REMITTED_AMOUNT",
+  "PAYMENT_ON_ACCOUNT",
+  "DOCUMENT_TOTAL",
+  "PAYMENT_CONFIRMED",
+]);
+
+function memoryAdministrativeMoneyKind(value: string): AdministrativeMoneyKind {
+  if (ADMINISTRATIVE_MONEY_KINDS.has(value as AdministrativeMoneyKind)) {
+    return value as AdministrativeMoneyKind;
+  }
+  if (value === "PRINCIPAL") return "ORIGINAL_TAX_PRINCIPAL";
+  if (value === "INTEREST") return "DEFERRAL_INTEREST";
+  if (value === "EXECUTIVE_SURCHARGE_5") return "EXECUTIVE_SURCHARGE_5";
+  if (value === "REDUCED_SURCHARGE_10") return "EXECUTIVE_SURCHARGE_10";
+  if (value === "ORDINARY_SURCHARGE_20") return "EXECUTIVE_SURCHARGE_20";
+  if (value === "PENALTY") return "SANCTION_INITIAL";
+  if (value === "COSTS") return "COSTS";
+  if (value === "PAYMENT_ON_ACCOUNT") return "PAYMENT_ON_ACCOUNT";
+  return "DOCUMENT_TOTAL";
+}
+
+const DATE_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  ISSUE_DATE: "Fecha de emisión",
+  SIGNING_DATE: "Fecha de firma",
+  ACTION_DATE: "Fecha del acto",
+  EFFECTIVE_NOTIFICATION_DATE: "Fecha de notificación efectiva",
+  AVAILABILITY_DATE: "Puesta a disposición",
+  ACCESS_DATE: "Fecha de acceso",
+  REJECTION_DATE: "Fecha de rechazo",
+  EXPIRATION_DATE: "Fecha de vencimiento",
+  RESPONSE_DEADLINE: "Plazo de respuesta",
+  VOLUNTARY_PAYMENT_DEADLINE: "Límite de pago voluntario",
+  APPEAL_DEADLINE: "Plazo de recurso",
+  INSTALLMENT_DUE_DATE: "Vencimiento de la cuota",
+  PAYMENT_DATE: "Fecha de pago",
+  SEIZURE_DATE: "Fecha de embargo",
+  RELEASE_DATE: "Fecha de levantamiento",
+  FILING_DATE: "Fecha de presentación",
+  START_DATE: "Fecha de inicio",
+  END_DATE: "Fecha de fin",
+  INTEREST_START_DATE: "Inicio del período de intereses",
+  INTEREST_END_DATE: "Fin del período de intereses",
+});
+
+function safeFieldLabel(
+  kind: ProfileFieldKindV2,
+  code: string,
+  fallback: string,
+): string {
+  return resolveProfileFieldLabelV2(kind, code)?.labelEs ?? fallback;
+}
+
+const PROFILE_REFERENCE_CODES_BY_PERSISTED_TYPE: Readonly<
+  Record<string, readonly string[]>
+> = Object.freeze({
+  DOCUMENT_REFERENCE: ["ACT_ID", "SEIZURE_ORDER_ID", "AGREEMENT_ID"],
+  EXPEDIENT_NUMBER: ["EXPEDIENTE_ID"],
+  LIQUIDATION_KEY: ["LIQUIDATION_KEY"],
+  DEBT_KEY: ["DEBT_KEY"],
+  PROCEDURE_NUMBER: ["PROCEDURE_ID"],
+  PAYMENT_JUSTIFICANTE: [
+    "PAYMENT_RECEIPT_ID",
+    "PAYMENT_FORM_REFERENCE",
+    "BANK_REFERENCE",
+  ],
+  CSV: ["CSV"],
+  NRC: ["NRC"],
+  BANK_REFERENCE: ["BANK_REFERENCE"],
+  TAX_MODEL: ["MODEL"],
+  TAX_EXERCISE: ["FISCAL_YEAR"],
+  TAX_PERIOD: ["TAX_PERIOD"],
+  NOTIFICATION_ID: ["NOTIFICATION_ID"],
+  REQUEST_NUMBER: ["REQUEST_NUMBER"],
+  REFUND_REFERENCE: ["REFUND_REFERENCE"],
+  OFFICIAL_REGISTRY_NUMBER: [
+    "REGISTRY_ID",
+    "FILING_RECEIPT_ID",
+    "THIRD_PARTY_RESPONSE_ID",
+  ],
+  VEHICLE_OR_FINE_REFERENCE: ["VEHICLE_OR_FINE_REFERENCE"],
+});
+
+function allowedProfileFieldCodes(
+  document: PersistedDocumentV2,
+  kind: "references" | "dates" | "money" | "facts",
+): ReadonlySet<string> {
+  const profile = document.familyId
+    ? (resolveAeatDocumentProfileV1(document.familyId) ??
+      resolveAeatOfficialCatalogProfileV9(document.familyId))
+    : null;
+  return new Set(profile?.mustExtract[kind] ?? []);
+}
+
+function profileReferenceCode(
+  document: PersistedDocumentV2,
+  referenceType: string,
+): string | null {
+  const allowed = allowedProfileFieldCodes(document, "references");
+  const candidates = (
+    PROFILE_REFERENCE_CODES_BY_PERSISTED_TYPE[referenceType] ?? []
+  ).filter((code) => allowed.has(code));
+  return candidates.length === 1 ? candidates[0]! : null;
+}
+
+function memoryAnalysisSnapshots(
+  persisted: FiscalNotificationsPersistedWorkspaceV2,
+  visibleDocumentIds: ReadonlySet<string>,
+): FiscalNotificationsWorkspace["analysisSnapshots"] {
+  const evidenceById = new Map(
+    persisted.evidence.map((entry) => [entry.id, entry] as const),
+  );
+  const memoryReferencesById = new Map(
+    persisted.references.map((entry) => [entry.id, memoryReference(entry)]),
+  );
+  return persisted.documents
+    .filter((document) => visibleDocumentIds.has(document.id))
+    .map((document) => {
+      const allowedDates = allowedProfileFieldCodes(document, "dates");
+      const allowedMoney = allowedProfileFieldCodes(document, "money");
+      const allowedFacts = allowedProfileFieldCodes(document, "facts");
+      const unknownFields: FiscalNotificationsWorkspace["analysisSnapshots"][number]["structuredData"]["unknownFields"] = [];
+      const addObservedField = (input: {
+        fieldId: string;
+        semantic: "REFERENCE" | "DATE" | "MONEY" | "DETAIL";
+        canonicalType: string;
+        label: string;
+        value: string;
+        evidenceIds: readonly string[];
+      }) => {
+        const evidence = input.evidenceIds
+          .map((id) => evidenceById.get(id))
+          .find(
+            (entry) =>
+              entry?.documentId === document.id &&
+              entry.assertionType === "EXPLICIT_IN_DOCUMENT",
+          );
+        if (!evidence) return;
+        unknownFields.push({
+          labelRaw: `VSR2|${input.fieldId}|${input.semantic}|${input.canonicalType}|${input.label}`,
+          valueRaw: input.value,
+          page: evidence.page,
+          evidenceId: evidence.id,
+          confidence: legacyConfidence(evidence.confidence),
+        });
+      };
+      document.referenceIds.forEach((referenceId, index) => {
+        const persistedReference = persisted.references.find(
+          (entry) => entry.id === referenceId,
+        );
+        const reference = memoryReferencesById.get(referenceId);
+        if (
+          !persistedReference ||
+          !reference ||
+          persistedReference.assertionType !== "EXPLICIT_IN_DOCUMENT"
+        ) {
+          return;
+        }
+        const code = profileReferenceCode(
+          document,
+          persistedReference.referenceType,
+        );
+        addObservedField({
+          fieldId: code
+            ? `profile:reference:${code}:${index}`
+            : `persisted:reference:${persistedReference.id}`,
+          semantic: "REFERENCE",
+          canonicalType: code ?? persistedReference.referenceType,
+          label: code
+            ? safeFieldLabel("REFERENCE", code, "Referencia del documento")
+            : "Referencia del documento",
+          value: reference.rawValue,
+          evidenceIds: persistedReference.evidenceIds,
+        });
+      });
+      document.dateFactIds.forEach((dateId, index) => {
+        const date = persisted.dates.find((entry) => entry.id === dateId);
+        if (!date || date.assertionType !== "EXPLICIT_IN_DOCUMENT") return;
+        const profileDateCode = allowedDates.has(date.fieldId)
+          ? date.fieldId
+          : allowedDates.has(date.kind)
+            ? date.kind
+            : null;
+        addObservedField({
+          fieldId: profileDateCode
+            ? `profile:date:${profileDateCode}:${index}`
+            : `persisted:date:${date.id}`,
+          semantic: "DATE",
+          canonicalType: date.kind,
+          label: profileDateCode
+            ? safeFieldLabel(
+                "DATE",
+                profileDateCode,
+                DATE_LABELS[date.kind] ?? "Fecha del documento",
+              )
+            : (DATE_LABELS[date.kind] ?? "Fecha del documento"),
+          value: date.value,
+          evidenceIds: date.evidenceIds,
+        });
+      });
+      document.amountFactIds.forEach((amountId, index) => {
+        const amount = persisted.amounts.find((entry) => entry.id === amountId);
+        if (!amount || amount.assertionType !== "EXPLICIT_IN_DOCUMENT") return;
+        const code = ADMINISTRATIVE_MONEY_KINDS.has(
+          amount.componentType as AdministrativeMoneyKind,
+        )
+          ? amount.componentType
+          : "DOCUMENT_TOTAL";
+        const profileMoney =
+          amount.fieldId.startsWith("OBSERVED_MONEY_") &&
+          allowedMoney.has(code) &&
+          ADMINISTRATIVE_MONEY_KINDS.has(
+            amount.componentType as AdministrativeMoneyKind,
+          );
+        addObservedField({
+          fieldId: profileMoney
+            ? `profile:money:${code}:${index}`
+            : `persisted:money:${amount.id}`,
+          semantic: "MONEY",
+          canonicalType: memoryMoneyType(amount.componentType),
+          label: safeFieldLabel("MONEY", code, "Importe del documento"),
+          value: String(amount.amountCents),
+          evidenceIds: amount.evidenceIds,
+        });
+      });
+      document.factIds.forEach((factId, index) => {
+        const fact = persisted.facts.find((entry) => entry.id === factId);
+        if (
+          !fact ||
+          fact.assertionType !== "EXPLICIT_IN_DOCUMENT" ||
+          fact.valueType !== "BOOLEAN" ||
+          fact.booleanValue !== true
+        ) {
+          return;
+        }
+        const profileCode = fact.fieldId.startsWith("PROFILE_FACT_")
+          ? fact.fieldId.slice("PROFILE_FACT_".length)
+          : null;
+        const allowedProfileCode =
+          profileCode && allowedFacts.has(profileCode) ? profileCode : null;
+        addObservedField({
+          fieldId: allowedProfileCode
+            ? `profile:fact:${allowedProfileCode}:${index}`
+            : `persisted:fact:${fact.fieldId}`,
+          semantic: "DETAIL",
+          canonicalType: "FACT_OR_GROUND",
+          label: allowedProfileCode
+            ? safeFieldLabel("FACT", allowedProfileCode, "Dato observado")
+            : "Dato observado",
+          value: "Consta en el documento",
+          evidenceIds: fact.evidenceIds,
+        });
+      });
+      const moneyFacts = document.amountFactIds.flatMap((amountId) => {
+        const amount = persisted.amounts.find((entry) => entry.id === amountId);
+        if (
+          !amount ||
+          amount.assertionType !== "EXPLICIT_IN_DOCUMENT" ||
+          !amount.evidenceIds.some((evidenceId) => {
+            const evidence = evidenceById.get(evidenceId);
+            return (
+              evidence?.documentId === document.id &&
+              evidence.assertionType === "EXPLICIT_IN_DOCUMENT"
+            );
+          })
+        ) {
+          return [];
+        }
+        return [
+          {
+            id: amount.id,
+            ownerScope: amount.ownerScope,
+            documentId: amount.documentId,
+            kind: memoryAdministrativeMoneyKind(amount.componentType),
+            amountCents: amount.amountCents,
+            currency: "EUR" as const,
+            assertionType: legacyAssertion(amount.assertionType),
+            evidenceIds: [...amount.evidenceIds],
+            lineageParentIds: [],
+            status: "PROPOSED" as const,
+            createdAt: document.updatedAt,
+          },
+        ];
+      });
+      const snapshotId = `analysis:privacy-v2:${document.id}`;
+      return {
+        id: snapshotId,
+        ownerScope: document.ownerScope,
+        documentId: document.id,
+        version: 1,
+        extractorVersion: "privacy-workspace-v2-memory-view",
+        rulesVersion: "privacy-workspace-v2",
+        structuredData: {
+          schemaVersion: 1,
+          documentType: memoryDocumentType(document.legacyDocumentType),
+          administrativeDomain: {
+            schemaVersion: 1,
+            ownerScope: document.ownerScope,
+            documentId: document.id,
+            extractorId: "privacy-workspace-v2",
+            extractorVersion: "2.0.0",
+            createdAt: document.updatedAt,
+            familyId: document.familyId,
+            status: "REVIEW_REQUIRED",
+            roleAssertions: [],
+            moneyFacts,
+            missingFieldIds: [],
+            alternativeFamilyIds: [],
+            validationIssues: [],
+            materializationPolicy: "PROHIBITED_UNTIL_REVIEW",
+            requiresHumanReview: true,
+          },
+          paymentOptionIds: [],
+          unknownFields,
+          validationCodes: [],
+          factSummary: [],
+          calculatedSummary: [],
+          inferenceSummary: [],
+          userConfirmedSummary: [],
+          documentFields: {
+            title: legacyDocumentTitle(document),
+            ...(documentDate(persisted, document.id, "ISSUE_DATE")
+              ? {
+                  issueDate: documentDate(
+                    persisted,
+                    document.id,
+                    "ISSUE_DATE",
+                  ),
+                }
+              : {}),
+            ...(documentDate(
+              persisted,
+              document.id,
+              "EFFECTIVE_NOTIFICATION_DATE",
+            )
+              ? {
+                  effectiveNotificationDate: documentDate(
+                    persisted,
+                    document.id,
+                    "EFFECTIVE_NOTIFICATION_DATE",
+                  ),
+                }
+              : {}),
+          },
+        },
+        plainLanguageExplanation: [],
+        validationWarnings: [],
+        evidenceIds: [...document.evidenceIds],
+        confidenceBand: "HIGH",
+        requiresHumanReview: true,
+        createdAt: document.createdAt,
+        createdBySystem: true,
+      };
+    });
 }
 
 export function restoreFiscalNotificationsWorkspaceFromStorageV2(
@@ -935,6 +1359,103 @@ export function restoreFiscalNotificationsWorkspaceFromStorageV2(
   );
   const referencesById = new Map(
     persisted.references.map((entry) => [entry.id, entry]),
+  );
+  const visibleReferenceIds = new Set(
+    persisted.references.flatMap((reference) =>
+      reference.assertionType === "EXPLICIT_IN_DOCUMENT" &&
+      reference.evidenceIds.some((evidenceId) =>
+        persisted.evidence.some(
+          (evidence) =>
+            evidence.id === evidenceId &&
+            evidence.documentId === reference.documentId &&
+            evidence.assertionType === "EXPLICIT_IN_DOCUMENT",
+        ),
+      )
+        ? [reference.id]
+        : [],
+    ),
+  );
+  const references = persisted.references
+    .filter((entry) => visibleReferenceIds.has(entry.id))
+    .map(memoryReference);
+  const hasExplicitEvidence = (
+    documentId: string,
+    evidenceIds: readonly string[],
+  ): boolean =>
+    evidenceIds.some((evidenceId) =>
+      persisted.evidence.some(
+        (evidence) =>
+          evidence.id === evidenceId &&
+          evidence.documentId === documentId &&
+          evidence.assertionType === "EXPLICIT_IN_DOCUMENT",
+      ),
+    );
+  const visibleDocumentIds = new Set(
+    persisted.documents.flatMap((document) => {
+      const hasReference = document.referenceIds.some((id) =>
+        visibleReferenceIds.has(id),
+      );
+      const hasDate = document.dateFactIds.some((id) => {
+        const date = datesById.get(id);
+        return Boolean(
+          date &&
+            date.assertionType === "EXPLICIT_IN_DOCUMENT" &&
+            hasExplicitEvidence(document.id, date.evidenceIds),
+        );
+      });
+      const hasAmount = document.amountFactIds.some((id) => {
+        const amount = amountsById.get(id);
+        return Boolean(
+          amount &&
+            amount.assertionType === "EXPLICIT_IN_DOCUMENT" &&
+            hasExplicitEvidence(document.id, amount.evidenceIds),
+        );
+      });
+      const hasFact = document.factIds.some((id) => {
+        const fact = persisted.facts.find((entry) => entry.id === id);
+        return Boolean(
+          fact &&
+            fact.assertionType === "EXPLICIT_IN_DOCUMENT" &&
+            hasExplicitEvidence(document.id, fact.evidenceIds),
+        );
+      });
+      return hasReference || hasDate || hasAmount || hasFact
+        ? [document.id]
+        : [];
+    }),
+  );
+  const evidence = persisted.evidence.map((entry) => ({
+    id: entry.id,
+    ownerScope: entry.ownerScope,
+    documentId: entry.documentId,
+    pageNumber: entry.page,
+    ...(entry.locator.kind === "BOUNDING_BOX"
+      ? {
+          boundingBox: {
+            x: entry.locator.x,
+            y: entry.locator.y,
+            width: entry.locator.width,
+            height: entry.locator.height,
+            ...(entry.locator.pageWidth === undefined
+              ? {}
+              : { pageWidth: entry.locator.pageWidth }),
+            ...(entry.locator.pageHeight === undefined
+              ? {}
+              : { pageHeight: entry.locator.pageHeight }),
+          },
+        }
+      : {}),
+    textSnippet: entry.fieldId,
+    extractionMethod: legacyExtractionMethod(entry.extractionMethod),
+    confidence: legacyConfidence(entry.confidence),
+    assertionType: legacyAssertion(entry.assertionType),
+  }));
+  const analysisSnapshots = memoryAnalysisSnapshots(
+    persisted,
+    visibleDocumentIds,
+  );
+  const snapshotIdByDocument = new Map(
+    analysisSnapshots.map((entry) => [entry.documentId, entry.id] as const),
   );
   const workspace: FiscalNotificationsWorkspace = {
     schemaVersion: 1,
@@ -1006,10 +1527,14 @@ export function restoreFiscalNotificationsWorkspaceFromStorageV2(
         humanReviewStatus: document.reviewStatus,
         authenticityStatus: "NOT_CHECKED",
         partIds: [],
-        referenceIds: [...document.referenceIds],
+        referenceIds: document.referenceIds.filter((id) =>
+          visibleReferenceIds.has(id),
+        ),
         debtIds: [],
         caseIds: [],
-        analysisSnapshotIds: [],
+        analysisSnapshotIds: snapshotIdByDocument.has(document.id)
+          ? [snapshotIdByDocument.get(document.id)!]
+          : [],
         createdAt: document.createdAt,
         updatedAt: document.updatedAt,
       };
@@ -1022,105 +1547,102 @@ export function restoreFiscalNotificationsWorkspaceFromStorageV2(
       nameRaw: issuerCode === "AEAT" ? "Agencia Tributaria" : issuerCode,
       nameNormalized: issuerCode,
     })),
-    references: persisted.references.map(memoryReference),
-    evidence: persisted.evidence.map((entry) => ({
-      id: entry.id,
-      ownerScope: entry.ownerScope,
-      documentId: entry.documentId,
-      pageNumber: entry.page,
-      ...(entry.locator.kind === "BOUNDING_BOX"
-        ? {
-            boundingBox: {
-              x: entry.locator.x,
-              y: entry.locator.y,
-              width: entry.locator.width,
-              height: entry.locator.height,
-              ...(entry.locator.pageWidth === undefined
-                ? {}
-                : { pageWidth: entry.locator.pageWidth }),
-              ...(entry.locator.pageHeight === undefined
-                ? {}
-                : { pageHeight: entry.locator.pageHeight }),
-            },
-          }
-        : {}),
-      textSnippet: entry.fieldId,
-      extractionMethod: legacyExtractionMethod(entry.extractionMethod),
-      confidence: legacyConfidence(entry.confidence),
-      assertionType: legacyAssertion(entry.assertionType),
-    })),
+    references,
+    evidence,
     debts: [],
     debtObservations: [],
     cases: [],
-    relations: persisted.relations.map((relation) => {
-      const matchingReferences = relation.exactReferenceIds
+    relations: persisted.relations.flatMap((relation) => {
+      const visibleExactReferenceIds = relation.exactReferenceIds.filter((id) => {
+        const reference = referencesById.get(id);
+        return (
+          visibleReferenceIds.has(id) &&
+          reference?.referenceType !== "BANK_REFERENCE"
+        );
+      });
+      const referenceIdentity = (
+        reference: FiscalNotificationsPersistedWorkspaceV2["references"][number],
+      ): string =>
+        `${reference.referenceType}\u0000${reference.issuerCode}\u0000${
+          reference.value.storage === "NORMALIZED_REFERENCE"
+            ? reference.value.normalizedValue
+            : reference.value.fingerprintSha256
+        }`;
+      const sourceKeys = new Set(
+        visibleExactReferenceIds
+          .map((id) => referencesById.get(id))
+          .filter(
+            (entry): entry is NonNullable<typeof entry> =>
+              entry?.documentId === relation.sourceDocumentId,
+          )
+          .map(referenceIdentity),
+      );
+      const hasStrongVisibleMatch = visibleExactReferenceIds
+        .map((id) => referencesById.get(id))
+        .filter(
+          (entry): entry is NonNullable<typeof entry> =>
+            entry?.documentId === relation.targetDocumentId,
+        )
+        .some((entry) => sourceKeys.has(referenceIdentity(entry)));
+      if (!hasStrongVisibleMatch) return [];
+      const matchingReferences = visibleExactReferenceIds
         .map((id) => referencesById.get(id)?.referenceType)
         .filter((entry): entry is ExternalReference["referenceType"] =>
           Boolean(entry && entry !== "BANK_REFERENCE"),
         );
-      const matchingAmounts = relation.contextualAmountFactIds
-        .map((id) => amountsById.get(id)?.componentType)
-        .filter((entry): entry is string => Boolean(entry))
-        .map(memoryMoneyType);
       const matchingDates = relation.contextualDateFactIds
-        .map((id) => datesById.get(id)?.value)
-        .filter((entry): entry is string => Boolean(entry));
-      return {
-        id: relation.id,
-        ownerScope: relation.ownerScope,
-        sourceDocumentId: relation.sourceDocumentId,
-        targetDocumentId: relation.targetDocumentId,
-        relationType: relation.relationType as DocumentRelation["relationType"],
-        confidenceBand:
-          relation.status === "SYSTEM_CONFIRMED_EXACT" ? "EXACT" : "HIGH",
-        score: relation.status === "SYSTEM_CONFIRMED_EXACT" ? 100 : 80,
-        evidence: {
-          matchingReferenceTypes: [...new Set(matchingReferences)],
-          matchingAmountTypes: [...new Set(matchingAmounts)],
-          matchingDates: [...new Set(matchingDates)],
-          differences: [],
-        },
-        algorithmVersion: relation.algorithmVersion,
-        status: relation.status,
-        createdAt: relation.createdAt,
-        ...(relation.reconciliationHistory
-          ? {
-              reconciliationHistory: relation.reconciliationHistory.map(
-                (entry) => ({
-                  ...entry,
-                  evidenceKinds: [...entry.evidenceKinds],
-                }),
-              ),
-            }
-          : {}),
-      };
-    }),
-    analysisSnapshots: [],
-    paymentOptions: persisted.documents.flatMap((document) => {
-      const amounts = persisted.amounts.filter(
-        (entry) => entry.documentId === document.id,
-      );
-      if (amounts.length === 0) return [];
+        .map((id) => datesById.get(id))
+        .filter(
+          (entry): entry is NonNullable<typeof entry> =>
+            Boolean(
+              entry &&
+                entry.assertionType === "EXPLICIT_IN_DOCUMENT" &&
+                hasExplicitEvidence(entry.documentId, entry.evidenceIds),
+            ),
+        )
+        .map((entry) => entry.value);
+      const exactReferencesRemainVisible =
+        visibleExactReferenceIds.length === relation.exactReferenceIds.length;
+      const status =
+        relation.status === "SYSTEM_CONFIRMED_EXACT" &&
+        !exactReferencesRemainVisible
+          ? ("SUGGESTED" as const)
+          : relation.status;
       return [
         {
-          id: `payment-option:privacy-v2:${document.id}`,
-          ownerScope: persisted.ownerScope,
-          documentId: document.id,
-          title: "Importes estructurados del documento",
-          eligibilityCondition: "Revisión humana obligatoria",
-          components: amounts.map((entry) => ({
-            type: memoryMoneyType(entry.componentType),
-            amountCents: entry.amountCents,
-            assertionType: legacyAssertion(entry.assertionType),
-            evidenceIds: [...entry.evidenceIds],
-          })),
-          deadlineStatus: "UNKNOWN" as const,
-          evidenceIds: [
-            ...new Set(amounts.flatMap((entry) => entry.evidenceIds)),
-          ],
+          id: relation.id,
+          ownerScope: relation.ownerScope,
+          sourceDocumentId: relation.sourceDocumentId,
+          targetDocumentId: relation.targetDocumentId,
+          relationType:
+            relation.relationType as DocumentRelation["relationType"],
+          confidenceBand:
+            status === "SYSTEM_CONFIRMED_EXACT" ? "EXACT" : "HIGH",
+          score: status === "SYSTEM_CONFIRMED_EXACT" ? 100 : 80,
+          evidence: {
+            matchingReferenceTypes: [...new Set(matchingReferences)],
+            matchingAmountTypes: [],
+            matchingDates: [...new Set(matchingDates)],
+            differences: [],
+          },
+          algorithmVersion: relation.algorithmVersion,
+          status,
+          createdAt: relation.createdAt,
+          ...(relation.reconciliationHistory
+            ? {
+                reconciliationHistory: relation.reconciliationHistory.map(
+                  (entry) => ({
+                    ...entry,
+                    evidenceKinds: [...entry.evidenceKinds],
+                  }),
+                ),
+              }
+            : {}),
         },
       ];
     }),
+    analysisSnapshots,
+    paymentOptions: [],
     paymentPlans: [],
     installments: [],
     interestCalculations: [],
@@ -1751,6 +2273,12 @@ function followsObservedEmptyRestartBase(
   const sameGeneration =
     candidate.workspace.workspaceId === base.workspace.workspaceId &&
     candidate.workspace.createdAt === base.workspace.createdAt;
+  if (
+    !sameGeneration &&
+    !isFiscalNotificationsWorkspaceStorageEnvelopeEmptyV2(base)
+  ) {
+    return false;
+  }
   return sameGeneration
     ? candidate.workspace.revision > base.workspace.revision &&
       candidate.workspace.updatedAt > base.workspace.updatedAt
