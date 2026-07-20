@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -21,6 +22,7 @@ import {
   FIRST_USE_ONBOARDING_PROFILE_SAVED_PARAM,
   FIRST_USE_ONBOARDING_PROFILE_SAVED_VALUE,
   buildFirstUseOnboardingState,
+  firstUseDocumentDismissedStorageKey,
   type FirstUseStepId,
 } from "@/lib/first-use-onboarding";
 
@@ -35,10 +37,44 @@ export function FirstUseOnboardingPanel() {
   const { user, emailConfirmed, requiresEmailConfirmation } = useCloudSync();
   const searchParams = useSearchParams();
   const demoMode = useDemoWorkspaceMode();
+  const [firstDocumentStepDismissed, setFirstDocumentStepDismissed] =
+    useState(false);
+  const firstDocumentDismissedStorageKey = user?.id
+    ? firstUseDocumentDismissedStorageKey(user.id)
+    : null;
+
+  useEffect(() => {
+    if (!firstDocumentDismissedStorageKey) {
+      setFirstDocumentStepDismissed(false);
+      return;
+    }
+
+    try {
+      setFirstDocumentStepDismissed(
+        window.localStorage.getItem(firstDocumentDismissedStorageKey) === "1",
+      );
+    } catch {
+      setFirstDocumentStepDismissed(false);
+    }
+  }, [firstDocumentDismissedStorageKey]);
+
+  const dismissFirstDocumentStep = useCallback(() => {
+    setFirstDocumentStepDismissed(true);
+
+    if (!firstDocumentDismissedStorageKey) return;
+
+    try {
+      window.localStorage.setItem(firstDocumentDismissedStorageKey, "1");
+    } catch {
+      // The visible state is already closed for the current session.
+    }
+  }, [firstDocumentDismissedStorageKey]);
+
   const state = buildFirstUseOnboardingState({
     data,
     demoMode,
     emailConfirmed,
+    firstDocumentStepDismissed,
     hasUser: Boolean(user),
   });
 
@@ -91,18 +127,21 @@ export function FirstUseOnboardingPanel() {
       <div className="mt-5 grid gap-3 lg:grid-cols-3">
         {state.steps.map((step) => {
           const Icon = STEP_ICONS[step.id];
-          return (
-            <Link
-              key={step.id}
-              href={step.href}
-              className={`group flex min-h-36 flex-col justify-between rounded-2xl border bg-white p-4 shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                step.done
-                  ? "border-emerald-200 bg-emerald-50/80 hover:border-emerald-300 hover:bg-emerald-50"
-                  : step.current
-                  ? "border-blue-300 ring-2 ring-blue-100 hover:bg-blue-50"
-                  : "border-slate-200 hover:border-blue-200 hover:bg-slate-50"
-              }`}
-            >
+          const optionalFirstDocumentStep =
+            step.id === "document" &&
+            step.current &&
+            state.profileReady &&
+            !state.hasFirstDocument;
+          const cardClassName = `group flex min-h-36 flex-col justify-between rounded-2xl border bg-white p-4 shadow-sm transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+            step.done
+              ? "border-emerald-200 bg-emerald-50/80 hover:border-emerald-300 hover:bg-emerald-50"
+              : step.current
+              ? "border-blue-300 ring-2 ring-blue-100 hover:bg-blue-50"
+              : "border-slate-200 hover:border-blue-200 hover:bg-slate-50"
+          }`;
+
+          const cardContent = (
+            <>
               <span className="flex items-start justify-between gap-3">
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${
@@ -126,14 +165,49 @@ export function FirstUseOnboardingPanel() {
                 <span className="mt-1 block text-xs font-medium leading-5 text-slate-600">
                   {step.description}
                 </span>
-                <span
-                  className={`mt-3 inline-flex items-center gap-1 text-sm font-bold ${
-                    step.done ? "text-emerald-700" : "text-blue-700"
-                  }`}
-                >
-                  {step.actionLabel}
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </span>
+            </>
+          );
+
+          if (optionalFirstDocumentStep) {
+            return (
+              <article key={step.id} className={cardClassName}>
+                {cardContent}
+                <span className="mt-4 grid grid-cols-2 gap-2">
+                  <Link
+                    href={step.href}
+                    onClick={dismissFirstDocumentStep}
+                    className="inline-flex min-h-10 items-center justify-center gap-1 rounded-xl bg-blue-600 px-3 text-sm font-bold text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  >
+                    Crear
+                    <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={dismissFirstDocumentStep}
+                    className="inline-flex min-h-10 items-center justify-center rounded-xl border border-blue-200 bg-white px-3 text-sm font-bold text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  >
+                    Omitir
+                  </button>
                 </span>
+              </article>
+            );
+          }
+
+          return (
+            <Link
+              key={step.id}
+              href={step.href}
+              className={cardClassName}
+            >
+              {cardContent}
+              <span
+                className={`mt-3 inline-flex items-center gap-1 text-sm font-bold ${
+                  step.done ? "text-emerald-700" : "text-blue-700"
+                }`}
+              >
+                {step.actionLabel}
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </span>
             </Link>
           );

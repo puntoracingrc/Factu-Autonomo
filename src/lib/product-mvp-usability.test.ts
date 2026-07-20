@@ -597,8 +597,17 @@ describe("MVP usability polish", () => {
     expect(onboardingSource).toContain("Ya tenemos los datos de tu negocio");
     expect(onboardingSource).toContain("Importar datos");
     expect(onboardingSource).toContain("Registrar gasto");
+    expect(onboardingSource).toContain("Crear");
+    expect(onboardingSource).toContain("Omitir");
+    expect(onboardingSource).toContain("localStorage.setItem");
     expect(onboardingSource).toContain("border-emerald-200 bg-emerald-50/80");
-    expect(onboardingLogicSource).toContain("No hace falta crear cliente antes");
+    expect(onboardingLogicSource).toContain("La ficha de cliente se crea sola");
+    expect(onboardingLogicSource).toContain(
+      "omite este paso y ya puedes navegar",
+    );
+    expect(onboardingLogicSource).toContain(
+      "factu:first-use-onboarding:first-document-dismissed",
+    );
     expect(onboardingLogicSource).toContain(
       "/configuracion?${params.toString()}#${FIRST_USE_ONBOARDING_PROFILE_SECTION_ID}",
     );

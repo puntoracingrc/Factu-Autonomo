@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildFirstUseOnboardingState,
+  firstUseDocumentDismissedStorageKey,
   firstUseBusinessProfileHref,
   firstUseProfileSavedHref,
   hasFirstBusinessDocument,
@@ -136,6 +137,35 @@ describe("first-use onboarding", () => {
       id: "document",
       done: false,
       current: true,
+    });
+    expect(state.steps[2].description).toContain(
+      "La ficha de cliente se crea sola",
+    );
+    expect(state.steps[2].description).toContain(
+      "omite este paso y ya puedes navegar",
+    );
+  });
+
+  it("permite cerrar los primeros pasos al crear u omitir la primera factura", () => {
+    const state = buildFirstUseOnboardingState({
+      data: readyProfile(baseData()),
+      demoMode: false,
+      emailConfirmed: true,
+      firstDocumentStepDismissed: true,
+      hasUser: true,
+    });
+
+    expect(firstUseDocumentDismissedStorageKey("user-123")).toBe(
+      "factu:first-use-onboarding:first-document-dismissed:user-123",
+    );
+    expect(state.visible).toBe(false);
+    expect(state.completedCount).toBe(3);
+    expect(state.hasFirstDocument).toBe(false);
+    expect(state.firstDocumentStepDismissed).toBe(true);
+    expect(state.steps[2]).toMatchObject({
+      id: "document",
+      done: true,
+      current: false,
     });
   });
 
