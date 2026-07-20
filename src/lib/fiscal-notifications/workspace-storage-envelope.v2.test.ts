@@ -3,6 +3,7 @@ import type { FiscalNotificationsWorkspace } from "./types";
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
 import { projectFiscalNotificationsWorkspacePrivacyV2 } from "./workspace-privacy-projection.v2";
 import { deleteFiscalNotificationDocumentV1 } from "./document-deletion.v1";
+import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "./knowledge/aeat-document-knowledge.v1";
 import {
   compareFiscalNotificationsWorkspaceStorageEnvelopesV2,
   encodeFiscalNotificationsWorkspaceForStorageV2,
@@ -375,6 +376,29 @@ describe("runtime privacy storage envelope v2", () => {
     ).toEqual(encoded);
   });
 
+  it.each(AEAT_DOCUMENT_PROFILE_IDS_V1)(
+    "roundtrips the exact family %s through both persistence boundaries",
+    (familyId) => {
+      const input = workspace();
+      input.documents[0]!.documentType = "GENERIC_ADMINISTRATIVE_NOTICE";
+      input.documents[0]!.documentSubtype = familyId;
+      const first = encodeFiscalNotificationsWorkspaceForStorageV2(input);
+      expect(first).not.toBeNull();
+      const restored = restoreFiscalNotificationsWorkspaceFromStorageV2(
+        first,
+        OWNER,
+      );
+      expect(restored?.documents[0]?.documentSubtype).toBe(familyId);
+
+      const cloned = restored ? structuredClone(restored) : null;
+      const second = encodeFiscalNotificationsWorkspaceForStorageV2(cloned);
+      expect(second?.workspace.documents[0]).toMatchObject({
+        familyId,
+        recognitionStatus: "EXACT_FAMILY",
+      });
+    },
+  );
+
   it("preserves exact chronology priority and never substitutes createdAt", () => {
     const issue = encodeFiscalNotificationsWorkspaceForStorageV2(workspace())!;
     expect(issue.workspace.documents[0]).toMatchObject({
@@ -736,6 +760,131 @@ describe("runtime privacy storage envelope v2", () => {
       compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
         base,
         removedTooMuch,
+        OWNER,
+      ),
+    ).toBe("DIVERGED");
+  });
+
+  it("rejects a chained reduction that omits a newly removed base document", () => {
+    const baseWorkspace = workspaceWithTwoDocumentGraphs();
+    const base = encodeFiscalNotificationsWorkspaceForStorageV2(baseWorkspace)!;
+    const firstDeletion = deleteFiscalNotificationDocumentV1({
+      workspace: baseWorkspace,
+      ownerScope: OWNER,
+      documentId: "document:privacy-runtime:1",
+      deletedAt: "2026-07-16T09:00:00.000Z",
+    });
+    expect(firstDeletion.status).toBe("APPLIED");
+    if (firstDeletion.status !== "APPLIED") return;
+    const firstWorkspace =
+      registerFiscalNotificationDocumentReductionTransitionV2(
+        firstDeletion.workspace,
+        baseWorkspace,
+        OWNER,
+        "2026-07-16T09:00:00.000Z",
+      );
+    expect(firstWorkspace).not.toBeNull();
+    const first = encodeFiscalNotificationsWorkspaceForStorageV2(
+      firstWorkspace,
+      base,
+    )!;
+
+    const secondDeletion = deleteFiscalNotificationDocumentV1({
+      workspace: firstWorkspace,
+      ownerScope: OWNER,
+      documentId: "document:privacy-descendant:1",
+      deletedAt: "2026-07-16T10:00:00.000Z",
+    });
+    expect(secondDeletion.status).toBe("APPLIED");
+    if (secondDeletion.status !== "APPLIED") return;
+    const secondWorkspace =
+      registerFiscalNotificationDocumentReductionTransitionV2(
+        secondDeletion.workspace,
+        firstWorkspace,
+        OWNER,
+        "2026-07-16T10:00:00.000Z",
+      );
+    expect(secondWorkspace).not.toBeNull();
+    const second = encodeFiscalNotificationsWorkspaceForStorageV2(
+      secondWorkspace,
+      first,
+    )!;
+    expect(
+      compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        first,
+        second,
+        OWNER,
+      ),
+    ).toBe("INCOMING_ADVANCES");
+
+    const secondTransition = second.transition;
+    expect(secondTransition?.kind).toBe(
+      "USER_CONFIRMED_DOCUMENT_REDUCTION_V1",
+    );
+    if (
+      secondTransition?.kind !== "USER_CONFIRMED_DOCUMENT_REDUCTION_V1"
+    ) {
+      return;
+    }
+    const forged = {
+      ...structuredClone(second),
+      transition: {
+        ...structuredClone(secondTransition),
+        removedDocumentIds: ["document:privacy-runtime:1"],
+      },
+    };
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(forged, OWNER),
+    ).not.toBeNull();
+    expect(
+      compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        first,
+        forged,
+        OWNER,
+      ),
+    ).toBe("DIVERGED");
+  });
+
+  it("rejects a reduction envelope that resurrects a declared removed id", () => {
+    const baseWorkspace = workspaceWithTwoDocumentGraphs();
+    const base = encodeFiscalNotificationsWorkspaceForStorageV2(baseWorkspace)!;
+    const deletion = deleteFiscalNotificationDocumentV1({
+      workspace: baseWorkspace,
+      ownerScope: OWNER,
+      documentId: "document:privacy-runtime:1",
+      deletedAt: "2026-07-16T09:00:00.000Z",
+    });
+    expect(deletion.status).toBe("APPLIED");
+    if (deletion.status !== "APPLIED") return;
+    const reducedWorkspace =
+      registerFiscalNotificationDocumentReductionTransitionV2(
+        deletion.workspace,
+        baseWorkspace,
+        OWNER,
+        "2026-07-16T09:00:00.000Z",
+      );
+    expect(reducedWorkspace).not.toBeNull();
+    const reduced = encodeFiscalNotificationsWorkspaceForStorageV2(
+      reducedWorkspace,
+      base,
+    )!;
+
+    const resurrected = {
+      ...structuredClone(base),
+      workspace: {
+        ...structuredClone(base.workspace),
+        revision: 3,
+        updatedAt: "2026-07-16T10:00:00.000Z",
+      },
+      transition: structuredClone(reduced.transition),
+    };
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(resurrected, OWNER),
+    ).toBeNull();
+    expect(
+      compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        reduced,
+        resurrected,
         OWNER,
       ),
     ).toBe("DIVERGED");

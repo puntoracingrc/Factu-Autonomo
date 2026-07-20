@@ -2,14 +2,23 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const source = readFileSync(new URL("./AppStore.tsx", import.meta.url), "utf8");
+const persistedCommandSource = readFileSync(
+  new URL(
+    "../lib/fiscal-notifications/persisted-command.v1.ts",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("AppStore fiscal notifications monitoring", () => {
   it("reporta bloqueos de guardado estructurado al log admin sin datos documentales", () => {
-    expect(source).toContain('import { reportAppError } from "@/lib/monitoring/client"');
+    expect(source).toContain(
+      'import { reportAppError } from "@/lib/monitoring/client"',
+    );
     expect(source).toContain(
       "function reportFiscalNotificationStructuredReviewSaveFailure",
     );
-    expect(source).toContain("result.status !== \"blocked\"");
+    expect(source).toContain('result.status !== "blocked"');
     expect(source).toContain('area: "fiscal_notifications"');
     expect(source).toContain("structured_review_save_");
     expect(source).toContain(
@@ -26,7 +35,9 @@ describe("AppStore fiscal notifications monitoring", () => {
 
   it("mantiene fuera del evento campos sensibles del documento", () => {
     const helper = source.slice(
-      source.indexOf("function reportFiscalNotificationStructuredReviewSaveFailure"),
+      source.indexOf(
+        "function reportFiscalNotificationStructuredReviewSaveFailure",
+      ),
       source.indexOf("interface AppStoreValue"),
     );
 
@@ -36,9 +47,38 @@ describe("AppStore fiscal notifications monitoring", () => {
   });
 
   it("guarda y borra Notificaciones sobre el estado vigente de la cuenta", () => {
-    expect(source).toContain("const commitLatestDurableAppData = useCallback(");
-    expect(source).toContain("expected: dataRef.current,");
-    expect(source).toContain("commit: commitLatestDurableAppData,");
+    expect(source).toContain(
+      "runFiscalNotificationCommandAgainstLatestPersistedV1<",
+    );
+    expect(source).toContain("fallback: dataRef.current,");
+    expect(source).toContain("readPersisted: readPersistedDataSnapshot,");
+    expect(source).toContain("saveData(candidate, { expected })");
+    expect(persistedCommandSource).toContain(
+      'first.reason !== "stale_precondition"',
+    );
+    expect(persistedCommandSource).toContain(
+      "const refreshed = input.readPersisted();",
+    );
     expect(source).not.toContain('reason: "UNSYNCED_WORKSPACE"');
+  });
+
+  it("inmoviliza la base durable si una escritura queda indeterminada", () => {
+    const saveCommand = source.slice(
+      source.indexOf("const saveFiscalNotificationStructuredReview"),
+      source.indexOf("const archiveFiscalNotificationOriginal"),
+    );
+    const deleteCommand = source.slice(
+      source.indexOf("const deleteFiscalNotificationDocument"),
+      source.indexOf("const repairFiscalNotificationEmptyHistory"),
+    );
+
+    expect(saveCommand).toContain(
+      'result.reason === "storage_state_unknown"',
+    );
+    expect(saveCommand).toContain('status: "indeterminate"');
+    expect(deleteCommand).toContain('result.status === "indeterminate"');
+    expect(deleteCommand).toContain(
+      "durableStorageBaselineRef.current = result",
+    );
   });
 });

@@ -92,10 +92,9 @@ function migrateProfile(profile?: Partial<BusinessProfile>): BusinessProfile {
     taxModelDiagnostic: normalizeTaxModelDiagnosticSession(
       profile?.taxModelDiagnostic,
     ),
-    fiscalAdvisoryModelPreferences:
-      normalizeFiscalAdvisoryModelPreferencesV1(
-        profile?.fiscalAdvisoryModelPreferences,
-      ),
+    fiscalAdvisoryModelPreferences: normalizeFiscalAdvisoryModelPreferencesV1(
+      profile?.fiscalAdvisoryModelPreferences,
+    ),
     quoteValidityDays: normalizeQuoteValidityDays(profile?.quoteValidityDays),
     numbering: normalizeNumbering(profile?.numbering),
     verifactu: normalizeVerifactuSettings(profile?.verifactu),
@@ -167,10 +166,7 @@ function persistedFiscalChange(
   }
   const envelope =
     parseFiscalNotificationsWorkspaceStorageEnvelopeV2(change.payload) ??
-    encodeFiscalNotificationsWorkspaceForStorageV2(
-      change.payload,
-      basePayload,
-    );
+    encodeFiscalNotificationsWorkspaceForStorageV2(change.payload, basePayload);
   return envelope ? { ...change, payload: envelope } : null;
 }
 
@@ -210,7 +206,8 @@ export function projectAppDataForPersistence(
       data.fiscalNotificationsWorkspace,
       base?.fiscalNotificationsWorkspace,
     );
-    if (!envelope) throw new Error("fiscal_workspace_privacy_projection_failed");
+    if (!envelope)
+      throw new Error("fiscal_workspace_privacy_projection_failed");
     canonicalFiscalEnvelope = envelope;
     result.fiscalNotificationsWorkspace = envelope;
   } else {
@@ -254,12 +251,12 @@ export function projectAppDataForPersistence(
   }
 
   if (Array.isArray(data.workspaceIntegrityQuarantine)) {
-    result.workspaceIntegrityQuarantine =
-      data.workspaceIntegrityQuarantine.map((entry) =>
+    result.workspaceIntegrityQuarantine = data.workspaceIntegrityQuarantine.map(
+      (entry) =>
         /fiscalNotifications|fiscal_notifications/iu.test(entry.collection)
           ? { ...entry, rawValue: safeRejectedFiscalPayload() }
           : entry,
-      );
+    );
   }
   return result;
 }
@@ -573,16 +570,14 @@ export function normalizeLoadedData(
       rawValue: parsed.workspaceIntegrityQuarantine,
     });
   }
-  const normalizedRetirementBatches =
-    normalizeTestDocumentRetirementBatches(
-      parsed.testDocumentRetirementBatches,
-    );
+  const normalizedRetirementBatches = normalizeTestDocumentRetirementBatches(
+    parsed.testDocumentRetirementBatches,
+  );
   for (const invalid of normalizedRetirementBatches.invalidEntries) {
     workspaceIntegrityQuarantine.push({
       collection: "testDocumentRetirementBatches",
       index: invalid.index >= 0 ? invalid.index : undefined,
-      reason:
-        invalid.index >= 0 ? "malformed_record" : "malformed_collection",
+      reason: invalid.index >= 0 ? "malformed_record" : "malformed_collection",
       rawValue: invalid.rawValue,
     });
   }
@@ -798,7 +793,7 @@ export function normalizeLoadedData(
   const persistedFiscalEnvelope =
     parsed.fiscalNotificationsWorkspace === undefined
       ? null
-      : parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+      : (parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
           parsed.fiscalNotificationsWorkspace,
         ) ??
         (() => {
@@ -808,12 +803,12 @@ export function normalizeLoadedData(
           return legacy
             ? encodeFiscalNotificationsWorkspaceForStorageV2(legacy)
             : null;
-        })();
+        })());
   const fiscalNotificationsWorkspace = persistedFiscalEnvelope
-    ? restoreFiscalNotificationsWorkspaceFromStorageV2(
+    ? (restoreFiscalNotificationsWorkspaceFromStorageV2(
         persistedFiscalEnvelope,
         persistedFiscalEnvelope.workspace.ownerScope,
-      ) ?? undefined
+      ) ?? undefined)
     : undefined;
   if (
     parsed.fiscalNotificationsWorkspace !== undefined &&
@@ -1540,6 +1535,13 @@ export function saveData(
     return { status: "blocked", reason: "storage_unavailable" };
   }
 
+  if (
+    options.expected &&
+    !storedRawMatchesExpected(beforeRaw, options.expected, storageKey)
+  ) {
+    return { status: "blocked", reason: "stale_precondition" };
+  }
+
   try {
     let baseValue: unknown;
     try {
@@ -1552,13 +1554,6 @@ export function saveData(
     );
   } catch {
     return { status: "blocked", reason: "serialization_failed" };
-  }
-
-  if (
-    options.expected &&
-    !storedRawMatchesExpected(beforeRaw, options.expected, storageKey)
-  ) {
-    return { status: "blocked", reason: "stale_precondition" };
   }
 
   if (beforeRaw && inMemoryDataIsEmpty(data)) {

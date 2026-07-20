@@ -210,6 +210,7 @@ import {
   runSaveFiscalNotificationStructuredReviewCommandV1,
   type DurableFiscalNotificationStructuredReviewSaveResultV1,
 } from "@/lib/fiscal-notifications/structured-review-save-command.v1";
+import { runFiscalNotificationCommandAgainstLatestPersistedV1 } from "@/lib/fiscal-notifications/persisted-command.v1";
 import {
   runFiscalNotificationDriveArchiveCommandV1,
   type DurableFiscalNotificationDriveArchiveResultV1,
@@ -860,15 +861,55 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       createdAt: string;
       analysis: FiscalNotificationLocalAnalysisResult;
     }): DurableFiscalNotificationStructuredReviewSaveResultV1 => {
-      const result = runSaveFiscalNotificationStructuredReviewCommandV1({
-        ...input,
-        expected: dataRef.current,
-        commit: commitLatestDurableAppData,
-      });
+      const result =
+        runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationStructuredReviewSaveResultV1>(
+          {
+            fallback: dataRef.current,
+            storageBaseline: durableStorageBaselineRef.current,
+            lastKnownPersisted: lastKnownDurableDataRef.current,
+            readPersisted: readPersistedDataSnapshot,
+            persist: (candidate, expected) => saveData(candidate, { expected }),
+            blocked: (reason) => ({
+              status: "blocked",
+              stage: "COMMIT",
+              safeCode: "DURABILITY_CONFLICT",
+              warningCodes: Object.freeze([]),
+              reason,
+            }),
+            run: (expected, commit) =>
+              runSaveFiscalNotificationStructuredReviewCommandV1({
+                ...input,
+                expected,
+                commit,
+              }),
+          },
+        );
+      if (
+        result.status === "blocked" &&
+        result.reason === "storage_state_unknown"
+      ) {
+        durableStorageBaselineRef.current = {
+          status: "indeterminate",
+          reason: "storage_state_unknown",
+        };
+      }
+      if (
+        result.status === "applied" ||
+        result.status === "applied_with_warnings"
+      ) {
+        durableStorageBaselineRef.current = {
+          status: "known",
+          data: result.data,
+        };
+        lastKnownDurableDataRef.current = result.data;
+        durablyPersistedDataRef.current = result.data;
+        dataRef.current = result.data;
+        setData(result.data);
+      }
       reportFiscalNotificationStructuredReviewSaveFailure(result);
       return result;
     },
-    [commitLatestDurableAppData],
+    [],
   );
 
   const archiveFiscalNotificationOriginal = useCallback(
@@ -891,13 +932,43 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       ownerScope: string;
       documentId: string;
       deletedAt: string;
-    }): DurableFiscalNotificationDocumentDeletionResultV1 =>
-      runDeleteFiscalNotificationDocumentCommandV1({
-        ...input,
-        expected: dataRef.current,
-        commit: commitLatestDurableAppData,
-      }),
-    [commitLatestDurableAppData],
+    }): DurableFiscalNotificationDocumentDeletionResultV1 => {
+      const result =
+        runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationDocumentDeletionResultV1>(
+          {
+            fallback: dataRef.current,
+            storageBaseline: durableStorageBaselineRef.current,
+            lastKnownPersisted: lastKnownDurableDataRef.current,
+            readPersisted: readPersistedDataSnapshot,
+            persist: (candidate, expected) => saveData(candidate, { expected }),
+            blocked: (reason) =>
+              reason === "storage_state_unknown"
+                ? { status: "indeterminate", reason }
+                : { status: "blocked", reason },
+            run: (expected, commit) =>
+              runDeleteFiscalNotificationDocumentCommandV1({
+                ...input,
+                expected,
+                commit,
+              }),
+          },
+        );
+      if (result.status === "indeterminate") {
+        durableStorageBaselineRef.current = result;
+      }
+      if (result.status === "applied") {
+        durableStorageBaselineRef.current = {
+          status: "known",
+          data: result.data,
+        };
+        lastKnownDurableDataRef.current = result.data;
+        durablyPersistedDataRef.current = result.data;
+        dataRef.current = result.data;
+        setData(result.data);
+      }
+      return result;
+    },
+    [],
   );
 
   const repairFiscalNotificationEmptyHistory = useCallback(

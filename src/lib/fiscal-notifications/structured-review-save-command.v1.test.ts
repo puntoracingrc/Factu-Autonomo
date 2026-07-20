@@ -24,8 +24,12 @@ import type {
   FiscalNotificationLocalAnalysisResult,
   FiscalNotificationLocalReviewResult,
 } from "./local-review-flow";
+import { runFiscalNotificationCommandAgainstLatestPersistedV1 } from "./persisted-command.v1";
 import type { FiscalNotificationsWorkspace } from "./types";
-import { runSaveFiscalNotificationStructuredReviewCommandV1 } from "./structured-review-save-command.v1";
+import {
+  runSaveFiscalNotificationStructuredReviewCommandV1,
+  type DurableFiscalNotificationStructuredReviewSaveResultV1,
+} from "./structured-review-save-command.v1";
 import { runDeleteFiscalNotificationDocumentCommandV1 } from "./document-deletion-command.v1";
 import { appendStructuredReviewRelationSuggestionsV1 } from "./structured-review-relation-suggestions.v1";
 import { projectFiscalNotificationVerticalSliceReviewV1 } from "./vertical-slice-review.v1";
@@ -231,6 +235,20 @@ function analysisWithHash(
       ...value.technicalReview,
       sha256,
     }),
+  });
+}
+
+async function verticalEnforcementAnalysis(): Promise<FiscalNotificationLocalAnalysisResult> {
+  const input = documentInput();
+  const analyzed = await analyzeFiscalNotificationDocumentInput(input);
+  const base = analysis();
+  return Object.freeze({
+    ...base,
+    ephemeralEnforcementMoneyFacts: extractAeatEnforcementMoneyFacts(input),
+    ephemeralEnforcementExplicitFields:
+      extractAeatEnforcementExplicitFieldsV2(input),
+    ephemeralEnforcementPartyFacts: extractAeatEnforcementPartyFactsV1(input),
+    ephemeralVerticalSliceReview: analyzed.verticalSliceReview,
   });
 }
 
@@ -686,9 +704,7 @@ describe("structured fiscal notification save command v1", () => {
     expect(JSON.stringify(result.data)).not.toMatch(
       /PERSONA SINTETICA|X0000000X|IRPF SINTETICO/iu,
     );
-    expect(
-      result.data.fiscalNotificationsWorkspace?.references,
-    ).toEqual(
+    expect(result.data.fiscalNotificationsWorkspace?.references).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           referenceType: "LIQUIDATION_KEY",
@@ -733,7 +749,9 @@ describe("structured fiscal notification save command v1", () => {
     ).not.toContain("SPECIALIZED_ENRICHMENT_SKIPPED");
     expect(
       JSON.stringify(result.data.fiscalNotificationsWorkspace),
-    ).not.toMatch(/SPECIALIZED_ENRICHMENT_SKIPPED|RELATION_RECONCILIATION_PENDING/u);
+    ).not.toMatch(
+      /SPECIALIZED_ENRICHMENT_SKIPPED|RELATION_RECONCILIATION_PENDING/u,
+    );
     expect(input.persist).toHaveBeenCalledTimes(1);
   });
 
@@ -867,7 +885,103 @@ describe("structured fiscal notification save command v1", () => {
     ).toContain("collection.deferral_grant");
   });
 
-  it("guarda en Mi cuenta tras un fallo de sincronización que solo cambió metadatos", () => {
+  it("rebasa una eliminación de otra pestaña y recarga la familia exacta", async () => {
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
+    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({
+      status: "applied",
+    });
+    let current = loadData();
+
+    const seeded = runSaveFiscalNotificationStructuredReviewCommandV1({
+      expected: current,
+      ownerScope: OWNER,
+      reviewId: "review:00000000-0000-4000-8000-000000000090",
+      createdAt: "2026-07-14T09:58:00.000Z",
+      analysis: offsetAnalysis(),
+      commit: (_expected, build) =>
+        commitLatestAppDataDurably({
+          getCurrent: () => current,
+          build,
+          persist: (candidate) => saveData(candidate),
+        }),
+    });
+    expect(seeded.status).toMatch(/^applied/u);
+    current = loadData();
+    const staleTab = current;
+    const seededDocumentId =
+      current.fiscalNotificationsWorkspace?.documents[0]?.id;
+    expect(seededDocumentId).toBeTruthy();
+
+    const deleted = runDeleteFiscalNotificationDocumentCommandV1({
+      expected: current,
+      ownerScope: OWNER,
+      documentId: seededDocumentId!,
+      deletedAt: "2026-07-14T10:00:00.000Z",
+      commit: (_expected, build) =>
+        commitLatestAppDataDurably({
+          getCurrent: () => current,
+          build,
+          persist: (candidate) => saveData(candidate),
+        }),
+    });
+    expect(deleted.status).toBe("applied");
+    current = loadData();
+    expect(current.fiscalNotificationsWorkspace?.documents).toEqual([]);
+
+    const verticalAnalysis = await verticalEnforcementAnalysis();
+    let persistedReads = 0;
+    const result =
+      runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationStructuredReviewSaveResultV1>(
+        {
+          fallback: staleTab,
+          storageBaseline: { status: "known", data: staleTab },
+          lastKnownPersisted: staleTab,
+          readPersisted: () => {
+            persistedReads += 1;
+            return persistedReads === 1 ? staleTab : loadData();
+          },
+          persist: (candidate, expected) => saveData(candidate, { expected }),
+          blocked: (reason) => ({
+            status: "blocked",
+            stage: "COMMIT",
+            safeCode: "DURABILITY_CONFLICT",
+            warningCodes: [],
+            reason,
+          }),
+          run: (expected, commit) =>
+            runSaveFiscalNotificationStructuredReviewCommandV1({
+              expected,
+              ownerScope: OWNER,
+              reviewId: "review:00000000-0000-4000-8000-000000000089",
+              createdAt: "2026-07-14T10:01:30.000Z",
+              analysis: verticalAnalysis,
+              commit,
+            }),
+        },
+      );
+
+    expect(result.status).toMatch(/^applied/u);
+    expect(persistedReads).toBe(2);
+    const reloaded = loadData();
+    expect(reloaded.fiscalNotificationsWorkspace?.documents).toEqual([
+      expect.objectContaining({
+        documentSubtype: "collection.enforcement_order",
+      }),
+    ]);
+    expect(reloaded.fiscalNotificationsWorkspace?.references).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ referenceType: "LIQUIDATION_KEY" }),
+      ]),
+    );
+  });
+
+  it("guarda la ficha sin perder un perfil local pendiente tras un fallo previo", () => {
     const store = new Map<string, string>();
     vi.stubGlobal("window", {});
     vi.stubGlobal("localStorage", {
@@ -881,6 +995,10 @@ describe("structured fiscal notification save command v1", () => {
     const lastKnown = loadData();
     const current: AppData = {
       ...lastKnown,
+      profile: {
+        ...lastKnown.profile,
+        name: "Perfil local pendiente",
+      },
       meta: {
         ...lastKnown.meta,
         lastModified: "2026-07-14T09:59:00.000Z",
@@ -889,36 +1007,53 @@ describe("structured fiscal notification save command v1", () => {
             entityType: "profile",
             entityId: "profile",
             deleted: false,
-            payload: lastKnown.profile,
+            payload: {
+              ...lastKnown.profile,
+              name: "Perfil local pendiente",
+            },
             updatedAt: "2026-07-14T09:59:00.000Z",
           },
         ],
       },
     };
 
-    const result = runSaveFiscalNotificationStructuredReviewCommandV1({
-      expected: current,
-      ownerScope: OWNER,
-      reviewId: "review:00000000-0000-4000-8000-000000000083",
-      createdAt: "2026-07-14T10:02:00.000Z",
-      analysis: offsetAnalysis(),
-      commit: (expected, build) =>
-        commitAppDataDurablyWithStorageRecovery({
-          expected,
+    const result =
+      runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationStructuredReviewSaveResultV1>(
+        {
+          fallback: current,
           storageBaseline: { status: "blocked", reason: "write_failed" },
-          lastKnownStorageBaseline: lastKnown,
-          getCurrent: () => current,
-          build,
-          persist: (candidate, storageExpected) =>
-            saveData(candidate, { expected: storageExpected }),
-          inspectPersisted: inspectPersistedData,
-        }),
-    });
+          lastKnownPersisted: lastKnown,
+          readPersisted: readPersistedDataSnapshot,
+          persist: (candidate, expected) => saveData(candidate, { expected }),
+          blocked: (reason) => ({
+            status: "blocked",
+            stage: "COMMIT",
+            safeCode: "DURABILITY_CONFLICT",
+            warningCodes: [],
+            reason,
+          }),
+          run: (expected, commit) =>
+            runSaveFiscalNotificationStructuredReviewCommandV1({
+              expected,
+              ownerScope: OWNER,
+              reviewId: "review:00000000-0000-4000-8000-000000000083",
+              createdAt: "2026-07-14T10:02:00.000Z",
+              analysis: offsetAnalysis(),
+              commit,
+            }),
+        },
+      );
 
     expect(result.status).toMatch(/applied/);
     if (!result.status.startsWith("applied")) return;
     const reloaded = loadData();
+    expect(reloaded.profile.name).toBe("Perfil local pendiente");
     expect(reloaded.fiscalNotificationsWorkspace?.documents).toHaveLength(1);
+    expect(
+      reloaded.meta?.pendingChanges?.some(
+        (change) => change.entityType === "profile",
+      ),
+    ).toBe(true);
     expect(
       reloaded.meta?.pendingChanges?.some(
         (change) => change.entityType === "fiscal_notifications_workspace",
@@ -1002,8 +1137,7 @@ describe("structured fiscal notification save command v1", () => {
     });
     expect(saved.status).toMatch(/^applied/u);
     current = loadData();
-    const documentId =
-      current.fiscalNotificationsWorkspace?.documents[0]?.id;
+    const documentId = current.fiscalNotificationsWorkspace?.documents[0]?.id;
     expect(documentId).toBeTruthy();
 
     const deleted = runDeleteFiscalNotificationDocumentCommandV1({

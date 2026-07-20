@@ -96,7 +96,8 @@ const EXACT_LEGACY_FAMILY_MAP: Readonly<
 function recognizedFamilyForDocument(
   document: AdministrativeDocument,
   workspace: FiscalNotificationsWorkspace,
-): FiscalNotificationDocumentFamilyIdV3 | AeatOfficialCatalogProfileIdV9 | null {
+):
+  FiscalNotificationDocumentFamilyIdV3 | AeatOfficialCatalogProfileIdV9 | null {
   if (
     document.documentType === "AEAT_OFFSET_AGREEMENT" &&
     issuerForDocument(document, workspace) === "AEAT"
@@ -107,6 +108,12 @@ function recognizedFamilyForDocument(
     if (document.documentSubtype === "EX_OFFICIO") {
       return "collection.offset_ex_officio";
     }
+  }
+  const knowledgeProfile = resolveAeatDocumentProfileV1(
+    document.documentSubtype,
+  );
+  if (knowledgeProfile && issuerForDocument(document, workspace) === "AEAT") {
+    return knowledgeProfile.id;
   }
   const officialCatalogProfile = resolveAeatOfficialCatalogProfileV9(
     document.documentSubtype,
@@ -162,12 +169,13 @@ function identityProjection(workspace: FiscalNotificationsWorkspace) {
     ownerScope: workspace.ownerScope,
     role: "ACCOUNT_HOLDER" as const,
     identityMatchStatus,
-    identityMatchMethod:
-      subjectParties.some((subjectParty) => Boolean(subjectParty.taxIdNormalized))
-        ? ("TAX_ID" as const)
-        : statuses.length > 0
-          ? ("STRUCTURAL_ROLE" as const)
-          : ("NOT_AVAILABLE" as const),
+    identityMatchMethod: subjectParties.some((subjectParty) =>
+      Boolean(subjectParty.taxIdNormalized),
+    )
+      ? ("TAX_ID" as const)
+      : statuses.length > 0
+        ? ("STRUCTURAL_ROLE" as const)
+        : ("NOT_AVAILABLE" as const),
   };
 }
 
@@ -388,7 +396,9 @@ function pushTypedEntityDates(
     });
   }
   const installmentsById = new Map(
-    workspace.installments.map((installment) => [installment.id, installment] as const),
+    workspace.installments.map(
+      (installment) => [installment.id, installment] as const,
+    ),
   );
   for (const installment of workspace.installments) {
     const plan = plansById.get(installment.paymentPlanId);
@@ -663,9 +673,7 @@ function projectReferences(
   for (const reference of workspace.references) {
     const document = documentsById.get(reference.documentId);
     const sensitiveType = reference.referenceType as
-      | "CSV"
-      | "NRC"
-      | "VEHICLE_OR_FINE_REFERENCE";
+      "CSV" | "NRC" | "VEHICLE_OR_FINE_REFERENCE";
     const protectedCarrier = SENSITIVE_REFERENCE_TYPES.has(
       reference.referenceType,
     )
@@ -676,21 +684,19 @@ function projectReferences(
       : null;
     const normalized = protectedCarrier
       ? null
-      : normalizeSensitiveReferenceForFingerprintV2(
-          reference.normalizedValue,
-        );
+      : normalizeSensitiveReferenceForFingerprintV2(reference.normalizedValue);
     if ((!protectedCarrier && !normalized) || !document) return null;
     const issuerCode = issuerForDocument(document, workspace);
     let value: PersistedReferenceV2["value"] | null;
     try {
       value = SENSITIVE_REFERENCE_TYPES.has(reference.referenceType)
-        ? protectedCarrier ??
+        ? (protectedCarrier ??
           createSensitiveReferenceV2Sync({
             ownerScope: workspace.ownerScope,
             issuerCode,
             referenceType: sensitiveType,
             printedValue: normalized!,
-          })
+          }))
         : {
             storage: "NORMALIZED_REFERENCE" as const,
             normalizedValue: normalizeFiscalNotificationReferenceV2(
@@ -818,7 +824,10 @@ function projectTypedFacts(
       stateValue: plan.status,
     });
   }
-  for (const [installmentIndex, installment] of workspace.installments.entries()) {
+  for (const [
+    installmentIndex,
+    installment,
+  ] of workspace.installments.entries()) {
     const plan = plansById.get(installment.paymentPlanId);
     if (!plan) continue;
     pushStateFact({
@@ -860,9 +869,13 @@ function projectTypedFacts(
         .filter((entry) => entry.documentId === snapshot.documentId)
         .map((entry) => entry.id),
     );
-    for (const [fieldIndex, field] of snapshot.structuredData.unknownFields.entries()) {
+    for (const [
+      fieldIndex,
+      field,
+    ] of snapshot.structuredData.unknownFields.entries()) {
       const exactCode = LEGACY_FACT_LABEL_CODES.get(field.labelRaw);
-      const code = exactCode ??
+      const code =
+        exactCode ??
         (field.labelRaw.startsWith("Consecuencia indicada ")
           ? "EXPLICIT_CONSEQUENCE"
           : field.labelRaw.startsWith("Deuda afectada ")
@@ -1089,7 +1102,8 @@ export function projectFiscalNotificationsWorkspacePrivacyV2(
         issuerCode: issuerForDocument(document, workspace),
         reviewStatus: document.humanReviewStatus,
         chronologyDate: selected.chronologyDate,
-        chronologyBasis: selected.chronologyDateBasis as ChronologyBasisV2 | null,
+        chronologyBasis:
+          selected.chronologyDateBasis as ChronologyBasisV2 | null,
         dateFactIds: dates
           .filter((entry) => entry.documentId === document.id)
           .map((entry) => entry.id),

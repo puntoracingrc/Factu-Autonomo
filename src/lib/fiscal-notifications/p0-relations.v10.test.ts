@@ -68,6 +68,45 @@ describe("AEAT P0 relation engine v10", () => {
     });
   });
 
+  it("never uses an amount as exact relation identity", () => {
+    expect(
+      AEAT_P0_RELATION_RULES_V10.flatMap((rule) =>
+        rule.exactGroups.flatMap((group) => group),
+      ),
+    ).not.toContain("AMOUNT");
+    const rule = AEAT_P0_RELATION_RULES_V10.find(
+      (item) => item.ruleId === "PRECEDES_REFUND_PAYMENT",
+    )!;
+    const strongId = hash("a");
+    const relation = reconcileAeatP0RelationsV10([
+      {
+        documentId: "refund-resolution",
+        ownerScope: "owner-a",
+        familyId: rule.sourceProfiles[0]!,
+        exactFingerprints: {
+          REFUND_REFERENCE: strongId,
+          AMOUNT: hash("b"),
+        },
+        contextFingerprints: {},
+      },
+      {
+        documentId: "refund-payment",
+        ownerScope: "owner-a",
+        familyId: targetFamily(rule),
+        exactFingerprints: {
+          REFUND_REFERENCE: strongId,
+          AMOUNT: hash("c"),
+        },
+        contextFingerprints: {},
+      },
+    ]).find((item) => item.ruleId === rule.ruleId);
+
+    expect(relation).toMatchObject({
+      status: "SYSTEM_CONFIRMED_EXACT",
+      matchingFieldIds: ["REFUND_REFERENCE"],
+    });
+  });
+
   it("never crosses owners even when all fingerprints are identical", () => {
     const rule = AEAT_P0_RELATION_RULES_V10[0]!;
     const [source, target] = exactPair(rule);

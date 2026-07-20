@@ -39,6 +39,7 @@ import {
   syncRecurringExpenses,
 } from "../recurring-expenses";
 import {
+  markChangesSynced,
   mergeRemoteOntoLocal,
   rebuildCloudSnapshot,
   trackDataDiff,
@@ -72,8 +73,7 @@ function fiscalWorkspace(revision = 0): FiscalNotificationsWorkspace {
     ownerScope: FISCAL_OWNER,
     revision,
     createdAt: FISCAL_NOW,
-    updatedAt:
-      revision === 0 ? FISCAL_NOW : "2026-07-14T09:01:00.000Z",
+    updatedAt: revision === 0 ? FISCAL_NOW : "2026-07-14T09:01:00.000Z",
     packages:
       revision === 0
         ? []
@@ -198,6 +198,16 @@ function fiscalWorkspaceWithNewPrivateDocument(): FiscalNotificationsWorkspace {
   remapped.files[0]!.sha256 = "b".repeat(64);
   remapped.files[0]!.contentFingerprint = "b".repeat(64);
   return remapped;
+}
+
+function fiscalWorkspaceWithTwoPrivateDocuments(): FiscalNotificationsWorkspace {
+  const first = fiscalWorkspaceWithPrivateDocument();
+  const second = fiscalWorkspaceWithNewPrivateDocument();
+  first.packages.push(...second.packages);
+  first.files.push(...second.files);
+  first.documents.push(...second.documents);
+  first.authorities.push(...second.authorities);
+  return first;
 }
 
 function attestedHistoricalData(): AppData {
@@ -1025,11 +1035,13 @@ describe("sync del expediente fiscal estructurado", () => {
         FISCAL_OWNER,
       ),
     ).not.toBeNull();
-    expect(applySyncChanges(EMPTY_DATA, workspaceChanges).fiscalNotificationsWorkspace)
-      .toEqual({
-        ...source.fiscalNotificationsWorkspace,
-        driveArchives: [],
-      });
+    expect(
+      applySyncChanges(EMPTY_DATA, workspaceChanges)
+        .fiscalNotificationsWorkspace,
+    ).toEqual({
+      ...source.fiscalNotificationsWorkspace,
+      driveArchives: [],
+    });
     expect(
       appDataToSyncChanges(source).filter(
         (change) => change.entityType === "fiscal_notifications_workspace",
@@ -1060,8 +1072,10 @@ describe("sync del expediente fiscal estructurado", () => {
       ),
     ).not.toBeNull();
 
-    const hydrated = applySyncChanges(EMPTY_DATA, changes)
-      .fiscalNotificationsWorkspace;
+    const hydrated = applySyncChanges(
+      EMPTY_DATA,
+      changes,
+    ).fiscalNotificationsWorkspace;
     expect(hydrated).toMatchObject({
       schemaVersion: 1,
       ownerScope: FISCAL_OWNER,
@@ -1217,6 +1231,102 @@ describe("sync del expediente fiscal estructurado", () => {
     });
   });
 
+  it("compone dos eliminaciones pendientes desde la primera cabeza remota", () => {
+    const baseWorkspace = fiscalWorkspaceWithTwoPrivateDocuments();
+    const base: AppData = {
+      ...structuredClone(EMPTY_DATA),
+      fiscalNotificationsWorkspace: baseWorkspace,
+    };
+    const firstDeletion = deleteFiscalNotificationDocumentV1({
+      workspace: baseWorkspace,
+      ownerScope: FISCAL_OWNER,
+      documentId: "document:sync-privacy:1",
+      deletedAt: "2026-07-14T09:02:00.000Z",
+    });
+    expect(firstDeletion.status).toBe("APPLIED");
+    if (firstDeletion.status !== "APPLIED") return;
+    const firstWorkspace =
+      registerFiscalNotificationDocumentReductionTransitionV2(
+        firstDeletion.workspace,
+        baseWorkspace,
+        FISCAL_OWNER,
+        "2026-07-14T09:02:00.000Z",
+      );
+    expect(firstWorkspace).not.toBeNull();
+    if (!firstWorkspace) return;
+    const afterFirst: AppData = {
+      ...structuredClone(EMPTY_DATA),
+      fiscalNotificationsWorkspace: firstWorkspace,
+    };
+    const firstChanges = diffAppData(base, afterFirst).filter(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+
+    const secondDeletion = deleteFiscalNotificationDocumentV1({
+      workspace: firstWorkspace,
+      ownerScope: FISCAL_OWNER,
+      documentId: "document:sync-descendant:1",
+      deletedAt: "2026-07-14T09:03:00.000Z",
+    });
+    expect(secondDeletion.status).toBe("APPLIED");
+    if (secondDeletion.status !== "APPLIED") return;
+    const secondWorkspace =
+      registerFiscalNotificationDocumentReductionTransitionV2(
+        secondDeletion.workspace,
+        firstWorkspace,
+        FISCAL_OWNER,
+        "2026-07-14T09:03:00.000Z",
+      );
+    expect(secondWorkspace).not.toBeNull();
+    if (!secondWorkspace) return;
+    const afterSecond: AppData = {
+      ...structuredClone(EMPTY_DATA),
+      fiscalNotificationsWorkspace: secondWorkspace,
+    };
+    const secondChanges = diffAppData(afterFirst, afterSecond).filter(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
+    const pending = mergePendingChanges(firstChanges, secondChanges);
+
+    expect(pending).toHaveLength(1);
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        pending[0]?.payload,
+        FISCAL_OWNER,
+      ),
+    ).toMatchObject({
+      workspace: { revision: 3, documents: [] },
+      transition: {
+        baseRevision: 1,
+        baseDocumentIds: [
+          "document:sync-descendant:1",
+          "document:sync-privacy:1",
+        ],
+        removedDocumentIds: [
+          "document:sync-descendant:1",
+          "document:sync-privacy:1",
+        ],
+      },
+    });
+    expect(
+      applySyncChanges(base, pending).fiscalNotificationsWorkspace?.documents,
+    ).toEqual([]);
+
+    const queued: AppData = {
+      ...afterSecond,
+      meta: {
+        lastModified: "2026-07-14T09:03:00.000Z",
+        pendingChanges: pending,
+      },
+    };
+    const outgoing = buildCloudUploadChanges(queued);
+    expect(outgoing).toHaveLength(1);
+    expect(
+      markChangesSynced(queued, outgoing, "2026-07-14T09:04:00.000Z").meta
+        ?.pendingChanges,
+    ).toBeUndefined();
+  });
+
   it("sincroniza avances append-only y no degrada una revisión más nueva", () => {
     const base: AppData = {
       ...EMPTY_DATA,
@@ -1342,14 +1452,14 @@ describe("sync del expediente fiscal estructurado", () => {
     ).toMatchObject({ schemaVersion: 2, revision: 1 });
     expect(trackedFiscal?.payload).not.toMatchObject({ schemaVersion: 1 });
     const uploadChanges = buildCloudUploadChanges({
-        ...tracked,
-        meta: {
-          ...tracked.meta!,
-          pendingChanges: [...(tracked.meta?.pendingChanges ?? []), invalid],
-        },
-      }).filter(
-        (change) => change.entityType === "fiscal_notifications_workspace",
-      );
+      ...tracked,
+      meta: {
+        ...tracked.meta!,
+        pendingChanges: [...(tracked.meta?.pendingChanges ?? []), invalid],
+      },
+    }).filter(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    );
     expect(uploadChanges).toHaveLength(1);
     expect(uploadChanges[0]?.entityId).toBe(
       FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
