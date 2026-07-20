@@ -27,8 +27,8 @@ export const cuentaSection: ManualSection = {
     {
       title: "2. Confirmar el email",
       paragraphs: [
-        "Después de crear una cuenta con email, la app muestra **¡Paso 1 completado! Cuenta creada** y te avisa de que la activación llega en otro correo de Supabase.",
-        "Busca el correo de Supabase con asunto tipo **Confirm your signup** y pulsa **Confirmar cuenta**. El email de Factu es bienvenida; el de Supabase es el que valida la cuenta.",
+        "Después de crear una cuenta con email, la app muestra **¡Paso 1 completado! Cuenta creada** y te avisa de que la activación llega por email.",
+        "Busca el correo de confirmación de **Factu** y pulsa **Confirmar cuenta**. Ese enlace activa la cuenta para poder iniciar sesión y sincronizar tus datos.",
         "Mientras el email esté pendiente verás **Email pendiente de confirmar**. Puedes seguir trabajando en ese navegador, pero la nube, Drive, envíos reales y acciones de cuenta quedan bloqueadas hasta confirmar.",
         "Si no llega, usa **Reenviar email de confirmación** y revisa spam, promociones o correo no deseado.",
       ],

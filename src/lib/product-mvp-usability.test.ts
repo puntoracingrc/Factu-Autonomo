@@ -599,6 +599,8 @@ describe("MVP usability polish", () => {
     expect(cloudAccountSource).toContain("entrar verás los primeros pasos");
     expect(cloudAccountSource).toContain("en el Panel");
     expect(signupSuccessSource).toContain("Panel de primeros pasos");
+    expect(signupSuccessSource).toContain("email de confirmación de <strong>Factu</strong>");
+    expect(signupSuccessSource).not.toContain("Confirm your signup");
   });
 
   it("usa la marca publica coherente con el dominio", () => {

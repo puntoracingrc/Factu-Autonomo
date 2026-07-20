@@ -68,8 +68,8 @@ export function SignupSuccessPanel({
             <span className="text-emerald-800">
               {needsEmailConfirmation ? (
                 <>
-                  Busca el email de <strong>Supabase</strong> con asunto tipo
-                  «Confirm your signup» y pulsa <strong>Confirmar cuenta</strong>.
+                  Abre el email de confirmación de <strong>Factu</strong> y pulsa{" "}
+                  <strong>Confirmar cuenta</strong>.
                 </>
               ) : (
                 "No hace falta confirmar el email en este servidor."
@@ -101,9 +101,8 @@ export function SignupSuccessPanel({
       </ol>
 
       <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
-        <strong>Importante:</strong> primero activa la cuenta con el correo de
-        Supabase enviado a {email}. La bienvenida de Factu llegará después de
-        confirmar e iniciar sesión.
+        <strong>Importante:</strong> te hemos enviado el enlace de activación a{" "}
+        {email}. Después de confirmar, vuelve aquí e inicia sesión.
       </p>
 
       <Button fullWidth onClick={onContinueToSignIn}>
