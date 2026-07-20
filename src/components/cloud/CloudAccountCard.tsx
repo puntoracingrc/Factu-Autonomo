@@ -342,7 +342,7 @@ export function CloudAccountCard({
     if (error) setAuthError(error);
     else {
       setResendNotice(
-        "Email de confirmación reenviado. Busca el correo de Supabase (no el de Factu).",
+        "Email de confirmación reenviado. Busca el correo de confirmación de Factu.",
       );
     }
   }

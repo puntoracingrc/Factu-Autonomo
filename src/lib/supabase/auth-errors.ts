@@ -6,7 +6,7 @@ export function isEmailNotConfirmedError(message: string): boolean {
 
 export function friendlyAuthError(message: string): string {
   if (isEmailNotConfirmedError(message)) {
-    return "Tu cuenta aún no está confirmada. Busca el email de Supabase (no el de Factu) y pulsa «Confirmar cuenta».";
+    return "Tu cuenta aún no está confirmada. Busca el email de confirmación de Factu y pulsa «Confirmar cuenta».";
   }
   return message;
 }
