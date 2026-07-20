@@ -323,6 +323,40 @@ const ALL_LABELS = Object.freeze([
   ...Object.values(SPECIFIC_LABELS).flat(),
 ]);
 
+const SAFE_SINGLE_WORD_INLINE_LABELS = new Set([
+  "costas",
+  "instrucciones",
+  "principal",
+]);
+const ABSOLUTE_DEADLINE_PREFIXES = new Set([
+  "",
+  "antes de",
+  "antes del",
+  "como maximo",
+  "como maximo el",
+  "dia",
+  "el",
+  "el dia",
+  "fecha",
+  "fecha de vencimiento",
+  "fecha limite",
+  "hasta",
+  "hasta el",
+  "no mas tarde de",
+  "no mas tarde del",
+  "vence",
+  "vence el",
+  "vencimiento",
+  "vencimiento el",
+]);
+const ABSOLUTE_DEADLINE_SUFFIXES = new Set([
+  "",
+  "ambos inclusive",
+  "incluida",
+  "incluido",
+  "inclusive",
+]);
+
 const OFFICIAL_AEAT_DOMAINS = new Set([
   "sede.agenciatributaria.gob.es",
   "www.agenciatributaria.es",
@@ -627,7 +661,7 @@ function parseSeizure(
       dateType: "RESPONSE_DEADLINE",
       rawText: rawResponseDeadline.printedValue,
       rawDeadlineText: rawResponseDeadline.printedValue,
-      parsedDate: parsePrintedDate(rawResponseDeadline.printedValue),
+      parsedDate: parseExplicitDeadlineDate(rawResponseDeadline.printedValue),
       timezone: null,
       sourceDocumentId: documentId,
       sourcePage: rawResponseDeadline.pageNumbers[0]!,
@@ -740,8 +774,9 @@ function labelObservations(
   labels: readonly string[],
 ): readonly { readonly value: string; readonly pageNumber: number }[] {
   return Object.freeze(lines.flatMap((line, index) => {
-    if (!labels.some((label) => matchesLabel(line.folded, label))) return [];
-    const value = extractLabelValue(lines, line, index);
+    const label = matchingLabel(line.folded, labels);
+    if (!label) return [];
+    const value = extractLabelValue(lines, line, index, label);
     return value ? [Object.freeze({ value, pageNumber: line.pageNumber })] : [];
   }));
 }
@@ -856,9 +891,9 @@ function extractLabelValue(
   lines: readonly PrivateLineV1[],
   line: PrivateLineV1,
   index: number,
+  label: string,
 ): string | null {
-  const separator = line.raw.search(/[:\-]/u);
-  const sameLine = separator >= 0 ? line.raw.slice(separator + 1).trim() : "";
+  const sameLine = valueAfterLabel(line.raw, label);
   if (sameLine.length > 0 && sameLine.length <= SEIZURE_EXTRACTOR_LIMITS_V1.maxTextFactChars) {
     return sameLine;
   }
@@ -869,6 +904,12 @@ function extractLabelValue(
     next.raw.length <= SEIZURE_EXTRACTOR_LIMITS_V1.maxTextFactChars &&
     !ALL_LABELS.some((label) => matchesLabel(next.folded, label))
   ) {
+    if (
+      (label === "principal" || label === "costas") &&
+      !isDirectInlineMoney(next.raw)
+    ) {
+      return null;
+    }
     return next.raw;
   }
   return null;
@@ -1032,6 +1073,20 @@ function parsePrintedDate(value: string): string | null {
     : null;
 }
 
+function parseExplicitDeadlineDate(value: string): string | null {
+  const match = /\b\d{1,2}[/-]\d{1,2}[/-](?:19|20)\d{2}\b/u.exec(value);
+  if (!match) return null;
+  const prefix = foldDeadlineContext(value.slice(0, match.index));
+  const suffix = foldDeadlineContext(
+    value.slice(match.index + match[0].length),
+  );
+  return ABSOLUTE_DEADLINE_PREFIXES.has(prefix) &&
+    (ABSOLUTE_DEADLINE_SUFFIXES.has(suffix) ||
+      /^(?:a las )?\d{1,2}(?: \d{2})?(?: horas?)?$/u.test(suffix))
+    ? parsePrintedDate(value)
+    : null;
+}
+
 function maskAccount(value: string): string {
   const compact = value.normalize("NFKC").replace(/[^A-Za-z0-9]/gu, "");
   return compact.length >= 4 ? `****${compact.slice(-4).toUpperCase()}` : "****";
@@ -1108,8 +1163,76 @@ function fold(value: string): string {
     .toLowerCase();
 }
 
+function foldDeadlineContext(value: string): string {
+  return fold(value).replace(/[^a-z0-9]+/gu, " ").trim();
+}
+
+function supportsInlineValue(label: string): boolean {
+  return label.includes(" ") || SAFE_SINGLE_WORD_INLINE_LABELS.has(label);
+}
+
+function isDirectInlineMoney(value: string): boolean {
+  return /^-?(?:(?:\d{1,3}(?:[. ]\d{3})+)|[0-9]+),\d{2}(?:\s*(?:€|eur|euros?))?$/iu.test(
+    value.trim(),
+  );
+}
+
+function foldedInlineValue(value: string, label: string): string {
+  return value
+    .slice(label.length)
+    .replace(/^\s*(?::|-)\s*/u, "")
+    .trim();
+}
+
+function matchingLabel(
+  value: string,
+  labels: readonly string[],
+): string | null {
+  return (
+    [...labels]
+      .filter((label) => {
+        if (value === label) return true;
+        const separated =
+          value.startsWith(`${label}:`) || value.startsWith(`${label} -`);
+        const spaced = value.startsWith(`${label} `);
+        if (!separated && !(supportsInlineValue(label) && spaced)) return false;
+        if (
+          label.includes(" ") ||
+          label === "instrucciones" ||
+          !SAFE_SINGLE_WORD_INLINE_LABELS.has(label)
+        ) {
+          return true;
+        }
+        const inlineValue = foldedInlineValue(value, label);
+        return inlineValue.length === 0 || isDirectInlineMoney(inlineValue);
+      })
+      .sort((left, right) => right.length - left.length)[0] ?? null
+  );
+}
+
 function matchesLabel(value: string, label: string): boolean {
-  return value === label || value.startsWith(`${label}:`) || value.startsWith(`${label} -`);
+  return matchingLabel(value, [label]) !== null;
+}
+
+function valueAfterLabel(raw: string, label: string): string {
+  const normalized = raw
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[‐‑‒–—−]/gu, "-")
+    .toLowerCase();
+  const expression = new RegExp(
+    `^\\s*${label
+      .split(" ")
+      .map((token) => token.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&"))
+      .join("\\s+")}(?=\\s|:|-|$)`,
+    "u",
+  );
+  const match = expression.exec(normalized);
+  if (!match) return "";
+  return raw
+    .slice(match[0].length)
+    .replace(/^\s*(?::|-)\s*/u, "")
+    .trim();
 }
 
 function containsTokenSequence(value: string, marker: string): boolean {

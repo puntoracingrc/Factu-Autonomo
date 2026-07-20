@@ -402,6 +402,7 @@ const CLOSED_WARNING_CODE =
 const PII_LIKE_REFERENCE =
   /^(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J]|ES\d{22}|[6789]\d{8})$/u;
 const CLOSED_FACT_VALUE = "Detectado en el documento";
+const OBSERVED_FACT_VALUE = "Consta en el documento";
 const SAFE_STATUS_VALUES = new Set([
   "Pendiente de revisión",
   "Requerimiento pendiente de revisión",
@@ -1137,7 +1138,8 @@ function projectSeizure(
       field({
         fieldId: `seizure-money:${index + 1}:${item.role}`,
         semantic: "MONEY",
-        canonicalType: item.role,
+        canonicalType:
+          item.role === "PRINCIPAL" ? "OUTSTANDING_PRINCIPAL" : item.role,
         label: SEIZURE_MONEY_LABEL[item.role],
         displayValue: formatCents(item.amountCents, item.sign),
         amountCents: item.amountCents,
@@ -1351,7 +1353,7 @@ function addTextFact(
       semantic: "DETAIL",
       canonicalType,
       label,
-      displayValue: CLOSED_FACT_VALUE,
+      displayValue: OBSERVED_FACT_VALUE,
       normalizedValue: canonicalType,
       sourcePageNumbers: fact.pageNumbers,
       sourceLabel: label,
@@ -2076,6 +2078,7 @@ function assertSerializableFieldPrivacy(
       }
       if (
         displayValue !== CLOSED_FACT_VALUE &&
+        displayValue !== OBSERVED_FACT_VALUE &&
         displayValue !== "Título y autoridad coinciden" &&
         !/^Interviniente [1-9]\d*$/u.test(displayValue) &&
         ![

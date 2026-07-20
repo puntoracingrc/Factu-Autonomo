@@ -14,6 +14,53 @@ function input(text: string): BoundedDocumentInput {
   });
 }
 
+function stackedInput(lines: readonly string[]): BoundedDocumentInput {
+  return Object.freeze({
+    ownerScope: "user:synthetic-local-ocr",
+    documentId: "document:synthetic-stacked-local-ocr",
+    pages: Object.freeze([
+      Object.freeze({
+        pageNumber: 1,
+        text: lines.join("\n"),
+        isBlank: false,
+        layoutRows: Object.freeze(
+          lines.map((text, index) =>
+            Object.freeze({
+              yMilli: 950_000 - index * 18_000,
+              cells: Object.freeze([
+                Object.freeze({
+                  xMilli: 90_000,
+                  widthMilli: 600_000,
+                  text,
+                }),
+              ]),
+            }),
+          ),
+        ),
+      }),
+    ]),
+  });
+}
+
+function semanticFieldSignatures(
+  document: Awaited<
+    ReturnType<typeof analyzeFiscalNotificationDocumentInput>
+  >["verticalSliceReview"]["documents"][number],
+): readonly string[] {
+  return document.fields.flatMap((field) => {
+    if (field.semantic === "REFERENCE") {
+      return [`${field.semantic}:${field.canonicalType}:${field.normalizedValue}`];
+    }
+    if (field.semantic === "DATE") {
+      return [`${field.semantic}:${field.canonicalType}:${field.normalizedValue}`];
+    }
+    if (field.semantic === "MONEY") {
+      return [`${field.semantic}:${field.canonicalType}:${field.amountCents}`];
+    }
+    return [];
+  });
+}
+
 function multipageInput(pages: readonly (readonly string[])[]): BoundedDocumentInput {
   return Object.freeze({
     ownerScope: "user:synthetic-local-ocr",
@@ -576,6 +623,129 @@ describe("fiscal notification document input analysis", () => {
           normalizedValue: "2026-02-05",
         }),
       ]),
+    );
+  });
+
+  it("keeps stacked enforcement references, dates and amounts in their printed semantic slots", async () => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      stackedInput([
+        "DOCUMENTO SINTÉTICO DE QA - SIN VALIDEZ",
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "PROVIDENCIA DE APREMIO",
+        "IDENTIFICACIÓN DEL DOCUMENTO",
+        "Prueba automatizada local",
+        "Clave de liquidación",
+        "LQ-SYNTH-QA-2026-001",
+        "Referencia del documento",
+        "APR-SYNTH-QA-2026-001",
+        "Número de expediente",
+        "EXP-SYNTH-QA-2026-001",
+        "Fecha de emisión",
+        "05/02/2026",
+        "Fecha de firma",
+        "06/02/2026",
+        "Fecha de finalización del período voluntario",
+        "28/02/2026",
+        "IMPORTE DE LA DEUDA",
+        "Desglose impreso",
+        "Principal pendiente 100,00 EUR",
+        "Recargo de apremio ordinario (20 %) 20,00 EUR",
+        "Ingreso a cuenta 0,00 EUR",
+        "Importe total 120,00 EUR",
+      ]),
+    );
+
+    expect(result.verticalSliceReview.documents).toHaveLength(1);
+    const document = result.verticalSliceReview.documents[0]!;
+    expect(document).toMatchObject({
+      familyId: "collection.enforcement_order",
+      title: "Providencia de apremio",
+    });
+    expect(semanticFieldSignatures(document)).toEqual([
+      "REFERENCE:LIQUIDATION_KEY:LQ-SYNTH-QA-2026-001",
+      "REFERENCE:ACT_ID:APR-SYNTH-QA-2026-001",
+      "REFERENCE:EXPEDIENTE_ID:EXP-SYNTH-QA-2026-001",
+      "DATE:ISSUE_DATE:2026-02-05",
+      "DATE:SIGNING_DATE:2026-02-06",
+      "DATE:VOLUNTARY_PAYMENT_DEADLINE:2026-02-28",
+      "MONEY:OUTSTANDING_PRINCIPAL:10000",
+      "MONEY:EXECUTIVE_SURCHARGE_20:2000",
+      "MONEY:PAYMENT_ON_ACCOUNT:0",
+      "MONEY:OTHER:12000",
+    ]);
+    expect(
+      document.fields.every((field) =>
+        field.sourcePageNumbers.every((pageNumber) => pageNumber === 1),
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps stacked bank seizure fields in their printed semantic slots", async () => {
+    const result = await analyzeFiscalNotificationDocumentInput(
+      stackedInput([
+        "DOCUMENTO SINTÉTICO DE QA - SIN VALIDEZ",
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+        "Número de diligencia EMB-SYNTH-QA-2026-002",
+        "Número de expediente EXP-SYNTH-QA-2026-001",
+        "Clave de deuda DEBT-SYNTH-QA-2026-001",
+        "Clave de liquidación LQ-SYNTH-QA-2026-001",
+        "Referencia de la providencia APR-SYNTH-QA-2026-001",
+        "Fecha de emisión 03/03/2026",
+        "Fecha del embargo 04/03/2026",
+        "Plazo de contestación 12/03/2026",
+        "Principal 100,00 EUR",
+        "Recargo de apremio 20,00 EUR",
+        "Intereses de demora 3,00 EUR",
+        "Costas 1,00 EUR",
+        "Total pendiente 124,00 EUR",
+        "Importe a embargar 124,00 EUR",
+        "Instrucciones Contestar por la sede electrónica",
+      ]),
+    );
+
+    expect(result.verticalSliceReview.documents).toHaveLength(1);
+    const document = result.verticalSliceReview.documents[0]!;
+    expect(document).toMatchObject({
+      familyId: "seizure.bank_account",
+      title: "Diligencia de embargo de cuenta bancaria",
+    });
+    expect(semanticFieldSignatures(document)).toEqual([
+      "REFERENCE:SEIZURE_ORDER_ID:EMB-SYNTH-QA-2026-002",
+      "REFERENCE:EXPEDIENTE_ID:EXP-SYNTH-QA-2026-001",
+      "REFERENCE:DEBT_KEY:DEBT-SYNTH-QA-2026-001",
+      "REFERENCE:LIQUIDATION_KEY:LQ-SYNTH-QA-2026-001",
+      "REFERENCE:ACT_ID:APR-SYNTH-QA-2026-001",
+      "DATE:ISSUE_DATE:2026-03-03",
+      "DATE:SEIZURE_DATE:2026-03-04",
+      "DATE:RESPONSE_DEADLINE:2026-03-12",
+      "MONEY:OUTSTANDING_PRINCIPAL:10000",
+      "MONEY:EXECUTIVE_SURCHARGE:2000",
+      "MONEY:LATE_INTEREST:300",
+      "MONEY:COSTS:100",
+      "MONEY:TOTAL_PENDING:12400",
+      "MONEY:SEIZED_AMOUNT:12400",
+    ]);
+    expect(
+      document.fields.every((field) =>
+        field.sourcePageNumbers.every((pageNumber) => pageNumber === 1),
+      ),
+    ).toBe(true);
+    expect(document.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          semantic: "DETAIL",
+          canonicalType: "SEIZURE_INSTRUCTIONS",
+          displayValue: "Consta en el documento",
+          normalizedValue: "SEIZURE_INSTRUCTIONS",
+          sourcePageNumbers: [1],
+        }),
+      ]),
+    );
+    expect(JSON.stringify(result.verticalSliceReview)).not.toContain(
+      "Contestar por la sede electrónica",
     );
   });
 

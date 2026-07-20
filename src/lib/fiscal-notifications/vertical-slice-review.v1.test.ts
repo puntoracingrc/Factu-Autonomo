@@ -166,13 +166,13 @@ describe("fiscal notification vertical-slice review v1", () => {
       expect.objectContaining({
         semantic: "DETAIL",
         canonicalType: "NOTIFICATION_SUBJECT",
-        displayValue: "Detectado en el documento",
+        displayValue: "Consta en el documento",
         normalizedValue: "NOTIFICATION_SUBJECT",
       }),
       expect.objectContaining({
         semantic: "DETAIL",
         canonicalType: "NOTIFICATION_CHANNEL",
-        displayValue: "Detectado en el documento",
+        displayValue: "Consta en el documento",
         normalizedValue: "NOTIFICATION_CHANNEL",
       }),
     ]));
@@ -276,7 +276,7 @@ describe("fiscal notification vertical-slice review v1", () => {
       }),
     ]));
     expect(JSON.stringify(review)).not.toMatch(
-      /ES00 0000 0000 0000 1234|12345678Z|A12345674|PERSONA DEUDORA SINTÉTICA|BANCO SINTÉTICO|MASKED_ACCOUNT|DEBTOR_TAX_ID|RECIPIENT_TAX_ID/iu,
+      /ES00 0000 0000 0000 1234|12345678Z|A12345674|PERSONA DEUDORA SINTÉTICA|BANCO SINTÉTICO|CONTESTAR POR LA SEDE ELECTRÓNICA|MASKED_ACCOUNT|DEBTOR_TAX_ID|RECIPIENT_TAX_ID/iu,
     );
     expect(JSON.stringify(review)).not.toContain(BANK_SEIZURE);
   });
@@ -370,6 +370,20 @@ describe("fiscal notification vertical-slice review v1", () => {
       displayValue: "ABCDEF1234567890GHIJKL",
       normalizedValue: "ABCDEF1234567890GHIJKL",
     });
+    const rawObservedDetail = structuredClone(
+      projectFiscalNotificationVerticalSliceReviewV1(
+        await analyzeFiscalNotificationVerticalSliceV1(
+          document(BANK_SEIZURE),
+        ),
+      ),
+    );
+    const instructions = rawObservedDetail.documents[0]!.fields.find(
+      (candidate) => candidate.canonicalType === "SEIZURE_INSTRUCTIONS",
+    )!;
+    (instructions as { displayValue: string }).displayValue =
+      "Presentar para Persona Privada en Calle Privada 1 EXACT_INTERNAL";
+    (instructions as { normalizedValue: string }).normalizedValue =
+      "Presentar para Persona Privada en Calle Privada 1 EXACT_INTERNAL";
 
     expect(() => parseFiscalNotificationVerticalSliceReviewV1(partyPii)).toThrow(
       FiscalNotificationVerticalSliceReviewErrorV1,
@@ -380,6 +394,9 @@ describe("fiscal notification vertical-slice review v1", () => {
     expect(() => parseFiscalNotificationVerticalSliceReviewV1(rawNrc)).toThrow(
       FiscalNotificationVerticalSliceReviewErrorV1,
     );
+    expect(() =>
+      parseFiscalNotificationVerticalSliceReviewV1(rawObservedDetail),
+    ).toThrow(FiscalNotificationVerticalSliceReviewErrorV1);
   });
 
   it("rejects money without safe integer cents and fields outside document pages", async () => {

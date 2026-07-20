@@ -3759,6 +3759,7 @@
           "EXECUTIVE_SURCHARGE_PRINTED",
           "LATE_PAYMENT_INTEREST",
           "COSTS",
+          "PAYMENT_ON_ACCOUNT",
           "DOCUMENT_TOTAL"
         ],
         "facts": [
@@ -5373,6 +5374,7 @@
           "SEIZURE_ORDER_ID",
           "PROCEDURE_ID",
           "EXPEDIENTE_ID",
+          "ACT_ID",
           "DEBT_KEY",
           "LIQUIDATION_KEY",
           "CSV"
@@ -5381,6 +5383,7 @@
           "ISSUE_DATE",
           "SIGNING_DATE",
           "SEIZURE_DATE",
+          "RESPONSE_DEADLINE",
           "EFFECTIVE_NOTIFICATION_DATE",
           "APPEAL_DEADLINE"
         ],
@@ -5390,12 +5393,15 @@
           "RETAINED_AMOUNT",
           "REMITTED_AMOUNT",
           "COSTS",
-          "LATE_PAYMENT_INTEREST"
+          "LATE_PAYMENT_INTEREST",
+          "EXECUTIVE_SURCHARGE_PRINTED",
+          "TOTAL_PENDING"
         ],
         "facts": [
           "FINANCIAL_ENTITY",
           "ACCOUNT_OR_DEPOSIT",
           "SEIZED_RIGHT",
+          "SEIZURE_INSTRUCTIONS",
           "APPEAL_INFORMATION"
         ],
         "participantRoles": [

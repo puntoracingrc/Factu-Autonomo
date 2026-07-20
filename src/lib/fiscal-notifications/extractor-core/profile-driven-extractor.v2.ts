@@ -26,6 +26,7 @@ import {
   type ProfileFieldContractV2,
 } from "./profile-field-adapter.v2";
 import {
+  PROFILE_FIELD_LABELS_V2,
   resolveProfileFieldLabelV2,
   type ProfileFieldLabelV2,
 } from "./profile-field-labels.v2";
@@ -147,6 +148,41 @@ const ISO_DATE = /^(\d{4})-(\d{2})-(\d{2})$/u;
 const SPANISH_DATE = /^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/u;
 const SPANISH_DATE_WORDS =
   /^(\d{1,2})\s+de\s+([a-záéíóúüñ]+)\s+de\s+(\d{4})$/iu;
+const DEADLINE_DATE_FIELD_CODES = new Set([
+  "APPEAL_DEADLINE",
+  "EXPIRATION_DATE",
+  "INSTALLMENT_DUE_DATE",
+  "RESPONSE_DEADLINE",
+  "VOLUNTARY_PAYMENT_DEADLINE",
+]);
+const ABSOLUTE_DEADLINE_PREFIXES = new Set([
+  "",
+  "antes de",
+  "antes del",
+  "como maximo",
+  "como maximo el",
+  "dia",
+  "el",
+  "el dia",
+  "fecha",
+  "fecha de vencimiento",
+  "fecha limite",
+  "hasta",
+  "hasta el",
+  "no mas tarde de",
+  "no mas tarde del",
+  "vence",
+  "vence el",
+  "vencimiento",
+  "vencimiento el",
+]);
+const ABSOLUTE_DEADLINE_SUFFIXES = new Set([
+  "",
+  "ambos inclusive",
+  "incluida",
+  "incluido",
+  "inclusive",
+]);
 const SPANISH_MONTHS = Object.freeze(
   new Map<string, number>([
     ["enero", 1],
@@ -739,8 +775,48 @@ function valueAfterClosedLiteral(raw: string, literal: string): string | null {
   );
   const match = expression.exec(source);
   if (!match) return null;
-  const suffix = source.slice(match.index + match[0].length).trim();
+  const prefix = source.slice(0, match.index).trim();
+  const finalPrefixCharacter = prefix.at(-1) ?? "";
+  if (
+    prefix &&
+    !".:;|()[]{}<>,/\\-‐‑‒–—−".includes(finalPrefixCharacter)
+  ) {
+    return null;
+  }
+  const suffix = source
+    .slice(match.index + match[0].length)
+    .trim()
+    .replace(/^(?::|[-‐‑‒–—−])\s*/u, "")
+    .trim();
   return suffix || null;
+}
+
+function plausibleSingleWordInlineLabels(
+  literal: string,
+  labels: readonly ProfileFieldLabelV2[],
+  value: string,
+): readonly ProfileFieldLabelV2[] {
+  if (literal.includes(" ")) return labels;
+  return Object.freeze(
+    labels.filter((label) => {
+      if (label.kind === "MONEY") return parsePrintedEurCents(value) !== null;
+      if (label.kind === "DATE") return parsePrintedDate(value) !== null;
+      return label.kind === "REFERENCE" ||
+        label.kind === "FACT" ||
+        label.kind === "PARTICIPANT_ROLE";
+    }),
+  );
+}
+
+function lineUsesSingleWordLabel(
+  line: PrivateLineV2,
+  label: ProfileFieldLabelV2,
+): boolean {
+  const split = splitClosedLabel(line);
+  return !split.label.includes(" ") &&
+    [label.labelEs, ...label.aliasesEs].some(
+      (literal) => normalizeForMatching(literal) === split.label,
+    );
 }
 
 function matchClosedFieldLabel(
@@ -753,22 +829,43 @@ function matchClosedFieldLabel(
   const split = splitClosedLabel(line);
   const exact = knownLabels.get(split.label);
   if (exact) {
-    return Object.freeze({ labels: exact, inlineValue: split.inlineValue });
+    const labels = split.inlineValue === null
+      ? exact
+      : plausibleSingleWordInlineLabels(
+          split.label,
+          exact,
+          split.inlineValue,
+        );
+    return labels.length > 0
+      ? Object.freeze({ labels, inlineValue: split.inlineValue })
+      : null;
   }
 
   let selectedLiteral: string | null = null;
+  let selectedLabels: readonly ProfileFieldLabelV2[] = Object.freeze([]);
+  let selectedInlineValue: string | null = null;
   for (const literal of knownLabels.keys()) {
+    if (!containsClosedTokenSequence(line.normalized, literal)) continue;
+    const inlineValue = valueAfterClosedLiteral(line.raw, literal);
+    if (!inlineValue) continue;
+    const labels = plausibleSingleWordInlineLabels(
+      literal,
+      knownLabels.get(literal) ?? Object.freeze([]),
+      inlineValue,
+    );
     if (
-      containsClosedTokenSequence(line.normalized, literal) &&
+      labels.length > 0 &&
       (selectedLiteral === null || literal.length > selectedLiteral.length)
     ) {
       selectedLiteral = literal;
+      selectedLabels = labels;
+      selectedInlineValue = inlineValue;
     }
   }
   if (selectedLiteral === null) return null;
   return Object.freeze({
-    labels: knownLabels.get(selectedLiteral) ?? Object.freeze([]),
-    inlineValue: valueAfterClosedLiteral(line.raw, selectedLiteral),
+    labels: selectedLabels,
+    inlineValue: selectedInlineValue,
   });
 }
 
@@ -908,6 +1005,63 @@ function extractAllPrintedDates(value: string): readonly string[] {
   return Object.freeze([...values]);
 }
 
+function firstPrintedDateMatch(
+  value: string,
+): Readonly<{ index: number; length: number }> | null {
+  const matches = [
+    /\b\d{4}-\d{1,2}-\d{1,2}\b/u.exec(value),
+    /\b\d{1,2}[./-]\d{1,2}[./-]\d{4}\b/u.exec(value),
+    /\b\d{1,2}\s+de\s+[a-záéíóúüñ]+\s+de\s+\d{4}\b/iu.exec(value),
+  ].filter((match): match is RegExpExecArray => match !== null);
+  if (matches.length === 0) return null;
+  const first = matches.reduce((earliest, match) =>
+    match.index < earliest.index ? match : earliest,
+  );
+  return Object.freeze({ index: first.index, length: first[0].length });
+}
+
+function isExplicitAbsoluteDeadlineValue(value: string): boolean {
+  const date = firstPrintedDateMatch(value);
+  if (!date) return false;
+  const normalizeDeadlineContext = (context: string): string =>
+    normalizeForMatching(context)
+      .replace(/^[,.;:()]+|[,.;:()]+$/gu, "")
+      .trim();
+  const prefix = normalizeDeadlineContext(value.slice(0, date.index));
+  const suffix = normalizeDeadlineContext(
+    value.slice(date.index + date.length),
+  );
+  return ABSOLUTE_DEADLINE_PREFIXES.has(prefix) &&
+    (ABSOLUTE_DEADLINE_SUFFIXES.has(suffix) ||
+      /^(?:a las )?\d{1,2}(?: \d{2})?(?: horas?)?$/u.test(suffix));
+}
+
+function extractPrintedDateForField(
+  value: string,
+  fieldCode: string,
+): string | null {
+  if (
+    DEADLINE_DATE_FIELD_CODES.has(fieldCode) &&
+    !isExplicitAbsoluteDeadlineValue(value)
+  ) {
+    return null;
+  }
+  return extractPrintedDate(value);
+}
+
+function extractAllPrintedDatesForField(
+  value: string,
+  fieldCode: string,
+): readonly string[] {
+  if (
+    DEADLINE_DATE_FIELD_CODES.has(fieldCode) &&
+    !isExplicitAbsoluteDeadlineValue(value)
+  ) {
+    return Object.freeze([]);
+  }
+  return extractAllPrintedDates(value);
+}
+
 function parsePrintedEurCents(value: string): number | null {
   const trimmed = value.trim();
   const hasCurrency = /(?:EUR|€)$/iu.test(trimmed.replace(/\s+/gu, ""));
@@ -968,14 +1122,73 @@ function allClosedLayoutLabels(
 ): readonly ProfileFieldLabelV2[] {
   const normalized = normalizeForMatching(raw);
   if (!normalized) return Object.freeze([]);
-  const matches: ProfileFieldLabelV2[] = [];
-  for (const [literal, labels] of knownLabels) {
-    if (!containsClosedTokenSequence(normalized, literal)) continue;
-    for (const label of labels) {
-      if (!matches.includes(label)) matches.push(label);
-    }
+  const matchingLiterals = [...knownLabels.keys()].filter((literal) => {
+    if (!containsClosedTokenSequence(normalized, literal)) return false;
+    if (literal.includes(" ") || normalized === literal) return true;
+    const inlineValue = valueAfterClosedLiteral(raw, literal);
+    return inlineValue !== null &&
+      plausibleSingleWordInlineLabels(
+        literal,
+        knownLabels.get(literal) ?? Object.freeze([]),
+        inlineValue,
+      ).length > 0;
+  });
+  const mostSpecificLiterals = matchingLiterals.filter(
+    (literal) =>
+      !matchingLiterals.some(
+        (candidate) =>
+          candidate.length > literal.length &&
+          containsClosedTokenSequence(candidate, literal),
+      ),
+  );
+  return Object.freeze(
+    mostSpecificLiterals.flatMap((literal, index) =>
+      (knownLabels.get(literal) ?? []).filter(
+        (label) =>
+          !mostSpecificLiterals
+            .slice(0, index)
+            .some((previous) => knownLabels.get(previous)?.includes(label)),
+      ),
+    ),
+  );
+}
+
+function hasInlineScalarLabel(
+  raw: string,
+  kind: ProfileFieldLabelV2["kind"],
+): boolean {
+  const normalized = normalizeForMatching(raw);
+  if (!normalized) return false;
+  if (kind === "DATE") {
+    if (extractAllPrintedDates(raw).length === 0) return false;
+    const residue = normalized
+      .replace(/\b\d{1,4}\b/gu, " ")
+      .replace(
+        /\b(?:de|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\b/gu,
+        " ",
+      )
+      .replace(/\b(?:a|al|del|desde|dia|el|entre|hasta|y)\b/gu, " ")
+      .replace(/[^a-z]+/gu, "");
+    return residue.length > 0;
   }
-  return Object.freeze(matches);
+  if (kind === "MONEY") {
+    if (extractPrintedEurCents(raw) === null) return false;
+    const residue = normalized
+      .replace(/\b\d[\d.,]*\b/gu, " ")
+      .replace(/\b(?:eur|euro|euros)\b/gu, " ")
+      .replace(/[^a-z]+/gu, "");
+    return residue.length > 0;
+  }
+  if (kind === "REFERENCE") {
+    const reference = extractPrintedReference(raw);
+    if (!reference) return false;
+    const normalizedReference = normalizeForMatching(reference);
+    const residue = normalized
+      .replace(normalizedReference, " ")
+      .replace(/[^a-z]+/gu, "");
+    return residue.length > 0;
+  }
+  return false;
 }
 
 function layoutValuesBelow(input: {
@@ -984,21 +1197,59 @@ function layoutValuesBelow(input: {
   readonly labelX: number;
   readonly labelWidth: number;
   readonly label: ProfileFieldLabelV2;
+  readonly knownLabels: ReadonlyMap<
+    string,
+    readonly ProfileFieldLabelV2[]
+  >;
 }): readonly string[] {
   const rows = input.page.layoutRows ?? Object.freeze([]);
   const header = rows[input.rowIndex];
   if (!header) return Object.freeze([]);
   const values: string[] = [];
-  const maxX =
+  const defaultMaxX =
     input.labelX + Math.max(input.labelWidth + 180_000, 220_000);
   const minX = input.labelX - 20_000;
+  const maxX = defaultMaxX;
   for (let index = input.rowIndex + 1; index < rows.length; index += 1) {
     const row = rows[index]!;
     const verticalDistance = header.yMilli - row.yMilli;
     if (verticalDistance <= 0) continue;
     if (verticalDistance > 100_000) break;
-    for (const cell of row.cells) {
-      if (cell.xMilli < minX || cell.xMilli > maxX) continue;
+    const windowCells = row.cells.filter(
+      (cell) =>
+        cell.xMilli + cell.widthMilli >= minX && cell.xMilli <= maxX,
+    );
+    const maxAnchorDistance = Math.max(input.labelWidth + 40_000, 80_000);
+    const columnCells = windowCells.filter(
+      (cell) => Math.abs(cell.xMilli - input.labelX) <= maxAnchorDistance,
+    );
+    const anchorCell = columnCells.reduce<(typeof columnCells)[number] | null>(
+      (nearest, cell) =>
+        nearest === null ||
+        Math.abs(cell.xMilli - input.labelX) <
+          Math.abs(nearest.xMilli - input.labelX)
+          ? cell
+          : nearest,
+      null,
+    );
+    const relevantCells = anchorCell === null
+      ? Object.freeze([])
+      : windowCells.filter(
+          (cell) =>
+            cell.xMilli >= anchorCell.xMilli - 20_000 &&
+            cell.xMilli <=
+              anchorCell.xMilli + Math.max(input.labelWidth + 40_000, 80_000),
+        );
+    if (
+      relevantCells.some(
+        (cell) =>
+          allClosedLayoutLabels(cell.text, input.knownLabels).length > 0 ||
+          hasInlineScalarLabel(cell.text, input.label.kind),
+      )
+    ) {
+      break;
+    }
+    for (const cell of relevantCells) {
       const printed = safePrintedValue(cell.text.trim());
       if (!printed) continue;
       if (
@@ -1031,6 +1282,7 @@ async function extractFieldCandidates(
 ): Promise<readonly ProfileFieldCandidateV2[]> {
   const labels = activeLabels(contract);
   const byLabel = labelsByNormalizedText(labels);
+  const layoutBoundaries = labelsByNormalizedText(PROFILE_FIELD_LABELS_V2);
   const candidates: ProfileFieldCandidateV2[] = [];
   const seen = new Set<string>();
   const roleOrdinals = new Map<string, number>();
@@ -1101,11 +1353,19 @@ async function extractFieldCandidates(
       }
       const printedValue = safePrintedValue(
         closed.inlineValue ??
-          nextClosedValue(index.lines, lineIndex, line.pageNumber, byLabel),
+          nextClosedValue(
+            index.lines,
+            lineIndex,
+            line.pageNumber,
+            layoutBoundaries,
+          ),
       );
       if (!printedValue) continue;
       if (label.kind === "DATE") {
-        const valueIso = extractPrintedDate(printedValue);
+        const valueIso = extractPrintedDateForField(
+          printedValue,
+          label.fieldCode,
+        );
         if (!valueIso) continue;
         append(
           {
@@ -1121,7 +1381,10 @@ async function extractFieldCandidates(
         continue;
       }
       if (label.kind === "MONEY") {
-        const amountCents = extractPrintedEurCents(printedValue);
+        const amountCents =
+          closed.inlineValue === null && lineUsesSingleWordLabel(line, label)
+            ? parsePrintedEurCents(printedValue)
+            : extractPrintedEurCents(printedValue);
         if (amountCents === null) continue;
         append(
           {
@@ -1209,13 +1472,17 @@ async function extractFieldCandidates(
             labelX: cell.xMilli,
             labelWidth: cell.widthMilli,
             label,
+            knownLabels: layoutBoundaries,
           });
           for (const printedValue of printedValues) {
             assertNotAborted(document.signal);
             const candidateIndex = candidates.length + 1;
             const candidateEvidence = evidence(candidateIndex, page.pageNumber);
             if (label.kind === "DATE") {
-              const dates = extractAllPrintedDates(printedValue);
+              const dates = extractAllPrintedDatesForField(
+                printedValue,
+                label.fieldCode,
+              );
               const selectedDates =
                 label.fieldCode === "INTEREST_START_DATE"
                   ? dates.slice(0, 1)
