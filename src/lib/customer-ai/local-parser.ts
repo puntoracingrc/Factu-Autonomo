@@ -1,9 +1,10 @@
 import {
   clientAddressToFormFields,
+  normalizeResidenceType,
   splitLegacyStreetAddress,
 } from "../customer-address";
 import { normalizeCustomerNif } from "../customers";
-import type { CustomerType } from "../types";
+import type { AddressResidenceType, CustomerType } from "../types";
 import {
   customerTextFieldSegments,
   customerTextHardLines,
@@ -179,6 +180,27 @@ function addressTextFromLine(line: string, allowUntyped = false): string | null 
   return [beforePostal, postalSegment].filter(Boolean).join(", ");
 }
 
+function explicitResidenceTypeFromAddressExtra(
+  addressExtra: string,
+): AddressResidenceType | null {
+  const words = clean(addressExtra).split(/\s+/u).filter(Boolean);
+
+  for (let end = words.length; end > 0; end -= 1) {
+    const residenceType = normalizeResidenceType(words.slice(0, end).join(" "));
+    if (!residenceType) continue;
+
+    const unit = words.slice(end).join(" ");
+    const isShortUnit = /^(?:(?:n(?:u|ú)m(?:ero)?\.?|n[ºo]\.?)\s+)?(?:\d+[\p{L}ºª°./-]*|\p{L})(?:\s+(?:\d+[\p{L}ºª°./-]*|\p{L})){0,2}$/iu.test(
+      unit,
+    );
+    if (!unit || isShortUnit) {
+      return residenceType;
+    }
+  }
+
+  return null;
+}
+
 function extractAddress(
   hardLines: string[],
   fieldSegments: string[],
@@ -211,11 +233,15 @@ function extractAddress(
     });
     if (!fields.streetLine) continue;
 
+    const explicitResidenceType = explicitResidenceTypeFromAddressExtra(
+      fields.addressExtra,
+    );
+
     return {
       streetType: fields.streetType || null,
       address: fields.streetLine || null,
       addressExtra: fields.addressExtra || null,
-      residenceType: fields.residenceType,
+      residenceType: explicitResidenceType ?? fields.residenceType,
       city: fields.city || null,
       postalCode: fields.postalCode || null,
     };

@@ -25,6 +25,7 @@ describe("parseCustomerTextLocally", () => {
       streetType: "calle",
       address: "Mayor 12",
       addressExtra: "3B",
+      residenceType: "flat",
       city: "Madrid",
       postalCode: "28013",
     });
@@ -35,7 +36,7 @@ describe("parseCustomerTextLocally", () => {
     const result = parseCustomerTextLocally(`
       Cliente: Taller Demo SL
       CIF B12345678
-      Direccion: Calle Industria 8, Local
+      Direccion: Calle Industria 8, Local 2
       CP: 08001 Barna
     `);
 
@@ -46,9 +47,26 @@ describe("parseCustomerTextLocally", () => {
       nif: "B12345678",
       streetType: "calle",
       address: "Industria 8",
-      addressExtra: "Local",
+      addressExtra: "Local 2",
+      residenceType: "local",
       city: "Barcelona",
       postalCode: "08001",
+    });
+  });
+
+  it("solo infiere el tipo de inmueble cuando aparece expresamente", () => {
+    const result = parseCustomerTextLocally(`
+      Cliente: Local Horizonte SL
+      CIF B12345678
+      Direccion: Calle Local 8
+      CP: 28013 Madrid
+    `);
+
+    expect(result?.customer).toMatchObject({
+      firstName: "Local Horizonte SL",
+      address: "Local 8",
+      addressExtra: null,
+      residenceType: "",
     });
   });
 
