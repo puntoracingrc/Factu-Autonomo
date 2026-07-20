@@ -6,6 +6,8 @@ import type {
 } from "./types";
 import { sha256Hex } from "../document-integrity/snapshot-hash";
 import {
+  DOCUMENT_DATE_KINDS_V2,
+  FISCAL_NOTIFICATIONS_PROJECTED_RELATION_ALGORITHM_VERSION_V2,
   parseFiscalNotificationsWorkspaceForPersistenceV2,
   type AssertionTypeV2,
   type ChronologyBasisV2,
@@ -32,34 +34,41 @@ import {
 } from "./sensitive-reference.v2";
 import { resolveFiscalNotificationChronologyV2 } from "./chronology-date.v2";
 import { isInternalFiscalNotificationFieldArtifact } from "./document-fact-observation.v1";
+import { GLOBAL_RECONCILIATION_RULE_VERSION_V8 } from "./global-reconciliation.v8";
+import {
+  STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2,
+  STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
+  STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+} from "./structured-review-relation-suggestions.v1";
 
 const SENSITIVE_REFERENCE_TYPES = new Set([
   "CSV",
   "NRC",
   "VEHICLE_OR_FINE_REFERENCE",
 ]);
-const PROFILE_DATE_FIELD_KINDS = new Set<string>([
-  "ISSUE_DATE",
-  "SIGNING_DATE",
-  "AVAILABILITY_DATE",
-  "ACCESS_DATE",
-  "REJECTION_DATE",
-  "EXPIRATION_DATE",
-  "EFFECTIVE_NOTIFICATION_DATE",
-  "ACTION_DATE",
-  "RESPONSE_DEADLINE",
-  "VOLUNTARY_PAYMENT_DEADLINE",
-  "APPEAL_DEADLINE",
-  "INSTALLMENT_DUE_DATE",
-  "PAYMENT_DATE",
-  "SEIZURE_DATE",
-  "RELEASE_DATE",
-  "FILING_DATE",
-  "START_DATE",
-  "END_DATE",
-  "INTEREST_START_DATE",
-  "INTEREST_END_DATE",
+const DOCUMENT_DATE_FIELD_KINDS = new Set<string>(DOCUMENT_DATE_KINDS_V2);
+const PROJECTABLE_RELATION_ALGORITHMS = new Set<string>([
+  STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
+  STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+  STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2,
+  GLOBAL_RECONCILIATION_RULE_VERSION_V8,
+  FISCAL_NOTIFICATIONS_PROJECTED_RELATION_ALGORITHM_VERSION_V2,
 ]);
+const ISO_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/u;
+
+function isIsoCalendarDate(value: string): boolean {
+  const match = ISO_DATE_PATTERN.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
 
 function projectedEntityId(
   prefix: "date" | "amount" | "fact",
@@ -211,10 +220,20 @@ function pushDocumentDates(input: {
       );
       if (!snapshot) return [];
       return snapshot.structuredData.unknownFields.flatMap((field) => {
-        if (!field.labelRaw.startsWith("VSR2|profile:date:")) return [];
-        const encodedFieldId = field.labelRaw.split("|", 3)[1];
-        const fieldCode = encodedFieldId?.split(":")[2];
-        if (!fieldCode || !PROFILE_DATE_FIELD_KINDS.has(fieldCode)) return [];
+        const parts = field.labelRaw.split("|");
+        if (parts[0] !== "VSR2" || parts.length < 5 || parts[2] !== "DATE") {
+          return [];
+        }
+        const encodedFieldId = parts[1]!;
+        const canonicalType = parts[3]!;
+        const label = parts.slice(4).join("|");
+        const profileFieldCode = /^profile:date:([A-Z0-9_]+):\d+$/u.exec(
+          encodedFieldId,
+        )?.[1];
+        const rawFieldCode = profileFieldCode ?? canonicalType;
+        const fieldCode =
+          rawFieldCode === "SIGNATURE_DATE" ? "SIGNING_DATE" : rawFieldCode;
+        if (!DOCUMENT_DATE_FIELD_KINDS.has(fieldCode)) return [];
         const evidence = field.evidenceId
           ? evidenceById.get(field.evidenceId)
           : undefined;
@@ -222,6 +241,18 @@ function pushDocumentDates(input: {
           !evidence ||
           evidence.assertionType !== "EXPLICIT_IN_DOCUMENT" ||
           evidence.extractionMethod !== "RULE"
+        ) {
+          return [];
+        }
+        if (
+          !isIsoCalendarDate(field.valueRaw) ||
+          isInternalFiscalNotificationFieldArtifact({
+            fieldId: encodedFieldId,
+            semantic: "DATE",
+            canonicalType,
+            label,
+            value: field.valueRaw,
+          })
         ) {
           return [];
         }
@@ -248,37 +279,48 @@ function pushDocumentDates(input: {
     {
       fieldId: "ISSUE_DATE",
       kind: "ISSUE_DATE",
-      value: input.document.issueDate,
+      value:
+        input.document.issueDate ?? explicitByKind.get("ISSUE_DATE")?.value,
       evidenceIds: explicitByKind.get("ISSUE_DATE")?.evidenceIds ?? [],
     },
     {
       fieldId: "SIGNING_DATE",
       kind: "SIGNING_DATE",
-      value: input.document.signatureDate,
+      value:
+        input.document.signatureDate ??
+        explicitByKind.get("SIGNING_DATE")?.value,
       evidenceIds: explicitByKind.get("SIGNING_DATE")?.evidenceIds ?? [],
     },
     {
       fieldId: "AVAILABILITY_DATE",
       kind: "AVAILABILITY_DATE",
-      value: input.document.notificationDates.madeAvailableAt,
+      value:
+        input.document.notificationDates.madeAvailableAt ??
+        explicitByKind.get("AVAILABILITY_DATE")?.value,
       evidenceIds: explicitByKind.get("AVAILABILITY_DATE")?.evidenceIds ?? [],
     },
     {
       fieldId: "ACCESS_DATE",
       kind: "ACCESS_DATE",
-      value: input.document.notificationDates.accessedAt,
+      value:
+        input.document.notificationDates.accessedAt ??
+        explicitByKind.get("ACCESS_DATE")?.value,
       evidenceIds: explicitByKind.get("ACCESS_DATE")?.evidenceIds ?? [],
     },
     {
       fieldId: "REJECTION_DATE",
       kind: "REJECTION_DATE",
-      value: input.document.notificationDates.rejectedAt,
+      value:
+        input.document.notificationDates.rejectedAt ??
+        explicitByKind.get("REJECTION_DATE")?.value,
       evidenceIds: explicitByKind.get("REJECTION_DATE")?.evidenceIds ?? [],
     },
     {
       fieldId: "EFFECTIVE_NOTIFICATION_DATE",
       kind: "EFFECTIVE_NOTIFICATION_DATE",
-      value: input.document.notificationDates.effectiveAt,
+      value:
+        input.document.notificationDates.effectiveAt ??
+        explicitByKind.get("EFFECTIVE_NOTIFICATION_DATE")?.value,
       evidenceIds:
         explicitByKind.get("EFFECTIVE_NOTIFICATION_DATE")?.evidenceIds ?? [],
     },
@@ -297,6 +339,7 @@ function pushDocumentDates(input: {
   for (const candidate of candidates) {
     if (!candidate.value) continue;
     const dateValue = candidate.value.slice(0, 10);
+    if (!isIsoCalendarDate(dateValue)) continue;
     input.dates.push({
       id: projectedEntityId(
         "date",
@@ -1159,6 +1202,9 @@ export function projectFiscalNotificationsWorkspacePrivacyV2(
     "POSSIBLY_RELATED",
   ]);
   const relations = workspace.relations.flatMap((relation) => {
+    if (!PROJECTABLE_RELATION_ALGORITHMS.has(relation.algorithmVersion)) {
+      return [];
+    }
     const isLegacyOnly = legacyOnlyRelationTypes.has(relation.relationType);
     const sourceRefs = references.filter(
       (entry) => entry.documentId === relation.sourceDocumentId,
@@ -1238,9 +1284,9 @@ export function projectFiscalNotificationsWorkspacePrivacyV2(
         contextualDateFactIds: [...new Set(contextualDateFactIds)],
         contextualAmountFactIds: [...new Set(contextualAmountFactIds)],
         algorithmVersion:
-          relation.algorithmVersion === "global-reconcile-v8"
+          relation.algorithmVersion === GLOBAL_RECONCILIATION_RULE_VERSION_V8
             ? relation.algorithmVersion
-            : "v1-projected-1",
+            : FISCAL_NOTIFICATIONS_PROJECTED_RELATION_ALGORITHM_VERSION_V2,
         createdAt: relation.createdAt,
         ...(relation.reconciliationHistory
           ? {

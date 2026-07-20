@@ -247,10 +247,6 @@ describe("structured offset review workspace v1", () => {
       ]),
       printedDates: expect.arrayContaining([
         { label: "Fecha de solicitud", value: "05/01/2026" },
-        {
-          label: "Efecto indicado en el documento",
-          value: "Deuda totalmente extinguida en período voluntario",
-        },
       ]),
       money: expect.arrayContaining([
         expect.objectContaining({
@@ -275,6 +271,9 @@ describe("structured offset review workspace v1", () => {
         networkPolicy: "NO_NETWORK",
       }),
     });
+    expect(history.entries[0]?.printedDates).not.toContainEqual(
+      expect.objectContaining({ label: "Efecto indicado en el documento" }),
+    );
   });
 
   it("deduplicates by hash and rejects a foreign owner", () => {

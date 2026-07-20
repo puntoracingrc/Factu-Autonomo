@@ -295,10 +295,27 @@ export function projectFiscalNotificationStructuredHistoryV1(
       const snapshotId = document.analysisSnapshotIds.at(-1);
       const snapshot = snapshotId ? snapshots.get(snapshotId) : undefined;
       if (!authority || !file || !snapshot) return null;
+      const observedUnknownFields = observedUnknownFieldsWithPageProvenance({
+        fields: snapshot.structuredData.unknownFields,
+        evidenceById: evidence,
+        ownerScope,
+        documentId: document.id,
+      });
+      const interpretedExplanationFields = unknownFieldsWithPageProvenance(
+        {
+          fields: snapshot.structuredData.unknownFields.filter(
+            (field) => field.labelRaw === "OFFSET_EFFECT_MEANING",
+          ),
+          evidenceById: evidence,
+          ownerScope,
+          documentId: document.id,
+        },
+        "INFERRED",
+      );
 
       const domain = snapshot.structuredData.administrativeDomain;
       const verticalFieldsByEvidence = new Map(
-        snapshot.structuredData.unknownFields.flatMap((field) => {
+        observedUnknownFields.flatMap((field) => {
           const metadata = parseVerticalFieldLabel(field.labelRaw);
           return metadata && field.evidenceId
             ? [[field.evidenceId, metadata] as const]
@@ -346,7 +363,10 @@ export function projectFiscalNotificationStructuredHistoryV1(
             value: visibleStoredReference(item, verticalFieldsByEvidence),
           }),
         ));
-      const explanationFacts = snapshot.structuredData.unknownFields.flatMap(
+      const explanationFacts = [
+        ...observedUnknownFields,
+        ...interpretedExplanationFields,
+      ].flatMap(
         (field) => {
           const metadata = parseVerticalFieldLabel(field.labelRaw);
           if (
@@ -374,7 +394,30 @@ export function projectFiscalNotificationStructuredHistoryV1(
           ];
         },
       );
-      const printedDates = deduplicateFacts(explanationFacts);
+      const printedDates = deduplicateFacts(
+        observedUnknownFields.flatMap((field) => {
+          const metadata = parseVerticalFieldLabel(field.labelRaw);
+          const legacyDateLabel = DATE_LABELS[field.labelRaw];
+          if (
+            (metadata?.semantic !== "DATE" && !legacyDateLabel) ||
+            isInternalFiscalNotificationFieldArtifact({
+              fieldId: metadata?.fieldId ?? null,
+              label: metadata?.label ?? legacyDateLabel ?? field.labelRaw,
+              value: field.valueRaw,
+              semantic: metadata?.semantic ?? "DATE",
+              canonicalType: metadata?.canonicalType ?? field.labelRaw,
+            })
+          ) {
+            return [];
+          }
+          return [
+            Object.freeze({
+              label: metadata?.label ?? legacyDateLabel ?? "Fecha",
+              value: field.valueRaw,
+            }),
+          ];
+        }),
+      );
       const installments = snapshot.structuredData.paymentOptionIds
         .map((id) => paymentOptions.get(id))
         .filter((item) => item !== undefined)
@@ -405,7 +448,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
         snapshotIssueDate: snapshot.structuredData.documentFields.issueDate,
         snapshotEffectiveNotificationDate:
           snapshot.structuredData.documentFields.effectiveNotificationDate,
-        unknownFields: snapshot.structuredData.unknownFields,
+        unknownFields: observedUnknownFields,
       });
       const documentDate = selectedDocumentDate?.value ?? null;
       const receiptDate =
@@ -416,7 +459,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
           .map((id) => references.get(id))
           .filter((item) => item !== undefined),
         moneyFacts: domain?.moneyFacts ?? [],
-        unknownFields: snapshot.structuredData.unknownFields,
+        unknownFields: observedUnknownFields,
         referencesById: references,
         evidenceById: evidence,
         evidenceOrder,
@@ -430,7 +473,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
         money,
         profileInput: buildStoredProfileExplanationInputV2({
           documentSubtype: document.documentSubtype ?? null,
-          unknownFields: snapshot.structuredData.unknownFields,
+          unknownFields: observedUnknownFields,
           evidenceById: evidence,
         }),
       });
@@ -802,6 +845,38 @@ export interface SelectedDocumentDateV1 {
     | "Fecha de firma"
     | "Fecha del acto"
     | "Fecha de notificacion";
+}
+
+export function observedUnknownFieldsWithPageProvenance(input: {
+  readonly fields: readonly UnknownExtractedField[];
+  readonly evidenceById: ReadonlyMap<string, FieldEvidence>;
+  readonly ownerScope: string;
+  readonly documentId: string;
+}): readonly UnknownExtractedField[] {
+  return unknownFieldsWithPageProvenance(input, "EXPLICIT_IN_DOCUMENT");
+}
+
+function unknownFieldsWithPageProvenance(
+  input: {
+    readonly fields: readonly UnknownExtractedField[];
+    readonly evidenceById: ReadonlyMap<string, FieldEvidence>;
+    readonly ownerScope: string;
+    readonly documentId: string;
+  },
+  assertionType: FieldEvidence["assertionType"],
+): readonly UnknownExtractedField[] {
+  return Object.freeze(
+    input.fields.filter((field) => {
+      if (!field.evidenceId) return false;
+      const source = input.evidenceById.get(field.evidenceId);
+      return (
+        source?.ownerScope === input.ownerScope &&
+        source.documentId === input.documentId &&
+        source.pageNumber === field.page &&
+        source.assertionType === assertionType
+      );
+    }),
+  );
 }
 
 export function selectExplicitDocumentDate(

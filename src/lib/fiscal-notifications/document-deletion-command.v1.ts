@@ -7,7 +7,11 @@ import {
   deleteFiscalNotificationDocumentV1,
   type DeleteFiscalNotificationDocumentResultV1,
 } from "./document-deletion.v1";
-import { registerFiscalNotificationDocumentReductionTransitionV2 } from "./workspace-storage-envelope.v2";
+import { FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 } from "./workspace-persistence.v1";
+import {
+  FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2,
+  registerFiscalNotificationDocumentReductionTransitionV2,
+} from "./workspace-storage-envelope.v2";
 
 export type DurableFiscalNotificationDocumentDeletionResultV1 =
   | AppDataDurabilityResult<
@@ -61,6 +65,20 @@ export function runDeleteFiscalNotificationDocumentCommandV1(input: {
       ...previous,
       fiscalNotificationsWorkspace: transitioned.workspace,
     };
+    if (previous.meta?.pendingChanges) {
+      const pendingChanges = previous.meta.pendingChanges.filter(
+        (change) =>
+          change.entityType !== "fiscal_notifications_workspace" ||
+          (change.entityId !==
+            FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V1 &&
+            change.entityId !==
+              FISCAL_NOTIFICATIONS_WORKSPACE_SYNC_ENTITY_ID_V2),
+      );
+      data.meta = {
+        ...previous.meta,
+        pendingChanges: pendingChanges.length > 0 ? pendingChanges : undefined,
+      };
+    }
     if (remainingQuarantine && remainingQuarantine.length > 0) {
       data.workspaceIntegrityQuarantine = remainingQuarantine;
     } else {

@@ -36,6 +36,38 @@ function persistenceEquivalent(left: AppData, right: AppData): boolean {
   }
 }
 
+function exactSnapshotEquivalent(left: AppData, right: AppData): boolean {
+  if (left === right) return true;
+  try {
+    return stableStringifySnapshot(left) === stableStringifySnapshot(right);
+  } catch {
+    return false;
+  }
+}
+
+function equivalentIgnoringFiscalWorkspaceRevision(
+  left: AppData,
+  right: AppData,
+): boolean {
+  const leftWorkspace = left.fiscalNotificationsWorkspace;
+  const rightWorkspace = right.fiscalNotificationsWorkspace;
+  if (!leftWorkspace || !rightWorkspace) return false;
+  try {
+    return (
+      stableStringifySnapshot({
+        ...left,
+        fiscalNotificationsWorkspace: { ...leftWorkspace, revision: 0 },
+      }) ===
+      stableStringifySnapshot({
+        ...right,
+        fiscalNotificationsWorkspace: { ...rightWorkspace, revision: 0 },
+      })
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Reconstruye la operación sobre el snapshot durable más reciente. Si otra
  * pestaña escribe entre la lectura y el commit, relee y repite una sola vez
@@ -65,10 +97,17 @@ export function runFiscalNotificationCommandAgainstLatestPersistedV1<
   if (!persisted) return input.blocked("storage_state_unknown");
 
   const current = input.fallback;
+  const currentMatchesPersisted =
+    exactSnapshotEquivalent(current, persisted) ||
+    persistenceEquivalent(current, persisted) ||
+    equivalentIgnoringFiscalWorkspaceRevision(current, persisted);
   const localStateIsKnownDurable =
     input.storageBaseline === undefined ||
     (input.storageBaseline.status === "known" &&
-      input.storageBaseline.data === current);
+      (input.storageBaseline.data === current ||
+        exactSnapshotEquivalent(input.storageBaseline.data, current) ||
+        persistenceEquivalent(input.storageBaseline.data, current))) ||
+    currentMatchesPersisted;
   if (
     !localStateIsKnownDurable &&
     (!input.lastKnownPersisted ||
