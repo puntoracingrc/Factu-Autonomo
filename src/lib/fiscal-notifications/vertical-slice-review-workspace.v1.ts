@@ -24,6 +24,7 @@ import {
   type FiscalNotificationVerticalSliceReviewFieldV1,
 } from "./vertical-slice-review.v1";
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
+import { retainReferencedFiscalNotificationSourcesV1 } from "./workspace-source-graph.v1";
 
 export const FISCAL_NOTIFICATION_VERTICAL_SLICE_WORKSPACE_ENGINE_ID_V1 =
   "fiscal-notification-vertical-slice-workspace" as const;
@@ -173,7 +174,14 @@ export function appendFiscalNotificationVerticalSliceReviewV1(
   ) {
     throw invalidInput();
   }
-  const workspace = parseWorkspace(input.workspace, ownerScope, createdAt);
+  const parsedWorkspace = parseWorkspace(input.workspace, ownerScope, createdAt);
+  const retainedSources = retainReferencedFiscalNotificationSourcesV1(
+    parsedWorkspace,
+  );
+  const workspace = {
+    ...parsedWorkspace,
+    ...retainedSources,
+  };
   preflightReview(structuredDocuments, source, workspace);
   const sourceMatch = findSourceFile(workspace, source.sha256, ownerScope);
   if (

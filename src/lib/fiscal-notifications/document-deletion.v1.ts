@@ -4,6 +4,7 @@ import {
 } from "./input-contract";
 import type { FiscalNotificationsWorkspace } from "./types";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
+import { retainReferencedFiscalNotificationSourcesV1 } from "./workspace-source-graph.v1";
 
 export const FISCAL_NOTIFICATION_DOCUMENT_DELETION_VERSION_V1 =
   "1.0.0" as const;
@@ -135,20 +136,15 @@ export function deleteFiscalNotificationDocumentV1(input: {
   const remainingDocuments = workspace.documents.filter(
     (item) => item.id !== input.documentId,
   );
-  const removeSourceFile = !remainingDocuments.some(
-    (item) => item.fileId === document.fileId,
-  );
-  const remainingFiles = removeSourceFile
-    ? workspace.files.filter((file) => file.id !== document.fileId)
-    : workspace.files;
-  const remainingFileIds = new Set(remainingFiles.map((file) => file.id));
-  const packages = workspace.packages
-    .map((item) => ({
-      ...item,
-      fileIds: item.fileIds.filter((fileId) => remainingFileIds.has(fileId)),
-    }))
-    .filter((item) => item.fileIds.length > 0);
-  const remainingPackageIds = new Set(packages.map((item) => item.id));
+  const {
+    packages,
+    files: remainingFiles,
+    auditEvents: retainedSourceAuditEvents,
+  } =
+    retainReferencedFiscalNotificationSourcesV1({
+      ...workspace,
+      documents: remainingDocuments,
+    });
   const remainingAuthorityIds = new Set(
     [
       ...remainingDocuments.map((item) => item.authorityId),
@@ -202,15 +198,13 @@ export function deleteFiscalNotificationDocumentV1(input: {
     timeline: workspace.timeline.filter(
       (event) => !removedTimelineIds.has(event.id),
     ),
-    auditEvents: workspace.auditEvents.filter(
+    auditEvents: retainedSourceAuditEvents.filter(
       (event) =>
         !(
           (event.entityType === "DOCUMENT" &&
             event.entityId === input.documentId) ||
           (event.entityType === "RELATION" &&
-            removedRelationIds.has(event.entityId)) ||
-          (event.entityType === "PACKAGE" &&
-            !remainingPackageIds.has(event.entityId))
+            removedRelationIds.has(event.entityId))
         ),
     ),
     driveArchives,

@@ -697,6 +697,77 @@ describe("vertical slice structured workspace v1", () => {
     expect(replay.workspace.documents).toHaveLength(2);
   });
 
+  it("vuelve a materializar el mismo PDF desde una fuente huérfana legada", () => {
+    const first = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: analysis(),
+    });
+    const legacyOrphan = structuredClone(first.workspace);
+    legacyOrphan.documents = [];
+    legacyOrphan.parts = [];
+    legacyOrphan.authorities = [];
+    legacyOrphan.references = [];
+    legacyOrphan.evidence = [];
+    legacyOrphan.relations = [];
+    legacyOrphan.analysisSnapshots = [];
+    legacyOrphan.paymentOptions = [];
+    legacyOrphan.driveArchives = [];
+    legacyOrphan.packages.push({
+      ...legacyOrphan.packages[0]!,
+      id: "package:legacy-orphan-copy",
+      fileIds: ["file:legacy-orphan-copy"],
+    });
+    legacyOrphan.files.push({
+      ...legacyOrphan.files[0]!,
+      id: "file:legacy-orphan-copy",
+      packageId: "package:legacy-orphan-copy",
+    });
+    legacyOrphan.auditEvents.push(
+      {
+        id: "audit:legacy-orphan",
+        ownerScope: OWNER,
+        eventType: "PACKAGE_UPLOADED",
+        entityType: "PACKAGE",
+        entityId: legacyOrphan.packages[0]!.id,
+        actorScope: "LOCAL_USER",
+        occurredAt: CREATED_AT,
+        safeMetadata: { fileCount: 1 },
+      },
+      {
+        id: "audit:legacy-orphan-copy",
+        ownerScope: OWNER,
+        eventType: "PACKAGE_UPLOADED",
+        entityType: "PACKAGE",
+        entityId: "package:legacy-orphan-copy",
+        actorScope: "LOCAL_USER",
+        occurredAt: CREATED_AT,
+        safeMetadata: { fileCount: 1 },
+      },
+    );
+
+    const restored = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: SECOND_REVIEW_ID,
+      createdAt: "2026-07-14T20:01:00.000Z",
+      workspace: legacyOrphan,
+      analysis: analysis(),
+    });
+
+    expect(restored.status).toBe("APPLIED");
+    expect(restored.workspace.packages).toHaveLength(1);
+    expect(restored.workspace.files).toEqual([
+      expect.objectContaining({ sha256: HASH }),
+    ]);
+    expect(restored.workspace.documents).toHaveLength(2);
+    expect(restored.workspace.auditEvents).toEqual([]);
+    expect(
+      validateFiscalNotificationsWorkspaceIntegrity(restored.workspace, OWNER),
+    ).toEqual({ valid: true, issues: [] });
+  });
+
   it("asigna ordinales cerrados a dos familias emitidas por el mismo extractor y las reproduce sin duplicar", () => {
     const source = repeatedExtractorAnalysis();
     const first = appendFiscalNotificationVerticalSliceReviewV1({

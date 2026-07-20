@@ -138,10 +138,18 @@ export function readPersistedFiscalNotificationHashesV1(
   if (!workspace) {
     return blockedHashes();
   }
+  const activeFileIds = new Set(
+    workspace.documents
+      .filter((document) => document.ownerScope === ownerScope)
+      .map((document) => document.fileId),
+  );
   const hashes = [
     ...new Set(
       workspace.files
-        .filter((file) => file.ownerScope === ownerScope)
+        .filter(
+          (file) =>
+            file.ownerScope === ownerScope && activeFileIds.has(file.id),
+        )
         .map((file) => file.sha256),
     ),
   ].sort();

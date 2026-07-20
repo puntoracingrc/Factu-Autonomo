@@ -3,6 +3,7 @@ import {
   analyzeFiscalNotificationDocumentDeletionV1,
   deleteFiscalNotificationDocumentV1,
 } from "./document-deletion.v1";
+import { readPersistedFiscalNotificationHashesV1 } from "./batch-intake.v1";
 import { appendStructuredReviewRelationSuggestionsV1 } from "./structured-review-relation-suggestions.v1";
 import type { FiscalNotificationsWorkspace } from "./types";
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
@@ -383,5 +384,124 @@ describe("fiscal notification document deletion v1", () => {
       "document:1",
       "document:2",
     ]);
+  });
+
+  it("limpia fuentes huérfanas heredadas y libera el hash al borrar la última ficha", () => {
+    const input = workspace();
+    input.packages.push({
+      ...input.packages[0]!,
+      id: "package:orphan",
+      fileIds: ["file:orphan"],
+    });
+    input.files.push({
+      ...input.files[0]!,
+      id: "file:orphan",
+      packageId: "package:orphan",
+      sha256: "c".repeat(64),
+      contentFingerprint: "c".repeat(64),
+    });
+
+    expect(readPersistedFiscalNotificationHashesV1(input, OWNER)).toEqual({
+      status: "READY",
+      sha256: ["a".repeat(64), "b".repeat(64)],
+    });
+
+    const first = deleteFiscalNotificationDocumentV1({
+      workspace: input,
+      ownerScope: OWNER,
+      documentId: "document:0",
+      deletedAt: DELETED_AT,
+    });
+    expect(first.status).toBe("APPLIED");
+    if (first.status !== "APPLIED") return;
+    expect(first.workspace.files.map((item) => item.id)).toEqual(["file:1"]);
+    expect(first.workspace.packages.map((item) => item.id)).toEqual([
+      "package:1",
+    ]);
+    expect(readPersistedFiscalNotificationHashesV1(first.workspace, OWNER)).toEqual({
+      status: "READY",
+      sha256: ["b".repeat(64)],
+    });
+
+    const second = deleteFiscalNotificationDocumentV1({
+      workspace: first.workspace,
+      ownerScope: OWNER,
+      documentId: "document:1",
+      deletedAt: "2026-07-15T22:02:00.000Z",
+    });
+    expect(second.status).toBe("APPLIED");
+    if (second.status !== "APPLIED") return;
+    expect(second.workspace.documents).toEqual([]);
+    expect(second.workspace.files).toEqual([]);
+    expect(second.workspace.packages).toEqual([]);
+    expect(readPersistedFiscalNotificationHashesV1(second.workspace, OWNER)).toEqual({
+      status: "READY",
+      sha256: [],
+    });
+  });
+
+  it("limpia una referencia de duplicado hacia un paquete huérfano sin bloquear N-1", () => {
+    const input = workspace();
+    input.packages.push({
+      ...input.packages[0]!,
+      id: "package:orphan",
+      fileIds: ["file:orphan"],
+    });
+    input.files.push({
+      ...input.files[0]!,
+      id: "file:orphan",
+      packageId: "package:orphan",
+      sha256: "c".repeat(64),
+      contentFingerprint: "c".repeat(64),
+    });
+    input.packages[1] = {
+      ...input.packages[1]!,
+      exactDuplicateOf: "package:orphan",
+    };
+    input.auditEvents.push(
+      {
+        id: "audit:package:1",
+        ownerScope: OWNER,
+        eventType: "PACKAGE_UPLOADED",
+        entityType: "PACKAGE",
+        entityId: "package:1",
+        actorScope: "LOCAL_USER",
+        occurredAt: NOW,
+        safeMetadata: { fileCount: 1 },
+      },
+      {
+        id: "audit:package:orphan",
+        ownerScope: OWNER,
+        eventType: "PACKAGE_UPLOADED",
+        entityType: "PACKAGE",
+        entityId: "package:orphan",
+        actorScope: "LOCAL_USER",
+        occurredAt: NOW,
+        safeMetadata: { fileCount: 1 },
+      },
+    );
+
+    const result = deleteFiscalNotificationDocumentV1({
+      workspace: input,
+      ownerScope: OWNER,
+      documentId: "document:0",
+      deletedAt: DELETED_AT,
+    });
+
+    expect(result.status).toBe("APPLIED");
+    if (result.status !== "APPLIED") return;
+    expect(result.workspace.documents.map((item) => item.id)).toEqual([
+      "document:1",
+    ]);
+    expect(result.workspace.files.map((item) => item.id)).toEqual(["file:1"]);
+    expect(result.workspace.packages).toEqual([
+      expect.not.objectContaining({ exactDuplicateOf: expect.anything() }),
+    ]);
+    expect(result.workspace.auditEvents.map((event) => event.id)).toEqual([
+      "audit:package:1",
+    ]);
+    expect(
+      validateFiscalNotificationsWorkspaceIntegrity(result.workspace, OWNER),
+    ).toEqual({ valid: true, issues: [] });
   });
 });

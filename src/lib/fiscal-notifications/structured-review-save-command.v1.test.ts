@@ -17,6 +17,7 @@ import { extractAeatEnforcementExplicitFieldsV2 } from "./aeat-enforcement-expli
 import { extractAeatEnforcementMoneyFacts } from "./aeat-enforcement-money-facts";
 import { extractAeatEnforcementPartyFactsV1 } from "./aeat-enforcement-party-facts.v1";
 import { extractAeatOffsetAgreementFactsV1 } from "./aeat-offset-agreement-facts.v1";
+import { readPersistedFiscalNotificationHashesV1 } from "./batch-intake.v1";
 import { analyzeFiscalNotificationDocumentInput } from "./document-input-analysis";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/vertical-slice-orchestrator.v1";
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
@@ -1458,6 +1459,16 @@ describe("structured fiscal notification save command v1", () => {
     expect(saved.status).toMatch(/^applied/u);
     expect(compressionCount).toBe(1);
     current = loadData();
+    const persistedHashesAfterSave = readPersistedFiscalNotificationHashesV1(
+      current.fiscalNotificationsWorkspace,
+      OWNER,
+    );
+    expect(persistedHashesAfterSave.status).toBe("READY");
+    if (persistedHashesAfterSave.status === "READY") {
+      expect(persistedHashesAfterSave.sha256).toContain(
+        productionAnalysis.technicalReview.sha256,
+      );
+    }
     const afterSaveDocumentIds =
       current.fiscalNotificationsWorkspace?.documents.map(
         (document) => document.id,
@@ -1497,6 +1508,16 @@ describe("structured fiscal notification save command v1", () => {
     expect(deleted.status).toBe("applied");
     expect(compressionCount).toBe(1);
     current = loadData();
+    const persistedHashesAfterDelete = readPersistedFiscalNotificationHashesV1(
+      current.fiscalNotificationsWorkspace,
+      OWNER,
+    );
+    expect(persistedHashesAfterDelete.status).toBe("READY");
+    if (persistedHashesAfterDelete.status === "READY") {
+      expect(persistedHashesAfterDelete.sha256).not.toContain(
+        productionAnalysis.technicalReview.sha256,
+      );
+    }
     expect(
       current.fiscalNotificationsWorkspace?.documents.map(
         (document) => document.id,
@@ -1528,6 +1549,12 @@ describe("structured fiscal notification save command v1", () => {
       current = loadData();
     }
     expect(current.fiscalNotificationsWorkspace?.documents).toEqual([]);
+    expect(
+      readPersistedFiscalNotificationHashesV1(
+        current.fiscalNotificationsWorkspace,
+        OWNER,
+      ),
+    ).toEqual({ status: "READY", sha256: [] });
     expect(nonFiscalSnapshot(current)).toEqual(retainedNonFiscalState);
     expect(unrelatedPendingChanges(current)).toEqual(retainedUnrelatedPending);
     expect(fiscalPendingDocumentIds(current)).toEqual([]);
@@ -1556,6 +1583,15 @@ describe("structured fiscal notification save command v1", () => {
     ).toMatch(/^applied/u);
     expect(compressionCount).toBe(1);
     current = loadData();
+    expect(
+      readPersistedFiscalNotificationHashesV1(
+        current.fiscalNotificationsWorkspace,
+        OWNER,
+      ),
+    ).toEqual({
+      status: "READY",
+      sha256: [productionAnalysis.technicalReview.sha256],
+    });
     expect(current.fiscalNotificationsWorkspace?.documents).toEqual([
       expect.objectContaining({
         documentSubtype: "collection.enforcement_order",

@@ -89,30 +89,10 @@ describe("fiscal notification batch intake v1", () => {
     ).rejects.toMatchObject({ code: "HASH_UNAVAILABLE" });
   });
 
-  it("copies only hashes from a validated workspace of the same owner", () => {
+  it("copies only active document hashes from a validated workspace of the same owner", () => {
     const workspace = emptyWorkspace();
-    workspace.files.push({
-      id: "file-1",
-      packageId: "package-1",
-      ownerScope: OWNER,
-      role: "PRIMARY",
-      mimeType: "application/pdf",
-      fileSize: 50,
-      pageCount: 1,
-      sha256: HASH,
-      contentFingerprint: HASH,
-      uploadedAt: "2026-07-15T06:00:00.000Z",
-      sourceContentRetention: "NOT_RETAINED",
-    });
-    workspace.packages.push({
-      id: "package-1",
-      ownerScope: OWNER,
-      sourceChannel: "MANUAL_UPLOAD",
-      fileIds: ["file-1"],
-      processingStatus: "NEEDS_REVIEW",
-      securityScanStatus: "NOT_AVAILABLE",
-      uploadedAt: "2026-07-15T06:00:00.000Z",
-    });
+    appendSource(workspace);
+    appendSavedDocument(workspace);
 
     const result = readPersistedFiscalNotificationHashesV1(workspace, OWNER);
     expect(result).toEqual({ status: "READY", sha256: [HASH] });
@@ -121,6 +101,16 @@ describe("fiscal notification batch intake v1", () => {
 
     workspace.files[0]!.sha256 = "b".repeat(64);
     expect(result.sha256).toEqual([HASH]);
+  });
+
+  it("does not block re-import with a legacy source no longer linked to a saved document", () => {
+    const workspace = emptyWorkspace();
+    appendSource(workspace);
+
+    expect(readPersistedFiscalNotificationHashesV1(workspace, OWNER)).toEqual({
+      status: "READY",
+      sha256: [],
+    });
   });
 
   it("fails closed for a foreign or invalid workspace", () => {
@@ -217,4 +207,63 @@ function emptyWorkspace(): FiscalNotificationsWorkspace {
     accountingDrafts: [],
     auditEvents: [],
   };
+}
+
+function appendSource(workspace: FiscalNotificationsWorkspace): void {
+  workspace.files.push({
+    id: "file-1",
+    packageId: "package-1",
+    ownerScope: OWNER,
+    role: "PRIMARY",
+    mimeType: "application/pdf",
+    fileSize: 50,
+    pageCount: 1,
+    sha256: HASH,
+    contentFingerprint: HASH,
+    uploadedAt: "2026-07-15T06:00:00.000Z",
+    sourceContentRetention: "NOT_RETAINED",
+  });
+  workspace.packages.push({
+    id: "package-1",
+    ownerScope: OWNER,
+    sourceChannel: "MANUAL_UPLOAD",
+    fileIds: ["file-1"],
+    processingStatus: "NEEDS_REVIEW",
+    securityScanStatus: "NOT_AVAILABLE",
+    uploadedAt: "2026-07-15T06:00:00.000Z",
+  });
+}
+
+function appendSavedDocument(workspace: FiscalNotificationsWorkspace): void {
+  workspace.authorities.push({
+    id: "authority-1",
+    ownerScope: OWNER,
+    administrationType: "AEAT",
+    nameRaw: "Agencia Tributaria",
+    nameNormalized: "AGENCIA TRIBUTARIA",
+  });
+  workspace.documents.push({
+    id: "document-1",
+    packageId: "package-1",
+    fileId: "file-1",
+    ownerScope: OWNER,
+    documentType: "GENERIC_ADMINISTRATIVE_NOTICE",
+    titleRaw: "Documento sintético",
+    titleNormalized: "DOCUMENTO SINTETICO",
+    authorityId: "authority-1",
+    notificationDates: {},
+    status: "UNKNOWN",
+    urgency: "REVIEW",
+    extractionVersion: "synthetic-v1",
+    analysisStatus: "NEEDS_REVIEW",
+    humanReviewStatus: "PENDING",
+    authenticityStatus: "NOT_CHECKED",
+    partIds: [],
+    referenceIds: [],
+    debtIds: [],
+    caseIds: [],
+    analysisSnapshotIds: [],
+    createdAt: "2026-07-15T06:00:00.000Z",
+    updatedAt: "2026-07-15T06:00:00.000Z",
+  });
 }
