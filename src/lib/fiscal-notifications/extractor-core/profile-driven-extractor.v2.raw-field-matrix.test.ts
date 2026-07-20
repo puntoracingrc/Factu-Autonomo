@@ -84,8 +84,8 @@ function ruleFor(profile: AeatDocumentProfileV1) {
 }
 
 describe("profile-driven extractor v2 raw-text field matrix", () => {
-  it("passes all 128 closed fields through the real text parser", async () => {
-    expect(PROFILE_FIELD_LABELS_V2).toHaveLength(128);
+  it("passes all 129 closed fields through the real text parser", async () => {
+    expect(PROFILE_FIELD_LABELS_V2).toHaveLength(129);
 
     for (const [index, field] of PROFILE_FIELD_LABELS_V2.entries()) {
       const profile = profileFor(field);

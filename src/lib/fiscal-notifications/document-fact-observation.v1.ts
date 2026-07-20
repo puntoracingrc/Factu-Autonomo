@@ -41,6 +41,7 @@ const GENERIC_DISPLAY_VALUES = new Set([
   "Titulo, autoridad y estructura coinciden",
   "Estructura oficial reconocida",
 ]);
+const OBSERVED_FACT_DISPLAY_VALUE = "Consta en el documento";
 
 export function containsInternalFiscalNotificationToken(
   value: string | null | undefined,
@@ -127,6 +128,9 @@ export function isUsefulObservedFiscalNotificationField(
         !GENERIC_DISPLAY_VALUES.has(field.displayValue)
       );
     case "DETAIL":
+      if (field.displayValue === OBSERVED_FACT_DISPLAY_VALUE) {
+        return field.normalizedValue === field.canonicalType;
+      }
       return (
         field.normalizedValue !== null &&
         field.normalizedValue.length > 0 &&

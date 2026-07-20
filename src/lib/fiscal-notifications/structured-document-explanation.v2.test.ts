@@ -725,7 +725,7 @@ describe("structured document explanation v2", () => {
     expect(serialized).not.toContain("rawText");
     expect(serialized).not.toContain("rawValue");
     expect(sectionText(output, "KEY_DATA")).toContain(
-      "Referencia NRC detectada; su valor no se muestra por privacidad.",
+      "Se ha detectado número de referencia completo; su valor no se muestra por privacidad.",
     );
 
     const visibleOfficialReference = explain("payment.receipt", {
@@ -734,7 +734,7 @@ describe("structured document explanation v2", () => {
       ],
     });
     expect(sectionText(visibleOfficialReference, "KEY_DATA")).toContain(
-      "Referencia PAYMENT_RECEIPT_ID: REC202600017.",
+      "Justificante de pago: REC202600017.",
     );
     const taxIdDisguisedAsReference = explain("payment.receipt", {
       references: [
@@ -840,6 +840,9 @@ describe("structured document explanation v2", () => {
       ],
     });
     expect(sectionText(withCalculation, "KEY_DATA")).toContain("600,00 €");
+    expect(sectionText(withCalculation, "KEY_DATA")).not.toMatch(
+      /RESIDUAL_FROM_PRINTED_AMOUNTS|REMAINING_AFTER_OFFSET/u,
+    );
     expect(
       resolveFiscalNotificationExplanationSectionV2(withCalculation, "KEY_DATA")
         .assertions,
@@ -849,6 +852,17 @@ describe("structured document explanation v2", () => {
         code: "CALCULATION_RESIDUAL_FROM_PRINTED_AMOUNTS_REMAINING_AFTER_OFFSET",
       }),
     );
+    const adaptedCalculation = adaptFiscalNotificationDocumentExplanationV2ToV1(
+      withCalculation,
+    );
+    expect(adaptedCalculation.keyFacts).toContainEqual(
+      expect.objectContaining({
+        label: "Cálculo a partir de importes impresos",
+        basis: "CALCULATED_FROM_PRINTED_VALUES",
+      }),
+    );
+    expect(adaptedCalculation.keyFacts.map(({ label }) => label).join("\n"))
+      .not.toMatch(/CALCULATION_|RESIDUAL_FROM_PRINTED_AMOUNTS|REMAINING_AFTER_OFFSET/u);
 
     expect(() =>
       explain("collection.offset_resolution", {
@@ -864,6 +878,65 @@ describe("structured document explanation v2", () => {
         ],
       }),
     ).toThrowError(FiscalNotificationDocumentExplanationErrorV2);
+  });
+
+  it("renders observed enforcement fields in plain Spanish without canonical keys", () => {
+    const output = explain("collection.enforcement_order", {
+      references: [
+        {
+          referenceType: "LIQUIDATION_KEY",
+          value: "LQ-SYNTH-EXPLANATION-001",
+        },
+      ],
+      dates: [
+        { dateType: "ISSUE_DATE", value: "2026-02-05" },
+        {
+          dateType: "VOLUNTARY_PAYMENT_DEADLINE",
+          value: "2026-02-28",
+        },
+      ],
+      money: [
+        {
+          moneyType: "OUTSTANDING_PRINCIPAL",
+          amountCents: 10_000,
+          currency: "EUR",
+        },
+        {
+          moneyType: "EXECUTIVE_SURCHARGE_20",
+          amountCents: 2_000,
+          currency: "EUR",
+        },
+      ],
+      factCodes: ["APPEAL_INFORMATION"],
+      roleCodes: ["ISSUING_AUTHORITY"],
+    });
+    const text = sectionText(output, "KEY_DATA");
+
+    expect(text).toContain("Clave de liquidación: LQSYNTHEXPLANATION001.");
+    expect(text).toContain("Fecha de emisión: 05/02/2026.");
+    expect(text).toContain("Fecha límite de pago voluntario: 28/02/2026.");
+    expect(text).toContain("Principal pendiente: 100,00 €.");
+    expect(text).toContain(
+      "Recargo ejecutivo del veinte por ciento: 20,00 €.",
+    );
+    expect(text).toContain("Información sobre recursos consta en el documento.");
+    expect(text).toContain("Órgano emisor figura en el documento.");
+    expect(text).not.toMatch(
+      /LIQUIDATION_KEY|ISSUE_DATE|VOLUNTARY_PAYMENT_DEADLINE|OUTSTANDING_PRINCIPAL|EXECUTIVE_SURCHARGE_20|APPEAL_INFORMATION|ISSUING_AUTHORITY/u,
+    );
+    const adapted = adaptFiscalNotificationDocumentExplanationV2ToV1(output);
+    expect(adapted.keyFacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Clave de liquidación" }),
+        expect.objectContaining({ label: "Fecha de emisión" }),
+        expect.objectContaining({ label: "Principal pendiente" }),
+        expect.objectContaining({ label: "Información sobre recursos" }),
+        expect.objectContaining({ label: "Órgano emisor" }),
+      ]),
+    );
+    expect(adapted.keyFacts.map(({ label }) => label).join("\n")).not.toMatch(
+      /REFERENCE_|DATE_|MONEY_|FACT_|ROLE_|LIQUIDATION_KEY|OUTSTANDING_PRINCIPAL/u,
+    );
   });
 
   it("uses an exact relation phrase only when a compatible printed effect is present", () => {

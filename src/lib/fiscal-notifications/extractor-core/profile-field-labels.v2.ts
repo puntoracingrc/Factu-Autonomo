@@ -168,6 +168,8 @@ export const PROFILE_REFERENCE_FIELD_LABELS_V2 = Object.freeze([
   referenceField("ACT_ID", "Identificador del acto", [
     "identificador del acto",
     "número del acto",
+    "referencia del documento",
+    "referencia de la providencia",
   ]),
   referenceField("AGREEMENT_ID", "Identificador del acuerdo", [
     "identificador del acuerdo",
@@ -241,6 +243,7 @@ export const PROFILE_REFERENCE_FIELD_LABELS_V2 = Object.freeze([
   ]),
   referenceField("SEIZURE_ORDER_ID", "Número de diligencia de embargo", [
     "número de diligencia de embargo",
+    "número de diligencia",
     "referencia de la orden de embargo",
   ]),
   referenceField("TAX_PERIOD", "Período tributario", [
@@ -323,9 +326,11 @@ export const PROFILE_DATE_FIELD_LABELS_V2 = Object.freeze([
   dateField("RESPONSE_DEADLINE", "Fecha límite de respuesta", [
     "fecha límite de respuesta",
     "plazo máximo para contestar",
+    "plazo de contestación",
   ]),
   dateField("SEIZURE_DATE", "Fecha de embargo", [
     "fecha de embargo",
+    "fecha del embargo",
     "fecha de la diligencia de embargo",
   ]),
   dateField("SIGNING_DATE", "Fecha de firma", [
@@ -339,6 +344,8 @@ export const PROFILE_DATE_FIELD_LABELS_V2 = Object.freeze([
   dateField("VOLUNTARY_PAYMENT_DEADLINE", "Fecha límite de pago voluntario", [
     "fecha límite de pago voluntario",
     "vencimiento del período voluntario",
+    "fecha de finalización del período voluntario",
+    "fin del período voluntario",
   ]),
 ] satisfies readonly ProfileDateFieldLabelV2[]);
 
@@ -361,6 +368,7 @@ export const PROFILE_MONEY_FIELD_LABELS_V2 = Object.freeze([
   ]),
   moneyField("DOCUMENT_TOTAL", "Total del documento", [
     "importe total del documento",
+    "importe total",
     "total indicado en el documento",
   ]),
   moneyField(
@@ -377,6 +385,7 @@ export const PROFILE_MONEY_FIELD_LABELS_V2 = Object.freeze([
     [
       "importe del recargo ejecutivo ordinario",
       "recargo ejecutivo del veinte por ciento",
+      "recargo de apremio ordinario",
     ],
   ),
   moneyField(
@@ -390,6 +399,7 @@ export const PROFILE_MONEY_FIELD_LABELS_V2 = Object.freeze([
   moneyField("EXECUTIVE_SURCHARGE_PRINTED", "Recargo ejecutivo", [
     "importe del recargo ejecutivo",
     "recargo de apremio indicado",
+    "recargo de apremio",
   ]),
   moneyField("FINAL_QUOTA", "Cuota final", [
     "importe de la cuota final",
@@ -416,6 +426,7 @@ export const PROFILE_MONEY_FIELD_LABELS_V2 = Object.freeze([
   moneyField("OUTSTANDING_PRINCIPAL", "Principal pendiente", [
     "importe principal pendiente",
     "deuda principal aún pendiente",
+    "principal",
   ]),
   moneyField("PAYMENT_CONFIRMED", "Pago confirmado", [
     "importe cuyo pago consta confirmado",
@@ -464,6 +475,11 @@ export const PROFILE_MONEY_FIELD_LABELS_V2 = Object.freeze([
   moneyField("SEIZED_AMOUNT", "Importe embargado", [
     "cantidad embargada",
     "importe afectado por el embargo",
+    "importe a embargar",
+  ]),
+  moneyField("TOTAL_PENDING", "Total pendiente", [
+    "importe total pendiente",
+    "total pendiente",
   ]),
   moneyField("TOTAL_BEFORE_OFFSET", "Total antes de compensar", [
     "importe total previo a la compensación",
@@ -631,6 +647,7 @@ export const PROFILE_FACT_FIELD_LABELS_V2 = Object.freeze([
   factField("SEIZURE_INSTRUCTIONS", "Instrucciones de embargo", [
     "constan instrucciones de embargo",
     "se indica cómo cumplir la diligencia",
+    "instrucciones",
   ]),
   factField("SEIZURE_RECIPIENT_ROLE", "Papel del destinatario del embargo", [
     "consta el papel del destinatario en el embargo",

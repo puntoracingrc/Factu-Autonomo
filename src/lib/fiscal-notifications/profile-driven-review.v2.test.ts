@@ -304,7 +304,7 @@ describe("profile-driven review v2", () => {
         }),
         expect.objectContaining({
           semantic: "MONEY",
-          canonicalType: "PRINCIPAL",
+          canonicalType: "OUTSTANDING_PRINCIPAL",
           amountCents: 14_955,
           currency: "EUR",
         }),

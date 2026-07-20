@@ -103,6 +103,7 @@ const SHA256 = /^[a-f0-9]{64}$/u;
 const MAX_SOURCE_BYTES = 4 * 1024 * 1024;
 const AEAT_AUTHORITY_ID = "authority:aeat";
 const VERTICAL_FIELD_PREFIX = "VSR2";
+const OBSERVED_FACT_VALUE = "Consta en el documento";
 
 interface TechnicalSourceV1 {
   readonly pageCount: number;
@@ -991,6 +992,12 @@ function retainedTypedFieldValue(
     case "DETAIL":
     case "OBLIGATION":
       if (field.normalizedValue === null) throw invalidInput();
+      if (
+        field.displayValue === OBSERVED_FACT_VALUE &&
+        field.normalizedValue === field.canonicalType
+      ) {
+        return OBSERVED_FACT_VALUE;
+      }
       return field.normalizedValue;
     case "MONEY":
       if (field.amountCents === null || field.currency !== "EUR") {

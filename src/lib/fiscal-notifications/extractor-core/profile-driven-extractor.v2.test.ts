@@ -48,6 +48,34 @@ function documentPages(pages: readonly (readonly string[])[]): BoundedDocumentIn
   });
 }
 
+function stackedLayoutDocument(lines: readonly string[]): BoundedDocumentInput {
+  return Object.freeze({
+    ownerScope: OWNER_SCOPE,
+    documentId: "synthetic-stacked-layout-document-v2",
+    pages: Object.freeze([
+      Object.freeze({
+        pageNumber: 1,
+        text: lines.join("\n"),
+        isBlank: false,
+        layoutRows: Object.freeze(
+          lines.map((text, index) =>
+            Object.freeze({
+              yMilli: 900_000 - index * 20_000,
+              cells: Object.freeze([
+                Object.freeze({
+                  xMilli: 100_000,
+                  widthMilli: 500_000,
+                  text,
+                }),
+              ]),
+            }),
+          ),
+        ),
+      }),
+    ]),
+  });
+}
+
 function firstAuthorityLiteral(
   rule: (typeof FISCAL_NOTIFICATION_FAMILY_RULES_V2)[number],
 ): string {
@@ -336,6 +364,134 @@ describe("profile-driven extractor v2", () => {
     expect(JSON.stringify(result)).not.toContain("ABCD1234EFGH5678");
   });
 
+  it("does not cross an inactive field label to borrow its date or reference", async () => {
+    const result = await extractProfileDrivenFamilyV2({
+      document: document([
+        "Agencia Estatal de Administración Tributaria",
+        "Providencia de apremio",
+        "Fecha de emisión",
+        "Fecha de acceso: 05/02/2026",
+        "Número de expediente",
+        "Identificador del acuerdo: AGR-SYNTH-INACTIVE-001",
+      ]),
+    });
+
+    expect(result).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "collection.enforcement_order",
+    });
+    expect(
+      result.fieldCandidates.some(
+        (field) => field.kind === "DATE" && field.fieldCode === "ISSUE_DATE",
+      ),
+    ).toBe(false);
+    expect(
+      result.fieldCandidates.some(
+        (field) =>
+          field.kind === "REFERENCE" && field.fieldCode === "EXPEDIENTE_ID",
+      ),
+    ).toBe(false);
+  });
+
+  it("does not turn relative deadline prose or a narrative use of principal into scalar facts", async () => {
+    const deadline = await extractProfileDrivenFamilyV2({
+      document: document([
+        "Agencia Estatal de Administración Tributaria",
+        "Diligencia de embargo de cuentas bancarias",
+        "Número de diligencia: EMB-SYNTH-RELATIVE-001",
+        "Plazo de contestación: diez días desde la notificación de fecha 05/02/2026",
+        "Plazo de contestación: quince jornadas hábiles a partir del 06/02/2026",
+        "Plazo de contestación: 07/02/2026 a partir del cual se cuentan quince jornadas hábiles",
+        "El principal motivo del escrito incluye un importe de 100,00 EUR",
+        "Principal motivo declarado con importe de 200,00 EUR",
+        "Principal: motivo declarado con importe de 300,00 EUR",
+        "Principal:",
+        "La exposición menciona un importe discutido de 400,00 EUR",
+      ]),
+    });
+
+    expect(deadline).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "seizure.bank_account",
+    });
+    expect(
+      deadline.fieldCandidates.some(
+        (field) =>
+          field.kind === "DATE" && field.fieldCode === "RESPONSE_DEADLINE",
+      ),
+    ).toBe(false);
+
+    const absolute = await extractProfileDrivenFamilyV2({
+      document: document([
+        "Agencia Estatal de Administración Tributaria",
+        "Diligencia de embargo de cuentas bancarias",
+        "Número de diligencia: EMB-SYNTH-ABSOLUTE-001",
+        "Plazo de contestación: 08/02/2026.",
+      ]),
+    });
+    expect(absolute.fieldCandidates).toContainEqual(
+      expect.objectContaining({
+        kind: "DATE",
+        fieldCode: "RESPONSE_DEADLINE",
+        valueIso: "2026-02-08",
+      }),
+    );
+    expect(
+      deadline.fieldCandidates.some(
+        (field) =>
+          field.kind === "MONEY" &&
+          field.fieldCode === "OUTSTANDING_PRINCIPAL",
+      ),
+    ).toBe(false);
+  });
+
+  it("accepts a direct principal after a separator and keeps it as a boundary for totals", async () => {
+    const result = await extractProfileDrivenFamilyV2({
+      document: stackedLayoutDocument([
+        "Agencia Estatal de Administración Tributaria",
+        "Diligencia de embargo de cuentas bancarias",
+        "Número de diligencia: EMB-SYNTH-DIRECT-001",
+        "Importe total",
+        "Principal - 100,00 EUR",
+      ]),
+    });
+
+    expect(result.fieldCandidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "MONEY",
+          fieldCode: "OUTSTANDING_PRINCIPAL",
+          amountCents: 10_000,
+        }),
+      ]),
+    );
+    expect(
+      result.fieldCandidates.some(
+        (field) =>
+          field.kind === "MONEY" && field.fieldCode === "DOCUMENT_TOTAL",
+      ),
+    ).toBe(false);
+
+    const nextLine = await extractProfileDrivenFamilyV2({
+      document: document([
+        "Agencia Estatal de Administración Tributaria",
+        "Diligencia de embargo de cuentas bancarias",
+        "Número de diligencia: EMB-SYNTH-DIRECT-002",
+        "Principal:",
+        "150,00 EUR",
+      ]),
+    });
+    expect(nextLine.fieldCandidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "MONEY",
+          fieldCode: "OUTSTANDING_PRINCIPAL",
+          amountCents: 15_000,
+        }),
+      ]),
+    );
+  });
+
   it("extracts repeated dates and amounts from bounded PDF table coordinates", async () => {
     const rows = Object.freeze([
       Object.freeze({
@@ -413,6 +569,171 @@ describe("profile-driven extractor v2", () => {
         }),
       ]),
     );
+  });
+
+  it("keeps parallel layout columns independent and accepts a natural date range", async () => {
+    const input: BoundedDocumentInput = Object.freeze({
+      ownerScope: OWNER_SCOPE,
+      documentId: "synthetic-parallel-date-columns-v2",
+      pages: Object.freeze([
+        Object.freeze({
+          pageNumber: 1,
+          text: [
+            "Agencia Estatal de Administración Tributaria",
+            "Liquidación independiente de intereses de demora",
+            "Fecha desde - Fecha hasta",
+            "Fecha de emisión",
+          ].join("\n"),
+          isBlank: false,
+          layoutRows: Object.freeze([
+            Object.freeze({
+              yMilli: 300_000,
+              cells: Object.freeze([
+                Object.freeze({
+                  xMilli: 100_000,
+                  widthMilli: 220_000,
+                  text: "Fecha desde - Fecha hasta",
+                }),
+              ]),
+            }),
+            Object.freeze({
+              yMilli: 250_000,
+              cells: Object.freeze([
+                Object.freeze({
+                  xMilli: 110_000,
+                  widthMilli: 220_000,
+                  text: "Del 01/01/2026 al 31/03/2026",
+                }),
+                Object.freeze({
+                  xMilli: 400_000,
+                  widthMilli: 180_000,
+                  text: "Fecha de emisión",
+                }),
+              ]),
+            }),
+            Object.freeze({
+              yMilli: 200_000,
+              cells: Object.freeze([
+                Object.freeze({
+                  xMilli: 410_000,
+                  widthMilli: 120_000,
+                  text: "Día 16 de julio de 2026",
+                }),
+              ]),
+            }),
+          ]),
+        }),
+      ]),
+    });
+
+    const result = await extractProfileDrivenFamilyV2({ document: input });
+
+    expect(result.fieldCandidates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: "DATE",
+          fieldCode: "INTEREST_START_DATE",
+          valueIso: "2026-01-01",
+        }),
+        expect.objectContaining({
+          kind: "DATE",
+          fieldCode: "INTEREST_END_DATE",
+          valueIso: "2026-03-31",
+        }),
+        expect.objectContaining({
+          kind: "DATE",
+          fieldCode: "ISSUE_DATE",
+          valueIso: "2026-07-16",
+        }),
+      ]),
+    );
+    expect(
+      result.fieldCandidates
+        .filter((field) => field.kind === "DATE")
+        .map((field) => `${field.fieldCode}:${field.valueIso}`)
+        .sort(),
+    ).toEqual([
+      "INTEREST_END_DATE:2026-03-31",
+      "INTEREST_START_DATE:2026-01-01",
+      "ISSUE_DATE:2026-07-16",
+    ]);
+  });
+
+  it("stops a stacked field at the next printed label instead of consuming later values", async () => {
+    const result = await extractProfileDrivenFamilyV2({
+      document: stackedLayoutDocument([
+        "Agencia Estatal de Administración Tributaria",
+        "Providencia de apremio",
+        "Clave de liquidación",
+        "LQ-SYNTH-STACKED-001",
+        "Número de expediente",
+        "EXP-SYNTH-STACKED-001",
+        "Fecha de emisión",
+        "05/02/2026",
+        "Fecha de firma",
+        "06/02/2026",
+        "Fecha límite de pago voluntario",
+        "28/02/2026",
+        "Principal pendiente",
+        "100,00 EUR",
+        "Recargo ejecutivo del veinte por ciento",
+        "20,00 EUR",
+        "Ingreso a cuenta",
+        "0,00 EUR",
+        "Total del documento",
+        "120,00 EUR",
+      ]),
+    });
+
+    expect(result).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "collection.enforcement_order",
+    });
+    expect(
+      result.fieldCandidates.map((field) =>
+        field.kind === "REFERENCE"
+          ? `${field.kind}:${field.fieldCode}:${field.normalizedValue}`
+          : field.kind === "DATE"
+            ? `${field.kind}:${field.fieldCode}:${field.valueIso}`
+            : field.kind === "MONEY"
+              ? `${field.kind}:${field.fieldCode}:${field.amountCents}`
+              : `${field.kind}:${field.fieldCode}`,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        "REFERENCE:LIQUIDATION_KEY:LQ-SYNTH-STACKED-001",
+        "REFERENCE:EXPEDIENTE_ID:EXP-SYNTH-STACKED-001",
+        "DATE:ISSUE_DATE:2026-02-05",
+        "DATE:SIGNING_DATE:2026-02-06",
+        "DATE:VOLUNTARY_PAYMENT_DEADLINE:2026-02-28",
+        "MONEY:OUTSTANDING_PRINCIPAL:10000",
+        "MONEY:EXECUTIVE_SURCHARGE_20:2000",
+        "MONEY:DOCUMENT_TOTAL:12000",
+      ]),
+    );
+    const valuesByField = new Map<string, Set<string>>();
+    for (const field of result.fieldCandidates) {
+      if (
+        field.kind !== "REFERENCE" &&
+        field.kind !== "DATE" &&
+        field.kind !== "MONEY"
+      ) {
+        continue;
+      }
+      const value =
+        field.kind === "REFERENCE"
+          ? field.normalizedValue
+          : field.kind === "DATE"
+            ? field.valueIso
+            : String(field.amountCents);
+      const key = `${field.kind}:${field.fieldCode}`;
+      const values = valuesByField.get(key) ?? new Set<string>();
+      if (value !== null) values.add(value);
+      valuesByField.set(key, values);
+    }
+    expect(
+      [...valuesByField.entries()].filter(([, values]) => values.size > 1),
+    ).toEqual([]);
   });
 
   it("does not treat an unqualified integer as a monetary amount", async () => {

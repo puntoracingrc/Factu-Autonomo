@@ -184,6 +184,103 @@ describe("common seizure extractor v1", () => {
     expect(output.retainedSourceContent).toBe("NONE");
   });
 
+  it("does not convert a relative response period or principal prose into scalar facts", () => {
+    const output = extractSeizureV1({
+      document: document(page(
+        "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+        "Número de diligencia: EMB-SYN-RELATIVE-001",
+        "Plazo de contestación: diez días desde la notificación de fecha 05/02/2026",
+        "El principal motivo del escrito incluye un importe de 100,00 EUR",
+        "Principal motivo declarado con importe de 200,00 EUR",
+        "Principal: motivo declarado con importe de 300,00 EUR",
+        "Principal:",
+        "La exposición menciona un importe discutido de 400,00 EUR",
+      )),
+      segments: [segment("DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS")],
+    });
+
+    expect(output.seizureFacts.rawResponseDeadline).toMatchObject({
+      printedValue:
+        "diez días desde la notificación de fecha 05/02/2026",
+    });
+    expect(output.proceduralDates).toContainEqual(
+      expect.objectContaining({
+        dateType: "RESPONSE_DEADLINE",
+        parsedDate: null,
+        legallyComputed: false,
+      }),
+    );
+    expect(
+      output.monetaryComponents.some(
+        ({ componentType }) => componentType === "PRINCIPAL",
+      ),
+    ).toBe(false);
+
+    const alternate = extractSeizureV1({
+      document: document(page(
+        "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+        "Número de diligencia: EMB-SYN-RELATIVE-002",
+        "Plazo de contestación: quince jornadas hábiles a partir del 06/02/2026",
+      )),
+      segments: [segment("DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS")],
+    });
+    expect(alternate.proceduralDates).toContainEqual(
+      expect.objectContaining({
+        dateType: "RESPONSE_DEADLINE",
+        parsedDate: null,
+      }),
+    );
+
+    const suffixRelative = extractSeizureV1({
+      document: document(page(
+        "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+        "Número de diligencia: EMB-SYN-RELATIVE-003",
+        "Plazo de contestación: 07/02/2026 a partir del cual se cuentan quince jornadas hábiles",
+      )),
+      segments: [segment("DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS")],
+    });
+    expect(suffixRelative.proceduralDates).toContainEqual(
+      expect.objectContaining({
+        dateType: "RESPONSE_DEADLINE",
+        parsedDate: null,
+      }),
+    );
+  });
+
+  it("accepts a direct principal separated by a dash", () => {
+    const output = extractSeizureV1({
+      document: document(page(
+        "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+        "Número de diligencia: EMB-SYN-DIRECT-001",
+        "Principal - 100,00 EUR",
+      )),
+      segments: [segment("DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS")],
+    });
+
+    expect(output.monetaryComponents).toContainEqual(
+      expect.objectContaining({
+        componentType: "PRINCIPAL",
+        amountCents: 10_000,
+      }),
+    );
+
+    const nextLine = extractSeizureV1({
+      document: document(page(
+        "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+        "Número de diligencia: EMB-SYN-DIRECT-002",
+        "Principal:",
+        "150,00 EUR",
+      )),
+      segments: [segment("DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS")],
+    });
+    expect(nextLine.monetaryComponents).toContainEqual(
+      expect.objectContaining({
+        componentType: "PRINCIPAL",
+        amountCents: 15_000,
+      }),
+    );
+  });
+
   it("keeps the debtor, recipient and garnished third party as distinct parties", () => {
     const title = "CONTESTACIÓN A DILIGENCIA DE EMBARGO";
     const output = extractSeizureV1({

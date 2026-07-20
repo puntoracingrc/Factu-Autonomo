@@ -450,7 +450,7 @@ describe("vertical slice structured workspace v1", () => {
     );
     expect(result.workspace.analysisSnapshots[0]?.structuredData.administrativeDomain?.moneyFacts).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ kind: "ORIGINAL_TAX_PRINCIPAL", amountCents: 100_000 }),
+        expect.objectContaining({ kind: "OUTSTANDING_PRINCIPAL", amountCents: 100_000 }),
         expect.objectContaining({ kind: "SEIZED_AMOUNT", amountCents: 124_000 }),
         expect.objectContaining({ kind: "RETAINED_AMOUNT", amountCents: 90_000 }),
       ]),

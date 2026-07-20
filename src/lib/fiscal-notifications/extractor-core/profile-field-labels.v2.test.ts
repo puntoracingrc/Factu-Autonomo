@@ -38,7 +38,7 @@ describe("profile field labels v2 inventory", () => {
   it("covers every mustExtract code exactly once in its closed group", () => {
     expect(PROFILE_REFERENCE_FIELD_CODES_V2).toHaveLength(20);
     expect(PROFILE_DATE_FIELD_CODES_V2).toHaveLength(20);
-    expect(PROFILE_MONEY_FIELD_CODES_V2).toHaveLength(29);
+    expect(PROFILE_MONEY_FIELD_CODES_V2).toHaveLength(30);
     expect(PROFILE_FACT_FIELD_CODES_V2).toHaveLength(44);
     expect(PROFILE_PARTICIPANT_ROLE_CODES_V2).toHaveLength(15);
 
@@ -63,7 +63,7 @@ describe("profile field labels v2 inventory", () => {
       PROFILE_PARTICIPANT_ROLE_CODES_V2,
     );
 
-    expect(PROFILE_FIELD_LABELS_V2).toHaveLength(128);
+    expect(PROFILE_FIELD_LABELS_V2).toHaveLength(129);
     expect(
       new Set(
         PROFILE_FIELD_LABELS_V2.map(

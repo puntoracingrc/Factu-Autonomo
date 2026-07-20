@@ -21,6 +21,10 @@ import {
   type FiscalNotificationDocumentExplanationV1,
 } from "./structured-document-explanation.v1";
 import type { AeatOfficialCatalogProfileIdV9 } from "./knowledge/official-catalog-expansion.v9";
+import {
+  resolveProfileFieldLabelV2,
+  type ProfileFieldKindV2,
+} from "./extractor-core/profile-field-labels.v2";
 
 export const FISCAL_NOTIFICATION_DOCUMENT_EXPLANATION_ENGINE_ID_V2 =
   "fiscal-notification-document-explanation" as const;
@@ -1232,6 +1236,39 @@ function formatEuros(cents: number): string {
   return `${String(euros).replace(/\B(?=(\d{3})+(?!\d))/gu, ".")},${decimals} €`;
 }
 
+function humanProfileFieldLabel(
+  kind: ProfileFieldKindV2,
+  fieldCode: string,
+): string {
+  return resolveProfileFieldLabelV2(kind, fieldCode)?.labelEs ??
+    "Dato observado";
+}
+
+function formatExplanationDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(value);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : value;
+}
+
+function v1KeyFactLabel(
+  item: FiscalNotificationExplanationAssertionV2,
+): string {
+  const candidates = [
+    ["REFERENCE_", "REFERENCE", REFERENCE_CODE_SET],
+    ["DATE_", "DATE", DATE_CODE_SET],
+    ["MONEY_", "MONEY", MONEY_CODE_SET],
+    ["FACT_", "FACT", FACT_CODE_SET],
+    ["ROLE_", "PARTICIPANT_ROLE", ROLE_CODE_SET],
+  ] as const;
+  for (const [prefix, kind, codes] of candidates) {
+    if (!item.code.startsWith(prefix)) continue;
+    const fieldCode = item.code.slice(prefix.length);
+    if (codes.has(fieldCode)) return humanProfileFieldLabel(kind, fieldCode);
+  }
+  return item.level === "CALCULATED_FROM_PRINTED_VALUES"
+    ? "Cálculo a partir de importes impresos"
+    : "Dato observado";
+}
+
 function detectEffectAmbiguities(
   familyId: FiscalNotificationDocumentFamilyIdV2,
   effects: readonly FiscalNotificationPrintedEffectCodeV2[],
@@ -1497,58 +1534,70 @@ export function explainFiscalNotificationDocumentV2(
   const keyDataAssertions: FiscalNotificationExplanationAssertionV2[] = [];
   input.references.forEach((reference) => {
     const visibleValue = visibleSimpleReferenceValue(reference);
+    const label = humanProfileFieldLabel(
+      "REFERENCE",
+      reference.referenceType,
+    );
     keyDataAssertions.push(
       assertion(
         `REFERENCE_${reference.referenceType}`,
         "EXPLICIT_IN_DOCUMENT",
         visibleValue
-          ? `Referencia ${reference.referenceType}: ${visibleValue}.`
-          : `Referencia ${reference.referenceType} detectada; su valor no se muestra por privacidad.`,
+          ? `${label}: ${visibleValue}.`
+          : `Se ha detectado ${label.toLocaleLowerCase("es-ES")}; su valor no se muestra por privacidad.`,
       ),
     );
   });
   input.dates.forEach((date) => {
+    const label = humanProfileFieldLabel("DATE", date.dateType);
     keyDataAssertions.push(
       assertion(
         `DATE_${date.dateType}`,
         "EXPLICIT_IN_DOCUMENT",
-        `Fecha ${date.dateType}: ${date.value}.`,
+        `${label}: ${formatExplanationDate(date.value)}.`,
       ),
     );
   });
   input.money.forEach((money) => {
+    const label = humanProfileFieldLabel("MONEY", money.moneyType);
     keyDataAssertions.push(
       assertion(
         `MONEY_${money.moneyType}`,
         "EXPLICIT_IN_DOCUMENT",
-        `Importe ${money.moneyType}: ${formatEuros(money.amountCents)}.`,
+        `${label}: ${formatEuros(money.amountCents)}.`,
       ),
     );
   });
   input.factCodes.forEach(({ factCode }) => {
+    const label = humanProfileFieldLabel("FACT", factCode);
     keyDataAssertions.push(
       assertion(
         `FACT_${factCode}`,
         "EXPLICIT_IN_DOCUMENT",
-        `Hecho estructurado identificado: ${factCode}.`,
+        `${label} consta en el documento.`,
       ),
     );
   });
   input.roleCodes.forEach(({ roleCode }) => {
+    const label = humanProfileFieldLabel("PARTICIPANT_ROLE", roleCode);
     keyDataAssertions.push(
       assertion(
         `ROLE_${roleCode}`,
         "EXPLICIT_IN_DOCUMENT",
-        `Rol estructurado identificado: ${roleCode}.`,
+        `${label} figura en el documento.`,
       ),
     );
   });
   input.calculatedFromPrintedValues.forEach((calculation) => {
+    const label = humanProfileFieldLabel(
+      "MONEY",
+      calculation.resultMoneyType,
+    );
     keyDataAssertions.push(
       assertion(
         `CALCULATION_${calculation.calculationId}_${calculation.resultMoneyType}`,
         "CALCULATED_FROM_PRINTED_VALUES",
-        `Cálculo ${calculation.resultMoneyType}: ${formatEuros(calculation.amountCents)} mediante ${calculation.calculationId}.`,
+        `${label} calculado a partir de importes impresos: ${formatEuros(calculation.amountCents)}.`,
       ),
     );
   });
@@ -1960,7 +2009,7 @@ export function adaptFiscalNotificationDocumentExplanationV2ToV1(
         item.level === "CALCULATED_FROM_PRINTED_VALUES"
           ? [
               Object.freeze({
-                label: item.code,
+                label: v1KeyFactLabel(item),
                 value: item.text,
                 basis:
                   item.level === "EXPLICIT_IN_DOCUMENT"

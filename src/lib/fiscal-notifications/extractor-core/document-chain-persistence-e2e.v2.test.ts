@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { commitAppDataDurably } from "@/lib/app-data-durability";
 import { EMPTY_DATA, type AppData } from "@/lib/types";
 import { analyzeFiscalNotificationDocumentInput } from "../document-input-analysis";
+import { deleteFiscalNotificationDocumentV1 } from "../document-deletion.v1";
 import type { BoundedDocumentInput } from "../input-contract";
 import type { FiscalNotificationLocalAnalysisResult } from "../local-review-flow";
 import { projectFiscalNotificationStructuredHistoryV1 } from "../structured-review-history-view-model.v1";
@@ -38,6 +39,37 @@ function documentInput(
           RAW_SOURCE_MARKER,
         ].join("\n"),
         isBlank: false,
+      }),
+    ]),
+  });
+}
+
+function stackedDocumentInput(
+  documentId: string,
+  lines: readonly string[],
+): BoundedDocumentInput {
+  return Object.freeze({
+    ownerScope: OWNER_SCOPE,
+    documentId,
+    pages: Object.freeze([
+      Object.freeze({
+        pageNumber: 1,
+        text: lines.join("\n"),
+        isBlank: false,
+        layoutRows: Object.freeze(
+          lines.map((text, index) =>
+            Object.freeze({
+              yMilli: 950_000 - index * 18_000,
+              cells: Object.freeze([
+                Object.freeze({
+                  xMilli: 90_000,
+                  widthMilli: 600_000,
+                  text,
+                }),
+              ]),
+            }),
+          ),
+        ),
       }),
     ]),
   });
@@ -288,5 +320,171 @@ describe("AEAT declared-chain persistence end-to-end", () => {
     expect(persistedJson).not.toContain(PRIVATE_TAX_ID);
     expect(persistedJson).not.toContain(RAW_SOURCE_MARKER);
     expect(persistedJson).not.toMatch(/sourceText|pageText|PDF_TEXT_LAYER/u);
+  });
+
+  it("saves and reopens an enforcement-seizure pair, then deletes exactly one document", async () => {
+    const enforcement = await analyzeFiscalNotificationDocumentInput(
+      stackedDocumentInput("document:synthetic-enforcement-e2e", [
+        "DOCUMENTO SINTÉTICO DE QA - SIN VALIDEZ",
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "PROVIDENCIA DE APREMIO",
+        "Clave de liquidación",
+        "LQ-SYNTH-CHAIN-2026-001",
+        "Referencia del documento",
+        "APR-SYNTH-CHAIN-2026-001",
+        "Número de expediente",
+        "EXP-SYNTH-CHAIN-2026-001",
+        "Fecha de emisión",
+        "05/02/2026",
+        "Fecha de firma",
+        "06/02/2026",
+        "Fecha de finalización del período voluntario",
+        "28/02/2026",
+        "Principal pendiente 100,00 EUR",
+        "Recargo de apremio ordinario (20 %) 20,00 EUR",
+        "Ingreso a cuenta 0,00 EUR",
+        "Importe total 120,00 EUR",
+      ]),
+    );
+    const seizure = await analyzeFiscalNotificationDocumentInput(
+      stackedDocumentInput("document:synthetic-seizure-e2e", [
+        "DOCUMENTO SINTÉTICO DE QA - SIN VALIDEZ",
+        "AGENCIA TRIBUTARIA",
+        "sede.agenciatributaria.gob.es",
+        "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+        "Número de diligencia EMB-SYNTH-CHAIN-2026-002",
+        "Número de expediente EXP-SYNTH-CHAIN-2026-001",
+        "Clave de deuda DEBT-SYNTH-CHAIN-2026-001",
+        "Clave de liquidación LQ-SYNTH-CHAIN-2026-001",
+        "Referencia de la providencia APR-SYNTH-CHAIN-2026-001",
+        "Fecha de emisión 03/03/2026",
+        "Fecha del embargo 04/03/2026",
+        "Plazo de contestación 12/03/2026",
+        "Principal 100,00 EUR",
+        "Recargo de apremio 20,00 EUR",
+        "Intereses de demora 3,00 EUR",
+        "Costas 1,00 EUR",
+        "Total pendiente 124,00 EUR",
+        "Importe a embargar 124,00 EUR",
+        "Instrucciones Contestar por la sede electrónica",
+      ]),
+    );
+
+    const firstSave = saveReview({
+      expected: structuredClone(EMPTY_DATA),
+      reviewId: "review:00000000-0000-4000-8000-000000000624",
+      createdAt: "2026-07-16T10:00:00.000Z",
+      analysis: localAnalysis(enforcement, "c".repeat(64)),
+    });
+    const secondSave = saveReview({
+      expected: firstSave,
+      reviewId: "review:00000000-0000-4000-8000-000000000625",
+      createdAt: "2026-07-16T10:05:00.000Z",
+      analysis: localAnalysis(seizure, "d".repeat(64)),
+    });
+    const workspace = secondSave.fiscalNotificationsWorkspace;
+    expect(workspace).toBeDefined();
+    if (!workspace) return;
+    expect(workspace.ownerScope).toBe(OWNER_SCOPE);
+    expect(workspace.documents).toHaveLength(2);
+    expect(workspace.relations.length).toBeGreaterThan(0);
+    expect(
+      workspace.relations.every(
+        (relation) =>
+          relation.evidence.matchingReferenceTypes.length > 0 &&
+          relation.evidence.matchingAmountTypes.length === 0,
+      ),
+    ).toBe(true);
+
+    const history = projectFiscalNotificationStructuredHistoryV1(
+      structuredClone(workspace),
+      OWNER_SCOPE,
+    );
+    expect(history.status).toBe("READY");
+    if (history.status !== "READY") return;
+    expect(
+      history.entries
+        .map(({ title, documentDate }) => [title, documentDate] as const)
+        .sort((left, right) => (left[1] ?? "").localeCompare(right[1] ?? "")),
+    )
+      .toEqual([
+        ["Providencia de apremio", "2026-02-05"],
+        ["Diligencia de embargo de cuenta bancaria", "2026-03-03"],
+      ]);
+    const visibleExplanation = history.entries
+      .flatMap((entry) => entry.explanation.keyFacts)
+      .map((fact) => fact.value)
+      .join("\n");
+    expect(visibleExplanation).not.toMatch(
+      /LIQUIDATION_KEY|EXPEDIENTE_ID|ISSUE_DATE|OUTSTANDING_PRINCIPAL|EXECUTIVE_SURCHARGE|SUM_OF_PRINTED_AMOUNTS/u,
+    );
+    const visibleOrderedFacts = history.entries
+      .flatMap((entry) => entry.orderedFacts)
+      .map(({ value }) => value)
+      .join("\n");
+    expect(visibleOrderedFacts).toContain("Consta en el documento");
+    expect(visibleOrderedFacts).not.toMatch(
+      /SEIZURE_INSTRUCTIONS|LIQUIDATION_KEY|EXPEDIENTE_ID|OUTSTANDING_PRINCIPAL/u,
+    );
+    expect(
+      history.entries.flatMap((entry) => entry.orderedFacts),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          semantic: "DETAIL",
+          label: "Instrucciones",
+          value: "Consta en el documento",
+          pageNumber: 1,
+        }),
+      ]),
+    );
+
+    const seizureDocument = workspace.documents.find(
+      ({ documentSubtype }) => documentSubtype === "seizure.bank_account",
+    );
+    const enforcementDocument = workspace.documents.find(
+      ({ documentSubtype }) =>
+        documentSubtype === "collection.enforcement_order",
+    );
+    expect(seizureDocument).toBeDefined();
+    expect(enforcementDocument).toBeDefined();
+    if (!seizureDocument || !enforcementDocument) return;
+    const deletion = deleteFiscalNotificationDocumentV1({
+      workspace,
+      ownerScope: OWNER_SCOPE,
+      documentId: seizureDocument.id,
+      deletedAt: "2026-07-16T10:10:00.000Z",
+    });
+    expect(deletion.status).toBe("APPLIED");
+    if (deletion.status !== "APPLIED") return;
+    expect(deletion.workspace.ownerScope).toBe(OWNER_SCOPE);
+    expect(deletion.workspace.documents.map(({ id }) => id)).toEqual([
+      enforcementDocument.id,
+    ]);
+    expect(
+      deletion.workspace.references.every(
+        ({ documentId }) => documentId === enforcementDocument.id,
+      ),
+    ).toBe(true);
+    expect(
+      deletion.workspace.evidence.every(
+        ({ documentId }) => documentId === enforcementDocument.id,
+      ),
+    ).toBe(true);
+    expect(deletion.workspace.relations).toEqual([]);
+    const reopenedAfterDelete = projectFiscalNotificationStructuredHistoryV1(
+      structuredClone(deletion.workspace),
+      OWNER_SCOPE,
+    );
+    expect(reopenedAfterDelete.status).toBe("READY");
+    if (reopenedAfterDelete.status !== "READY") return;
+    expect(reopenedAfterDelete.entries).toEqual([
+      expect.objectContaining({
+        key: enforcementDocument.id,
+        title: "Providencia de apremio",
+        documentDate: "2026-02-05",
+      }),
+    ]);
   });
 });
