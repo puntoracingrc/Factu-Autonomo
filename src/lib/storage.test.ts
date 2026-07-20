@@ -1017,6 +1017,73 @@ describe("storage", () => {
     expect(loadData().profile.name).toBe(candidate.profile.name);
   });
 
+  it("distingue un workspace fiscal que no supera la proyección privada", () => {
+    const setItem = vi.spyOn(localStorage, "setItem");
+    const malformed = {
+      ...emptyFiscalNotificationsWorkspace(),
+      rawPdfText: "contenido privado no persistible",
+    };
+
+    expect(
+      saveData(
+        {
+          ...sampleData(),
+          fiscalNotificationsWorkspace: malformed as never,
+        },
+        { fiscalNotificationsBaseAwareProjection: true },
+      ),
+    ).toEqual({
+      status: "blocked",
+      reason: "fiscal_workspace_projection_failed",
+    });
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("distingue una cola fiscal inválida sin expediente canónico", () => {
+    const setItem = vi.spyOn(localStorage, "setItem");
+    const candidate: AppData = {
+      ...sampleData(),
+      meta: {
+        lastModified: NOW,
+        pendingChanges: [
+          {
+            entityType: "fiscal_notifications_workspace",
+            entityId: "workspace:malformed-pending",
+            deleted: false,
+            payload: { rawPdfText: "contenido privado no persistible" },
+            updatedAt: NOW,
+          },
+        ],
+      },
+    };
+
+    expect(
+      saveData(candidate, {
+        fiscalNotificationsBaseAwareProjection: true,
+      }),
+    ).toEqual({
+      status: "blocked",
+      reason: "fiscal_pending_change_projection_failed",
+    });
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it("distingue un fallo de serialización posterior a la proyección fiscal", () => {
+    const setItem = vi.spyOn(localStorage, "setItem");
+    const circular = sampleData() as AppData & { loop?: unknown };
+    circular.loop = circular;
+
+    expect(
+      saveData(circular, {
+        fiscalNotificationsBaseAwareProjection: true,
+      }),
+    ).toEqual({
+      status: "blocked",
+      reason: "fiscal_serialization_failed",
+    });
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
   it("clasifica el guard anti-vaciado como bloqueo y conserva el raw", () => {
     const beforeRaw = JSON.stringify(sampleData());
     localStorage.setItem(STORAGE_KEY, beforeRaw);

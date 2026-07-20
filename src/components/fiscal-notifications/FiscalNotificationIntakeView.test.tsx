@@ -483,6 +483,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(writeFlow).toContain(
       "advanceAfterSuccessfulSave(activeId, savedDocumentId)",
     );
+    expect(writeFlow).toContain("confirmedAt: new Date().toISOString()");
     expect(componentSource).toContain(
       'write.safeCode === "CORE_INVALID_INPUT"',
     );

@@ -7,8 +7,10 @@ import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "./knowledge/aeat-document-knowledg
 import {
   compareFiscalNotificationsWorkspaceStorageEnvelopesV2,
   encodeFiscalNotificationsWorkspaceForStorageV2,
+  mergeFiscalNotificationsWorkspaceStorageEnvelopesV2,
   parseFiscalNotificationsWorkspaceStorageEnvelopeV2,
   registerFiscalNotificationDocumentReductionTransitionV2,
+  registerFiscalNotificationEmptyRestartDescendantTransitionV2,
   registerFiscalNotificationEmptyRestartTransitionV2,
   restoreFiscalNotificationsWorkspaceFromStorageV2,
 } from "./workspace-storage-envelope.v2";
@@ -961,5 +963,308 @@ describe("runtime privacy storage envelope v2", () => {
         OWNER,
       ),
     ).not.toBeNull();
+  });
+
+  it("registers the first non-empty descendant after a complete reduction", () => {
+    const baseWorkspace = workspace();
+    const base = encodeFiscalNotificationsWorkspaceForStorageV2(baseWorkspace)!;
+    const deletion = deleteFiscalNotificationDocumentV1({
+      workspace: baseWorkspace,
+      ownerScope: OWNER,
+      documentId: "document:privacy-runtime:1",
+      deletedAt: "2026-07-16T09:00:00.000Z",
+    });
+    expect(deletion.status).toBe("APPLIED");
+    if (deletion.status !== "APPLIED") return;
+    const reducedWorkspace =
+      registerFiscalNotificationDocumentReductionTransitionV2(
+        deletion.workspace,
+        baseWorkspace,
+        OWNER,
+        "2026-07-16T09:00:00.000Z",
+      );
+    expect(reducedWorkspace).not.toBeNull();
+    const reduced = encodeFiscalNotificationsWorkspaceForStorageV2(
+      reducedWorkspace,
+      base,
+    )!;
+
+    const restartAt = "2026-07-16T11:00:00.000Z";
+    const restartCandidate: FiscalNotificationsWorkspace = {
+      ...workspace(),
+      workspaceId: "workspace:privacy-runtime:restart-descendant",
+      revision: 1,
+      createdAt: restartAt,
+      updatedAt: restartAt,
+    };
+    const restartedWorkspace =
+      registerFiscalNotificationEmptyRestartDescendantTransitionV2(
+        restartCandidate,
+        reducedWorkspace,
+        OWNER,
+        restartAt,
+      );
+    expect(restartedWorkspace).not.toBeNull();
+    const restarted = encodeFiscalNotificationsWorkspaceForStorageV2(
+      restartedWorkspace,
+      reduced,
+    )!;
+    expect(restarted.transition).toMatchObject({
+      kind: "USER_CONFIRMED_EMPTY_RESTART_V1",
+      ownerScope: OWNER,
+      confirmedAt: restartAt,
+      baseWorkspaceId: reduced.workspace.workspaceId,
+      baseCreatedAt: reduced.workspace.createdAt,
+      baseRevision: reduced.workspace.revision,
+      baseUpdatedAt: reduced.workspace.updatedAt,
+      baseEnvelopeSha256: expect.stringMatching(/^[0-9a-f]{64}$/u),
+    });
+    expect(
+      compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        reduced,
+        restarted,
+        OWNER,
+      ),
+    ).toBe("INCOMING_ADVANCES");
+
+    const sameMetadataWithoutReduction =
+      encodeFiscalNotificationsWorkspaceForStorageV2(deletion.workspace)!;
+    expect(sameMetadataWithoutReduction.workspace).toEqual(reduced.workspace);
+    expect(sameMetadataWithoutReduction.transition).toBeUndefined();
+    expect(
+      compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        sameMetadataWithoutReduction,
+        restarted,
+        OWNER,
+      ),
+    ).toBe("DIVERGED");
+
+    const deletionAfterRestartSync = deleteFiscalNotificationDocumentV1({
+      workspace: restartedWorkspace,
+      ownerScope: OWNER,
+      documentId: "document:privacy-runtime:1",
+      deletedAt: "2026-07-16T12:00:00.000Z",
+    });
+    expect(deletionAfterRestartSync.status).toBe("APPLIED");
+    if (deletionAfterRestartSync.status !== "APPLIED") return;
+    const reducedAfterRestartSyncWorkspace =
+      registerFiscalNotificationDocumentReductionTransitionV2(
+        deletionAfterRestartSync.workspace,
+        restartedWorkspace,
+        OWNER,
+        "2026-07-16T12:00:00.000Z",
+      );
+    expect(reducedAfterRestartSyncWorkspace).not.toBeNull();
+    const reducedAfterRestartSync =
+      encodeFiscalNotificationsWorkspaceForStorageV2(
+        reducedAfterRestartSyncWorkspace,
+        restarted,
+      )!;
+    expect(reducedAfterRestartSync.transition).toMatchObject({
+      ...restarted.transition,
+      lineageEnvelopeSha256s: [expect.stringMatching(/^[0-9a-f]{64}$/u)],
+    });
+    expect(
+      compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        restarted,
+        reducedAfterRestartSync,
+        OWNER,
+      ),
+    ).toBe("INCOMING_ADVANCES");
+    expect(
+      mergeFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        restarted,
+        reducedAfterRestartSync,
+        OWNER,
+      ),
+    ).toEqual(reducedAfterRestartSync);
+
+    const remoteSiblingWorkspace = workspaceWithTwoDocumentGraphs();
+    remoteSiblingWorkspace.workspaceId = restartCandidate.workspaceId;
+    remoteSiblingWorkspace.revision = 2;
+    remoteSiblingWorkspace.createdAt = restartAt;
+    remoteSiblingWorkspace.updatedAt = "2026-07-16T12:10:00.000Z";
+    const remoteSibling = encodeFiscalNotificationsWorkspaceForStorageV2(
+      remoteSiblingWorkspace,
+      restarted,
+    )!;
+
+    const linearDeletion = deleteFiscalNotificationDocumentV1({
+      workspace: remoteSiblingWorkspace,
+      ownerScope: OWNER,
+      documentId: "document:privacy-runtime:1",
+      deletedAt: "2026-07-16T12:15:00.000Z",
+    });
+    expect(linearDeletion.status).toBe("APPLIED");
+    if (linearDeletion.status !== "APPLIED") return;
+    const linearReducedWorkspace =
+      registerFiscalNotificationDocumentReductionTransitionV2(
+        linearDeletion.workspace,
+        remoteSiblingWorkspace,
+        OWNER,
+        "2026-07-16T12:15:00.000Z",
+      );
+    expect(linearReducedWorkspace).not.toBeNull();
+    const linearReduced = encodeFiscalNotificationsWorkspaceForStorageV2(
+      linearReducedWorkspace,
+      remoteSibling,
+    )!;
+    const linearMixedWorkspace = JSON.parse(
+      JSON.stringify(workspaceWithTwoDocumentGraphs()).replaceAll(
+        "privacy-runtime",
+        "privacy-mixed",
+      ),
+    ) as FiscalNotificationsWorkspace;
+    linearMixedWorkspace.workspaceId = restartCandidate.workspaceId;
+    linearMixedWorkspace.revision = 4;
+    linearMixedWorkspace.createdAt = restartAt;
+    linearMixedWorkspace.updatedAt = "2026-07-16T12:25:00.000Z";
+    const linearMixedFile = linearMixedWorkspace.files.find((entry) =>
+      entry.id.includes("privacy-mixed"),
+    )!;
+    linearMixedFile.sha256 = "d".repeat(64);
+    linearMixedFile.contentFingerprint = "d".repeat(64);
+    const linearMixed = encodeFiscalNotificationsWorkspaceForStorageV2(
+      linearMixedWorkspace,
+      linearReduced,
+    )!;
+    expect(linearMixed.workspace.documents).toHaveLength(2);
+    expect(
+      compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        remoteSibling,
+        linearMixed,
+        OWNER,
+      ),
+    ).toBe("INCOMING_ADVANCES");
+    expect(
+      mergeFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        remoteSibling,
+        linearMixed,
+        OWNER,
+      ),
+    ).toEqual(linearMixed);
+
+    const localSiblingWorkspace = JSON.parse(
+      JSON.stringify(workspaceWithTwoDocumentGraphs()).replaceAll(
+        "privacy-descendant",
+        "privacy-sibling",
+      ),
+    ) as FiscalNotificationsWorkspace;
+    localSiblingWorkspace.workspaceId = restartCandidate.workspaceId;
+    localSiblingWorkspace.revision = 2;
+    localSiblingWorkspace.createdAt = restartAt;
+    localSiblingWorkspace.updatedAt = "2026-07-16T12:20:00.000Z";
+    const localSiblingFile = localSiblingWorkspace.files.find((entry) =>
+      entry.id.includes("privacy-sibling"),
+    )!;
+    localSiblingFile.sha256 = "c".repeat(64);
+    localSiblingFile.contentFingerprint = "c".repeat(64);
+    const localSibling = encodeFiscalNotificationsWorkspaceForStorageV2(
+      localSiblingWorkspace,
+      restarted,
+    )!;
+    const localSiblingDeletion = deleteFiscalNotificationDocumentV1({
+      workspace: localSiblingWorkspace,
+      ownerScope: OWNER,
+      documentId: "document:privacy-sibling:1",
+      deletedAt: "2026-07-16T12:30:00.000Z",
+    });
+    expect(localSiblingDeletion.status).toBe("APPLIED");
+    if (localSiblingDeletion.status !== "APPLIED") return;
+    const localSiblingReducedWorkspace =
+      registerFiscalNotificationDocumentReductionTransitionV2(
+        localSiblingDeletion.workspace,
+        localSiblingWorkspace,
+        OWNER,
+        "2026-07-16T12:30:00.000Z",
+      );
+    expect(localSiblingReducedWorkspace).not.toBeNull();
+    const localSiblingReduced =
+      encodeFiscalNotificationsWorkspaceForStorageV2(
+        localSiblingReducedWorkspace,
+        localSibling,
+      )!;
+    expect(localSiblingReduced.workspace.documents).toHaveLength(1);
+    expect(
+      compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        remoteSibling,
+        localSiblingReduced,
+        OWNER,
+      ),
+    ).toBe("DIVERGED");
+    expect(
+      mergeFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        remoteSibling,
+        localSiblingReduced,
+        OWNER,
+      ),
+    ).toBeNull();
+
+    const saturatedLineage = Array.from({ length: 5_000 }, (_, index) =>
+      index.toString(16).padStart(64, "0"),
+    );
+    const saturatedRestart =
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        {
+          ...structuredClone(restarted),
+          transition: {
+            ...structuredClone(restarted.transition),
+            lineageEnvelopeSha256s: saturatedLineage,
+          },
+        },
+        OWNER,
+      );
+    expect(saturatedRestart).not.toBeNull();
+    if (!saturatedRestart) return;
+    const afterSaturatedWorkspace = workspaceWithTwoDocumentGraphs();
+    afterSaturatedWorkspace.workspaceId = restartCandidate.workspaceId;
+    afterSaturatedWorkspace.revision = 2;
+    afterSaturatedWorkspace.createdAt = restartAt;
+    afterSaturatedWorkspace.updatedAt = "2026-07-16T14:00:00.000Z";
+    const afterSaturated = encodeFiscalNotificationsWorkspaceForStorageV2(
+      afterSaturatedWorkspace,
+      saturatedRestart,
+    )!;
+    expect(
+      afterSaturated.transition?.kind ===
+        "USER_CONFIRMED_EMPTY_RESTART_V1"
+        ? afterSaturated.transition.lineageEnvelopeSha256s
+        : null,
+    ).toHaveLength(5_000);
+    expect(
+      afterSaturated.transition?.kind ===
+        "USER_CONFIRMED_EMPTY_RESTART_V1"
+        ? afterSaturated.transition.lineageEnvelopeSha256s
+        : [],
+    ).not.toContain("0".repeat(64));
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        afterSaturated,
+        OWNER,
+      ),
+    ).not.toBeNull();
+
+    const concurrentWorkspace: FiscalNotificationsWorkspace = {
+      ...workspace(),
+      revision: reduced.workspace.revision + 1,
+      updatedAt: "2026-07-16T10:00:00.000Z",
+    };
+    const concurrent = encodeFiscalNotificationsWorkspaceForStorageV2(
+      concurrentWorkspace,
+    )!;
+    expect(
+      compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        concurrent,
+        restarted,
+        OWNER,
+      ),
+    ).toBe("DIVERGED");
+    expect(
+      mergeFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        concurrent,
+        restarted,
+        OWNER,
+      ),
+    ).toBeNull();
   });
 });
