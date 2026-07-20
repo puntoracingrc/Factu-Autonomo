@@ -19,6 +19,7 @@ export interface PlanLimits {
   productLearning: boolean;
   familyMarginRules: boolean;
   cloudSync: boolean;
+  maxCloudDevices: number | null;
   databaseImport: boolean;
   aiTextAutofill: boolean;
   quarterlySummary: boolean;
@@ -58,6 +59,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       productLearning: false,
       familyMarginRules: false,
       cloudSync: false,
+      maxCloudDevices: 0,
       databaseImport: false,
       aiTextAutofill: false,
       quarterlySummary: false,
@@ -85,6 +87,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       productLearning: false,
       familyMarginRules: false,
       cloudSync: true,
+      maxCloudDevices: 2,
       databaseImport: true,
       aiTextAutofill: true,
       quarterlySummary: true,
@@ -112,6 +115,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       productLearning: false,
       familyMarginRules: false,
       cloudSync: true,
+      maxCloudDevices: 2,
       databaseImport: true,
       aiTextAutofill: true,
       quarterlySummary: true,
@@ -139,6 +143,7 @@ export const PLANS: Record<PlanId, PlanDefinition> = {
       productLearning: true,
       familyMarginRules: true,
       cloudSync: true,
+      maxCloudDevices: 5,
       databaseImport: true,
       aiTextAutofill: true,
       quarterlySummary: true,

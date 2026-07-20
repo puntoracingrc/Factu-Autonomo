@@ -48,6 +48,10 @@ import {
 } from "@/lib/google-auth/browser";
 import { getGoogleAuthClientId } from "@/lib/google-auth/config";
 import { clearDriveAccessToken } from "@/lib/google-drive/backup";
+import {
+  registerCurrentCloudDevice,
+  retireCurrentCloudDevice,
+} from "@/lib/cloud/device-client";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
 import { isCloudEnabled, isGoogleAuthEnabled } from "@/lib/supabase/config";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
@@ -78,23 +82,14 @@ import {
 } from "@/lib/email/welcome-client-retry";
 
 export type SyncStatus =
-  | "disabled"
-  | "offline"
-  | "idle"
-  | "pending"
-  | "syncing"
-  | "synced"
-  | "error";
+  "disabled" | "offline" | "idle" | "pending" | "syncing" | "synced" | "error";
 
 export type SignUpResult =
   | { ok: true; email: string; needsEmailConfirmation: boolean }
   | { ok: false; error: string };
 
 export type LocalDataHandoffStatus =
-  | "none"
-  | "pending"
-  | "kept_local"
-  | "syncing";
+  "none" | "pending" | "kept_local" | "syncing";
 
 interface CloudSyncValue {
   cloudEnabled: boolean;
@@ -309,6 +304,47 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     [replaceData],
   );
 
+  const ensureCloudReadyForCurrentDevice = useCallback(async () => {
+    if (!user) return false;
+
+    const cloudAccess = await canUseCloudForUser(user.id);
+    if (!cloudAccess.allowed) {
+      setSyncStatus("idle");
+      setSyncMessage(
+        cloudAccess.reason ?? "La nube requiere un plan con sincronizacion.",
+      );
+      return false;
+    }
+
+    try {
+      const deviceAccess = await registerCurrentCloudDevice();
+      if (deviceAccess.allowed === false || deviceAccess.error) {
+        setSyncStatus("idle");
+        setSyncMessage(
+          deviceAccess.message ??
+            deviceAccess.error ??
+            "Este dispositivo no puede sincronizar con la nube.",
+        );
+        return false;
+      }
+      return true;
+    } catch (error) {
+      setSyncStatus("error");
+      setSyncMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo verificar este dispositivo.",
+      );
+      return false;
+    }
+  }, [user]);
+
+  const rememberSuccessfulDeviceSync = useCallback(() => {
+    void registerCurrentCloudDevice({ markSynced: true }).catch(
+      () => undefined,
+    );
+  }, []);
+
   const pushToCloud = useCallback(
     async (
       payload = data,
@@ -339,12 +375,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      const cloudAccess = await canUseCloudForUser(user.id);
-      if (!cloudAccess.allowed) {
-        setSyncStatus("idle");
-        setSyncMessage(cloudAccess.reason ?? "La nube requiere plan Pro.");
-        return false;
-      }
+      if (!(await ensureCloudReadyForCurrentDevice())) return false;
 
       if (!isBrowserOnline()) {
         markSyncPending();
@@ -373,6 +404,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         }
         clearSyncPending();
         setSyncStatus("synced");
+        rememberSuccessfulDeviceSync();
         setSyncMessage(
           silent
             ? null
@@ -407,8 +439,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     [
       data,
       demoMode,
+      ensureCloudReadyForCurrentDevice,
       handoffPausesCloud,
       localDataHandoffStatus,
+      rememberSuccessfulDeviceSync,
       replaceData,
       requiresEmailConfirmation,
       user,
@@ -499,12 +533,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      const cloudAccess = await canUseCloudForUser(user.id);
-      if (!cloudAccess.allowed) {
-        setSyncStatus("idle");
-        setSyncMessage(cloudAccess.reason ?? "La nube requiere plan Pro.");
-        return false;
-      }
+      if (!(await ensureCloudReadyForCurrentDevice())) return false;
 
       if (!isBrowserOnline()) {
         setSyncStatus("offline");
@@ -620,6 +649,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
           ) {
             finalizeSyncState(workingData);
           }
+          rememberSuccessfulDeviceSync();
           return true;
         } catch (error) {
           markSyncPending();
@@ -651,10 +681,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     },
     [
       demoMode,
+      ensureCloudReadyForCurrentDevice,
       finalizeSyncState,
       handoffPausesCloud,
       localDataHandoffStatus,
       pushToCloud,
+      rememberSuccessfulDeviceSync,
       replaceData,
       requiresEmailConfirmation,
       user,
@@ -780,12 +812,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       "Preparando una copia de seguridad antes de reparar este dispositivo…",
     );
 
-    const cloudAccess = await canUseCloudForUser(user.id);
-    if (!cloudAccess.allowed) {
-      setSyncStatus("idle");
-      setSyncMessage(cloudAccess.reason ?? "La nube requiere plan Pro.");
-      return;
-    }
+    if (!(await ensureCloudReadyForCurrentDevice())) return;
 
     if (!isBrowserOnline()) {
       setSyncStatus("offline");
@@ -899,6 +926,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         }
 
         setSyncStatus("synced");
+        rememberSuccessfulDeviceSync();
         setSyncMessage(
           legacyMigrationFailed
             ? `Dispositivo reparado desde ${repair.safetyCopyFilename}. La copia antigua sigue pendiente de actualizar en la nube.`
@@ -928,8 +956,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [
     demoMode,
+    ensureCloudReadyForCurrentDevice,
     getCurrentData,
     pauseAutomaticCloud,
+    rememberSuccessfulDeviceSync,
     replaceCloudSnapshotDurably,
     requiresEmailConfirmation,
     user,
@@ -1409,16 +1439,26 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     finishSignedOutSession("Sesión cerrada");
   }, [finishSignedOutSession]);
 
-  const signOutAndClearDevice = useCallback(async (): Promise<string | null> => {
+  const signOutAndClearDevice = useCallback(async (): Promise<
+    string | null
+  > => {
     if (!user) return "No hay una sesión iniciada.";
     if (demoMode) return "Sal de la demo antes de borrar este dispositivo.";
-    if (!emailConfirmed || handoffPausesCloud) {
-      return "Guarda primero estos datos en tu cuenta y confirma el email antes de borrarlos del dispositivo.";
-    }
+    if (!emailConfirmed) return EMAIL_CONFIRMATION_REQUIRED_MESSAGE;
 
-    const synced = await flushPendingUpload(false);
-    if (!synced) {
-      return "No se ha podido confirmar la copia en la nube. No se ha borrado ningún dato local.";
+    const cloudAccess = await canUseCloudForUser(user.id);
+    if (cloudAccess.allowed) {
+      if (handoffPausesCloud) {
+        return "Guarda primero estos datos en tu cuenta antes de borrarlos del dispositivo.";
+      }
+      const synced = await flushPendingUpload(false);
+      if (!synced) {
+        return "No se ha podido confirmar la copia en la nube. No se ha borrado ningún dato local.";
+      }
+      const retired = await retireCurrentCloudDevice();
+      if (retired.error) {
+        return `No se ha podido liberar la plaza de este dispositivo. No se ha borrado ningún dato local. ${retired.error}`;
+      }
     }
 
     const expected = dataRef.current;

@@ -209,6 +209,10 @@ La decisión obligatoria y versionada está en
 - Una cola local solo se limpia después de confirmar la escritura y aplicar el
   estado sincronizado. Offline, timeout, preflight, CAS o conflicto conservan
   los cambios locales y dejan un error observable y reintentable.
+- Gratis no escribe ni lee la nube de Factu. Pro admite 2 dispositivos activos,
+  Pro+ admite 5 y la prueba Pro 2; `sync_entities` y `user_backups` exigen en
+  servidor un token de dispositivo activo cuyo valor solo se conserva como
+  hash. Alcanzar el límite o perder la autorización conserva la cola local.
 - Descargar o reemplazar desde la nube es una acción explícita: nunca se hace
   silenciosamente sobre datos locales pendientes. Identidad de usuario,
   aislamiento por tenant, integridad fiscal y overlays monotónicos siguen

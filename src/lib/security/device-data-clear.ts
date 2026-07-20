@@ -1,5 +1,6 @@
 import { DRIVE_BACKUP_SETTINGS_KEY } from "@/lib/google-drive/backup";
 import { FISCAL_CALENDAR_REMINDER_STORAGE_KEY } from "@/lib/fiscal-calendar/reminder-draft";
+import { CLOUD_DEVICE_TOKEN_STORAGE_KEY } from "@/lib/cloud/device-token";
 
 const RENTABILIDAD_REAL_PREFIX = "fa_rentabilidad_real_";
 const SYNC_PENDING_KEY = "factura-autonomo-sync-pending";
@@ -24,6 +25,7 @@ export function clearSecondaryDeviceData(
 ): DeviceDataClearResult {
   const keys = new Set([
     DRIVE_BACKUP_SETTINGS_KEY,
+    CLOUD_DEVICE_TOKEN_STORAGE_KEY,
     FISCAL_CALENDAR_REMINDER_STORAGE_KEY,
     REMINDERS_LAST_SEEN_KEY,
     SYNC_PENDING_KEY,

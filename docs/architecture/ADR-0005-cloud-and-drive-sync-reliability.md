@@ -1,7 +1,7 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 6
+- Versión: 7
 - Fecha: 2026-07-20
 
 ## Contexto
@@ -47,6 +47,37 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 8. Restaurar una copia JSON con sesión iniciada pausa la sincronización antes
    del commit local. El contenido restaurado no se sube automáticamente: el
    usuario debe revisarlo y elegir expresamente guardarlo en su cuenta.
+
+### Planes y dispositivos de nube
+
+1. Gratis conserva los datos solo en el navegador actual y no crea registros
+   de dispositivo cloud. Sus protecciones son la copia manual y, de forma
+   opcional, Google Drive; ninguna de las dos convierte el JSON en estado vivo.
+2. Pro admite hasta 2 dispositivos activos y Pro+ hasta 5. La prueba Pro usa
+   provisionalmente el límite de 2. Un cambio de plan se aplica en servidor y
+   nunca amplía el límite por información aportada por el navegador.
+3. Cada navegador genera un token aleatorio local. El servidor solo conserva
+   su SHA-256, nombre corto, tipo aproximado y marcas de actividad; no persiste
+   IP, user-agent completo, NIF ni fingerprint de hardware.
+4. Alta, listado y revocación pasan por API autenticada con email confirmado.
+   La tabla es privada al servidor. Si se pierde un dispositivo, una sesión
+   nueva puede listar los dispositivos de la cuenta, revocar el perdido y
+   reclamar la plaza liberada.
+5. Las policies de `sync_entities` y `user_backups` exigen a la vez propietario,
+   plan con nube y token de dispositivo activo. La comprobación se realiza en
+   Supabase para que un cliente manipulado no pueda saltarse el límite visual.
+6. El alta se serializa por usuario en base de datos. Dos navegadores que
+   intenten ocupar la última plaza a la vez no pueden superar el límite.
+7. Si un downgrade deja más dispositivos registrados que plazas, solo los más
+   recientes dentro del límite pueden sincronizar. Los demás siguen visibles
+   para su revocación, pero toda lectura o escritura cloud queda bloqueada.
+8. Un rechazo de plan, token o límite se trata como fallo de sincronización:
+   mantiene la cola local, no confirma estado remoto y permite reintentar tras
+   liberar una plaza o recuperar el plan.
+9. «Cerrar y borrar este dispositivo» confirma primero la subida pendiente y
+   revoca su plaza antes de cerrar una sesión con nube. Si cualquiera de esas
+   operaciones falla, no borra los datos locales. En Gratis omite esas
+   precondiciones remotas y elimina también el token local del navegador.
 
 ### Copias en Google Drive
 
@@ -114,6 +145,10 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
   pretende sustituir ni declarar éxito antes del guardado local verificado.
 - Una restauración histórica queda local hasta una decisión explícita, evitando
   que un temporizador anterior la publique como estado vigente de la cuenta.
+- Gratis no depende de la nube de Factu y Pro/Pro+ aplican sus límites de 2/5
+  dispositivos también en las policies de almacenamiento.
+- Perder un dispositivo no bloquea la cuenta: el usuario puede revocarlo desde
+  una sesión nueva sin que esta sincronice antes de obtener una plaza.
 - Drive no puede mostrar una copia como válida basándose únicamente en la
   aceptación de la subida.
 - Guardar desde los escáneres no espera a Drive ni vuelve a comparar toda la
@@ -138,6 +173,11 @@ deben superar:
 - `src/lib/cloud/sync-operation.test.ts`
 - `src/lib/cloud/sync-queue.test.ts`
 - `src/lib/cloud/repository.test.ts`
+- `src/lib/cloud/devices.test.ts`
+- `src/lib/cloud/device-client.test.ts`
+- `src/lib/cloud/device-token.test.ts`
+- `src/lib/cloud/device-policy-contract.test.ts`
+- `src/lib/supabase-rls-table-audit.test.ts`
 - `src/lib/google-drive/operation.test.ts`
 - `src/lib/google-drive/backup.test.ts`
 - `src/lib/google-drive/fiscal-notification-original-archive.v1.test.ts`

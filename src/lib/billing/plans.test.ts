@@ -14,6 +14,7 @@ describe("billing plans", () => {
     expect(PLANS.free.limits.maxDocumentsPerMonth).toBe(10);
     expect(PLANS.free.limits.maxCustomers).toBe(15);
     expect(PLANS.free.limits.cloudSync).toBe(false);
+    expect(PLANS.free.limits.maxCloudDevices).toBe(0);
     expect(PLANS.free.limits.databaseImport).toBe(false);
     expect(PLANS.free.limits.aiTextAutofill).toBe(false);
   });
@@ -28,6 +29,9 @@ describe("billing plans", () => {
     expect(PLANS.pro.limits.aiTextAutofill).toBe(true);
     expect(PLANS.trial.limits.aiTextAutofill).toBe(true);
     expect(PLANS.pro.limits.quarterlyExport).toBe(true);
+    expect(PLANS.trial.limits.maxCloudDevices).toBe(2);
+    expect(PLANS.pro.limits.maxCloudDevices).toBe(2);
+    expect(PLANS.pro_plus.limits.maxCloudDevices).toBe(5);
     expect(PLANS.pro_plus.limits.productCreationFromExpenses).toBe(true);
     expect(PLANS.pro.limits.productCreationFromExpenses).toBe(false);
   });

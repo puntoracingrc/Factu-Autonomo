@@ -35,6 +35,7 @@ describe("clearSecondaryDeviceData", () => {
     const session = new TestStorage();
     local.setItem("fa_rentabilidad_real_wizard_answers", "privado");
     local.setItem("factura-autonomo-drive-backup", "drive");
+    local.setItem("factura-autonomo-cloud-device-token-v1", "token-local");
     local.setItem("factura-autonomo-local-data-handoff:user-1", "synced");
     local.setItem("factu-feature-used:dashboard", "1");
     session.setItem("factura-autonomo-drive-access-token", "secreto");
@@ -44,6 +45,7 @@ describe("clearSecondaryDeviceData", () => {
     expect(result.ok).toBe(true);
     expect(local.getItem("fa_rentabilidad_real_wizard_answers")).toBeNull();
     expect(local.getItem("factura-autonomo-drive-backup")).toBeNull();
+    expect(local.getItem("factura-autonomo-cloud-device-token-v1")).toBeNull();
     expect(
       local.getItem("factura-autonomo-local-data-handoff:user-1"),
     ).toBeNull();

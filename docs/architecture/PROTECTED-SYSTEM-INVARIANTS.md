@@ -103,6 +103,11 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
   sustituye ni confirma el estado vivo.
 - Subir, descargar, mezclar y reparar comparten exclusión mutua liberada en
   `finally`; un fallo conserva la cola local y permite reintentar.
+- Gratis permanece local; Pro/Pro+ limitan la nube a 2/5 dispositivos activos.
+  Registro y revocación pasan por API privada y las policies de almacenamiento
+  exigen propietario, plan cloud y token activo conservado solo como hash.
+- El borrado seguro de un plan con nube confirma la subida y revoca la plaza
+  antes de cerrar; un fallo conserva los datos locales.
 - Aislamiento por usuario, CAS e integridad fiscal continúan fail-closed.
 - Drive usa `drive.file`, compara por readback exacto antes de confirmar y solo
   después aplica retención. Manual, automático y callback no se solapan.
@@ -124,6 +129,7 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
 
 Regresiones mínimas: `cloud-drive-sync-reliability-contract.test.ts`,
 `sync-operation.test.ts`, `sync-queue.test.ts`, `repository.test.ts`,
+`devices.test.ts`, `device-token.test.ts`, `device-policy-contract.test.ts`,
 `google-drive/operation.test.ts`, `google-drive/backup.test.ts` y
 `google-drive/fiscal-notification-original-delete.v1.test.ts`,
 `google-drive/expense-original-archive.v1.test.ts`,
