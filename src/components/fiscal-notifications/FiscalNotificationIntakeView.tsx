@@ -1428,6 +1428,7 @@ function FiscalNotificationReviewWorkspace({
           viewModel={documentLibrary}
           ownerScope={ownerScope}
           focusDocumentId={recentlySavedDocumentId}
+          onOpenScanner={() => setScannerOpen(true)}
         />
       </div>
     </>

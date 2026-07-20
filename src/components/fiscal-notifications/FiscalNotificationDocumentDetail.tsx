@@ -13,7 +13,6 @@ import {
   ExternalLink,
   FileSearch,
   FileText,
-  Landmark,
   Link2,
   ListChecks,
   MoreVertical,
@@ -22,6 +21,13 @@ import {
   X,
 } from "lucide-react";
 import { FiscalNotificationDeleteConfirmationModal } from "@/components/fiscal-notifications/FiscalNotificationDeleteConfirmationModal";
+import {
+  FiscalNotificationAuthorityLabel,
+  FiscalNotificationDateLabel,
+  FiscalNotificationFamilyLabel,
+  FiscalNotificationOriginalStatus,
+  FiscalNotificationReviewStatus,
+} from "@/components/fiscal-notifications/FiscalNotificationDocumentVisuals";
 import { useFiscalNotificationDocumentDeletion } from "@/components/fiscal-notifications/useFiscalNotificationDocumentDeletion";
 import { Card } from "@/components/ui/Card";
 import { Modal } from "@/components/ui/Modal";
@@ -313,7 +319,9 @@ function DocumentHeader({
             </span>
             <span>{header.categoryLabel}</span>
             <span aria-hidden="true" className="text-slate-300">/</span>
-            <span>{header.familyLabel}</span>
+            <FiscalNotificationFamilyLabel>
+              {header.familyLabel}
+            </FiscalNotificationFamilyLabel>
           </div>
           <div className="mt-4 flex items-start gap-3 sm:gap-4">
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-blue-50 text-blue-700 sm:h-12 sm:w-12">
@@ -336,10 +344,9 @@ function DocumentHeader({
           </div>
 
           <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-sm text-slate-700">
-            <span className="inline-flex items-center gap-2 font-semibold">
-              <Landmark aria-hidden="true" className="h-4 w-4 text-slate-500" />
+            <FiscalNotificationAuthorityLabel>
               {header.authority}
-            </span>
+            </FiscalNotificationAuthorityLabel>
             {header.issuingUnit ? (
               <span className="text-slate-600">{header.issuingUnit}</span>
             ) : null}
@@ -347,10 +354,12 @@ function DocumentHeader({
         </div>
 
         <div className="border-t border-slate-200 pt-4 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
-          <p className="flex items-center gap-2 text-xs font-semibold text-slate-500">
-            <CalendarDays aria-hidden="true" className="h-4 w-4 text-blue-600" />
+          <FiscalNotificationDateLabel
+            pending={header.primaryDateValue === "No identificada"}
+            compact
+          >
             {header.primaryDateLabel}
-          </p>
+          </FiscalNotificationDateLabel>
           <div className="mt-1 flex items-start justify-between gap-2">
             <p className="text-2xl font-bold text-slate-950">
               {header.primaryDateValue}
@@ -365,17 +374,17 @@ function DocumentHeader({
             ) : null}
           </div>
           <div className="mt-4 space-y-2 text-xs font-semibold">
-            <p className="flex items-center gap-2 text-amber-800">
-              <Clock3 aria-hidden="true" className="h-4 w-4" />
-              {header.reviewLabel}
+            <p>
+              <FiscalNotificationReviewStatus
+                status={header.reviewStatus}
+                label={header.reviewLabel}
+              />
             </p>
-            <p className="flex items-center gap-2 text-slate-600">
-              {driveHref ? (
-                <Cloud aria-hidden="true" className="h-4 w-4 text-emerald-600" />
-              ) : (
-                <FileSearch aria-hidden="true" className="h-4 w-4" />
-              )}
-              {header.originalLabel}
+            <p>
+              <FiscalNotificationOriginalStatus
+                status={driveHref ? "DRIVE" : "UNAVAILABLE"}
+                label={header.originalLabel}
+              />
             </p>
           </div>
         </div>

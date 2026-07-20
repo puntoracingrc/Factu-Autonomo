@@ -113,12 +113,14 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
 
   it("muestra organismo, título y fecha sin etiquetas técnicas en cada tarjeta", () => {
     expect(documentLibraryComponentSource).toContain(
-      "abbreviateAuthority(document.authority)",
+      "summary.authorityAbbreviation",
     );
     expect(documentLibraryComponentSource).toContain(
-      "formatGroupMonthSequence(group)",
+      "group.dateRangeLabel",
     );
-    expect(documentLibraryComponentSource).toContain("<CalendarDays");
+    expect(documentLibraryComponentSource).toContain(
+      "FiscalNotificationDateLabel",
+    );
     expect(documentLibraryComponentSource).not.toContain("Solo ficha");
     expect(documentLibraryComponentSource).not.toContain(
       "Fecha del documento pendiente",
@@ -159,7 +161,13 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       ),
     );
     expect(appliedDeletion).toContain("input.onDeleted?.(selectedDocumentId)");
-    expect(documentLibraryComponentSource).toContain('onDeleted: () => setQuery("")');
+    expect(documentLibraryComponentSource).toContain(
+      "onDeleted: (deletedDocumentId) => {",
+    );
+    expect(documentLibraryComponentSource).toContain("setRelationDetail(null)");
+    expect(documentLibraryComponentSource).toContain(
+      "current === deletedDocumentId ? null : current",
+    );
     expect(documentDeletionSource).toContain(
       'drivePolicy: "PRESERVE_USER_DRIVE_ORIGINAL"',
     );
@@ -377,11 +385,13 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).toContain(
       "focusDocumentId={recentlySavedDocumentId}",
     );
-    expect(documentLibraryComponentSource).toContain('setQuery("")');
+    expect(documentLibraryComponentSource).toContain(
+      "setFilters(EMPTY_FISCAL_NOTIFICATION_DOCUMENT_LIBRARY_FILTERS_V1)",
+    );
     expect(documentLibraryComponentSource).toContain("scrollIntoView({");
     expect(documentLibraryComponentSource).toContain("Guardado ahora");
     expect(documentLibraryComponentSource).toContain(
-      "border-emerald-500 ring-2 ring-emerald-200",
+      "border-emerald-500 bg-emerald-50/40 ring-2 ring-emerald-200",
     );
     expect(componentSource).toContain(
       "advanceAfterSuccessfulSave(activeId, savedDocumentId)",
@@ -510,7 +520,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
   it("muestra la biblioteca con datos seguros sin exponer identidad ni huellas", () => {
     expect(documentLibraryComponentSource).toContain("Tus documentos");
     expect(documentLibraryComponentSource).toContain(
-      "group.documents.map((document, index)",
+      "group.summaries.map((summary, index)",
     );
     expect(documentSurfaceSource).not.toContain(
       "document.subjectName",
@@ -518,8 +528,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(documentSurfaceSource).not.toContain(
       "document.subjectTaxId",
     );
-    expect(documentLibraryComponentSource).toContain("document.money");
-    expect(documentLibraryComponentSource).toContain("document.references");
+    expect(documentLibraryViewModelSource).toContain("detail.economy?.summary");
+    expect(documentLibraryViewModelSource).toContain("document.references");
+    expect(documentLibraryComponentSource).toContain("summary.amounts");
     expect(documentDetailViewModelSource).toContain("document.orderedFacts");
     expect(documentDetailViewModelSource).toContain("document.installments");
     expect(documentDetailViewModelSource).toContain("installment.amountCents");
@@ -531,7 +542,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(documentSurfaceSource).not.toMatch(
       />\s*\{[^}]*\b(?:reviewId|ownerScope)\b[^}]*\}\s*</,
     );
-    expect(documentLibraryComponentSource).toContain("key={document.key}");
+    expect(documentLibraryComponentSource).toContain("key={summary.key}");
     expect(documentSurfaceSource).not.toMatch(
       /\bdocument\.ownerScope\b/,
     );
@@ -553,7 +564,10 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(relationsViewModelSource).toContain("Relación detectada · revisar");
     expect(documentLibraryComponentSource).toContain(
-      "h-[16rem] w-[18rem] min-w-[18rem]",
+      "h-[19rem] w-full min-w-0",
+    );
+    expect(documentLibraryComponentSource).toContain(
+      "sm:w-[18rem] sm:min-w-[18rem]",
     );
     expect(documentDetailViewModelSource).toContain("link.explanation");
     expect(documentDetailComponentSource).toContain(

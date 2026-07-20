@@ -357,6 +357,19 @@ describe("structured fiscal notification history view model v1", () => {
     expect(Object.isFrozen(result.entries)).toBe(true);
   });
 
+  it("proyecta el estado de revisión persistido sin deducirlo del texto visible", () => {
+    const value = workspace();
+    value.documents[0]!.humanReviewStatus = "CORRECTED";
+
+    const result = projectFiscalNotificationStructuredHistoryV1(value, OWNER);
+
+    expect(result.status).toBe("READY");
+    expect(result.entries[0]).toMatchObject({
+      reviewStatus: "REVIEWED",
+      reviewLabel: "Revisión completada",
+    });
+  });
+
   it("usa la explicación V2 específica de la familia guardada sin red ni efectos automáticos", () => {
     const value = workspace();
     const document = value.documents[0]!;

@@ -110,10 +110,13 @@ describe("fiscal notification knowledge coverage v1", () => {
     expect(manual).toContain(
       "Factu conserva los datos estructurados y su procedencia, pero nunca el PDF original",
     );
-    expect(manual).toContain("**Relaciones entre documentos**");
-    expect(manual).toContain("**Relación detectada · revisar**");
+    expect(manual).toContain("relaciones confirmadas por una referencia compatible");
+    expect(manual).toContain("**Relación sugerida**");
     expect(manual).toContain(
-      "no confirma por sí sola el efecto, el pago, la extinción de una deuda ni el cierre del expediente",
+      "Un importe, un nombre o la proximidad de fechas no confirman una relación",
+    );
+    expect(manual).toContain(
+      "no confirma por sí sola el efecto, el pago, el saldo o el cierre del expediente",
     );
     expect(manual).toContain(
       "Una fecha impresa no se interpreta como fecha de notificación ni como vencimiento",

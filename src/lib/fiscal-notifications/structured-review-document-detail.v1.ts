@@ -63,6 +63,7 @@ export interface FiscalNotificationDetailHeaderV1 {
   readonly primaryDateLabel: string;
   readonly primaryDateValue: string;
   readonly primaryDateProvenance: FiscalNotificationDetailProvenanceV1 | null;
+  readonly reviewStatus: "PENDING" | "REVIEWED";
   readonly reviewLabel: string;
   readonly originalLabel: string;
   readonly metadata: readonly FiscalNotificationDetailHeaderMetaV1[];
@@ -441,6 +442,7 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
       primaryDateProvenance: primaryDateFact
         ? projectField(primaryDateFact).provenance
         : null,
+      reviewStatus: document.reviewStatus,
       reviewLabel: document.reviewLabel,
       originalLabel: document.originalArchive
         ? "Original en Drive"

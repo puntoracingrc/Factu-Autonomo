@@ -24,7 +24,7 @@ export function FiscalNotificationDeleteConfirmationModal(props: {
       closeOnBackdrop={false}
       closeOnEscape={!props.busy}
       initialFocusSelector="[data-modal-initial-focus]"
-      panelClassName="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-xl"
+      panelClassName="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl"
       testId="delete-fiscal-notification-modal"
     >
       <h2 id={titleId} className="text-lg font-bold text-slate-950">
@@ -36,6 +36,12 @@ export function FiscalNotificationDeleteConfirmationModal(props: {
         id={descriptionId}
         className="mt-3 text-sm leading-6 text-slate-700"
       >
+        {props.hasDriveOriginal && !props.error ? (
+          <p>
+            Puedes conservar el original en Drive o enviarlo también a su
+            papelera.
+          </p>
+        ) : null}
         {props.error ? (
           <p className="rounded-xl border border-red-200 bg-red-50 p-3 font-semibold text-red-800" role="alert">
             {props.error}
@@ -61,7 +67,7 @@ export function FiscalNotificationDeleteConfirmationModal(props: {
             onClick={props.onConfirmLocalOnly}
             disabled={props.busy}
           >
-            {props.busy ? "Eliminando…" : "No"}
+            {props.busy ? "Eliminando…" : "Solo ficha"}
           </Button>
         ) : null}
         <Button
@@ -75,7 +81,11 @@ export function FiscalNotificationDeleteConfirmationModal(props: {
           }
           disabled={props.busy}
         >
-          {props.busy ? "Eliminando…" : "Sí"}
+          {props.busy
+            ? "Eliminando…"
+            : props.hasDriveOriginal
+              ? "Ficha y original"
+              : "Sí"}
         </Button>
       </div>
     </Modal>
