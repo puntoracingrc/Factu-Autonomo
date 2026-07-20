@@ -22,8 +22,12 @@ import type {
   ExternalReferenceType,
 } from "./types";
 import { parseFiscalNotificationsWorkspaceForPersistenceV1 } from "./workspace-persistence.v1";
-import { selectExplicitDocumentDate } from "./structured-review-history-view-model.v1";
+import {
+  observedUnknownFieldsWithPageProvenance,
+  selectExplicitDocumentDate,
+} from "./structured-review-history-view-model.v1";
 import type { FiscalNotificationsWorkspace } from "./types";
+import { FISCAL_NOTIFICATIONS_PROJECTED_RELATION_ALGORITHM_VERSION_V2 } from "./persisted-workspace.v2";
 
 export interface StructuredReviewRelationDocumentV1 {
   readonly id: string;
@@ -159,7 +163,9 @@ export function projectStructuredReviewRelationsV1(
           STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1 &&
         relation.algorithmVersion !==
           STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2 &&
-        relation.algorithmVersion !== GLOBAL_RECONCILIATION_RULE_VERSION_V8
+        relation.algorithmVersion !== GLOBAL_RECONCILIATION_RULE_VERSION_V8 &&
+        relation.algorithmVersion !==
+          FISCAL_NOTIFICATIONS_PROJECTED_RELATION_ALGORITHM_VERSION_V2
       ) ||
       relation.status === "USER_REJECTED"
     ) {
@@ -668,6 +674,16 @@ function projectDocument(
     .map((id) => workspace.analysisSnapshots.find((item) => item.id === id))
     .filter((item): item is NonNullable<typeof item> => item !== undefined)
     .sort((left, right) => right.version - left.version)[0];
+  const observedUnknownFields = snapshot
+    ? observedUnknownFieldsWithPageProvenance({
+        fields: snapshot.structuredData.unknownFields,
+        evidenceById: new Map(
+          workspace.evidence.map((item) => [item.id, item] as const),
+        ),
+        ownerScope: workspace.ownerScope,
+        documentId: document.id,
+      })
+    : [];
   const selectedDate = selectExplicitDocumentDate({
     documentIssueDate: document.issueDate,
     documentSignatureDate: document.signatureDate,
@@ -677,7 +693,7 @@ function projectDocument(
     snapshotIssueDate: snapshot?.structuredData.documentFields.issueDate,
     snapshotEffectiveNotificationDate:
       snapshot?.structuredData.documentFields.effectiveNotificationDate,
-    unknownFields: snapshot?.structuredData.unknownFields ?? [],
+    unknownFields: observedUnknownFields,
   });
   return Object.freeze({
     id: document.id,

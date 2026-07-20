@@ -79,6 +79,28 @@ const PRODUCTION_QA_ENFORCEMENT_LINES = Object.freeze([
   "Importe total 120,00 EUR",
 ]);
 
+const PRODUCTION_QA_SEIZURE_LINES = Object.freeze([
+  "DOCUMENTO SINTETICO DE QA - SIN VALIDEZ",
+  "AGENCIA TRIBUTARIA",
+  "sede.agenciatributaria.gob.es",
+  "DILIGENCIA DE EMBARGO DE CUENTAS BANCARIAS",
+  "Numero de diligencia EMB-SYNTH-QA-2026-002",
+  "Numero de expediente EXP-SYNTH-QA-2026-001",
+  "Clave de deuda DEBT-SYNTH-QA-2026-001",
+  "Clave de liquidacion LQ-SYNTH-QA-2026-001",
+  "Referencia de la providencia APR-SYNTH-QA-2026-001",
+  "Fecha de emision 03/03/2026",
+  "Fecha del embargo 04/03/2026",
+  "Plazo de contestacion 12/03/2026",
+  "Principal 100,00 EUR",
+  "Recargo de apremio 20,00 EUR",
+  "Intereses de demora 3,00 EUR",
+  "Costas 1,00 EUR",
+  "Total pendiente 124,00 EUR",
+  "Importe a embargar 124,00 EUR",
+  "Instrucciones Contestar por la sede electronica",
+]);
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -853,6 +875,266 @@ describe("structured fiscal notification save command v1", () => {
     );
   });
 
+  it("roundtrips the production QA document chain and deletes 1-of-N with pending sync", async () => {
+    const analyzePdf = async (
+      lines: readonly string[],
+      documentId: string,
+      sha256: string,
+    ): Promise<FiscalNotificationLocalAnalysisResult> => {
+      const pdf = new jsPDF({ unit: "pt", format: "a4" });
+      lines.forEach((line, index) => {
+        pdf.text(line, 48, 48 + index * 24);
+      });
+      const bytes = new Uint8Array(pdf.output("arraybuffer"));
+      const documentInput = await parseFiscalNotificationPdfTextLayerBytes({
+        ownerScope: OWNER,
+        documentId,
+        bytes,
+      });
+      return productionQaEnforcementAnalysisFromInput(
+        documentInput,
+        bytes.byteLength,
+        sha256,
+      );
+    };
+    const enforcementAnalysis = await analyzePdf(
+      PRODUCTION_QA_ENFORCEMENT_LINES,
+      "notification-document:00000000-0000-4000-8000-000000000626",
+      "6".repeat(64),
+    );
+    const seizureAnalysis = await analyzePdf(
+      PRODUCTION_QA_SEIZURE_LINES,
+      "notification-document:00000000-0000-4000-8000-000000000627",
+      "7".repeat(64),
+    );
+    const store = new Map<string, string>();
+    vi.stubGlobal("window", {});
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => store.get(key) ?? null,
+      setItem: (key: string, value: string) => store.set(key, value),
+      removeItem: (key: string) => store.delete(key),
+    });
+    expect(saveData(structuredClone(EMPTY_DATA))).toEqual({
+      status: "applied",
+    });
+    const persistFiscal = (candidate: AppData, expected: AppData) =>
+      saveData(candidate, {
+        expected,
+        fiscalNotificationsBaseAwareProjection: true,
+      });
+    const persistReview = (
+      current: AppData,
+      reviewId: string,
+      createdAt: string,
+      analysis: FiscalNotificationLocalAnalysisResult,
+    ) =>
+      runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationStructuredReviewSaveResultV1>(
+        {
+          fallback: current,
+          storageBaseline: { status: "known", data: current },
+          lastKnownPersisted: current,
+          readPersisted: readPersistedDataSnapshot,
+          persist: persistFiscal,
+          blocked: (reason) => ({
+            status: "blocked",
+            stage: "COMMIT",
+            safeCode: "DURABILITY_CONFLICT",
+            warningCodes: [],
+            reason,
+          }),
+          run: (expected, commit) =>
+            runSaveFiscalNotificationStructuredReviewCommandV1({
+              expected,
+              ownerScope: OWNER,
+              reviewId,
+              createdAt,
+              analysis,
+              commit,
+            }),
+        },
+      );
+
+    let current = loadData();
+    expect(
+      persistReview(
+        current,
+        "review:00000000-0000-4000-8000-000000000626",
+        "2026-07-20T10:00:00.000Z",
+        enforcementAnalysis,
+      ).status,
+    ).toMatch(/^applied/u);
+    current = loadData();
+    const persistedSeizure = persistReview(
+      current,
+      "review:00000000-0000-4000-8000-000000000627",
+      "2026-07-20T10:01:00.000Z",
+      seizureAnalysis,
+    );
+    expect(
+      persistedSeizure.status,
+      JSON.stringify(persistedSeizure),
+    ).toMatch(/^applied/u);
+    current = loadData();
+
+    const workspace = current.fiscalNotificationsWorkspace!;
+    const library = projectFiscalNotificationDocumentLibraryV1(workspace, OWNER);
+    expect(library.status).toBe("READY");
+    expect(library.documents).toHaveLength(2);
+    expect(
+      library.groups,
+      JSON.stringify({
+        relations: workspace.relations,
+        references: workspace.references.map((reference) => ({
+          id: reference.id,
+          documentId: reference.documentId,
+          referenceType: reference.referenceType,
+          normalizedValue: reference.normalizedValue,
+          confidence: reference.confidence,
+          occurrenceIds: reference.occurrenceIds,
+        })),
+      }),
+    ).toHaveLength(1);
+    expect(
+      library.documents.map(({ documentSubtype, documentDate }) => [
+        documentSubtype,
+        documentDate,
+      ]),
+    ).toEqual(
+      expect.arrayContaining([
+        ["collection.enforcement_order", "2026-02-05"],
+        ["seizure.bank_account", "2026-03-03"],
+      ]),
+    );
+    const seizureDocument = library.documents.find(
+      ({ documentSubtype }) => documentSubtype === "seizure.bank_account",
+    );
+    expect(seizureDocument?.printedDates).toEqual(
+      expect.arrayContaining([
+        { label: "Fecha de emisión", value: "2026-03-03" },
+        { label: "Fecha de embargo", value: "2026-03-04" },
+        { label: "Fecha límite de respuesta", value: "2026-03-12" },
+      ]),
+    );
+    expect(seizureDocument?.references).toEqual(
+      expect.arrayContaining([
+        {
+          label: "Número de expediente",
+          value: "EXPSYNTHQA2026001",
+        },
+      ]),
+    );
+    expect(seizureDocument?.printedDates).not.toContainEqual({
+      label: "Dato observado",
+      value: "Consta en el documento",
+    });
+    expect(workspace.relations).toEqual([
+      expect.objectContaining({
+        relationType: "ENFORCES",
+        status: "SYSTEM_CONFIRMED_EXACT",
+        evidence: expect.objectContaining({
+          matchingReferenceTypes: ["LIQUIDATION_KEY"],
+          matchingAmountTypes: [],
+        }),
+      }),
+    ]);
+    const visibleLibraryContent = JSON.stringify({
+      documents: library.documents.map((document) => ({
+        title: document.title,
+        authority: document.authority,
+        references: document.references,
+        printedDates: document.printedDates,
+        orderedFacts: document.orderedFacts.map(({ label, value }) => ({
+          label,
+          value,
+        })),
+        money: document.money.map(({ label, amountCents }) => ({
+          label,
+          amountCents,
+        })),
+        explanation: document.explanation,
+      })),
+      groups: library.groups.map((group) => ({
+        links: group.links.map(({ label, explanation, matches }) => ({
+          label,
+          explanation,
+          matches: matches.map(({ label: matchLabel, value, issuer }) => ({
+            label: matchLabel,
+            value,
+            issuer,
+          })),
+        })),
+      })),
+    });
+    expect(visibleLibraryContent).not.toMatch(
+      /EXACT_|INTEGER:|BOOLEAN:|EXPLANATION:|_DURATION|_CONTENT|reference:\d+:|date:[a-z]|seizure-money:|detail:/u,
+    );
+
+    const enforcementDocumentId = workspace.documents.find(
+      ({ documentSubtype }) =>
+        documentSubtype === "collection.enforcement_order",
+    )!.id;
+    const durableBeforeDelete = readPersistedDataSnapshot();
+    expect(durableBeforeDelete?.fiscalNotificationsWorkspace?.revision).toBe(
+      workspace.revision + 1,
+    );
+    const persistDelete = vi.fn(persistFiscal);
+    const deleted =
+      runFiscalNotificationCommandAgainstLatestPersistedV1<DurableFiscalNotificationDocumentDeletionResultV1>(
+        {
+          fallback: current,
+          storageBaseline: {
+            status: "blocked",
+            reason: "stale_precondition",
+          },
+          lastKnownPersisted: structuredClone(EMPTY_DATA),
+          readPersisted: readPersistedDataSnapshot,
+          persist: persistDelete,
+          blocked: (reason) =>
+            reason === "storage_state_unknown"
+              ? { status: "indeterminate", reason }
+              : { status: "blocked", reason },
+          run: (expected, commit) =>
+            runDeleteFiscalNotificationDocumentCommandV1({
+              expected,
+              ownerScope: OWNER,
+              documentId: enforcementDocumentId,
+              deletedAt: "2026-07-20T10:02:00.000Z",
+              commit,
+            }),
+        },
+      );
+    expect(
+      deleted.status,
+      JSON.stringify({
+        deleted,
+        persistenceResults: persistDelete.mock.results.map(({ value }) => value),
+      }),
+    ).toBe("applied");
+    const afterDelete = loadData();
+    expect(afterDelete.fiscalNotificationsWorkspace).toMatchObject({
+      ownerScope: OWNER,
+      documents: [
+        expect.objectContaining({ documentSubtype: "seizure.bank_account" }),
+      ],
+      relations: [],
+    });
+    expect(
+      projectFiscalNotificationDocumentLibraryV1(
+        afterDelete.fiscalNotificationsWorkspace,
+        OWNER,
+      ),
+    ).toMatchObject({ status: "READY", documents: [{}], groups: [{}] });
+    const pendingFiscal = afterDelete.meta?.pendingChanges?.find(
+      ({ entityType }) => entityType === "fiscal_notifications_workspace",
+    );
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        pendingFiscal?.payload,
+        OWNER,
+      )?.workspace.documents,
+    ).toHaveLength(1);
+  });
+
   it("persists the production QA enforcement review through the real storage projection", async () => {
     const store = new Map<string, string>();
     vi.stubGlobal("window", {});
@@ -987,7 +1269,7 @@ describe("structured fiscal notification save command v1", () => {
       "2026-07-20T01:21:00.000Z",
       await seizureAnalysis(),
     );
-    expect(seizure.status).toMatch(/^applied/u);
+    expect(seizure.status, JSON.stringify(seizure)).toMatch(/^applied/u);
     current = loadData();
 
     const graphForDocuments = (

@@ -11,6 +11,7 @@ import {
   FISCAL_NOTIFICATION_SUGGESTED_RELATION_PHRASE_V2,
 } from "./relation-explanation.v2";
 import type { FiscalNotificationsWorkspace } from "./types";
+import { FISCAL_NOTIFICATIONS_PROJECTED_RELATION_ALGORITHM_VERSION_V2 } from "./persisted-workspace.v2";
 
 const OWNER = "user:00000000-0000-4000-8000-000000000093";
 const NOW = "2026-07-14T11:30:00.000Z";
@@ -383,6 +384,48 @@ describe("structured review relations view model v1", () => {
       expect(Object.isFrozen(result.timelines[0]?.steps)).toBe(true);
     },
   );
+
+  it("keeps an exact relation projected by an earlier persisted workspace", () => {
+    const source = workspace();
+    source.relations.push({
+      id: "relation:projected:enforces",
+      ownerScope: OWNER,
+      sourceDocumentId: "document:1",
+      targetDocumentId: "document:0",
+      relationType: "ENFORCES",
+      confidenceBand: "EXACT",
+      score: 100,
+      evidence: {
+        matchingReferenceTypes: ["LIQUIDATION_KEY"],
+        matchingAmountTypes: [],
+        matchingDates: [],
+        differences: [],
+      },
+      algorithmVersion:
+        FISCAL_NOTIFICATIONS_PROJECTED_RELATION_ALGORITHM_VERSION_V2,
+      status: "SYSTEM_CONFIRMED_EXACT",
+      createdAt: NOW,
+    });
+
+    const result = projectStructuredReviewRelationsV1(source, OWNER);
+
+    expect(result.status).toBe("READY");
+    expect(result.entries).toEqual([
+      expect.objectContaining({
+        key: "relation:projected:enforces",
+        relationType: "ENFORCES",
+        title: "Embargo vinculado a providencia de apremio",
+        matches: [
+          expect.objectContaining({
+            label: "Clave de liquidación",
+            value: "LQ-SYNTH-093",
+          }),
+        ],
+      }),
+    ]);
+    expect(result.timelines).toHaveLength(1);
+    expect(result.timelines[0]?.steps).toHaveLength(2);
+  });
 
   it("blocks a contradictory exact cycle instead of inventing a chronology", () => {
     const source = workspace();

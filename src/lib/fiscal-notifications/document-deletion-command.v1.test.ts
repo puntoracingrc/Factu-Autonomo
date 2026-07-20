@@ -60,9 +60,30 @@ describe("durable fiscal notification document deletion command v1", () => {
         pendingChanges: [
           {
             entityType: "fiscal_notifications_workspace",
+            entityId: "fiscal-notifications-workspace-v1",
+            deleted: false,
+            payload: {},
+            updatedAt: DELETED_AT,
+          },
+          {
+            entityType: "fiscal_notifications_workspace",
             entityId: "fiscal-notifications-workspace-v2",
             deleted: false,
             payload: {},
+            updatedAt: DELETED_AT,
+          },
+          {
+            entityType: "fiscal_notifications_workspace",
+            entityId: "fiscal-notifications-workspace-unrelated",
+            deleted: false,
+            payload: { marker: "retained" },
+            updatedAt: DELETED_AT,
+          },
+          {
+            entityType: "expense",
+            entityId: "expense:retained",
+            deleted: false,
+            payload: { id: "expense:retained" },
             updatedAt: DELETED_AT,
           },
         ],
@@ -84,6 +105,17 @@ describe("durable fiscal notification document deletion command v1", () => {
 
     expect(result.status).toBe("applied");
     expect(deleteMock).toHaveBeenCalledTimes(1);
+    if (result.status !== "applied") return;
+    expect(result.data.meta?.pendingChanges).toEqual([
+      expect.objectContaining({
+        entityType: "fiscal_notifications_workspace",
+        entityId: "fiscal-notifications-workspace-unrelated",
+      }),
+      expect.objectContaining({
+        entityType: "expense",
+        entityId: "expense:retained",
+      }),
+    ]);
   });
 
   it("bloquea antes del commit si no puede registrar la reducción", () => {

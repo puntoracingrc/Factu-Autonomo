@@ -253,6 +253,25 @@ function workspace(): FiscalNotificationsWorkspace {
   };
 }
 
+function addExplicitEvidence(
+  value: FiscalNotificationsWorkspace,
+  input: { readonly id: string; readonly page: number; readonly rawValue: string },
+): string {
+  value.evidence.push({
+    id: input.id,
+    ownerScope: OWNER,
+    documentId: value.documents[0]!.id,
+    pageNumber: input.page,
+    textSnippet: "Dato sintético impreso",
+    rawValue: input.rawValue,
+    extractionMethod: "RULE",
+    confidence: "EXACT",
+    assertionType: "EXPLICIT_IN_DOCUMENT",
+  });
+  value.analysisSnapshots[0]!.evidenceIds.push(input.id);
+  return input.id;
+}
+
 describe("structured fiscal notification history view model v1", () => {
   it("proyecta datos útiles exactos sin exponer contenido fuente", () => {
     const result = projectFiscalNotificationStructuredHistoryV1(
@@ -670,11 +689,17 @@ describe("structured fiscal notification history view model v1", () => {
     value.documents[0]!.issueDate = undefined;
     value.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
       undefined;
+    const evidenceId = addExplicitEvidence(value, {
+      id: "evidence:exact-issue-date",
+      page: 1,
+      rawValue: "05/02/2026",
+    });
     value.analysisSnapshots[0]!.structuredData.unknownFields = [
       {
         labelRaw: "VSR1|DATE|ISSUE_DATE|Fecha del documento",
         valueRaw: "05/02/2026",
         page: 1,
+        evidenceId,
         confidence: "EXACT",
       },
     ];
@@ -697,6 +722,31 @@ describe("structured fiscal notification history view model v1", () => {
     expect(uncertain.entries[0]?.documentDateBasis).toBeNull();
   });
 
+  it("no muestra ni usa una fecha huérfana sin evidencia explícita de página", () => {
+    const value = workspace();
+    value.documents[0]!.issueDate = undefined;
+    value.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
+      undefined;
+    value.analysisSnapshots[0]!.structuredData.unknownFields = [
+      {
+        labelRaw: "VSR2|date:orphan|DATE|ISSUE_DATE|Fecha huérfana",
+        valueRaw: "2026-02-09",
+        page: 1,
+        confidence: "EXACT",
+      },
+    ];
+
+    const result = projectFiscalNotificationStructuredHistoryV1(value, OWNER);
+
+    expect(result.status).toBe("READY");
+    if (result.status !== "READY") return;
+    expect(result.entries[0]?.documentDate).toBeNull();
+    expect(result.entries[0]?.printedDates).toEqual([]);
+    expect(result.entries[0]?.orderedFacts).not.toContainEqual(
+      expect.objectContaining({ label: "Fecha huérfana" }),
+    );
+  });
+
   it("usa firma, acto o notificación exactos como respaldo sin recurrir a la fecha de escaneo", () => {
     const signature = workspace();
     signature.documents[0]!.issueDate = undefined;
@@ -717,11 +767,17 @@ describe("structured fiscal notification history view model v1", () => {
     action.documents[0]!.issueDate = undefined;
     action.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
       undefined;
+    const actionEvidenceId = addExplicitEvidence(action, {
+      id: "evidence:action-date",
+      page: 1,
+      rawValue: "07/02/2026",
+    });
     action.analysisSnapshots[0]!.structuredData.unknownFields = [
       {
         labelRaw: "VSR1|DATE|ACTION_DATE|Fecha del acuerdo",
         valueRaw: "07/02/2026",
         page: 1,
+        evidenceId: actionEvidenceId,
         confidence: "EXACT",
       },
     ];
@@ -763,12 +819,23 @@ describe("structured fiscal notification history view model v1", () => {
     value.documents[0]!.notificationDates.effectiveAt = undefined;
     value.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
       undefined;
+    const interestStartEvidenceId = addExplicitEvidence(value, {
+      id: "evidence:interest-start-date",
+      page: 1,
+      rawValue: "2025-01-01",
+    });
+    const interestEndEvidenceId = addExplicitEvidence(value, {
+      id: "evidence:interest-end-date",
+      page: 1,
+      rawValue: "2025-12-31",
+    });
     value.analysisSnapshots[0]!.structuredData.unknownFields = [
       {
         labelRaw:
           "VSR2|profile:date:INTEREST_START_DATE:0|DATE|ACTION_DATE|Inicio del período de intereses",
         valueRaw: "2025-01-01",
         page: 1,
+        evidenceId: interestStartEvidenceId,
         confidence: "EXACT",
       },
       {
@@ -776,6 +843,7 @@ describe("structured fiscal notification history view model v1", () => {
           "VSR2|profile:date:INTEREST_END_DATE:1|DATE|ACTION_DATE|Fin del período de intereses",
         valueRaw: "2025-12-31",
         page: 1,
+        evidenceId: interestEndEvidenceId,
         confidence: "EXACT",
       },
     ];
@@ -798,12 +866,28 @@ describe("structured fiscal notification history view model v1", () => {
     value.documents[0]!.signatureDate = "2026-02-06";
     value.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
       undefined;
+    const issueEvidenceId = addExplicitEvidence(value, {
+      id: "evidence:priority-issue-date",
+      page: 1,
+      rawValue: "2026-02-05",
+    });
+    const actionEvidenceId = addExplicitEvidence(value, {
+      id: "evidence:priority-action-date",
+      page: 1,
+      rawValue: "2026-02-07",
+    });
+    const notificationEvidenceId = addExplicitEvidence(value, {
+      id: "evidence:priority-notification-date",
+      page: 1,
+      rawValue: "2026-02-08",
+    });
     value.analysisSnapshots[0]!.structuredData.unknownFields = [
       {
         labelRaw:
           "VSR2|profile:date:ISSUE_DATE:0|DATE|ISSUE_DATE|Fecha de emisión",
         valueRaw: "2026-02-05",
         page: 1,
+        evidenceId: issueEvidenceId,
         confidence: "EXACT",
       },
       {
@@ -811,6 +895,7 @@ describe("structured fiscal notification history view model v1", () => {
           "VSR2|profile:date:ACTION_DATE:1|DATE|ACTION_DATE|Fecha del acto",
         valueRaw: "2026-02-07",
         page: 1,
+        evidenceId: actionEvidenceId,
         confidence: "EXACT",
       },
       {
@@ -818,6 +903,7 @@ describe("structured fiscal notification history view model v1", () => {
           "VSR2|profile:date:EFFECTIVE_NOTIFICATION_DATE:2|DATE|EFFECTIVE_NOTIFICATION_DATE|Fecha de notificación efectiva",
         valueRaw: "2026-02-08",
         page: 1,
+        evidenceId: notificationEvidenceId,
         confidence: "EXACT",
       },
     ];
@@ -898,11 +984,18 @@ describe("structured fiscal notification history view model v1", () => {
 
   it("traduce cuotas históricas y nunca presenta el token interno", () => {
     const value = workspace();
+    const evidenceId = addExplicitEvidence(value, {
+      id: "evidence:legacy-installment",
+      page: 2,
+      rawValue:
+        "Vence 20/02/2027, principal 100,00 EUR, interés 2,00 EUR, total 102,00 EUR",
+    });
     value.analysisSnapshots[0]!.structuredData.unknownFields.push({
       labelRaw:
         "VSR2|real-corpus-v6:installment:0|DETAIL|FACT_OR_GROUND|Cuota 1",
       valueRaw: "V6:INSTALLMENT:1:2027-02-20:10000:200:10200",
       page: 2,
+      evidenceId,
       confidence: "EXACT",
     });
 

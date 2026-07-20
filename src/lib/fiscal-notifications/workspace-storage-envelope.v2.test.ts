@@ -5,6 +5,7 @@ import { projectFiscalNotificationsWorkspacePrivacyV2 } from "./workspace-privac
 import { deleteFiscalNotificationDocumentV1 } from "./document-deletion.v1";
 import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "./knowledge/aeat-document-knowledge.v1";
 import { projectFiscalNotificationDocumentLibraryV1 } from "./structured-review-document-library.v1";
+import { STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1 } from "./structured-review-relation-suggestions.v1";
 import {
   compareFiscalNotificationsWorkspaceStorageEnvelopesV2,
   encodeFiscalNotificationsWorkspaceForStorageV2,
@@ -375,6 +376,84 @@ describe("runtime privacy storage envelope v2", () => {
     ).toEqual(encoded);
   });
 
+  it("roundtrips observed dates emitted by a specialized extractor", () => {
+    const input = workspace();
+    const document = input.documents[0]!;
+    const snapshot = input.analysisSnapshots[0]!;
+    document.documentType = "AEAT_SEIZURE_ORDER";
+    document.documentSubtype = "seizure.bank_account";
+    delete document.issueDate;
+    delete document.signatureDate;
+    document.notificationDates = {};
+    delete snapshot.structuredData.documentFields.issueDate;
+    delete snapshot.structuredData.documentFields.effectiveNotificationDate;
+    input.evidence = input.evidence.filter(
+      (entry) => !entry.id.startsWith("evidence:privacy-runtime:") ||
+        entry.id === "evidence:privacy-runtime:reference" ||
+        entry.id === "evidence:privacy-runtime:amount",
+    );
+    const specializedDates = [
+      ["ISSUE_DATE", "Fecha de emisión", "2026-03-03"],
+      ["SEIZURE_DATE", "Fecha del embargo", "2026-03-04"],
+      ["RESPONSE_DEADLINE", "Plazo de contestación", "2026-03-12"],
+    ] as const;
+    input.evidence.push(
+      ...specializedDates.map(([kind, label]) => ({
+        id: `evidence:specialized:${kind}`,
+        ownerScope: OWNER,
+        documentId: document.id,
+        pageNumber: 1,
+        textSnippet: label,
+        rawValue: kind,
+        extractionMethod: "RULE" as const,
+        confidence: "EXACT" as const,
+        assertionType: "EXPLICIT_IN_DOCUMENT" as const,
+      })),
+    );
+    snapshot.evidenceIds = [
+      "evidence:privacy-runtime:reference",
+      "evidence:privacy-runtime:amount",
+      ...specializedDates.map(([kind]) => `evidence:specialized:${kind}`),
+    ];
+    snapshot.structuredData.unknownFields = specializedDates.map(
+      ([kind, label, value], index) => ({
+        labelRaw: `VSR2|date:seizure:${index}:${kind}|DATE|${kind}|${label}`,
+        valueRaw: value,
+        page: 1,
+        evidenceId: `evidence:specialized:${kind}`,
+        confidence: "EXACT" as const,
+      }),
+    );
+
+    const encoded = encodeFiscalNotificationsWorkspaceForStorageV2(input)!;
+    expect(
+      encoded.workspace.dates.map(({ kind, value }) => [kind, value]),
+    ).toEqual([
+      ["ISSUE_DATE", "2026-03-03"],
+      ["SEIZURE_DATE", "2026-03-04"],
+      ["RESPONSE_DEADLINE", "2026-03-12"],
+    ]);
+
+    const restored = restoreFiscalNotificationsWorkspaceFromStorageV2(
+      encoded,
+      OWNER,
+    );
+    expect(restored?.documents[0]?.issueDate).toBe("2026-03-03");
+    const library = projectFiscalNotificationDocumentLibraryV1(restored, OWNER);
+    expect(library.status).toBe("READY");
+    expect(library.documents[0]).toMatchObject({
+      documentDate: "2026-03-03",
+      printedDates: expect.arrayContaining([
+        { label: "Fecha de emisión", value: "2026-03-03" },
+        { label: "Fecha de embargo", value: "2026-03-04" },
+        { label: "Fecha límite de respuesta", value: "2026-03-12" },
+      ]),
+    });
+    expect(
+      encodeFiscalNotificationsWorkspaceForStorageV2(restored),
+    ).toEqual(encoded);
+  });
+
   it("restores a visible document library with observed facts and page provenance", () => {
     const input = workspace();
     input.evidence.push({
@@ -536,7 +615,7 @@ describe("runtime privacy storage envelope v2", () => {
         matchingDates: [],
         differences: [],
       },
-      algorithmVersion: "synthetic-strong-reference/v1",
+      algorithmVersion: STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
       status: "SYSTEM_CONFIRMED_EXACT",
       createdAt: CREATED_AT,
     });
@@ -573,7 +652,7 @@ describe("runtime privacy storage envelope v2", () => {
         matchingDates: ["2026-07-01"],
         differences: [],
       },
-      algorithmVersion: "synthetic-strong-reference/v1",
+      algorithmVersion: STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
       status: "SYSTEM_CONFIRMED_EXACT",
       createdAt: CREATED_AT,
     });

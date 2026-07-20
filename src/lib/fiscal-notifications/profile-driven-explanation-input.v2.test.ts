@@ -100,21 +100,124 @@ describe("profile-driven explanation input v2", () => {
     expect(JSON.stringify(input)).not.toContain("0".repeat(64));
   });
 
-  it("does not project legacy fields or unknown families", () => {
+  it("projects supported observed fields independently of the extractor prefix", () => {
     const source = document();
-    const legacy = {
+    const specialized: FiscalNotificationVerticalSliceReviewDocumentV1 = {
+      ...source,
+      reviewDocumentId: "review-document:specialized:seizure.bank_account",
+      extractorId: "seizure",
+      familyId: "seizure.bank_account",
+      title: "Diligencia de embargo de cuenta bancaria",
+      fields: [
+        {
+          ...source.fields[3]!,
+          fieldId: "reference:1:EXPEDIENTE_ID",
+          canonicalType: "EXPEDIENTE_ID",
+          label: "Número de expediente",
+          sourceLabel: "Número de expediente",
+          displayValue: "EXP-SYNTH-001",
+          normalizedValue: "EXP-SYNTH-001",
+        },
+        {
+          ...source.fields[1]!,
+          fieldId: "date:seizure:issue-date",
+          canonicalType: "ISSUE_DATE",
+          label: "Fecha de emisión",
+          sourceLabel: "Fecha de emisión",
+          displayValue: "03/03/2026",
+          normalizedValue: "2026-03-03",
+        },
+        {
+          ...source.fields[1]!,
+          fieldId: "date:seizure:response-deadline",
+          canonicalType: "RESPONSE_DEADLINE",
+          label: "Plazo de contestación",
+          sourceLabel: "Plazo de contestación",
+          displayValue: "12/03/2026",
+          normalizedValue: "2026-03-12",
+        },
+        {
+          ...source.fields[2]!,
+          fieldId: "seizure-money:1:EXECUTIVE_SURCHARGE",
+          semantic: "MONEY",
+          canonicalType: "EXECUTIVE_SURCHARGE",
+          label: "Recargo ejecutivo",
+          sourceLabel: "Recargo ejecutivo",
+          displayValue: "20,00 €",
+          normalizedValue: null,
+          amountCents: 2_000,
+          currency: "EUR",
+        },
+        {
+          ...source.fields[0]!,
+          fieldId: "detail:SEIZURE_INSTRUCTIONS:1",
+          semantic: "DETAIL",
+          canonicalType: "SEIZURE_INSTRUCTIONS",
+          label: "Instrucciones",
+          sourceLabel: "Instrucciones",
+          displayValue: "Consta en el documento",
+          normalizedValue: "SEIZURE_INSTRUCTIONS",
+        },
+        {
+          ...source.fields[0]!,
+          fieldId: "detail:SEIZURE_INSTRUCTIONS:2",
+          semantic: "DETAIL",
+          canonicalType: "SEIZURE_INSTRUCTIONS",
+          label: "Instrucciones",
+          sourceLabel: "Instrucciones",
+          displayValue: "Consta de nuevo en el documento",
+          normalizedValue: "SEIZURE_INSTRUCTIONS",
+          sourcePageNumbers: [2],
+        },
+      ],
+    };
+
+    const input = projectProfileDrivenExplanationInputV2(specialized);
+    expect(input).toMatchObject({
+      references: [
+        { referenceType: "EXPEDIENTE_ID", value: "EXP-SYNTH-001" },
+      ],
+      dates: [
+        { dateType: "ISSUE_DATE", value: "2026-03-03" },
+        { dateType: "RESPONSE_DEADLINE", value: "2026-03-12" },
+      ],
+      money: [
+        { moneyType: "EXECUTIVE_SURCHARGE_PRINTED", amountCents: 2_000 },
+      ],
+      factCodes: [{ factCode: "SEIZURE_INSTRUCTIONS" }],
+    });
+    const keyData = explainFiscalNotificationDocumentV2(input!).sections.find(
+      (section) => section.id === "KEY_DATA",
+    );
+    expect(keyData?.assertions.map(({ code }) => code)).not.toContain(
+      "KEY_DATA_PENDING",
+    );
+    expect(JSON.stringify(keyData)).not.toMatch(
+      /reference:1:|date:seizure:|seizure-money:|detail:|EXACT_|INTEGER:|BOOLEAN:|EXPLANATION:/u,
+    );
+  });
+
+  it("does not project unsupported fields or unknown families", () => {
+    const source = document();
+    const unsupported: FiscalNotificationVerticalSliceReviewDocumentV1 = {
       ...source,
       fields: source.fields.map((field) =>
         field.fieldId.startsWith("profile:date:")
-          ? { ...field, fieldId: "legacy:date" }
+          ? {
+              ...field,
+              fieldId: "legacy:date",
+              canonicalType: "PAYMENT_FORM_DATE",
+            }
           : field,
       ),
     };
-    expect(projectProfileDrivenExplanationInputV2(legacy)?.dates).toEqual([]);
+    expect(projectProfileDrivenExplanationInputV2(unsupported)?.dates).toEqual(
+      [],
+    );
     expect(
       projectProfileDrivenExplanationInputV2({
-        ...legacy,
-        familyId: "legacy.unknown" as typeof legacy.familyId,
+        ...unsupported,
+        familyId: "legacy.unknown" as typeof unsupported.familyId,
       }),
     ).toBeNull();
   });

@@ -5,6 +5,7 @@ import type {
 } from "../app-data-durability";
 import type { SaveDataBlockedReason, SaveDataResult } from "../storage";
 import { EMPTY_DATA, type AppData } from "../types";
+import type { FiscalNotificationsWorkspace } from "./types";
 import {
   runFiscalNotificationCommandAgainstLatestPersistedV1,
   type FiscalNotificationPersistedCommitV1,
@@ -33,6 +34,40 @@ function namedData(name: string): AppData {
   return {
     ...structuredClone(EMPTY_DATA),
     profile: { ...EMPTY_DATA.profile, name },
+  };
+}
+
+function fiscalWorkspace(revision: number): FiscalNotificationsWorkspace {
+  const timestamp = "2026-07-20T10:05:00.000Z";
+  return {
+    schemaVersion: 1,
+    workspaceId: "fiscal-notifications-workspace-v1",
+    ownerScope: "user:00000000-0000-4000-8000-000000000165",
+    revision,
+    createdAt: timestamp,
+    updatedAt: timestamp,
+    packages: [],
+    files: [],
+    documents: [],
+    parts: [],
+    authorities: [],
+    references: [],
+    evidence: [],
+    debts: [],
+    debtObservations: [],
+    cases: [],
+    relations: [],
+    analysisSnapshots: [],
+    paymentOptions: [],
+    paymentPlans: [],
+    installments: [],
+    interestCalculations: [],
+    deadlineRules: [],
+    obligations: [],
+    timeline: [],
+    accountingDrafts: [],
+    auditEvents: [],
+    driveArchives: [],
   };
 }
 
@@ -111,6 +146,79 @@ describe("fiscal notification persisted command v1", () => {
       ]),
     );
     expect(persist).toHaveBeenCalledWith(expect.anything(), persisted);
+  });
+
+  it("usa el snapshot local durable aunque el autosync marque un baseline divergente", () => {
+    const current: AppData = {
+      ...namedData("local-durable"),
+      fiscalNotificationsWorkspace: fiscalWorkspace(3),
+      meta: {
+        lastModified: "2026-07-20T10:05:00.000Z",
+        pendingChanges: [
+          {
+            entityType: "fiscal_notifications_workspace",
+            entityId: "fiscal-notifications-workspace-v1",
+            deleted: false,
+            payload: { marker: "pending-fiscal-sync" },
+            updatedAt: "2026-07-20T10:05:00.000Z",
+          },
+        ],
+      },
+    };
+    const staleRemoteHead = namedData("stale-remote-head");
+    const persisted: AppData = {
+      ...structuredClone(current),
+      fiscalNotificationsWorkspace: fiscalWorkspace(4),
+    };
+    const persist = vi.fn(
+      (): SaveDataResult => ({ status: "applied" }),
+    );
+
+    const result = runFiscalNotificationCommandAgainstLatestPersistedV1({
+      fallback: current,
+      storageBaseline: { status: "blocked", reason: "stale_precondition" },
+      lastKnownPersisted: staleRemoteHead,
+      readPersisted: () => persisted,
+      persist,
+      blocked,
+      run: runNoop,
+    });
+
+    expect(result.status).toBe("applied");
+    if (result.status !== "applied") return;
+    expect(result.data.profile.name).toBe("local-durable");
+    expect(result.data.fiscalNotificationsWorkspace?.revision).toBe(4);
+    expect(result.data.meta?.pendingChanges).toEqual(
+      current.meta?.pendingChanges,
+    );
+    expect(persist).toHaveBeenCalledWith(expect.anything(), persisted);
+  });
+
+  it("no ignora cambios de contenido aunque también cambie la revisión fiscal", () => {
+    const current: AppData = {
+      ...namedData("local-durable"),
+      fiscalNotificationsWorkspace: fiscalWorkspace(3),
+    };
+    const persisted: AppData = {
+      ...namedData("remote-business-change"),
+      fiscalNotificationsWorkspace: fiscalWorkspace(4),
+    };
+    const persist = vi.fn(
+      (): SaveDataResult => ({ status: "applied" }),
+    );
+
+    const result = runFiscalNotificationCommandAgainstLatestPersistedV1({
+      fallback: current,
+      storageBaseline: { status: "blocked", reason: "stale_precondition" },
+      lastKnownPersisted: namedData("stale-remote-head"),
+      readPersisted: () => persisted,
+      persist,
+      blocked,
+      run: runNoop,
+    });
+
+    expect(result).toEqual({ status: "blocked", reason: "stale_precondition" });
+    expect(persist).not.toHaveBeenCalled();
   });
 
   it("confirma durabilidad antes de aceptar un replay con cambios locales", () => {

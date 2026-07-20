@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "./knowledge/aeat-document-knowledge.v1";
 import type { FiscalNotificationsWorkspace } from "./types";
+import { FISCAL_NOTIFICATIONS_PROJECTED_RELATION_ALGORITHM_VERSION_V2 } from "./persisted-workspace.v2";
+import { STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1 } from "./structured-review-relation-suggestions.v1";
 import { projectFiscalNotificationsWorkspacePrivacyV2 } from "./workspace-privacy-projection.v2";
 
 const OWNER = "user:00000000-0000-4000-8000-000000000061";
@@ -119,7 +121,7 @@ function workspace(): FiscalNotificationsWorkspace {
           citedText: "Private copied sentence",
           differences: ["Private note"],
         },
-        algorithmVersion: "private/v1",
+        algorithmVersion: STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1,
         status: "SYSTEM_CONFIRMED_EXACT",
         createdAt: NOW,
       },
@@ -259,6 +261,8 @@ describe("workspace privacy projection v2", () => {
       id: "relation:v1:0",
       status: "SYSTEM_CONFIRMED_EXACT",
       exactReferenceIds: ["reference:v1:1", "reference:v1:0"],
+      algorithmVersion:
+        FISCAL_NOTIFICATIONS_PROJECTED_RELATION_ALGORITHM_VERSION_V2,
     });
     expect(projected?.driveArchives[0]).toMatchObject({
       driveFileId: "drive_file_synthetic",
@@ -277,6 +281,19 @@ describe("workspace privacy projection v2", () => {
       input,
       OWNER,
     );
+    expect(projected?.relations).toEqual([]);
+  });
+
+  it("does not promote an unknown relation algorithm even with a matching amount or reference", async () => {
+    const input = workspace();
+    input.relations[0]!.algorithmVersion = "unknown-relation-v1";
+    input.relations[0]!.evidence.matchingAmountTypes = ["TOTAL_DEBT"];
+
+    const projected = await projectFiscalNotificationsWorkspacePrivacyV2(
+      input,
+      OWNER,
+    );
+
     expect(projected?.relations).toEqual([]);
   });
 
