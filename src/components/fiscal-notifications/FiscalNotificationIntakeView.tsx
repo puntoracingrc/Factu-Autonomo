@@ -26,10 +26,8 @@ import {
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { FiscalNotificationExplicitFieldsReview } from "@/components/fiscal-notifications/FiscalNotificationExplicitFieldsReview";
-import {
-  FiscalNotificationDocumentDetail,
-  FiscalNotificationDocumentLibrary,
-} from "@/components/fiscal-notifications/FiscalNotificationDocumentLibrary";
+import { FiscalNotificationDocumentDetail } from "@/components/fiscal-notifications/FiscalNotificationDocumentDetail";
+import { FiscalNotificationDocumentLibrary } from "@/components/fiscal-notifications/FiscalNotificationDocumentLibrary";
 import { FiscalNotificationPartyFactsReview } from "@/components/fiscal-notifications/FiscalNotificationPartyFactsReview";
 import { FiscalNotificationReviewSteps } from "@/components/fiscal-notifications/FiscalNotificationReviewSteps";
 import { FiscalNotificationVerticalSliceReview } from "@/components/fiscal-notifications/FiscalNotificationVerticalSliceReview";
@@ -290,18 +288,12 @@ export function FiscalNotificationIntakeView({
 
   return (
     <div className="mx-auto w-full max-w-6xl px-4 pb-12 sm:px-6">
-      <PageHeader
-        title={
-          selectedDocumentId
-            ? "Ficha de notificación"
-            : "Notificaciones y expedientes"
-        }
-        subtitle={
-          selectedDocumentId
-            ? "Datos, importes, fechas y relaciones conservados en tu cuenta."
-            : "Escanea, entiende y organiza tus documentos de Hacienda."
-        }
-      />
+      {!selectedDocumentId ? (
+        <PageHeader
+          title="Notificaciones y expedientes"
+          subtitle="Escanea, entiende y organiza tus documentos de Hacienda."
+        />
+      ) : null}
 
       {!authReady ? (
         <Card role="status" aria-live="polite">

@@ -345,6 +345,7 @@ describe("structured fiscal notification history view model v1", () => {
             currency: "EUR",
             sourceReference: null,
             sourceReferenceType: null,
+            pageNumbers: [2],
           },
         ],
       }),
@@ -1042,7 +1043,7 @@ describe("structured fiscal notification history view model v1", () => {
         },
       ],
       totalCents: 105_000,
-      deadline: "2026-02-20",
+      deadline: "2026-02-05",
       deadlineStatus: "DOCUMENT_STATED",
       evidenceIds: ["evidence:money", "evidence:date"],
     });
@@ -1057,10 +1058,20 @@ describe("structured fiscal notification history view model v1", () => {
             {
               label: "Cuota impresa 1 · liquidación 1",
               amountCents: 105_000,
-              dueDate: "2026-02-20",
+              dueDate: "2026-02-05",
+              dueDatePageNumbers: [3],
+              totalPageNumbers: [2],
               components: [
-                { label: "Principal", amountCents: 100_000 },
-                { label: "Intereses", amountCents: 5_000 },
+                {
+                  label: "Principal",
+                  amountCents: 100_000,
+                  pageNumbers: [2],
+                },
+                {
+                  label: "Intereses",
+                  amountCents: 5_000,
+                  pageNumbers: [2],
+                },
               ],
             },
           ],

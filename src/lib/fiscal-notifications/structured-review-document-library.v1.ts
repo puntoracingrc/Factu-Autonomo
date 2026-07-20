@@ -16,6 +16,13 @@ export interface FiscalNotificationDocumentLibraryLinkV1 {
   readonly label: string;
   readonly explanation: string;
   readonly matches: readonly StructuredReviewRelationMatchV1[];
+  readonly relationStatus:
+    | "SUGGESTED"
+    | "USER_CONFIRMED"
+    | "SYSTEM_CONFIRMED_EXACT";
+  readonly statusLabel:
+    | "Relación detectada · revisar"
+    | "Referencia exacta · revisar efectos";
   readonly directionSource: "EXACT_PROCEDURAL_RELATION" | "DOCUMENT_DATE_ORDER";
 }
 
@@ -114,6 +121,12 @@ export function composeFiscalNotificationDocumentLibraryV1(
       label: exact?.label ?? relation.title,
       explanation: relation.explanation,
       matches: Object.freeze([...relation.matches]),
+      relationStatus:
+        relation.relationStatus ??
+        (relation.statusLabel === "Relación detectada · revisar"
+          ? ("SUGGESTED" as const)
+          : ("SYSTEM_CONFIRMED_EXACT" as const)),
+      statusLabel: relation.statusLabel,
       directionSource: exact
         ? ("EXACT_PROCEDURAL_RELATION" as const)
         : ("DOCUMENT_DATE_ORDER" as const),
