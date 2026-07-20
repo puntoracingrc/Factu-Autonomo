@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { HardDrive, ShieldCheck } from "lucide-react";
 import { GoogleDriveBackupCard } from "@/components/cloud/GoogleDriveBackupCard";
 import { Button } from "@/components/ui/Button";
+import { useBilling } from "@/context/BillingContext";
 import {
   DEFAULT_DRIVE_BACKUP_SETTINGS,
   DRIVE_BACKUP_SETTINGS_EVENT,
@@ -19,6 +20,8 @@ import {
 } from "@/lib/first-use-onboarding";
 
 export function FirstUseDriveBackupPanel({ userId }: { userId: string }) {
+  const { limits, loading: billingLoading } = useBilling();
+  const cloudSyncEnabled = limits.cloudSync;
   const driveConfigured = isGoogleDriveBackupEnabled();
   const dismissedStorageKey = firstUseDriveDismissedStorageKey(userId);
   const [settings, setSettings] = useState<DriveBackupSettings>(
@@ -79,6 +82,7 @@ export function FirstUseDriveBackupPanel({ userId }: { userId: string }) {
   }
 
   if (
+    billingLoading ||
     !shouldShowFirstUseDriveBackup({
       dismissed,
       driveConfigured,
@@ -114,12 +118,26 @@ export function FirstUseDriveBackupPanel({ userId }: { userId: string }) {
               Protege tus datos
             </p>
             <h2 className="mt-1 text-xl font-black text-slate-950">
-              Añade una copia automática en Google Drive
+              Protege tus datos fuera de este dispositivo
             </h2>
             <p className="mt-2 text-sm leading-6 text-slate-700">
-              Tus datos ya se sincronizan en la nube de Factu. Si quieres una
-              copia de seguridad automática adicional bajo tu control, puedes
-              guardarla cifrada en tu Google Drive.
+              {cloudSyncEnabled ? (
+                <>
+                  Tu plan sincroniza los datos en la nube de Factu. Puedes
+                  añadir una copia de seguridad automática cifrada bajo tu
+                  control en Google Drive.
+                </>
+              ) : (
+                <>
+                  <strong>
+                    Con el plan Gratuito, Factu no guarda tus facturas ni datos
+                    de trabajo en su nube: permanecen solo en este dispositivo.
+                  </strong>{" "}
+                  Si lo pierdes o se avería, puedes perder toda la información.
+                  Descarga copias manuales y guárdalas fuera del dispositivo, o
+                  activa copias automáticas cifradas en Google Drive.
+                </>
+              )}
             </p>
           </div>
         </div>

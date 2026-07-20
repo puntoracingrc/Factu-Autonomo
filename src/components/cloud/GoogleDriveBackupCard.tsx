@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Select } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { BACKUP_SCOPE_NOTICE } from "@/lib/backup";
 import {
@@ -95,7 +96,9 @@ export function GoogleDriveBackupCard({
   variant?: "account" | "onboarding";
 } = {}) {
   const { data } = useAppStore();
+  const { limits, loading: billingLoading } = useBilling();
   const { user, emailConfirmed } = useCloudSync();
+  const cloudSyncEnabled = limits.cloudSync;
   const clientId = getGoogleDriveClientId();
   const driveConfigured = isGoogleDriveBackupEnabled();
   const driveAccountReady = Boolean(user && emailConfirmed);
@@ -315,8 +318,9 @@ export function GoogleDriveBackupCard({
       setTokenReady(false);
       setFeedback({
         tone: "info",
-        message:
-          "Las copias en Drive están pausadas hasta que pulses Reconectar Drive. Tu sesión y la nube de Factu siguen funcionando.",
+        message: cloudSyncEnabled
+          ? "Las copias en Drive están pausadas hasta que pulses Reconectar Drive. Tu sesión y la nube de Factu siguen funcionando."
+          : "Las copias en Drive están pausadas hasta que pulses Reconectar Drive. En el plan Gratuito, tus datos permanecen solo en este dispositivo mientras Drive esté desconectado.",
       });
     });
 
@@ -326,6 +330,7 @@ export function GoogleDriveBackupCard({
   }, [
     busy,
     clientId,
+    cloudSyncEnabled,
     driveAccountReady,
     driveConfigured,
     hydrated,
@@ -369,6 +374,8 @@ export function GoogleDriveBackupCard({
   const folderLink = settings.lastFolderWebViewLink;
   const fileLink = settings.lastWebViewLink;
 
+  if (billingLoading) return null;
+
   return (
     <section
       id={variant === "account" ? "drive-backup" : "drive-backup-onboarding"}
@@ -385,11 +392,22 @@ export function GoogleDriveBackupCard({
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">
-                Copia extra en Google Drive
+                Copia automática en Google Drive
               </h2>
               <p className="mt-1 text-sm text-slate-600">
-                Drive no sirve para iniciar sesión. Solo guarda una copia extra
-                cifrada si lo conectas aquí, además de la nube de Factu.
+                {cloudSyncEnabled ? (
+                  <>
+                    Drive no sirve para iniciar sesión. Guarda una copia
+                    adicional cifrada bajo tu control, además de la nube de
+                    Factu.
+                  </>
+                ) : (
+                  <>
+                    Drive no activa la nube de Factu ni sirve para iniciar
+                    sesión en otro dispositivo. Guarda una copia cifrada fuera
+                    de este dispositivo para que puedas recuperar tus datos.
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -411,6 +429,18 @@ export function GoogleDriveBackupCard({
           {DRIVE_BACKUP_RETENTION_LIMIT} últimas; al subir una nueva, las más
           antiguas se retiran de la carpeta de Drive.
         </div>
+        {!cloudSyncEnabled ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950">
+            <strong>
+              En el plan Gratuito, Factu no guarda tus facturas ni datos de
+              trabajo en su nube.
+            </strong>{" "}
+            Tus datos están solo en este dispositivo. Si lo pierdes o se
+            avería sin tener una copia externa, puedes perder toda la
+            información. Descarga copias manuales y guárdalas fuera del
+            dispositivo, o mantén activadas estas copias automáticas en Drive.
+          </div>
+        ) : null}
         <p className="rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
           {BACKUP_SCOPE_NOTICE}
         </p>
@@ -418,7 +448,10 @@ export function GoogleDriveBackupCard({
         {!driveConfigured ? (
           <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
             La copia extra en Google Drive aún no está disponible aquí. Puedes
-            seguir usando la copia manual y la nube de Factu.
+            seguir usando la copia manual
+            {cloudSyncEnabled
+              ? " y la nube de Factu."
+              : ". Guárdala fuera de este dispositivo."}
           </p>
         ) : null}
         {user && !emailConfirmed ? (
@@ -512,7 +545,10 @@ export function GoogleDriveBackupCard({
           <p className="rounded-xl bg-amber-50 px-4 py-3 text-sm text-amber-900">
             Las copias extra en Drive están pausadas porque Google no ha dado un
             permiso activo en esta sesión. Reconecta Drive para volver a guardar
-            copias. No afecta a tu inicio de sesión ni a la nube de Factu.
+            copias. No afecta a tu inicio de sesión
+            {cloudSyncEnabled
+              ? " ni a la nube de Factu."
+              : ", pero tus datos del plan Gratuito siguen solo en este dispositivo."}
           </p>
         ) : null}
 
