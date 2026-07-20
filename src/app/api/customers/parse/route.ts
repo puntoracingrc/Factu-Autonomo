@@ -10,6 +10,10 @@ import {
 } from "@/lib/billing/unlimited-ai-access";
 import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import { enrichCustomerPostalCode } from "@/lib/customer-ai/geocoding";
+import {
+  isLocalCustomerParseSufficient,
+  parseCustomerTextLocally,
+} from "@/lib/customer-ai/local-parser";
 import { extractCustomerFromText } from "@/lib/customer-ai/openai";
 import {
   checkRateLimit,
@@ -45,7 +49,8 @@ export async function POST(request: Request) {
   if (isAiRouteAuthenticationRequired(request) && !user) {
     return NextResponse.json(
       {
-        error: "Crea una cuenta e inicia sesión para usar el autorrelleno IA.",
+        error:
+          "Crea una cuenta e inicia sesión para rellenar clientes desde texto.",
       },
       { status: 401 },
     );
@@ -61,17 +66,9 @@ export async function POST(request: Request) {
   );
   if (!rateLimit.allowed) return rateLimitExceededResponse(rateLimit);
 
-  const unlimitedAccess = hasUnlimitedAiAccess(user);
-  const gate =
-    user && !unlimitedAccess
-      ? await canUseCustomerAi(user.id)
-      : { allowed: true };
-  if (!gate.allowed) {
-    return NextResponse.json({ error: gate.reason }, { status: 402 });
-  }
-
   const bodyResult = await readJsonBody<{
     text?: unknown;
+    allowAi?: unknown;
   }>(request, {
     maxBytes: 8 * 1024,
     invalidMessage: "Petición no válida.",
@@ -79,6 +76,7 @@ export async function POST(request: Request) {
   if (!bodyResult.ok) return bodyResult.response;
   const body = bodyResult.data;
   const text = typeof body?.text === "string" ? body.text.trim() : "";
+  const allowAi = body?.allowAi === true;
 
   if (text.length < 10) {
     return NextResponse.json(
@@ -94,6 +92,35 @@ export async function POST(request: Request) {
       },
       { status: 400 },
     );
+  }
+
+  const localResult = parseCustomerTextLocally(text);
+  if (localResult && (!allowAi || isLocalCustomerParseSufficient(localResult))) {
+    return NextResponse.json({
+      data: localResult,
+      source: "local",
+      canRetryWithAi: !isLocalCustomerParseSufficient(localResult),
+    });
+  }
+
+  if (!allowAi) {
+    return NextResponse.json(
+      {
+        error:
+          "No se encontraron datos suficientes de cliente. Puedes revisar el texto o mejorarlo con IA.",
+        canRetryWithAi: true,
+      },
+      { status: 422 },
+    );
+  }
+
+  const unlimitedAccess = hasUnlimitedAiAccess(user);
+  const gate =
+    user && !unlimitedAccess
+      ? await canUseCustomerAi(user.id)
+      : { allowed: true };
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.reason }, { status: 402 });
   }
 
   const userId = user?.id ?? "dev";
@@ -123,6 +150,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     data,
+    source: "ai",
     quota: usage.quota,
     ...(softUsageWarning ? { usageWarning: softUsageWarning } : {}),
   });

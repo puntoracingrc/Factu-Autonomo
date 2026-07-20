@@ -28,14 +28,14 @@ export const clientesSection: ManualSection = {
       },
     },
     {
-      title: "3. Rellenar con IA desde un texto",
+      title: "3. Rellenar desde un texto",
       paragraphs: [
-        "Si tienes plan **Pro**, puedes pegar texto recibido por WhatsApp, email o web en **Rellenar con IA** dentro del formulario de cliente, aunque venga desordenado.",
-        "La app intenta separar razón social o nombre, NIF/CIF, teléfono, email, tipo de vía, dirección, código postal y ciudad. Si falta el código postal pero hay dirección y ciudad, puede intentar localizarlo automáticamente. Después debes **revisar los campos antes de guardar**, porque los textos escritos a mano pueden venir incompletos o mal ordenados.",
-        "La primera vez que uses una función IA verás un aviso: el texto se enviará a un proveedor externo de IA para procesarlo. Tras aceptarlo una vez, la app no te lo pedirá en cada uso salvo cambios importantes.",
-        "Cada relleno consume **1 unidad IA**. Como referencia, **10 rellenos de cliente equivalen a 1 escaneo** de factura o ticket.",
+        "Puedes pegar texto recibido por WhatsApp, email o web en **Rellenar desde texto** dentro del formulario de cliente, aunque venga desordenado.",
+        "La app intenta separar razón social o nombre, NIF/CIF, teléfono, email, tipo de vía, dirección, código postal y ciudad con reglas locales. Después debes **revisar los campos antes de guardar**, porque los textos escritos a mano pueden venir incompletos o mal ordenados.",
+        "Si el texto es ambiguo, puedes usar **Mejorar con IA**. En ese caso verás antes el aviso de tratamiento con IA y el texto solo se enviará al proveedor externo si lo aceptas.",
+        "Cada mejora con IA consume **1 unidad IA**. Como referencia, **10 mejoras de cliente equivalen a 1 escaneo** de factura o ticket.",
         "También encontrarás este bloque al crear una **factura**, **presupuesto** o **recibo**: si el cliente no existe, se guardará automáticamente al guardar el documento.",
-        "En el plan **Gratis** puedes seguir creando y editando clientes manualmente.",
+        "En el plan **Gratis** puedes usar el relleno local y seguir creando o editando clientes manualmente.",
       ],
     },
     {

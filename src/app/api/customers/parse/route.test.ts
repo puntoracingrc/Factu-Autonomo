@@ -71,7 +71,34 @@ describe("POST /api/customers/parse", () => {
     vi.unstubAllEnvs();
   });
 
-  it("autoriza a un usuario Pro autenticado", async () => {
+  it("resuelve localmente sin consultar plan, consumir cuota ni llamar a OpenAI", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "user-pro",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+
+    const response = await POST(
+      request("token-pro", {
+        text: [
+          "Laura Pruebas Garcia",
+          "NIF 00000000T",
+          "laura@example.test",
+          "Calle Mayor 1, 28013 Madrid",
+        ].join("\n"),
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.source).toBe("local");
+    expect(body.data.customer.firstName).toBe("Laura");
+    expect(fetchUserSubscriptionServer).not.toHaveBeenCalled();
+    expect(consumeCustomerAiAutofill).not.toHaveBeenCalled();
+    expect(extractCustomerFromText).not.toHaveBeenCalled();
+    expect(enrichCustomerPostalCode).not.toHaveBeenCalled();
+  });
+
+  it("autoriza a un usuario Pro autenticado cuando pide fallback IA explicito", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     vi.mocked(getUserFromBearer).mockResolvedValue({
       id: "user-pro",
@@ -105,18 +132,41 @@ describe("POST /api/customers/parse", () => {
 
     const response = await POST(
       request("token-pro", {
-        text: "Cliente Pro SL Calle Mayor 1 Barcelona",
+        text: "Calle Mayor 1, Barcelona, sin nombre claro",
+        allowAi: true,
       }),
     );
     const body = await response.json();
 
     expect(response.status).toBe(200);
+    expect(body.source).toBe("ai");
     expect(body.data.customer.firstName).toBe("Cliente");
     expect(fetchUserSubscriptionServer).toHaveBeenCalledWith("user-pro");
     expect(consumeCustomerAiAutofill).toHaveBeenCalledWith("user-pro");
   });
 
-  it("rechaza a un usuario gratuito", async () => {
+  it("permite relleno local a un usuario gratuito sin consumo IA", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "user-free",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+
+    const response = await POST(
+      request("token-free", {
+        text: "Cliente: Taller Demo SL\nCIF B12345678\nCalle Mayor 1, 28013 Madrid",
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.source).toBe("local");
+    expect(body.data.customer.firstName).toBe("Taller Demo SL");
+    expect(fetchUserSubscriptionServer).not.toHaveBeenCalled();
+    expect(consumeCustomerAiAutofill).not.toHaveBeenCalled();
+    expect(extractCustomerFromText).not.toHaveBeenCalled();
+  });
+
+  it("rechaza a un usuario gratuito cuando pide fallback IA", async () => {
     vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
     vi.mocked(getUserFromBearer).mockResolvedValue({
       id: "user-free",
@@ -127,7 +177,8 @@ describe("POST /api/customers/parse", () => {
 
     const response = await POST(
       request("token-free", {
-        text: "Cliente Gratis SL Calle Mayor 1 Barcelona",
+        text: "Calle Mayor 1, Barcelona, sin nombre claro",
+        allowAi: true,
       }),
     );
 
@@ -211,7 +262,8 @@ describe("POST /api/customers/parse", () => {
       request("token-real", {
         userId: "otro-usuario",
         plan: "pro",
-        text: "Cliente Token SL Calle Mayor 1 Barcelona",
+        text: "Calle Mayor 1, Barcelona, sin nombre claro",
+        allowAi: true,
       }),
     );
 
@@ -230,7 +282,8 @@ describe("POST /api/customers/parse", () => {
 
     const response = await POST(
       request("token-no-sub", {
-        text: "Cliente Sin Suscripcion SL Calle Mayor 1 Barcelona",
+        text: "Calle Mayor 1, Barcelona, sin nombre claro",
+        allowAi: true,
       }),
     );
 
@@ -270,7 +323,8 @@ describe("POST /api/customers/parse", () => {
 
     const response = await POST(
       request("token-pro", {
-        text: "Cliente Pro SL Calle Mayor 1 Barcelona",
+        text: "Calle Mayor 1, Barcelona, sin nombre claro",
+        allowAi: true,
       }),
     );
     const body = await response.json();

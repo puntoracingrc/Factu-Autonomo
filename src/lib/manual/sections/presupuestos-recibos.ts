@@ -15,7 +15,7 @@ export const presupuestosSection: ManualSection = {
         "En las líneas puedes buscar productos detectados en compras. Si hay PVP, se inserta como precio de venta; si la app solo conoce el coste, aparece un aviso para que ajustes el precio antes de enviar.",
         "La fecha de validez se calcula con los días configurados en **Ajustes → Facturación**. En el formulario verás **Válido hasta**.",
         "En el listado, el icono del **ojo** abre la vista previa del PDF dentro de la app y el botón de descarga guarda el PDF.",
-        "En **Datos del cliente** también puedes usar **Rellenar con IA** (plan Pro) para pegar datos recibidos por WhatsApp, email o web. Si el cliente no existe, se crea su ficha al guardar el presupuesto.",
+        "En **Datos del cliente** también puedes usar **Rellenar desde texto** para pegar datos recibidos por WhatsApp, email o web. Si el texto es ambiguo, puedes pedir una mejora con IA antes de guardar el presupuesto.",
       ],
       screenshot: {
         src: "/ayuda/capturas/presupuestos-nuevo.png",
@@ -81,7 +81,7 @@ export const recibosSection: ManualSection = {
         "El IVA se elige una vez para todo el recibo, igual que en facturas y presupuestos.",
         "Si escribes un producto o servicio usado antes, la app puede sugerirlo en la línea. Revisa el aviso si no existe PVP y solo se ha rellenado el coste conocido.",
         "En el listado, el icono del **ojo** abre la vista previa del PDF dentro de la app y el botón **PDF** lo descarga.",
-        "Como en facturas y presupuestos, el bloque **Rellenar con IA** puede ayudarte a completar los datos del cliente antes de guardar.",
+        "Como en facturas y presupuestos, el bloque **Rellenar desde texto** puede ayudarte a completar los datos del cliente antes de guardar.",
         "El listado de recibos también está ordenado de más nuevo a más antiguo, con separadores por mes y botón **Cargar más** si hay muchos.",
       ],
       screenshot: {
