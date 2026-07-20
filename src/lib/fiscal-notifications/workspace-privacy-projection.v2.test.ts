@@ -425,4 +425,28 @@ describe("workspace privacy projection v2", () => {
       ]),
     );
   });
+
+  it("assigns stable document-specific ids to typed dates", async () => {
+    const first = await projectFiscalNotificationsWorkspacePrivacyV2(
+      workspace(),
+      OWNER,
+    );
+    const second = await projectFiscalNotificationsWorkspacePrivacyV2(
+      workspace(),
+      OWNER,
+    );
+    const typedDateIds =
+      first?.dates
+        .filter((date) => date.id.startsWith("date:v2:"))
+        .map((date) => date.id) ?? [];
+
+    expect(typedDateIds.length).toBeGreaterThan(0);
+    expect(new Set(first?.dates.map((date) => date.id))).toHaveProperty(
+      "size",
+      first?.dates.length,
+    );
+    expect(second?.dates.map((date) => date.id)).toEqual(
+      first?.dates.map((date) => date.id),
+    );
+  });
 });

@@ -4,6 +4,7 @@ import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integ
 import { projectFiscalNotificationsWorkspacePrivacyV2 } from "./workspace-privacy-projection.v2";
 import { deleteFiscalNotificationDocumentV1 } from "./document-deletion.v1";
 import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "./knowledge/aeat-document-knowledge.v1";
+import { projectFiscalNotificationDocumentLibraryV1 } from "./structured-review-document-library.v1";
 import {
   compareFiscalNotificationsWorkspaceStorageEnvelopesV2,
   encodeFiscalNotificationsWorkspaceForStorageV2,
@@ -364,11 +365,7 @@ describe("runtime privacy storage envelope v2", () => {
       issueDate: "2026-07-01",
       signatureDate: "2026-07-02",
     });
-    expect(restored?.paymentOptions[0]?.components).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ amountCents: 163_295 }),
-      ]),
-    );
+    expect(restored?.paymentOptions).toEqual([]);
     expect(restored?.references[0]?.rawValue).toBe("CSV protegido");
     expect(
       projectFiscalNotificationsWorkspacePrivacyV2(restored!, OWNER),
@@ -376,6 +373,356 @@ describe("runtime privacy storage envelope v2", () => {
     expect(
       encodeFiscalNotificationsWorkspaceForStorageV2(restored),
     ).toEqual(encoded);
+  });
+
+  it("restores a visible document library with observed facts and page provenance", () => {
+    const input = workspace();
+    input.evidence.push({
+      id: "evidence:privacy-runtime:fact",
+      ownerScope: OWNER,
+      documentId: "document:privacy-runtime:1",
+      pageNumber: 2,
+      textSnippet: "Dato sintético observado",
+      rawValue: "Documentación requerida",
+      extractionMethod: "RULE",
+      confidence: "EXACT",
+      assertionType: "EXPLICIT_IN_DOCUMENT",
+    });
+    input.analysisSnapshots[0]!.evidenceIds.push(
+      "evidence:privacy-runtime:fact",
+    );
+    input.analysisSnapshots[0]!.structuredData.unknownFields.push({
+      labelRaw:
+        "VSR2|profile:fact:PAYMENT_SCOPE:0|DETAIL|FACT_OR_GROUND|Alcance del pago",
+      valueRaw: "Consta en el documento",
+      page: 2,
+      evidenceId: "evidence:privacy-runtime:fact",
+      confidence: "EXACT",
+    });
+
+    const encoded = encodeFiscalNotificationsWorkspaceForStorageV2(input)!;
+    expect(encoded.workspace.facts).toContainEqual(
+      expect.objectContaining({
+        fieldId: "PROFILE_FACT_PAYMENT_SCOPE",
+        assertionType: "EXPLICIT_IN_DOCUMENT",
+        evidenceIds: ["evidence:privacy-runtime:fact"],
+      }),
+    );
+    const restored = restoreFiscalNotificationsWorkspaceFromStorageV2(
+      encoded,
+      OWNER,
+    );
+    const library = projectFiscalNotificationDocumentLibraryV1(restored, OWNER);
+
+    expect(library.status).toBe("READY");
+    expect(library.documents).toHaveLength(1);
+    expect(library.documents[0]).toMatchObject({
+      key: "document:privacy-runtime:1",
+      documentDate: "2026-07-01",
+      pageCount: 3,
+      installments: [],
+      money: expect.arrayContaining([
+        expect.objectContaining({ amountCents: 163_295 }),
+      ]),
+      orderedFacts: expect.arrayContaining([
+        expect.objectContaining({
+          semantic: "DETAIL",
+          label: "Alcance del pago",
+          value: "Consta en el documento",
+          pageNumber: 2,
+        }),
+      ]),
+    });
+    expect(JSON.stringify(library)).not.toMatch(
+      /INTEGER:|BOOLEAN:|EXPLANATION:|_DURATION|_CONTENT|EXACT_TITLE_AND_AUTHORITY/u,
+    );
+  });
+
+  it("does not re-expose unproven dates, references or amounts after reload", () => {
+    const encoded = structuredClone(
+      encodeFiscalNotificationsWorkspaceForStorageV2(workspace())!,
+    );
+    encoded.workspace.references[0]!.assertionType =
+      "NOT_PROVEN_BY_DOCUMENT";
+    const issueDate = encoded.workspace.dates.find(
+      (entry) => entry.kind === "ISSUE_DATE",
+    )!;
+    issueDate.assertionType = "NOT_PROVEN_BY_DOCUMENT";
+    encoded.workspace.amounts.forEach((amount) => {
+      amount.assertionType = "NOT_PROVEN_BY_DOCUMENT";
+    });
+
+    expect(encoded.workspace.references[0]).toMatchObject({
+      assertionType: "NOT_PROVEN_BY_DOCUMENT",
+      evidenceIds: ["evidence:privacy-runtime:reference"],
+    });
+    expect(
+      encoded.workspace.dates.find((entry) => entry.kind === "ISSUE_DATE"),
+    ).toMatchObject({
+      assertionType: "NOT_PROVEN_BY_DOCUMENT",
+      evidenceIds: ["evidence:privacy-runtime:ISSUE_DATE"],
+    });
+    expect(encoded.workspace.amounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          assertionType: "NOT_PROVEN_BY_DOCUMENT",
+          evidenceIds: ["evidence:privacy-runtime:amount"],
+        }),
+      ]),
+    );
+
+    const restored = restoreFiscalNotificationsWorkspaceFromStorageV2(
+      encoded,
+      OWNER,
+    );
+    expect(restored?.references).toEqual([]);
+    expect(restored?.documents[0]?.referenceIds).toEqual([]);
+    expect(restored?.documents[0]?.issueDate).toBeUndefined();
+    expect(restored?.paymentOptions).toEqual([]);
+    const library = projectFiscalNotificationDocumentLibraryV1(restored, OWNER);
+    expect(library.status).toBe("READY");
+    expect(library.documents[0]).toMatchObject({
+      documentDate: "2026-07-02",
+      references: [],
+      money: [],
+    });
+    expect(library.documents[0]?.orderedFacts).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: "2026-07-01" }),
+      ]),
+    );
+  });
+
+  it("keeps a fully unproven persisted document out of the visible library", () => {
+    const encoded = structuredClone(
+      encodeFiscalNotificationsWorkspaceForStorageV2(workspace())!,
+    );
+    for (const entries of [
+      encoded.workspace.references,
+      encoded.workspace.dates,
+      encoded.workspace.amounts,
+      encoded.workspace.facts,
+    ]) {
+      entries.forEach((entry) => {
+        entry.assertionType = "NOT_PROVEN_BY_DOCUMENT";
+      });
+    }
+
+    const restored = restoreFiscalNotificationsWorkspaceFromStorageV2(
+      encoded,
+      OWNER,
+    );
+    const library = projectFiscalNotificationDocumentLibraryV1(restored, OWNER);
+
+    expect(restored?.documents).toHaveLength(1);
+    expect(restored?.documents[0]?.analysisSnapshotIds).toEqual([]);
+    expect(restored?.analysisSnapshots).toEqual([]);
+    expect(library).toMatchObject({ status: "READY", documents: [] });
+  });
+
+  it("drops an exact relation when a matching reference is not document-proven", () => {
+    const input = workspaceWithTwoDocumentGraphs();
+    input.relations.push({
+      id: "relation:privacy-runtime:exact",
+      ownerScope: OWNER,
+      sourceDocumentId: "document:privacy-runtime:1",
+      targetDocumentId: "document:privacy-descendant:1",
+      relationType: "ENFORCES",
+      confidenceBand: "EXACT",
+      score: 100,
+      evidence: {
+        matchingReferenceTypes: ["CSV"],
+        matchingAmountTypes: [],
+        matchingDates: [],
+        differences: [],
+      },
+      algorithmVersion: "synthetic-strong-reference/v1",
+      status: "SYSTEM_CONFIRMED_EXACT",
+      createdAt: CREATED_AT,
+    });
+    const encoded = structuredClone(
+      encodeFiscalNotificationsWorkspaceForStorageV2(input)!,
+    );
+    expect(encoded.workspace.relations[0]?.exactReferenceIds).toHaveLength(2);
+    const targetReference = encoded.workspace.references.find(
+      (entry) => entry.documentId === "document:privacy-descendant:1",
+    )!;
+    targetReference.assertionType = "NOT_PROVEN_BY_DOCUMENT";
+
+    const restored = restoreFiscalNotificationsWorkspaceFromStorageV2(
+      encoded,
+      OWNER,
+    );
+
+    expect(restored?.relations).toEqual([]);
+  });
+
+  it("keeps unproven contextual dates and bank references out of relations", () => {
+    const input = workspaceWithTwoDocumentGraphs();
+    input.relations.push({
+      id: "relation:privacy-runtime:context",
+      ownerScope: OWNER,
+      sourceDocumentId: "document:privacy-runtime:1",
+      targetDocumentId: "document:privacy-descendant:1",
+      relationType: "ENFORCES",
+      confidenceBand: "EXACT",
+      score: 100,
+      evidence: {
+        matchingReferenceTypes: ["CSV"],
+        matchingAmountTypes: [],
+        matchingDates: ["2026-07-01"],
+        differences: [],
+      },
+      algorithmVersion: "synthetic-strong-reference/v1",
+      status: "SYSTEM_CONFIRMED_EXACT",
+      createdAt: CREATED_AT,
+    });
+    const encoded = structuredClone(
+      encodeFiscalNotificationsWorkspaceForStorageV2(input)!,
+    );
+    encoded.workspace.dates
+      .filter((entry) => entry.kind === "ISSUE_DATE")
+      .forEach((entry) => {
+        entry.assertionType = "NOT_PROVEN_BY_DOCUMENT";
+      });
+
+    const restored = restoreFiscalNotificationsWorkspaceFromStorageV2(
+      encoded,
+      OWNER,
+    );
+
+    expect(restored?.relations).toHaveLength(1);
+    expect(restored?.relations[0]?.evidence).toMatchObject({
+      matchingReferenceTypes: ["CSV"],
+      matchingAmountTypes: [],
+      matchingDates: [],
+    });
+
+    const bankOnly = structuredClone(encoded);
+    bankOnly.workspace.references.forEach((entry) => {
+      entry.referenceType = "BANK_REFERENCE";
+      entry.value = {
+        storage: "FINGERPRINT_ONLY",
+        referenceType: "BANK_REFERENCE",
+        fingerprintSha256: "d".repeat(64),
+      };
+    });
+    expect(
+      restoreFiscalNotificationsWorkspaceFromStorageV2(bankOnly, OWNER)
+        ?.relations,
+    ).toEqual([]);
+  });
+
+  it("rejects a changed workspace generation without a bound empty restart", () => {
+    const baseWorkspace = workspace();
+    const base = encodeFiscalNotificationsWorkspaceForStorageV2(baseWorkspace)!;
+    const unboundGeneration = structuredClone(baseWorkspace);
+    unboundGeneration.revision = 2;
+    unboundGeneration.createdAt = "2026-07-16T09:00:00.000Z";
+    unboundGeneration.updatedAt = "2026-07-16T09:00:00.000Z";
+
+    expect(
+      encodeFiscalNotificationsWorkspaceForStorageV2(
+        unboundGeneration,
+        base,
+      ),
+    ).toBeNull();
+  });
+
+  it("keeps B and C after saving A/B, deleting A, reloading, and saving C", () => {
+    const initialWorkspace = workspaceWithTwoDocumentGraphs();
+    const initial = encodeFiscalNotificationsWorkspaceForStorageV2(
+      initialWorkspace,
+    )!;
+    const deleted = deleteFiscalNotificationDocumentV1({
+      workspace: initialWorkspace,
+      ownerScope: OWNER,
+      documentId: "document:privacy-runtime:1",
+      deletedAt: "2026-07-16T09:00:00.000Z",
+    });
+    expect(deleted.status).toBe("APPLIED");
+    if (deleted.status !== "APPLIED") return;
+    const reducedWorkspace =
+      registerFiscalNotificationDocumentReductionTransitionV2(
+        deleted.workspace,
+        initialWorkspace,
+        OWNER,
+        "2026-07-16T09:00:00.000Z",
+      );
+    expect(reducedWorkspace).not.toBeNull();
+    const reduced = encodeFiscalNotificationsWorkspaceForStorageV2(
+      reducedWorkspace,
+      initial,
+    )!;
+    const reloaded = restoreFiscalNotificationsWorkspaceFromStorageV2(
+      reduced,
+      OWNER,
+    )!;
+    const third = JSON.parse(
+      JSON.stringify(workspace()).replaceAll("privacy-runtime", "privacy-third"),
+    ) as FiscalNotificationsWorkspace;
+    const candidate: FiscalNotificationsWorkspace = {
+      ...reloaded,
+      revision: reloaded.revision + 1,
+      updatedAt: "2026-07-16T10:00:00.000Z",
+      packages: [...reloaded.packages, ...third.packages],
+      files: [...reloaded.files, ...third.files],
+      documents: [...reloaded.documents, ...third.documents],
+      authorities: [...reloaded.authorities, ...third.authorities],
+      references: [...reloaded.references, ...third.references],
+      evidence: [...reloaded.evidence, ...third.evidence],
+      analysisSnapshots: [
+        ...reloaded.analysisSnapshots,
+        ...third.analysisSnapshots,
+      ],
+      paymentOptions: [...reloaded.paymentOptions, ...third.paymentOptions],
+    };
+
+    const next = encodeFiscalNotificationsWorkspaceForStorageV2(
+      candidate,
+      reduced,
+    );
+    expect(next).not.toBeNull();
+    expect(next?.workspace.documents.map((entry) => entry.id)).toEqual([
+      "document:privacy-descendant:1",
+      "document:privacy-third:1",
+    ]);
+    for (const entries of [
+      next!.workspace.references,
+      next!.workspace.dates,
+      next!.workspace.amounts,
+      next!.workspace.facts,
+      next!.workspace.evidence,
+    ]) {
+      expect(new Set(entries.map((entry) => entry.id)).size).toBe(
+        entries.length,
+      );
+    }
+    expect(
+      next?.workspace.dates.filter(
+        (entry) => entry.documentId === "document:privacy-descendant:1",
+      ),
+    ).toEqual(
+      reduced.workspace.dates.filter(
+        (entry) => entry.documentId === "document:privacy-descendant:1",
+      ),
+    );
+    expect(
+      next?.workspace.amounts.filter(
+        (entry) => entry.documentId === "document:privacy-descendant:1",
+      ),
+    ).toEqual(
+      reduced.workspace.amounts.filter(
+        (entry) => entry.documentId === "document:privacy-descendant:1",
+      ),
+    );
+    expect(
+      restoreFiscalNotificationsWorkspaceFromStorageV2(next, OWNER)?.documents
+        .map((entry) => entry.id),
+    ).toEqual([
+      "document:privacy-descendant:1",
+      "document:privacy-third:1",
+    ]);
   });
 
   it.each(AEAT_DOCUMENT_PROFILE_IDS_V1)(
@@ -1088,6 +1435,33 @@ describe("runtime privacy storage envelope v2", () => {
       remoteSiblingWorkspace,
       restarted,
     )!;
+    const forgedAt = "2026-07-16T12:10:00.000Z";
+    const forgedNextGeneration = {
+      ...structuredClone(remoteSibling),
+      workspace: {
+        ...structuredClone(remoteSibling.workspace),
+        workspaceId: "workspace:privacy-runtime:forged-generation",
+        createdAt: forgedAt,
+        updatedAt: forgedAt,
+      },
+      transition: {
+        ...structuredClone(remoteSibling.transition!),
+        confirmedAt: forgedAt,
+      },
+    };
+    expect(
+      parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
+        forgedNextGeneration,
+        OWNER,
+      ),
+    ).not.toBeNull();
+    expect(
+      compareFiscalNotificationsWorkspaceStorageEnvelopesV2(
+        restarted,
+        forgedNextGeneration,
+        OWNER,
+      ),
+    ).toBe("DIVERGED");
 
     const linearDeletion = deleteFiscalNotificationDocumentV1({
       workspace: remoteSiblingWorkspace,
