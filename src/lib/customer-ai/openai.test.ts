@@ -50,15 +50,15 @@ afterEach(() => {
 });
 
 describe("extractCustomerFromText", () => {
-  it("uses the stronger customer extraction model by default", async () => {
+  it("uses the lightweight customer extraction model by default", async () => {
     const body = await runExtractWithEnv();
 
-    expect(body.model).toBe("gpt-4o");
+    expect(body.model).toBe("gpt-4o-mini");
   });
 
   it("allows overriding only the customer extraction model", async () => {
-    const body = await runExtractWithEnv("gpt-4o-mini");
+    const body = await runExtractWithEnv("gpt-4o");
 
-    expect(body.model).toBe("gpt-4o-mini");
+    expect(body.model).toBe("gpt-4o");
   });
 });
