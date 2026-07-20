@@ -1965,10 +1965,26 @@ function followsDeclaredDocumentReduction(
   const candidateDocumentsById = new Map(
     candidate.workspace.documents.map((entry) => [entry.id, entry]),
   );
-  const declaredRemovedDocumentIds = new Set(transition.removedDocumentIds);
-  if (transition.removedDocumentIds.some((id) => !baseDocumentsById.has(id))) {
+  const historicalRemovedDocumentIds = transition.removedDocumentIds.filter(
+    (id) => !baseDocumentsById.has(id),
+  );
+  const previousRemovedDocumentIds =
+    base.transition?.kind === "USER_CONFIRMED_DOCUMENT_REDUCTION_V1"
+      ? new Set(base.transition.removedDocumentIds)
+      : null;
+  if (
+    historicalRemovedDocumentIds.some(
+      (id) =>
+        !transition.baseDocumentIds?.includes(id) ||
+        !previousRemovedDocumentIds?.has(id) ||
+        candidateDocumentsById.has(id),
+    )
+  ) {
     return false;
   }
+  const immediatelyRemovedDocumentIds = new Set(
+    transition.removedDocumentIds.filter((id) => baseDocumentsById.has(id)),
+  );
   const droppedBaseDocumentIds = new Set(
     base.workspace.documents
       .filter((entry) => !candidateDocumentsById.has(entry.id))
@@ -1976,9 +1992,9 @@ function followsDeclaredDocumentReduction(
   );
   if (
     droppedBaseDocumentIds.size === 0 ||
-    droppedBaseDocumentIds.size !== declaredRemovedDocumentIds.size ||
+    droppedBaseDocumentIds.size !== immediatelyRemovedDocumentIds.size ||
     [...droppedBaseDocumentIds].some(
-      (id) => !declaredRemovedDocumentIds.has(id),
+      (id) => !immediatelyRemovedDocumentIds.has(id),
     )
   ) {
     return false;
@@ -2396,8 +2412,7 @@ export function registerFiscalNotificationDocumentReductionTransitionV2(
     result.workspace.ownerScope !== ownerScope ||
     result.workspace.documents.length >= base.workspace.documents.length ||
     result.workspace.revision !== base.workspace.revision + 1 ||
-    Date.parse(confirmedTimestamp) <= Date.parse(base.workspace.updatedAt) ||
-    !envelopeCollectionsAreExactSubset(result, base)
+    Date.parse(confirmedTimestamp) <= Date.parse(base.workspace.updatedAt)
   ) {
     return null;
   }
@@ -2413,6 +2428,20 @@ export function registerFiscalNotificationDocumentReductionTransitionV2(
     removedDocumentIds.length !==
       base.workspace.documents.length - result.workspace.documents.length
   ) {
+    return null;
+  }
+  const immediateReduction: DocumentReductionTransitionV2 = {
+    kind: "USER_CONFIRMED_DOCUMENT_REDUCTION_V1",
+    ownerScope,
+    confirmedAt: confirmedTimestamp,
+    baseWorkspaceId: base.workspace.workspaceId,
+    baseCreatedAt: base.workspace.createdAt,
+    baseRevision: base.workspace.revision,
+    baseUpdatedAt: base.workspace.updatedAt,
+    baseDocumentIds: base.workspace.documents.map((entry) => entry.id).sort(),
+    removedDocumentIds,
+  };
+  if (!followsDeclaredDocumentReduction(base, result, immediateReduction)) {
     return null;
   }
   const previousEmptyRestart =
@@ -2440,18 +2469,28 @@ export function registerFiscalNotificationDocumentReductionTransitionV2(
     base.transition?.kind === "USER_CONFIRMED_DOCUMENT_REDUCTION_V1"
       ? base.transition
       : null;
-  const baseDocumentIds = previousReduction
-    ? (previousReduction.baseDocumentIds ??
-      (base.workspace.revision === previousReduction.baseRevision + 1
-        ? [
-            ...new Set([
-              ...base.workspace.documents.map((entry) => entry.id),
-              ...previousReduction.removedDocumentIds,
-            ]),
-          ].sort()
-        : null))
-    : base.workspace.documents.map((entry) => entry.id).sort();
-  if (!baseDocumentIds) return null;
+  // A legacy transition without its original ids cannot keep its old base
+  // after later revisions. Reanchor it while retaining its known tombstones.
+  const continuedReduction =
+    previousReduction &&
+    (previousReduction.baseDocumentIds !== undefined ||
+      base.workspace.revision === previousReduction.baseRevision + 1)
+      ? previousReduction
+      : null;
+  const baseDocumentIds = continuedReduction
+    ? (continuedReduction.baseDocumentIds ??
+      [
+        ...new Set([
+          ...base.workspace.documents.map((entry) => entry.id),
+          ...continuedReduction.removedDocumentIds,
+        ]),
+      ].sort())
+    : [
+        ...new Set([
+          ...base.workspace.documents.map((entry) => entry.id),
+          ...(previousReduction?.removedDocumentIds ?? []),
+        ]),
+      ].sort();
   const originalDocumentIds = new Set(baseDocumentIds);
   const cumulativeRemovedDocumentIds = [
     ...new Set([
@@ -2460,9 +2499,9 @@ export function registerFiscalNotificationDocumentReductionTransitionV2(
     ]),
   ].sort();
   const reductionAdvanced =
-    !previousReduction ||
+    !continuedReduction ||
     cumulativeRemovedDocumentIds.length >
-      previousReduction.removedDocumentIds.length;
+      continuedReduction.removedDocumentIds.length;
   const marked = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
     {
       ...result,
@@ -2470,17 +2509,17 @@ export function registerFiscalNotificationDocumentReductionTransitionV2(
         kind: "USER_CONFIRMED_DOCUMENT_REDUCTION_V1",
         ownerScope,
         confirmedAt:
-          previousReduction && !reductionAdvanced
-            ? previousReduction.confirmedAt
+          continuedReduction && !reductionAdvanced
+            ? continuedReduction.confirmedAt
             : confirmedTimestamp,
         baseWorkspaceId:
-          previousReduction?.baseWorkspaceId ?? base.workspace.workspaceId,
+          continuedReduction?.baseWorkspaceId ?? base.workspace.workspaceId,
         baseCreatedAt:
-          previousReduction?.baseCreatedAt ?? base.workspace.createdAt,
+          continuedReduction?.baseCreatedAt ?? base.workspace.createdAt,
         baseRevision:
-          previousReduction?.baseRevision ?? base.workspace.revision,
+          continuedReduction?.baseRevision ?? base.workspace.revision,
         baseUpdatedAt:
-          previousReduction?.baseUpdatedAt ?? base.workspace.updatedAt,
+          continuedReduction?.baseUpdatedAt ?? base.workspace.updatedAt,
         baseDocumentIds,
         removedDocumentIds: cumulativeRemovedDocumentIds,
       },
