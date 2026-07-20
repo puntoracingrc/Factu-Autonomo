@@ -36,7 +36,7 @@ describe("cloud and Drive reliability contract", () => {
 
     expect(forceRepair).toContain("pauseAutomaticCloud(");
     expect(forceRepair.indexOf("pauseAutomaticCloud(")).toBeLessThan(
-      forceRepair.indexOf("await canUseCloudForUser"),
+      forceRepair.indexOf("await ensureCloudReadyForCurrentDevice"),
     );
     expect(forceRepair).toContain("runCloudDeviceRepair<");
     expect(forceRepair).toContain("downloadProtectedBackup(current");
@@ -52,6 +52,44 @@ describe("cloud and Drive reliability contract", () => {
     expect(account).toContain(
       "sin subir antes los cambios de este dispositivo",
     );
+  });
+
+  it("aplica plan y dispositivo activo antes de tocar la nube", () => {
+    const context = source("src/context/CloudSyncContext.tsx");
+    const devices = source("src/lib/cloud/devices.ts");
+    const client = source("src/lib/supabase/client.ts");
+    const migration = source(
+      "supabase/migrations/20260720133000_user_devices.sql",
+    );
+
+    expect(context).toContain("ensureCloudReadyForCurrentDevice");
+    expect(context).toContain("registerCurrentCloudDevice");
+    expect(context).toContain("retireCurrentCloudDevice");
+    expect(context).toMatch(
+      /await flushPendingUpload\(false\)[\s\S]*await retireCurrentCloudDevice\(\)[\s\S]*supabase\.auth\.signOut\(\)/,
+    );
+    expect(devices).toContain("cloudDeviceLimitForPlan");
+    expect(client).toContain("deviceAwareFetch");
+    expect(migration).toContain("cloud_device_access_allowed");
+    expect(migration).toContain("pg_advisory_xact_lock");
+    expect(migration).toContain("cloud_device_limit_reached");
+  });
+
+  it("retira la plaza al borrar un dispositivo y permite el borrado local en Gratis", () => {
+    const context = source("src/context/CloudSyncContext.tsx");
+    const secureSignOut = context.slice(
+      context.indexOf("const signOutAndClearDevice"),
+      context.indexOf("const importBackup"),
+    );
+    const secondaryClear = source("src/lib/security/device-data-clear.ts");
+
+    expect(secureSignOut).toContain(
+      "const cloudAccess = await canUseCloudForUser",
+    );
+    expect(secureSignOut).toMatch(
+      /if \(cloudAccess\.allowed\) \{[\s\S]*handoffPausesCloud[\s\S]*retireCurrentCloudDevice/,
+    );
+    expect(secondaryClear).toContain("CLOUD_DEVICE_TOKEN_STORAGE_KEY");
   });
 
   it("no confirma Drive sin readback exacto ni permite copias simultaneas", () => {
@@ -150,6 +188,8 @@ describe("cloud and Drive reliability contract", () => {
 
     expect(agents).toContain("ADR-0005-cloud-and-drive-sync-reliability.md");
     expect(agents).toContain("cloud-drive-sync-reliability-contract.test.ts");
+    expect(agents).toContain("Pro admite 2 dispositivos activos");
+    expect(agents).toContain("Pro+ admite 5");
     expect(codeowners).toContain("/src/context/CloudSyncContext.tsx");
     expect(codeowners).toContain("/src/lib/cloud/**");
     expect(codeowners).toContain("/src/lib/google-drive/**");
@@ -163,5 +203,8 @@ describe("cloud and Drive reliability contract", () => {
     expect(adr).toContain("originalArchive");
     expect(adr).toContain("Reparar con la copia de la nube");
     expect(adr).toContain("readback exacto");
+    expect(adr).toContain("Pro admite hasta 2 dispositivos activos");
+    expect(adr).toContain("Pro+ hasta 5");
+    expect(adr).toContain("no pueda saltarse el límite visual");
   });
 });

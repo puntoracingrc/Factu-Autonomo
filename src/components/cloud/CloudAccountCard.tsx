@@ -501,7 +501,9 @@ export function CloudAccountCard({
               </Button>
             </div>
           ) : null}
-          {!requiresEmailConfirmation && localDataHandoffStatus !== "none" ? (
+          {!requiresEmailConfirmation &&
+          limits.cloudSync &&
+          localDataHandoffStatus !== "none" ? (
             <div className="space-y-3 rounded-xl border border-sky-200 bg-white p-4">
               <div>
                 <p className="text-sm font-black text-slate-900">
@@ -548,11 +550,20 @@ export function CloudAccountCard({
               </div>
             </div>
           ) : null}
-          <p className="text-sm text-slate-500">
-            Estado: {STATUS_LABELS[syncStatus]}
-            {syncMessage ? ` — ${syncMessage}` : ""}
-          </p>
-          {pendingUpload && syncStatus !== "syncing" && (
+          {!limits.cloudSync && !requiresEmailConfirmation ? (
+            <p className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-sm leading-6 text-blue-950">
+              Plan Gratis: este navegador es tu único dispositivo local. La
+              cuenta no sube estos datos a la nube de Factu; conserva una copia
+              manual o conecta Drive desde la sección Copias.
+            </p>
+          ) : null}
+          {limits.cloudSync ? (
+            <p className="text-sm text-slate-500">
+              Estado: {STATUS_LABELS[syncStatus]}
+              {syncMessage ? ` — ${syncMessage}` : ""}
+            </p>
+          ) : null}
+          {limits.cloudSync && pendingUpload && syncStatus !== "syncing" && (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
               {syncStatus === "offline" ? (
                 <>
@@ -576,14 +587,16 @@ export function CloudAccountCard({
             </p>
           )}
           <div className="flex flex-wrap gap-3">
-            <Button
-              variant="secondary"
-              onClick={() => void syncNow()}
-              disabled={busy || requiresEmailConfirmation}
-            >
-              <RefreshCw className="h-4 w-4" />
-              Sincronizar ahora
-            </Button>
+            {limits.cloudSync ? (
+              <Button
+                variant="secondary"
+                onClick={() => void syncNow()}
+                disabled={busy || requiresEmailConfirmation}
+              >
+                <RefreshCw className="h-4 w-4" />
+                Sincronizar ahora
+              </Button>
+            ) : null}
             <Button variant="ghost" onClick={() => void signOut()}>
               Cerrar sesión
             </Button>
@@ -596,28 +609,30 @@ export function CloudAccountCard({
               Cerrar y borrar este dispositivo
             </Button>
           </div>
-          <details className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
-            <summary className="cursor-pointer font-semibold text-slate-700">
-              Problemas de sincronización
-            </summary>
-            <div className="mt-3 space-y-3">
-              <p>
-                Si este dispositivo no muestra los datos que sí aparecen en
-                otro, puedes repararlo descargando otra vez la copia completa de
-                la nube. Factu conserva primero una copia cifrada y solo
-                confirma la reparación cuando el navegador verifica el guardado
-                local.
-              </p>
-              <Button
-                variant="secondary"
-                onClick={() => void handleForceDownload()}
-                disabled={busy || requiresEmailConfirmation}
-              >
-                <Download className="h-4 w-4" />
-                Reparar con la copia de la nube
-              </Button>
-            </div>
-          </details>
+          {limits.cloudSync ? (
+            <details className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+              <summary className="cursor-pointer font-semibold text-slate-700">
+                Problemas de sincronización
+              </summary>
+              <div className="mt-3 space-y-3">
+                <p>
+                  Si este dispositivo no muestra los datos que sí aparecen en
+                  otro, puedes repararlo descargando otra vez la copia completa
+                  de la nube. Factu conserva primero una copia cifrada y solo
+                  confirma la reparación cuando el navegador verifica el
+                  guardado local.
+                </p>
+                <Button
+                  variant="secondary"
+                  onClick={() => void handleForceDownload()}
+                  disabled={busy || requiresEmailConfirmation}
+                >
+                  <Download className="h-4 w-4" />
+                  Reparar con la copia de la nube
+                </Button>
+              </div>
+            </details>
+          ) : null}
         </div>
       ) : (
         <div className="space-y-3">

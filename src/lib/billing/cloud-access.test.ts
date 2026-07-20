@@ -42,6 +42,7 @@ describe("cloud access", () => {
     });
     const result = await canUseCloudForUser("u1");
     expect(result.allowed).toBe(false);
+    expect(result.reason).toContain("plan con nube");
     vi.unstubAllEnvs();
   });
 

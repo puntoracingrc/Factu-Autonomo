@@ -1,5 +1,5 @@
 import { isBillingEnforced } from "./config";
-import { isProPlan, type PlanId } from "./plans";
+import { getPlanLimits, type PlanId } from "./plans";
 import { ensureTrialSubscription, fetchUserSubscription } from "./repository";
 import { resolveEffectivePlan } from "./subscription";
 
@@ -14,11 +14,11 @@ export async function canUseCloudForUser(
     (await fetchUserSubscription(userId)) ?? (await ensureTrialSubscription(userId));
   const plan: PlanId = resolveEffectivePlan(subscription);
 
-  if (!isProPlan(plan)) {
+  if (!getPlanLimits(plan).cloudSync) {
     return {
       allowed: false,
       reason:
-        "La sincronización en la nube requiere plan Pro. Ve a Precios para activarla.",
+        "La sincronización en la nube requiere un plan con nube. Ve a Precios para activarla.",
     };
   }
 
