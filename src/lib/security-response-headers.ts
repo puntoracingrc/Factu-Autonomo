@@ -55,6 +55,7 @@ export function buildSecurityResponseHeaders(): SecurityResponseHeader[] {
         "https://api.openai.com",
         "https://accounts.google.com",
         "https://oauth2.googleapis.com",
+        "https://challenges.cloudflare.com",
         "https://www.googleapis.com",
         "https://maps.googleapis.com",
         "https://*.googleapis.com",
