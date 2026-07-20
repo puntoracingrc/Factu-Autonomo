@@ -41,6 +41,8 @@ export interface StructuredReviewRelationMatchV1 {
   readonly value: string;
   readonly issuer: string;
   readonly matchMode: "EXACT_PRINTED" | "NORMALIZED_FORMAT";
+  readonly sourcePageNumbers: readonly number[];
+  readonly targetPageNumbers: readonly number[];
 }
 
 export interface StructuredReviewRelationEntryV1 {
@@ -147,6 +149,9 @@ export function projectStructuredReviewRelationsV1(
 
   const documents = new Map(workspace.documents.map((item) => [item.id, item]));
   const referencesByDocument = new Map<string, ExternalReference[]>();
+  const evidenceById = new Map(
+    workspace.evidence.map((item) => [item.id, item] as const),
+  );
   for (const reference of workspace.references) {
     const list = referencesByDocument.get(reference.documentId) ?? [];
     list.push(reference);
@@ -178,6 +183,7 @@ export function projectStructuredReviewRelationsV1(
       referencesByDocument.get(source.id) ?? [],
       referencesByDocument.get(target.id) ?? [],
       relation.evidence.matchingReferenceTypes,
+      evidenceById,
     );
     if (matches.length === 0) continue;
     const presentation = relationPresentation({
@@ -596,6 +602,7 @@ function commonReferenceMatches(
   source: readonly ExternalReference[],
   target: readonly ExternalReference[],
   allowedTypes: readonly ExternalReferenceType[],
+  evidenceById: ReadonlyMap<string, FiscalNotificationsWorkspace["evidence"][number]>,
 ): StructuredReviewRelationMatchV1[] {
   const allowed = new Set(allowedTypes);
   const targetByKey = new Map<string, ExternalReference>();
@@ -630,12 +637,28 @@ function commonReferenceMatches(
         matchMode: exactPrinted && !protectedValue
           ? ("EXACT_PRINTED" as const)
           : ("NORMALIZED_FORMAT" as const),
+        sourcePageNumbers: referencePages(reference, evidenceById),
+        targetPageNumbers: referencePages(other, evidenceById),
       }),
     );
   }
   return matches.sort(
     (left, right) =>
       left.label.localeCompare(right.label) || left.value.localeCompare(right.value),
+  );
+}
+
+function referencePages(
+  reference: ExternalReference,
+  evidenceById: ReadonlyMap<string, FiscalNotificationsWorkspace["evidence"][number]>,
+): readonly number[] {
+  return Object.freeze(
+    [...new Set(
+      reference.occurrenceIds.flatMap((id) => {
+        const evidence = evidenceById.get(id);
+        return evidence ? [evidence.pageNumber] : [];
+      }),
+    )].sort((left, right) => left - right),
   );
 }
 

@@ -164,15 +164,25 @@ describe("cloud and Drive reliability contract", () => {
     const library = source(
       "src/components/fiscal-notifications/FiscalNotificationDocumentLibrary.tsx",
     );
+    const detail = source(
+      "src/components/fiscal-notifications/FiscalNotificationDocumentDetail.tsx",
+    );
+    const controller = source(
+      "src/components/fiscal-notifications/useFiscalNotificationDocumentDeletion.ts",
+    );
     const deletion = source(
       "src/lib/google-drive/fiscal-notification-original-delete.v1.ts",
     );
 
-    expect(library).toContain("trashFiscalNotificationOriginalInGoogleDriveV1");
-    expect(library).toContain(
+    expect(library).toContain("useFiscalNotificationDocumentDeletion");
+    expect(detail).toContain("useFiscalNotificationDocumentDeletion");
+    expect(controller).toContain(
+      "trashFiscalNotificationOriginalInGoogleDriveV1",
+    );
+    expect(controller).toContain(
       "restoreFiscalNotificationOriginalInGoogleDriveV1",
     );
-    expect(library).toContain("archive.documentIds.length === 1");
+    expect(controller).toContain("archive.documentIds.length === 1");
     expect(deletion).toContain("factuSourceSha256");
     expect(deletion).toContain("factuManaged");
     expect(deletion).toContain("JSON.stringify({ trashed })");

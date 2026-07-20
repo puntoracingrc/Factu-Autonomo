@@ -44,6 +44,7 @@ export interface FiscalNotificationStructuredHistoryMoneyV1 {
   readonly currency: "EUR" | "UNKNOWN";
   readonly sourceReference: string | null;
   readonly sourceReferenceType: ExternalReferenceType | null;
+  readonly pageNumbers: readonly number[];
 }
 
 export interface FiscalNotificationStructuredHistoryFactV1 {
@@ -71,6 +72,7 @@ export interface FiscalNotificationStructuredHistoryOrderedFactV1 {
 export interface FiscalNotificationStructuredHistoryInstallmentComponentV1 {
   readonly label: string;
   readonly amountCents: number;
+  readonly pageNumbers: readonly number[];
 }
 
 export interface FiscalNotificationStructuredHistoryInstallmentV1 {
@@ -78,7 +80,10 @@ export interface FiscalNotificationStructuredHistoryInstallmentV1 {
   readonly label: string;
   readonly amountCents: number | null;
   readonly dueDate: string | null;
+  readonly dueDatePageNumbers: readonly number[];
+  readonly totalPageNumbers: readonly number[];
   readonly components: readonly FiscalNotificationStructuredHistoryInstallmentComponentV1[];
+  readonly pageNumbers: readonly number[];
 }
 
 export interface FiscalNotificationStructuredHistoryEntryV1 {
@@ -345,6 +350,14 @@ export function projectFiscalNotificationStructuredHistoryV1(
             currency: fact.currency,
             sourceReference: protectedSourceReference,
             sourceReferenceType: sourceReference?.referenceType ?? null,
+            pageNumbers: Object.freeze(
+              [...new Set(
+                fact.evidenceIds.flatMap((id) => {
+                  const source = evidence.get(id);
+                  return source ? [source.pageNumber] : [];
+                }),
+              )].sort((left, right) => left - right),
+            ),
           });
         },
       );
@@ -421,23 +434,62 @@ export function projectFiscalNotificationStructuredHistoryV1(
       const installments = snapshot.structuredData.paymentOptionIds
         .map((id) => paymentOptions.get(id))
         .filter((item) => item !== undefined)
-        .map((item) =>
-          Object.freeze({
+        .map((item) => {
+          const dateEvidenceIds = item.evidenceIds.filter((id) =>
+            evidenceContainsCalendarDate(
+              evidence.get(id),
+              verticalFieldsByEvidence.get(id),
+            ),
+          );
+          const dueDateEvidenceIds = item.deadline
+            ? dateEvidenceIds.filter((id) =>
+                evidenceSupportsDeadline(evidence.get(id), item.deadline!),
+              )
+            : [];
+          const dateEvidenceSet = new Set(dateEvidenceIds);
+          const componentEvidenceIds = item.components.flatMap(
+            (component) => component.evidenceIds,
+          );
+          const totalEvidenceIds = item.totalCents === undefined
+            ? []
+            : [
+                ...componentEvidenceIds,
+                ...item.evidenceIds.filter(
+                  (id) => !dateEvidenceSet.has(id),
+                ),
+              ];
+          return Object.freeze({
             key: item.id,
             label: item.title,
             amountCents: item.totalCents ?? null,
             dueDate: item.deadline ?? null,
+            dueDatePageNumbers: evidencePageNumbers(
+              dueDateEvidenceIds,
+              evidence,
+            ),
+            totalPageNumbers: evidencePageNumbers(
+              totalEvidenceIds,
+              evidence,
+            ),
             components: Object.freeze(
               item.components.map((component) =>
                 Object.freeze({
                   label:
                     COMPONENT_LABELS[component.type] ?? "Componente",
                   amountCents: component.amountCents,
+                  pageNumbers: evidencePageNumbers(
+                    component.evidenceIds,
+                    evidence,
+                  ),
                 }),
               ),
             ),
-          }),
-        );
+            pageNumbers: evidencePageNumbers(
+              [...item.evidenceIds, ...componentEvidenceIds],
+              evidence,
+            ),
+          });
+        });
 
       const selectedDocumentDate = selectExplicitDocumentDate({
         documentIssueDate: document.issueDate,
@@ -1175,6 +1227,51 @@ function normalizeCalendarDate(value: string | undefined): string | null {
   )
     ? normalized
     : null;
+}
+
+function evidenceSupportsDeadline(
+  source: FieldEvidence | undefined,
+  deadline: string,
+): boolean {
+  if (!source) return false;
+  const expected = normalizeCalendarDate(deadline);
+  if (!expected) return false;
+  return [source.rawValue, source.textSnippet].some((value) =>
+    value
+      ? (value.match(/\b(?:\d{4}-\d{2}-\d{2}|\d{2}[-/]\d{2}[-/]\d{4})\b/gu) ?? [
+          value,
+        ]).some((candidate) => normalizeCalendarDate(candidate) === expected)
+      : false,
+  );
+}
+
+function evidenceContainsCalendarDate(
+  source: FieldEvidence | undefined,
+  metadata: PersistedVerticalFieldLabelV1 | undefined,
+): boolean {
+  if (metadata?.semantic === "DATE") return true;
+  if (!source) return false;
+  return [source.rawValue, source.textSnippet].some((value) =>
+    value
+      ? (value.match(/\b(?:\d{4}-\d{2}-\d{2}|\d{2}[-/]\d{2}[-/]\d{4})\b/gu) ?? []).some(
+          (candidate) => normalizeCalendarDate(candidate) !== null,
+        )
+      : false,
+  );
+}
+
+function evidencePageNumbers(
+  evidenceIds: readonly string[],
+  evidenceById: ReadonlyMap<string, FieldEvidence>,
+): readonly number[] {
+  return Object.freeze(
+    [...new Set(
+      evidenceIds.flatMap((id) => {
+        const source = evidenceById.get(id);
+        return source ? [source.pageNumber] : [];
+      }),
+    )].sort((left, right) => left - right),
+  );
 }
 
 function toDateParts(match: RegExpExecArray): [number, number, number] {
