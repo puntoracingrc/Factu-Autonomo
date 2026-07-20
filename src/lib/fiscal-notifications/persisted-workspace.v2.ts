@@ -15,6 +15,7 @@ import {
   type AeatOfficialCatalogProfileIdV9,
 } from "./knowledge/official-catalog-expansion.v9";
 import type { DocumentRelationReconciliationRecordV8 } from "./types";
+import { normalizeFiscalNotificationReferenceV2 } from "./exact-reference-index.v2";
 
 export const LEGACY_ONLY_DOCUMENT_RELATION_TYPES_V2 = [
   "BELONGS_TO_CASE",
@@ -158,6 +159,7 @@ export type ReferenceTypeV2 = (typeof REFERENCE_TYPES_V2)[number];
 export interface NormalizedReferenceValueV2 {
   storage: "NORMALIZED_REFERENCE";
   normalizedValue: string;
+  printedValue?: string;
 }
 
 export const LEGACY_ADMINISTRATIVE_DOCUMENT_TYPES_V2 = [
@@ -391,6 +393,8 @@ const ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:/\-]{0,159}$/u;
 const TECHNICAL_PATTERN = /^[A-Z0-9][A-Z0-9_.:\-]{0,95}$/u;
 const HASH_PATTERN = /^[0-9a-f]{64}$/u;
 const NORMALIZED_REFERENCE_PATTERN = /^[\p{L}\p{N}]+$/u;
+const PRINTED_REFERENCE_PATTERN =
+  /^[\p{L}\p{N}][\p{L}\p{N}\p{Zs}._:/()\-‐‑‒–—―]{0,159}$/u;
 const TAX_ID_TOKEN =
   /(?:^|[^A-Z0-9])(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])(?=$|[^A-Z0-9])/iu;
 const IBAN_TOKEN = /(?:^|[^A-Z0-9])ES\d{22}(?=$|[^A-Z0-9])/iu;
@@ -496,6 +500,19 @@ function normalizedReference(value: unknown): string {
     TAX_ID_TOKEN.test(parsed) ||
     IBAN_TOKEN.test(parsed) ||
     PHONE_TOKEN.test(parsed)
+  ) {
+    fail();
+  }
+  return parsed;
+}
+
+function printedReference(value: unknown, normalizedValue: string): string {
+  const parsed = safeString(value, 160, PRINTED_REFERENCE_PATTERN);
+  if (
+    TAX_ID_TOKEN.test(parsed) ||
+    IBAN_TOKEN.test(parsed) ||
+    PHONE_TOKEN.test(parsed) ||
+    normalizeFiscalNotificationReferenceV2(parsed) !== normalizedValue
   ) {
     fail();
   }
@@ -750,14 +767,31 @@ function parseReference(
     if (!snapshot || snapshot.referenceType !== referenceType) fail();
     parsedValue = snapshot;
   } else {
-    const normalized = record(valueSource, ["storage", "normalizedValue"]);
+    const normalized = record(valueSource, [
+      "storage",
+      "normalizedValue",
+      "printedValue",
+    ]);
+    const normalizedValue = normalizedReference(
+      required(normalized, "normalizedValue"),
+    );
+    const hasPrintedValue = Object.prototype.hasOwnProperty.call(
+      normalized,
+      "printedValue",
+    );
     parsedValue = {
       storage: enumValue(required(normalized, "storage"), [
         "NORMALIZED_REFERENCE",
       ] as const),
-      normalizedValue: normalizedReference(
-        required(normalized, "normalizedValue"),
-      ),
+      normalizedValue,
+      ...(hasPrintedValue
+        ? {
+            printedValue: printedReference(
+              normalized.printedValue,
+              normalizedValue,
+            ),
+          }
+        : {}),
     };
   }
   return {

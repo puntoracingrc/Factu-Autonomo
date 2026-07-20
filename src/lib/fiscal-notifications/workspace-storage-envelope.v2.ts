@@ -883,7 +883,7 @@ function memoryReference(reference: PersistedReferenceV2): ExternalReference {
     rawValue:
       reference.value.storage === "FINGERPRINT_ONLY"
         ? sensitiveReferenceSafeLabelV2(reference.value)
-        : normalizedValue,
+        : (reference.value.printedValue ?? normalizedValue),
     normalizedValue,
     issuer: reference.issuerCode,
     scope: "DOCUMENT",

@@ -22,6 +22,7 @@ import { analyzeFiscalNotificationVerticalSliceV1 } from "./extractor-core/verti
 import { extractFiscalNotificationCandidates } from "./extraction-dispatcher";
 import type { BoundedDocumentInput } from "./input-contract";
 import { parseFiscalNotificationPdfTextLayerBytes } from "./pdf-text-layer-parser";
+import { projectFiscalNotificationDocumentDetailV1 } from "./structured-review-document-detail.v1";
 import { projectFiscalNotificationDocumentLibraryV1 } from "./structured-review-document-library.v1";
 import type {
   FiscalNotificationLocalAnalysisResult,
@@ -54,9 +55,8 @@ const CREATED_AT = "2026-07-14T10:00:00.000Z";
 const HASH = "b".repeat(64);
 
 const PRODUCTION_QA_ENFORCEMENT_LINES = Object.freeze([
-  "DOCUMENTO SINTETICO DE QA - SIN VALIDEZ",
-  "AGENCIA TRIBUTARIA",
-  "sede.agenciatributaria.gob.es",
+  "AGENCIA TRIBUTARIA - DOCUMENTO SINTETICO",
+  "PRUEBA DE QA - SIN VALIDEZ JURIDICA - SIN DATOS PERSONALES",
   "PROVIDENCIA DE APREMIO",
   "IDENTIFICACION DEL DOCUMENTO",
   "Prueba automatizada local",
@@ -77,6 +77,9 @@ const PRODUCTION_QA_ENFORCEMENT_LINES = Object.freeze([
   "Recargo de apremio ordinario (20 %) 20,00 EUR",
   "Ingreso a cuenta 0,00 EUR",
   "Importe total 120,00 EUR",
+  "PLAZOS DE PAGO",
+  "Pague el importe total antes del 28/02/2026.",
+  "Documento generado exclusivamente para verificar el lector local.",
 ]);
 
 const PRODUCTION_QA_SEIZURE_LINES = Object.freeze([
@@ -866,6 +869,43 @@ describe("structured fiscal notification save command v1", () => {
         expect.objectContaining({ amountCents: 12_000 }),
       ]),
     });
+    const document = library.documents[0]!;
+    const group = library.groups.find((candidate) =>
+      candidate.documents.some((candidateDocument) => candidateDocument.key === document.key),
+    );
+    expect(group).toBeDefined();
+    const detail = projectFiscalNotificationDocumentDetailV1({
+      document,
+      group: group!,
+      allDocuments: library.documents,
+    });
+    expect(
+      detail.factGroups.find((factGroup) => factGroup.id === "REFERENCES")?.fields,
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Clave de liquidación",
+          value: "LQ-SYNTH-QA-2026-001",
+        }),
+        expect.objectContaining({
+          label: "Identificador del acto",
+          value: "APR-SYNTH-QA-2026-001",
+        }),
+        expect.objectContaining({
+          label: "Número de expediente",
+          value: "EXP-SYNTH-QA-2026-001",
+        }),
+      ]),
+    );
+    expect(detail.economy?.rows.map(({ label, value }) => ({ label, value }))).toEqual([
+      { label: "Principal pendiente", value: "100,00 €" },
+      { label: "Recargo ejecutivo del veinte por ciento", value: "20,00 €" },
+      { label: "Ingreso a cuenta", value: "0,00 €" },
+      { label: "Total del documento", value: "120,00 €" },
+    ]);
+    expect(
+      detail.factGroups.flatMap((factGroup) => factGroup.fields).map((field) => field.label),
+    ).not.toContain("Dato");
     const serialized = JSON.stringify(persisted.fiscalNotificationsWorkspace);
     expect(serialized).not.toMatch(
       /EXACT_|INTEGER:|BOOLEAN:|EXPLANATION:|_DURATION|_CONTENT/u,
@@ -1019,7 +1059,7 @@ describe("structured fiscal notification save command v1", () => {
       expect.arrayContaining([
         {
           label: "Número de expediente",
-          value: "EXPSYNTHQA2026001",
+          value: "EXP-SYNTH-QA-2026-001",
         },
       ]),
     );

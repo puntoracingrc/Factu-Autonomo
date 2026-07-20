@@ -327,8 +327,8 @@ export function projectFiscalNotificationStructuredHistoryV1(
             : [];
         }),
       );
-      const money = (domain?.moneyFacts ?? []).map((fact) =>
-        {
+      const money = deduplicateHistoryMoney(
+        (domain?.moneyFacts ?? []).map((fact) => {
           const sourceReference = fact.sourceActRefId
             ? references.get(fact.sourceActRefId)
             : undefined;
@@ -359,7 +359,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
               )].sort((left, right) => left - right),
             ),
           });
-        },
+        }),
       );
       const documentReferences = deduplicateFacts(document.referenceIds
         .map((id) => references.get(id))
@@ -399,9 +399,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
           return [
             Object.freeze({
               label:
-                metadata?.label ??
-                DATE_LABELS[field.labelRaw] ??
-                "Dato",
+                observedFieldLabel(field.labelRaw, metadata?.label, "Dato"),
               value: field.valueRaw,
             }),
           ];
@@ -410,7 +408,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
       const printedDates = deduplicateFacts(
         observedUnknownFields.flatMap((field) => {
           const metadata = parseVerticalFieldLabel(field.labelRaw);
-          const legacyDateLabel = DATE_LABELS[field.labelRaw];
+          const legacyDateLabel = legacyDateFieldLabel(field.labelRaw);
           if (
             (metadata?.semantic !== "DATE" && !legacyDateLabel) ||
             isInternalFiscalNotificationFieldArtifact({
@@ -877,6 +875,39 @@ function deduplicateFacts<T extends FiscalNotificationStructuredHistoryFactV1>(
   return Object.freeze([...unique.values()]);
 }
 
+function deduplicateHistoryMoney(
+  facts: readonly FiscalNotificationStructuredHistoryMoneyV1[],
+): readonly FiscalNotificationStructuredHistoryMoneyV1[] {
+  const unique = new Map<string, FiscalNotificationStructuredHistoryMoneyV1>();
+  for (const fact of facts) {
+    const key = [
+      fact.label.normalize("NFKC").toLocaleLowerCase("es-ES"),
+      fact.kind,
+      fact.amountCents,
+      fact.currency,
+      fact.sourceReferenceType ?? "",
+      fact.sourceReference ?? "",
+      [...fact.pageNumbers].sort((left, right) => left - right).join(","),
+    ].join("\u0000");
+    if (!unique.has(key)) unique.set(key, fact);
+  }
+  return Object.freeze([...unique.values()]);
+}
+
+function legacyDateFieldLabel(labelRaw: string): string | null {
+  const specialized =
+    /^SPECIALIZED\|ENFORCEMENT\|DATE\|([A-Z0-9_]+)$/u.exec(labelRaw);
+  return DATE_LABELS[specialized?.[1] ?? labelRaw] ?? null;
+}
+
+function observedFieldLabel(
+  labelRaw: string,
+  structuredLabel: string | undefined,
+  fallback: string,
+): string {
+  return structuredLabel ?? legacyDateFieldLabel(labelRaw) ?? fallback;
+}
+
 export interface ExplicitDocumentDateInputV1 {
   readonly documentIssueDate?: string;
   readonly documentSignatureDate?: string;
@@ -1134,7 +1165,7 @@ function projectOrderedFacts(input: {
     candidates.push({
       key: fact.evidenceId ?? `printed:${fact.page}:${index}`,
       semantic: orderedSemantic(metadata?.semantic, fact.labelRaw),
-      label: metadata?.label ?? DATE_LABELS[fact.labelRaw] ?? "Dato",
+      label: observedFieldLabel(fact.labelRaw, metadata?.label, "Dato"),
       value: visibleValue,
       pageNumber: fact.page,
       sourceReference: null,

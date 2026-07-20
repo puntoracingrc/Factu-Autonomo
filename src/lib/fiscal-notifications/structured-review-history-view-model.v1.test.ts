@@ -983,6 +983,70 @@ describe("structured fiscal notification history view model v1", () => {
     ]);
   });
 
+  it("colapsa la misma observación económica de dos extractores y traduce la fecha especializada", () => {
+    const value = workspace();
+    const snapshot = value.analysisSnapshots[0]!;
+    const duplicateMoneyEvidenceId = addExplicitEvidence(value, {
+      id: "evidence:money:duplicate-extractor",
+      page: 2,
+      rawValue: "1.234,56 €",
+    });
+    const specializedDateEvidenceId = addExplicitEvidence(value, {
+      id: "evidence:date:specialized-extractor",
+      page: 3,
+      rawValue: "05/02/2026",
+    });
+    const administrativeDomain = snapshot.structuredData.administrativeDomain!;
+    snapshot.structuredData.administrativeDomain = {
+      ...administrativeDomain,
+      moneyFacts: [
+        ...administrativeDomain.moneyFacts,
+        {
+          ...administrativeDomain.moneyFacts[0]!,
+          id: "money:principal:duplicate-extractor",
+          evidenceIds: [duplicateMoneyEvidenceId],
+        },
+      ],
+    };
+    snapshot.structuredData.unknownFields.push(
+      {
+        labelRaw:
+          "VSR2|profile:money:OUTSTANDING_PRINCIPAL:1|MONEY|OUTSTANDING_PRINCIPAL|Principal pendiente",
+        valueRaw: "1.234,56 €",
+        page: 2,
+        evidenceId: duplicateMoneyEvidenceId,
+        confidence: "EXACT",
+      },
+      {
+        labelRaw:
+          "SPECIALIZED|ENFORCEMENT|DATE|PRINTED_ISSUE_DATE",
+        valueRaw: "05/02/2026",
+        page: 3,
+        evidenceId: specializedDateEvidenceId,
+        confidence: "EXACT",
+      },
+    );
+
+    const result = projectFiscalNotificationStructuredHistoryV1(value, OWNER);
+
+    expect(result.status).toBe("READY");
+    if (result.status !== "READY") return;
+    expect(result.entries[0]?.money).toHaveLength(1);
+    expect(
+      result.entries[0]?.orderedFacts.filter(
+        (fact) => fact.semantic === "MONEY",
+      ),
+    ).toHaveLength(1);
+    expect(
+      result.entries[0]?.orderedFacts.filter(
+        (fact) => fact.label === "Fecha de emisión",
+      ),
+    ).toHaveLength(1);
+    expect(result.entries[0]?.orderedFacts.map((fact) => fact.label)).not.toContain(
+      "Dato",
+    );
+  });
+
   it("traduce cuotas históricas y nunca presenta el token interno", () => {
     const value = workspace();
     const evidenceId = addExplicitEvidence(value, {
