@@ -39,6 +39,10 @@ import {
 } from "@/lib/referrals/storage";
 import { REFERRAL_BONUS_SCANS } from "@/lib/billing/referral-codes";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
+import {
+  describeTurnstileClientError,
+  describeTurnstileSiteKeyIssue,
+} from "@/lib/turnstile-errors";
 
 const STATUS_LABELS = {
   disabled: "Sincronización no disponible",
@@ -53,6 +57,9 @@ const STATUS_LABELS = {
 type AuthMode = "signin" | "signup" | "reset";
 const TURNSTILE_SITE_KEY =
   process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
+const TURNSTILE_SITE_KEY_ISSUE = TURNSTILE_SITE_KEY
+  ? describeTurnstileSiteKeyIssue(TURNSTILE_SITE_KEY)
+  : null;
 
 function GoogleLogoIcon() {
   return (
@@ -134,6 +141,7 @@ export function CloudAccountCard({
   const passwordInputRef = useRef<HTMLInputElement>(null);
   const turnstileRef = useRef<TurnstileInstance>(null);
   const captchaEnabled = Boolean(TURNSTILE_SITE_KEY);
+  const captchaConfigurationIssue = TURNSTILE_SITE_KEY_ISSUE;
   const hasLocalWork = hasWorkspaceContent(data);
   const firstUseState = buildFirstUseOnboardingState({
     data,
@@ -170,6 +178,15 @@ export function CloudAccountCard({
       });
     }
   }, [signupSuccess]);
+
+  useEffect(() => {
+    if (!captchaConfigurationIssue) return;
+
+    console.error("Turnstile configuration issue", {
+      code: captchaConfigurationIssue.diagnosticCode,
+      kind: captchaConfigurationIssue.kind,
+    });
+  }, [captchaConfigurationIssue]);
 
   function changeAuthMode(mode: AuthMode) {
     setAuthMode(mode);
@@ -208,6 +225,10 @@ export function CloudAccountCard({
     const requestCaptchaToken = captchaEnabled
       ? captchaToken?.trim()
       : undefined;
+    if (captchaConfigurationIssue) {
+      setAuthError(captchaConfigurationIssue.message);
+      return;
+    }
     if (captchaEnabled && !requestCaptchaToken) {
       setAuthError("Espera a que termine la verificación de seguridad.");
       return;
@@ -248,6 +269,10 @@ export function CloudAccountCard({
     const requestCaptchaToken = captchaEnabled
       ? captchaToken?.trim()
       : undefined;
+    if (captchaConfigurationIssue) {
+      setAuthError(captchaConfigurationIssue.message);
+      return;
+    }
     if (captchaEnabled && !requestCaptchaToken) {
       setAuthError("Espera a que termine la verificación de seguridad.");
       return;
@@ -792,30 +817,40 @@ export function CloudAccountCard({
             ) : null}
             {captchaEnabled ? (
               <div className="overflow-hidden rounded-xl bg-white px-3 py-2">
-                <Turnstile
-                  ref={turnstileRef}
-                  siteKey={TURNSTILE_SITE_KEY}
-                  options={{
-                    appearance: "interaction-only",
-                    language: "es",
-                    size: "flexible",
-                    theme: "light",
-                  }}
-                  onSuccess={setCaptchaToken}
-                  onExpire={() => setCaptchaToken(null)}
-                  onError={() => {
-                    setCaptchaToken(null);
-                    setAuthError(
-                      "No se pudo completar la verificación de seguridad. Recarga la página e inténtalo de nuevo.",
-                    );
-                  }}
-                  onUnsupported={() => {
-                    setCaptchaToken(null);
-                    setAuthError(
-                      "Este navegador no puede completar la verificación de seguridad.",
-                    );
-                  }}
-                />
+                {captchaConfigurationIssue ? (
+                  <p className="text-sm text-red-700">
+                    {captchaConfigurationIssue.message}
+                  </p>
+                ) : (
+                  <Turnstile
+                    ref={turnstileRef}
+                    siteKey={TURNSTILE_SITE_KEY}
+                    options={{
+                      appearance: "interaction-only",
+                      language: "es",
+                      size: "flexible",
+                      theme: "light",
+                    }}
+                    onSuccess={setCaptchaToken}
+                    onExpire={() => setCaptchaToken(null)}
+                    onError={(errorCode) => {
+                      const diagnostic =
+                        describeTurnstileClientError(errorCode);
+                      setCaptchaToken(null);
+                      console.error("Turnstile client error", {
+                        code: diagnostic.diagnosticCode,
+                        kind: diagnostic.kind,
+                      });
+                      setAuthError(diagnostic.message);
+                    }}
+                    onUnsupported={() => {
+                      setCaptchaToken(null);
+                      setAuthError(
+                        "Este navegador no puede completar la verificación de seguridad.",
+                      );
+                    }}
+                  />
+                )}
               </div>
             ) : null}
             <Button

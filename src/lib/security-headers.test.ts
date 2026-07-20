@@ -54,6 +54,9 @@ describe("security headers config", () => {
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co",
     );
     expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.openai.com https://accounts.google.com https://oauth2.googleapis.com https://challenges.cloudflare.com",
+    );
+    expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
       "object-src 'none'",
     );
     expect(headers.get("Content-Security-Policy-Report-Only")).toContain(
