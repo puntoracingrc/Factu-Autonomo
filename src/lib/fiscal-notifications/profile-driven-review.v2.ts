@@ -28,7 +28,10 @@ export interface ProfileDrivenReviewProjectionInputV2 {
 }
 
 const REFERENCE_TYPE_MAP: Readonly<
-  Record<ProfileReferenceFieldCodeV2, FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"]>
+  Record<
+    ProfileReferenceFieldCodeV2,
+    FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"]
+  >
 > = Object.freeze({
   PROCEDURE_ID: "PROCEDURE_ID",
   EXPEDIENTE_ID: "EXPEDIENTE_ID",
@@ -53,7 +56,10 @@ const REFERENCE_TYPE_MAP: Readonly<
 });
 
 const MONEY_TYPE_MAP: Readonly<
-  Record<ProfileMoneyFieldCodeV2, FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"]>
+  Record<
+    ProfileMoneyFieldCodeV2,
+    FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"]
+  >
 > = Object.freeze({
   DOCUMENT_TOTAL: "OTHER",
   PAYMENT_ON_ACCOUNT: "PAYMENT_ON_ACCOUNT",
@@ -153,10 +159,9 @@ export function projectProfileDrivenReviewV2(
   const projectedFields = outcome.fields
     .map((field, index) => projectField(field, index))
     .filter(
-      (
-        field,
-      ): field is FiscalNotificationVerticalSliceReviewFieldV1 => field !== null,
-  );
+      (field): field is FiscalNotificationVerticalSliceReviewFieldV1 =>
+        field !== null,
+    );
   if (projectedFields.length === 0) return emptyReview();
   const fields = Object.freeze(projectedFields);
   const allPages = uniqueValidPages(
@@ -176,9 +181,9 @@ export function projectProfileDrivenReviewV2(
       pageTo: allPages.at(-1)!,
       confidence: 1,
       fields,
-      warnings: Object.freeze(
-        outcome.issues.map((issue) => `profile.${issue}`),
-      ),
+      // Los códigos del adaptador sirven para diagnóstico interno, pero no son
+      // datos impresos ni mensajes destinados a la ficha de revisión.
+      warnings: Object.freeze([]),
       requiresHumanReview: true,
     });
 
@@ -271,10 +276,7 @@ function coalesceObservedDocuments(
     (document) => profileDocumentInstance(document) === null,
   );
   for (const document of [...anchoredDocuments, ...unanchoredDocuments]) {
-    const matchingIndex = selectSameFamilyMergeCandidateIndex(
-      result,
-      document,
-    );
+    const matchingIndex = selectSameFamilyMergeCandidateIndex(result, document);
     if (matchingIndex < 0) {
       result.push(document);
       continue;
@@ -455,7 +457,8 @@ function exactDocumentIdentityValuesByType(
       field.semantic !== "REFERENCE" ||
       !PRIMARY_DOCUMENT_IDENTITY_TYPES.has(field.canonicalType) ||
       !field.normalizedValue
-    ) continue;
+    )
+      continue;
     const values = result.get(field.canonicalType) ?? new Set<string>();
     values.add(field.normalizedValue);
     result.set(field.canonicalType, values);
@@ -527,8 +530,12 @@ function mergeDocumentFields(
       mergedFields[duplicateIndex] = Object.freeze({
         ...duplicate,
         sourcePageNumbers: Object.freeze(
-          [...new Set([...duplicate.sourcePageNumbers, ...field.sourcePageNumbers])]
-            .sort((left, right) => left - right),
+          [
+            ...new Set([
+              ...duplicate.sourcePageNumbers,
+              ...field.sourcePageNumbers,
+            ]),
+          ].sort((left, right) => left - right),
         ),
         confidence: Math.max(duplicate.confidence, field.confidence),
       });
@@ -545,7 +552,9 @@ function mergeDocumentFields(
     pageFrom: Math.min(legacy.pageFrom, profile.pageFrom),
     pageTo: Math.max(legacy.pageTo, profile.pageTo),
     fields: Object.freeze(mergedFields),
-    warnings: Object.freeze([...new Set([...legacy.warnings, ...profile.warnings])]),
+    warnings: Object.freeze([
+      ...new Set([...legacy.warnings, ...profile.warnings]),
+    ]),
   });
 }
 
@@ -555,7 +564,7 @@ function observedFieldValueKey(
   const value =
     field.semantic === "MONEY" && field.amountCents !== null
       ? `${field.amountCents}:${field.currency ?? ""}`
-      : field.normalizedValue ?? field.displayValue;
+      : (field.normalizedValue ?? field.displayValue);
   return `${field.semantic}:${field.canonicalType}:${value}`;
 }
 
@@ -597,7 +606,8 @@ function projectField(
       const normalizedValue = sensitive
         ? sensitive.fingerprintSha256
         : field.normalizedValue;
-      if (!normalizedValue) throw new Error("MISSING_PROFILE_REFERENCE_VALUE_V2");
+      if (!normalizedValue)
+        throw new Error("MISSING_PROFILE_REFERENCE_VALUE_V2");
       return Object.freeze({
         ...common,
         semantic: "REFERENCE" as const,
@@ -643,8 +653,7 @@ function uniqueValidPages(
   return Object.freeze(
     [...new Set(values)]
       .filter(
-        (page) =>
-          Number.isSafeInteger(page) && page >= 1 && page <= pageCount,
+        (page) => Number.isSafeInteger(page) && page >= 1 && page <= pageCount,
       )
       .sort((left, right) => left - right),
   );

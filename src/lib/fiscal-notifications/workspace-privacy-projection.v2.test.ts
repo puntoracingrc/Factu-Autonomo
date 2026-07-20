@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "./knowledge/aeat-document-knowledge.v1";
 import type { FiscalNotificationsWorkspace } from "./types";
 import { projectFiscalNotificationsWorkspacePrivacyV2 } from "./workspace-privacy-projection.v2";
 
@@ -215,18 +216,8 @@ describe("workspace privacy projection v2", () => {
         entry.chronologyBasis,
       ]),
     ).toEqual([
-      [
-        "document:v1:0",
-        "collection.offset_requested",
-        null,
-        null,
-      ],
-      [
-        "document:v1:1",
-        "collection.offset_ex_officio",
-        null,
-        null,
-      ],
+      ["document:v1:0", "collection.offset_requested", null, null],
+      ["document:v1:1", "collection.offset_ex_officio", null, null],
     ]);
     expect(projected?.references[0]?.value).toEqual({
       storage: "NORMALIZED_REFERENCE",
@@ -330,28 +321,49 @@ describe("workspace privacy projection v2", () => {
     });
   });
 
+  it.each(AEAT_DOCUMENT_PROFILE_IDS_V1)(
+    "preserves the exact reviewed V1 family %s for an AEAT document",
+    async (familyId) => {
+      const input = workspace();
+      input.documents[0]!.documentType = "GENERIC_ADMINISTRATIVE_NOTICE";
+      input.documents[0]!.documentSubtype = familyId;
+      const projected = await projectFiscalNotificationsWorkspacePrivacyV2(
+        input,
+        OWNER,
+      );
+      expect(projected?.documents[0]).toMatchObject({
+        familyId,
+        recognitionStatus: "EXACT_FAMILY",
+        issuerCode: "AEAT",
+      });
+    },
+  );
+
   it.each([
     "BELONGS_TO_CASE",
     "DUPLICATE_COPY_OF",
     "RELATED_TO_PAYMENT_PLAN",
     "RELATED_TO_INSTALLMENT",
     "POSSIBLY_RELATED",
-  ] as const)("preserves legacy relation %s without fabricating exact evidence", async (relationType) => {
-    const input = workspace();
-    input.relations[0]!.relationType = relationType;
-    input.relations[0]!.status = "SUGGESTED";
-    const projected = await projectFiscalNotificationsWorkspacePrivacyV2(
-      input,
-      OWNER,
-    );
-    expect(projected).not.toBeNull();
-    expect(projected?.relations).toEqual([
-      expect.objectContaining({
-        relationType,
-        status: "SUGGESTED",
-      }),
-    ]);
-  });
+  ] as const)(
+    "preserves legacy relation %s without fabricating exact evidence",
+    async (relationType) => {
+      const input = workspace();
+      input.relations[0]!.relationType = relationType;
+      input.relations[0]!.status = "SUGGESTED";
+      const projected = await projectFiscalNotificationsWorkspacePrivacyV2(
+        input,
+        OWNER,
+      );
+      expect(projected).not.toBeNull();
+      expect(projected?.relations).toEqual([
+        expect.objectContaining({
+          relationType,
+          status: "SUGGESTED",
+        }),
+      ]);
+    },
+  );
 
   it("downgrades an unprovable exact legacy relation instead of losing it", async () => {
     const input = workspace();

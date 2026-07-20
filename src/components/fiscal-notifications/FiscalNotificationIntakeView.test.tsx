@@ -19,6 +19,7 @@ const documentDeleteModalSource = readSource(
 const pageSource = readSource(
   "../../app/consultor-fiscal/notificaciones/page.tsx",
 );
+const appStoreSource = readSource("../../context/AppStore.tsx");
 const flowSource = readSource(
   "../../lib/fiscal-notifications/local-review-flow.ts",
 );
@@ -143,10 +144,14 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "restoreFiscalNotificationOriginalInGoogleDriveV1",
     );
     const appliedDeletion = documentLibraryComponentSource.slice(
-      documentLibraryComponentSource.indexOf('if (result.status === "applied")'),
+      documentLibraryComponentSource.indexOf(
+        'if (result.status === "applied")',
+      ),
       documentLibraryComponentSource.indexOf(
         "let rollbackFailed",
-        documentLibraryComponentSource.indexOf('if (result.status === "applied")'),
+        documentLibraryComponentSource.indexOf(
+          'if (result.status === "applied")',
+        ),
       ),
     );
     expect(appliedDeletion).toContain('setQuery("")');
@@ -329,6 +334,13 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     expect(componentSource).not.toContain(
       "createBrowserFiscalNotificationLocalReviewStore",
     );
+    expect(appStoreSource).toContain(
+      "runFiscalNotificationCommandAgainstLatestPersistedV1<",
+    );
+    expect(appStoreSource).toContain(
+      "readPersisted: readPersistedDataSnapshot",
+    );
+    expect(appStoreSource).toContain("saveData(candidate, { expected })");
   });
 
   it("guarda en Factu solo por acción explícita y sin selector de Drive", () => {

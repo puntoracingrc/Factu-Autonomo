@@ -40,8 +40,7 @@ const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u;
 const TAX_ID =
   /(?:^|[^A-Z0-9])(?:\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])(?=$|[^A-Z0-9])/iu;
 const IBAN = /(?:^|[^A-Z0-9])ES\d{22}(?=$|[^A-Z0-9])/iu;
-const PHONE =
-  /(?:^|[^A-Z0-9])(?:34)?[6789]\d{8}(?=$|[^A-Z0-9])/iu;
+const PHONE = /(?:^|[^A-Z0-9])(?:34)?[6789]\d{8}(?=$|[^A-Z0-9])/iu;
 const DATE_TIME =
   /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/u;
 const MAX_SOURCES = 5_000;
@@ -74,6 +73,7 @@ export type FiscalNotificationsWorkspaceTransitionV2 =
       baseCreatedAt: string;
       baseRevision: number;
       baseUpdatedAt: string;
+      baseDocumentIds?: readonly string[];
       removedDocumentIds: readonly string[];
     }>
   | Readonly<{
@@ -96,10 +96,7 @@ export interface FiscalNotificationsWorkspaceStorageEnvelopeV2 {
 }
 
 export type FiscalNotificationsWorkspaceStorageComparisonV2 =
-  | "EQUAL"
-  | "INCOMING_ADVANCES"
-  | "CURRENT_ADVANCES"
-  | "DIVERGED";
+  "EQUAL" | "INCOMING_ADVANCES" | "CURRENT_ADVANCES" | "DIVERGED";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -179,6 +176,7 @@ function parseTransition(
     "baseCreatedAt",
     "baseRevision",
     "baseUpdatedAt",
+    "baseDocumentIds",
     "removedDocumentIds",
   ]);
   if (!candidate) return null;
@@ -197,6 +195,7 @@ function parseTransition(
       own(candidate, "baseCreatedAt") !== undefined ||
       own(candidate, "baseRevision") !== undefined ||
       own(candidate, "baseUpdatedAt") !== undefined ||
+      own(candidate, "baseDocumentIds") !== undefined ||
       own(candidate, "removedDocumentIds") !== undefined
     ) {
       return null;
@@ -210,6 +209,7 @@ function parseTransition(
       own(candidate, "baseCreatedAt") !== undefined ||
       own(candidate, "baseRevision") !== undefined ||
       own(candidate, "baseUpdatedAt") !== undefined ||
+      own(candidate, "baseDocumentIds") !== undefined ||
       own(candidate, "removedDocumentIds") !== undefined
     ) {
       return null;
@@ -221,6 +221,10 @@ function parseTransition(
   const baseCreatedAt = safeTimestamp(own(candidate, "baseCreatedAt"));
   const baseRevision = safeNonNegativeInteger(own(candidate, "baseRevision"));
   const baseUpdatedAt = safeTimestamp(own(candidate, "baseUpdatedAt"));
+  const rawBaseDocumentIds = own(candidate, "baseDocumentIds");
+  const baseDocumentIds = Array.isArray(rawBaseDocumentIds)
+    ? rawBaseDocumentIds.map(safeId)
+    : undefined;
   const rawRemovedDocumentIds = own(candidate, "removedDocumentIds");
   const removedDocumentIds = Array.isArray(rawRemovedDocumentIds)
     ? rawRemovedDocumentIds.map(safeId)
@@ -235,6 +239,15 @@ function parseTransition(
     removedDocumentIds.length > MAX_SOURCES ||
     removedDocumentIds.some((id) => id === null) ||
     new Set(removedDocumentIds).size !== removedDocumentIds.length ||
+    (rawBaseDocumentIds !== undefined &&
+      (!Array.isArray(rawBaseDocumentIds) ||
+        baseDocumentIds?.length === 0 ||
+        (baseDocumentIds?.length ?? 0) > MAX_SOURCES ||
+        baseDocumentIds?.some((id) => id === null) ||
+        new Set(baseDocumentIds).size !== baseDocumentIds?.length ||
+        removedDocumentIds.some(
+          (id) => !baseDocumentIds?.includes(id as string),
+        ))) ||
     Date.parse(confirmedAt) <= Date.parse(baseUpdatedAt)
   ) {
     return null;
@@ -247,6 +260,9 @@ function parseTransition(
     baseCreatedAt,
     baseRevision,
     baseUpdatedAt,
+    ...(baseDocumentIds
+      ? { baseDocumentIds: baseDocumentIds as string[] }
+      : {}),
     removedDocumentIds: removedDocumentIds as string[],
   });
 }
@@ -266,11 +282,14 @@ function stableNormalize(value: unknown): unknown {
   if (!value || typeof value !== "object") return value;
   return Object.keys(value)
     .sort()
-    .reduce<JsonRecord>((result, key) => {
-      const entry = (value as JsonRecord)[key];
-      if (entry !== undefined) result[key] = stableNormalize(entry);
-      return result;
-    }, Object.create(null) as JsonRecord);
+    .reduce<JsonRecord>(
+      (result, key) => {
+        const entry = (value as JsonRecord)[key];
+        if (entry !== undefined) result[key] = stableNormalize(entry);
+        return result;
+      },
+      Object.create(null) as JsonRecord,
+    );
 }
 
 function stableJson(value: unknown): string {
@@ -333,9 +352,7 @@ function parseSource(
   }
   const parsedDocumentIds = rawDocumentIds.map(safeId);
   if (
-    parsedDocumentIds.some(
-      (id) => id === null || !documentIds.has(id),
-    ) ||
+    parsedDocumentIds.some((id) => id === null || !documentIds.has(id)) ||
     new Set(parsedDocumentIds).size !== parsedDocumentIds.length
   ) {
     return null;
@@ -395,7 +412,9 @@ export function parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
     "driveArchives",
   ]);
   const candidateOwner = workspaceRecord
-    ? canonicalFiscalNotificationOwnerScopeV2(own(workspaceRecord, "ownerScope"))
+    ? canonicalFiscalNotificationOwnerScopeV2(
+        own(workspaceRecord, "ownerScope"),
+      )
     : null;
   const ownerScope = expectedOwnerScope ?? candidateOwner;
   if (!ownerScope || candidateOwner !== ownerScope) return null;
@@ -438,12 +457,22 @@ export function parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
     return null;
   }
   const documentIds = new Set(workspace.documents.map((entry) => entry.id));
+  if (
+    transition?.kind === "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" &&
+    transition.removedDocumentIds.some((id) => documentIds.has(id))
+  ) {
+    return null;
+  }
   const sources = rawSources.map((entry) =>
     parseSource(entry, ownerScope, documentIds),
   );
   if (sources.some((entry) => entry === null)) return null;
-  const parsedSources = sources as Readonly<FiscalNotificationPersistedSourceV2>[];
-  if (new Set(parsedSources.map((entry) => entry.fileId)).size !== parsedSources.length) {
+  const parsedSources =
+    sources as Readonly<FiscalNotificationPersistedSourceV2>[];
+  if (
+    new Set(parsedSources.map((entry) => entry.fileId)).size !==
+    parsedSources.length
+  ) {
     return null;
   }
   const coveredDocuments = new Set<string>();
@@ -531,7 +560,9 @@ function reconcileWithBase(
   }
   if (base.workspace.revision === projected.revision) return base.workspace;
   const liveDocumentIds = new Set(projected.documents.map((entry) => entry.id));
-  const baseDocumentIds = new Set(base.workspace.documents.map((entry) => entry.id));
+  const baseDocumentIds = new Set(
+    base.workspace.documents.map((entry) => entry.id),
+  );
   const retainedBaseDocumentIds = new Set(
     [...baseDocumentIds].filter((id) => liveDocumentIds.has(id)),
   );
@@ -557,7 +588,8 @@ function reconcileWithBase(
     if (
       !liveDocumentIds.has(entry.sourceDocumentId) ||
       !liveDocumentIds.has(entry.targetDocumentId)
-    ) continue;
+    )
+      continue;
     const previous = relationsById.get(entry.id);
     if (
       !previous
@@ -581,7 +613,10 @@ function reconcileWithBase(
         : projected.accountHolder,
     documents,
     references: [
-      ...entitiesForDocuments(base.workspace.references, retainedBaseDocumentIds),
+      ...entitiesForDocuments(
+        base.workspace.references,
+        retainedBaseDocumentIds,
+      ),
       ...entitiesForDocuments(projected.references, newDocumentIds),
     ],
     dates: [
@@ -601,7 +636,10 @@ function reconcileWithBase(
       ...entitiesForDocuments(projected.evidence, newDocumentIds),
     ],
     thirdParties: [
-      ...entitiesForDocuments(base.workspace.thirdParties, retainedBaseDocumentIds),
+      ...entitiesForDocuments(
+        base.workspace.thirdParties,
+        retainedBaseDocumentIds,
+      ),
       ...entitiesForDocuments(projected.thirdParties, newDocumentIds),
     ],
     relations,
@@ -633,7 +671,7 @@ export function encodeFiscalNotificationsWorkspaceForStorageV2(
   if (!projected || !sources) return null;
   const registered =
     value && typeof value === "object"
-      ? memoryEnvelopeByWorkspace.get(value as object) ?? null
+      ? (memoryEnvelopeByWorkspace.get(value as object) ?? null)
       : null;
   const base =
     parseFiscalNotificationsWorkspaceStorageEnvelopeV2(baseValue, ownerScope) ??
@@ -661,11 +699,12 @@ function issuerAuthorityId(issuerCode: string): string {
 
 function legacyDocumentTitle(document: PersistedDocumentV2): string {
   const profile = document.familyId
-    ? resolveAeatDocumentProfileV1(document.familyId) ??
-      resolveAeatOfficialCatalogProfileV9(document.familyId)
+    ? (resolveAeatDocumentProfileV1(document.familyId) ??
+      resolveAeatOfficialCatalogProfileV9(document.familyId))
     : null;
   if (profile) return profile.nameEs;
-  return document.legacyDocumentType === "UNKNOWN" || !document.legacyDocumentType
+  return document.legacyDocumentType === "UNKNOWN" ||
+    !document.legacyDocumentType
     ? "Documento oficial pendiente de clasificar"
     : document.legacyDocumentType
         .toLocaleLowerCase("es")
@@ -696,7 +735,9 @@ function legacyAssertion(value: string): AssertionType {
   return "INFERRED";
 }
 
-function legacyConfidence(value: PersistedEvidenceV2["confidence"]): ConfidenceBand {
+function legacyConfidence(
+  value: PersistedEvidenceV2["confidence"],
+): ConfidenceBand {
   return value;
 }
 
@@ -718,9 +759,10 @@ function memoryReference(reference: PersistedReferenceV2): ExternalReference {
       reference.referenceType === "BANK_REFERENCE"
         ? "OTHER"
         : reference.referenceType,
-    rawValue: reference.value.storage === "FINGERPRINT_ONLY"
-      ? sensitiveReferenceSafeLabelV2(reference.value)
-      : normalizedValue,
+    rawValue:
+      reference.value.storage === "FINGERPRINT_ONLY"
+        ? sensitiveReferenceSafeLabelV2(reference.value)
+        : normalizedValue,
     normalizedValue,
     issuer: reference.issuerCode,
     scope: "DOCUMENT",
@@ -780,19 +822,27 @@ export function restoreFiscalNotificationsWorkspaceFromStorageV2(
   );
   if (!envelope) return null;
   const persisted = envelope.workspace;
-  const sourceByDocument = new Map<string, FiscalNotificationPersistedSourceV2>();
+  const sourceByDocument = new Map<
+    string,
+    FiscalNotificationPersistedSourceV2
+  >();
   for (const source of envelope.sources) {
     for (const documentId of source.documentIds) {
       sourceByDocument.set(documentId, source);
     }
   }
-  const packageGroups = new Map<string, FiscalNotificationPersistedSourceV2[]>();
+  const packageGroups = new Map<
+    string,
+    FiscalNotificationPersistedSourceV2[]
+  >();
   for (const source of envelope.sources) {
     const group = packageGroups.get(source.packageId) ?? [];
     group.push(source);
     packageGroups.set(source.packageId, group);
   }
-  const issuerCodes = new Set(persisted.documents.map((entry) => entry.issuerCode));
+  const issuerCodes = new Set(
+    persisted.documents.map((entry) => entry.issuerCode),
+  );
   const datesById = new Map(persisted.dates.map((entry) => [entry.id, entry]));
   const amountsById = new Map(
     persisted.amounts.map((entry) => [entry.id, entry]),
@@ -814,9 +864,7 @@ export function restoreFiscalNotificationsWorkspaceFromStorageV2(
       sourceChannel: "MANUAL_UPLOAD",
       processingStatus: "NEEDS_REVIEW",
       securityScanStatus: "NOT_AVAILABLE",
-      uploadedAt: sources
-        .map((entry) => entry.uploadedAt)
-        .sort()[0]!,
+      uploadedAt: sources.map((entry) => entry.uploadedAt).sort()[0]!,
     })),
     files: envelope.sources.map((source) => ({
       id: source.fileId,
@@ -1038,8 +1086,10 @@ function shouldReplacePersistedRelation(
     previous.targetDocumentId !== next.targetDocumentId ||
     previous.status === "USER_CONFIRMED" ||
     previous.status === "USER_REJECTED" ||
-    (previous.status === "SYSTEM_CONFIRMED_EXACT" && next.status === "SUGGESTED")
-  ) return false;
+    (previous.status === "SYSTEM_CONFIRMED_EXACT" &&
+      next.status === "SUGGESTED")
+  )
+    return false;
   const previousRank = previous.status === "SYSTEM_CONFIRMED_EXACT" ? 2 : 1;
   const nextRank = next.status === "SYSTEM_CONFIRMED_EXACT" ? 2 : 1;
   if (nextRank > previousRank) return true;
@@ -1059,7 +1109,9 @@ function collectionContainsPrefix<T>(
   const byId = new Map(larger.map((entry) => [key(entry), entry] as const));
   return smaller.every((entry) => {
     const candidate = byId.get(key(entry));
-    return candidate !== undefined && stableJson(candidate) === stableJson(entry);
+    return (
+      candidate !== undefined && stableJson(candidate) === stableJson(entry)
+    );
   });
 }
 
@@ -1146,8 +1198,11 @@ function documentScopedCollectionFollowsReduction<
   droppedBaseDocumentIds: ReadonlySet<string>,
   newDocumentIds: ReadonlySet<string>,
 ): boolean {
-  const scopedKey = (entry: T): string => `${entry.documentId}\u0000${entry.id}`;
-  const baseById = new Map(baseEntries.map((entry) => [scopedKey(entry), entry]));
+  const scopedKey = (entry: T): string =>
+    `${entry.documentId}\u0000${entry.id}`;
+  const baseById = new Map(
+    baseEntries.map((entry) => [scopedKey(entry), entry]),
+  );
   const candidateById = new Map(
     candidateEntries.map((entry) => [scopedKey(entry), entry]),
   );
@@ -1303,9 +1358,7 @@ function followsDeclaredDocumentReduction(
     candidate.workspace.documents.map((entry) => [entry.id, entry]),
   );
   const declaredRemovedDocumentIds = new Set(transition.removedDocumentIds);
-  if (
-    transition.removedDocumentIds.some((id) => !baseDocumentsById.has(id))
-  ) {
+  if (transition.removedDocumentIds.some((id) => !baseDocumentsById.has(id))) {
     return false;
   }
   const droppedBaseDocumentIds = new Set(
@@ -1399,23 +1452,151 @@ function followsDeclaredDocumentReduction(
   return Object.values(reductionChecks).every(Boolean);
 }
 
+type DocumentReductionTransitionV2 = Extract<
+  FiscalNotificationsWorkspaceTransitionV2,
+  { kind: "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" }
+>;
+
+function sameDocumentReductionBase(
+  left: DocumentReductionTransitionV2,
+  right: DocumentReductionTransitionV2,
+): boolean {
+  return (
+    left.ownerScope === right.ownerScope &&
+    left.baseWorkspaceId === right.baseWorkspaceId &&
+    left.baseCreatedAt === right.baseCreatedAt &&
+    left.baseRevision === right.baseRevision &&
+    left.baseUpdatedAt === right.baseUpdatedAt &&
+    (!left.baseDocumentIds ||
+      !right.baseDocumentIds ||
+      stableJson(left.baseDocumentIds) === stableJson(right.baseDocumentIds))
+  );
+}
+
+function idsAreSubset(
+  smaller: readonly string[],
+  larger: readonly string[],
+): boolean {
+  const largerIds = new Set(larger);
+  return smaller.every((id) => largerIds.has(id));
+}
+
+function immediateReductionTransition(
+  base: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  candidate: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+): DocumentReductionTransitionV2 | null {
+  if (
+    candidate.workspace.revision <= base.workspace.revision ||
+    candidate.workspace.updatedAt <= base.workspace.updatedAt
+  ) {
+    return null;
+  }
+  const candidateDocumentIds = new Set(
+    candidate.workspace.documents.map((entry) => entry.id),
+  );
+  const removedDocumentIds = base.workspace.documents
+    .map((entry) => entry.id)
+    .filter((id) => !candidateDocumentIds.has(id))
+    .sort();
+  if (removedDocumentIds.length === 0) return null;
+  return {
+    kind: "USER_CONFIRMED_DOCUMENT_REDUCTION_V1",
+    ownerScope: base.workspace.ownerScope,
+    confirmedAt: candidate.workspace.updatedAt,
+    baseWorkspaceId: base.workspace.workspaceId,
+    baseCreatedAt: base.workspace.createdAt,
+    baseRevision: base.workspace.revision,
+    baseUpdatedAt: base.workspace.updatedAt,
+    baseDocumentIds: base.workspace.documents.map((entry) => entry.id).sort(),
+    removedDocumentIds,
+  };
+}
+
+function cumulativeTransitionCoversImmediateBaseReduction(
+  current: DocumentReductionTransitionV2,
+  incoming: DocumentReductionTransitionV2,
+  immediate: DocumentReductionTransitionV2,
+): boolean {
+  const baseDocumentIds =
+    incoming.baseDocumentIds ?? current.baseDocumentIds ?? null;
+  if (!baseDocumentIds) return false;
+  const originalIds = new Set(baseDocumentIds);
+  const cumulativeRemovedIds = new Set(incoming.removedDocumentIds);
+  return immediate.removedDocumentIds.every(
+    (id) => !originalIds.has(id) || cumulativeRemovedIds.has(id),
+  );
+}
+
+function compareChainedDocumentReductions(
+  current: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+  incoming: FiscalNotificationsWorkspaceStorageEnvelopeV2,
+): FiscalNotificationsWorkspaceStorageComparisonV2 | null {
+  const currentTransition = current.transition;
+  const incomingTransition = incoming.transition;
+  if (
+    currentTransition?.kind !== "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" ||
+    incomingTransition?.kind !== "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" ||
+    !sameDocumentReductionBase(currentTransition, incomingTransition)
+  ) {
+    return null;
+  }
+
+  const incomingImmediate = immediateReductionTransition(current, incoming);
+  if (
+    idsAreSubset(
+      currentTransition.removedDocumentIds,
+      incomingTransition.removedDocumentIds,
+    ) &&
+    incomingImmediate &&
+    cumulativeTransitionCoversImmediateBaseReduction(
+      currentTransition,
+      incomingTransition,
+      incomingImmediate,
+    ) &&
+    followsDeclaredDocumentReduction(current, incoming, incomingImmediate)
+  ) {
+    return "INCOMING_ADVANCES";
+  }
+
+  const currentImmediate = immediateReductionTransition(incoming, current);
+  if (
+    idsAreSubset(
+      incomingTransition.removedDocumentIds,
+      currentTransition.removedDocumentIds,
+    ) &&
+    currentImmediate &&
+    cumulativeTransitionCoversImmediateBaseReduction(
+      incomingTransition,
+      currentTransition,
+      currentImmediate,
+    ) &&
+    followsDeclaredDocumentReduction(incoming, current, currentImmediate)
+  ) {
+    return "CURRENT_ADVANCES";
+  }
+  return null;
+}
+
 function compareDeclaredTransitions(
   current: FiscalNotificationsWorkspaceStorageEnvelopeV2,
   incoming: FiscalNotificationsWorkspaceStorageEnvelopeV2,
 ): FiscalNotificationsWorkspaceStorageComparisonV2 | null {
+  const chainedReductionComparison = compareChainedDocumentReductions(
+    current,
+    incoming,
+  );
+  if (chainedReductionComparison) return chainedReductionComparison;
   if (stableJson(current.transition) === stableJson(incoming.transition)) {
     return null;
   }
   if (
-    incoming.transition?.kind ===
-      "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" &&
+    incoming.transition?.kind === "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" &&
     followsDeclaredDocumentReduction(current, incoming, incoming.transition)
   ) {
     return "INCOMING_ADVANCES";
   }
   if (
-    current.transition?.kind ===
-      "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" &&
+    current.transition?.kind === "USER_CONFIRMED_DOCUMENT_REDUCTION_V1" &&
     followsDeclaredDocumentReduction(incoming, current, current.transition)
   ) {
     return "CURRENT_ADVANCES";
@@ -1443,16 +1624,14 @@ export function registerFiscalNotificationDocumentReductionTransitionV2(
   expectedOwnerScope: string,
   confirmedAt: string,
 ): FiscalNotificationsWorkspace | null {
-  const ownerScope = canonicalFiscalNotificationOwnerScopeV2(
-    expectedOwnerScope,
-  );
+  const ownerScope =
+    canonicalFiscalNotificationOwnerScopeV2(expectedOwnerScope);
   const confirmedTimestamp = safeTimestamp(confirmedAt);
   if (!ownerScope || ownerScope !== expectedOwnerScope || !confirmedTimestamp) {
     return null;
   }
-  const base = encodeFiscalNotificationsWorkspaceForStorageV2(
-    baseWorkspaceValue,
-  );
+  const base =
+    encodeFiscalNotificationsWorkspaceForStorageV2(baseWorkspaceValue);
   const result = encodeFiscalNotificationsWorkspaceForStorageV2(
     resultWorkspaceValue,
     base,
@@ -1483,18 +1662,53 @@ export function registerFiscalNotificationDocumentReductionTransitionV2(
   ) {
     return null;
   }
+  const previousReduction =
+    base.transition?.kind === "USER_CONFIRMED_DOCUMENT_REDUCTION_V1"
+      ? base.transition
+      : null;
+  const baseDocumentIds = previousReduction
+    ? (previousReduction.baseDocumentIds ??
+      (base.workspace.revision === previousReduction.baseRevision + 1
+        ? [
+            ...new Set([
+              ...base.workspace.documents.map((entry) => entry.id),
+              ...previousReduction.removedDocumentIds,
+            ]),
+          ].sort()
+        : null))
+    : base.workspace.documents.map((entry) => entry.id).sort();
+  if (!baseDocumentIds) return null;
+  const originalDocumentIds = new Set(baseDocumentIds);
+  const cumulativeRemovedDocumentIds = [
+    ...new Set([
+      ...(previousReduction?.removedDocumentIds ?? []),
+      ...removedDocumentIds.filter((id) => originalDocumentIds.has(id)),
+    ]),
+  ].sort();
+  const reductionAdvanced =
+    !previousReduction ||
+    cumulativeRemovedDocumentIds.length >
+      previousReduction.removedDocumentIds.length;
   const marked = parseFiscalNotificationsWorkspaceStorageEnvelopeV2(
     {
       ...result,
       transition: {
         kind: "USER_CONFIRMED_DOCUMENT_REDUCTION_V1",
         ownerScope,
-        confirmedAt: confirmedTimestamp,
-        baseWorkspaceId: base.workspace.workspaceId,
-        baseCreatedAt: base.workspace.createdAt,
-        baseRevision: base.workspace.revision,
-        baseUpdatedAt: base.workspace.updatedAt,
-        removedDocumentIds,
+        confirmedAt:
+          previousReduction && !reductionAdvanced
+            ? previousReduction.confirmedAt
+            : confirmedTimestamp,
+        baseWorkspaceId:
+          previousReduction?.baseWorkspaceId ?? base.workspace.workspaceId,
+        baseCreatedAt:
+          previousReduction?.baseCreatedAt ?? base.workspace.createdAt,
+        baseRevision:
+          previousReduction?.baseRevision ?? base.workspace.revision,
+        baseUpdatedAt:
+          previousReduction?.baseUpdatedAt ?? base.workspace.updatedAt,
+        baseDocumentIds,
+        removedDocumentIds: cumulativeRemovedDocumentIds,
       },
     },
     ownerScope,
@@ -1509,13 +1723,11 @@ export function registerFiscalNotificationEmptyRestartTransitionV2(
   expectedOwnerScope: string,
   confirmedAt: string,
 ): FiscalNotificationsWorkspace | null {
-  const ownerScope = canonicalFiscalNotificationOwnerScopeV2(
-    expectedOwnerScope,
-  );
+  const ownerScope =
+    canonicalFiscalNotificationOwnerScopeV2(expectedOwnerScope);
   const confirmedTimestamp = safeTimestamp(confirmedAt);
-  const envelope = encodeFiscalNotificationsWorkspaceForStorageV2(
-    emptyWorkspaceValue,
-  );
+  const envelope =
+    encodeFiscalNotificationsWorkspaceForStorageV2(emptyWorkspaceValue);
   if (
     !ownerScope ||
     ownerScope !== expectedOwnerScope ||
@@ -1549,13 +1761,11 @@ export function registerFiscalNotificationAutomaticEmptyRepairTransitionV2(
   expectedOwnerScope: string,
   repairedAt: string,
 ): FiscalNotificationsWorkspace | null {
-  const ownerScope = canonicalFiscalNotificationOwnerScopeV2(
-    expectedOwnerScope,
-  );
+  const ownerScope =
+    canonicalFiscalNotificationOwnerScopeV2(expectedOwnerScope);
   const repairedTimestamp = safeTimestamp(repairedAt);
-  const envelope = encodeFiscalNotificationsWorkspaceForStorageV2(
-    emptyWorkspaceValue,
-  );
+  const envelope =
+    encodeFiscalNotificationsWorkspaceForStorageV2(emptyWorkspaceValue);
   if (
     !ownerScope ||
     ownerScope !== expectedOwnerScope ||
@@ -1648,7 +1858,8 @@ export function mergeFiscalNotificationsWorkspaceStorageEnvelopesV2(
     expectedOwnerScope,
   );
   if (comparison === "INCOMING_ADVANCES") return incoming;
-  if (comparison === "EQUAL" || comparison === "CURRENT_ADVANCES") return current;
+  if (comparison === "EQUAL" || comparison === "CURRENT_ADVANCES")
+    return current;
   return null;
 }
 
@@ -1656,6 +1867,6 @@ export function registeredFiscalNotificationsWorkspaceEnvelopeV2(
   workspace: unknown,
 ): Readonly<FiscalNotificationsWorkspaceStorageEnvelopeV2> | null {
   return workspace && typeof workspace === "object"
-    ? memoryEnvelopeByWorkspace.get(workspace as object) ?? null
+    ? (memoryEnvelopeByWorkspace.get(workspace as object) ?? null)
     : null;
 }

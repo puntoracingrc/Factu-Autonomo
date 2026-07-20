@@ -111,8 +111,7 @@ function identityReview(input: {
     status: "REVIEW_REQUIRED",
     documents: [
       {
-        reviewDocumentId:
-          `review-document:profile:collection.interest_assessment:${input.instanceId}`,
+        reviewDocumentId: `review-document:profile:collection.interest_assessment:${input.instanceId}`,
         extractorId: "payment-order",
         familyId: "collection.interest_assessment",
         title: "Liquidación de intereses de demora",
@@ -310,13 +309,31 @@ describe("profile-driven review v2", () => {
         }),
       ]),
     );
-    expect(() => parseFiscalNotificationVerticalSliceReviewV1(review)).not.toThrow();
+    expect(() =>
+      parseFiscalNotificationVerticalSliceReviewV1(review),
+    ).not.toThrow();
+  });
+
+  it("does not expose adapter issue tokens as review warnings", () => {
+    const review = projectProfileDrivenReviewV2({
+      outcome: {
+        ...exactOutcome(),
+        issues: ["CONFLICTING_EXACT_FIELD_VALUES"],
+      },
+      extractorId: "payment-order",
+      canonicalTitle: "Providencia de apremio",
+      titlePageNumbers: [1],
+      pageCount: 2,
+    });
+
+    expect(review.documents[0]?.warnings).toEqual([]);
+    expect(JSON.stringify(review)).not.toMatch(
+      /EXACT_|INTEGER:|BOOLEAN:|EXPLANATION:/u,
+    );
   });
 
   it("does not serialize recognition or printed-effect contract tokens as document facts", () => {
-    const adapter = resolveProfileFieldAdapterV2(
-      "review.suspension_decision",
-    )!;
+    const adapter = resolveProfileFieldAdapterV2("review.suspension_decision")!;
     const outcome = Object.freeze({
       ...adapter.adapt({
         ownerScope: "user:test",
@@ -350,7 +367,9 @@ describe("profile-driven review v2", () => {
       documents: [],
     });
     expect(JSON.stringify(review)).not.toMatch(/EXACT_|EFFECT:/u);
-    expect(() => parseFiscalNotificationVerticalSliceReviewV1(review)).not.toThrow();
+    expect(() =>
+      parseFiscalNotificationVerticalSliceReviewV1(review),
+    ).not.toThrow();
   });
 
   it("keeps a detected printed effect ephemeral when no source-valued fact was extracted", async () => {
@@ -382,8 +401,13 @@ describe("profile-driven review v2", () => {
     expect(outcome.adaptedFields?.printedEffects).toEqual([
       expect.objectContaining({ effectCode: "SUSPENSION_GRANTED" }),
     ]);
-    expect(review).toMatchObject({ status: "INFORMATION_PENDING", documents: [] });
-    expect(JSON.stringify(review)).not.toMatch(/EXACT_|EFFECT:|SUSPENSION_GRANTED/u);
+    expect(review).toMatchObject({
+      status: "INFORMATION_PENDING",
+      documents: [],
+    });
+    expect(JSON.stringify(review)).not.toMatch(
+      /EXACT_|EFFECT:|SUSPENSION_GRANTED/u,
+    );
   });
 
   it("stays empty without an exact system selection", () => {
@@ -467,7 +491,9 @@ describe("profile-driven review v2", () => {
         normalizedValue: "2025-12-31",
       },
     ]);
-    expect(() => parseFiscalNotificationVerticalSliceReviewV1(review)).not.toThrow();
+    expect(() =>
+      parseFiscalNotificationVerticalSliceReviewV1(review),
+    ).not.toThrow();
   });
 
   it("merges a recognized profile into the existing review without mutating it", () => {
@@ -568,10 +594,11 @@ describe("profile-driven review v2", () => {
 
     expect(merged.documents).toHaveLength(2);
     expect(
-      merged.documents.map((document) =>
-        document.fields.find(
-          (field) => field.canonicalType === "LIQUIDATION_KEY",
-        )?.normalizedValue,
+      merged.documents.map(
+        (document) =>
+          document.fields.find(
+            (field) => field.canonicalType === "LIQUIDATION_KEY",
+          )?.normalizedValue,
       ),
     ).toEqual(["SYN-LIQ-OVERLAP-001", "SYN-LIQ-OVERLAP-002"]);
   });
@@ -596,11 +623,13 @@ describe("profile-driven review v2", () => {
     );
 
     expect(merged.documents).toHaveLength(2);
-    expect(merged.documents.every((document) =>
-      document.fields.some(
-        (field) => field.semantic === "MONEY" && field.amountCents === 1_234,
+    expect(
+      merged.documents.every((document) =>
+        document.fields.some(
+          (field) => field.semantic === "MONEY" && field.amountCents === 1_234,
+        ),
       ),
-    )).toBe(true);
+    ).toBe(true);
   });
 
   it("attaches a global extraction layer to the segment identified by provenance", () => {
@@ -668,9 +697,11 @@ describe("profile-driven review v2", () => {
     );
 
     expect(merged.documents).toHaveLength(2);
-    expect(merged.documents[0]?.fields.some(
-      (field) => field.normalizedValue === "SYN-LIQ-SEGMENT-002",
-    )).toBe(false);
+    expect(
+      merged.documents[0]?.fields.some(
+        (field) => field.normalizedValue === "SYN-LIQ-SEGMENT-002",
+      ),
+    ).toBe(false);
     expect(merged.documents[1]?.fields).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -705,22 +736,28 @@ describe("profile-driven review v2", () => {
     );
 
     expect(merged.documents).toHaveLength(2);
-    expect(merged.documents[0]?.fields).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        canonicalType: "EXPEDIENTE_ID",
-        normalizedValue: "SYN-EXP-SINGLE-001",
-      }),
-    ]));
-    expect(merged.documents[0]?.fields.some(
-      (field) => field.normalizedValue === "SYN-LIQ-OUTSIDE-002",
-    )).toBe(false);
-    expect(merged.documents[1]?.fields).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        canonicalType: "LIQUIDATION_KEY",
-        normalizedValue: "SYN-LIQ-OUTSIDE-002",
-        sourcePageNumbers: [2],
-      }),
-    ]));
+    expect(merged.documents[0]?.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalType: "EXPEDIENTE_ID",
+          normalizedValue: "SYN-EXP-SINGLE-001",
+        }),
+      ]),
+    );
+    expect(
+      merged.documents[0]?.fields.some(
+        (field) => field.normalizedValue === "SYN-LIQ-OUTSIDE-002",
+      ),
+    ).toBe(false);
+    expect(merged.documents[1]?.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalType: "LIQUIDATION_KEY",
+          normalizedValue: "SYN-LIQ-OUTSIDE-002",
+          sourcePageNumbers: [2],
+        }),
+      ]),
+    );
   });
 
   it("keeps overlapping acts from different families when their strong identities conflict", () => {
@@ -949,7 +986,8 @@ describe("profile-driven review v2", () => {
 
     expect(merged.documents).toHaveLength(1);
     expect(merged.documents[0]).toMatchObject({
-      reviewDocumentId: "review-document:profile:collection.interest_assessment",
+      reviewDocumentId:
+        "review-document:profile:collection.interest_assessment",
       extractorId: "payment-order",
       familyId: "collection.interest_assessment",
       title: "Liquidación de intereses de demora",
@@ -964,6 +1002,8 @@ describe("profile-driven review v2", () => {
         }),
       ]),
     );
-    expect(() => parseFiscalNotificationVerticalSliceReviewV1(merged)).not.toThrow();
+    expect(() =>
+      parseFiscalNotificationVerticalSliceReviewV1(merged),
+    ).not.toThrow();
   });
 });
