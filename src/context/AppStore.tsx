@@ -110,6 +110,10 @@ import {
   type DurableStorageBaseline,
   type FixedExpenseBundleValue,
 } from "@/lib/app-data-durability";
+import {
+  commitCloudSnapshotDurably,
+  type CloudSnapshotReplacementValue,
+} from "@/lib/cloud/device-repair";
 import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 import {
   buildScannedExpenseDurableTransition,
@@ -266,6 +270,10 @@ interface AppStoreValue {
   data: AppData;
   ready: boolean;
   replaceData: (data: AppData, options?: ReplaceDataOptions) => void;
+  replaceCloudSnapshotDurably: (
+    data: AppData,
+    expected: AppData,
+  ) => AppDataDurabilityResult<CloudSnapshotReplacementValue>;
   getCurrentData: () => AppData;
   replaceDataIfCurrent: (data: AppData, expected: AppData) => boolean;
   restoreBackupData: (
@@ -754,6 +762,34 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   );
 
   const getCurrentData = useCallback(() => dataRef.current, []);
+
+  const replaceCloudSnapshotDurably = useCallback(
+    (replacement: AppData, expected: AppData) => {
+      const result = commitCloudSnapshotDurably({
+        expected,
+        replacement,
+        storageBaseline: durableStorageBaselineRef.current,
+        getCurrent: () => dataRef.current,
+        persist: (candidate, storageExpected) =>
+          saveData(candidate, { expected: storageExpected }),
+      });
+      if (result.status === "indeterminate") {
+        durableStorageBaselineRef.current = result;
+      }
+      if (result.status !== "applied") return result;
+
+      durableStorageBaselineRef.current = {
+        status: "known",
+        data: result.data,
+      };
+      lastKnownDurableDataRef.current = result.data;
+      durablyPersistedDataRef.current = result.data;
+      dataRef.current = result.data;
+      setData(result.data);
+      return result;
+    },
+    [],
+  );
 
   const replaceDataIfCurrent = useCallback(
     (next: AppData, expected: AppData): boolean => {
@@ -2439,6 +2475,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       data,
       ready,
       replaceData,
+      replaceCloudSnapshotDurably,
       getCurrentData,
       replaceDataIfCurrent,
       restoreBackupData,
@@ -2504,6 +2541,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       data,
       ready,
       replaceData,
+      replaceCloudSnapshotDurably,
       getCurrentData,
       replaceDataIfCurrent,
       restoreBackupData,
