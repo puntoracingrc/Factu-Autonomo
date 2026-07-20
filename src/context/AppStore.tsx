@@ -868,7 +868,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
             storageBaseline: durableStorageBaselineRef.current,
             lastKnownPersisted: lastKnownDurableDataRef.current,
             readPersisted: readPersistedDataSnapshot,
-            persist: (candidate, expected) => saveData(candidate, { expected }),
+            persist: (candidate, expected) =>
+              saveData(candidate, {
+                expected,
+                fiscalNotificationsBaseAwareProjection: true,
+              }),
             blocked: (reason) => ({
               status: "blocked",
               stage: "COMMIT",
@@ -940,7 +944,11 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
             storageBaseline: durableStorageBaselineRef.current,
             lastKnownPersisted: lastKnownDurableDataRef.current,
             readPersisted: readPersistedDataSnapshot,
-            persist: (candidate, expected) => saveData(candidate, { expected }),
+            persist: (candidate, expected) =>
+              saveData(candidate, {
+                expected,
+                fiscalNotificationsBaseAwareProjection: true,
+              }),
             blocked: (reason) =>
               reason === "storage_state_unknown"
                 ? { status: "indeterminate", reason }

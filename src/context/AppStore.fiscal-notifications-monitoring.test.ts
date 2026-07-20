@@ -52,7 +52,9 @@ describe("AppStore fiscal notifications monitoring", () => {
     );
     expect(source).toContain("fallback: dataRef.current,");
     expect(source).toContain("readPersisted: readPersistedDataSnapshot,");
-    expect(source).toContain("saveData(candidate, { expected })");
+    expect(source).toContain(
+      "fiscalNotificationsBaseAwareProjection: true",
+    );
     expect(persistedCommandSource).toContain(
       'first.reason !== "stale_precondition"',
     );
