@@ -5,7 +5,7 @@ import {
 } from "./schema";
 
 const CUSTOMER_AI_MODEL =
-  process.env.OPENAI_CUSTOMER_AI_MODEL?.trim() || "gpt-4o";
+  process.env.OPENAI_CUSTOMER_AI_MODEL?.trim() || "gpt-4o-mini";
 
 export async function extractCustomerFromText(
   text: string,
