@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Loader2, Sparkles } from "lucide-react";
+import { ChevronDown, ClipboardList, Loader2, Sparkles } from "lucide-react";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import {
   AiProcessingConsentNotice,
@@ -55,6 +55,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
   const [usageLoading, setUsageLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
+  const [aiRetryAvailable, setAiRetryAvailable] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
   const [upgradeMode, setUpgradeMode] = useState<"upgrade" | "scanPack">(
@@ -105,25 +106,28 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
     return `${usage.meter.percentRemaining}% restante`;
   }, [billingEnabled, usage, usageLoading, user]);
 
-  async function handleAutofill() {
+  async function handleAutofill(options: { allowAi?: boolean } = {}) {
+    const allowAi = options.allowAi === true;
     const rawText = text.trim();
     setError(null);
     setWarnings([]);
+    setAiRetryAvailable(false);
 
-    if (demoMode) {
-      setError("En modo demo no se usa IA. Rellena este cliente a mano.");
+    if (demoMode && allowAi) {
+      setError("En modo demo no se usa IA. Revisa el relleno local a mano.");
       return;
     }
 
-    if (locked) {
+    if (locked && allowAi) {
       setUpgradeMode("upgrade");
       setUpgradeReason("El autorrelleno de clientes con IA requiere plan Pro.");
       setUpgradeOpen(true);
       return;
     }
 
-    if (!aiConsent.accepted) {
+    if (allowAi && !aiConsent.accepted) {
       setError("Acepta primero el aviso de tratamiento con IA.");
+      setAiRetryAvailable(true);
       return;
     }
 
@@ -154,12 +158,16 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
         data?: {
           customer: Partial<CustomerAiAutofillValues>;
           warnings: string[];
+          confidence?: number;
         };
         error?: string;
         quota?: ScanQuota;
+        canRetryWithAi?: boolean;
+        source?: "local" | "ai";
       };
 
       if (!res.ok || !body.data) {
+        setAiRetryAvailable(Boolean(body.canRetryWithAi));
         if (res.status === 402) {
           const quotaPlan = body.quota?.plan;
           const needsExtraAiBalance =
@@ -175,6 +183,7 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
 
       onApply(body.data.customer);
       setWarnings(body.data.warnings ?? []);
+      setAiRetryAvailable(Boolean(body.canRetryWithAi));
       void loadUsage();
     } catch {
       setError("Error de conexión. Comprueba internet e inténtalo de nuevo.");
@@ -192,11 +201,11 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
         aria-expanded={expanded}
       >
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-sky-100 text-sky-700">
-          <Sparkles className="h-5 w-5" />
+          <ClipboardList className="h-5 w-5" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="font-bold text-slate-900">Rellenar con IA</span>
+            <span className="font-bold text-slate-900">Rellenar desde texto</span>
             {usageLabel ? (
               <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-sky-800 ring-1 ring-sky-100">
                 {usageLabel}
@@ -217,24 +226,16 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
             Pega aquí los datos que te hayan pasado y Factu intentará organizarlos.
           </p>
           <Textarea
-            aria-label="Datos para rellenar con IA"
+            aria-label="Datos para rellenar desde texto"
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Nombre o empresa, NIF, dirección, email, teléfono... aunque venga desordenado."
             rows={3}
           />
-          <AiProcessingConsentNotice
-            accepted={aiConsent.accepted}
-            onAccepted={() => {
-              aiConsent.accept();
-              setError(null);
-            }}
-            compact
-          />
           <Button
             variant="secondary"
             onClick={() => void handleAutofill()}
-            disabled={demoMode || loading || !aiConsent.accepted}
+            disabled={loading}
             fullWidth
           >
             {loading ? (
@@ -244,19 +245,40 @@ export function CustomerAiAutofill({ onApply }: CustomerAiAutofillProps) {
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4" />
+                <ClipboardList className="h-4 w-4" />
                 Rellenar campos
               </>
             )}
           </Button>
-          {locked && (
+          {aiRetryAvailable && !locked && !demoMode ? (
+            <AiProcessingConsentNotice
+              accepted={aiConsent.accepted}
+              onAccepted={() => {
+                aiConsent.accept();
+                setError(null);
+              }}
+              compact
+            />
+          ) : null}
+          {aiRetryAvailable ? (
+            <Button
+              variant="secondary"
+              onClick={() => void handleAutofill({ allowAi: true })}
+              disabled={loading || demoMode}
+              fullWidth
+            >
+              <Sparkles className="h-4 w-4" />
+              Mejorar con IA
+            </Button>
+          ) : null}
+          {locked && aiRetryAvailable && (
             <p className="text-sm text-sky-800">
-              Función Pro. Puedes seguir creando clientes manualmente en el plan Gratis.
+              La mejora con IA es Pro. El relleno local sigue disponible.
             </p>
           )}
-          {demoMode && (
+          {demoMode && aiRetryAvailable && (
             <p className="text-sm text-amber-800">
-              La IA está desactivada en demo para no consumir créditos.
+              La mejora con IA está desactivada en demo para no consumir créditos.
             </p>
           )}
           {error && <p className="text-sm font-medium text-red-600">{error}</p>}
