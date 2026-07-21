@@ -540,7 +540,9 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(documentLibraryComponentSource).toContain("key={summary.key}");
     expect(documentSurfaceSource).not.toMatch(/\bdocument\.ownerScope\b/);
-    expect(documentDetailViewModelSource).toContain("Original no disponible");
+    expect(documentDetailViewModelSource).toContain(
+      "PDF original no archivado",
+    );
     expect(documentDetailComponentSource).toContain("Abrir original en Drive");
   });
 

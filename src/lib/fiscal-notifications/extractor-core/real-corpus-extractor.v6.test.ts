@@ -145,45 +145,57 @@ function source(
 }
 
 describe("AEAT real corpus extractor V6", () => {
-  it.each(CASES)("recognizes the V6 synthetic contract $id", async (testCase) => {
-    const result = await extractAeatRealCorpusDocumentV6(source(testCase));
-    expect(result).toMatchObject({
-      status: "REVIEW_REQUIRED",
-      familyId: testCase.family,
-      physicalPageCount: testCase.physicalPages,
-      contentPageCount: testCase.contentPages,
-      retainedSourceContent: "NONE",
-      sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
-      requiresHumanReview: true,
-      materializationPolicy: "PROHIBITED",
-      confirmsDebt: false,
-      confirmsPayment: false,
-      confirmsRemittance: false,
-      confirmsDeadline: false,
-      confirmsDebtExtinction: false,
-    });
-    expect(result.segments.flatMap((segment) => segment.pageNumbers)).toHaveLength(testCase.physicalPages);
-  });
+  it.each(CASES)(
+    "recognizes the V6 synthetic contract $id",
+    async (testCase) => {
+      const result = await extractAeatRealCorpusDocumentV6(source(testCase));
+      expect(result).toMatchObject({
+        status: "REVIEW_REQUIRED",
+        familyId: testCase.family,
+        physicalPageCount: testCase.physicalPages,
+        contentPageCount: testCase.contentPages,
+        retainedSourceContent: "NONE",
+        sourceContentPolicy: "EPHEMERAL_IN_MEMORY_DO_NOT_PERSIST",
+        requiresHumanReview: true,
+        materializationPolicy: "PROHIBITED",
+        confirmsDebt: false,
+        confirmsPayment: false,
+        confirmsRemittance: false,
+        confirmsDeadline: false,
+        confirmsDebtExtinction: false,
+      });
+      expect(
+        result.segments.flatMap((segment) => segment.pageNumbers),
+      ).toHaveLength(testCase.physicalPages);
+    },
+  );
 
-  it.each(CASES)("runs V6 end to end without a generic fallback: $id", async (testCase) => {
-    const result = await analyzeFiscalNotificationDocumentInput(source(testCase));
-    const documents = result.verticalSliceReview.documents.filter(
-      (document) => document.familyId === testCase.family,
-    );
-    expect(documents).toHaveLength(1);
-    expect(documents[0]?.reviewDocumentId).toMatch(/real-corpus-v[67]/u);
-    expect(result.verticalSliceReview).toMatchObject({
-      retainedSourceContent: "NONE",
-      materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
-      permitsDebtCreation: false,
-      permitsDeadlineCreation: false,
-      permitsPaymentAction: false,
-      permitsAccountingAction: false,
-    });
-  });
+  it.each(CASES)(
+    "runs V6 end to end without a generic fallback: $id",
+    async (testCase) => {
+      const result = await analyzeFiscalNotificationDocumentInput(
+        source(testCase),
+      );
+      const documents = result.verticalSliceReview.documents.filter(
+        (document) => document.familyId === testCase.family,
+      );
+      expect(documents).toHaveLength(1);
+      expect(documents[0]?.reviewDocumentId).toMatch(/real-corpus-v[67]/u);
+      expect(result.verticalSliceReview).toMatchObject({
+        retainedSourceContent: "NONE",
+        materializationPolicy: "PROHIBITED_UNTIL_HUMAN_REVIEW",
+        permitsDebtCreation: false,
+        permitsDeadlineCreation: false,
+        permitsPaymentAction: false,
+        permitsAccountingAction: false,
+      });
+    },
+  );
 
   it("keeps the sanction and its lost reduction as different economic acts", async () => {
-    const resolution = await extractAeatRealCorpusDocumentV6(source(CASES[19]!));
+    const resolution = await extractAeatRealCorpusDocumentV6(
+      source(CASES[19]!),
+    );
     const loss = await extractAeatRealCorpusDocumentV6(source(CASES[14]!));
     expect(resolution.sanctionResolution).toEqual({
       sanctionReference: "SYN-SANCTION-CASE-01",
@@ -229,7 +241,10 @@ describe("AEAT real corpus extractor V6", () => {
     });
     expect(result.fields).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ fieldCode: "CLAWBACK_AMOUNT", amountCents: 5_000 }),
+        expect.objectContaining({
+          fieldCode: "CLAWBACK_AMOUNT",
+          amountCents: 5_000,
+        }),
       ]),
     );
   });
@@ -237,7 +252,9 @@ describe("AEAT real corpus extractor V6", () => {
   it("keeps denied principal, assessed interest and later surcharge separate", async () => {
     const denial = await extractAeatRealCorpusDocumentV6(source(CASES[18]!));
     const interest = await extractAeatRealCorpusDocumentV6(source(CASES[15]!));
-    const enforcement = await extractAeatRealCorpusDocumentV6(source(CASES[13]!));
+    const enforcement = await extractAeatRealCorpusDocumentV6(
+      source(CASES[13]!),
+    );
     expect(denial.deniedDebt?.principalCents).toBe(50_000);
     expect(interest.interestAssessment).toMatchObject({
       sourcePrincipalCents: 50_000,
@@ -245,14 +262,19 @@ describe("AEAT real corpus extractor V6", () => {
     });
     expect(enforcement.fields).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ fieldCode: "ORDINARY_SURCHARGE_20", amountCents: 110 }),
+        expect.objectContaining({
+          fieldCode: "ORDINARY_SURCHARGE_20",
+          amountCents: 110,
+        }),
       ]),
     );
   });
 
   it("preserves both contradictory seizure values and never treats a limit as collection", async () => {
     const movable = await extractAeatRealCorpusDocumentV6(source(CASES[10]!));
-    const realEstate = await extractAeatRealCorpusDocumentV6(source(CASES[11]!));
+    const realEstate = await extractAeatRealCorpusDocumentV6(
+      source(CASES[11]!),
+    );
     expect(movable.seizureSnapshot).toMatchObject({
       debtSubtotalCents: 334_660,
       seizeLimitCents: 344_660,
@@ -273,9 +295,15 @@ describe("AEAT real corpus extractor V6", () => {
   it("keeps wrappers, blank pages, annexes and payment forms as parts of one act", async () => {
     const result = await extractAeatRealCorpusDocumentV6(source(CASES[12]!));
     expect(result.segments[0]?.type).toBe("DELIVERY_COVER");
-    expect(result.segments.some((segment) => segment.type === "PRIMARY_ACT")).toBe(true);
-    expect(result.segments.some((segment) => segment.type === "PAYMENT_FORM")).toBe(true);
-    expect(result.segments.some((segment) => segment.type === "BLANK")).toBe(true);
+    expect(
+      result.segments.some((segment) => segment.type === "PRIMARY_ACT"),
+    ).toBe(true);
+    expect(
+      result.segments.some((segment) => segment.type === "PAYMENT_FORM"),
+    ).toBe(true);
+    expect(result.segments.some((segment) => segment.type === "BLANK")).toBe(
+      true,
+    );
     expect(result.paymentFormOperationCount).toBe(1);
     expect(result.confirmsPayment).toBe(false);
   });
@@ -456,7 +484,10 @@ describe("AEAT real corpus extractor V6", () => {
     ).toBe(false);
     expect(extracted.fields).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ fieldCode: "SEIZE_LIMIT", amountCents: 38_128 }),
+        expect.objectContaining({
+          fieldCode: "SEIZE_LIMIT",
+          amountCents: 38_128,
+        }),
         expect.objectContaining({
           fieldCode: "SEIZURE_DEBT_KEY_1",
           evidence: expect.objectContaining({ pageNumbers: [5] }),
@@ -560,13 +591,15 @@ describe("AEAT real corpus extractor V6", () => {
 
     expect(result.familyId).toBe("collection.deferral_grant");
     expect(result.interestAssessment).toBeNull();
-    expect(result.segments).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        type: "ANNEX_INTEREST_CALCULATION",
-        relationToPrimary: "ANNEX_ONLY",
-        createsIndependentDebt: false,
-      }),
-    ]));
+    expect(result.segments).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: "ANNEX_INTEREST_CALCULATION",
+          relationToPrimary: "ANNEX_ONLY",
+          createsIndependentDebt: false,
+        }),
+      ]),
+    );
     expect(projectRealCorpusReviewV6(result).documents[0]?.subtitle).toBe(
       "1 documento reconocido · incluye calendario, anexo de intereses y carta de pago",
     );
@@ -589,38 +622,147 @@ describe("AEAT real corpus extractor V6", () => {
           })
         : page,
     );
-    const result = await extractAeatRealCorpusDocumentV6(Object.freeze({
-      ...enforcement,
-      pages: Object.freeze(pages),
-    }));
+    const result = await extractAeatRealCorpusDocumentV6(
+      Object.freeze({
+        ...enforcement,
+        pages: Object.freeze(pages),
+      }),
+    );
     const review = projectRealCorpusReviewV6(result);
 
-    expect(result.fields).toEqual(expect.arrayContaining([
-      expect.objectContaining({ fieldCode: "ISSUE_DATE", value: "2027-07-17" }),
-      expect.objectContaining({ fieldCode: "PAYMENT_FORM_DATE", value: "2027-07-18" }),
-      expect.objectContaining({ fieldCode: "PAYMENT_FORM_MODEL", value: "002" }),
-      expect.objectContaining({ fieldCode: "PAYMENT_FORM_REFERENCE", value: "SYN-PAY-61" }),
-    ]));
-    expect(result.fields.some((item) => item.fieldCode === "TAX_MODEL")).toBe(false);
-    expect(review.documents[0]?.fields).toEqual(expect.arrayContaining([
-      expect.objectContaining({ canonicalType: "PAYMENT_FORM_DATE", normalizedValue: "2027-07-18" }),
-      expect.objectContaining({ canonicalType: "PAYMENT_FORM_MODEL" }),
-      expect.objectContaining({ canonicalType: "PAYMENT_FORM_REFERENCE" }),
-    ]));
+    expect(result.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldCode: "ISSUE_DATE",
+          value: "2027-07-17",
+        }),
+        expect.objectContaining({
+          fieldCode: "PAYMENT_FORM_DATE",
+          value: "2027-07-18",
+        }),
+        expect.objectContaining({
+          fieldCode: "PAYMENT_FORM_MODEL",
+          value: "002",
+        }),
+        expect.objectContaining({
+          fieldCode: "PAYMENT_FORM_REFERENCE",
+          value: "SYN-PAY-61",
+        }),
+      ]),
+    );
+    expect(result.fields.some((item) => item.fieldCode === "TAX_MODEL")).toBe(
+      false,
+    );
+    expect(review.documents[0]?.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalType: "PAYMENT_FORM_DATE",
+          normalizedValue: "2027-07-18",
+        }),
+        expect.objectContaining({ canonicalType: "PAYMENT_FORM_MODEL" }),
+        expect.objectContaining({ canonicalType: "PAYMENT_FORM_REFERENCE" }),
+      ]),
+    );
+  });
+
+  it("keeps the tax model on the enforcement act and the 002 model on its payment form", async () => {
+    const enforcement = source(CASES[1]!);
+    const pages = enforcement.pages.map((page) => {
+      if (page.pageNumber === 1) {
+        return Object.freeze({
+          ...page,
+          text: [
+            page.text,
+            "Modelo: 130",
+            "Ejercicio fiscal: 2025",
+            "Periodo fiscal: 4T",
+            "Clave de liquidación: SYN-LIQ-130-4T-2025",
+          ].join("\n"),
+        });
+      }
+      if (page.pageNumber === CASES[1]!.contentPages) {
+        return Object.freeze({
+          pageNumber: page.pageNumber,
+          isBlank: false,
+          text: [
+            "CARTA DE PAGO",
+            "Fecha de la carta de pago: 18-07-2027",
+            "Modelo: 002",
+            "Número de referencia: 082600000001A",
+            "Importe de la carta de pago: 123,60 €",
+          ].join("\n"),
+        });
+      }
+      return page;
+    });
+
+    const result = await extractAeatRealCorpusDocumentV6(
+      Object.freeze({ ...enforcement, pages: Object.freeze(pages) }),
+    );
+
+    expect(result.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldCode: "TAX_MODEL",
+          label: "Modelo tributario",
+          value: "130",
+          evidence: expect.objectContaining({ pageNumbers: [1] }),
+        }),
+        expect.objectContaining({
+          fieldCode: "TAX_PERIOD",
+          label: "Periodo fiscal",
+          value: "4T",
+          evidence: expect.objectContaining({ pageNumbers: [1] }),
+        }),
+        expect.objectContaining({
+          fieldCode: "PAYMENT_FORM_MODEL",
+          label: "Modelo de ingreso",
+          value: "002",
+          evidence: expect.objectContaining({
+            pageNumbers: [CASES[1]!.contentPages],
+          }),
+        }),
+        expect.objectContaining({
+          fieldCode: "PAYMENT_FORM_REFERENCE",
+          label: "Número de la carta de pago",
+          value: "082600000001A",
+        }),
+      ]),
+    );
+    expect(
+      result.fields.filter(
+        (field) =>
+          field.kind === "MONEY" &&
+          field.amountCents === CASES[1]!.ordinaryTotalCents,
+      ),
+    ).toHaveLength(1);
   });
 
   it("projects known V6 money with exact semantics instead of OTHER", async () => {
     const result = await extractAeatRealCorpusDocumentV6(source(CASES[1]!));
     const fields = projectRealCorpusReviewV6(result).documents[0]?.fields ?? [];
-    expect(fields).toEqual(expect.arrayContaining([
-      expect.objectContaining({ semantic: "MONEY", canonicalType: "OUTSTANDING_PRINCIPAL" }),
-      expect.objectContaining({ semantic: "MONEY", canonicalType: "EXECUTIVE_SURCHARGE_20" }),
-      expect.objectContaining({ semantic: "MONEY", canonicalType: "EXECUTIVE_SURCHARGE_5" }),
-    ]));
+    expect(fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          semantic: "MONEY",
+          canonicalType: "OUTSTANDING_PRINCIPAL",
+        }),
+        expect.objectContaining({
+          semantic: "MONEY",
+          canonicalType: "EXECUTIVE_SURCHARGE_20",
+        }),
+        expect.objectContaining({
+          semantic: "MONEY",
+          canonicalType: "EXECUTIVE_SURCHARGE_5",
+        }),
+      ]),
+    );
   });
 
   it("never returns direct identity, asset identifiers or OCR text", async () => {
-    const result = await extractAeatRealCorpusDocumentV6(source(CASES[11]!, true));
+    const result = await extractAeatRealCorpusDocumentV6(
+      source(CASES[11]!, true),
+    );
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain("12345678Z");
     expect(serialized).not.toContain("ES1200000000000000000000");
@@ -635,25 +777,30 @@ describe("AEAT real corpus extractor V6", () => {
     expect(review.documents).toHaveLength(1);
     expect(review.documents[0]?.fields).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: "Porcentaje histórico de reducción", displayValue: "25" }),
+        expect.objectContaining({
+          label: "Porcentaje histórico de reducción",
+          displayValue: "25",
+        }),
       ]),
     );
-    expect(() => projectRealCorpusReviewV6({
-      ...outcome,
-      fields: [
-        ...outcome.fields,
-        Object.freeze({
-          fieldCode: "UNSAFE_TEXT",
-          label: "Estado del documento",
-          kind: "TEXT" as const,
-          value: "PERSONA ULTRAPRIVADA",
-          evidence: Object.freeze({
-            pageNumbers: Object.freeze([1]),
-            assertionType: "EXPLICIT_IN_DOCUMENT" as const,
+    expect(() =>
+      projectRealCorpusReviewV6({
+        ...outcome,
+        fields: [
+          ...outcome.fields,
+          Object.freeze({
+            fieldCode: "UNSAFE_TEXT",
+            label: "Estado del documento",
+            kind: "TEXT" as const,
+            value: "PERSONA ULTRAPRIVADA",
+            evidence: Object.freeze({
+              pageNumbers: Object.freeze([1]),
+              assertionType: "EXPLICIT_IN_DOCUMENT" as const,
+            }),
           }),
-        }),
-      ],
-    })).toThrow("FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_PRIVACY_REJECTED");
+        ],
+      }),
+    ).toThrow("FISCAL_NOTIFICATION_VERTICAL_SLICE_REVIEW_PRIVACY_REJECTED");
   });
 
   it("does not mutate source inputs and returns frozen collections", async () => {

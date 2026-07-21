@@ -1000,15 +1000,22 @@ function specializedFields(
   seizure: RealCorpusSeizureSnapshotV6 | null,
 ): readonly RealCorpusFieldV2[] {
   const fields: (RealCorpusFieldV2 | null)[] = [
-    ...baseFields.filter((item) =>
-      item.fieldCode !== "ISSUE_DATE" &&
-      item.fieldCode !== "DOCUMENT_DATE" &&
-      item.fieldCode !== "TAX_MODEL" &&
-      item.fieldCode !== "PAYMENT_FORM_REFERENCE" &&
-      !(
-        familyId === "seizure.commercial_credits" &&
-        (item.fieldCode === "ACTION_DATE" || item.fieldCode === "SEIZED_AMOUNT")
-      )
+    ...baseFields.filter(
+      (item) =>
+        item.fieldCode !== "ISSUE_DATE" &&
+        item.fieldCode !== "DOCUMENT_DATE" &&
+        item.fieldCode !== "TAX_MODEL" &&
+        item.fieldCode !== "PAYMENT_FORM_REFERENCE" &&
+        !(
+          familyId === "collection.enforcement_order" &&
+          (item.fieldCode === "EXECUTIVE_SURCHARGE_20" ||
+            item.fieldCode === "TOTAL_WITH_20")
+        ) &&
+        !(
+          familyId === "seizure.commercial_credits" &&
+          (item.fieldCode === "ACTION_DATE" ||
+            item.fieldCode === "SEIZED_AMOUNT")
+        ),
     ),
     referenceField(
       "DOCUMENT_REFERENCE",
@@ -1020,7 +1027,11 @@ function specializedFields(
         "Referencia",
       ]),
     ),
-    dateField("ISSUE_DATE", "Fecha del documento", firstValue(primaryIndex, ["Fecha del documento", "Fecha de emisión"])),
+    dateField(
+      "ISSUE_DATE",
+      "Fecha del documento",
+      firstValue(primaryIndex, ["Fecha del documento", "Fecha de emisión"]),
+    ),
     dateField(
       familyId === "seizure.commercial_credits" ||
         familyId === "seizure.movable_asset" ||
@@ -1035,62 +1046,203 @@ function specializedFields(
         "Fecha de la resolución",
       ]),
     ),
-    referenceField("TAX_MODEL", "Modelo tributario", firstValue(primaryIndex, ["Modelo tributario"])),
-    dateField("PAYMENT_FORM_DATE", "Fecha de la carta de pago", firstValue(paymentFormIndex, ["Fecha de la carta de pago", "Fecha del documento", "Fecha"])),
-    referenceField("PAYMENT_FORM_MODEL", "Modelo de ingreso", firstValue(paymentFormIndex, ["Modelo de ingreso", "Modelo"])),
-    referenceField("PAYMENT_FORM_REFERENCE", "Referencia de la carta de pago", firstValue(paymentFormIndex, ["Referencia de pago", "Referencia de la carta de pago", "Referencia"])),
+    referenceField(
+      "TAX_MODEL",
+      "Modelo tributario",
+      firstValue(primaryIndex, ["Modelo tributario", "Modelo"]),
+    ),
+    referenceField(
+      "TAX_PERIOD",
+      "Periodo fiscal",
+      firstValue(primaryIndex, ["Periodo fiscal", "Periodo"]),
+    ),
+    dateField(
+      "PAYMENT_FORM_DATE",
+      "Fecha de la carta de pago",
+      firstValue(paymentFormIndex, [
+        "Fecha de la carta de pago",
+        "Fecha del documento",
+        "Fecha",
+      ]),
+    ),
+    referenceField(
+      "PAYMENT_FORM_MODEL",
+      "Modelo de ingreso",
+      firstValue(paymentFormIndex, ["Modelo de ingreso", "Modelo"]),
+    ),
+    referenceField(
+      "PAYMENT_FORM_REFERENCE",
+      "Número de la carta de pago",
+      firstValue(paymentFormIndex, [
+        "Número de la carta de pago",
+        "Número de referencia",
+        "Referencia de pago",
+        "Referencia de la carta de pago",
+        "Referencia",
+      ]),
+    ),
   ];
   if (familyId === "collection.enforcement_order") {
     fields.push(
       moneyField(
         "ORDINARY_SURCHARGE_20",
-        "Recargo ordinario del 20 %",
-        firstMoneyValue(index, ["Recargo ordinario del 20 %", "Recargo de apremio ordinario"]),
+        "Recargo de apremio ordinario del 20 %",
+        firstMoneyValue(index, [
+          "Recargo ordinario del 20 %",
+          "Recargo de apremio ordinario",
+        ]),
       ),
     );
   }
   if (familyId === "sanction.resolution") {
     const reductionSource = sanctionReductionSource(index);
     fields.push(
-    referenceField("SANCTION_REFERENCE", "Referencia del expediente sancionador", sanctionReferenceSource(index)),
-    referenceField("SANCTION_DEBT_KEY", "Clave de la sanción", sanctionDebtKeySource(index)),
-    moneyField("INITIAL_SANCTION", "Sanción inicial", initialSanctionSource(index)),
-    integerField("HISTORICAL_REDUCTION_PERCENT", "Porcentaje histórico de reducción", firstValue(index, ["Porcentaje histórico de reducción", "Reducción histórica impresa"]) ?? firstPercentageContaining(index, ["REDUCCIÓN", "REDUCCION"]) ?? reductionSource),
-    moneyField("SANCTION_REDUCTION", "Reducción aplicada", reductionSource),
-    moneyField("REDUCED_SANCTION", "Sanción reducida", reducedSanctionSource(index)),
-  );
+      referenceField(
+        "SANCTION_REFERENCE",
+        "Referencia del expediente sancionador",
+        sanctionReferenceSource(index),
+      ),
+      referenceField(
+        "SANCTION_DEBT_KEY",
+        "Clave de la sanción",
+        sanctionDebtKeySource(index),
+      ),
+      moneyField(
+        "INITIAL_SANCTION",
+        "Sanción inicial",
+        initialSanctionSource(index),
+      ),
+      integerField(
+        "HISTORICAL_REDUCTION_PERCENT",
+        "Porcentaje histórico de reducción",
+        firstValue(index, [
+          "Porcentaje histórico de reducción",
+          "Reducción histórica impresa",
+        ]) ??
+          firstPercentageContaining(index, ["REDUCCIÓN", "REDUCCION"]) ??
+          reductionSource,
+      ),
+      moneyField("SANCTION_REDUCTION", "Reducción aplicada", reductionSource),
+      moneyField(
+        "REDUCED_SANCTION",
+        "Sanción reducida",
+        reducedSanctionSource(index),
+      ),
+    );
   }
   if (familyId === "sanction.loss_of_reduction") {
     const clawbackSource =
       firstMoneyValue(index, ["Importe de la reducción exigida"]) ??
       firstMoneyContaining(index, ["REDUCCIÓN", "REDUCCION"]);
     fields.push(
-    referenceField("CLAWBACK_REFERENCE", "Referencia del documento", firstValue(index, ["Referencia de la exigencia", "Referencia del documento", "Referencia"])),
-    referenceField("ORIGIN_SANCTION_DEBT_KEY", "Clave de la sanción de origen", firstValue(index, ["Clave de la sanción de origen"])),
-    referenceField("CLAWBACK_DEBT_KEY", "Clave de la reducción exigida", firstValue(index, ["Clave de la reducción exigida", "Clave de liquidación"])),
-    integerField("HISTORICAL_REDUCTION_PERCENT", "Porcentaje histórico de reducción", firstValue(index, ["Porcentaje histórico de reducción", "Reducción histórica impresa"]) ?? firstPercentageContaining(index, ["REDUCCIÓN", "REDUCCION"]) ?? clawbackSource),
-    moneyField("CLAWBACK_AMOUNT", "Reducción perdida exigida", clawbackSource),
-  );
+      referenceField(
+        "CLAWBACK_REFERENCE",
+        "Referencia del documento",
+        firstValue(index, [
+          "Referencia de la exigencia",
+          "Referencia del documento",
+          "Referencia",
+        ]),
+      ),
+      referenceField(
+        "ORIGIN_SANCTION_DEBT_KEY",
+        "Clave de la sanción de origen",
+        firstValue(index, ["Clave de la sanción de origen"]),
+      ),
+      referenceField(
+        "CLAWBACK_DEBT_KEY",
+        "Clave de la reducción exigida",
+        firstValue(index, [
+          "Clave de la reducción exigida",
+          "Clave de liquidación",
+        ]),
+      ),
+      integerField(
+        "HISTORICAL_REDUCTION_PERCENT",
+        "Porcentaje histórico de reducción",
+        firstValue(index, [
+          "Porcentaje histórico de reducción",
+          "Reducción histórica impresa",
+        ]) ??
+          firstPercentageContaining(index, ["REDUCCIÓN", "REDUCCION"]) ??
+          clawbackSource,
+      ),
+      moneyField(
+        "CLAWBACK_AMOUNT",
+        "Reducción perdida exigida",
+        clawbackSource,
+      ),
+    );
   }
-  if (interest) fields.push(
-    referenceField("INTEREST_LIQUIDATION_KEY", "Clave de la liquidación de intereses", firstValue(index, ["Clave de la liquidación de intereses"])),
-    referenceField("AGREEMENT_ID", "Referencia de la solicitud", firstValue(index, ["Referencia de la solicitud", "Referencia del acuerdo"])),
-    referenceField("SOURCE_DEBT_KEY", "Clave de la deuda principal", firstValue(index, ["Clave de la deuda principal"])),
-    moneyField("SOURCE_PRINCIPAL", "Principal de la deuda de origen", firstValue(index, ["Principal de la deuda de origen"])),
-    moneyField("ASSESSED_INTEREST", "Intereses liquidados", firstValue(index, ["Intereses liquidados"])),
-    dateField("INTEREST_CALCULATION_START", "Inicio del cálculo de intereses", firstValue(index, ["Inicio del cálculo de intereses"])),
-    dateField("INTEREST_CALCULATION_END", "Fin del cálculo de intereses", firstValue(index, ["Fin del cálculo de intereses"])),
-  );
+  if (interest)
+    fields.push(
+      referenceField(
+        "INTEREST_LIQUIDATION_KEY",
+        "Clave de la liquidación de intereses",
+        firstValue(index, ["Clave de la liquidación de intereses"]),
+      ),
+      referenceField(
+        "AGREEMENT_ID",
+        "Referencia de la solicitud",
+        firstValue(index, [
+          "Referencia de la solicitud",
+          "Referencia del acuerdo",
+        ]),
+      ),
+      referenceField(
+        "SOURCE_DEBT_KEY",
+        "Clave de la deuda principal",
+        firstValue(index, ["Clave de la deuda principal"]),
+      ),
+      moneyField(
+        "SOURCE_PRINCIPAL",
+        "Principal de la deuda de origen",
+        firstValue(index, ["Principal de la deuda de origen"]),
+      ),
+      moneyField(
+        "ASSESSED_INTEREST",
+        "Intereses liquidados",
+        firstValue(index, ["Intereses liquidados"]),
+      ),
+      dateField(
+        "INTEREST_CALCULATION_START",
+        "Inicio del cálculo de intereses",
+        firstValue(index, ["Inicio del cálculo de intereses"]),
+      ),
+      dateField(
+        "INTEREST_CALCULATION_END",
+        "Fin del cálculo de intereses",
+        firstValue(index, ["Fin del cálculo de intereses"]),
+      ),
+    );
   if (seizure) {
     const paymentFormTable = paymentFormVerticalMoneySources(paymentFormIndex);
     const assetMarker =
       seizure.assetKind === "REAL_ESTATE"
         ? firstContaining(index, ["BIEN INMUEBLE", "INMUEBLE"])
         : seizure.assetKind === "COMMERCIAL_CREDITS"
-          ? firstContaining(index, ["CRÉDITOS COMERCIALES", "CRÉDITOS ARRENDATICIOS", "EMBARGO DE CRÉDITOS"])
-          : firstContaining(index, ["BIEN MUEBLE", "BIENES MUEBLES", "VEHÍCULO", "VEHICULO"]);
+          ? firstContaining(index, [
+              "CRÉDITOS COMERCIALES",
+              "CRÉDITOS ARRENDATICIOS",
+              "EMBARGO DE CRÉDITOS",
+            ])
+          : firstContaining(index, [
+              "BIEN MUEBLE",
+              "BIENES MUEBLES",
+              "VEHÍCULO",
+              "VEHICULO",
+            ]);
     fields.push(
-      referenceField("SEIZURE_ORDER_ID", "Número de diligencia", firstValue(index, ["Número de diligencia", "Nº de la diligencia", "N.º de la diligencia", "Referencia de la diligencia"])),
+      referenceField(
+        "SEIZURE_ORDER_ID",
+        "Número de diligencia",
+        firstValue(index, [
+          "Número de diligencia",
+          "Nº de la diligencia",
+          "N.º de la diligencia",
+          "Referencia de la diligencia",
+        ]),
+      ),
       textField(
         "ASSET_KIND",
         "Tipo de bien",
@@ -1101,12 +1253,51 @@ function specializedFields(
             : "Bien mueble",
         assetMarker,
       ),
-      moneyField("DEBT_SUBTOTAL", "Subtotal de deudas", firstMoneyValue(index, ["Subtotal de deudas"]) ?? firstStandaloneMoneyStartingWith(index, ["Importe pendiente total"])),
-      moneyField("PRINTED_INTEREST", "Intereses indicados", firstMoneyValue(index, ["Intereses impresos"]) ?? firstStandaloneMoneyStartingWith(index, ["Intereses"])),
-      moneyField("PRINTED_COSTS", "Costas indicadas", firstMoneyValue(index, ["Costas impresas"]) ?? firstStandaloneMoneyStartingWith(index, ["Costas"])),
-      moneyField("SEIZE_LIMIT", "Límite del embargo", firstMoneyValue(index, ["Límite del embargo"]) ?? firstStandaloneMoneyStartingWith(index, ["Importe a embargar"])),
-      moneyField("PAYMENT_FORM_PRINTED_TOTAL", "Total indicado en la carta", firstMoneyValue(paymentFormIndex, ["Total impreso en la carta"]) ?? firstStandaloneMoneyStartingWith(paymentFormIndex, ["Total a ingresar"]) ?? paymentFormTable?.total ?? null),
-      moneyField("PAYMENT_FORM_AMOUNT", "Importe de la carta de pago", firstMoneyValue(paymentFormIndex, ["Importe de la carta de pago"]) ?? firstStandaloneMoneyStartingWith(paymentFormIndex, ["Importe de la carta de pago", "Importe a ingresar"]) ?? paymentFormTable?.amountToPay ?? null),
+      moneyField(
+        "DEBT_SUBTOTAL",
+        "Subtotal de deudas",
+        firstMoneyValue(index, ["Subtotal de deudas"]) ??
+          firstStandaloneMoneyStartingWith(index, ["Importe pendiente total"]),
+      ),
+      moneyField(
+        "PRINTED_INTEREST",
+        "Intereses indicados",
+        firstMoneyValue(index, ["Intereses impresos"]) ??
+          firstStandaloneMoneyStartingWith(index, ["Intereses"]),
+      ),
+      moneyField(
+        "PRINTED_COSTS",
+        "Costas indicadas",
+        firstMoneyValue(index, ["Costas impresas"]) ??
+          firstStandaloneMoneyStartingWith(index, ["Costas"]),
+      ),
+      moneyField(
+        "SEIZE_LIMIT",
+        "Límite del embargo",
+        firstMoneyValue(index, ["Límite del embargo"]) ??
+          firstStandaloneMoneyStartingWith(index, ["Importe a embargar"]),
+      ),
+      moneyField(
+        "PAYMENT_FORM_PRINTED_TOTAL",
+        "Total indicado en la carta",
+        firstMoneyValue(paymentFormIndex, ["Total impreso en la carta"]) ??
+          firstStandaloneMoneyStartingWith(paymentFormIndex, [
+            "Total a ingresar",
+          ]) ??
+          paymentFormTable?.total ??
+          null,
+      ),
+      moneyField(
+        "PAYMENT_FORM_AMOUNT",
+        "Importe de la carta de pago",
+        firstMoneyValue(paymentFormIndex, ["Importe de la carta de pago"]) ??
+          firstStandaloneMoneyStartingWith(paymentFormIndex, [
+            "Importe de la carta de pago",
+            "Importe a ingresar",
+          ]) ??
+          paymentFormTable?.amountToPay ??
+          null,
+      ),
       ...seizure.debtRows.flatMap((row, position) => [
         Object.freeze({
           fieldCode: `SEIZURE_DEBT_KEY_${position + 1}`,

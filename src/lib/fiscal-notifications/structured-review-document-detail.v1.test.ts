@@ -151,6 +151,111 @@ describe("structured review document detail v1", () => {
     expect(JSON.stringify(result)).not.toContain("Sin importes guardados");
   });
 
+  it("limpia el papel, la carta de pago y las referencias redundantes después de guardar", () => {
+    const result = project(
+      document({
+        orderedFacts: [
+          {
+            key: "reference:liquidation",
+            semantic: "REFERENCE",
+            label: "Clave de liquidación",
+            value: "SYN-LIQ-STORED-001",
+            pageNumber: 1,
+            sourceReference: null,
+          },
+          {
+            key: "reference:act-duplicate",
+            semantic: "REFERENCE",
+            label: "Acto o requerimiento",
+            value: "SYN-LIQ-STORED-001",
+            pageNumber: 1,
+            sourceReference: null,
+          },
+          {
+            key: "reference:short-expiry-code",
+            semantic: "REFERENCE",
+            label: "Referencia oficial",
+            value: "14",
+            pageNumber: 2,
+            sourceReference: null,
+          },
+          {
+            key: "reference:legacy-payment-form",
+            semantic: "REFERENCE",
+            label: "Justificante de pago",
+            value: "082600000001A",
+            pageNumber: 2,
+            sourceReference: null,
+          },
+          {
+            key: "party:debtor",
+            semantic: "PARTY",
+            label: "Deudor principal",
+            value: "Deudor principal",
+            pageNumber: 1,
+            sourceReference: null,
+          },
+          {
+            key: "party:debtor-duplicate",
+            semantic: "PARTY",
+            label: "Deudor principal",
+            value: "Deudor principal",
+            pageNumber: 2,
+            sourceReference: null,
+          },
+        ],
+      }),
+    );
+    const facts = result.factGroups.flatMap((item) => item.fields);
+
+    expect(facts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Clave de liquidación",
+          value: "SYN-LIQ-STORED-001",
+        }),
+        expect.objectContaining({
+          label: "Número de la carta de pago",
+          value: "082600000001A",
+        }),
+        expect.objectContaining({
+          label: "Tu papel en el documento",
+          value: "Obligado al pago",
+          provenance: expect.objectContaining({ pageNumbers: [1, 2] }),
+        }),
+      ]),
+    );
+    expect(JSON.stringify(facts)).not.toMatch(
+      /Acto o requerimiento|Referencia oficial|Justificante de pago|Deudor principal/u,
+    );
+  });
+
+  it("mantiene el modelo 002 dentro de la carta de pago si falta el modelo tributario", () => {
+    const result = project(
+      document({
+        orderedFacts: [
+          {
+            key: "payment-form:model",
+            semantic: "REFERENCE",
+            label: "Modelo de ingreso",
+            value: "002",
+            pageNumber: 2,
+            sourceReference: null,
+          },
+        ],
+      }),
+    );
+
+    expect(result.header.metadata).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: "model" })]),
+    );
+    expect(result.factGroups.flatMap((group) => group.fields)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Modelo de ingreso", value: "002" }),
+      ]),
+    );
+  });
+
   it("agrupa muchas fechas y referencias con expansión estable y procedencia por página", () => {
     const dates = Array.from({ length: 31 }, (_, index) => ({
       key: `date:${index}`,
@@ -656,6 +761,27 @@ describe("structured review document detail v1", () => {
       total: "249,00 €",
       pageNumbers: [2, 3],
     });
+    expect(result.economy).toMatchObject({
+      featuredInstallment: {
+        label: "Primera cuota del calendario",
+        dueDate: "05/08/2026",
+        total: "125,00 €",
+      },
+      showInstallmentSurcharge: false,
+    });
+    expect(result.header).toMatchObject({
+      primaryDateLabel: "Fecha del acuerdo",
+      reviewLabel: "Revisión personal pendiente",
+      originalLabel: "PDF original no archivado",
+    });
+    expect(result.explanation).toMatchObject({
+      documentSays:
+        "El acuerdo fija 2 cuotas con sus respectivos vencimientos, principales e intereses.",
+      officialMeaning:
+        "Hacienda ha aceptado que el principal de 240,00 € se pague en 2 cuotas. Con los intereses del aplazamiento, el total programado asciende a 249,00 €.",
+      reviewTitle: "Comprueba el calendario y la domiciliación",
+      deadlineTitle: "Cada cuota tiene su propio vencimiento",
+    });
   });
 
   it("agrupa un recurso por acto impugnado, suspensión, decisión y efectos", () => {
@@ -692,9 +818,9 @@ describe("structured review document detail v1", () => {
     );
 
     expect(
-      result.factGroups.find((item) => item.id === "APPEALS")?.fields.map(
-        (item) => item.label,
-      ),
+      result.factGroups
+        .find((item) => item.id === "APPEALS")
+        ?.fields.map((item) => item.label),
     ).toEqual(["Acto impugnado", "Suspensión solicitada"]);
     expect(
       result.factGroups.find((item) => item.id === "OUTCOME")?.fields[0],
@@ -771,11 +897,9 @@ describe("structured review document detail v1", () => {
 
     const result = project(current, [later, earlier], links);
 
-    expect(result.connections?.timeline.map((item) => item.documentId)).toEqual([
-      earlier.key,
-      current.key,
-      later.key,
-    ]);
+    expect(result.connections?.timeline.map((item) => item.documentId)).toEqual(
+      [earlier.key, current.key, later.key],
+    );
     expect(
       result.connections?.timeline.map((item) => ({
         dateLabel: item.dateLabel,
@@ -813,16 +937,20 @@ describe("structured review document detail v1", () => {
       title: "Documento relacionado confirmado",
       documentDate: "2026-04-21",
     });
-    const result = project(current, [related], [
-      relation({
-        key: "relation:user-confirmed",
-        fromDocumentId: current.key,
-        toDocumentId: related.key,
-        relationStatus: "USER_CONFIRMED",
-        sourcePageNumbers: [1],
-        targetPageNumbers: [2],
-      }),
-    ]);
+    const result = project(
+      current,
+      [related],
+      [
+        relation({
+          key: "relation:user-confirmed",
+          fromDocumentId: current.key,
+          toDocumentId: related.key,
+          relationStatus: "USER_CONFIRMED",
+          sourcePageNumbers: [1],
+          targetPageNumbers: [2],
+        }),
+      ],
+    );
 
     expect(result.connections?.relations[0]).toMatchObject({
       status: "CONFIRMED",
@@ -877,7 +1005,8 @@ describe("structured review document detail v1", () => {
             id: "source:boe",
             authority: "BOE",
             title: "Ley General Tributaria",
-            canonicalUrl: "https://www.boe.es/buscar/act.php?id=BOE-A-2003-23186",
+            canonicalUrl:
+              "https://www.boe.es/buscar/act.php?id=BOE-A-2003-23186",
           },
         ],
       },
@@ -903,10 +1032,14 @@ describe("structured review document detail v1", () => {
       },
     ]);
     expect(result.connections?.sources).toEqual([
-      expect.objectContaining({ authority: "BOE", title: "Ley General Tributaria" }),
+      expect.objectContaining({
+        authority: "BOE",
+        title: "Ley General Tributaria",
+      }),
     ]);
-    expect(result.factGroups.find((item) => item.id === "OUTCOME")?.fields[0])
-      .toMatchObject({ value: "Acuerdo estimado parcialmente" });
+    expect(
+      result.factGroups.find((item) => item.id === "OUTCOME")?.fields[0],
+    ).toMatchObject({ value: "Acuerdo estimado parcialmente" });
   });
 
   it("ofrece selector cuando un original contiene varios actos sin mezclarlos", () => {
@@ -935,94 +1068,94 @@ describe("structured review document detail v1", () => {
   it("no expone tokens internos aunque una entrada histórica defectuosa los contenga", () => {
     const base = document();
     const current = document({
-        title: "EXACT_TITLE_AND_AUTHORITY",
-        explanation: {
-          ...base.explanation,
-          whatItIs: "EXPLANATION:notification.publication",
-          whyReceived: "BOOLEAN:PROVES_UNDERLYING_ACT_CONTENT:FALSE",
-          keyFacts: [
-            {
-              label: "Plazo calculado",
-              value: "INTEGER:APPEARANCE_DURATION:15",
-              basis: "CALCULATED_FROM_PRINTED_VALUES",
-            },
-          ],
-          officialSources: [
-            {
-              id: "source:internal",
-              authority: "AEAT",
-              title: "EXACT_OFFICIAL_SOURCE",
-              canonicalUrl: "https://sede.agenciatributaria.gob.es/",
-            },
-          ],
-        },
-        orderedFacts: [
+      title: "EXACT_TITLE_AND_AUTHORITY",
+      explanation: {
+        ...base.explanation,
+        whatItIs: "EXPLANATION:notification.publication",
+        whyReceived: "BOOLEAN:PROVES_UNDERLYING_ACT_CONTENT:FALSE",
+        keyFacts: [
           {
-            key: "internal:1",
-            semantic: "DETAIL",
-            label: "Reconocimiento documental",
-            value: "EXACT_TITLE_AND_AUTHORITY",
-            pageNumber: 1,
-            sourceReference: null,
-          },
-          {
-            key: "internal:2",
-            semantic: "DATE",
-            label: "Plazo de comparecencia",
+            label: "Plazo calculado",
             value: "INTEGER:APPEARANCE_DURATION:15",
-            pageNumber: 1,
-            sourceReference: null,
-          },
-          {
-            key: "visible:1",
-            semantic: "DETAIL",
-            label: "Acto citado",
-            value: "Diligencia de publicación",
-            pageNumber: 2,
-            sourceReference: null,
+            basis: "CALCULATED_FROM_PRINTED_VALUES",
           },
         ],
-        money: [
+        officialSources: [
           {
-            key: "money:internal-label",
-            label: "EXACT_DOCUMENT_TOTAL",
-            kind: "DOCUMENT_TOTAL",
-            amountCents: 12_500,
-            currency: "EUR",
-            sourceReference: null,
-            sourceReferenceType: null,
-            pageNumbers: [1],
-          },
-          {
-            key: "money:internal-reference",
-            label: "Total impreso",
-            kind: "DOCUMENT_TOTAL",
-            amountCents: 12_500,
-            currency: "EUR",
-            sourceReference: "EXACT_INTERNAL_REFERENCE",
-            sourceReferenceType: "DOCUMENT_REFERENCE",
-            pageNumbers: [1],
+            id: "source:internal",
+            authority: "AEAT",
+            title: "EXACT_OFFICIAL_SOURCE",
+            canonicalUrl: "https://sede.agenciatributaria.gob.es/",
           },
         ],
-        installments: [
-          {
-            key: "installment:internal",
-            label: "Cuota aparente",
-            amountCents: null,
-            dueDate: "INTEGER:APPEARANCE_DURATION:15",
-            dueDatePageNumbers: [1],
-            totalPageNumbers: [],
-            components: [
-              {
-                label: "BOOLEAN:PROVES_UNDERLYING_ACT_CONTENT:FALSE",
-                amountCents: 10_000,
-                pageNumbers: [1],
-              },
-            ],
-            pageNumbers: [1],
-          },
-        ],
-      });
+      },
+      orderedFacts: [
+        {
+          key: "internal:1",
+          semantic: "DETAIL",
+          label: "Reconocimiento documental",
+          value: "EXACT_TITLE_AND_AUTHORITY",
+          pageNumber: 1,
+          sourceReference: null,
+        },
+        {
+          key: "internal:2",
+          semantic: "DATE",
+          label: "Plazo de comparecencia",
+          value: "INTEGER:APPEARANCE_DURATION:15",
+          pageNumber: 1,
+          sourceReference: null,
+        },
+        {
+          key: "visible:1",
+          semantic: "DETAIL",
+          label: "Acto citado",
+          value: "Diligencia de publicación",
+          pageNumber: 2,
+          sourceReference: null,
+        },
+      ],
+      money: [
+        {
+          key: "money:internal-label",
+          label: "EXACT_DOCUMENT_TOTAL",
+          kind: "DOCUMENT_TOTAL",
+          amountCents: 12_500,
+          currency: "EUR",
+          sourceReference: null,
+          sourceReferenceType: null,
+          pageNumbers: [1],
+        },
+        {
+          key: "money:internal-reference",
+          label: "Total impreso",
+          kind: "DOCUMENT_TOTAL",
+          amountCents: 12_500,
+          currency: "EUR",
+          sourceReference: "EXACT_INTERNAL_REFERENCE",
+          sourceReferenceType: "DOCUMENT_REFERENCE",
+          pageNumbers: [1],
+        },
+      ],
+      installments: [
+        {
+          key: "installment:internal",
+          label: "Cuota aparente",
+          amountCents: null,
+          dueDate: "INTEGER:APPEARANCE_DURATION:15",
+          dueDatePageNumbers: [1],
+          totalPageNumbers: [],
+          components: [
+            {
+              label: "BOOLEAN:PROVES_UNDERLYING_ACT_CONTENT:FALSE",
+              amountCents: 10_000,
+              pageNumbers: [1],
+            },
+          ],
+          pageNumbers: [1],
+        },
+      ],
+    });
     const related = document({
       key: "document:internal-related",
       title: "EXACT_RELATED_TITLE",
@@ -1096,9 +1229,7 @@ function relation(input: {
   readonly fromDocumentId: string;
   readonly toDocumentId: string;
   readonly relationStatus:
-    | "SUGGESTED"
-    | "USER_CONFIRMED"
-    | "SYSTEM_CONFIRMED_EXACT";
+    "SUGGESTED" | "USER_CONFIRMED" | "SYSTEM_CONFIRMED_EXACT";
   readonly sourcePageNumbers: readonly number[];
   readonly targetPageNumbers: readonly number[];
 }): FiscalNotificationDocumentLibraryLinkV1 {

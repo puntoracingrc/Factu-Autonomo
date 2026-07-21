@@ -633,7 +633,10 @@ function installments(index: DocumentIndexV4): readonly RealCorpusInstallmentV4[
   return Object.freeze(result.slice(0, 50));
 }
 
-function fieldsFor(index: DocumentIndexV4, match: FamilyMatchV4): readonly RealCorpusFieldV2[] {
+function fieldsFor(
+  index: DocumentIndexV4,
+  match: FamilyMatchV4,
+): readonly RealCorpusFieldV2[] {
   const registrationMethod = firstContaining(index, [
     "CERTIFICADO ELECTRÓNICO",
     "CERTIFICADO ELECTRONICO",
@@ -655,8 +658,7 @@ function fieldsFor(index: DocumentIndexV4, match: FamilyMatchV4): readonly RealC
     "Fecha del embargo",
   ]);
   const signingSource =
-    firstValue(index, ["Fecha de firma"]) ??
-    terminalSigningDate(index);
+    firstValue(index, ["Fecha de firma"]) ?? terminalSigningDate(index);
   const actionSource =
     firstValue(index, ["Fecha del acto", "Fecha del acuerdo"]) ??
     (new Set<RealCorpusFamilyIdV4>([
@@ -669,25 +671,61 @@ function fieldsFor(index: DocumentIndexV4, match: FamilyMatchV4): readonly RealC
   const documentReferenceSource =
     firstValue(index, ["Referencia del documento"]) ??
     (match.familyId === "seizure.release"
-      ? embeddedReferenceValue(
-          index,
-          ["Referencia"],
-          /^(\d{12}[A-Z])(?:\s|$)/u,
-        )
+      ? embeddedReferenceValue(index, ["Referencia"], /^(\d{12}[A-Z])(?:\s|$)/u)
       : firstValue(index, ["Referencia"]));
   const fields: (RealCorpusFieldV2 | null)[] = [
-    referenceField("DOCUMENT_REFERENCE", "Referencia del documento", documentReferenceSource),
-    referenceField("PROCEDURE_ID", "Referencia del procedimiento", firstValue(index, ["Referencia del procedimiento", "Procedimiento"])),
-    referenceField("ACT_ID", "Referencia del acto", firstValue(index, ["Referencia del acto", "Acto"])),
-    referenceField("AGREEMENT_ID", "Referencia del acuerdo", firstValue(index, ["Referencia del acuerdo"])),
-    referenceField("NOTIFICATION_ID", "Referencia de notificación", firstValue(index, ["Referencia de notificación", "NCC actual"])),
-    referenceField("PREVIOUS_NOTIFICATION_ID", "Notificación anterior", firstValue(index, ["Notificación anterior", "NCC anterior"])),
-    referenceField("SEIZURE_ORDER_ID", "Número de diligencia", firstValue(index, ["Nº de la diligencia", "Número de diligencia"])),
-    referenceField("DEBT_KEY", "Clave de deuda", firstValue(index, ["Clave de deuda", "Clave de liquidación"])),
-    dateField("DOCUMENT_DATE", "Fecha del documento", firstValue(index, ["Fecha del documento", "Fecha de emisión", "Fecha"])),
+    referenceField(
+      "DOCUMENT_REFERENCE",
+      "Referencia del documento",
+      documentReferenceSource,
+    ),
+    referenceField(
+      "PROCEDURE_ID",
+      "Referencia del procedimiento",
+      firstValue(index, ["Referencia del procedimiento", "Procedimiento"]),
+    ),
+    referenceField(
+      "ACT_ID",
+      "Referencia del acto",
+      firstValue(index, ["Referencia del acto", "Acto"]),
+    ),
+    referenceField(
+      "AGREEMENT_ID",
+      "Referencia del acuerdo",
+      firstValue(index, ["Referencia del acuerdo"]),
+    ),
+    referenceField(
+      "NOTIFICATION_ID",
+      "Referencia de notificación",
+      firstValue(index, ["Referencia de notificación", "NCC actual"]),
+    ),
+    referenceField(
+      "PREVIOUS_NOTIFICATION_ID",
+      "Notificación anterior",
+      firstValue(index, ["Notificación anterior", "NCC anterior"]),
+    ),
+    referenceField(
+      "SEIZURE_ORDER_ID",
+      "Número de diligencia",
+      firstValue(index, ["Nº de la diligencia", "Número de diligencia"]),
+    ),
+    referenceField(
+      "DEBT_KEY",
+      "Clave de deuda",
+      firstValue(index, ["Clave de deuda", "Clave de liquidación"]),
+    ),
+    dateField(
+      "DOCUMENT_DATE",
+      "Fecha del documento",
+      firstValue(index, ["Fecha del documento", "Fecha de emisión", "Fecha"]),
+    ),
     dateField("SIGNING_DATE", "Fecha de firma", signingSource),
     dateField("ACTION_DATE", "Fecha del acto", actionSource),
-    dateField("RELEASE_DATE", "Fecha del levantamiento", firstValue(index, ["Fecha del levantamiento", "Fecha del acuerdo"])),
+    dateField(
+      "RELEASE_DATE",
+      "Fecha del levantamiento",
+      firstValue(index, ["Fecha del levantamiento", "Fecha del acuerdo"]),
+    ),
     match.familyId === "seizure.release"
       ? dateField(
           "CITED_SEIZURE_DATE",
@@ -695,86 +733,332 @@ function fieldsFor(index: DocumentIndexV4, match: FamilyMatchV4): readonly RealC
           printedSeizureDate ?? firstValue(index, ["Fecha del embargo citado"]),
         )
       : null,
-    dateField("PROPOSAL_NOTIFICATION_DATE", "Fecha de notificación de la propuesta", firstValue(index, ["Fecha de notificación de la propuesta"])),
-    dateField("VOLUNTARY_PAYMENT_DEADLINE", "Fin del período voluntario", firstValue(index, ["Fin del período voluntario", "Vencimiento voluntario"])),
-    moneyField("OUTSTANDING_PRINCIPAL", "Principal pendiente", firstValue(index, ["Principal pendiente"])),
-    moneyField("EXECUTIVE_SURCHARGE_20", "Recargo ordinario del 20 %", firstValue(index, ["Recargo de apremio ordinario", "Recargo ejecutivo 20 %"])),
-    moneyField("TOTAL_WITH_20", "Total con recargo ordinario", firstValue(index, ["Total con recargo ordinario", "Total ordinario"])),
-    moneyField("FINAL_QUOTA", "Cuota final", firstValue(index, ["Cuota final", "Cuota resultante"])),
-    moneyField("PROPOSED_QUOTA", "Cuota propuesta", firstValue(index, ["Cuota propuesta"])),
-    moneyField("LATE_PAYMENT_INTEREST", "Intereses de demora", firstValue(index, ["Intereses de demora", "Interés de demora"])),
-    moneyField("DOCUMENT_TOTAL", "Total del documento", firstValue(index, ["Total a ingresar", "Total del plan", "Total documento"])),
-    moneyField("SEIZED_AMOUNT", "Importe embargado", firstValue(index, ["Importe a embargar", "Importe embargado"])),
-    moneyField("OUTSTANDING_TOTAL", "Total pendiente", firstValue(index, ["Total pendiente", "Deuda pendiente"])),
-    moneyField("DECLARED_ANNUAL_WITHHOLDINGS", "Retenciones anuales declaradas", firstValue(index, ["Retenciones anuales declaradas", "Modelo 180 declarado"])),
-    moneyField("PERIODIC_PAYMENTS", "Pagos periódicos declarados", firstValue(index, ["Pagos periódicos declarados", "Modelos 115 ingresados"])),
-    moneyField("ORIGINAL_TAX_PRINCIPAL", "Principal original", firstValue(index, ["Principal original", "Deuda principal"])),
-    moneyField("DEFERRAL_INTEREST", "Intereses del aplazamiento", firstValue(index, ["Intereses del aplazamiento", "Total intereses"])),
-    referenceField("TAX_MODEL", "Modelo tributario", firstValue(index, ["Modelo tributario", "Modelo"])),
-    referenceField("RELATED_MODEL", "Modelo relacionado", firstValue(index, ["Modelo relacionado"])),
-    referenceField("FISCAL_YEAR", "Ejercicio fiscal", firstValue(index, ["Ejercicio fiscal", "Ejercicio"])),
-  ];
-  if (match.familyId === "identity.clave_registration_receipt") fields.push(
-    referenceField(
-      "EXPEDIENTE_ID",
-      "Número de expediente",
-      firstValue(index, ["Número de expediente", "Nº de expediente"]),
-    ),
-    textField("REGISTRATION_STATUS", "Estado del alta", "Alta confirmada", firstContaining(index, ["HA SIDO DADO DE ALTA"])),
-    textField("REGISTRATION_LEVEL", "Nivel de registro", "Nivel alto", firstContaining(index, ["NIVEL DE REGISTRO ALTO"])),
-    textField(
-      "REGISTRATION_METHOD",
-      "Método de registro",
-      registrationMethod?.normalized.includes("PRESENCIAL") ? "Presencial" : "Certificado electrónico",
-      registrationMethod,
+    dateField(
+      "PROPOSAL_NOTIFICATION_DATE",
+      "Fecha de notificación de la propuesta",
+      firstValue(index, ["Fecha de notificación de la propuesta"]),
     ),
     dateField(
-      "REGISTRATION_DATE",
-      "Fecha de alta",
-      firstValue(index, ["Fecha de alta", "Fecha de registro"]) ??
-        firstDatedContaining(index, ["FECHA", "ALTA"]),
+      "VOLUNTARY_PAYMENT_DEADLINE",
+      "Fin del período voluntario",
+      firstValue(index, [
+        "Fin del período voluntario",
+        "Vencimiento voluntario",
+      ]),
     ),
-    booleanField("TERMS_ATTACHED", "Términos adjuntos", firstContaining(index, ["TÉRMINOS Y CONDICIONES", "TERMINOS Y CONDICIONES"])),
-  );
-  if (match.familyId === "seizure.release") fields.push(
-    textField(
-      "ASSET_KIND",
-      "Tipo de bien o derecho",
-      match.subtype === "REAL_ESTATE_RELEASE_WITH_REGISTRY_ANNEX" ? "Inmueble" : match.subtype === "COMMERCIAL_CREDIT_RELEASE_TO_THIRD_PARTY" ? "Créditos comerciales" : "Vehículo o bien mueble",
-      releaseAsset,
+    moneyField(
+      "OUTSTANDING_PRINCIPAL",
+      "Principal pendiente",
+      firstValue(index, ["Principal pendiente"]),
     ),
-    textField("RELEASE_EXTENT", "Alcance del levantamiento", "Levantamiento total", firstContaining(index, ["LEVANTAMIENTO TOTAL"])),
-    booleanField("REGISTRY_CANCELLATION_ORDERED", "Cancelación registral ordenada", firstContaining(index, ["CANCELACIÓN REGISTRAL", "CANCELACION REGISTRAL", "CANCELAR LA ANOTACIÓN", "CANCELAR LA ANOTACION"])),
-  );
-  if (match.familyId === "assessment.allegations_and_proposal" || match.familyId === "seizure.compliance_reiteration" || match.familyId === "seizure.commercial_credits") {
-    fields.push(integerField("RESPONSE_BUSINESS_DAYS", "Días hábiles para responder", 10, firstContaining(index, ["10 DÍAS HÁBILES", "10 DIAS HABILES"])));
+    moneyField(
+      "EXECUTIVE_SURCHARGE_20",
+      "Recargo de apremio ordinario del 20 %",
+      firstValue(index, [
+        "Recargo de apremio ordinario",
+        "Recargo ejecutivo 20 %",
+      ]),
+    ),
+    moneyField(
+      "TOTAL_WITH_20",
+      "Total con recargo ordinario",
+      firstValue(index, ["Total con recargo ordinario", "Total ordinario"]),
+    ),
+    moneyField(
+      "FINAL_QUOTA",
+      "Cuota final",
+      firstValue(index, ["Cuota final", "Cuota resultante"]),
+    ),
+    moneyField(
+      "PROPOSED_QUOTA",
+      "Cuota propuesta",
+      firstValue(index, ["Cuota propuesta"]),
+    ),
+    moneyField(
+      "LATE_PAYMENT_INTEREST",
+      "Intereses de demora",
+      firstValue(index, ["Intereses de demora", "Interés de demora"]),
+    ),
+    moneyField(
+      "DOCUMENT_TOTAL",
+      "Total del documento",
+      firstValue(index, [
+        "Total a ingresar",
+        "Total del plan",
+        "Total documento",
+      ]),
+    ),
+    moneyField(
+      "SEIZED_AMOUNT",
+      "Importe embargado",
+      firstValue(index, ["Importe a embargar", "Importe embargado"]),
+    ),
+    moneyField(
+      "OUTSTANDING_TOTAL",
+      "Total pendiente",
+      firstValue(index, ["Total pendiente", "Deuda pendiente"]),
+    ),
+    moneyField(
+      "DECLARED_ANNUAL_WITHHOLDINGS",
+      "Retenciones anuales declaradas",
+      firstValue(index, [
+        "Retenciones anuales declaradas",
+        "Modelo 180 declarado",
+      ]),
+    ),
+    moneyField(
+      "PERIODIC_PAYMENTS",
+      "Pagos periódicos declarados",
+      firstValue(index, [
+        "Pagos periódicos declarados",
+        "Modelos 115 ingresados",
+      ]),
+    ),
+    moneyField(
+      "ORIGINAL_TAX_PRINCIPAL",
+      "Principal original",
+      firstValue(index, ["Principal original", "Deuda principal"]),
+    ),
+    moneyField(
+      "DEFERRAL_INTEREST",
+      "Intereses del aplazamiento",
+      firstValue(index, ["Intereses del aplazamiento", "Total intereses"]),
+    ),
+    referenceField(
+      "TAX_MODEL",
+      "Modelo tributario",
+      firstValue(index, ["Modelo tributario", "Modelo"]),
+    ),
+    referenceField(
+      "RELATED_MODEL",
+      "Modelo relacionado",
+      firstValue(index, ["Modelo relacionado"]),
+    ),
+    referenceField(
+      "FISCAL_YEAR",
+      "Ejercicio fiscal",
+      firstValue(index, ["Ejercicio fiscal", "Ejercicio"]),
+    ),
+  ];
+  if (match.familyId === "identity.clave_registration_receipt")
+    fields.push(
+      referenceField(
+        "EXPEDIENTE_ID",
+        "Número de expediente",
+        firstValue(index, ["Número de expediente", "Nº de expediente"]),
+      ),
+      textField(
+        "REGISTRATION_STATUS",
+        "Estado del alta",
+        "Alta confirmada",
+        firstContaining(index, ["HA SIDO DADO DE ALTA"]),
+      ),
+      textField(
+        "REGISTRATION_LEVEL",
+        "Nivel de registro",
+        "Nivel alto",
+        firstContaining(index, ["NIVEL DE REGISTRO ALTO"]),
+      ),
+      textField(
+        "REGISTRATION_METHOD",
+        "Método de registro",
+        registrationMethod?.normalized.includes("PRESENCIAL")
+          ? "Presencial"
+          : "Certificado electrónico",
+        registrationMethod,
+      ),
+      dateField(
+        "REGISTRATION_DATE",
+        "Fecha de alta",
+        firstValue(index, ["Fecha de alta", "Fecha de registro"]) ??
+          firstDatedContaining(index, ["FECHA", "ALTA"]),
+      ),
+      booleanField(
+        "TERMS_ATTACHED",
+        "Términos adjuntos",
+        firstContaining(index, [
+          "TÉRMINOS Y CONDICIONES",
+          "TERMINOS Y CONDICIONES",
+        ]),
+      ),
+    );
+  if (match.familyId === "seizure.release")
+    fields.push(
+      textField(
+        "ASSET_KIND",
+        "Tipo de bien o derecho",
+        match.subtype === "REAL_ESTATE_RELEASE_WITH_REGISTRY_ANNEX"
+          ? "Inmueble"
+          : match.subtype === "COMMERCIAL_CREDIT_RELEASE_TO_THIRD_PARTY"
+            ? "Créditos comerciales"
+            : "Vehículo o bien mueble",
+        releaseAsset,
+      ),
+      textField(
+        "RELEASE_EXTENT",
+        "Alcance del levantamiento",
+        "Levantamiento total",
+        firstContaining(index, ["LEVANTAMIENTO TOTAL"]),
+      ),
+      booleanField(
+        "REGISTRY_CANCELLATION_ORDERED",
+        "Cancelación registral ordenada",
+        firstContaining(index, [
+          "CANCELACIÓN REGISTRAL",
+          "CANCELACION REGISTRAL",
+          "CANCELAR LA ANOTACIÓN",
+          "CANCELAR LA ANOTACION",
+        ]),
+      ),
+    );
+  if (
+    match.familyId === "assessment.allegations_and_proposal" ||
+    match.familyId === "seizure.compliance_reiteration" ||
+    match.familyId === "seizure.commercial_credits"
+  ) {
+    fields.push(
+      integerField(
+        "RESPONSE_BUSINESS_DAYS",
+        "Días hábiles para responder",
+        10,
+        firstContaining(index, ["10 DÍAS HÁBILES", "10 DIAS HABILES"]),
+      ),
+    );
   }
-  if (match.familyId === "assessment.allegations_and_proposal") fields.push(
-    textField("DOCUMENTATION_REQUIRED", "Documentación necesaria", "Documentación requerida", firstContaining(index, ["DOCUMENTACIÓN", "DOCUMENTACION"])),
-    textField("SANCTION_WARNING", "Aviso sancionador", "Posible procedimiento sancionador separado", firstContaining(index, ["PROCEDIMIENTO SANCIONADOR"])),
-  );
-  if (match.familyId === "seizure.commercial_credits") fields.push(
-    textField("THIRD_PARTY_ROLE", "Papel del tercero", "Tercero pagador", firstContaining(index, ["TERCERO PAGADOR", "TERCERO DESTINATARIO", "ENTIDAD"])),
-    textField("OBLIGATION_RESPOND", "Obligación de contestar", "Debe contestar", firstContaining(index, ["OBLIGACIÓN DE CONTESTAR", "OBLIGACION DE CONTESTAR"])),
-    textField("OBLIGATION_WITHHOLD_AND_REMIT", "Obligación si existe crédito", "Retener e ingresar si existe crédito", firstContaining(index, ["RETENER E INGRESAR", "RETENER"])),
-    textField("PAYMENT_TIME", "Momento del ingreso", "Cuando venza el crédito", firstContaining(index, ["CUANDO EL CRÉDITO", "CUANDO EL CREDITO"])),
-  );
-  if (match.familyId === "seizure.compliance_reiteration") fields.push(
-    textField("THIRD_PARTY_ROLE", "Papel del tercero", "Tercero destinatario", firstContaining(index, ["TERCERO", "ENTIDAD"])),
-    textField("REJECTION_REASON", "Motivo de la reiteración", "No consta la recepción del anexo", firstContaining(index, ["NO CONSTA LA RECEPCIÓN DEL ANEXO", "NO CONSTA LA RECEPCION DEL ANEXO", "NO CONSTA"])),
-    textField("EXPLICIT_CONSEQUENCE", "Consecuencia indicada", "Segundo requerimiento", firstContaining(index, ["SEGUNDO REQUERIMIENTO"])),
-  );
-  if (match.familyId === "seizure.release" && match.subtype === "COMMERCIAL_CREDIT_RELEASE_TO_THIRD_PARTY") fields.push(textField("THIRD_PARTY_ROLE", "Papel del tercero", "Tercero destinatario", firstContaining(index, ["TERCERO", "ENTIDAD"])));
-  if (match.familyId === "seizure.bank_account") fields.push(
-    textField("ACCOUNT_OR_DEPOSIT", "Cuenta o depósito", "Cuenta bancaria", firstContaining(index, ["SALDOS DE LAS CUENTAS", "CUENTAS BANCARIAS"])),
-    integerField("TRANSFER_WAIT_DAYS", "Espera antes del ingreso bancario", 20, firstContaining(index, ["20 DÍAS NATURALES", "20 DIAS NATURALES"])),
-  );
-  if (match.familyId === "collection.deferral_grant") fields.push(
-    textField("PAYMENT_METHOD", "Forma de pago", "Domiciliación bancaria", firstContaining(index, ["DOMICILIACIÓN", "DOMICILIACION"])),
-    textField("GUARANTEE_TYPE", "Garantía", "Sin garantía", firstContaining(index, ["SIN GARANTÍA", "SIN GARANTIA"])),
-  );
-  if (match.familyId === "collection.enforcement_order") fields.push(textField("NOTIFICATION_STATE", "Estado de la notificación anterior", "Entrega anterior fallida", firstContaining(index, ["ENTREGA ANTERIOR FALLIDA"])));
-  if (match.familyId === "seizure.movable_asset") fields.push(textField("ASSET_KIND", "Tipo de bien o derecho", "Vehículo o bien mueble", firstContaining(index, ["BIENES MUEBLES", "VEHÍCULO", "VEHICULO"])));
+  if (match.familyId === "assessment.allegations_and_proposal")
+    fields.push(
+      textField(
+        "DOCUMENTATION_REQUIRED",
+        "Documentación necesaria",
+        "Documentación requerida",
+        firstContaining(index, ["DOCUMENTACIÓN", "DOCUMENTACION"]),
+      ),
+      textField(
+        "SANCTION_WARNING",
+        "Aviso sancionador",
+        "Posible procedimiento sancionador separado",
+        firstContaining(index, ["PROCEDIMIENTO SANCIONADOR"]),
+      ),
+    );
+  if (match.familyId === "seizure.commercial_credits")
+    fields.push(
+      textField(
+        "THIRD_PARTY_ROLE",
+        "Papel del tercero",
+        "Tercero pagador",
+        firstContaining(index, [
+          "TERCERO PAGADOR",
+          "TERCERO DESTINATARIO",
+          "ENTIDAD",
+        ]),
+      ),
+      textField(
+        "OBLIGATION_RESPOND",
+        "Obligación de contestar",
+        "Debe contestar",
+        firstContaining(index, [
+          "OBLIGACIÓN DE CONTESTAR",
+          "OBLIGACION DE CONTESTAR",
+        ]),
+      ),
+      textField(
+        "OBLIGATION_WITHHOLD_AND_REMIT",
+        "Obligación si existe crédito",
+        "Retener e ingresar si existe crédito",
+        firstContaining(index, ["RETENER E INGRESAR", "RETENER"]),
+      ),
+      textField(
+        "PAYMENT_TIME",
+        "Momento del ingreso",
+        "Cuando venza el crédito",
+        firstContaining(index, ["CUANDO EL CRÉDITO", "CUANDO EL CREDITO"]),
+      ),
+    );
+  if (match.familyId === "seizure.compliance_reiteration")
+    fields.push(
+      textField(
+        "THIRD_PARTY_ROLE",
+        "Papel del tercero",
+        "Tercero destinatario",
+        firstContaining(index, ["TERCERO", "ENTIDAD"]),
+      ),
+      textField(
+        "REJECTION_REASON",
+        "Motivo de la reiteración",
+        "No consta la recepción del anexo",
+        firstContaining(index, [
+          "NO CONSTA LA RECEPCIÓN DEL ANEXO",
+          "NO CONSTA LA RECEPCION DEL ANEXO",
+          "NO CONSTA",
+        ]),
+      ),
+      textField(
+        "EXPLICIT_CONSEQUENCE",
+        "Consecuencia indicada",
+        "Segundo requerimiento",
+        firstContaining(index, ["SEGUNDO REQUERIMIENTO"]),
+      ),
+    );
+  if (
+    match.familyId === "seizure.release" &&
+    match.subtype === "COMMERCIAL_CREDIT_RELEASE_TO_THIRD_PARTY"
+  )
+    fields.push(
+      textField(
+        "THIRD_PARTY_ROLE",
+        "Papel del tercero",
+        "Tercero destinatario",
+        firstContaining(index, ["TERCERO", "ENTIDAD"]),
+      ),
+    );
+  if (match.familyId === "seizure.bank_account")
+    fields.push(
+      textField(
+        "ACCOUNT_OR_DEPOSIT",
+        "Cuenta o depósito",
+        "Cuenta bancaria",
+        firstContaining(index, ["SALDOS DE LAS CUENTAS", "CUENTAS BANCARIAS"]),
+      ),
+      integerField(
+        "TRANSFER_WAIT_DAYS",
+        "Espera antes del ingreso bancario",
+        20,
+        firstContaining(index, ["20 DÍAS NATURALES", "20 DIAS NATURALES"]),
+      ),
+    );
+  if (match.familyId === "collection.deferral_grant")
+    fields.push(
+      textField(
+        "PAYMENT_METHOD",
+        "Forma de pago",
+        "Domiciliación bancaria",
+        firstContaining(index, ["DOMICILIACIÓN", "DOMICILIACION"]),
+      ),
+      textField(
+        "GUARANTEE_TYPE",
+        "Garantía",
+        "Sin garantía",
+        firstContaining(index, ["SIN GARANTÍA", "SIN GARANTIA"]),
+      ),
+    );
+  if (match.familyId === "collection.enforcement_order")
+    fields.push(
+      textField(
+        "NOTIFICATION_STATE",
+        "Estado de la notificación anterior",
+        "Entrega anterior fallida",
+        firstContaining(index, ["ENTREGA ANTERIOR FALLIDA"]),
+      ),
+    );
+  if (match.familyId === "seizure.movable_asset")
+    fields.push(
+      textField(
+        "ASSET_KIND",
+        "Tipo de bien o derecho",
+        "Vehículo o bien mueble",
+        firstContaining(index, ["BIENES MUEBLES", "VEHÍCULO", "VEHICULO"]),
+      ),
+    );
   return compact(fields);
 }
 

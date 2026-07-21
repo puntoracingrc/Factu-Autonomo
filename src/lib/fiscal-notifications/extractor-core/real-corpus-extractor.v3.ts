@@ -977,7 +977,7 @@ function enforcement(
     ),
     moneyField(
       "EXECUTIVE_SURCHARGE_20",
-      "Recargo ordinario del 20 %",
+      "Recargo de apremio ordinario del 20 %",
       lineValue(index, [
         "Recargo de apremio ordinario 20%",
         "Recargo ordinario 20%",
@@ -1009,7 +1009,7 @@ function enforcement(
     ),
     referenceField(
       "PAYMENT_FORM_REFERENCE",
-      "Referencia de la carta de pago",
+      "Número de la carta de pago",
       lineValue(index, [
         "Referencia de carta de pago",
         "Referencia de pago",

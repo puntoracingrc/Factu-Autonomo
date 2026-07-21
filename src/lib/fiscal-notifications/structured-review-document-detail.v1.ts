@@ -109,6 +109,13 @@ export interface FiscalNotificationDetailEconomyV1 {
   readonly rows: readonly FiscalNotificationDetailAmountRowV1[];
   readonly installments: readonly FiscalNotificationDetailInstallmentRowV1[];
   readonly installmentTotals: FiscalNotificationDetailInstallmentTotalsV1 | null;
+  readonly featuredInstallment: Readonly<{
+    readonly label: string;
+    readonly dueDate: string;
+    readonly total: string;
+    readonly pageNumbers: readonly number[];
+  }> | null;
+  readonly showInstallmentSurcharge: boolean;
   readonly showSourceReference: boolean;
   readonly previewLimit: number;
 }
@@ -198,6 +205,82 @@ export interface FiscalNotificationDocumentDetailViewModelV1 {
     canDelete: boolean;
     driveFileId: string | null;
   }>;
+}
+
+export function fiscalNotificationDetailPrimaryDateLabelV1(
+  familyId: string | null,
+  fallback: string,
+): string {
+  const normalizedFallback = normalizeText(fallback);
+  const canDescribePrimaryAct =
+    /fecha (?:del documento|del acto|de emision|del acuerdo|de la providencia)/u.test(
+      normalizedFallback,
+    );
+  if (
+    canDescribePrimaryAct &&
+    (familyId === "collection.deferral_grant" ||
+      familyId === "collection.deferral_modification")
+  ) {
+    return "Fecha del acuerdo";
+  }
+  if (canDescribePrimaryAct && familyId === "collection.enforcement_order") {
+    return "Fecha de la providencia";
+  }
+  return fallback;
+}
+
+export function fiscalNotificationDetailReviewLabelV1(
+  status: "PENDING" | "REVIEWED",
+): string {
+  return status === "REVIEWED"
+    ? "Revisión personal completada"
+    : "Revisión personal pendiente";
+}
+
+export function projectFiscalNotificationFamilyExplanationV1(
+  familyId: string | null,
+  economy: FiscalNotificationDetailEconomyV1 | null,
+  fallback: FiscalNotificationDetailExplanationV1,
+): FiscalNotificationDetailExplanationV1 {
+  const totals = economy?.installmentTotals;
+  if (familyId === "collection.enforcement_order" && economy) {
+    const amount = (pattern: RegExp): string | null =>
+      economy.rows.find((row) => pattern.test(normalizeText(row.label)))
+        ?.value ?? null;
+    const principal = amount(/principal pendiente/u);
+    const reducedTotal = amount(/recargo reducido/u);
+    const ordinaryTotal = amount(/total.*ordinario/u);
+    if (principal && reducedTotal && ordinaryTotal) {
+      return Object.freeze({
+        ...fallback,
+        documentSays: `La providencia muestra un principal de ${principal}, un total con recargo reducido de ${reducedTotal} y un total ordinario de ${ordinaryTotal}. Los recargos son alternativas y no se suman entre sí.`,
+        officialMeaning: `Hacienda considera pendiente un principal de ${principal}. El documento ofrece un pago con recargo reducido por ${reducedTotal} dentro del plazo aplicable y muestra un total ordinario de ${ordinaryTotal}.`,
+        reviewTitle: "Comprueba la deuda, el origen y la recepción",
+        reviewDetail:
+          "Revisa la clave de liquidación, el modelo y periodo, si existe un pago, compensación o aplazamiento previo, y la fecha efectiva de recepción.",
+      });
+    }
+  }
+  if (
+    (familyId !== "collection.deferral_grant" &&
+      familyId !== "collection.deferral_modification") ||
+    !totals
+  ) {
+    return fallback;
+  }
+  const installmentWord = totals.count === 1 ? "cuota" : "cuotas";
+  return Object.freeze({
+    ...fallback,
+    documentSays: `El acuerdo fija ${totals.count} ${installmentWord} con sus respectivos vencimientos, principales e intereses.`,
+    officialMeaning: `Hacienda ha aceptado que el principal de ${totals.principal} se pague en ${totals.count} ${installmentWord}. Con los intereses del aplazamiento, el total programado asciende a ${totals.total}.`,
+    reviewTitle: "Comprueba el calendario y la domiciliación",
+    reviewDetail:
+      "Revisa la cuenta domiciliada, las fechas de todas las cuotas y que exista saldo suficiente en cada vencimiento.",
+    deadlineTitle: "Cada cuota tiene su propio vencimiento",
+    deadlineDetail:
+      "Cada cuota tiene su propio vencimiento impreso. No existe una única fecha límite para todo el acuerdo.",
+    deadlineBasis: "PRINTED" as const,
+  });
 }
 
 export const FISCAL_NOTIFICATION_DETAIL_GROUP_TITLES_V1: Readonly<
@@ -342,9 +425,15 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
     /\bdependencia\b/u,
     /\badministracion\b/u,
   ]);
-  const model = findHeaderFact(visibleFacts, [/\bmodelo\b/u]);
-  const period = findHeaderFact(visibleFacts, [/\bperiodo\b/u]);
-  const exercise = findHeaderFact(visibleFacts, [/\bejercicio\b/u]);
+  const model = findHeaderFact(visibleFacts, [
+    /^(?:modelo tributario|modelo)$/u,
+  ]);
+  const period = findHeaderFact(visibleFacts, [
+    /^(?:periodo fiscal|periodo)$/u,
+  ]);
+  const exercise = findHeaderFact(visibleFacts, [
+    /^(?:ejercicio fiscal|ejercicio)$/u,
+  ]);
   const act = findHeaderFact(visibleFacts, [
     /\bacto principal\b/u,
     /\btipo de acto\b/u,
@@ -371,7 +460,10 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
     if (fact.semantic === "MONEY" || headerFactKeys.has(fact.key)) continue;
     const groupId = classifyFact(fact);
     const fields = factsByGroup.get(groupId) ?? [];
-    fields.push(projectField(fact));
+    appendUniqueDisplayField(
+      fields,
+      projectField(fact, document.documentSubtype),
+    );
     factsByGroup.set(groupId, fields);
   }
 
@@ -457,6 +549,51 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
   ].filter(
     (item): item is FiscalNotificationDetailHeaderMetaV1 => item !== null,
   );
+  const baseExplanation: FiscalNotificationDetailExplanationV1 = Object.freeze({
+    documentSays: displayTextOrFallback(
+      document.explanation.result,
+      "Revisa los datos impresos que aparecen en esta ficha.",
+    ),
+    officialMeaning: displayTextOrFallback(
+      document.explanation.whyReceived,
+      "La explicación oficial de esta familia documental está pendiente de revisión.",
+    ),
+    reviewTitle: displayTextOrFallback(
+      document.explanation.nextStep.title,
+      "Revisa el documento",
+    ),
+    reviewDetail: displayTextOrFallback(
+      document.explanation.nextStep.detail,
+      "Comprueba los datos impresos antes de decidir cualquier actuación.",
+    ),
+    deadlineTitle: displayTextOrFallback(
+      document.explanation.deadline.title,
+      "Plazo por localizar",
+    ),
+    deadlineDetail: displayTextOrFallback(
+      document.explanation.deadline.detail,
+      "No se ha identificado un vencimiento explícito en los datos guardados.",
+    ),
+    deadlineBasis:
+      document.explanation.deadline.status === "DOCUMENT_STATED"
+        ? ("PRINTED" as const)
+        : ("NOT_IDENTIFIED" as const),
+    calculatedFacts: Object.freeze(
+      document.explanation.keyFacts.flatMap((fact, index) =>
+        fact.basis === "CALCULATED_FROM_PRINTED_VALUES" &&
+        cleanDisplayText(fact.label) &&
+        cleanDisplayText(fact.value)
+          ? [
+              Object.freeze({
+                key: `calculated:${index}`,
+                label: fact.label,
+                value: fact.value,
+              }),
+            ]
+          : [],
+      ),
+    ),
+  });
 
   return Object.freeze({
     documentId: document.key,
@@ -477,70 +614,33 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
         "Organismo no identificado",
       ),
       issuingUnit: issuingUnit?.value ?? null,
-      primaryDateLabel: document.documentDate
-        ? formatDocumentDateBasis(document.documentDateBasis)
-        : "Fecha del documento",
+      primaryDateLabel: fiscalNotificationDetailPrimaryDateLabelV1(
+        document.documentSubtype,
+        document.documentDate
+          ? formatDocumentDateBasis(document.documentDateBasis)
+          : "Fecha del documento",
+      ),
       primaryDateValue: document.documentDate
         ? formatCalendarDate(document.documentDate)
         : "No identificada",
       primaryDateProvenance: primaryDateFact
-        ? projectField(primaryDateFact).provenance
+        ? projectField(primaryDateFact, document.documentSubtype).provenance
         : null,
       reviewStatus: document.reviewStatus,
-      reviewLabel: document.reviewLabel,
+      reviewLabel: fiscalNotificationDetailReviewLabelV1(document.reviewStatus),
       originalLabel: document.originalArchive
         ? "Original en Drive"
-        : "Original no disponible",
+        : "PDF original no archivado",
       metadata: Object.freeze(metadata),
     }),
     factGroups: Object.freeze(factGroups),
     economy,
     integrity,
-    explanation: Object.freeze({
-      documentSays: displayTextOrFallback(
-        document.explanation.result,
-        "Revisa los datos impresos que aparecen en esta ficha.",
-      ),
-      officialMeaning: displayTextOrFallback(
-        document.explanation.whyReceived,
-        "La explicación oficial de esta familia documental está pendiente de revisión.",
-      ),
-      reviewTitle: displayTextOrFallback(
-        document.explanation.nextStep.title,
-        "Revisa el documento",
-      ),
-      reviewDetail: displayTextOrFallback(
-        document.explanation.nextStep.detail,
-        "Comprueba los datos impresos antes de decidir cualquier actuación.",
-      ),
-      deadlineTitle: displayTextOrFallback(
-        document.explanation.deadline.title,
-        "Plazo por localizar",
-      ),
-      deadlineDetail: displayTextOrFallback(
-        document.explanation.deadline.detail,
-        "No se ha identificado un vencimiento explícito en los datos guardados.",
-      ),
-      deadlineBasis:
-        document.explanation.deadline.status === "DOCUMENT_STATED"
-          ? ("PRINTED" as const)
-          : ("NOT_IDENTIFIED" as const),
-      calculatedFacts: Object.freeze(
-        document.explanation.keyFacts.flatMap((fact, index) =>
-          fact.basis === "CALCULATED_FROM_PRINTED_VALUES" &&
-          cleanDisplayText(fact.label) &&
-          cleanDisplayText(fact.value)
-            ? [
-                Object.freeze({
-                  key: `calculated:${index}`,
-                  label: fact.label,
-                  value: fact.value,
-                }),
-              ]
-            : [],
-        ),
-      ),
-    }),
+    explanation: projectFiscalNotificationFamilyExplanationV1(
+      document.documentSubtype,
+      economy,
+      baseExplanation,
+    ),
     connections,
     siblingActs: Object.freeze(siblingActs),
     actions: Object.freeze({
@@ -548,6 +648,38 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
       driveFileId: document.originalArchive?.driveFileId ?? null,
     }),
   });
+}
+
+function appendUniqueDisplayField(
+  fields: FiscalNotificationDetailFieldV1[],
+  candidate: FiscalNotificationDetailFieldV1,
+): void {
+  const existingIndex = fields.findIndex(
+    (field) =>
+      normalizeText(field.label) === normalizeText(candidate.label) &&
+      normalizeText(field.value) === normalizeText(candidate.value),
+  );
+  if (existingIndex >= 0) {
+    const existing = fields[existingIndex]!;
+    const pageNumbers = Object.freeze(
+      [
+        ...new Set([
+          ...(existing.provenance.pageNumbers ?? [existing.provenance.pageNumber]),
+          ...(candidate.provenance.pageNumbers ?? [candidate.provenance.pageNumber]),
+        ]),
+      ].sort((left, right) => left - right),
+    );
+    fields[existingIndex] = Object.freeze({
+      ...existing,
+      provenance: Object.freeze({
+        ...existing.provenance,
+        pageNumber: pageNumbers[0]!,
+        pageNumbers,
+      }),
+    });
+    return;
+  }
+  fields.push(candidate);
 }
 
 export function projectFiscalNotificationDetailIntegrityV11(
@@ -578,15 +710,20 @@ export function projectFiscalNotificationDetailIntegrityV11(
 
 function projectField(
   fact: FiscalNotificationStructuredHistoryOrderedFactV1,
+  familyId: string | null,
 ): FiscalNotificationDetailFieldV1 {
-  const value = maskSensitiveIdentifiers(fact.label, fact.value);
+  const presentation = storedFieldPresentation(fact, familyId);
+  const value = maskSensitiveIdentifiers(
+    presentation.label,
+    presentation.value,
+  );
   return Object.freeze({
     key: fact.key,
-    label: fact.label,
+    label: presentation.label,
     value,
     provenance: Object.freeze({
       key: `provenance:${fact.key}`,
-      fieldLabel: fact.label,
+      fieldLabel: presentation.label,
       value,
       pageNumber: fact.pageNumber,
       basis: "PRINTED" as const,
@@ -602,28 +739,34 @@ function projectEconomy(
     return null;
   }
   const installmentAmounts = projectedInstallmentAmounts(document);
-  const rows = document.money.flatMap((fact) => {
-    const label = cleanDisplayText(fact.label);
-    if (
-      !label ||
-      (document.installments.length > 0 &&
-        isInstallmentMoneyDuplicate(label, fact.amountCents, installmentAmounts))
-    ) {
-      return [];
-    }
-    return [
-      Object.freeze({
-        key: fact.key,
-        label,
-        value: formatMoney(fact.amountCents, fact.currency),
-        currencyLabel: fact.currency === "EUR" ? "EUR" : "No indicada",
-        sourceReference: fact.sourceReference
-          ? cleanDisplayText(fact.sourceReference)
-          : null,
-        pageNumbers: Object.freeze([...fact.pageNumbers]),
-      }),
-    ];
-  });
+  const rows = deduplicateAmountRows(
+    document.money.flatMap((fact) => {
+      const label = cleanDisplayText(fact.label);
+      if (
+        !label ||
+        (document.installments.length > 0 &&
+          isInstallmentMoneyDuplicate(
+            label,
+            fact.amountCents,
+            installmentAmounts,
+          ))
+      ) {
+        return [];
+      }
+      return [
+        Object.freeze({
+          key: fact.key,
+          label,
+          value: formatMoney(fact.amountCents, fact.currency),
+          currencyLabel: fact.currency === "EUR" ? "EUR" : "No indicada",
+          sourceReference: fact.sourceReference
+            ? cleanDisplayText(fact.sourceReference)
+            : null,
+          pageNumbers: Object.freeze([...fact.pageNumbers]),
+        }),
+      ];
+    }),
+  );
   const installments = document.installments.flatMap((installment) => {
     const label = cleanDisplayText(installment.label);
     if (!label) return [];
@@ -661,13 +804,16 @@ function projectEconomy(
     ];
   });
   const installmentTotals = projectInstallmentTotals(document.installments);
+  const firstInstallment = installments.find(
+    (installment) => installment.dueDate && installment.total,
+  );
   const summary = installmentTotals
     ? installmentSummaryRows(installmentTotals)
     : [...rows]
         .sort(
           (left, right) =>
-            amountSummaryPriority(left.label) -
-            amountSummaryPriority(right.label),
+            amountSummaryPriority(left.label, document.documentSubtype) -
+            amountSummaryPriority(right.label, document.documentSubtype),
         )
         .slice(0, 4);
   if (rows.length === 0 && installments.length === 0) return null;
@@ -676,6 +822,17 @@ function projectEconomy(
     rows: Object.freeze(rows),
     installments: Object.freeze(installments),
     installmentTotals,
+    featuredInstallment:
+      firstInstallment?.dueDate && firstInstallment.total
+        ? Object.freeze({
+            label: "Primera cuota del calendario",
+            dueDate: firstInstallment.dueDate,
+            total: firstInstallment.total,
+            pageNumbers: firstInstallment.pageNumbers,
+          })
+        : null,
+    showInstallmentSurcharge:
+      installmentTotals !== null && installmentTotals.surcharge !== "0,00 €",
     showSourceReference: rows.some((row) => row.sourceReference !== null),
     previewLimit: FISCAL_NOTIFICATION_DETAIL_TABLE_LIMIT_V1,
   });
@@ -898,6 +1055,13 @@ export function classifyFiscalNotificationDetailFactV1(fact: {
 function isVisibleFact(
   fact: FiscalNotificationStructuredHistoryOrderedFactV1,
 ): boolean {
+  if (
+    fact.semantic === "REFERENCE" &&
+    normalizeText(fact.label) === "referencia oficial" &&
+    /^\d{1,3}$/u.test(fact.value.trim())
+  ) {
+    return false;
+  }
   return (
     fact.label.trim().length > 0 &&
     fact.value.trim().length > 0 &&
@@ -919,7 +1083,7 @@ function deduplicateVisibleFacts(
       fact.semantic,
       fact.label,
     );
-    const identity = `${fact.semantic}\u0000${duplicateGroup ?? normalizeText(fact.label)}\u0000${normalizeText(fact.value)}`;
+    const identity = `${fact.semantic}\u0000${duplicateGroup ?? normalizeText(fact.label)}\u0000${normalizeText(fact.value)}\u0000${duplicateGroup ? "" : fact.pageNumber}`;
     if (identities.has(identity)) return false;
     identities.add(identity);
     return true;
@@ -948,11 +1112,39 @@ function knownDuplicateDisplayGroup(
   if (
     semantic === "REFERENCE" &&
     (/clave de liquidacion/u.test(normalized) ||
-      /clave de deuda/u.test(normalized))
+      /clave de deuda/u.test(normalized) ||
+      /acto o requerimiento/u.test(normalized))
   ) {
     return "DEBT_OR_LIQUIDATION";
   }
   return null;
+}
+
+function storedFieldPresentation(
+  fact: FiscalNotificationStructuredHistoryOrderedFactV1,
+  familyId: string | null,
+): Readonly<{ label: string; value: string }> {
+  if (
+    (fact.semantic === "PARTY" || fact.semantic === "MASKED_VALUE") &&
+    (/deudor principal/u.test(normalizeText(fact.label)) ||
+      normalizeText(fact.label) === normalizeText(fact.value))
+  ) {
+    return Object.freeze({
+      label: "Tu papel en el documento",
+      value: "Obligado al pago",
+    });
+  }
+  if (
+    familyId === "collection.enforcement_order" &&
+    fact.semantic === "REFERENCE" &&
+    normalizeText(fact.label) === "justificante de pago"
+  ) {
+    return Object.freeze({
+      label: "Número de la carta de pago",
+      value: fact.value,
+    });
+  }
+  return Object.freeze({ label: fact.label, value: fact.value });
 }
 
 function isProjectedInstallmentFact(
@@ -1099,12 +1291,30 @@ function documentTypeLabel(value: string): string {
   return DOCUMENT_TYPE_LABELS[value] ?? "Documento fiscal";
 }
 
-function amountSummaryPriority(label: string): number {
+function amountSummaryPriority(label: string, familyId: string | null): number {
   const normalized = normalizeText(label);
+  if (familyId === "collection.enforcement_order") {
+    if (/principal pendiente/u.test(normalized)) return 0;
+    if (/recargo reducido/u.test(normalized)) return 1;
+    if (/total.*ordinario/u.test(normalized)) return 2;
+    if (/recargo.*5/u.test(normalized)) return 3;
+  }
   if (/total|importe a ingresar|importe a devolver/u.test(normalized)) return 0;
   if (/pendiente|principal|cuota/u.test(normalized)) return 1;
   if (/recargo|interes|costas/u.test(normalized)) return 2;
   return 3;
+}
+
+function deduplicateAmountRows(
+  rows: readonly FiscalNotificationDetailAmountRowV1[],
+): readonly FiscalNotificationDetailAmountRowV1[] {
+  const identities = new Set<string>();
+  return rows.filter((row) => {
+    const identity = `${normalizeText(row.label)}\u0000${row.value}`;
+    if (identities.has(identity)) return false;
+    identities.add(identity);
+    return true;
+  });
 }
 
 function compareTimelineDocuments(

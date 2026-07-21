@@ -23,8 +23,7 @@ export const FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_LIMITS_V11 =
   } as const);
 
 export type FiscalNotificationIntegritySourcePartV11 =
-  | (typeof DOCUMENT_SEGMENT_TYPES_V1)[number]
-  | "MULTIPLE_PARTS";
+  (typeof DOCUMENT_SEGMENT_TYPES_V1)[number] | "MULTIPLE_PARTS";
 
 export interface FiscalNotificationIntegrityEvidenceRefV11 {
   readonly evidenceId: string;
@@ -44,6 +43,12 @@ export type FiscalNotificationIntegrityCalculationV11 =
     }>
   | Readonly<{
       readonly kind: "PERCENTAGE_EQUALITY";
+      readonly resultEvidenceId: string;
+      readonly baseEvidenceId: string;
+      readonly rateBasisPoints: number;
+    }>
+  | Readonly<{
+      readonly kind: "BASE_PLUS_PERCENTAGE";
       readonly resultEvidenceId: string;
       readonly baseEvidenceId: string;
       readonly rateBasisPoints: number;
@@ -78,12 +83,7 @@ export interface FiscalNotificationIntegrityNormalizedEvidenceV11 {
   readonly evidenceId: string;
   readonly sourceFieldFingerprint: `sha256:${string}`;
   readonly semantic:
-    | "MONEY"
-    | "DATE"
-    | "REFERENCE"
-    | "STATUS"
-    | "COUNT"
-    | "OTHER";
+    "MONEY" | "DATE" | "REFERENCE" | "STATUS" | "COUNT" | "OTHER";
   readonly canonicalType: string;
   readonly originalClassification: string;
   readonly amountCents: number | null;
@@ -594,7 +594,7 @@ function parseCalculation(
       terms: Object.freeze(terms),
     });
   }
-  if (kind === "PERCENTAGE_EQUALITY") {
+  if (kind === "PERCENTAGE_EQUALITY" || kind === "BASE_PLUS_PERCENTAGE") {
     const item = exactRecord(value, CALCULATION_PERCENTAGE_KEYS);
     if (
       !Number.isSafeInteger(item.rateBasisPoints) ||
@@ -609,10 +609,7 @@ function parseCalculation(
         item.resultEvidenceId,
         evidenceById,
       ),
-      baseEvidenceId: calculationEvidenceId(
-        item.baseEvidenceId,
-        evidenceById,
-      ),
+      baseEvidenceId: calculationEvidenceId(item.baseEvidenceId, evidenceById),
       rateBasisPoints: Number(item.rateBasisPoints),
     });
   }
@@ -631,10 +628,7 @@ function parseCalculation(
     if (item.operator !== "LTE" && item.operator !== "GTE") invalid();
     return Object.freeze({
       kind,
-      leftEvidenceId: calculationEvidenceId(
-        item.leftEvidenceId,
-        evidenceById,
-      ),
+      leftEvidenceId: calculationEvidenceId(item.leftEvidenceId, evidenceById),
       operator: item.operator,
       rightEvidenceId: calculationEvidenceId(
         item.rightEvidenceId,
@@ -709,6 +703,7 @@ function validateCalculatedCheck(
   if (
     calculation.kind === "LINEAR_EQUALITY" ||
     calculation.kind === "PERCENTAGE_EQUALITY" ||
+    calculation.kind === "BASE_PLUS_PERCENTAGE" ||
     calculation.kind === "ZERO_EQUALITY"
   ) {
     const result = moneyEvidence(calculation.resultEvidenceId, evidenceById);
@@ -716,16 +711,23 @@ function validateCalculatedCheck(
       calculation.kind === "LINEAR_EQUALITY"
         ? calculation.terms.reduce(
             (total, term) =>
-              total +
-              term.sign * moneyEvidence(term.evidenceId, evidenceById),
+              total + term.sign * moneyEvidence(term.evidenceId, evidenceById),
             0,
           )
-        : calculation.kind === "PERCENTAGE_EQUALITY"
-          ? Math.round(
-            (moneyEvidence(calculation.baseEvidenceId, evidenceById) *
-              calculation.rateBasisPoints) /
-              10_000,
-            )
+        : calculation.kind === "PERCENTAGE_EQUALITY" ||
+            calculation.kind === "BASE_PLUS_PERCENTAGE"
+          ? (() => {
+              const base = moneyEvidence(
+                calculation.baseEvidenceId,
+                evidenceById,
+              );
+              const percentage = Math.round(
+                (base * calculation.rateBasisPoints) / 10_000,
+              );
+              return calculation.kind === "BASE_PLUS_PERCENTAGE"
+                ? base + percentage
+                : percentage;
+            })()
           : 0;
     validateMoneyResult(
       status,
@@ -772,8 +774,7 @@ function validateCalculatedCheck(
     const ordered =
       calculation.operator === "LTE" ? left <= right : left >= right;
     if (
-      status !==
-      (ordered ? "VALIDATED_EXACT" : "INCONSISTENT_PRINTED_VALUES")
+      status !== (ordered ? "VALIDATED_EXACT" : "INCONSISTENT_PRINTED_VALUES")
     ) {
       invalid();
     }
@@ -793,7 +794,8 @@ function validateCalculatedCheck(
       ? calculation.operator === "LTE"
         ? values[0]! <= values[1]!
         : values[0]! >= values[1]!
-      : values[0]! >= 0 && values.every((value, index) =>
+      : values[0]! >= 0 &&
+        values.every((value, index) =>
           index === 0 ? true : values[index - 1]! <= value,
         );
   const expected = values.at(-1)!;
@@ -803,15 +805,17 @@ function validateCalculatedCheck(
     observedCents !== observed ||
     deltaCents !== observed - expected ||
     toleranceCents !== 0 ||
-    status !==
-      (ordered ? "VALIDATED_EXACT" : "INCONSISTENT_PRINTED_VALUES")
+    status !== (ordered ? "VALIDATED_EXACT" : "INCONSISTENT_PRINTED_VALUES")
   ) {
     invalid();
   }
 }
 
 function calculationEvidenceIds(
-  calculation: Exclude<FiscalNotificationIntegrityCalculationV11, { kind: "NONE" }>,
+  calculation: Exclude<
+    FiscalNotificationIntegrityCalculationV11,
+    { kind: "NONE" }
+  >,
 ): Set<string> {
   switch (calculation.kind) {
     case "LINEAR_EQUALITY":
@@ -821,6 +825,7 @@ function calculationEvidenceIds(
         ...calculation.terms.map((term) => term.evidenceId),
       ]);
     case "PERCENTAGE_EQUALITY":
+    case "BASE_PLUS_PERCENTAGE":
       return new Set([
         calculation.resultEvidenceId,
         calculation.baseEvidenceId,
@@ -829,10 +834,7 @@ function calculationEvidenceIds(
       return new Set([calculation.resultEvidenceId]);
     case "AMOUNT_ORDER":
     case "DATE_ORDER":
-      return new Set([
-        calculation.leftEvidenceId,
-        calculation.rightEvidenceId,
-      ]);
+      return new Set([calculation.leftEvidenceId, calculation.rightEvidenceId]);
     case "AMOUNT_CHAIN":
       return new Set(calculation.evidenceIds);
   }

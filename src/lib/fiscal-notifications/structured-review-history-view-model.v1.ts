@@ -147,7 +147,7 @@ const MONEY_LABELS: Readonly<Record<AdministrativeMoneyKind, string>> = {
   LATE_PAYMENT_INTEREST: "Interés de demora",
   EXECUTIVE_SURCHARGE_5: "Recargo ejecutivo del 5 %",
   EXECUTIVE_SURCHARGE_10: "Recargo reducido del 10 %",
-  EXECUTIVE_SURCHARGE_20: "Recargo ordinario del 20 %",
+  EXECUTIVE_SURCHARGE_20: "Recargo de apremio ordinario del 20 %",
   SANCTION_INITIAL: "Sanción inicial",
   SANCTION_REDUCTION: "Reducción de sanción",
   SANCTION_REDUCED: "Sanción reducida",

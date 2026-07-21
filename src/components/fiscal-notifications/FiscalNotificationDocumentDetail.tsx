@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   BookOpen,
   CalendarDays,
+  CheckCircle2,
   ChevronDown,
   Clock3,
   Cloud,
@@ -430,6 +431,22 @@ function DocumentHeader({
             ) : null}
           </div>
           <div className="mt-4 space-y-2 text-xs font-semibold">
+            <p className="inline-flex items-center gap-1.5 text-emerald-700">
+              <CheckCircle2
+                aria-hidden="true"
+                className="h-3.5 w-3.5 shrink-0"
+              />
+              Documento reconocido
+            </p>
+            {detail.integrity?.status === "VALIDATED" ? (
+              <p className="flex items-center gap-1.5 text-emerald-700">
+                <CheckCircle2
+                  aria-hidden="true"
+                  className="h-3.5 w-3.5 shrink-0"
+                />
+                Importes comprobados
+              </p>
+            ) : null}
             <p>
               <FiscalNotificationReviewStatus
                 status={header.reviewStatus}
@@ -723,22 +740,54 @@ function EconomySection({
                 vinculados.
               </p>
             </div>
-            {economy.installmentTotals?.surcharge === "0,00 €" ? (
+            {!economy.showInstallmentSurcharge ? (
               <p className="text-xs font-semibold text-emerald-700">
-                Sin recargo ejecutivo
+                El calendario concedido no incorpora recargo ejecutivo
               </p>
             ) : null}
           </div>
+          {economy.featuredInstallment ? (
+            <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-l-2 border-blue-500 bg-blue-50 px-3 py-2 text-sm text-blue-950">
+              <CalendarDays
+                aria-hidden="true"
+                className="h-4 w-4 shrink-0 text-blue-700"
+              />
+              <span className="font-semibold">
+                {economy.featuredInstallment.label}:
+              </span>
+              <span>{economy.featuredInstallment.dueDate}</span>
+              <span aria-hidden="true">·</span>
+              <span className="font-bold">
+                {economy.featuredInstallment.total}
+              </span>
+            </div>
+          ) : null}
           <div className="mt-3 overflow-x-auto rounded-md border border-slate-200">
-            <table className="w-full min-w-[58rem] border-collapse text-left text-sm">
+            <table
+              className={`w-full border-collapse text-left text-sm ${economy.showInstallmentSurcharge ? "min-w-[58rem]" : "min-w-[48rem]"}`}
+            >
               <thead className="bg-slate-50 text-xs font-bold text-slate-600">
                 <tr>
-                  <th scope="col" className="px-3 py-3">Cuota</th>
-                  <th scope="col" className="px-3 py-3">Vencimiento</th>
-                  <th scope="col" className="px-3 py-3 text-right">Principal</th>
-                  <th scope="col" className="px-3 py-3 text-right">Intereses de demora</th>
-                  <th scope="col" className="px-3 py-3 text-right">Recargo ejecutivo</th>
-                  <th scope="col" className="px-3 py-3 text-right">Total cuota</th>
+                  <th scope="col" className="px-3 py-3">
+                    Cuota
+                  </th>
+                  <th scope="col" className="px-3 py-3">
+                    Vencimiento
+                  </th>
+                  <th scope="col" className="px-3 py-3 text-right">
+                    Principal
+                  </th>
+                  <th scope="col" className="px-3 py-3 text-right">
+                    Intereses de demora
+                  </th>
+                  {economy.showInstallmentSurcharge ? (
+                    <th scope="col" className="px-3 py-3 text-right">
+                      Recargo ejecutivo
+                    </th>
+                  ) : null}
+                  <th scope="col" className="px-3 py-3 text-right">
+                    Total cuota
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -746,6 +795,7 @@ function EconomySection({
                   <InstallmentTableRow
                     key={installment.key}
                     installment={installment}
+                    showSurcharge={economy.showInstallmentSurcharge}
                     onShowProvenance={onShowProvenance}
                   />
                 ))}
@@ -753,14 +803,26 @@ function EconomySection({
               {economy.installmentTotals ? (
                 <tfoot className="border-t-2 border-slate-200 bg-blue-50/60 font-bold text-slate-950">
                   <tr>
-                    <th scope="row" className="px-3 py-3">Totales</th>
+                    <th scope="row" className="px-3 py-3">
+                      Totales
+                    </th>
                     <td className="px-3 py-3 text-slate-500">
                       {economy.installmentTotals.count} cuotas
                     </td>
-                    <td className="px-3 py-3 text-right">{economy.installmentTotals.principal}</td>
-                    <td className="px-3 py-3 text-right">{economy.installmentTotals.interest}</td>
-                    <td className="px-3 py-3 text-right">{economy.installmentTotals.surcharge}</td>
-                    <td className="px-3 py-3 text-right text-blue-700">{economy.installmentTotals.total}</td>
+                    <td className="px-3 py-3 text-right">
+                      {economy.installmentTotals.principal}
+                    </td>
+                    <td className="px-3 py-3 text-right">
+                      {economy.installmentTotals.interest}
+                    </td>
+                    {economy.showInstallmentSurcharge ? (
+                      <td className="px-3 py-3 text-right">
+                        {economy.installmentTotals.surcharge}
+                      </td>
+                    ) : null}
+                    <td className="px-3 py-3 text-right text-blue-700">
+                      {economy.installmentTotals.total}
+                    </td>
                   </tr>
                 </tfoot>
               ) : null}
@@ -774,9 +836,11 @@ function EconomySection({
 
 function InstallmentTableRow({
   installment,
+  showSurcharge,
   onShowProvenance,
 }: {
   readonly installment: FiscalNotificationDetailEconomyV1["installments"][number];
+  readonly showSurcharge: boolean;
   readonly onShowProvenance: (selection: ProvenanceSelection) => void;
 }) {
   const component = (pattern: RegExp) =>
@@ -786,7 +850,10 @@ function InstallmentTableRow({
   const surcharge = component(/recargo/iu);
   return (
     <tr className="text-slate-700">
-      <th scope="row" className="whitespace-nowrap px-3 py-3 font-bold text-slate-950">
+      <th
+        scope="row"
+        className="whitespace-nowrap px-3 py-3 font-bold text-slate-950"
+      >
         {installment.label}
       </th>
       <InstallmentTableCell
@@ -812,14 +879,16 @@ function InstallmentTableRow({
         onShowProvenance={onShowProvenance}
         align="right"
       />
-      <InstallmentTableCell
-        installmentKey={installment.key}
-        label="Recargo ejecutivo"
-        value={surcharge?.value ?? null}
-        pageNumbers={surcharge?.pageNumbers ?? []}
-        onShowProvenance={onShowProvenance}
-        align="right"
-      />
+      {showSurcharge ? (
+        <InstallmentTableCell
+          installmentKey={installment.key}
+          label="Recargo ejecutivo"
+          value={surcharge?.value ?? null}
+          pageNumbers={surcharge?.pageNumbers ?? []}
+          onShowProvenance={onShowProvenance}
+          align="right"
+        />
+      ) : null}
       <InstallmentTableCell
         installmentKey={installment.key}
         label="Total cuota"

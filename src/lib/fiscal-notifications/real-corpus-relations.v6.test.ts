@@ -105,61 +105,300 @@ function findRelation(
 describe("AEAT real corpus relations V6", () => {
   it("creates the 15 exact installment relations required by V6", () => {
     const plans = [
-      grant({ id: "V6-S09", debtKey: "SYN-DEBT-IVA-2T", installments: [
-        { dueDate: "2027-01-20", baseCents: 10_000, deferralInterestCents: 100, totalCents: 10_100 },
-        { dueDate: "2027-02-20", baseCents: 10_000, deferralInterestCents: 200, totalCents: 10_200 },
-        { dueDate: "2027-03-20", baseCents: 10_000, deferralInterestCents: 300, totalCents: 10_300 },
-      ] }),
-      grant({ id: "V6-S10", debtKey: "SYN-DEBT-IRPF-2T", installments: [
-        { dueDate: "2027-01-20", baseCents: 8_000, deferralInterestCents: 100, totalCents: 8_100 },
-        { dueDate: "2027-02-20", baseCents: 8_000, deferralInterestCents: 200, totalCents: 8_200 },
-        { dueDate: "2027-03-20", baseCents: 8_000, deferralInterestCents: 300, totalCents: 8_300 },
-      ] }),
-      grant({ id: "V6-S07", debtKey: "SYN-DEBT-IVA-3T", installments: [
-        { dueDate: "2027-04-20", baseCents: 12_000, deferralInterestCents: 100, totalCents: 12_100 },
-        { dueDate: "2027-05-20", baseCents: 12_000, deferralInterestCents: 200, totalCents: 12_200 },
-        { dueDate: "2027-06-20", baseCents: 12_000, deferralInterestCents: 300, totalCents: 12_300 },
-      ] }),
-      grant({ id: "V6-S08", debtKey: "SYN-DEBT-IRPF-3T", installments: [
-        { dueDate: "2027-04-20", baseCents: 6_000, deferralInterestCents: 100, totalCents: 6_100 },
-        { dueDate: "2027-05-20", baseCents: 6_000, deferralInterestCents: 200, totalCents: 6_200 },
-        { dueDate: "2027-06-20", baseCents: 6_000, deferralInterestCents: 300, totalCents: 6_300 },
-      ] }),
-      grant({ id: "V6-S01", debtKey: "SYN-DEBT-IVA-4T", installments: [
-        { dueDate: "2027-01-20", baseCents: 10_000, deferralInterestCents: 10, totalCents: 10_010 },
-        { dueDate: "2027-02-20", baseCents: 10_000, deferralInterestCents: 20, totalCents: 10_020 },
-        { dueDate: "2027-03-20", baseCents: 10_000, deferralInterestCents: 30, totalCents: 10_030 },
-      ] }),
+      grant({
+        id: "V6-S09",
+        debtKey: "SYN-DEBT-IVA-2T",
+        installments: [
+          {
+            dueDate: "2027-01-20",
+            baseCents: 10_000,
+            deferralInterestCents: 100,
+            totalCents: 10_100,
+          },
+          {
+            dueDate: "2027-02-20",
+            baseCents: 10_000,
+            deferralInterestCents: 200,
+            totalCents: 10_200,
+          },
+          {
+            dueDate: "2027-03-20",
+            baseCents: 10_000,
+            deferralInterestCents: 300,
+            totalCents: 10_300,
+          },
+        ],
+      }),
+      grant({
+        id: "V6-S10",
+        debtKey: "SYN-DEBT-IRPF-2T",
+        installments: [
+          {
+            dueDate: "2027-01-20",
+            baseCents: 8_000,
+            deferralInterestCents: 100,
+            totalCents: 8_100,
+          },
+          {
+            dueDate: "2027-02-20",
+            baseCents: 8_000,
+            deferralInterestCents: 200,
+            totalCents: 8_200,
+          },
+          {
+            dueDate: "2027-03-20",
+            baseCents: 8_000,
+            deferralInterestCents: 300,
+            totalCents: 8_300,
+          },
+        ],
+      }),
+      grant({
+        id: "V6-S07",
+        debtKey: "SYN-DEBT-IVA-3T",
+        installments: [
+          {
+            dueDate: "2027-04-20",
+            baseCents: 12_000,
+            deferralInterestCents: 100,
+            totalCents: 12_100,
+          },
+          {
+            dueDate: "2027-05-20",
+            baseCents: 12_000,
+            deferralInterestCents: 200,
+            totalCents: 12_200,
+          },
+          {
+            dueDate: "2027-06-20",
+            baseCents: 12_000,
+            deferralInterestCents: 300,
+            totalCents: 12_300,
+          },
+        ],
+      }),
+      grant({
+        id: "V6-S08",
+        debtKey: "SYN-DEBT-IRPF-3T",
+        installments: [
+          {
+            dueDate: "2027-04-20",
+            baseCents: 6_000,
+            deferralInterestCents: 100,
+            totalCents: 6_100,
+          },
+          {
+            dueDate: "2027-05-20",
+            baseCents: 6_000,
+            deferralInterestCents: 200,
+            totalCents: 6_200,
+          },
+          {
+            dueDate: "2027-06-20",
+            baseCents: 6_000,
+            deferralInterestCents: 300,
+            totalCents: 6_300,
+          },
+        ],
+      }),
+      grant({
+        id: "V6-S01",
+        debtKey: "SYN-DEBT-IVA-4T",
+        installments: [
+          {
+            dueDate: "2027-01-20",
+            baseCents: 10_000,
+            deferralInterestCents: 10,
+            totalCents: 10_010,
+          },
+          {
+            dueDate: "2027-02-20",
+            baseCents: 10_000,
+            deferralInterestCents: 20,
+            totalCents: 10_020,
+          },
+          {
+            dueDate: "2027-03-20",
+            baseCents: 10_000,
+            deferralInterestCents: 30,
+            totalCents: 10_030,
+          },
+        ],
+      }),
     ];
     const enforcements = [
-      [plans[0]!, enforcement({ id: "V6-S04", debtKey: "SYN-DEBT-IVA-2T", voluntaryEndDate: "2027-01-20", principalCents: 10_100, ordinaryTotalCents: 12_120 })],
-      [plans[0]!, enforcement({ id: "V6-S03", debtKey: "SYN-DEBT-IVA-2T", voluntaryEndDate: "2027-02-20", principalCents: 10_200, ordinaryTotalCents: 12_240 })],
-      [plans[0]!, enforcement({ id: "V6-S02", debtKey: "SYN-DEBT-IVA-2T", voluntaryEndDate: "2027-03-20", principalCents: 10_300, ordinaryTotalCents: 12_360 })],
-      [plans[1]!, enforcement({ id: "V6-S05", debtKey: "SYN-DEBT-IRPF-2T", voluntaryEndDate: "2027-01-20", principalCents: 8_100, ordinaryTotalCents: 9_720 })],
-      [plans[1]!, enforcement({ id: "V6-S06", debtKey: "SYN-DEBT-IRPF-2T", voluntaryEndDate: "2027-02-20", principalCents: 8_200, ordinaryTotalCents: 9_840 })],
-      [plans[1]!, enforcement({ id: "V6-EXT-P69-Q3", debtKey: "SYN-DEBT-IRPF-2T", voluntaryEndDate: "2027-03-20", principalCents: 8_300, ordinaryTotalCents: 9_960 })],
-      [plans[2]!, enforcement({ id: "V6-EXT-P66-Q1", debtKey: "SYN-DEBT-IVA-3T", voluntaryEndDate: "2027-04-20", principalCents: 12_100, ordinaryTotalCents: 14_520 })],
-      [plans[2]!, enforcement({ id: "V6-EXT-P66-Q2", debtKey: "SYN-DEBT-IVA-3T", voluntaryEndDate: "2027-05-20", principalCents: 12_200, ordinaryTotalCents: 14_640 })],
-      [plans[2]!, enforcement({ id: "V6-EXT-P66-Q3", debtKey: "SYN-DEBT-IVA-3T", voluntaryEndDate: "2027-06-20", principalCents: 12_300, ordinaryTotalCents: 14_760 })],
-      [plans[3]!, enforcement({ id: "V6-EXT-P67-Q1", debtKey: "SYN-DEBT-IRPF-3T", voluntaryEndDate: "2027-04-20", principalCents: 6_100, ordinaryTotalCents: 7_320 })],
-      [plans[3]!, enforcement({ id: "V6-EXT-P67-Q2", debtKey: "SYN-DEBT-IRPF-3T", voluntaryEndDate: "2027-05-20", principalCents: 6_200, ordinaryTotalCents: 7_440 })],
-      [plans[3]!, enforcement({ id: "V6-EXT-P67-Q3", debtKey: "SYN-DEBT-IRPF-3T", voluntaryEndDate: "2027-06-20", principalCents: 6_300, ordinaryTotalCents: 7_560 })],
-      [plans[4]!, enforcement({ id: "V6-EXT-P60-Q1", debtKey: "SYN-DEBT-IVA-4T", voluntaryEndDate: "2027-01-20", principalCents: 10_010, ordinaryTotalCents: 12_012 })],
-      [plans[4]!, enforcement({ id: "V6-EXT-P60-Q2", debtKey: "SYN-DEBT-IVA-4T", voluntaryEndDate: "2027-02-20", principalCents: 10_020, ordinaryTotalCents: 12_024 })],
-      [plans[4]!, enforcement({ id: "V6-EXT-P60-Q3", debtKey: "SYN-DEBT-IVA-4T", voluntaryEndDate: "2027-03-20", principalCents: 10_030, ordinaryTotalCents: 12_036 })],
+      [
+        plans[0]!,
+        enforcement({
+          id: "V6-S04",
+          debtKey: "SYN-DEBT-IVA-2T",
+          voluntaryEndDate: "2027-01-20",
+          principalCents: 10_100,
+          ordinaryTotalCents: 12_120,
+        }),
+      ],
+      [
+        plans[0]!,
+        enforcement({
+          id: "V6-S03",
+          debtKey: "SYN-DEBT-IVA-2T",
+          voluntaryEndDate: "2027-02-20",
+          principalCents: 10_200,
+          ordinaryTotalCents: 12_240,
+        }),
+      ],
+      [
+        plans[0]!,
+        enforcement({
+          id: "V6-S02",
+          debtKey: "SYN-DEBT-IVA-2T",
+          voluntaryEndDate: "2027-03-20",
+          principalCents: 10_300,
+          ordinaryTotalCents: 12_360,
+        }),
+      ],
+      [
+        plans[1]!,
+        enforcement({
+          id: "V6-S05",
+          debtKey: "SYN-DEBT-IRPF-2T",
+          voluntaryEndDate: "2027-01-20",
+          principalCents: 8_100,
+          ordinaryTotalCents: 9_720,
+        }),
+      ],
+      [
+        plans[1]!,
+        enforcement({
+          id: "V6-S06",
+          debtKey: "SYN-DEBT-IRPF-2T",
+          voluntaryEndDate: "2027-02-20",
+          principalCents: 8_200,
+          ordinaryTotalCents: 9_840,
+        }),
+      ],
+      [
+        plans[1]!,
+        enforcement({
+          id: "V6-EXT-P69-Q3",
+          debtKey: "SYN-DEBT-IRPF-2T",
+          voluntaryEndDate: "2027-03-20",
+          principalCents: 8_300,
+          ordinaryTotalCents: 9_960,
+        }),
+      ],
+      [
+        plans[2]!,
+        enforcement({
+          id: "V6-EXT-P66-Q1",
+          debtKey: "SYN-DEBT-IVA-3T",
+          voluntaryEndDate: "2027-04-20",
+          principalCents: 12_100,
+          ordinaryTotalCents: 14_520,
+        }),
+      ],
+      [
+        plans[2]!,
+        enforcement({
+          id: "V6-EXT-P66-Q2",
+          debtKey: "SYN-DEBT-IVA-3T",
+          voluntaryEndDate: "2027-05-20",
+          principalCents: 12_200,
+          ordinaryTotalCents: 14_640,
+        }),
+      ],
+      [
+        plans[2]!,
+        enforcement({
+          id: "V6-EXT-P66-Q3",
+          debtKey: "SYN-DEBT-IVA-3T",
+          voluntaryEndDate: "2027-06-20",
+          principalCents: 12_300,
+          ordinaryTotalCents: 14_760,
+        }),
+      ],
+      [
+        plans[3]!,
+        enforcement({
+          id: "V6-EXT-P67-Q1",
+          debtKey: "SYN-DEBT-IRPF-3T",
+          voluntaryEndDate: "2027-04-20",
+          principalCents: 6_100,
+          ordinaryTotalCents: 7_320,
+        }),
+      ],
+      [
+        plans[3]!,
+        enforcement({
+          id: "V6-EXT-P67-Q2",
+          debtKey: "SYN-DEBT-IRPF-3T",
+          voluntaryEndDate: "2027-05-20",
+          principalCents: 6_200,
+          ordinaryTotalCents: 7_440,
+        }),
+      ],
+      [
+        plans[3]!,
+        enforcement({
+          id: "V6-EXT-P67-Q3",
+          debtKey: "SYN-DEBT-IRPF-3T",
+          voluntaryEndDate: "2027-06-20",
+          principalCents: 6_300,
+          ordinaryTotalCents: 7_560,
+        }),
+      ],
+      [
+        plans[4]!,
+        enforcement({
+          id: "V6-EXT-P60-Q1",
+          debtKey: "SYN-DEBT-IVA-4T",
+          voluntaryEndDate: "2027-01-20",
+          principalCents: 10_010,
+          ordinaryTotalCents: 12_012,
+        }),
+      ],
+      [
+        plans[4]!,
+        enforcement({
+          id: "V6-EXT-P60-Q2",
+          debtKey: "SYN-DEBT-IVA-4T",
+          voluntaryEndDate: "2027-02-20",
+          principalCents: 10_020,
+          ordinaryTotalCents: 12_024,
+        }),
+      ],
+      [
+        plans[4]!,
+        enforcement({
+          id: "V6-EXT-P60-Q3",
+          debtKey: "SYN-DEBT-IVA-4T",
+          voluntaryEndDate: "2027-03-20",
+          principalCents: 10_030,
+          ordinaryTotalCents: 12_036,
+        }),
+      ],
     ] as const;
     const relations = enforcements.map(([plan, act]) =>
       findRelation(plan, act, "CLAIMS_UNPAID_INSTALLMENT"),
     );
     expect(relations).toHaveLength(15);
-    expect(relations.every((item) => item?.status === "SYSTEM_CONFIRMED_EXACT")).toBe(true);
+    expect(
+      relations.every((item) => item?.status === "SYSTEM_CONFIRMED_EXACT"),
+    ).toBe(true);
   });
 
   it("uses same debt without date-and-amount match only as an unmatched relation", () => {
     const plan = grant({
       id: "plan",
       debtKey: "SYN-DEBT-IVA-4T",
-      installments: [{ dueDate: "2027-01-20", baseCents: 10_000, deferralInterestCents: 10, totalCents: 10_010 }],
+      installments: [
+        {
+          dueDate: "2027-01-20",
+          baseCents: 10_000,
+          deferralInterestCents: 10,
+          totalCents: 10_010,
+        },
+      ],
     });
     const unmatched = enforcement({
       id: "unmatched",
@@ -168,8 +407,45 @@ describe("AEAT real corpus relations V6", () => {
       principalCents: 40_000,
       ordinaryTotalCents: 48_000,
     });
-    expect(findRelation(plan, unmatched, "SAME_UNDERLYING_DEBT_NOT_INSTALLMENT_MATCH")).toBeDefined();
-    expect(findRelation(plan, unmatched, "CLAIMS_UNPAID_INSTALLMENT")).toBeUndefined();
+    expect(
+      findRelation(
+        plan,
+        unmatched,
+        "SAME_UNDERLYING_DEBT_NOT_INSTALLMENT_MATCH",
+      ),
+    ).toMatchObject({ status: "SYSTEM_SUGGESTED" });
+    expect(
+      findRelation(plan, unmatched, "CLAIMS_UNPAID_INSTALLMENT"),
+    ).toBeUndefined();
+  });
+
+  it("does not confirm a concrete installment when only debt key and due date match", () => {
+    const plan = grant({
+      id: "plan-amount-mismatch",
+      debtKey: "SYN-DEBT-IRPF-4T",
+      installments: [
+        {
+          dueDate: "2027-06-22",
+          baseCents: 11_500,
+          deferralInterestCents: 212,
+          totalCents: 11_712,
+        },
+      ],
+    });
+    const act = enforcement({
+      id: "enforcement-amount-mismatch",
+      debtKey: "SYN-DEBT-IRPF-4T",
+      voluntaryEndDate: "2027-06-22",
+      principalCents: 11_711,
+      ordinaryTotalCents: 14_053,
+    });
+
+    expect(
+      findRelation(plan, act, "CLAIMS_UNPAID_INSTALLMENT"),
+    ).toBeUndefined();
+    expect(
+      findRelation(plan, act, "SAME_UNDERLYING_DEBT_NOT_INSTALLMENT_MATCH"),
+    ).toMatchObject({ status: "SYSTEM_SUGGESTED" });
   });
 
   it("models the two sanction branches without turning the lost reduction into a second sanction", () => {
@@ -220,21 +496,47 @@ describe("AEAT real corpus relations V6", () => {
       principalCents: 5_000,
       ordinaryTotalCents: 6_000,
     });
-    expect(findRelation(initiation, resolution, "RESOLVES_SANCTION_PROCEEDING")).toBeDefined();
-    expect(findRelation(requirement, initiation, "POSSIBLY_PRECEDES_SANCTION")).toBeUndefined();
-    expect(findRelation({
-      ...requirement,
-      exactReferenceToSanction: "SYN-SANCTION-CASE-01",
-    }, initiation, "POSSIBLY_PRECEDES_SANCTION")).toMatchObject({
+    expect(
+      findRelation(initiation, resolution, "RESOLVES_SANCTION_PROCEEDING"),
+    ).toBeDefined();
+    expect(
+      findRelation(requirement, initiation, "POSSIBLY_PRECEDES_SANCTION"),
+    ).toBeUndefined();
+    expect(
+      findRelation(
+        {
+          ...requirement,
+          exactReferenceToSanction: "SYN-SANCTION-CASE-01",
+        },
+        initiation,
+        "POSSIBLY_PRECEDES_SANCTION",
+      ),
+    ).toMatchObject({
       status: "SYSTEM_CONFIRMED_EXACT",
       exactReference: "SYN-SANCTION-CASE-01",
     });
-    expect(findRelation(resolution, sanctionEnforcement, "SANCTION_DECISION_ENFORCED")).toBeDefined();
-    expect(findRelation(resolution, loss, "CLAIMS_LOST_SANCTION_REDUCTION")).toMatchObject({
+    expect(
+      findRelation(
+        resolution,
+        sanctionEnforcement,
+        "SANCTION_DECISION_ENFORCED",
+      ),
+    ).toBeDefined();
+    expect(
+      findRelation(resolution, loss, "CLAIMS_LOST_SANCTION_REDUCTION"),
+    ).toMatchObject({
       observedAmountCents: null,
     });
-    expect(findRelation(loss, clawbackEnforcement, "ENFORCES_LOST_REDUCTION")).toBeDefined();
-    expect(findRelation(resolution, clawbackEnforcement, "SANCTION_DECISION_ENFORCED")).toBeUndefined();
+    expect(
+      findRelation(loss, clawbackEnforcement, "ENFORCES_LOST_REDUCTION"),
+    ).toBeDefined();
+    expect(
+      findRelation(
+        resolution,
+        clawbackEnforcement,
+        "SANCTION_DECISION_ENFORCED",
+      ),
+    ).toBeUndefined();
   });
 
   it("keeps denial principal, interest assessment and later enforcement in separate branches", () => {
@@ -269,10 +571,26 @@ describe("AEAT real corpus relations V6", () => {
       principalCents: 550,
       ordinaryTotalCents: 660,
     });
-    expect(findRelation(denial, principalEnforcement, "DENIAL_PRECEDES_ENFORCEMENT")).toBeDefined();
-    expect(findRelation(denial, interest, "INTEREST_ASSESSMENT_FROM_DENIED_DEFERRAL")).toBeDefined();
-    expect(findRelation(interest, interestEnforcement, "ENFORCES_INTEREST_ASSESSMENT")).toBeDefined();
-    expect(findRelation(denial, interestEnforcement, "DENIAL_PRECEDES_ENFORCEMENT")).toBeUndefined();
+    expect(
+      findRelation(denial, principalEnforcement, "DENIAL_PRECEDES_ENFORCEMENT"),
+    ).toBeDefined();
+    expect(
+      findRelation(
+        denial,
+        interest,
+        "INTEREST_ASSESSMENT_FROM_DENIED_DEFERRAL",
+      ),
+    ).toBeDefined();
+    expect(
+      findRelation(
+        interest,
+        interestEnforcement,
+        "ENFORCES_INTEREST_ASSESSMENT",
+      ),
+    ).toBeDefined();
+    expect(
+      findRelation(denial, interestEnforcement, "DENIAL_PRECEDES_ENFORCEMENT"),
+    ).toBeUndefined();
   });
 
   it("relates two asset seizures to one exact debt set without adding their limits", () => {
@@ -310,23 +628,70 @@ describe("AEAT real corpus relations V6", () => {
       paymentFormPrintedTotalCents: 354_660,
       paymentFormAmountCents: 349_660,
     });
-    expect(findRelation(movable, realEstate, "SAME_DEBT_SET_MULTIPLE_SEIZURE_ASSETS")).toMatchObject({
+    expect(
+      findRelation(
+        movable,
+        realEstate,
+        "SAME_DEBT_SET_MULTIPLE_SEIZURE_ASSETS",
+      ),
+    ).toMatchObject({
       observedAmountCents: null,
       confirmsPayment: false,
       confirmsDebtExtinction: false,
     });
-    const changed = { ...realEstate, seizureRows: [...rows.slice(0, 4), { debtKey: "SYN-OTHER-DEBT-01", amountCents: 249_999 }] };
-    expect(findRelation(movable, changed, "SAME_DEBT_SET_MULTIPLE_SEIZURE_ASSETS")).toBeDefined();
-    expect(findRelation(movable, {
+    const changed = {
       ...realEstate,
-      seizureRows: [...rows.slice(0, 4), { debtKey: "SYN-DIFFERENT-DEBT-01", amountCents: 334_660 }],
-    }, "SAME_DEBT_SET_MULTIPLE_SEIZURE_ASSETS")).toBeUndefined();
+      seizureRows: [
+        ...rows.slice(0, 4),
+        { debtKey: "SYN-OTHER-DEBT-01", amountCents: 249_999 },
+      ],
+    };
+    expect(
+      findRelation(movable, changed, "SAME_DEBT_SET_MULTIPLE_SEIZURE_ASSETS"),
+    ).toBeDefined();
+    expect(
+      findRelation(
+        movable,
+        {
+          ...realEstate,
+          seizureRows: [
+            ...rows.slice(0, 4),
+            { debtKey: "SYN-DIFFERENT-DEBT-01", amountCents: 334_660 },
+          ],
+        },
+        "SAME_DEBT_SET_MULTIPLE_SEIZURE_ASSETS",
+      ),
+    ).toBeUndefined();
 
     const enforcements = [
-      enforcement({ id: "sanction", debtKey: "SYN-SANCTION-DEBT-01", voluntaryEndDate: "2027-07-20", principalCents: 15_000, ordinaryTotalCents: 18_000 }),
-      enforcement({ id: "denied", debtKey: "SYN-DENIED-DEBT-01", voluntaryEndDate: "2027-09-20", principalCents: 50_000, ordinaryTotalCents: 60_000 }),
-      enforcement({ id: "interest", debtKey: "SYN-INTEREST-LIQ-01", voluntaryEndDate: "2027-10-20", principalCents: 550, ordinaryTotalCents: 660 }),
-      enforcement({ id: "clawback", debtKey: "SYN-CLAWBACK-DEBT-01", voluntaryEndDate: "2027-08-20", principalCents: 5_000, ordinaryTotalCents: 6_000 }),
+      enforcement({
+        id: "sanction",
+        debtKey: "SYN-SANCTION-DEBT-01",
+        voluntaryEndDate: "2027-07-20",
+        principalCents: 15_000,
+        ordinaryTotalCents: 18_000,
+      }),
+      enforcement({
+        id: "denied",
+        debtKey: "SYN-DENIED-DEBT-01",
+        voluntaryEndDate: "2027-09-20",
+        principalCents: 50_000,
+        ordinaryTotalCents: 60_000,
+      }),
+      enforcement({
+        id: "interest",
+        debtKey: "SYN-INTEREST-LIQ-01",
+        voluntaryEndDate: "2027-10-20",
+        principalCents: 550,
+        ordinaryTotalCents: 660,
+      }),
+      enforcement({
+        id: "clawback",
+        debtKey: "SYN-CLAWBACK-DEBT-01",
+        voluntaryEndDate: "2027-08-20",
+        principalCents: 5_000,
+        ordinaryTotalCents: 6_000,
+      }),
     ];
     const links = enforcements.flatMap((act) => [
       findRelation(act, movable, "ENFORCES"),
@@ -347,20 +712,50 @@ describe("AEAT real corpus relations V6", () => {
       documentDate: "2028-02-01",
       citedSeizureOrderId: "SYN-SEIZURE-REAL-01",
     });
-    expect(findRelation(movable, movableRelease, "RELEASES_SEIZURE")).toMatchObject({
+    expect(
+      findRelation(movable, movableRelease, "RELEASES_SEIZURE"),
+    ).toMatchObject({
       confirmsPayment: false,
       confirmsDebtExtinction: false,
     });
-    expect(findRelation(realEstate, realRelease, "RELEASES_SEIZURE")).toBeDefined();
-    expect(findRelation(movable, realRelease, "RELEASES_SEIZURE")).toBeUndefined();
+    expect(
+      findRelation(realEstate, realRelease, "RELEASES_SEIZURE"),
+    ).toBeDefined();
+    expect(
+      findRelation(movable, realRelease, "RELEASES_SEIZURE"),
+    ).toBeUndefined();
   });
 
   it("creates one aggregation relation per strongly identified prior act without amount matching", () => {
     const prior = [
-      enforcement({ id: "p1", debtKey: "SYN-DEBT-IVA-4T", voluntaryEndDate: "2026-12-31", principalCents: 40_000, ordinaryTotalCents: 48_000 }),
-      enforcement({ id: "p2", debtKey: "SYN-DEBT-IVA-4T", voluntaryEndDate: "2027-01-20", principalCents: 10_010, ordinaryTotalCents: 12_012 }),
-      enforcement({ id: "p3", debtKey: "SYN-DEBT-IVA-4T", voluntaryEndDate: "2027-02-20", principalCents: 10_020, ordinaryTotalCents: 12_024 }),
-      enforcement({ id: "p4", debtKey: "SYN-DEBT-IVA-4T", voluntaryEndDate: "2027-03-20", principalCents: 10_030, ordinaryTotalCents: 12_036 }),
+      enforcement({
+        id: "p1",
+        debtKey: "SYN-DEBT-IVA-4T",
+        voluntaryEndDate: "2026-12-31",
+        principalCents: 40_000,
+        ordinaryTotalCents: 48_000,
+      }),
+      enforcement({
+        id: "p2",
+        debtKey: "SYN-DEBT-IVA-4T",
+        voluntaryEndDate: "2027-01-20",
+        principalCents: 10_010,
+        ordinaryTotalCents: 12_012,
+      }),
+      enforcement({
+        id: "p3",
+        debtKey: "SYN-DEBT-IVA-4T",
+        voluntaryEndDate: "2027-02-20",
+        principalCents: 10_020,
+        ordinaryTotalCents: 12_024,
+      }),
+      enforcement({
+        id: "p4",
+        debtKey: "SYN-DEBT-IVA-4T",
+        voluntaryEndDate: "2027-03-20",
+        principalCents: 10_030,
+        ordinaryTotalCents: 12_036,
+      }),
     ];
     const seizure = document({
       documentId: "aggregate-seizure",
@@ -373,12 +768,26 @@ describe("AEAT real corpus relations V6", () => {
     });
     const relations = relateRealCorpusDocumentSetV6([...prior, seizure]);
     expect(relations).toHaveLength(4);
-    expect(relations.every((item) => item.relationType === "AGGREGATES_PRIOR_ENFORCEMENT")).toBe(true);
-    expect(relations[0]?.contributingDocumentIds).toEqual(["p1", "p2", "p3", "p4"]);
-    expect(relateRealCorpusDocumentSetV6([
-      ...prior,
-      { ...seizure, seizureRows: [{ debtKey: "SYN-DEBT-IVA-4T", amountCents: 84_071 }] },
-    ])).toHaveLength(4);
+    expect(
+      relations.every(
+        (item) => item.relationType === "AGGREGATES_PRIOR_ENFORCEMENT",
+      ),
+    ).toBe(true);
+    expect(relations[0]?.contributingDocumentIds).toEqual([
+      "p1",
+      "p2",
+      "p3",
+      "p4",
+    ]);
+    expect(
+      relateRealCorpusDocumentSetV6([
+        ...prior,
+        {
+          ...seizure,
+          seizureRows: [{ debtKey: "SYN-DEBT-IVA-4T", amountCents: 84_071 }],
+        },
+      ]),
+    ).toHaveLength(4);
   });
 
   it("keeps one payment operation and never turns the form into evidence", () => {
@@ -395,23 +804,46 @@ describe("AEAT real corpus relations V6", () => {
       "DELIVERY_ATTEMPT_FOR",
       "PAYMENT_FORM_FOR",
     ]);
-    expect(relations.every((item) => !item.confirmsPayment && !item.permitsAutomaticAction)).toBe(true);
+    expect(
+      relations.every(
+        (item) => !item.confirmsPayment && !item.permitsAutomaticAction,
+      ),
+    ).toBe(true);
   });
 
   it("isolates owner scopes and rejects invalid high-cardinality input", () => {
     const plan = grant({
       id: "plan",
       debtKey: "SYN-DEBT-01",
-      installments: [{ dueDate: "2027-01-20", baseCents: 10_000, deferralInterestCents: 100, totalCents: 10_100 }],
+      installments: [
+        {
+          dueDate: "2027-01-20",
+          baseCents: 10_000,
+          deferralInterestCents: 100,
+          totalCents: 10_100,
+        },
+      ],
     });
     const act = {
-      ...enforcement({ id: "act", debtKey: "SYN-DEBT-01", voluntaryEndDate: "2027-01-20", principalCents: 10_100, ordinaryTotalCents: 12_120 }),
+      ...enforcement({
+        id: "act",
+        debtKey: "SYN-DEBT-01",
+        voluntaryEndDate: "2027-01-20",
+        principalCents: 10_100,
+        ordinaryTotalCents: 12_120,
+      }),
       ownerScope: "other-owner",
     };
     expect(relateRealCorpusDocumentsV6(plan, act)).toEqual([]);
-    expect(relateRealCorpusDocumentSetV6(Array.from({ length: 1_001 }, (_, index) => document({
-      documentId: `doc-${index}`,
-      familyId: "collection.enforcement_order",
-    })))).toEqual([]);
+    expect(
+      relateRealCorpusDocumentSetV6(
+        Array.from({ length: 1_001 }, (_, index) =>
+          document({
+            documentId: `doc-${index}`,
+            familyId: "collection.enforcement_order",
+          }),
+        ),
+      ),
+    ).toEqual([]);
   });
 });
