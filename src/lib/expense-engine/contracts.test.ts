@@ -4,6 +4,7 @@ import {
   EXPENSE_ENGINE_PRIVACY_POLICY_VERSION,
   EXPENSE_ENGINE_PRIVACY_SCOPE,
   EXPENSE_ENGINE_VERSION,
+  EXPENSE_LEARNING_HINTS_PROMPT_SCHEMA_V1,
   EXPENSE_LEARNING_HINTS_SCHEMA_VERSION,
   expenseLearningStructureKeyV1,
   normalizeExpenseEngineObservationV1,
@@ -86,6 +87,31 @@ function validObservation() {
 }
 
 describe("expense engine contracts", () => {
+  it("expone al prompt un vocabulario canónico profundamente inmutable", () => {
+    const promptSchema = EXPENSE_LEARNING_HINTS_PROMPT_SCHEMA_V1;
+
+    expect(promptSchema.schemaVersion).toBe(
+      EXPENSE_LEARNING_HINTS_SCHEMA_VERSION,
+    );
+    expect(promptSchema.columns.role).toContain("DESCRIPTION");
+    expect(promptSchema.formulas.kind).toContain("BASE_PLUS_TAX");
+    expect(promptSchema.formulas.kind).toContain(
+      "BASE_PLUS_TAX_PLUS_SURCHARGE_MINUS_WITHHOLDING",
+    );
+    expect(promptSchema.columns.index).toEqual({ minimum: 0, maximum: 23 });
+    expect(promptSchema.formulas.rounding.scale).toEqual({
+      minimum: 0,
+      maximum: 4,
+    });
+    expect(Object.isFrozen(promptSchema)).toBe(true);
+    expect(Object.isFrozen(promptSchema.layout)).toBe(true);
+    expect(Object.isFrozen(promptSchema.columns.role)).toBe(true);
+    expect(Object.isFrozen(promptSchema.formulas.rounding.scale)).toBe(true);
+    expect(() =>
+      (promptSchema.columns.role as unknown as string[]).push("FREE_TEXT"),
+    ).toThrow();
+  });
+
   it("normaliza solo vocabulario estructural cerrado", () => {
     const hints = normalizeExpenseLearningHintsV1(validHints());
 
