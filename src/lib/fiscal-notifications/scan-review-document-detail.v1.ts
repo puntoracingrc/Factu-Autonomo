@@ -16,6 +16,7 @@ import {
   FISCAL_NOTIFICATION_DETAIL_PREVIEW_LIMIT_V1,
   FISCAL_NOTIFICATION_DETAIL_TABLE_LIMIT_V1,
   classifyFiscalNotificationDetailFactV1,
+  fiscalNotificationDetailAmountLabelV1,
   fiscalNotificationDetailPrimaryDateLabelV1,
   fiscalNotificationDetailCategoryLabelV1,
   fiscalNotificationDetailNatureLabelV1,
@@ -395,7 +396,7 @@ function projectEconomy(
       .map((field) =>
         Object.freeze({
           key: field.fieldId,
-          label: field.label,
+          label: fiscalNotificationDetailAmountLabelV1(document.familyId, field.label),
           value: displayValue(field),
           currencyLabel: field.currency === "EUR" ? "EUR" : "No indicada",
           sourceReference: null,
@@ -597,6 +598,8 @@ function findHeaderField(
   labelPattern: RegExp,
   canonicalType?: string,
 ): FiscalNotificationVerticalSliceReviewFieldV1 | null {
+  const labeled = findField(fields, (field) => labelPattern.test(normalizeText(field.label)));
+  if (labeled) return labeled;
   if (canonicalType !== undefined) {
     const canonical = findField(
       fields,
@@ -604,9 +607,7 @@ function findHeaderField(
     );
     if (canonical) return canonical;
   }
-  return findField(fields, (field) =>
-    labelPattern.test(normalizeText(field.label)),
-  );
+  return null;
 }
 
 function findField(
@@ -816,6 +817,11 @@ function amountPriority(label: string, familyId: string): number {
     if (/recargo reducido/u.test(normalized)) return 1;
     if (/total.*ordinario/u.test(normalized)) return 2;
     if (/recargo.*5/u.test(normalized)) return 3;
+  }
+  if (familyId === "assessment.final_provisional_assessment") {
+    if (/cuota resultante/u.test(normalized)) return 0;
+    if (/intereses de demora/u.test(normalized)) return 1;
+    if (/total a ingresar/u.test(normalized)) return 2;
   }
   if (/total|importe a ingresar|importe a devolver/u.test(normalized)) return 0;
   if (/pendiente|principal|cuota/u.test(normalized)) return 1;

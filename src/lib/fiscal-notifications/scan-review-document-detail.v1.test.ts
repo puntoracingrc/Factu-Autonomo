@@ -521,4 +521,93 @@ describe("scan review document detail v1", () => {
       /Justificante de pago|Ejercicio solicitado|Modelo.*002.*metadata/u,
     );
   });
+
+  it("presenta la liquidación 180/115 sin duplicar cuota, intereses ni carta de pago", async () => {
+    const analyzed = await analyzeFiscalNotificationDocumentInput(Object.freeze({
+      ownerScope: "user:synthetic-assessment-detail",
+      documentId: "document:synthetic-assessment-detail",
+      pages: Object.freeze([
+        Object.freeze({
+          pageNumber: 1,
+          isBlank: false,
+          text: [
+            "AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA",
+            "NOTIFICACIÓN DE RESOLUCIÓN CON LIQUIDACIÓN PROVISIONAL",
+            "TOTAL A INGRESAR",
+            "FINALIZA EL PROCEDIMIENTO",
+            "PAGO DE LA DEUDA",
+            "Referencia del procedimiento: SYN-PROCEDURE-180-DETAIL",
+            "Referencia del acto: SYN-ACT-180-DETAIL",
+            "Fecha de firma: 21/05/2025",
+            "Modelo tributario: 180",
+            "Modelo relacionado: 115",
+            "Ejercicio fiscal: 2024",
+            "Retenciones anuales declaradas: 684,00 €",
+            "Pagos periódicos declarados: 456,00 €",
+            "Cuota resultante: 228,00 €",
+            "Intereses de demora: 228,00 €",
+            "Intereses de demora: 3,07 €",
+            "Total a ingresar: 231,07 €",
+          ].join("\n"),
+        }),
+        Object.freeze({
+          pageNumber: 2,
+          isBlank: false,
+          text: [
+            "AGENCIA TRIBUTARIA DOCUMENTO DE PAGO",
+            "CARTA DE PAGO",
+            "Modelo: 002",
+            "Clave de liquidación",
+            "A 0000000000000024",
+            "Importe para ingresar: 231,07 €",
+            "L 0000000000000000024",
+          ].join("\n"),
+        }),
+      ]),
+    }));
+    const source = analyzed.verticalSliceReview.documents.find((candidate) =>
+      candidate.familyId === "assessment.final_provisional_assessment",
+    );
+    expect(source).toBeDefined();
+    if (!source) return;
+    const result = projectFiscalNotificationScanReviewDocumentDetailV1({
+      document: source,
+      allDocuments: [source],
+    });
+    const facts = result.factGroups.flatMap((group) => group.fields);
+    expect(result.header.metadata).toEqual(expect.arrayContaining([
+      { key: "model", label: "Modelo", value: "180" },
+      { key: "exercise", label: "Ejercicio", value: "2024" },
+    ]));
+    expect(facts).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: "Modelo de ingreso", value: "002" }),
+      expect.objectContaining({ label: "Número de la carta de pago", value: "L0000000000000000024" }),
+      expect.objectContaining({ label: "Clave de liquidación", value: "A0000000000000024" }),
+    ]));
+    expect(result.economy?.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: "Cuota resultante", value: expect.stringMatching(/^228,00\s€$/u) }),
+      expect.objectContaining({ label: "Intereses de demora", value: expect.stringMatching(/^3,07\s€$/u) }),
+      expect.objectContaining({ label: "Total a ingresar", value: expect.stringMatching(/^231,07\s€$/u) }),
+    ]));
+    expect(result.economy?.rows.some((row) =>
+      row.label === "Intereses de demora" && /^228,00\s€$/u.test(row.value),
+    )).toBe(false);
+    expect(result.economy?.summary.map((row) => row.label)).toEqual([
+      "Cuota resultante", "Intereses de demora", "Total a ingresar",
+      "Retenciones anuales declaradas",
+    ]);
+    expect(result.integrity).toMatchObject({
+      status: "VALIDATED",
+      statusLabel: "Comprobación correcta",
+      messages: ["Los importes cuadran con las cifras impresas."],
+    });
+    expect(result.explanation).toMatchObject({
+      documentSays: expect.stringMatching(
+        /^La resolución fija una cuota de 228,00\s€, añade 3,07\s€ de intereses de demora y establece un total a ingresar de 231,07\s€\.$/u,
+      ),
+      officialMeaning: expect.stringContaining("mediante autoliquidaciones periódicas"),
+      reviewTitle: "Comprueba la liquidación y la carta de pago",
+    });
+    expect(JSON.stringify(result)).not.toMatch(/Intereses de demora[^}]*228,00|Modelo.*002.*metadata/u);
+  });
 });

@@ -269,6 +269,42 @@ describe("AEAT mathematical integrity engine V11", () => {
     ).not.toContain(referenceEvidence?.evidenceId);
   });
 
+  it("keeps exact assessment arithmetic under review when the quota is also labeled as interest", () => {
+    const source = input("document:assessment-semantic-label-conflict");
+    const document = validate(
+      review("assessment.final_provisional_assessment", [
+        moneyField("amount:quota", "TAX_QUOTA", 22_800),
+        moneyField("amount:interest:correct", "LATE_INTEREST", 307),
+        moneyField("amount:interest:false-quota", "LATE_INTEREST", 22_800),
+        moneyField("amount:total", "TOTAL_CLAIMED", 23_107),
+      ]),
+      source,
+    );
+    expect(document.amountReconciliation).toMatchObject({
+      status: "MATCHED",
+      equations: [expect.objectContaining({
+        formula: "QUOTA_PLUS_INTEREST_EQUALS_TOTAL",
+        status: "MATCHED",
+        leftCents: 23_107,
+        rightCents: 23_107,
+      })],
+    });
+    expect(document.mathematicalIntegrity).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      hardFailureCodes: [],
+      persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+      relationSupport: { permitsAmountOnlyRelations: false },
+    });
+    expect(document.mathematicalIntegrity?.checks).toEqual(expect.arrayContaining([
+      expect.objectContaining({ checkKind: "ARITHMETIC", status: "VALIDATED_EXACT" }),
+      expect.objectContaining({
+        checkKind: "STRUCTURAL",
+        status: "REVIEW_REQUIRED",
+        safeMessage: "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+      }),
+    ]));
+  });
+
   it("validates a complete non-zero enforcement equation without dropping printed components", () => {
     const source = input("document:enforcement-complete-non-zero");
     const document = validate(

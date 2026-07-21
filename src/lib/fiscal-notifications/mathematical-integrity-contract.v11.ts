@@ -234,6 +234,7 @@ const SAFE_MESSAGES = new Set([
   "Los límites impresos conservan el orden esperado.",
   "Los límites impresos no conservan el orden esperado.",
   "Hay componentes impresos que no se pueden reconciliar sin completar su estructura.",
+  "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
   "Hay varias fechas impresas para el mismo hito; revisa cuál corresponde al acto principal.",
   "Las fechas impresas conservan el orden esperado.",
   "Las fechas impresas no conservan el orden esperado.",

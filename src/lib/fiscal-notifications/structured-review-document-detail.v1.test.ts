@@ -784,6 +784,49 @@ describe("structured review document detail v1", () => {
     });
   });
 
+  it("conserva la jerarquía económica y documental de la liquidación 180/115 guardada", () => {
+    const result = project(document({
+      documentSubtype: "assessment.final_provisional_assessment",
+      title: "Resolución con liquidación provisional",
+      orderedFacts: [
+        { key: "reference:model", semantic: "REFERENCE", label: "Modelo tributario", value: "180", pageNumber: 1, sourceReference: null },
+        { key: "reference:related-model", semantic: "REFERENCE", label: "Modelo relacionado", value: "115", pageNumber: 1, sourceReference: null },
+        { key: "reference:liquidation", semantic: "REFERENCE", label: "Clave de liquidación", value: "SYN-LIQ-ASSESSMENT-24", pageNumber: 2, sourceReference: null },
+        { key: "reference:payment-form", semantic: "REFERENCE", label: "Número de la carta de pago", value: "SYN-PAYMENT-FORM-24", pageNumber: 2, sourceReference: null },
+        { key: "reference:payment-model", semantic: "REFERENCE", label: "Modelo de ingreso", value: "002", pageNumber: 2, sourceReference: null },
+      ],
+      money: [
+        { key: "money:annual", label: "Retenciones anuales declaradas", kind: "DOCUMENT_TOTAL", amountCents: 68_400, currency: "EUR", sourceReference: null, sourceReferenceType: null, pageNumbers: [1] },
+        { key: "money:periodic", label: "Pagos periódicos declarados", kind: "DOCUMENT_TOTAL", amountCents: 45_600, currency: "EUR", sourceReference: null, sourceReferenceType: null, pageNumbers: [1] },
+        { key: "money:quota", label: "Cuota final", kind: "FINAL_QUOTA", amountCents: 22_800, currency: "EUR", sourceReference: null, sourceReferenceType: null, pageNumbers: [1] },
+        { key: "money:interest", label: "Intereses", kind: "LATE_PAYMENT_INTEREST", amountCents: 307, currency: "EUR", sourceReference: null, sourceReferenceType: null, pageNumbers: [1] },
+        { key: "money:total", label: "Total del documento", kind: "DOCUMENT_TOTAL", amountCents: 23_107, currency: "EUR", sourceReference: null, sourceReferenceType: null, pageNumbers: [1] },
+      ],
+    }));
+    expect(result.header.metadata).toEqual(expect.arrayContaining([
+      { key: "model", label: "Modelo", value: "180" },
+    ]));
+    expect(result.economy?.summary.map((row) => row.label)).toEqual([
+      "Cuota resultante", "Intereses de demora", "Total a ingresar",
+      "Retenciones anuales declaradas",
+    ]);
+    expect(result.economy?.rows).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: "Cuota resultante", value: "228,00 €" }),
+      expect.objectContaining({ label: "Intereses de demora", value: "3,07 €" }),
+      expect.objectContaining({ label: "Total a ingresar", value: "231,07 €" }),
+    ]));
+    expect(result.factGroups.flatMap((group) => group.fields)).toEqual(expect.arrayContaining([
+      expect.objectContaining({ label: "Modelo de ingreso", value: "002" }),
+      expect.objectContaining({ label: "Número de la carta de pago", value: "SYN-PAYMENT-FORM-24" }),
+    ]));
+    expect(result.explanation).toMatchObject({
+      documentSays: "La resolución fija una cuota de 228,00 €, añade 3,07 € de intereses de demora y establece un total a ingresar de 231,07 €.",
+      officialMeaning: expect.stringContaining(
+        "se declararon 684,00 € en el resumen anual y constan 456,00 € mediante autoliquidaciones periódicas",
+      ),
+    });
+  });
+
   it("agrupa un recurso por acto impugnado, suspensión, decisión y efectos", () => {
     const result = project(
       document({
