@@ -423,6 +423,41 @@ async function assetSeizureAnalysis(): Promise<FiscalNotificationLocalAnalysisRe
   return source as unknown as FiscalNotificationLocalAnalysisResult;
 }
 
+async function installmentTableAnalysis(): Promise<FiscalNotificationLocalAnalysisResult> {
+  const boundedDocument: BoundedDocumentInput = Object.freeze({
+    ownerScope: OWNER,
+    documentId: "document:synthetic-three-installment-workspace",
+    pages: Object.freeze([
+      Object.freeze({
+        pageNumber: 1,
+        isBlank: false,
+        text: [
+          "Agencia Tributaria",
+          "CONCESIÓN DEL APLAZAMIENTO/FRACCIONAMIENTO DE PAGO",
+          "Referencia del acuerdo: SYN-PLAN-THREE-ROWS-WORKSPACE",
+          "Número liquidación: SYN-DEBT-THREE-ROWS-WORKSPACE",
+          "Cuota Vencimiento Principal Intereses de demora Recargo ejecutivo Total cuota",
+          "1 22/06/2026 70,39 0,48 0,00 70,87",
+          "2 20/07/2026 70,39 0,71 0,00 71,10",
+          "3 20/08/2026 70,41 0,96 0,00 71,37",
+          "Totales 211,19 2,15 0,00 213,34",
+        ].join("\n"),
+      }),
+    ]),
+  });
+  const observed = await analyzeFiscalNotificationDocumentInput(
+    boundedDocument,
+  );
+  const source = structuredClone(analysis()) as unknown as {
+    technicalReview: { pageCount: number; byteLength: number };
+    ephemeralVerticalSliceReview: unknown;
+  };
+  source.technicalReview.pageCount = 1;
+  source.technicalReview.byteLength = 4_096;
+  source.ephemeralVerticalSliceReview = observed.verticalSliceReview;
+  return source as unknown as FiscalNotificationLocalAnalysisResult;
+}
+
 describe("vertical slice structured workspace v1", () => {
   it("persiste una diligencia exacta con importes y referencias sin identidades ni cuentas", async () => {
     const result = appendFiscalNotificationVerticalSliceReviewV1({
@@ -493,6 +528,100 @@ describe("vertical slice structured workspace v1", () => {
     expect(
       validateFiscalNotificationsWorkspaceIntegrity(result.workspace, OWNER),
     ).toEqual({ valid: true, issues: [] });
+  });
+
+  it("persiste y vuelve a leer una tabla de cuotas reconciliada sin aplanar sus importes", async () => {
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: await installmentTableAnalysis(),
+    });
+    const snapshot = result.workspace.analysisSnapshots[0];
+    const history = projectFiscalNotificationStructuredHistoryV1(
+      result.workspace,
+      OWNER,
+    );
+
+    expect(result.workspace.paymentOptions).toHaveLength(3);
+    expect(result.workspace.paymentOptions).toEqual([
+      expect.objectContaining({
+        title: "Cuota 1",
+        deadline: "2026-06-22",
+        totalCents: 7_087,
+        components: [
+          expect.objectContaining({ type: "PRINCIPAL", amountCents: 7_039 }),
+          expect.objectContaining({ type: "INTEREST", amountCents: 48 }),
+          expect.objectContaining({ type: "OTHER", amountCents: 0 }),
+        ],
+      }),
+      expect.objectContaining({
+        title: "Cuota 2",
+        deadline: "2026-07-20",
+        totalCents: 7_110,
+      }),
+      expect.objectContaining({
+        title: "Cuota 3",
+        deadline: "2026-08-20",
+        totalCents: 7_137,
+      }),
+    ]);
+    expect(snapshot?.structuredData.paymentOptionIds).toEqual(
+      result.workspace.paymentOptions.map((item) => item.id),
+    );
+    expect(snapshot?.structuredData.amountReconciliation).toMatchObject({
+      status: "MATCHED",
+      numericMutationPolicy: "NEVER_CHANGE_EXTRACTED_VALUES",
+      totals: {
+        principalCents: 21_119,
+        interestCents: 215,
+        surchargeCents: 0,
+        printedTotalCents: 21_334,
+      },
+      equations: expect.arrayContaining([
+        expect.objectContaining({
+          formula: "INSTALLMENT_ROWS_EQUAL_PLAN_TOTALS",
+          status: "MATCHED",
+          leftCents: 21_334,
+          rightCents: 21_334,
+          differenceCents: 0,
+        }),
+      ]),
+    });
+    expect(history).toMatchObject({
+      status: "READY",
+      entries: [
+        {
+          installments: [
+            expect.objectContaining({
+              label: "Cuota 1",
+              dueDate: "2026-06-22",
+              amountCents: 7_087,
+              components: [
+                expect.objectContaining({ label: "Principal", amountCents: 7_039 }),
+                expect.objectContaining({ label: "Intereses", amountCents: 48 }),
+                expect.objectContaining({ label: "Recargo", amountCents: 0 }),
+              ],
+            }),
+            expect.objectContaining({
+              label: "Cuota 2",
+              dueDate: "2026-07-20",
+              amountCents: 7_110,
+            }),
+            expect.objectContaining({
+              label: "Cuota 3",
+              dueDate: "2026-08-20",
+              amountCents: 7_137,
+            }),
+          ],
+        },
+      ],
+    });
+    expect(validateFiscalNotificationsWorkspaceIntegrity(result.workspace, OWNER)).toEqual({
+      valid: true,
+      issues: [],
+    });
   });
 
   it("persiste el sobre electrónico y todos sus datos visibles sin conservar el PDF", () => {

@@ -20,6 +20,10 @@ import {
   FISCAL_NOTIFICATION_INPUT_LIMITS,
   assertNonNegativeIntegerCents,
 } from "./input-contract";
+import {
+  parseFiscalNotificationAmountReconciliationV1,
+  type FiscalNotificationAmountReconciliationV1,
+} from "./amount-reconciliation-contract.v1";
 import type { PartyRoleV1 } from "./extractor-core/domain.v1";
 import type { ExtractorOutputV1 } from "./extractor-core/extractor-contract.v1";
 import type { MonetaryComponentTypeV1 } from "./extractor-core/monetary-component.v1";
@@ -170,6 +174,7 @@ export interface FiscalNotificationVerticalSliceReviewDocumentV1 {
   readonly confidence: number;
   readonly fields: readonly FiscalNotificationVerticalSliceReviewFieldV1[];
   readonly warnings: readonly string[];
+  readonly amountReconciliation?: FiscalNotificationAmountReconciliationV1;
   readonly requiresHumanReview: true;
 }
 
@@ -1576,7 +1581,7 @@ function parseReviewDocument(
   value: unknown,
 ): FiscalNotificationVerticalSliceReviewDocumentV1 {
   const item = snapshotRecord(value);
-  assertKeys(item, [
+  const documentKeys = [
     "reviewDocumentId",
     "extractorId",
     "familyId",
@@ -1588,7 +1593,11 @@ function parseReviewDocument(
     "fields",
     "warnings",
     "requiresHumanReview",
-  ]);
+    ...(Object.hasOwn(item, "amountReconciliation")
+      ? ["amountReconciliation"]
+      : []),
+  ];
+  assertKeys(item, documentKeys);
   assertBoundedString(item.reviewDocumentId, 160);
   if (!EXTRACTOR_IDS.has(item.extractorId as BaseExtractorIdV1))
     throw invalidReview();
@@ -1645,6 +1654,13 @@ function parseReviewDocument(
     if (!CLOSED_WARNING_CODE.test(warning as string)) throw invalidReview();
     return warning as string;
   });
+  const amountReconciliation = Object.hasOwn(item, "amountReconciliation")
+    ? parseFiscalNotificationAmountReconciliationV1(
+        item.amountReconciliation,
+        Number(item.pageFrom),
+        Number(item.pageTo),
+      )
+    : null;
   return Object.freeze({
     reviewDocumentId: item.reviewDocumentId as string,
     extractorId: item.extractorId as BaseExtractorIdV1,
@@ -1656,6 +1672,7 @@ function parseReviewDocument(
     confidence: Number(item.confidence),
     fields: Object.freeze(fields),
     warnings: Object.freeze(warnings),
+    ...(amountReconciliation ? { amountReconciliation } : {}),
     requiresHumanReview: true,
   });
 }
@@ -3129,7 +3146,7 @@ function assertRealCorpusSerializableFieldPrivacyV7(
   }
   if (/^real-corpus-v7:installment:\d+$/u.test(fieldId)) {
     const humanDisplay =
-      /^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d+(?:\.\d{3})*,\d{2}\s€ · interés \d+(?:\.\d{3})*,\d{2}\s€ · total \d+(?:\.\d{3})*,\d{2}\s€$/u.test(
+      /^Vence (?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2} · principal \d+(?:\.\d{3})*,\d{2}\s€ · interés \d+(?:\.\d{3})*,\d{2}\s€ · recargo \d+(?:\.\d{3})*,\d{2}\s€ · total \d+(?:\.\d{3})*,\d{2}\s€$/u.test(
         display,
       );
     if (

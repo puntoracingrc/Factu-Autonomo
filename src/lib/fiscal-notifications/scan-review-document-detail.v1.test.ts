@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { analyzeFiscalNotificationDocumentInput } from "./document-input-analysis";
 import { projectFiscalNotificationScanReviewDocumentDetailV1 } from "./scan-review-document-detail.v1";
 import type {
   FiscalNotificationVerticalSliceReviewDocumentV1,
@@ -213,5 +214,75 @@ describe("scan review document detail v1", () => {
         pageNumbers: [2],
       }),
     ]);
+  });
+
+  it("presenta el plan reconciliado como resumen y tabla, sin totales planos duplicados", async () => {
+    const analyzed = await analyzeFiscalNotificationDocumentInput(
+      Object.freeze({
+        ownerScope: "user:synthetic-scan-installments",
+        documentId: "document:synthetic-scan-installments",
+        pages: Object.freeze([
+          Object.freeze({
+            pageNumber: 1,
+            isBlank: false,
+            text: [
+              "Agencia Tributaria",
+              "CONCESIÓN DEL APLAZAMIENTO/FRACCIONAMIENTO DE PAGO",
+              "Referencia del acuerdo: SYN-PLAN-SCAN-001",
+              "Número liquidación: SYN-DEBT-SCAN-001",
+              "Cuota Vencimiento Principal Intereses de demora Recargo ejecutivo Total cuota",
+              "1 22/06/2026 70,39 0,48 0,00 70,87",
+              "2 20/07/2026 70,39 0,71 0,00 71,10",
+              "3 20/08/2026 70,41 0,96 0,00 71,37",
+              "Totales 211,19 2,15 0,00 213,34",
+            ].join("\n"),
+          }),
+        ]),
+      }),
+    );
+    const source = analyzed.verticalSliceReview.documents.find(
+      (candidate) => candidate.familyId === "collection.deferral_grant",
+    );
+    expect(source).toBeDefined();
+    if (!source) return;
+
+    const result = projectFiscalNotificationScanReviewDocumentDetailV1({
+      document: source,
+      allDocuments: [source],
+    });
+
+    expect(result.economy).toMatchObject({
+      summary: [
+        { label: "Número de cuotas", value: "3" },
+        { label: "Principal total", value: "211,19 €" },
+        { label: "Intereses totales", value: "2,15 €" },
+        { label: "Total programado", value: "213,34 €" },
+      ],
+      rows: [],
+      installmentTotals: {
+        count: 3,
+        principal: "211,19 €",
+        interest: "2,15 €",
+        surcharge: "0,00 €",
+        total: "213,34 €",
+      },
+      installments: [
+        {
+          label: "Cuota 1",
+          dueDate: "22/06/2026",
+          total: "70,87 €",
+          components: [
+            { label: "Principal", value: "70,39 €" },
+            { label: "Intereses de demora", value: "0,48 €" },
+            { label: "Recargo ejecutivo", value: "0,00 €" },
+          ],
+        },
+        { label: "Cuota 2", dueDate: "20/07/2026", total: "71,10 €" },
+        { label: "Cuota 3", dueDate: "20/08/2026", total: "71,37 €" },
+      ],
+    });
+    expect(JSON.stringify(result.factGroups)).not.toMatch(
+      /Vence 22\/06\/2026|Dato observado|Consta en el documento/u,
+    );
   });
 });

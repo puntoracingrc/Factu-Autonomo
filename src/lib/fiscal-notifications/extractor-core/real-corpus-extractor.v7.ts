@@ -52,6 +52,7 @@ export interface RealCorpusInstallmentV7 {
   readonly dueDate: string;
   readonly baseCents: number;
   readonly deferralInterestCents: number;
+  readonly enforcementSurchargeCents: number;
   readonly totalCents: number;
   readonly pageNumber: number;
 }
@@ -861,10 +862,15 @@ function historicalDeferralRows(
   principal: IndexedLineV7;
   debtTotal: IndexedLineV7;
   interest: IndexedLineV7;
+  surchargeCents: number;
   installmentTotal: IndexedLineV7;
 }>[] {
-  const headerPosition = index.lines.findIndex((line) =>
-    line.normalized.includes("IMPORTE PRINCIPAL"),
+  const headerPosition = index.lines.findIndex(
+    (line) =>
+      line.normalized.includes("IMPORTE PRINCIPAL") ||
+      (line.normalized.includes("VENCIMIENTO") &&
+        line.normalized.includes("PRINCIPAL") &&
+        line.normalized.includes("TOTAL")),
   );
   if (headerPosition < 0) return Object.freeze([]);
   const headerPage = index.lines[headerPosition]!.pageNumber;
@@ -873,9 +879,11 @@ function historicalDeferralRows(
     principal: IndexedLineV7;
     debtTotal: IndexedLineV7;
     interest: IndexedLineV7;
+    surchargeCents: number;
     installmentTotal: IndexedLineV7;
   }>> = [];
   const seen = new Set<string>();
+  let previousPrincipal: IndexedLineV7 | null = null;
   for (
     let position = headerPosition + 1;
     position < index.lines.length;
@@ -885,32 +893,102 @@ function historicalDeferralRows(
     if (line.pageNumber > headerPage + 1) break;
     const dueDate = parseDate(line.raw);
     const amounts = printedMoneySources(line);
-    if (!dueDate || amounts.length < 5) continue;
-    const debtTotal = parseMoney(amounts[2]!.raw);
-    const interest = parseMoney(amounts[3]!.raw);
-    const total = parseMoney(amounts[4]!.raw);
-    if (
-      debtTotal === null ||
-      interest === null ||
-      total === null ||
-      debtTotal + interest !== total
-    ) {
-      continue;
-    }
-    const key = `${dueDate}:${debtTotal}:${interest}:${total}`;
+    if (!dueDate || amounts.length < 2) continue;
+    const resolved = resolveHistoricalInstallmentAmounts(
+      amounts,
+      previousPrincipal,
+    );
+    if (!resolved) continue;
+    const key = `${dueDate}:${resolved.debtTotalCents}:${resolved.interestCents}:${resolved.surchargeCents}:${resolved.totalCents}`;
     if (seen.has(key)) continue;
     seen.add(key);
+    previousPrincipal = resolved.principal;
     result.push(
       Object.freeze({
         dueDate,
-        principal: amounts[0]!,
-        debtTotal: amounts[2]!,
-        interest: amounts[3]!,
-        installmentTotal: amounts[4]!,
+        principal: resolved.principal,
+        debtTotal: resolved.debtTotal,
+        interest: resolved.interest,
+        surchargeCents: resolved.surchargeCents,
+        installmentTotal: resolved.installmentTotal,
       }),
     );
   }
   return Object.freeze(result);
+}
+
+function resolveHistoricalInstallmentAmounts(
+  amounts: readonly IndexedLineV7[],
+  previousPrincipal: IndexedLineV7 | null,
+): Readonly<{
+  principal: IndexedLineV7;
+  debtTotal: IndexedLineV7;
+  debtTotalCents: number;
+  interest: IndexedLineV7;
+  interestCents: number;
+  surchargeCents: number;
+  installmentTotal: IndexedLineV7;
+  totalCents: number;
+}> | null {
+  const cents = amounts.map((item) => parseMoney(item.raw));
+  if (cents.some((item) => item === null)) return null;
+  const values = cents as number[];
+  if (values.length >= 5) {
+    return Object.freeze({
+      principal: amounts[0]!,
+      debtTotal: amounts[2]!,
+      debtTotalCents: values[2]!,
+      interest: amounts[3]!,
+      interestCents: values[3]!,
+      surchargeCents: values[1]!,
+      installmentTotal: amounts[4]!,
+      totalCents: values[4]!,
+    });
+  }
+  if (values.length >= 4) {
+    return Object.freeze({
+      principal: amounts[0]!,
+      debtTotal: amounts[0]!,
+      debtTotalCents: values[0]!,
+      interest: amounts[1]!,
+      interestCents: values[1]!,
+      surchargeCents: values[2]!,
+      installmentTotal: amounts[3]!,
+      totalCents: values[3]!,
+    });
+  }
+  if (values.length >= 3) {
+    return Object.freeze({
+      principal: amounts[0]!,
+      debtTotal: amounts[0]!,
+      debtTotalCents: values[0]!,
+      interest: amounts[1]!,
+      interestCents: values[1]!,
+      surchargeCents: 0,
+      installmentTotal: amounts[2]!,
+      totalCents: values[2]!,
+    });
+  }
+  const previousPrincipalCents = previousPrincipal
+    ? parseMoney(previousPrincipal.raw)
+    : null;
+  if (
+    previousPrincipal &&
+    previousPrincipalCents !== null &&
+    values.length >= 2
+  ) {
+    return Object.freeze({
+      principal: previousPrincipal,
+      debtTotal: previousPrincipal,
+      debtTotalCents: previousPrincipalCents,
+      interest: amounts[0]!,
+      interestCents: values[0]!,
+      surchargeCents: 0,
+      installmentTotal: amounts[1]!,
+      totalCents: values[1]!,
+    });
+  }
+  return null;
 }
 
 function historicalDeferralTotals(
@@ -923,17 +1001,34 @@ function historicalDeferralTotals(
   if (historicalDeferralRows(index).length === 0) return null;
   for (let position = 0; position < index.lines.length; position += 1) {
     const marker = index.lines[position]!;
-    if (!/^TOTAL(?:\s|$)/u.test(marker.normalized)) continue;
+    if (!/^TOTAL(?:ES)?(?:\s|$)/u.test(marker.normalized)) continue;
     for (let distance = 0; distance <= 2; distance += 1) {
       const line = index.lines[position + distance];
       if (!line || line.pageNumber !== marker.pageNumber) break;
       const amounts = printedMoneySources(line);
-      if (amounts.length < 5) continue;
-      return Object.freeze({
-        principal: amounts[0]!,
-        interest: amounts[3]!,
-        total: amounts[4]!,
-      });
+      const values = amounts.map((item) => parseMoney(item.raw));
+      if (values.some((item) => item === null)) continue;
+      if (amounts.length >= 5) {
+        return Object.freeze({
+          principal: amounts[2]!,
+          interest: amounts[3]!,
+          total: amounts[4]!,
+        });
+      }
+      if (amounts.length >= 4) {
+        return Object.freeze({
+          principal: amounts[0]!,
+          interest: amounts[1]!,
+          total: amounts[3]!,
+        });
+      }
+      if (amounts.length >= 3) {
+        return Object.freeze({
+          principal: amounts[0]!,
+          interest: amounts[1]!,
+          total: amounts[2]!,
+        });
+      }
     }
   }
   return null;
@@ -972,9 +1067,9 @@ function parseInstallments(index: DocumentIndexV7): readonly RealCorpusInstallme
     const baseCents = parseMoney(match[3]!);
     const deferralInterestCents = parseMoney(match[4]!);
     const totalCents = parseMoney(match[5]!);
-    if (sequence === null || sequence < 1 || !dueDate || baseCents === null || deferralInterestCents === null || totalCents === null || baseCents + deferralInterestCents !== totalCents || seen.has(sequence) || result.length >= 100) continue;
+    if (sequence === null || sequence < 1 || !dueDate || baseCents === null || deferralInterestCents === null || totalCents === null || seen.has(sequence) || result.length >= 100) continue;
     seen.add(sequence);
-    result.push(Object.freeze({ sequence, dueDate, baseCents, deferralInterestCents, totalCents, pageNumber: line.pageNumber }));
+    result.push(Object.freeze({ sequence, dueDate, baseCents, deferralInterestCents, enforcementSurchargeCents: 0, totalCents, pageNumber: line.pageNumber }));
   }
   for (const row of historicalDeferralRows(index)) {
     const baseCents = parseMoney(row.debtTotal.raw);
@@ -985,7 +1080,6 @@ function parseInstallments(index: DocumentIndexV7): readonly RealCorpusInstallme
       baseCents === null ||
       deferralInterestCents === null ||
       totalCents === null ||
-      baseCents + deferralInterestCents !== totalCents ||
       seen.has(sequence) ||
       result.length >= 100
     ) {
@@ -998,6 +1092,7 @@ function parseInstallments(index: DocumentIndexV7): readonly RealCorpusInstallme
         dueDate: row.dueDate,
         baseCents,
         deferralInterestCents,
+        enforcementSurchargeCents: row.surchargeCents,
         totalCents,
         pageNumber: row.installmentTotal.pageNumber,
       }),
@@ -1016,7 +1111,7 @@ function parseOffsetRows(index: DocumentIndexV7): readonly RealCorpusOffsetRowV7
     const beforeCents = parseMoney(match[2]!);
     const appliedCents = parseMoney(match[3]!);
     const remainingCents = parseMoney(match[4]!);
-    if (!debtKey || beforeCents === null || appliedCents === null || remainingCents === null || appliedCents > beforeCents || beforeCents - appliedCents !== remainingCents || seen.has(debtKey) || result.length >= 100) continue;
+    if (!debtKey || beforeCents === null || appliedCents === null || remainingCents === null || seen.has(debtKey) || result.length >= 100) continue;
     seen.add(debtKey);
     result.push(Object.freeze({ debtKey, beforeCents, appliedCents, remainingCents, pageNumber: line.pageNumber }));
   }
@@ -1355,8 +1450,7 @@ function hasRequiredFacts(
     return (
       hasField(fields, "SANCTION_REFERENCE") &&
       hasField(fields, "ALLEGATION_BUSINESS_DAYS") &&
-      printedAmounts.length > 0 &&
-      (printedAmounts.length < 3 || initial! - reduction! === reduced!)
+      printedAmounts.length > 0
     );
   }
   if (familyId === "compliance.formal_filing_requirement") {
@@ -1367,7 +1461,7 @@ function hasRequiredFacts(
       "RESPONSE_BUSINESS_DAYS",
     ].some((code) => hasField(fields, code));
   }
-  if (familyId === "seizure.bank_account") return bankSeizure !== null && bankSeizure.seizedAmountCents <= bankSeizure.seizeLimitCents;
+  if (familyId === "seizure.bank_account") return bankSeizure !== null;
   if (familyId === "collection.enforcement_order") {
     return (
       ["DEBT_KEY", "LIQUIDATION_KEY", "DOCUMENT_REFERENCE"].some((code) =>
@@ -1379,11 +1473,11 @@ function hasRequiredFacts(
     );
   }
   if (familyId === "collection.offset_ex_officio") {
-    const credit = fields.find((field) => field.fieldCode === "OFFSET_CREDIT_APPLIED");
-    return offsetRows.length > 0 && credit?.kind === "MONEY"
-      ? offsetRows.reduce((sum, row) => sum + row.appliedCents, 0) ===
-          credit.amountCents
-      : hasField(fields, "AGREEMENT_ID") || hasField(fields, "ISSUE_DATE");
+    return (
+      offsetRows.length > 0 ||
+      hasField(fields, "AGREEMENT_ID") ||
+      hasField(fields, "ISSUE_DATE")
+    );
   }
   if (familyId === "registry.tax_registration_resolution") {
     return ["ACT_ID", "REQUEST_MODEL", "REQUEST_DATE", "EFFECTIVE_DATE"].some(
@@ -1417,11 +1511,7 @@ function hasRequiredFacts(
     (field) => field?.kind === "MONEY",
   );
   if (printedAmounts.length === 0) return false;
-  return quota?.kind === "MONEY" &&
-    interest?.kind === "MONEY" &&
-    total?.kind === "MONEY"
-    ? quota.amountCents + interest.amountCents === total.amountCents
-    : true;
+  return true;
 }
 
 function unknown(document: BoundedDocumentInput, index: DocumentIndexV7): RealCorpusExtractorOutcomeV7 {

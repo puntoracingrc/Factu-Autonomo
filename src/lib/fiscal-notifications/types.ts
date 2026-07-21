@@ -1,4 +1,5 @@
 import type { AdministrativeDomainProjection } from "./administrative-domain";
+import type { FiscalNotificationAmountReconciliationV1 } from "./amount-reconciliation-contract.v1";
 import type {
   AeatDocumentChainIdV1,
   AeatDocumentRelationTypeIdV1,
@@ -534,6 +535,7 @@ export interface StructuredAdministrativeData {
   calculatedSummary: string[];
   inferenceSummary: string[];
   userConfirmedSummary: string[];
+  amountReconciliation?: FiscalNotificationAmountReconciliationV1;
   documentFields: {
     title: string;
     issueDate?: string;

@@ -94,10 +94,20 @@ export interface FiscalNotificationDetailInstallmentRowV1 {
   readonly pageNumbers: readonly number[];
 }
 
+export interface FiscalNotificationDetailInstallmentTotalsV1 {
+  readonly count: number;
+  readonly principal: string;
+  readonly interest: string;
+  readonly surcharge: string;
+  readonly total: string;
+  readonly pageNumbers: readonly number[];
+}
+
 export interface FiscalNotificationDetailEconomyV1 {
   readonly summary: readonly FiscalNotificationDetailAmountRowV1[];
   readonly rows: readonly FiscalNotificationDetailAmountRowV1[];
   readonly installments: readonly FiscalNotificationDetailInstallmentRowV1[];
+  readonly installmentTotals: FiscalNotificationDetailInstallmentTotalsV1 | null;
   readonly showSourceReference: boolean;
   readonly previewLimit: number;
 }
@@ -307,7 +317,12 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
     normalizeText(storedTitle) !== normalizeText(title)
       ? storedTitle
       : null;
-  const visibleFacts = document.orderedFacts.filter(isVisibleFact);
+  const rawVisibleFacts = document.orderedFacts.filter(
+    (fact) =>
+      isVisibleFact(fact) &&
+      (document.installments.length === 0 || !isProjectedInstallmentFact(fact)),
+  );
+  const visibleFacts = deduplicateVisibleFacts(rawVisibleFacts);
   const issuingUnit = findHeaderFact(visibleFacts, [
     /\borgano\b/u,
     /\bunidad\b/u,
@@ -324,7 +339,7 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
   ]);
   const primaryDateFact = document.documentDate
     ? findPrimaryDateFact(
-        visibleFacts,
+        rawVisibleFacts,
         document.documentDate,
         document.documentDateBasis,
       )
@@ -543,9 +558,16 @@ function projectEconomy(
   if (document.money.length === 0 && document.installments.length === 0) {
     return null;
   }
+  const installmentAmounts = projectedInstallmentAmounts(document);
   const rows = document.money.flatMap((fact) => {
     const label = cleanDisplayText(fact.label);
-    if (!label) return [];
+    if (
+      !label ||
+      (document.installments.length > 0 &&
+        isInstallmentMoneyDuplicate(label, fact.amountCents, installmentAmounts))
+    ) {
+      return [];
+    }
     return [
       Object.freeze({
         key: fact.key,
@@ -559,12 +581,6 @@ function projectEconomy(
       }),
     ];
   });
-  const summary = [...rows]
-    .sort(
-      (left, right) =>
-        amountSummaryPriority(left.label) - amountSummaryPriority(right.label),
-    )
-    .slice(0, 4);
   const installments = document.installments.flatMap((installment) => {
     const label = cleanDisplayText(installment.label);
     if (!label) return [];
@@ -601,14 +617,133 @@ function projectEconomy(
       }),
     ];
   });
+  const installmentTotals = projectInstallmentTotals(document.installments);
+  const summary = installmentTotals
+    ? installmentSummaryRows(installmentTotals)
+    : [...rows]
+        .sort(
+          (left, right) =>
+            amountSummaryPriority(left.label) -
+            amountSummaryPriority(right.label),
+        )
+        .slice(0, 4);
   if (rows.length === 0 && installments.length === 0) return null;
   return Object.freeze({
     summary: Object.freeze(summary),
     rows: Object.freeze(rows),
     installments: Object.freeze(installments),
+    installmentTotals,
     showSourceReference: rows.some((row) => row.sourceReference !== null),
     previewLimit: FISCAL_NOTIFICATION_DETAIL_TABLE_LIMIT_V1,
   });
+}
+
+function projectInstallmentTotals(
+  installments: FiscalNotificationStructuredHistoryEntryV1["installments"],
+): FiscalNotificationDetailInstallmentTotalsV1 | null {
+  if (installments.length === 0) return null;
+  const componentTotal = (pattern: RegExp): number =>
+    installments.reduce(
+      (sum, installment) =>
+        sum +
+        installment.components.reduce(
+          (componentSum, component) =>
+            componentSum +
+            (pattern.test(normalizeText(component.label))
+              ? component.amountCents
+              : 0),
+          0,
+        ),
+      0,
+    );
+  const pageNumbers = Object.freeze(
+    [...new Set(installments.flatMap((item) => item.pageNumbers))].sort(
+      (left, right) => left - right,
+    ),
+  );
+  return Object.freeze({
+    count: installments.length,
+    principal: formatMoney(componentTotal(/principal|base/u), "EUR"),
+    interest: formatMoney(componentTotal(/interes/u), "EUR"),
+    surcharge: formatMoney(componentTotal(/recargo/u), "EUR"),
+    total: formatMoney(
+      installments.reduce(
+        (sum, installment) => sum + (installment.amountCents ?? 0),
+        0,
+      ),
+      "EUR",
+    ),
+    pageNumbers,
+  });
+}
+
+function installmentSummaryRows(
+  totals: FiscalNotificationDetailInstallmentTotalsV1,
+): readonly FiscalNotificationDetailAmountRowV1[] {
+  const values = [
+    ["count", "Número de cuotas", String(totals.count)],
+    ["principal", "Principal total", totals.principal],
+    ["interest", "Intereses totales", totals.interest],
+    ["total", "Total programado", totals.total],
+  ] as const;
+  return Object.freeze(
+    values.map(([key, label, value]) =>
+      Object.freeze({
+        key: `installment-summary:${key}`,
+        label,
+        value,
+        currencyLabel: "EUR",
+        sourceReference: null,
+        pageNumbers: totals.pageNumbers,
+      }),
+    ),
+  );
+}
+
+function projectedInstallmentAmounts(
+  document: FiscalNotificationStructuredHistoryEntryV1,
+): ReadonlySet<number> {
+  const values = document.installments.flatMap((installment) => [
+    ...(installment.amountCents === null ? [] : [installment.amountCents]),
+    ...installment.components.map((component) => component.amountCents),
+  ]);
+  if (document.installments.length > 0) {
+    values.push(
+      document.installments.reduce(
+        (sum, installment) => sum + (installment.amountCents ?? 0),
+        0,
+      ),
+    );
+    for (const pattern of [/principal|base/u, /interes/u, /recargo/u]) {
+      values.push(
+        document.installments.reduce(
+          (sum, installment) =>
+            sum +
+            installment.components.reduce(
+              (componentSum, component) =>
+                componentSum +
+                (pattern.test(normalizeText(component.label))
+                  ? component.amountCents
+                  : 0),
+              0,
+            ),
+          0,
+        ),
+      );
+    }
+  }
+  return new Set(values);
+}
+
+function isInstallmentMoneyDuplicate(
+  label: string,
+  amountCents: number,
+  installmentAmounts: ReadonlySet<number>,
+): boolean {
+  return (
+    installmentAmounts.has(amountCents) &&
+    /principal|base|interes|recargo|cuota|total|plan/u.test(normalizeText(label))
+  );
 }
 
 function projectRelation(
@@ -723,11 +858,69 @@ function isVisibleFact(
   return (
     fact.label.trim().length > 0 &&
     fact.value.trim().length > 0 &&
+    fact.value !== "Consta en el documento" &&
     Number.isSafeInteger(fact.pageNumber) &&
     fact.pageNumber > 0 &&
     !containsInternalFiscalNotificationToken(fact.label) &&
     !containsInternalFiscalNotificationToken(fact.value) &&
     !containsInternalFiscalNotificationToken(fact.sourceReference)
+  );
+}
+
+function deduplicateVisibleFacts(
+  facts: readonly FiscalNotificationStructuredHistoryOrderedFactV1[],
+): readonly FiscalNotificationStructuredHistoryOrderedFactV1[] {
+  const identities = new Set<string>();
+  return facts.filter((fact) => {
+    const duplicateGroup = knownDuplicateDisplayGroup(
+      fact.semantic,
+      fact.label,
+    );
+    const identity = `${fact.semantic}\u0000${duplicateGroup ?? normalizeText(fact.label)}\u0000${normalizeText(fact.value)}`;
+    if (identities.has(identity)) return false;
+    identities.add(identity);
+    return true;
+  });
+}
+
+function knownDuplicateDisplayGroup(
+  semantic: string,
+  label: string,
+): string | null {
+  const normalized = normalizeText(label);
+  if (
+    semantic === "DATE" &&
+    (/vencimiento de la cuota/u.test(normalized) ||
+      /limite de pago voluntario/u.test(normalized))
+  ) {
+    return "INSTALLMENT_DEADLINE";
+  }
+  if (
+    semantic === "REFERENCE" &&
+    (/numero de expediente/u.test(normalized) ||
+      /identificador del acuerdo/u.test(normalized))
+  ) {
+    return "CASE_OR_AGREEMENT";
+  }
+  if (
+    semantic === "REFERENCE" &&
+    (/clave de liquidacion/u.test(normalized) ||
+      /clave de deuda/u.test(normalized))
+  ) {
+    return "DEBT_OR_LIQUIDATION";
+  }
+  return null;
+}
+
+function isProjectedInstallmentFact(
+  fact: FiscalNotificationStructuredHistoryOrderedFactV1,
+): boolean {
+  return (
+    fact.semantic === "DETAIL" &&
+    /^cuota \d+$/u.test(normalizeText(fact.label)) &&
+    /^vence .+ · (?:principal|base) .+ · interes .+ · (?:recargo .+ · )?total /u.test(
+      normalizeText(fact.value),
+    )
   );
 }
 

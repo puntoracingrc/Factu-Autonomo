@@ -2,6 +2,7 @@ import type {
   AdministrativeMoneyFact,
   AdministrativeMoneyKind,
 } from "./administrative-domain";
+import type { FiscalNotificationAmountReconciliationV1 } from "./amount-reconciliation-contract.v1";
 import {
   explainFiscalNotificationDocumentV1,
   type FiscalNotificationDocumentExplanationV1,
@@ -109,6 +110,7 @@ export interface FiscalNotificationStructuredHistoryEntryV1 {
   readonly orderedFacts: readonly FiscalNotificationStructuredHistoryOrderedFactV1[];
   readonly money: readonly FiscalNotificationStructuredHistoryMoneyV1[];
   readonly installments: readonly FiscalNotificationStructuredHistoryInstallmentV1[];
+  readonly amountReconciliation?: FiscalNotificationAmountReconciliationV1 | null;
   readonly explanation: FiscalNotificationDocumentExplanationV1;
   readonly authenticityLabel: "Autenticidad no comprobada";
   readonly reviewStatus: "PENDING" | "REVIEWED";
@@ -364,21 +366,23 @@ export function projectFiscalNotificationStructuredHistoryV1(
           });
         }),
       );
-      const documentReferences = deduplicateFacts(document.referenceIds
-        .map((id) => references.get(id))
-        .filter((item) => item !== undefined)
-        .map((item) =>
-          Object.freeze({
-            label:
-              item.occurrenceIds
-                .map((id) => verticalFieldsByEvidence.get(id))
-                .find((metadata) => metadata?.semantic === "REFERENCE")
-                ?.label ??
-              REFERENCE_LABELS[item.referenceType] ??
-              "Referencia",
-            value: visibleStoredReference(item, verticalFieldsByEvidence),
-          }),
-        ));
+      const documentReferences = deduplicateKnownSemanticDuplicates(
+        document.referenceIds
+          .map((id) => references.get(id))
+          .filter((item) => item !== undefined)
+          .map((item) =>
+            Object.freeze({
+              label:
+                item.occurrenceIds
+                  .map((id) => verticalFieldsByEvidence.get(id))
+                  .find((metadata) => metadata?.semantic === "REFERENCE")
+                  ?.label ??
+                REFERENCE_LABELS[item.referenceType] ??
+                "Referencia",
+              value: visibleStoredReference(item, verticalFieldsByEvidence),
+            }),
+          ),
+      );
       const explanationFacts = [
         ...observedUnknownFields,
         ...interpretedExplanationFields,
@@ -388,6 +392,10 @@ export function projectFiscalNotificationStructuredHistoryV1(
           if (
             metadata?.semantic === "MONEY" ||
             metadata?.semantic === "REFERENCE" ||
+            /^real-corpus-v[3-7]:installment:\d+$/u.test(
+              metadata?.fieldId ?? "",
+            ) ||
+            field.valueRaw === "Consta en el documento" ||
             isProfileControlField(metadata?.fieldId ?? null) ||
             isInternalFiscalNotificationFieldArtifact({
               fieldId: metadata?.fieldId ?? null,
@@ -408,7 +416,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
           ];
         },
       );
-      const printedDates = deduplicateFacts(
+      const printedDates = deduplicateKnownSemanticDuplicates(
         observedUnknownFields.flatMap((field) => {
           const metadata = parseVerticalFieldLabel(field.labelRaw);
           const legacyDateLabel = legacyDateFieldLabel(field.labelRaw);
@@ -551,6 +559,8 @@ export function projectFiscalNotificationStructuredHistoryV1(
         orderedFacts,
         money: Object.freeze(money),
         installments: Object.freeze(installments),
+        amountReconciliation:
+          snapshot.structuredData.amountReconciliation ?? null,
         explanation,
         authenticityLabel: "Autenticidad no comprobada" as const,
         reviewStatus:
@@ -874,12 +884,24 @@ function isAeatProfileId(value: string | null): value is AeatDocumentProfileIdV1
   );
 }
 
-function deduplicateFacts<T extends FiscalNotificationStructuredHistoryFactV1>(
-  facts: readonly T[],
-): readonly T[] {
+function deduplicateKnownSemanticDuplicates<
+  T extends FiscalNotificationStructuredHistoryFactV1,
+>(facts: readonly T[]): readonly T[] {
   const unique = new Map<string, T>();
   for (const fact of facts) {
-    const key = `${fact.label}\u0000${fact.value}`;
+    const label = fact.label
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/gu, "")
+      .toLocaleLowerCase("es-ES");
+    const group =
+      /vencimiento de la cuota|limite de pago voluntario/u.test(label)
+        ? "INSTALLMENT_DEADLINE"
+        : /numero de expediente|identificador del acuerdo/u.test(label)
+          ? "CASE_OR_AGREEMENT"
+          : /clave de liquidacion|clave de deuda/u.test(label)
+            ? "DEBT_OR_LIQUIDATION"
+            : label;
+    const key = `${group}\u0000${fact.value.normalize("NFKC").toLocaleLowerCase("es-ES")}`;
     if (!unique.has(key)) unique.set(key, fact);
   }
   return Object.freeze([...unique.values()]);
