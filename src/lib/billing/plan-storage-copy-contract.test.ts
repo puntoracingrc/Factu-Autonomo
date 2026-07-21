@@ -45,6 +45,7 @@ describe("copy público de almacenamiento por plan", () => {
       "La nube de Factu mantiene tus datos entre móvil y ordenador cuando tu cuenta está activa",
       "sincroniza todos tus dispositivos",
       "Hasta que inicies sesión, todo queda en este navegador",
+      "hasta que inicies sesión",
       "correo de Supabase",
       "Busca el mensaje de <strong>Supabase</strong>",
       "La nube no está configurada en este servidor",
@@ -118,6 +119,9 @@ describe("copy público de almacenamiento por plan", () => {
     expect(upgrade).toContain("hasta 2 dispositivos");
     expect(account.replace(/\s+/gu, " ")).toContain(
       "En Gratis, los datos siguen solo en este dispositivo; Pro sincroniza hasta 2 dispositivos y Pro+ hasta 5",
+    );
+    expect(account.replace(/\s+/gu, " ")).toContain(
+      "En Gratis, lo que guardes seguirá solo en este navegador incluso después de iniciar sesión",
     );
     expect(account).toContain("Confirma tu cuenta de Factu");
     expect(account).not.toContain("mensaje de <strong>Supabase</strong>");
