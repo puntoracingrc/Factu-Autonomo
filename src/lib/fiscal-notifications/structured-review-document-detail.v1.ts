@@ -8,6 +8,7 @@ import type {
   FiscalNotificationStructuredHistoryEntryV1,
   FiscalNotificationStructuredHistoryOrderedFactV1,
 } from "./structured-review-history-view-model.v1";
+import type { FiscalNotificationMathematicalIntegrityV11 } from "./mathematical-integrity-contract.v11";
 
 export const FISCAL_NOTIFICATION_DETAIL_PREVIEW_LIMIT_V1 = 8;
 export const FISCAL_NOTIFICATION_DETAIL_TABLE_LIMIT_V1 = 12;
@@ -112,6 +113,17 @@ export interface FiscalNotificationDetailEconomyV1 {
   readonly previewLimit: number;
 }
 
+export interface FiscalNotificationDetailIntegrityV11 {
+  readonly status:
+    | "VALIDATED"
+    | "PARTIAL"
+    | "REVIEW_REQUIRED"
+    | "INCONSISTENT"
+    | "NOT_APPLICABLE";
+  readonly statusLabel: string;
+  readonly messages: readonly string[];
+}
+
 export interface FiscalNotificationDetailExplanationV1 {
   readonly documentSays: string;
   readonly officialMeaning: string;
@@ -178,6 +190,7 @@ export interface FiscalNotificationDocumentDetailViewModelV1 {
   readonly header: FiscalNotificationDetailHeaderV1;
   readonly factGroups: readonly FiscalNotificationDetailFactGroupV1[];
   readonly economy: FiscalNotificationDetailEconomyV1 | null;
+  readonly integrity: FiscalNotificationDetailIntegrityV11 | null;
   readonly explanation: FiscalNotificationDetailExplanationV1;
   readonly connections: FiscalNotificationDetailConnectionsV1 | null;
   readonly siblingActs: readonly FiscalNotificationDetailSiblingActV1[];
@@ -377,6 +390,9 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
   });
 
   const economy = projectEconomy(document);
+  const integrity = projectFiscalNotificationDetailIntegrityV11(
+    document.mathematicalIntegrity ?? null,
+  );
   const directLinks = group.links.filter(
     (link) =>
       link.fromDocumentId === document.key ||
@@ -479,6 +495,7 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
     }),
     factGroups: Object.freeze(factGroups),
     economy,
+    integrity,
     explanation: Object.freeze({
       documentSays: displayTextOrFallback(
         document.explanation.result,
@@ -530,6 +547,32 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
       canDelete: true as const,
       driveFileId: document.originalArchive?.driveFileId ?? null,
     }),
+  });
+}
+
+export function projectFiscalNotificationDetailIntegrityV11(
+  integrity: FiscalNotificationMathematicalIntegrityV11 | null,
+): FiscalNotificationDetailIntegrityV11 | null {
+  if (!integrity) return null;
+  const messages = [...new Set(integrity.checks.map((check) => check.safeMessage))];
+  const presentation = (() => {
+    switch (integrity.status) {
+      case "VALIDATED_EXACT":
+      case "VALIDATED_WITH_ROUNDING":
+        return { status: "VALIDATED" as const, statusLabel: "Comprobación correcta" };
+      case "VALIDATED_PARTIAL_COMPONENTS":
+        return { status: "PARTIAL" as const, statusLabel: "Comprobación parcial" };
+      case "REVIEW_REQUIRED":
+        return { status: "REVIEW_REQUIRED" as const, statusLabel: "Revisión necesaria" };
+      case "INCONSISTENT_PRINTED_VALUES":
+        return { status: "INCONSISTENT" as const, statusLabel: "Diferencia detectada" };
+      case "NOT_APPLICABLE_NO_ARITHMETIC":
+        return { status: "NOT_APPLICABLE" as const, statusLabel: "Sin cálculo aritmético" };
+    }
+  })();
+  return Object.freeze({
+    ...presentation,
+    messages: Object.freeze(messages),
   });
 }
 

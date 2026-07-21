@@ -12,6 +12,7 @@ import {
 } from "./knowledge/aeat-document-knowledge.v1";
 import type { FiscalNotificationsWorkspace } from "./types";
 import { parseFiscalNotificationAmountReconciliationV1 } from "./amount-reconciliation-contract.v1";
+import { parseFiscalNotificationMathematicalIntegrityV11 } from "./mathematical-integrity-contract.v11";
 
 export type WorkspaceIntegrityIssueCode =
   | "INVALID_WORKSPACE"
@@ -535,6 +536,7 @@ const STRUCTURED_DATA_KEYS = new Set([
   "inferenceSummary",
   "userConfirmedSummary",
   "amountReconciliation",
+  "mathematicalIntegrity",
   "documentFields",
   "templateRecognition",
 ]);
@@ -677,6 +679,7 @@ const RECONCILIATION_EVIDENCE_KINDS = new Set([
   "OWNER_SCOPED_OPAQUE_ASSET",
   "MODEL_AND_FISCAL_YEAR",
   "NOTIFICATION_PROOF_REFERENCE",
+  "MATHEMATICAL_INTEGRITY_VALIDATED",
 ]);
 const OBLIGATION_STATUSES = new Set([
   "DRAFT",
@@ -1860,6 +1863,20 @@ export function validateFiscalNotificationsWorkspaceIntegrity(
         addIssue(
           "INVALID_WORKSPACE",
           `${path}.structuredData.amountReconciliation`,
+        );
+      }
+    }
+    if (item.structuredData.mathematicalIntegrity !== undefined) {
+      try {
+        parseFiscalNotificationMathematicalIntegrityV11(
+          item.structuredData.mathematicalIntegrity,
+          1,
+          snapshotFile?.pageCount ?? FISCAL_NOTIFICATION_INPUT_LIMITS.maxPages,
+        );
+      } catch {
+        addIssue(
+          "INVALID_WORKSPACE",
+          `${path}.structuredData.mathematicalIntegrity`,
         );
       }
     }

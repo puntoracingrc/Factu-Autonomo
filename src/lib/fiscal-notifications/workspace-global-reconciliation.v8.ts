@@ -45,6 +45,10 @@ interface ProjectionMetadataV8 {
   readonly documents: readonly GlobalReconciliationDocumentV8[];
   readonly referenceTypesById: ReadonlyMap<string, ExternalReferenceType>;
   readonly amountTypesById: ReadonlyMap<string, MoneyComponentType>;
+  readonly mathematicallySupportedReferenceTypesByDocumentId: ReadonlyMap<
+    string,
+    ReadonlySet<string>
+  >;
 }
 
 const MEMORY_ASSET_CARRIER =
@@ -137,6 +141,32 @@ export function appendWorkspaceGlobalReconciliationV8(input: {
     );
     const candidates = relationIndexes.get(pair) ?? [];
     const selectedIndex = chooseRelationIndex(relations, candidates);
+    const evidenceKinds = new Set(change.edge.evidenceKinds);
+    const matchingReferenceTypes = referenceTypesForEdge(
+      change.edge.relationType,
+      change.edge.matchingReferenceIds,
+      projection.referenceTypesById,
+    );
+    const sourceValidatedReferenceTypes =
+      projection.mathematicallySupportedReferenceTypesByDocumentId.get(
+        change.edge.sourceDocumentId,
+      );
+    const targetValidatedReferenceTypes =
+      projection.mathematicallySupportedReferenceTypesByDocumentId.get(
+        change.edge.targetDocumentId,
+      );
+    if (
+      matchingReferenceTypes.length > 0 &&
+      sourceValidatedReferenceTypes &&
+      targetValidatedReferenceTypes &&
+      matchingReferenceTypes.every(
+        (referenceType) =>
+          sourceValidatedReferenceTypes.has(referenceType) &&
+          targetValidatedReferenceTypes.has(referenceType),
+      )
+    ) {
+      evidenceKinds.add("MATHEMATICAL_INTEGRITY_VALIDATED");
+    }
     const history: DocumentRelationReconciliationRecordV8 = {
       ruleVersion: GLOBAL_RECONCILIATION_RULE_VERSION_V8,
       previousStatus: change.previousStatus,
@@ -145,16 +175,11 @@ export function appendWorkspaceGlobalReconciliationV8(input: {
       previousRelationType: change.previousRelationType,
       newRelationType: change.edge.persistedRelationType,
       globalRelationType: change.edge.relationType,
-      evidenceKinds: [...change.edge.evidenceKinds],
+      evidenceKinds: [...evidenceKinds].sort(),
       reasonCode: change.reasonCode,
       reevaluatedAt: change.reevaluatedAt,
       rowAssignmentReviewRequired: change.edge.rowAssignmentReviewRequired,
     };
-    const matchingReferenceTypes = referenceTypesForEdge(
-      change.edge.relationType,
-      change.edge.matchingReferenceIds,
-      projection.referenceTypesById,
-    );
     const matchingAmountTypes = change.edge.matchingAmountIds
       .map((id) => projection.amountTypesById.get(id))
       .filter((value): value is MoneyComponentType => value !== undefined);
@@ -302,6 +327,10 @@ function projectWorkspace(
   );
   const referenceTypesById = new Map<string, ExternalReferenceType>();
   const amountTypesById = new Map<string, MoneyComponentType>();
+  const mathematicallySupportedReferenceTypesByDocumentId = new Map<
+    string,
+    ReadonlySet<string>
+  >();
   const documents: GlobalReconciliationDocumentV8[] = [];
   for (const document of workspace.documents) {
     const authority = authorityById.get(document.authorityId);
@@ -344,7 +373,17 @@ function projectWorkspace(
     }
     const documentDebtKey = uniqueDocumentDebtKey(references);
     const amounts: GlobalReconciliationAmountV8[] = [];
-    for (const snapshot of snapshotsByDocument.get(document.id) ?? []) {
+    const snapshots = snapshotsByDocument.get(document.id) ?? [];
+    const validatedReferenceTypes = mathematicallySupportedReferenceTypes(
+      snapshots,
+    );
+    if (validatedReferenceTypes.size > 0) {
+      mathematicallySupportedReferenceTypesByDocumentId.set(
+        document.id,
+        validatedReferenceTypes,
+      );
+    }
+    for (const snapshot of snapshots) {
       for (const money of snapshot.structuredData.administrativeDomain?.moneyFacts ?? []) {
         const kind = globalAmountKind(money.kind, familyId);
         if (!kind || money.currency !== "EUR") continue;
@@ -434,7 +473,6 @@ function projectWorkspace(
         amountTypesById.set(id, "TOTAL_DEBT");
       }
     }
-    const snapshots = snapshotsByDocument.get(document.id) ?? [];
     const offsetRows = familyId.startsWith("collection.offset_")
       ? Math.max(
           observationsByDocument.get(document.id)?.length ?? 0,
@@ -471,7 +509,54 @@ function projectWorkspace(
     documents,
     referenceTypesById,
     amountTypesById,
+    mathematicallySupportedReferenceTypesByDocumentId,
   };
+}
+
+function mathematicallySupportedReferenceTypes(
+  snapshots: readonly FiscalNotificationsWorkspace["analysisSnapshots"][number][],
+): ReadonlySet<string> {
+  const latest = [...snapshots].sort(
+    (left, right) =>
+      right.version - left.version ||
+      right.createdAt.localeCompare(left.createdAt) ||
+      right.id.localeCompare(left.id),
+  )[0];
+  const integrity = latest?.structuredData.mathematicalIntegrity;
+  if (
+    !integrity ||
+    !(
+      (integrity.status === "VALIDATED_EXACT" ||
+        integrity.status === "VALIDATED_WITH_ROUNDING") &&
+      integrity.relationSupport.existingRelationsOnly === true &&
+      integrity.relationSupport.requiresStrongIdentifier === true &&
+      integrity.relationSupport.permitsAmountOnlyRelations === false
+    )
+  ) {
+    return new Set();
+  }
+  const validatedIds = new Set(
+    integrity.relationSupport.validatedEvidenceIds,
+  );
+  const hasRecomputedSuccessfulCheck = integrity.checks.some(
+    (check) =>
+      check.calculation.kind !== "NONE" &&
+      (check.status === "VALIDATED_EXACT" ||
+        check.status === "VALIDATED_WITH_ROUNDING") &&
+      check.operands.length > 0 &&
+      check.operands.every((operand) =>
+        validatedIds.has(operand.evidenceId),
+      ),
+  );
+  if (!hasRecomputedSuccessfulCheck) return new Set();
+  return new Set(
+    integrity.normalizedEvidence
+      .filter(
+        (evidence) =>
+          evidence.semantic === "REFERENCE",
+      )
+      .map((evidence) => evidence.canonicalType),
+  );
 }
 
 function uniqueDocumentDebtKey(

@@ -119,6 +119,68 @@ function readyLibrary(): FiscalNotificationDocumentLibraryViewModelV1 {
       requiresManualReview: false,
       numericMutationPolicy: "NEVER_CHANGE_EXTRACTED_VALUES",
     },
+    mathematicalIntegrity: {
+      schemaVersion: 11,
+      integrityVersion: "11.0.0",
+      catalogReleaseId: "aeat-mathematical-integrity.2026-07-21.v11",
+      familyId: "collection.enforcement_order",
+      archetypeId: "ENFORCEMENT_SCENARIOS",
+      validationMode: "ARITHMETIC_AND_LOGICAL",
+      status: "VALIDATED_EXACT",
+      passCount: 2,
+      automaticPassLimit: 2,
+      normalizedEvidence: [
+        {
+          evidenceId: "math-v11:synthetic-amount",
+          sourceFieldFingerprint: `sha256:${"c".repeat(64)}`,
+          semantic: "MONEY",
+          canonicalType: "DOCUMENT_TOTAL",
+          originalClassification: "TOTAL_CLAIMED",
+          amountCents: 14_955,
+          dateValue: null,
+          countValue: null,
+          sign: "POSITIVE",
+          currency: "EUR",
+          sourcePart: "MAIN_ADMINISTRATIVE_ACT",
+          pageNumbers: [2],
+          assertionType: "NORMALIZED",
+          originalConfidence: 0.99,
+        },
+      ],
+      checks: [
+        {
+          ruleId: "v11:enforcement-scenarios:arithmetic:1",
+          checkKind: "ARITHMETIC",
+          status: "VALIDATED_EXACT",
+          operands: [{ evidenceId: "math-v11:synthetic-amount" }],
+          expectedCents: 14_955,
+          observedCents: 14_955,
+          deltaCents: 0,
+          toleranceCents: 0,
+          calculation: {
+            kind: "LINEAR_EQUALITY",
+            resultEvidenceId: "math-v11:synthetic-amount",
+            terms: [
+              {
+                evidenceId: "math-v11:synthetic-amount",
+                sign: 1,
+              },
+            ],
+          },
+          safeMessage: "Los importes cuadran con las cifras impresas.",
+        },
+      ],
+      hardFailureCodes: [],
+      persistenceDecision: "ALLOW_CORE",
+      relationSupport: {
+        existingRelationsOnly: true,
+        requiresStrongIdentifier: true,
+        permitsAmountOnlyRelations: false,
+        validatedEvidenceIds: [],
+      },
+      originalExtractionMutationPolicy: "NEVER_MUTATE_OR_REPLACE",
+      retainedSourceContent: "NONE",
+    },
     explanation: {
       whatItIs: "Una providencia inicia la vía ejecutiva.",
       whyReceived:
@@ -158,6 +220,7 @@ function readyLibrary(): FiscalNotificationDocumentLibraryViewModelV1 {
     money: [],
     installments: [],
     amountReconciliation: null,
+    mathematicalIntegrity: null,
   };
   const link = {
     key: "relation:one-two",
@@ -301,10 +364,49 @@ describe("library AI audit v1", () => {
       ],
       discardedCandidates: [
         {
-          amountCents: 4_640_245_700,
           reason: "La cifra se repite en contexto de identificador fiscal.",
           reclassifiedAs: "Identificador fiscal",
           pages: [1, 2],
+        },
+      ],
+    });
+    expect(JSON.stringify(result.documents[0]?.arithmeticReview)).not.toContain(
+      "4640245700",
+    );
+    expect(result.documents[0]?.integrityReview).toEqual({
+      status: "VALIDATED_EXACT",
+      persistenceDecision: "ALLOW_CORE",
+      existingRelationsOnly: true,
+      requiresStrongIdentifier: true,
+      permitsAmountOnlyRelations: false,
+      checks: [
+        {
+          kind: "ARITHMETIC",
+          status: "VALIDATED_EXACT",
+          message: "Los importes cuadran con las cifras impresas.",
+          expectedCents: 14_955,
+          observedCents: 14_955,
+          deltaCents: 0,
+          toleranceCents: 0,
+          calculation: {
+            kind: "LINEAR_EQUALITY",
+            expression: "DOCUMENT_TOTAL = DOCUMENT_TOTAL",
+            operator: "EQUALS",
+            rateBasisPoints: null,
+          },
+          pages: [2],
+          sourceParts: ["MAIN_ADMINISTRATIVE_ACT"],
+          evidence: [
+            {
+              semantic: "MONEY",
+              canonicalType: "DOCUMENT_TOTAL",
+              amountCents: 14_955,
+              dateValue: null,
+              countValue: null,
+              pages: [2],
+              sourcePart: "MAIN_ADMINISTRATIVE_ACT",
+            },
+          ],
         },
       ],
     });
@@ -383,6 +485,41 @@ describe("library AI audit v1", () => {
           index === 0
             ? {
                 ...document,
+                integrityReview: document.integrityReview
+                  ? {
+                      ...document.integrityReview,
+                      checks: document.integrityReview.checks.map(
+                        (check, checkIndex) =>
+                          checkIndex === 0
+                            ? {
+                                ...check,
+                                evidence: check.evidence.map(
+                                  (evidence, evidenceIndex) =>
+                                    evidenceIndex === 0
+                                      ? {
+                                          ...evidence,
+                                          canonicalType:
+                                            "EXACT_TITLE_AND_AUTHORITY",
+                                        }
+                                      : evidence,
+                                ),
+                              }
+                            : check,
+                      ),
+                    }
+                  : null,
+              }
+            : document,
+        ),
+      }),
+    ).toBeNull();
+    expect(
+      parseFiscalNotificationLibraryAiAuditInputV1({
+        ...projected,
+        documents: projected.documents.map((document, index) =>
+          index === 0
+            ? {
+                ...document,
                 facts: [
                   ...document.facts,
                   {
@@ -392,6 +529,31 @@ describe("library AI audit v1", () => {
                     page: 1,
                   },
                 ],
+              }
+            : document,
+        ),
+      }),
+    ).toBeNull();
+    expect(
+      parseFiscalNotificationLibraryAiAuditInputV1({
+        ...projected,
+        documents: projected.documents.map((document, index) =>
+          index === 0 && document.arithmeticReview
+            ? {
+                ...document,
+                arithmeticReview: {
+                  ...document.arithmeticReview,
+                  discardedCandidates:
+                    document.arithmeticReview.discardedCandidates.map(
+                      (candidate, candidateIndex) =>
+                        candidateIndex === 0
+                          ? {
+                              ...candidate,
+                              reason: "Candidato descartado 46402457",
+                            }
+                          : candidate,
+                    ),
+                },
               }
             : document,
         ),

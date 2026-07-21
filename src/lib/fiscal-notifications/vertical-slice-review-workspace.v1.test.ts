@@ -16,6 +16,10 @@ import {
   appendFiscalNotificationVerticalSliceReviewV1,
 } from "./vertical-slice-review-workspace.v1";
 import { validateFiscalNotificationsWorkspaceIntegrity } from "./workspace-integrity";
+import {
+  encodeFiscalNotificationsWorkspaceForStorageV2,
+  restoreFiscalNotificationsWorkspaceFromStorageV2,
+} from "./workspace-storage-envelope.v2";
 
 const OWNER = "user:00000000-0000-4000-8000-000000000101";
 const OTHER_OWNER = "user:00000000-0000-4000-8000-000000000102";
@@ -458,7 +462,138 @@ async function installmentTableAnalysis(): Promise<FiscalNotificationLocalAnalys
   return source as unknown as FiscalNotificationLocalAnalysisResult;
 }
 
+async function incompleteEnforcementAnalysis(): Promise<FiscalNotificationLocalAnalysisResult> {
+  const boundedDocument: BoundedDocumentInput = Object.freeze({
+    ownerScope: OWNER,
+    documentId: "document:synthetic-inconsistent-enforcement-workspace",
+    pages: Object.freeze([
+      Object.freeze({
+        pageNumber: 1,
+        isBlank: false,
+        text: [
+          "DOCUMENTO SINTÉTICO DE QA - SIN VALIDEZ",
+          "AGENCIA TRIBUTARIA",
+          "sede.agenciatributaria.gob.es",
+          "PROVIDENCIA DE APREMIO",
+          "Clave de liquidación SYN-DEBT-INCONSISTENT-001",
+          "Principal pendiente 100,00 EUR",
+          "Recargo de apremio ordinario (20 %) 20,00 EUR",
+          "Importe total 123,45 EUR",
+        ].join("\n"),
+      }),
+    ]),
+  });
+  const observed = await analyzeFiscalNotificationDocumentInput(
+    boundedDocument,
+  );
+  expect(observed.verticalSliceReview.documents[0]?.mathematicalIntegrity).toMatchObject({
+    status: "VALIDATED_PARTIAL_COMPONENTS",
+    persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+  });
+  const source = structuredClone(analysis("b".repeat(64))) as unknown as {
+    technicalReview: { pageCount: number; byteLength: number };
+    ephemeralVerticalSliceReview: unknown;
+  };
+  source.technicalReview.pageCount = 1;
+  source.technicalReview.byteLength = 2_048;
+  source.ephemeralVerticalSliceReview = observed.verticalSliceReview;
+  return source as unknown as FiscalNotificationLocalAnalysisResult;
+}
+
+async function impossibleCompleteEnforcementAnalysis(): Promise<FiscalNotificationLocalAnalysisResult> {
+  const boundedDocument: BoundedDocumentInput = Object.freeze({
+    ownerScope: OWNER,
+    documentId: "document:synthetic-complete-inconsistent-enforcement-workspace",
+    pages: Object.freeze([
+      Object.freeze({
+        pageNumber: 1,
+        isBlank: false,
+        text: [
+          "DOCUMENTO SINTÉTICO DE QA - SIN VALIDEZ",
+          "AGENCIA TRIBUTARIA",
+          "sede.agenciatributaria.gob.es",
+          "PROVIDENCIA DE APREMIO",
+          "Clave de liquidación SYN-DEBT-COMPLETE-001",
+          "Principal pendiente 100,00 EUR",
+          "Recargo de apremio ordinario (20 %) 20,00 EUR",
+          "Intereses de demora 0,00 EUR",
+          "Costas del procedimiento 0,00 EUR",
+          "Ingreso a cuenta 0,00 EUR",
+          "Importe total 123,45 EUR",
+        ].join("\n"),
+      }),
+    ]),
+  });
+  const observed = await analyzeFiscalNotificationDocumentInput(
+    boundedDocument,
+  );
+  expect(observed.verticalSliceReview.documents[0]?.mathematicalIntegrity).toMatchObject({
+    status: "INCONSISTENT_PRINTED_VALUES",
+    persistenceDecision: "BLOCK_INCONSISTENT_PRINTED_CORE",
+  });
+  const source = structuredClone(analysis("c".repeat(64))) as unknown as {
+    technicalReview: { pageCount: number; byteLength: number };
+    ephemeralVerticalSliceReview: unknown;
+  };
+  source.technicalReview.pageCount = 1;
+  source.technicalReview.byteLength = 2_048;
+  source.ephemeralVerticalSliceReview = observed.verticalSliceReview;
+  return source as unknown as FiscalNotificationLocalAnalysisResult;
+}
+
 describe("vertical slice structured workspace v1", () => {
+  it("does not treat absent secondary components as zero and preserves existing documents", async () => {
+    const existing = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: await installmentTableAnalysis(),
+    }).workspace;
+    const before = structuredClone(existing);
+    const incomplete = await incompleteEnforcementAnalysis();
+
+    const result = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: SECOND_REVIEW_ID,
+      createdAt: "2026-07-14T20:01:00.000Z",
+      workspace: existing,
+      analysis: incomplete,
+    });
+    expect(result.workspace.documents).toHaveLength(before.documents.length + 1);
+    expect(
+      result.workspace.analysisSnapshots.at(-1)?.structuredData
+        .mathematicalIntegrity,
+    ).toMatchObject({
+      status: "VALIDATED_PARTIAL_COMPONENTS",
+      persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    });
+    expect(existing).toEqual(before);
+  });
+
+  it("rejects a fully observed impossible printed sum without mutating any existing document", async () => {
+    const existing = appendFiscalNotificationVerticalSliceReviewV1({
+      ownerScope: OWNER,
+      reviewId: REVIEW_ID,
+      createdAt: CREATED_AT,
+      workspace: null,
+      analysis: await installmentTableAnalysis(),
+    }).workspace;
+    const before = structuredClone(existing);
+    const impossible = await impossibleCompleteEnforcementAnalysis();
+
+    expect(() =>
+      appendFiscalNotificationVerticalSliceReviewV1({
+        ownerScope: OWNER,
+        reviewId: SECOND_REVIEW_ID,
+        createdAt: "2026-07-14T20:01:00.000Z",
+        workspace: existing,
+        analysis: impossible,
+      }),
+    ).toThrow("FISCAL_NOTIFICATION_VERTICAL_SLICE_WORKSPACE_INVALID");
+    expect(existing).toEqual(before);
+  });
+
   it("persiste una diligencia exacta con importes y referencias sin identidades ni cuentas", async () => {
     const result = appendFiscalNotificationVerticalSliceReviewV1({
       ownerScope: OWNER,
@@ -502,6 +637,7 @@ describe("vertical slice structured workspace v1", () => {
       valid: true,
       issues: [],
     });
+
   });
 
   it("persiste solo la huella opaca del bien usada por la reconciliación global", async () => {
@@ -539,10 +675,16 @@ describe("vertical slice structured workspace v1", () => {
       analysis: await installmentTableAnalysis(),
     });
     const snapshot = result.workspace.analysisSnapshots[0];
-    const history = projectFiscalNotificationStructuredHistoryV1(
+    const envelope = encodeFiscalNotificationsWorkspaceForStorageV2(
       result.workspace,
+    );
+    const restored = restoreFiscalNotificationsWorkspaceFromStorageV2(
+      envelope,
       OWNER,
     );
+    expect(restored).not.toBeNull();
+    if (!restored) return;
+    const history = projectFiscalNotificationStructuredHistoryV1(restored, OWNER);
 
     expect(result.workspace.paymentOptions).toHaveLength(3);
     expect(result.workspace.paymentOptions).toEqual([
@@ -589,10 +731,21 @@ describe("vertical slice structured workspace v1", () => {
         }),
       ]),
     });
+    expect(snapshot?.structuredData.mathematicalIntegrity).toMatchObject({
+      familyId: "collection.deferral_grant",
+      archetypeId: "INSTALLMENT_PLAN",
+      status: "VALIDATED_EXACT",
+      persistenceDecision: "ALLOW_CORE",
+      originalExtractionMutationPolicy: "NEVER_MUTATE_OR_REPLACE",
+    });
     expect(history).toMatchObject({
       status: "READY",
       entries: [
         {
+          mathematicalIntegrity: expect.objectContaining({
+            status: "VALIDATED_EXACT",
+            persistenceDecision: "ALLOW_CORE",
+          }),
           installments: [
             expect.objectContaining({
               label: "Cuota 1",
@@ -622,6 +775,20 @@ describe("vertical slice structured workspace v1", () => {
       valid: true,
       issues: [],
     });
+
+    const tampered = structuredClone(envelope) as unknown as {
+      workspace: {
+        documents: Array<{
+          mathematicalIntegrity?: {
+            normalizedEvidence: Array<{ pageNumbers: number[] }>;
+          };
+        }>;
+      };
+    };
+    tampered.workspace.documents[0]!.mathematicalIntegrity!.normalizedEvidence[0]!.pageNumbers = [2];
+    expect(
+      restoreFiscalNotificationsWorkspaceFromStorageV2(tampered, OWNER),
+    ).toBeNull();
   });
 
   it("persiste el sobre electrónico y todos sus datos visibles sin conservar el PDF", () => {

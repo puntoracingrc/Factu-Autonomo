@@ -153,6 +153,58 @@ la navegación y su sección del manual, convierte la página en 404 y cierra el
 endpoint. La activación en producción no sustituye la revisión humana ni cambia
 el carácter orientativo de las reglas.
 
+### Integridad matemática documental V11
+
+La revisión de Notificaciones ejecuta una capa transversal después de la
+extracción y de la reconciliación aritmética existente. Sus contratos
+normativos se cargan desde:
+
+- `aeat-mathematical-validation-master.v11.json`;
+- `aeat-family-validation-matrix.v11.csv`;
+- `aeat-validation-archetypes.v11.csv`.
+
+El catálogo se valida al arrancar y conserva paridad entre 122 perfiles y 47
+arquetipos. No existe una copia manual de familias ni un segundo extractor. La
+capa V11 recibe los campos ya observados y conserva sin mutación su valor,
+clasificación, signo, moneda, confianza, páginas y parte del documento. La
+salida derivada solo contiene valores estructurados, huellas de campo y mensajes
+saneados; no persiste texto OCR, nombres, identificadores fiscales, cuentas ni
+valores de referencias.
+
+Las ecuaciones de cuotas y los casos ya soportados siguen ejecutándose en el
+reconciliador existente. V11 compila adicionalmente igualdades, porcentajes,
+inecuaciones, órdenes temporales y conteos cerrados que aparecen de forma
+literal en el contrato. Cada fórmula del catálogo queda clasificada como
+automática o declarada expresamente de revisión; las reglas lógicas, fallos y
+comprobaciones entre documentos que requieren evidencia no disponible no se
+afirman por aproximación. Una fórmula
+con filas no agrupadas, componentes implícitos, calendario jurídico o una
+relación exacta previa no se completa con ceros ni supuestos: queda en revisión
+hasta que la estructura necesaria exista. Una discrepancia no altera cifras;
+guarda una operación estructurada con operandos, signos, resultado, operador o
+porcentaje, además de esperado, observado, diferencia, tolerancia y procedencia.
+El parser durable vuelve a calcular esa operación al restaurar y rechaza una
+comprobación desligada de sus evidencias. Los mensajes persistibles proceden de
+plantillas cerradas y no admiten texto OCR libre.
+
+La integridad matemática nunca crea ni confirma relaciones. Solo puede añadir
+evidencia secundaria a una relación ya detectada por identificadores fuertes,
+usando la revisión más reciente de ambos documentos. El tipo de la referencia
+fuerte enlazada debe figurar como referencia normalizada en ambos extremos y
+cada ficha debe aportar además una comprobación matemática exitosa y
+recalculable. La aritmética respalda la coherencia de las fichas, pero no valida
+el valor de la referencia ni otras referencias de la ficha. Los importes
+aislados no son identificadores relacionales. La ficha muestra mensajes
+corrientes en `Comprobaciones del documento`; fórmulas y tokens internos no se
+presentan en la vista normal.
+
+La persistencia privada conserva la tabla de cuotas y la revisión V11 para que
+la vista previa, el guardado y la restauración produzcan la misma estructura.
+La auditoría opcional con GPT-4o recibe tipos canónicos, valores estructurados,
+ecuación saneada, operador, signos, porcentaje, páginas y partes del documento,
+pero nunca texto OCR ni valores de referencias; su salida continúa siendo
+únicamente una propuesta sin mutaciones automáticas.
+
 ### Registro de activación en producción
 
 - Fecha: 2026-07-21.

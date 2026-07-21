@@ -18,7 +18,7 @@ describe("FiscalNotificationDocumentDetail UI contract", () => {
     const headings = [
       "DocumentHeader",
       "Lo que dice el documento",
-      "Importes y tablas",
+      "Importes y comprobaciones",
       "Qué significa y qué debes revisar",
       "Relaciones, cronología, procedencia y fuentes",
     ];
@@ -44,7 +44,12 @@ describe("FiscalNotificationDocumentDetail UI contract", () => {
     );
     expect(viewModelSource).toContain("driveFileId: document.originalArchive");
     expect(viewModelSource).toContain("economy,");
+    expect(viewModelSource).toContain("integrity,");
     expect(viewModelSource).toContain("connections,");
+    expect(source).toContain("Comprobaciones del documento");
+    expect(source).toContain("Importes y comprobaciones");
+    expect(source).toContain("IntegritySection");
+    expect(source).not.toMatch(/ruleId|operands|expectedCents|observedCents/u);
   });
 
   it("incluye los contratos responsive y contiene las tablas complejas dentro de un scroll controlado", () => {

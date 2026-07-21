@@ -6,7 +6,7 @@ import type {
 } from "./structured-review-document-library.v1";
 
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_SCHEMA_VERSION_V1 =
-  "fiscal-notification-library-ai-audit.v2";
+  "fiscal-notification-library-ai-audit.v3";
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MODEL_V1 = "gpt-4o";
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MAX_DOCUMENTS_V1 = 100;
 
@@ -72,10 +72,72 @@ export interface FiscalNotificationLibraryAiAuditInputV1 {
         readonly pages: readonly number[];
       }[];
       readonly discardedCandidates: readonly {
-        readonly amountCents: number;
-        readonly reason: string;
+        readonly reason:
+          | "La cifra se repite en contexto de identificador fiscal."
+          | "La etiqueta sitúa la cifra en contexto de identificador fiscal.";
         readonly reclassifiedAs: "Identificador fiscal";
         readonly pages: readonly number[];
+      }[];
+    } | null;
+    readonly integrityReview: {
+      readonly status:
+        | "VALIDATED_EXACT"
+        | "VALIDATED_WITH_ROUNDING"
+        | "VALIDATED_PARTIAL_COMPONENTS"
+        | "REVIEW_REQUIRED"
+        | "INCONSISTENT_PRINTED_VALUES"
+        | "NOT_APPLICABLE_NO_ARITHMETIC";
+      readonly persistenceDecision:
+        | "ALLOW_CORE"
+        | "ALLOW_CORE_WITH_WARNINGS"
+        | "BLOCK_INCONSISTENT_PRINTED_CORE";
+      readonly existingRelationsOnly: true;
+      readonly requiresStrongIdentifier: true;
+      readonly permitsAmountOnlyRelations: false;
+      readonly checks: readonly {
+        readonly kind: "ARITHMETIC" | "TEMPORAL" | "STRUCTURAL" | "RELATION_SUPPORT";
+        readonly status:
+          | "VALIDATED_EXACT"
+          | "VALIDATED_WITH_ROUNDING"
+          | "VALIDATED_PARTIAL_COMPONENTS"
+          | "REVIEW_REQUIRED"
+          | "INCONSISTENT_PRINTED_VALUES"
+          | "NOT_APPLICABLE_NO_ARITHMETIC";
+        readonly message: string;
+        readonly expectedCents: number | null;
+        readonly observedCents: number | null;
+        readonly deltaCents: number | null;
+        readonly toleranceCents: number;
+        readonly calculation: {
+          readonly kind:
+            | "NONE"
+            | "LINEAR_EQUALITY"
+            | "PERCENTAGE_EQUALITY"
+            | "ZERO_EQUALITY"
+            | "AMOUNT_ORDER"
+            | "DATE_ORDER"
+            | "AMOUNT_CHAIN"
+            | "COUNT_EQUALITY";
+          readonly expression: string | null;
+          readonly operator:
+            | "EQUALS"
+            | "LTE"
+            | "GTE"
+            | "CHAIN_LTE"
+            | null;
+          readonly rateBasisPoints: number | null;
+        };
+        readonly pages: readonly number[];
+        readonly sourceParts: readonly string[];
+        readonly evidence: readonly {
+          readonly semantic: "MONEY" | "DATE" | "REFERENCE" | "STATUS" | "COUNT" | "OTHER";
+          readonly canonicalType: string;
+          readonly amountCents: number | null;
+          readonly dateValue: string | null;
+          readonly countValue: number | null;
+          readonly pages: readonly number[];
+          readonly sourcePart: string;
+        }[];
       }[];
     } | null;
     readonly explanation: {
@@ -190,6 +252,58 @@ const ARITHMETIC_EQUATION_DESCRIPTIONS: Readonly<
 const ARITHMETIC_EQUATION_DESCRIPTION_VALUES = new Set(
   Object.values(ARITHMETIC_EQUATION_DESCRIPTIONS),
 );
+const DISCARDED_CANDIDATE_REASON_VALUES = new Set([
+  "La cifra se repite en contexto de identificador fiscal.",
+  "La etiqueta sitúa la cifra en contexto de identificador fiscal.",
+] as const);
+const INTEGRITY_STATUSES = new Set<
+  NonNullable<
+    FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+  >["status"]
+>([
+  "VALIDATED_EXACT",
+  "VALIDATED_WITH_ROUNDING",
+  "VALIDATED_PARTIAL_COMPONENTS",
+  "REVIEW_REQUIRED",
+  "INCONSISTENT_PRINTED_VALUES",
+  "NOT_APPLICABLE_NO_ARITHMETIC",
+]);
+const INTEGRITY_PERSISTENCE_DECISIONS = new Set<
+  NonNullable<
+    FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+  >["persistenceDecision"]
+>([
+  "ALLOW_CORE",
+  "ALLOW_CORE_WITH_WARNINGS",
+  "BLOCK_INCONSISTENT_PRINTED_CORE",
+]);
+const INTEGRITY_CHECK_KINDS = new Set<
+  NonNullable<
+    FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+  >["checks"][number]["kind"]
+>(["ARITHMETIC", "TEMPORAL", "STRUCTURAL", "RELATION_SUPPORT"]);
+const INTEGRITY_SOURCE_PARTS = new Set([
+  "NOTIFICATION_COVER",
+  "DELIVERY_EVIDENCE",
+  "MAIN_ADMINISTRATIVE_ACT",
+  "ANNEX",
+  "DEBT_LIST",
+  "PAYMENT_DOCUMENT",
+  "RESPONSE_FORM",
+  "APPEAL_INFORMATION",
+  "GENERIC_INSTRUCTIONS",
+  "UNKNOWN",
+  "MULTIPLE_PARTS",
+]);
+const INTEGRITY_EVIDENCE_SEMANTICS = new Set([
+  "MONEY",
+  "DATE",
+  "REFERENCE",
+  "STATUS",
+  "COUNT",
+  "OTHER",
+]);
+const INTEGRITY_CANONICAL_TYPE = /^[A-Z][A-Z0-9_]{0,159}$/u;
 
 export function projectFiscalNotificationLibraryAiAuditInputV1(
   viewModel: FiscalNotificationDocumentLibraryViewModelV1,
@@ -402,7 +516,6 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
               document.amountReconciliation.discardedCandidates.map(
                 (candidate) =>
                   Object.freeze({
-                    amountCents: candidate.amountCents,
                     reason:
                       candidate.reason === "TAX_IDENTIFIER_REPEATED_CONTEXT"
                         ? "La cifra se repite en contexto de identificador fiscal."
@@ -411,6 +524,67 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
                     pages: Object.freeze([...candidate.sourcePageNumbers]),
                   }),
               ),
+            ),
+          })
+        : null,
+      integrityReview: document.mathematicalIntegrity
+        ? Object.freeze({
+            status: document.mathematicalIntegrity.status,
+            persistenceDecision:
+              document.mathematicalIntegrity.persistenceDecision,
+            existingRelationsOnly:
+              document.mathematicalIntegrity.relationSupport
+                .existingRelationsOnly,
+            requiresStrongIdentifier:
+              document.mathematicalIntegrity.relationSupport
+                .requiresStrongIdentifier,
+            permitsAmountOnlyRelations:
+              document.mathematicalIntegrity.relationSupport
+                .permitsAmountOnlyRelations,
+            checks: Object.freeze(
+              document.mathematicalIntegrity.checks.map((check) => {
+                const evidence = check.operands.flatMap((operand) => {
+                  const match =
+                    document.mathematicalIntegrity?.normalizedEvidence.find(
+                      (candidate) =>
+                        candidate.evidenceId === operand.evidenceId,
+                    );
+                  return match ? [match] : [];
+                });
+                return Object.freeze({
+                  kind: check.checkKind,
+                  status: check.status,
+                  message: check.safeMessage,
+                  expectedCents: check.expectedCents,
+                  observedCents: check.observedCents,
+                  deltaCents: check.deltaCents,
+                  toleranceCents: check.toleranceCents,
+                  calculation: projectAuditIntegrityCalculation(
+                    check.calculation,
+                    document.mathematicalIntegrity?.normalizedEvidence ?? [],
+                  ),
+                  pages: Object.freeze(
+                    [...new Set(evidence.flatMap((item) => item.pageNumbers))]
+                      .sort((a, b) => a - b),
+                  ),
+                  sourceParts: Object.freeze(
+                    [...new Set(evidence.map((item) => item.sourcePart))].sort(),
+                  ),
+                  evidence: Object.freeze(
+                    evidence.map((item) =>
+                      Object.freeze({
+                        semantic: item.semantic,
+                        canonicalType: item.canonicalType,
+                        amountCents: item.amountCents,
+                        dateValue: item.dateValue,
+                        countValue: item.countValue,
+                        pages: Object.freeze([...item.pageNumbers]),
+                        sourcePart: item.sourcePart,
+                      }),
+                    ),
+                  ),
+                });
+              }),
             ),
           })
         : null,
@@ -959,6 +1133,7 @@ function parseAuditDocument(
     !Array.isArray(value.installments) ||
     value.installments.length > 120 ||
     (value.arithmeticReview !== null && !isRecord(value.arithmeticReview)) ||
+    (value.integrityReview !== null && !isRecord(value.integrityReview)) ||
     !isRecord(value.explanation) ||
     !Array.isArray(value.officialSources) ||
     value.officialSources.length > 30
@@ -973,6 +1148,10 @@ function parseAuditDocument(
     value.arithmeticReview === null
       ? null
       : parseAuditArithmeticReview(value.arithmeticReview);
+  const integrityReview =
+    value.integrityReview === null
+      ? null
+      : parseAuditIntegrityReview(value.integrityReview);
   const explanation = parseAuditExplanation(value.explanation);
   const officialSources = value.officialSources.map(parseAuditOfficialSource);
   if (
@@ -981,6 +1160,7 @@ function parseAuditDocument(
     amounts.some((item) => item === null) ||
     installments.some((item) => item === null) ||
     (value.arithmeticReview !== null && arithmeticReview === null) ||
+    (value.integrityReview !== null && integrityReview === null) ||
     !explanation ||
     officialSources.some((item) => item === null)
   ) {
@@ -1007,10 +1187,299 @@ function parseAuditDocument(
       installments as NonNullable<(typeof installments)[number]>[],
     ),
     arithmeticReview,
+    integrityReview,
     explanation,
     officialSources: Object.freeze(
       officialSources as NonNullable<(typeof officialSources)[number]>[],
     ),
+  });
+}
+
+function parseAuditIntegrityReview(
+  value: Record<string, unknown>,
+): NonNullable<
+  FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+> | null {
+  if (
+    !INTEGRITY_STATUSES.has(
+      value.status as NonNullable<
+        FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+      >["status"],
+    ) ||
+    !INTEGRITY_PERSISTENCE_DECISIONS.has(
+      value.persistenceDecision as NonNullable<
+        FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+      >["persistenceDecision"],
+    ) ||
+    value.existingRelationsOnly !== true ||
+    value.requiresStrongIdentifier !== true ||
+    value.permitsAmountOnlyRelations !== false ||
+    !Array.isArray(value.checks) ||
+    value.checks.length > 512
+  ) {
+    return null;
+  }
+  const checks = value.checks.map((check) => {
+    if (!isRecord(check)) return null;
+    const message = cleanAuditText(check.message, 240);
+    const pages = parsePages(check.pages, 256);
+    const evidence = Array.isArray(check.evidence)
+      ? check.evidence.map(parseAuditIntegrityEvidence)
+      : [];
+    const expectedCents = optionalAuditInteger(check.expectedCents);
+    const observedCents = optionalAuditInteger(check.observedCents);
+    const deltaCents = optionalAuditInteger(check.deltaCents);
+    const calculation = parseAuditIntegrityCalculation(
+      check.calculation,
+      evidence.filter(
+        (item): item is NonNullable<typeof item> => item !== null,
+      ),
+    );
+    if (
+      !INTEGRITY_CHECK_KINDS.has(
+        check.kind as NonNullable<
+          FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+        >["checks"][number]["kind"],
+      ) ||
+      !INTEGRITY_STATUSES.has(
+        check.status as NonNullable<
+          FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+        >["checks"][number]["status"],
+      ) ||
+      !message ||
+      !isSafeAuditContentOutput(message) ||
+      expectedCents === undefined ||
+      observedCents === undefined ||
+      deltaCents === undefined ||
+      ((expectedCents === null || observedCents === null) !==
+        (deltaCents === null)) ||
+      (deltaCents !== null &&
+        deltaCents !== observedCents! - expectedCents!) ||
+      !calculation ||
+      !Number.isSafeInteger(check.toleranceCents) ||
+      (check.toleranceCents as number) < 0 ||
+      !pages ||
+      !Array.isArray(check.sourceParts) ||
+      check.sourceParts.length > 16 ||
+      !check.sourceParts.every(
+        (sourcePart) =>
+          typeof sourcePart === "string" &&
+          INTEGRITY_SOURCE_PARTS.has(sourcePart),
+      ) ||
+      new Set(check.sourceParts).size !== check.sourceParts.length ||
+      !Array.isArray(check.evidence) ||
+      evidence.length > 32 ||
+      evidence.some((item) => item === null)
+    ) {
+      return null;
+    }
+    return Object.freeze({
+      kind: check.kind as NonNullable<
+        FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+      >["checks"][number]["kind"],
+      status: check.status as NonNullable<
+        FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+      >["checks"][number]["status"],
+      message,
+      expectedCents,
+      observedCents,
+      deltaCents,
+      toleranceCents: check.toleranceCents as number,
+      calculation,
+      pages,
+      sourceParts: Object.freeze([...(check.sourceParts as string[])]),
+      evidence: Object.freeze(
+        evidence as NonNullable<(typeof evidence)[number]>[],
+      ),
+    });
+  });
+  if (checks.some((check) => check === null)) return null;
+  return Object.freeze({
+    status: value.status as NonNullable<
+      FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+    >["status"],
+    persistenceDecision: value.persistenceDecision as NonNullable<
+      FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+    >["persistenceDecision"],
+    existingRelationsOnly: true,
+    requiresStrongIdentifier: true,
+    permitsAmountOnlyRelations: false,
+    checks: Object.freeze(
+      checks as NonNullable<(typeof checks)[number]>[],
+    ),
+  });
+}
+
+function projectAuditIntegrityCalculation(
+  calculation: import("./mathematical-integrity-contract.v11").FiscalNotificationIntegrityCalculationV11,
+  evidence: readonly import("./mathematical-integrity-contract.v11").FiscalNotificationIntegrityNormalizedEvidenceV11[],
+): NonNullable<
+  FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+>["checks"][number]["calculation"] {
+  const typeById = new Map(
+    evidence.map((item) => [item.evidenceId, item.canonicalType]),
+  );
+  const type = (evidenceId: string) => typeById.get(evidenceId) ?? "EVIDENCE";
+  switch (calculation.kind) {
+    case "NONE":
+      return Object.freeze({
+        kind: "NONE",
+        expression: null,
+        operator: null,
+        rateBasisPoints: null,
+      });
+    case "LINEAR_EQUALITY":
+    case "COUNT_EQUALITY":
+      return Object.freeze({
+        kind: calculation.kind,
+        expression: `${type(calculation.resultEvidenceId)} = ${calculation.terms
+          .map((term, index) =>
+            `${term.sign === -1 ? "-" : index === 0 ? "" : "+"} ${type(term.evidenceId)}`.trim(),
+          )
+          .join(" ")}`,
+        operator: "EQUALS",
+        rateBasisPoints: null,
+      });
+    case "PERCENTAGE_EQUALITY":
+      return Object.freeze({
+        kind: calculation.kind,
+        expression: `${type(calculation.resultEvidenceId)} = ${type(calculation.baseEvidenceId)} * ${calculation.rateBasisPoints} / 10000`,
+        operator: "EQUALS",
+        rateBasisPoints: calculation.rateBasisPoints,
+      });
+    case "ZERO_EQUALITY":
+      return Object.freeze({
+        kind: calculation.kind,
+        expression: `${type(calculation.resultEvidenceId)} = 0`,
+        operator: "EQUALS",
+        rateBasisPoints: null,
+      });
+    case "AMOUNT_ORDER":
+    case "DATE_ORDER":
+      return Object.freeze({
+        kind: calculation.kind,
+        expression: `${type(calculation.leftEvidenceId)} ${calculation.operator === "LTE" ? "<=" : ">="} ${type(calculation.rightEvidenceId)}`,
+        operator: calculation.operator,
+        rateBasisPoints: null,
+      });
+    case "AMOUNT_CHAIN":
+      return Object.freeze({
+        kind: calculation.kind,
+        expression: `0 <= ${calculation.evidenceIds.map(type).join(" <= ")}`,
+        operator: "CHAIN_LTE",
+        rateBasisPoints: null,
+      });
+  }
+}
+
+function parseAuditIntegrityCalculation(
+  value: unknown,
+  evidence: NonNullable<
+    FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+  >["checks"][number]["evidence"],
+): NonNullable<
+  FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+>["checks"][number]["calculation"] | null {
+  if (!isRecord(value)) return null;
+  const kinds = new Set([
+    "NONE",
+    "LINEAR_EQUALITY",
+    "PERCENTAGE_EQUALITY",
+    "ZERO_EQUALITY",
+    "AMOUNT_ORDER",
+    "DATE_ORDER",
+    "AMOUNT_CHAIN",
+    "COUNT_EQUALITY",
+  ]);
+  const operators = new Set(["EQUALS", "LTE", "GTE", "CHAIN_LTE"]);
+  if (!kinds.has(String(value.kind))) return null;
+  const none = value.kind === "NONE";
+  if (
+    (none &&
+      (value.expression !== null ||
+        value.operator !== null ||
+        value.rateBasisPoints !== null)) ||
+    (!none &&
+      (typeof value.expression !== "string" ||
+        value.expression.length === 0 ||
+        value.expression.length > 800 ||
+        !/^[A-Z0-9_ +*<>=/-]+$/u.test(value.expression) ||
+        !operators.has(String(value.operator)))) ||
+    (value.rateBasisPoints !== null &&
+      (!Number.isSafeInteger(value.rateBasisPoints) ||
+        Number(value.rateBasisPoints) <= 0 ||
+        Number(value.rateBasisPoints) > 100_000)) ||
+    ((value.kind === "PERCENTAGE_EQUALITY") !==
+      (value.rateBasisPoints !== null))
+  ) {
+    return null;
+  }
+  if (!none) {
+    const allowedTypes = new Set(evidence.map((item) => item.canonicalType));
+    const types = (value.expression as string).match(/[A-Z][A-Z0-9_]*/gu) ?? [];
+    if (types.some((type) => !allowedTypes.has(type))) return null;
+  }
+  return Object.freeze({
+    kind: value.kind as NonNullable<
+      FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+    >["checks"][number]["calculation"]["kind"],
+    expression: value.expression as string | null,
+    operator: value.operator as NonNullable<
+      FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+    >["checks"][number]["calculation"]["operator"],
+    rateBasisPoints: value.rateBasisPoints as number | null,
+  });
+}
+
+function optionalAuditInteger(value: unknown): number | null | undefined {
+  return value === null
+    ? null
+    : Number.isSafeInteger(value)
+      ? (value as number)
+      : undefined;
+}
+
+function parseAuditIntegrityEvidence(value: unknown): NonNullable<
+  FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+>["checks"][number]["evidence"][number] | null {
+  if (!isRecord(value)) return null;
+  const pages = parsePages(value.pages, 256);
+  const amountCents = optionalAuditInteger(value.amountCents);
+  const countValue = optionalAuditInteger(value.countValue);
+  if (
+    !INTEGRITY_EVIDENCE_SEMANTICS.has(String(value.semantic)) ||
+    typeof value.canonicalType !== "string" ||
+    !INTEGRITY_CANONICAL_TYPE.test(value.canonicalType) ||
+    containsInternalFiscalNotificationToken(value.canonicalType) ||
+    amountCents === undefined ||
+    countValue === undefined ||
+    (value.dateValue !== null &&
+      (typeof value.dateValue !== "string" ||
+        !/^\d{4}-\d{2}-\d{2}$/u.test(value.dateValue))) ||
+    !pages ||
+    typeof value.sourcePart !== "string" ||
+    !INTEGRITY_SOURCE_PARTS.has(value.sourcePart)
+  ) {
+    return null;
+  }
+  const semantic = value.semantic as NonNullable<
+    FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+  >["checks"][number]["evidence"][number]["semantic"];
+  if (
+    (semantic === "MONEY") !== (amountCents !== null) ||
+    (semantic === "DATE") !== (value.dateValue !== null) ||
+    (semantic === "COUNT") !== (countValue !== null)
+  ) {
+    return null;
+  }
+  return Object.freeze({
+    semantic,
+    canonicalType: value.canonicalType,
+    amountCents,
+    dateValue: value.dateValue as string | null,
+    countValue,
+    pages,
+    sourcePart: value.sourcePart,
   });
 }
 
@@ -1182,20 +1651,23 @@ function parseAuditArithmeticReview(
   });
   const discardedCandidates = value.discardedCandidates.map((candidate) => {
     if (!isRecord(candidate)) return null;
-    const reason = cleanAuditText(candidate.reason, 180);
     const pages = parsePages(candidate.pages, 256);
     if (
-      !Number.isSafeInteger(candidate.amountCents) ||
-      !reason ||
-      !isSafeAuditContentOutput(reason) ||
+      typeof candidate.reason !== "string" ||
+      !DISCARDED_CANDIDATE_REASON_VALUES.has(
+        candidate.reason as
+          | "La cifra se repite en contexto de identificador fiscal."
+          | "La etiqueta sitúa la cifra en contexto de identificador fiscal.",
+      ) ||
       candidate.reclassifiedAs !== "Identificador fiscal" ||
       !pages
     ) {
       return null;
     }
     return Object.freeze({
-      amountCents: candidate.amountCents as number,
-      reason,
+      reason: candidate.reason as
+        | "La cifra se repite en contexto de identificador fiscal."
+        | "La etiqueta sitúa la cifra en contexto de identificador fiscal.",
       reclassifiedAs: "Identificador fiscal" as const,
       pages,
     });

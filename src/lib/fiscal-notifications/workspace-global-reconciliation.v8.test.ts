@@ -10,6 +10,8 @@ import {
   encodeFiscalNotificationsWorkspaceForStorageV2,
   restoreFiscalNotificationsWorkspaceFromStorageV2,
 } from "./workspace-storage-envelope.v2";
+import { AEAT_MATHEMATICAL_INTEGRITY_RELEASE_ID_V11 } from "./knowledge/mathematical-integrity-catalog.v11";
+import { FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_VERSION_V11 } from "./mathematical-integrity-contract.v11";
 
 const OWNER = "user:00000000-0000-4000-8000-000000000088";
 const NOW = "2026-07-17T08:00:00.000Z";
@@ -238,7 +240,264 @@ function workspace(): FiscalNotificationsWorkspace {
   };
 }
 
+function attachValidatedMathematicalIntegrity(
+  value: FiscalNotificationsWorkspace,
+): void {
+  value.analysisSnapshots = value.documents.map((document, index) => {
+    const evidenceId = `math-v11:relation-${index}`;
+    const termEvidenceId = `math-v11:term-${index}`;
+    const resultEvidenceId = `math-v11:result-${index}`;
+    document.analysisSnapshotIds = [`snapshot:math-v11:${index}`];
+    return {
+      id: `snapshot:math-v11:${index}`,
+      ownerScope: OWNER,
+      documentId: document.id,
+      version: 1,
+      extractorVersion: "synthetic-v11",
+      rulesVersion: "11.0.0",
+      structuredData: {
+        schemaVersion: 1,
+        documentType: document.documentType,
+        paymentOptionIds: [],
+        unknownFields: [],
+        validationCodes: [],
+        factSummary: [],
+        calculatedSummary: [],
+        inferenceSummary: [],
+        userConfirmedSummary: [],
+        mathematicalIntegrity: {
+          schemaVersion: 11,
+          integrityVersion:
+            FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_VERSION_V11,
+          catalogReleaseId: AEAT_MATHEMATICAL_INTEGRITY_RELEASE_ID_V11,
+          familyId: document.documentSubtype!,
+          archetypeId:
+            index === 0 ? "ASSESSMENT_RESULT" : "ENFORCEMENT_SCENARIOS",
+          validationMode: "ARITHMETIC_AND_LOGICAL",
+          status: "VALIDATED_EXACT",
+          passCount: 1,
+          automaticPassLimit: 2,
+          normalizedEvidence: [
+            {
+              evidenceId,
+              sourceFieldFingerprint: `sha256:${String(index + 7).repeat(64)}`,
+              semantic: "REFERENCE",
+              canonicalType: "LIQUIDATION_KEY",
+              originalClassification: "LIQUIDATION_KEY",
+              amountCents: null,
+              dateValue: null,
+              countValue: null,
+              sign: "UNSPECIFIED",
+              currency: null,
+              sourcePart: "MAIN_ADMINISTRATIVE_ACT",
+              pageNumbers: [1],
+              assertionType: "NORMALIZED",
+              originalConfidence: 0.99,
+            },
+            {
+              evidenceId: termEvidenceId,
+              sourceFieldFingerprint: `sha256:${String(index + 3).repeat(64)}`,
+              semantic: "MONEY",
+              canonicalType: "PRINCIPAL",
+              originalClassification: "PRINCIPAL",
+              amountCents: 25_000,
+              dateValue: null,
+              countValue: null,
+              sign: "POSITIVE",
+              currency: "EUR",
+              sourcePart: "MAIN_ADMINISTRATIVE_ACT",
+              pageNumbers: [1],
+              assertionType: "PRINTED",
+              originalConfidence: 0.99,
+            },
+            {
+              evidenceId: resultEvidenceId,
+              sourceFieldFingerprint: `sha256:${String(index + 5).repeat(64)}`,
+              semantic: "MONEY",
+              canonicalType: "TOTAL",
+              originalClassification: "TOTAL",
+              amountCents: 25_000,
+              dateValue: null,
+              countValue: null,
+              sign: "POSITIVE",
+              currency: "EUR",
+              sourcePart: "MAIN_ADMINISTRATIVE_ACT",
+              pageNumbers: [1],
+              assertionType: "PRINTED",
+              originalConfidence: 0.99,
+            },
+          ],
+          checks: [
+            {
+              ruleId: `v11:synthetic:relation:${index}`,
+              checkKind: "ARITHMETIC",
+              status: "VALIDATED_EXACT",
+              operands: [
+                { evidenceId: resultEvidenceId },
+                { evidenceId: termEvidenceId },
+              ],
+              expectedCents: 25_000,
+              observedCents: 25_000,
+              deltaCents: 0,
+              toleranceCents: 0,
+              calculation: {
+                kind: "LINEAR_EQUALITY",
+                resultEvidenceId,
+                terms: [{ evidenceId: termEvidenceId, sign: 1 }],
+              },
+              safeMessage: "Los importes cuadran con las cifras impresas.",
+            },
+          ],
+          hardFailureCodes: [],
+          persistenceDecision: "ALLOW_CORE",
+          relationSupport: {
+            existingRelationsOnly: true,
+            requiresStrongIdentifier: true,
+            permitsAmountOnlyRelations: false,
+            validatedEvidenceIds: [resultEvidenceId, termEvidenceId],
+          },
+          originalExtractionMutationPolicy: "NEVER_MUTATE_OR_REPLACE",
+          retainedSourceContent: "NONE",
+        },
+        documentFields: { title: document.titleRaw },
+      },
+      plainLanguageExplanation: ["Fixture sintética."],
+      validationWarnings: [],
+      evidenceIds: [],
+      confidenceBand: "HIGH" as const,
+      requiresHumanReview: true,
+      createdAt: NOW,
+      createdBySystem: true,
+    };
+  });
+}
+
 describe("workspace global reconciliation V8", () => {
+  it("adds V11 only as supporting evidence to an already strong-reference relation", () => {
+    const input = workspace();
+    attachValidatedMathematicalIntegrity(input);
+
+    const result = appendWorkspaceGlobalReconciliationV8({
+      ownerScope: OWNER,
+      workspace: input,
+      reevaluatedAt: NOW,
+    });
+
+    if (result.status === "REVIEW_REQUIRED") throw new Error(result.reason);
+    expect(result.status).toBe("APPLIED");
+    if (result.status !== "APPLIED") return;
+    expect(
+      result.workspace.relations[0]?.reconciliationHistory?.[0]
+        ?.evidenceKinds,
+    ).toEqual(
+      expect.arrayContaining([
+        "EXACT_REFERENCE",
+        "MATHEMATICAL_INTEGRITY_VALIDATED",
+      ]),
+    );
+    expect(
+      result.workspace.relations[0]?.reconciliationHistory?.[0]
+        ?.evidenceKinds,
+    ).not.toEqual(["MATHEMATICAL_INTEGRITY_VALIDATED"]);
+  });
+
+  it("does not attach V11 provenance when the validated reference type differs from the matching relation", () => {
+    const input = workspace();
+    attachValidatedMathematicalIntegrity(input);
+    input.analysisSnapshots[1]!.structuredData.mathematicalIntegrity = {
+      ...structuredClone(
+        input.analysisSnapshots[1]!.structuredData.mathematicalIntegrity!,
+      ),
+      normalizedEvidence:
+        input.analysisSnapshots[1]!.structuredData.mathematicalIntegrity!.normalizedEvidence.map(
+          (evidence) => ({
+            ...structuredClone(evidence),
+            canonicalType: "DOCUMENT_REFERENCE",
+          }),
+        ),
+    };
+
+    const result = appendWorkspaceGlobalReconciliationV8({
+      ownerScope: OWNER,
+      workspace: input,
+      reevaluatedAt: NOW,
+    });
+
+    if (result.status === "REVIEW_REQUIRED") throw new Error(result.reason);
+    expect(result.status).toBe("APPLIED");
+    if (result.status !== "APPLIED") return;
+    expect(
+      result.workspace.relations[0]?.reconciliationHistory?.[0]
+        ?.evidenceKinds,
+    ).not.toContain("MATHEMATICAL_INTEGRITY_VALIDATED");
+  });
+
+  it("does not reuse stale mathematical evidence after a newer review supersedes it", () => {
+    const input = workspace();
+    attachValidatedMathematicalIntegrity(input);
+    const supersedingSnapshots = input.analysisSnapshots.map(
+      (snapshot, index) => ({
+        ...structuredClone(snapshot),
+        id: `snapshot:math-v11:review:${index}`,
+        version: 2,
+        supersedesAnalysisId: snapshot.id,
+        createdAt: "2026-07-17T08:01:00.000Z",
+        structuredData: {
+          ...structuredClone(snapshot.structuredData),
+          mathematicalIntegrity: {
+            ...structuredClone(snapshot.structuredData.mathematicalIntegrity!),
+            status: "REVIEW_REQUIRED" as const,
+            checks: [
+              {
+                ...structuredClone(
+                  snapshot.structuredData.mathematicalIntegrity!.checks[0]!,
+                ),
+                status: "REVIEW_REQUIRED" as const,
+                expectedCents: null,
+                observedCents: null,
+                deltaCents: null,
+                calculation: { kind: "NONE" as const },
+                safeMessage:
+                  "Revisa los importes y su estructura antes de confirmar.",
+              },
+            ],
+            persistenceDecision: "ALLOW_CORE_WITH_WARNINGS" as const,
+            relationSupport: {
+              existingRelationsOnly: true as const,
+              requiresStrongIdentifier: true as const,
+              permitsAmountOnlyRelations: false as const,
+              validatedEvidenceIds: [],
+            },
+          },
+        },
+      }),
+    );
+    input.analysisSnapshots.push(...supersedingSnapshots);
+    input.documents.forEach((document, index) => {
+      document.analysisSnapshotIds.push(supersedingSnapshots[index]!.id);
+    });
+
+    const integrity = validateFiscalNotificationsWorkspaceIntegrity(
+      input,
+      OWNER,
+    );
+    if (!integrity.valid) throw new Error(JSON.stringify(integrity.issues));
+
+    const result = appendWorkspaceGlobalReconciliationV8({
+      ownerScope: OWNER,
+      workspace: input,
+      reevaluatedAt: NOW,
+    });
+
+    if (result.status === "REVIEW_REQUIRED") throw new Error(result.reason);
+    expect(result.status).toBe("APPLIED");
+    if (result.status !== "APPLIED") return;
+    expect(
+      result.workspace.relations[0]?.reconciliationHistory?.[0]
+        ?.evidenceKinds,
+    ).not.toContain("MATHEMATICAL_INTEGRITY_VALIDATED");
+  });
+
   it("upgrades, records history, remains idempotent and survives privacy storage", () => {
     const input = workspace();
     const before = structuredClone(input);

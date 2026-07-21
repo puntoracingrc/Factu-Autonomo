@@ -62,6 +62,7 @@ function audit(): FiscalNotificationLibraryAiAuditInputV1 {
         amounts: Object.freeze([]),
         installments: Object.freeze([]),
         arithmeticReview: null,
+        integrityReview: null,
         explanation: Object.freeze({
           whatItIs: "Una providencia inicia la vía ejecutiva.",
           whyReceived: "La ficha refleja una deuda pendiente.",

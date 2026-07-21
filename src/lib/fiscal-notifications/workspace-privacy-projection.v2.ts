@@ -1335,6 +1335,19 @@ export function projectFiscalNotificationsWorkspacePrivacyV2(
         )?.value,
       });
       const familyId = recognizedFamilyForDocument(document, workspace);
+      const latestSnapshot = document.analysisSnapshotIds
+        .map((snapshotId) =>
+          workspace.analysisSnapshots.find(
+            (snapshot) =>
+              snapshot.id === snapshotId &&
+              snapshot.documentId === document.id,
+          ),
+        )
+        .filter(
+          (snapshot): snapshot is NonNullable<typeof snapshot> =>
+            snapshot !== undefined,
+        )
+        .sort((left, right) => right.version - left.version)[0];
       return {
         id: document.id,
         ownerScope: workspace.ownerScope,
@@ -1364,6 +1377,18 @@ export function projectFiscalNotificationsWorkspacePrivacyV2(
           .filter((entry) => entry.documentId === document.id)
           .map((entry) => entry.id),
         evidenceIds: evidenceByDocument.get(document.id) ?? [],
+        ...(latestSnapshot?.structuredData.amountReconciliation
+          ? {
+              amountReconciliation:
+                latestSnapshot.structuredData.amountReconciliation,
+            }
+          : {}),
+        ...(latestSnapshot?.structuredData.mathematicalIntegrity
+          ? {
+              mathematicalIntegrity:
+                latestSnapshot.structuredData.mathematicalIntegrity,
+            }
+          : {}),
         createdAt: document.createdAt,
         updatedAt: document.updatedAt,
       };

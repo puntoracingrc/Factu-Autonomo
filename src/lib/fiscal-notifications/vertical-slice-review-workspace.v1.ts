@@ -295,6 +295,12 @@ function appendDocument(input: {
     document,
     persistenceKey,
   } = input;
+  if (
+    document.mathematicalIntegrity?.persistenceDecision ===
+    "BLOCK_INCONSISTENT_PRINTED_CORE"
+  ) {
+    throw invalidInput();
+  }
   const id = documentId(reviewUuid, persistenceKey);
   const snapshotId = `analysis:${reviewUuid}:vertical:${persistenceKey}`;
   assertUnusedId(workspace.documents, id);
@@ -474,6 +480,9 @@ function appendDocument(input: {
       userConfirmedSummary: [],
       ...(document.amountReconciliation
         ? { amountReconciliation: document.amountReconciliation }
+        : {}),
+      ...(document.mathematicalIntegrity
+        ? { mathematicalIntegrity: document.mathematicalIntegrity }
         : {}),
       documentFields: {
         title: document.title,

@@ -16,6 +16,15 @@ import {
 } from "./knowledge/official-catalog-expansion.v9";
 import type { DocumentRelationReconciliationRecordV8 } from "./types";
 import { normalizeFiscalNotificationReferenceV2 } from "./exact-reference-index.v2";
+import {
+  parseFiscalNotificationAmountReconciliationV1,
+  type FiscalNotificationAmountReconciliationV1,
+} from "./amount-reconciliation-contract.v1";
+import {
+  parseFiscalNotificationMathematicalIntegrityV11,
+  type FiscalNotificationMathematicalIntegrityV11,
+} from "./mathematical-integrity-contract.v11";
+import { FISCAL_NOTIFICATION_INPUT_LIMITS } from "./input-contract";
 
 export const LEGACY_ONLY_DOCUMENT_RELATION_TYPES_V2 = [
   "BELONGS_TO_CASE",
@@ -211,6 +220,8 @@ export interface PersistedDocumentV2 {
   amountFactIds: string[];
   factIds: string[];
   evidenceIds: string[];
+  amountReconciliation?: FiscalNotificationAmountReconciliationV1;
+  mathematicalIntegrity?: FiscalNotificationMathematicalIntegrityV11;
   createdAt: string;
   updatedAt: string;
 }
@@ -680,6 +691,8 @@ function parseDocument(
     "amountFactIds",
     "factIds",
     "evidenceIds",
+    "amountReconciliation",
+    "mathematicalIntegrity",
     "createdAt",
     "updatedAt",
   ]);
@@ -715,6 +728,33 @@ function parseDocument(
   ) {
     fail();
   }
+  const amountReconciliation = Object.hasOwn(
+    source,
+    "amountReconciliation",
+  )
+    ? parseFiscalNotificationAmountReconciliationV1(
+        source.amountReconciliation,
+        1,
+        FISCAL_NOTIFICATION_INPUT_LIMITS.maxPages,
+      )
+    : null;
+  const mathematicalIntegrity = Object.hasOwn(
+    source,
+    "mathematicalIntegrity",
+  )
+    ? parseFiscalNotificationMathematicalIntegrityV11(
+        source.mathematicalIntegrity,
+        1,
+        FISCAL_NOTIFICATION_INPUT_LIMITS.maxPages,
+      )
+    : null;
+  if (
+    mathematicalIntegrity &&
+    parsedFamilyId &&
+    mathematicalIntegrity.familyId !== parsedFamilyId
+  ) {
+    fail();
+  }
   return {
     id: id(required(source, "id")),
     ownerScope: owner(required(source, "ownerScope"), expectedOwner),
@@ -734,6 +774,8 @@ function parseDocument(
     amountFactIds: idArray(required(source, "amountFactIds")),
     factIds: idArray(required(source, "factIds")),
     evidenceIds: idArray(required(source, "evidenceIds")),
+    ...(amountReconciliation ? { amountReconciliation } : {}),
+    ...(mathematicalIntegrity ? { mathematicalIntegrity } : {}),
     createdAt: timestamp(required(source, "createdAt")),
     updatedAt: timestamp(required(source, "updatedAt")),
   };
