@@ -218,6 +218,22 @@ describe("FiscalNotificationDocumentLibrary UI contract", () => {
     expect(aiAuditSource).toContain("AiProcessingConsentNotice");
     expect(aiAuditSource).toContain("!aiConsent.accepted");
     expect(aiAuditSource).toContain("No se envían el PDF, el texto bruto");
+    expect(aiAuditSource).toContain("Información enviada a GPT-4o");
+    expect(aiAuditSource).toContain("Copiar JSON");
+    expect(aiAuditSource).toContain("Descargar JSON");
+    expect(aiAuditSource).toContain(
+      "navigator.clipboard.writeText(auditPayloadTransportJson)",
+    );
+    expect(aiAuditSource).toContain("new Blob([auditPayloadTransportJson]");
+    expect(aiAuditSource).toContain("body: auditPayloadTransportJson");
+    expect(aiAuditSource).toContain("{auditPayloadPreviewJson}");
+    expect(aiAuditSource).toContain("auditLimitExceeded");
+    expect(aiAuditSource).toContain(
+      "El listado sigue disponible y no se ha enviado nada.",
+    );
+    expect(aiAuditSource).toContain(
+      "parseFiscalNotificationLibraryAiAuditResultV1(\n        body.data,\n        auditPayload,",
+    );
     expect(aiAuditSource).toContain("buildAuditAliasLabels");
     expect(aiAuditSource).toContain("auditSignature");
     expect(aiAuditSource).toContain(
@@ -273,10 +289,10 @@ describe("FiscalNotificationDocumentLibrary UI contract", () => {
     );
   });
 
-  it("muestra un vacío sencillo con acceso al escáner y mantiene la lógica fiscal fuera del JSX", () => {
+  it("muestra un vacío sencillo sin duplicar el acceso al escáner y mantiene la lógica fiscal fuera del JSX", () => {
     expect(librarySource).toContain("Todavía no hay documentos guardados");
-    expect(librarySource).toContain("Escanear documentos");
-    expect(librarySource).toContain("onOpenScanner");
+    expect(librarySource).not.toContain("Escanear documentos");
+    expect(librarySource).not.toContain("onOpenScanner");
     expect(librarySource).not.toContain("document.money");
     expect(librarySource).not.toContain("document.references");
     expect(librarySource).not.toContain("resolveAeatDocumentProfileV1");

@@ -891,7 +891,7 @@ function isVisibleLibraryRelationMatch(
     !containsInternalFiscalNotificationToken(match.label) &&
     !containsInternalFiscalNotificationToken(match.value) &&
     !containsInternalFiscalNotificationToken(match.issuer) &&
-    !/\b(?:importe|total|principal|recargo|interes|interés|cuota|fecha|nombre|razon social|razón social)\b/iu.test(
+    !/\b(?:importe|total|principal|recargo|interes|interés|cuota|fecha|nombre|razon social|razón social|ejercicio|modelo|periodo|período)\b/iu.test(
       match.label,
     )
   );

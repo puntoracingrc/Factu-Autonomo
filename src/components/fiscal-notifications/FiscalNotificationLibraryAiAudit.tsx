@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
+  ClipboardCopy,
+  Download,
+  FileJson,
   Loader2,
   RefreshCw,
   Sparkles,
@@ -15,6 +18,7 @@ import {
 import { Button } from "@/components/ui/Button";
 import { AI_PROCESSING_CONSENT_VERSION } from "@/lib/ai-consent";
 import {
+  FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MAX_DOCUMENTS_V1,
   FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MODEL_V1,
   parseFiscalNotificationLibraryAiAuditResultV1,
   projectFiscalNotificationLibraryAiAuditInputV1,
@@ -50,17 +54,34 @@ export function FiscalNotificationLibraryAiAudit({
   readonly sessionFileInventory: readonly FiscalNotificationLibraryAiAuditSessionSourceV1[];
 }) {
   const [state, setState] = useState<AuditState>({ status: "idle" });
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "error">(
+    "idle",
+  );
   const aiConsent = useAiProcessingConsent();
   const controllerRef = useRef<AbortController | null>(null);
-  const auditSignature = useMemo(
+  const auditLimitExceeded =
+    viewModel.documents.length >
+    FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MAX_DOCUMENTS_V1;
+  const auditPayload = useMemo(
     () =>
-      JSON.stringify({
-        documents: viewModel.documents,
-        relations: viewModel.groups.flatMap((group) => group.links),
-        sessionFileInventory,
-      }),
-    [sessionFileInventory, viewModel.documents, viewModel.groups],
+      auditLimitExceeded
+        ? null
+        : projectFiscalNotificationLibraryAiAuditInputV1(
+            viewModel,
+            sessionFileInventory,
+          ),
+    [auditLimitExceeded, sessionFileInventory, viewModel],
   );
+  const auditPayloadTransportJson = useMemo(
+    () => (auditPayload ? JSON.stringify(auditPayload) : ""),
+    [auditPayload],
+  );
+  const auditPayloadPreviewJson = useMemo(
+    () => (auditPayload ? JSON.stringify(auditPayload, null, 2) : ""),
+    [auditPayload],
+  );
+  const auditSignature =
+    auditPayloadTransportJson || `LIMIT:${viewModel.documents.length}`;
   const latestAuditSignatureRef = useRef(auditSignature);
   latestAuditSignatureRef.current = auditSignature;
   const visibleState: AuditState =
@@ -84,10 +105,44 @@ export function FiscalNotificationLibraryAiAudit({
     if (previousAuditSignatureRef.current === auditSignature) return;
     previousAuditSignatureRef.current = auditSignature;
     controllerRef.current?.abort();
+    setCopyState("idle");
   }, [auditSignature]);
 
+  async function copyAuditPayload(): Promise<void> {
+    if (!auditPayload) return;
+    try {
+      await navigator.clipboard.writeText(auditPayloadTransportJson);
+      setCopyState("copied");
+    } catch {
+      setCopyState("error");
+    }
+  }
+
+  function downloadAuditPayload(): void {
+    if (!auditPayload) return;
+    const blob = new Blob([auditPayloadTransportJson], {
+      type: "application/json;charset=utf-8",
+    });
+    const objectUrl = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = objectUrl;
+    anchor.download = `revision-fiscal-gpt4o-${new Date()
+      .toISOString()
+      .slice(0, 10)}.json`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(objectUrl);
+  }
+
   async function runAudit(): Promise<void> {
-    if (visibleState.status === "loading" || !aiConsent.accepted) return;
+    if (
+      !auditPayload ||
+      visibleState.status === "loading" ||
+      !aiConsent.accepted
+    ) {
+      return;
+    }
     controllerRef.current?.abort();
     const controller = new AbortController();
     const requestedAuditSignature = auditSignature;
@@ -98,10 +153,6 @@ export function FiscalNotificationLibraryAiAudit({
     });
 
     try {
-      const audit = projectFiscalNotificationLibraryAiAuditInputV1(
-        viewModel,
-        sessionFileInventory,
-      );
       const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
       const supabase = await getSupabaseClientAsync();
       const { data } = (await supabase?.auth.getSession()) ?? {
@@ -118,7 +169,7 @@ export function FiscalNotificationLibraryAiAudit({
           "Content-Type": "application/json",
           "X-AI-Consent-Version": AI_PROCESSING_CONSENT_VERSION,
         },
-        body: JSON.stringify(audit),
+        body: auditPayloadTransportJson,
         signal: controller.signal,
       });
       const body = (await response.json().catch(() => null)) as {
@@ -139,7 +190,7 @@ export function FiscalNotificationLibraryAiAudit({
       }
       const result = parseFiscalNotificationLibraryAiAuditResultV1(
         body.data,
-        audit,
+        auditPayload,
       );
       if (!result) {
         throw new Error("La revisión devolvió un resultado no válido.");
@@ -198,7 +249,11 @@ export function FiscalNotificationLibraryAiAudit({
         <Button
           type="button"
           variant="secondary"
-          disabled={visibleState.status === "loading" || !aiConsent.accepted}
+          disabled={
+            auditLimitExceeded ||
+            visibleState.status === "loading" ||
+            !aiConsent.accepted
+          }
           onClick={() => void runAudit()}
           title="Revisar los datos estructurados guardados sin aplicar cambios"
         >
@@ -225,6 +280,63 @@ export function FiscalNotificationLibraryAiAudit({
           contextNote="Solo se envían fichas estructuradas con alias. No se envían el PDF, el texto bruto, identidades, referencias reales ni nombres de archivo."
         />
       </div>
+
+      {auditLimitExceeded ? (
+        <div
+          role="alert"
+          className="mt-4 flex items-start gap-3 border-l-4 border-amber-500 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+        >
+          <AlertTriangle
+            aria-hidden="true"
+            className="mt-0.5 h-5 w-5 shrink-0"
+          />
+          <p>
+            La revisión admite hasta{" "}
+            {FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MAX_DOCUMENTS_V1} fichas por
+            ejecución. El listado sigue disponible y no se ha enviado nada.
+          </p>
+        </div>
+      ) : null}
+
+      {auditPayload ? (
+        <details className="mt-4 border-y border-slate-200 py-3">
+          <summary className="flex cursor-pointer list-none items-center gap-2 text-sm font-bold text-slate-900">
+            <FileJson aria-hidden="true" className="h-5 w-5 text-blue-600" />
+            <span>Información enviada a GPT-4o</span>
+          </summary>
+          <div className="mt-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void copyAuditPayload()}
+              >
+                <ClipboardCopy aria-hidden="true" className="h-4 w-4" />
+                {copyState === "copied" ? "JSON copiado" : "Copiar JSON"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={downloadAuditPayload}
+              >
+                <Download aria-hidden="true" className="h-4 w-4" />
+                Descargar JSON
+              </Button>
+              {copyState === "error" ? (
+                <span
+                  className="text-xs font-semibold text-red-700"
+                  role="alert"
+                >
+                  No se pudo copiar el JSON.
+                </span>
+              ) : null}
+            </div>
+            <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words bg-slate-50 p-3 text-xs leading-5 text-slate-700">
+              {auditPayloadPreviewJson}
+            </pre>
+          </div>
+        </details>
+      ) : null}
 
       {visibleState.status === "error" ? (
         <div

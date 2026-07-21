@@ -63,7 +63,10 @@ function workspace(): FiscalNotificationsWorkspace {
       humanReviewStatus: "PENDING" as const,
       authenticityStatus: "NOT_CHECKED" as const,
       partIds: [],
-      referenceIds: [`reference:liquidation:${index}`, `reference:csv:${index}`],
+      referenceIds: [
+        `reference:liquidation:${index}`,
+        `reference:csv:${index}`,
+      ],
       debtIds: [],
       caseIds: [],
       analysisSnapshotIds: [],
@@ -121,8 +124,7 @@ function reference(
     ownerScope: OWNER,
     referenceType: type,
     rawValue,
-    normalizedValue:
-      type === "CSV" ? "CSV-SYNTH-093" : "LQ-SYNTH-093",
+    normalizedValue: type === "CSV" ? "CSV-SYNTH-093" : "LQ-SYNTH-093",
     issuer: "AEAT",
     scope: "DOCUMENT" as const,
     documentId: `document:${documentIndex}`,
@@ -142,7 +144,9 @@ function evidence(documentIndex: number, suffix: "liquidation" | "csv") {
     documentId: `document:${documentIndex}`,
     pageNumber: 1,
     textSnippet:
-      suffix === "csv" ? "Código Seguro de Verificación" : "Clave de liquidación",
+      suffix === "csv"
+        ? "Código Seguro de Verificación"
+        : "Clave de liquidación",
     extractionMethod: "RULE" as const,
     confidence: "EXACT" as const,
     assertionType: "EXPLICIT_IN_DOCUMENT" as const,
@@ -159,10 +163,7 @@ describe("structured review relations view model v1", () => {
     });
     expect(derived.status).toBe("APPLIED");
 
-    const result = projectStructuredReviewRelationsV1(
-      derived.workspace,
-      OWNER,
-    );
+    const result = projectStructuredReviewRelationsV1(derived.workspace, OWNER);
 
     expect(result).toEqual({
       status: "READY",
@@ -184,6 +185,7 @@ describe("structured review relations view model v1", () => {
           ],
           matches: [
             {
+              referenceType: "LIQUIDATION_KEY",
               label: "Clave de liquidación",
               value: "LQ-SYNTH-093",
               issuer: "AEAT",
@@ -192,6 +194,7 @@ describe("structured review relations view model v1", () => {
               targetPageNumbers: [1],
             },
             {
+              referenceType: "CSV",
               label: "Código Seguro de Verificación (CSV)",
               value: "Referencia protegida",
               issuer: "AEAT",
@@ -230,15 +233,13 @@ describe("structured review relations view model v1", () => {
       createdAt: NOW,
     });
 
-    const result = projectStructuredReviewRelationsV1(
-      derived.workspace,
-      OWNER,
-    );
+    const result = projectStructuredReviewRelationsV1(derived.workspace, OWNER);
 
     expect(result.status).toBe("READY");
     expect(result.entries[0]?.matches).toEqual(
       expect.arrayContaining([
         {
+          referenceType: "PAYMENT_JUSTIFICANTE",
           label: "Referencia bancaria",
           value: "Referencia protegida",
           issuer: "AEAT",
@@ -257,8 +258,7 @@ describe("structured review relations view model v1", () => {
     source.documents[0]!.documentSubtype =
       "collection.deferral_request_receipt";
     source.documents[0]!.titleRaw = "Solicitud de aplazamiento";
-    source.documents[1]!.documentType =
-      "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT";
+    source.documents[1]!.documentType = "AEAT_INSTALLMENT_OR_DEFERRAL_GRANT";
     source.documents[1]!.documentSubtype = "collection.deferral_grant";
     source.documents[1]!.titleRaw = "Concesión de aplazamiento";
 
@@ -274,17 +274,13 @@ describe("structured review relations view model v1", () => {
       evidence: { chainId: "deferral_chain" },
     });
 
-    const result = projectStructuredReviewRelationsV1(
-      derived.workspace,
-      OWNER,
-    );
+    const result = projectStructuredReviewRelationsV1(derived.workspace, OWNER);
 
     expect(result.status).toBe("READY");
     expect(result.entries).toEqual([
       expect.objectContaining({
         chainId: "deferral_chain",
-        algorithmVersion:
-          STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2,
+        algorithmVersion: STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2,
         relationType: "CREATES_PAYMENT_PLAN_FOR",
         title:
           "Solicitud, subsanación, resolución, modificación e incumplimiento de aplazamiento",
@@ -313,10 +309,30 @@ describe("structured review relations view model v1", () => {
   });
 
   it.each([
-    ["ENFORCES", "Embargo vinculado a providencia de apremio", "ni modifica ningún saldo", "Ejecución mediante embargo"],
-    ["RESPONDS_TO_SEIZURE", "Contestación vinculada a diligencia de embargo", "no convierte al tercero en deudor", "Contestación a la diligencia"],
-    ["TRANSFERS_SEIZED_FUNDS", "Ingreso de tercero vinculado a diligencia de embargo", "no marca automáticamente la deuda como pagada", "Ingreso del tercero retenedor"],
-    ["RELEASES_SEIZURE", "Levantamiento vinculado a diligencia de embargo", "no se infiere automáticamente", "Levantamiento de la diligencia"],
+    [
+      "ENFORCES",
+      "Embargo vinculado a providencia de apremio",
+      "ni modifica ningún saldo",
+      "Ejecución mediante embargo",
+    ],
+    [
+      "RESPONDS_TO_SEIZURE",
+      "Contestación vinculada a diligencia de embargo",
+      "no convierte al tercero en deudor",
+      "Contestación a la diligencia",
+    ],
+    [
+      "TRANSFERS_SEIZED_FUNDS",
+      "Ingreso de tercero vinculado a diligencia de embargo",
+      "no marca automáticamente la deuda como pagada",
+      "Ingreso del tercero retenedor",
+    ],
+    [
+      "RELEASES_SEIZURE",
+      "Levantamiento vinculado a diligencia de embargo",
+      "no se infiere automáticamente",
+      "Levantamiento de la diligencia",
+    ],
   ] as const)(
     "explains the exact %s edge without applying an operational effect",
     (relationType, title, explanationFragment, linkLabel) => {
@@ -337,8 +353,7 @@ describe("structured review relations view model v1", () => {
             "No cambia saldos, estados, pagos, deudas, plazos ni asientos.",
           ],
         },
-        algorithmVersion:
-          STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+        algorithmVersion: STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
         status: "SYSTEM_CONFIRMED_EXACT",
         createdAt: NOW,
       });
@@ -433,6 +448,54 @@ describe("structured review relations view model v1", () => {
     expect(result.timelines[0]?.steps).toHaveLength(2);
   });
 
+  it("downgrades an exact relation supported only by a fiscal year", () => {
+    const source = workspace();
+    for (const reference of source.references.filter(({ id }) =>
+      id.includes(":liquidation:"),
+    )) {
+      reference.referenceType = "TAX_EXERCISE";
+      reference.rawValue = "2025";
+      reference.normalizedValue = "2025";
+    }
+    source.relations.push({
+      id: "relation:weak-year",
+      ownerScope: OWNER,
+      sourceDocumentId: "document:0",
+      targetDocumentId: "document:1",
+      relationType: "ENFORCES",
+      confidenceBand: "EXACT",
+      score: 100,
+      evidence: {
+        matchingReferenceTypes: ["TAX_EXERCISE"],
+        matchingAmountTypes: [],
+        matchingDates: [],
+        differences: [],
+      },
+      algorithmVersion: STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+      status: "SYSTEM_CONFIRMED_EXACT",
+      createdAt: NOW,
+    });
+
+    const result = projectStructuredReviewRelationsV1(source, OWNER);
+
+    expect(result.status).toBe("READY");
+    expect(result.entries).toEqual([
+      expect.objectContaining({
+        key: "relation:weak-year",
+        relationStatus: "SUGGESTED",
+        statusLabel: "Relación detectada · revisar",
+        explanation: FISCAL_NOTIFICATION_SUGGESTED_RELATION_PHRASE_V2,
+        matches: [
+          expect.objectContaining({
+            label: "Ejercicio fiscal",
+            value: "2025",
+          }),
+        ],
+      }),
+    ]);
+    expect(result.timelines).toEqual([]);
+  });
+
   it("blocks a contradictory exact cycle instead of inventing a chronology", () => {
     const source = workspace();
     source.relations.push(
@@ -450,8 +513,7 @@ describe("structured review relations view model v1", () => {
           matchingDates: [],
           differences: [],
         },
-        algorithmVersion:
-          STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+        algorithmVersion: STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
         status: "SYSTEM_CONFIRMED_EXACT",
         createdAt: NOW,
       },
@@ -469,8 +531,7 @@ describe("structured review relations view model v1", () => {
           matchingDates: [],
           differences: [],
         },
-        algorithmVersion:
-          STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
+        algorithmVersion: STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1,
         status: "SYSTEM_CONFIRMED_EXACT",
         createdAt: NOW,
       },

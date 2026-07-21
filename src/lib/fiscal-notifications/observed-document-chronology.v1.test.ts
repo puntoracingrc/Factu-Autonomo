@@ -113,6 +113,91 @@ describe("observed document chronology v1", () => {
     ).toEqual([]);
   });
 
+  it("recovers a generic date label immediately beside the signature marker", () => {
+    expect(
+      extractObservedDocumentChronologyV1(
+        input(["Documento firmado electrónicamente", "Fecha: 19-07-2026"]),
+      ),
+    ).toEqual([
+      {
+        canonicalType: "SIGNING_DATE",
+        valueIso: "2026-07-19",
+        pageNumber: 1,
+      },
+    ]);
+  });
+
+  it("prefers the nearby signature timestamp over an unrelated generic date", () => {
+    expect(
+      extractObservedDocumentChronologyV1(
+        input([
+          "Fecha: 01/01/2020",
+          "Referencia sintética",
+          "Unidad emisora",
+          "Código de firma",
+          "Sello de tiempo",
+          "19-07-2026",
+          "Documento firmado electrónicamente",
+        ]),
+      ),
+    ).toEqual([
+      {
+        canonicalType: "SIGNING_DATE",
+        valueIso: "2026-07-19",
+        pageNumber: 1,
+      },
+    ]);
+  });
+
+  it("recovers a 'con fecha' signature sentence beside the marker", () => {
+    expect(
+      extractObservedDocumentChronologyV1(
+        input([
+          "Documento firmado electrónicamente",
+          "La firma consta en el documento, con fecha 19-07-2026, según el sello.",
+        ]),
+      ),
+    ).toEqual([
+      {
+        canonicalType: "SIGNING_DATE",
+        valueIso: "2026-07-19",
+        pageNumber: 1,
+      },
+    ]);
+  });
+
+  it("does not turn an adjacent dated act into a signing date", () => {
+    expect(
+      extractObservedDocumentChronologyV1(
+        input([
+          "Documento firmado electrónicamente",
+          "La resolución se dictó con fecha 19-07-2026.",
+        ]),
+      ),
+    ).toEqual([]);
+  });
+
+  it("recovers one bare date in a separated electronic-signature block", () => {
+    expect(
+      extractObservedDocumentChronologyV1(
+        input([
+          "19-07-2026",
+          "Código de firma sintético",
+          "Sello de tiempo",
+          "Firmante",
+          "Unidad emisora",
+          "Documento firmado electrónicamente",
+        ]),
+      ),
+    ).toEqual([
+      {
+        canonicalType: "SIGNING_DATE",
+        valueIso: "2026-07-19",
+        pageNumber: 1,
+      },
+    ]);
+  });
+
   it("adds the observed signing date with page provenance", () => {
     const document = input([
       "Documento firmado electrónicamente el 19-07-2026",

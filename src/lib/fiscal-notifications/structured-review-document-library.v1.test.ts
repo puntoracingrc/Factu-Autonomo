@@ -490,6 +490,43 @@ describe("structured review document library v1", () => {
     expect(Object.isFrozen(result.groups[0]?.summaries)).toBe(true);
   });
 
+  it("ordena un embargo y su levantamiento por la relación exacta cuando faltan ambas fechas", () => {
+    const seizure = document(
+      "document:undated-seizure",
+      "Diligencia de embargo sintética",
+      null,
+      "2026-07-20T08:00:00.000Z",
+      { documentSubtype: "seizure.movable_asset" },
+    );
+    const release = document(
+      "document:undated-release",
+      "Levantamiento sintético",
+      null,
+      "2026-07-20T08:01:00.000Z",
+      { documentSubtype: "seizure.release" },
+    );
+    const result = ready(
+      [release, seizure],
+      relations(
+        [seizure, release],
+        [relation(release, seizure, "RELEASES_SEIZURE")],
+      ),
+    );
+
+    expect(result.groups[0]?.documents.map((item) => item.key)).toEqual([
+      seizure.key,
+      release.key,
+    ]);
+    expect(result.groups[0]?.summaries.map((item) => item.documentDateLabel)).toEqual([
+      "Fecha pendiente",
+      "Fecha pendiente",
+    ]);
+    expect(result.groups[0]?.links[0]).toMatchObject({
+      relationType: "RELEASES_SEIZURE",
+      visualStatus: "CONFIRMED",
+    });
+  });
+
   it("deja un documento sin fecha al final aunque una cronología heredada lo coloque primero", () => {
     const edge = relation(UNDATED, JANUARY, "CONTINUES");
     const relationViewModel = relations([JANUARY, UNDATED], [edge]);

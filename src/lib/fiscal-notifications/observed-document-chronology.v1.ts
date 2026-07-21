@@ -24,6 +24,11 @@ const SIGNING_MARKERS = Object.freeze([
 
 const EXPLICIT_SIGNING_DATE_LABEL =
   /(?:FECHA(?: Y HORA)? DE (?:LA )?FIRMA|(?:DOCUMENTO )?FIRMADO ELECTRONICAMENTE (?:EL|EN FECHA)|SIGNAT ELECTRONICAMENT (?:EL|EN DATA))/u;
+const GENERIC_SIGNING_DATE_LABEL = /^FECHA(?: Y HORA)?\s*:/u;
+const SIGNATURE_DATE_CONTEXT =
+  /(?:\b(?:FIRMA|FIRMAD[OA]|SIGNAT)\b.{0,80}\bCON FECHA\b|\bCON FECHA\b.{0,80}\b(?:FIRMA|FIRMAD[OA]|SIGNAT)\b)/u;
+const BARE_DATE_LINE =
+  /^(?:(?:19|20)\d{2}-\d{1,2}-\d{1,2}|\d{1,2}[./-]\d{1,2}[./-](?:19|20)\d{2})(?:\s+\d{1,2}:\d{2}(?::\d{2})?)?[.;,]?$/u;
 
 const SPANISH_MONTHS: Readonly<Record<string, number>> = Object.freeze({
   ENERO: 1,
@@ -65,13 +70,21 @@ function observedDates(raw: string): readonly string[] {
   for (const match of value.matchAll(
     /(?:^|\D)((?:19|20)\d{2})-(\d{1,2})-(\d{1,2})(?=\D|$)/gu,
   )) {
-    const date = validDate(Number(match[1]), Number(match[2]), Number(match[3]));
+    const date = validDate(
+      Number(match[1]),
+      Number(match[2]),
+      Number(match[3]),
+    );
     if (date) dates.add(date);
   }
   for (const match of value.matchAll(
     /(?:^|\D)(\d{1,2})[./-](\d{1,2})[./-]((?:19|20)\d{2})(?=\D|$)/gu,
   )) {
-    const date = validDate(Number(match[3]), Number(match[2]), Number(match[1]));
+    const date = validDate(
+      Number(match[3]),
+      Number(match[2]),
+      Number(match[1]),
+    );
     if (date) dates.add(date);
   }
   for (const match of value.matchAll(
@@ -98,33 +111,56 @@ export function extractObservedDocumentChronologyV1(
       .map((raw) => Object.freeze({ raw, normalized: normalize(raw) }));
     for (let markerIndex = 0; markerIndex < lines.length; markerIndex += 1) {
       const marker = lines[markerIndex]!;
-      if (
-        !SIGNING_MARKERS.some((value) => marker.normalized.includes(value))
-      ) {
+      if (!SIGNING_MARKERS.some((value) => marker.normalized.includes(value))) {
         continue;
       }
+      const windowStart = Math.max(0, markerIndex - 6);
       const candidates = lines
-        .slice(Math.max(0, markerIndex - 1), markerIndex + 3)
+        .slice(windowStart, markerIndex + 4)
         .flatMap((line, windowIndex) => {
-          const offset =
-            Math.max(0, markerIndex - 1) + windowIndex - markerIndex;
-          if (!EXPLICIT_SIGNING_DATE_LABEL.test(line.normalized)) {
+          const offset = windowStart + windowIndex - markerIndex;
+          const immediatelyAdjacent = Math.abs(offset) <= 1;
+          const priority = EXPLICIT_SIGNING_DATE_LABEL.test(line.normalized)
+            ? 0
+            : immediatelyAdjacent &&
+                GENERIC_SIGNING_DATE_LABEL.test(line.normalized)
+              ? 1
+              : immediatelyAdjacent &&
+                  SIGNATURE_DATE_CONTEXT.test(line.normalized)
+                ? 2
+                : BARE_DATE_LINE.test(line.normalized)
+                  ? 3
+                  : null;
+          if (priority === null) {
             return [];
           }
           return observedDates(line.raw).map((valueIso) => ({
             valueIso,
+            priority,
             distance: Math.abs(offset),
             beforeMarker: offset < 0 ? 1 : 0,
           }));
         })
         .sort(
           (left, right) =>
+            left.priority - right.priority ||
             left.distance - right.distance ||
             left.beforeMarker - right.beforeMarker ||
             left.valueIso.localeCompare(right.valueIso),
         );
       const selected = candidates[0];
       if (!selected) continue;
+      if (
+        candidates.some(
+          (candidate, index) =>
+            index > 0 &&
+            candidate.priority === selected.priority &&
+            candidate.distance === selected.distance &&
+            candidate.valueIso !== selected.valueIso,
+        )
+      ) {
+        continue;
+      }
       const key = `${page.pageNumber}:${selected.valueIso}`;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -144,24 +180,26 @@ function containingDocumentIndex(
   documents: readonly FiscalNotificationVerticalSliceReviewDocumentV1[],
   pageNumber: number,
 ): number {
-  return documents
-    .map((document, index) => ({
-      index,
-      document,
-      span: document.pageTo - document.pageFrom,
-    }))
-    .filter(
-      ({ document }) =>
-        document.pageFrom <= pageNumber && pageNumber <= document.pageTo,
-    )
-    .sort(
-      (left, right) =>
-        left.span - right.span ||
-        left.document.pageFrom - right.document.pageFrom ||
-        left.document.reviewDocumentId.localeCompare(
-          right.document.reviewDocumentId,
-        ),
-    )[0]?.index ?? -1;
+  return (
+    documents
+      .map((document, index) => ({
+        index,
+        document,
+        span: document.pageTo - document.pageFrom,
+      }))
+      .filter(
+        ({ document }) =>
+          document.pageFrom <= pageNumber && pageNumber <= document.pageTo,
+      )
+      .sort(
+        (left, right) =>
+          left.span - right.span ||
+          left.document.pageFrom - right.document.pageFrom ||
+          left.document.reviewDocumentId.localeCompare(
+            right.document.reviewDocumentId,
+          ),
+      )[0]?.index ?? -1
+  );
 }
 
 function chronologyField(
@@ -208,10 +246,7 @@ export function appendObservedDocumentChronologyV1(
     }
     documents[index] = Object.freeze({
       ...document,
-      fields: Object.freeze([
-        ...document.fields,
-        chronologyField(observation),
-      ]),
+      fields: Object.freeze([...document.fields, chronologyField(observation)]),
     });
     changed = true;
   }
