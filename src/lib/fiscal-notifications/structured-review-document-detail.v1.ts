@@ -27,6 +27,7 @@ export interface FiscalNotificationDetailProvenanceV1 {
   readonly fieldLabel: string;
   readonly value: string;
   readonly pageNumber: number;
+  readonly pageNumbers?: readonly number[];
   readonly basis: "PRINTED";
   readonly sourceReference: string | null;
 }
@@ -122,9 +123,7 @@ export interface FiscalNotificationDetailRelationV1 {
   readonly explanation: string;
   readonly status: "CONFIRMED" | "SUGGESTED";
   readonly statusLabel:
-    | "Relación sugerida"
-    | "Relación confirmada"
-    | "Referencia exacta";
+    "Relación sugerida" | "Relación confirmada" | "Referencia exacta";
   readonly relatedDocumentId: string;
   readonly relatedDocumentTitle: string;
   readonly relatedDocumentDate: string | null;
@@ -173,12 +172,12 @@ export interface FiscalNotificationDocumentDetailViewModelV1 {
   readonly connections: FiscalNotificationDetailConnectionsV1 | null;
   readonly siblingActs: readonly FiscalNotificationDetailSiblingActV1[];
   readonly actions: Readonly<{
-    canDelete: true;
+    canDelete: boolean;
     driveFileId: string | null;
   }>;
 }
 
-const GROUP_TITLES: Readonly<
+export const FISCAL_NOTIFICATION_DETAIL_GROUP_TITLES_V1: Readonly<
   Record<FiscalNotificationDetailFactGroupIdV1, string>
 > = Object.freeze({
   DATES: "Fechas y plazos",
@@ -278,6 +277,18 @@ const NATURE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   THIRD_PARTY_REVIEW: "Revisión de tercero",
 });
 
+export function fiscalNotificationDetailCategoryLabelV1(
+  category: string | undefined,
+): string {
+  return category
+    ? (CATEGORY_LABELS[category] ?? "Documento fiscal")
+    : "Documento fiscal";
+}
+
+export function fiscalNotificationDetailNatureLabelV1(nature: string): string {
+  return NATURE_LABELS[nature] ?? "Documento fiscal";
+}
+
 const GENERIC_TITLES = new Set(["datos fiscales", "documento fiscal"]);
 
 export function projectFiscalNotificationDocumentDetailV1(input: {
@@ -287,7 +298,8 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
 }): FiscalNotificationDocumentDetailViewModelV1 {
   const { document, group, allDocuments } = input;
   const profile = resolveAeatDocumentProfileV1(document.documentSubtype);
-  const familyLabel = profile?.nameEs ?? documentTypeLabel(document.documentType);
+  const familyLabel =
+    profile?.nameEs ?? documentTypeLabel(document.documentType);
   const storedTitle = cleanDisplayText(document.title) ?? familyLabel;
   const title = familyLabel;
   const literalTitle =
@@ -318,8 +330,8 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
       )
     : null;
   const headerFactKeys = new Set(
-    [issuingUnit, model, period, exercise, act, primaryDateFact].flatMap((fact) =>
-      fact ? [fact.key] : [],
+    [issuingUnit, model, period, exercise, act, primaryDateFact].flatMap(
+      (fact) => (fact ? [fact.key] : []),
     ),
   );
 
@@ -342,7 +354,7 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
       : [
           Object.freeze({
             id,
-            title: GROUP_TITLES[id],
+            title: FISCAL_NOTIFICATION_DETAIL_GROUP_TITLES_V1[id],
             fields: Object.freeze(fields),
             previewLimit: FISCAL_NOTIFICATION_DETAIL_PREVIEW_LIMIT_V1,
           }),
@@ -352,7 +364,8 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
   const economy = projectEconomy(document);
   const directLinks = group.links.filter(
     (link) =>
-      link.fromDocumentId === document.key || link.toDocumentId === document.key,
+      link.fromDocumentId === document.key ||
+      link.toDocumentId === document.key,
   );
   const relations = directLinks.flatMap((link) => {
     const projected = projectRelation(link, document, group);
@@ -410,18 +423,18 @@ export function projectFiscalNotificationDocumentDetailV1(input: {
       document.pageCount === 1 ? "Página" : "Páginas",
       String(document.pageCount),
     ),
-  ].filter((item): item is FiscalNotificationDetailHeaderMetaV1 => item !== null);
+  ].filter(
+    (item): item is FiscalNotificationDetailHeaderMetaV1 => item !== null,
+  );
 
   return Object.freeze({
     documentId: document.key,
     header: Object.freeze({
-      categoryLabel: profile
-        ? CATEGORY_LABELS[profile.category] ?? "Documento fiscal"
-        : "Documento fiscal",
+      categoryLabel: fiscalNotificationDetailCategoryLabelV1(profile?.category),
       familyLabel,
-      typeLabel:
-        (profile ? NATURE_LABELS[profile.documentNature] : null) ??
-        documentTypeLabel(document.documentType),
+      typeLabel: profile
+        ? fiscalNotificationDetailNatureLabelV1(profile.documentNature)
+        : documentTypeLabel(document.documentType),
       title,
       literalTitle,
       description: displayTextOrFallback(
@@ -580,13 +593,9 @@ function projectEconomy(
         key: installment.key,
         label,
         dueDate,
-        dueDatePageNumbers: Object.freeze([
-          ...installment.dueDatePageNumbers,
-        ]),
+        dueDatePageNumbers: Object.freeze([...installment.dueDatePageNumbers]),
         total,
-        totalPageNumbers: Object.freeze([
-          ...installment.totalPageNumbers,
-        ]),
+        totalPageNumbers: Object.freeze([...installment.totalPageNumbers]),
         components: Object.freeze(components),
         pageNumbers: Object.freeze([...installment.pageNumbers]),
       }),
@@ -611,7 +620,9 @@ function projectRelation(
     link.fromDocumentId === document.key
       ? link.toDocumentId
       : link.fromDocumentId;
-  const related = group.documents.find((candidate) => candidate.key === relatedId);
+  const related = group.documents.find(
+    (candidate) => candidate.key === relatedId,
+  );
   if (!related) return null;
   const currentIsSource = link.fromDocumentId === document.key;
   const matches = link.matches.flatMap((match) => {
@@ -671,6 +682,13 @@ function projectRelation(
 function classifyFact(
   fact: FiscalNotificationStructuredHistoryOrderedFactV1,
 ): FiscalNotificationDetailFactGroupIdV1 {
+  return classifyFiscalNotificationDetailFactV1(fact);
+}
+
+export function classifyFiscalNotificationDetailFactV1(fact: {
+  readonly semantic: string;
+  readonly label: string;
+}): FiscalNotificationDetailFactGroupIdV1 {
   if (fact.semantic === "DATE") return "DATES";
   if (fact.semantic === "REFERENCE") return "REFERENCES";
   if (fact.semantic === "PARTY" || fact.semantic === "MASKED_VALUE") {
@@ -679,10 +697,18 @@ function classifyFact(
   if (fact.semantic === "OBLIGATION") return "OBLIGATIONS";
   const label = normalizeText(fact.label);
   if (/recurso|alegacion|impugn|suspension/u.test(label)) return "APPEALS";
-  if (/oblig|debe|documentacion solicitada|requerid|canal de respuesta/u.test(label)) {
+  if (
+    /oblig|debe|documentacion solicitada|requerid|canal de respuesta/u.test(
+      label,
+    )
+  ) {
     return "OBLIGATIONS";
   }
-  if (/resultado|resolucion|decision|consecuencia|incumpl|efecto|estado/u.test(label)) {
+  if (
+    /resultado|resolucion|decision|consecuencia|incumpl|efecto|estado/u.test(
+      label,
+    )
+  ) {
     return "OUTCOME";
   }
   if (/hecho|motivo|fundamento|objeto|concepto|alcance|canal/u.test(label)) {
@@ -782,6 +808,13 @@ function isStrongRelationMatchLabel(label: string): boolean {
 }
 
 function maskSensitiveIdentifiers(label: string, value: string): string {
+  return maskFiscalNotificationDetailValueV1(label, value);
+}
+
+export function maskFiscalNotificationDetailValueV1(
+  label: string,
+  value: string,
+): string {
   const normalizedLabel = normalizeText(label);
   if (!/\b(?:nif|nie|cif|identificador fiscal)\b/u.test(normalizedLabel)) {
     return value;
@@ -810,7 +843,8 @@ function displayDocumentTitle(
   document: FiscalNotificationStructuredHistoryEntryV1,
 ): string {
   const profile = resolveAeatDocumentProfileV1(document.documentSubtype);
-  const familyLabel = profile?.nameEs ?? documentTypeLabel(document.documentType);
+  const familyLabel =
+    profile?.nameEs ?? documentTypeLabel(document.documentType);
   const storedTitle = cleanDisplayText(document.title);
   return !storedTitle || GENERIC_TITLES.has(normalizeText(storedTitle))
     ? familyLabel

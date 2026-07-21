@@ -5,6 +5,7 @@ import {
   AI_UNITS_PER_SCAN,
   CUSTOMER_AI_AUTOFILL_UNITS,
   FISCAL_AI_FALLBACK_UNITS,
+  FISCAL_NOTIFICATION_LIBRARY_AUDIT_UNITS,
   IMPORT_AI_REVIEW_UNITS,
   aiUsageBlockedMessage,
   buildScanQuota,
@@ -502,6 +503,18 @@ export async function consumeFiscalAiFallback(userId: string) {
       customerAiAutofillsCreated: FISCAL_AI_FALLBACK_UNITS,
     },
     "No hemos podido descontar el uso del fallback fiscal. Inténtalo de nuevo en unos minutos.",
+    aiUsageBlockedMessage,
+  );
+}
+
+export async function consumeFiscalNotificationLibraryAudit(userId: string) {
+  return consumeAiUnits(
+    userId,
+    FISCAL_NOTIFICATION_LIBRARY_AUDIT_UNITS,
+    {
+      customerAiAutofillsCreated: FISCAL_NOTIFICATION_LIBRARY_AUDIT_UNITS,
+    },
+    "No hemos podido descontar la revisión de fichas. Inténtalo de nuevo en unos minutos.",
     aiUsageBlockedMessage,
   );
 }
