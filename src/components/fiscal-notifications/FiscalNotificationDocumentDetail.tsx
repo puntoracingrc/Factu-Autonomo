@@ -663,68 +663,61 @@ function EconomySection({
 
       {economy.installments.length > 0 ? (
         <section className="mt-6" aria-labelledby="installment-table-heading">
-          <h3
-            id="installment-table-heading"
-            className="text-sm font-bold text-slate-900"
-          >
-            Cuotas y vencimientos
-          </h3>
-          <div className="mt-2 divide-y divide-slate-100 border-y border-slate-200">
-            {economy.installments.map((installment) => (
-              <div
-                key={installment.key}
-                className="grid gap-4 py-4 md:grid-cols-[minmax(14rem,1.2fr)_minmax(10rem,0.7fr)_minmax(10rem,0.7fr)] md:items-start"
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h3
+                id="installment-table-heading"
+                className="text-sm font-bold text-slate-900"
               >
-                <div>
-                  <p className="text-sm font-bold text-slate-900">
-                    {installment.label}
-                  </p>
-                  {installment.components.length > 0 ? (
-                    <ul className="mt-1 divide-y divide-slate-100 text-xs text-slate-500">
-                      {installment.components.map((component) => (
-                        <li
-                          key={`${component.label}:${component.value}`}
-                          className="flex min-h-9 items-center justify-between gap-2"
-                        >
-                          <span>
-                            {component.label}: {component.value}
-                          </span>
-                          {component.pageNumbers.length > 0 ? (
-                            <ProvenanceButton
-                              label={`${installment.label}, ${component.label}`}
-                              onClick={() =>
-                                onShowProvenance({
-                                  key: `installment-component:${installment.key}:${component.label}`,
-                                  fieldLabel: `${installment.label} · ${component.label}`,
-                                  value: component.value,
-                                  pageNumbers: component.pageNumbers,
-                                  basis: "PRINTED",
-                                  sourceReference: null,
-                                })
-                              }
-                            />
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                </div>
-                <InstallmentDatum
-                  installmentKey={installment.key}
-                  label="Vencimiento"
-                  value={installment.dueDate}
-                  pageNumbers={installment.dueDatePageNumbers}
-                  onShowProvenance={onShowProvenance}
-                />
-                <InstallmentDatum
-                  installmentKey={installment.key}
-                  label="Total"
-                  value={installment.total}
-                  pageNumbers={installment.totalPageNumbers}
-                  onShowProvenance={onShowProvenance}
-                />
-              </div>
-            ))}
+                Cuotas y vencimientos
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                {economy.installments.length} cuotas con vencimiento e importes
+                vinculados.
+              </p>
+            </div>
+            {economy.installmentTotals?.surcharge === "0,00 €" ? (
+              <p className="text-xs font-semibold text-emerald-700">
+                Sin recargo ejecutivo
+              </p>
+            ) : null}
+          </div>
+          <div className="mt-3 overflow-x-auto rounded-md border border-slate-200">
+            <table className="w-full min-w-[58rem] border-collapse text-left text-sm">
+              <thead className="bg-slate-50 text-xs font-bold text-slate-600">
+                <tr>
+                  <th scope="col" className="px-3 py-3">Cuota</th>
+                  <th scope="col" className="px-3 py-3">Vencimiento</th>
+                  <th scope="col" className="px-3 py-3 text-right">Principal</th>
+                  <th scope="col" className="px-3 py-3 text-right">Intereses de demora</th>
+                  <th scope="col" className="px-3 py-3 text-right">Recargo ejecutivo</th>
+                  <th scope="col" className="px-3 py-3 text-right">Total cuota</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {economy.installments.map((installment) => (
+                  <InstallmentTableRow
+                    key={installment.key}
+                    installment={installment}
+                    onShowProvenance={onShowProvenance}
+                  />
+                ))}
+              </tbody>
+              {economy.installmentTotals ? (
+                <tfoot className="border-t-2 border-slate-200 bg-blue-50/60 font-bold text-slate-950">
+                  <tr>
+                    <th scope="row" className="px-3 py-3">Totales</th>
+                    <td className="px-3 py-3 text-slate-500">
+                      {economy.installmentTotals.count} cuotas
+                    </td>
+                    <td className="px-3 py-3 text-right">{economy.installmentTotals.principal}</td>
+                    <td className="px-3 py-3 text-right">{economy.installmentTotals.interest}</td>
+                    <td className="px-3 py-3 text-right">{economy.installmentTotals.surcharge}</td>
+                    <td className="px-3 py-3 text-right text-blue-700">{economy.installmentTotals.total}</td>
+                  </tr>
+                </tfoot>
+              ) : null}
+            </table>
           </div>
         </section>
       ) : null}
@@ -732,38 +725,105 @@ function EconomySection({
   );
 }
 
-function InstallmentDatum({
+function InstallmentTableRow({
+  installment,
+  onShowProvenance,
+}: {
+  readonly installment: FiscalNotificationDetailEconomyV1["installments"][number];
+  readonly onShowProvenance: (selection: ProvenanceSelection) => void;
+}) {
+  const component = (pattern: RegExp) =>
+    installment.components.find((item) => pattern.test(item.label));
+  const principal = component(/principal|base/iu);
+  const interest = component(/inter[eé]s/iu);
+  const surcharge = component(/recargo/iu);
+  return (
+    <tr className="text-slate-700">
+      <th scope="row" className="whitespace-nowrap px-3 py-3 font-bold text-slate-950">
+        {installment.label}
+      </th>
+      <InstallmentTableCell
+        installmentKey={installment.key}
+        label="Vencimiento"
+        value={installment.dueDate}
+        pageNumbers={installment.dueDatePageNumbers}
+        onShowProvenance={onShowProvenance}
+      />
+      <InstallmentTableCell
+        installmentKey={installment.key}
+        label="Principal"
+        value={principal?.value ?? null}
+        pageNumbers={principal?.pageNumbers ?? []}
+        onShowProvenance={onShowProvenance}
+        align="right"
+      />
+      <InstallmentTableCell
+        installmentKey={installment.key}
+        label="Intereses de demora"
+        value={interest?.value ?? null}
+        pageNumbers={interest?.pageNumbers ?? []}
+        onShowProvenance={onShowProvenance}
+        align="right"
+      />
+      <InstallmentTableCell
+        installmentKey={installment.key}
+        label="Recargo ejecutivo"
+        value={surcharge?.value ?? null}
+        pageNumbers={surcharge?.pageNumbers ?? []}
+        onShowProvenance={onShowProvenance}
+        align="right"
+      />
+      <InstallmentTableCell
+        installmentKey={installment.key}
+        label="Total cuota"
+        value={installment.total}
+        pageNumbers={installment.totalPageNumbers}
+        onShowProvenance={onShowProvenance}
+        align="right"
+        strong
+      />
+    </tr>
+  );
+}
+
+function InstallmentTableCell({
   installmentKey,
   label,
   value,
   pageNumbers,
   onShowProvenance,
+  align = "left",
+  strong = false,
 }: {
   readonly installmentKey: string;
   readonly label: string;
   readonly value: string | null;
   readonly pageNumbers: readonly number[];
   readonly onShowProvenance: (selection: ProvenanceSelection) => void;
+  readonly align?: "left" | "right";
+  readonly strong?: boolean;
 }) {
   return (
-    <div className="flex min-w-0 items-start justify-between gap-2">
-      <LabeledValue label={label} value={value ?? "No consta"} />
-      {value && pageNumbers.length > 0 ? (
-        <ProvenanceButton
-          label={`${label} de la cuota`}
-          onClick={() =>
-            onShowProvenance({
-              key: `installment:${installmentKey}:${label}`,
-              fieldLabel: label,
-              value,
-              pageNumbers,
-              basis: "PRINTED",
-              sourceReference: null,
-            })
-          }
-        />
-      ) : null}
-    </div>
+    <td className={`px-3 py-3 ${align === "right" ? "text-right" : ""}`}>
+      <span className={`inline-flex items-center gap-1 ${strong ? "font-bold text-slate-950" : ""}`}>
+        <span>{value ?? "—"}</span>
+        {value && pageNumbers.length > 0 ? (
+          <ProvenanceButton
+            label={`${label} de la cuota`}
+            onClick={() =>
+              onShowProvenance({
+                key: `installment:${installmentKey}:${label}`,
+                fieldLabel: label,
+                value,
+                pageNumbers,
+                basis: "PRINTED",
+                sourceReference: null,
+              })
+            }
+          />
+        ) : null}
+      </span>
+    </td>
   );
 }
 
@@ -1186,21 +1246,6 @@ function ProvenanceDatum({
       >
         {value}
       </p>
-    </div>
-  );
-}
-
-function LabeledValue({
-  label,
-  value,
-}: {
-  readonly label: string;
-  readonly value: string;
-}) {
-  return (
-    <div>
-      <p className="text-xs font-semibold text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-bold text-slate-900">{value}</p>
     </div>
   );
 }

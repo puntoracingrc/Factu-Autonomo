@@ -61,6 +61,7 @@ function audit(): FiscalNotificationLibraryAiAuditInputV1 {
         ]),
         amounts: Object.freeze([]),
         installments: Object.freeze([]),
+        arithmeticReview: null,
         explanation: Object.freeze({
           whatItIs: "Una providencia inicia la vía ejecutiva.",
           whyReceived: "La ficha refleja una deuda pendiente.",
@@ -161,6 +162,11 @@ describe("fiscal notification library AI audit provider v1", () => {
       "No propongas crear, borrar, confirmar ni modificar automáticamente",
     );
     expect(prompt).toContain("No tienes el PDF ni texto bruto");
+    expect(prompt).toContain("contrasta cada ecuación");
+    expect(prompt).toContain("No uses un identificador fiscal descartado como importe");
+    expect(
+      buildFiscalNotificationLibraryAiAuditSystemPromptV1("2026-07-21"),
+    ).toContain("La fecha de referencia de esta revisión es 2026-07-21");
   });
 
   it("rechaza JSON inválido o tokens internos sin filtrarlos a la interfaz", async () => {

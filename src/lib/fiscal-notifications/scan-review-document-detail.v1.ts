@@ -124,9 +124,12 @@ export function projectFiscalNotificationScanReviewDocumentDetailV1(input: {
     "FISCAL_YEAR",
   );
   const installmentFields = new Set(
-    fields
-      .filter((field) => projectInstallment(field) !== null)
-      .map((field) => field.fieldId),
+    document.amountReconciliation?.installments.map(
+      (installment) => installment.sourceFieldId,
+    ) ??
+      fields
+        .filter((field) => projectInstallment(field) !== null)
+        .map((field) => field.fieldId),
   );
   const headerFieldIds = new Set(
     [primaryDate, authority, issuingUnit, act, model, period, exercise].flatMap(
@@ -167,7 +170,7 @@ export function projectFiscalNotificationScanReviewDocumentDetailV1(input: {
     },
   );
 
-  const economy = projectEconomy(fields);
+  const economy = projectEconomy(document, fields);
   const officialSources = projectOfficialSources(explanation);
   const familyLabel =
     profile?.nameEs ?? cleanText(document.title) ?? "Documento fiscal";
@@ -310,10 +313,37 @@ function projectExplanation(
 }
 
 function projectEconomy(
+  document: FiscalNotificationVerticalSliceReviewDocumentV1,
   fields: readonly FiscalNotificationVerticalSliceReviewFieldV1[],
 ): FiscalNotificationDetailEconomyV1 | null {
+  const reconciledAmounts = new Set(
+    document.amountReconciliation?.installments.flatMap((installment) => [
+      installment.principalCents,
+      installment.interestCents,
+      installment.surchargeCents,
+      installment.totalCents,
+    ]) ?? [],
+  );
+  const totals = document.amountReconciliation?.totals ?? null;
+  if (totals) {
+    reconciledAmounts.add(totals.principalCents);
+    reconciledAmounts.add(totals.interestCents);
+    reconciledAmounts.add(totals.surchargeCents);
+    reconciledAmounts.add(totals.totalCents);
+  }
   const rows: FiscalNotificationDetailAmountRowV1[] = fields
-    .filter((field) => field.semantic === "MONEY")
+    .filter(
+      (field) =>
+        field.semantic === "MONEY" &&
+        !(
+          document.amountReconciliation?.installments.length &&
+          field.amountCents !== null &&
+          reconciledAmounts.has(field.amountCents) &&
+          /principal|base|interes|recargo|cuota|total|plan/u.test(
+            normalizeText(field.label),
+          )
+        ),
+    )
     .map((field) =>
       Object.freeze({
         key: field.fieldId,
@@ -324,20 +354,98 @@ function projectEconomy(
         pageNumbers: Object.freeze([...field.sourcePageNumbers]),
       }),
     );
-  const installments = fields.flatMap((field) => {
-    const installment = projectInstallment(field);
-    return installment ? [installment] : [];
-  });
+  const installments = document.amountReconciliation?.installments.length
+    ? document.amountReconciliation.installments.map((installment) =>
+        Object.freeze({
+          key: installment.sourceFieldId,
+          label: `Cuota ${installment.sequence}`,
+          dueDate: formatIsoDate(installment.dueDate),
+          dueDatePageNumbers: Object.freeze([
+            ...installment.sourcePageNumbers,
+          ]),
+          total: formatCents(installment.totalCents),
+          totalPageNumbers: Object.freeze([
+            ...installment.sourcePageNumbers,
+          ]),
+          components: Object.freeze([
+            Object.freeze({
+              label: "Principal",
+              value: formatCents(installment.principalCents),
+              pageNumbers: Object.freeze([
+                ...installment.sourcePageNumbers,
+              ]),
+            }),
+            Object.freeze({
+              label: "Intereses de demora",
+              value: formatCents(installment.interestCents),
+              pageNumbers: Object.freeze([
+                ...installment.sourcePageNumbers,
+              ]),
+            }),
+            Object.freeze({
+              label: "Recargo ejecutivo",
+              value: formatCents(installment.surchargeCents),
+              pageNumbers: Object.freeze([
+                ...installment.sourcePageNumbers,
+              ]),
+            }),
+          ]),
+          pageNumbers: Object.freeze([...installment.sourcePageNumbers]),
+        }),
+      )
+    : fields.flatMap((field) => {
+        const installment = projectInstallment(field);
+        return installment ? [installment] : [];
+      });
   if (rows.length === 0 && installments.length === 0) return null;
-  const summary = [...rows]
-    .sort(
-      (left, right) => amountPriority(left.label) - amountPriority(right.label),
-    )
-    .slice(0, 4);
+  const installmentTotals = totals
+    ? Object.freeze({
+        count: totals.installmentCount,
+        principal: formatCents(totals.principalCents),
+        interest: formatCents(totals.interestCents),
+        surcharge: formatCents(totals.surchargeCents),
+        total: formatCents(totals.totalCents),
+        pageNumbers: Object.freeze([...totals.sourcePageNumbers]),
+      })
+    : null;
+  const summary = installmentTotals
+    ? ([
+        amountRow(
+          "installment-summary:count",
+          "Número de cuotas",
+          String(installmentTotals.count),
+          installmentTotals.pageNumbers,
+        ),
+        amountRow(
+          "installment-summary:principal",
+          "Principal total",
+          installmentTotals.principal,
+          installmentTotals.pageNumbers,
+        ),
+        amountRow(
+          "installment-summary:interest",
+          "Intereses totales",
+          installmentTotals.interest,
+          installmentTotals.pageNumbers,
+        ),
+        amountRow(
+          "installment-summary:total",
+          "Total programado",
+          installmentTotals.total,
+          installmentTotals.pageNumbers,
+        ),
+      ] as const)
+    : [...rows]
+        .sort(
+          (left, right) =>
+            amountPriority(left.label) - amountPriority(right.label),
+        )
+        .slice(0, 4);
   return Object.freeze({
     summary: Object.freeze(summary),
     rows: Object.freeze(rows),
     installments: Object.freeze(installments),
+    installmentTotals,
     showSourceReference: false,
     previewLimit: FISCAL_NOTIFICATION_DETAIL_TABLE_LIMIT_V1,
   });
@@ -349,7 +457,7 @@ function projectInstallment(
   if (!/^real-corpus-v[3-7]:installment:\d+$/u.test(field.fieldId)) return null;
   const sequence = /^Cuota ([1-9]\d*)$/u.exec(field.label)?.[1];
   const match =
-    /^Vence ((?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2}) · (?:principal|base) (\d{1,3}(?:\.\d{3})*,\d{2})\s€ · interés (\d{1,3}(?:\.\d{3})*,\d{2})\s€ · total (\d{1,3}(?:\.\d{3})*,\d{2})\s€$/u.exec(
+    /^Vence ((?:0[1-9]|[12]\d|3[01])\/(?:0[1-9]|1[0-2])\/(?:19|20)\d{2}) · (?:principal|base) (\d{1,3}(?:\.\d{3})*,\d{2})\s€ · interés (\d{1,3}(?:\.\d{3})*,\d{2})\s€(?: · recargo (\d{1,3}(?:\.\d{3})*,\d{2})\s€)? · total (\d{1,3}(?:\.\d{3})*,\d{2})\s€$/u.exec(
       field.displayValue,
     );
   if (!sequence || !match) return null;
@@ -358,7 +466,7 @@ function projectInstallment(
     label: `Cuota ${sequence}`,
     dueDate: match[1]!,
     dueDatePageNumbers: Object.freeze([...field.sourcePageNumbers]),
-    total: `${match[4]!} €`,
+    total: `${match[5]!} €`,
     totalPageNumbers: Object.freeze([...field.sourcePageNumbers]),
     components: Object.freeze([
       Object.freeze({
@@ -371,6 +479,15 @@ function projectInstallment(
         value: `${match[3]!} €`,
         pageNumbers: Object.freeze([...field.sourcePageNumbers]),
       }),
+      ...(match[4]
+        ? [
+            Object.freeze({
+              label: "Recargo ejecutivo",
+              value: `${match[4]} €`,
+              pageNumbers: Object.freeze([...field.sourcePageNumbers]),
+            }),
+          ]
+        : []),
     ]),
     pageNumbers: Object.freeze([...field.sourcePageNumbers]),
   });
@@ -444,17 +561,45 @@ function deduplicateReviewFields(
 ): readonly FiscalNotificationVerticalSliceReviewFieldV1[] {
   const identities = new Set<string>();
   return fields.filter((field) => {
+    const duplicateGroup = reviewFieldDuplicateGroup(field);
     const identity = JSON.stringify([
       field.semantic,
-      field.canonicalType,
-      normalizeText(field.label),
+      duplicateGroup ?? field.canonicalType,
+      duplicateGroup ? "" : normalizeText(field.label),
       field.normalizedValue ?? field.displayValue,
-      field.sourcePageNumbers,
+      ...(duplicateGroup ? [] : [field.sourcePageNumbers]),
     ]);
     if (identities.has(identity)) return false;
     identities.add(identity);
     return true;
   });
+}
+
+function reviewFieldDuplicateGroup(
+  field: FiscalNotificationVerticalSliceReviewFieldV1,
+): string | null {
+  if (
+    field.semantic === "DATE" &&
+    (field.canonicalType === "INSTALLMENT_DUE_DATE" ||
+      field.canonicalType === "VOLUNTARY_PAYMENT_DEADLINE")
+  ) {
+    return "INSTALLMENT_DEADLINE";
+  }
+  if (
+    field.semantic === "REFERENCE" &&
+    (field.canonicalType === "EXPEDIENTE_ID" ||
+      field.canonicalType === "AGREEMENT_ID")
+  ) {
+    return "CASE_OR_AGREEMENT";
+  }
+  if (
+    field.semantic === "REFERENCE" &&
+    (field.canonicalType === "LIQUIDATION_KEY" ||
+      field.canonicalType === "DEBT_KEY")
+  ) {
+    return "DEBT_OR_LIQUIDATION";
+  }
+  return null;
 }
 
 function isVisibleReviewField(
@@ -464,6 +609,7 @@ function isVisibleReviewField(
     field.sourcePageNumbers.length > 0 &&
     field.label.trim().length > 0 &&
     field.displayValue.trim().length > 0 &&
+    field.displayValue !== "Consta en el documento" &&
     shouldExposeFiscalNotificationField(field) &&
     !containsInternalFiscalNotificationToken(field.label) &&
     !containsInternalFiscalNotificationToken(field.displayValue) &&
@@ -571,6 +717,35 @@ function amountPriority(label: string): number {
   if (/pendiente|principal|cuota/u.test(normalized)) return 1;
   if (/recargo|interes|costas/u.test(normalized)) return 2;
   return 3;
+}
+
+function amountRow(
+  key: string,
+  label: string,
+  value: string,
+  pageNumbers: readonly number[],
+): FiscalNotificationDetailAmountRowV1 {
+  return Object.freeze({
+    key,
+    label,
+    value,
+    currencyLabel: "EUR",
+    sourceReference: null,
+    pageNumbers: Object.freeze([...pageNumbers]),
+  });
+}
+
+function formatCents(amountCents: number): string {
+  const absolute = Math.abs(amountCents);
+  const whole = Math.floor(absolute / 100)
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/gu, ".");
+  return `${amountCents < 0 ? "-" : ""}${whole},${String(absolute % 100).padStart(2, "0")} €`;
+}
+
+function formatIsoDate(value: string): string {
+  const [year, month, day] = value.split("-");
+  return `${day}/${month}/${year}`;
 }
 
 function meta(

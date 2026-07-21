@@ -11,6 +11,7 @@ import {
   AEAT_DOCUMENT_RELATION_TYPE_IDS_V1,
 } from "./knowledge/aeat-document-knowledge.v1";
 import type { FiscalNotificationsWorkspace } from "./types";
+import { parseFiscalNotificationAmountReconciliationV1 } from "./amount-reconciliation-contract.v1";
 
 export type WorkspaceIntegrityIssueCode =
   | "INVALID_WORKSPACE"
@@ -533,6 +534,7 @@ const STRUCTURED_DATA_KEYS = new Set([
   "calculatedSummary",
   "inferenceSummary",
   "userConfirmedSummary",
+  "amountReconciliation",
   "documentFields",
   "templateRecognition",
 ]);
@@ -1847,6 +1849,20 @@ export function validateFiscalNotificationsWorkspaceIntegrity(
     const snapshotFile = snapshotDocument
       ? filesById.get(snapshotDocument.fileId)
       : undefined;
+    if (item.structuredData.amountReconciliation !== undefined) {
+      try {
+        parseFiscalNotificationAmountReconciliationV1(
+          item.structuredData.amountReconciliation,
+          1,
+          snapshotFile?.pageCount ?? FISCAL_NOTIFICATION_INPUT_LIMITS.maxPages,
+        );
+      } catch {
+        addIssue(
+          "INVALID_WORKSPACE",
+          `${path}.structuredData.amountReconciliation`,
+        );
+      }
+    }
     for (
       let fieldIndex = 0;
       fieldIndex < item.structuredData.unknownFields.length;

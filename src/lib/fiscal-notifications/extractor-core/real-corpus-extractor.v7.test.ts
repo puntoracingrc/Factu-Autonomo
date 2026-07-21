@@ -569,6 +569,200 @@ describe("AEAT real corpus extractor V7", () => {
     );
   });
 
+  it("reconstructs four-column installment rows and reconciles their printed totals", async () => {
+    const input: BoundedDocumentInput = Object.freeze({
+      ownerScope: OWNER,
+      documentId: "synthetic-v7-three-installment-table",
+      pages: Object.freeze([
+        Object.freeze({
+          pageNumber: 1,
+          text: [
+            AEAT,
+            "CONCESIÓN DEL APLAZAMIENTO/FRACCIONAMIENTO DE PAGO",
+            "Referencia del acuerdo: SYN-PLAN-THREE-ROWS-001",
+            "Número liquidación: SYN-DEBT-THREE-ROWS-001",
+            "Cuota Vencimiento Principal Intereses de demora Recargo ejecutivo Total cuota",
+            "1 22/06/2026 70,39 0,48 0,00 70,87",
+            "2 20/07/2026 70,39 0,71 0,00 71,10",
+            "3 20/08/2026 70,41 0,96 0,00 71,37",
+            "Totales 211,19 2,15 0,00 213,34",
+          ].join("\n"),
+          isBlank: false,
+        }),
+      ]),
+    });
+
+    const result = await extractAeatRealCorpusDocumentV7(input);
+
+    expect(result).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "collection.deferral_grant",
+      installments: [
+        {
+          sequence: 1,
+          dueDate: "2026-06-22",
+          baseCents: 7_039,
+          deferralInterestCents: 48,
+          enforcementSurchargeCents: 0,
+          totalCents: 7_087,
+        },
+        {
+          sequence: 2,
+          dueDate: "2026-07-20",
+          baseCents: 7_039,
+          deferralInterestCents: 71,
+          enforcementSurchargeCents: 0,
+          totalCents: 7_110,
+        },
+        {
+          sequence: 3,
+          dueDate: "2026-08-20",
+          baseCents: 7_041,
+          deferralInterestCents: 96,
+          enforcementSurchargeCents: 0,
+          totalCents: 7_137,
+        },
+      ],
+    });
+    expect(result.fields).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          fieldCode: "PLAN_PRINCIPAL",
+          amountCents: 21_119,
+        }),
+        expect.objectContaining({
+          fieldCode: "PLAN_INTEREST",
+          amountCents: 215,
+        }),
+        expect.objectContaining({
+          fieldCode: "PLAN_TOTAL",
+          amountCents: 21_334,
+        }),
+      ]),
+    );
+
+    const analyzed = await analyzeFiscalNotificationDocumentInput(input);
+    const document = analyzed.verticalSliceReview.documents.find(
+      (item) => item.familyId === "collection.deferral_grant",
+    );
+    expect(document?.amountReconciliation).toMatchObject({
+      status: "MATCHED",
+      passCount: 1,
+      requiresManualReview: false,
+      totals: {
+        installmentCount: 3,
+        principalCents: 21_119,
+        interestCents: 215,
+        surchargeCents: 0,
+        totalCents: 21_334,
+        printedPrincipalCents: 21_119,
+        printedInterestCents: 215,
+        printedTotalCents: 21_334,
+      },
+    });
+    expect(document?.amountReconciliation?.equations).toHaveLength(7);
+    expect(
+      document?.amountReconciliation?.equations.every(
+        (equation) => equation.status === "MATCHED",
+      ),
+    ).toBe(true);
+  });
+
+  it("records a printed plan total mismatch instead of hiding it behind balanced rows", async () => {
+    const input: BoundedDocumentInput = Object.freeze({
+      ownerScope: OWNER,
+      documentId: "synthetic-v7-mismatched-printed-plan-total",
+      pages: Object.freeze([
+        Object.freeze({
+          pageNumber: 1,
+          text: [
+            AEAT,
+            "CONCESIÓN DEL APLAZAMIENTO/FRACCIONAMIENTO DE PAGO",
+            "Referencia del acuerdo: SYN-PLAN-MISMATCH-001",
+            "Número liquidación: SYN-DEBT-MISMATCH-001",
+            "Cuota Vencimiento Principal Intereses de demora Recargo ejecutivo Total cuota",
+            "1 22/06/2026 70,39 0,48 0,00 70,87",
+            "2 20/07/2026 70,39 0,71 0,00 71,10",
+            "3 20/08/2026 70,41 0,96 0,00 71,37",
+            "Totales 211,19 2,15 0,00 214,34",
+          ].join("\n"),
+          isBlank: false,
+        }),
+      ]),
+    });
+
+    const analyzed = await analyzeFiscalNotificationDocumentInput(input);
+    const reconciliation = analyzed.verticalSliceReview.documents.find(
+      (item) => item.familyId === "collection.deferral_grant",
+    )?.amountReconciliation;
+    const printedTotalEquation = reconciliation?.equations.find(
+      (equation) =>
+        equation.formula === "INSTALLMENT_ROWS_EQUAL_PRINTED_PLAN_TOTAL",
+    );
+
+    expect(reconciliation).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      requiresManualReview: true,
+    });
+    expect(printedTotalEquation).toMatchObject({
+      status: "MISMATCH_REVIEW_REQUIRED",
+      leftCents: 21_334,
+      rightCents: 21_434,
+      differenceCents: -100,
+    });
+  });
+
+  it("retains an inconsistent installment row and sends it to review", async () => {
+    const analyzed = await analyzeFiscalNotificationDocumentInput(
+      Object.freeze({
+        ownerScope: OWNER,
+        documentId: "synthetic-v7-mismatched-installment-row",
+        pages: Object.freeze([
+          Object.freeze({
+            pageNumber: 1,
+            text: [
+              AEAT,
+              "CONCESIÓN DEL APLAZAMIENTO/FRACCIONAMIENTO DE PAGO",
+              "Referencia del acuerdo: SYN-PLAN-ROW-MISMATCH-001",
+              "Número liquidación: SYN-DEBT-ROW-MISMATCH-001",
+              "Cuota Vencimiento Principal Intereses de demora Recargo ejecutivo Total cuota",
+              "1 22/06/2026 70,39 0,48 0,00 70,99",
+              "2 20/07/2026 70,39 0,71 0,00 71,10",
+              "3 20/08/2026 70,41 0,96 0,00 71,37",
+              "Totales 211,19 2,15 0,00 213,46",
+            ].join("\n"),
+            isBlank: false,
+          }),
+        ]),
+      }),
+    );
+    const reconciliation = analyzed.verticalSliceReview.documents.find(
+      (item) => item.familyId === "collection.deferral_grant",
+    )?.amountReconciliation;
+
+    expect(reconciliation).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      requiresManualReview: true,
+    });
+    expect(reconciliation?.installments[0]).toMatchObject({
+      sequence: 1,
+      principalCents: 7_039,
+      interestCents: 48,
+      surchargeCents: 0,
+      totalCents: 7_099,
+      equationStatus: "MISMATCH_REVIEW_REQUIRED",
+    });
+    expect(
+      reconciliation?.equations.find(
+        (equation) => equation.equationId === "installment:1",
+      ),
+    ).toMatchObject({
+      leftCents: 7_087,
+      rightCents: 7_099,
+      differenceCents: -12,
+    });
+  });
+
   it("keeps an interest-annex total without turning its column header into plan totals", async () => {
     const input: BoundedDocumentInput = Object.freeze({
       ownerScope: OWNER,
@@ -802,7 +996,7 @@ describe("AEAT real corpus extractor V7", () => {
     ).toHaveLength(1);
   });
 
-  it("rejects a family title with no useful family fact and inconsistent arithmetic", async () => {
+  it("rejects title-only recognition but retains observed inconsistent amounts for review", async () => {
     const incompleteRoi = source({
       id: "V7-INCOMPLETE-ROI",
       family: "registry.tax_registration_resolution",
@@ -814,7 +1008,30 @@ describe("AEAT real corpus extractor V7", () => {
       text: "RESOLUCIÓN DE LIQUIDACIÓN PROVISIONAL\nRESOLUCIÓN FINAL DEL PROCEDIMIENTO\nReferencia de la liquidación final: SYN-ASSESSMENT-BAD-1\nCuota liquidada: 90,00 €\nIntereses de demora: 6,00 €\nTotal a ingresar: 97,00 €\nSaldo declarado rechazado: 750,00 €",
     });
     await expect(extractAeatRealCorpusDocumentV7(incompleteRoi)).resolves.toMatchObject({ status: "UNKNOWN", familyId: null });
-    await expect(extractAeatRealCorpusDocumentV7(inconsistentAssessment)).resolves.toMatchObject({ status: "UNKNOWN", familyId: null });
+    await expect(extractAeatRealCorpusDocumentV7(inconsistentAssessment)).resolves.toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "assessment.final_provisional_assessment",
+    });
+    const reviewed = await analyzeFiscalNotificationDocumentInput(
+      inconsistentAssessment,
+    );
+    expect(
+      reviewed.verticalSliceReview.documents.find(
+        (document) =>
+          document.familyId === "assessment.final_provisional_assessment",
+      )?.amountReconciliation,
+    ).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      requiresManualReview: true,
+      equations: [
+        {
+          status: "MISMATCH_REVIEW_REQUIRED",
+          leftCents: 9_600,
+          rightCents: 9_700,
+          differenceCents: -100,
+        },
+      ],
+    });
   });
 
   it("does not mutate input and returns defensive frozen output", async () => {

@@ -100,8 +100,8 @@ function projectInstallment(item: RealCorpusInstallmentV7, index: number): Fisca
     semantic: "DETAIL",
     canonicalType: "FACT_OR_GROUND",
     label: `Cuota ${item.sequence}`,
-    displayValue: `Vence ${item.dueDate.split("-").reverse().join("/")} · principal ${formatMoney(item.baseCents)} · interés ${formatMoney(item.deferralInterestCents)} · total ${formatMoney(item.totalCents)}`,
-    normalizedValue: `Vence ${item.dueDate.split("-").reverse().join("/")} · principal ${formatMoney(item.baseCents)} · interés ${formatMoney(item.deferralInterestCents)} · total ${formatMoney(item.totalCents)}`,
+    displayValue: `Vence ${item.dueDate.split("-").reverse().join("/")} · principal ${formatMoney(item.baseCents)} · interés ${formatMoney(item.deferralInterestCents)} · recargo ${formatMoney(item.enforcementSurchargeCents)} · total ${formatMoney(item.totalCents)}`,
+    normalizedValue: `Vence ${item.dueDate.split("-").reverse().join("/")} · principal ${formatMoney(item.baseCents)} · interés ${formatMoney(item.deferralInterestCents)} · recargo ${formatMoney(item.enforcementSurchargeCents)} · total ${formatMoney(item.totalCents)}`,
     sourcePageNumbers: Object.freeze([item.pageNumber]),
   });
 }

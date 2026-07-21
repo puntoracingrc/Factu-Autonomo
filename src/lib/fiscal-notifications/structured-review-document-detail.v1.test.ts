@@ -566,6 +566,38 @@ describe("structured review document detail v1", () => {
             sourceReference: null,
           },
         ],
+        money: [
+          {
+            key: "money:plan-principal",
+            label: "Principal del plan",
+            kind: "ORIGINAL_TAX_PRINCIPAL",
+            amountCents: 24_000,
+            currency: "EUR",
+            sourceReference: null,
+            sourceReferenceType: null,
+            pageNumbers: [2, 3],
+          },
+          {
+            key: "money:plan-interest",
+            label: "Intereses del plan",
+            kind: "DEFERRAL_INTEREST",
+            amountCents: 900,
+            currency: "EUR",
+            sourceReference: null,
+            sourceReferenceType: null,
+            pageNumbers: [2, 3],
+          },
+          {
+            key: "money:plan-total",
+            label: "Total del plan",
+            kind: "DOCUMENT_TOTAL",
+            amountCents: 24_900,
+            currency: "EUR",
+            sourceReference: null,
+            sourceReferenceType: null,
+            pageNumbers: [2, 3],
+          },
+        ],
         installments: [
           {
             key: "installment:one",
@@ -609,6 +641,21 @@ describe("structured review document detail v1", () => {
         pageNumbers: [3],
       }),
     ]);
+    expect(result.economy?.rows).toEqual([]);
+    expect(result.economy?.summary).toEqual([
+      expect.objectContaining({ label: "Número de cuotas", value: "2" }),
+      expect.objectContaining({ label: "Principal total", value: "240,00 €" }),
+      expect.objectContaining({ label: "Intereses totales", value: "9,00 €" }),
+      expect.objectContaining({ label: "Total programado", value: "249,00 €" }),
+    ]);
+    expect(result.economy?.installmentTotals).toMatchObject({
+      count: 2,
+      principal: "240,00 €",
+      interest: "9,00 €",
+      surcharge: "0,00 €",
+      total: "249,00 €",
+      pageNumbers: [2, 3],
+    });
   });
 
   it("agrupa un recurso por acto impugnado, suspensión, decisión y efectos", () => {

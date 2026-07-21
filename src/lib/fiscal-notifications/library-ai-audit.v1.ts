@@ -1,11 +1,12 @@
 import { containsInternalFiscalNotificationToken } from "./document-fact-observation.v1";
+import type { FiscalNotificationAmountEquationFormulaV1 } from "./amount-reconciliation-contract.v1";
 import type {
   FiscalNotificationDocumentLibraryLinkV1,
   FiscalNotificationDocumentLibraryViewModelV1,
 } from "./structured-review-document-library.v1";
 
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_SCHEMA_VERSION_V1 =
-  "fiscal-notification-library-ai-audit.v1";
+  "fiscal-notification-library-ai-audit.v2";
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MODEL_V1 = "gpt-4o";
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MAX_DOCUMENTS_V1 = 100;
 
@@ -47,7 +48,36 @@ export interface FiscalNotificationLibraryAiAuditInputV1 {
       readonly dueDate: string | null;
       readonly amountCents: number | null;
       readonly pages: readonly number[];
+      readonly components: readonly {
+        readonly label: string;
+        readonly amountCents: number;
+        readonly pages: readonly number[];
+      }[];
     }[];
+    readonly arithmeticReview: {
+      readonly status: "MATCHED" | "REVIEW_REQUIRED" | "NO_EQUATION_AVAILABLE";
+      readonly requiresManualReview: boolean;
+      readonly passCount: 1 | 2;
+      readonly automaticPassLimit: 2;
+      readonly equations: readonly {
+        readonly description: string;
+        readonly status:
+          | "MATCHED"
+          | "MATCHED_WITH_ROUNDING"
+          | "MISMATCH_REVIEW_REQUIRED"
+          | "AMBIGUOUS_REVIEW_REQUIRED";
+        readonly leftCents: number;
+        readonly rightCents: number;
+        readonly differenceCents: number;
+        readonly pages: readonly number[];
+      }[];
+      readonly discardedCandidates: readonly {
+        readonly amountCents: number;
+        readonly reason: string;
+        readonly reclassifiedAs: "Identificador fiscal";
+        readonly pages: readonly number[];
+      }[];
+    } | null;
     readonly explanation: {
       readonly whatItIs: string;
       readonly whyReceived: string;
@@ -133,6 +163,33 @@ const PROTECTED_REFERENCE_VALUES = new Set([
   "no indicada",
   "no identificado",
 ]);
+const ARITHMETIC_EQUATION_DESCRIPTIONS: Readonly<
+  Record<FiscalNotificationAmountEquationFormulaV1, string>
+> = Object.freeze({
+  PRINCIPAL_PLUS_SURCHARGE_PLUS_INTEREST_PLUS_COSTS_MINUS_PAYMENTS_EQUALS_TOTAL:
+    "Principal más recargo, intereses y costas, menos pagos, igual al total.",
+  TOTAL_BEFORE_OFFSET_MINUS_OFFSET_EQUALS_REMAINING:
+    "Total anterior menos compensación igual al importe pendiente.",
+  QUOTA_PLUS_INTEREST_EQUALS_TOTAL:
+    "Cuota más intereses igual al total.",
+  INITIAL_PENALTY_MINUS_REDUCTION_EQUALS_REDUCED_PENALTY:
+    "Sanción inicial menos reducción igual a sanción reducida.",
+  INSTALLMENT_COMPONENTS_EQUAL_INSTALLMENT_TOTAL:
+    "Principal, intereses y recargo de la cuota suman el total de la cuota.",
+  INSTALLMENT_ROWS_EQUAL_PLAN_TOTALS:
+    "La suma de principal, intereses y recargo de las filas coincide con la suma de sus totales.",
+  INSTALLMENT_ROWS_EQUAL_PRINTED_PLAN_PRINCIPAL:
+    "La suma del principal de las cuotas coincide con el principal total impreso.",
+  INSTALLMENT_ROWS_EQUAL_PRINTED_PLAN_INTEREST:
+    "La suma de los intereses de las cuotas coincide con los intereses totales impresos.",
+  INSTALLMENT_ROWS_EQUAL_PRINTED_PLAN_SURCHARGE:
+    "La suma del recargo de las cuotas coincide con el recargo total impreso.",
+  INSTALLMENT_ROWS_EQUAL_PRINTED_PLAN_TOTAL:
+    "La suma de los totales de las cuotas coincide con el total programado impreso.",
+});
+const ARITHMETIC_EQUATION_DESCRIPTION_VALUES = new Set(
+  Object.values(ARITHMETIC_EQUATION_DESCRIPTIONS),
+);
 
 export function projectFiscalNotificationLibraryAiAuditInputV1(
   viewModel: FiscalNotificationDocumentLibraryViewModelV1,
@@ -298,11 +355,65 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
                   dueDate: installment.dueDate,
                   amountCents: installment.amountCents,
                   pages: Object.freeze([...installment.pageNumbers]),
+                  components: Object.freeze(
+                    installment.components.flatMap((component) => {
+                      const label = cleanStructuralLabel(component.label, 180);
+                      return label
+                        ? [
+                            Object.freeze({
+                              label,
+                              amountCents: component.amountCents,
+                              pages: Object.freeze([
+                                ...component.pageNumbers,
+                              ]),
+                            }),
+                          ]
+                        : [];
+                    }),
+                  ),
                 }),
               ]
             : [],
         ),
       ),
+      arithmeticReview: document.amountReconciliation
+        ? Object.freeze({
+            status: document.amountReconciliation.status,
+            requiresManualReview:
+              document.amountReconciliation.requiresManualReview,
+            passCount: document.amountReconciliation.passCount,
+            automaticPassLimit:
+              document.amountReconciliation.automaticPassLimit,
+            equations: Object.freeze(
+              document.amountReconciliation.equations.map((equation) =>
+                Object.freeze({
+                  description: arithmeticEquationDescription(
+                    equation.formula,
+                  ),
+                  status: equation.status,
+                  leftCents: equation.leftCents,
+                  rightCents: equation.rightCents,
+                  differenceCents: equation.differenceCents,
+                  pages: Object.freeze([...equation.sourcePageNumbers]),
+                }),
+              ),
+            ),
+            discardedCandidates: Object.freeze(
+              document.amountReconciliation.discardedCandidates.map(
+                (candidate) =>
+                  Object.freeze({
+                    amountCents: candidate.amountCents,
+                    reason:
+                      candidate.reason === "TAX_IDENTIFIER_REPEATED_CONTEXT"
+                        ? "La cifra se repite en contexto de identificador fiscal."
+                        : "La etiqueta sitúa la cifra en contexto de identificador fiscal.",
+                    reclassifiedAs: "Identificador fiscal" as const,
+                    pages: Object.freeze([...candidate.sourcePageNumbers]),
+                  }),
+              ),
+            ),
+          })
+        : null,
       explanation: Object.freeze({
         whatItIs: safeAuditContentText(
           document.explanation.whatItIs,
@@ -649,6 +760,12 @@ function uniqueLinks(
   );
 }
 
+function arithmeticEquationDescription(
+  formula: FiscalNotificationAmountEquationFormulaV1,
+): string {
+  return ARITHMETIC_EQUATION_DESCRIPTIONS[formula];
+}
+
 function isSupportedFactKind(
   value: unknown,
 ): value is FiscalNotificationLibraryAiAuditFactV1["kind"] {
@@ -841,6 +958,7 @@ function parseAuditDocument(
     value.amounts.length > 100 ||
     !Array.isArray(value.installments) ||
     value.installments.length > 120 ||
+    (value.arithmeticReview !== null && !isRecord(value.arithmeticReview)) ||
     !isRecord(value.explanation) ||
     !Array.isArray(value.officialSources) ||
     value.officialSources.length > 30
@@ -851,6 +969,10 @@ function parseAuditDocument(
   const facts = value.facts.map(parseAuditFact);
   const amounts = value.amounts.map(parseAuditAmount);
   const installments = value.installments.map(parseAuditInstallment);
+  const arithmeticReview =
+    value.arithmeticReview === null
+      ? null
+      : parseAuditArithmeticReview(value.arithmeticReview);
   const explanation = parseAuditExplanation(value.explanation);
   const officialSources = value.officialSources.map(parseAuditOfficialSource);
   if (
@@ -858,6 +980,7 @@ function parseAuditDocument(
     facts.some((item) => item === null) ||
     amounts.some((item) => item === null) ||
     installments.some((item) => item === null) ||
+    (value.arithmeticReview !== null && arithmeticReview === null) ||
     !explanation ||
     officialSources.some((item) => item === null)
   ) {
@@ -883,6 +1006,7 @@ function parseAuditDocument(
     installments: Object.freeze(
       installments as NonNullable<(typeof installments)[number]>[],
     ),
+    arithmeticReview,
     explanation,
     officialSources: Object.freeze(
       officialSources as NonNullable<(typeof officialSources)[number]>[],
@@ -979,15 +1103,122 @@ function parseAuditInstallment(
       (typeof value.dueDate !== "string" ||
         !/^\d{4}-\d{2}-\d{2}$/u.test(value.dueDate))) ||
     (value.amountCents !== null && !Number.isSafeInteger(value.amountCents)) ||
-    !pages
+    !pages ||
+    !Array.isArray(value.components) ||
+    value.components.length > 12
   ) {
     return null;
   }
+  const components = value.components.map((component) => {
+    if (!isRecord(component)) return null;
+    const componentLabel = cleanStructuralLabel(component.label, 180);
+    const componentPages = parsePages(component.pages);
+    return componentLabel &&
+      Number.isSafeInteger(component.amountCents) &&
+      componentPages
+      ? Object.freeze({
+          label: componentLabel,
+          amountCents: component.amountCents as number,
+          pages: componentPages,
+        })
+      : null;
+  });
+  if (components.some((component) => component === null)) return null;
   return Object.freeze({
     label,
     dueDate: value.dueDate as string | null,
     amountCents: value.amountCents as number | null,
     pages,
+    components: Object.freeze(
+      components as NonNullable<(typeof components)[number]>[],
+    ),
+  });
+}
+
+function parseAuditArithmeticReview(
+  value: Record<string, unknown>,
+): NonNullable<
+  FiscalNotificationLibraryAiAuditInputV1["documents"][number]["arithmeticReview"]
+> | null {
+  if (
+    (value.status !== "MATCHED" &&
+      value.status !== "REVIEW_REQUIRED" &&
+      value.status !== "NO_EQUATION_AVAILABLE") ||
+    typeof value.requiresManualReview !== "boolean" ||
+    (value.passCount !== 1 && value.passCount !== 2) ||
+    value.automaticPassLimit !== 2 ||
+    !Array.isArray(value.equations) ||
+    value.equations.length > 256 ||
+    !Array.isArray(value.discardedCandidates) ||
+    value.discardedCandidates.length > 64
+  ) {
+    return null;
+  }
+  const equations = value.equations.map((equation) => {
+    if (!isRecord(equation)) return null;
+    const pages = parsePages(equation.pages, 256);
+    if (
+      typeof equation.description !== "string" ||
+      !ARITHMETIC_EQUATION_DESCRIPTION_VALUES.has(equation.description) ||
+      (equation.status !== "MATCHED" &&
+        equation.status !== "MATCHED_WITH_ROUNDING" &&
+        equation.status !== "MISMATCH_REVIEW_REQUIRED" &&
+        equation.status !== "AMBIGUOUS_REVIEW_REQUIRED") ||
+      !Number.isSafeInteger(equation.leftCents) ||
+      !Number.isSafeInteger(equation.rightCents) ||
+      !Number.isSafeInteger(equation.differenceCents) ||
+      !pages
+    ) {
+      return null;
+    }
+    return Object.freeze({
+      description: equation.description,
+      status: equation.status,
+      leftCents: equation.leftCents as number,
+      rightCents: equation.rightCents as number,
+      differenceCents: equation.differenceCents as number,
+      pages,
+    });
+  });
+  const discardedCandidates = value.discardedCandidates.map((candidate) => {
+    if (!isRecord(candidate)) return null;
+    const reason = cleanAuditText(candidate.reason, 180);
+    const pages = parsePages(candidate.pages, 256);
+    if (
+      !Number.isSafeInteger(candidate.amountCents) ||
+      !reason ||
+      !isSafeAuditContentOutput(reason) ||
+      candidate.reclassifiedAs !== "Identificador fiscal" ||
+      !pages
+    ) {
+      return null;
+    }
+    return Object.freeze({
+      amountCents: candidate.amountCents as number,
+      reason,
+      reclassifiedAs: "Identificador fiscal" as const,
+      pages,
+    });
+  });
+  if (
+    equations.some((equation) => equation === null) ||
+    discardedCandidates.some((candidate) => candidate === null)
+  ) {
+    return null;
+  }
+  return Object.freeze({
+    status: value.status,
+    requiresManualReview: value.requiresManualReview,
+    passCount: value.passCount,
+    automaticPassLimit: 2 as const,
+    equations: Object.freeze(
+      equations as NonNullable<(typeof equations)[number]>[],
+    ),
+    discardedCandidates: Object.freeze(
+      discardedCandidates as NonNullable<
+        (typeof discardedCandidates)[number]
+      >[],
+    ),
   });
 }
 

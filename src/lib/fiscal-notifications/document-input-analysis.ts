@@ -50,6 +50,7 @@ import {
   shouldExposeFiscalNotificationField,
 } from "./document-fact-observation.v1";
 import { appendObservedDocumentChronologyV1 } from "./observed-document-chronology.v1";
+import { reconcileFiscalNotificationReviewAmountsV1 } from "./amount-reconciliation-engine.v1";
 
 export interface FiscalNotificationDocumentInputAnalysis extends Omit<
   ProjectFiscalNotificationPdfWorkerAnalysisInput,
@@ -310,7 +311,11 @@ export async function analyzeFiscalNotificationDocumentInput(
     mergedVerticalSliceReview,
     documentInput,
   );
-  const observedDocuments = chronologyReview.documents
+  const reconciledReview = reconcileFiscalNotificationReviewAmountsV1(
+    chronologyReview,
+    documentInput,
+  );
+  const observedDocuments = reconciledReview.documents
     .map((document) =>
       Object.freeze({
         ...document,
@@ -323,11 +328,11 @@ export async function analyzeFiscalNotificationDocumentInput(
       document.fields.some(isUsefulObservedFiscalNotificationField),
     );
   const verticalSliceReview = parseFiscalNotificationVerticalSliceReviewV1({
-    ...chronologyReview,
+    ...reconciledReview,
     status:
       observedDocuments.length > 0
         ? "REVIEW_REQUIRED"
-        : chronologyReview.status === "BLOCKED"
+        : reconciledReview.status === "BLOCKED"
           ? "BLOCKED"
           : "INFORMATION_PENDING",
     documents: observedDocuments,

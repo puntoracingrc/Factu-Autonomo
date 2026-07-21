@@ -61,7 +61,64 @@ function readyLibrary(): FiscalNotificationDocumentLibraryViewModelV1 {
         sourceReference: "EXP-PRIVADA-001",
       },
     ],
-    installments: [],
+    installments: [
+      {
+        key: "installment:one",
+        label: "Cuota 1",
+        amountCents: 14_955,
+        dueDate: "2026-02-20",
+        dueDatePageNumbers: [2],
+        totalPageNumbers: [2],
+        components: [
+          { label: "Principal", amountCents: 12_000, pageNumbers: [2] },
+          { label: "Intereses", amountCents: 2_955, pageNumbers: [2] },
+        ],
+        pageNumbers: [2],
+      },
+    ],
+    amountReconciliation: {
+      schemaVersion: 1,
+      reconciliationVersion: "1.0.0",
+      status: "MATCHED",
+      passCount: 2,
+      automaticPassLimit: 2,
+      toleranceCents: 1,
+      equations: [
+        {
+          equationId: "installment:1",
+          formula: "INSTALLMENT_COMPONENTS_EQUAL_INSTALLMENT_TOTAL",
+          scope: "INSTALLMENT",
+          status: "MATCHED",
+          toleranceCents: 1,
+          leftCents: 14_955,
+          rightCents: 14_955,
+          differenceCents: 0,
+          operands: [],
+          result: {
+            role: "TOTAL",
+            sign: 1,
+            amountCents: 14_955,
+            fieldIds: ["synthetic:total"],
+            sourcePageNumbers: [2],
+          },
+          sourcePageNumbers: [2],
+        },
+      ],
+      discardedCandidates: [
+        {
+          fieldId: "synthetic:identifier",
+          amountCents: 4_640_245_700,
+          reason: "TAX_IDENTIFIER_REPEATED_CONTEXT",
+          reclassifiedAs: "TAX_IDENTIFIER",
+          sourcePageNumbers: [1, 2],
+        },
+      ],
+      installments: [],
+      totals: null,
+      confidenceEffect: "RAISED_FOR_MATCHED_FIELDS",
+      requiresManualReview: false,
+      numericMutationPolicy: "NEVER_CHANGE_EXTRACTED_VALUES",
+    },
     explanation: {
       whatItIs: "Una providencia inicia la vía ejecutiva.",
       whyReceived:
@@ -99,6 +156,8 @@ function readyLibrary(): FiscalNotificationDocumentLibraryViewModelV1 {
       },
     ],
     money: [],
+    installments: [],
+    amountReconciliation: null,
   };
   const link = {
     key: "relation:one-two",
@@ -212,6 +271,42 @@ describe("library AI audit v1", () => {
       amountCents: 14_955,
       sourceReferenceAlias: "REF-001",
       pages: [2],
+    });
+    expect(result.documents[0]?.installments).toEqual([
+      expect.objectContaining({
+        label: "Cuota 1",
+        dueDate: "2026-02-20",
+        amountCents: 14_955,
+        components: [
+          { label: "Principal", amountCents: 12_000, pages: [2] },
+          { label: "Intereses", amountCents: 2_955, pages: [2] },
+        ],
+      }),
+    ]);
+    expect(result.documents[0]?.arithmeticReview).toEqual({
+      status: "MATCHED",
+      requiresManualReview: false,
+      passCount: 2,
+      automaticPassLimit: 2,
+      equations: [
+        {
+          description:
+            "Principal, intereses y recargo de la cuota suman el total de la cuota.",
+          status: "MATCHED",
+          leftCents: 14_955,
+          rightCents: 14_955,
+          differenceCents: 0,
+          pages: [2],
+        },
+      ],
+      discardedCandidates: [
+        {
+          amountCents: 4_640_245_700,
+          reason: "La cifra se repite en contexto de identificador fiscal.",
+          reclassifiedAs: "Identificador fiscal",
+          pages: [1, 2],
+        },
+      ],
     });
     expect(result.documents[0]).toMatchObject({
       sourceFileAliases: ["FILE-001"],

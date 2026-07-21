@@ -15,6 +15,8 @@ import type {
   ExternalReferenceType,
   FieldEvidence,
   FiscalNotificationsWorkspace,
+  MoneyComponent,
+  PaymentOption,
   UnknownExtractedField,
 } from "./types";
 import { isUsefulObservedFiscalNotificationField } from "./document-fact-observation.v1";
@@ -305,6 +307,7 @@ function appendDocument(input: {
     AdministrativeDomainProjection["moneyFacts"]
   >[number][] = [];
   const evidenceIds = new Set<string>();
+  const evidenceIdsByFieldId = new Map<string, readonly string[]>();
 
   persistableObservedFields(document).forEach(({ field, fieldIndex }) => {
     const retainedValue = retainedTypedFieldValue(field);
@@ -336,6 +339,10 @@ function appendDocument(input: {
     });
     const primaryEvidenceId = fieldEvidenceIds[0];
     if (!primaryEvidenceId) throw invalidInput();
+    evidenceIdsByFieldId.set(
+      field.fieldId,
+      Object.freeze([...fieldEvidenceIds]),
+    );
     unknownFields.push({
       labelRaw: encodeVerticalFieldLabel(field),
       valueRaw: retainedValue,
@@ -381,6 +388,15 @@ function appendDocument(input: {
     }
   });
 
+  const paymentOptions = materializeReconciledInstallments({
+    ownerScope,
+    documentId: id,
+    persistenceKey,
+    reviewUuid,
+    reconciliation: document.amountReconciliation ?? null,
+    fieldEvidenceIds: evidenceIdsByFieldId,
+  });
+
   const administrativeDomain = buildAdministrativeDomain({
     ownerScope,
     documentId: id,
@@ -399,6 +415,7 @@ function appendDocument(input: {
 
   workspace.references.push(...references);
   workspace.evidence.push(...evidence);
+  workspace.paymentOptions.push(...paymentOptions);
   workspace.documents.push({
     id,
     packageId: input.packageId,
@@ -439,17 +456,25 @@ function appendDocument(input: {
       schemaVersion: 1,
       documentType,
       administrativeDomain,
-      paymentOptionIds: [],
+      paymentOptionIds: paymentOptions.map((item) => item.id),
       unknownFields,
       validationCodes: [
         "AUTHENTICITY_NOT_CHECKED",
         "HUMAN_REVIEW_REQUIRED",
         "NO_OPERATIONAL_EFFECT",
+        ...(document.amountReconciliation?.status === "MATCHED"
+          ? ["ARITHMETIC_RECONCILIATION_MATCHED"]
+          : document.amountReconciliation
+            ? ["ARITHMETIC_RECONCILIATION_REVIEW_REQUIRED"]
+            : []),
       ],
       factSummary: [],
       calculatedSummary: [],
       inferenceSummary: [],
       userConfirmedSummary: [],
+      ...(document.amountReconciliation
+        ? { amountReconciliation: document.amountReconciliation }
+        : {}),
       documentFields: {
         title: document.title,
         ...(issueDate ? { issueDate } : {}),
@@ -470,6 +495,60 @@ function appendDocument(input: {
     createdAt,
     createdBySystem: true,
   });
+}
+
+function materializeReconciledInstallments(input: {
+  ownerScope: string;
+  documentId: string;
+  persistenceKey: string;
+  reviewUuid: string;
+  reconciliation: FiscalNotificationVerticalSliceReviewDocumentV1["amountReconciliation"] | null;
+  fieldEvidenceIds: ReadonlyMap<string, readonly string[]>;
+}): readonly PaymentOption[] {
+  if (!input.reconciliation || input.reconciliation.installments.length === 0) {
+    return Object.freeze([]);
+  }
+  return Object.freeze(
+    input.reconciliation.installments.map((installment) => {
+      const evidenceIds = input.fieldEvidenceIds.get(
+        installment.sourceFieldId,
+      );
+      if (!evidenceIds || evidenceIds.length === 0) throw invalidInput();
+      const components: MoneyComponent[] = [
+        {
+          type: "PRINCIPAL",
+          amountCents: installment.principalCents,
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+          evidenceIds: [...evidenceIds],
+        },
+        {
+          type: "INTEREST",
+          amountCents: installment.interestCents,
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+          evidenceIds: [...evidenceIds],
+        },
+        {
+          type: "OTHER",
+          amountCents: installment.surchargeCents,
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+          evidenceIds: [...evidenceIds],
+        },
+      ];
+      return Object.freeze({
+        id: `payment-option:${input.reviewUuid}:vertical:${input.persistenceKey}:${installment.sequence}`,
+        ownerScope: input.ownerScope,
+        documentId: input.documentId,
+        title: `Cuota ${installment.sequence}`,
+        eligibilityCondition:
+          "Fila impresa reconciliada aritméticamente; pendiente de revisión del usuario.",
+        components,
+        totalCents: installment.totalCents,
+        deadline: installment.dueDate,
+        deadlineStatus: "DOCUMENT_STATED" as const,
+        evidenceIds: [...evidenceIds],
+      });
+    }),
+  );
 }
 
 function persistableObservedFields(

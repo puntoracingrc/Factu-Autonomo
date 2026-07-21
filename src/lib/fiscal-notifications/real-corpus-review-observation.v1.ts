@@ -105,6 +105,9 @@ export function canonicalRealCorpusDateType(
 export function canonicalRealCorpusMoneyType(
   fieldCode: string,
 ): CanonicalType {
+  if (/PLAN_INTEREST|DEFERRAL_INTEREST/u.test(fieldCode)) {
+    return "DEFERRAL_INTEREST";
+  }
   if (/^OUTSTANDING_PRINCIPAL$/u.test(fieldCode)) {
     return "OUTSTANDING_PRINCIPAL";
   }
@@ -125,7 +128,7 @@ export function canonicalRealCorpusMoneyType(
     return "PRINCIPAL";
   }
   if (
-    /DOCUMENT_TOTAL|ORDINARY_TOTAL|TOTAL_WITH|DEBT_TOTAL|DEBT_SUBTOTAL|ASSESSMENT_TOTAL|TOTAL_BEFORE|TOTAL_CLAIMED/u.test(
+    /DOCUMENT_TOTAL|PLAN_TOTAL|ORDINARY_TOTAL|TOTAL_WITH|DEBT_TOTAL|DEBT_SUBTOTAL|ASSESSMENT_TOTAL|TOTAL_BEFORE|TOTAL_CLAIMED/u.test(
       fieldCode,
     )
   ) {
