@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { CloudOff, CloudUpload, Loader2, RefreshCw } from "lucide-react";
+import {
+  CircleAlert,
+  CloudOff,
+  CloudUpload,
+  Loader2,
+  RefreshCw,
+} from "lucide-react";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync, type SyncStatus } from "@/context/CloudSyncContext";
 
@@ -44,6 +50,7 @@ export function CloudSyncHeaderIndicator() {
     pendingUpload,
     syncStatus,
     syncMessage,
+    syncIssue,
     syncNow,
   } = useCloudSync();
 
@@ -64,6 +71,21 @@ export function CloudSyncHeaderIndicator() {
   const isOffline = syncStatus === "offline";
   const isError = syncStatus === "error";
   const hasCount = pendingChangeCount > 0;
+
+  if (syncIssue?.recovery === "review_account") {
+    return (
+      <Link
+        href="/cuenta"
+        title={syncIssue.userMessage}
+        className="flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-full bg-red-100 px-3 py-1.5 text-xs font-semibold text-red-800 transition-colors hover:bg-red-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 min-[430px]:min-w-0"
+      >
+        <CircleAlert className="h-3.5 w-3.5" />
+        <span className="hidden whitespace-nowrap min-[430px]:inline">
+          Resolver conflicto
+        </span>
+      </Link>
+    );
+  }
 
   return (
     <button
@@ -115,6 +137,7 @@ export function CloudSyncNavBadge() {
     pendingChangeCount,
     pendingUpload,
     syncStatus,
+    syncIssue,
   } = useCloudSync();
 
   if (
@@ -136,15 +159,23 @@ export function CloudSyncNavBadge() {
   return (
     <span
       className={`absolute -right-0.5 -top-0.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none text-white shadow-sm ${
-        isSyncing ? "bg-sky-500" : "bg-amber-500"
+        syncIssue
+          ? "bg-red-600"
+          : isSyncing
+            ? "bg-sky-500"
+            : "bg-amber-500"
       }`}
       aria-label={
-        showCount
+        syncIssue
+          ? "Conflicto de sincronización pendiente de resolver"
+          : showCount
           ? `${pendingChangeCount} cambios pendientes de subir`
           : "Cambios pendientes de subir"
       }
     >
-      {isSyncing ? (
+      {syncIssue ? (
+        "!"
+      ) : isSyncing ? (
         <Loader2 className="h-2.5 w-2.5 animate-spin" />
       ) : showCount ? (
         pendingChangeCount > 9 ? "9+" : pendingChangeCount
@@ -157,12 +188,34 @@ export function CloudSyncNavBadge() {
 
 export function CloudSyncPendingBanner() {
   const cloudAvailable = useCloudIndicatorAvailability();
-  const { cloudEnabled, user, pendingChangeCount, syncStatus, syncNow } =
-    useCloudSync();
+  const {
+    cloudEnabled,
+    user,
+    pendingChangeCount,
+    syncStatus,
+    syncIssue,
+    syncNow,
+  } = useCloudSync();
 
-  if (!cloudEnabled || !cloudAvailable || !user || pendingChangeCount === 0) {
+  if (!cloudEnabled || !cloudAvailable || !user) {
     return null;
   }
+  if (syncIssue?.recovery === "review_account") {
+    return (
+      <div className="border-b border-red-200 bg-red-50 px-4 py-2">
+        <div className="mx-auto flex max-w-3xl flex-col items-start gap-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+          <p className="text-red-950">{syncIssue.userMessage}</p>
+          <Link
+            href="/cuenta"
+            className="shrink-0 rounded-lg bg-red-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-800"
+          >
+            Resolver conflicto
+          </Link>
+        </div>
+      </div>
+    );
+  }
+  if (pendingChangeCount === 0) return null;
   if (syncStatus === "syncing") return null;
 
   return (

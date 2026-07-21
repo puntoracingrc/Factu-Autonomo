@@ -31,6 +31,7 @@ import {
   testDocumentRetirementTenantFingerprintForUserId,
 } from "../test-document-retirement-persistence";
 import { stableStringifySnapshot } from "../document-integrity/snapshots";
+import { fiscalWorkspaceDivergedSyncError } from "./sync-errors";
 
 const ENTITIES_TABLE = "sync_entities";
 const LEGACY_TABLE = "user_backups";
@@ -252,7 +253,7 @@ export async function pushSyncChanges(
       expectedFiscalOwner!,
     );
     if (comparison === "DIVERGED") {
-      throw new Error("El expediente fiscal remoto ha divergido");
+      throw fiscalWorkspaceDivergedSyncError();
     }
     if (comparison === "INCOMING_ADVANCES") {
       fiscalWorkspacePlans.push({
@@ -486,7 +487,7 @@ async function writeFiscalNotificationsWorkspaceCas(
     );
     if (comparison === "EQUAL" || comparison === "CURRENT_ADVANCES") return;
     if (comparison !== "INCOMING_ADVANCES") {
-      throw new Error("El expediente fiscal remoto ha divergido");
+      throw fiscalWorkspaceDivergedSyncError();
     }
     plan = {
       ...plan,

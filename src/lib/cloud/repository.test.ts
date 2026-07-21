@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pullSyncChanges, pushSyncChanges } from "./repository";
 import type { SyncChange } from "./diff";
 import { buildCloudReplacementChanges } from "./sync-queue";
+import { FISCAL_WORKSPACE_DIVERGED_SYNC_ISSUE_CODE } from "./sync-errors";
 import { rebuildCloudSnapshot } from "./incremental";
 import { attestNewImportedDocument, inspectLegacyImportAttestation } from "../document-integrity/legacy-import-attestation";
 import { EMPTY_DATA, type AppData, type Document } from "../types";
@@ -423,7 +424,10 @@ describe("cloud repository", () => {
 
     await expect(
       pushSyncChanges(FISCAL_USER_ID, [fiscalWorkspaceChange(divergent)]),
-    ).rejects.toThrow("expediente fiscal remoto ha divergido");
+    ).rejects.toMatchObject({
+      code: FISCAL_WORKSPACE_DIVERGED_SYNC_ISSUE_CODE,
+      message: "El expediente fiscal remoto ha divergido",
+    });
     expect(writes.update).not.toHaveBeenCalled();
 
     rows[0]!.payload = {

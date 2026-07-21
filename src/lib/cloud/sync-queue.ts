@@ -6,19 +6,61 @@ import {
   type SyncChange,
 } from "./diff";
 import { getDataTimestamp } from "../storage";
-import type { AppData } from "../types";
+import type { AppData, SyncEntityType } from "../types";
 
 const PENDING_KEY = "factura-autonomo-sync-pending";
 
 export function hasUnsyncedChanges(data: AppData): boolean {
   if (hasPendingSyncChanges(data)) return true;
+  return lastModifiedAfterLastSynced(data);
+}
+
+function lastModifiedAfterLastSynced(data: AppData): boolean {
   const lastModified = getDataTimestamp(data);
   const lastSynced = data.meta?.lastSyncedAt;
   if (!lastSynced) return lastModified > "1970-01-01T00:00:00.000Z";
   return lastModified > lastSynced;
 }
 
-export function buildCloudUploadChanges(data: AppData): SyncChange[] {
+export type CloudUploadMode =
+  | "none"
+  | "queued"
+  | "full_snapshot_rebuild";
+
+export interface CloudUploadPlan {
+  changes: SyncChange[];
+  queueDepth: number;
+  uploadChangeCount: number;
+  uploadMode: CloudUploadMode;
+  containsFiscalWorkspace: boolean;
+  entityTypeCounts: Partial<Record<SyncEntityType, number>>;
+  lastModifiedAfterLastSynced: boolean;
+}
+
+function describeCloudUpload(
+  data: AppData,
+  changes: SyncChange[],
+  uploadMode: CloudUploadMode,
+): CloudUploadPlan {
+  const entityTypeCounts: Partial<Record<SyncEntityType, number>> = {};
+  for (const change of changes) {
+    entityTypeCounts[change.entityType] =
+      (entityTypeCounts[change.entityType] ?? 0) + 1;
+  }
+  return {
+    changes,
+    queueDepth: data.meta?.pendingChanges?.length ?? 0,
+    uploadChangeCount: changes.length,
+    uploadMode,
+    containsFiscalWorkspace: changes.some(
+      (change) => change.entityType === "fiscal_notifications_workspace",
+    ),
+    entityTypeCounts,
+    lastModifiedAfterLastSynced: lastModifiedAfterLastSynced(data),
+  };
+}
+
+export function buildCloudUploadPlan(data: AppData): CloudUploadPlan {
   const rawPending = data.meta?.pendingChanges ?? [];
   const normalizedPending = mergePendingChanges(
     undefined,
@@ -31,7 +73,9 @@ export function buildCloudUploadChanges(data: AppData): SyncChange[] {
       : normalizedPending;
   if (pending.length > 0) {
     const exclusions = recurringOccurrenceExclusionSyncChanges(data);
-    if (exclusions.length === 0) return pending;
+    if (exclusions.length === 0) {
+      return describeCloudUpload(data, pending, "queued");
+    }
     const changes = new Map(
       pending.map((change) => [
         `${change.entityType}:${change.entityId}`,
@@ -41,18 +85,25 @@ export function buildCloudUploadChanges(data: AppData): SyncChange[] {
     for (const monotonic of exclusions) {
       changes.set(`${monotonic.entityType}:${monotonic.entityId}`, monotonic);
     }
-    return [...changes.values()];
+    return describeCloudUpload(data, [...changes.values()], "queued");
   }
-  if (!hasUnsyncedChanges(data)) return [];
+  if (!hasUnsyncedChanges(data)) {
+    return describeCloudUpload(data, [], "none");
+  }
 
   const updatedAt = new Date().toISOString();
-  return appDataToSyncChanges(data).map((change) => ({
+  const changes = appDataToSyncChanges(data).map((change) => ({
     ...change,
     updatedAt:
       change.entityType === "document_retirement_batch"
         ? change.updatedAt
         : updatedAt,
   }));
+  return describeCloudUpload(data, changes, "full_snapshot_rebuild");
+}
+
+export function buildCloudUploadChanges(data: AppData): SyncChange[] {
+  return buildCloudUploadPlan(data).changes;
 }
 
 /**

@@ -49,6 +49,7 @@ type SafetyCopyResult =
 
 export type CloudDeviceRepairResult<T> =
   | { status: "backup_failed"; error: string }
+  | { status: "operation_invalidated"; safetyCopyFilename?: string }
   | { status: "stale_precondition"; safetyCopyFilename: string }
   | { status: "cloud_empty"; safetyCopyFilename: string }
   | {
@@ -60,8 +61,8 @@ export type CloudDeviceRepairResult<T> =
 
 /**
  * Ordena la reparación completa: copia local, pull autoritativo y commit
- * durable. Un cambio local durante cualquier espera asíncrona bloquea el
- * reemplazo; nunca se sube el estado local desde este comando.
+ * durable. Un cambio local o de identidad durante cualquier espera asíncrona
+ * bloquea el reemplazo; nunca se sube el estado local desde este comando.
  */
 export async function runCloudDeviceRepair<T>(input: {
   getCurrent: () => AppData;
@@ -71,11 +72,22 @@ export async function runCloudDeviceRepair<T>(input: {
     replacement: AppData,
     expected: AppData,
   ) => AppDataDurabilityResult<CloudSnapshotReplacementValue>;
+  isOperationCurrent?: () => boolean;
 }): Promise<CloudDeviceRepairResult<T>> {
   const expected = input.getCurrent();
+  if (input.isOperationCurrent && !input.isOperationCurrent()) {
+    return { status: "operation_invalidated" };
+  }
   const safetyCopy = await input.downloadCurrent(expected);
   if (!safetyCopy.ok) {
     return { status: "backup_failed", error: safetyCopy.error };
+  }
+
+  if (input.isOperationCurrent && !input.isOperationCurrent()) {
+    return {
+      status: "operation_invalidated",
+      safetyCopyFilename: safetyCopy.filename,
+    };
   }
 
   if (input.getCurrent() !== expected) {
@@ -86,6 +98,12 @@ export async function runCloudDeviceRepair<T>(input: {
   }
 
   const remote = await input.loadRemote();
+  if (input.isOperationCurrent && !input.isOperationCurrent()) {
+    return {
+      status: "operation_invalidated",
+      safetyCopyFilename: safetyCopy.filename,
+    };
+  }
   if (input.getCurrent() !== expected) {
     return {
       status: "stale_precondition",
@@ -95,6 +113,13 @@ export async function runCloudDeviceRepair<T>(input: {
   if (!remote) {
     return {
       status: "cloud_empty",
+      safetyCopyFilename: safetyCopy.filename,
+    };
+  }
+
+  if (input.isOperationCurrent && !input.isOperationCurrent()) {
+    return {
+      status: "operation_invalidated",
       safetyCopyFilename: safetyCopy.filename,
     };
   }

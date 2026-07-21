@@ -102,7 +102,17 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
   JSON y originales archivados voluntariamente bajo custodia del usuario; nunca
   sustituye ni confirma el estado vivo.
 - Subir, descargar, mezclar y reparar comparten exclusión mutua liberada en
-  `finally`; un fallo conserva la cola local y permite reintentar.
+  `finally`; un fallo transitorio conserva la cola local y permite reintentar.
+- Una divergencia fiscal determinista conserva cola y marcador, pausa los
+  reintentos automáticos y exige revisión explícita. Solo reparar desde la nube
+  puede resolverla en V9, con copia cifrada previa y readback durable; nunca se
+  fuerza el estado local ni se combinan historiales sin transición versionada.
+- El bloqueo se propaga entre pestañas de la misma cuenta. La reparación queda
+  ligada a una generación de sesión y se invalida al cerrar, cambiar o renovar
+  la sesión; una generación separada de revisión evita carreras ABA al resolver
+  entre pestañas. La adopción del snapshot reparado es solo en memoria y falla
+  si otra pestaña cambió el estado durable o local. Una operación obsoleta no
+  reemplaza, reescribe ni limpia estado.
 - Gratis permanece local; Pro/Pro+ limitan la nube a 2/5 dispositivos activos.
   Registro y revocación pasan por API privada y las policies de almacenamiento
   exigen propietario, plan cloud y token activo conservado solo como hash.
@@ -131,7 +141,11 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
   permanente y restaura el archivo si falla el cambio local.
 
 Regresiones mínimas: `cloud-drive-sync-reliability-contract.test.ts`,
-`sync-operation.test.ts`, `sync-queue.test.ts`, `repository.test.ts`,
+`sync-operation.test.ts`, `auth-operation-guard.test.ts`,
+`device-repair.test.ts`, `sync-errors.test.ts`, `sync-queue.test.ts`,
+`sync-review-storage.test.ts`, `sync-review-operation-guard.test.ts`,
+`persisted-snapshot-adoption.test.ts`,
+`repository.test.ts`,
 `devices.test.ts`, `device-token.test.ts`, `device-policy-contract.test.ts`,
 `google-drive/operation.test.ts`, `google-drive/backup.test.ts` y
 `google-drive/fiscal-notification-original-delete.v1.test.ts`,

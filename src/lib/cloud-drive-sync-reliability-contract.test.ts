@@ -34,8 +34,8 @@ describe("cloud and Drive reliability contract", () => {
       context.indexOf("const schedulePush"),
     );
 
-    expect(forceRepair).toContain("pauseAutomaticCloud(");
-    expect(forceRepair.indexOf("pauseAutomaticCloud(")).toBeLessThan(
+    expect(forceRepair).toContain("pauseCloudOperationsForRepair(");
+    expect(forceRepair.indexOf("pauseCloudOperationsForRepair(")).toBeLessThan(
       forceRepair.indexOf("await ensureCloudReadyForCurrentDevice"),
     );
     expect(forceRepair).toContain("runCloudDeviceRepair<");
@@ -52,6 +52,93 @@ describe("cloud and Drive reliability contract", () => {
     expect(account).toContain(
       "sin subir antes los cambios de este dispositivo",
     );
+  });
+
+  it("pausa una divergencia fiscal y dirige a una reparacion explicita", () => {
+    const context = source("src/context/CloudSyncContext.tsx");
+    const appStore = source("src/context/AppStore.tsx");
+    const indicator = source(
+      "src/components/cloud/CloudSyncIndicator.tsx",
+    );
+    const account = source("src/components/cloud/CloudAccountCard.tsx");
+    const queue = source("src/lib/cloud/sync-queue.ts");
+    const errors = source("src/lib/cloud/sync-errors.ts");
+    const reviewStorage = source("src/lib/cloud/sync-review-storage.ts");
+    const authGuard = source("src/lib/cloud/auth-operation-guard.ts");
+    const reviewGuard = source(
+      "src/lib/cloud/sync-review-operation-guard.ts",
+    );
+    const adoption = source(
+      "src/lib/cloud/persisted-snapshot-adoption.ts",
+    );
+    const repair = source("src/lib/cloud/device-repair.ts");
+    const adr = source(
+      "docs/architecture/ADR-0005-cloud-and-drive-sync-reliability.md",
+    );
+    const forceRepair = context.slice(
+      context.indexOf("const forceDownloadFromCloud"),
+      context.indexOf("const schedulePush"),
+    );
+
+    expect(context).toContain("activateCloudSyncReviewIssue(reviewIssue)");
+    expect(context).toContain("syncIssueRef.current?.automaticRetryBlocked");
+    expect(context).toContain("rememberCloudSyncReviewIssue");
+    expect(context).toContain("subscribeCloudSyncReviewIssue");
+    expect(context).toContain(
+      "adoptPersistedCloudSnapshot(snapshot, expectedCurrent)",
+    );
+    expect(context).toContain("readPersistedDataSnapshot()");
+    expect(context).toContain("invalidateSyncReviewOperations(activeUserId)");
+    expect(context).toContain("reviewOperationIsCurrent()");
+    expect(context).toContain("resolveCloudSyncReviewFromPersistedSnapshot({");
+    expect(context).toContain(
+      "Resuelve primero el conflicto de sincronización desde Cuenta.",
+    );
+    expect(context).toContain("uploadMode: uploadPlan.uploadMode");
+    expect(context).toContain(
+      "containsFiscalWorkspace: uploadPlan.containsFiscalWorkspace",
+    );
+    expect(forceRepair).toContain("pauseCloudOperationsForRepair(");
+    expect(forceRepair).not.toContain("pauseAutomaticCloud(");
+    expect(forceRepair).toContain("clearActiveCloudSyncReviewIssue()");
+    expect(forceRepair).toContain("captureCloudAuthOperation(");
+    expect(forceRepair).toContain("isCloudAuthOperationCurrent(");
+    expect(forceRepair).toContain(
+      "isOperationCurrent: repairOperationIsCurrent",
+    );
+    expect(forceRepair.indexOf('repair.status === "operation_invalidated"')).toBeLessThan(
+      forceRepair.indexOf("clearSyncPending()"),
+    );
+    expect(forceRepair.indexOf("captureCloudAuthOperation(")).toBeLessThan(
+      forceRepair.indexOf("await ensureCloudReadyForCurrentDevice"),
+    );
+    expect(indicator).toContain("Resolver conflicto");
+    expect(indicator).toContain('href="/cuenta"');
+    expect(account).toContain('syncIssue ? "Revisión necesaria"');
+    expect(account).toContain("Los reintentos automáticos están en pausa");
+    expect(account).toContain("limits.cloudSync && !syncIssue");
+    expect(account).toContain(
+      "Ahora solo está disponible conservar la copia de la nube",
+    );
+    expect(account).toMatch(
+      /onClick=\{\(\) => void signOut\(\)\}[\s\S]*disabled=\{busy\}/,
+    );
+    expect(queue).toContain('"full_snapshot_rebuild"');
+    expect(errors).toContain('"fiscal_workspace_diverged"');
+    expect(reviewStorage).toContain('window.addEventListener("storage"');
+    expect(authGuard).toContain("identity.generation === operation.generation");
+    expect(reviewGuard).toContain(
+      "current.generation === operation.generation",
+    );
+    expect(reviewGuard).toContain("runCloudSyncReviewMutation");
+    expect(appStore).toContain("adoptPersistedSnapshotIfCurrent");
+    expect(appStore).toContain("currentMatchesDurableBaseline");
+    expect(appStore).toContain("publishMemoryOnly");
+    expect(adoption).toContain("persistedMatches(input.candidate)");
+    expect(adoption).not.toContain("saveData");
+    expect(repair).toContain('status: "operation_invalidated"');
+    expect(adr).toContain("estado terminal revisable");
+    expect(adr).toContain("Nunca incluye IDs, payloads ni contenido fiscal");
   });
 
   it("aplica plan y dispositivo activo antes de tocar la nube", () => {

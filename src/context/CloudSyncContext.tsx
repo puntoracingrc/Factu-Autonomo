@@ -29,12 +29,36 @@ import {
 import {
   buildCloudReplacementChanges,
   clearSyncPending,
-  buildCloudUploadChanges,
+  buildCloudUploadPlan,
   hasUnsyncedChanges,
   isBrowserOnline,
   isSyncPendingFlag,
   markSyncPending,
 } from "@/lib/cloud/sync-queue";
+import {
+  classifyCloudSyncReviewIssue,
+  type CloudSyncReviewIssue,
+} from "@/lib/cloud/sync-errors";
+import {
+  clearCloudSyncReviewIssue,
+  readCloudSyncReviewIssue,
+  rememberCloudSyncReviewIssue,
+  resolveCloudSyncReviewFromPersistedSnapshot,
+  subscribeCloudSyncReviewIssue,
+} from "@/lib/cloud/sync-review-storage";
+import {
+  advanceCloudAuthIdentity,
+  captureCloudAuthOperation,
+  isCloudAuthOperationCurrent,
+  type CloudAuthIdentity,
+} from "@/lib/cloud/auth-operation-guard";
+import {
+  advanceCloudSyncReviewGeneration,
+  captureCloudSyncReviewOperation,
+  isCloudSyncReviewOperationCurrent,
+  runCloudSyncReviewMutation,
+  type CloudSyncReviewGeneration,
+} from "@/lib/cloud/sync-review-operation-guard";
 import { runExclusiveSyncOperation } from "@/lib/cloud/sync-operation";
 import { runCloudDeviceRepair } from "@/lib/cloud/device-repair";
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
@@ -62,7 +86,11 @@ import {
 } from "@/lib/auth/email-confirmation";
 import { validateNewAccountPassword } from "@/lib/auth/password-policy";
 import { setDemoWorkspaceMode } from "@/lib/demo-workspace";
-import { clearPersistedAppData, loadData } from "@/lib/storage";
+import {
+  clearPersistedAppData,
+  loadData,
+  readPersistedDataSnapshot,
+} from "@/lib/storage";
 import { EMPTY_DATA, type AppData } from "@/lib/types";
 import { pickNewerAppData } from "@/lib/cloud/sync";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
@@ -101,6 +129,7 @@ interface CloudSyncValue {
   email: string;
   syncStatus: SyncStatus;
   syncMessage: string | null;
+  syncIssue: CloudSyncReviewIssue | null;
   pendingUpload: boolean;
   pendingChangeCount: number;
   localDataHandoffStatus: LocalDataHandoffStatus;
@@ -159,6 +188,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     replaceData,
     getCurrentData,
     replaceCloudSnapshotDurably,
+    adoptPersistedCloudSnapshot,
   } = useAppStore();
   const demoMode = useDemoWorkspaceMode();
   const cloudEnabled = isCloudEnabled();
@@ -170,6 +200,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     cloudEnabled ? "idle" : "disabled",
   );
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
+  const [syncIssue, setSyncIssue] = useState<CloudSyncReviewIssue | null>(null);
   const [localDataHandoffStatus, setLocalDataHandoffStatus] =
     useState<LocalDataHandoffStatus>("none");
   const skipPush = useRef(false);
@@ -183,7 +214,31 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const [welcomeRetryRevision, setWelcomeRetryRevision] = useState(0);
   const syncing = useRef(false);
   const automaticCloudPaused = useRef(false);
+  const syncIssueRef = useRef<CloudSyncReviewIssue | null>(null);
+  const syncReviewGenerationRef = useRef<CloudSyncReviewGeneration>({
+    userId: null,
+    generation: 0,
+  });
+  const authIdentityRef = useRef<CloudAuthIdentity>({
+    userId: null,
+    generation: 0,
+  });
   const dataRef = useRef(data);
+
+  const setAuthUser = useCallback((nextUser: User | null) => {
+    authIdentityRef.current = advanceCloudAuthIdentity(
+      authIdentityRef.current,
+      nextUser?.id ?? null,
+    );
+    setUser(nextUser);
+  }, []);
+
+  const invalidateCloudAuthOperations = useCallback(() => {
+    authIdentityRef.current = advanceCloudAuthIdentity(
+      authIdentityRef.current,
+      authIdentityRef.current.userId,
+    );
+  }, []);
 
   useEffect(() => {
     dataRef.current = data;
@@ -194,6 +249,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       user && readHandoffDecision(user.id) === "keep_local",
     );
   }, [user]);
+
+  const activeUserId = user?.id ?? null;
 
   const pendingChangeCount = data.meta?.pendingChanges?.length ?? 0;
   const emailConfirmed = isUserEmailConfirmed(user);
@@ -220,6 +277,50 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       isSyncPendingFlag() ||
       hasUnsyncedChanges(data));
 
+  const stopPendingCloudTimers = useCallback(() => {
+    if (pushTimer.current) clearTimeout(pushTimer.current);
+    if (retryTimer.current) clearInterval(retryTimer.current);
+    pushTimer.current = null;
+    retryTimer.current = null;
+  }, []);
+
+  const invalidateSyncReviewOperations = useCallback(
+    (userId: string | null) => {
+      syncReviewGenerationRef.current = advanceCloudSyncReviewGeneration(
+        syncReviewGenerationRef.current,
+        userId,
+      );
+    },
+    [],
+  );
+
+  const applyCloudSyncReviewIssue = useCallback(
+    (issue: CloudSyncReviewIssue) => {
+      invalidateSyncReviewOperations(activeUserId);
+      syncIssueRef.current = issue;
+      setSyncIssue(issue);
+      stopPendingCloudTimers();
+      setSyncStatus("error");
+      setSyncMessage(issue.userMessage);
+    },
+    [activeUserId, invalidateSyncReviewOperations, stopPendingCloudTimers],
+  );
+
+  const activateCloudSyncReviewIssue = useCallback(
+    (issue: CloudSyncReviewIssue) => {
+      applyCloudSyncReviewIssue(issue);
+      if (activeUserId) rememberCloudSyncReviewIssue(activeUserId, issue);
+    },
+    [activeUserId, applyCloudSyncReviewIssue],
+  );
+
+  const clearActiveCloudSyncReviewIssue = useCallback(() => {
+    invalidateSyncReviewOperations(activeUserId);
+    if (activeUserId) clearCloudSyncReviewIssue(activeUserId);
+    syncIssueRef.current = null;
+    setSyncIssue(null);
+  }, [activeUserId, invalidateSyncReviewOperations]);
+
   const updatePendingStatus = useCallback(() => {
     if (demoMode) {
       setSyncStatus("idle");
@@ -227,6 +328,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (!user || !cloudEnabled) return;
+    if (syncIssueRef.current?.automaticRetryBlocked) {
+      setSyncStatus("error");
+      setSyncMessage(syncIssueRef.current.userMessage);
+      return;
+    }
     if (requiresEmailConfirmation) {
       setSyncStatus("idle");
       setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
@@ -294,21 +400,92 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   const replaceLocalDataFromCloud = useCallback(
     (payload: typeof data) => {
-      dataRef.current = payload;
       skipPush.current = true;
       try {
         replaceData(payload, { fromRemote: true });
       } finally {
         skipPush.current = false;
       }
+      if (getCurrentData() !== payload) return false;
+      dataRef.current = payload;
+      return true;
     },
-    [replaceData],
+    [getCurrentData, replaceData],
   );
+
+  useEffect(() => {
+    if (!activeUserId) {
+      invalidateSyncReviewOperations(null);
+      syncIssueRef.current = null;
+      setSyncIssue(null);
+      return;
+    }
+
+    invalidateSyncReviewOperations(activeUserId);
+
+    const persistedIssue = readCloudSyncReviewIssue(activeUserId);
+    if (persistedIssue) {
+      applyCloudSyncReviewIssue(persistedIssue);
+    } else if (syncIssueRef.current) {
+      syncIssueRef.current = null;
+      setSyncIssue(null);
+      setSyncStatus("idle");
+      setSyncMessage(null);
+    }
+
+    return subscribeCloudSyncReviewIssue(activeUserId, (nextIssue) => {
+      if (nextIssue) {
+        applyCloudSyncReviewIssue(nextIssue);
+        return;
+      }
+      if (!syncIssueRef.current) return;
+
+      const unresolvedIssue = syncIssueRef.current;
+      invalidateSyncReviewOperations(activeUserId);
+      const expectedCurrent = getCurrentData();
+      const repaired = readPersistedDataSnapshot();
+      const resolved = resolveCloudSyncReviewFromPersistedSnapshot({
+        snapshot: repaired,
+        hasPendingFlag: isSyncPendingFlag(),
+        adopt: (snapshot) =>
+          adoptPersistedCloudSnapshot(snapshot, expectedCurrent),
+        commitResolution: () => {
+          syncIssueRef.current = null;
+          setSyncIssue(null);
+          automaticCloudPaused.current =
+            readHandoffDecision(activeUserId) === "keep_local";
+          setSyncStatus("synced");
+          setSyncMessage(
+            "Conflicto resuelto desde otra pestaña con la copia verificada de la nube.",
+          );
+        },
+      });
+      if (!resolved) {
+        applyCloudSyncReviewIssue(unresolvedIssue);
+        rememberCloudSyncReviewIssue(activeUserId, unresolvedIssue);
+        setSyncMessage(
+          "La otra pestaña no dejó un snapshot sincronizado verificable. El conflicto sigue en pausa.",
+        );
+        return;
+      }
+    });
+  }, [
+    activeUserId,
+    adoptPersistedCloudSnapshot,
+    applyCloudSyncReviewIssue,
+    getCurrentData,
+    invalidateSyncReviewOperations,
+  ]);
 
   const ensureCloudReadyForCurrentDevice = useCallback(async () => {
     if (!user) return false;
+    const authOperation = captureCloudAuthOperation(authIdentityRef.current);
+    if (!authOperation || authOperation.userId !== user.id) return false;
+    const authOperationIsCurrent = () =>
+      isCloudAuthOperationCurrent(authIdentityRef.current, authOperation);
 
     const cloudAccess = await canUseCloudForUser(user.id);
+    if (!authOperationIsCurrent()) return false;
     if (!cloudAccess.allowed) {
       setSyncStatus("idle");
       setSyncMessage(
@@ -319,6 +496,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const deviceAccess = await registerCurrentCloudDevice();
+      if (!authOperationIsCurrent()) return false;
       if (deviceAccess.allowed === false || deviceAccess.error) {
         setSyncStatus(
           deviceAccess.reason === "device_session_conflict" ? "error" : "idle",
@@ -332,6 +510,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       }
       return true;
     } catch (error) {
+      if (!authOperationIsCurrent()) return false;
       setSyncStatus("error");
       setSyncMessage(
         error instanceof Error
@@ -360,6 +539,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
       if (!user) return false;
+      const authOperation = captureCloudAuthOperation(authIdentityRef.current);
+      if (!authOperation || authOperation.userId !== user.id) return false;
+      const authOperationIsCurrent = () =>
+        isCloudAuthOperationCurrent(authIdentityRef.current, authOperation);
       if (requiresEmailConfirmation) {
         setSyncStatus("idle");
         setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
@@ -377,8 +560,35 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         );
         return false;
       }
+      if (syncIssueRef.current?.automaticRetryBlocked) {
+        setSyncStatus("error");
+        setSyncMessage(syncIssueRef.current.userMessage);
+        return false;
+      }
+      const reviewOperation = captureCloudSyncReviewOperation(
+        syncReviewGenerationRef.current,
+      );
+      if (!reviewOperation || reviewOperation.userId !== user.id) return false;
+      const reviewOperationIsCurrent = () =>
+        isCloudSyncReviewOperationCurrent(
+          syncReviewGenerationRef.current,
+          reviewOperation,
+        );
+      const runReviewMutation = (mutation: () => void) =>
+        runCloudSyncReviewMutation(
+          syncReviewGenerationRef.current,
+          reviewOperation,
+          mutation,
+        );
 
       if (!(await ensureCloudReadyForCurrentDevice())) return false;
+      if (!authOperationIsCurrent()) return false;
+      if (
+        !reviewOperationIsCurrent() ||
+        syncIssueRef.current?.automaticRetryBlocked
+      ) {
+        return false;
+      }
 
       if (!isBrowserOnline()) {
         markSyncPending();
@@ -387,7 +597,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         return false;
       }
 
-      const changes = buildCloudUploadChanges(payload);
+      const uploadPlan = buildCloudUploadPlan(payload);
+      const { changes } = uploadPlan;
       if (changes.length === 0) {
         clearSyncPending();
         setSyncStatus("synced");
@@ -396,38 +607,70 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
       if (!silent) setSyncStatus("syncing");
       try {
-        const syncedAt = await pushSyncChanges(user.id, changes);
-        const synced = markChangesSynced(payload, changes, syncedAt);
-        dataRef.current = synced;
-        skipPush.current = true;
-        try {
-          replaceData(synced, { fromRemote: true });
-        } finally {
-          skipPush.current = false;
+        const syncedAt = await pushSyncChanges(authOperation.userId, changes);
+        if (!authOperationIsCurrent()) {
+          markSyncPending();
+          return false;
         }
-        clearSyncPending();
-        setSyncStatus("synced");
-        rememberSuccessfulDeviceSync();
-        setSyncMessage(
-          silent
-            ? null
-            : `${changes.length} cambio(s) sincronizado(s) con la nube`,
-        );
+        if (!reviewOperationIsCurrent()) return false;
+        if (syncIssueRef.current?.automaticRetryBlocked) {
+          markSyncPending();
+          setSyncStatus("error");
+          setSyncMessage(syncIssueRef.current.userMessage);
+          return false;
+        }
+        const synced = markChangesSynced(payload, changes, syncedAt);
+        if (
+          !runReviewMutation(() => {
+            dataRef.current = synced;
+            skipPush.current = true;
+            try {
+              replaceData(synced, { fromRemote: true });
+            } finally {
+              skipPush.current = false;
+            }
+            clearSyncPending();
+            setSyncStatus("synced");
+            rememberSuccessfulDeviceSync();
+            setSyncMessage(
+              silent
+                ? null
+                : `${changes.length} cambio(s) sincronizado(s) con la nube`,
+            );
+          })
+        ) {
+          return false;
+        }
         return true;
       } catch (error) {
+        if (!reviewOperationIsCurrent()) return false;
         markSyncPending();
+        if (!authOperationIsCurrent()) return false;
+        const reviewIssue = classifyCloudSyncReviewIssue(error);
         void reportAppError({
           severity: "error",
           area: "sync",
-          code: "push_failed",
+          code: reviewIssue?.code ?? "push_failed",
           message:
-            error instanceof Error
+            reviewIssue
+              ? "La sincronizacion requiere revision por una divergencia fiscal"
+              : error instanceof Error
               ? error.message
               : "Error al subir cambios a la nube",
           metadata: {
-            pendingChanges: changes.length,
+            queueDepth: uploadPlan.queueDepth,
+            uploadChangeCount: uploadPlan.uploadChangeCount,
+            uploadMode: uploadPlan.uploadMode,
+            containsFiscalWorkspace: uploadPlan.containsFiscalWorkspace,
+            entityTypeCounts: uploadPlan.entityTypeCounts,
+            lastModifiedAfterLastSynced:
+              uploadPlan.lastModifiedAfterLastSynced,
           },
         });
+        if (reviewIssue) {
+          activateCloudSyncReviewIssue(reviewIssue);
+          return false;
+        }
         setSyncStatus(isBrowserOnline() ? "error" : "offline");
         setSyncMessage(
           isBrowserOnline()
@@ -440,6 +683,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       }
     },
     [
+      activateCloudSyncReviewIssue,
       data,
       demoMode,
       ensureCloudReadyForCurrentDevice,
@@ -467,6 +711,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       ) {
         return false;
       }
+      if (syncIssueRef.current?.automaticRetryBlocked) return false;
       if (!hasPendingSyncChanges(payload) && !hasUnsyncedChanges(payload)) {
         clearSyncPending();
         setSyncStatus("synced");
@@ -477,18 +722,25 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
           return await pushToCloud(payload, silent, options);
         } catch (error) {
           markSyncPending();
+          const reviewIssue = classifyCloudSyncReviewIssue(error);
           void reportAppError({
             severity: "error",
             area: "sync",
-            code: "push_preflight_failed",
+            code: reviewIssue?.code ?? "push_preflight_failed",
             message:
-              error instanceof Error
+              reviewIssue
+                ? "La sincronizacion requiere revision por una divergencia fiscal"
+                : error instanceof Error
                 ? error.message
                 : "Error al preparar la subida a la nube",
             metadata: {
               pendingChanges: payload.meta?.pendingChanges?.length ?? 0,
             },
           });
+          if (reviewIssue) {
+            activateCloudSyncReviewIssue(reviewIssue);
+            return false;
+          }
           setSyncStatus(isBrowserOnline() ? "error" : "offline");
           setSyncMessage(
             isBrowserOnline()
@@ -503,6 +755,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       return result.started ? result.value : false;
     },
     [
+      activateCloudSyncReviewIssue,
       demoMode,
       handoffPausesCloud,
       pushToCloud,
@@ -518,6 +771,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }): Promise<boolean> => {
       if (demoMode) return false;
       if (!user) return false;
+      const authOperation = captureCloudAuthOperation(authIdentityRef.current);
+      if (!authOperation || authOperation.userId !== user.id) return false;
+      const authOperationIsCurrent = () =>
+        isCloudAuthOperationCurrent(authIdentityRef.current, authOperation);
       if (requiresEmailConfirmation) {
         setSyncStatus("idle");
         setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
@@ -535,8 +792,35 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         );
         return false;
       }
+      if (syncIssueRef.current?.automaticRetryBlocked) {
+        setSyncStatus("error");
+        setSyncMessage(syncIssueRef.current.userMessage);
+        return false;
+      }
+      const reviewOperation = captureCloudSyncReviewOperation(
+        syncReviewGenerationRef.current,
+      );
+      if (!reviewOperation || reviewOperation.userId !== user.id) return false;
+      const reviewOperationIsCurrent = () =>
+        isCloudSyncReviewOperationCurrent(
+          syncReviewGenerationRef.current,
+          reviewOperation,
+        );
+      const runReviewMutation = (mutation: () => void) =>
+        runCloudSyncReviewMutation(
+          syncReviewGenerationRef.current,
+          reviewOperation,
+          mutation,
+        );
 
       if (!(await ensureCloudReadyForCurrentDevice())) return false;
+      if (!authOperationIsCurrent()) return false;
+      if (
+        !reviewOperationIsCurrent() ||
+        syncIssueRef.current?.automaticRetryBlocked
+      ) {
+        return false;
+      }
 
       if (!isBrowserOnline()) {
         setSyncStatus("offline");
@@ -554,13 +838,29 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             isSyncPendingFlag()
           ) {
             const uploaded = await pushToCloud(workingData, true, options);
+            if (
+              !authOperationIsCurrent() ||
+              !reviewOperationIsCurrent()
+            ) {
+              return false;
+            }
             workingData = dataRef.current;
             if (!uploaded && hasUnsyncedChanges(workingData)) return false;
           }
 
           setSyncStatus("syncing");
           const since = workingData.meta?.lastSyncedAt;
-          let remoteChanges = await pullSyncChanges(user.id, since);
+          let remoteChanges = await pullSyncChanges(
+            authOperation.userId,
+            since,
+          );
+          if (
+            !authOperationIsCurrent() ||
+            !reviewOperationIsCurrent() ||
+            syncIssueRef.current?.automaticRetryBlocked
+          ) {
+            return false;
+          }
           if (remoteChanges.length > 0) {
             dispatchDataAccessEvent({
               type: "cloud_pull",
@@ -570,9 +870,25 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
           }
 
           if (remoteChanges.length === 0) {
-            const entityCount = await countSyncEntities(user.id);
+            const entityCount = await countSyncEntities(authOperation.userId);
+            if (
+              !authOperationIsCurrent() ||
+              !reviewOperationIsCurrent() ||
+              syncIssueRef.current?.automaticRetryBlocked
+            ) {
+              return false;
+            }
             if (entityCount === 0) {
-              const legacy = await fetchLegacyCloudBackup(user.id);
+              const legacy = await fetchLegacyCloudBackup(
+                authOperation.userId,
+              );
+              if (
+                !authOperationIsCurrent() ||
+                !reviewOperationIsCurrent() ||
+                syncIssueRef.current?.automaticRetryBlocked
+              ) {
+                return false;
+              }
               if (legacy) {
                 const picked = pickNewerAppData(
                   workingData,
@@ -580,14 +896,30 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
                   legacy.updated_at,
                 );
                 workingData = picked.data;
-                dataRef.current = workingData;
-                skipPush.current = true;
-                try {
-                  replaceData(workingData, { fromRemote: true });
-                } finally {
-                  skipPush.current = false;
+                if (
+                  !runReviewMutation(() => {
+                    dataRef.current = workingData;
+                    skipPush.current = true;
+                    try {
+                      replaceData(workingData, { fromRemote: true });
+                    } finally {
+                      skipPush.current = false;
+                    }
+                  })
+                ) {
+                  return false;
                 }
-                await migrateLegacyBackupToEntities(user.id, workingData);
+                await migrateLegacyBackupToEntities(
+                  authOperation.userId,
+                  workingData,
+                );
+                if (
+                  !authOperationIsCurrent() ||
+                  !reviewOperationIsCurrent() ||
+                  syncIssueRef.current?.automaticRetryBlocked
+                ) {
+                  return false;
+                }
                 remoteChanges = appDataToSyncChanges(workingData);
                 setSyncMessage(
                   "Copia antigua migrada a sincronización por cambios",
@@ -602,31 +934,52 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
                 ? rebuildCloudSnapshot(remoteChanges)
                 : mergeRemoteOntoLocal(workingData, remoteChanges);
             workingData = merged;
-            dataRef.current = workingData;
-            skipPush.current = true;
-            try {
-              replaceData(workingData, { fromRemote: true });
-            } finally {
-              skipPush.current = false;
+            if (
+              !runReviewMutation(() => {
+                dataRef.current = workingData;
+                skipPush.current = true;
+                try {
+                  replaceData(workingData, { fromRemote: true });
+                } finally {
+                  skipPush.current = false;
+                }
+                setSyncStatus("synced");
+                setSyncMessage(
+                  applied > 0
+                    ? `${applied} cambio(s) recibido(s) de la nube`
+                    : "Ya estabas al día",
+                );
+              })
+            ) {
+              return false;
             }
-            setSyncStatus("synced");
-            setSyncMessage(
-              applied > 0
-                ? `${applied} cambio(s) recibido(s) de la nube`
-                : "Ya estabas al día",
-            );
           } else if (!since) {
             const initial = appDataToSyncChanges(workingData);
             if (initial.length > 0) {
               const syncedAt = new Date().toISOString();
-              await pushSyncChanges(user.id, initial);
+              await pushSyncChanges(authOperation.userId, initial);
+              if (!authOperationIsCurrent()) {
+                markSyncPending();
+                return false;
+              }
+              if (!reviewOperationIsCurrent()) return false;
+              if (syncIssueRef.current?.automaticRetryBlocked) {
+                markSyncPending();
+                return false;
+              }
               workingData = markChangesSynced(workingData, initial, syncedAt);
-              dataRef.current = workingData;
-              skipPush.current = true;
-              try {
-                replaceData(workingData, { fromRemote: true });
-              } finally {
-                skipPush.current = false;
+              if (
+                !runReviewMutation(() => {
+                  dataRef.current = workingData;
+                  skipPush.current = true;
+                  try {
+                    replaceData(workingData, { fromRemote: true });
+                  } finally {
+                    skipPush.current = false;
+                  }
+                })
+              ) {
+                return false;
               }
             }
             setSyncStatus("synced");
@@ -642,6 +995,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             isSyncPendingFlag()
           ) {
             const uploaded = await pushToCloud(workingData, true, options);
+            if (
+              !authOperationIsCurrent() ||
+              !reviewOperationIsCurrent()
+            ) {
+              return false;
+            }
             workingData = dataRef.current;
             if (!uploaded && hasUnsyncedChanges(workingData)) return false;
           }
@@ -650,18 +1009,25 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             !hasPendingSyncChanges(workingData) &&
             !hasUnsyncedChanges(workingData)
           ) {
-            finalizeSyncState(workingData);
+            if (!runReviewMutation(() => finalizeSyncState(workingData))) {
+              return false;
+            }
           }
           rememberSuccessfulDeviceSync();
           return true;
         } catch (error) {
+          if (!reviewOperationIsCurrent()) return false;
           markSyncPending();
+          if (!authOperationIsCurrent()) return false;
+          const reviewIssue = classifyCloudSyncReviewIssue(error);
           void reportAppError({
             severity: "error",
             area: "sync",
-            code: "pull_failed",
+            code: reviewIssue?.code ?? "pull_failed",
             message:
-              error instanceof Error
+              reviewIssue
+                ? "La sincronizacion requiere revision por una divergencia fiscal"
+                : error instanceof Error
                 ? error.message
                 : "Error al descargar de la nube",
             metadata: {
@@ -670,6 +1036,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
                 hasUnsyncedChanges(dataRef.current),
             },
           });
+          if (reviewIssue) {
+            activateCloudSyncReviewIssue(reviewIssue);
+            skipPush.current = false;
+            return false;
+          }
           setSyncStatus("error");
           setSyncMessage(
             error instanceof Error
@@ -683,6 +1054,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       return operation.started ? operation.value : false;
     },
     [
+      activateCloudSyncReviewIssue,
       demoMode,
       ensureCloudReadyForCurrentDevice,
       finalizeSyncState,
@@ -702,6 +1074,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   /** Referencia estable: evita bucles si un efecto depende de syncNow tras cada pull. */
   const syncNow = useCallback(
     async (freshLocalData?: AppData) => {
+      if (syncIssueRef.current?.automaticRetryBlocked) {
+        setSyncStatus("error");
+        setSyncMessage(syncIssueRef.current.userMessage);
+        return;
+      }
       if (freshLocalData) {
         dataRef.current = freshLocalData;
         await flushPendingUpload(false, freshLocalData);
@@ -716,6 +1093,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     if (requiresEmailConfirmation) {
       setSyncStatus("idle");
       setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+      return;
+    }
+    if (syncIssueRef.current?.automaticRetryBlocked) {
+      setSyncStatus("error");
+      setSyncMessage(syncIssueRef.current.userMessage);
       return;
     }
     const queuedAt = new Date().toISOString();
@@ -762,20 +1144,23 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     (message: string) => {
       if (!user) return;
       automaticCloudPaused.current = true;
-      if (pushTimer.current) {
-        clearTimeout(pushTimer.current);
-        pushTimer.current = null;
-      }
-      if (retryTimer.current) {
-        clearInterval(retryTimer.current);
-        retryTimer.current = null;
-      }
+      stopPendingCloudTimers();
       rememberHandoffDecision(user.id, "keep_local");
       setLocalDataHandoffStatus("kept_local");
       setSyncStatus("idle");
       setSyncMessage(message);
     },
-    [user],
+    [stopPendingCloudTimers, user],
+  );
+
+  const pauseCloudOperationsForRepair = useCallback(
+    (message: string) => {
+      automaticCloudPaused.current = true;
+      stopPendingCloudTimers();
+      setSyncStatus("idle");
+      setSyncMessage(message);
+    },
+    [stopPendingCloudTimers],
   );
 
   const keepLocalDataOnDevice = useCallback(() => {
@@ -804,6 +1189,19 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
       return;
     }
+    const repairAuthOperation = captureCloudAuthOperation(
+      authIdentityRef.current,
+    );
+    if (!repairAuthOperation || repairAuthOperation.userId !== user.id) {
+      setSyncStatus("error");
+      setSyncMessage("La sesión cambió antes de iniciar la reparación.");
+      return;
+    }
+    const repairOperationIsCurrent = () =>
+      isCloudAuthOperationCurrent(
+        authIdentityRef.current,
+        repairAuthOperation,
+      );
     if (syncing.current) {
       setSyncMessage(
         "Ya hay una sincronización en marcha. Espera a que termine y vuelve a reparar.",
@@ -811,11 +1209,13 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    pauseAutomaticCloud(
+    pauseCloudOperationsForRepair(
       "Preparando una copia de seguridad antes de reparar este dispositivo…",
     );
 
+    if (!repairOperationIsCurrent()) return;
     if (!(await ensureCloudReadyForCurrentDevice())) return;
+    if (!repairOperationIsCurrent()) return;
 
     if (!isBrowserOnline()) {
       setSyncStatus("offline");
@@ -833,9 +1233,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             downloadProtectedBackup(current, {
               purpose: "pre_restore",
               requireEncryption: true,
-            }),
+          }),
           loadRemote: async () => {
             const remoteChanges = await pullSyncChanges(user.id);
+            if (!repairOperationIsCurrent()) return null;
             if (remoteChanges.length > 0) {
               dispatchDataAccessEvent({
                 type: "cloud_pull",
@@ -850,6 +1251,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
               };
             }
 
+            if (!repairOperationIsCurrent()) return null;
             const legacy = await fetchLegacyCloudBackup(user.id);
             if (!legacy) return null;
             dispatchDataAccessEvent({
@@ -864,7 +1266,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             };
           },
           replace: replaceCloudSnapshotDurably,
+          isOperationCurrent: repairOperationIsCurrent,
         });
+
+        if (!repairOperationIsCurrent()) return;
+        if (repair.status === "operation_invalidated") return;
 
         if (repair.status === "backup_failed") {
           setSyncStatus("error");
@@ -906,6 +1312,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
         dataRef.current = durable.data;
         clearSyncPending();
+        clearActiveCloudSyncReviewIssue();
         automaticCloudPaused.current = false;
         rememberHandoffDecision(user.id, "synced");
         setLocalDataHandoffStatus("none");
@@ -936,6 +1343,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             : `Dispositivo reparado y verificado. Copia previa: ${repair.safetyCopyFilename}.`,
         );
       } catch (error) {
+        if (!repairOperationIsCurrent()) return;
         void reportAppError({
           severity: "error",
           area: "sync",
@@ -959,9 +1367,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [
     demoMode,
+    clearActiveCloudSyncReviewIssue,
     ensureCloudReadyForCurrentDevice,
     getCurrentData,
-    pauseAutomaticCloud,
+    pauseCloudOperationsForRepair,
     rememberSuccessfulDeviceSync,
     replaceCloudSnapshotDurably,
     requiresEmailConfirmation,
@@ -971,6 +1380,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const schedulePush = useCallback(() => {
     if (demoMode) return;
     if (handoffPausesCloud) return;
+    if (syncIssueRef.current?.automaticRetryBlocked) return;
     if (!ready || !user || skipPush.current) return;
     if (!pendingUpload) return;
 
@@ -997,6 +1407,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setOnline(true);
       if (demoMode) return;
       if (handoffPausesCloud) return;
+      if (syncIssueRef.current?.automaticRetryBlocked) return;
       void flushPendingUpload(true);
     }
     function handleOffline() {
@@ -1019,8 +1430,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     let unsubscribe: (() => void) | undefined;
+    let cancelled = false;
 
     void getSupabaseClientAsync().then((supabase) => {
+      if (cancelled) return;
       if (!supabase) {
         setAuthReady(true);
         return;
@@ -1029,23 +1442,31 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       void supabase.auth
         .getUser()
         .then(({ data: authData }) => {
-          setUser(authData.user);
+          if (cancelled) return;
+          setAuthUser(authData.user);
           if (authData.user?.email) setEmail(authData.user.email);
         })
-        .finally(() => setAuthReady(true));
+        .finally(() => {
+          if (!cancelled) setAuthReady(true);
+        });
 
       const { data: listener } = supabase.auth.onAuthStateChange(
         (_event, session) => {
+          if (cancelled) return;
           setAuthReady(true);
-          setUser(session?.user ?? null);
+          setAuthUser(session?.user ?? null);
           if (session?.user?.email) setEmail(session.user.email);
         },
       );
       unsubscribe = () => listener.subscription.unsubscribe();
     });
 
-    return () => unsubscribe?.();
-  }, [cloudEnabled]);
+    return () => {
+      cancelled = true;
+      invalidateCloudAuthOperations();
+      unsubscribe?.();
+    };
+  }, [cloudEnabled, invalidateCloudAuthOperations, setAuthUser]);
 
   const welcomeUserId = user?.id ?? null;
 
@@ -1157,6 +1578,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
       return;
     }
+    if (syncIssueRef.current?.automaticRetryBlocked) {
+      setSyncStatus("error");
+      setSyncMessage(syncIssueRef.current.userMessage);
+      return;
+    }
     if (localDataHandoffStatus === "syncing") return;
 
     const decision = readHandoffDecision(user.id);
@@ -1199,6 +1625,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (demoMode || !ready || !user) return;
     if (handoffPausesCloud || localDataHandoffStatus === "syncing") return;
+    if (syncIssueRef.current?.automaticRetryBlocked) return;
     if (pulledForUser.current === user.id) return;
     pulledForUser.current = user.id;
     void pullFromCloud({ automatic: true });
@@ -1220,6 +1647,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
     function handleVisible() {
       if (document.visibilityState === "visible" && isBrowserOnline()) {
+        if (syncIssueRef.current?.automaticRetryBlocked) return;
         void flushPendingUpload(true).then(() => {
           if (!hasPendingSyncChanges(data)) {
             void pullFromCloud({ automatic: true });
@@ -1247,6 +1675,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     const pullTimer = setInterval(() => {
       if (document.visibilityState !== "visible" || !isBrowserOnline()) return;
       if (syncing.current) return;
+      if (syncIssueRef.current?.automaticRetryBlocked) return;
       void pullFromCloud({ automatic: true });
     }, PULL_INTERVAL_MS);
 
@@ -1259,6 +1688,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
     if (retryTimer.current) clearInterval(retryTimer.current);
     retryTimer.current = setInterval(() => {
+      if (syncIssueRef.current?.automaticRetryBlocked) return;
       void flushPendingUpload(true);
     }, RETRY_MS);
 
@@ -1307,7 +1737,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       const needsEmailConfirmation = Boolean(data.user && !data.session);
 
       if (data.session?.user) {
-        setUser(data.session.user);
+        setAuthUser(data.session.user);
         setSyncMessage("Cuenta creada e iniciada");
       } else {
         setSyncMessage(
@@ -1323,7 +1753,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         needsEmailConfirmation,
       };
     },
-    [email],
+    [email, setAuthUser],
   );
 
   const signIn = useCallback(
@@ -1422,14 +1852,17 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       retryTimer.current = null;
       pulledForUser.current = null;
       syncing.current = false;
-      setUser(null);
+      syncIssueRef.current = null;
+      setSyncIssue(null);
+      setAuthUser(null);
       setSyncMessage(message);
       setSyncStatus(cloudEnabled ? "idle" : "disabled");
     },
-    [cloudEnabled],
+    [cloudEnabled, setAuthUser],
   );
 
   const signOut = useCallback(async () => {
+    invalidateCloudAuthOperations();
     const supabase = await getSupabaseClientAsync();
     if (supabase) {
       await releaseCurrentCloudDeviceSession();
@@ -1441,7 +1874,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       }
     }
     finishSignedOutSession("Sesión cerrada");
-  }, [finishSignedOutSession]);
+  }, [finishSignedOutSession, invalidateCloudAuthOperations]);
 
   const signOutAndClearDevice = useCallback(async (): Promise<
     string | null
@@ -1449,6 +1882,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     if (!user) return "No hay una sesión iniciada.";
     if (demoMode) return "Sal de la demo antes de borrar este dispositivo.";
     if (!emailConfirmed) return EMAIL_CONFIRMATION_REQUIRED_MESSAGE;
+    invalidateCloudAuthOperations();
 
     const cloudAccess = await canUseCloudForUser(user.id);
     if (cloudAccess.allowed) {
@@ -1478,6 +1912,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }
 
     clearDriveAccessToken();
+    clearCloudSyncReviewIssue(user.id);
     const secondary = clearSecondaryDeviceData(user.id);
     skipPush.current = true;
     try {
@@ -1497,6 +1932,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     finishSignedOutSession,
     flushPendingUpload,
     handoffPausesCloud,
+    invalidateCloudAuthOperations,
     replaceData,
     user,
   ]);
@@ -1505,6 +1941,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     async (file: File) => {
       if (demoMode) {
         return "Sal de la demo para importar una copia real.";
+      }
+      if (syncIssueRef.current?.automaticRetryBlocked) {
+        setSyncStatus("error");
+        setSyncMessage(syncIssueRef.current.userMessage);
+        return "Resuelve primero el conflicto de sincronización desde Cuenta.";
       }
       const parsed = await readProtectedBackupFile(file);
       if ("error" in parsed) return parsed.error;
@@ -1560,6 +2001,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       email,
       syncStatus,
       syncMessage,
+      syncIssue,
       pendingUpload,
       pendingChangeCount,
       localDataHandoffStatus,
@@ -1588,6 +2030,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       email,
       syncStatus,
       syncMessage,
+      syncIssue,
       pendingUpload,
       pendingChangeCount,
       localDataHandoffStatus,
