@@ -9,6 +9,10 @@ const serverRepository = readFileSync(
   new URL("./server-repository.ts", import.meta.url),
   "utf8",
 );
+const clientRepository = readFileSync(
+  new URL("./repository.ts", import.meta.url),
+  "utf8",
+);
 const bonusScans = readFileSync(
   new URL("./grant-bonus-scans.ts", import.meta.url),
   "utf8",
@@ -37,6 +41,8 @@ describe("Pro trial activation policy", () => {
   it("initializes newly registered accounts as Gratis", () => {
     expect(billingContext).toContain("ensureFreeSubscription");
     expect(billingContext).not.toContain("ensureTrialSubscription");
+    expect(clientRepository).toContain('fetch("/api/billing/subscription"');
+    expect(clientRepository).not.toContain('fetch("/api/billing/trial"');
     expect(serverRepository).toContain('plan: "free"');
     expect(serverRepository).toContain('status: "inactive"');
     expect(bonusScans).toContain('plan: "free"');
