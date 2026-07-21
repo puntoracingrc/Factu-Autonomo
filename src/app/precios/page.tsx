@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -32,6 +32,10 @@ import {
 } from "@/lib/billing/scan-limits";
 import { getPricingRankingSummary } from "@/lib/billing/competitor-pricing";
 import { subscriptionLabel } from "@/lib/billing/subscription";
+import {
+  resolvePricingPromotion,
+  type AdminAccessState,
+} from "@/lib/billing/pricing-promotion";
 
 const PLAN_GUIDE = [
   {
@@ -154,11 +158,78 @@ function CheckoutNotice() {
 
 export default function PreciosPage() {
   const rankingSummary = getPricingRankingSummary();
-  const { plan, isPro, checkout, openPortal, billingEnabled, trialDaysLeft } =
-    useBilling();
+  const {
+    plan,
+    isPro,
+    checkout,
+    openPortal,
+    billingEnabled,
+    trialDaysLeft,
+    loading: billingLoading,
+  } = useBilling();
   const { user } = useCloudSync();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const userId = user?.id ?? null;
+  const [adminAccessResult, setAdminAccessResult] = useState<{
+    userId: string | null;
+    state: AdminAccessState;
+  }>({ userId: null, state: "member" });
+  const adminAccess: AdminAccessState = !userId
+    ? "member"
+    : adminAccessResult.userId === userId
+      ? adminAccessResult.state
+      : "checking";
+  const promotion = resolvePricingPromotion({
+    plan,
+    hasUser: Boolean(user),
+    billingLoading,
+    adminAccess,
+  });
+
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+
+    let active = true;
+    const controller = new AbortController();
+    setAdminAccessResult({ userId, state: "checking" });
+
+    void (async () => {
+      const { getSupabaseClientAsync } = await import("@/lib/supabase/client");
+      const supabase = await getSupabaseClientAsync();
+      if (!supabase) throw new Error("supabase_unavailable");
+
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error("session_unavailable");
+
+      const response = await fetch("/api/admin/capabilities", {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error("admin_capabilities_unavailable");
+
+      const body = (await response.json()) as { fullAdmin?: boolean };
+      if (active) {
+        setAdminAccessResult({
+          userId,
+          state: body.fullAdmin ? "admin" : "member",
+        });
+      }
+    })().catch(() => {
+      if (active && !controller.signal.aborted) {
+        setAdminAccessResult({ userId, state: "unavailable" });
+      }
+    });
+
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [userId]);
 
   async function subscribe(planToBuy: PaidPlanId, interval: "monthly" | "yearly") {
     setBusy(true);
@@ -183,34 +254,63 @@ export default function PreciosPage() {
         subtitle={rankingSummary.subtitle}
       />
 
-      <Card className="mb-6 border-blue-200 bg-blue-50/70">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-start gap-3">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-700 shadow-sm">
-              <MailCheck className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 className="text-lg font-bold text-slate-950">
-                Empieza gratis, sube solo cuando te compense
-              </h2>
-              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
-                Gratis guarda el trabajo en un único dispositivo. Si luego
-                necesitas nube, Pro sincroniza hasta 2 dispositivos y Pro+
-                hasta 5.
-              </p>
+      {promotion === "free" && (
+        <Card className="mb-6 border-blue-200 bg-blue-50/70">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-700 shadow-sm">
+                <MailCheck className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-lg font-bold text-slate-950">
+                  Empieza gratis, sube solo cuando te compense
+                </h2>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+                  Gratis guarda el trabajo en un único dispositivo. Si luego
+                  necesitas nube, Pro sincroniza hasta 2 dispositivos y Pro+
+                  hasta 5.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <ButtonLink href="/cuenta?modo=crear#inicio-sesion" className="whitespace-nowrap">
+                Crear cuenta gratis
+                <ArrowRight className="h-4 w-4" />
+              </ButtonLink>
+              <ButtonLink href="/ayuda/primeros-pasos" variant="secondary" className="whitespace-nowrap">
+                Ver primeros pasos
+              </ButtonLink>
             </div>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row">
-            <ButtonLink href="/cuenta?modo=crear#inicio-sesion" className="whitespace-nowrap">
-              Crear cuenta gratis
+        </Card>
+      )}
+
+      {promotion === "pro_plus" && (
+        <Card className="mb-6 border-emerald-200 bg-emerald-50/70">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white text-emerald-700 shadow-sm">
+                <Sparkles className="h-5 w-5" />
+              </span>
+              <div>
+                <h2 className="text-lg font-bold text-slate-950">
+                  Da el salto a Pro+ IA
+                </h2>
+                <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+                  Mantén todo lo de Pro, amplía la nube a 5 dispositivos y
+                  añade {PRO_PLUS_EXPENSE_SCANS_PER_MONTH} escaneos al mes,
+                  lectura de líneas, actualización de costes y márgenes por
+                  familia.
+                </p>
+              </div>
+            </div>
+            <ButtonLink href="#plan-pro-plus" className="whitespace-nowrap">
+              Ver ventajas de Pro+
               <ArrowRight className="h-4 w-4" />
             </ButtonLink>
-            <ButtonLink href="/ayuda/primeros-pasos" variant="secondary" className="whitespace-nowrap">
-              Ver primeros pasos
-            </ButtonLink>
           </div>
-        </div>
-      </Card>
+        </Card>
+      )}
 
       <CheckoutNotice />
 
@@ -345,7 +445,10 @@ export default function PreciosPage() {
           )}
         </Card>
 
-        <Card className="border-emerald-300 bg-emerald-50/50">
+        <Card
+          id="plan-pro-plus"
+          className="scroll-mt-24 border-emerald-300 bg-emerald-50/50"
+        >
           <div className="flex items-center gap-2">
             <Crown className="h-5 w-5 text-emerald-700" />
             <h2 className="text-xl font-bold text-slate-900">Pro+ IA</h2>
