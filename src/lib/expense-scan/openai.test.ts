@@ -8,6 +8,11 @@ import {
   resolveExpenseScanMaxTokens,
 } from "./openai";
 import { EXPENSE_SCAN_MAINTENANCE_MESSAGE } from "./scan-queue";
+import {
+  EXPENSE_LEARNING_HINTS_SCHEMA_VERSION,
+  type ExpenseLearningHintsV1,
+} from "../expense-engine/contracts";
+import { EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION } from "./schema";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -17,6 +22,65 @@ afterEach(() => {
 
 function mockFile(name: string, type: string, size = 1000): File {
   return { name, type, size } as File;
+}
+
+function providerExpense() {
+  return {
+    supplier: { name: "Proveedor Sintético", nif: "B00000000" },
+    expense: {
+      date: "2026-07-21",
+      description: "Material sintético",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Transferencia",
+    },
+    confidence: 0.9,
+    warnings: [],
+  };
+}
+
+function providerLearningHints(): ExpenseLearningHintsV1 {
+  return {
+    schemaVersion: EXPENSE_LEARNING_HINTS_SCHEMA_VERSION,
+    layout: {
+      pageMode: "SINGLE",
+      readingOrder: "ROW_MAJOR",
+      regionOrder: ["HEADER", "LINE_ITEMS", "TOTALS"],
+      tableCount: "ONE",
+    },
+    columns: [
+      {
+        tableRole: "LINE_ITEMS",
+        index: 0,
+        role: "DESCRIPTION",
+        normalizedLabel: "DESCRIPTION",
+        unit: "TEXT",
+        sign: "UNSIGNED",
+        confidence: "HIGH",
+      },
+    ],
+    labels: [{ role: "TOTAL", region: "TOTALS", confidence: "HIGH" }],
+    formulas: [
+      {
+        scope: "DOCUMENT",
+        kind: "BASE_PLUS_TAX",
+        rounding: { mode: "HALF_UP", scale: 2 },
+        sign: "SIGNED",
+        confidence: "MEDIUM",
+      },
+    ],
+  };
+}
+
+function mockProviderJson(value: unknown) {
+  const fetchMock = vi.fn().mockResolvedValue(
+    Response.json({
+      choices: [{ message: { content: JSON.stringify(value) } }],
+    }),
+  );
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
 }
 
 describe("validateScanFile", () => {
@@ -100,6 +164,57 @@ describe("extractExpenseFromImage provider failures", () => {
       error: EXPENSE_SCAN_MAINTENANCE_MESSAGE,
       errorCode: "SCAN_SERVICE_UNAVAILABLE",
     });
+  });
+});
+
+describe("extractExpenseFromImage learning envelope", () => {
+  it("devuelve hints válidos como metadato separado con una sola llamada", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    const fetchMock = mockProviderJson({
+      schemaVersion: EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION,
+      expense: providerExpense(),
+      learningHints: providerLearningHints(),
+    });
+
+    const result = await extractExpenseFromImage("base64", "image/jpeg");
+
+    expect(result.data?.expense.description).toBe("Material sintético");
+    expect(result.learningHints?.formulas[0]?.kind).toBe("BASE_PLUS_TAX");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("descarta hints con contenido libre sin perder el gasto ni registrarlo", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const fetchMock = mockProviderJson({
+      schemaVersion: EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION,
+      expense: providerExpense(),
+      learningHints: {
+        ...providerLearningHints(),
+        supplierName: "CANARY-IDENTITY-NOT-FOR-LOGS",
+      },
+    });
+
+    const result = await extractExpenseFromImage("base64", "image/jpeg");
+
+    expect(result.data?.supplier.name).toBe("Proveedor Sintético");
+    expect(result.learningHints).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify([...info.mock.calls, ...error.mock.calls])).not.toContain(
+      "CANARY-IDENTITY-NOT-FOR-LOGS",
+    );
+  });
+
+  it("mantiene compatibilidad con respuestas legadas", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test-key");
+    const fetchMock = mockProviderJson(providerExpense());
+
+    const result = await extractExpenseFromImage("base64", "image/jpeg");
+
+    expect(result.data?.expense.amount).toBe(100);
+    expect(result.learningHints).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
 

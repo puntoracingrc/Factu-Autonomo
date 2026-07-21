@@ -4,6 +4,10 @@ import {
   normalizeExpenseBusinessKind,
 } from "../expense-classification";
 import { roundMoney } from "../calculations";
+import {
+  normalizeExpenseLearningHintsV1,
+  type ExpenseLearningHintsV1,
+} from "../expense-engine/contracts";
 import type {
   ExpenseBusinessKind,
   ExpenseLineCalculationBasis,
@@ -16,6 +20,9 @@ import type {
 export type ExpenseScanPurchaseLine = Omit<ExpensePurchaseLine, "id">;
 export type ExpenseScanDocumentKind =
   "expense_invoice" | "ticket" | "quote_or_order" | "proforma" | "other";
+
+export const EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION =
+  "expense-scan-ai-output.v1";
 
 export interface ExpenseScanPayload {
   document?: {
@@ -43,6 +50,18 @@ export interface ExpenseScanPayload {
   confidence: number;
   warnings: string[];
 }
+
+export interface ExpenseScanAiOutputV1 {
+  readonly schemaVersion: typeof EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION;
+  readonly expense: ExpenseScanPayload;
+  readonly learningHints: ExpenseLearningHintsV1 | null;
+}
+
+const EXPENSE_SCAN_AI_OUTPUT_KEYS = new Set([
+  "schemaVersion",
+  "expense",
+  "learningHints",
+]);
 
 function pickClosest(value: string, options: readonly string[]): string {
   const normalized = value.trim().toLowerCase();
@@ -443,6 +462,45 @@ export function normalizeExpenseScanPayload(
     confidence: Number.isFinite(confidence) ? confidence : 0.5,
     warnings,
   };
+}
+
+export function normalizeExpenseScanAiOutputV1(
+  raw: unknown,
+): ExpenseScanAiOutputV1 | null {
+  if (
+    raw &&
+    typeof raw === "object" &&
+    !Array.isArray(raw) &&
+    (raw as Record<string, unknown>).schemaVersion ===
+      EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION
+  ) {
+    const envelope = raw as Record<string, unknown>;
+    const expense = normalizeExpenseScanPayload(envelope.expense);
+    if (!expense) return null;
+
+    const hasOnlyEnvelopeKeys = Object.keys(envelope).every((key) =>
+      EXPENSE_SCAN_AI_OUTPUT_KEYS.has(key),
+    );
+    const learningHints =
+      hasOnlyEnvelopeKeys && envelope.learningHints !== null
+        ? normalizeExpenseLearningHintsV1(envelope.learningHints)
+        : null;
+
+    return {
+      schemaVersion: EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION,
+      expense,
+      learningHints,
+    };
+  }
+
+  const expense = normalizeExpenseScanPayload(raw);
+  return expense
+    ? {
+        schemaVersion: EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION,
+        expense,
+        learningHints: null,
+      }
+    : null;
 }
 
 export const EXPENSE_SCAN_JSON_SCHEMA = {

@@ -1,10 +1,11 @@
 import { extractPdfScanHintsFromPdfBase64 } from "./pdf-table-lines";
 import { buildExpenseScanPrompt } from "./prompt";
 import {
-  normalizeExpenseScanPayload,
+  normalizeExpenseScanAiOutputV1,
   type ExpenseScanPayload,
   type ExpenseScanPurchaseLine,
 } from "./schema";
+import type { ExpenseLearningHintsV1 } from "../expense-engine/contracts";
 import { EXPENSE_SCAN_MAINTENANCE_MESSAGE } from "./scan-queue";
 
 const EXPENSE_SCAN_MODEL =
@@ -17,6 +18,7 @@ export type ExpenseScanProviderErrorCode = "SCAN_SERVICE_UNAVAILABLE";
 
 export interface ExpenseScanExtractionResult {
   readonly data?: ExpenseScanPayload;
+  readonly learningHints?: ExpenseLearningHintsV1 | null;
   readonly error?: string;
   readonly errorCode?: ExpenseScanProviderErrorCode;
 }
@@ -244,13 +246,14 @@ export async function extractExpenseFromImage(
     return { error: "No se pudo interpretar la respuesta. Inténtalo de nuevo." };
   }
 
-  const data = normalizeExpenseScanPayload(parsed);
-  if (!data) {
+  const output = normalizeExpenseScanAiOutputV1(parsed);
+  if (!output) {
     return {
       error:
         "No se encontraron datos suficientes (proveedor, descripción o importe). Revisa el archivo.",
     };
   }
+  const data = output.expense;
 
   if (pdfHints?.stilCondal.lines.length) {
     const pdfLines = pdfHints.stilCondal;
@@ -273,7 +276,7 @@ export async function extractExpenseFromImage(
     }
   }
 
-  return { data };
+  return { data, learningHints: output.learningHints };
 }
 
 export async function fileToBase64(file: File): Promise<string> {
