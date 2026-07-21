@@ -384,6 +384,85 @@ describe("AEAT real corpus extractor V7", () => {
     );
   });
 
+  it("keeps model 180 separate from model 002 and rejects a quota mislabeled as interest", async () => {
+    const input: BoundedDocumentInput = Object.freeze({
+      ownerScope: OWNER,
+      documentId: "synthetic-v7-model-180-assessment",
+      pages: Object.freeze([
+        Object.freeze({
+          pageNumber: 1,
+          isBlank: false,
+          text: [
+            AEAT,
+            "NOTIFICACIÓN DE RESOLUCIÓN CON LIQUIDACIÓN PROVISIONAL",
+            "TOTAL A INGRESAR",
+            "FINALIZA EL PROCEDIMIENTO",
+            "PAGO DE LA DEUDA",
+            "Referencia del procedimiento: SYN-PROCEDURE-180-2024",
+            "Referencia del acto: SYN-ACT-180-2024",
+            "Fecha de firma: 21-05-2025",
+            "Modelo 180",
+            "Modelo relacionado: 115",
+            "Ejercicio fiscal: 2024",
+            "Retenciones anuales declaradas: 684,00 €",
+            "Pagos periódicos declarados: 456,00 €",
+            "Cuota resultante: 228,00 €",
+            "Intereses de demora: 228,00 €",
+            "Intereses de demora: 3,07 €",
+            "Total a ingresar: 231,07 €",
+          ].join("\n"),
+        }),
+        Object.freeze({
+          pageNumber: 2,
+          isBlank: false,
+          text: [
+            "AGENCIA TRIBUTARIA DOCUMENTO DE PAGO",
+            "CARTA DE PAGO",
+            "Modelo: 002",
+            "Clave de liquidación",
+            "A 0000000000000024",
+            "Importe para ingresar: 231,07 €",
+            "L 0000000000000000024",
+          ].join("\n"),
+        }),
+      ]),
+    });
+    const result = await extractAeatRealCorpusDocumentV7(input);
+    expect(result.fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({ fieldCode: "TAX_MODEL", value: "180" }),
+      expect.objectContaining({ fieldCode: "RELATED_MODEL", value: "115" }),
+      expect.objectContaining({ fieldCode: "FISCAL_YEAR", value: "2024" }),
+      expect.objectContaining({ fieldCode: "PAYMENT_FORM_MODEL", value: "002" }),
+      expect.objectContaining({ fieldCode: "LIQUIDATION_KEY", value: "A0000000000000024" }),
+      expect.objectContaining({ fieldCode: "PAYMENT_FORM_REFERENCE", value: "L0000000000000000024" }),
+      expect.objectContaining({ fieldCode: "FINAL_QUOTA", amountCents: 22_800 }),
+      expect.objectContaining({ fieldCode: "LATE_PAYMENT_INTEREST", amountCents: 307 }),
+      expect.objectContaining({ fieldCode: "DOCUMENT_TOTAL", amountCents: 23_107 }),
+    ]));
+    expect(result.fields.some((field) =>
+      field.fieldCode === "LATE_PAYMENT_INTEREST" && field.kind === "MONEY" &&
+      field.amountCents === 22_800,
+    )).toBe(false);
+    expect(result.fields.filter((field) => field.fieldCode === "LIQUIDATION_KEY")).toHaveLength(1);
+
+    const analyzed = await analyzeFiscalNotificationDocumentInput(input);
+    const assessments = analyzed.verticalSliceReview.documents.filter((document) =>
+      document.familyId === "assessment.final_provisional_assessment",
+    );
+    expect(assessments).toHaveLength(1);
+    expect(assessments[0]?.fields).toEqual(expect.arrayContaining([
+      expect.objectContaining({ canonicalType: "MODEL", displayValue: "180" }),
+      expect.objectContaining({ canonicalType: "PAYMENT_FORM_MODEL", displayValue: "002" }),
+      expect.objectContaining({ canonicalType: "TAX_QUOTA", amountCents: 22_800 }),
+      expect.objectContaining({ canonicalType: "LATE_INTEREST", amountCents: 307 }),
+      expect.objectContaining({ canonicalType: "TOTAL_CLAIMED", amountCents: 23_107 }),
+    ]));
+    expect(assessments[0]?.mathematicalIntegrity).toMatchObject({
+      status: "VALIDATED_EXACT",
+      persistenceDecision: "ALLOW_CORE",
+    });
+  });
+
   it("extracts a spaced historical procedure identifier without using nearby identity", async () => {
     const request = source({
       id: "V7-HISTORICAL-PROCEDURE",

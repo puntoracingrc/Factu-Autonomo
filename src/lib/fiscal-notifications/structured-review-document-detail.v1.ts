@@ -237,6 +237,18 @@ export function fiscalNotificationDetailReviewLabelV1(
     : "Revisión personal pendiente";
 }
 
+export function fiscalNotificationDetailAmountLabelV1(
+  familyId: string | null,
+  label: string,
+): string {
+  if (familyId !== "assessment.final_provisional_assessment") return label;
+  const normalized = normalizeText(label);
+  if (/cuota (?:final|liquidada|resultante)|^cuota$/u.test(normalized)) return "Cuota resultante";
+  if (/interes/u.test(normalized)) return "Intereses de demora";
+  if (/total (?:del documento|a ingresar|reclamado)|importe a ingresar/u.test(normalized)) return "Total a ingresar";
+  return label;
+}
+
 export function projectFiscalNotificationFamilyExplanationV1(
   familyId: string | null,
   economy: FiscalNotificationDetailEconomyV1 | null,
@@ -258,6 +270,27 @@ export function projectFiscalNotificationFamilyExplanationV1(
         reviewTitle: "Comprueba la deuda, el origen y la recepción",
         reviewDetail:
           "Revisa la clave de liquidación, el modelo y periodo, si existe un pago, compensación o aplazamiento previo, y la fecha efectiva de recepción.",
+      });
+    }
+  }
+  if (familyId === "assessment.final_provisional_assessment" && economy) {
+    const amount = (pattern: RegExp): string | null =>
+      economy.rows.find((row) => pattern.test(normalizeText(row.label)))?.value ?? null;
+    const quota = amount(/cuota resultante/u);
+    const interest = amount(/intereses de demora/u);
+    const total = amount(/total a ingresar/u);
+    const annual = amount(/retenciones anuales declaradas/u);
+    const periodic = amount(/pagos periodicos declarados/u);
+    if (quota && interest && total) {
+      const comparison = annual && periodic
+        ? ` Según las cifras impresas, se declararon ${annual} en el resumen anual y constan ${periodic} mediante autoliquidaciones periódicas.`
+        : "";
+      return Object.freeze({
+        ...fallback,
+        documentSays: `La resolución fija una cuota de ${quota}, añade ${interest} de intereses de demora y establece un total a ingresar de ${total}.`,
+        officialMeaning: `Hacienda ha terminado la comprobación del resumen anual de retenciones por alquileres.${comparison} La diferencia liquidada es ${quota}; con los intereses, el total asciende a ${total}.`,
+        reviewTitle: "Comprueba la liquidación y la carta de pago",
+        reviewDetail: "Revisa el modelo 180, el ejercicio, la cuota, los intereses, la clave de liquidación y que el modelo 002 figure solo como documento de ingreso.",
       });
     }
   }
@@ -741,7 +774,9 @@ function projectEconomy(
   const installmentAmounts = projectedInstallmentAmounts(document);
   const rows = deduplicateAmountRows(
     document.money.flatMap((fact) => {
-      const label = cleanDisplayText(fact.label);
+      const label = cleanDisplayText(
+        fiscalNotificationDetailAmountLabelV1(document.documentSubtype, fact.label),
+      );
       if (
         !label ||
         (document.installments.length > 0 &&
@@ -1298,6 +1333,11 @@ function amountSummaryPriority(label: string, familyId: string | null): number {
     if (/recargo reducido/u.test(normalized)) return 1;
     if (/total.*ordinario/u.test(normalized)) return 2;
     if (/recargo.*5/u.test(normalized)) return 3;
+  }
+  if (familyId === "assessment.final_provisional_assessment") {
+    if (/cuota resultante/u.test(normalized)) return 0;
+    if (/intereses de demora/u.test(normalized)) return 1;
+    if (/total a ingresar/u.test(normalized)) return 2;
   }
   if (/total|importe a ingresar|importe a devolver/u.test(normalized)) return 0;
   if (/pendiente|principal|cuota/u.test(normalized)) return 1;

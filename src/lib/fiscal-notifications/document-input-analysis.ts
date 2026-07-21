@@ -321,7 +321,7 @@ export async function analyzeFiscalNotificationDocumentInput(
     documentInput,
     legacyAnalysis.segmentation.segments,
   );
-  const observedDocuments = integrityReview.documents
+  const observedDocuments = filterRedundantSameFamilyDocuments(integrityReview.documents)
     .map((document) =>
       Object.freeze({
         ...document,
@@ -363,6 +363,46 @@ export async function analyzeFiscalNotificationDocumentInput(
       extractedOffsetAgreementFacts?.documentType === "AEAT_OFFSET_AGREEMENT"
         ? extractedOffsetAgreementFacts
         : null,
+  });
+}
+
+function filterRedundantSameFamilyDocuments(
+  documents: readonly FiscalNotificationVerticalSliceReviewV1["documents"][number][],
+): readonly FiscalNotificationVerticalSliceReviewV1["documents"][number][] {
+  const strongReferenceTypes = new Set([
+    "ACT_ID", "DEBT_KEY", "EXPEDIENTE_ID", "LIQUIDATION_KEY", "PROCEDURE_ID",
+  ]);
+  const usefulFields = documents.map((document) =>
+    document.fields.filter(isUsefulObservedFiscalNotificationField),
+  );
+  const valueKey = (
+    field: FiscalNotificationVerticalSliceReviewV1["documents"][number]["fields"][number],
+  ) => field.semantic === "MONEY" && field.amountCents !== null
+    ? `${field.semantic}:${field.canonicalType}:${field.amountCents}:${field.currency ?? ""}`
+    : `${field.semantic}:${field.canonicalType}:${field.normalizedValue ?? field.displayValue}`;
+
+  return documents.filter((document, index) => {
+    const currentFields = usefulFields[index]!;
+    const currentKeys = new Set(currentFields.map(valueKey));
+    return !documents.some((candidate, candidateIndex) => {
+      if (candidateIndex === index || candidate.familyId !== document.familyId ||
+        candidate.pageFrom !== document.pageFrom || candidate.pageTo !== document.pageTo ||
+        usefulFields[candidateIndex]!.length <= currentFields.length) return false;
+      const currentStrongValues = new Set(currentFields.flatMap((field) =>
+        field.semantic === "REFERENCE" && strongReferenceTypes.has(field.canonicalType) &&
+        field.normalizedValue
+          ? [`${field.canonicalType}:${field.normalizedValue}`]
+          : [],
+      ));
+      const sharesStrongReference = usefulFields[candidateIndex]!.some((field) =>
+        field.semantic === "REFERENCE" && strongReferenceTypes.has(field.canonicalType) &&
+        field.normalizedValue !== null &&
+        currentStrongValues.has(`${field.canonicalType}:${field.normalizedValue}`),
+      );
+      if (!sharesStrongReference) return false;
+      const candidateKeys = new Set(usefulFields[candidateIndex]!.map(valueKey));
+      return [...currentKeys].every((key) => candidateKeys.has(key));
+    });
   });
 }
 

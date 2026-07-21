@@ -373,6 +373,20 @@ function attachValidatedMathematicalIntegrity(
 }
 
 describe("workspace global reconciliation V8", () => {
+  it("never confirms an assessment-to-enforcement relation from matching amounts alone", () => {
+    const input = workspace();
+    input.references[1]!.rawValue = "SYN-DIFFERENT-DEBT-WORKSPACE";
+    input.references[1]!.normalizedValue = "SYN-DIFFERENT-DEBT-WORKSPACE";
+    input.relations = [];
+    const result = appendWorkspaceGlobalReconciliationV8({
+      ownerScope: OWNER,
+      workspace: input,
+      reevaluatedAt: NOW,
+    });
+    expect(result.status).toBe("UNCHANGED");
+    if (result.status === "UNCHANGED") expect(result.workspace.relations).toEqual([]);
+  });
+
   it("adds V11 only as supporting evidence to an already strong-reference relation", () => {
     const input = workspace();
     attachValidatedMathematicalIntegrity(input);

@@ -79,6 +79,7 @@ function validateDocument(
       projection.evidenceByFieldId,
       projection.equationEvidenceById,
     ),
+    ...semanticLabelChecks(family, projection.evidence),
     ...countChecks(family, projection.evidence),
     ...temporalChecks(family, projection.evidence),
   ];
@@ -134,6 +135,37 @@ function validateDocument(
     ...document,
     mathematicalIntegrity: integrity,
   });
+}
+
+function semanticLabelChecks(
+  family: AeatMathematicalIntegrityFamilyV11,
+  evidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[],
+): FiscalNotificationMathematicalIntegrityCheckV11[] {
+  if (family.id !== "assessment.final_provisional_assessment") return [];
+  const quotas = evidence.filter((item) =>
+    item.semantic === "MONEY" && item.canonicalType === "FINAL_QUOTA" && item.amountCents !== null,
+  );
+  const interests = evidence.filter((item) =>
+    item.semantic === "MONEY" && item.canonicalType === "LATE_PAYMENT_INTEREST" && item.amountCents !== null,
+  );
+  const distinctInterestAmounts = new Set(interests.map((item) => item.amountCents));
+  const quotaAmounts = new Set(quotas.map((item) => item.amountCents));
+  const duplicatedQuotaAsInterest = interests.some((item) => quotaAmounts.has(item.amountCents));
+  if (distinctInterestAmounts.size < 2 || !duplicatedQuotaAsInterest) return [];
+  return [Object.freeze({
+    ruleId: `v11:${family.archetypeId.toLowerCase()}:semantic-labels:1`,
+    checkKind: "STRUCTURAL" as const,
+    status: "REVIEW_REQUIRED" as const,
+    operands: Object.freeze([...quotas, ...interests].map((item) =>
+      Object.freeze({ evidenceId: item.evidenceId }),
+    )),
+    expectedCents: null,
+    observedCents: null,
+    deltaCents: null,
+    toleranceCents: 0,
+    calculation: Object.freeze({ kind: "NONE" as const }),
+    safeMessage: "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+  })];
 }
 
 function projectEvidence(

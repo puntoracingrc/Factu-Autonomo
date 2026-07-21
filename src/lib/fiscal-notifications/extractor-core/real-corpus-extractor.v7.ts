@@ -7,6 +7,7 @@ import type {
   RealCorpusEvidenceV2,
   RealCorpusFieldV2,
 } from "./real-corpus-extractor.v2";
+import { extractAeatRealCorpusDocumentV4 } from "./real-corpus-extractor.v4";
 import {
   extractAeatRealCorpusDocumentV6,
   type RealCorpusSegmentV6,
@@ -14,7 +15,7 @@ import {
 
 export const REAL_CORPUS_EXTRACTOR_SCHEMA_VERSION_V7 = 7 as const;
 export const REAL_CORPUS_EXTRACTOR_VERSION_V7 =
-  "aeat-real-corpus-extractor.2026-07-19.v7.4" as const;
+  "aeat-real-corpus-extractor.2026-07-21.v7.5" as const;
 
 export const REAL_CORPUS_FAMILY_IDS_V7 = Object.freeze([
   "sanction.initiation_and_hearing",
@@ -324,7 +325,8 @@ function paymentFormReferenceField(
     ]),
   );
   if (labeled) return labeled;
-  const sources: IndexedLineV7[] = [];
+  const letterReferenceSources: IndexedLineV7[] = [];
+  const legacyReferenceSources: IndexedLineV7[] = [];
   const pageText = new Map<number, string>();
   for (const line of index.lines) {
     pageText.set(
@@ -341,13 +343,16 @@ function paymentFormReferenceField(
     ) {
       continue;
     }
-    const match = /(?:^|\s)(\d{12}[A-Z])(?=\s|$)/u.exec(line.normalized);
+    const letterReference = /(?:^|\s)(L\s*\d{16,22})(?=\s|$)/u.exec(line.normalized);
+    const legacyReference = /(?:^|\s)(\d{12}[A-Z])(?=\s|$)/u.exec(line.normalized);
+    const match = letterReference ?? legacyReference;
     if (match?.[1]) {
+      const sources = letterReference ? letterReferenceSources : legacyReferenceSources;
       sources.push(
         Object.freeze({
           ...line,
           raw: match[1],
-          normalized: match[1],
+          normalized: normalize(match[1]),
         }),
       );
     }
@@ -355,7 +360,7 @@ function paymentFormReferenceField(
   return coalescedReferenceField(
     "PAYMENT_FORM_REFERENCE",
     "Número de la carta de pago",
-    sources,
+    letterReferenceSources.length > 0 ? letterReferenceSources : legacyReferenceSources,
   );
 }
 
@@ -409,7 +414,7 @@ function paymentFormLiquidationKeyField(
     ) {
       continue;
     }
-    const match = /(?:^|\s)([A-Z]\s*\d{16})(?=\s|$)/u.exec(
+    const match = /(?:^|\s)(A\s*\d{16})(?=\s|$)/u.exec(
       line.normalized,
     );
     if (match?.[1]) {
@@ -427,6 +432,74 @@ function paymentFormLiquidationKeyField(
     "Clave de liquidación",
     sources,
   );
+}
+
+function paymentFormPageNumbers(index: DocumentIndexV7): ReadonlySet<number> {
+  const pageText = new Map<number, string>();
+  for (const line of index.lines) {
+    pageText.set(line.pageNumber, `${pageText.get(line.pageNumber) ?? ""} ${line.normalized}`.trim());
+  }
+  return new Set([...pageText.entries()].flatMap(([pageNumber, text]) =>
+    text.includes("DOCUMENTO DE PAGO") ||
+    ((text.includes("CARTA DE PAGO") || text.includes("CLAVE DE LIQUIDACION")) &&
+      (text.includes("MODELO 002") || text.includes("MODELO: 002") ||
+        (text.includes("IMPORTE") && text.includes("INGRESAR"))))
+      ? [pageNumber]
+      : [],
+  ));
+}
+
+function firstValueOnPages(
+  index: DocumentIndexV7,
+  labels: readonly string[],
+  pageNumbers: ReadonlySet<number>,
+): IndexedLineV7 | null {
+  return values(index, labels).find((line) => pageNumbers.has(line.pageNumber)) ?? null;
+}
+
+function observedModelSource(
+  index: DocumentIndexV7,
+  model: string,
+  allowedPages: (pageNumber: number) => boolean,
+): IndexedLineV7 | null {
+  for (const line of index.lines) {
+    if (!allowedPages(line.pageNumber)) continue;
+    const match = new RegExp(`\\bMODELO(?:\\s+TRIBUTARIO|\\s+DE INGRESO)?\\s*:?\\s*(${model})\\b`, "u")
+      .exec(line.normalized);
+    if (!match?.[1]) continue;
+    return Object.freeze({ ...line, raw: match[1], normalized: match[1] });
+  }
+  return null;
+}
+
+function assessmentAmountSources(index: DocumentIndexV7): Readonly<{
+  quota: IndexedLineV7 | null;
+  interest: IndexedLineV7 | null;
+  total: IndexedLineV7 | null;
+}> {
+  const moneyValues = (labels: readonly string[]) =>
+    values(index, labels).filter((line) => parseMoney(line.raw) !== null);
+  const quotas = moneyValues(["Cuota final", "Cuota resultante", "Cuota liquidada", "Cuota"]);
+  const interests = moneyValues(["Intereses de demora", "Interés de demora"]);
+  const totals = moneyValues(["Total a ingresar", "Total del documento"]);
+  for (const quota of quotas) {
+    for (const interest of interests) {
+      for (const total of totals) {
+        const quotaCents = parseMoney(quota.raw);
+        const interestCents = parseMoney(interest.raw);
+        const totalCents = parseMoney(total.raw);
+        if (quotaCents !== null && interestCents !== null && totalCents !== null &&
+          Math.abs(quotaCents + interestCents - totalCents) <= 1) {
+          return Object.freeze({ quota, interest, total });
+        }
+      }
+    }
+  }
+  return Object.freeze({
+    quota: quotas.length === 1 ? quotas[0]! : null,
+    interest: interests.length === 1 ? interests[0]! : null,
+    total: totals.length === 1 ? totals[0]! : null,
+  });
 }
 
 function matchedSource(
@@ -1180,6 +1253,7 @@ function fieldsFor(
   bankSeizure: RealCorpusBankSeizureV7 | null,
 ): readonly RealCorpusFieldV2[] {
   const baseFieldCodes = new Set(baseFields.map((field) => field.fieldCode));
+  const paymentPages = paymentFormPageNumbers(index);
   const fields: (RealCorpusFieldV2 | null)[] = [
     ...baseFields,
     baseFieldCodes.has("ISSUE_DATE")
@@ -1207,6 +1281,14 @@ function fieldsFor(
     baseFieldCodes.has("PAYMENT_FORM_REFERENCE")
       ? null
       : paymentFormReferenceField(index),
+    baseFieldCodes.has("PAYMENT_FORM_MODEL")
+      ? null
+      : referenceField(
+          "PAYMENT_FORM_MODEL",
+          "Modelo de ingreso",
+          firstValueOnPages(index, ["Modelo de ingreso", "Modelo"], paymentPages) ??
+            observedModelSource(index, "002", (pageNumber) => paymentPages.has(pageNumber)),
+        ),
     paymentFormLiquidationKeyField(index),
   ];
   if (familyId === "sanction.initiation_and_hearing")
@@ -1599,7 +1681,33 @@ function fieldsFor(
   }
   if (familyId === "assessment.final_provisional_assessment") {
     const assessmentReason = first(index, ["Motivo de regularización"]);
+    const amounts = assessmentAmountSources(index);
     fields.push(
+      baseFieldCodes.has("TAX_MODEL")
+        ? null
+        : referenceField(
+            "TAX_MODEL",
+            "Modelo tributario",
+            values(index, ["Modelo tributario"]).find((line) => !paymentPages.has(line.pageNumber)) ??
+              observedModelSource(index, "180", (pageNumber) => !paymentPages.has(pageNumber)),
+          ),
+      baseFieldCodes.has("RELATED_MODEL")
+        ? null
+        : referenceField(
+            "RELATED_MODEL",
+            "Modelo relacionado",
+            values(index, ["Modelo relacionado"]).find((line) => !paymentPages.has(line.pageNumber)) ??
+              observedModelSource(index, "115", (pageNumber) => !paymentPages.has(pageNumber)),
+          ),
+      baseFieldCodes.has("FISCAL_YEAR")
+        ? null
+        : referenceField(
+            "FISCAL_YEAR",
+            "Ejercicio fiscal",
+            values(index, ["Ejercicio fiscal", "Ejercicio"]).find((line) =>
+              !paymentPages.has(line.pageNumber),
+            ) ?? null,
+          ),
       referenceField(
         "FINAL_ASSESSMENT_REFERENCE",
         "Referencia del acto",
@@ -1609,21 +1717,15 @@ function fieldsFor(
           "Referencia",
         ]),
       ),
-      moneyField(
-        "ASSESSMENT_QUOTA",
-        "Cuota final",
-        first(index, ["Cuota liquidada", "Cuota"]),
-      ),
-      moneyField(
-        "ASSESSMENT_INTEREST",
-        "Intereses de demora",
-        first(index, ["Intereses de demora"]),
-      ),
-      moneyField(
-        "ASSESSMENT_TOTAL",
-        "Total del documento",
-        first(index, ["Total a ingresar"]),
-      ),
+      baseFieldCodes.has("FINAL_QUOTA")
+        ? null
+        : moneyField("FINAL_QUOTA", "Cuota final", amounts.quota),
+      baseFieldCodes.has("LATE_PAYMENT_INTEREST")
+        ? null
+        : moneyField("LATE_PAYMENT_INTEREST", "Intereses de demora", amounts.interest),
+      baseFieldCodes.has("DOCUMENT_TOTAL")
+        ? null
+        : moneyField("DOCUMENT_TOTAL", "Total del documento", amounts.total),
       moneyField(
         "REJECTED_CARRYFORWARD",
         "Saldo declarado rechazado",
@@ -1766,10 +1868,10 @@ function hasRequiredFacts(
       "DOCUMENT_CATEGORY_1",
     ].some((code) => hasField(fields, code));
   }
-  const quota = fields.find((field) => field.fieldCode === "ASSESSMENT_QUOTA");
-  const interest = fields.find((field) => field.fieldCode === "ASSESSMENT_INTEREST");
-  const total = fields.find((field) => field.fieldCode === "ASSESSMENT_TOTAL");
-  if (!hasField(fields, "FINAL_ASSESSMENT_REFERENCE")) return false;
+  const quota = fields.find((field) => ["FINAL_QUOTA", "ASSESSMENT_QUOTA"].includes(field.fieldCode));
+  const interest = fields.find((field) => ["LATE_PAYMENT_INTEREST", "ASSESSMENT_INTEREST"].includes(field.fieldCode));
+  const total = fields.find((field) => ["DOCUMENT_TOTAL", "ASSESSMENT_TOTAL"].includes(field.fieldCode));
+  if (!["FINAL_ASSESSMENT_REFERENCE", "ACT_ID", "PROCEDURE_ID"].some((code) => hasField(fields, code))) return false;
   const printedAmounts = [quota, interest, total].filter(
     (field) => field?.kind === "MONEY",
   );
@@ -1822,7 +1924,12 @@ export async function extractAeatRealCorpusDocumentV7(document: BoundedDocumentI
   if (!hasAeatAuthority) return unknown(document, index);
   const familyId = recognize(index);
   if (!familyId) return unknown(document, index);
-  const base = await extractAeatRealCorpusDocumentV6(document);
+  const [base, assessmentBase] = await Promise.all([
+    extractAeatRealCorpusDocumentV6(document),
+    familyId === "assessment.final_provisional_assessment"
+      ? extractAeatRealCorpusDocumentV4(document)
+      : Promise.resolve(null),
+  ]);
   const installments = parseInstallments(index);
   const offsetRows = parseOffsetRows(index);
   const bankSeizure = familyId === "seizure.bank_account" ? parseBankSeizure(index) : null;
@@ -1839,7 +1946,18 @@ export async function extractAeatRealCorpusDocumentV7(document: BoundedDocumentI
   })));
   const paymentFormCount = contains(index, "CARTA DE PAGO") || contains(index, "DOCUMENTO DE INGRESO") ? 1 : 0;
   const subtypeValue = subtype(familyId, index);
-  const extractedFields = fieldsFor(index, familyId, base.status === "REVIEW_REQUIRED" && base.familyId === familyId ? base.fields : Object.freeze([]), offsetRows, bankSeizure);
+  const inheritedFields = base.status === "REVIEW_REQUIRED" && base.familyId === familyId
+    ? base.fields
+    : assessmentBase?.status === "REVIEW_REQUIRED" && assessmentBase.familyId === familyId
+      ? assessmentBase.fields.filter((field) => ![
+          "TAX_MODEL",
+          "DEBT_KEY",
+          "FINAL_QUOTA",
+          "LATE_PAYMENT_INTEREST",
+          "DOCUMENT_TOTAL",
+        ].includes(field.fieldCode))
+      : Object.freeze([]);
+  const extractedFields = fieldsFor(index, familyId, inheritedFields, offsetRows, bankSeizure);
   if (!hasRequiredFacts(familyId, subtypeValue, extractedFields, installments, offsetRows, bankSeizure, paymentPlan)) return unknown(document, index);
   const result: RealCorpusExtractorOutcomeV7 = Object.freeze({
     schemaVersion: REAL_CORPUS_EXTRACTOR_SCHEMA_VERSION_V7,
