@@ -710,6 +710,10 @@ describe("MVP usability polish", () => {
     expect(pricingSource).toContain(
       "Empieza gratis, sube solo cuando te compense",
     );
+    expect(pricingSource).toContain("Da el salto a Pro+ IA");
+    expect(pricingSource).toContain("Ver ventajas de Pro+");
+    expect(pricingSource).toContain('href="#plan-pro-plus"');
+    expect(pricingSource).toContain('fetch("/api/admin/capabilities"');
     expect(pricingSource).toContain("Un dispositivo local, sin nube de Factu");
     expect(pricingSource).toContain(
       "Nube de Factu para hasta 2 dispositivos sincronizados",
