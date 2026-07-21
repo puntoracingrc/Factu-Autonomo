@@ -112,6 +112,10 @@ describe("product dashboard home", () => {
     expect(panel).toContain('id="nuevo-recordatorio"');
     expect(panel).toContain("OFFICE_REMINDER_TEMPLATES");
     expect(panel).toContain("Plantillas rápidas");
+    expect(panel).toContain("!limits.cloudSync");
+    expect(panel).toContain(
+      "En Gratis, los recordatorios Para oficina quedan en este",
+    );
     expect(panel).toContain("Enviar a oficina");
     expect(voice).toContain("Intentará rellenar todos los");
     expect(panel).not.toContain('type="date"');

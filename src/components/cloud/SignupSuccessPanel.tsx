@@ -83,7 +83,9 @@ export function SignupSuccessPanel({
             <strong>Paso 3 — Inicia sesión</strong>
             <br />
             <span className="text-emerald-800">
-              Vuelve aquí con la misma contraseña para sincronizar móvil y PC.
+              Vuelve aquí con la misma contraseña. En Gratis, tus datos siguen
+              en este dispositivo; Pro sincroniza hasta 2 dispositivos y Pro+
+              hasta 5.
             </span>
           </span>
         </li>

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
+import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import {
   completedUserReminders,
@@ -58,6 +59,7 @@ export function UserRemindersPanel() {
     reopenUserReminder,
     deleteUserReminder,
   } = useAppStore();
+  const { limits, loading: billingLoading } = useBilling();
   const { user, syncNow } = useCloudSync();
 
   const [showForm, setShowForm] = useState(false);
@@ -486,10 +488,10 @@ export function UserRemindersPanel() {
                     </button>
                   ))}
                 </div>
-                {!user ? (
+                {!billingLoading && !limits.cloudSync ? (
                   <p className="mt-3 text-xs font-medium text-amber-800">
-                    Para verlo en otro dispositivo necesitas la cuenta en la
-                    nube.
+                    En Gratis, los recordatorios Para oficina quedan en este
+                    dispositivo. Pro y Pro+ los sincronizan con la nube.
                   </p>
                 ) : null}
               </div>

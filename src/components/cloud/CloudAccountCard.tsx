@@ -399,7 +399,7 @@ export function CloudAccountCard({
           <p className="mt-1 text-sm text-slate-600">
             {surface === "partner"
               ? "Crea tu acceso o inicia sesión con el mismo email que autorice el administrador."
-              : "Inicia sesión para activar la nube entre móvil y PC, o guarda una copia JSON si prefieres seguir solo en este navegador."}
+              : "Inicia sesión para gestionar tu cuenta. En Gratis, los datos siguen solo en este dispositivo; Pro sincroniza hasta 2 dispositivos y Pro+ hasta 5."}
           </p>
         </div>
       </div>
@@ -918,9 +918,10 @@ export function CloudAccountCard({
                 ¿No encuentras el correo de confirmación?
               </p>
               <p className="mt-1">
-                Busca el mensaje de <strong>Supabase</strong> con el enlace
-                «Confirmar cuenta». Revisa spam y promociones. La bienvenida de
-                Factu llegará después de activar la cuenta e iniciar sesión.
+                Busca el mensaje de <strong>Factu</strong> con el asunto
+                «Confirma tu cuenta de Factu». Revisa spam y promociones. La
+                bienvenida llegará después de activar la cuenta e iniciar
+                sesión.
               </p>
               <Button
                 variant="secondary"

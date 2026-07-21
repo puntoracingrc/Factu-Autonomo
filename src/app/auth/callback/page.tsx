@@ -62,7 +62,7 @@ export default function AuthCallbackPage() {
       try {
         const result = await completeAuthCallback();
         if (result === "error") {
-          setMessage("La nube no está configurada en este servidor.");
+          setMessage("El servicio de cuenta no está configurado en este servidor.");
           return;
         }
         router.replace(`/cuenta?auth=${result}#inicio-sesion`);

@@ -50,7 +50,7 @@ async function completeGoogleLogin(): Promise<void> {
 
   const supabase = await getSupabaseClientAsync();
   if (!supabase) {
-    throw new Error("La nube no está configurada en este servidor.");
+    throw new Error("El servicio de cuenta no está configurado en este servidor.");
   }
 
   const { error: signInError } = await supabase.auth.signInWithIdToken({

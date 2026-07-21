@@ -7,7 +7,7 @@ export const cuentaSection: ManualSection = {
     "Alta gratis, email confirmado, plan, sincronización, copias JSON, Drive, importación y legal.",
   order: 12,
   intro: [
-    "La app puede funcionar solo en este dispositivo, pero la cuenta permite pasar de prueba local a trabajo real. La copia manual JSON y la copia extra en Google Drive son una red de seguridad adicional.",
+    "La cuenta activa las acciones reales, pero el almacenamiento depende del plan. Gratis guarda el trabajo en un dispositivo; Pro usa la nube de Factu en hasta 2 y Pro+ en hasta 5. La copia manual JSON y Drive opcional son protecciones externas distintas.",
   ],
   steps: [
     {
@@ -28,7 +28,7 @@ export const cuentaSection: ManualSection = {
       title: "2. Confirmar el email",
       paragraphs: [
         "Después de crear una cuenta con email, la app muestra **¡Paso 1 completado! Cuenta creada** y te avisa de que la activación llega por email.",
-        "Busca el correo de confirmación de **Factu** y pulsa **Confirmar cuenta**. Ese enlace activa la cuenta para poder iniciar sesión y sincronizar tus datos.",
+        "Busca el correo de confirmación de **Factu** y pulsa **Confirmar cuenta**. Ese enlace activa la cuenta para iniciar sesión y usar acciones reales; no sube los datos del plan Gratis a la nube.",
         "Mientras el email esté pendiente verás **Email pendiente de confirmar**. Puedes seguir trabajando en ese navegador, pero la nube, Drive, envíos reales y acciones de cuenta quedan bloqueadas hasta confirmar.",
         "Si no llega, usa **Reenviar email de confirmación** y revisa spam, promociones o correo no deseado.",
       ],
@@ -37,19 +37,20 @@ export const cuentaSection: ManualSection = {
       title: "3. Decidir qué hacer con datos locales",
       paragraphs: [
         "Si ya habías creado clientes, facturas, productos o gastos sin cuenta, al entrar la app muestra **Datos locales encontrados**.",
-        "Elige **Guardar estos datos en mi cuenta** si quieres subirlos y sincronizarlos. Antes puedes usar **Descargar copia antes de continuar** para quedarte un JSON de seguridad.",
-        "Si no quieres subirlos, pulsa **Seguir solo en este navegador**. Podrás guardarlos en la cuenta más adelante desde la misma tarjeta.",
+        "En Pro y Pro+, elige **Guardar estos datos en mi cuenta** si quieres subirlos y sincronizarlos. Antes puedes usar **Descargar copia antes de continuar** para quedarte un JSON de seguridad.",
+        "Si no quieres subirlos, pulsa **Seguir solo en este navegador**. En Gratis esta es la forma de trabajo normal: la cuenta no sube las facturas ni el histórico.",
         "La app no borra tus datos locales por iniciar sesión: siempre te pregunta antes de subirlos.",
       ],
     },
     {
-      title: "4. Sincronizar móvil y ordenador",
+      title: "4. Nube de Factu y dispositivos",
       paragraphs: [
-        "Con sesión iniciada, **Acceso** muestra tu email, el estado del email, los datos locales pendientes y los controles principales de nube.",
+        "En Gratis, **Acceso** muestra la cuenta, pero no ofrece controles de nube. Los datos permanecen en ese navegador y debes conservar una copia manual o en Drive fuera del dispositivo.",
+        "Pro guarda y sincroniza los datos en la nube de Factu para hasta 2 dispositivos; Pro+ permite hasta 5. **Acceso** muestra los controles de nube cuando el plan los incluye.",
         "La sección **Sincronización** explica cómo funciona la nube de Factu y te lleva de vuelta a **Acceso** para evitar duplicar botones.",
         "Si ya decidiste guardar los datos en tu cuenta y hay cambios pendientes, la app muestra cuántos quedan por subir. Normalmente se suben solos en unos segundos si la pestaña está abierta y tienes conexión.",
         "Si otro dispositivo tiene la copia buena y este no la refleja, abre **Problemas de sincronización** y usa **Reparar con la copia de la nube**. Factu pausa primero las subidas de este dispositivo, solicita una copia cifrada de su estado actual y descarga la nube completa sin subir antes la cola atascada. Solo muestra la reparación como terminada cuando el navegador confirma el guardado local; si falla, conserva el estado anterior y deja la nube en pausa.",
-        "La sincronización automática en la nube es función Pro. En Gratis puedes crear cuenta y exportar copias manuales.",
+        "Drive es una copia automática opcional para todos los planes y no sustituye la sincronización de la nube de Factu.",
       ],
     },
     {
@@ -57,7 +58,7 @@ export const cuentaSection: ManualSection = {
       paragraphs: [
         "**Exportar copia** descarga un archivo JSON con tus datos para guardarlo donde quieras.",
         "**Importar copia** sirve para recuperar una copia JSON de Facturación Autónomos. Revísalo con calma: una copia sustituye los datos locales del navegador donde la importas.",
-        "Para restaurar basta una única confirmación explícita. Al pulsar **Restaurar con copia automática**, Factu solicita primero la descarga de un JSON del estado exacto que va a reemplazar y, sin esperar a otro paso manual, guarda la copia importada. Solo se bloquea si no puede preparar esa copia de seguridad, si detecta un cambio real durante la operación o si el navegador no puede confirmar la escritura durable; una actualización periódica de metadatos de sincronización no debe provocar un bucle de aviso. Si has iniciado sesión, la nube queda en pausa antes del reemplazo: revisa el resultado y usa **Guardar estos datos en mi cuenta** únicamente cuando quieras convertir la restauración en el estado compartido entre dispositivos.",
+        "Para restaurar basta una única confirmación explícita. Al pulsar **Restaurar con copia automática**, Factu solicita primero la descarga de un JSON del estado exacto que va a reemplazar y, sin esperar a otro paso manual, guarda la copia importada. Solo se bloquea si no puede preparar esa copia de seguridad, si detecta un cambio real durante la operación o si el navegador no puede confirmar la escritura durable; una actualización periódica de metadatos de sincronización no debe provocar un bucle de aviso. Si tu plan incluye nube, esta queda en pausa antes del reemplazo: revisa el resultado y usa **Guardar estos datos en mi cuenta** únicamente cuando quieras convertir la restauración en el estado compartido entre dispositivos.",
         "Aunque uses la nube, conviene exportar una copia manual de vez en cuando.",
         "Si **Cuenta → Copias** detecta repartos antiguos afectados por un cambio de coste, muestra primero cuántos gastos son seguros y sus importes antes/después. Nada se corrige al cargar: revisa la vista previa, descarga una copia si quieres una seguridad adicional y confirma expresamente. Los casos parciales o ambiguos quedan fuera; una reparación aplicada puede deshacerse mientras no edites después esos repartos.",
         "Si **Cuenta → Importación** detecta documentos de importadores históricos conocidos que quedaron bloqueados durante el despliegue de integridad, muestra una **vista previa** con su base, IVA, total y las carencias de datos antiguas. Algunos pueden conservar un paquete técnico completo —snapshot, plantilla PDF y sello interno— que el rollout antiguo creó al importar: Factu solo lo propone si todas sus huellas verifican y no existe evidencia Veri*Factu real ni una acción posterior; ese paquete no demuestra que Factu emitiera el documento ni que se enviara a la AEAT. Descarga desde la propia tarjeta una **copia JSON completa** —si cambia cualquier dato del workspace tendrás que descargar otra— y usa la **confirmación explícita** solo si las cifras coinciden con los documentos que declaraste. La copia cubre el alcance exportable indicado en pantalla; la restauración durable guarda primero, registra los cambios pendientes para la nube y solo después publica memoria. El estado **Histórico importado** los congela y permite usarlos en **impuestos y rentabilidad** —incluida Rentabilidad Real—, además de Panel, facturación, cobros, ingresos, beneficio e informes, aunque falten NIF, dirección u otros campos que Factu exige hoy. Las parejas históricas factura–rectificativa y factura–recibo solo aparecen cuando ambos extremos se enlazan de forma inequívoca y recíproca; se revisan y aceptan juntos. No rellena huecos, no inventa vínculos, no crea un sello moderno ni un registro Veri*Factu. **Conserva el archivo original**: duplicados, relaciones huérfanas o ambiguas, una huella incoherente y evidencia moderna real o corrupta quedan fuera y no se cambian automáticamente. Si necesitas deshacer la reparación, restaura la copia JSON previa: se recuperan de forma durable los datos de negocio incluidos en ese archivo.",
@@ -69,6 +70,7 @@ export const cuentaSection: ManualSection = {
       title: "6. Guardar una copia extra en Google Drive",
       paragraphs: [
         "En **Copia extra en Google Drive** puedes conectar Drive y guardar un JSON adicional en tu cuenta de Google.",
+        "En Gratis es una protección especialmente importante porque Factu no guarda el trabajo en su nube. En Pro y Pro+ es una copia adicional a la nube de Factu.",
         "Drive no se usa para iniciar sesión: se conecta aparte, solo desde esta tarjeta, y con permiso limitado a los archivos creados o usados por la app.",
         "La frecuencia se elige en la propia tarjeta: manual, diaria o automática según los cambios importantes. Los automatismos solo funcionan mientras la app está abierta y Google mantiene el permiso activo.",
         "Tras guardar una copia, **Abrir carpeta de copias en Drive** te lleva a la carpeta donde quedan los JSON, para que no tengas que abrir el archivo técnico directamente.",

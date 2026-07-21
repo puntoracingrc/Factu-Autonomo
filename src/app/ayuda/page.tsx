@@ -63,7 +63,7 @@ const QUICK_HELP = [
   {
     title: "Crear cuenta y confirmar email",
     description:
-      "Alta gratis, correo de Supabase, datos locales encontrados y primeros pasos reales.",
+      "Alta gratis, correo de Factu, datos locales encontrados y primeros pasos reales.",
     href: "/ayuda/cuenta",
     action: "Ver cuenta",
     Icon: MailCheck,

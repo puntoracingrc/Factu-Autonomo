@@ -17,7 +17,7 @@ export const primerosPasosSection: ManualSection = {
         "Si entras en la app sin cuenta, puedes crear datos en este navegador. Verás un aviso de **Estás probando sin cuenta** o **Tienes datos guardados solo en este navegador**.",
         "Para trabajar ya con tus datos, ve a **Cuenta** y pulsa **Crear cuenta**. El plan Gratis es una cuenta real sin tarjeta, con límites de uso y email verificado.",
       ],
-      tip: "Cuando creas una cuenta con email, primero recibirás el correo de Supabase que activa el acceso. Tras confirmarlo e iniciar sesión, Factu enviará la bienvenida.",
+      tip: "Cuando creas una cuenta con email, recibirás un correo de Factu para activar el acceso. Tras confirmarlo e iniciar sesión, Factu enviará la bienvenida.",
     },
     {
       title: "2. Abre Ajustes y rellena tus datos",
@@ -62,12 +62,13 @@ export const primerosPasosSection: ManualSection = {
     {
       title: "6. Crea tu cuenta y confirma el email",
       paragraphs: [
-        "Puedes usar la app solo en este dispositivo. Si creas **cuenta y nube**, tus datos pueden sincronizarse entre móvil y PC cuando eliges guardarlos en tu cuenta.",
+        "En **Gratis**, los datos se guardan solo en el navegador de un dispositivo. Crear o confirmar la cuenta no los sube a la nube de Factu: protégelos con una copia manual fuera del dispositivo o con la copia automática opcional en Drive.",
+        "**Pro** añade nube de Factu y sincronización de hasta 2 dispositivos. **Pro+** permite hasta 5 dispositivos sincronizados.",
         "En **Cuenta** tienes bloques separados para **Acceso**, **Plan**, **Sincronización**, **Copias**, **Importación** y **Legal**. Así no tienes que buscar las copias o los documentos legales dentro de Ajustes.",
         "Hasta confirmar el email, la app puede dejarte seguir trabajando en este navegador, pero bloquea nube, Drive, envíos reales y acciones de cuenta.",
-        "Si ya habías creado datos sin cuenta, al entrar te preguntará si quieres **Guardar estos datos en mi cuenta**, descargar una copia o **Seguir solo en este navegador**.",
+        "Si tu plan incluye nube y ya habías creado datos sin cuenta, al entrar podrás elegir **Guardar estos datos en mi cuenta**, descargar una copia o **Seguir solo en este navegador**. En Gratis el trabajo permanece local.",
         "En **Legal** encontrarás términos, privacidad, cookies, encargo de tratamiento y nota VeriFactu.",
-        "Si un móvil u ordenador no refleja lo que ya está bien en otro dispositivo, abre **Problemas de sincronización** en Cuenta y usa la reparación con la copia de la nube.",
+        "En Pro o Pro+, si un dispositivo no refleja lo que ya está bien en otro, abre **Problemas de sincronización** en Cuenta y usa la reparación con la copia de la nube.",
         "Para migrar datos desde programas antiguos, usa **Cuenta → Importar datos** o entra en **Importar datos** desde el menú. La importación de bases de datos externas requiere Pro.",
       ],
       screenshot: {

@@ -43,7 +43,7 @@ const productPillars = [
   {
     title: "Importación y copias",
     description:
-      "Trae datos desde otros programas, guarda copias y conecta Drive si quieres sincronizar móvil y ordenador.",
+      "Trae datos desde otros programas y protege tu trabajo con copias manuales o automáticas en Drive.",
     Icon: UploadCloud,
     tone: "bg-violet-50 text-violet-700",
   },
@@ -61,7 +61,7 @@ const trustItems = [
   "Gratis real, sin tarjeta",
   "Información VeriFactu/SIF; registro y QR desactivados",
   "Email verificado antes de acciones reales",
-  "Datos locales y nube opcional",
+  "Gratis: 1 dispositivo local; Pro: 2 sincronizados; Pro+: 5",
   "Fiscal orientativo, revisable con tu gestor",
 ];
 
@@ -78,13 +78,13 @@ const visitorPath = [
   {
     title: "Crea cuenta gratis",
     description:
-      "Empiezas sin tarjeta. Si tenías datos locales, la app te pregunta antes de guardarlos en tu cuenta.",
+      "Empiezas sin tarjeta y tus datos siguen solo en este navegador. Crear la cuenta no los sube a la nube.",
     Icon: BadgeCheck,
   },
   {
     title: "Confirma tu email",
     description:
-      "Con el correo confirmado se activan las acciones reales: nube, envíos y flujo de trabajo con tus datos.",
+      "Con el correo confirmado se activan las acciones reales. La nube depende del plan: Pro admite 2 dispositivos y Pro+ hasta 5.",
     Icon: ShieldCheck,
   },
 ];

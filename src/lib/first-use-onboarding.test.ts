@@ -90,6 +90,8 @@ describe("first-use onboarding", () => {
       current: true,
       done: false,
       href: "/cuenta#inicio-sesion",
+      description:
+        "Confirma el email de Factu para activar la cuenta y sus acciones reales.",
     });
   });
 
@@ -102,6 +104,9 @@ describe("first-use onboarding", () => {
     });
 
     expect(state.visible).toBe(true);
+    expect(state.steps[0].description).toBe(
+      "La cuenta está confirmada y ya puedes usar acciones reales.",
+    );
     expect(state.steps[1]).toMatchObject({
       id: "profile",
       current: true,

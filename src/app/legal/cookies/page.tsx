@@ -33,12 +33,13 @@ export default function CookiesPage() {
         </p>
         <h2>Cómo borrar datos locales</h2>
         <p>
-          Puedes exportar una copia desde Cuenta. Si borras los
-          datos del sitio desde el navegador, puedes perder el histórico local si
-          no estaba sincronizado o exportado.
+          Puedes exportar una copia desde Cuenta. En el plan Gratis, si borras
+          los datos del sitio desde el navegador sin una copia manual o en
+          Drive, puedes perder el histórico porque no se guarda en la nube de
+          Factu.
         </p>
         <h2>Última actualización</h2>
-        <p>4 de julio de 2026.</p>
+        <p>21 de julio de 2026.</p>
       </Card>
     </div>
   );

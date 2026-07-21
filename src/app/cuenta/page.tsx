@@ -145,7 +145,7 @@ export default function CuentaPage() {
       <AccountSection
         id="sincronizacion-cuenta"
         title="Sincronización"
-        description="La nube de Factu mantiene tus datos entre móvil y ordenador cuando tu cuenta está activa."
+        description="Gratis mantiene los datos en este dispositivo. Pro sincroniza hasta 2 dispositivos y Pro+ hasta 5 con la nube de Factu."
         Icon={RefreshCw}
       >
         <Card className="mb-6 space-y-3 border-sky-100 bg-sky-50/70">
