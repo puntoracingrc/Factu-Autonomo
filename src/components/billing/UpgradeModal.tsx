@@ -73,7 +73,7 @@ export function UpgradeModal({
             <p id={descriptionId} className="text-sm text-slate-600">
               {isScanPackMode
                 ? "Compra un pack extra para seguir usando escaneos y rellenos IA."
-                : "Factura sin límites y sincroniza todos tus dispositivos."}
+                : "Factura sin límites y sincroniza hasta 2 dispositivos con la nube de Factu."}
             </p>
           </div>
         </div>
@@ -102,7 +102,8 @@ export function UpgradeModal({
       ) : (
         <ul className="mb-4 space-y-2 text-sm text-slate-700">
           <li>Documentos y clientes ilimitados</li>
-          <li>Sincronización en la nube (móvil + PC)</li>
+          <li>Nube de Factu para hasta 2 dispositivos sincronizados</li>
+          <li>Copia automática opcional en Google Drive</li>
           <li>Resumen trimestral y export CSV para tu gestor</li>
           <li>Diseñador de plantillas de PDF</li>
           <li>Logo personalizado en PDF</li>

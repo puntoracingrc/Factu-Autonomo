@@ -411,7 +411,7 @@ describe("MVP usability polish", () => {
       "te preguntaremos si quieres guardarlos",
     );
     expect(guestBannerSource).toContain(
-      "te preguntaremos si quieres guardarlos",
+      "Solo se subirán si tu plan incluye nube y tú lo confirmas",
     );
   });
 
@@ -710,7 +710,13 @@ describe("MVP usability polish", () => {
     expect(pricingSource).toContain(
       "Empieza gratis, sube solo cuando te compense",
     );
-    expect(pricingSource).toContain("plan gratuito real");
+    expect(pricingSource).toContain("Un dispositivo local, sin nube de Factu");
+    expect(pricingSource).toContain(
+      "Nube de Factu para hasta 2 dispositivos sincronizados",
+    );
+    expect(pricingSource).toContain(
+      "Nube de Factu para hasta 5 dispositivos sincronizados",
+    );
     expect(pricingSource).toContain("Crear cuenta gratis");
     expect(pricingSource).toContain("Pago gestionado por Stripe");
     expect(pricingSource).toContain("Tus datos bajo control");

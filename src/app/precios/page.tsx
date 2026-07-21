@@ -37,14 +37,14 @@ const PLAN_GUIDE = [
   {
     title: "Empieza gratis",
     description:
-      "Es un plan gratuito real, no una prueba camuflada: cuenta verificada, documentos limitados y sin tarjeta.",
+      "Cuenta verificada y sin tarjeta. Los datos quedan en un dispositivo; protégelos con copia manual o Drive opcional.",
     Icon: MailCheck,
     tone: "bg-blue-50 text-blue-700",
   },
   {
     title: "Pasa a Pro cuando trabajes a diario",
     description:
-      "Para documentos, clientes, productos y nube sin límites de uso normal en un negocio pequeño.",
+      "Añade almacenamiento en la nube de Factu y sincronización de hasta 2 dispositivos.",
     Icon: Crown,
     tone: "bg-violet-50 text-violet-700",
   },
@@ -70,7 +70,8 @@ const TRUST_POINTS = [
   },
   {
     title: "Tus datos bajo control",
-    description: "Puedes trabajar localmente y decidir cuándo usar cuenta o nube.",
+    description:
+      "Gratis es local; Pro sincroniza 2 dispositivos y Pro+ hasta 5.",
     Icon: Database,
   },
   {
@@ -89,7 +90,9 @@ const FREE_FEATURES = [
   "Logo personalizado en PDF",
   "Gastos y resumen acumulado",
   "2 escaneos IA de prueba",
+  "Datos guardados solo en este navegador",
   "Copia manual export/import",
+  "Copia automática opcional en Google Drive",
 ];
 
 const VERIFACTU_PUBLIC_NOTICE =
@@ -103,12 +106,14 @@ const PRO_FEATURES = [
   "Buzón inteligente básico para facturas de proveedores",
   "Importar datos desde otros programas de facturación",
   "Diseñador Pro de plantillas para facturas, presupuestos y recibos",
-  "Sincronización en la nube (móvil + PC)",
+  "Nube de Factu para hasta 2 dispositivos sincronizados",
+  "Copia automática opcional en Google Drive",
   "Resumen trimestral + export CSV",
   "Pruebas temporales mediante código promocional",
 ];
 
 const PRO_PLUS_FEATURES = [
+  "Nube de Factu para hasta 5 dispositivos sincronizados",
   `IA avanzada para gastos y catálogo (${PRO_PLUS_EXPENSE_SCANS_PER_MONTH} escaneos/mes incluidos)`,
   "Lee líneas de factura y permite elegir qué líneas crean producto",
   "Actualiza costes y referencias de proveedor con revisión previa",
@@ -189,9 +194,9 @@ export default function PreciosPage() {
                 Empieza gratis, sube solo cuando te compense
               </h2>
               <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
-                El plan Gratis sirve para empezar de verdad. Si luego necesitas
-                más documentos, nube, importación avanzada o IA, puedes elegir
-                Pro o Pro+ IA con la cuenta ya preparada.
+                Gratis guarda el trabajo en un único dispositivo. Si luego
+                necesitas nube, Pro sincroniza hasta 2 dispositivos y Pro+
+                hasta 5.
               </p>
             </div>
           </div>
@@ -263,7 +268,7 @@ export default function PreciosPage() {
           <h2 className="text-xl font-bold text-slate-900">Gratis</h2>
           <p className="mt-1 text-3xl font-bold text-slate-900">0 €</p>
           <p className="mt-1 text-sm text-slate-500">
-            Para empezar con email verificado, sin tarjeta
+            Un dispositivo local, sin nube de Factu
           </p>
           <ul className="mt-4 space-y-2">
             {FREE_FEATURES.map((feature) => (

@@ -111,6 +111,33 @@ describe("collectAppRecommendations", () => {
     expect(items.some((item) => item.id === "doc-limit-reached")).toBe(true);
   });
 
+  it("protege los datos locales sin prometer nube por crear cuenta", () => {
+    const items = collectAppRecommendations({
+      data: {
+        ...EMPTY_DATA,
+        profile: recommendationProfile,
+        documents: [pendingInvoice()],
+      },
+      cloud: {
+        cloudEnabled: true,
+        hasUser: false,
+        pendingChangeCount: 0,
+      },
+    });
+    const recommendation = items.find((item) => item.id === "cloud-backup");
+
+    expect(recommendation).toMatchObject({
+      title: "Protege tus datos fuera de este dispositivo",
+      href: "/cuenta#copias-cuenta",
+      actionLabel: "Ver copias",
+    });
+    expect(recommendation?.message).toContain(
+      "En Gratis los datos siguen solo en este navegador",
+    );
+    expect(recommendation?.message).toContain("copia automática en Drive");
+    expect(recommendation?.message).not.toContain("Crea una cuenta");
+  });
+
   it("incluye gastos fijos próximos", () => {
     const items = collectAppRecommendations({
       data: {

@@ -429,11 +429,11 @@ function syncRecommendations(
       id: "cloud-backup",
       priority: "info",
       category: "sync",
-      title: "Protege tus datos en la nube",
+      title: "Protege tus datos fuera de este dispositivo",
       message:
-        "Crea una cuenta para hacer copia de seguridad y acceder desde otros dispositivos.",
-      href: "/configuracion",
-      actionLabel: "Activar cuenta",
+        "En Gratis los datos siguen solo en este navegador. Descarga una copia manual o activa la copia automática en Drive.",
+      href: "/cuenta#copias-cuenta",
+      actionLabel: "Ver copias",
     });
   }
 

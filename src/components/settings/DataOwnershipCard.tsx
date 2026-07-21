@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { Download, FileJson, HardDrive, Shield } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useAppStore } from "@/context/AppStore";
 import {
@@ -23,8 +24,12 @@ import { testDocumentRetirementTenantFingerprintForUserId } from "@/lib/test-doc
 
 export function DataOwnershipCard() {
   const { data, getCurrentData, restoreBackupData } = useAppStore();
+  const { limits, loading: billingLoading } = useBilling();
   const { user, cloudEnabled, pauseCloudForLocalRestore } = useCloudSync();
-  const hasCloudSession = Boolean(user);
+  const planIncludesCloud = limits.cloudSync;
+  const hasActiveCloudSession = Boolean(
+    user && !billingLoading && planIncludesCloud,
+  );
   const expectedRetirementTenantFingerprint = user?.id
     ? testDocumentRetirementTenantFingerprintForUserId(user.id)
     : undefined;
@@ -227,7 +232,7 @@ export function DataOwnershipCard() {
       }
       setRestoreFeedback({
         tone: "success",
-        message: hasCloudSession
+        message: hasActiveCloudSession
           ? `Copia restaurada y guardada. Antes se solicitó automáticamente la descarga de ${execution.safetyCopyFilename} con el estado reemplazado. La nube queda en pausa hasta que revises los datos y decidas en Acceso si quieres guardarlos en tu cuenta.`
           : `Copia restaurada y guardada. Antes se solicitó automáticamente la descarga de ${execution.safetyCopyFilename} con el estado reemplazado.`,
       });
@@ -257,32 +262,45 @@ export function DataOwnershipCard() {
         <li className="flex gap-2">
           <HardDrive className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
           <span>
-            <strong>En este dispositivo:</strong> todo se guarda en tu navegador
-            (móvil u ordenador). Funciona sin cuenta. Si borras datos del sitio
-            o cambias de navegador sin copia, puedes perder el histórico.
+            <strong>En este dispositivo:</strong> Factu mantiene los datos de
+            trabajo en tu navegador (móvil u ordenador) para funcionar también
+            de forma local.
           </span>
         </li>
-        {cloudEnabled && (
+        {!billingLoading && !planIncludesCloud ? (
+          <li className="flex gap-2">
+            <Shield className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+            <span>
+              <strong>Plan Gratis:</strong> tus facturas y datos de trabajo no
+              se guardan en la nube de Factu. Solo puedes usar ese histórico en
+              este dispositivo. Protégelo con copias manuales guardadas fuera
+              del dispositivo o con la copia automática opcional en Drive.
+            </span>
+          </li>
+        ) : null}
+        {!billingLoading && planIncludesCloud && cloudEnabled ? (
           <li className="flex gap-2">
             <Shield className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
             <span>
-              <strong>En la nube (opcional):</strong> si creas cuenta, una copia
-              se sincroniza en tu espacio privado.{" "}
-              {hasCloudSession
+              <strong>Plan con nube:</strong> tus datos de trabajo se guardan y
+              sincronizan en tu espacio privado.{" "}
+              {hasActiveCloudSession
                 ? "Solo entra quien tenga tu email y contraseña de esa cuenta."
                 : "Solo tú, con tu email y contraseña."}{" "}
-              Otros usuarios de Factu no ven tus datos.
+              Pro admite hasta 2 dispositivos y Pro+ hasta 5. Otros usuarios de
+              Factu no ven tus datos.
             </span>
           </li>
-        )}
+        ) : null}
         <li className="flex gap-2">
           <Shield className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
           <span>
-            <strong>Contraseña:</strong> si alguien obtiene tu email y
-            contraseña de la cuenta en la nube, podría entrar desde otro
-            dispositivo y ver tu copia sincronizada. Usa una contraseña fuerte y
-            no la compartas. Sin cuenta en la nube, el riesgo es quien use tu
-            móvil u ordenador desbloqueado.
+            <strong>Protege el acceso:</strong>{" "}
+            {billingLoading
+              ? "estamos comprobando qué almacenamiento incluye tu plan."
+              : planIncludesCloud
+                ? "si alguien obtiene el acceso a tu cuenta, podría ver la copia sincronizada. Usa una contraseña fuerte y no la compartas."
+                : "en Gratis, protege este dispositivo y conserva una copia externa actualizada; perder el navegador sin copia puede suponer perder el histórico."}
           </span>
         </li>
       </ul>

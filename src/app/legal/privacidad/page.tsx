@@ -14,7 +14,9 @@ export default function PrivacidadPage() {
       <Card className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700">
         <p>
           Esta política explica cómo se tratan los datos personales al usar
-          {APP_BRAND_NAME}, tanto en modo local como con cuenta en la nube.
+          {" "}
+          {APP_BRAND_NAME}, tanto en el almacenamiento local del plan Gratis
+          como en la nube de los planes Pro y Pro+.
         </p>
         <p>
           <strong>Responsable del servicio:</strong> Alberto Ibáñez de Opacua
@@ -51,8 +53,8 @@ export default function PrivacidadPage() {
             Prestar la app de facturación: ejecución del servicio solicitado.
           </li>
           <li>
-            Sincronizar datos entre dispositivos cuando activas cuenta nube:
-            ejecución del servicio.
+            Guardar y sincronizar datos en la nube cuando usas un plan que la
+            incluye: ejecución del servicio.
           </li>
           <li>
             Gestionar pagos, facturas de suscripción y créditos IA: ejecución
@@ -69,14 +71,18 @@ export default function PrivacidadPage() {
         </ul>
         <h2>Modo local y modo nube</h2>
         <p>
-          {APP_BRAND_NAME} guarda tus datos de facturación en el dispositivo
-          cuando trabajas sin cuenta. Si activas cuenta y sincronización, los
-          datos se guardan también en la nube para poder usarlos desde móvil y
-          ordenador.
+          En el plan Gratis, {APP_BRAND_NAME} guarda las facturas y datos de
+          trabajo solo en el navegador de un dispositivo; crear o confirmar una
+          cuenta no los sube a la nube. Pro añade almacenamiento en servidor y
+          sincronización de hasta 2 dispositivos. Pro+ permite hasta 5
+          dispositivos sincronizados.
         </p>
         <h2>Proveedores</h2>
         <ul>
-          <li>Supabase: autenticación, base de datos y sincronización.</li>
+          <li>
+            Supabase: autenticación de cuentas y, en planes con nube, base de
+            datos y sincronización.
+          </li>
           <li>Stripe: pagos, suscripciones y portal de facturación.</li>
           <li>
             Google Drive: copia extra opcional cuando el usuario la activa. La
@@ -140,10 +146,12 @@ export default function PrivacidadPage() {
         </p>
         <h2>Conservación</h2>
         <p>
-          Los datos se conservan mientras mantengas la cuenta o los datos en el
-          dispositivo. Puedes exportar una copia desde Cuenta. Al borrar
-          la cuenta se eliminarán los datos asociados en la nube, sin perjuicio
-          de obligaciones legales de conservación cuando resulten aplicables.
+          Los datos locales se conservan mientras permanezcan en el navegador.
+          Los datos de planes con nube se conservan mientras mantengas la cuenta
+          o durante los plazos aplicables. Puedes exportar una copia desde
+          Cuenta. Al borrar la cuenta se eliminarán los datos asociados en la
+          nube, si existen, sin perjuicio de obligaciones legales de
+          conservación cuando resulten aplicables.
         </p>
         <h2>Derechos</h2>
         <p>
@@ -162,7 +170,7 @@ export default function PrivacidadPage() {
           previstas por la normativa de protección de datos.
         </p>
         <h2>Última actualización</h2>
-        <p>14 de julio de 2026.</p>
+        <p>21 de julio de 2026.</p>
       </Card>
     </div>
   );

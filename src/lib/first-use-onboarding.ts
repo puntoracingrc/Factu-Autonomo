@@ -103,8 +103,8 @@ export function buildFirstUseOnboardingState({
       id: "email",
       title: emailConfirmed ? "Cuenta activada" : "Confirma tu email",
       description: emailConfirmed
-        ? "La cuenta ya puede usar nube y acciones reales."
-        : "Activa la cuenta desde el correo de Supabase para desbloquear nube y acciones reales.",
+        ? "La cuenta está confirmada y ya puedes usar acciones reales."
+        : "Confirma el email de Factu para activar la cuenta y sus acciones reales.",
       actionLabel: emailConfirmed ? "Ver cuenta" : "Ir a cuenta",
       href: "/cuenta#inicio-sesion",
       done: emailConfirmed,

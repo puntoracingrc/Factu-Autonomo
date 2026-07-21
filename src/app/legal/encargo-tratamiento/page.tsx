@@ -12,14 +12,17 @@ export default function EncargoTratamientoPage() {
         <p>
           Este documento resume el marco de tratamiento de datos cuando el
           usuario usa {APP_BRAND_NAME} para gestionar datos de sus clientes,
-          proveedores y documentos en la nube.
+          proveedores y documentos mediante un plan con nube o una función que
+          envía datos al servicio.
         </p>
         <h2>Roles</h2>
         <p>
           El usuario profesional actúa como responsable del tratamiento de los
           datos que introduce en la app. {APP_BRAND_NAME} actúa como encargado
           del tratamiento cuando almacena, sincroniza o procesa esos datos para
-          prestar el servicio.
+          prestar una función solicitada. En el plan Gratis, los datos de
+          trabajo permanecen en el navegador y no se almacenan en la nube de
+          Factu.
         </p>
         <h2>Objeto del encargo</h2>
         <p>
@@ -49,12 +52,13 @@ export default function EncargoTratamientoPage() {
         </p>
         <h2>Fin del servicio</h2>
         <p>
-          Tras la baja, los datos en nube se eliminarán o bloquearán conforme a
-          los plazos y obligaciones legales aplicables. El usuario puede
-          descargar una copia antes de cerrar su cuenta.
+          Tras la baja, los datos en nube que existan se eliminarán o bloquearán
+          conforme a los plazos y obligaciones legales aplicables. El usuario
+          puede descargar una copia antes de cerrar su cuenta. Los datos locales
+          siguen bajo el control del navegador y el dispositivo del usuario.
         </p>
         <h2>Última actualización</h2>
-        <p>4 de julio de 2026.</p>
+        <p>21 de julio de 2026.</p>
       </Card>
     </div>
   );

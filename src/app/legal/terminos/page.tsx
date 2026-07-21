@@ -35,8 +35,10 @@ export default function TerminosPage() {
           y contables.
         </p>
         <p>
-          <strong>Planes:</strong> el plan Gratis tiene límites de uso. Pro se
-          factura según precios publicados en /precios (+ IVA aplicable). Puedes
+          <strong>Planes:</strong> Gratis guarda los datos de trabajo solo en el
+          navegador de un dispositivo. Pro añade nube y hasta 2 dispositivos
+          sincronizados; Pro+ permite hasta 5. Los planes de pago se facturan
+          según los precios publicados en /precios (+ IVA aplicable). Puedes
           cancelar desde el portal de Stripe.
         </p>
         <p>
@@ -61,9 +63,11 @@ export default function TerminosPage() {
         </p>
         <h2>Cuenta, nube y datos</h2>
         <p>
-          La app puede usarse sin cuenta en modo local. Las funciones de nube,
-          sincronización, suscripción, importación avanzada e IA pueden requerir
-          cuenta e inicio de sesión.
+          Crear o confirmar una cuenta Gratis no sube las facturas ni los datos
+          de trabajo: permanecen en el navegador. Las funciones de nube y
+          sincronización requieren un plan que las incluya, además de cuenta e
+          inicio de sesión. La copia manual y la copia automática opcional en
+          Google Drive son mecanismos distintos de la nube de Factu.
         </p>
         <h2>VeriFactu y normativa</h2>
         <p>
@@ -85,7 +89,7 @@ export default function TerminosPage() {
           estimaciones o por incumplimiento de normativa (VeriFactu, etc.).
         </p>
         <h2>Última actualización</h2>
-        <p>12 de julio de 2026.</p>
+        <p>21 de julio de 2026.</p>
       </Card>
     </div>
   );
