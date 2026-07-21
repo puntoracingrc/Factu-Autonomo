@@ -50,6 +50,7 @@ import { getGoogleAuthClientId } from "@/lib/google-auth/config";
 import { clearDriveAccessToken } from "@/lib/google-drive/backup";
 import {
   registerCurrentCloudDevice,
+  releaseCurrentCloudDeviceSession,
   retireCurrentCloudDevice,
 } from "@/lib/cloud/device-client";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
@@ -319,7 +320,9 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     try {
       const deviceAccess = await registerCurrentCloudDevice();
       if (deviceAccess.allowed === false || deviceAccess.error) {
-        setSyncStatus("idle");
+        setSyncStatus(
+          deviceAccess.reason === "device_session_conflict" ? "error" : "idle",
+        );
         setSyncMessage(
           deviceAccess.message ??
             deviceAccess.error ??
@@ -1429,6 +1432,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const signOut = useCallback(async () => {
     const supabase = await getSupabaseClientAsync();
     if (supabase) {
+      await releaseCurrentCloudDeviceSession();
       const { error } = await supabase.auth.signOut();
       if (error) {
         setSyncStatus("error");

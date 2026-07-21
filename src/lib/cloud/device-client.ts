@@ -2,6 +2,7 @@ import type { CloudDeviceRecord } from "@/lib/cloud/devices";
 import {
   CLOUD_DEVICE_TOKEN_HEADER,
   forgetLocalCloudDeviceToken,
+  getLocalCloudDeviceToken,
   getOrCreateLocalCloudDeviceToken,
 } from "@/lib/cloud/device-token";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
@@ -138,4 +139,26 @@ export async function retireCurrentCloudDevice(): Promise<CloudDeviceApiPayload>
   });
   if (!result.error) forgetLocalCloudDeviceToken();
   return result;
+}
+
+export async function releaseCurrentCloudDeviceSession(): Promise<boolean> {
+  const token = await authToken();
+  const deviceToken = getLocalCloudDeviceToken();
+  if (!token || !deviceToken) return true;
+
+  try {
+    const response = await fetch("/api/cloud/devices/session", {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        [CLOUD_DEVICE_TOKEN_HEADER]: deviceToken,
+      },
+      cache: "no-store",
+      keepalive: true,
+      signal: AbortSignal.timeout(2_500),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
 }

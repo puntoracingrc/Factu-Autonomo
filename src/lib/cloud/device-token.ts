@@ -16,6 +16,11 @@ export function getOrCreateLocalCloudDeviceToken(): string {
   return token;
 }
 
+export function getLocalCloudDeviceToken(): string | null {
+  const existing = localStorage.getItem(CLOUD_DEVICE_TOKEN_STORAGE_KEY);
+  return isValidCloudDeviceToken(existing) ? existing : null;
+}
+
 export function forgetLocalCloudDeviceToken(): void {
   localStorage.removeItem(CLOUD_DEVICE_TOKEN_STORAGE_KEY);
 }

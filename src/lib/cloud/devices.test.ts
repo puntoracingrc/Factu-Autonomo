@@ -2,11 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   cloudDeviceLimitForPlan,
   ensureCloudDeviceAccess,
+  hashCloudDeviceSessionId,
   hashCloudDeviceToken,
   inferCloudDeviceKind,
+  releaseCloudDeviceSessionForUser,
   revokeCloudDeviceForUser,
   revokeCurrentCloudDeviceForUser,
 } from "./devices";
+
+const SESSION_ONE = "11111111-1111-4111-8111-111111111111";
+const SESSION_TWO = "22222222-2222-4222-8222-222222222222";
 
 const serverRepository = vi.hoisted(() => ({
   fetchUserSubscriptionServer: vi.fn(),
@@ -44,6 +49,7 @@ function createFakeAdmin(
   let sequence = rows.length;
   let insertFailed = false;
   const table = [...rows];
+  const leases = new Map<string, string>();
 
   function matches(row: DeviceRow, filters: Array<[string, unknown]>) {
     return filters.every(
@@ -124,7 +130,40 @@ function createFakeAdmin(
 
   return {
     rows: table,
+    leases,
     client: {
+      rpc: (
+        name: string,
+        args: {
+          p_user_id: string;
+          p_token_hash: string;
+          p_session_hash: string;
+        },
+      ) => {
+        const row = table.find(
+          (candidate) =>
+            candidate.user_id === args.p_user_id &&
+            candidate.token_hash === args.p_token_hash,
+        );
+        if (name === "release_cloud_device_session") {
+          if (leases.get(args.p_token_hash) === args.p_session_hash) {
+            leases.delete(args.p_token_hash);
+          }
+          return Promise.resolve({ data: true, error: null });
+        }
+        if (!row) {
+          return Promise.resolve({ data: "device_missing", error: null });
+        }
+        if (row.status === "revoked") {
+          return Promise.resolve({ data: "device_revoked", error: null });
+        }
+        const currentSession = leases.get(args.p_token_hash);
+        if (currentSession && currentSession !== args.p_session_hash) {
+          return Promise.resolve({ data: "session_conflict", error: null });
+        }
+        leases.set(args.p_token_hash, args.p_session_hash);
+        return Promise.resolve({ data: "claimed", error: null });
+      },
       from: () => ({
         select: () => query("select"),
         insert: (payload: unknown) => query("insert", payload),
@@ -151,6 +190,7 @@ describe("cloud devices", () => {
     const result = await ensureCloudDeviceAccess({
       userId: "u1",
       token: "token-token-token-token-token-token",
+      sessionId: SESSION_ONE,
     });
 
     expect(result.allowed).toBe(false);
@@ -171,16 +211,19 @@ describe("cloud devices", () => {
     const first = await ensureCloudDeviceAccess({
       userId: "u1",
       token: "first-token-token-token-token-token-token",
+      sessionId: SESSION_ONE,
       userAgent: "Macintosh",
     });
     const second = await ensureCloudDeviceAccess({
       userId: "u1",
       token: "second-token-token-token-token-token-token",
+      sessionId: SESSION_ONE,
       userAgent: "iPhone Mobile",
     });
     const third = await ensureCloudDeviceAccess({
       userId: "u1",
       token: "third-token-token-token-token-token-token",
+      sessionId: SESSION_ONE,
       userAgent: "iPad",
     });
     expect(first.allowed).toBe(true);
@@ -203,11 +246,73 @@ describe("cloud devices", () => {
     const result = await ensureCloudDeviceAccess({
       userId: "u1",
       token: "same-token-token-token-token-token-token",
+      sessionId: SESSION_ONE,
       userAgent: "Macintosh",
     });
 
     expect(result.allowed).toBe(true);
     expect(fake.rows).toHaveLength(1);
+  });
+
+  it("blocks a copied device token in a second live Supabase session", async () => {
+    const token = "shared-token-token-token-token-token-token";
+    const fake = createFakeAdmin();
+    supabaseAdmin.getSupabaseAdmin.mockReturnValue(fake.client);
+    serverRepository.fetchUserSubscriptionServer.mockResolvedValue({
+      userId: "u1",
+      plan: "pro",
+      status: "active",
+    });
+
+    const first = await ensureCloudDeviceAccess({
+      userId: "u1",
+      token,
+      sessionId: SESSION_ONE,
+    });
+    const copied = await ensureCloudDeviceAccess({
+      userId: "u1",
+      token,
+      sessionId: SESSION_TWO,
+    });
+
+    expect(first.allowed).toBe(true);
+    expect(copied.allowed).toBe(false);
+    if (copied.allowed) throw new Error("expected copied session to be blocked");
+    expect(copied.reason).toBe("device_session_conflict");
+    expect(copied.message).toContain("cambios siguen guardados");
+    expect(fake.leases.get(hashCloudDeviceToken(token))).toBe(
+      hashCloudDeviceSessionId(SESSION_ONE),
+    );
+  });
+
+  it("lets a new session claim the same device after explicit sign-out", async () => {
+    const token = "released-token-token-token-token-token-token";
+    const fake = createFakeAdmin();
+    supabaseAdmin.getSupabaseAdmin.mockReturnValue(fake.client);
+    serverRepository.fetchUserSubscriptionServer.mockResolvedValue({
+      userId: "u1",
+      plan: "pro",
+      status: "active",
+    });
+
+    await ensureCloudDeviceAccess({
+      userId: "u1",
+      token,
+      sessionId: SESSION_ONE,
+    });
+    const released = await releaseCloudDeviceSessionForUser({
+      userId: "u1",
+      currentToken: token,
+      sessionId: SESSION_ONE,
+    });
+    const reclaimed = await ensureCloudDeviceAccess({
+      userId: "u1",
+      token,
+      sessionId: SESSION_TWO,
+    });
+
+    expect(released).toBe(true);
+    expect(reclaimed.allowed).toBe(true);
   });
 
   it("blocks devices outside the current limit after a downgrade", async () => {
@@ -266,6 +371,7 @@ describe("cloud devices", () => {
     const result = await ensureCloudDeviceAccess({
       userId: "u1",
       token: "oldest-token-token-token-token-token-token",
+      sessionId: SESSION_ONE,
     });
 
     expect(result.allowed).toBe(false);
@@ -321,6 +427,7 @@ describe("cloud devices", () => {
     const claimed = await ensureCloudDeviceAccess({
       userId: "u1",
       token: "new-token-token-token-token-token-token",
+      sessionId: SESSION_ONE,
       userAgent: "iPhone Mobile",
     });
 

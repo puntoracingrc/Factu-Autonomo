@@ -3,6 +3,7 @@ import { DELETE, GET, POST } from "./route";
 
 const mocks = vi.hoisted(() => ({
   getUserFromBearer: vi.fn(),
+  getUserSessionFromBearer: vi.fn(),
   checkRateLimit: vi.fn(),
   rateLimitExceededResponse: vi.fn(),
   ensureCloudDeviceAccess: vi.fn(),
@@ -12,6 +13,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/billing/server-auth", () => ({
   getUserFromBearer: mocks.getUserFromBearer,
+  getUserSessionFromBearer: mocks.getUserSessionFromBearer,
 }));
 vi.mock("@/lib/server/rate-limit", () => ({
   checkRateLimit: mocks.checkRateLimit,
@@ -48,6 +50,10 @@ describe("cloud devices route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getUserFromBearer.mockResolvedValue({ id: "user-1" });
+    mocks.getUserSessionFromBearer.mockResolvedValue({
+      user: { id: "user-1" },
+      sessionId: "22222222-2222-4222-8222-222222222222",
+    });
     mocks.checkRateLimit.mockResolvedValue({ allowed: true });
     mocks.listCloudDevicesForUser.mockResolvedValue({
       plan: "pro",
@@ -65,6 +71,15 @@ describe("cloud devices route", () => {
     const response = await GET(request("GET"));
     expect(response.status).toBe(401);
     expect(mocks.listCloudDevicesForUser).not.toHaveBeenCalled();
+  });
+
+  it("requires verified session claims before claiming a device", async () => {
+    mocks.getUserSessionFromBearer.mockResolvedValue(null);
+
+    const response = await POST(request("POST", JSON.stringify({})));
+
+    expect(response.status).toBe(401);
+    expect(mocks.ensureCloudDeviceAccess).not.toHaveBeenCalled();
   });
 
   it("lists only devices for the authenticated user", async () => {
@@ -102,8 +117,27 @@ describe("cloud devices route", () => {
       expect.objectContaining({
         userId: "user-1",
         token: "device-token-token-token-token-token-token",
+        sessionId: "22222222-2222-4222-8222-222222222222",
       }),
     );
+  });
+
+  it("returns a conflict when another session owns the same device token", async () => {
+    mocks.ensureCloudDeviceAccess.mockResolvedValue({
+      allowed: false,
+      plan: "pro",
+      limit: 2,
+      reason: "device_session_conflict",
+      message: "Otra sesión mantiene la concesión",
+      devices: [],
+    });
+
+    const response = await POST(request("POST", JSON.stringify({})));
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      reason: "device_session_conflict",
+    });
   });
 
   it("rejects oversized bodies before claiming a device", async () => {
