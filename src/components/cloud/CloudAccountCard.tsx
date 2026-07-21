@@ -646,8 +646,8 @@ export function CloudAccountCard({
               </>
             ) : (
               <>
-                Puedes probar sin cuenta, pero lo que guardes quedará solo en
-                este navegador hasta que inicies sesión.
+                Puedes probar sin cuenta. En Gratis, lo que guardes seguirá
+                solo en este navegador incluso después de iniciar sesión.
               </>
             )}
           </p>
