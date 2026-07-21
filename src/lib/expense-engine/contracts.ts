@@ -156,6 +156,46 @@ export interface ExpenseLearningHintsV1 {
   readonly formulas: readonly Readonly<ExpenseLearningFormulaV1>[];
 }
 
+export const EXPENSE_LEARNING_HINTS_PROMPT_SCHEMA_V1 = Object.freeze({
+  schemaVersion: EXPENSE_LEARNING_HINTS_SCHEMA_VERSION,
+  layout: Object.freeze({
+    pageMode: Object.freeze([...PAGE_MODES]),
+    readingOrder: Object.freeze([...READING_ORDERS]),
+    regionOrder: Object.freeze({
+      values: Object.freeze([...REGIONS]),
+      maxItems: 8,
+    }),
+    tableCount: Object.freeze([...TABLE_COUNTS]),
+  }),
+  columns: Object.freeze({
+    maxItems: 24,
+    tableRole: Object.freeze([...TABLE_ROLES]),
+    index: Object.freeze({ minimum: 0, maximum: 23 }),
+    role: Object.freeze([...COLUMN_ROLES]),
+    normalizedLabel: Object.freeze([...COLUMN_ROLES]),
+    unit: Object.freeze([...LEARNING_UNITS]),
+    sign: Object.freeze([...SIGN_CONVENTIONS]),
+    confidence: Object.freeze([...CONFIDENCE_BUCKETS]),
+  }),
+  labels: Object.freeze({
+    maxItems: 16,
+    role: Object.freeze([...LABEL_ROLES]),
+    region: Object.freeze([...REGIONS]),
+    confidence: Object.freeze([...CONFIDENCE_BUCKETS]),
+  }),
+  formulas: Object.freeze({
+    maxItems: 16,
+    scope: Object.freeze([...FORMULA_SCOPES]),
+    kind: Object.freeze([...FORMULA_KINDS]),
+    rounding: Object.freeze({
+      mode: Object.freeze([...ROUNDING_MODES]),
+      scale: Object.freeze({ minimum: 0, maximum: 4 }),
+    }),
+    sign: Object.freeze([...SIGN_CONVENTIONS]),
+    confidence: Object.freeze([...CONFIDENCE_BUCKETS]),
+  }),
+});
+
 const STRUCTURAL_ARCHETYPES = [
   "SUMMARY_ONLY",
   "LINE_TABLE",
