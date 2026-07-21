@@ -210,9 +210,7 @@ describe("structured document explanation v2", () => {
       expect(output.sections).toHaveLength(10);
       expect(output.sections.flatMap((item) => item.assertions)).toSatisfy(
         (assertions: readonly { level: string }[]) =>
-          assertions.every(
-            (item) => item.level === "NOT_PROVEN_BY_DOCUMENT",
-          ),
+          assertions.every((item) => item.level === "NOT_PROVEN_BY_DOCUMENT"),
       );
     }
 
@@ -557,11 +555,7 @@ describe("structured document explanation v2", () => {
   it("specializes liability, inspection and census outcomes", () => {
     const cases = [
       ["liability.proposal", "LIABILITY_PROPOSED", "LIABILITY_PROPOSAL"],
-      [
-        "liability.final_resolution",
-        "LIABILITY_DECLARED",
-        "LIABILITY_FINAL",
-      ],
+      ["liability.final_resolution", "LIABILITY_DECLARED", "LIABILITY_FINAL"],
       ["liability.solidary", "LIABILITY_DECLARED", "LIABILITY_SOLIDARY"],
       ["liability.subsidiary", "LIABILITY_PROPOSED", "LIABILITY_SUBSIDIARY"],
       [
@@ -595,11 +589,7 @@ describe("structured document explanation v2", () => {
         "INSPECTION_RESULT_PROPOSED",
         "INSPECTION_ACT_DISAGREEMENT",
       ],
-      [
-        "inspection.assessment",
-        "INSPECTION_ASSESSED",
-        "INSPECTION_ASSESSMENT",
-      ],
+      ["inspection.assessment", "INSPECTION_ASSESSED", "INSPECTION_ASSESSMENT"],
       [
         "registry.tax_registration_resolution",
         "CENSUS_CHANGE_RESOLVED",
@@ -694,6 +684,23 @@ describe("structured document explanation v2", () => {
     expect(JSON.stringify(notified)).not.toContain("createdAt");
   });
 
+  it("explains installment due dates in plain Spanish without exposing the internal trigger", () => {
+    const deferral = explain("collection.deferral_grant", {
+      dates: [
+        { dateType: "ISSUE_DATE", value: "2026-04-20" },
+        { dateType: "INSTALLMENT_DUE_DATE", value: "2026-06-22" },
+      ],
+    });
+
+    expect(deferral.deadlineTriggerAvailable).toBe(true);
+    expect(sectionText(deferral, "DEADLINE")).toContain(
+      "Cada cuota tiene su propio vencimiento impreso",
+    );
+    expect(sectionText(deferral, "DEADLINE")).not.toContain(
+      "INSTALLMENT_DUE_DATE",
+    );
+  });
+
   it("redacts CSV, NRC and bank references and never carries free-text PII", () => {
     const csv = "SYNTHETIC-CSV-PRIVATE-001";
     const nrc = "SYNTHETIC-NRC-PRIVATE-002";
@@ -706,7 +713,11 @@ describe("structured document explanation v2", () => {
       ],
       dates: [{ dateType: "PAYMENT_DATE", value: "2026-07-16" }],
       money: [
-        { moneyType: "PAYMENT_CONFIRMED", amountCents: 12_345, currency: "EUR" },
+        {
+          moneyType: "PAYMENT_CONFIRMED",
+          amountCents: 12_345,
+          currency: "EUR",
+        },
       ],
       factCodes: ["PAYMENT_RESULT"],
       roleCodes: ["ACCOUNT_HOLDER"],
@@ -737,9 +748,7 @@ describe("structured document explanation v2", () => {
       "Justificante de pago: REC202600017.",
     );
     const taxIdDisguisedAsReference = explain("payment.receipt", {
-      references: [
-        { referenceType: "PAYMENT_RECEIPT_ID", value: "00000000T" },
-      ],
+      references: [{ referenceType: "PAYMENT_RECEIPT_ID", value: "00000000T" }],
     });
     expect(JSON.stringify(taxIdDisguisedAsReference)).not.toContain(
       "00000000T",
@@ -772,14 +781,15 @@ describe("structured document explanation v2", () => {
         },
       ],
     };
-    const adapted = adaptFiscalNotificationDocumentExplanationInputV1ToV2(
-      legacy,
-    );
+    const adapted =
+      adaptFiscalNotificationDocumentExplanationInputV1ToV2(legacy);
     expect(JSON.stringify(adapted)).not.toContain(secret);
     const fromLegacy = explainFiscalNotificationDocumentV2FromV1(legacy);
     expect(JSON.stringify(fromLegacy)).not.toContain(secret);
     expect(
-      JSON.stringify(adaptFiscalNotificationDocumentExplanationV2ToV1(fromLegacy)),
+      JSON.stringify(
+        adaptFiscalNotificationDocumentExplanationV2ToV1(fromLegacy),
+      ),
     ).not.toContain(secret);
 
     const legacyAssessment = explainFiscalNotificationDocumentV2FromV1({
@@ -812,8 +822,16 @@ describe("structured document explanation v2", () => {
 
   it("renders calculations only when they are explicitly derived and verified from printed values", () => {
     const printedMoney = [
-      { moneyType: "CREDIT_TOTAL" as const, amountCents: 100_000, currency: "EUR" as const },
-      { moneyType: "OFFSET_APPLIED" as const, amountCents: 40_000, currency: "EUR" as const },
+      {
+        moneyType: "CREDIT_TOTAL" as const,
+        amountCents: 100_000,
+        currency: "EUR" as const,
+      },
+      {
+        moneyType: "OFFSET_APPLIED" as const,
+        amountCents: 40_000,
+        currency: "EUR" as const,
+      },
     ];
     const withoutCalculation = explain("collection.offset_resolution", {
       money: printedMoney,
@@ -852,17 +870,19 @@ describe("structured document explanation v2", () => {
         code: "CALCULATION_RESIDUAL_FROM_PRINTED_AMOUNTS_REMAINING_AFTER_OFFSET",
       }),
     );
-    const adaptedCalculation = adaptFiscalNotificationDocumentExplanationV2ToV1(
-      withCalculation,
-    );
+    const adaptedCalculation =
+      adaptFiscalNotificationDocumentExplanationV2ToV1(withCalculation);
     expect(adaptedCalculation.keyFacts).toContainEqual(
       expect.objectContaining({
         label: "Cálculo a partir de importes impresos",
         basis: "CALCULATED_FROM_PRINTED_VALUES",
       }),
     );
-    expect(adaptedCalculation.keyFacts.map(({ label }) => label).join("\n"))
-      .not.toMatch(/CALCULATION_|RESIDUAL_FROM_PRINTED_AMOUNTS|REMAINING_AFTER_OFFSET/u);
+    expect(
+      adaptedCalculation.keyFacts.map(({ label }) => label).join("\n"),
+    ).not.toMatch(
+      /CALCULATION_|RESIDUAL_FROM_PRINTED_AMOUNTS|REMAINING_AFTER_OFFSET/u,
+    );
 
     expect(() =>
       explain("collection.offset_resolution", {
@@ -916,10 +936,10 @@ describe("structured document explanation v2", () => {
     expect(text).toContain("Fecha de emisión: 05/02/2026.");
     expect(text).toContain("Fecha límite de pago voluntario: 28/02/2026.");
     expect(text).toContain("Principal pendiente: 100,00 €.");
+    expect(text).toContain("Recargo ejecutivo del veinte por ciento: 20,00 €.");
     expect(text).toContain(
-      "Recargo ejecutivo del veinte por ciento: 20,00 €.",
+      "Información sobre recursos consta en el documento.",
     );
-    expect(text).toContain("Información sobre recursos consta en el documento.");
     expect(text).toContain("Órgano emisor figura en el documento.");
     expect(text).not.toMatch(
       /LIQUIDATION_KEY|ISSUE_DATE|VOLUNTARY_PAYMENT_DEADLINE|OUTSTANDING_PRINCIPAL|EXECUTIVE_SURCHARGE_20|APPEAL_INFORMATION|ISSUING_AUTHORITY/u,
@@ -1148,9 +1168,8 @@ describe("structured document explanation v2", () => {
         },
       ],
     };
-    const adapted = adaptFiscalNotificationDocumentExplanationInputV1ToV2(
-      legacy,
-    );
+    const adapted =
+      adaptFiscalNotificationDocumentExplanationInputV1ToV2(legacy);
     expect(adapted).toMatchObject({
       familyId: "collection.enforcement_order",
       printedEffects: [],
@@ -1175,10 +1194,11 @@ describe("structured document explanation v2", () => {
       documentType: "AEAT_SEIZURE_ORDER",
     });
     expect(broadSeizure.familyId).toBe("UNKNOWN");
-    const explicitSeizure = adaptFiscalNotificationDocumentExplanationInputV1ToV2(
-      { ...legacy, documentType: "AEAT_SEIZURE_ORDER" },
-      { familyId: "seizure.bank_account" },
-    );
+    const explicitSeizure =
+      adaptFiscalNotificationDocumentExplanationInputV1ToV2(
+        { ...legacy, documentType: "AEAT_SEIZURE_ORDER" },
+        { familyId: "seizure.bank_account" },
+      );
     expect(explicitSeizure.familyId).toBe("seizure.bank_account");
   });
 });

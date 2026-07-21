@@ -350,7 +350,9 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).toContain("Diligencia de embargo de cuenta bancaria");
     expect(html).toContain("Diligencia de embargo registrada");
     expect(html).toContain("EMB-SYN-UI-001");
-    expect(html).toContain("Deudor principal");
+    expect(html).toContain("Tu papel en el documento");
+    expect(html).toContain("Obligado al pago");
+    expect(html.match(/Tu papel en el documento/gu)).toHaveLength(1);
     expect(html).toContain("Entidad financiera destinataria");
     expect(html).not.toContain("SEIZURE_RECIPIENT_ROLE:");
     expect(html).toContain("Límite del embargo");

@@ -263,8 +263,7 @@ export interface FiscalNotificationDocumentExplanationV2 {
   readonly relationships: readonly FiscalNotificationRelationExplanationV2[];
   readonly officialSources: readonly FiscalNotificationExplanationOfficialSourceV2[];
   readonly deadlineTrigger:
-    | AeatDocumentProfileV1["plainLanguage"]["deadlineRule"]["trigger"]
-    | string;
+    AeatDocumentProfileV1["plainLanguage"]["deadlineRule"]["trigger"] | string;
   readonly deadlineTriggerAvailable: boolean;
   readonly missingData: readonly (
     | "STRUCTURED_FACTS"
@@ -280,8 +279,7 @@ export interface FiscalNotificationDocumentExplanationV2 {
     participantRoles: readonly string[];
   }>;
   readonly ambiguities: readonly (
-    | "CONFLICTING_EFFECT_CODES"
-    | "INCOMPATIBLE_EFFECT_CODE"
+    "CONFLICTING_EFFECT_CODES" | "INCOMPATIBLE_EFFECT_CODE"
   )[];
   readonly documentFactsPolicy: "DOCUMENT_IS_PRIMARY";
   readonly legalContextPolicy: "OFFICIAL_CONTEXT_SEPARATE";
@@ -1275,12 +1273,12 @@ function detectEffectAmbiguities(
 ): {
   readonly compatible: readonly FiscalNotificationPrintedEffectCodeV2[];
   readonly ambiguities: readonly (
-    | "CONFLICTING_EFFECT_CODES"
-    | "INCOMPATIBLE_EFFECT_CODE"
+    "CONFLICTING_EFFECT_CODES" | "INCOMPATIBLE_EFFECT_CODE"
   )[];
 } {
-  const allowed = (EFFECTS_BY_FAMILY[familyId as keyof typeof EFFECTS_BY_FAMILY] ??
-    []) as readonly FiscalNotificationPrintedEffectCodeV2[];
+  const allowed = (EFFECTS_BY_FAMILY[
+    familyId as keyof typeof EFFECTS_BY_FAMILY
+  ] ?? []) as readonly FiscalNotificationPrintedEffectCodeV2[];
   const incompatible = effects.filter((effect) => !allowed.includes(effect));
   const compatible = effects.filter((effect) => allowed.includes(effect));
   const conflict = CONFLICT_GROUPS.some(
@@ -1348,6 +1346,24 @@ function deadlineAvailable(
       return input.dates.some((date) => date.dateType === "INSTALLMENT_DUE_DATE");
     case "FUTURE_EVENT":
       return false;
+  }
+}
+
+function observedDeadlineTriggerText(
+  trigger: AeatDocumentProfileV1["plainLanguage"]["deadlineRule"]["trigger"],
+): string {
+  switch (trigger) {
+    case "INSTALLMENT_DUE_DATE":
+      return "Cada cuota tiene su propio vencimiento impreso.";
+    case "EFFECTIVE_NOTIFICATION_DATE":
+    case "EFFECTIVE_NOTIFICATION_DATE_OR_RECEIPT":
+      return "Consta la fecha efectiva de notificación o recepción que inicia el plazo.";
+    case "EXPLICIT_DUE_DATE":
+      return "Consta un vencimiento explícito en el documento.";
+    case "FUTURE_EVENT":
+      return "El plazo depende de un hecho posterior que debe constar por separado.";
+    case null:
+      return "Este documento no utiliza un disparador de plazo.";
   }
 }
 
@@ -1511,7 +1527,10 @@ export function explainFiscalNotificationDocumentV2(
     input,
   );
   const missingData: Array<
-    "STRUCTURED_FACTS" | "REQUIRED_PROFILE_FIELDS" | "PRINTED_EFFECT" | "DEADLINE_TRIGGER"
+    | "STRUCTURED_FACTS"
+    | "REQUIRED_PROFILE_FIELDS"
+    | "PRINTED_EFFECT"
+    | "DEADLINE_TRIGGER"
   > = [];
   if (structuredItemCount(input) === 0) missingData.push("STRUCTURED_FACTS");
   const missingRequiredFields = missingProfileFields(input, profile);
@@ -1534,10 +1553,7 @@ export function explainFiscalNotificationDocumentV2(
   const keyDataAssertions: FiscalNotificationExplanationAssertionV2[] = [];
   input.references.forEach((reference) => {
     const visibleValue = visibleSimpleReferenceValue(reference);
-    const label = humanProfileFieldLabel(
-      "REFERENCE",
-      reference.referenceType,
-    );
+    const label = humanProfileFieldLabel("REFERENCE", reference.referenceType);
     keyDataAssertions.push(
       assertion(
         `REFERENCE_${reference.referenceType}`,
@@ -1589,10 +1605,7 @@ export function explainFiscalNotificationDocumentV2(
     );
   });
   input.calculatedFromPrintedValues.forEach((calculation) => {
-    const label = humanProfileFieldLabel(
-      "MONEY",
-      calculation.resultMoneyType,
-    );
+    const label = humanProfileFieldLabel("MONEY", calculation.resultMoneyType);
     keyDataAssertions.push(
       assertion(
         `CALCULATION_${calculation.calculationId}_${calculation.resultMoneyType}`,
@@ -1658,7 +1671,7 @@ export function explainFiscalNotificationDocumentV2(
       assertion(
         "DEADLINE_TRIGGER_AVAILABLE",
         "EXPLICIT_IN_DOCUMENT",
-        `El disparador ${profile.plainLanguage.deadlineRule.trigger} está disponible como dato estructurado.`,
+        observedDeadlineTriggerText(profile.plainLanguage.deadlineRule.trigger),
       ),
     );
   } else {
@@ -1679,7 +1692,9 @@ export function explainFiscalNotificationDocumentV2(
   );
 
   const consequenceAssertions: FiscalNotificationExplanationAssertionV2[] = [];
-  if (input.factCodes.some((item) => item.factCode === "EXPLICIT_CONSEQUENCE")) {
+  if (
+    input.factCodes.some((item) => item.factCode === "EXPLICIT_CONSEQUENCE")
+  ) {
     consequenceAssertions.push(
       assertion(
         "EXPLICIT_CONSEQUENCE_PRESENT",
@@ -1690,7 +1705,11 @@ export function explainFiscalNotificationDocumentV2(
   }
   profile.plainLanguage.nonComplianceContext.forEach((text, index) => {
     consequenceAssertions.push(
-      assertion(`OFFICIAL_CONSEQUENCE_CONTEXT_${index + 1}`, "OFFICIAL_CONTEXT", text),
+      assertion(
+        `OFFICIAL_CONSEQUENCE_CONTEXT_${index + 1}`,
+        "OFFICIAL_CONTEXT",
+        text,
+      ),
     );
   });
   if (consequenceAssertions.length === 0) {
@@ -1723,22 +1742,38 @@ export function explainFiscalNotificationDocumentV2(
 
   const sections = Object.freeze([
     section("WHAT_DOCUMENT_SAYS", [
-      assertion("PROFILE_WHAT_IT_IS", "OFFICIAL_CONTEXT", profile.plainLanguage.whatItIs),
+      assertion(
+        "PROFILE_WHAT_IT_IS",
+        "OFFICIAL_CONTEXT",
+        profile.plainLanguage.whatItIs,
+      ),
     ]),
     section("WHY_RECEIVED", [
-      assertion("PROFILE_WHY_RECEIVED", "OFFICIAL_CONTEXT", profile.plainLanguage.whyReceived),
+      assertion(
+        "PROFILE_WHY_RECEIVED",
+        "OFFICIAL_CONTEXT",
+        profile.plainLanguage.whyReceived,
+      ),
     ]),
     section("RESULT", resultAssertions),
     section("KEY_DATA", keyDataAssertions),
     section("NEXT_STEP", [
-      assertion("PROFILE_NEXT_STEP", "OFFICIAL_CONTEXT", profile.plainLanguage.nextStepRule),
+      assertion(
+        "PROFILE_NEXT_STEP",
+        "OFFICIAL_CONTEXT",
+        profile.plainLanguage.nextStepRule,
+      ),
     ]),
     section("DEADLINE", deadlineAssertions),
     section("CONSEQUENCE", consequenceAssertions),
     section(
       "NOT_PROVEN",
       profile.plainLanguage.notProvenByThisDocument.map((text, index) =>
-        assertion(`PROFILE_NOT_PROVEN_${index + 1}`, "NOT_PROVEN_BY_DOCUMENT", text),
+        assertion(
+          `PROFILE_NOT_PROVEN_${index + 1}`,
+          "NOT_PROVEN_BY_DOCUMENT",
+          text,
+        ),
       ),
     ),
     section("RELATIONSHIPS", relationshipAssertions),

@@ -269,6 +269,106 @@ describe("AEAT mathematical integrity engine V11", () => {
     ).not.toContain(referenceEvidence?.evidenceId);
   });
 
+  it("validates a complete non-zero enforcement equation without dropping printed components", () => {
+    const source = input("document:enforcement-complete-non-zero");
+    const document = validate(
+      review("collection.enforcement_order", [
+        moneyField("amount:principal", "OUTSTANDING_PRINCIPAL", 10_000),
+        moneyField("amount:surcharge", "EXECUTIVE_SURCHARGE_20", 2_000),
+        moneyField("amount:interest", "LATE_INTEREST", 500),
+        moneyField("amount:costs", "COSTS", 300),
+        moneyField("amount:payment", "PAYMENT_ON_ACCOUNT", 200),
+        moneyField("amount:total", "TOTAL_CLAIMED", 12_600),
+      ]),
+      source,
+    );
+
+    expect(document.amountReconciliation?.equations[0]).toMatchObject({
+      status: "MATCHED",
+      leftCents: 12_600,
+      rightCents: 12_600,
+      operands: expect.arrayContaining([
+        expect.objectContaining({ role: "INTEREST", amountCents: 500 }),
+        expect.objectContaining({ role: "COSTS", amountCents: 300 }),
+        expect.objectContaining({
+          role: "PAYMENT",
+          sign: -1,
+          amountCents: 200,
+        }),
+      ]),
+    });
+    expect(document.mathematicalIntegrity).toMatchObject({
+      status: "VALIDATED_EXACT",
+      hardFailureCodes: [],
+      persistenceDecision: "ALLOW_CORE",
+    });
+    expect(document.mathematicalIntegrity?.checks).not.toContainEqual(
+      expect.objectContaining({
+        expectedCents: 12_000,
+        observedCents: 12_600,
+      }),
+    );
+  });
+
+  it("validates the three alternative enforcement scenarios without requiring unprinted future costs", () => {
+    const source = input("document:enforcement-alternatives-exact");
+    const document = validate(
+      review("collection.enforcement_order", [
+        moneyField(
+          "real-corpus-v7:OUTSTANDING_PRINCIPAL:1",
+          "OUTSTANDING_PRINCIPAL",
+          11_712,
+        ),
+        moneyField(
+          "real-corpus-v7:ORDINARY_SURCHARGE_20:2",
+          "EXECUTIVE_SURCHARGE_20",
+          2_342,
+        ),
+        formulaMoneyField("ORDINARY_TOTAL", 14_054, 3),
+        formulaMoneyField("REDUCED_10_TOTAL", 12_883, 4),
+        moneyField(
+          "real-corpus-v7:CONDITIONAL_EXECUTIVE_5_SURCHARGE:5",
+          "EXECUTIVE_SURCHARGE_5",
+          586,
+        ),
+      ]),
+      source,
+    );
+
+    expect(document.mathematicalIntegrity).toMatchObject({
+      status: "VALIDATED_EXACT",
+      hardFailureCodes: [],
+      persistenceDecision: "ALLOW_CORE",
+    });
+    expect(document.mathematicalIntegrity?.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: expect.stringContaining("contract-percentage:1"),
+          status: "VALIDATED_EXACT",
+          expectedCents: 2_342,
+          observedCents: 2_342,
+        }),
+        expect.objectContaining({
+          ruleId: expect.stringContaining("contract-base-plus-percentage:3"),
+          status: "VALIDATED_EXACT",
+          expectedCents: 12_883,
+          observedCents: 12_883,
+        }),
+        expect.objectContaining({
+          ruleId: expect.stringContaining("contract-percentage:4"),
+          status: "VALIDATED_EXACT",
+          expectedCents: 586,
+          observedCents: 586,
+        }),
+      ]),
+    );
+    expect(
+      document.mathematicalIntegrity?.checks.some(
+        (check) => check.status === "VALIDATED_PARTIAL_COMPONENTS",
+      ),
+    ).toBe(false);
+  });
+
   it("blocks only an impossible printed sum and leaves every figure unchanged", () => {
     const source = input("document:enforcement-mismatch");
     const fields = [
@@ -365,9 +465,7 @@ describe("AEAT mathematical integrity engine V11", () => {
     );
 
     expect(document.fields.map((field) => field.amountCents)).toEqual([
-      14_955,
-      2_991,
-      17_946,
+      14_955, 2_991, 17_946,
     ]);
     expect(
       document.mathematicalIntegrity?.normalizedEvidence.map(
@@ -393,11 +491,7 @@ describe("AEAT mathematical integrity engine V11", () => {
     const registrySource = input("document:registry-dates");
     const registry = validate(
       review("registry.tax_registration_resolution", [
-        dateField(
-          "real-corpus-v7:REQUEST_DATE:1",
-          "ACTION_DATE",
-          "2026-07-10",
-        ),
+        dateField("real-corpus-v7:REQUEST_DATE:1", "ACTION_DATE", "2026-07-10"),
         dateField(
           "real-corpus-v7:EFFECTIVE_DATE:1",
           "ACTION_DATE",
@@ -653,9 +747,7 @@ describe("AEAT mathematical integrity engine V11", () => {
     );
     const receiptSource = input("document:payment-receipt");
     const receipt = validate(
-      review("payment.receipt", [
-        formulaMoneyField("PAID_AMOUNT", 12_000),
-      ]),
+      review("payment.receipt", [formulaMoneyField("PAID_AMOUNT", 12_000)]),
       receiptSource,
     );
 
@@ -663,8 +755,11 @@ describe("AEAT mathematical integrity engine V11", () => {
     expect(form.mathematicalIntegrity?.status).toBe("REVIEW_REQUIRED");
     expect(receipt.mathematicalIntegrity?.status).toBe("REVIEW_REQUIRED");
     expect(
-      [form, receipt].flatMap((document) =>
-        document.mathematicalIntegrity?.checks.map((check) => check.safeMessage) ?? [],
+      [form, receipt].flatMap(
+        (document) =>
+          document.mathematicalIntegrity?.checks.map(
+            (check) => check.safeMessage,
+          ) ?? [],
       ),
     ).not.toContain("Pago confirmado");
   });
@@ -690,9 +785,7 @@ describe("AEAT mathematical integrity engine V11", () => {
       persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
     });
     expect(document.fields.map((field) => field.amountCents)).toEqual([
-      10_000,
-      3_000,
-      6_000,
+      10_000, 3_000, 6_000,
     ]);
   });
 
@@ -768,10 +861,16 @@ describe("AEAT mathematical integrity engine V11", () => {
     }
     expect(declarativeReviewOnlyCoverage.length).toBeGreaterThan(300);
     expect(
-      formulaCoverage.find(
-        (entry) => entry.familyId === "seizure.release",
-      )?.handling,
+      formulaCoverage.find((entry) => entry.familyId === "seizure.release")
+        ?.handling,
     ).toBe("AUTOMATIC_AMOUNT_ORDER");
+    expect(
+      formulaCoverage.find(
+        (entry) =>
+          entry.familyId === "collection.enforcement_order" &&
+          entry.formula.startsWith("ORDINARY_TOTAL ="),
+      )?.handling,
+    ).toBe("DECLARED_REVIEW_ONLY");
     expect(
       declarativeReviewOnlyCoverage.every(
         (entry) =>
@@ -790,9 +889,7 @@ describe("AEAT mathematical integrity engine V11", () => {
         const family = AEAT_MATHEMATICAL_INTEGRITY_CATALOG_V11.families.find(
           (candidate) => candidate.archetypeId === archetype.id,
         )!;
-        const positiveSource = input(
-          `document:fixture:${family.id}:positive`,
-        );
+        const positiveSource = input(`document:fixture:${family.id}:positive`);
         const positive = validate(
           review(family.id, [referenceField()]),
           positiveSource,
@@ -805,7 +902,11 @@ describe("AEAT mathematical integrity engine V11", () => {
         try {
           negative = validate(
             review(family.id, [
-              moneyField("amount:false-identifier", "TOTAL_CLAIMED", 4_640_245_700),
+              moneyField(
+                "amount:false-identifier",
+                "TOTAL_CLAIMED",
+                4_640_245_700,
+              ),
               dateField("date:negative-fixture", "ISSUE_DATE", "2026-07-01"),
             ]),
             negativeSource,
@@ -827,7 +928,10 @@ describe("AEAT mathematical integrity engine V11", () => {
         return [
           Object.freeze({ scenario: "POSITIVE" as const, document: positive }),
           Object.freeze({ scenario: "NEGATIVE" as const, document: negative }),
-          Object.freeze({ scenario: "INCOMPLETE" as const, document: incomplete }),
+          Object.freeze({
+            scenario: "INCOMPLETE" as const,
+            document: incomplete,
+          }),
         ];
       },
     );
@@ -841,14 +945,17 @@ describe("AEAT mathematical integrity engine V11", () => {
         fixtures
           .filter(
             (fixture) =>
-              fixture.document.mathematicalIntegrity?.archetypeId === archetype.id,
+              fixture.document.mathematicalIntegrity?.archetypeId ===
+              archetype.id,
           )
           .map((fixture) => fixture.scenario),
         archetype.id,
       ).toEqual(["POSITIVE", "NEGATIVE", "INCOMPLETE"]);
     }
     for (const fixture of fixtures) {
-      expect(fixture.document.mathematicalIntegrity?.hardFailureCodes).toEqual([]);
+      expect(fixture.document.mathematicalIntegrity?.hardFailureCodes).toEqual(
+        [],
+      );
       if (fixture.scenario === "NEGATIVE") {
         expect(fixture.document.fields).toHaveLength(1);
         expect(
@@ -863,7 +970,11 @@ describe("AEAT mathematical integrity engine V11", () => {
         );
       }
     }
-    expect(JSON.stringify(fixtures.map((fixture) => fixture.document.mathematicalIntegrity))).not.toMatch(
+    expect(
+      JSON.stringify(
+        fixtures.map((fixture) => fixture.document.mathematicalIntegrity),
+      ),
+    ).not.toMatch(
       /\b(?:\d{8}[A-Z]|ES\d{22}|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})\b/iu,
     );
   });

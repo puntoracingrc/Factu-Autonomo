@@ -30,6 +30,7 @@ export function serializableRealCorpusReference(
 export function canonicalRealCorpusReferenceType(
   fieldCode: string,
 ): CanonicalType {
+  if (fieldCode === "PAYMENT_FORM_MODEL") return "PAYMENT_FORM_MODEL";
   if (/PAYMENT_FORM_REFERENCE|PAYMENT_REFERENCE/u.test(fieldCode)) {
     return "PAYMENT_FORM_REFERENCE";
   }
@@ -46,7 +47,11 @@ export function canonicalRealCorpusReferenceType(
     return "NOTIFICATION_ID";
   }
   if (/UNDERLYING_ACT_REFERENCE/u.test(fieldCode)) return "ACT_ID";
-  if (/AGREEMENT_ID|REPLACES_AGREEMENT_ID|OFFSET_REFERENCE|RESOLUTION_REFERENCE|REFUND_DECISION_REFERENCE/u.test(fieldCode)) {
+  if (
+    /AGREEMENT_ID|REPLACES_AGREEMENT_ID|OFFSET_REFERENCE|RESOLUTION_REFERENCE|REFUND_DECISION_REFERENCE/u.test(
+      fieldCode,
+    )
+  ) {
     return "AGREEMENT_ID";
   }
   if (/FINAL_ASSESSMENT_REFERENCE|ACT_ID|DOCUMENT_REFERENCE/u.test(fieldCode)) {
@@ -55,7 +60,11 @@ export function canonicalRealCorpusReferenceType(
   if (/REGISTRY_ID/u.test(fieldCode)) return "REGISTRY_ID";
   if (/FILING_RECEIPT/u.test(fieldCode)) return "FILING_RECEIPT_ID";
   if (/PAYMENT_RECEIPT/u.test(fieldCode)) return "PAYMENT_RECEIPT_ID";
-  if (/TAX_MODEL|RELATED_MODEL|REQUEST_MODEL|SOURCE_MODEL|EXPECTED_MODEL/u.test(fieldCode)) {
+  if (
+    /TAX_MODEL|RELATED_MODEL|REQUEST_MODEL|SOURCE_MODEL|EXPECTED_MODEL/u.test(
+      fieldCode,
+    )
+  ) {
     return "MODEL";
   }
   if (/FISCAL_YEAR/u.test(fieldCode)) return "FISCAL_YEAR";

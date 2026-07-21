@@ -554,19 +554,78 @@ function v5Fields(
   denied: RealCorpusDeniedDebtV5 | null,
   cited: readonly RealCorpusExistingExecutiveDebtV5[],
 ): readonly RealCorpusFieldV2[] {
+  const liquidationKey = firstValue(index, ["Clave de liquidación"]);
+  const debtKey = firstValue(index, ["Clave de deuda"]);
   const fields: (RealCorpusFieldV2 | null)[] = [
-    ...baseFields,
-    dateField("ISSUE_DATE", "Fecha del documento", firstValue(index, ["Fecha de emisión", "Fecha del documento"])),
-    dateField("ACTION_DATE", "Fecha del acto", firstValue(index, ["Fecha del acto", "Fecha del acuerdo"])),
-    dateField("VOLUNTARY_END_DATE", "Fin del período voluntario", firstValue(index, ["Fin del período voluntario", "Vencimiento voluntario"])),
-    referenceField("DEBT_KEY", "Clave de deuda", firstValue(index, ["Clave de deuda", "Clave de liquidación"])),
-    moneyField("OUTSTANDING_PRINCIPAL", "Principal pendiente", firstValue(index, ["Principal pendiente"])),
-    moneyField("ORDINARY_SURCHARGE_20", "Recargo ordinario del 20 %", firstValue(index, ["Recargo ordinario del 20 %", "Recargo de apremio ordinario"])),
-    moneyField("ORDINARY_TOTAL", "Total con recargo ordinario", firstValue(index, ["Total ordinario", "Total con recargo ordinario"])),
-    moneyField("REDUCED_10_TOTAL", "Importe con recargo reducido", firstValue(index, ["Total con recargo reducido 10 %", "Importe con recargo reducido"])),
-    moneyField("CONDITIONAL_EXECUTIVE_5_SURCHARGE", "Recargo del 5 % si el principal ya se pagó", firstValue(index, ["Recargo ejecutivo 5 %", "Recargo del 5 %"])),
-    referenceField("PAYMENT_FORM_REFERENCE", "Referencia de la carta de pago", firstValue(index, ["Referencia de pago", "Referencia de la carta de pago"])),
-    moneyField("SEIZED_AMOUNT", "Importe embargado", firstValue(index, ["Importe a embargar", "Límite del embargo"])),
+    ...baseFields.filter(
+      (field) => !(liquidationKey && field.fieldCode === "DEBT_KEY"),
+    ),
+    dateField(
+      "ISSUE_DATE",
+      "Fecha del documento",
+      firstValue(index, ["Fecha de emisión", "Fecha del documento"]),
+    ),
+    dateField(
+      "ACTION_DATE",
+      "Fecha del acto",
+      firstValue(index, ["Fecha del acto", "Fecha del acuerdo"]),
+    ),
+    dateField(
+      "VOLUNTARY_END_DATE",
+      "Fin del período voluntario",
+      firstValue(index, [
+        "Fin del período voluntario",
+        "Vencimiento voluntario",
+      ]),
+    ),
+    referenceField("LIQUIDATION_KEY", "Clave de liquidación", liquidationKey),
+    referenceField("DEBT_KEY", "Clave de deuda", debtKey),
+    moneyField(
+      "OUTSTANDING_PRINCIPAL",
+      "Principal pendiente",
+      firstValue(index, ["Principal pendiente"]),
+    ),
+    moneyField(
+      "ORDINARY_SURCHARGE_20",
+      "Recargo de apremio ordinario del 20 %",
+      firstValue(index, [
+        "Recargo ordinario del 20 %",
+        "Recargo de apremio ordinario",
+      ]),
+    ),
+    moneyField(
+      "ORDINARY_TOTAL",
+      "Total con recargo ordinario",
+      firstValue(index, ["Total ordinario", "Total con recargo ordinario"]),
+    ),
+    moneyField(
+      "REDUCED_10_TOTAL",
+      "Importe con recargo reducido",
+      firstValue(index, [
+        "Total con recargo reducido 10 %",
+        "Importe con recargo reducido",
+      ]),
+    ),
+    moneyField(
+      "CONDITIONAL_EXECUTIVE_5_SURCHARGE",
+      "Recargo ejecutivo del 5 %",
+      firstValue(index, ["Recargo ejecutivo 5 %", "Recargo del 5 %"]),
+    ),
+    referenceField(
+      "PAYMENT_FORM_REFERENCE",
+      "Número de la carta de pago",
+      firstValue(index, [
+        "Número de la carta de pago",
+        "Número de referencia",
+        "Referencia de pago",
+        "Referencia de la carta de pago",
+      ]),
+    ),
+    moneyField(
+      "SEIZED_AMOUNT",
+      "Importe embargado",
+      firstValue(index, ["Importe a embargar", "Límite del embargo"]),
+    ),
   ];
   if (familyId === "collection.deferral_denial") {
     fields.push(
@@ -626,7 +685,10 @@ function v5Fields(
         "RESPONSE_OBLIGATION",
         "Obligación de contestar",
         "Debe contestar",
-        firstContaining(index, ["OBLIGACIÓN DE CONTESTAR", "OBLIGACION DE CONTESTAR"]),
+        firstContaining(index, [
+          "OBLIGACIÓN DE CONTESTAR",
+          "OBLIGACION DE CONTESTAR",
+        ]),
       ),
     );
   }

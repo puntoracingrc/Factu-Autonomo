@@ -313,7 +313,7 @@ function paymentFormReferenceField(
 ): RealCorpusFieldV2 | null {
   const labeled = coalescedReferenceField(
     "PAYMENT_FORM_REFERENCE",
-    "Referencia de la carta de pago",
+    "Número de la carta de pago",
     values(index, [
       "Referencia de carta de pago",
       "Referencia de pago",
@@ -354,7 +354,7 @@ function paymentFormReferenceField(
   }
   return coalescedReferenceField(
     "PAYMENT_FORM_REFERENCE",
-    "Referencia de la carta de pago",
+    "Número de la carta de pago",
     sources,
   );
 }
@@ -1172,70 +1172,170 @@ function subtype(familyId: RealCorpusFamilyIdV7, index: DocumentIndexV7): RealCo
   return "FINAL_PROVISIONAL_ASSESSMENT_WITH_PAYMENT_FORM_COPIES";
 }
 
-function fieldsFor(index: DocumentIndexV7, familyId: RealCorpusFamilyIdV7, baseFields: readonly RealCorpusFieldV2[], offsetRows: readonly RealCorpusOffsetRowV7[], bankSeizure: RealCorpusBankSeizureV7 | null): readonly RealCorpusFieldV2[] {
+function fieldsFor(
+  index: DocumentIndexV7,
+  familyId: RealCorpusFamilyIdV7,
+  baseFields: readonly RealCorpusFieldV2[],
+  offsetRows: readonly RealCorpusOffsetRowV7[],
+  bankSeizure: RealCorpusBankSeizureV7 | null,
+): readonly RealCorpusFieldV2[] {
+  const baseFieldCodes = new Set(baseFields.map((field) => field.fieldCode));
   const fields: (RealCorpusFieldV2 | null)[] = [
     ...baseFields,
-    dateField("ISSUE_DATE", "Fecha del documento", documentIssueDateSource(index)),
-    dateField("PUBLICATION_DATE", "Fecha de publicación", first(index, ["Fecha de publicación"])),
-    dateField("EFFECTIVE_NOTIFICATION_DATE", "Fecha efectiva de notificación", first(index, ["Fecha efectiva de notificación"])),
-    dateField("SIGNATURE_DATE", "Fecha de firma", documentSigningDateSource(index)),
-    paymentFormReferenceField(index),
+    baseFieldCodes.has("ISSUE_DATE")
+      ? null
+      : dateField(
+          "ISSUE_DATE",
+          "Fecha del documento",
+          documentIssueDateSource(index),
+        ),
+    dateField(
+      "PUBLICATION_DATE",
+      "Fecha de publicación",
+      first(index, ["Fecha de publicación"]),
+    ),
+    dateField(
+      "EFFECTIVE_NOTIFICATION_DATE",
+      "Fecha efectiva de notificación",
+      first(index, ["Fecha efectiva de notificación"]),
+    ),
+    dateField(
+      "SIGNATURE_DATE",
+      "Fecha de firma",
+      documentSigningDateSource(index),
+    ),
+    baseFieldCodes.has("PAYMENT_FORM_REFERENCE")
+      ? null
+      : paymentFormReferenceField(index),
     paymentFormLiquidationKeyField(index),
   ];
-  if (familyId === "sanction.initiation_and_hearing") fields.push(
-    referenceField("SANCTION_REFERENCE", "Referencia del expediente sancionador", first(index, ["Referencia del expediente sancionador", "Número de expediente", "Referencia"])),
-    moneyField("INITIAL_FINE_PROPOSAL", "Sanción propuesta", first(index, ["Sanción propuesta"]) ?? firstMoneyAfter(index, ["PROPUESTA", "SANCIÓN"])),
-    moneyField("PROPOSED_REDUCTION", "Reducción propuesta", first(index, ["Reducción propuesta"]) ?? firstMatching(index, ["REDUCCIÓN"], hasPrintedMoney)),
-    moneyField("PROPOSED_REDUCED_FINE", "Sanción reducida propuesta", first(index, ["Sanción reducida propuesta"]) ?? firstMatching(index, ["SANCIÓN", "REDUCIDA"], hasPrintedMoney)),
-    integerField("ALLEGATION_BUSINESS_DAYS", "Días hábiles para alegaciones", businessDaysSource(index)),
-  );
-  if (familyId === "compliance.formal_filing_requirement") fields.push(
-    referenceField(
-      "PROCEDURE_ID",
-      "Referencia del procedimiento",
-      firstSafeReferenceSource(index, [
+  if (familyId === "sanction.initiation_and_hearing")
+    fields.push(
+      referenceField(
+        "SANCTION_REFERENCE",
+        "Referencia del expediente sancionador",
+        first(index, [
+          "Referencia del expediente sancionador",
+          "Número de expediente",
+          "Referencia",
+        ]),
+      ),
+      moneyField(
+        "INITIAL_FINE_PROPOSAL",
+        "Sanción propuesta",
+        first(index, ["Sanción propuesta"]) ??
+          firstMoneyAfter(index, ["PROPUESTA", "SANCIÓN"]),
+      ),
+      moneyField(
+        "PROPOSED_REDUCTION",
+        "Reducción propuesta",
+        first(index, ["Reducción propuesta"]) ??
+          firstMatching(index, ["REDUCCIÓN"], hasPrintedMoney),
+      ),
+      moneyField(
+        "PROPOSED_REDUCED_FINE",
+        "Sanción reducida propuesta",
+        first(index, ["Sanción reducida propuesta"]) ??
+          firstMatching(index, ["SANCIÓN", "REDUCIDA"], hasPrintedMoney),
+      ),
+      integerField(
+        "ALLEGATION_BUSINESS_DAYS",
+        "Días hábiles para alegaciones",
+        businessDaysSource(index),
+      ),
+    );
+  if (familyId === "compliance.formal_filing_requirement")
+    fields.push(
+      referenceField(
+        "PROCEDURE_ID",
         "Referencia del procedimiento",
-        "Referencia del documento",
-        "Referencia",
-      ]) ?? historicalProcedureReference(index),
-    ),
-    referenceField(
-      "REQUEST_MODEL",
-      "Modelo tributario",
-      matchedSource(index, ["MODELO"], /\bMODELO\s+(\d{3})\b/u),
-    ),
-    integerField(
-      "RESPONSE_BUSINESS_DAYS",
-      "Días hábiles para responder",
-      businessDaysSource(index),
-    ),
-    textField(
-      "LEGAL_EFFECT",
-      "Efecto indicado",
-      "No constituye deuda ni sanción",
-      firstContaining(index, ["NO CONSTITUYE DEUDA NI SANCIÓN", "NO CONSTITUYE DEUDA NI SANCION"]),
-    ),
-  );
-  if (familyId === "seizure.bank_account" && bankSeizure) fields.push(
-    referenceField("SEIZURE_ORDER_ID", "Número de diligencia", first(index, ["Número de diligencia"])),
-    referenceField("DEBT_KEY", "Clave de deuda", first(index, ["Clave de deuda"])),
-    moneyField("DEBT_TOTAL", "Total de la deuda", first(index, ["Total de la deuda"])),
-    moneyField("SEIZE_LIMIT", "Límite del embargo", first(index, ["Límite del embargo"])),
-    moneyField("SEIZED_AMOUNT", "Importe embargado", first(index, ["Importe embargado"])),
-    integerField("OPAQUE_ASSET_ORDINAL", "Cuenta o depósito", first(index, ["Ordinal opaco del activo"])),
-  );
-  if (familyId === "collection.enforcement_order") fields.push(
-    referenceField("DEBT_KEY", "Clave de deuda", first(index, ["Clave de deuda"])),
-    dateField("VOLUNTARY_END_DATE", "Fin del período voluntario", first(index, ["Fin del período voluntario", "Vencimiento ajustado"])),
-    moneyField("PRINCIPAL", "Principal pendiente", first(index, ["Principal pendiente"])),
-    textField(
-      "ENFORCEMENT_SCOPE",
-      "Alcance",
-      "Principal restante del plan",
-      firstContaining(index, ["PRINCIPAL RESTANTE DEL PLAN"]),
-    ),
-  );
-  if (familyId === "collection.offset_ex_officio" || familyId === "collection.offset_requested") {
+        firstSafeReferenceSource(index, [
+          "Referencia del procedimiento",
+          "Referencia del documento",
+          "Referencia",
+        ]) ?? historicalProcedureReference(index),
+      ),
+      referenceField(
+        "REQUEST_MODEL",
+        "Modelo tributario",
+        matchedSource(index, ["MODELO"], /\bMODELO\s+(\d{3})\b/u),
+      ),
+      integerField(
+        "RESPONSE_BUSINESS_DAYS",
+        "Días hábiles para responder",
+        businessDaysSource(index),
+      ),
+      textField(
+        "LEGAL_EFFECT",
+        "Efecto indicado",
+        "No constituye deuda ni sanción",
+        firstContaining(index, [
+          "NO CONSTITUYE DEUDA NI SANCIÓN",
+          "NO CONSTITUYE DEUDA NI SANCION",
+        ]),
+      ),
+    );
+  if (familyId === "seizure.bank_account" && bankSeizure)
+    fields.push(
+      referenceField(
+        "SEIZURE_ORDER_ID",
+        "Número de diligencia",
+        first(index, ["Número de diligencia"]),
+      ),
+      referenceField(
+        "DEBT_KEY",
+        "Clave de deuda",
+        first(index, ["Clave de deuda"]),
+      ),
+      moneyField(
+        "DEBT_TOTAL",
+        "Total de la deuda",
+        first(index, ["Total de la deuda"]),
+      ),
+      moneyField(
+        "SEIZE_LIMIT",
+        "Límite del embargo",
+        first(index, ["Límite del embargo"]),
+      ),
+      moneyField(
+        "SEIZED_AMOUNT",
+        "Importe embargado",
+        first(index, ["Importe embargado"]),
+      ),
+      integerField(
+        "OPAQUE_ASSET_ORDINAL",
+        "Cuenta o depósito",
+        first(index, ["Ordinal opaco del activo"]),
+      ),
+    );
+  if (familyId === "collection.enforcement_order")
+    fields.push(
+      referenceField(
+        "DEBT_KEY",
+        "Clave de deuda",
+        first(index, ["Clave de deuda"]),
+      ),
+      dateField(
+        "VOLUNTARY_END_DATE",
+        "Fin del período voluntario",
+        first(index, ["Fin del período voluntario", "Vencimiento ajustado"]),
+      ),
+      moneyField(
+        "PRINCIPAL",
+        "Principal pendiente",
+        first(index, ["Principal pendiente"]),
+      ),
+      textField(
+        "ENFORCEMENT_SCOPE",
+        "Alcance",
+        "Principal restante del plan",
+        firstContaining(index, ["PRINCIPAL RESTANTE DEL PLAN"]),
+      ),
+    );
+  if (
+    familyId === "collection.offset_ex_officio" ||
+    familyId === "collection.offset_requested"
+  ) {
     fields.push(
       referenceField(
         "AGREEMENT_ID",
@@ -1250,129 +1350,241 @@ function fieldsFor(index: DocumentIndexV7, familyId: RealCorpusFamilyIdV7, baseF
       ),
     );
   }
-  if ((familyId === "collection.offset_ex_officio" || familyId === "collection.offset_requested") && offsetRows.length > 0) {
-    fields.push(moneyField("OFFSET_CREDIT_APPLIED", "Crédito aplicado", first(index, ["Crédito aplicado"])));
-    offsetRows.forEach((row, position) => fields.push(
-      Object.freeze({ fieldCode: `OFFSET_DEBT_KEY_${position + 1}`, label: `Deuda afectada ${position + 1}`, kind: "REFERENCE" as const, value: row.debtKey, evidence: evidence(row.pageNumber) }),
-      Object.freeze({ fieldCode: `OFFSET_BEFORE_${position + 1}`, label: `Importe anterior ${position + 1}`, kind: "MONEY" as const, amountCents: row.beforeCents, currency: "EUR" as const, evidence: evidence(row.pageNumber) }),
-      Object.freeze({ fieldCode: `OFFSET_APPLIED_${position + 1}`, label: `Compensación aplicada ${position + 1}`, kind: "MONEY" as const, amountCents: row.appliedCents, currency: "EUR" as const, evidence: evidence(row.pageNumber) }),
-      Object.freeze({ fieldCode: `OFFSET_REMAINING_${position + 1}`, label: `Saldo pendiente ${position + 1}`, kind: "MONEY" as const, amountCents: row.remainingCents, currency: "EUR" as const, evidence: evidence(row.pageNumber) }),
-    ));
-  }
-  if (familyId === "collection.offset_requested") fields.push(
-    referenceField("OFFSET_REFERENCE", "Referencia del documento", first(index, ["Referencia del documento", "Referencia de la compensación"])),
-  );
-  if (familyId === "registry.tax_registration_resolution") fields.push(
-    referenceField(
-      "ACT_ID",
-      "Referencia del acto",
-      first(index, [
-        "Referencia de la resolución",
-        "Referencia del documento",
-        "Referencia",
-      ]),
-    ),
-    referenceField(
-      "REQUEST_MODEL",
-      "Modelo tributario",
-      first(index, ["Modelo de solicitud"]) ??
-        matchedSource(index, ["MODELO"], /\bMODELO\s+(\d{3})\b/u),
-    ),
-    dateField(
-      "REQUEST_DATE",
-      "Fecha de solicitud",
-      first(index, ["Fecha de solicitud"]) ??
-        datedLine(index, ["DECLARACIÓN", "MODELO"]),
-    ),
-    dateField(
-      "EFFECTIVE_DATE",
-      "Fecha de efectos",
-      first(index, ["Fecha de efectos"]) ?? datedLine(index, ["EFECTOS"]),
-    ),
-  );
-  if (familyId === "collection.deferral_grant" || familyId === "collection.deferral_modification") fields.push(
-    referenceField(
-      "AGREEMENT_ID",
-      "Referencia del acuerdo",
-      first(index, [
-        "Referencia del acuerdo",
-        "Número de expediente",
-        "Nº de expediente",
-      ]),
-    ),
-    referenceField("DEBT_KEY", "Clave de deuda", first(index, ["Clave de deuda", "Número liquidación"])),
-    moneyField("PLAN_PRINCIPAL", "Principal del plan", first(index, ["Principal original", "Principal del plan"]) ?? historicalDeferralTotals(index)?.principal ?? null),
-    moneyField("PLAN_INTEREST", "Intereses del plan", first(index, ["Intereses del aplazamiento", "Intereses del plan"]) ?? historicalDeferralTotals(index)?.interest ?? interestAnnexTotalSource(index)),
-    moneyField("PLAN_TOTAL", "Total del plan", first(index, ["Total del plan"]) ?? historicalDeferralTotals(index)?.total ?? null),
-    ...(familyId === "collection.deferral_modification" ? [
-      referenceField("REPLACES_AGREEMENT_ID", "Acuerdo sustituido", first(index, ["Acuerdo sustituido"])),
-      observedTextField(
-        "SCHEDULE_STATE",
-        "Estado del calendario",
-        first(index, ["Estado del calendario"]),
+  if (
+    (familyId === "collection.offset_ex_officio" ||
+      familyId === "collection.offset_requested") &&
+    offsetRows.length > 0
+  ) {
+    fields.push(
+      moneyField(
+        "OFFSET_CREDIT_APPLIED",
+        "Crédito aplicado",
+        first(index, ["Crédito aplicado"]),
       ),
-    ] : []),
-  );
-  if (familyId === "collection.external_debt") fields.push(
-    referenceField("EXTERNAL_DEBT_REFERENCE", "Clave de deuda", first(index, ["Referencia de la deuda externa", "Clave de deuda", "Clave de liquidación"])),
-    textField(
-      "ORIGINATING_AUTHORITY",
-      "Organismo de origen",
-      "Otro organismo público",
-      firstContaining(index, ["DEUDA DE OTRO ORGANISMO", "SEGURIDAD SOCIAL", "ORGANISMO"]),
-    ),
-    textField(
-      "COLLECTION_AUTHORITY",
-      "Organismo recaudador",
-      "AEAT",
-      firstContaining(index, ["RECAUDACIÓN AEAT", "RECAUDACION AEAT", "AGENCIA TRIBUTARIA"]),
-    ),
-    moneyField("EXTERNAL_PRINCIPAL", "Principal pendiente", first(index, ["Principal pendiente"])),
-    moneyField("EXTERNAL_ORDINARY_TOTAL", "Total con recargo ordinario", first(index, ["Total con recargo ordinario", "Importe total"])),
-  );
-  if (familyId === "compliance.document_request") fields.push(
-    referenceField(
-      "PROCEDURE_ID",
-      "Referencia del procedimiento",
-      firstSafeReferenceSource(index, [
-        "Referencia del procedimiento",
+    );
+    offsetRows.forEach((row, position) =>
+      fields.push(
+        Object.freeze({
+          fieldCode: `OFFSET_DEBT_KEY_${position + 1}`,
+          label: `Deuda afectada ${position + 1}`,
+          kind: "REFERENCE" as const,
+          value: row.debtKey,
+          evidence: evidence(row.pageNumber),
+        }),
+        Object.freeze({
+          fieldCode: `OFFSET_BEFORE_${position + 1}`,
+          label: `Importe anterior ${position + 1}`,
+          kind: "MONEY" as const,
+          amountCents: row.beforeCents,
+          currency: "EUR" as const,
+          evidence: evidence(row.pageNumber),
+        }),
+        Object.freeze({
+          fieldCode: `OFFSET_APPLIED_${position + 1}`,
+          label: `Compensación aplicada ${position + 1}`,
+          kind: "MONEY" as const,
+          amountCents: row.appliedCents,
+          currency: "EUR" as const,
+          evidence: evidence(row.pageNumber),
+        }),
+        Object.freeze({
+          fieldCode: `OFFSET_REMAINING_${position + 1}`,
+          label: `Saldo pendiente ${position + 1}`,
+          kind: "MONEY" as const,
+          amountCents: row.remainingCents,
+          currency: "EUR" as const,
+          evidence: evidence(row.pageNumber),
+        }),
+      ),
+    );
+  }
+  if (familyId === "collection.offset_requested")
+    fields.push(
+      referenceField(
+        "OFFSET_REFERENCE",
         "Referencia del documento",
-        "Referencia",
-      ]) ?? historicalProcedureReference(index),
-    ),
-    integerField(
-      "RESPONSE_BUSINESS_DAYS",
-      "Días hábiles para responder",
-      businessDaysSource(index),
-    ),
-    textField(
-      "ASSESSMENT_START",
-      "Inicio de comprobación",
-      "No inicia procedimiento de comprobación",
-      firstMatching(
-        index,
-        ["REQUERIMIENTO", "NO", "COMPROBACIÓN TRIBUTARIA"],
-        () => true,
-      ) ??
-        firstContaining(index, [
-          "NO INICIA PROCEDIMIENTO DE COMPROBACIÓN",
-          "NO INICIA PROCEDIMIENTO DE COMPROBACION",
+        first(index, [
+          "Referencia del documento",
+          "Referencia de la compensación",
         ]),
-    ),
-  );
+      ),
+    );
+  if (familyId === "registry.tax_registration_resolution")
+    fields.push(
+      referenceField(
+        "ACT_ID",
+        "Referencia del acto",
+        first(index, [
+          "Referencia de la resolución",
+          "Referencia del documento",
+          "Referencia",
+        ]),
+      ),
+      referenceField(
+        "REQUEST_MODEL",
+        "Modelo tributario",
+        first(index, ["Modelo de solicitud"]) ??
+          matchedSource(index, ["MODELO"], /\bMODELO\s+(\d{3})\b/u),
+      ),
+      dateField(
+        "REQUEST_DATE",
+        "Fecha de solicitud",
+        first(index, ["Fecha de solicitud"]) ??
+          datedLine(index, ["DECLARACIÓN", "MODELO"]),
+      ),
+      dateField(
+        "EFFECTIVE_DATE",
+        "Fecha de efectos",
+        first(index, ["Fecha de efectos"]) ?? datedLine(index, ["EFECTOS"]),
+      ),
+    );
+  if (
+    familyId === "collection.deferral_grant" ||
+    familyId === "collection.deferral_modification"
+  )
+    fields.push(
+      referenceField(
+        "AGREEMENT_ID",
+        "Referencia del acuerdo",
+        first(index, [
+          "Referencia del acuerdo",
+          "Número de expediente",
+          "Nº de expediente",
+        ]),
+      ),
+      referenceField(
+        "DEBT_KEY",
+        "Clave de deuda",
+        first(index, ["Clave de deuda", "Número liquidación"]),
+      ),
+      moneyField(
+        "PLAN_PRINCIPAL",
+        "Principal del plan",
+        first(index, ["Principal original", "Principal del plan"]) ??
+          historicalDeferralTotals(index)?.principal ??
+          null,
+      ),
+      moneyField(
+        "PLAN_INTEREST",
+        "Intereses del plan",
+        first(index, ["Intereses del aplazamiento", "Intereses del plan"]) ??
+          historicalDeferralTotals(index)?.interest ??
+          interestAnnexTotalSource(index),
+      ),
+      moneyField(
+        "PLAN_TOTAL",
+        "Total del plan",
+        first(index, ["Total del plan"]) ??
+          historicalDeferralTotals(index)?.total ??
+          null,
+      ),
+      ...(familyId === "collection.deferral_modification"
+        ? [
+            referenceField(
+              "REPLACES_AGREEMENT_ID",
+              "Acuerdo sustituido",
+              first(index, ["Acuerdo sustituido"]),
+            ),
+            observedTextField(
+              "SCHEDULE_STATE",
+              "Estado del calendario",
+              first(index, ["Estado del calendario"]),
+            ),
+          ]
+        : []),
+    );
+  if (familyId === "collection.external_debt")
+    fields.push(
+      referenceField(
+        "EXTERNAL_DEBT_REFERENCE",
+        "Clave de deuda",
+        first(index, [
+          "Referencia de la deuda externa",
+          "Clave de deuda",
+          "Clave de liquidación",
+        ]),
+      ),
+      textField(
+        "ORIGINATING_AUTHORITY",
+        "Organismo de origen",
+        "Otro organismo público",
+        firstContaining(index, [
+          "DEUDA DE OTRO ORGANISMO",
+          "SEGURIDAD SOCIAL",
+          "ORGANISMO",
+        ]),
+      ),
+      textField(
+        "COLLECTION_AUTHORITY",
+        "Organismo recaudador",
+        "AEAT",
+        firstContaining(index, [
+          "RECAUDACIÓN AEAT",
+          "RECAUDACION AEAT",
+          "AGENCIA TRIBUTARIA",
+        ]),
+      ),
+      moneyField(
+        "EXTERNAL_PRINCIPAL",
+        "Principal pendiente",
+        first(index, ["Principal pendiente"]),
+      ),
+      moneyField(
+        "EXTERNAL_ORDINARY_TOTAL",
+        "Total con recargo ordinario",
+        first(index, ["Total con recargo ordinario", "Importe total"]),
+      ),
+    );
+  if (familyId === "compliance.document_request")
+    fields.push(
+      referenceField(
+        "PROCEDURE_ID",
+        "Referencia del procedimiento",
+        firstSafeReferenceSource(index, [
+          "Referencia del procedimiento",
+          "Referencia del documento",
+          "Referencia",
+        ]) ?? historicalProcedureReference(index),
+      ),
+      integerField(
+        "RESPONSE_BUSINESS_DAYS",
+        "Días hábiles para responder",
+        businessDaysSource(index),
+      ),
+      textField(
+        "ASSESSMENT_START",
+        "Inicio de comprobación",
+        "No inicia procedimiento de comprobación",
+        firstMatching(
+          index,
+          ["REQUERIMIENTO", "NO", "COMPROBACIÓN TRIBUTARIA"],
+          () => true,
+        ) ??
+          firstContaining(index, [
+            "NO INICIA PROCEDIMIENTO DE COMPROBACIÓN",
+            "NO INICIA PROCEDIMIENTO DE COMPROBACION",
+          ]),
+      ),
+    );
   if (familyId === "compliance.document_request") {
-    const allowedCategories = new Set(["INVOICES", "RECORD_BOOKS", "BANK_RECORDS", "SUPPORTING_DOCUMENTS"]);
+    const allowedCategories = new Set([
+      "INVOICES",
+      "RECORD_BOOKS",
+      "BANK_RECORDS",
+      "SUPPORTING_DOCUMENTS",
+    ]);
     values(index, ["Categoría documental"]).forEach((line, position) => {
       const value = normalize(line.raw).replace(/\s+/gu, "_");
-      const display = value === "INVOICES"
-        ? "Facturas"
-        : value === "RECORD_BOOKS"
-          ? "Libros registro"
-          : value === "BANK_RECORDS"
-            ? "Documentación bancaria"
-            : value === "SUPPORTING_DOCUMENTS"
-              ? "Justificantes"
-              : null;
+      const display =
+        value === "INVOICES"
+          ? "Facturas"
+          : value === "RECORD_BOOKS"
+            ? "Libros registro"
+            : value === "BANK_RECORDS"
+              ? "Documentación bancaria"
+              : value === "SUPPORTING_DOCUMENTS"
+                ? "Justificantes"
+                : null;
       if (allowedCategories.has(value) && display) {
         fields.push(
           textField(
@@ -1388,41 +1600,92 @@ function fieldsFor(index: DocumentIndexV7, familyId: RealCorpusFamilyIdV7, baseF
   if (familyId === "assessment.final_provisional_assessment") {
     const assessmentReason = first(index, ["Motivo de regularización"]);
     fields.push(
-    referenceField("FINAL_ASSESSMENT_REFERENCE", "Referencia del acto", first(index, ["Referencia de la liquidación final", "Referencia del documento", "Referencia"])),
-    moneyField("ASSESSMENT_QUOTA", "Cuota final", first(index, ["Cuota liquidada", "Cuota"])),
-    moneyField("ASSESSMENT_INTEREST", "Intereses de demora", first(index, ["Intereses de demora"])),
-    moneyField("ASSESSMENT_TOTAL", "Total del documento", first(index, ["Total a ingresar"])),
-    moneyField("REJECTED_CARRYFORWARD", "Saldo declarado rechazado", first(index, ["Saldo declarado rechazado"])),
-    assessmentReason &&
-      /(?:SALDO|CANTIDAD).*(?:NO ADMITID[AO]|RECHAZAD[AO])/u.test(assessmentReason.normalized)
-      ? textField(
-          "ASSESSMENT_REASON",
-          "Hecho o fundamento 1",
-          "Saldo declarado de otro ejercicio no admitido",
-          assessmentReason,
+      referenceField(
+        "FINAL_ASSESSMENT_REFERENCE",
+        "Referencia del acto",
+        first(index, [
+          "Referencia de la liquidación final",
+          "Referencia del documento",
+          "Referencia",
+        ]),
+      ),
+      moneyField(
+        "ASSESSMENT_QUOTA",
+        "Cuota final",
+        first(index, ["Cuota liquidada", "Cuota"]),
+      ),
+      moneyField(
+        "ASSESSMENT_INTEREST",
+        "Intereses de demora",
+        first(index, ["Intereses de demora"]),
+      ),
+      moneyField(
+        "ASSESSMENT_TOTAL",
+        "Total del documento",
+        first(index, ["Total a ingresar"]),
+      ),
+      moneyField(
+        "REJECTED_CARRYFORWARD",
+        "Saldo declarado rechazado",
+        first(index, ["Saldo declarado rechazado"]),
+      ),
+      assessmentReason &&
+        /(?:SALDO|CANTIDAD).*(?:NO ADMITID[AO]|RECHAZAD[AO])/u.test(
+          assessmentReason.normalized,
         )
-      : null,
+        ? textField(
+            "ASSESSMENT_REASON",
+            "Hecho o fundamento 1",
+            "Saldo declarado de otro ejercicio no admitido",
+            assessmentReason,
+          )
+        : null,
     );
   }
   for (const line of values(index, ["Modelo y período"])) {
     const value = safeReference(line.raw.replace(/\s+/gu, ""));
-    if (value) fields.push(Object.freeze({ fieldCode: "MODEL_PERIOD", label: "Modelo y período", kind: "REFERENCE" as const, value, evidence: evidence(line.pageNumber) }));
+    if (value)
+      fields.push(
+        Object.freeze({
+          fieldCode: "MODEL_PERIOD",
+          label: "Modelo y período",
+          kind: "REFERENCE" as const,
+          value,
+          evidence: evidence(line.pageNumber),
+        }),
+      );
   }
-  for (const line of values(index, ["Ejercicio solicitado"])) {
-    const value = parseInteger(line.raw, 2100);
-    if (value !== null && value >= 1900) fields.push(Object.freeze({ fieldCode: "REQUESTED_YEAR", label: "Ejercicio solicitado", kind: "INTEGER" as const, value, evidence: evidence(line.pageNumber) }));
-  }
-  for (const line of index.lines) {
-    if (!line.normalized.includes("EJERCICIO")) continue;
-    for (const match of line.normalized.matchAll(/\b((?:19|20)\d{2})\b/gu)) {
-      const value = Number(match[1]);
-      fields.push(Object.freeze({
-        fieldCode: "REQUESTED_YEAR",
-        label: "Ejercicio solicitado",
-        kind: "INTEGER" as const,
-        value,
-        evidence: evidence(line.pageNumber),
-      }));
+  if (
+    familyId === "compliance.formal_filing_requirement" ||
+    familyId === "compliance.document_request"
+  ) {
+    for (const line of values(index, ["Ejercicio solicitado"])) {
+      const value = parseInteger(line.raw, 2100);
+      if (value !== null && value >= 1900)
+        fields.push(
+          Object.freeze({
+            fieldCode: "REQUESTED_YEAR",
+            label: "Ejercicio solicitado",
+            kind: "INTEGER" as const,
+            value,
+            evidence: evidence(line.pageNumber),
+          }),
+        );
+    }
+    for (const line of index.lines) {
+      if (!line.normalized.includes("EJERCICIO")) continue;
+      for (const match of line.normalized.matchAll(/\b((?:19|20)\d{2})\b/gu)) {
+        const value = Number(match[1]);
+        fields.push(
+          Object.freeze({
+            fieldCode: "REQUESTED_YEAR",
+            label: "Ejercicio solicitado",
+            kind: "INTEGER" as const,
+            value,
+            evidence: evidence(line.pageNumber),
+          }),
+        );
+      }
     }
   }
   return compactFields(fields);

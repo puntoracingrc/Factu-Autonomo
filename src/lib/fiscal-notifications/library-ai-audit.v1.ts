@@ -115,6 +115,7 @@ export interface FiscalNotificationLibraryAiAuditInputV1 {
             | "NONE"
             | "LINEAR_EQUALITY"
             | "PERCENTAGE_EQUALITY"
+            | "BASE_PLUS_PERCENTAGE"
             | "ZERO_EQUALITY"
             | "AMOUNT_ORDER"
             | "DATE_ORDER"
@@ -1460,6 +1461,13 @@ function projectAuditIntegrityCalculation(
         operator: "EQUALS",
         rateBasisPoints: calculation.rateBasisPoints,
       });
+    case "BASE_PLUS_PERCENTAGE":
+      return Object.freeze({
+        kind: calculation.kind,
+        expression: `${type(calculation.resultEvidenceId)} = ${type(calculation.baseEvidenceId)} + ${type(calculation.baseEvidenceId)} * ${calculation.rateBasisPoints} / 10000`,
+        operator: "EQUALS",
+        rateBasisPoints: calculation.rateBasisPoints,
+      });
     case "ZERO_EQUALITY":
       return Object.freeze({
         kind: calculation.kind,
@@ -1500,6 +1508,7 @@ function parseAuditIntegrityCalculation(
     "NONE",
     "LINEAR_EQUALITY",
     "PERCENTAGE_EQUALITY",
+    "BASE_PLUS_PERCENTAGE",
     "ZERO_EQUALITY",
     "AMOUNT_ORDER",
     "DATE_ORDER",
@@ -1524,7 +1533,10 @@ function parseAuditIntegrityCalculation(
       (!Number.isSafeInteger(value.rateBasisPoints) ||
         Number(value.rateBasisPoints) <= 0 ||
         Number(value.rateBasisPoints) > 100_000)) ||
-    (value.kind === "PERCENTAGE_EQUALITY") !== (value.rateBasisPoints !== null)
+    ["PERCENTAGE_EQUALITY", "BASE_PLUS_PERCENTAGE"].includes(
+      String(value.kind),
+    ) !==
+      (value.rateBasisPoints !== null)
   ) {
     return null;
   }

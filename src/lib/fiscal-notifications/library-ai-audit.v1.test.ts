@@ -131,6 +131,22 @@ function readyLibrary(): FiscalNotificationDocumentLibraryViewModelV1 {
       automaticPassLimit: 2,
       normalizedEvidence: [
         {
+          evidenceId: "math-v11:synthetic-principal",
+          sourceFieldFingerprint: `sha256:${"d".repeat(64)}`,
+          semantic: "MONEY",
+          canonicalType: "OUTSTANDING_PRINCIPAL",
+          originalClassification: "OUTSTANDING_PRINCIPAL",
+          amountCents: 13_595,
+          dateValue: null,
+          countValue: null,
+          sign: "POSITIVE",
+          currency: "EUR",
+          sourcePart: "MAIN_ADMINISTRATIVE_ACT",
+          pageNumbers: [2],
+          assertionType: "NORMALIZED",
+          originalConfidence: 0.99,
+        },
+        {
           evidenceId: "math-v11:synthetic-amount",
           sourceFieldFingerprint: `sha256:${"c".repeat(64)}`,
           semantic: "MONEY",
@@ -152,20 +168,19 @@ function readyLibrary(): FiscalNotificationDocumentLibraryViewModelV1 {
           ruleId: "v11:enforcement-scenarios:arithmetic:1",
           checkKind: "ARITHMETIC",
           status: "VALIDATED_EXACT",
-          operands: [{ evidenceId: "math-v11:synthetic-amount" }],
+          operands: [
+            { evidenceId: "math-v11:synthetic-principal" },
+            { evidenceId: "math-v11:synthetic-amount" },
+          ],
           expectedCents: 14_955,
           observedCents: 14_955,
           deltaCents: 0,
           toleranceCents: 0,
           calculation: {
-            kind: "LINEAR_EQUALITY",
+            kind: "BASE_PLUS_PERCENTAGE",
             resultEvidenceId: "math-v11:synthetic-amount",
-            terms: [
-              {
-                evidenceId: "math-v11:synthetic-amount",
-                sign: 1,
-              },
-            ],
+            baseEvidenceId: "math-v11:synthetic-principal",
+            rateBasisPoints: 1_000,
           },
           safeMessage: "Los importes cuadran con las cifras impresas.",
         },
@@ -390,14 +405,24 @@ describe("library AI audit v1", () => {
           deltaCents: 0,
           toleranceCents: 0,
           calculation: {
-            kind: "LINEAR_EQUALITY",
-            expression: "DOCUMENT_TOTAL = DOCUMENT_TOTAL",
+            kind: "BASE_PLUS_PERCENTAGE",
+            expression:
+              "DOCUMENT_TOTAL = OUTSTANDING_PRINCIPAL + OUTSTANDING_PRINCIPAL * 1000 / 10000",
             operator: "EQUALS",
-            rateBasisPoints: null,
+            rateBasisPoints: 1_000,
           },
           pages: [2],
           sourceParts: ["MAIN_ADMINISTRATIVE_ACT"],
           evidence: [
+            {
+              semantic: "MONEY",
+              canonicalType: "OUTSTANDING_PRINCIPAL",
+              amountCents: 13_595,
+              dateValue: null,
+              countValue: null,
+              pages: [2],
+              sourcePart: "MAIN_ADMINISTRATIVE_ACT",
+            },
             {
               semantic: "MONEY",
               canonicalType: "DOCUMENT_TOTAL",

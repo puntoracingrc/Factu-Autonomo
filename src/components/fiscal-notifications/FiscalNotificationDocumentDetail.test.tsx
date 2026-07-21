@@ -62,6 +62,13 @@ describe("FiscalNotificationDocumentDetail UI contract", () => {
     expect(source).not.toContain("text-[clamp(");
   });
 
+  it("separa reconocimiento, comprobación matemática y revisión personal", () => {
+    expect(source).toContain("Documento reconocido");
+    expect(source).toContain("Importes comprobados");
+    expect(source).toContain("showInstallmentSurcharge");
+    expect(viewModelSource).toContain("Primera cuota del calendario");
+  });
+
   it("mantiene identidad, importes, relaciones y procedencia fuera del JSX", () => {
     for (const expected of [
       "projectFiscalNotificationDocumentDetailV1",

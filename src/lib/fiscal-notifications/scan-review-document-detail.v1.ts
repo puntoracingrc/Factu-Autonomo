@@ -16,9 +16,11 @@ import {
   FISCAL_NOTIFICATION_DETAIL_PREVIEW_LIMIT_V1,
   FISCAL_NOTIFICATION_DETAIL_TABLE_LIMIT_V1,
   classifyFiscalNotificationDetailFactV1,
+  fiscalNotificationDetailPrimaryDateLabelV1,
   fiscalNotificationDetailCategoryLabelV1,
   fiscalNotificationDetailNatureLabelV1,
   maskFiscalNotificationDetailValueV1,
+  projectFiscalNotificationFamilyExplanationV1,
   projectFiscalNotificationDetailIntegrityV11,
   type FiscalNotificationDetailAmountRowV1,
   type FiscalNotificationDetailEconomyV1,
@@ -75,9 +77,9 @@ const NOTIFICATION_DATE_PRIORITY = Object.freeze([
 const HEADER_LABELS = Object.freeze({
   issuingUnit: /\b(?:organo|unidad|dependencia|administracion)\b/u,
   act: /\b(?:acto principal|tipo de acto|procedimiento)\b/u,
-  model: /\bmodelo\b/u,
-  period: /\bperiodo\b/u,
-  exercise: /\bejercicio\b/u,
+  model: /^(?:modelo tributario|modelo)$/u,
+  period: /^(?:periodo fiscal|periodo)$/u,
+  exercise: /^(?:ejercicio fiscal|ejercicio)$/u,
 });
 const HUMAN_DISPLAY_VALUES: Readonly<Record<string, string>> = Object.freeze({
   DIRECT_DEBIT: "Domiciliación bancaria",
@@ -152,7 +154,7 @@ export function projectFiscalNotificationScanReviewDocumentDetailV1(input: {
     }
     const groupId = classifyFiscalNotificationDetailFactV1(field);
     const group = grouped.get(groupId) ?? [];
-    group.push(projectField(field));
+    appendUniqueDisplayField(group, projectField(field, document.familyId));
     grouped.set(groupId, group);
   }
   const factGroups = GROUP_ORDER.flatMap(
@@ -217,18 +219,23 @@ export function projectFiscalNotificationScanReviewDocumentDetailV1(input: {
         explanationText(explanation, "WHAT_DOCUMENT_SAYS") ??
         cleanText(document.subtitle) ??
         "Documento fiscal reconocido a partir de sus datos impresos.",
-      authority: formatAuthority(authority ? displayValue(authority) : null),
+      authority: formatAuthority(
+        authority ? displayValue(authority) : profile ? "AEAT" : null,
+      ),
       issuingUnit: issuingUnit ? displayValue(issuingUnit) : null,
-      primaryDateLabel: primaryDate?.label ?? "Fecha del documento",
+      primaryDateLabel: fiscalNotificationDetailPrimaryDateLabelV1(
+        document.familyId,
+        primaryDate?.label ?? "Fecha del documento",
+      ),
       primaryDateValue: primaryDate
         ? displayValue(primaryDate)
         : "Fecha pendiente",
       primaryDateProvenance: primaryDate
-        ? projectField(primaryDate).provenance
+        ? projectField(primaryDate, document.familyId).provenance
         : null,
       reviewStatus: "PENDING" as const,
-      reviewLabel: "Pendiente de revisar antes de guardar",
-      originalLabel: "Original no guardado",
+      reviewLabel: "Revisión personal pendiente",
+      originalLabel: "Original disponible durante el análisis",
       metadata: Object.freeze(metadata),
     }),
     factGroups: Object.freeze(factGroups),
@@ -236,7 +243,11 @@ export function projectFiscalNotificationScanReviewDocumentDetailV1(input: {
     integrity: projectFiscalNotificationDetailIntegrityV11(
       document.mathematicalIntegrity ?? null,
     ),
-    explanation: projectExplanation(explanation, statusField),
+    explanation: projectFiscalNotificationFamilyExplanationV1(
+      document.familyId,
+      economy,
+      projectExplanation(explanation, statusField),
+    ),
     connections:
       officialSources.length === 0
         ? null
@@ -259,6 +270,38 @@ export function projectFiscalNotificationScanReviewDocumentDetailV1(input: {
       driveFileId: null,
     }),
   });
+}
+
+function appendUniqueDisplayField(
+  fields: FiscalNotificationDetailFieldV1[],
+  candidate: FiscalNotificationDetailFieldV1,
+): void {
+  const existingIndex = fields.findIndex(
+    (field) =>
+      normalizeText(field.label) === normalizeText(candidate.label) &&
+      normalizeText(field.value) === normalizeText(candidate.value),
+  );
+  if (existingIndex >= 0) {
+    const existing = fields[existingIndex]!;
+    const pageNumbers = Object.freeze(
+      [
+        ...new Set([
+          ...(existing.provenance.pageNumbers ?? [existing.provenance.pageNumber]),
+          ...(candidate.provenance.pageNumbers ?? [candidate.provenance.pageNumber]),
+        ]),
+      ].sort((left, right) => left - right),
+    );
+    fields[existingIndex] = Object.freeze({
+      ...existing,
+      provenance: Object.freeze({
+        ...existing.provenance,
+        pageNumber: pageNumbers[0]!,
+        pageNumbers,
+      }),
+    });
+    return;
+  }
+  fields.push(candidate);
 }
 
 function projectExplanation(
@@ -335,63 +378,55 @@ function projectEconomy(
     reconciledAmounts.add(totals.surchargeCents);
     reconciledAmounts.add(totals.totalCents);
   }
-  const rows: FiscalNotificationDetailAmountRowV1[] = fields
-    .filter(
-      (field) =>
-        field.semantic === "MONEY" &&
-        !(
-          document.amountReconciliation?.installments.length &&
-          field.amountCents !== null &&
-          reconciledAmounts.has(field.amountCents) &&
-          /principal|base|interes|recargo|cuota|total|plan/u.test(
-            normalizeText(field.label),
-          )
-        ),
-    )
-    .map((field) =>
-      Object.freeze({
-        key: field.fieldId,
-        label: field.label,
-        value: displayValue(field),
-        currencyLabel: field.currency === "EUR" ? "EUR" : "No indicada",
-        sourceReference: null,
-        pageNumbers: Object.freeze([...field.sourcePageNumbers]),
-      }),
-    );
+  const rows: FiscalNotificationDetailAmountRowV1[] = deduplicateAmountRows(
+    fields
+      .filter(
+        (field) =>
+          field.semantic === "MONEY" &&
+          !(
+            document.amountReconciliation?.installments.length &&
+            field.amountCents !== null &&
+            reconciledAmounts.has(field.amountCents) &&
+            /principal|base|interes|recargo|cuota|total|plan/u.test(
+              normalizeText(field.label),
+            )
+          ),
+      )
+      .map((field) =>
+        Object.freeze({
+          key: field.fieldId,
+          label: field.label,
+          value: displayValue(field),
+          currencyLabel: field.currency === "EUR" ? "EUR" : "No indicada",
+          sourceReference: null,
+          pageNumbers: Object.freeze([...field.sourcePageNumbers]),
+        }),
+      ),
+  );
   const installments = document.amountReconciliation?.installments.length
     ? document.amountReconciliation.installments.map((installment) =>
         Object.freeze({
           key: installment.sourceFieldId,
           label: `Cuota ${installment.sequence}`,
           dueDate: formatIsoDate(installment.dueDate),
-          dueDatePageNumbers: Object.freeze([
-            ...installment.sourcePageNumbers,
-          ]),
+          dueDatePageNumbers: Object.freeze([...installment.sourcePageNumbers]),
           total: formatCents(installment.totalCents),
-          totalPageNumbers: Object.freeze([
-            ...installment.sourcePageNumbers,
-          ]),
+          totalPageNumbers: Object.freeze([...installment.sourcePageNumbers]),
           components: Object.freeze([
             Object.freeze({
               label: "Principal",
               value: formatCents(installment.principalCents),
-              pageNumbers: Object.freeze([
-                ...installment.sourcePageNumbers,
-              ]),
+              pageNumbers: Object.freeze([...installment.sourcePageNumbers]),
             }),
             Object.freeze({
               label: "Intereses de demora",
               value: formatCents(installment.interestCents),
-              pageNumbers: Object.freeze([
-                ...installment.sourcePageNumbers,
-              ]),
+              pageNumbers: Object.freeze([...installment.sourcePageNumbers]),
             }),
             Object.freeze({
               label: "Recargo ejecutivo",
               value: formatCents(installment.surchargeCents),
-              pageNumbers: Object.freeze([
-                ...installment.sourcePageNumbers,
-              ]),
+              pageNumbers: Object.freeze([...installment.sourcePageNumbers]),
             }),
           ]),
           pageNumbers: Object.freeze([...installment.sourcePageNumbers]),
@@ -412,6 +447,9 @@ function projectEconomy(
         pageNumbers: Object.freeze([...totals.sourcePageNumbers]),
       })
     : null;
+  const firstInstallment = installments.find(
+    (installment) => installment.dueDate && installment.total,
+  );
   const summary = installmentTotals
     ? ([
         amountRow(
@@ -442,7 +480,8 @@ function projectEconomy(
     : [...rows]
         .sort(
           (left, right) =>
-            amountPriority(left.label) - amountPriority(right.label),
+            amountPriority(left.label, document.familyId) -
+            amountPriority(right.label, document.familyId),
         )
         .slice(0, 4);
   return Object.freeze({
@@ -450,6 +489,17 @@ function projectEconomy(
     rows: Object.freeze(rows),
     installments: Object.freeze(installments),
     installmentTotals,
+    featuredInstallment:
+      firstInstallment?.dueDate && firstInstallment.total
+        ? Object.freeze({
+            label: "Primera cuota del calendario",
+            dueDate: firstInstallment.dueDate,
+            total: firstInstallment.total,
+            pageNumbers: firstInstallment.pageNumbers,
+          })
+        : null,
+    showInstallmentSurcharge:
+      installmentTotals !== null && installmentTotals.surcharge !== "0,00 €",
     showSourceReference: false,
     previewLimit: FISCAL_NOTIFICATION_DETAIL_TABLE_LIMIT_V1,
   });
@@ -499,18 +549,20 @@ function projectInstallment(
 
 function projectField(
   field: FiscalNotificationVerticalSliceReviewFieldV1,
+  familyId: string,
 ): FiscalNotificationDetailFieldV1 {
+  const presentation = reviewFieldPresentation(field, familyId);
   const value = maskFiscalNotificationDetailValueV1(
-    field.label,
-    displayValue(field),
+    presentation.label,
+    presentation.value,
   );
   return Object.freeze({
     key: field.fieldId,
-    label: field.label,
+    label: presentation.label,
     value,
     provenance: Object.freeze({
       key: `provenance:${field.fieldId}`,
-      fieldLabel: field.label,
+      fieldLabel: presentation.label,
       value,
       pageNumber: field.sourcePageNumbers[0]!,
       pageNumbers: Object.freeze([...field.sourcePageNumbers]),
@@ -545,11 +597,15 @@ function findHeaderField(
   labelPattern: RegExp,
   canonicalType?: string,
 ): FiscalNotificationVerticalSliceReviewFieldV1 | null {
-  return findField(
-    fields,
-    (field) =>
-      (canonicalType !== undefined && field.canonicalType === canonicalType) ||
-      labelPattern.test(normalizeText(field.label)),
+  if (canonicalType !== undefined) {
+    const canonical = findField(
+      fields,
+      (field) => field.canonicalType === canonicalType,
+    );
+    if (canonical) return canonical;
+  }
+  return findField(fields, (field) =>
+    labelPattern.test(normalizeText(field.label)),
   );
 }
 
@@ -568,6 +624,9 @@ function deduplicateReviewFields(
     const duplicateGroup = reviewFieldDuplicateGroup(field);
     const identity = JSON.stringify([
       field.semantic,
+      ...(field.semantic === "MONEY"
+        ? [normalizeText(field.label), field.amountCents ?? field.displayValue]
+        : []),
       duplicateGroup ?? field.canonicalType,
       duplicateGroup ? "" : normalizeText(field.label),
       field.normalizedValue ?? field.displayValue,
@@ -599,7 +658,8 @@ function reviewFieldDuplicateGroup(
   if (
     field.semantic === "REFERENCE" &&
     (field.canonicalType === "LIQUIDATION_KEY" ||
-      field.canonicalType === "DEBT_KEY")
+      field.canonicalType === "DEBT_KEY" ||
+      field.canonicalType === "ACT_ID")
   ) {
     return "DEBT_OR_LIQUIDATION";
   }
@@ -609,6 +669,13 @@ function reviewFieldDuplicateGroup(
 function isVisibleReviewField(
   field: FiscalNotificationVerticalSliceReviewFieldV1,
 ): boolean {
+  if (
+    field.semantic === "REFERENCE" &&
+    field.canonicalType === "OTHER_OFFICIAL_REFERENCE" &&
+    /^\d{1,3}$/u.test(field.displayValue.trim())
+  ) {
+    return false;
+  }
   return (
     field.sourcePageNumbers.length > 0 &&
     field.label.trim().length > 0 &&
@@ -619,6 +686,33 @@ function isVisibleReviewField(
     !containsInternalFiscalNotificationToken(field.displayValue) &&
     !containsInternalFiscalNotificationToken(field.normalizedValue)
   );
+}
+
+function reviewFieldPresentation(
+  field: FiscalNotificationVerticalSliceReviewFieldV1,
+  familyId: string,
+): Readonly<{ label: string; value: string }> {
+  if (
+    field.semantic === "PARTY" &&
+    (field.canonicalType === "PRIMARY_DEBTOR" ||
+      normalizeText(field.label) === normalizeText(field.displayValue))
+  ) {
+    return Object.freeze({
+      label: "Tu papel en el documento",
+      value: "Obligado al pago",
+    });
+  }
+  if (
+    familyId === "collection.enforcement_order" &&
+    field.semantic === "REFERENCE" &&
+    normalizeText(field.label) === "justificante de pago"
+  ) {
+    return Object.freeze({
+      label: "Número de la carta de pago",
+      value: displayValue(field),
+    });
+  }
+  return Object.freeze({ label: field.label, value: displayValue(field) });
 }
 
 function displayValue(
@@ -715,12 +809,30 @@ function formatAuthority(value: string | null): string {
     : value;
 }
 
-function amountPriority(label: string): number {
+function amountPriority(label: string, familyId: string): number {
   const normalized = normalizeText(label);
+  if (familyId === "collection.enforcement_order") {
+    if (/principal pendiente/u.test(normalized)) return 0;
+    if (/recargo reducido/u.test(normalized)) return 1;
+    if (/total.*ordinario/u.test(normalized)) return 2;
+    if (/recargo.*5/u.test(normalized)) return 3;
+  }
   if (/total|importe a ingresar|importe a devolver/u.test(normalized)) return 0;
   if (/pendiente|principal|cuota/u.test(normalized)) return 1;
   if (/recargo|interes|costas/u.test(normalized)) return 2;
   return 3;
+}
+
+function deduplicateAmountRows(
+  rows: readonly FiscalNotificationDetailAmountRowV1[],
+): FiscalNotificationDetailAmountRowV1[] {
+  const identities = new Set<string>();
+  return rows.filter((row) => {
+    const identity = `${normalizeText(row.label)}\u0000${row.value}`;
+    if (identities.has(identity)) return false;
+    identities.add(identity);
+    return true;
+  });
 }
 
 function amountRow(

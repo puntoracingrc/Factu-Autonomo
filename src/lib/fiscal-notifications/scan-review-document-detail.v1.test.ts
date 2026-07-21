@@ -90,8 +90,8 @@ describe("scan review document detail v1", () => {
       primaryDateLabel: "Fecha de puesta a disposición",
       primaryDateValue: "20/07/2026",
       reviewStatus: "PENDING",
-      reviewLabel: "Pendiente de revisar antes de guardar",
-      originalLabel: "Original no guardado",
+      reviewLabel: "Revisión personal pendiente",
+      originalLabel: "Original disponible durante el análisis",
     });
     expect(result.header.primaryDateProvenance).toMatchObject({
       basis: "PRINTED",
@@ -216,6 +216,105 @@ describe("scan review document detail v1", () => {
     ]);
   });
 
+  it("presenta el papel del obligado sin duplicarlo y oculta códigos cortos sin contexto", () => {
+    const source = document({
+      reviewDocumentId: "review-document:enforcement-presentation",
+      extractorId: "payment-order",
+      familyId: "collection.enforcement_order",
+      title: "Providencia de apremio",
+      fields: Object.freeze([
+        field(
+          "party:debtor",
+          "PARTY",
+          "PRIMARY_DEBTOR",
+          "Deudor principal",
+          "PRIMARY_DEBTOR",
+          1,
+        ),
+        field(
+          "party:debtor-duplicate",
+          "PARTY",
+          "PRIMARY_DEBTOR",
+          "Deudor principal",
+          "PRIMARY_DEBTOR",
+          2,
+        ),
+        field(
+          "reference:short-expiry-code",
+          "REFERENCE",
+          "OTHER_OFFICIAL_REFERENCE",
+          "Referencia oficial",
+          "14",
+          2,
+        ),
+        field(
+          "reference:legacy-payment-form",
+          "REFERENCE",
+          "PAYMENT_FORM_REFERENCE",
+          "Justificante de pago",
+          "082600000001A",
+          2,
+        ),
+      ]),
+    });
+
+    const result = projectFiscalNotificationScanReviewDocumentDetailV1({
+      document: source,
+      allDocuments: [source],
+    });
+    const facts = result.factGroups.flatMap((group) => group.fields);
+
+    expect(facts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Tu papel en el documento",
+          value: "Obligado al pago",
+          provenance: expect.objectContaining({ pageNumbers: [1, 2] }),
+        }),
+        expect.objectContaining({
+          label: "Número de la carta de pago",
+          value: "082600000001A",
+        }),
+      ]),
+    );
+    expect(JSON.stringify(facts)).not.toMatch(
+      /Referencia oficial|Justificante de pago|Deudor principal/u,
+    );
+  });
+
+  it("no promueve el modelo 002 de la carta de pago a modelo tributario", () => {
+    const source = document({
+      reviewDocumentId: "review-document:payment-model-only",
+      extractorId: "payment-order",
+      familyId: "collection.enforcement_order",
+      title: "Providencia de apremio",
+      fields: Object.freeze([
+        field(
+          "payment-form:model",
+          "REFERENCE",
+          "PAYMENT_FORM_MODEL",
+          "Modelo de ingreso",
+          "002",
+          2,
+        ),
+      ]),
+    });
+
+    const result = projectFiscalNotificationScanReviewDocumentDetailV1({
+      document: source,
+      allDocuments: [source],
+    });
+
+    expect(result.header.metadata).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ key: "model" })]),
+    );
+    expect(result.factGroups.flatMap((group) => group.fields)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Modelo de ingreso", value: "002" }),
+      ]),
+    );
+  });
+
   it("presenta el plan reconciliado como resumen y tabla, sin totales planos duplicados", async () => {
     const analyzed = await analyzeFiscalNotificationDocumentInput(
       Object.freeze({
@@ -266,6 +365,12 @@ describe("scan review document detail v1", () => {
         surcharge: "0,00 €",
         total: "213,34 €",
       },
+      featuredInstallment: {
+        label: "Primera cuota del calendario",
+        dueDate: "22/06/2026",
+        total: "70,87 €",
+      },
+      showInstallmentSurcharge: false,
       installments: [
         {
           label: "Cuota 1",
@@ -291,5 +396,129 @@ describe("scan review document detail v1", () => {
         "Los importes cuadran con las cifras impresas.",
       ]),
     });
+    expect(result.header.primaryDateLabel).toBe("Fecha del acuerdo");
+    expect(result.explanation).toMatchObject({
+      documentSays:
+        "El acuerdo fija 3 cuotas con sus respectivos vencimientos, principales e intereses.",
+      officialMeaning:
+        "Hacienda ha aceptado que el principal de 211,19 € se pague en 3 cuotas. Con los intereses del aplazamiento, el total programado asciende a 213,34 €.",
+      reviewTitle: "Comprueba el calendario y la domiciliación",
+      deadlineTitle: "Cada cuota tiene su propio vencimiento",
+    });
+    expect(JSON.stringify(result)).not.toContain("INSTALLMENT_DUE_DATE");
+  });
+
+  it("separa la providencia del modelo 130 y su carta de pago 002 con comprobación exacta", async () => {
+    const analyzed = await analyzeFiscalNotificationDocumentInput(
+      Object.freeze({
+        ownerScope: "user:synthetic-enforcement-detail",
+        documentId: "document:synthetic-enforcement-detail",
+        pages: Object.freeze([
+          Object.freeze({
+            pageNumber: 1,
+            isBlank: false,
+            text: [
+              "AGENCIA ESTATAL DE ADMINISTRACION TRIBUTARIA",
+              "PROVIDENCIA DE APREMIO",
+              "PRINCIPAL PENDIENTE",
+              "RECARGO DE APREMIO ORDINARIO",
+              "PLAZOS DE PAGO",
+              "Fecha del documento: 06/06/2026",
+              "Modelo: 130",
+              "Ejercicio fiscal: 2025",
+              "Periodo fiscal: 4T",
+              "Clave de liquidación: SYN-LIQ-130-4T-2025",
+              "Fin del período voluntario: 22/05/2026",
+              "Principal pendiente: 117,12 €",
+              "Recargo ordinario del 20 %: 23,42 €",
+              "Total ordinario: 140,54 €",
+              "Total con recargo reducido 10 %: 128,83 €",
+              "Recargo ejecutivo 5 %: 5,86 €",
+            ].join("\n"),
+          }),
+          Object.freeze({
+            pageNumber: 2,
+            isBlank: false,
+            text: [
+              "CARTA DE PAGO",
+              "Fecha de la carta de pago: 07/06/2026",
+              "Modelo: 002",
+              "Número de referencia: 082600000001A",
+              "Importe de la carta de pago: 140,54 €",
+            ].join("\n"),
+          }),
+        ]),
+      }),
+    );
+    const source = analyzed.verticalSliceReview.documents.find(
+      (candidate) => candidate.familyId === "collection.enforcement_order",
+    );
+    expect(source).toBeDefined();
+    if (!source) return;
+
+    const result = projectFiscalNotificationScanReviewDocumentDetailV1({
+      document: source,
+      allDocuments: [source],
+    });
+    const facts = result.factGroups.flatMap((group) => group.fields);
+    const amounts = result.economy?.rows ?? [];
+
+    expect(result.header).toMatchObject({
+      primaryDateLabel: "Fecha de la providencia",
+      primaryDateValue: "06/06/2026",
+      authority: "Agencia Estatal de Administración Tributaria",
+      metadata: expect.arrayContaining([
+        { key: "model", label: "Modelo", value: "130" },
+        { key: "period", label: "Periodo", value: "4T" },
+        { key: "exercise", label: "Ejercicio", value: "2025" },
+      ]),
+    });
+    expect(facts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Clave de liquidación",
+          value: "SYN-LIQ-130-4T-2025",
+          provenance: expect.objectContaining({ pageNumbers: [1] }),
+        }),
+        expect.objectContaining({
+          label: "Modelo de ingreso",
+          value: "002",
+          provenance: expect.objectContaining({ pageNumbers: [2] }),
+        }),
+        expect.objectContaining({
+          label: "Número de la carta de pago",
+          value: "082600000001A",
+          provenance: expect.objectContaining({ pageNumbers: [2] }),
+        }),
+        expect.objectContaining({
+          label: "Fecha de la carta de pago",
+          value: "07/06/2026",
+          provenance: expect.objectContaining({ pageNumbers: [2] }),
+        }),
+      ]),
+    );
+    expect(amounts.map((row) => row.label)).toEqual([
+      "Principal pendiente",
+      "Total con recargo ordinario",
+      "Importe con recargo reducido",
+      "Recargo ejecutivo del 5 %",
+      "Recargo de apremio ordinario del 20 %",
+    ]);
+    expect(result.integrity).toMatchObject({
+      status: "VALIDATED",
+      statusLabel: "Comprobación correcta",
+      messages: ["Los importes cuadran con las cifras impresas."],
+    });
+    expect(result.explanation).toMatchObject({
+      documentSays: expect.stringContaining(
+        "Los recargos son alternativas y no se suman entre sí.",
+      ),
+      officialMeaning: expect.stringContaining(
+        "El documento ofrece un pago con recargo reducido",
+      ),
+    });
+    expect(JSON.stringify(result)).not.toMatch(
+      /Justificante de pago|Ejercicio solicitado|Modelo.*002.*metadata/u,
+    );
   });
 });

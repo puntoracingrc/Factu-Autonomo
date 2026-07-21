@@ -299,21 +299,34 @@ export function relateRealCorpusDocumentsV6(
     !validDocument(target) ||
     source.documentId === target.documentId ||
     !sameOwnerAndIssuer(source, target)
-  ) return Object.freeze([]);
+  )
+    return Object.freeze([]);
 
   const results: RealCorpusRelationV6[] = [];
-  const grant = source.familyId === "collection.deferral_grant" ? source
-    : target.familyId === "collection.deferral_grant" ? target : null;
-  const enforcement = source.familyId === "collection.enforcement_order" ? source
-    : target.familyId === "collection.enforcement_order" ? target : null;
+  const grant =
+    source.familyId === "collection.deferral_grant"
+      ? source
+      : target.familyId === "collection.deferral_grant"
+        ? target
+        : null;
+  const enforcement =
+    source.familyId === "collection.enforcement_order"
+      ? source
+      : target.familyId === "collection.enforcement_order"
+        ? target
+        : null;
   if (
-    grant && enforcement &&
+    grant &&
+    enforcement &&
     grant.debtKey &&
     grant.debtKey === enforcement.debtKey &&
     notAfter(grant, enforcement)
   ) {
-    const installment = grant.installments.find((item) =>
-      item.dueDate === enforcement.voluntaryEndDate,
+    const installment = grant.installments.find(
+      (item) =>
+        item.dueDate === enforcement.voluntaryEndDate &&
+        enforcement.principalCents !== null &&
+        item.totalCents === enforcement.principalCents,
     );
     results.push(
       installment
@@ -322,12 +335,12 @@ export function relateRealCorpusDocumentsV6(
             sourceDocumentId: grant.documentId,
             targetDocumentId: enforcement.documentId,
             exactReference: grant.debtKey,
-            observedAmountCents: null,
+            observedAmountCents: installment.totalCents,
             contributingDocumentIds: [grant.documentId, enforcement.documentId],
             phrase:
-              "Esta providencia reclama la cuota del fraccionamiento identificada por la misma deuda y fecha de vencimiento.",
+              "Esta providencia reclama una cuota concreta del fraccionamiento: coinciden la clave de deuda, el vencimiento y el importe total de la cuota.",
           })
-        : exact({
+        : relation("SYSTEM_SUGGESTED", {
             relationType: "SAME_UNDERLYING_DEBT_NOT_INSTALLMENT_MATCH",
             sourceDocumentId: grant.documentId,
             targetDocumentId: enforcement.documentId,
@@ -335,7 +348,7 @@ export function relateRealCorpusDocumentsV6(
             observedAmountCents: null,
             contributingDocumentIds: [grant.documentId, enforcement.documentId],
             phrase:
-              "Comparte la clave de liquidación con el fraccionamiento, pero no coincide con ninguna cuota del calendario.",
+              "Comparte la clave de liquidación con el fraccionamiento, pero no coinciden a la vez el vencimiento y el importe de una cuota concreta.",
           }),
     );
   }
@@ -348,208 +361,301 @@ export function relateRealCorpusDocumentsV6(
     (source.voluntaryEndDate !== target.voluntaryEndDate ||
       source.paymentFormReference !== target.paymentFormReference)
   ) {
-    results.push(exact({
-      relationType: "SAME_PAYMENT_PLAN_DIFFERENT_INSTALLMENTS",
-      sourceDocumentId: source.documentId,
-      targetDocumentId: target.documentId,
-      exactReference: source.debtKey,
-      observedAmountCents: null,
-      contributingDocumentIds: [source.documentId, target.documentId],
-      phrase:
-        "Ambas providencias comparten la clave, pero corresponden a vencimientos o cartas distintos. No son duplicados.",
-    }));
+    results.push(
+      exact({
+        relationType: "SAME_PAYMENT_PLAN_DIFFERENT_INSTALLMENTS",
+        sourceDocumentId: source.documentId,
+        targetDocumentId: target.documentId,
+        exactReference: source.debtKey,
+        observedAmountCents: null,
+        contributingDocumentIds: [source.documentId, target.documentId],
+        phrase:
+          "Ambas providencias comparten la clave, pero corresponden a vencimientos o cartas distintos. No son duplicados.",
+      }),
+    );
   }
 
-  const initiation = source.familyId === "sanction.initiation_and_hearing" ? source
-    : target.familyId === "sanction.initiation_and_hearing" ? target : null;
-  const resolution = source.familyId === "sanction.resolution" ? source
-    : target.familyId === "sanction.resolution" ? target : null;
+  const initiation =
+    source.familyId === "sanction.initiation_and_hearing"
+      ? source
+      : target.familyId === "sanction.initiation_and_hearing"
+        ? target
+        : null;
+  const resolution =
+    source.familyId === "sanction.resolution"
+      ? source
+      : target.familyId === "sanction.resolution"
+        ? target
+        : null;
   if (
-    initiation && resolution &&
+    initiation &&
+    resolution &&
     initiation.sanctionReference &&
     initiation.sanctionReference === resolution.sanctionReference &&
     notAfter(initiation, resolution)
-  ) results.push(exact({
-    relationType: "RESOLVES_SANCTION_PROCEEDING",
-    sourceDocumentId: initiation.documentId,
-    targetDocumentId: resolution.documentId,
-    exactReference: initiation.sanctionReference,
-    observedAmountCents: null,
-    contributingDocumentIds: [initiation.documentId, resolution.documentId],
-    phrase: "Esta resolución decide el expediente sancionador iniciado anteriormente y fija la sanción.",
-  }));
+  )
+    results.push(
+      exact({
+        relationType: "RESOLVES_SANCTION_PROCEEDING",
+        sourceDocumentId: initiation.documentId,
+        targetDocumentId: resolution.documentId,
+        exactReference: initiation.sanctionReference,
+        observedAmountCents: null,
+        contributingDocumentIds: [initiation.documentId, resolution.documentId],
+        phrase:
+          "Esta resolución decide el expediente sancionador iniciado anteriormente y fija la sanción.",
+      }),
+    );
 
-  const requirement = source.familyId === "compliance.formal_filing_requirement" ? source
-    : target.familyId === "compliance.formal_filing_requirement" ? target : null;
+  const requirement =
+    source.familyId === "compliance.formal_filing_requirement"
+      ? source
+      : target.familyId === "compliance.formal_filing_requirement"
+        ? target
+        : null;
   if (
-    requirement && initiation &&
+    requirement &&
+    initiation &&
     requirement.exactReferenceToSanction &&
     requirement.exactReferenceToSanction === initiation.sanctionReference &&
     notAfter(requirement, initiation)
-  ) results.push(exact({
-    relationType: "POSSIBLY_PRECEDES_SANCTION",
-    sourceDocumentId: requirement.documentId,
-    targetDocumentId: initiation.documentId,
-    exactReference: requirement.exactReferenceToSanction,
-    observedAmountCents: null,
-    contributingDocumentIds: [requirement.documentId, initiation.documentId],
-    phrase:
-      "El requerimiento y el inicio sancionador imprimen la misma referencia de expediente.",
-  }));
+  )
+    results.push(
+      exact({
+        relationType: "POSSIBLY_PRECEDES_SANCTION",
+        sourceDocumentId: requirement.documentId,
+        targetDocumentId: initiation.documentId,
+        exactReference: requirement.exactReferenceToSanction,
+        observedAmountCents: null,
+        contributingDocumentIds: [
+          requirement.documentId,
+          initiation.documentId,
+        ],
+        phrase:
+          "El requerimiento y el inicio sancionador imprimen la misma referencia de expediente.",
+      }),
+    );
 
   if (
-    resolution && enforcement &&
+    resolution &&
+    enforcement &&
     resolution.sanctionDebtKey &&
     resolution.sanctionDebtKey === enforcement.debtKey &&
     notAfter(resolution, enforcement)
-  ) results.push(exact({
-    relationType: "SANCTION_DECISION_ENFORCED",
-    sourceDocumentId: resolution.documentId,
-    targetDocumentId: enforcement.documentId,
-    exactReference: resolution.sanctionDebtKey,
-    observedAmountCents: null,
-    contributingDocumentIds: [resolution.documentId, enforcement.documentId],
-    phrase: "Esta providencia reclama en vía ejecutiva la sanción reducida fijada anteriormente.",
-  }));
+  )
+    results.push(
+      exact({
+        relationType: "SANCTION_DECISION_ENFORCED",
+        sourceDocumentId: resolution.documentId,
+        targetDocumentId: enforcement.documentId,
+        exactReference: resolution.sanctionDebtKey,
+        observedAmountCents: null,
+        contributingDocumentIds: [
+          resolution.documentId,
+          enforcement.documentId,
+        ],
+        phrase:
+          "Esta providencia reclama en vía ejecutiva la sanción reducida fijada anteriormente.",
+      }),
+    );
 
-  const loss = source.familyId === "sanction.loss_of_reduction" ? source
-    : target.familyId === "sanction.loss_of_reduction" ? target : null;
+  const loss =
+    source.familyId === "sanction.loss_of_reduction"
+      ? source
+      : target.familyId === "sanction.loss_of_reduction"
+        ? target
+        : null;
   if (
-    resolution && loss &&
+    resolution &&
+    loss &&
     resolution.sanctionDebtKey &&
     resolution.sanctionDebtKey === loss.originSanctionDebtKey &&
     notAfter(resolution, loss)
-  ) results.push(exact({
-    relationType: "CLAIMS_LOST_SANCTION_REDUCTION",
-    sourceDocumentId: resolution.documentId,
-    targetDocumentId: loss.documentId,
-    exactReference: resolution.sanctionDebtKey,
-    observedAmountCents: null,
-    contributingDocumentIds: [resolution.documentId, loss.documentId],
-    phrase:
-      "Este documento exige la reducción que se había aplicado a la sanción porque la AEAT considera incumplidas sus condiciones.",
-  }));
+  )
+    results.push(
+      exact({
+        relationType: "CLAIMS_LOST_SANCTION_REDUCTION",
+        sourceDocumentId: resolution.documentId,
+        targetDocumentId: loss.documentId,
+        exactReference: resolution.sanctionDebtKey,
+        observedAmountCents: null,
+        contributingDocumentIds: [resolution.documentId, loss.documentId],
+        phrase:
+          "Este documento exige la reducción que se había aplicado a la sanción porque la AEAT considera incumplidas sus condiciones.",
+      }),
+    );
   if (
-    loss && enforcement &&
+    loss &&
+    enforcement &&
     loss.clawbackDebtKey &&
     loss.clawbackDebtKey === enforcement.debtKey &&
     notAfter(loss, enforcement)
-  ) results.push(exact({
-    relationType: "ENFORCES_LOST_REDUCTION",
-    sourceDocumentId: loss.documentId,
-    targetDocumentId: enforcement.documentId,
-    exactReference: loss.clawbackDebtKey,
-    observedAmountCents: null,
-    contributingDocumentIds: [loss.documentId, enforcement.documentId],
-    phrase: "Esta providencia reclama en vía ejecutiva la reducción de sanción exigida anteriormente.",
-  }));
+  )
+    results.push(
+      exact({
+        relationType: "ENFORCES_LOST_REDUCTION",
+        sourceDocumentId: loss.documentId,
+        targetDocumentId: enforcement.documentId,
+        exactReference: loss.clawbackDebtKey,
+        observedAmountCents: null,
+        contributingDocumentIds: [loss.documentId, enforcement.documentId],
+        phrase:
+          "Esta providencia reclama en vía ejecutiva la reducción de sanción exigida anteriormente.",
+      }),
+    );
 
-  const denial = source.familyId === "collection.deferral_denial" ? source
-    : target.familyId === "collection.deferral_denial" ? target : null;
+  const denial =
+    source.familyId === "collection.deferral_denial"
+      ? source
+      : target.familyId === "collection.deferral_denial"
+        ? target
+        : null;
   if (
-    denial && enforcement && denial.deniedDebt &&
+    denial &&
+    enforcement &&
+    denial.deniedDebt &&
     denial.deniedDebt.debtKey === enforcement.debtKey &&
     notAfter(denial, enforcement)
-  ) results.push(exact({
-    relationType: "DENIAL_PRECEDES_ENFORCEMENT",
-    sourceDocumentId: denial.documentId,
-    targetDocumentId: enforcement.documentId,
-    exactReference: denial.deniedDebt.debtKey,
-    observedAmountCents: null,
-    contributingDocumentIds: [denial.documentId, enforcement.documentId],
-    phrase: "Esta providencia reclama la deuda principal cuya solicitud de aplazamiento fue denegada.",
-  }));
+  )
+    results.push(
+      exact({
+        relationType: "DENIAL_PRECEDES_ENFORCEMENT",
+        sourceDocumentId: denial.documentId,
+        targetDocumentId: enforcement.documentId,
+        exactReference: denial.deniedDebt.debtKey,
+        observedAmountCents: null,
+        contributingDocumentIds: [denial.documentId, enforcement.documentId],
+        phrase:
+          "Esta providencia reclama la deuda principal cuya solicitud de aplazamiento fue denegada.",
+      }),
+    );
 
-  const interest = source.familyId === "collection.interest_assessment" ? source
-    : target.familyId === "collection.interest_assessment" ? target : null;
+  const interest =
+    source.familyId === "collection.interest_assessment"
+      ? source
+      : target.familyId === "collection.interest_assessment"
+        ? target
+        : null;
   if (
-    denial && interest &&
+    denial &&
+    interest &&
     denial.agreementId &&
     denial.agreementId === interest.agreementId &&
     denial.deniedDebt &&
     denial.deniedDebt.debtKey === interest.interestSourceDebtKey &&
     notAfter(denial, interest)
-  ) results.push(exact({
-    relationType: "INTEREST_ASSESSMENT_FROM_DENIED_DEFERRAL",
-    sourceDocumentId: denial.documentId,
-    targetDocumentId: interest.documentId,
-    exactReference: denial.agreementId,
-    observedAmountCents: null,
-    contributingDocumentIds: [denial.documentId, interest.documentId],
-    phrase:
-      "Esta liquidación calcula los intereses derivados de la solicitud de aplazamiento denegada. No es una nueva deuda principal.",
-  }));
+  )
+    results.push(
+      exact({
+        relationType: "INTEREST_ASSESSMENT_FROM_DENIED_DEFERRAL",
+        sourceDocumentId: denial.documentId,
+        targetDocumentId: interest.documentId,
+        exactReference: denial.agreementId,
+        observedAmountCents: null,
+        contributingDocumentIds: [denial.documentId, interest.documentId],
+        phrase:
+          "Esta liquidación calcula los intereses derivados de la solicitud de aplazamiento denegada. No es una nueva deuda principal.",
+      }),
+    );
   if (
-    interest && enforcement &&
+    interest &&
+    enforcement &&
     interest.interestLiquidationKey &&
     interest.interestLiquidationKey === enforcement.debtKey &&
     notAfter(interest, enforcement)
-  ) results.push(exact({
-    relationType: "ENFORCES_INTEREST_ASSESSMENT",
-    sourceDocumentId: interest.documentId,
-    targetDocumentId: enforcement.documentId,
-    exactReference: interest.interestLiquidationKey,
-    observedAmountCents: null,
-    contributingDocumentIds: [interest.documentId, enforcement.documentId],
-    phrase: "Esta providencia reclama los intereses liquidados anteriormente, no vuelve a reclamar el principal.",
-  }));
+  )
+    results.push(
+      exact({
+        relationType: "ENFORCES_INTEREST_ASSESSMENT",
+        sourceDocumentId: interest.documentId,
+        targetDocumentId: enforcement.documentId,
+        exactReference: interest.interestLiquidationKey,
+        observedAmountCents: null,
+        contributingDocumentIds: [interest.documentId, enforcement.documentId],
+        phrase:
+          "Esta providencia reclama los intereses liquidados anteriormente, no vuelve a reclamar el principal.",
+      }),
+    );
 
-  const seizure = source.familyId.startsWith("seizure.") && source.familyId !== "seizure.release" ? source
-    : target.familyId.startsWith("seizure.") && target.familyId !== "seizure.release" ? target : null;
+  const seizure =
+    source.familyId.startsWith("seizure.") &&
+    source.familyId !== "seizure.release"
+      ? source
+      : target.familyId.startsWith("seizure.") &&
+          target.familyId !== "seizure.release"
+        ? target
+        : null;
   if (
-    enforcement && seizure &&
+    enforcement &&
+    seizure &&
     enforcement.debtKey &&
-    seizure.seizureRows.some((row) =>
-      row.debtKey === enforcement.debtKey,
-    ) &&
+    seizure.seizureRows.some((row) => row.debtKey === enforcement.debtKey) &&
     notAfter(enforcement, seizure)
-  ) results.push(exact({
-    relationType: "ENFORCES",
-    sourceDocumentId: enforcement.documentId,
-    targetDocumentId: seizure.documentId,
-    exactReference: enforcement.debtKey,
-    observedAmountCents: null,
-    contributingDocumentIds: [enforcement.documentId, seizure.documentId],
-    phrase: "Este embargo incluye la deuda reclamada en la providencia anterior.",
-  }));
+  )
+    results.push(
+      exact({
+        relationType: "ENFORCES",
+        sourceDocumentId: enforcement.documentId,
+        targetDocumentId: seizure.documentId,
+        exactReference: enforcement.debtKey,
+        observedAmountCents: null,
+        contributingDocumentIds: [enforcement.documentId, seizure.documentId],
+        phrase:
+          "Este embargo incluye la deuda reclamada en la providencia anterior.",
+      }),
+    );
 
   if (
-    source.familyId.startsWith("seizure.") && source.familyId !== "seizure.release" &&
-    target.familyId.startsWith("seizure.") && target.familyId !== "seizure.release" &&
-    source.seizureOrderId && target.seizureOrderId &&
+    source.familyId.startsWith("seizure.") &&
+    source.familyId !== "seizure.release" &&
+    target.familyId.startsWith("seizure.") &&
+    target.familyId !== "seizure.release" &&
+    source.seizureOrderId &&
+    target.seizureOrderId &&
     source.seizureOrderId !== target.seizureOrderId &&
     source.seizureAssetKind !== "NONE" &&
     target.seizureAssetKind !== "NONE" &&
     source.seizureAssetKind !== target.seizureAssetKind &&
     matchingDebtSets(source, target)
-  ) results.push(exact({
-    relationType: "SAME_DEBT_SET_MULTIPLE_SEIZURE_ASSETS",
-    sourceDocumentId: source.documentId,
-    targetDocumentId: target.documentId,
-    exactReference: null,
-    observedAmountCents: null,
-    contributingDocumentIds: [source.documentId, target.documentId],
-    phrase:
-      "Ambas diligencias persiguen el mismo conjunto de deudas mediante bienes distintos. Son dos actuaciones de embargo, no dos conjuntos de deuda.",
-  }));
+  )
+    results.push(
+      exact({
+        relationType: "SAME_DEBT_SET_MULTIPLE_SEIZURE_ASSETS",
+        sourceDocumentId: source.documentId,
+        targetDocumentId: target.documentId,
+        exactReference: null,
+        observedAmountCents: null,
+        contributingDocumentIds: [source.documentId, target.documentId],
+        phrase:
+          "Ambas diligencias persiguen el mismo conjunto de deudas mediante bienes distintos. Son dos actuaciones de embargo, no dos conjuntos de deuda.",
+      }),
+    );
 
-  const release = source.familyId === "seizure.release" ? source
-    : target.familyId === "seizure.release" ? target : null;
+  const release =
+    source.familyId === "seizure.release"
+      ? source
+      : target.familyId === "seizure.release"
+        ? target
+        : null;
   if (
-    seizure && release &&
+    seizure &&
+    release &&
     seizure.seizureOrderId &&
     seizure.seizureOrderId === release.citedSeizureOrderId &&
     notAfter(seizure, release)
-  ) results.push(exact({
-    relationType: "RELEASES_SEIZURE",
-    sourceDocumentId: seizure.documentId,
-    targetDocumentId: release.documentId,
-    exactReference: seizure.seizureOrderId,
-    observedAmountCents: null,
-    contributingDocumentIds: [seizure.documentId, release.documentId],
-    phrase:
-      "Este documento posterior deja sin efecto el embargo identificado. No prueba por sí solo que las deudas hayan quedado pagadas ni afecta automáticamente a otros embargos.",
-  }));
+  )
+    results.push(
+      exact({
+        relationType: "RELEASES_SEIZURE",
+        sourceDocumentId: seizure.documentId,
+        targetDocumentId: release.documentId,
+        exactReference: seizure.seizureOrderId,
+        observedAmountCents: null,
+        contributingDocumentIds: [seizure.documentId, release.documentId],
+        phrase:
+          "Este documento posterior deja sin efecto el embargo identificado. No prueba por sí solo que las deudas hayan quedado pagadas ni afecta automáticamente a otros embargos.",
+      }),
+    );
   return Object.freeze(results);
 }
 

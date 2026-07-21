@@ -439,14 +439,18 @@ export function classifyAeatMathematicalIntegrityFormulaHandlingV11(
   family: AeatMathematicalIntegrityFamilyV11,
   formula: string,
 ): AeatMathematicalIntegrityFormulaHandlingV11 {
-  const equality = /^\s*([A-Z][A-Z0-9_]*)\s*=\s*([A-Z][A-Z0-9_]*)\s*\+\s*([A-Z][A-Z0-9_]*)\b/u.exec(
-    formula,
-  );
+  const equality =
+    /^\s*([A-Z][A-Z0-9_]*)\s*=\s*([A-Z][A-Z0-9_]*)\s*\+\s*([A-Z][A-Z0-9_]*)\b/u.exec(
+      formula,
+    );
   if (equality?.slice(1).every((token) => token?.includes("COUNT"))) {
     return "AUTOMATIC_COUNT";
   }
   if (
     /^\s*[A-Z][A-Z0-9_]*\s*≈\s*round\(\s*[A-Z][A-Z0-9_]*\s*×\s*0\.\d+\s*,\s*2\s*\)/u.test(
+      formula,
+    ) ||
+    /^\s*[A-Z][A-Z0-9_]*\s*≈\s*([A-Z][A-Z0-9_]*)\s*\+\s*round\(\s*\1\s*×\s*0\.\d+\s*,\s*2\s*\)/u.test(
       formula,
     )
   ) {
@@ -546,12 +550,14 @@ function contractArithmeticChecks(
       money,
     );
     if (percentage) return [percentage];
-    const equation = contractLinearEquationCheck(
+    const basePlusPercentage = contractBasePlusPercentageCheck(
       family,
       formula,
       index,
       money,
     );
+    if (basePlusPercentage) return [basePlusPercentage];
+    const equation = contractLinearEquationCheck(family, formula, index, money);
     return equation ? [equation] : [];
   });
 }
@@ -647,7 +653,7 @@ function contractLinearEquationCheck(
 }
 
 function isClosedLinearFormula(formula: string): boolean {
-  return !(
+  if (
     formula.includes("≈") ||
     /\b(?:relación exacta|previamente|cuando la ejecución|si se reconoce|si el pago había|solo si)\b/iu.test(
       formula,
@@ -655,9 +661,20 @@ function isClosedLinearFormula(formula: string): boolean {
     /\b(?:suma|filas|componentes|ajustes|calendario|regla|compatible|importe del recibo|previamente aplicada)\b/iu.test(
       formula,
     ) ||
-    /\b(?:max|min|abs)\s*\(/iu.test(formula) ||
-    !/^\s*[A-Z][A-Z0-9_]*(?:\/[A-Z][A-Z0-9_]*)?\s*=\s*[^,.;]+[,.;]?/u.test(
+    /\b(?:max|min|abs)\s*\(/iu.test(formula)
+  ) {
+    return false;
+  }
+  const match =
+    /^\s*[A-Z][A-Z0-9_]*(?:\/[A-Z][A-Z0-9_]*)?\s*=\s*([^,.;]+)[,.;]?/u.exec(
       formula,
+    );
+  if (!match) return false;
+  const expression = match[1]!.trim();
+  return (
+    expression === "0" ||
+    /^(?:[A-Z][A-Z0-9_]*)(?:\s*[+-]\s*[A-Z][A-Z0-9_]*)*$/u.test(
+      expression,
     )
   );
 }
@@ -694,6 +711,42 @@ function contractLiteralPercentageCheck(
     evidence: [result, base],
     calculation: Object.freeze({
       kind: "PERCENTAGE_EQUALITY" as const,
+      resultEvidenceId: result.evidenceId,
+      baseEvidenceId: base.evidenceId,
+      rateBasisPoints: Math.round(rate * 10_000),
+    }),
+  });
+}
+
+function contractBasePlusPercentageCheck(
+  family: AeatMathematicalIntegrityFamilyV11,
+  formula: string,
+  index: number,
+  evidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[],
+): FiscalNotificationMathematicalIntegrityCheckV11 | null {
+  const match =
+    /^\s*([A-Z][A-Z0-9_]*)\s*≈\s*([A-Z][A-Z0-9_]*)\s*\+\s*round\(\s*\2\s*×\s*(0\.\d+)\s*,\s*2\s*\)/u.exec(
+      formula,
+    );
+  if (!match) return null;
+  const result = uniqueEvidenceForTokens([match[1]!], evidence);
+  const base = uniqueEvidenceForTokens([match[2]!], evidence);
+  if (!result || result === "AMBIGUOUS" || !base || base === "AMBIGUOUS") {
+    return null;
+  }
+  const rate = Number(match[3]);
+  const expectedCents =
+    base.amountCents! + Math.round(base.amountCents! * rate);
+  return arithmeticResultCheck({
+    family,
+    index,
+    suffix: "contract-base-plus-percentage",
+    expectedCents,
+    observedCents: result.amountCents!,
+    toleranceCents: 1,
+    evidence: [result, base],
+    calculation: Object.freeze({
+      kind: "BASE_PLUS_PERCENTAGE" as const,
       resultEvidenceId: result.evidenceId,
       baseEvidenceId: base.evidenceId,
       rateBasisPoints: Math.round(rate * 10_000),
@@ -982,7 +1035,7 @@ function equationStatusForFamily(
 ): AeatMathematicalIntegrityStatusV11 {
   if (
     equation.scope === "DOCUMENT" &&
-    documentEquationHasMissingPrintedRoles(equation)
+    documentEquationHasMissingPrintedRoles(family, equation)
   ) {
     return "VALIDATED_PARTIAL_COMPONENTS";
   }
@@ -1008,6 +1061,7 @@ function equationStatusForFamily(
 }
 
 function documentEquationHasMissingPrintedRoles(
+  family: AeatMathematicalIntegrityFamilyV11,
   equation: FiscalNotificationAmountEquationV1,
 ): boolean {
   const expectedRoles: Partial<
@@ -1028,10 +1082,25 @@ function documentEquationHasMissingPrintedRoles(
       "PENALTY_REDUCTION",
     ],
   };
-  const required = expectedRoles[equation.formula];
+  const isEnforcementTotal =
+    family.id === "collection.enforcement_order" &&
+    equation.formula ===
+      "PRINCIPAL_PLUS_SURCHARGE_PLUS_INTEREST_PLUS_COSTS_MINUS_PAYMENTS_EQUALS_TOTAL";
+  const required = isEnforcementTotal
+    ? (["PRINCIPAL", "SURCHARGE"] as const)
+    : expectedRoles[equation.formula];
   if (!required) return false;
   const observed = new Set(equation.operands.map((operand) => operand.role));
-  return required.some((role) => !observed.has(role));
+  if (required.some((role) => !observed.has(role))) return true;
+  if (
+    isEnforcementTotal &&
+    Math.abs(equation.differenceCents) > equation.toleranceCents
+  ) {
+    return ["INTEREST", "COSTS", "PAYMENT"].some(
+      (role) => !observed.has(role as "INTEREST" | "COSTS" | "PAYMENT"),
+    );
+  }
+  return false;
 }
 
 function countChecks(
