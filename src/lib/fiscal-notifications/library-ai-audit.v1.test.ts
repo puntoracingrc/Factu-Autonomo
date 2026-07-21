@@ -402,7 +402,11 @@ describe("library AI audit v1", () => {
           message: "Los importes cuadran con las cifras impresas.",
           expectedCents: 14_955,
           observedCents: 14_955,
+          printedValueCents: 14_955,
+          calculatedValueCents: 14_955,
           deltaCents: 0,
+          absoluteDifferenceCents: 0,
+          relativeDifferenceBasisPoints: 0,
           toleranceCents: 0,
           calculation: {
             kind: "BASE_PLUS_PERCENTAGE",
@@ -417,6 +421,8 @@ describe("library AI audit v1", () => {
             {
               semantic: "MONEY",
               canonicalType: "OUTSTANDING_PRINCIPAL",
+              originalClassification: "OUTSTANDING_PRINCIPAL",
+              assertionType: "NORMALIZED",
               amountCents: 13_595,
               dateValue: null,
               countValue: null,
@@ -426,6 +432,8 @@ describe("library AI audit v1", () => {
             {
               semantic: "MONEY",
               canonicalType: "DOCUMENT_TOTAL",
+              originalClassification: "TOTAL_CLAIMED",
+              assertionType: "NORMALIZED",
               amountCents: 14_955,
               dateValue: null,
               countValue: null,
@@ -544,6 +552,36 @@ describe("library AI audit v1", () => {
       ],
     });
     expect(JSON.stringify(result)).not.toContain("Referencia protegida");
+    expect(parseFiscalNotificationLibraryAiAuditInputV1(result)).toEqual(
+      result,
+    );
+  });
+
+  it("traduce la procedencia probatoria V11 al vocabulario explícito de la auditoría", () => {
+    const library = readyLibrary() as Extract<
+      FiscalNotificationDocumentLibraryViewModelV1,
+      { readonly status: "READY" }
+    >;
+    const first = library.documents[0] as unknown as {
+      mathematicalIntegrity: {
+        normalizedEvidence: { assertionType: string }[];
+      };
+    };
+    first.mathematicalIntegrity.normalizedEvidence[0]!.assertionType =
+      "CROSS_DOCUMENT_CONFIRMED";
+    first.mathematicalIntegrity.normalizedEvidence[1]!.assertionType =
+      "SUGGESTED";
+
+    const result = projectFiscalNotificationLibraryAiAuditInputV1(library);
+
+    expect(result.documents[0]?.integrityReview?.checks[0]?.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          assertionType: "CONFIRMED_BY_LATER_DOCUMENT",
+        }),
+        expect.objectContaining({ assertionType: "NOT_PROVEN" }),
+      ]),
+    );
     expect(parseFiscalNotificationLibraryAiAuditInputV1(result)).toEqual(
       result,
     );
@@ -708,6 +746,215 @@ describe("library AI audit v1", () => {
         ),
       }),
     ).toBeNull();
+  });
+
+  it("rechaza valores impreso, calculado o diferencias que contradicen la ecuación enviada", () => {
+    const projected =
+      projectFiscalNotificationLibraryAiAuditInputV1(readyLibrary());
+    const tamperCheck = (
+      patch: Readonly<Record<string, unknown>>,
+    ): typeof projected => ({
+      ...projected,
+      documents: projected.documents.map((document, index) =>
+        index === 0 && document.integrityReview
+          ? {
+              ...document,
+              integrityReview: {
+                ...document.integrityReview,
+                checks: document.integrityReview.checks.map(
+                  (check, checkIndex) =>
+                    checkIndex === 0 ? { ...check, ...patch } : check,
+                ),
+              },
+            }
+          : document,
+      ),
+    });
+
+    expect(
+      parseFiscalNotificationLibraryAiAuditInputV1(
+        tamperCheck({ printedValueCents: 14_956 }),
+      ),
+    ).toBeNull();
+    expect(
+      parseFiscalNotificationLibraryAiAuditInputV1(
+        tamperCheck({ calculatedValueCents: 14_954 }),
+      ),
+    ).toBeNull();
+    expect(
+      parseFiscalNotificationLibraryAiAuditInputV1(
+        tamperCheck({ absoluteDifferenceCents: 1 }),
+      ),
+    ).toBeNull();
+    expect(
+      parseFiscalNotificationLibraryAiAuditInputV1(
+        tamperCheck({ relativeDifferenceBasisPoints: 1 }),
+      ),
+    ).toBeNull();
+  });
+
+  it("does not label limits or order checks as calculated versus printed money", () => {
+    const library = readyLibrary() as Extract<
+      FiscalNotificationDocumentLibraryViewModelV1,
+      { readonly status: "READY" }
+    >;
+    const first = library.documents[0]!;
+    const integrity = first.mathematicalIntegrity!;
+    const orderCheck = {
+      ...integrity.checks[0]!,
+      safeMessage: "Los límites impresos conservan el orden esperado.",
+      expectedCents: 14_955,
+      observedCents: 13_595,
+      deltaCents: -1_360,
+      calculation: {
+        kind: "AMOUNT_ORDER" as const,
+        leftEvidenceId: "math-v11:synthetic-principal",
+        operator: "LTE" as const,
+        rightEvidenceId: "math-v11:synthetic-amount",
+      },
+    };
+    const projected = projectFiscalNotificationLibraryAiAuditInputV1({
+      ...library,
+      documents: Object.freeze([
+        Object.freeze({
+          ...first,
+          mathematicalIntegrity: Object.freeze({
+            ...integrity,
+            checks: Object.freeze([Object.freeze(orderCheck)]),
+          }),
+        }),
+        ...library.documents.slice(1),
+      ]),
+    });
+    const check = projected.documents[0]?.integrityReview?.checks[0];
+
+    expect(check).toMatchObject({
+      expectedCents: 14_955,
+      observedCents: 13_595,
+      deltaCents: -1_360,
+      printedValueCents: null,
+      calculatedValueCents: null,
+      absoluteDifferenceCents: null,
+      relativeDifferenceBasisPoints: null,
+      calculation: { kind: "AMOUNT_ORDER", operator: "LTE" },
+    });
+    expect(
+      parseFiscalNotificationLibraryAiAuditInputV1(projected),
+    ).not.toBeNull();
+  });
+
+  it("sends signed rectification roles and provenance to GPT-4o without flattening them to OTHER", () => {
+    const library = readyLibrary() as Extract<
+      FiscalNotificationDocumentLibraryViewModelV1,
+      { readonly status: "READY" }
+    >;
+    const first = library.documents[0]!;
+    const integrity = first.mathematicalIntegrity!;
+    const previous = Object.freeze({
+      ...integrity.normalizedEvidence[0]!,
+      evidenceId: "math-v11:p0-previous",
+      canonicalType: "PREVIOUS_RESULT",
+      originalClassification: "OTHER",
+      amountCents: 10_000,
+      sourcePart: "MAIN_ADMINISTRATIVE_ACT" as const,
+      pageNumbers: Object.freeze([1]),
+    });
+    const rectified = Object.freeze({
+      ...integrity.normalizedEvidence[0]!,
+      evidenceId: "math-v11:p0-rectified",
+      canonicalType: "RECTIFIED_RESULT",
+      originalClassification: "OTHER",
+      amountCents: 8_000,
+      sourcePart: "MAIN_ADMINISTRATIVE_ACT" as const,
+      pageNumbers: Object.freeze([1]),
+    });
+    const difference = Object.freeze({
+      ...integrity.normalizedEvidence[0]!,
+      evidenceId: "math-v11:p0-difference",
+      canonicalType: "DIFFERENCE",
+      originalClassification: "OTHER",
+      amountCents: -2_000,
+      sign: "NEGATIVE" as const,
+      sourcePart: "MAIN_ADMINISTRATIVE_ACT" as const,
+      pageNumbers: Object.freeze([1]),
+    });
+    const projected = projectFiscalNotificationLibraryAiAuditInputV1({
+      ...library,
+      documents: Object.freeze([
+        Object.freeze({
+          ...first,
+          mathematicalIntegrity: Object.freeze({
+            ...integrity,
+            integrityVersion: "11.1.0" as const,
+            familyId: "filing.rectifying_self_assessment_receipt",
+            archetypeId: "RECTIFYING_FILING",
+            normalizedEvidence: Object.freeze([
+              previous,
+              rectified,
+              difference,
+            ]),
+            checks: Object.freeze([
+              Object.freeze({
+                ruleId: "v11:rectifying-filing:signed-difference",
+                checkKind: "ARITHMETIC" as const,
+                status: "VALIDATED_EXACT" as const,
+                operands: Object.freeze([
+                  Object.freeze({ evidenceId: difference.evidenceId }),
+                  Object.freeze({ evidenceId: rectified.evidenceId }),
+                  Object.freeze({ evidenceId: previous.evidenceId }),
+                ]),
+                expectedCents: -2_000,
+                observedCents: -2_000,
+                deltaCents: 0,
+                toleranceCents: 0,
+                calculation: Object.freeze({
+                  kind: "LINEAR_EQUALITY" as const,
+                  resultEvidenceId: difference.evidenceId,
+                  terms: Object.freeze([
+                    Object.freeze({ evidenceId: rectified.evidenceId, sign: 1 as const }),
+                    Object.freeze({ evidenceId: previous.evidenceId, sign: -1 as const }),
+                  ]),
+                }),
+                safeMessage: "La diferencia firmada coincide con los valores impresos.",
+              }),
+            ]),
+          }),
+        }),
+        ...library.documents.slice(1),
+      ]),
+    });
+    const auditIntegrity = projected.documents[0]?.integrityReview;
+
+    expect(auditIntegrity?.checks[0]?.evidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalType: "PREVIOUS_RESULT",
+          amountCents: 10_000,
+          pages: [1],
+        }),
+        expect.objectContaining({
+          canonicalType: "RECTIFIED_RESULT",
+          amountCents: 8_000,
+          pages: [1],
+        }),
+        expect.objectContaining({
+          canonicalType: "DIFFERENCE",
+          amountCents: -2_000,
+          assertionType: "NORMALIZED",
+          sourcePart: "MAIN_ADMINISTRATIVE_ACT",
+          pages: [1],
+        }),
+      ]),
+    );
+    expect(auditIntegrity?.checks[0]).toMatchObject({
+      printedValueCents: -2_000,
+      calculatedValueCents: -2_000,
+      absoluteDifferenceCents: 0,
+      calculation: { kind: "LINEAR_EQUALITY" },
+    });
+    expect(
+      parseFiscalNotificationLibraryAiAuditInputV1(projected),
+    ).not.toBeNull();
   });
 
   it("valida conteos, alias y lenguaje limpio en los hallazgos del proveedor", () => {

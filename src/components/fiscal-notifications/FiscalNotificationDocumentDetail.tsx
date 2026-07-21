@@ -245,6 +245,7 @@ function IntegritySection({
   > = {
     VALIDATED: "border-emerald-200 bg-emerald-50 text-emerald-950",
     PARTIAL: "border-amber-200 bg-amber-50 text-amber-950",
+    SEMANTIC_INCONSISTENT: "border-amber-200 bg-amber-50 text-amber-950",
     REVIEW_REQUIRED: "border-amber-200 bg-amber-50 text-amber-950",
     INCONSISTENT: "border-red-200 bg-red-50 text-red-950",
     NOT_APPLICABLE: "border-slate-200 bg-slate-50 text-slate-800",

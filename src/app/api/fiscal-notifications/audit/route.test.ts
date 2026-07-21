@@ -170,7 +170,7 @@ beforeEach(() => {
       findings: [],
     },
     modelId: "gpt-4o",
-    promptVersion: "fiscal-notification-library-audit-prompt.v6",
+    promptVersion: "fiscal-notification-library-audit-prompt.v7",
     metrics: {
       attempts: 1,
       durationMs: 12,

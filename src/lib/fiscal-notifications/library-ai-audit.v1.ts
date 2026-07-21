@@ -7,7 +7,7 @@ import type {
 import { isStrongStructuredReviewRelationReferenceTypeV1 } from "./structured-review-relations-view-model.v1";
 
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_SCHEMA_VERSION_V1 =
-  "fiscal-notification-library-ai-audit.v4";
+  "fiscal-notification-library-ai-audit.v5";
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MODEL_V1 = "gpt-4o";
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MAX_DOCUMENTS_V1 = 100;
 
@@ -85,6 +85,7 @@ export interface FiscalNotificationLibraryAiAuditInputV1 {
         | "VALIDATED_EXACT"
         | "VALIDATED_WITH_ROUNDING"
         | "VALIDATED_PARTIAL_COMPONENTS"
+        | "SEMANTIC_LABEL_INCONSISTENT"
         | "REVIEW_REQUIRED"
         | "INCONSISTENT_PRINTED_VALUES"
         | "NOT_APPLICABLE_NO_ARITHMETIC";
@@ -102,13 +103,18 @@ export interface FiscalNotificationLibraryAiAuditInputV1 {
           | "VALIDATED_EXACT"
           | "VALIDATED_WITH_ROUNDING"
           | "VALIDATED_PARTIAL_COMPONENTS"
+          | "SEMANTIC_LABEL_INCONSISTENT"
           | "REVIEW_REQUIRED"
           | "INCONSISTENT_PRINTED_VALUES"
           | "NOT_APPLICABLE_NO_ARITHMETIC";
         readonly message: string;
         readonly expectedCents: number | null;
         readonly observedCents: number | null;
+        readonly printedValueCents: number | null;
+        readonly calculatedValueCents: number | null;
         readonly deltaCents: number | null;
+        readonly absoluteDifferenceCents: number | null;
+        readonly relativeDifferenceBasisPoints: number | null;
         readonly toleranceCents: number;
         readonly calculation: {
           readonly kind:
@@ -131,6 +137,14 @@ export interface FiscalNotificationLibraryAiAuditInputV1 {
           readonly semantic:
             "MONEY" | "DATE" | "REFERENCE" | "STATUS" | "COUNT" | "OTHER";
           readonly canonicalType: string;
+          readonly originalClassification: string;
+          readonly assertionType:
+            | "PRINTED"
+            | "NORMALIZED"
+            | "CALCULATED_FROM_PRINTED_VALUES"
+            | "LEGAL_RULE_APPLIED"
+            | "CONFIRMED_BY_LATER_DOCUMENT"
+            | "NOT_PROVEN";
           readonly amountCents: number | null;
           readonly dateValue: string | null;
           readonly countValue: number | null;
@@ -267,6 +281,7 @@ const INTEGRITY_STATUSES = new Set<
   "VALIDATED_EXACT",
   "VALIDATED_WITH_ROUNDING",
   "VALIDATED_PARTIAL_COMPONENTS",
+  "SEMANTIC_LABEL_INCONSISTENT",
   "REVIEW_REQUIRED",
   "INCONSISTENT_PRINTED_VALUES",
   "NOT_APPLICABLE_NO_ARITHMETIC",
@@ -305,6 +320,14 @@ const INTEGRITY_EVIDENCE_SEMANTICS = new Set([
   "STATUS",
   "COUNT",
   "OTHER",
+]);
+const INTEGRITY_ASSERTION_TYPES = new Set([
+  "PRINTED",
+  "NORMALIZED",
+  "CALCULATED_FROM_PRINTED_VALUES",
+  "LEGAL_RULE_APPLIED",
+  "CONFIRMED_BY_LATER_DOCUMENT",
+  "NOT_PROVEN",
 ]);
 const INTEGRITY_CANONICAL_TYPE = /^[A-Z][A-Z0-9_]{0,159}$/u;
 
@@ -567,18 +590,43 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
                     );
                   return match ? [match] : [];
                 });
+                const calculation = projectAuditIntegrityCalculation(
+                  check.calculation,
+                  document.mathematicalIntegrity?.normalizedEvidence ?? [],
+                );
+                const exposesCalculatedMoney =
+                  auditCalculationComparesCalculatedAndPrintedMoney(
+                    calculation.kind,
+                  );
                 return Object.freeze({
                   kind: check.checkKind,
                   status: check.status,
                   message: check.safeMessage,
                   expectedCents: check.expectedCents,
                   observedCents: check.observedCents,
+                  printedValueCents: exposesCalculatedMoney
+                    ? check.observedCents
+                    : null,
+                  calculatedValueCents: exposesCalculatedMoney
+                    ? check.expectedCents
+                    : null,
                   deltaCents: check.deltaCents,
+                  absoluteDifferenceCents:
+                    !exposesCalculatedMoney || check.deltaCents === null
+                      ? null
+                      : Math.abs(check.deltaCents),
+                  relativeDifferenceBasisPoints:
+                    !exposesCalculatedMoney ||
+                    check.deltaCents === null ||
+                    check.expectedCents === null ||
+                    check.expectedCents === 0
+                      ? null
+                      : Math.round(
+                          (Math.abs(check.deltaCents) * 10_000) /
+                            Math.abs(check.expectedCents),
+                        ),
                   toleranceCents: check.toleranceCents,
-                  calculation: projectAuditIntegrityCalculation(
-                    check.calculation,
-                    document.mathematicalIntegrity?.normalizedEvidence ?? [],
-                  ),
+                  calculation,
                   pages: Object.freeze(
                     [
                       ...new Set(evidence.flatMap((item) => item.pageNumbers)),
@@ -594,6 +642,8 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
                       Object.freeze({
                         semantic: item.semantic,
                         canonicalType: item.canonicalType,
+                        originalClassification: item.originalClassification,
+                        assertionType: auditAssertionType(item.assertionType),
                         amountCents: item.amountCents,
                         dateValue: item.dateValue,
                         countValue: item.countValue,
@@ -1345,13 +1395,42 @@ function parseAuditIntegrityReview(
       : [];
     const expectedCents = optionalAuditInteger(check.expectedCents);
     const observedCents = optionalAuditInteger(check.observedCents);
+    const printedValueCents = optionalAuditInteger(check.printedValueCents);
+    const calculatedValueCents = optionalAuditInteger(
+      check.calculatedValueCents,
+    );
     const deltaCents = optionalAuditInteger(check.deltaCents);
+    const absoluteDifferenceCents = optionalAuditInteger(
+      check.absoluteDifferenceCents,
+    );
+    const relativeDifferenceBasisPoints = optionalAuditInteger(
+      check.relativeDifferenceBasisPoints,
+    );
     const calculation = parseAuditIntegrityCalculation(
       check.calculation,
       evidence.filter(
         (item): item is NonNullable<typeof item> => item !== null,
       ),
     );
+    const exposesCalculatedMoney = Boolean(
+      calculation &&
+      auditCalculationComparesCalculatedAndPrintedMoney(calculation.kind),
+    );
+    const expectedPrintedValue = exposesCalculatedMoney ? observedCents : null;
+    const expectedCalculatedValue = exposesCalculatedMoney
+      ? expectedCents
+      : null;
+    const expectedAbsoluteDifference =
+      exposesCalculatedMoney && typeof deltaCents === "number"
+        ? Math.abs(deltaCents)
+        : null;
+    const expectedRelativeDifference =
+      exposesCalculatedMoney &&
+      typeof deltaCents === "number" &&
+      typeof expectedCents === "number" &&
+      expectedCents !== 0
+        ? Math.round((Math.abs(deltaCents) * 10_000) / Math.abs(expectedCents))
+        : null;
     if (
       !INTEGRITY_CHECK_KINDS.has(
         check.kind as NonNullable<
@@ -1367,10 +1446,18 @@ function parseAuditIntegrityReview(
       !isSafeAuditContentOutput(message) ||
       expectedCents === undefined ||
       observedCents === undefined ||
+      printedValueCents === undefined ||
+      calculatedValueCents === undefined ||
       deltaCents === undefined ||
+      absoluteDifferenceCents === undefined ||
+      relativeDifferenceBasisPoints === undefined ||
       (expectedCents === null || observedCents === null) !==
         (deltaCents === null) ||
+      printedValueCents !== expectedPrintedValue ||
+      calculatedValueCents !== expectedCalculatedValue ||
       (deltaCents !== null && deltaCents !== observedCents! - expectedCents!) ||
+      absoluteDifferenceCents !== expectedAbsoluteDifference ||
+      relativeDifferenceBasisPoints !== expectedRelativeDifference ||
       !calculation ||
       !Number.isSafeInteger(check.toleranceCents) ||
       (check.toleranceCents as number) < 0 ||
@@ -1399,7 +1486,11 @@ function parseAuditIntegrityReview(
       message,
       expectedCents,
       observedCents,
+      printedValueCents,
+      calculatedValueCents,
       deltaCents,
+      absoluteDifferenceCents,
+      relativeDifferenceBasisPoints,
       toleranceCents: check.toleranceCents as number,
       calculation,
       pages,
@@ -1493,6 +1584,19 @@ function projectAuditIntegrityCalculation(
   }
 }
 
+function auditCalculationComparesCalculatedAndPrintedMoney(
+  kind: NonNullable<
+    FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+  >["checks"][number]["calculation"]["kind"],
+): boolean {
+  return [
+    "LINEAR_EQUALITY",
+    "PERCENTAGE_EQUALITY",
+    "BASE_PLUS_PERCENTAGE",
+    "ZERO_EQUALITY",
+  ].includes(kind);
+}
+
 function parseAuditIntegrityCalculation(
   value: unknown,
   evidence: NonNullable<
@@ -1581,6 +1685,10 @@ function parseAuditIntegrityEvidence(
     typeof value.canonicalType !== "string" ||
     !INTEGRITY_CANONICAL_TYPE.test(value.canonicalType) ||
     containsInternalFiscalNotificationToken(value.canonicalType) ||
+    typeof value.originalClassification !== "string" ||
+    !INTEGRITY_CANONICAL_TYPE.test(value.originalClassification) ||
+    containsInternalFiscalNotificationToken(value.originalClassification) ||
+    !INTEGRITY_ASSERTION_TYPES.has(String(value.assertionType)) ||
     amountCents === undefined ||
     countValue === undefined ||
     (value.dateValue !== null &&
@@ -1605,12 +1713,28 @@ function parseAuditIntegrityEvidence(
   return Object.freeze({
     semantic,
     canonicalType: value.canonicalType,
+    originalClassification: value.originalClassification,
+    assertionType: value.assertionType as NonNullable<
+      FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+    >["checks"][number]["evidence"][number]["assertionType"],
     amountCents,
     dateValue: value.dateValue as string | null,
     countValue,
     pages,
     sourcePart: value.sourcePart,
   });
+}
+
+function auditAssertionType(
+  assertionType: import("./knowledge/mathematical-integrity-catalog.v11").AeatMathematicalIntegrityAssertionTypeV11,
+): NonNullable<
+  FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+>["checks"][number]["evidence"][number]["assertionType"] {
+  if (assertionType === "CROSS_DOCUMENT_CONFIRMED") {
+    return "CONFIRMED_BY_LATER_DOCUMENT";
+  }
+  if (assertionType === "SUGGESTED") return "NOT_PROVEN";
+  return assertionType;
 }
 
 function parseAuditReference(

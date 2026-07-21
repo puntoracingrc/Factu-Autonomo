@@ -2212,7 +2212,7 @@ function assertAeatP0DeepSerializableFieldPrivacyV10(
     return true;
   }
   if (semantic === "MONEY") {
-    if (normalized !== null || !/^\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(display))
+    if (normalized !== null || !/^-?\d{1,3}(?:\.\d{3})*,\d{2}\s€$/u.test(display))
       throw invalidReview();
     return true;
   }
