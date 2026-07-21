@@ -50,6 +50,7 @@ type SafetyCopyResult =
 export type CloudDeviceRepairResult<T> =
   | { status: "backup_failed"; error: string }
   | { status: "operation_invalidated"; safetyCopyFilename?: string }
+  | { status: "preview_stale"; safetyCopyFilename?: string }
   | { status: "stale_precondition"; safetyCopyFilename: string }
   | { status: "cloud_empty"; safetyCopyFilename: string }
   | {
@@ -72,11 +73,16 @@ export async function runCloudDeviceRepair<T>(input: {
     replacement: AppData,
     expected: AppData,
   ) => AppDataDurabilityResult<CloudSnapshotReplacementValue>;
+  validateExpected?: (expected: AppData) => boolean;
+  validateRemote?: (remote: { data: AppData; details: T }) => boolean;
   isOperationCurrent?: () => boolean;
 }): Promise<CloudDeviceRepairResult<T>> {
   const expected = input.getCurrent();
   if (input.isOperationCurrent && !input.isOperationCurrent()) {
     return { status: "operation_invalidated" };
+  }
+  if (input.validateExpected && !input.validateExpected(expected)) {
+    return { status: "preview_stale" };
   }
   const safetyCopy = await input.downloadCurrent(expected);
   if (!safetyCopy.ok) {
@@ -113,6 +119,13 @@ export async function runCloudDeviceRepair<T>(input: {
   if (!remote) {
     return {
       status: "cloud_empty",
+      safetyCopyFilename: safetyCopy.filename,
+    };
+  }
+
+  if (input.validateRemote && !input.validateRemote(remote)) {
+    return {
+      status: "preview_stale",
       safetyCopyFilename: safetyCopy.filename,
     };
   }
