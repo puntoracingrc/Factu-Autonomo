@@ -40,6 +40,10 @@ import {
 import { scanPackLabel } from "@/lib/billing/scan-packs";
 import { prepareScanFile } from "@/lib/expense-scan/prepare-scan-file";
 import {
+  startExpenseLocalSemanticShadowV1,
+  type ExpenseLocalSemanticShadowHandleV1,
+} from "@/lib/expense-scan/local-semantic-shadow.v1";
+import {
   EXPENSE_SCAN_MAINTENANCE_MESSAGE,
   enqueueExpenseScanFiles,
   updateExpenseScanQueueItem,
@@ -52,7 +56,12 @@ import { markFactuFeatureUsed } from "@/lib/factu/feature-usage";
 interface ExpenseScanCardProps {
   onScanned: (
     payload: ExpenseScanPayload,
-    options?: { fileName?: string; file?: File; append?: boolean },
+    options?: {
+      fileName?: string;
+      file?: File;
+      append?: boolean;
+      localShadow?: ExpenseLocalSemanticShadowHandleV1;
+    },
   ) => void;
   onScanProgress?: (
     progress: { current: number; total: number; fileName?: string } | null,
@@ -99,6 +108,9 @@ export function ExpenseScanCard({
   const { user } = useCloudSync();
   const demoMode = useDemoWorkspaceMode();
   const inputRef = useRef<HTMLInputElement>(null);
+  const localShadowHandlesRef = useRef(
+    new Set<ExpenseLocalSemanticShadowHandleV1>(),
+  );
   const [quota, setQuota] = useState<ScanQuota | null>(null);
   const [loadingQuota, setLoadingQuota] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -176,6 +188,14 @@ export function ExpenseScanCard({
   useEffect(() => {
     void loadQuota();
   }, [loadQuota, checkoutStatus]);
+
+  useEffect(
+    () => () => {
+      for (const handle of localShadowHandlesRef.current) handle.dispose();
+      localShadowHandlesRef.current.clear();
+    },
+    [],
+  );
 
   async function handleBuyScanPack() {
     setBuyingPack(true);
@@ -320,6 +340,7 @@ export function ExpenseScanCard({
 
     setScanning(true);
     let activeQueueItemId: string | null = null;
+    let activeLocalShadow: ExpenseLocalSemanticShadowHandleV1 | null = null;
 
     try {
       const allWarnings: string[] = [];
@@ -339,10 +360,21 @@ export function ExpenseScanCard({
           total: itemsToAnalyze.length,
           fileName: item.file.name,
         });
+        const localShadow = startExpenseLocalSemanticShadowV1({
+          ownerScope: user?.id ?? "local-expense-scanner",
+          operationId: crypto.randomUUID(),
+          documentId: crypto.randomUUID(),
+          file: item.file,
+        });
+        localShadowHandlesRef.current.add(localShadow);
+        activeLocalShadow = localShadow;
         const result = await scanFile(item.file);
         if (result.quota) setQuota(result.quota);
 
         if (!result.data) {
+          localShadow.dispose();
+          localShadowHandlesRef.current.delete(localShadow);
+          activeLocalShadow = null;
           const message = result.error ?? "No se pudo leer el archivo.";
           if (result.code === "SCAN_SERVICE_UNAVAILABLE") {
             const pendingIds = new Set(
@@ -395,7 +427,10 @@ export function ExpenseScanCard({
           fileName: item.file.name,
           file: item.file,
           append: imported > 0,
+          localShadow,
         });
+        localShadowHandlesRef.current.delete(localShadow);
+        activeLocalShadow = null;
         imported += 1;
         activeQueueItemId = null;
       }
@@ -404,6 +439,10 @@ export function ExpenseScanCard({
       if (errors.length > 0) setError(errors.join(" · "));
       if (imported > 0) markFactuFeatureUsed("expense_scan");
     } catch {
+      activeLocalShadow?.dispose();
+      if (activeLocalShadow) {
+        localShadowHandlesRef.current.delete(activeLocalShadow);
+      }
       const message =
         "Error de conexión. Comprueba tu internet e inténtalo de nuevo.";
       setError(message);

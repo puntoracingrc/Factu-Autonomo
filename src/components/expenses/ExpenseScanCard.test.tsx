@@ -40,4 +40,19 @@ describe("ExpenseScanCard interaction contract", () => {
     expect(source).toContain("onScanned(data");
     expect(source).toContain("onScanProgress?.({");
   });
+
+  it("starts the local shadow without delaying or replacing the AI result", () => {
+    const localStart = source.indexOf(
+      "const localShadow = startExpenseLocalSemanticShadowV1",
+    );
+    const providerCall = source.indexOf("await scanFile(item.file)");
+
+    expect(localStart).toBeGreaterThan(-1);
+    expect(providerCall).toBeGreaterThan(localStart);
+    expect(source).toContain("localShadow.dispose();");
+    expect(source).toContain("localShadowHandlesRef.current.add(localShadow)");
+    expect(source).toContain("handle.dispose()");
+    expect(source).toContain("localShadow,");
+    expect(source).not.toContain("await startExpenseLocalSemanticShadowV1");
+  });
 });
