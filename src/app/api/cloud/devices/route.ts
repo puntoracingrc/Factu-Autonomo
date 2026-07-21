@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
-import { getUserFromBearer } from "@/lib/billing/server-auth";
+import {
+  getUserFromBearer,
+  getUserSessionFromBearer,
+} from "@/lib/billing/server-auth";
 import {
   ensureCloudDeviceAccess,
   listCloudDevicesForUser,
@@ -54,12 +57,14 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const user = await getUserFromBearer(request.headers.get("authorization"), {
-    requireEmailConfirmed: true,
-  });
-  if (!user) {
+  const identity = await getUserSessionFromBearer(
+    request.headers.get("authorization"),
+    { requireEmailConfirmed: true },
+  );
+  if (!identity) {
     return privateJson({ error: "No autorizado" }, { status: 401 });
   }
+  const { user, sessionId } = identity;
   const rateLimit = await checkRateLimit(
     request,
     { namespace: "cloud_devices_claim", limit: 60, windowMs: 10 * 60_000 },
@@ -89,6 +94,7 @@ export async function POST(request: Request) {
   const result = await ensureCloudDeviceAccess({
     userId: user.id,
     token,
+    sessionId,
     name: typeof body.name === "string" ? body.name : undefined,
     userAgent: request.headers.get("user-agent") ?? "",
     markSynced: body.markSynced === true,

@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 7
-- Fecha: 2026-07-20
+- Versión: 8
+- Fecha: 2026-07-21
 
 ## Contexto
 
@@ -78,6 +78,20 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
    revoca su plaza antes de cerrar una sesión con nube. Si cualquiera de esas
    operaciones falla, no borra los datos locales. En Gratis omite esas
    precondiciones remotas y elimina también el token local del navegador.
+10. Cada operación cloud renueva una concesión exclusiva de 2 minutos entre el
+    token del dispositivo y el `session_id` verificado de Supabase. Ambos se
+    persisten solo como SHA-256 con dominios separados; no se guarda el
+    identificador de sesión en claro, IP, user-agent completo ni fingerprint.
+11. Las pestañas de una misma sesión comparten concesión. Una sesión distinta
+    que reutilice el mismo token no obtiene acceso cloud mientras la concesión
+    siga viva. El rechazo solo pausa la nube, conserva íntegra la cola local y
+    se reintenta cuando la sesión propietaria cierre o venza el plazo.
+12. El cierre de sesión ordinario intenta liberar su concesión antes de
+    invalidar el JWT, sin revocar la plaza ni borrar el token del dispositivo.
+    Si el navegador desaparece sin cerrar sesión, el vencimiento acotado evita
+    un bloqueo permanente. El despliegue de esta exigencia usa primero una
+    ventana de compatibilidad versionada y la cierra con una migración separada
+    una vez que el cliente capaz de reclamar concesiones está en producción.
 
 ### Copias en Google Drive
 
@@ -149,6 +163,9 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
   dispositivos también en las policies de almacenamiento.
 - Perder un dispositivo no bloquea la cuenta: el usuario puede revocarlo desde
   una sesión nueva sin que esta sincronice antes de obtener una plaza.
+- Copiar el token local no permite sincronizar simultáneamente desde otra
+  sesión; las pestañas normales no consumen plazas adicionales y un cierre
+  inesperado solo retiene la concesión durante un máximo de 2 minutos.
 - Drive no puede mostrar una copia como válida basándose únicamente en la
   aceptación de la subida.
 - Guardar desde los escáneres no espera a Drive ni vuelve a comparar toda la
@@ -177,6 +194,8 @@ deben superar:
 - `src/lib/cloud/device-client.test.ts`
 - `src/lib/cloud/device-token.test.ts`
 - `src/lib/cloud/device-policy-contract.test.ts`
+- `src/lib/billing/server-auth.test.ts`
+- `src/app/api/cloud/devices/session/route.test.ts`
 - `src/lib/supabase-rls-table-audit.test.ts`
 - `src/lib/google-drive/operation.test.ts`
 - `src/lib/google-drive/backup.test.ts`

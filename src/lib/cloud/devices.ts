@@ -6,6 +6,8 @@ import { resolveEffectivePlan } from "@/lib/billing/subscription";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 const USER_DEVICES_TABLE = "user_devices";
+const CLAIM_DEVICE_SESSION_RPC = "claim_cloud_device_session";
+const RELEASE_DEVICE_SESSION_RPC = "release_cloud_device_session";
 
 export type CloudDeviceKind = "computer" | "mobile" | "tablet" | "unknown";
 export type CloudDeviceStatus = "active" | "revoked";
@@ -34,7 +36,11 @@ export type CloudDeviceAccessResult =
       allowed: false;
       plan: PlanId;
       limit: number | null;
-      reason: "cloud_not_in_plan" | "device_limit_reached" | "device_revoked";
+      reason:
+        | "cloud_not_in_plan"
+        | "device_limit_reached"
+        | "device_revoked"
+        | "device_session_conflict";
       message: string;
       devices: CloudDeviceRecord[];
     };
@@ -55,6 +61,7 @@ interface UserDeviceRow {
 interface EnsureCloudDeviceInput {
   userId: string;
   token: string;
+  sessionId: string;
   name?: string;
   userAgent?: string;
   markSynced?: boolean;
@@ -76,6 +83,20 @@ interface RevokeCurrentCloudDeviceInput {
   currentToken: string;
 }
 
+interface ReleaseCloudDeviceSessionInput {
+  userId: string;
+  currentToken: string;
+  sessionId: string;
+}
+
+type CloudDeviceSessionClaimStatus =
+  | "claimed"
+  | "cloud_not_in_plan"
+  | "device_limit_reached"
+  | "device_revoked"
+  | "device_missing"
+  | "session_conflict";
+
 function tableMissing(error: { code?: string; message?: string } | null) {
   if (!error) return false;
   return (
@@ -94,9 +115,26 @@ export function hashCloudDeviceToken(token: string): string {
     .digest("hex");
 }
 
+export function hashCloudDeviceSessionId(sessionId: string): string {
+  return createHash("sha256")
+    .update(`factu-cloud-session-v1:${sessionId}`)
+    .digest("hex");
+}
+
 export function normalizeCloudDeviceToken(token: string | null | undefined) {
   const value = token?.trim() ?? "";
   return value.length >= 32 && value.length <= 256 ? value : null;
+}
+
+export function normalizeCloudDeviceSessionId(
+  sessionId: string | null | undefined,
+) {
+  const value = sessionId?.trim() ?? "";
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  )
+    ? value
+    : null;
 }
 
 export function inferCloudDeviceKind(userAgent = ""): CloudDeviceKind {
@@ -198,6 +236,85 @@ function unavailableResult(
   };
 }
 
+async function claimCloudDeviceSession(
+  admin: SupabaseClient,
+  userId: string,
+  tokenHash: string,
+  sessionId: string,
+): Promise<CloudDeviceSessionClaimStatus> {
+  const normalizedSessionId = normalizeCloudDeviceSessionId(sessionId);
+  if (!normalizedSessionId) {
+    throw new Error("Identificador de sesion no valido");
+  }
+
+  const { data, error } = await admin.rpc(CLAIM_DEVICE_SESSION_RPC, {
+    p_user_id: userId,
+    p_token_hash: tokenHash,
+    p_session_hash: hashCloudDeviceSessionId(normalizedSessionId),
+  });
+  if (error) {
+    throw new Error("No se pudo verificar la sesion de este dispositivo");
+  }
+  if (
+    data !== "claimed" &&
+    data !== "cloud_not_in_plan" &&
+    data !== "device_limit_reached" &&
+    data !== "device_revoked" &&
+    data !== "device_missing" &&
+    data !== "session_conflict"
+  ) {
+    throw new Error("Respuesta de sesion de dispositivo no valida");
+  }
+  return data;
+}
+
+function rejectedSessionClaimResult(
+  status: Exclude<CloudDeviceSessionClaimStatus, "claimed">,
+  plan: PlanId,
+  currentHash: string,
+  rows: readonly UserDeviceRow[],
+): CloudDeviceAccessResult {
+  const limit = cloudDeviceLimitForPlan(plan);
+  const devices = rows.map((row) => mapDeviceRow(row, currentHash));
+  if (status === "cloud_not_in_plan") {
+    return unavailableResult(plan, currentHash, rows);
+  }
+  if (status === "device_limit_reached") {
+    return {
+      allowed: false,
+      plan,
+      limit,
+      reason: "device_limit_reached",
+      message:
+        "Este dispositivo queda fuera del limite actual de tu plan. Desactiva otro dispositivo desde Cuenta para liberar una plaza.",
+      devices,
+    };
+  }
+  if (status === "device_revoked") {
+    return {
+      allowed: false,
+      plan,
+      limit,
+      reason: "device_revoked",
+      message:
+        "Este dispositivo fue desactivado para tu cuenta. Entra desde otro dispositivo activo o contacta con soporte.",
+      devices,
+    };
+  }
+  if (status === "device_missing") {
+    throw new Error("El dispositivo no pudo verificarse en la cuenta");
+  }
+  return {
+    allowed: false,
+    plan,
+    limit,
+    reason: "device_session_conflict",
+    message:
+      "Otra sesion esta usando esta misma plaza de nube. Cierra la otra sesion o espera dos minutos; tus cambios siguen guardados en este dispositivo.",
+    devices,
+  };
+}
+
 export async function listCloudDevicesForUser({
   userId,
   token,
@@ -224,6 +341,7 @@ export async function listCloudDevicesForUser({
 export async function ensureCloudDeviceAccess({
   userId,
   token,
+  sessionId,
   name,
   userAgent,
   markSynced = false,
@@ -283,6 +401,20 @@ export async function ensureCloudDeviceAccess({
   );
 
   if (current) {
+    const claimStatus = await claimCloudDeviceSession(
+      admin,
+      userId,
+      currentHash,
+      sessionId,
+    );
+    if (claimStatus !== "claimed") {
+      return rejectedSessionClaimResult(
+        claimStatus,
+        plan,
+        currentHash,
+        rows,
+      );
+    }
     const { error } = await admin
       .from(USER_DEVICES_TABLE)
       .update({
@@ -354,6 +486,20 @@ export async function ensureCloudDeviceAccess({
         .map((row) => row.id),
     );
     if (racedCurrent && authorizedIds.has(racedCurrent.id)) {
+      const claimStatus = await claimCloudDeviceSession(
+        admin,
+        userId,
+        currentHash,
+        sessionId,
+      );
+      if (claimStatus !== "claimed") {
+        return rejectedSessionClaimResult(
+          claimStatus,
+          plan,
+          currentHash,
+          refreshed,
+        );
+      }
       return {
         allowed: true,
         plan,
@@ -380,6 +526,21 @@ export async function ensureCloudDeviceAccess({
     throw new Error(error.message);
   }
 
+  const claimStatus = await claimCloudDeviceSession(
+    admin,
+    userId,
+    currentHash,
+    sessionId,
+  );
+  if (claimStatus !== "claimed") {
+    const afterClaim = await selectDeviceRows(admin, userId);
+    return rejectedSessionClaimResult(
+      claimStatus,
+      plan,
+      currentHash,
+      afterClaim,
+    );
+  }
   const refreshed = await selectDeviceRows(admin, userId);
   return {
     allowed: true,
@@ -432,7 +593,13 @@ export async function revokeCloudDeviceForUser({
   const now = new Date().toISOString();
   const { error } = await admin
     .from(USER_DEVICES_TABLE)
-    .update({ status: "revoked", revoked_at: now })
+    .update({
+      status: "revoked",
+      revoked_at: now,
+      active_session_hash: null,
+      session_lease_expires_at: null,
+      session_binding_required_at: now,
+    })
     .eq("user_id", userId)
     .eq("id", deviceId);
   if (error) throw new Error(error.message);
@@ -441,6 +608,30 @@ export async function revokeCloudDeviceForUser({
     ok: true,
     devices: refreshed.map((row) => mapDeviceRow(row, currentHash)),
   };
+}
+
+export async function releaseCloudDeviceSessionForUser({
+  userId,
+  currentToken,
+  sessionId,
+}: ReleaseCloudDeviceSessionInput): Promise<boolean> {
+  const normalizedToken = normalizeCloudDeviceToken(currentToken);
+  const normalizedSessionId = normalizeCloudDeviceSessionId(sessionId);
+  if (!normalizedToken || !normalizedSessionId) return false;
+
+  const admin = getSupabaseAdmin();
+  if (!admin) {
+    throw new Error("Servidor de dispositivos no disponible");
+  }
+  const { data, error } = await admin.rpc(RELEASE_DEVICE_SESSION_RPC, {
+    p_user_id: userId,
+    p_token_hash: hashCloudDeviceToken(normalizedToken),
+    p_session_hash: hashCloudDeviceSessionId(normalizedSessionId),
+  });
+  if (error) {
+    throw new Error("No se pudo liberar la sesion de este dispositivo");
+  }
+  return data === true;
 }
 
 export async function revokeCurrentCloudDeviceForUser({
@@ -482,7 +673,13 @@ export async function revokeCurrentCloudDeviceForUser({
   const now = new Date().toISOString();
   const { error } = await admin
     .from(USER_DEVICES_TABLE)
-    .update({ status: "revoked", revoked_at: now })
+    .update({
+      status: "revoked",
+      revoked_at: now,
+      active_session_hash: null,
+      session_lease_expires_at: null,
+      session_binding_required_at: now,
+    })
     .eq("user_id", userId)
     .eq("id", current.id);
   if (error) throw new Error(error.message);

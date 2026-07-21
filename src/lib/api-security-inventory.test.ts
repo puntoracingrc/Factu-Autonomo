@@ -35,6 +35,7 @@ const expectedMethods: Record<string, string[]> = {
   "billing/subscription/route.ts": ["POST"],
   "billing/trial/route.ts": ["POST"],
   "cloud/devices/[id]/route.ts": ["DELETE"],
+  "cloud/devices/session/route.ts": ["DELETE"],
   "cloud/devices/route.ts": ["DELETE", "GET", "POST"],
   "customers/parse/route.ts": ["POST"],
   "document-sync/route.ts": [
@@ -113,6 +114,7 @@ const bearerRoutes = [
   "billing/subscription/route.ts",
   "billing/trial/route.ts",
   "cloud/devices/[id]/route.ts",
+  "cloud/devices/session/route.ts",
   "cloud/devices/route.ts",
   "customers/parse/route.ts",
   "email/payment-reminder/route.ts",
@@ -253,7 +255,9 @@ describe("API security inventory", () => {
       expect(sourceFor(route), route).toContain("getAdminAccessFromRequest");
     }
     for (const route of bearerRoutes) {
-      expect(sourceFor(route), route).toContain("getUserFromBearer");
+      expect(sourceFor(route), route).toMatch(
+        /getUser(?:Session)?FromBearer/,
+      );
     }
     for (const route of partnerRoutes) {
       expect(sourceFor(route), route).toContain("getPartnerAccessFromRequest");

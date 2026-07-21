@@ -15,6 +15,27 @@ const rollback = readFileSync(
   ),
   "utf8",
 );
+const sessionMigration = readFileSync(
+  new URL(
+    "../../../supabase/migrations/20260721190000_cloud_device_session_leases.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const enforcementMigration = readFileSync(
+  new URL(
+    "../../../supabase/migrations/20260721190100_cloud_device_session_enforcement.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+const sessionRollback = readFileSync(
+  new URL(
+    "../../../supabase/rollbacks/20260721190000_cloud_device_session_leases.down.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 const supabaseClient = readFileSync(
   new URL("../supabase/client.ts", import.meta.url),
   "utf8",
@@ -36,6 +57,30 @@ describe("cloud device policy contract", () => {
     );
     expect(migration).not.toMatch(/\bip(?:_address)?\b/i);
     expect(migration).not.toMatch(/user_agent/i);
+    expect(sessionMigration).toContain("cloud_device_session_hash");
+    expect(sessionMigration).toContain("factu-cloud-session-v1:");
+    expect(sessionMigration).not.toMatch(/\bip(?:_address)?\b/i);
+    expect(sessionMigration).not.toMatch(/user_agent/i);
+  });
+
+  it("binds each device token to one verified live Supabase session", () => {
+    expect(sessionMigration).toContain("auth.jwt() ->> 'session_id'");
+    expect(sessionMigration).toContain("claim_cloud_device_session");
+    expect(sessionMigration).toContain("release_cloud_device_session");
+    expect(sessionMigration).toContain("return 'session_conflict'");
+    expect(sessionMigration).toContain("interval '2 minutes'");
+    expect(sessionMigration).toContain(
+      "grant execute on function public.claim_cloud_device_session(uuid, text, text)",
+    );
+    expect(sessionMigration).not.toMatch(
+      /grant execute on function public\.claim_cloud_device_session[^;]*to authenticated/i,
+    );
+    expect(enforcementMigration).toContain(
+      "set session_binding_required_at = statement_timestamp()",
+    );
+    expect(sessionRollback).toContain(
+      "drop function if exists public.claim_cloud_device_session",
+    );
   });
 
   it("enforces plan and active-device access on every cloud storage policy", () => {

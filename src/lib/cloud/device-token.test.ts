@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   forgetLocalCloudDeviceToken,
+  getLocalCloudDeviceToken,
   getOrCreateLocalCloudDeviceToken,
   isValidCloudDeviceToken,
 } from "./device-token";
@@ -44,5 +45,13 @@ describe("cloud device token", () => {
     expect(
       values.get("factura-autonomo-cloud-device-token-v1"),
     ).toBeUndefined();
+  });
+
+  it("reads an existing token without creating one", () => {
+    expect(getLocalCloudDeviceToken()).toBeNull();
+    expect(values.size).toBe(0);
+
+    values.set("factura-autonomo-cloud-device-token-v1", "z".repeat(64));
+    expect(getLocalCloudDeviceToken()).toBe("z".repeat(64));
   });
 });

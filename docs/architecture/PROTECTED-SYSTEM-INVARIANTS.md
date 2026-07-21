@@ -106,6 +106,9 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
 - Gratis permanece local; Pro/Pro+ limitan la nube a 2/5 dispositivos activos.
   Registro y revocación pasan por API privada y las policies de almacenamiento
   exigen propietario, plan cloud y token activo conservado solo como hash.
+- Cada token activo requiere además una concesión temporal ligada por hash a
+  una única sesión Supabase verificada. Un conflicto bloquea solo la nube,
+  conserva la cola local y nunca depende de IP o fingerprint del equipo.
 - El borrado seguro de un plan con nube confirma la subida y revoca la plaza
   antes de cerrar; un fallo conserva los datos locales.
 - Aislamiento por usuario, CAS e integridad fiscal continúan fail-closed.

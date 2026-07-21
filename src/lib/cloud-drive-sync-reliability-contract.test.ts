@@ -61,10 +61,17 @@ describe("cloud and Drive reliability contract", () => {
     const migration = source(
       "supabase/migrations/20260720133000_user_devices.sql",
     );
+    const sessionMigration = source(
+      "supabase/migrations/20260721190000_cloud_device_session_leases.sql",
+    );
 
     expect(context).toContain("ensureCloudReadyForCurrentDevice");
     expect(context).toContain("registerCurrentCloudDevice");
     expect(context).toContain("retireCurrentCloudDevice");
+    expect(context).toContain("releaseCurrentCloudDeviceSession");
+    expect(context).toContain(
+      'deviceAccess.reason === "device_session_conflict"',
+    );
     expect(context).toMatch(
       /await flushPendingUpload\(false\)[\s\S]*await retireCurrentCloudDevice\(\)[\s\S]*supabase\.auth\.signOut\(\)/,
     );
@@ -73,6 +80,9 @@ describe("cloud and Drive reliability contract", () => {
     expect(migration).toContain("cloud_device_access_allowed");
     expect(migration).toContain("pg_advisory_xact_lock");
     expect(migration).toContain("cloud_device_limit_reached");
+    expect(sessionMigration).toContain("claim_cloud_device_session");
+    expect(sessionMigration).toContain("auth.jwt() ->> 'session_id'");
+    expect(sessionMigration).toContain("return 'session_conflict'");
   });
 
   it("retira la plaza al borrar un dispositivo y permite el borrado local en Gratis", () => {
