@@ -165,6 +165,10 @@ describe("fiscal notification library AI audit provider v1", () => {
     );
     expect(prompt).toContain("No tienes el PDF ni texto bruto");
     expect(prompt).toContain("contrasta cada ecuación");
+    expect(prompt).toContain("diferencia absoluta y relativa");
+    expect(prompt).toContain("printedValueCents (valor impreso)");
+    expect(prompt).toContain("calculatedValueCents (valor calculado)");
+    expect(prompt).toContain("SEMANTIC_LABEL_INCONSISTENT");
     expect(prompt).toContain("No uses un identificador fiscal descartado como importe");
     expect(
       buildFiscalNotificationLibraryAiAuditSystemPromptV1("2026-07-21"),

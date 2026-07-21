@@ -214,6 +214,39 @@ describe("AEAT P0 deep extractor v10", () => {
     expect(JSON.stringify(result)).not.toContain(privateValue);
   });
 
+  it("preserves the printed negative sign without making the extracted magnitude negative", () => {
+    const profile = AEAT_P0_DEEP_PROFILES_V10.find((item) => item.profileId === "filing.rectifying_self_assessment_receipt")!;
+    const difference = profile.canonicalFields.find((field) => field.id === "DIFFERENCE")!;
+    const label = difference.labelVariants[0]!;
+    const result = extractAeatP0DeepDocumentV10(document(
+      positiveText(profile).replace(`${label}: 1.234,56 €`, `${label}: -1.234,56 €`),
+    ));
+
+    expect(result.fields.find((field) => field.fieldCode === "DIFFERENCE")).toMatchObject({
+      amountCents: 123_456,
+      displayValue: "-1.234,56 €",
+      assertionLayer: "PRINTED",
+    });
+  });
+
+  it("takes the sign from the same printed amount when a line contains several figures", () => {
+    const profile = AEAT_P0_DEEP_PROFILES_V10.find((item) => item.profileId === "filing.rectifying_self_assessment_receipt")!;
+    const previous = profile.canonicalFields.find((field) => field.id === "PREVIOUS_RESULT")!;
+    const label = previous.labelVariants[0]!;
+    const result = extractAeatP0DeepDocumentV10(document(
+      positiveText(profile).replace(
+        `${label}: 1.234,56 €`,
+        `${label}: 100,00 €; -20,00 €`,
+      ),
+    ));
+
+    expect(result.fields.find((field) => field.fieldCode === "PREVIOUS_RESULT")).toMatchObject({
+      amountCents: 10_000,
+      displayValue: "100,00 €",
+      assertionLayer: "PRINTED",
+    });
+  });
+
   it("is deterministic, immutable and does not mutate the document input", () => {
     const profile = AEAT_P0_DEEP_PROFILES_V10[3]!;
     const input = document(positiveText(profile));

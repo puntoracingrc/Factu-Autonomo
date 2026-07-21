@@ -5,7 +5,6 @@ import {
   AEAT_MATHEMATICAL_INTEGRITY_RELEASE_ID_V11,
   resolveAeatMathematicalIntegrityFamilyV11,
   type AeatMathematicalIntegrityFamilyV11,
-  type AeatMathematicalIntegrityStatusV11,
 } from "./knowledge/mathematical-integrity-catalog.v11";
 import {
   FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_VERSION_V11,
@@ -13,6 +12,7 @@ import {
   type FiscalNotificationIntegrityNormalizedEvidenceV11,
   type FiscalNotificationIntegritySourcePartV11,
   type FiscalNotificationMathematicalIntegrityCheckV11,
+  type FiscalNotificationMathematicalIntegrityStatusV11,
   type FiscalNotificationMathematicalIntegrityV11,
 } from "./mathematical-integrity-contract.v11";
 import type {
@@ -29,6 +29,7 @@ import {
 const MAX_AUTOMATIC_PASSES = 2;
 const ISO_DATE = /^(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/u;
 const V7_FIELD_CODE = /^real-corpus-v7:([A-Z][A-Z0-9_]*):\d+$/u;
+const P0_FIELD_CODE = /^p0-v10:([A-Z][A-Z0-9_]*):\d+$/u;
 interface EvidenceProjectionV11 {
   readonly evidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[];
   readonly evidenceByFieldId: ReadonlyMap<
@@ -72,17 +73,32 @@ function validateDocument(
   const family = resolveAeatMathematicalIntegrityFamilyV11(document.familyId);
   if (!family) return document;
   const projection = projectEvidence(document, family, segments);
-  const checks = [
-    ...arithmeticChecks(
-      document,
-      family,
-      projection.evidenceByFieldId,
-      projection.equationEvidenceById,
-    ),
-    ...semanticLabelChecks(family, projection.evidence),
-    ...countChecks(family, projection.evidence),
-    ...temporalChecks(family, projection.evidence),
-  ];
+  const structuredChecks = structuredFamilyArithmeticChecks(
+    document,
+    family,
+    projection.evidenceByFieldId,
+  );
+  const arithmetic = arithmeticChecks(
+    document,
+    family,
+    projection.evidenceByFieldId,
+    projection.equationEvidenceById,
+  ).filter(
+    (check) =>
+      !structuredCheckSupersedesGeneric(check, structuredChecks, family),
+  );
+  const checks = enforceArithmeticSourcePartCompatibility(
+    family,
+    [
+      ...arithmetic,
+      ...structuredChecks,
+      ...semanticLabelChecks(family, projection.evidence),
+      ...countChecks(family, projection.evidence),
+      ...temporalChecks(family, projection.evidence),
+    ],
+    projection.evidence,
+    segments,
+  );
   if (checks.length === 0) {
     checks.push(fallbackCheck(document, family));
   }
@@ -116,6 +132,7 @@ function validateDocument(
         hardFailureCodes.length > 0
           ? "BLOCK_INCONSISTENT_PRINTED_CORE"
           : status === "REVIEW_REQUIRED" ||
+              status === "SEMANTIC_LABEL_INCONSISTENT" ||
               status === "VALIDATED_PARTIAL_COMPONENTS"
             ? "ALLOW_CORE_WITH_WARNINGS"
             : "ALLOW_CORE",
@@ -137,35 +154,586 @@ function validateDocument(
   });
 }
 
-function semanticLabelChecks(
+function structuredCheckSupersedesGeneric(
+  check: FiscalNotificationMathematicalIntegrityCheckV11,
+  structuredChecks: readonly FiscalNotificationMathematicalIntegrityCheckV11[],
+  family: AeatMathematicalIntegrityFamilyV11,
+): boolean {
+  if (!check.ruleId.includes(":arithmetic:")) return false;
+  if (
+    family.archetypeId === "OFFSET_LEDGER" &&
+    structuredChecks.some((candidate) =>
+      candidate.ruleId.includes(":offset-row:"),
+    )
+  ) {
+    return true;
+  }
+  return (
+    family.archetypeId === "SANCTION_CALCULATION" &&
+    structuredChecks.some((candidate) =>
+      candidate.ruleId.endsWith(":all-reductions"),
+    )
+  );
+}
+
+interface StructuredMoneyEvidenceV11 {
+  readonly code: string;
+  readonly field: FiscalNotificationVerticalSliceReviewFieldV1;
+  readonly evidence: FiscalNotificationIntegrityNormalizedEvidenceV11;
+}
+
+function structuredFamilyArithmeticChecks(
+  document: FiscalNotificationVerticalSliceReviewDocumentV1,
+  family: AeatMathematicalIntegrityFamilyV11,
+  evidenceByFieldId: ReadonlyMap<
+    string,
+    FiscalNotificationIntegrityNormalizedEvidenceV11
+  >,
+): FiscalNotificationMathematicalIntegrityCheckV11[] {
+  const money = document.fields.flatMap<StructuredMoneyEvidenceV11>((field) => {
+    const evidence = evidenceByFieldId.get(field.fieldId);
+    const code = structuredFieldCode(field.fieldId);
+    return field.semantic === "MONEY" &&
+      field.amountCents !== null &&
+      evidence &&
+      code
+      ? [{ code, field, evidence }]
+      : [];
+  });
+  if (money.length === 0) return [];
+  return [
+    ...offsetRowChecks(family, money),
+    ...seizureLedgerChecks(family, money),
+    ...refundLedgerChecks(family, money),
+    ...interestScheduleChecks(family, money),
+    ...sanctionReductionChecks(family, money),
+    ...rectifyingResultChecks(family, money),
+  ];
+}
+
+function interestScheduleChecks(
+  family: AeatMathematicalIntegrityFamilyV11,
+  money: readonly StructuredMoneyEvidenceV11[],
+): FiscalNotificationMathematicalIntegrityCheckV11[] {
+  if (family.archetypeId !== "INTEREST_SCHEDULE") return [];
+  const tranches = money.filter((item) =>
+    /^(?:INTEREST_TRANCHE_AMOUNT|ASSESSED_INTEREST)_\d+$/u.test(item.code),
+  );
+  const total = uniqueStructuredMoney(money, [
+    "TOTAL_INTEREST",
+    "ASSESSED_INTEREST",
+  ]);
+  if (!total || tranches.length === 0) return [];
+  return [
+    structuredLinearCheck({
+      family,
+      ruleId: `v11:${family.archetypeId.toLowerCase()}:tranche-total`,
+      result: total,
+      terms: tranches.map((item) => ({ item, sign: 1 as const })),
+      toleranceCents: 0,
+    }),
+    structuredPartialCheck(
+      `v11:${family.archetypeId.toLowerCase()}:tranche-formula-inputs`,
+      [...tranches, total],
+      "Hay componentes impresos que no se pueden reconciliar sin completar su estructura.",
+    ),
+  ];
+}
+
+function structuredFieldCode(fieldId: string): string | null {
+  return (
+    /^real-corpus-v[2-7]:([A-Z][A-Z0-9_]*):\d+$/u.exec(fieldId)?.[1] ??
+    /^profile:money:([A-Z][A-Z0-9_]*):\d+$/u.exec(fieldId)?.[1] ??
+    /^p0-v10:([A-Z][A-Z0-9_]*):\d+$/u.exec(fieldId)?.[1] ??
+    null
+  );
+}
+
+function offsetRowChecks(
+  family: AeatMathematicalIntegrityFamilyV11,
+  money: readonly StructuredMoneyEvidenceV11[],
+): FiscalNotificationMathematicalIntegrityCheckV11[] {
+  if (family.archetypeId !== "OFFSET_LEDGER") return [];
+  const rows = new Map<
+    number,
+    Partial<
+      Record<"BEFORE" | "APPLIED" | "REMAINING", StructuredMoneyEvidenceV11>
+    >
+  >();
+  for (const item of money) {
+    const match = /^OFFSET_(BEFORE|APPLIED|REMAINING)_(\d+)$/u.exec(item.code);
+    if (!match) continue;
+    const index = Number(match[2]);
+    const row = rows.get(index) ?? {};
+    row[match[1] as "BEFORE" | "APPLIED" | "REMAINING"] = item;
+    rows.set(index, row);
+  }
+  const checks: FiscalNotificationMathematicalIntegrityCheckV11[] = [];
+  const appliedRows: StructuredMoneyEvidenceV11[] = [];
+  for (const [index, row] of [...rows.entries()].sort((a, b) => a[0] - b[0])) {
+    const observed = [row.BEFORE, row.APPLIED, row.REMAINING].filter(
+      (item): item is StructuredMoneyEvidenceV11 => item !== undefined,
+    );
+    if (row.APPLIED) appliedRows.push(row.APPLIED);
+    if (observed.length === 0) continue;
+    if (!row.BEFORE || !row.APPLIED || !row.REMAINING) {
+      checks.push(
+        structuredPartialCheck(
+          `v11:${family.archetypeId.toLowerCase()}:offset-row:${index}`,
+          observed,
+        ),
+      );
+      continue;
+    }
+    checks.push(
+      structuredLinearCheck({
+        family,
+        ruleId: `v11:${family.archetypeId.toLowerCase()}:offset-row:${index}`,
+        result: row.BEFORE,
+        terms: [row.APPLIED, row.REMAINING].map((item) => ({
+          item,
+          sign: 1 as const,
+        })),
+        toleranceCents: 0,
+      }),
+    );
+  }
+  const totalApplied = uniqueStructuredMoney(money, [
+    "OFFSET_CREDIT_APPLIED",
+    "TOTAL_APPLIED",
+  ]);
+  if (totalApplied && appliedRows.length > 0) {
+    checks.push(
+      structuredLinearCheck({
+        family,
+        ruleId: `v11:${family.archetypeId.toLowerCase()}:offset-applied-total`,
+        result: totalApplied,
+        terms: appliedRows.map((item) => ({ item, sign: 1 as const })),
+        toleranceCents: 0,
+      }),
+    );
+  }
+  return checks;
+}
+
+function seizureLedgerChecks(
+  family: AeatMathematicalIntegrityFamilyV11,
+  money: readonly StructuredMoneyEvidenceV11[],
+): FiscalNotificationMathematicalIntegrityCheckV11[] {
+  if (family.archetypeId !== "SEIZURE_FLOW") return [];
+  const checks: FiscalNotificationMathematicalIntegrityCheckV11[] = [];
+  const debtRows = money.filter((item) =>
+    /^SEIZURE_DEBT_AMOUNT_\d+$/u.test(item.code),
+  );
+  const subtotal = uniqueStructuredMoney(money, ["DEBT_SUBTOTAL"]);
+  if (subtotal && debtRows.length > 0) {
+    checks.push(
+      structuredLinearCheck({
+        family,
+        ruleId: `v11:${family.archetypeId.toLowerCase()}:debt-subtotal`,
+        result: subtotal,
+        terms: debtRows.map((item) => ({ item, sign: 1 as const })),
+        toleranceCents: 0,
+      }),
+    );
+  } else if (debtRows.length > 0) {
+    checks.push(
+      structuredPartialCheck(
+        `v11:${family.archetypeId.toLowerCase()}:debt-subtotal`,
+        debtRows,
+      ),
+    );
+  }
+  const interest = uniqueStructuredMoney(money, ["PRINTED_INTEREST"]);
+  const costs = uniqueStructuredMoney(money, ["PRINTED_COSTS"]);
+  const limit = uniqueStructuredMoney(money, ["SEIZE_LIMIT"]);
+  const observedLimitParts = money.filter((item) =>
+    /^(?:DEBT_SUBTOTAL|PRINTED_INTEREST|PRINTED_COSTS|SEIZE_LIMIT|SEIZED_AMOUNT|RETAINED_AMOUNT|REMITTED_AMOUNT|OUTSTANDING_PRINCIPAL)$/u.test(
+      item.code,
+    ),
+  );
+  if (subtotal && interest && costs && limit) {
+    checks.push(
+      structuredLinearCheck({
+        family,
+        ruleId: `v11:${family.archetypeId.toLowerCase()}:seizure-limit`,
+        result: limit,
+        terms: [subtotal, interest, costs].map((item) => ({
+          item,
+          sign: 1 as const,
+        })),
+        toleranceCents: 0,
+      }),
+    );
+  } else {
+    if (
+      observedLimitParts.length > 1 ||
+      (limit === null && (observedLimitParts.length > 0 || debtRows.length > 0))
+    ) {
+      checks.push(
+        structuredPartialCheck(
+          `v11:${family.archetypeId.toLowerCase()}:seizure-limit`,
+          observedLimitParts,
+        ),
+      );
+    }
+  }
+  return checks;
+}
+
+function refundLedgerChecks(
+  family: AeatMathematicalIntegrityFamilyV11,
+  money: readonly StructuredMoneyEvidenceV11[],
+): FiscalNotificationMathematicalIntegrityCheckV11[] {
+  if (family.archetypeId !== "REFUND_PAYMENT") return [];
+  const ordered = uniqueStructuredMoney(money, [
+    "REFUND_ORDERED",
+    "ORDERED_AMOUNT",
+  ]);
+  const deductions = uniqueStructuredMoney(money, [
+    "DEDUCTION_TOTAL",
+    "DEDUCTIONS",
+    "DEDUCTIONS_TOTAL",
+  ]);
+  const net = uniqueStructuredMoney(money, [
+    "NET_REFUND_PAYMENT",
+    "NET_REFUND",
+  ]);
+  const checks: FiscalNotificationMathematicalIntegrityCheckV11[] = [];
+  const deductionRows = money.filter((item) =>
+    /^(?:EXTERNAL_DEDUCTION|OFFSET_APPLIED|REFUND_RETENTION)_\d+$/u.test(
+      item.code,
+    ),
+  );
+  if (deductions && deductionRows.length > 0) {
+    checks.push(
+      structuredLinearCheck({
+        family,
+        ruleId: `v11:${family.archetypeId.toLowerCase()}:deductions-total`,
+        result: deductions,
+        terms: deductionRows.map((item) => ({ item, sign: 1 as const })),
+        toleranceCents: 0,
+      }),
+    );
+  }
+  if (ordered && deductions && net) {
+    checks.push(
+      structuredLinearCheck({
+        family,
+        ruleId: `v11:${family.archetypeId.toLowerCase()}:net-refund`,
+        result: net,
+        terms: [
+          { item: ordered, sign: 1 },
+          { item: deductions, sign: -1 },
+        ],
+        toleranceCents: 0,
+      }),
+    );
+  } else {
+    const observedNetParts = [ordered, deductions, net].filter(
+      (item): item is StructuredMoneyEvidenceV11 => item !== null,
+    );
+    if (
+      observedNetParts.length > 1 ||
+      (deductions !== null && deductionRows.length > 0)
+    ) {
+      checks.push(
+        structuredPartialCheck(
+          `v11:${family.archetypeId.toLowerCase()}:net-refund`,
+          [...observedNetParts, ...deductionRows],
+        ),
+      );
+    }
+  }
+  return checks;
+}
+
+function sanctionReductionChecks(
+  family: AeatMathematicalIntegrityFamilyV11,
+  money: readonly StructuredMoneyEvidenceV11[],
+): FiscalNotificationMathematicalIntegrityCheckV11[] {
+  if (family.archetypeId !== "SANCTION_CALCULATION") return [];
+  const initial = uniqueStructuredMoney(money, ["SANCTION_INITIAL"]);
+  const reduced = uniqueStructuredMoney(money, ["SANCTION_REDUCED"]);
+  const reductions = money.filter((item) =>
+    /^SANCTION_REDUCTION(?:_\d+)?$/u.test(item.code),
+  );
+  if (!initial || !reduced || reductions.length < 2) return [];
+  return [
+    structuredLinearCheck({
+      family,
+      ruleId: `v11:${family.archetypeId.toLowerCase()}:all-reductions`,
+      result: reduced,
+      terms: [
+        { item: initial, sign: 1 },
+        ...reductions.map((item) => ({ item, sign: -1 as const })),
+      ],
+      toleranceCents: 0,
+    }),
+  ];
+}
+
+function rectifyingResultChecks(
+  family: AeatMathematicalIntegrityFamilyV11,
+  money: readonly StructuredMoneyEvidenceV11[],
+): FiscalNotificationMathematicalIntegrityCheckV11[] {
+  if (family.archetypeId !== "RECTIFYING_FILING") return [];
+  const previous = uniqueStructuredMoney(money, ["PREVIOUS_RESULT"]);
+  const next = uniqueStructuredMoney(money, [
+    "COMPLEMENTARY_RESULT",
+    "RECTIFIED_RESULT",
+  ]);
+  const difference = uniqueStructuredMoney(money, [
+    "ADDITIONAL_AMOUNT",
+    "DIFFERENCE",
+  ]);
+  const checks: FiscalNotificationMathematicalIntegrityCheckV11[] = [];
+  if (previous && next && difference) {
+    checks.push(
+      structuredLinearCheck({
+        family,
+        ruleId: `v11:${family.archetypeId.toLowerCase()}:signed-difference`,
+        result: difference,
+        terms: [
+          { item: next, sign: 1 },
+          { item: previous, sign: -1 },
+        ],
+        toleranceCents: 0,
+      }),
+    );
+  }
+  if (
+    family.id === "filing.complementary_self_assessment_receipt" &&
+    difference &&
+    difference.evidence.amountCents! < 0
+  ) {
+    checks.push(
+      Object.freeze({
+        ruleId: `v11:${family.archetypeId.toLowerCase()}:negative-additional-amount`,
+        checkKind: "STRUCTURAL" as const,
+        status: "SEMANTIC_LABEL_INCONSISTENT" as const,
+        operands: Object.freeze([
+          { evidenceId: difference.evidence.evidenceId },
+        ]),
+        expectedCents: null,
+        observedCents: null,
+        deltaCents: null,
+        toleranceCents: 0,
+        calculation: Object.freeze({ kind: "NONE" as const }),
+        safeMessage:
+          "Validación de etiquetas: una complementaria no puede darse por correcta con una diferencia negativa.",
+      }),
+    );
+  }
+  return checks;
+}
+
+function uniqueStructuredMoney(
+  money: readonly StructuredMoneyEvidenceV11[],
+  codes: readonly string[],
+): StructuredMoneyEvidenceV11 | null {
+  const matches = money.filter((item) => codes.includes(item.code));
+  return matches.length === 1 ? matches[0]! : null;
+}
+
+function enforceArithmeticSourcePartCompatibility(
+  family: AeatMathematicalIntegrityFamilyV11,
+  checks: readonly FiscalNotificationMathematicalIntegrityCheckV11[],
+  evidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[],
+  segments: readonly DocumentSegmentV1[],
+): FiscalNotificationMathematicalIntegrityCheckV11[] {
+  const evidenceById = new Map(evidence.map((item) => [item.evidenceId, item]));
+  return checks.map((check) => {
+    if (check.checkKind !== "ARITHMETIC" || check.calculation.kind === "NONE") {
+      return check;
+    }
+    const checkEvidence = check.operands.flatMap((operand) => {
+      const item = evidenceById.get(operand.evidenceId);
+      return item ? [item] : [];
+    });
+    return hasIncompatibleArithmeticSourceParts(family, checkEvidence, segments)
+      ? incompatibleSourcePartCheck(check.ruleId, checkEvidence)
+      : check;
+  });
+}
+
+function hasIncompatibleArithmeticSourceParts(
   family: AeatMathematicalIntegrityFamilyV11,
   evidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[],
-): FiscalNotificationMathematicalIntegrityCheckV11[] {
-  if (family.id !== "assessment.final_provisional_assessment") return [];
-  const quotas = evidence.filter((item) =>
-    item.semantic === "MONEY" && item.canonicalType === "FINAL_QUOTA" && item.amountCents !== null,
+  segments: readonly DocumentSegmentV1[] = [],
+): boolean {
+  const paymentDocumentIsPrimary =
+    family.documentNature === "PAYMENT_EVIDENCE" ||
+    family.documentNature === "PAYMENT_INSTRUMENT";
+  if (paymentDocumentIsPrimary) return false;
+  const annexIsExpected = family.expectedStructure.some((part) =>
+    /\banexo\b/iu.test(part),
   );
-  const interests = evidence.filter((item) =>
-    item.semantic === "MONEY" && item.canonicalType === "LATE_PAYMENT_INTEREST" && item.amountCents !== null,
-  );
-  const distinctInterestAmounts = new Set(interests.map((item) => item.amountCents));
-  const quotaAmounts = new Set(quotas.map((item) => item.amountCents));
-  const duplicatedQuotaAsInterest = interests.some((item) => quotaAmounts.has(item.amountCents));
-  if (distinctInterestAmounts.size < 2 || !duplicatedQuotaAsInterest) return [];
-  return [Object.freeze({
-    ruleId: `v11:${family.archetypeId.toLowerCase()}:semantic-labels:1`,
+  return evidence.some((item) => {
+    if (item.semantic !== "MONEY") return false;
+    if (item.sourcePart === "PAYMENT_DOCUMENT") return true;
+    if (item.sourcePart === "ANNEX" && !annexIsExpected) return true;
+    return item.pageNumbers.some((pageNumber) =>
+      segments.some(
+        (segment) =>
+          (segment.segmentType === "PAYMENT_DOCUMENT" ||
+            (segment.segmentType === "ANNEX" && !annexIsExpected)) &&
+          pageNumber >= segment.pageFrom &&
+          pageNumber <= segment.pageTo,
+      ),
+    );
+  });
+}
+
+function incompatibleSourcePartCheck(
+  ruleId: string,
+  evidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[],
+): FiscalNotificationMathematicalIntegrityCheckV11 {
+  return Object.freeze({
+    ruleId: `${ruleId}:source-part`,
     checkKind: "STRUCTURAL" as const,
-    status: "REVIEW_REQUIRED" as const,
-    operands: Object.freeze([...quotas, ...interests].map((item) =>
-      Object.freeze({ evidenceId: item.evidenceId }),
-    )),
+    status: "INCONSISTENT_PRINTED_VALUES" as const,
+    operands: Object.freeze(
+      evidence.map((item) => Object.freeze({ evidenceId: item.evidenceId })),
+    ),
     expectedCents: null,
     observedCents: null,
     deltaCents: null,
     toleranceCents: 0,
     calculation: Object.freeze({ kind: "NONE" as const }),
-    safeMessage: "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
-  })];
+    safeMessage:
+      "Los importes usados en la comprobación pertenecen a partes incompatibles del documento.",
+  });
+}
+
+function structuredPartialCheck(
+  ruleId: string,
+  items: readonly StructuredMoneyEvidenceV11[],
+  safeMessage = "Faltan componentes impresos por cuantificar.",
+): FiscalNotificationMathematicalIntegrityCheckV11 {
+  return Object.freeze({
+    ruleId,
+    checkKind: "ARITHMETIC",
+    status: "VALIDATED_PARTIAL_COMPONENTS",
+    operands: Object.freeze(
+      items.map((item) =>
+        Object.freeze({ evidenceId: item.evidence.evidenceId }),
+      ),
+    ),
+    expectedCents: null,
+    observedCents: null,
+    deltaCents: null,
+    toleranceCents: 0,
+    calculation: Object.freeze({ kind: "NONE" as const }),
+    safeMessage,
+  });
+}
+
+function structuredLinearCheck(
+  input: Readonly<{
+    family: AeatMathematicalIntegrityFamilyV11;
+    ruleId: string;
+    result: StructuredMoneyEvidenceV11;
+    terms: readonly Readonly<{
+      item: StructuredMoneyEvidenceV11;
+      sign: 1 | -1;
+    }>[];
+    toleranceCents: number;
+  }>,
+): FiscalNotificationMathematicalIntegrityCheckV11 {
+  const evidence = [
+    input.result.evidence,
+    ...input.terms.map((term) => term.item.evidence),
+  ];
+  if (hasIncompatibleArithmeticSourceParts(input.family, evidence)) {
+    return incompatibleSourcePartCheck(input.ruleId, evidence);
+  }
+  const expectedCents = input.terms.reduce(
+    (total, term) => total + term.sign * term.item.evidence.amountCents!,
+    0,
+  );
+  const observedCents = input.result.evidence.amountCents!;
+  const deltaCents = observedCents - expectedCents;
+  const status: FiscalNotificationMathematicalIntegrityStatusV11 =
+    deltaCents === 0
+      ? "VALIDATED_EXACT"
+      : Math.abs(deltaCents) <= input.toleranceCents
+        ? "VALIDATED_WITH_ROUNDING"
+        : "INCONSISTENT_PRINTED_VALUES";
+  return Object.freeze({
+    ruleId: input.ruleId,
+    checkKind: "ARITHMETIC",
+    status,
+    operands: Object.freeze([
+      Object.freeze({ evidenceId: input.result.evidence.evidenceId }),
+      ...input.terms.map((term) =>
+        Object.freeze({ evidenceId: term.item.evidence.evidenceId }),
+      ),
+    ]),
+    expectedCents,
+    observedCents,
+    deltaCents,
+    toleranceCents: input.toleranceCents,
+    calculation: Object.freeze({
+      kind: "LINEAR_EQUALITY" as const,
+      resultEvidenceId: input.result.evidence.evidenceId,
+      terms: Object.freeze(
+        input.terms.map((term) =>
+          Object.freeze({
+            evidenceId: term.item.evidence.evidenceId,
+            sign: term.sign,
+          }),
+        ),
+      ),
+    }),
+    safeMessage: safeMessage(status, deltaCents),
+  });
+}
+
+function semanticLabelChecks(
+  family: AeatMathematicalIntegrityFamilyV11,
+  evidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[],
+): FiscalNotificationMathematicalIntegrityCheckV11[] {
+  if (family.id !== "assessment.final_provisional_assessment") return [];
+  const quotas = evidence.filter(
+    (item) =>
+      item.semantic === "MONEY" &&
+      item.canonicalType === "FINAL_QUOTA" &&
+      item.amountCents !== null,
+  );
+  const interests = evidence.filter(
+    (item) =>
+      item.semantic === "MONEY" &&
+      item.canonicalType === "LATE_PAYMENT_INTEREST" &&
+      item.amountCents !== null,
+  );
+  const quotaAmounts = new Set(quotas.map((item) => item.amountCents));
+  const distinctInterestAmounts = new Set(
+    interests.map((item) => item.amountCents),
+  );
+  const duplicatedQuotaAsInterest =
+    distinctInterestAmounts.size > 1 &&
+    interests.some((item) => quotaAmounts.has(item.amountCents));
+  if (!duplicatedQuotaAsInterest) return [];
+  return [
+    Object.freeze({
+      ruleId: `v11:${family.archetypeId.toLowerCase()}:semantic-labels:1`,
+      checkKind: "STRUCTURAL" as const,
+      status: "SEMANTIC_LABEL_INCONSISTENT" as const,
+      operands: Object.freeze(
+        [...quotas, ...interests].map((item) =>
+          Object.freeze({ evidenceId: item.evidenceId }),
+        ),
+      ),
+      expectedCents: null,
+      observedCents: null,
+      deltaCents: null,
+      toleranceCents: 0,
+      calculation: Object.freeze({ kind: "NONE" as const }),
+      safeMessage:
+        "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+    }),
+  ];
 }
 
 function projectEvidence(
@@ -252,7 +820,8 @@ function derivedEquationEvidence(
   const pages = Object.freeze(
     [...new Set(operand.sourcePageNumbers)].sort((left, right) => left - right),
   );
-  const boundedPages = pages.length > 0 ? pages : Object.freeze([document.pageFrom]);
+  const boundedPages =
+    pages.length > 0 ? pages : Object.freeze([document.pageFrom]);
   return Object.freeze({
     evidenceId: `math-v11:${fingerprint.slice(7, 39)}`,
     sourceFieldFingerprint: fingerprint,
@@ -297,7 +866,16 @@ function normalizeField(
       /^\d{1,6}$/u.test(field.normalizedValue ?? ""))
       ? Number(encodedCount?.[2] ?? field.normalizedValue)
       : null;
-  const amountCents = field.semantic === "MONEY" ? field.amountCents : null;
+  const printedNegative =
+    field.semantic === "MONEY" &&
+    (/^\s*[-−]/u.test(field.displayValue) ||
+      /^\s*-/u.test(field.normalizedValue ?? ""));
+  const amountCents =
+    field.semantic === "MONEY" && field.amountCents !== null
+      ? printedNegative
+        ? -Math.abs(field.amountCents)
+        : field.amountCents
+      : null;
   const semantic: FiscalNotificationIntegrityNormalizedEvidenceV11["semantic"] =
     amountCents !== null
       ? "MONEY"
@@ -317,7 +895,9 @@ function normalizeField(
   ) {
     return null;
   }
-  const pages = Object.freeze([...new Set(field.sourcePageNumbers)].sort((a, b) => a - b));
+  const pages = Object.freeze(
+    [...new Set(field.sourcePageNumbers)].sort((a, b) => a - b),
+  );
   return Object.freeze({
     evidenceId,
     sourceFieldFingerprint: fingerprint,
@@ -330,9 +910,7 @@ function normalizeField(
     sign:
       amountCents === null
         ? "UNSPECIFIED"
-        : amountCents < 0 ||
-            /^\s*[-−]/u.test(field.displayValue) ||
-            /^\s*-/u.test(field.normalizedValue ?? "")
+        : amountCents < 0
           ? "NEGATIVE"
           : "POSITIVE",
     currency: amountCents === null ? null : "EUR",
@@ -347,25 +925,25 @@ function normalizedCanonicalType(
   field: FiscalNotificationVerticalSliceReviewFieldV1,
   family: AeatMathematicalIntegrityFamilyV11,
 ): string {
-  const v7Code = V7_FIELD_CODE.exec(field.fieldId)?.[1];
+  const producerCode =
+    V7_FIELD_CODE.exec(field.fieldId)?.[1] ??
+    P0_FIELD_CODE.exec(field.fieldId)?.[1];
   const formulaTypes = new Set(
     family.formulae.flatMap((formula) =>
-      [...formula.matchAll(/\b[A-Z][A-Z0-9_]*\b/gu)].map(
-        (match) => match[0],
-      ),
+      [...formula.matchAll(/\b[A-Z][A-Z0-9_]*\b/gu)].map((match) => match[0]),
     ),
   );
   if (
-    v7Code &&
+    producerCode &&
     ([
       ...family.moneyFields,
       ...family.referenceFields,
       ...family.dateFields,
       ...family.factFields,
-    ].includes(v7Code) ||
-      formulaTypes.has(v7Code))
+    ].includes(producerCode) ||
+      formulaTypes.has(producerCode))
   ) {
-    return v7Code;
+    return producerCode;
   }
   const original = String(field.canonicalType);
   if (
@@ -393,11 +971,18 @@ function normalizedCanonicalType(
 
 function canonicalAliases(value: string): readonly string[] {
   const aliases: Readonly<Record<string, readonly string[]>> = Object.freeze({
-    PRINCIPAL: ["ORIGINAL_TAX_PRINCIPAL", "OUTSTANDING_PRINCIPAL", "DEBT_AMOUNT"],
+    PRINCIPAL: [
+      "ORIGINAL_TAX_PRINCIPAL",
+      "OUTSTANDING_PRINCIPAL",
+      "DEBT_AMOUNT",
+    ],
     ORIGINAL_TAX_PRINCIPAL: ["ORIGINAL_TAX_PRINCIPAL", "OUTSTANDING_PRINCIPAL"],
     TAX_QUOTA: ["PROPOSED_QUOTA", "FINAL_QUOTA"],
     PENALTY: ["SANCTION_INITIAL", "SANCTION_REDUCED"],
-    EXECUTIVE_SURCHARGE: ["EXECUTIVE_SURCHARGE_PRINTED", "EXECUTIVE_SURCHARGE_20"],
+    EXECUTIVE_SURCHARGE: [
+      "EXECUTIVE_SURCHARGE_PRINTED",
+      "EXECUTIVE_SURCHARGE_20",
+    ],
     LATE_INTEREST: ["LATE_PAYMENT_INTEREST", "INTEREST"],
     TOTAL_CLAIMED: ["DOCUMENT_TOTAL", "ORDINARY_AMOUNT", "DEBT_AMOUNT"],
     TOTAL_PENDING: ["REMAINING_DEBT", "REMAINING_AFTER_OFFSET"],
@@ -531,11 +1116,7 @@ const FORMULA_TOKEN_ALIASES: Readonly<Record<string, readonly string[]>> =
       "DEBT_AMOUNT",
     ],
     QUOTA: ["TAX_QUOTA", "PROPOSED_QUOTA", "FINAL_QUOTA"],
-    INTEREST: [
-      "LATE_PAYMENT_INTEREST",
-      "DEFERRAL_INTEREST",
-      "REFUND_INTEREST",
-    ],
+    INTEREST: ["LATE_PAYMENT_INTEREST", "DEFERRAL_INTEREST", "REFUND_INTEREST"],
     SURCHARGE_20: ["EXECUTIVE_SURCHARGE_20"],
     SURCHARGE_5: ["EXECUTIVE_SURCHARGE_5"],
     SURCHARGE: ["EXECUTIVE_SURCHARGE_PRINTED", "EXECUTIVE_SURCHARGE"],
@@ -546,13 +1127,7 @@ const FORMULA_TOKEN_ALIASES: Readonly<Record<string, readonly string[]>> =
     REDUCTION: ["SANCTION_REDUCTION"],
   });
 
-const NON_OPERAND_TOKENS = new Set([
-  "ABS",
-  "MAX",
-  "MIN",
-  "ROUND",
-  "EUR",
-]);
+const NON_OPERAND_TOKENS = new Set(["ABS", "MAX", "MIN", "ROUND", "EUR"]);
 
 /**
  * Compiles only closed equations printed in the V11 contract. Formulae with
@@ -601,9 +1176,10 @@ function contractLinearEquationCheck(
   evidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[],
 ): FiscalNotificationMathematicalIntegrityCheckV11 | null {
   if (!isClosedLinearFormula(formula)) return null;
-  const match = /^\s*([A-Z][A-Z0-9_]*(?:\/[A-Z][A-Z0-9_]*)?)\s*=\s*([^,.;]+)[,.;]?/u.exec(
-    formula,
-  );
+  const match =
+    /^\s*([A-Z][A-Z0-9_]*(?:\/[A-Z][A-Z0-9_]*)?)\s*=\s*([^,.;]+)[,.;]?/u.exec(
+      formula,
+    );
   if (!match) return null;
   const resultTokens = match[1]!.split("/");
   const result = uniqueEvidenceForTokens(resultTokens, evidence);
@@ -624,8 +1200,9 @@ function contractLinearEquationCheck(
       }),
     });
   }
-  const tokenMatches = [...rhs.matchAll(/([+-]?)\s*([A-Z][A-Z0-9_]*)/gu)]
-    .filter((entry) => !NON_OPERAND_TOKENS.has(entry[2]!));
+  const tokenMatches = [
+    ...rhs.matchAll(/([+-]?)\s*([A-Z][A-Z0-9_]*)/gu),
+  ].filter((entry) => !NON_OPERAND_TOKENS.has(entry[2]!));
   if (tokenMatches.length === 0) return null;
   const operands: ContractOperandV11[] = [];
   let missing = false;
@@ -705,9 +1282,7 @@ function isClosedLinearFormula(formula: string): boolean {
   const expression = match[1]!.trim();
   return (
     expression === "0" ||
-    /^(?:[A-Z][A-Z0-9_]*)(?:\s*[+-]\s*[A-Z][A-Z0-9_]*)*$/u.test(
-      expression,
-    )
+    /^(?:[A-Z][A-Z0-9_]*)(?:\s*[+-]\s*[A-Z][A-Z0-9_]*)*$/u.test(expression)
   );
 }
 
@@ -717,18 +1292,14 @@ function contractLiteralPercentageCheck(
   index: number,
   evidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[],
 ): FiscalNotificationMathematicalIntegrityCheckV11 | null {
-  const match = /^\s*([A-Z][A-Z0-9_]*)\s*≈\s*round\(\s*([A-Z][A-Z0-9_]*)\s*×\s*(0\.\d+)\s*,\s*2\s*\)/u.exec(
-    formula,
-  );
+  const match =
+    /^\s*([A-Z][A-Z0-9_]*)\s*≈\s*round\(\s*([A-Z][A-Z0-9_]*)\s*×\s*(0\.\d+)\s*,\s*2\s*\)/u.exec(
+      formula,
+    );
   if (!match) return null;
   const result = uniqueEvidenceForTokens([match[1]!], evidence);
   const base = uniqueEvidenceForTokens([match[2]!], evidence);
-  if (
-    !result ||
-    result === "AMBIGUOUS" ||
-    !base ||
-    base === "AMBIGUOUS"
-  ) {
+  if (!result || result === "AMBIGUOUS" || !base || base === "AMBIGUOUS") {
     return null;
   }
   const rate = Number(match[3]);
@@ -792,55 +1363,68 @@ function contractInequalityChecks(
   index: number,
   evidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[],
 ): FiscalNotificationMathematicalIntegrityCheckV11[] {
-  const chain = /^\s*0\s*<=\s*([A-Z][A-Z0-9_]*)\s*<=\s*([A-Z][A-Z0-9_]*)\s*<=\s*([A-Z][A-Z0-9_]*)(?:\s+o\s+([A-Z][A-Z0-9_]*))?/u.exec(
-    formula,
-  );
+  const chain =
+    /^\s*0\s*<=\s*([A-Z][A-Z0-9_]*)\s*<=\s*([A-Z][A-Z0-9_]*)\s*<=\s*([A-Z][A-Z0-9_]*)(?:\s+o\s+([A-Z][A-Z0-9_]*))?/u.exec(
+      formula,
+    );
   if (chain) {
     const first = uniqueEvidenceForTokens([chain[1]!], evidence);
     const second = uniqueEvidenceForTokens([chain[2]!], evidence);
-    const third = uniqueEvidenceForTokens(
-      [chain[3]!, ...(chain[4] ? [chain[4]] : [])],
-      evidence,
-    );
     if (
       !first ||
       first === "AMBIGUOUS" ||
       !second ||
-      second === "AMBIGUOUS" ||
-      !third ||
-      third === "AMBIGUOUS"
+      second === "AMBIGUOUS"
     ) {
       return [];
     }
-    const ordered =
-      first.amountCents! >= 0 &&
-      first.amountCents! <= second.amountCents! &&
-      second.amountCents! <= third.amountCents!;
-    return [Object.freeze({
-      ruleId: `v11:${family.archetypeId.toLowerCase()}:contract-inequality:${index + 1}`,
-      checkKind: "ARITHMETIC",
-      status: ordered ? "VALIDATED_EXACT" : "INCONSISTENT_PRINTED_VALUES",
-      operands: Object.freeze(
-        [first, second, third].map((item) =>
-          Object.freeze({ evidenceId: item.evidenceId }),
+    const upperBounds = [chain[3]!, ...(chain[4] ? [chain[4]] : [])]
+      .map((token) => uniqueEvidenceForTokens([token], evidence))
+      .filter(
+        (
+          item,
+        ): item is FiscalNotificationIntegrityNormalizedEvidenceV11 =>
+          item !== null && item !== "AMBIGUOUS",
+      )
+      .filter(
+        (item, boundIndex, items) =>
+          items.findIndex(
+            (candidate) => candidate.evidenceId === item.evidenceId,
+          ) === boundIndex,
+      );
+    return upperBounds.map((third, boundIndex) => {
+      const ordered =
+        first.amountCents! >= 0 &&
+        first.amountCents! <= second.amountCents! &&
+        second.amountCents! <= third.amountCents!;
+      return Object.freeze({
+        ruleId: `v11:${family.archetypeId.toLowerCase()}:contract-inequality:${index + 1}:${boundIndex + 1}`,
+        checkKind: "ARITHMETIC" as const,
+        status: ordered
+          ? ("VALIDATED_EXACT" as const)
+          : ("INCONSISTENT_PRINTED_VALUES" as const),
+        operands: Object.freeze(
+          [first, second, third].map((item) =>
+            Object.freeze({ evidenceId: item.evidenceId }),
+          ),
         ),
-      ),
-      expectedCents: third.amountCents,
-      observedCents: first.amountCents,
-      deltaCents: first.amountCents! - third.amountCents!,
-      toleranceCents: 0,
-      calculation: Object.freeze({
-        kind: "AMOUNT_CHAIN" as const,
-        evidenceIds: Object.freeze([
-          first.evidenceId,
-          second.evidenceId,
-          third.evidenceId,
-        ]),
-      }),
-      safeMessage: ordered
-        ? "Los importes impresos respetan los límites del documento."
-        : "Los importes impresos no respetan los límites del documento.",
-    })];
+        expectedCents: third.amountCents,
+        observedCents: first.amountCents,
+        deltaCents: first.amountCents! - third.amountCents!,
+        toleranceCents: 0,
+        calculation: Object.freeze({
+          kind: "AMOUNT_CHAIN" as const,
+          evidenceIds: Object.freeze([
+            first.evidenceId,
+            second.evidenceId,
+            third.evidenceId,
+          ]),
+        }),
+        safeMessage: ordered
+          ? "Los importes impresos respetan los límites del documento."
+          : "Los importes impresos no respetan los límites del documento.",
+      });
+    });
   }
   return [
     ...formula.matchAll(
@@ -849,12 +1433,7 @@ function contractInequalityChecks(
   ].flatMap((match, comparisonIndex) => {
     const left = uniqueEvidenceForTokens([match[1]!], evidence);
     const right = uniqueEvidenceForTokens([match[3]!], evidence);
-    if (
-      !left ||
-      left === "AMBIGUOUS" ||
-      !right ||
-      right === "AMBIGUOUS"
-    ) {
+    if (!left || left === "AMBIGUOUS" || !right || right === "AMBIGUOUS") {
       return [];
     }
     const ordered =
@@ -879,8 +1458,7 @@ function contractInequalityChecks(
         calculation: Object.freeze({
           kind: "AMOUNT_ORDER" as const,
           leftEvidenceId: left.evidenceId,
-          operator:
-            match[2] === "<=" ? ("LTE" as const) : ("GTE" as const),
+          operator: match[2] === "<=" ? ("LTE" as const) : ("GTE" as const),
           rightEvidenceId: right.evidenceId,
         }),
         safeMessage: ordered
@@ -906,18 +1484,20 @@ function uniqueEvidenceForTokens(
       : "AMBIGUOUS";
 }
 
-function arithmeticResultCheck(input: Readonly<{
-  family: AeatMathematicalIntegrityFamilyV11;
-  index: number;
-  suffix: string;
-  expectedCents: number;
-  observedCents: number;
-  toleranceCents: number;
-  evidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[];
-  calculation: FiscalNotificationMathematicalIntegrityCheckV11["calculation"];
-}>): FiscalNotificationMathematicalIntegrityCheckV11 {
+function arithmeticResultCheck(
+  input: Readonly<{
+    family: AeatMathematicalIntegrityFamilyV11;
+    index: number;
+    suffix: string;
+    expectedCents: number;
+    observedCents: number;
+    toleranceCents: number;
+    evidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[];
+    calculation: FiscalNotificationMathematicalIntegrityCheckV11["calculation"];
+  }>,
+): FiscalNotificationMathematicalIntegrityCheckV11 {
   const delta = input.observedCents - input.expectedCents;
-  const status: AeatMathematicalIntegrityStatusV11 =
+  const status: FiscalNotificationMathematicalIntegrityStatusV11 =
     delta === 0
       ? "VALIDATED_EXACT"
       : Math.abs(delta) <= input.toleranceCents
@@ -999,7 +1579,9 @@ function equationCheck(
   const directResultEvidence = equation.result.fieldIds
     .map((fieldId) => evidenceByFieldId.get(fieldId))
     .find(
-      (evidence): evidence is FiscalNotificationIntegrityNormalizedEvidenceV11 =>
+      (
+        evidence,
+      ): evidence is FiscalNotificationIntegrityNormalizedEvidenceV11 =>
         evidence !== undefined,
     );
   const terms =
@@ -1044,7 +1626,9 @@ function equationCheck(
     checkKind: "ARITHMETIC",
     status,
     operands: Object.freeze(
-      [...new Set(evidenceIds)].map((evidenceId) => Object.freeze({ evidenceId })),
+      [...new Set(evidenceIds)].map((evidenceId) =>
+        Object.freeze({ evidenceId }),
+      ),
     ),
     expectedCents: calculated ? equation.leftCents : null,
     observedCents: calculated ? equation.rightCents : null,
@@ -1064,7 +1648,7 @@ function equationCheck(
 function equationStatusForFamily(
   family: AeatMathematicalIntegrityFamilyV11,
   equation: FiscalNotificationAmountEquationV1,
-): AeatMathematicalIntegrityStatusV11 {
+): FiscalNotificationMathematicalIntegrityStatusV11 {
   if (
     equation.scope === "DOCUMENT" &&
     documentEquationHasMissingPrintedRoles(family, equation)
@@ -1143,35 +1727,58 @@ function countChecks(
     (item) => item.semantic === "COUNT" && item.countValue !== null,
   );
   if (counts.length === 0) return [];
-  return family.formulae.flatMap<FiscalNotificationMathematicalIntegrityCheckV11>((formula, formulaIndex) => {
-    const match = /^\s*([A-Z][A-Z0-9_]*)\s*=\s*([A-Z][A-Z0-9_]*)\s*\+\s*([A-Z][A-Z0-9_]*)\b/u.exec(
-      formula,
-    );
-    if (!match) return [];
-    const result = uniqueEvidenceForTokens([match[1]!], counts);
-    const left = uniqueEvidenceForTokens([match[2]!], counts);
-    const right = uniqueEvidenceForTokens([match[3]!], counts);
-    const available = [result, left, right].filter(
-      (
-        item,
-      ): item is FiscalNotificationIntegrityNormalizedEvidenceV11 =>
-        Boolean(item && item !== "AMBIGUOUS"),
-    );
-    if (
-      !result ||
-      result === "AMBIGUOUS" ||
-      !left ||
-      left === "AMBIGUOUS" ||
-      !right ||
-      right === "AMBIGUOUS"
-    ) {
+  return family.formulae.flatMap<FiscalNotificationMathematicalIntegrityCheckV11>(
+    (formula, formulaIndex) => {
+      const match =
+        /^\s*([A-Z][A-Z0-9_]*)\s*=\s*([A-Z][A-Z0-9_]*)\s*\+\s*([A-Z][A-Z0-9_]*)\b/u.exec(
+          formula,
+        );
+      if (!match) return [];
+      const result = uniqueEvidenceForTokens([match[1]!], counts);
+      const left = uniqueEvidenceForTokens([match[2]!], counts);
+      const right = uniqueEvidenceForTokens([match[3]!], counts);
+      const available = [result, left, right].filter(
+        (item): item is FiscalNotificationIntegrityNormalizedEvidenceV11 =>
+          Boolean(item && item !== "AMBIGUOUS"),
+      );
+      if (
+        !result ||
+        result === "AMBIGUOUS" ||
+        !left ||
+        left === "AMBIGUOUS" ||
+        !right ||
+        right === "AMBIGUOUS"
+      ) {
+        return [
+          Object.freeze({
+            ruleId: `v11:${family.archetypeId.toLowerCase()}:count-review:${formulaIndex + 1}`,
+            checkKind: "STRUCTURAL" as const,
+            status: "REVIEW_REQUIRED" as const,
+            operands: Object.freeze(
+              available.map((item) =>
+                Object.freeze({ evidenceId: item.evidenceId }),
+              ),
+            ),
+            expectedCents: null,
+            observedCents: null,
+            deltaCents: null,
+            toleranceCents: 0,
+            calculation: Object.freeze({ kind: "NONE" as const }),
+            safeMessage:
+              "Faltan conteos impresos para completar la comprobación.",
+          }),
+        ];
+      }
+      const exact = result.countValue === left.countValue! + right.countValue!;
       return [
         Object.freeze({
-          ruleId: `v11:${family.archetypeId.toLowerCase()}:count-review:${formulaIndex + 1}`,
+          ruleId: `v11:${family.archetypeId.toLowerCase()}:count:${formulaIndex + 1}`,
           checkKind: "STRUCTURAL" as const,
-          status: "REVIEW_REQUIRED" as const,
+          status: exact
+            ? ("VALIDATED_EXACT" as const)
+            : ("INCONSISTENT_PRINTED_VALUES" as const),
           operands: Object.freeze(
-            available.map((item) =>
+            [result, left, right].map((item) =>
               Object.freeze({ evidenceId: item.evidenceId }),
             ),
           ),
@@ -1179,43 +1786,21 @@ function countChecks(
           observedCents: null,
           deltaCents: null,
           toleranceCents: 0,
-          calculation: Object.freeze({ kind: "NONE" as const }),
-          safeMessage:
-            "Faltan conteos impresos para completar la comprobación.",
+          calculation: Object.freeze({
+            kind: "COUNT_EQUALITY" as const,
+            resultEvidenceId: result.evidenceId,
+            terms: Object.freeze([
+              Object.freeze({ evidenceId: left.evidenceId, sign: 1 as const }),
+              Object.freeze({ evidenceId: right.evidenceId, sign: 1 as const }),
+            ]),
+          }),
+          safeMessage: exact
+            ? "Los conteos impresos cuadran."
+            : "Los conteos impresos no cuadran.",
         }),
       ];
-    }
-    const exact = result.countValue === left.countValue! + right.countValue!;
-    return [
-      Object.freeze({
-        ruleId: `v11:${family.archetypeId.toLowerCase()}:count:${formulaIndex + 1}`,
-        checkKind: "STRUCTURAL" as const,
-        status: exact
-          ? ("VALIDATED_EXACT" as const)
-          : ("INCONSISTENT_PRINTED_VALUES" as const),
-        operands: Object.freeze(
-          [result, left, right].map((item) =>
-            Object.freeze({ evidenceId: item.evidenceId }),
-          ),
-        ),
-        expectedCents: null,
-        observedCents: null,
-        deltaCents: null,
-        toleranceCents: 0,
-        calculation: Object.freeze({
-          kind: "COUNT_EQUALITY" as const,
-          resultEvidenceId: result.evidenceId,
-          terms: Object.freeze([
-            Object.freeze({ evidenceId: left.evidenceId, sign: 1 as const }),
-            Object.freeze({ evidenceId: right.evidenceId, sign: 1 as const }),
-          ]),
-        }),
-        safeMessage: exact
-          ? "Los conteos impresos cuadran."
-          : "Los conteos impresos no cuadran.",
-      }),
-    ];
-  });
+    },
+  );
 }
 
 function temporalChecks(
@@ -1244,67 +1829,69 @@ function temporalChecks(
       ruleId: `v11:${family.archetypeId.toLowerCase()}:temporal:${formulaIndex + 1}:${matchIndex + 1}`,
     })),
   );
-  return pairs.flatMap<FiscalNotificationMathematicalIntegrityCheckV11>(({ leftType, operator, rightType, ruleId }) => {
-    const leftCandidates = datesByType.get(leftType) ?? [];
-    const rightCandidates = datesByType.get(rightType) ?? [];
-    const left = uniqueDateEvidence(leftCandidates);
-    const right = uniqueDateEvidence(rightCandidates);
-    if (left === "AMBIGUOUS" || right === "AMBIGUOUS") {
-      const ambiguousEvidence = [...leftCandidates, ...rightCandidates];
+  return pairs.flatMap<FiscalNotificationMathematicalIntegrityCheckV11>(
+    ({ leftType, operator, rightType, ruleId }) => {
+      const leftCandidates = datesByType.get(leftType) ?? [];
+      const rightCandidates = datesByType.get(rightType) ?? [];
+      const left = uniqueDateEvidence(leftCandidates);
+      const right = uniqueDateEvidence(rightCandidates);
+      if (left === "AMBIGUOUS" || right === "AMBIGUOUS") {
+        const ambiguousEvidence = [...leftCandidates, ...rightCandidates];
+        return [
+          Object.freeze({
+            ruleId,
+            checkKind: "TEMPORAL" as const,
+            status: "REVIEW_REQUIRED" as const,
+            operands: Object.freeze(
+              ambiguousEvidence.map((item) =>
+                Object.freeze({ evidenceId: item.evidenceId }),
+              ),
+            ),
+            expectedCents: null,
+            observedCents: null,
+            deltaCents: null,
+            toleranceCents: 0,
+            calculation: Object.freeze({ kind: "NONE" as const }),
+            safeMessage:
+              "Hay varias fechas impresas para el mismo hito; revisa cuál corresponde al acto principal.",
+          }),
+        ];
+      }
+      if (!left || !right || !left.dateValue || !right.dateValue) return [];
+      const ordered =
+        operator === "<="
+          ? left.dateValue <= right.dateValue
+          : left.dateValue >= right.dateValue;
+      const status: FiscalNotificationMathematicalIntegrityStatusV11 = ordered
+        ? "VALIDATED_EXACT"
+        : "INCONSISTENT_PRINTED_VALUES";
       return [
         Object.freeze({
           ruleId,
           checkKind: "TEMPORAL" as const,
-          status: "REVIEW_REQUIRED" as const,
-          operands: Object.freeze(
-            ambiguousEvidence.map((item) =>
-              Object.freeze({ evidenceId: item.evidenceId }),
-            ),
-          ),
+          status,
+          operands: Object.freeze([
+            Object.freeze({ evidenceId: left.evidenceId }),
+            Object.freeze({ evidenceId: right.evidenceId }),
+          ]),
           expectedCents: null,
           observedCents: null,
           deltaCents: null,
           toleranceCents: 0,
-          calculation: Object.freeze({ kind: "NONE" as const }),
+          calculation: Object.freeze({
+            kind: "DATE_ORDER" as const,
+            leftEvidenceId: left.evidenceId,
+            operator: operator === "<=" ? ("LTE" as const) : ("GTE" as const),
+            rightEvidenceId: right.evidenceId,
+          }),
           safeMessage:
-            "Hay varias fechas impresas para el mismo hito; revisa cuál corresponde al acto principal.",
+            status === "VALIDATED_EXACT"
+              ? "Las fechas impresas conservan el orden esperado."
+              : "Las fechas impresas no conservan el orden esperado.",
         }),
       ];
-    }
-    if (!left || !right || !left.dateValue || !right.dateValue) return [];
-    const ordered =
-      operator === "<="
-        ? left.dateValue <= right.dateValue
-        : left.dateValue >= right.dateValue;
-    const status: AeatMathematicalIntegrityStatusV11 = ordered
-        ? "VALIDATED_EXACT"
-        : "INCONSISTENT_PRINTED_VALUES";
-    return [
-      Object.freeze({
-        ruleId,
-        checkKind: "TEMPORAL" as const,
-        status,
-        operands: Object.freeze([
-          Object.freeze({ evidenceId: left.evidenceId }),
-          Object.freeze({ evidenceId: right.evidenceId }),
-        ]),
-        expectedCents: null,
-        observedCents: null,
-        deltaCents: null,
-        toleranceCents: 0,
-        calculation: Object.freeze({
-          kind: "DATE_ORDER" as const,
-          leftEvidenceId: left.evidenceId,
-          operator: operator === "<=" ? ("LTE" as const) : ("GTE" as const),
-          rightEvidenceId: right.evidenceId,
-        }),
-        safeMessage:
-          status === "VALIDATED_EXACT"
-            ? "Las fechas impresas conservan el orden esperado."
-            : "Las fechas impresas no conservan el orden esperado.",
-      }),
-    ];
-  });
+    },
+  );
 }
 
 function uniqueDateEvidence(
@@ -1352,7 +1939,7 @@ function fallbackCheck(
   const hasMoney = document.fields.some(
     (field) => field.semantic === "MONEY" && field.amountCents !== null,
   );
-  const status: AeatMathematicalIntegrityStatusV11 =
+  const status: FiscalNotificationMathematicalIntegrityStatusV11 =
     family.validationMode === "TEMPORAL_OR_COUNT_AND_LOGICAL" && !hasMoney
       ? "NOT_APPLICABLE_NO_ARITHMETIC"
       : hasUnquantifiedComponents(document)
@@ -1382,14 +1969,17 @@ function hasUnquantifiedComponents(
     (field) =>
       field.semantic !== "MONEY" &&
       /(?:INTERESES|COSTAS).*(?:SIN CUANTIFICAR|NO CUANTIFICAD|SE DEVENGAR)/u.test(
-        `${field.sourceLabel} ${field.displayValue}`.normalize("NFD").replace(/\p{M}/gu, "").toUpperCase(),
+        `${field.sourceLabel} ${field.displayValue}`
+          .normalize("NFD")
+          .replace(/\p{M}/gu, "")
+          .toUpperCase(),
       ),
   );
 }
 
 function equationStatus(
   status: FiscalNotificationAmountEquationStatusV1,
-): AeatMathematicalIntegrityStatusV11 {
+): FiscalNotificationMathematicalIntegrityStatusV11 {
   switch (status) {
     case "MATCHED":
       return "VALIDATED_EXACT";
@@ -1404,20 +1994,24 @@ function equationStatus(
 
 function aggregateStatus(
   checks: readonly FiscalNotificationMathematicalIntegrityCheckV11[],
-): AeatMathematicalIntegrityStatusV11 {
-  const priorities: readonly AeatMathematicalIntegrityStatusV11[] = [
-    "INCONSISTENT_PRINTED_VALUES",
-    "REVIEW_REQUIRED",
-    "VALIDATED_PARTIAL_COMPONENTS",
-    "VALIDATED_WITH_ROUNDING",
-    "VALIDATED_EXACT",
-    "NOT_APPLICABLE_NO_ARITHMETIC",
-  ];
-  return priorities.find((status) => checks.some((check) => check.status === status))!;
+): FiscalNotificationMathematicalIntegrityStatusV11 {
+  const priorities: readonly FiscalNotificationMathematicalIntegrityStatusV11[] =
+    [
+      "INCONSISTENT_PRINTED_VALUES",
+      "SEMANTIC_LABEL_INCONSISTENT",
+      "REVIEW_REQUIRED",
+      "VALIDATED_PARTIAL_COMPONENTS",
+      "VALIDATED_WITH_ROUNDING",
+      "VALIDATED_EXACT",
+      "NOT_APPLICABLE_NO_ARITHMETIC",
+    ];
+  return priorities.find((status) =>
+    checks.some((check) => check.status === status),
+  )!;
 }
 
 function safeMessage(
-  status: AeatMathematicalIntegrityStatusV11,
+  status: FiscalNotificationMathematicalIntegrityStatusV11,
   differenceCents: number,
 ): string {
   switch (status) {
@@ -1427,6 +2021,8 @@ function safeMessage(
       return "Los importes cuadran con un redondeo de 0,01 €.";
     case "VALIDATED_PARTIAL_COMPONENTS":
       return "Faltan intereses o costas por cuantificar en el documento.";
+    case "SEMANTIC_LABEL_INCONSISTENT":
+      return "La suma cuadra, pero una cifra tiene una etiqueta incompatible.";
     case "REVIEW_REQUIRED":
       return "Revisa los importes y su estructura antes de confirmar.";
     case "INCONSISTENT_PRINTED_VALUES":

@@ -4,6 +4,7 @@ import {
   AEAT_MATHEMATICAL_INTEGRITY_RELEASE_ID_V11,
 } from "./knowledge/mathematical-integrity-catalog.v11";
 import {
+  FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_LEGACY_VERSION_V11,
   FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_VERSION_V11,
   parseFiscalNotificationMathematicalIntegrityV11,
 } from "./mathematical-integrity-contract.v11";
@@ -80,8 +81,13 @@ function fixture(archetypeId: string, scenario: Scenario) {
           : [{ evidenceId }],
         expectedCents: hasAmounts ? 10_000 : null,
         observedCents:
-          hasAmounts && scenario === "NEGATIVE" ? 10_100 : hasAmounts ? 10_000 : null,
-        deltaCents: hasAmounts && scenario === "NEGATIVE" ? 100 : hasAmounts ? 0 : null,
+          hasAmounts && scenario === "NEGATIVE"
+            ? 10_100
+            : hasAmounts
+              ? 10_000
+              : null,
+        deltaCents:
+          hasAmounts && scenario === "NEGATIVE" ? 100 : hasAmounts ? 0 : null,
         toleranceCents: arithmetic ? 1 : 0,
         calculation: hasAmounts
           ? {
@@ -149,6 +155,76 @@ describe("mathematical integrity contract V11", () => {
           item.relationSupport.permitsAmountOnlyRelations === false,
       ),
     ).toBe(true);
+  });
+
+  it("persists a semantic label conflict as a non-blocking warning", () => {
+    const base = fixture("ASSESSMENT_RESULT", "POSITIVE");
+    const parsed = parseFiscalNotificationMathematicalIntegrityV11(
+      {
+        ...base,
+        status: "SEMANTIC_LABEL_INCONSISTENT",
+        checks: base.checks.map((check) => ({
+          ...check,
+          checkKind: "STRUCTURAL",
+          status: "SEMANTIC_LABEL_INCONSISTENT",
+          operands: [{ evidenceId: base.normalizedEvidence[0]!.evidenceId }],
+          expectedCents: null,
+          observedCents: null,
+          deltaCents: null,
+          toleranceCents: 0,
+          calculation: { kind: "NONE" },
+          safeMessage:
+            "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+        })),
+        persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+      },
+      1,
+      1,
+    );
+
+    expect(parsed).toMatchObject({
+      status: "SEMANTIC_LABEL_INCONSISTENT",
+      hardFailureCodes: [],
+      persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    });
+  });
+
+  it("reads legacy 11.0 snapshots but reserves the new semantic status for 11.1", () => {
+    const legacy = {
+      ...fixture("ASSESSMENT_RESULT", "POSITIVE"),
+      integrityVersion:
+        FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_LEGACY_VERSION_V11,
+    };
+    expect(
+      parseFiscalNotificationMathematicalIntegrityV11(legacy, 1, 1)
+        .integrityVersion,
+    ).toBe(FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_LEGACY_VERSION_V11);
+
+    const semantic = fixture("ASSESSMENT_RESULT", "POSITIVE");
+    expect(() =>
+      parseFiscalNotificationMathematicalIntegrityV11(
+        {
+          ...semantic,
+          integrityVersion:
+            FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_LEGACY_VERSION_V11,
+          status: "SEMANTIC_LABEL_INCONSISTENT",
+          checks: semantic.checks.map((check) => ({
+            ...check,
+            checkKind: "STRUCTURAL",
+            status: "SEMANTIC_LABEL_INCONSISTENT",
+            expectedCents: null,
+            observedCents: null,
+            deltaCents: null,
+            calculation: { kind: "NONE" },
+            safeMessage:
+              "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+          })),
+          persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+        },
+        1,
+        1,
+      ),
+    ).toThrow("FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_V11_INVALID");
   });
 
   it("rejects tampering, impossible dates, internal tokens and direct private data", () => {
@@ -247,9 +323,7 @@ describe("mathematical integrity contract V11", () => {
           ],
           relationSupport: {
             ...valid.relationSupport,
-            validatedEvidenceIds: [
-              valid.normalizedEvidence[0]!.evidenceId,
-            ],
+            validatedEvidenceIds: [valid.normalizedEvidence[0]!.evidenceId],
           },
         },
         1,
@@ -278,10 +352,10 @@ describe("mathematical integrity contract V11", () => {
       {
         ...valid,
         normalizedEvidence: valid.normalizedEvidence.map((evidence) => ({
-            ...evidence,
-            amountCents: -10_000,
-            sign: "NEGATIVE",
-          })),
+          ...evidence,
+          amountCents: -10_000,
+          sign: "NEGATIVE",
+        })),
         checks: valid.checks.map((check) => ({
           ...check,
           expectedCents: -10_000,

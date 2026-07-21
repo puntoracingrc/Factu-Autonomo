@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { BoundedDocumentInput } from "./input-contract";
 import type { DocumentSegmentV1 } from "./extractor-core/document-segment.v1";
+import { extractAeatP0DeepDocumentV10 } from "./extractor-core/p0-deep-extractor.v10";
+import { extractAeatRealCorpusDocumentV6 } from "./extractor-core/real-corpus-extractor.v6";
 import { resolveFamilyRuleV2 } from "./extractor-core/family-rule-registry.v2";
 import { resolveAeatOfficialCatalogProfileV9 } from "./knowledge/official-catalog-expansion.v9";
 import { resolveAeatP0DeepProfileV10 } from "./knowledge/p0-deep-contracts.v10";
@@ -9,6 +11,8 @@ import {
   resolveAeatMathematicalIntegrityArchetypeV11,
 } from "./knowledge/mathematical-integrity-catalog.v11";
 import { reconcileFiscalNotificationReviewAmountsV1 } from "./amount-reconciliation-engine.v1";
+import { projectAeatP0DeepReviewV10 } from "./p0-deep-review.v10";
+import { projectRealCorpusReviewV6 } from "./real-corpus-review.v6";
 import {
   classifyAeatMathematicalIntegrityFormulaHandlingV11,
   validateFiscalNotificationMathematicalIntegrityV11,
@@ -23,13 +27,20 @@ const OWNER = "user:synthetic-mathematical-integrity-v11";
 function input(
   documentId: string,
   text = "Documento AEAT sintético sin identidad personal.",
+  pageCount = 1,
 ): BoundedDocumentInput {
   return Object.freeze({
     ownerScope: OWNER,
     documentId,
-    pages: Object.freeze([
-      Object.freeze({ pageNumber: 1, isBlank: false, text }),
-    ]),
+    pages: Object.freeze(
+      Array.from({ length: pageCount }, (_, index) =>
+        Object.freeze({
+          pageNumber: index + 1,
+          isBlank: false,
+          text,
+        }),
+      ),
+    ),
   });
 }
 
@@ -57,7 +68,10 @@ function moneyField(
   amountCents: number,
 ): FiscalNotificationVerticalSliceReviewFieldV1 {
   const labels: Partial<
-    Record<FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"], string>
+    Record<
+      FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"],
+      string
+    >
   > = {
     OUTSTANDING_PRINCIPAL: "Principal pendiente",
     EXECUTIVE_SURCHARGE_20: "Recargo ordinario del 20 %",
@@ -93,7 +107,10 @@ function dateField(
   date: string,
 ): FiscalNotificationVerticalSliceReviewFieldV1 {
   const labels: Partial<
-    Record<FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"], string>
+    Record<
+      FiscalNotificationVerticalSliceReviewFieldV1["canonicalType"],
+      string
+    >
   > = {
     ISSUE_DATE: "Fecha de emisión",
     ACTION_DATE: "Fecha del acto",
@@ -128,6 +145,43 @@ function formulaMoneyField(
     "TOTAL_CLAIMED",
     amountCents,
   );
+}
+
+function signedFormulaMoneyField(
+  code: string,
+  amountCents: number,
+  index = 1,
+): FiscalNotificationVerticalSliceReviewFieldV1 {
+  const field = formulaMoneyField(code, Math.abs(amountCents), index);
+  return Object.freeze({
+    ...field,
+    displayValue:
+      amountCents < 0 ? `-${field.displayValue}` : field.displayValue,
+  });
+}
+
+function signedP0MoneyField(
+  code: string,
+  amountCents: number,
+  index = 1,
+): FiscalNotificationVerticalSliceReviewFieldV1 {
+  const field = signedFormulaMoneyField(code, amountCents, index);
+  return Object.freeze({
+    ...field,
+    fieldId: `p0-v10:${code}:${index}`,
+    canonicalType: "OTHER",
+    normalizedValue: null,
+  });
+}
+
+function fieldOnPage(
+  field: FiscalNotificationVerticalSliceReviewFieldV1,
+  pageNumber: number,
+): FiscalNotificationVerticalSliceReviewFieldV1 {
+  return Object.freeze({
+    ...field,
+    sourcePageNumbers: Object.freeze([pageNumber]),
+  });
 }
 
 function countField(
@@ -189,7 +243,10 @@ function review(
         title,
         subtitle: "Datos estructurados listos para revisar",
         pageFrom: 1,
-        pageTo: 1,
+        pageTo: Math.max(
+          1,
+          ...fields.flatMap((field) => field.sourcePageNumbers),
+        ),
         confidence: 0.8,
         fields:
           fields.length > 0
@@ -210,7 +267,10 @@ function review(
   });
 }
 
-function validate(reviewValue: ReturnType<typeof review>, source: BoundedDocumentInput) {
+function validate(
+  reviewValue: ReturnType<typeof review>,
+  source: BoundedDocumentInput,
+) {
   return validateFiscalNotificationMathematicalIntegrityV11(
     reconcileFiscalNotificationReviewAmountsV1(reviewValue, source),
     source,
@@ -282,27 +342,53 @@ describe("AEAT mathematical integrity engine V11", () => {
     );
     expect(document.amountReconciliation).toMatchObject({
       status: "MATCHED",
-      equations: [expect.objectContaining({
-        formula: "QUOTA_PLUS_INTEREST_EQUALS_TOTAL",
-        status: "MATCHED",
-        leftCents: 23_107,
-        rightCents: 23_107,
-      })],
+      equations: [
+        expect.objectContaining({
+          formula: "QUOTA_PLUS_INTEREST_EQUALS_TOTAL",
+          status: "MATCHED",
+          leftCents: 23_107,
+          rightCents: 23_107,
+        }),
+      ],
     });
     expect(document.mathematicalIntegrity).toMatchObject({
-      status: "REVIEW_REQUIRED",
+      status: "SEMANTIC_LABEL_INCONSISTENT",
       hardFailureCodes: [],
       persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
       relationSupport: { permitsAmountOnlyRelations: false },
     });
-    expect(document.mathematicalIntegrity?.checks).toEqual(expect.arrayContaining([
-      expect.objectContaining({ checkKind: "ARITHMETIC", status: "VALIDATED_EXACT" }),
-      expect.objectContaining({
-        checkKind: "STRUCTURAL",
-        status: "REVIEW_REQUIRED",
-        safeMessage: "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
-      }),
-    ]));
+    expect(document.mathematicalIntegrity?.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          checkKind: "ARITHMETIC",
+          status: "VALIDATED_EXACT",
+        }),
+        expect.objectContaining({
+          checkKind: "STRUCTURAL",
+          status: "SEMANTIC_LABEL_INCONSISTENT",
+          safeMessage:
+            "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+        }),
+      ]),
+    );
+  });
+
+  it("does not infer a semantic conflict from one legitimate interest equal to the quota", () => {
+    const source = input("document:assessment-equal-quota-and-interest");
+    const document = validate(
+      review("assessment.final_provisional_assessment", [
+        moneyField("amount:quota", "TAX_QUOTA", 10_000),
+        moneyField("amount:interest", "LATE_INTEREST", 10_000),
+        moneyField("amount:total", "TOTAL_CLAIMED", 20_000),
+      ]),
+      source,
+    );
+
+    expect(document.mathematicalIntegrity?.checks).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ status: "SEMANTIC_LABEL_INCONSISTENT" }),
+      ]),
+    );
   });
 
   it("validates a complete non-zero enforcement equation without dropping printed components", () => {
@@ -712,6 +798,11 @@ describe("AEAT mathematical integrity engine V11", () => {
         formulaMoneyField("REMITTED_AMOUNT", 4_000),
         formulaMoneyField("RETAINED_AMOUNT", 5_000),
         formulaMoneyField("SEIZED_AMOUNT", 8_000),
+        formulaMoneyField("SEIZE_LIMIT", 8_000),
+        formulaMoneyField("SEIZURE_DEBT_AMOUNT_1", 8_000),
+        formulaMoneyField("DEBT_SUBTOTAL", 8_000),
+        formulaMoneyField("PRINTED_INTEREST", 0),
+        formulaMoneyField("PRINTED_COSTS", 0),
       ]),
       exactSource,
     );
@@ -720,6 +811,27 @@ describe("AEAT mathematical integrity engine V11", () => {
       status: "VALIDATED_EXACT",
       hardFailureCodes: [],
       relationSupport: { permitsAmountOnlyRelations: false },
+    });
+
+    const completeMismatchSource = input(
+      "document:seizure-flow-complete-mismatch",
+    );
+    const completeMismatch = validate(
+      review("seizure.bank_account", [
+        formulaMoneyField("REMITTED_AMOUNT", 6_000),
+        formulaMoneyField("RETAINED_AMOUNT", 5_000),
+        formulaMoneyField("SEIZED_AMOUNT", 8_000),
+        formulaMoneyField("SEIZE_LIMIT", 8_000),
+        formulaMoneyField("SEIZURE_DEBT_AMOUNT_1", 8_000),
+        formulaMoneyField("DEBT_SUBTOTAL", 8_000),
+        formulaMoneyField("PRINTED_INTEREST", 0),
+        formulaMoneyField("PRINTED_COSTS", 0),
+      ]),
+      completeMismatchSource,
+    );
+    expect(completeMismatch.mathematicalIntegrity).toMatchObject({
+      status: "INCONSISTENT_PRINTED_VALUES",
+      hardFailureCodes: ["INCOMPATIBLE_REFERENCE_OR_PART"],
     });
 
     const mismatchSource = input("document:seizure-flow-mismatch");
@@ -823,6 +935,586 @@ describe("AEAT mathematical integrity engine V11", () => {
     expect(document.fields.map((field) => field.amountCents)).toEqual([
       10_000, 3_000, 6_000,
     ]);
+  });
+
+  it("validates total and partial offset rows independently without adding cited amounts", () => {
+    const exactSource = input("document:offset-row-ledger-exact");
+    const exact = validate(
+      review("collection.offset_ex_officio", [
+        formulaMoneyField("OFFSET_BEFORE_1", 10_000, 1),
+        formulaMoneyField("OFFSET_APPLIED_1", 10_000, 2),
+        formulaMoneyField("OFFSET_REMAINING_1", 0, 3),
+        formulaMoneyField("OFFSET_BEFORE_2", 8_000, 4),
+        formulaMoneyField("OFFSET_APPLIED_2", 3_000, 5),
+        formulaMoneyField("OFFSET_REMAINING_2", 5_000, 6),
+        formulaMoneyField("OFFSET_CREDIT_APPLIED", 13_000, 7),
+      ]),
+      exactSource,
+    );
+
+    expect(exact.mathematicalIntegrity).toMatchObject({
+      archetypeId: "OFFSET_LEDGER",
+      status: "VALIDATED_EXACT",
+      persistenceDecision: "ALLOW_CORE",
+    });
+    expect(
+      exact.mathematicalIntegrity?.checks.filter((check) =>
+        /:offset-row:|:offset-applied-total$/u.test(check.ruleId),
+      ),
+    ).toHaveLength(3);
+
+    const partialSource = input("document:offset-row-ledger-partial");
+    const partial = validate(
+      review("collection.offset_requested", [
+        formulaMoneyField("OFFSET_BEFORE_1", 10_000, 1),
+        formulaMoneyField("OFFSET_APPLIED_1", 4_000, 2),
+      ]),
+      partialSource,
+    );
+    expect(partial.mathematicalIntegrity).toMatchObject({
+      status: "VALIDATED_PARTIAL_COMPONENTS",
+      hardFailureCodes: [],
+      persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    });
+  });
+
+  it("validates seizure debt rows and its printed limit without inventing a transfer", () => {
+    const source = input("document:seizure-ledger-without-transfer");
+    const document = validate(
+      review("seizure.bank_account", [
+        formulaMoneyField("SEIZURE_DEBT_AMOUNT_1", 10_000, 1),
+        formulaMoneyField("SEIZURE_DEBT_AMOUNT_2", 5_000, 2),
+        formulaMoneyField("DEBT_SUBTOTAL", 15_000, 3),
+        formulaMoneyField("PRINTED_INTEREST", 500, 4),
+        formulaMoneyField("PRINTED_COSTS", 250, 5),
+        formulaMoneyField("SEIZE_LIMIT", 15_750, 6),
+      ]),
+      source,
+    );
+
+    expect(document.mathematicalIntegrity).toMatchObject({
+      archetypeId: "SEIZURE_FLOW",
+      status: "VALIDATED_EXACT",
+    });
+    expect(document.mathematicalIntegrity?.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: expect.stringContaining(":debt-subtotal"),
+          status: "VALIDATED_EXACT",
+        }),
+        expect.objectContaining({
+          ruleId: expect.stringContaining(":seizure-limit"),
+          expectedCents: 15_750,
+          observedCents: 15_750,
+        }),
+      ]),
+    );
+    expect(
+      document.mathematicalIntegrity?.normalizedEvidence.some((item) =>
+        /REMITTED|TRANSFERRED/u.test(item.canonicalType),
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps a seizure limit partial when one printed component is absent", () => {
+    const source = input("document:seizure-ledger-incomplete-limit");
+    const document = validate(
+      review("seizure.bank_account", [
+        formulaMoneyField("SEIZURE_DEBT_AMOUNT_1", 10_000, 1),
+        formulaMoneyField("DEBT_SUBTOTAL", 10_000, 2),
+        formulaMoneyField("PRINTED_INTEREST", 500, 3),
+        formulaMoneyField("SEIZE_LIMIT", 10_500, 4),
+      ]),
+      source,
+    );
+
+    expect(document.mathematicalIntegrity).toMatchObject({
+      status: "VALIDATED_PARTIAL_COMPONENTS",
+      hardFailureCodes: [],
+      persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    });
+    expect(document.mathematicalIntegrity?.checks).toContainEqual(
+      expect.objectContaining({
+        ruleId: expect.stringContaining(":seizure-limit"),
+        status: "VALIDATED_PARTIAL_COMPONENTS",
+      }),
+    );
+  });
+
+  it("keeps a seizure partial when the printed limit itself is absent", () => {
+    const source = input("document:seizure-ledger-without-limit");
+    const document = validate(
+      review("seizure.bank_account", [
+        formulaMoneyField("SEIZURE_DEBT_AMOUNT_1", 10_000, 1),
+        formulaMoneyField("SEIZURE_DEBT_AMOUNT_2", 5_000, 2),
+        formulaMoneyField("DEBT_SUBTOTAL", 15_000, 3),
+      ]),
+      source,
+    );
+
+    expect(document.mathematicalIntegrity).toMatchObject({
+      status: "VALIDATED_PARTIAL_COMPONENTS",
+      hardFailureCodes: [],
+      persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    });
+    expect(document.mathematicalIntegrity?.checks).toContainEqual(
+      expect.objectContaining({
+        ruleId: expect.stringContaining(":seizure-limit"),
+        status: "VALIDATED_PARTIAL_COMPONENTS",
+      }),
+    );
+  });
+
+  it("validates refund deductions and multi-tranche interest totals", () => {
+    const refundSource = input("document:refund-ledger-exact");
+    const refund = validate(
+      review("refund.payment_communication", [
+        formulaMoneyField("REFUND_ORDERED", 125_130, 1),
+        formulaMoneyField("DEDUCTION_TOTAL", 111_653, 2),
+        formulaMoneyField("NET_REFUND_PAYMENT", 13_477, 3),
+      ]),
+      refundSource,
+    );
+    expect(refund.mathematicalIntegrity).toMatchObject({
+      archetypeId: "REFUND_PAYMENT",
+      status: "VALIDATED_EXACT",
+    });
+
+    const refundRowsSource = input("document:refund-deduction-rows");
+    const refundRows = validate(
+      review("refund.payment_communication", [
+        formulaMoneyField("REFUND_ORDERED", 125_130, 1),
+        formulaMoneyField("EXTERNAL_DEDUCTION_1", 100_000, 2),
+        formulaMoneyField("EXTERNAL_DEDUCTION_2", 11_653, 3),
+        formulaMoneyField("DEDUCTION_TOTAL", 111_653, 4),
+        formulaMoneyField("NET_REFUND_PAYMENT", 13_477, 5),
+      ]),
+      refundRowsSource,
+    );
+    expect(refundRows.mathematicalIntegrity?.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          ruleId: expect.stringContaining(":deductions-total"),
+          status: "VALIDATED_EXACT",
+        }),
+      ]),
+    );
+
+    const mismatchedRowsSource = input(
+      "document:refund-deduction-rows-mismatch",
+    );
+    const mismatchedRows = validate(
+      review("refund.payment_communication", [
+        formulaMoneyField("REFUND_ORDERED", 125_130, 1),
+        formulaMoneyField("EXTERNAL_DEDUCTION_1", 100_000, 2),
+        formulaMoneyField("EXTERNAL_DEDUCTION_2", 11_652, 3),
+        formulaMoneyField("DEDUCTION_TOTAL", 111_653, 4),
+        formulaMoneyField("NET_REFUND_PAYMENT", 13_477, 5),
+      ]),
+      mismatchedRowsSource,
+    );
+    expect(mismatchedRows.mathematicalIntegrity).toMatchObject({
+      status: "INCONSISTENT_PRINTED_VALUES",
+      hardFailureCodes: ["IMPOSSIBLE_BASIC_PRINTED_SUM"],
+    });
+
+    const incompleteRefundSource = input(
+      "document:refund-deduction-rows-without-net",
+    );
+    const incompleteRefund = validate(
+      review("refund.payment_communication", [
+        formulaMoneyField("EXTERNAL_DEDUCTION_1", 100_000, 1),
+        formulaMoneyField("EXTERNAL_DEDUCTION_2", 11_653, 2),
+        formulaMoneyField("DEDUCTION_TOTAL", 111_653, 3),
+      ]),
+      incompleteRefundSource,
+    );
+    expect(incompleteRefund.mathematicalIntegrity).toMatchObject({
+      status: "VALIDATED_PARTIAL_COMPONENTS",
+      hardFailureCodes: [],
+      persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    });
+
+    const interestSource = input("document:interest-tranches-exact");
+    const interest = validate(
+      review("collection.interest_assessment", [
+        formulaMoneyField("INTEREST_TRANCHE_AMOUNT_1", 150, 1),
+        formulaMoneyField("INTEREST_TRANCHE_AMOUNT_2", 275, 2),
+        formulaMoneyField("ASSESSED_INTEREST", 425, 3),
+      ]),
+      interestSource,
+    );
+    expect(interest.mathematicalIntegrity).toMatchObject({
+      archetypeId: "INTEREST_SCHEDULE",
+      status: "VALIDATED_PARTIAL_COMPONENTS",
+      persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    });
+    expect(interest.mathematicalIntegrity?.checks).toContainEqual(
+      expect.objectContaining({
+        ruleId: expect.stringContaining(":tranche-total"),
+        expectedCents: 425,
+        observedCents: 425,
+      }),
+    );
+    expect(interest.mathematicalIntegrity?.checks).toContainEqual(
+      expect.objectContaining({
+        ruleId: expect.stringContaining(":tranche-formula-inputs"),
+        status: "VALIDATED_PARTIAL_COMPONENTS",
+      }),
+    );
+
+    const roundedTotalSource = input("document:interest-tranches-one-cent-off");
+    const roundedTotal = validate(
+      review("collection.interest_assessment", [
+        formulaMoneyField("INTEREST_TRANCHE_AMOUNT_1", 150, 1),
+        formulaMoneyField("INTEREST_TRANCHE_AMOUNT_2", 275, 2),
+        formulaMoneyField("ASSESSED_INTEREST", 426, 3),
+      ]),
+      roundedTotalSource,
+    );
+    expect(roundedTotal.mathematicalIntegrity).toMatchObject({
+      status: "INCONSISTENT_PRINTED_VALUES",
+      hardFailureCodes: ["IMPOSSIBLE_BASIC_PRINTED_SUM"],
+    });
+  });
+
+  it("sums all printed sanction reductions instead of validating only one", () => {
+    const source = input("document:sanction-all-reductions");
+    const document = validate(
+      review("sanction.initiation_and_hearing", [
+        formulaMoneyField("SANCTION_INITIAL", 10_000, 1),
+        formulaMoneyField("SANCTION_REDUCTION_1", 2_000, 2),
+        formulaMoneyField("SANCTION_REDUCTION_2", 1_000, 3),
+        formulaMoneyField("SANCTION_REDUCED", 7_000, 4),
+      ]),
+      source,
+    );
+
+    expect(document.mathematicalIntegrity).toMatchObject({
+      archetypeId: "SANCTION_CALCULATION",
+      status: "VALIDATED_EXACT",
+      persistenceDecision: "ALLOW_CORE",
+    });
+    expect(document.mathematicalIntegrity?.checks).toContainEqual(
+      expect.objectContaining({
+        ruleId: expect.stringContaining(":all-reductions"),
+        expectedCents: 7_000,
+        observedCents: 7_000,
+      }),
+    );
+  });
+
+  it("validates signed rectification differences and flags a negative complementary result", () => {
+    const rectificationSource = input(
+      "document:rectification-signed-difference",
+    );
+    const rectification = validate(
+      review("filing.rectifying_self_assessment_receipt", [
+        signedP0MoneyField("PREVIOUS_RESULT", 10_000, 1),
+        signedP0MoneyField("RECTIFIED_RESULT", 8_000, 2),
+        signedP0MoneyField("DIFFERENCE", -2_000, 3),
+      ]),
+      rectificationSource,
+    );
+    expect(rectification.mathematicalIntegrity).toMatchObject({
+      status: "VALIDATED_EXACT",
+      persistenceDecision: "ALLOW_CORE",
+    });
+    expect(
+      rectification.mathematicalIntegrity?.normalizedEvidence.map((item) =>
+        item.canonicalType,
+      ),
+    ).toEqual(
+      expect.arrayContaining([
+        "PREVIOUS_RESULT",
+        "RECTIFIED_RESULT",
+        "DIFFERENCE",
+      ]),
+    );
+
+    const complementarySource = input("document:complementary-negative");
+    const complementary = validate(
+      review("filing.complementary_self_assessment_receipt", [
+        formulaMoneyField("PREVIOUS_RESULT", 10_000, 1),
+        formulaMoneyField("COMPLEMENTARY_RESULT", 8_000, 2),
+        signedFormulaMoneyField("ADDITIONAL_AMOUNT", -2_000, 3),
+      ]),
+      complementarySource,
+    );
+    expect(complementary.mathematicalIntegrity).toMatchObject({
+      status: "SEMANTIC_LABEL_INCONSISTENT",
+      hardFailureCodes: [],
+      persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    });
+  });
+
+  it("preserves signed P0 producer roles through validation and the audit projection", () => {
+    const source = input(
+      "document:p0-rectification-producer",
+      [
+        "AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA",
+        "Justificante de autoliquidación rectificativa",
+        "AUTOLIQUIDACIÓN RECTIFICATIVA",
+        "Número de justificante: REF-FILING-SYN-002",
+        "Número de justificante anterior: REF-FILING-SYN-001",
+        "NÚMERO DE JUSTIFICANTE ANTERIOR",
+        "Modelo 303: 303",
+        "Ejercicio: 2026",
+        "Período: 2T",
+        "Fecha y hora de presentación: 17/07/2026",
+        "Autoliquidación rectificativa: Sí",
+        "Resultado de la anterior: 100,00 €",
+        "Resultado de la autoliquidación: 80,00 €",
+        "Diferencia: -20,00 €",
+      ].join("\n"),
+    );
+    const extracted = extractAeatP0DeepDocumentV10(source);
+    expect(extracted).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "filing.rectifying_self_assessment_receipt",
+    });
+    const document = validateFiscalNotificationMathematicalIntegrityV11(
+      reconcileFiscalNotificationReviewAmountsV1(
+        projectAeatP0DeepReviewV10(extracted),
+        source,
+      ),
+      source,
+      segment(source.documentId),
+    ).documents[0]!;
+
+    expect(document.mathematicalIntegrity).toMatchObject({
+      status: "VALIDATED_EXACT",
+      persistenceDecision: "ALLOW_CORE",
+    });
+    expect(document.mathematicalIntegrity?.normalizedEvidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          canonicalType: "PREVIOUS_RESULT",
+          amountCents: 10_000,
+        }),
+        expect.objectContaining({
+          canonicalType: "RECTIFIED_RESULT",
+          amountCents: 8_000,
+        }),
+        expect.objectContaining({
+          canonicalType: "DIFFERENCE",
+          amountCents: -2_000,
+          sign: "NEGATIVE",
+        }),
+      ]),
+    );
+  });
+
+  it("keeps the current interest producer in review when no tranche rows were extracted", async () => {
+    const source = input(
+      "document:interest-producer-without-tranches",
+      [
+        "AGENCIA ESTATAL DE ADMINISTRACIÓN TRIBUTARIA",
+        "LIQUIDACIÓN INDEPENDIENTE DE INTERESES",
+        "Fecha del documento: 01-09-2026",
+        "Clave de la liquidación de intereses: SYN-INTEREST-LIQ-01",
+        "Referencia de la solicitud: SYN-REQUEST-01",
+        "Clave de la deuda principal: SYN-DEBT-01",
+        "Principal de la deuda de origen: 500,00 €",
+        "Intereses liquidados: 5,50 €",
+        "Inicio del cálculo de intereses: 01-01-2026",
+        "Fin del cálculo de intereses: 10-04-2026",
+      ].join("\n"),
+    );
+    const extracted = await extractAeatRealCorpusDocumentV6(source);
+    expect(extracted).toMatchObject({
+      status: "REVIEW_REQUIRED",
+      familyId: "collection.interest_assessment",
+    });
+    const document = validateFiscalNotificationMathematicalIntegrityV11(
+      reconcileFiscalNotificationReviewAmountsV1(
+        projectRealCorpusReviewV6(extracted),
+        source,
+      ),
+      source,
+      segment(source.documentId),
+    ).documents[0]!;
+
+    expect(document.mathematicalIntegrity?.status).not.toBe("VALIDATED_EXACT");
+    expect(document.mathematicalIntegrity).toMatchObject({
+      persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    });
+  });
+
+  it("does not combine a payment document amount with the main administrative act", () => {
+    const source = input(
+      "document:enforcement-main-and-payment-form",
+      "Documento AEAT sintético sin identidad personal.",
+      2,
+    );
+    const reviewValue = review("collection.enforcement_order", [
+      fieldOnPage(
+        moneyField("amount:principal", "OUTSTANDING_PRINCIPAL", 10_000),
+        1,
+      ),
+      fieldOnPage(
+        moneyField("amount:surcharge", "EXECUTIVE_SURCHARGE_20", 2_000),
+        1,
+      ),
+      fieldOnPage(moneyField("amount:total", "TOTAL_CLAIMED", 12_000), 2),
+    ]);
+    const segments = Object.freeze([
+      Object.freeze({
+        ...segment(source.documentId)[0]!,
+        pageFrom: 1,
+        pageTo: 1,
+      }),
+      Object.freeze({
+        ...segment(source.documentId)[0]!,
+        segmentId: `segment:${source.documentId}:payment`,
+        segmentType: "PAYMENT_DOCUMENT" as const,
+        pageFrom: 2,
+        pageTo: 2,
+        canGenerateAdministrativeFacts: false,
+      }),
+    ]);
+    const document = validateFiscalNotificationMathematicalIntegrityV11(
+      reconcileFiscalNotificationReviewAmountsV1(reviewValue, source),
+      source,
+      segments,
+    ).documents[0]!;
+
+    expect(document.mathematicalIntegrity).toMatchObject({
+      status: "INCONSISTENT_PRINTED_VALUES",
+      hardFailureCodes: ["INCOMPATIBLE_REFERENCE_OR_PART"],
+    });
+    expect(document.mathematicalIntegrity?.checks).toContainEqual(
+      expect.objectContaining({
+        checkKind: "STRUCTURAL",
+        status: "INCONSISTENT_PRINTED_VALUES",
+        safeMessage:
+          "Los importes usados en la comprobación pertenecen a partes incompatibles del documento.",
+      }),
+    );
+  });
+
+  it("does not combine a refund resolution with a payment-document net amount", () => {
+    const source = input(
+      "document:refund-resolution-and-payment-document",
+      "Documento AEAT sintético sin identidad personal.",
+      2,
+    );
+    const reviewValue = review("refund.withholding_or_offset", [
+      fieldOnPage(formulaMoneyField("REFUND_ORDERED", 20_000, 1), 1),
+      fieldOnPage(formulaMoneyField("DEDUCTION_TOTAL", 3_500, 2), 1),
+      fieldOnPage(formulaMoneyField("NET_REFUND_PAYMENT", 16_500, 3), 2),
+    ]);
+    const segments = Object.freeze([
+      Object.freeze({
+        ...segment(source.documentId)[0]!,
+        pageFrom: 1,
+        pageTo: 1,
+      }),
+      Object.freeze({
+        ...segment(source.documentId)[0]!,
+        segmentId: `segment:${source.documentId}:payment`,
+        segmentType: "PAYMENT_DOCUMENT" as const,
+        pageFrom: 2,
+        pageTo: 2,
+        canGenerateAdministrativeFacts: false,
+      }),
+    ]);
+    const document = validateFiscalNotificationMathematicalIntegrityV11(
+      reconcileFiscalNotificationReviewAmountsV1(reviewValue, source),
+      source,
+      segments,
+    ).documents[0]!;
+
+    expect(document.mathematicalIntegrity).toMatchObject({
+      status: "INCONSISTENT_PRINTED_VALUES",
+      hardFailureCodes: ["INCOMPATIBLE_REFERENCE_OR_PART"],
+      persistenceDecision: "BLOCK_INCONSISTENT_PRINTED_CORE",
+    });
+  });
+
+  it("does not let an undeclared generic annex replace the main act total", () => {
+    const source = input(
+      "document:enforcement-main-and-annex",
+      "Documento AEAT sintético sin identidad personal.",
+      2,
+    );
+    const reviewValue = review("collection.enforcement_order", [
+      fieldOnPage(
+        moneyField("amount:principal", "OUTSTANDING_PRINCIPAL", 10_000),
+        1,
+      ),
+      fieldOnPage(
+        moneyField("amount:surcharge", "EXECUTIVE_SURCHARGE_20", 2_000),
+        1,
+      ),
+      fieldOnPage(moneyField("amount:total", "TOTAL_CLAIMED", 12_000), 2),
+    ]);
+    const segments = Object.freeze([
+      Object.freeze({
+        ...segment(source.documentId)[0]!,
+        pageFrom: 1,
+        pageTo: 1,
+      }),
+      Object.freeze({
+        ...segment(source.documentId)[0]!,
+        segmentId: `segment:${source.documentId}:annex`,
+        segmentType: "ANNEX" as const,
+        pageFrom: 2,
+        pageTo: 2,
+      }),
+    ]);
+    const document = validateFiscalNotificationMathematicalIntegrityV11(
+      reconcileFiscalNotificationReviewAmountsV1(reviewValue, source),
+      source,
+      segments,
+    ).documents[0]!;
+
+    expect(document.mathematicalIntegrity).toMatchObject({
+      status: "INCONSISTENT_PRINTED_VALUES",
+      hardFailureCodes: ["INCOMPATIBLE_REFERENCE_OR_PART"],
+      persistenceDecision: "BLOCK_INCONSISTENT_PRINTED_CORE",
+    });
+  });
+
+  it("allows annex arithmetic only when the V11 family structure declares annexes", () => {
+    const source = input(
+      "document:deferral-main-and-annex",
+      "Documento AEAT sintético sin identidad personal.",
+      2,
+    );
+    const reviewValue = review("seizure.bank_account", [
+      fieldOnPage(formulaMoneyField("SEIZURE_DEBT_AMOUNT_1", 10_000, 1), 2),
+      fieldOnPage(formulaMoneyField("SEIZURE_DEBT_AMOUNT_2", 5_000, 2), 2),
+      fieldOnPage(formulaMoneyField("DEBT_SUBTOTAL", 15_000, 3), 2),
+      fieldOnPage(formulaMoneyField("PRINTED_INTEREST", 500, 4), 2),
+      fieldOnPage(formulaMoneyField("PRINTED_COSTS", 250, 5), 2),
+      fieldOnPage(formulaMoneyField("SEIZE_LIMIT", 15_750, 6), 2),
+    ]);
+    const segments = Object.freeze([
+      Object.freeze({
+        ...segment(source.documentId)[0]!,
+        pageFrom: 1,
+        pageTo: 1,
+      }),
+      Object.freeze({
+        ...segment(source.documentId)[0]!,
+        segmentId: `segment:${source.documentId}:annex`,
+        segmentType: "ANNEX" as const,
+        pageFrom: 2,
+        pageTo: 2,
+      }),
+    ]);
+    const document = validateFiscalNotificationMathematicalIntegrityV11(
+      reconcileFiscalNotificationReviewAmountsV1(reviewValue, source),
+      source,
+      segments,
+    ).documents[0]!;
+
+    expect(document.mathematicalIntegrity).toMatchObject({
+      status: "VALIDATED_EXACT",
+      hardFailureCodes: [],
+      persistenceDecision: "ALLOW_CORE",
+    });
   });
 
   it("executes the catalog-assigned archetype for all 122 family profiles", () => {

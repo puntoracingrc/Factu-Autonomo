@@ -124,6 +124,7 @@ export interface FiscalNotificationDetailIntegrityV11 {
   readonly status:
     | "VALIDATED"
     | "PARTIAL"
+    | "SEMANTIC_INCONSISTENT"
     | "REVIEW_REQUIRED"
     | "INCONSISTENT"
     | "NOT_APPLICABLE";
@@ -727,6 +728,11 @@ export function projectFiscalNotificationDetailIntegrityV11(
         return { status: "VALIDATED" as const, statusLabel: "Comprobación correcta" };
       case "VALIDATED_PARTIAL_COMPONENTS":
         return { status: "PARTIAL" as const, statusLabel: "Comprobación parcial" };
+      case "SEMANTIC_LABEL_INCONSISTENT":
+        return {
+          status: "SEMANTIC_INCONSISTENT" as const,
+          statusLabel: "Etiquetas incompatibles",
+        };
       case "REVIEW_REQUIRED":
         return { status: "REVIEW_REQUIRED" as const, statusLabel: "Revisión necesaria" };
       case "INCONSISTENT_PRINTED_VALUES":

@@ -8,8 +8,23 @@ import {
 } from "./knowledge/mathematical-integrity-catalog.v11";
 import { DOCUMENT_SEGMENT_TYPES_V1 } from "./extractor-core/document-segment.v1";
 
-export const FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_VERSION_V11 =
+export const FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_LEGACY_VERSION_V11 =
   "11.0.0" as const;
+export const FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_VERSION_V11 =
+  "11.1.0" as const;
+
+export type FiscalNotificationMathematicalIntegrityVersionV11 =
+  | typeof FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_LEGACY_VERSION_V11
+  | typeof FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_VERSION_V11;
+
+export const FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_STATUSES_V11 =
+  Object.freeze([
+    ...AEAT_MATHEMATICAL_INTEGRITY_STATUSES_V11,
+    "SEMANTIC_LABEL_INCONSISTENT",
+  ] as const);
+
+export type FiscalNotificationMathematicalIntegrityStatusV11 =
+  AeatMathematicalIntegrityStatusV11 | "SEMANTIC_LABEL_INCONSISTENT";
 
 export const FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_LIMITS_V11 =
   Object.freeze({
@@ -99,8 +114,9 @@ export interface FiscalNotificationIntegrityNormalizedEvidenceV11 {
 
 export interface FiscalNotificationMathematicalIntegrityCheckV11 {
   readonly ruleId: string;
-  readonly checkKind: "ARITHMETIC" | "TEMPORAL" | "STRUCTURAL" | "RELATION_SUPPORT";
-  readonly status: AeatMathematicalIntegrityStatusV11;
+  readonly checkKind:
+    "ARITHMETIC" | "TEMPORAL" | "STRUCTURAL" | "RELATION_SUPPORT";
+  readonly status: FiscalNotificationMathematicalIntegrityStatusV11;
   readonly operands: readonly FiscalNotificationIntegrityEvidenceRefV11[];
   readonly expectedCents: number | null;
   readonly observedCents: number | null;
@@ -112,12 +128,12 @@ export interface FiscalNotificationMathematicalIntegrityCheckV11 {
 
 export interface FiscalNotificationMathematicalIntegrityV11 {
   readonly schemaVersion: 11;
-  readonly integrityVersion: typeof FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_VERSION_V11;
+  readonly integrityVersion: FiscalNotificationMathematicalIntegrityVersionV11;
   readonly catalogReleaseId: typeof AEAT_MATHEMATICAL_INTEGRITY_RELEASE_ID_V11;
   readonly familyId: string;
   readonly archetypeId: string;
   readonly validationMode: AeatMathematicalIntegrityValidationModeV11;
-  readonly status: AeatMathematicalIntegrityStatusV11;
+  readonly status: FiscalNotificationMathematicalIntegrityStatusV11;
   readonly passCount: 1 | 2;
   readonly automaticPassLimit: 2;
   readonly normalizedEvidence: readonly FiscalNotificationIntegrityNormalizedEvidenceV11[];
@@ -191,11 +207,7 @@ const CHECK_KEYS = new Set([
 ]);
 const REF_KEYS = new Set(["evidenceId"]);
 const CALCULATION_NONE_KEYS = new Set(["kind"]);
-const CALCULATION_LINEAR_KEYS = new Set([
-  "kind",
-  "resultEvidenceId",
-  "terms",
-]);
+const CALCULATION_LINEAR_KEYS = new Set(["kind", "resultEvidenceId", "terms"]);
 const CALCULATION_PERCENTAGE_KEYS = new Set([
   "kind",
   "resultEvidenceId",
@@ -220,7 +232,8 @@ const RELATION_KEYS = new Set([
 const SAFE_ID = /^[A-Za-z0-9][A-Za-z0-9:._-]{0,199}$/u;
 const SHA256 = /^sha256:[a-f0-9]{64}$/u;
 const ISO_DATE = /^(?:19|20)\d{2}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/u;
-const INTERNAL_TOKEN = /(?:\bEXACT_|\bINTEGER:|\bBOOLEAN:|\bEXPLANATION:|_DURATION\b|_CONTENT\b)/u;
+const INTERNAL_TOKEN =
+  /(?:\bEXACT_|\bINTEGER:|\bBOOLEAN:|\bEXPLANATION:|_DURATION\b|_CONTENT\b)/u;
 const DIRECT_PRIVATE_DATA =
   /\b(?:ES\d{22}|\d{8}[A-Z]|[XYZ]\d{7}[A-Z]|[ABCDEFGHJNPQRSUVW]\d{7}[0-9A-J])\b|[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/iu;
 const SAFE_MESSAGES = new Set([
@@ -235,6 +248,7 @@ const SAFE_MESSAGES = new Set([
   "Los límites impresos no conservan el orden esperado.",
   "Hay componentes impresos que no se pueden reconciliar sin completar su estructura.",
   "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+  "Validación de etiquetas: una complementaria no puede darse por correcta con una diferencia negativa.",
   "Hay varias fechas impresas para el mismo hito; revisa cuál corresponde al acto principal.",
   "Las fechas impresas conservan el orden esperado.",
   "Las fechas impresas no conservan el orden esperado.",
@@ -243,6 +257,7 @@ const SAFE_MESSAGES = new Set([
   "Faltan conteos impresos para completar la comprobación.",
   "Faltan componentes impresos por cuantificar.",
   "Las cifras impresas no son compatibles.",
+  "Los importes usados en la comprobación pertenecen a partes incompatibles del documento.",
 ]);
 const SAFE_DIFFERENCE_MESSAGE =
   /^Hay una diferencia de \d{1,12},\d{2} € entre el total y sus componentes\.$/u;
@@ -270,17 +285,21 @@ export function parseFiscalNotificationMathematicalIntegrityV11(
   pageTo: number,
 ): FiscalNotificationMathematicalIntegrityV11 {
   const item = exactRecord(value, INTEGRITY_KEYS);
+  const integrityVersion = item.integrityVersion as
+    FiscalNotificationMathematicalIntegrityVersionV11 | undefined;
   if (
     item.schemaVersion !== 11 ||
-    item.integrityVersion !==
-      FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_VERSION_V11 ||
+    (integrityVersion !==
+      FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_LEGACY_VERSION_V11 &&
+      integrityVersion !==
+        FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_VERSION_V11) ||
     item.catalogReleaseId !== AEAT_MATHEMATICAL_INTEGRITY_RELEASE_ID_V11 ||
     !safeId(item.familyId) ||
     !safeId(item.archetypeId) ||
     (item.validationMode !== "ARITHMETIC_AND_LOGICAL" &&
       item.validationMode !== "TEMPORAL_OR_COUNT_AND_LOGICAL") ||
-    !AEAT_MATHEMATICAL_INTEGRITY_STATUSES_V11.includes(
-      item.status as AeatMathematicalIntegrityStatusV11,
+    !FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_STATUSES_V11.includes(
+      item.status as FiscalNotificationMathematicalIntegrityStatusV11,
     ) ||
     (item.passCount !== 1 && item.passCount !== 2) ||
     item.automaticPassLimit !== 2 ||
@@ -312,11 +331,15 @@ export function parseFiscalNotificationMathematicalIntegrityV11(
     item.checks,
     FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_LIMITS_V11.maxChecks,
   ).map((entry) => parseCheck(entry, evidenceById));
-  const hardFailureCodes = enumIds(
-    item.hardFailureCodes,
-    HARD_FAILURES,
-    5,
-  );
+  if (
+    integrityVersion ===
+      FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_LEGACY_VERSION_V11 &&
+    (item.status === "SEMANTIC_LABEL_INCONSISTENT" ||
+      checks.some((check) => check.status === "SEMANTIC_LABEL_INCONSISTENT"))
+  ) {
+    invalid();
+  }
+  const hardFailureCodes = enumIds(item.hardFailureCodes, HARD_FAILURES, 5);
   const relation = exactRecord(item.relationSupport, RELATION_KEYS);
   if (
     relation.existingRelationsOnly !== true ||
@@ -334,9 +357,7 @@ export function parseFiscalNotificationMathematicalIntegrityV11(
       .filter(
         (check) =>
           check.calculation.kind !== "NONE" &&
-          ["VALIDATED_EXACT", "VALIDATED_WITH_ROUNDING"].includes(
-            check.status,
-          ),
+          ["VALIDATED_EXACT", "VALIDATED_WITH_ROUNDING"].includes(check.status),
       )
       .flatMap((check) => check.operands.map((operand) => operand.evidenceId)),
   );
@@ -347,15 +368,16 @@ export function parseFiscalNotificationMathematicalIntegrityV11(
   ) {
     invalid();
   }
-  const status = item.status as AeatMathematicalIntegrityStatusV11;
-  const persistenceDecision = item.persistenceDecision as
-    FiscalNotificationMathematicalIntegrityV11["persistenceDecision"];
+  const status =
+    item.status as FiscalNotificationMathematicalIntegrityStatusV11;
+  const persistenceDecision =
+    item.persistenceDecision as FiscalNotificationMathematicalIntegrityV11["persistenceDecision"];
   if (
     (hardFailureCodes.length === 0) !==
       (persistenceDecision !== "BLOCK_INCONSISTENT_PRINTED_CORE") ||
     status !== aggregateCheckStatus(checks) ||
     (status === "INCONSISTENT_PRINTED_VALUES") !==
-      (hardFailureCodes.length > 0) ||
+      hardFailureCodes.length > 0 ||
     (status === "NOT_APPLICABLE_NO_ARITHMETIC" &&
       checks.some((check) => check.checkKind === "ARITHMETIC"))
   ) {
@@ -363,7 +385,7 @@ export function parseFiscalNotificationMathematicalIntegrityV11(
   }
   return Object.freeze({
     schemaVersion: 11,
-    integrityVersion: FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_VERSION_V11,
+    integrityVersion,
     catalogReleaseId: AEAT_MATHEMATICAL_INTEGRITY_RELEASE_ID_V11,
     familyId: item.familyId as string,
     archetypeId: item.archetypeId as string,
@@ -389,15 +411,17 @@ export function parseFiscalNotificationMathematicalIntegrityV11(
 
 function aggregateCheckStatus(
   checks: readonly FiscalNotificationMathematicalIntegrityCheckV11[],
-): AeatMathematicalIntegrityStatusV11 {
-  const priorities: readonly AeatMathematicalIntegrityStatusV11[] = [
-    "INCONSISTENT_PRINTED_VALUES",
-    "REVIEW_REQUIRED",
-    "VALIDATED_PARTIAL_COMPONENTS",
-    "VALIDATED_WITH_ROUNDING",
-    "VALIDATED_EXACT",
-    "NOT_APPLICABLE_NO_ARITHMETIC",
-  ];
+): FiscalNotificationMathematicalIntegrityStatusV11 {
+  const priorities: readonly FiscalNotificationMathematicalIntegrityStatusV11[] =
+    [
+      "INCONSISTENT_PRINTED_VALUES",
+      "SEMANTIC_LABEL_INCONSISTENT",
+      "REVIEW_REQUIRED",
+      "VALIDATED_PARTIAL_COMPONENTS",
+      "VALIDATED_WITH_ROUNDING",
+      "VALIDATED_EXACT",
+      "NOT_APPLICABLE_NO_ARITHMETIC",
+    ];
   const status = priorities.find((candidate) =>
     checks.some((check) => check.status === candidate),
   );
@@ -424,7 +448,9 @@ function parseEvidence(
     INTERNAL_TOKEN.test(String(item.originalClassification)) ||
     !["POSITIVE", "NEGATIVE", "UNSPECIFIED"].includes(String(item.sign)) ||
     (item.currency !== null && item.currency !== "EUR") ||
-    !SOURCE_PARTS.has(item.sourcePart as FiscalNotificationIntegritySourcePartV11) ||
+    !SOURCE_PARTS.has(
+      item.sourcePart as FiscalNotificationIntegritySourcePartV11,
+    ) ||
     !AEAT_MATHEMATICAL_INTEGRITY_ASSERTION_TYPES_V11.includes(
       item.assertionType as AeatMathematicalIntegrityAssertionTypeV11,
     ) ||
@@ -444,7 +470,8 @@ function parseEvidence(
   ) {
     invalid();
   }
-  const semantic = item.semantic as FiscalNotificationIntegrityNormalizedEvidenceV11["semantic"];
+  const semantic =
+    item.semantic as FiscalNotificationIntegrityNormalizedEvidenceV11["semantic"];
   if (
     (semantic === "MONEY") !== (amountCents !== null) ||
     (semantic === "DATE") !== (dateValue !== null) ||
@@ -490,8 +517,8 @@ function parseCheck(
     !["ARITHMETIC", "TEMPORAL", "STRUCTURAL", "RELATION_SUPPORT"].includes(
       String(item.checkKind),
     ) ||
-    !AEAT_MATHEMATICAL_INTEGRITY_STATUSES_V11.includes(
-      item.status as AeatMathematicalIntegrityStatusV11,
+    !FISCAL_NOTIFICATION_MATHEMATICAL_INTEGRITY_STATUSES_V11.includes(
+      item.status as FiscalNotificationMathematicalIntegrityStatusV11,
     ) ||
     !Number.isSafeInteger(item.toleranceCents) ||
     Number(item.toleranceCents) < 0 ||
@@ -533,7 +560,7 @@ function parseCheck(
   }
   validateCalculatedCheck(
     item.checkKind as FiscalNotificationMathematicalIntegrityCheckV11["checkKind"],
-    item.status as AeatMathematicalIntegrityStatusV11,
+    item.status as FiscalNotificationMathematicalIntegrityStatusV11,
     operands.map((operand) => operand.evidenceId),
     expectedCents,
     observedCents,
@@ -544,8 +571,9 @@ function parseCheck(
   );
   return Object.freeze({
     ruleId: item.ruleId as string,
-    checkKind: item.checkKind as FiscalNotificationMathematicalIntegrityCheckV11["checkKind"],
-    status: item.status as AeatMathematicalIntegrityStatusV11,
+    checkKind:
+      item.checkKind as FiscalNotificationMathematicalIntegrityCheckV11["checkKind"],
+    status: item.status as FiscalNotificationMathematicalIntegrityStatusV11,
     operands: Object.freeze(operands),
     expectedCents,
     observedCents,
@@ -665,7 +693,7 @@ function calculationEvidenceId(
 
 function validateCalculatedCheck(
   checkKind: FiscalNotificationMathematicalIntegrityCheckV11["checkKind"],
-  status: AeatMathematicalIntegrityStatusV11,
+  status: FiscalNotificationMathematicalIntegrityStatusV11,
   operandIds: readonly string[],
   expectedCents: number | null,
   observedCents: number | null,
@@ -849,7 +877,11 @@ function moneyEvidence(
   >,
 ): number {
   const evidence = evidenceById.get(evidenceId);
-  if (!evidence || evidence.semantic !== "MONEY" || evidence.amountCents === null) {
+  if (
+    !evidence ||
+    evidence.semantic !== "MONEY" ||
+    evidence.amountCents === null
+  ) {
     invalid();
   }
   return evidence.amountCents;
@@ -863,7 +895,11 @@ function countEvidence(
   >,
 ): number {
   const evidence = evidenceById.get(evidenceId);
-  if (!evidence || evidence.semantic !== "COUNT" || evidence.countValue === null) {
+  if (
+    !evidence ||
+    evidence.semantic !== "COUNT" ||
+    evidence.countValue === null
+  ) {
     invalid();
   }
   return evidence.countValue;
@@ -877,14 +913,18 @@ function dateEvidence(
   >,
 ): string {
   const evidence = evidenceById.get(evidenceId);
-  if (!evidence || evidence.semantic !== "DATE" || evidence.dateValue === null) {
+  if (
+    !evidence ||
+    evidence.semantic !== "DATE" ||
+    evidence.dateValue === null
+  ) {
     invalid();
   }
   return evidence.dateValue;
 }
 
 function validateMoneyResult(
-  status: AeatMathematicalIntegrityStatusV11,
+  status: FiscalNotificationMathematicalIntegrityStatusV11,
   expectedCents: number | null,
   observedCents: number | null,
   deltaCents: number | null,
@@ -893,7 +933,7 @@ function validateMoneyResult(
   observed: number,
 ): void {
   const delta = observed - expected;
-  const derivedStatus: AeatMathematicalIntegrityStatusV11 =
+  const derivedStatus: FiscalNotificationMathematicalIntegrityStatusV11 =
     delta === 0
       ? "VALIDATED_EXACT"
       : Math.abs(delta) <= toleranceCents
@@ -909,13 +949,18 @@ function validateMoneyResult(
   }
 }
 
-function exactRecord(value: unknown, keys: ReadonlySet<string>): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) invalid();
+function exactRecord(
+  value: unknown,
+  keys: ReadonlySet<string>,
+): Record<string, unknown> {
+  if (value === null || typeof value !== "object" || Array.isArray(value))
+    invalid();
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) invalid();
   const item = value as Record<string, unknown>;
   const actual = Object.keys(item);
-  if (actual.length !== keys.size || actual.some((key) => !keys.has(key))) invalid();
+  if (actual.length !== keys.size || actual.some((key) => !keys.has(key)))
+    invalid();
   return item;
 }
 

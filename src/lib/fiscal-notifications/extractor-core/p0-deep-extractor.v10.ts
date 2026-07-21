@@ -252,12 +252,22 @@ function parseDuration(value: string): Readonly<{ displayValue: string; normaliz
   });
 }
 
-function parseCents(value: string): number | null {
-  const match = /(?:^|[^\d])((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*(?:EUR|€)(?=$|[^\d])/iu.exec(value);
+function parseMoney(value: string): Readonly<{
+  amountCents: number;
+  sign: "" | "-";
+}> | null {
+  const match = /(?:^|[^\d−-])\s*([-−]?)\s*((?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?)\s*(?:EUR|€)(?=$|[^\d])/iu.exec(value);
   if (!match) return null;
-  const [units, decimals = ""] = match[1].split(",");
+  const [units, decimals = ""] = match[2].split(",");
   const cents = Number(units.replaceAll(".", "")) * 100 + Number(decimals.padEnd(2, "0"));
-  return Number.isSafeInteger(cents) && cents >= 0 ? cents : null;
+  return Number.isSafeInteger(cents) && cents >= 0
+    ? Object.freeze({ amountCents: cents, sign: match[1] ? "-" : "" })
+    : null;
+}
+
+function formatCents(amountCents: number): string {
+  const units = Math.floor(amountCents / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/gu, ".");
+  return `${units},${String(amountCents % 100).padStart(2, "0")} €`;
 }
 
 function normalizeReference(value: string, fieldCode: string): string | null {
@@ -352,9 +362,9 @@ function extractField(
         return Object.freeze({ ...common, kind: "DURATION", assertionLayer: "NORMALIZED", ...parsed, amountCents: null, currency: null, fingerprintSha256: null, persistencePolicy: "PERSIST_STRUCTURED" });
       }
       if (contract.type === "MONEY") {
-        const amountCents = parseCents(value);
-        if (amountCents === null) continue;
-        return Object.freeze({ ...common, kind: "MONEY", assertionLayer: "PRINTED", displayValue: `${(amountCents / 100).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`, normalizedValue: null, amountCents, currency: "EUR", fingerprintSha256: null, persistencePolicy: "PERSIST_STRUCTURED" });
+        const money = parseMoney(value);
+        if (money === null) continue;
+        return Object.freeze({ ...common, kind: "MONEY", assertionLayer: "PRINTED", displayValue: `${money.sign}${formatCents(money.amountCents)}`, normalizedValue: null, amountCents: money.amountCents, currency: "EUR", fingerprintSha256: null, persistencePolicy: "PERSIST_STRUCTURED" });
       }
       if (["REFERENCE", "MODEL", "YEAR", "PERIOD"].includes(contract.type)) {
         const normalized = normalizeReference(value, contract.id);
