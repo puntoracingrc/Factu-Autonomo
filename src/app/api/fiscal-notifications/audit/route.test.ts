@@ -87,6 +87,7 @@ function auditBody() {
         amounts: [],
         installments: [],
         arithmeticReview: null,
+        integrityReview: null,
         explanation: {
           whatItIs: "Una providencia inicia la vía ejecutiva.",
           whyReceived: "La ficha refleja una deuda pendiente.",
@@ -169,7 +170,7 @@ beforeEach(() => {
       findings: [],
     },
     modelId: "gpt-4o",
-    promptVersion: "fiscal-notification-library-audit-prompt.v3",
+    promptVersion: "fiscal-notification-library-audit-prompt.v5",
     metrics: {
       attempts: 1,
       durationMs: 12,

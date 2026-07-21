@@ -755,7 +755,7 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
       "Fecha de intereses",
       "Vencimiento",
       "Cuotas y vencimientos",
-      "Cantidades que constan en el documento, sin crear saldos ni pagos.",
+      "Cantidades impresas, tablas reconstruidas y controles de coherencia.",
     ]) {
       expect(copy).toContain(expected);
     }

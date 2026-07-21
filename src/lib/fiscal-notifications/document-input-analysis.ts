@@ -51,6 +51,7 @@ import {
 } from "./document-fact-observation.v1";
 import { appendObservedDocumentChronologyV1 } from "./observed-document-chronology.v1";
 import { reconcileFiscalNotificationReviewAmountsV1 } from "./amount-reconciliation-engine.v1";
+import { validateFiscalNotificationMathematicalIntegrityV11 } from "./mathematical-integrity-engine.v11";
 
 export interface FiscalNotificationDocumentInputAnalysis extends Omit<
   ProjectFiscalNotificationPdfWorkerAnalysisInput,
@@ -315,7 +316,12 @@ export async function analyzeFiscalNotificationDocumentInput(
     chronologyReview,
     documentInput,
   );
-  const observedDocuments = reconciledReview.documents
+  const integrityReview = validateFiscalNotificationMathematicalIntegrityV11(
+    reconciledReview,
+    documentInput,
+    legacyAnalysis.segmentation.segments,
+  );
+  const observedDocuments = integrityReview.documents
     .map((document) =>
       Object.freeze({
         ...document,
@@ -328,11 +334,11 @@ export async function analyzeFiscalNotificationDocumentInput(
       document.fields.some(isUsefulObservedFiscalNotificationField),
     );
   const verticalSliceReview = parseFiscalNotificationVerticalSliceReviewV1({
-    ...reconciledReview,
+    ...integrityReview,
     status:
       observedDocuments.length > 0
         ? "REVIEW_REQUIRED"
-        : reconciledReview.status === "BLOCKED"
+        : integrityReview.status === "BLOCKED"
           ? "BLOCKED"
           : "INFORMATION_PENDING",
     documents: observedDocuments,

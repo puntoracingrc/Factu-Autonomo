@@ -458,7 +458,8 @@ export type GlobalReconciliationEvidenceKindV8 =
   | "EXACT_SEIZURE_REFERENCE"
   | "OWNER_SCOPED_OPAQUE_ASSET"
   | "MODEL_AND_FISCAL_YEAR"
-  | "NOTIFICATION_PROOF_REFERENCE";
+  | "NOTIFICATION_PROOF_REFERENCE"
+  | "MATHEMATICAL_INTEGRITY_VALIDATED";
 
 /**
  * Traza técnica durable de una reevaluación global. Solo admite códigos
@@ -536,6 +537,7 @@ export interface StructuredAdministrativeData {
   inferenceSummary: string[];
   userConfirmedSummary: string[];
   amountReconciliation?: FiscalNotificationAmountReconciliationV1;
+  mathematicalIntegrity?: import("./mathematical-integrity-contract.v11").FiscalNotificationMathematicalIntegrityV11;
   documentFields: {
     title: string;
     issueDate?: string;

@@ -284,5 +284,12 @@ describe("scan review document detail v1", () => {
     expect(JSON.stringify(result.factGroups)).not.toMatch(
       /Vence 22\/06\/2026|Dato observado|Consta en el documento/u,
     );
+    expect(result.integrity).toMatchObject({
+      status: "VALIDATED",
+      statusLabel: "Comprobación correcta",
+      messages: expect.arrayContaining([
+        "Los importes cuadran con las cifras impresas.",
+      ]),
+    });
   });
 });

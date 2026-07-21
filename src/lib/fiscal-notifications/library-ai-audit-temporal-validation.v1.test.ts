@@ -9,7 +9,7 @@ import type {
 } from "./library-ai-audit.v1";
 
 const audit = {
-  schemaVersion: "fiscal-notification-library-ai-audit.v2",
+  schemaVersion: "fiscal-notification-library-ai-audit.v3",
   documents: [],
   relations: [],
 } as unknown as FiscalNotificationLibraryAiAuditInputV1;
@@ -19,7 +19,7 @@ function result(
   evidenceValue: string,
 ): FiscalNotificationLibraryAiAuditResultV1 {
   return {
-    schemaVersion: "fiscal-notification-library-ai-audit.v2",
+    schemaVersion: "fiscal-notification-library-ai-audit.v3",
     summary: "Revisión completada.",
     documentsReviewed: 1,
     relationsReviewed: 0,

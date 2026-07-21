@@ -19,6 +19,7 @@ import {
   fiscalNotificationDetailCategoryLabelV1,
   fiscalNotificationDetailNatureLabelV1,
   maskFiscalNotificationDetailValueV1,
+  projectFiscalNotificationDetailIntegrityV11,
   type FiscalNotificationDetailAmountRowV1,
   type FiscalNotificationDetailEconomyV1,
   type FiscalNotificationDetailFactGroupIdV1,
@@ -232,6 +233,9 @@ export function projectFiscalNotificationScanReviewDocumentDetailV1(input: {
     }),
     factGroups: Object.freeze(factGroups),
     economy,
+    integrity: projectFiscalNotificationDetailIntegrityV11(
+      document.mathematicalIntegrity ?? null,
+    ),
     explanation: projectExplanation(explanation, statusField),
     connections:
       officialSources.length === 0

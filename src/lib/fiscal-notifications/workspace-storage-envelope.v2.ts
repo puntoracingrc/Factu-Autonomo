@@ -1285,6 +1285,12 @@ function memoryAnalysisSnapshots(
           calculatedSummary: [],
           inferenceSummary: [],
           userConfirmedSummary: [],
+          ...(document.amountReconciliation
+            ? { amountReconciliation: document.amountReconciliation }
+            : {}),
+          ...(document.mathematicalIntegrity
+            ? { mathematicalIntegrity: document.mathematicalIntegrity }
+            : {}),
           documentFields: {
             title: legacyDocumentTitle(document),
             ...(documentDate(persisted, document.id, "ISSUE_DATE")
@@ -1339,6 +1345,17 @@ export function restoreFiscalNotificationsWorkspaceFromStorageV2(
   for (const source of envelope.sources) {
     for (const documentId of source.documentIds) {
       sourceByDocument.set(documentId, source);
+    }
+  }
+  for (const document of persisted.documents) {
+    const source = sourceByDocument.get(document.id);
+    if (
+      !source ||
+      document.mathematicalIntegrity?.normalizedEvidence.some((evidence) =>
+        evidence.pageNumbers.some((pageNumber) => pageNumber > source.pageCount),
+      )
+    ) {
+      return null;
     }
   }
   const packageGroups = new Map<

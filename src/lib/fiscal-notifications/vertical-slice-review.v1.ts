@@ -24,6 +24,10 @@ import {
   parseFiscalNotificationAmountReconciliationV1,
   type FiscalNotificationAmountReconciliationV1,
 } from "./amount-reconciliation-contract.v1";
+import {
+  parseFiscalNotificationMathematicalIntegrityV11,
+  type FiscalNotificationMathematicalIntegrityV11,
+} from "./mathematical-integrity-contract.v11";
 import type { PartyRoleV1 } from "./extractor-core/domain.v1";
 import type { ExtractorOutputV1 } from "./extractor-core/extractor-contract.v1";
 import type { MonetaryComponentTypeV1 } from "./extractor-core/monetary-component.v1";
@@ -175,6 +179,7 @@ export interface FiscalNotificationVerticalSliceReviewDocumentV1 {
   readonly fields: readonly FiscalNotificationVerticalSliceReviewFieldV1[];
   readonly warnings: readonly string[];
   readonly amountReconciliation?: FiscalNotificationAmountReconciliationV1;
+  readonly mathematicalIntegrity?: FiscalNotificationMathematicalIntegrityV11;
   readonly requiresHumanReview: true;
 }
 
@@ -1596,6 +1601,9 @@ function parseReviewDocument(
     ...(Object.hasOwn(item, "amountReconciliation")
       ? ["amountReconciliation"]
       : []),
+    ...(Object.hasOwn(item, "mathematicalIntegrity")
+      ? ["mathematicalIntegrity"]
+      : []),
   ];
   assertKeys(item, documentKeys);
   assertBoundedString(item.reviewDocumentId, 160);
@@ -1661,6 +1669,13 @@ function parseReviewDocument(
         Number(item.pageTo),
       )
     : null;
+  const mathematicalIntegrity = Object.hasOwn(item, "mathematicalIntegrity")
+    ? parseFiscalNotificationMathematicalIntegrityV11(
+        item.mathematicalIntegrity,
+        Number(item.pageFrom),
+        Number(item.pageTo),
+      )
+    : null;
   return Object.freeze({
     reviewDocumentId: item.reviewDocumentId as string,
     extractorId: item.extractorId as BaseExtractorIdV1,
@@ -1673,6 +1688,7 @@ function parseReviewDocument(
     fields: Object.freeze(fields),
     warnings: Object.freeze(warnings),
     ...(amountReconciliation ? { amountReconciliation } : {}),
+    ...(mathematicalIntegrity ? { mathematicalIntegrity } : {}),
     requiresHumanReview: true,
   });
 }

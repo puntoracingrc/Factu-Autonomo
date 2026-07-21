@@ -3,6 +3,7 @@ import type {
   AdministrativeMoneyKind,
 } from "./administrative-domain";
 import type { FiscalNotificationAmountReconciliationV1 } from "./amount-reconciliation-contract.v1";
+import type { FiscalNotificationMathematicalIntegrityV11 } from "./mathematical-integrity-contract.v11";
 import {
   explainFiscalNotificationDocumentV1,
   type FiscalNotificationDocumentExplanationV1,
@@ -111,6 +112,7 @@ export interface FiscalNotificationStructuredHistoryEntryV1 {
   readonly money: readonly FiscalNotificationStructuredHistoryMoneyV1[];
   readonly installments: readonly FiscalNotificationStructuredHistoryInstallmentV1[];
   readonly amountReconciliation?: FiscalNotificationAmountReconciliationV1 | null;
+  readonly mathematicalIntegrity?: FiscalNotificationMathematicalIntegrityV11 | null;
   readonly explanation: FiscalNotificationDocumentExplanationV1;
   readonly authenticityLabel: "Autenticidad no comprobada";
   readonly reviewStatus: "PENDING" | "REVIEWED";
@@ -440,7 +442,7 @@ export function projectFiscalNotificationStructuredHistoryV1(
           ];
         }),
       );
-      const installments = snapshot.structuredData.paymentOptionIds
+      const paymentOptionInstallments = snapshot.structuredData.paymentOptionIds
         .map((id) => paymentOptions.get(id))
         .filter((item) => item !== undefined)
         .map((item) => {
@@ -499,6 +501,50 @@ export function projectFiscalNotificationStructuredHistoryV1(
             ),
           });
         });
+      const installments =
+        paymentOptionInstallments.length > 0
+          ? paymentOptionInstallments
+          : (snapshot.structuredData.amountReconciliation?.installments.map(
+              (installment) =>
+                Object.freeze({
+                  key: `reconciled-installment:${document.id}:${installment.sequence}`,
+                  label: `Cuota ${installment.sequence}`,
+                  amountCents: installment.totalCents,
+                  dueDate: installment.dueDate,
+                  dueDatePageNumbers: Object.freeze([
+                    ...installment.sourcePageNumbers,
+                  ]),
+                  totalPageNumbers: Object.freeze([
+                    ...installment.sourcePageNumbers,
+                  ]),
+                  components: Object.freeze([
+                    Object.freeze({
+                      label: "Principal",
+                      amountCents: installment.principalCents,
+                      pageNumbers: Object.freeze([
+                        ...installment.sourcePageNumbers,
+                      ]),
+                    }),
+                    Object.freeze({
+                      label: "Intereses",
+                      amountCents: installment.interestCents,
+                      pageNumbers: Object.freeze([
+                        ...installment.sourcePageNumbers,
+                      ]),
+                    }),
+                    Object.freeze({
+                      label: "Recargo",
+                      amountCents: installment.surchargeCents,
+                      pageNumbers: Object.freeze([
+                        ...installment.sourcePageNumbers,
+                      ]),
+                    }),
+                  ]),
+                  pageNumbers: Object.freeze([
+                    ...installment.sourcePageNumbers,
+                  ]),
+                }),
+            ) ?? []);
 
       const selectedDocumentDate = selectExplicitDocumentDate({
         documentIssueDate: document.issueDate,
@@ -561,6 +607,8 @@ export function projectFiscalNotificationStructuredHistoryV1(
         installments: Object.freeze(installments),
         amountReconciliation:
           snapshot.structuredData.amountReconciliation ?? null,
+        mathematicalIntegrity:
+          snapshot.structuredData.mathematicalIntegrity ?? null,
         explanation,
         authenticityLabel: "Autenticidad no comprobada" as const,
         reviewStatus:

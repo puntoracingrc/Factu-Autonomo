@@ -37,6 +37,7 @@ import {
   projectFiscalNotificationDocumentDetailV1,
   type FiscalNotificationDetailEconomyV1,
   type FiscalNotificationDetailFactGroupV1,
+  type FiscalNotificationDetailIntegrityV11,
   type FiscalNotificationDetailProvenanceV1,
   type FiscalNotificationDocumentDetailViewModelV1,
 } from "@/lib/fiscal-notifications/structured-review-document-detail.v1";
@@ -180,17 +181,26 @@ export function FiscalNotificationDocumentReport({
           </ReportSection>
         ) : null}
 
-        {detail.economy ? (
+        {detail.economy || detail.integrity ? (
           <ReportSection
             number="3"
-            title="Importes y tablas"
-            subtitle="Cantidades que constan en el documento, sin crear saldos ni pagos."
+            title={detail.economy ? "Importes y comprobaciones" : "Comprobaciones del documento"}
+            subtitle={
+              detail.economy
+                ? "Cantidades impresas, tablas reconstruidas y controles de coherencia."
+                : "Controles estructurales aplicables a esta familia documental."
+            }
             tone="emerald"
           >
-            <EconomySection
-              economy={detail.economy}
-              onShowProvenance={setProvenance}
-            />
+            {detail.economy ? (
+              <EconomySection
+                economy={detail.economy}
+                onShowProvenance={setProvenance}
+              />
+            ) : null}
+            {detail.integrity ? (
+              <IntegritySection integrity={detail.integrity} />
+            ) : null}
           </ReportSection>
         ) : null}
 
@@ -221,6 +231,43 @@ export function FiscalNotificationDocumentReport({
         onClose={() => setProvenance(null)}
       />
     </div>
+  );
+}
+
+function IntegritySection({
+  integrity,
+}: {
+  readonly integrity: FiscalNotificationDetailIntegrityV11;
+}) {
+  const styles: Readonly<
+    Record<FiscalNotificationDetailIntegrityV11["status"], string>
+  > = {
+    VALIDATED: "border-emerald-200 bg-emerald-50 text-emerald-950",
+    PARTIAL: "border-amber-200 bg-amber-50 text-amber-950",
+    REVIEW_REQUIRED: "border-amber-200 bg-amber-50 text-amber-950",
+    INCONSISTENT: "border-red-200 bg-red-50 text-red-950",
+    NOT_APPLICABLE: "border-slate-200 bg-slate-50 text-slate-800",
+  };
+  return (
+    <section
+      aria-labelledby="document-integrity-heading"
+      className={`border-y px-3 py-4 sm:px-4 ${styles[integrity.status]}`}
+    >
+      <div className="flex items-start gap-3">
+        <ListChecks aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
+        <div className="min-w-0">
+          <h3 id="document-integrity-heading" className="text-sm font-bold">
+            Comprobaciones del documento
+          </h3>
+          <p className="mt-1 text-sm font-semibold">{integrity.statusLabel}</p>
+          <ul className="mt-2 space-y-1 text-sm leading-6">
+            {integrity.messages.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </section>
   );
 }
 
