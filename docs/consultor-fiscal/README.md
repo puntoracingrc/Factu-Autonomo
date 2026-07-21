@@ -150,8 +150,29 @@ La visibilidad usa el mecanismo mínimo de configuración ya aceptado por el
 proyecto: `NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED`. Si no se configura, está
 activo en desarrollo/pruebas y desactivado en producción. El mismo flag oculta
 la navegación y su sección del manual, convierte la página en 404 y cierra el
-endpoint. No debe activarse en producción hasta completar la revisión fiscal
-de las reglas.
+endpoint. La activación en producción no sustituye la revisión humana ni cambia
+el carácter orientativo de las reglas.
+
+### Registro de activación en producción
+
+- Fecha: 2026-07-21.
+- Configuración: `NEXT_PUBLIC_CONSULTOR_FISCAL_ENABLED` se añadió únicamente al
+  entorno Production de Vercel, sin registrar su valor ni otras variables en el
+  repositorio.
+- Superficie: habilita la Beta de gastos deducibles y la revisión consentida de
+  fichas estructuradas mediante `POST /api/fiscal-notifications/audit`. El
+  fallback externo del analizador de gastos conserva su interruptor de servidor
+  independiente y desactivado por omisión.
+- SHA fuente reconstruido con la configuración vigente:
+  `9a0e70e9deb9ab756929fb1a0dee6fa28ab14978`.
+- Gate: la activación solo se considera publicada cuando `Production Domain`
+  completa `Wait for Vercel production deployment`, `Assign production domain`
+  y `Verify production domain` para el SHA acumulativo de `main` y el dominio
+  canónico responde con esa versión.
+- Rollback: retirar o desactivar únicamente esta variable en Production,
+  reconstruir el SHA canónico vigente y repetir el mismo gate. No se revierten
+  fichas ni relaciones porque la auditoría solo propone hallazgos y no persiste
+  cambios.
 
 ### Módulo comercial independiente
 
