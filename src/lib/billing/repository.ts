@@ -45,7 +45,7 @@ export async function ensureFreeSubscription(
   const token = data.session?.access_token;
   if (!token) return null;
 
-  const response = await fetch("/api/billing/trial", {
+  const response = await fetch("/api/billing/subscription", {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   });

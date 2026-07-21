@@ -14,6 +14,11 @@ const routeSources = new Map(
       "billing_checkout_scan_pack",
     ],
     ["billing portal", "../app/api/billing/portal/route.ts", "billing_portal"],
+    [
+      "billing subscription",
+      "../app/api/billing/subscription/route.ts",
+      "billing_subscription",
+    ],
     ["billing trial", "../app/api/billing/trial/route.ts", "billing_trial"],
     ["referrals me", "../app/api/referrals/me/route.ts", "referrals_me"],
     [
