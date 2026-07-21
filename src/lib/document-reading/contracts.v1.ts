@@ -35,6 +35,7 @@ export class DocumentReadingErrorV1 extends Error {
 export interface DocumentReadingSourceV1 {
   readonly mimeType: "application/pdf";
   readonly byteLength: number;
+  /** Non-enumerable. Available only for in-memory worker correlation. */
   readonly sha256: string;
 }
 
@@ -113,11 +114,18 @@ export function parseDocumentReadingSourceV1(
   ) {
     invalid("INVALID_INPUT");
   }
-  return Object.freeze({
+  const normalizedSource: DocumentReadingSourceV1 = {
     mimeType: "application/pdf",
     byteLength: Number(source.byteLength),
     sha256: source.sha256,
+  };
+  Object.defineProperty(normalizedSource, "sha256", {
+    value: source.sha256,
+    enumerable: false,
+    writable: false,
+    configurable: false,
   });
+  return Object.freeze(normalizedSource);
 }
 
 export function parseDocumentReadingPagesV1(

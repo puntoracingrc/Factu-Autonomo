@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-import { DocumentReadingErrorV1 } from "@/lib/document-reading/contracts.v1";
 import type { FiscalNotificationPdfJsAdapter } from "@/lib/fiscal-notifications/pdf-text-layer-parser";
 import { readExpensePdfTextLayerThroughFiscalCompatV1 } from "./fiscal-text-layer-compat.v1";
 
@@ -86,7 +85,7 @@ describe("expense fiscal text-layer compatibility v1", () => {
         { pdfjs: pdfjs([], 81) },
       ),
     ).rejects.toEqual(
-      expect.objectContaining<DocumentReadingErrorV1>({ code: "TOO_MANY_PAGES" }),
+      expect.objectContaining({ code: "TOO_MANY_PAGES" }),
     );
   });
 });

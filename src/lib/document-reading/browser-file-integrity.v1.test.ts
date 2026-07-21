@@ -25,21 +25,24 @@ function digestBytes(): ArrayBuffer {
 
 describe("browser PDF integrity v1", () => {
   it("verifica magic, tamaño y hash sin serializar bytes ni nombre", async () => {
+    const expectedSha256 = Array.from({ length: 32 }, (_, index) =>
+      index.toString(16).padStart(2, "0"),
+    ).join("");
     const result = await readBrowserPdfFileIntegrityV1(
       { file: pdfFile() },
       { digestSha256: async () => digestBytes() },
     );
-    expect(result.source).toEqual({
+    expect(result.source).toMatchObject({
       mimeType: "application/pdf",
       byteLength: pdfBytes().byteLength,
-      sha256: Array.from({ length: 32 }, (_, index) =>
-        index.toString(16).padStart(2, "0"),
-      ).join(""),
     });
+    expect(result.source.sha256).toBe(expectedSha256);
+    expect(Object.keys(result.source)).toEqual(["mimeType", "byteLength"]);
     expect(new Uint8Array(result.bytes)).toEqual(pdfBytes());
     expect(Object.keys(result)).toEqual(["source"]);
     expect(JSON.stringify(result)).not.toContain(PRIVATE_FILENAME);
     expect(JSON.stringify(result)).not.toContain("bytes");
+    expect(JSON.stringify(result)).not.toContain(expectedSha256);
   });
 
   it("se abstiene mediante errores tipados ante MIME, magic o tamaño inválidos", async () => {

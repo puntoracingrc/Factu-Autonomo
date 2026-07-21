@@ -29,7 +29,9 @@ describe("expense local document reader shadow v1", () => {
       promotionPolicy: "BLOCKED",
     });
     expect(readDocument).toHaveBeenCalledTimes(1);
+    expect(result?.reading.source?.sha256).toBe(HASH);
     expect(JSON.stringify(result)).not.toContain(RAW_SENTINEL);
+    expect(JSON.stringify(result)).not.toContain(HASH);
   });
 
   it("propaga una abstención cerrada sin convertirla en resultado", async () => {
@@ -45,5 +47,7 @@ describe("expense local document reader shadow v1", () => {
     expect(result?.reading).toBe(reading);
     expect(result?.reading.status).toBe("ABSTAINED");
     expect(result?.promotionPolicy).toBe("BLOCKED");
+    expect(result?.reading.source?.sha256).toBe(HASH);
+    expect(JSON.stringify(result)).not.toContain(HASH);
   });
 });

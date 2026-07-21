@@ -31,10 +31,12 @@ describe("document-reading contracts v1", () => {
       pages: pages(),
     });
 
+    expect(outcome.source?.sha256).toBe(HASH);
     expect(outcome.ephemeralContent.pages[0]?.text).toBe(RAW_SENTINEL);
     expect(Object.keys(outcome)).not.toContain("ephemeralContent");
     expect(Object.keys(outcome.ephemeralContent)).toEqual([]);
     expect(JSON.stringify(outcome)).not.toContain(RAW_SENTINEL);
+    expect(JSON.stringify(outcome)).not.toContain(HASH);
     expect(JSON.stringify(outcome)).not.toContain("layoutRows");
     expect(JSON.stringify(outcome.ephemeralContent)).toBeUndefined();
     expect(Object.isFrozen(outcome)).toBe(true);
@@ -47,7 +49,7 @@ describe("document-reading contracts v1", () => {
       (_, index) => ({ pageNumber: index + 1, text: "", isBlank: true }),
     );
     expect(() => parseDocumentReadingPagesV1(tooManyPages)).toThrowError(
-      expect.objectContaining<DocumentReadingErrorV1>({ code: "TOO_MANY_PAGES" }),
+      expect.objectContaining({ code: "TOO_MANY_PAGES" }),
     );
     expect(() =>
       parseDocumentReadingPagesV1([
@@ -72,7 +74,7 @@ describe("document-reading contracts v1", () => {
         },
       ]),
     ).toThrowError(
-      expect.objectContaining<DocumentReadingErrorV1>({
+      expect.objectContaining({
         code: "INVALID_WORKER_RESPONSE",
       }),
     );
@@ -84,7 +86,7 @@ describe("document-reading contracts v1", () => {
         { pageNumber: 1, text: RAW_SENTINEL, isBlank: true },
       ]),
     ).toThrowError(
-      expect.objectContaining<DocumentReadingErrorV1>({
+      expect.objectContaining({
         code: "INVALID_WORKER_RESPONSE",
       }),
     );
@@ -107,6 +109,8 @@ describe("document-reading contracts v1", () => {
       providerCalled: false,
       retainedSourceContent: "NONE",
     });
+    expect(outcome.source?.sha256).toBe(HASH);
     expect(JSON.stringify(outcome)).not.toContain(RAW_SENTINEL);
+    expect(JSON.stringify(outcome)).not.toContain(HASH);
   });
 });
