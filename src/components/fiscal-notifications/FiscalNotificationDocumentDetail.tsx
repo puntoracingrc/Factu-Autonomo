@@ -71,9 +71,7 @@ export function FiscalNotificationDocumentDetail({
     ownerScope,
     documents,
     onDeleted: () => {
-      router.replace(
-        "/consultor-fiscal/notificaciones#documentos-guardados",
-      );
+      router.replace("/consultor-fiscal/notificaciones#documentos-guardados");
     },
   });
 
@@ -121,31 +119,38 @@ export function FiscalNotificationDocumentReport({
   detail,
   onDelete,
   onNavigateAct,
+  mode = "saved",
 }: {
   readonly detail: FiscalNotificationDocumentDetailViewModelV1;
-  readonly onDelete: () => void;
-  readonly onNavigateAct: (documentId: string) => void;
+  readonly onDelete?: () => void;
+  readonly onNavigateAct?: (documentId: string) => void;
+  readonly mode?: "saved" | "review";
 }) {
-  const [provenance, setProvenance] = useState<ProvenanceSelection | null>(null);
+  const [provenance, setProvenance] = useState<ProvenanceSelection | null>(
+    null,
+  );
   const driveHref = detail.actions.driveFileId
     ? fiscalNotificationDriveFileHrefV1(detail.actions.driveFileId)
     : null;
 
   return (
     <div className="min-w-0 pb-8">
-      <DocumentActionBar
-        driveHref={driveHref}
-        onDelete={onDelete}
-      />
+      {mode === "saved" && onDelete ? (
+        <DocumentActionBar driveHref={driveHref} onDelete={onDelete} />
+      ) : null}
 
-      <article className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <article
+        data-testid="fiscal-notification-document-report"
+        className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm"
+      >
         <DocumentHeader
           detail={detail}
           driveHref={driveHref}
+          reviewMode={mode === "review"}
           onShowProvenance={(item) =>
             setProvenance({
               ...item,
-              pageNumbers: [item.pageNumber],
+              pageNumbers: item.pageNumbers ?? [item.pageNumber],
             })
           }
           onNavigateAct={onNavigateAct}
@@ -166,7 +171,7 @@ export function FiscalNotificationDocumentReport({
                   onShowProvenance={(item) =>
                     setProvenance({
                       ...item,
-                      pageNumbers: [item.pageNumber],
+                      pageNumbers: item.pageNumbers ?? [item.pageNumber],
                     })
                   }
                 />
@@ -201,7 +206,7 @@ export function FiscalNotificationDocumentReport({
         {detail.connections ? (
           <ReportSection
             number="5"
-            title="Relaciones, cronología y fuentes"
+            title="Relaciones, cronología, procedencia y fuentes"
             subtitle="Vínculos por identificadores fuertes y contexto oficial del motor local."
             tone="violet"
           >
@@ -298,15 +303,17 @@ function DocumentActionBar({
 function DocumentHeader({
   detail,
   driveHref,
+  reviewMode,
   onShowProvenance,
   onNavigateAct,
 }: {
   readonly detail: FiscalNotificationDocumentDetailViewModelV1;
   readonly driveHref: string | null;
+  readonly reviewMode: boolean;
   readonly onShowProvenance: (
     provenance: FiscalNotificationDetailProvenanceV1,
   ) => void;
-  readonly onNavigateAct: (documentId: string) => void;
+  readonly onNavigateAct?: (documentId: string) => void;
 }) {
   const { header } = detail;
   return (
@@ -318,7 +325,9 @@ function DocumentHeader({
               1
             </span>
             <span>{header.categoryLabel}</span>
-            <span aria-hidden="true" className="text-slate-300">/</span>
+            <span aria-hidden="true" className="text-slate-300">
+              /
+            </span>
             <FiscalNotificationFamilyLabel>
               {header.familyLabel}
             </FiscalNotificationFamilyLabel>
@@ -336,7 +345,9 @@ function DocumentHeader({
               </p>
               {header.literalTitle ? (
                 <p className="mt-2 text-sm text-slate-500">
-                  <span className="font-semibold text-slate-700">Título impreso:</span>{" "}
+                  <span className="font-semibold text-slate-700">
+                    Título impreso:
+                  </span>{" "}
                   {header.literalTitle}
                 </p>
               ) : null}
@@ -367,9 +378,7 @@ function DocumentHeader({
             {header.primaryDateProvenance ? (
               <ProvenanceButton
                 label={header.primaryDateLabel}
-                onClick={() =>
-                  onShowProvenance(header.primaryDateProvenance!)
-                }
+                onClick={() => onShowProvenance(header.primaryDateProvenance!)}
               />
             ) : null}
           </div>
@@ -380,12 +389,14 @@ function DocumentHeader({
                 label={header.reviewLabel}
               />
             </p>
-            <p>
-              <FiscalNotificationOriginalStatus
-                status={driveHref ? "DRIVE" : "UNAVAILABLE"}
-                label={header.originalLabel}
-              />
-            </p>
+            {!reviewMode ? (
+              <p>
+                <FiscalNotificationOriginalStatus
+                  status={driveHref ? "DRIVE" : "UNAVAILABLE"}
+                  label={header.originalLabel}
+                />
+              </p>
+            ) : null}
           </div>
         </div>
       </div>
@@ -402,7 +413,9 @@ function DocumentHeader({
             key={item.key}
             className={`min-w-0 bg-white px-3 py-3 ${index === header.metadata.length - 1 ? "sm:pr-0" : ""}`}
           >
-            <dt className="text-xs font-semibold text-slate-500">{item.label}</dt>
+            <dt className="text-xs font-semibold text-slate-500">
+              {item.label}
+            </dt>
             <dd className="mt-1 break-words text-sm font-bold text-slate-900">
               {item.value}
             </dd>
@@ -410,12 +423,15 @@ function DocumentHeader({
         ))}
       </dl>
 
-      {detail.siblingActs.length > 1 ? (
+      {detail.siblingActs.length > 1 && onNavigateAct ? (
         <div className="mt-5 flex flex-col gap-2 border-l-2 border-indigo-300 pl-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-sm font-bold text-slate-900">Actos del mismo original</p>
+            <p className="text-sm font-bold text-slate-900">
+              Actos del mismo original
+            </p>
             <p className="text-xs text-slate-500">
-              {detail.siblingActs.length} fichas conservan sus páginas y datos separados.
+              {detail.siblingActs.length} fichas conservan sus páginas y datos
+              separados.
             </p>
           </div>
           <select
@@ -458,14 +474,23 @@ function ReportSection({
   return (
     <details open className="group border-t border-slate-200">
       <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-4 marker:hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-inset focus-visible:outline-blue-500 sm:px-6 lg:px-8">
-        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${toneClasses}`}>
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${toneClasses}`}
+        >
           {number}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-base font-bold text-slate-950 sm:text-lg">{title}</span>
-          <span className="mt-0.5 block text-xs leading-5 text-slate-500 sm:text-sm">{subtitle}</span>
+          <span className="block text-base font-bold text-slate-950 sm:text-lg">
+            {title}
+          </span>
+          <span className="mt-0.5 block text-xs leading-5 text-slate-500 sm:text-sm">
+            {subtitle}
+          </span>
         </span>
-        <ChevronDown aria-hidden="true" className="h-5 w-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180" />
+        <ChevronDown
+          aria-hidden="true"
+          className="h-5 w-5 shrink-0 text-slate-400 transition-transform group-open:rotate-180"
+        />
       </summary>
       <div className="px-4 pb-6 sm:px-6 lg:px-8">{children}</div>
     </details>
@@ -484,13 +509,23 @@ function FactGroup({
   const visible = group.fields.slice(0, group.previewLimit);
   const remaining = group.fields.slice(group.previewLimit);
   return (
-    <section aria-labelledby={`fact-group-${group.id}`} className="py-5 first:pt-0 last:pb-0">
-      <h3 id={`fact-group-${group.id}`} className="mb-2 text-sm font-bold text-slate-900">
+    <section
+      aria-labelledby={`fact-group-${group.id}`}
+      className="py-5 first:pt-0 last:pb-0"
+    >
+      <h3
+        id={`fact-group-${group.id}`}
+        className="mb-2 text-sm font-bold text-slate-900"
+      >
         {group.title}
       </h3>
       <dl className="divide-y divide-slate-100">
         {visible.map((field) => (
-          <FactRow key={field.key} field={field} onShowProvenance={onShowProvenance} />
+          <FactRow
+            key={field.key}
+            field={field}
+            onShowProvenance={onShowProvenance}
+          />
         ))}
       </dl>
       {remaining.length > 0 ? (
@@ -500,7 +535,11 @@ function FactGroup({
           </summary>
           <dl className="divide-y divide-slate-100 border-t border-slate-100">
             {remaining.map((field) => (
-              <FactRow key={field.key} field={field} onShowProvenance={onShowProvenance} />
+              <FactRow
+                key={field.key}
+                field={field}
+                onShowProvenance={onShowProvenance}
+              />
             ))}
           </dl>
         </details>
@@ -555,8 +594,12 @@ function EconomySection({
               key={`summary:${item.key}`}
               className={`px-3 py-4 ${index < economy.summary.length - 1 ? "border-b border-slate-200 sm:border-b-0 sm:border-r" : ""}`}
             >
-              <dt className="text-xs font-semibold text-slate-500">{item.label}</dt>
-              <dd className="mt-1 text-xl font-bold text-slate-950">{item.value}</dd>
+              <dt className="text-xs font-semibold text-slate-500">
+                {item.label}
+              </dt>
+              <dd className="mt-1 text-xl font-bold text-slate-950">
+                {item.value}
+              </dd>
             </div>
           ))}
         </dl>
@@ -564,14 +607,23 @@ function EconomySection({
 
       {economy.rows.length > 0 ? (
         <div className="mt-5 overflow-x-auto rounded-md border border-slate-200">
-          <div role="table" aria-label="Importes del documento" className="min-w-[44rem] md:min-w-0">
-            <div role="row" className={`grid ${rowGridClass} border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600`}>
+          <div
+            role="table"
+            aria-label="Importes del documento"
+            className="min-w-[44rem] md:min-w-0"
+          >
+            <div
+              role="row"
+              className={`grid ${rowGridClass} border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-600`}
+            >
               <span role="columnheader">Concepto</span>
               <span role="columnheader">Importe</span>
               {economy.showSourceReference ? (
                 <span role="columnheader">Referencia</span>
               ) : null}
-              <span role="columnheader" className="sr-only">Procedencia</span>
+              <span role="columnheader" className="sr-only">
+                Procedencia
+              </span>
             </div>
             <div role="rowgroup" className="divide-y divide-slate-100">
               {visible.map((row) => (
@@ -589,7 +641,10 @@ function EconomySection({
                 <summary className="min-h-11 cursor-pointer list-none px-3 py-3 text-sm font-semibold text-blue-700 marker:hidden">
                   Ver {remaining.length} importes más
                 </summary>
-                <div role="rowgroup" className="divide-y divide-slate-100 border-t border-slate-100">
+                <div
+                  role="rowgroup"
+                  className="divide-y divide-slate-100 border-t border-slate-100"
+                >
                   {remaining.map((row) => (
                     <AmountRow
                       key={row.key}
@@ -608,19 +663,32 @@ function EconomySection({
 
       {economy.installments.length > 0 ? (
         <section className="mt-6" aria-labelledby="installment-table-heading">
-          <h3 id="installment-table-heading" className="text-sm font-bold text-slate-900">
+          <h3
+            id="installment-table-heading"
+            className="text-sm font-bold text-slate-900"
+          >
             Cuotas y vencimientos
           </h3>
           <div className="mt-2 divide-y divide-slate-100 border-y border-slate-200">
             {economy.installments.map((installment) => (
-              <div key={installment.key} className="grid gap-4 py-4 md:grid-cols-[minmax(14rem,1.2fr)_minmax(10rem,0.7fr)_minmax(10rem,0.7fr)] md:items-start">
+              <div
+                key={installment.key}
+                className="grid gap-4 py-4 md:grid-cols-[minmax(14rem,1.2fr)_minmax(10rem,0.7fr)_minmax(10rem,0.7fr)] md:items-start"
+              >
                 <div>
-                  <p className="text-sm font-bold text-slate-900">{installment.label}</p>
+                  <p className="text-sm font-bold text-slate-900">
+                    {installment.label}
+                  </p>
                   {installment.components.length > 0 ? (
                     <ul className="mt-1 divide-y divide-slate-100 text-xs text-slate-500">
                       {installment.components.map((component) => (
-                        <li key={`${component.label}:${component.value}`} className="flex min-h-9 items-center justify-between gap-2">
-                          <span>{component.label}: {component.value}</span>
+                        <li
+                          key={`${component.label}:${component.value}`}
+                          className="flex min-h-9 items-center justify-between gap-2"
+                        >
+                          <span>
+                            {component.label}: {component.value}
+                          </span>
                           {component.pageNumbers.length > 0 ? (
                             <ProvenanceButton
                               label={`${installment.label}, ${component.label}`}
@@ -711,9 +779,16 @@ function AmountRow({
   readonly onShowProvenance: (selection: ProvenanceSelection) => void;
 }) {
   return (
-    <div role="row" className={`grid ${rowGridClass} items-center px-3 py-3 text-sm`}>
-      <span role="cell" className="font-semibold text-slate-900">{row.label}</span>
-      <span role="cell" className="font-bold text-slate-950">{row.value}</span>
+    <div
+      role="row"
+      className={`grid ${rowGridClass} items-center px-3 py-3 text-sm`}
+    >
+      <span role="cell" className="font-semibold text-slate-900">
+        {row.label}
+      </span>
+      <span role="cell" className="font-bold text-slate-950">
+        {row.value}
+      </span>
       {showSourceReference ? (
         <span role="cell" className="break-words text-xs text-slate-500">
           {row.sourceReference}
@@ -772,7 +847,11 @@ function ExplanationSection({
         />
         <ExplanationBlock
           icon={<CalendarDays aria-hidden="true" className="h-5 w-5" />}
-          eyebrow={explanation.deadlineBasis === "PRINTED" ? "Plazo indicado" : "Plazo por localizar"}
+          eyebrow={
+            explanation.deadlineBasis === "PRINTED"
+              ? "Plazo indicado"
+              : "Plazo por localizar"
+          }
           title={explanation.deadlineTitle}
           text={explanation.deadlineDetail}
           emphasis="amber"
@@ -780,11 +859,15 @@ function ExplanationSection({
       </div>
       {explanation.calculatedFacts.length > 0 ? (
         <div className="border-t border-blue-200 bg-blue-50 px-4 py-4 sm:px-5">
-          <p className="text-xs font-bold text-blue-800">Calculado con valores impresos</p>
+          <p className="text-xs font-bold text-blue-800">
+            Calculado con valores impresos
+          </p>
           <dl className="mt-2 grid gap-3 sm:grid-cols-2">
             {explanation.calculatedFacts.map((fact) => (
               <div key={fact.key}>
-                <dt className="text-xs font-semibold text-blue-700">{fact.label}</dt>
+                <dt className="text-xs font-semibold text-blue-700">
+                  {fact.label}
+                </dt>
                 <dd className="mt-1 font-bold text-blue-950">{fact.value}</dd>
               </div>
             ))}
@@ -839,7 +922,10 @@ function ConnectionsSection({
         <section aria-labelledby="related-documents-heading">
           <div className="flex items-center gap-2">
             <Link2 aria-hidden="true" className="h-5 w-5 text-violet-600" />
-            <h3 id="related-documents-heading" className="text-sm font-bold text-slate-950">
+            <h3
+              id="related-documents-heading"
+              className="text-sm font-bold text-slate-950"
+            >
               Documentos relacionados
             </h3>
           </div>
@@ -849,15 +935,23 @@ function ConnectionsSection({
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${relation.status === "CONFIRMED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}>
+                      <span
+                        className={`inline-flex rounded-full px-2 py-1 text-xs font-bold ${relation.status === "CONFIRMED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-900"}`}
+                      >
                         {relation.statusLabel}
                       </span>
                       {relation.relatedDocumentDate ? (
-                        <span className="text-xs font-semibold text-slate-500">{formatCalendarDate(relation.relatedDocumentDate)}</span>
+                        <span className="text-xs font-semibold text-slate-500">
+                          {formatCalendarDate(relation.relatedDocumentDate)}
+                        </span>
                       ) : null}
                     </div>
-                    <p className="mt-2 font-bold text-slate-950">{relation.title}</p>
-                    <p className="mt-1 text-sm leading-6 text-slate-600">{relation.explanation}</p>
+                    <p className="mt-2 font-bold text-slate-950">
+                      {relation.title}
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      {relation.explanation}
+                    </p>
                   </div>
                   <Link
                     href={documentDetailHref(relation.relatedDocumentId)}
@@ -870,12 +964,20 @@ function ConnectionsSection({
                 {relation.matches.length > 0 ? (
                   <dl className="mt-3 divide-y divide-slate-100 rounded-md bg-slate-50 px-3">
                     {relation.matches.map((match) => (
-                      <div key={`${match.label}:${match.value}`} className="grid gap-1 py-3 sm:grid-cols-[minmax(10rem,0.55fr)_minmax(0,1fr)] sm:gap-4">
-                        <dt className="text-xs font-semibold text-slate-500">{match.label}</dt>
+                      <div
+                        key={`${match.label}:${match.value}`}
+                        className="grid gap-1 py-3 sm:grid-cols-[minmax(10rem,0.55fr)_minmax(0,1fr)] sm:gap-4"
+                      >
+                        <dt className="text-xs font-semibold text-slate-500">
+                          {match.label}
+                        </dt>
                         <dd className="min-w-0 break-words text-sm font-semibold text-slate-800">
                           {match.value}
                           <span className="mt-1 block text-xs font-normal text-slate-500">
-                            Esta ficha: {formatPages(match.currentDocumentPages)} · Relacionada: {formatPages(match.relatedDocumentPages)}
+                            Esta ficha:{" "}
+                            {formatPages(match.currentDocumentPages)} ·
+                            Relacionada:{" "}
+                            {formatPages(match.relatedDocumentPages)}
                           </span>
                         </dd>
                       </div>
@@ -892,14 +994,19 @@ function ConnectionsSection({
         <section aria-labelledby="document-timeline-heading">
           <div className="flex items-center gap-2">
             <Clock3 aria-hidden="true" className="h-5 w-5 text-blue-600" />
-            <h3 id="document-timeline-heading" className="text-sm font-bold text-slate-950">
+            <h3
+              id="document-timeline-heading"
+              className="text-sm font-bold text-slate-950"
+            >
               Cronología del expediente
             </h3>
           </div>
           <ol className="mt-3 border-l-2 border-slate-200 pl-5">
             {connections.timeline.map((item) => (
               <li key={item.documentId} className="relative pb-5 last:pb-0">
-                <span className={`absolute -left-[1.72rem] top-1 h-3 w-3 rounded-full border-2 border-white ${item.current ? "bg-blue-600" : "bg-slate-400"}`} />
+                <span
+                  className={`absolute -left-[1.72rem] top-1 h-3 w-3 rounded-full border-2 border-white ${item.current ? "bg-blue-600" : "bg-slate-400"}`}
+                />
                 <p className="text-xs font-semibold text-slate-500">
                   {item.date
                     ? `${item.dateLabel} · ${formatCalendarDate(item.date)}`
@@ -909,9 +1016,14 @@ function ConnectionsSection({
                     : ""}
                 </p>
                 {item.current ? (
-                  <p className="mt-1 text-sm font-bold text-blue-800">{item.title}</p>
+                  <p className="mt-1 text-sm font-bold text-blue-800">
+                    {item.title}
+                  </p>
                 ) : (
-                  <Link href={documentDetailHref(item.documentId)} className="mt-1 inline-block text-sm font-semibold text-slate-800 hover:text-blue-700 hover:underline">
+                  <Link
+                    href={documentDetailHref(item.documentId)}
+                    className="mt-1 inline-block text-sm font-semibold text-slate-800 hover:text-blue-700 hover:underline"
+                  >
                     {item.title}
                   </Link>
                 )}
@@ -925,20 +1037,32 @@ function ConnectionsSection({
         <details className="border-y border-slate-200 py-1">
           <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 py-3 font-bold text-slate-900 marker:hidden">
             <Scale aria-hidden="true" className="h-5 w-5 text-violet-600" />
-            <span className="flex-1">Fuentes oficiales en las que se basa esta explicación</span>
-            <ChevronDown aria-hidden="true" className="h-5 w-5 text-slate-400" />
+            <span className="flex-1">
+              Fuentes oficiales en las que se basa esta explicación
+            </span>
+            <ChevronDown
+              aria-hidden="true"
+              className="h-5 w-5 text-slate-400"
+            />
           </summary>
           <ul className="space-y-3 pb-4 text-sm">
             {connections.sources.map((source) => (
               <li key={source.key}>
-                <a href={source.href} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-700 hover:underline">
+                <a
+                  href={source.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-blue-700 hover:underline"
+                >
                   {source.authority} · {source.title}
                 </a>
               </li>
             ))}
           </ul>
           <p className="border-t border-slate-100 py-3 text-xs leading-5 text-slate-500">
-            Estas fuentes forman parte del conocimiento local del motor. Factu no consulta internet durante el escaneo y ninguna fuente sustituye el contenido del documento.
+            Estas fuentes forman parte del conocimiento local del motor. Factu
+            no consulta internet durante el escaneo y ninguna fuente sustituye
+            el contenido del documento.
           </p>
         </details>
       ) : null}
@@ -991,22 +1115,49 @@ function ProvenancePanel({
         <div>
           <header className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-200 bg-white px-5 py-4">
             <div>
-              <p className="text-xs font-bold uppercase text-emerald-700">Procedencia del dato</p>
-              <h2 id={titleId} className="mt-1 text-lg font-bold text-slate-950">{selection.fieldLabel}</h2>
+              <p className="text-xs font-bold uppercase text-emerald-700">
+                Procedencia del dato
+              </p>
+              <h2
+                id={titleId}
+                className="mt-1 text-lg font-bold text-slate-950"
+              >
+                {selection.fieldLabel}
+              </h2>
             </div>
-            <button type="button" onClick={onClose} aria-label="Cerrar procedencia" title="Cerrar" className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Cerrar procedencia"
+              title="Cerrar"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+            >
               <X aria-hidden="true" className="h-5 w-5" />
             </button>
           </header>
           <div id={descriptionId} className="space-y-0 px-5 pb-6">
             <ProvenanceDatum label="Valor" value={selection.value} prominent />
-            <ProvenanceDatum label="Dónde aparece" value={formatPages(selection.pageNumbers)} />
-            <ProvenanceDatum label="Tipo de dato" value="Impreso en el documento" />
+            <ProvenanceDatum
+              label="Dónde aparece"
+              value={formatPages(selection.pageNumbers)}
+            />
+            <ProvenanceDatum
+              label="Tipo de dato"
+              value="Impreso en el documento"
+            />
             {selection.sourceReference ? (
-              <ProvenanceDatum label="Referencia asociada" value={selection.sourceReference} />
+              <ProvenanceDatum
+                label="Referencia asociada"
+                value={selection.sourceReference}
+              />
             ) : null}
             {driveHref ? (
-              <a href={driveHref} target="_blank" rel="noopener noreferrer" className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-blue-200 px-4 text-sm font-bold text-blue-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500">
+              <a
+                href={driveHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-blue-200 px-4 text-sm font-bold text-blue-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
                 Abrir original en Drive
                 <ExternalLink aria-hidden="true" className="h-4 w-4" />
               </a>
@@ -1030,12 +1181,22 @@ function ProvenanceDatum({
   return (
     <div className="border-b border-slate-100 py-5">
       <p className="text-xs font-semibold text-slate-500">{label}</p>
-      <p className={`mt-1 break-words text-slate-950 ${prominent ? "text-lg font-bold" : "text-sm font-semibold"}`}>{value}</p>
+      <p
+        className={`mt-1 break-words text-slate-950 ${prominent ? "text-lg font-bold" : "text-sm font-semibold"}`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
 
-function LabeledValue({ label, value }: { readonly label: string; readonly value: string }) {
+function LabeledValue({
+  label,
+  value,
+}: {
+  readonly label: string;
+  readonly value: string;
+}) {
   return (
     <div>
       <p className="text-xs font-semibold text-slate-500">{label}</p>
@@ -1047,11 +1208,16 @@ function LabeledValue({ label, value }: { readonly label: string; readonly value
 function MissingDetail() {
   return (
     <Card>
-      <h1 className="text-lg font-bold text-slate-950">Documento no encontrado</h1>
+      <h1 className="text-lg font-bold text-slate-950">
+        Documento no encontrado
+      </h1>
       <p className="mt-2 text-sm leading-6 text-slate-600">
         No existe una ficha con ese identificador dentro de esta cuenta.
       </p>
-      <Link href="/consultor-fiscal/notificaciones#documentos-guardados" className="mt-4 inline-flex min-h-11 items-center gap-2 font-semibold text-blue-700 hover:underline">
+      <Link
+        href="/consultor-fiscal/notificaciones#documentos-guardados"
+        className="mt-4 inline-flex min-h-11 items-center gap-2 font-semibold text-blue-700 hover:underline"
+      >
         <ArrowLeft aria-hidden="true" className="h-4 w-4" />
         Volver a documentos
       </Link>
@@ -1062,9 +1228,12 @@ function MissingDetail() {
 function BlockedDetail() {
   return (
     <Card className="border-amber-200 bg-amber-50" role="alert">
-      <h1 className="font-bold text-amber-950">Expediente estructurado no disponible</h1>
+      <h1 className="font-bold text-amber-950">
+        Expediente estructurado no disponible
+      </h1>
       <p className="mt-1 text-sm leading-6 text-amber-900">
-        Los datos guardados no superan la validación de integridad de esta cuenta. No se muestra una ficha parcial ni se modifica ningún documento.
+        Los datos guardados no superan la validación de integridad de esta
+        cuenta. No se muestra una ficha parcial ni se modifica ningún documento.
       </p>
     </Card>
   );

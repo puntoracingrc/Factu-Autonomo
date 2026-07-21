@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { analyzeFiscalNotificationVerticalSliceV1 } from "@/lib/fiscal-notifications/extractor-core/vertical-slice-orchestrator.v1";
 import { analyzeFiscalNotificationDocumentInput } from "@/lib/fiscal-notifications/document-input-analysis";
 import type { BoundedDocumentInput } from "@/lib/fiscal-notifications/input-contract";
@@ -13,6 +13,145 @@ import { AEAT_DOCUMENT_PROFILE_IDS_V1 } from "@/lib/fiscal-notifications/knowled
 import { AEAT_OFFICIAL_CATALOG_PROFILES_V9 } from "@/lib/fiscal-notifications/knowledge/official-catalog-expansion.v9";
 import { resolveAeatP0DeepProfileV10 } from "@/lib/fiscal-notifications/knowledge/p0-deep-contracts.v10";
 import { FiscalNotificationVerticalSliceReview } from "./FiscalNotificationVerticalSliceReview";
+
+vi.mock(
+  "@/components/fiscal-notifications/FiscalNotificationDocumentDetail",
+  async () => {
+    const { createElement: element } = await import("react");
+    return {
+      FiscalNotificationDocumentReport: ({
+        detail,
+        mode,
+      }: {
+        detail: {
+          header: {
+            familyLabel: string;
+            typeLabel: string;
+            title: string;
+            literalTitle: string | null;
+            description: string;
+            authority: string;
+            primaryDateValue: string;
+            reviewLabel: string;
+            metadata: readonly { key: string; label: string; value: string }[];
+          };
+          factGroups: readonly {
+            id: string;
+            title: string;
+            fields: readonly { key: string; label: string; value: string }[];
+          }[];
+          economy: {
+            rows: readonly { key: string; label: string; value: string }[];
+            installments: readonly {
+              key: string;
+              label: string;
+              dueDate: string | null;
+              total: string | null;
+            }[];
+          } | null;
+          explanation: {
+            documentSays: string;
+            officialMeaning: string;
+            reviewTitle: string;
+            reviewDetail: string;
+            deadlineTitle: string;
+            deadlineDetail: string;
+          };
+          connections: {
+            sources: readonly { key: string; title: string; href: string }[];
+          } | null;
+        };
+        mode: string;
+      }) =>
+        element(
+          "article",
+          { "data-mode": mode },
+          element("h2", null, detail.header.familyLabel),
+          element("p", null, detail.header.typeLabel),
+          detail.header.literalTitle
+            ? element("p", null, detail.header.literalTitle)
+            : null,
+          element("p", null, detail.header.description),
+          element("p", null, detail.header.authority),
+          element("p", null, detail.header.primaryDateValue),
+          element("p", null, detail.header.reviewLabel),
+          ...detail.header.metadata.map((item) =>
+            element("p", { key: item.key }, `${item.label}: ${item.value}`),
+          ),
+          element("h3", null, "Lo que dice el documento"),
+          ...detail.factGroups.flatMap((group) => [
+            element("h4", { key: `${group.id}:heading` }, group.title),
+            ...group.fields.map((field) =>
+              element(
+                "p",
+                { key: field.key },
+                `${field.label}: ${field.value} · Página 1`,
+              ),
+            ),
+          ]),
+          detail.economy
+            ? element(
+                "section",
+                null,
+                element("h3", null, "Importes y tablas"),
+                ...detail.economy.rows.map((row) =>
+                  element("p", { key: row.key }, `${row.label}: ${row.value}`),
+                ),
+                detail.economy.installments.length > 0
+                  ? element(
+                      "table",
+                      null,
+                      element(
+                        "tbody",
+                        null,
+                        ...detail.economy.installments.map((installment) =>
+                          element(
+                            "tr",
+                            { key: installment.key },
+                            element("td", null, installment.label),
+                            element("td", null, installment.dueDate),
+                            element("td", null, installment.total),
+                          ),
+                        ),
+                      ),
+                    )
+                  : null,
+              )
+            : null,
+          element("h3", null, "Qué significa y qué debes revisar"),
+          element("p", null, detail.explanation.documentSays),
+          element("p", null, detail.explanation.officialMeaning),
+          element("p", null, detail.explanation.reviewTitle),
+          element("p", null, detail.explanation.reviewDetail),
+          element("p", null, detail.explanation.deadlineTitle),
+          element("p", null, detail.explanation.deadlineDetail),
+          detail.connections
+            ? element(
+                "section",
+                null,
+                element(
+                  "h3",
+                  null,
+                  "Relaciones, cronología, procedencia y fuentes",
+                ),
+                ...detail.connections.sources.map((source) =>
+                  element(
+                    "a",
+                    {
+                      key: source.key,
+                      href: source.href,
+                      target: "_blank",
+                      rel: "noreferrer",
+                    },
+                    source.title,
+                  ),
+                ),
+              )
+            : null,
+        ),
+    };
+  },
+);
 
 const RAW_ACCOUNT = "ES12 3456 7890 1234 5678 9012";
 const PAYMENT = [
@@ -175,20 +314,10 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).toContain("11/07/2026");
     expect(html).not.toContain("Acto sintético notificado");
     expect(html).not.toContain("10:00");
-    expect(html).toContain("Documento reconocido");
-    expect(html).toContain("Qué significa este documento");
-    expect(html).toContain("Por qué te llega");
-    expect(html).toContain("Qué ha ocurrido o qué resultado refleja");
-    expect(html).toContain("Datos clave detectados");
-    expect(html).toContain("Qué revisar o hacer");
-    expect(html).toContain("Cómo identificar el plazo");
-    expect(html).toContain("Qué puede pasar después");
-    expect(html).toContain("Qué no demuestra");
-    expect(html).toContain("Cómo encaja con otros documentos");
-    expect(html).toContain(
-      "Fuentes oficiales en las que se basa nuestro escáner",
-    );
-    expect(html).toContain("No se consulta internet durante el escaneo");
+    expect(html).toContain('data-mode="review"');
+    expect(html).toContain("Lo que dice el documento");
+    expect(html).toContain("Qué significa y qué debes revisar");
+    expect(html).toContain("Relaciones, cronología, procedencia y fuentes");
     expect(html).not.toMatch(/posible familia/iu);
   });
 
@@ -201,7 +330,6 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     );
 
     expect(html).toContain("Justificante de pago");
-    expect(html).toContain("Documento reconocido");
     expect(html).toContain("Pago parcial confirmado en el justificante");
     expect(html).toContain("DEBT-SYN-UI-001");
     expect(html).toContain("600,00 €");
@@ -229,7 +357,6 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).toContain("1.240,00 €");
     expect(html).toContain("Importe retenido");
     expect(html).toContain("900,00 €");
-    expect(html).toContain("Documento reconocido");
     expect(html).not.toMatch(/posible familia/iu);
     expect(html).not.toContain("PERSONA DEUDORA SINTÉTICA");
     expect(html).not.toContain("BANCO SINTÉTICO");
@@ -254,12 +381,7 @@ describe("FiscalNotificationVerticalSliceReview", () => {
     expect(html).toContain("Límite del embargo");
     expect(html).toContain("Importe embargado");
     expect(html).toContain("276,00\u00a0€");
-    expect(html).toContain(
-      "Que la deuda esté pagada por existir una retención.",
-    );
-    expect(html).toContain(
-      "Que el importe máximo sea el efectivamente ingresado.",
-    );
+    expect(html).toContain("Comprueba la deuda, diligencia, entidad y alcance");
     expect(html).not.toContain("PRIMARY_DEBTOR");
     expect(html).not.toContain("BANK_ACCOUNT_OR_DEPOSIT");
     expect(html).not.toContain("Banco Privado Sintético");
@@ -276,20 +398,10 @@ describe("FiscalNotificationVerticalSliceReview", () => {
         }),
       );
 
-      expect(html, familyId).toContain("Qué significa este documento");
-      expect(html, familyId).toContain("Qué es");
-      expect(html, familyId).toContain("Por qué te llega");
+      expect(html, familyId).toContain("Lo que dice el documento");
+      expect(html, familyId).toContain("Qué significa y qué debes revisar");
       expect(html, familyId).toContain(
-        "Qué ha ocurrido o qué resultado refleja",
-      );
-      expect(html, familyId).toContain("Datos clave detectados");
-      expect(html, familyId).toContain("Qué revisar o hacer");
-      expect(html, familyId).toContain("Cómo identificar el plazo");
-      expect(html, familyId).toContain("Qué puede pasar después");
-      expect(html, familyId).toContain("Qué no demuestra");
-      expect(html, familyId).toContain("Cómo encaja con otros documentos");
-      expect(html, familyId).toContain(
-        "Fuentes oficiales en las que se basa nuestro escáner",
+        "Relaciones, cronología, procedencia y fuentes",
       );
       expect(html, familyId).toMatch(/href="https:\/\//u);
       expect(html, familyId).not.toMatch(/(?:NIF|IBAN)\s*:\s*[A-Z0-9]/u);
@@ -304,14 +416,13 @@ describe("FiscalNotificationVerticalSliceReview", () => {
           review: reviewForFamily(profile.id),
         }),
       );
-      expect(html, profile.id).toContain("Qué significa este documento");
+      expect(html, profile.id).toContain("Qué significa y qué debes revisar");
       expect(html, profile.id).toContain(
         resolveAeatP0DeepProfileV10(profile.id)?.explanationTemplate.whatItIs ??
           profile.whatItIs,
       );
-      expect(html, profile.id).toContain("Qué no demuestra");
       expect(html, profile.id).toContain(
-        "Fuentes oficiales en las que se basa nuestro escáner",
+        "Relaciones, cronología, procedencia y fuentes",
       );
       expect(html, profile.id).toMatch(/href="https:\/\//u);
       expect(html, profile.id).not.toContain(
@@ -329,12 +440,10 @@ describe("FiscalNotificationVerticalSliceReview", () => {
       createElement(FiscalNotificationVerticalSliceReview, { review }),
     );
 
-    expect(html).toContain("Datos leídos del documento");
+    expect(html).toContain("Lo que dice el documento");
     expect(html).toContain("Dato sintético localizado");
-    expect(html).not.toContain("Qué significa este documento");
-    expect(html).not.toContain(
-      "Fuentes oficiales en las que se basa nuestro escáner",
-    );
+    expect(html).toContain("Qué significa y qué debes revisar");
+    expect(html).not.toContain("Relaciones, cronología, procedencia y fuentes");
   });
 
   it("deduplicates repeated fields and translates controlled values", () => {
@@ -453,7 +562,7 @@ describe("FiscalNotificationVerticalSliceReview", () => {
       createElement(FiscalNotificationVerticalSliceReview, { review }),
     );
 
-    expect(html).toContain("Calendario de cuotas");
+    expect(html).toContain("Importes y tablas");
     expect(html).toContain("<table");
     expect(html).toContain("20/02/2027");
     expect(html).toContain("102,00");
@@ -480,9 +589,8 @@ describe("FiscalNotificationVerticalSliceReview", () => {
       (field) => field.semantic === "REFERENCE",
     );
     expect(visibleReference).toBeDefined();
-    (
-      visibleReference as unknown as { displayValue: string }
-    ).displayValue = '<img src=x onerror="alert(1)">';
+    (visibleReference as unknown as { displayValue: string }).displayValue =
+      '<img src=x onerror="alert(1)">';
     const html = renderToStaticMarkup(
       createElement(FiscalNotificationVerticalSliceReview, { review }),
     );

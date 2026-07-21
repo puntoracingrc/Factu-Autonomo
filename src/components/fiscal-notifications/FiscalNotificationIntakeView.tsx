@@ -27,7 +27,10 @@ import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { FiscalNotificationExplicitFieldsReview } from "@/components/fiscal-notifications/FiscalNotificationExplicitFieldsReview";
 import { FiscalNotificationDocumentDetail } from "@/components/fiscal-notifications/FiscalNotificationDocumentDetail";
-import { FiscalNotificationDocumentLibrary } from "@/components/fiscal-notifications/FiscalNotificationDocumentLibrary";
+import {
+  FiscalNotificationDocumentLibrary,
+  type FiscalNotificationSessionFileInventoryItem,
+} from "@/components/fiscal-notifications/FiscalNotificationDocumentLibrary";
 import { FiscalNotificationPartyFactsReview } from "@/components/fiscal-notifications/FiscalNotificationPartyFactsReview";
 import { FiscalNotificationReviewSteps } from "@/components/fiscal-notifications/FiscalNotificationReviewSteps";
 import { FiscalNotificationVerticalSliceReview } from "@/components/fiscal-notifications/FiscalNotificationVerticalSliceReview";
@@ -54,6 +57,7 @@ import {
   fingerprintFiscalNotificationBatchFileV1,
   readPersistedFiscalNotificationHashesV1,
 } from "@/lib/fiscal-notifications/batch-intake.v1";
+import { runFiscalNotificationBatchReviewSaveV1 } from "@/lib/fiscal-notifications/batch-review-save.v1";
 import { assertFiscalNotificationBatchAnalysisIdentityV2 } from "@/lib/fiscal-notifications/batch-analysis-identity.v2";
 import {
   projectExplicitFieldsReviewViewModelV2,
@@ -402,10 +406,14 @@ function FiscalNotificationReviewWorkspace({
     useState<PendingStructuredReview | null>(null);
   const [persistenceState, setPersistenceState] =
     useState<ReviewPersistenceState>("idle");
+  const [savingBatch, setSavingBatch] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(true);
   const [recentlySavedDocumentId, setRecentlySavedDocumentId] = useState<
     string | null
   >(null);
+  const [sessionFileInventory, setSessionFileInventory] = useState<
+    readonly FiscalNotificationSessionFileInventoryItem[]
+  >([]);
   const documentLibrary = useMemo(
     () =>
       projectFiscalNotificationDocumentLibraryV1(
@@ -895,16 +903,127 @@ function FiscalNotificationReviewWorkspace({
         return;
       }
 
-      const savedDocumentId =
+      const savedDocumentIds =
         "documentIds" in accountWrite.value
-          ? (accountWrite.value.documentIds[0] ?? null)
-          : accountWrite.value.documentId;
+          ? [...accountWrite.value.documentIds]
+          : [accountWrite.value.documentId];
+      const savedItem = queueRef.current.find((item) => item.id === activeId);
+      if (savedItem) {
+        rememberSavedFiles([
+          {
+            key: activeId,
+            fileName: savedItem.displayName,
+            documentCount: savedDocumentIds.length,
+            documentIds: Object.freeze([...savedDocumentIds]),
+          },
+        ]);
+      }
 
       filesRef.current.delete(activeId);
-      advanceAfterSuccessfulSave(activeId, savedDocumentId);
+      advanceAfterSuccessfulSave(activeId, savedDocumentIds[0] ?? null);
     } finally {
       if (saveOperationRef.current === operation) {
         saveOperationRef.current = null;
+      }
+    }
+  }
+
+  function saveAllStructuredReviews(): void {
+    if (
+      saveOperationRef.current ||
+      processingRef.current ||
+      admittingRef.current
+    ) {
+      return;
+    }
+    const items = queueRef.current.flatMap((item) => {
+      const review = reviewsRef.current.get(item.id);
+      return review && !review.saved && filesRef.current.has(item.id)
+        ? [
+            {
+              itemId: item.id,
+              reviewId: review.reviewId,
+              createdAt: review.createdAt,
+              analysis: review.analysis,
+            },
+          ]
+        : [];
+    });
+    if (items.length < 2) return;
+
+    const operation = Symbol("structured-review-batch-save");
+    saveOperationRef.current = operation;
+    setSavingBatch(true);
+    setError(null);
+    setSaveError(null);
+    setLastSaveFailure(null);
+    setPersistenceState("saving");
+
+    try {
+      const batchWrite = runFiscalNotificationBatchReviewSaveV1({
+        ownerScope,
+        items,
+        getCurrentData,
+        now: () => new Date().toISOString(),
+        save: saveFiscalNotificationStructuredReview,
+      });
+      if (saveOperationRef.current !== operation) return;
+
+      const savedItemIds = new Set(batchWrite.saved.map((item) => item.itemId));
+      const itemNames = new Map(
+        queueRef.current.map((item) => [item.id, item.displayName] as const),
+      );
+      rememberSavedFiles(
+        batchWrite.saved.flatMap((savedItem) => {
+          const fileName = itemNames.get(savedItem.itemId);
+          return fileName
+            ? [
+                {
+                  key: savedItem.itemId,
+                  fileName,
+                  documentCount: savedItem.documentIds.length,
+                  documentIds: Object.freeze([...savedItem.documentIds]),
+                },
+              ]
+            : [];
+        }),
+      );
+      for (const itemId of savedItemIds) {
+        filesRef.current.delete(itemId);
+        reviewsRef.current.delete(itemId);
+      }
+      const remainingQueue = queueRef.current.filter(
+        (item) => !savedItemIds.has(item.id),
+      );
+      replaceQueue(remainingQueue);
+      const lastSavedDocumentId =
+        batchWrite.saved.at(-1)?.documentIds[0] ?? null;
+
+      if (batchWrite.status === "stopped") {
+        const failedItem = remainingQueue.find(
+          (item) => item.id === batchWrite.failedItemId,
+        );
+        if (failedItem) showReview(failedItem.documentId);
+        setRecentlySavedDocumentId(null);
+        applyStructuredSaveFailure(
+          batchWrite.failedItemId,
+          batchWrite.failure,
+          batchWrite.saved.length > 0
+            ? `Se guardaron ${batchWrite.saved.length} de ${items.length} documentos. `
+            : undefined,
+        );
+        return;
+      }
+
+      activeDocumentIdRef.current = null;
+      setActiveDocumentId(null);
+      clearReviewDisplay();
+      setRecentlySavedDocumentId(lastSavedDocumentId);
+      setScannerOpen(remainingQueue.length > 0);
+    } finally {
+      if (saveOperationRef.current === operation) {
+        saveOperationRef.current = null;
+        setSavingBatch(false);
       }
     }
   }
@@ -914,6 +1033,7 @@ function FiscalNotificationReviewWorkspace({
     write: ReturnType<
       typeof runSaveFiscalNotificationStructuredReviewCommandV1
     >,
+    messagePrefix = "",
   ): void {
     if (
       write.status === "applied" ||
@@ -944,7 +1064,7 @@ function FiscalNotificationReviewWorkspace({
       updateStoredReview(activeId, "blocked", false);
       setPersistenceState("blocked");
     }
-    setSaveError(structuredSaveFailureMessage(write));
+    setSaveError(`${messagePrefix}${structuredSaveFailureMessage(write)}`);
   }
 
   function advanceAfterSuccessfulSave(
@@ -984,6 +1104,17 @@ function FiscalNotificationReviewWorkspace({
     setScannerOpen(false);
   }
 
+  function rememberSavedFiles(
+    items: readonly FiscalNotificationSessionFileInventoryItem[],
+  ): void {
+    if (items.length === 0) return;
+    setSessionFileInventory((current) => {
+      const byKey = new Map(current.map((item) => [item.key, item] as const));
+      for (const item of items) byKey.set(item.key, Object.freeze({ ...item }));
+      return Object.freeze([...byKey.values()]);
+    });
+  }
+
   function updateStoredReview(
     id: string,
     nextState: ReviewPersistenceState,
@@ -1015,8 +1146,14 @@ function FiscalNotificationReviewWorkspace({
   }
 
   const saving = persistenceState === "saving";
+  const saveableReviewCount = queue.filter((item) => {
+    const review = reviewsRef.current.get(item.id);
+    return (
+      review !== undefined && !review.saved && filesRef.current.has(item.id)
+    );
+  }).length;
   const batchCapacityCount = new Set(queue.map((item) => item.sha256)).size;
-  const busy = admitting || processing || saving;
+  const busy = admitting || processing || saving || savingBatch;
   const pendingCount = queue.filter(
     (item) =>
       (item.status === "PREPARED" || item.status === "ERROR") &&
@@ -1400,15 +1537,14 @@ function FiscalNotificationReviewWorkspace({
           batchContext={activeBatchContext}
         />
       ) : null}
-      {scannerOpen && reviewGuidance ? (
+      {scannerOpen &&
+      reviewGuidance &&
+      verticalSliceReview?.status !== "REVIEW_REQUIRED" ? (
         <div className="mt-4">
           <FiscalNotificationReviewSteps
             guidance={reviewGuidance}
             documentTypeRecognized={
-              result
-                ? recognizedCandidateFrom(result) !== null ||
-                  verticalSliceReview?.status === "REVIEW_REQUIRED"
-                : false
+              result ? recognizedCandidateFrom(result) !== null : false
             }
           />
         </div>
@@ -1418,9 +1554,12 @@ function FiscalNotificationReviewWorkspace({
           state={persistenceState}
           canSave={pendingReview !== null}
           hasNextReview={hasAnotherReview}
+          saveAllCount={saveableReviewCount}
+          savingAll={savingBatch}
           errorMessage={saveError}
           supportReport={saveSupportReport}
           onSave={saveStructuredReview}
+          onSaveAll={saveAllStructuredReviews}
         />
       ) : null}
       <div id="documentos-guardados" className="scroll-mt-6">
@@ -1428,6 +1567,8 @@ function FiscalNotificationReviewWorkspace({
           viewModel={documentLibrary}
           ownerScope={ownerScope}
           focusDocumentId={recentlySavedDocumentId}
+          sessionFileInventory={sessionFileInventory}
+          onLibraryCleared={() => setSessionFileInventory([])}
           onOpenScanner={() => setScannerOpen(true)}
         />
       </div>
@@ -1439,16 +1580,22 @@ function ReviewPersistencePanel({
   state,
   canSave,
   hasNextReview,
+  saveAllCount,
+  savingAll,
   errorMessage,
   supportReport,
   onSave,
+  onSaveAll,
 }: {
   state: ReviewPersistenceState;
   canSave: boolean;
   hasNextReview: boolean;
+  saveAllCount: number;
+  savingAll: boolean;
   errorMessage: string | null;
   supportReport: FiscalNotificationSupportReportInputV1 | null;
   onSave: () => void;
+  onSaveAll: () => void;
 }) {
   const copy: Readonly<Record<ReviewPersistenceState, string>> = {
     idle: "Los datos estructurados todavía no se han guardado.",
@@ -1489,25 +1636,47 @@ function ReviewPersistencePanel({
           </p>
         </div>
         {canSave ? (
-          <Button
-            type="button"
-            variant={state === "indeterminate" ? "secondary" : "primary"}
-            disabled={state === "saving"}
-            onClick={() => void onSave()}
-          >
-            {state === "saving" ? (
-              <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
-            ) : (
-              <ShieldCheck aria-hidden="true" className="h-5 w-5" />
-            )}
-            {state === "indeterminate"
-              ? "Comprobar ficha y reintentar"
-              : state === "saving"
-                ? "Guardando ficha…"
-                : hasNextReview
-                  ? "Guardar y revisar siguiente"
-                  : "Guardar documento"}
-          </Button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant={state === "indeterminate" ? "secondary" : "primary"}
+              disabled={state === "saving"}
+              onClick={() => void onSave()}
+            >
+              {state === "saving" && !savingAll ? (
+                <Loader2 aria-hidden="true" className="h-5 w-5 animate-spin" />
+              ) : (
+                <ShieldCheck aria-hidden="true" className="h-5 w-5" />
+              )}
+              {state === "indeterminate"
+                ? "Comprobar ficha y reintentar"
+                : state === "saving" && !savingAll
+                  ? "Guardando ficha…"
+                  : hasNextReview
+                    ? "Guardar y revisar siguiente"
+                    : "Guardar documento"}
+            </Button>
+            {saveAllCount > 1 ? (
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={state === "saving"}
+                onClick={() => void onSaveAll()}
+              >
+                {savingAll ? (
+                  <Loader2
+                    aria-hidden="true"
+                    className="h-5 w-5 animate-spin"
+                  />
+                ) : (
+                  <Files aria-hidden="true" className="h-5 w-5" />
+                )}
+                {savingAll
+                  ? "Guardando todo…"
+                  : `Guardar todo (${saveAllCount})`}
+              </Button>
+            ) : null}
+          </div>
         ) : null}
       </div>
       {errorMessage ? (
@@ -1644,6 +1813,78 @@ function structuredSaveFailureMessage(
   return "No se ha podido guardar la ficha. El documento sigue abierto y no se ha sustituido ningún dato.";
 }
 
+function ReviewTechnicalTrace({
+  result,
+  textAcquisition,
+}: {
+  readonly result: FiscalNotificationLocalReviewResult;
+  readonly textAcquisition:
+    FiscalNotificationLocalAnalysisResult["textAcquisition"] | null;
+}) {
+  return (
+    <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3">
+      <summary className="cursor-pointer text-sm font-bold text-slate-800">
+        Información técnica del análisis
+      </summary>
+      <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
+        <ResultFact label="Páginas" value={String(result.pageCount)} />
+        <ResultFact label="Tamaño" value={formatBytes(result.byteLength)} />
+        <ResultFact
+          label="Lectura"
+          value={
+            textAcquisition?.mode === "LOCAL_OCR"
+              ? textAcquisition.averageConfidence === null
+                ? "OCR local"
+                : `OCR local · ${Math.round(textAcquisition.averageConfidence * 100)} %`
+              : "Texto del PDF"
+          }
+        />
+        <ResultFact
+          label="Motor"
+          value={
+            result.engineId && result.engineVersion
+              ? `${result.engineId} · v${result.engineVersion}`
+              : "No ejecutado"
+          }
+        />
+        {result.candidates.map((candidate) => (
+          <div key={candidate.familyId} className="contents">
+            <ResultFact
+              label="Regla"
+              value={`${candidate.handlerId} · v${candidate.handlerVersion}`}
+            />
+            <ResultFact
+              label="Anclas encontradas"
+              value={String(candidate.matchedAnchors.length)}
+            />
+            <ResultFact
+              label="Anclas pendientes"
+              value={String(candidate.missingRequiredAnchorIds.length)}
+            />
+            <ResultFact
+              label="Conflictos"
+              value={String(candidate.conflictingAnchorIds.length)}
+            />
+          </div>
+        ))}
+      </dl>
+    </details>
+  );
+}
+
+function LocalAnalysisNotice() {
+  return (
+    <div className="mt-4 flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
+      <ShieldCheck aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
+      <p>
+        El análisis se ha realizado en este navegador. El texto no se conserva
+        y, al guardar, solo permanecen los campos estructurados mostrados y su
+        procedencia.
+      </p>
+    </div>
+  );
+}
+
 function ReviewResult({
   result,
   ephemeralMoneyFacts,
@@ -1691,6 +1932,31 @@ function ReviewResult({
             "Esta ficha no contiene la firma estructural versionada necesaria para mostrar un tipo definitivo.",
         }
       : REASON_COPY[result.reason];
+
+  if (verticallyRecognized && verticalSliceReview) {
+    return (
+      <section
+        className="mt-6 min-w-0"
+        aria-labelledby="notification-review-heading"
+      >
+        <h2 id="notification-review-heading" className="sr-only">
+          Revisión del documento antes de guardar
+        </h2>
+        {batchContext ? (
+          <p className="mb-3 text-xs font-semibold text-slate-500">
+            Documento {batchContext.position} de {batchContext.total} en la cola
+          </p>
+        ) : null}
+        <FiscalNotificationVerticalSliceReview review={verticalSliceReview} />
+        <ReviewTechnicalTrace
+          result={result}
+          textAcquisition={textAcquisition}
+        />
+        <LocalAnalysisNotice />
+      </section>
+    );
+  }
+
   return (
     <section
       className="mt-6"
@@ -1701,7 +1967,7 @@ function ReviewResult({
     >
       <Card
         className={
-          recognizedCandidate || verticallyRecognized
+          recognizedCandidate
             ? "border-emerald-200"
             : result.candidates.length > 0
               ? "border-amber-200"
@@ -1713,7 +1979,7 @@ function ReviewResult({
             <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
               {batchContext
                 ? `Ficha seleccionada · documento ${batchContext.position} de ${batchContext.total}`
-                : recognizedCandidate || verticallyRecognized
+                : recognizedCandidate
                   ? "Resultado local"
                   : "Resultado local · pendiente de revisión"}
             </p>
@@ -1742,20 +2008,18 @@ function ReviewResult({
           </div>
           <span
             className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-bold ${
-              recognizedCandidate || verticallyRecognized
+              recognizedCandidate
                 ? "bg-emerald-100 text-emerald-900"
                 : "bg-amber-100 text-amber-900"
             }`}
           >
-            {recognizedCandidate || verticallyRecognized
+            {recognizedCandidate
               ? "Documento reconocido"
               : "Revisa antes de actuar"}
           </span>
         </div>
 
-        {verticalSliceReview && verticallyRecognized ? (
-          <FiscalNotificationVerticalSliceReview review={verticalSliceReview} />
-        ) : recognizedCandidate ? (
+        {recognizedCandidate ? (
           <div className="mt-5 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
             <p className="text-xs font-bold uppercase tracking-wide text-emerald-800">
               Tipo de documento
@@ -1800,43 +2064,10 @@ function ReviewResult({
           </div>
         )}
 
-        <details className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <summary className="cursor-pointer font-bold text-slate-900">
-            Traza técnica
-          </summary>
-          <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            <ResultFact label="Páginas" value={String(result.pageCount)} />
-            <ResultFact label="Tamaño" value={formatBytes(result.byteLength)} />
-            <ResultFact
-              label="Motor"
-              value={
-                result.engineId && result.engineVersion
-                  ? `${result.engineId} · v${result.engineVersion}`
-                  : "No ejecutado"
-              }
-            />
-            {result.candidates.map((candidate) => (
-              <div key={candidate.familyId} className="contents">
-                <ResultFact
-                  label="Regla"
-                  value={`${candidate.handlerId} · v${candidate.handlerVersion}`}
-                />
-                <ResultFact
-                  label="Anclas encontradas"
-                  value={String(candidate.matchedAnchors.length)}
-                />
-                <ResultFact
-                  label="Anclas pendientes"
-                  value={String(candidate.missingRequiredAnchorIds.length)}
-                />
-                <ResultFact
-                  label="Conflictos"
-                  value={String(candidate.conflictingAnchorIds.length)}
-                />
-              </div>
-            ))}
-          </dl>
-        </details>
+        <ReviewTechnicalTrace
+          result={result}
+          textAcquisition={textAcquisition}
+        />
 
         {ephemeralMoneyFacts ? (
           <EphemeralMoneyFactsPanel result={ephemeralMoneyFacts} />
@@ -1860,15 +2091,7 @@ function ReviewResult({
           />
         ) : null}
 
-        <div className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-950">
-          <ShieldCheck aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0" />
-          <p>
-            El análisis se ha realizado en este navegador. No se ha llamado a un
-            proveedor y el texto no se conserva. Si eliges guardar, solo se
-            mantienen los campos estructurados mostrados y su procedencia; no
-            existe ninguna acción automática pendiente.
-          </p>
-        </div>
+        <LocalAnalysisNotice />
       </Card>
     </section>
   );

@@ -8,6 +8,7 @@ import {
   CalendarRange,
   CheckCircle2,
   ChevronDown,
+  ClipboardCopy,
   FilePlus2,
   FileText,
   Filter,
@@ -18,6 +19,8 @@ import {
   X,
 } from "lucide-react";
 import { FiscalNotificationDeleteConfirmationModal } from "@/components/fiscal-notifications/FiscalNotificationDeleteConfirmationModal";
+import { FiscalNotificationDeleteAllConfirmationModal } from "@/components/fiscal-notifications/FiscalNotificationDeleteAllConfirmationModal";
+import { FiscalNotificationLibraryAiAudit } from "@/components/fiscal-notifications/FiscalNotificationLibraryAiAudit";
 import {
   FiscalNotificationAuthorityLabel,
   FiscalNotificationDateLabel,
@@ -27,6 +30,7 @@ import {
   FiscalNotificationReviewStatus,
 } from "@/components/fiscal-notifications/FiscalNotificationDocumentVisuals";
 import { useFiscalNotificationDocumentDeletion } from "@/components/fiscal-notifications/useFiscalNotificationDocumentDeletion";
+import { useFiscalNotificationLibraryClear } from "@/components/fiscal-notifications/useFiscalNotificationLibraryClear";
 import { Field, Input, Select } from "@/components/ui/Field";
 import { Modal } from "@/components/ui/Modal";
 import {
@@ -43,15 +47,26 @@ import {
 
 const RECENTLY_SAVED_HIGHLIGHT_MS = 6_000;
 
+export interface FiscalNotificationSessionFileInventoryItem {
+  readonly key: string;
+  readonly fileName: string;
+  readonly documentCount: number;
+  readonly documentIds: readonly string[];
+}
+
 export function FiscalNotificationDocumentLibrary({
   viewModel,
   ownerScope,
   focusDocumentId,
+  sessionFileInventory = [],
+  onLibraryCleared,
   onOpenScanner,
 }: {
   viewModel: FiscalNotificationDocumentLibraryViewModelV1;
   ownerScope: string;
   focusDocumentId?: string | null;
+  sessionFileInventory?: readonly FiscalNotificationSessionFileInventoryItem[];
+  onLibraryCleared?: () => void;
   onOpenScanner?: () => void;
 }) {
   const [filters, setFilters] =
@@ -80,6 +95,26 @@ export function FiscalNotificationDocumentLibrary({
       );
     },
   });
+  const clearLibrary = useFiscalNotificationLibraryClear({
+    ownerScope,
+    documentCount: viewModel.documents.length,
+    onCleared: () => {
+      setRelationDetail(null);
+      setHighlightedDocumentId(null);
+      onLibraryCleared?.();
+    },
+  });
+  const sessionFileNamesByDocumentId = useMemo(() => {
+    const result = new Map<string, string[]>();
+    for (const item of sessionFileInventory) {
+      for (const documentId of item.documentIds) {
+        result.set(documentId, [
+          ...new Set([...(result.get(documentId) ?? []), item.fileName]),
+        ]);
+      }
+    }
+    return result;
+  }, [sessionFileInventory]);
 
   const groups = useMemo(() => {
     if (viewModel.status === "BLOCKED") return [];
@@ -94,8 +129,7 @@ export function FiscalNotificationDocumentLibrary({
   const activeFilterCount = useMemo(
     () =>
       Object.entries(filters).filter(
-        ([key, value]) =>
-          key !== "query" && value !== "ALL" && value !== "",
+        ([key, value]) => key !== "query" && value !== "ALL" && value !== "",
       ).length,
     [filters],
   );
@@ -113,7 +147,11 @@ export function FiscalNotificationDocumentLibrary({
     const frame = window.requestAnimationFrame(() => {
       document
         .getElementById(documentCardDomId(focusDocumentId))
-        ?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+        ?.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+          inline: "center",
+        });
     });
     const timeout = window.setTimeout(
       () => setHighlightedDocumentId(null),
@@ -152,14 +190,31 @@ export function FiscalNotificationDocumentLibrary({
         </div>
 
         {viewModel.documents.length > 0 ? (
-          <LibraryControls
-            filters={filters}
-            order={order}
-            filterOptions={viewModel.filterOptions}
-            activeFilterCount={activeFilterCount}
-            onFiltersChange={setFilters}
-            onOrderChange={setOrder}
-          />
+          <>
+            <LibraryControls
+              filters={filters}
+              order={order}
+              filterOptions={viewModel.filterOptions}
+              activeFilterCount={activeFilterCount}
+              onFiltersChange={setFilters}
+              onOrderChange={setOrder}
+            />
+            <div className="mt-4 flex justify-end border-t border-slate-200 pt-4">
+              <button
+                type="button"
+                onClick={clearLibrary.request}
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-red-200 bg-white px-3 text-sm font-bold text-red-700 transition hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+              >
+                <Trash2 aria-hidden="true" className="h-4 w-4" />
+                Borrar todas las fichas
+              </button>
+            </div>
+            <SessionFileInventory items={sessionFileInventory} />
+            <FiscalNotificationLibraryAiAudit
+              viewModel={viewModel}
+              sessionFileInventory={sessionFileInventory}
+            />
+          </>
         ) : null}
       </header>
 
@@ -181,6 +236,7 @@ export function FiscalNotificationDocumentLibrary({
         <DocumentGroupList
           groups={groups}
           highlightedDocumentId={highlightedDocumentId}
+          sessionFileNamesByDocumentId={sessionFileNamesByDocumentId}
           onDelete={deletion.request}
           onOpenRelation={setRelationDetail}
         />
@@ -199,6 +255,90 @@ export function FiscalNotificationDocumentLibrary({
         onConfirmLocalOnly={() => void deletion.confirm(false)}
         onConfirmIncludingDrive={() => void deletion.confirm(true)}
       />
+      <FiscalNotificationDeleteAllConfirmationModal
+        open={clearLibrary.open}
+        documentCount={viewModel.documents.length}
+        busy={clearLibrary.busy}
+        error={clearLibrary.error}
+        onClose={clearLibrary.close}
+        onConfirm={clearLibrary.confirm}
+      />
+    </section>
+  );
+}
+
+function SessionFileInventory({
+  items,
+}: {
+  readonly items: readonly FiscalNotificationSessionFileInventoryItem[];
+}) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyNames(): Promise<void> {
+    if (items.length === 0 || !navigator.clipboard) return;
+    await navigator.clipboard.writeText(
+      items.map((item) => item.fileName).join("\n"),
+    );
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 2_000);
+  }
+
+  return (
+    <section
+      className="mt-5 border-t border-slate-200 pt-4"
+      aria-labelledby="fiscal-notification-session-files-heading"
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h3
+            id="fiscal-notification-session-files-heading"
+            className="text-sm font-bold text-slate-950"
+          >
+            Archivos guardados en esta sesión
+          </h3>
+          <p className="mt-1 text-xs font-semibold text-slate-500">
+            {items.length}{" "}
+            {items.length === 1
+              ? "archivo identificado"
+              : "archivos identificados"}
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={items.length === 0}
+          onClick={() => void copyNames()}
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 hover:border-blue-300 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <ClipboardCopy aria-hidden="true" className="h-4 w-4" />
+          {copied ? "Lista copiada" : "Copiar nombres"}
+        </button>
+      </div>
+      {items.length > 0 ? (
+        <ul className="mt-3 max-h-44 divide-y divide-slate-200 overflow-y-auto border-y border-slate-200">
+          {items.map((item, index) => (
+            <li
+              key={item.key}
+              className="grid gap-1 py-2 text-sm sm:grid-cols-[3rem_minmax(0,1fr)_auto] sm:items-center sm:gap-3"
+            >
+              <span className="text-xs font-bold text-slate-400">
+                {String(index + 1).padStart(2, "0")}
+              </span>
+              <span className="min-w-0 break-all font-semibold text-slate-800">
+                {item.fileName}
+              </span>
+              <span className="text-xs font-semibold text-slate-500">
+                {item.documentCount}{" "}
+                {item.documentCount === 1 ? "ficha" : "fichas"}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-3 border-l-4 border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+          Los nombres anteriores no se conservaron. Aquí aparecerán los archivos
+          que guardes sin recargar esta pantalla.
+        </p>
+      )}
     </section>
   );
 }
@@ -221,7 +361,9 @@ function LibraryControls({
   readonly onFiltersChange: (
     filters: FiscalNotificationDocumentLibraryFiltersV1,
   ) => void;
-  readonly onOrderChange: (order: FiscalNotificationDocumentLibraryOrderV1) => void;
+  readonly onOrderChange: (
+    order: FiscalNotificationDocumentLibraryOrderV1,
+  ) => void;
 }) {
   function patchFilters(
     patch: Partial<FiscalNotificationDocumentLibraryFiltersV1>,
@@ -321,8 +463,16 @@ function LibraryControls({
                 label="Relaciones"
                 value={filters.relation}
                 options={[
-                  { value: "WITH_RELATIONS", label: "Con relaciones", count: 0 },
-                  { value: "WITHOUT_RELATIONS", label: "Sin relaciones", count: 0 },
+                  {
+                    value: "WITH_RELATIONS",
+                    label: "Con relaciones",
+                    count: 0,
+                  },
+                  {
+                    value: "WITHOUT_RELATIONS",
+                    label: "Sin relaciones",
+                    count: 0,
+                  },
                   { value: "CONFIRMED", label: "Confirmada", count: 0 },
                   { value: "SUGGESTED", label: "Sugerida", count: 0 },
                 ]}
@@ -415,11 +565,13 @@ function FilterSelect({
 function DocumentGroupList({
   groups,
   highlightedDocumentId,
+  sessionFileNamesByDocumentId,
   onDelete,
   onOpenRelation,
 }: {
   readonly groups: readonly FiscalNotificationDocumentLibraryGroupV1[];
   readonly highlightedDocumentId: string | null;
+  readonly sessionFileNamesByDocumentId: ReadonlyMap<string, readonly string[]>;
   readonly onDelete: (documentId: string) => void;
   readonly onOpenRelation: (
     relation: FiscalNotificationDocumentLibraryLinkV1,
@@ -433,6 +585,7 @@ function DocumentGroupList({
           <DocumentFlow
             group={group}
             highlightedDocumentId={highlightedDocumentId}
+            sessionFileNamesByDocumentId={sessionFileNamesByDocumentId}
             onDelete={onDelete}
             onOpenRelation={onOpenRelation}
           />
@@ -456,7 +609,9 @@ function DocumentGroupHeader({
         </p>
         {group.primaryReference ? (
           <p className="mt-1 truncate text-xs text-slate-600">
-            <span className="font-semibold">{group.primaryReference.label}:</span>{" "}
+            <span className="font-semibold">
+              {group.primaryReference.label}:
+            </span>{" "}
             {group.primaryReference.value}
           </p>
         ) : null}
@@ -480,11 +635,13 @@ function DocumentGroupHeader({
 function DocumentFlow({
   group,
   highlightedDocumentId,
+  sessionFileNamesByDocumentId,
   onDelete,
   onOpenRelation,
 }: {
   readonly group: FiscalNotificationDocumentLibraryGroupV1;
   readonly highlightedDocumentId: string | null;
+  readonly sessionFileNamesByDocumentId: ReadonlyMap<string, readonly string[]>;
   readonly onDelete: (documentId: string) => void;
   readonly onOpenRelation: (
     relation: FiscalNotificationDocumentLibraryLinkV1,
@@ -507,11 +664,14 @@ function DocumentFlow({
                 <DocumentCard
                   summary={summary}
                   highlighted={summary.key === highlightedDocumentId}
+                  sourceFileNames={
+                    sessionFileNamesByDocumentId.get(summary.key) ?? []
+                  }
                   onDelete={onDelete}
                 />
               </li>
               {next && connector ? (
-                <li className="flex h-20 w-full shrink-0 items-center justify-center sm:h-[19rem] sm:w-28">
+                <li className="flex h-20 w-full shrink-0 items-center justify-center sm:h-[21rem] sm:w-28">
                   <RelationConnector
                     relation={connector}
                     onOpen={() => onOpenRelation(connector)}
@@ -529,16 +689,18 @@ function DocumentFlow({
 function DocumentCard({
   summary,
   highlighted,
+  sourceFileNames,
   onDelete,
 }: {
   readonly summary: FiscalNotificationDocumentLibrarySummaryV1;
   readonly highlighted: boolean;
+  readonly sourceFileNames: readonly string[];
   readonly onDelete: (documentId: string) => void;
 }) {
   return (
     <div
       id={documentCardDomId(summary.key)}
-      className="relative h-[19rem] w-full min-w-0 scroll-m-6"
+      className="relative h-[21rem] w-full min-w-0 scroll-m-6"
     >
       <Link
         href={documentDetailHref(summary.key)}
@@ -547,7 +709,9 @@ function DocumentCard({
             ? "border-emerald-500 bg-emerald-50/40 ring-2 ring-emerald-200"
             : "border-slate-200"
         }`}
-        aria-describedby={highlighted ? `${documentCardDomId(summary.key)}-saved` : undefined}
+        aria-describedby={
+          highlighted ? `${documentCardDomId(summary.key)}-saved` : undefined
+        }
       >
         <div className="flex min-w-0 items-center gap-2">
           <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-blue-50 text-blue-700">
@@ -578,8 +742,20 @@ function DocumentCard({
 
         {summary.primaryReference ? (
           <p className="mt-2 truncate text-[11px] text-slate-600">
-            <span className="font-semibold">{summary.primaryReference.label}:</span>{" "}
+            <span className="font-semibold">
+              {summary.primaryReference.label}:
+            </span>{" "}
             {summary.primaryReference.value}
+          </p>
+        ) : null}
+
+        {sourceFileNames.length > 0 ? (
+          <p
+            className="mt-2 line-clamp-2 break-all text-[11px] text-slate-600"
+            title={sourceFileNames.join(" · ")}
+          >
+            <span className="font-semibold">Archivo:</span>{" "}
+            {sourceFileNames.join(" · ")}
           </p>
         ) : null}
 
@@ -600,7 +776,11 @@ function DocumentCard({
             ) : null}
           </div>
           <p
-            id={highlighted ? `${documentCardDomId(summary.key)}-saved` : undefined}
+            id={
+              highlighted
+                ? `${documentCardDomId(summary.key)}-saved`
+                : undefined
+            }
             className={`mt-2 inline-flex items-center gap-1.5 text-xs font-bold ${
               highlighted ? "text-emerald-700" : "text-blue-700"
             }`}
@@ -674,9 +854,7 @@ function RelationConnector({
       <span
         aria-hidden="true"
         className={`relative h-8 border-l-2 sm:h-auto sm:w-full sm:border-l-0 sm:border-t-2 ${
-          confirmed
-            ? "border-emerald-500"
-            : "border-dashed border-amber-400"
+          confirmed ? "border-emerald-500" : "border-dashed border-amber-400"
         }`}
       >
         <ArrowDown className="absolute -bottom-2.5 -left-[0.68rem] h-5 w-5 bg-slate-50 text-slate-500 sm:hidden" />
@@ -711,10 +889,16 @@ function RelationDetailModal({
                 status={relation.visualStatus}
                 label={relation.visualStatusLabel}
               />
-              <h2 id={titleId} className="mt-3 text-xl font-bold text-slate-950">
+              <h2
+                id={titleId}
+                className="mt-3 text-xl font-bold text-slate-950"
+              >
                 {relation.label}
               </h2>
-              <p id={descriptionId} className="mt-2 text-sm leading-6 text-slate-600">
+              <p
+                id={descriptionId}
+                className="mt-2 text-sm leading-6 text-slate-600"
+              >
                 {relation.explanation}
               </p>
             </div>
@@ -730,9 +914,18 @@ function RelationDetailModal({
           </div>
 
           <dl className="mt-5 divide-y divide-slate-200 border-y border-slate-200">
-            <RelationDetailRow label="Documento origen" value={relation.fromDocumentTitle} />
-            <RelationDetailRow label="Documento destino" value={relation.toDocumentTitle} />
-            <RelationDetailRow label="Estado" value={relation.visualStatusLabel} />
+            <RelationDetailRow
+              label="Documento origen"
+              value={relation.fromDocumentTitle}
+            />
+            <RelationDetailRow
+              label="Documento destino"
+              value={relation.toDocumentTitle}
+            />
+            <RelationDetailRow
+              label="Estado"
+              value={relation.visualStatusLabel}
+            />
           </dl>
 
           {relation.matches.length > 0 ? (
@@ -775,7 +968,11 @@ function RelationDetailRow({
   );
 }
 
-function EmptyLibrary({ onOpenScanner }: { readonly onOpenScanner?: () => void }) {
+function EmptyLibrary({
+  onOpenScanner,
+}: {
+  readonly onOpenScanner?: () => void;
+}) {
   return (
     <div className="flex flex-col items-center border-b border-slate-200 bg-slate-50 px-5 py-12 text-center">
       <span className="flex h-12 w-12 items-center justify-center rounded-md bg-blue-50 text-blue-700">
@@ -817,7 +1014,10 @@ function EmptyFilteredLibrary({ onReset }: { readonly onReset: () => void }) {
 
 function BlockedLibrary() {
   return (
-    <section className="mt-6 border-y border-amber-200 bg-amber-50 px-5 py-5" role="alert">
+    <section
+      className="mt-6 border-y border-amber-200 bg-amber-50 px-5 py-5"
+      role="alert"
+    >
       <div className="flex items-start gap-3">
         <TriangleAlert
           aria-hidden="true"

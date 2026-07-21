@@ -20,7 +20,7 @@ describe("FiscalNotificationDocumentDetail UI contract", () => {
       "Lo que dice el documento",
       "Importes y tablas",
       "Qué significa y qué debes revisar",
-      "Relaciones, cronología y fuentes",
+      "Relaciones, cronología, procedencia y fuentes",
     ];
     let previous = -1;
     for (const heading of headings) {
@@ -30,7 +30,7 @@ describe("FiscalNotificationDocumentDetail UI contract", () => {
     }
     expect(source).toContain("rounded-lg border border-slate-200 bg-white");
     expect(source).toContain("divide-y divide-slate-200 border-y");
-    expect(source).not.toContain("<Card className=\"mt-");
+    expect(source).not.toContain('<Card className="mt-');
   });
 
   it("muestra solo acciones reales y deja la procedencia bajo demanda", () => {
