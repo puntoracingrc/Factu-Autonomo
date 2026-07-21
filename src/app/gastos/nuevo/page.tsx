@@ -38,6 +38,10 @@ import {
   type ExpenseScanPayload,
 } from "@/lib/expense-scan/schema";
 import {
+  completeExpenseLocalSemanticShadowV1,
+  type ExpenseLocalSemanticShadowHandleV1,
+} from "@/lib/expense-scan/local-semantic-shadow.v1";
+import {
   buildSupplierMatchHint,
   ensureSupplierForExpense,
   findBestSupplierMatch,
@@ -124,6 +128,7 @@ interface PendingExpenseScan {
   id: string;
   payload: ExpenseScanPayload;
   fileName?: string;
+  localShadow?: ExpenseLocalSemanticShadowHandleV1;
 }
 
 interface ExpenseInboxItemResponse {
@@ -221,6 +226,9 @@ export default function NuevoGastoPage() {
   const [scanProgress, setScanProgress] = useState<ScanProgress | null>(null);
   const scanFormRef = useRef<HTMLDivElement | null>(null);
   const scanReviewReturnScrollY = useRef<number | null>(null);
+  const localShadowHandlesRef = useRef(
+    new Set<ExpenseLocalSemanticShadowHandleV1>(),
+  );
   const [inboxItemId, setInboxItemId] = useState<string | null>(null);
   const [activeInboxItemId, setActiveInboxItemId] = useState<string | null>(
     null,
@@ -247,6 +255,14 @@ export default function NuevoGastoPage() {
   const editingRecurringExpense = Boolean(editingExpense?.recurringExpenseId);
   const workAllocationManagedFromDocuments = Boolean(
     editingExpense?.workAllocations?.length,
+  );
+
+  useEffect(
+    () => () => {
+      for (const handle of localShadowHandlesRef.current) handle.dispose();
+      localShadowHandlesRef.current.clear();
+    },
+    [],
   );
 
   useEffect(() => {
@@ -461,6 +477,7 @@ export default function NuevoGastoPage() {
   }, [fillFormFromScan, inboxItemId, loadedInboxItemId]);
 
   function clearScanForm() {
+    disposeLocalSemanticShadow(activeScanReview);
     setVatSubmitError(null);
     if (!storageStateUnknown) setSaveSubmitError(null);
     fixedSaveOperationIdRef.current = null;
@@ -497,13 +514,22 @@ export default function NuevoGastoPage() {
 
   function applyScanResult(
     payload: ExpenseScanPayload,
-    options?: { fileName?: string; file?: File; append?: boolean },
+    options?: {
+      fileName?: string;
+      file?: File;
+      append?: boolean;
+      localShadow?: ExpenseLocalSemanticShadowHandleV1;
+    },
   ) {
     const review: PendingExpenseScan = {
       id: crypto.randomUUID(),
       payload,
       fileName: options?.fileName,
+      localShadow: options?.localShadow,
     };
+    if (review.localShadow) {
+      localShadowHandlesRef.current.add(review.localShadow);
+    }
 
     if (options?.append) {
       setPendingScans((prev) => [...prev, review]);
@@ -1064,6 +1090,7 @@ export default function NuevoGastoPage() {
       if (!ignored) return;
     }
 
+    disposeLocalSemanticShadow(review);
     setPendingScans((prev) => prev.filter((item) => item.id !== review.id));
     if (activeScanReview?.id !== review.id) return;
 
@@ -1183,6 +1210,32 @@ export default function NuevoGastoPage() {
     return "ready";
   }
 
+  function completeLocalSemanticShadowAfterDurableSave(
+    review: PendingExpenseScan,
+    human: Expense,
+    replayed: boolean,
+  ) {
+    if (!review.localShadow) return;
+    if (replayed) {
+      disposeLocalSemanticShadow(review);
+      return;
+    }
+    const handle = review.localShadow;
+    void completeExpenseLocalSemanticShadowV1({
+      handle: review.localShadow,
+      ai: review.payload,
+      human,
+      replayed: false,
+    }).finally(() => localShadowHandlesRef.current.delete(handle));
+  }
+
+  function disposeLocalSemanticShadow(review: PendingExpenseScan | null) {
+    const handle = review?.localShadow;
+    if (!handle) return;
+    handle.dispose();
+    localShadowHandlesRef.current.delete(handle);
+  }
+
   async function saveScanPayload(
     review: PendingExpenseScan,
     savedPayloads: ExpenseScanPayload[] = [],
@@ -1282,6 +1335,11 @@ export default function NuevoGastoPage() {
       reportDurableExpenseSaveFailure(result);
       return { ok: false };
     }
+    completeLocalSemanticShadowAfterDurableSave(
+      review,
+      result.value.expense,
+      result.replayed,
+    );
     return { ok: true, data: result.data };
   }
 
@@ -1710,6 +1768,7 @@ export default function NuevoGastoPage() {
           );
           return;
         }
+        disposeLocalSemanticShadow(activeScanReview);
       }
     } else if (usesDurableScannedSave) {
       const durableExpense = editingExpense
@@ -1728,6 +1787,13 @@ export default function NuevoGastoPage() {
       if (result.status !== "applied") {
         reportDurableExpenseSaveFailure(result);
         return;
+      }
+      if (activeScanReview) {
+        completeLocalSemanticShadowAfterDurableSave(
+          activeScanReview,
+          result.value.expense,
+          result.replayed,
+        );
       }
     } else if (editingExpense) {
       updateExpense({
