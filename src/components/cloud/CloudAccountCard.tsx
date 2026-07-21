@@ -16,6 +16,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { SignupSuccessPanel } from "@/components/cloud/SignupSuccessPanel";
+import { CloudRepairPreviewModal } from "@/components/cloud/CloudRepairPreviewModal";
 import { Button, ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Field, Input } from "@/components/ui/Field";
@@ -44,6 +45,7 @@ import {
   describeTurnstileClientError,
   describeTurnstileSiteKeyIssue,
 } from "@/lib/turnstile-errors";
+import type { CloudRepairConfirmation } from "@/lib/cloud/device-repair-preview";
 
 const STATUS_LABELS = {
   disabled: "Sincronización no disponible",
@@ -113,8 +115,11 @@ export function CloudAccountCard({
     syncStatus,
     syncMessage,
     syncIssue,
+    cloudRepairPreview,
     pendingUpload,
     pendingChangeCount,
+    prepareCloudRepairPreview,
+    cancelCloudRepairPreview,
   } = useCloudSync();
   const { data } = useAppStore();
   const { billingEnabled, limits } = useBilling();
@@ -349,14 +354,17 @@ export function CloudAccountCard({
     }
   }
 
-  async function handleForceDownload() {
-    const confirmed = confirm(
-      "Factu descargará primero una copia cifrada de seguridad de este dispositivo. Después sustituirá los datos locales por la copia completa de la nube, sin subir antes los cambios de este dispositivo. ¿Continuar?",
-    );
-    if (!confirmed) return;
-
+  async function handlePrepareCloudRepair() {
     setBusy(true);
-    await forceDownloadFromCloud();
+    await prepareCloudRepairPreview();
+    setBusy(false);
+  }
+
+  async function handleConfirmCloudRepair(
+    confirmation: CloudRepairConfirmation,
+  ) {
+    setBusy(true);
+    await forceDownloadFromCloud(confirmation);
     setBusy(false);
   }
 
@@ -646,16 +654,16 @@ export function CloudAccountCard({
               <div className="mt-3 space-y-3">
                 <p>
                   {syncIssue
-                    ? "Ahora solo está disponible conservar la copia de la nube. Factu descarga primero una copia cifrada de este dispositivo y no reemplaza nada hasta verificar el guardado local."
-                    : "Si este dispositivo no muestra los datos que sí aparecen en otro, puedes repararlo descargando otra vez la copia completa de la nube. Factu conserva primero una copia cifrada y solo confirma la reparación cuando el navegador verifica el guardado local."}
+                    ? "Ahora solo está disponible conservar la copia de la nube. Antes verás fechas, cantidades y cualquier reducción; Factu revalidará ambas versiones y solicitará una copia cifrada local antes de reemplazar."
+                    : "Si este dispositivo no muestra los datos que sí aparecen en otro, compara primero ambas versiones. Las fechas orientan, pero las cantidades y reducciones deben revisarse antes de conservar la nube."}
                 </p>
                 <Button
                   variant="secondary"
-                  onClick={() => void handleForceDownload()}
+                  onClick={() => void handlePrepareCloudRepair()}
                   disabled={busy || requiresEmailConfirmation}
                 >
                   <Download className="h-4 w-4" />
-                  Reparar con la copia de la nube
+                  Comparar antes de reparar
                 </Button>
               </div>
             </details>
@@ -970,6 +978,14 @@ export function CloudAccountCard({
       {authNotice ? (
         <p className="text-sm font-medium text-emerald-700">{authNotice}</p>
       ) : null}
+      <CloudRepairPreviewModal
+        preview={cloudRepairPreview}
+        busy={busy}
+        onClose={cancelCloudRepairPreview}
+        onConfirm={(confirmation) =>
+          void handleConfirmCloudRepair(confirmation)
+        }
+      />
     </Card>
   );
 }

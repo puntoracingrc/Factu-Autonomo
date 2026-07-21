@@ -33,6 +33,7 @@
 # ADR-0005 and its contract tests must be reviewed before these paths change.
 /src/context/CloudSyncContext.tsx                      @puntoracingrc
 /src/lib/cloud/**                                      @puntoracingrc
+/src/components/cloud/CloudRepairPreviewModal*         @puntoracingrc
 /src/lib/google-drive/**                               @puntoracingrc
 /src/components/cloud/GoogleDriveAutoBackup.tsx       @puntoracingrc
 /src/components/cloud/GoogleDriveBackupCard.tsx       @puntoracingrc

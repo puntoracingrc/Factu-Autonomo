@@ -50,6 +50,7 @@ import {
   advanceCloudAuthIdentity,
   captureCloudAuthOperation,
   isCloudAuthOperationCurrent,
+  type CloudAuthOperationToken,
   type CloudAuthIdentity,
 } from "@/lib/cloud/auth-operation-guard";
 import {
@@ -58,9 +59,19 @@ import {
   isCloudSyncReviewOperationCurrent,
   runCloudSyncReviewMutation,
   type CloudSyncReviewGeneration,
+  type CloudSyncReviewOperationToken,
 } from "@/lib/cloud/sync-review-operation-guard";
 import { runExclusiveSyncOperation } from "@/lib/cloud/sync-operation";
 import { runCloudDeviceRepair } from "@/lib/cloud/device-repair";
+import {
+  buildCloudRepairPreviewPlan,
+  cloudRepairPreviewAllowsConfirmation,
+  cloudRepairSnapshotFingerprint,
+  newestCloudChangeTimestamp,
+  type CloudRepairConfirmation,
+  type CloudRepairPreview,
+  type CloudRepairPreviewPlan,
+} from "@/lib/cloud/device-repair-preview";
 import { canUseCloudForUser } from "@/lib/billing/cloud-access";
 import {
   getAuthCallbackUrl,
@@ -109,6 +120,7 @@ import {
   WELCOME_MAX_CLIENT_RETRIES,
   welcomeRetryDelayMs,
 } from "@/lib/email/welcome-client-retry";
+import { fiscalNotificationsOwnerScopeForUserIdV1 } from "@/lib/fiscal-notifications/workspace-persistence.v1";
 
 export type SyncStatus =
   "disabled" | "offline" | "idle" | "pending" | "syncing" | "synced" | "error";
@@ -130,6 +142,7 @@ interface CloudSyncValue {
   syncStatus: SyncStatus;
   syncMessage: string | null;
   syncIssue: CloudSyncReviewIssue | null;
+  cloudRepairPreview: CloudRepairPreview | null;
   pendingUpload: boolean;
   pendingChangeCount: number;
   localDataHandoffStatus: LocalDataHandoffStatus;
@@ -146,7 +159,11 @@ interface CloudSyncValue {
   saveLocalDataToAccount: () => Promise<void>;
   keepLocalDataOnDevice: () => void;
   pauseCloudForLocalRestore: () => boolean;
-  forceDownloadFromCloud: () => Promise<void>;
+  prepareCloudRepairPreview: () => Promise<void>;
+  cancelCloudRepairPreview: () => void;
+  forceDownloadFromCloud: (
+    confirmation: CloudRepairConfirmation,
+  ) => Promise<void>;
   exportBackup: () => Promise<void>;
   importBackup: (file: File) => Promise<string | null>;
 }
@@ -161,6 +178,75 @@ type LocalDataHandoffDecision = "synced" | "keep_local";
 
 interface CloudRepairRemoteDetails {
   source: "entities" | "legacy";
+  recordedAt: string | null;
+  fingerprint: string;
+}
+
+interface CloudRepairRemoteSnapshot {
+  data: AppData;
+  details: CloudRepairRemoteDetails;
+}
+
+interface ActiveCloudRepairPreview {
+  userId: string;
+  preview: CloudRepairPreview;
+  localFingerprint: string;
+  cloudFingerprint: string;
+  authOperation: CloudAuthOperationToken;
+  reviewOperation: CloudSyncReviewOperationToken;
+}
+
+async function loadCloudRepairRemoteSnapshot(
+  userId: string,
+): Promise<CloudRepairRemoteSnapshot | null> {
+  const remoteChanges = await pullSyncChanges(userId);
+  if (remoteChanges.length > 0) {
+    dispatchDataAccessEvent({
+      type: "cloud_pull",
+      itemCount: remoteChanges.length,
+    });
+    const recordedAt = newestCloudChangeTimestamp(remoteChanges);
+    const { data: normalized } = rebuildCloudSnapshot(remoteChanges);
+    const data = recordedAt
+      ? markFullySynced(normalized, recordedAt)
+      : markFullySynced(normalized);
+    return {
+      data,
+      details: {
+        source: "entities",
+        recordedAt,
+        fingerprint: cloudRepairSnapshotFingerprint(data),
+      },
+    };
+  }
+
+  const legacy = await fetchLegacyCloudBackup(userId);
+  if (!legacy) return null;
+  dispatchDataAccessEvent({
+    type: "cloud_pull",
+    itemCount: appDataRecordCount(legacy.data),
+  });
+  const data = markFullySynced(legacy.data, legacy.updated_at);
+  return {
+    data,
+    details: {
+      source: "legacy",
+      recordedAt: legacy.updated_at,
+      fingerprint: cloudRepairSnapshotFingerprint(data),
+    },
+  };
+}
+
+function snapshotMatchesCloudRepairFingerprint(
+  data: AppData | null,
+  expectedFingerprint: string,
+): boolean {
+  if (!data) return false;
+  try {
+    return cloudRepairSnapshotFingerprint(data) === expectedFingerprint;
+  } catch {
+    return false;
+  }
 }
 
 function handoffDecisionKey(userId: string): string {
@@ -201,6 +287,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   );
   const [syncMessage, setSyncMessage] = useState<string | null>(null);
   const [syncIssue, setSyncIssue] = useState<CloudSyncReviewIssue | null>(null);
+  const [cloudRepairPreview, setCloudRepairPreview] =
+    useState<CloudRepairPreview | null>(null);
   const [localDataHandoffStatus, setLocalDataHandoffStatus] =
     useState<LocalDataHandoffStatus>("none");
   const skipPush = useRef(false);
@@ -223,9 +311,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     userId: null,
     generation: 0,
   });
+  const cloudRepairPreviewRef = useRef<ActiveCloudRepairPreview | null>(null);
   const dataRef = useRef(data);
 
   const setAuthUser = useCallback((nextUser: User | null) => {
+    cloudRepairPreviewRef.current = null;
+    setCloudRepairPreview(null);
     authIdentityRef.current = advanceCloudAuthIdentity(
       authIdentityRef.current,
       nextUser?.id ?? null,
@@ -234,6 +325,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const invalidateCloudAuthOperations = useCallback(() => {
+    cloudRepairPreviewRef.current = null;
+    setCloudRepairPreview(null);
     authIdentityRef.current = advanceCloudAuthIdentity(
       authIdentityRef.current,
       authIdentityRef.current.userId,
@@ -296,6 +389,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   const applyCloudSyncReviewIssue = useCallback(
     (issue: CloudSyncReviewIssue) => {
+      cloudRepairPreviewRef.current = null;
+      setCloudRepairPreview(null);
       invalidateSyncReviewOperations(activeUserId);
       syncIssueRef.current = issue;
       setSyncIssue(issue);
@@ -315,6 +410,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   );
 
   const clearActiveCloudSyncReviewIssue = useCallback(() => {
+    cloudRepairPreviewRef.current = null;
+    setCloudRepairPreview(null);
     invalidateSyncReviewOperations(activeUserId);
     if (activeUserId) clearCloudSyncReviewIssue(activeUserId);
     syncIssueRef.current = null;
@@ -651,10 +748,9 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
           severity: "error",
           area: "sync",
           code: reviewIssue?.code ?? "push_failed",
-          message:
-            reviewIssue
-              ? "La sincronizacion requiere revision por una divergencia fiscal"
-              : error instanceof Error
+          message: reviewIssue
+            ? "La sincronizacion requiere revision por una divergencia fiscal"
+            : error instanceof Error
               ? error.message
               : "Error al subir cambios a la nube",
           metadata: {
@@ -663,8 +759,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             uploadMode: uploadPlan.uploadMode,
             containsFiscalWorkspace: uploadPlan.containsFiscalWorkspace,
             entityTypeCounts: uploadPlan.entityTypeCounts,
-            lastModifiedAfterLastSynced:
-              uploadPlan.lastModifiedAfterLastSynced,
+            lastModifiedAfterLastSynced: uploadPlan.lastModifiedAfterLastSynced,
           },
         });
         if (reviewIssue) {
@@ -727,10 +822,9 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             severity: "error",
             area: "sync",
             code: reviewIssue?.code ?? "push_preflight_failed",
-            message:
-              reviewIssue
-                ? "La sincronizacion requiere revision por una divergencia fiscal"
-                : error instanceof Error
+            message: reviewIssue
+              ? "La sincronizacion requiere revision por una divergencia fiscal"
+              : error instanceof Error
                 ? error.message
                 : "Error al preparar la subida a la nube",
             metadata: {
@@ -838,10 +932,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             isSyncPendingFlag()
           ) {
             const uploaded = await pushToCloud(workingData, true, options);
-            if (
-              !authOperationIsCurrent() ||
-              !reviewOperationIsCurrent()
-            ) {
+            if (!authOperationIsCurrent() || !reviewOperationIsCurrent()) {
               return false;
             }
             workingData = dataRef.current;
@@ -879,9 +970,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
               return false;
             }
             if (entityCount === 0) {
-              const legacy = await fetchLegacyCloudBackup(
-                authOperation.userId,
-              );
+              const legacy = await fetchLegacyCloudBackup(authOperation.userId);
               if (
                 !authOperationIsCurrent() ||
                 !reviewOperationIsCurrent() ||
@@ -995,10 +1084,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             isSyncPendingFlag()
           ) {
             const uploaded = await pushToCloud(workingData, true, options);
-            if (
-              !authOperationIsCurrent() ||
-              !reviewOperationIsCurrent()
-            ) {
+            if (!authOperationIsCurrent() || !reviewOperationIsCurrent()) {
               return false;
             }
             workingData = dataRef.current;
@@ -1024,10 +1110,9 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             severity: "error",
             area: "sync",
             code: reviewIssue?.code ?? "pull_failed",
-            message:
-              reviewIssue
-                ? "La sincronizacion requiere revision por una divergencia fiscal"
-                : error instanceof Error
+            message: reviewIssue
+              ? "La sincronizacion requiere revision por una divergencia fiscal"
+              : error instanceof Error
                 ? error.message
                 : "Error al descargar de la nube",
             metadata: {
@@ -1163,6 +1248,46 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     [stopPendingCloudTimers],
   );
 
+  const releaseCloudRepairPreviewPause = useCallback(() => {
+    automaticCloudPaused.current = Boolean(
+      syncIssueRef.current?.automaticRetryBlocked ||
+      (user && readHandoffDecision(user.id) === "keep_local"),
+    );
+  }, [user]);
+
+  const cancelCloudRepairPreview = useCallback(() => {
+    cloudRepairPreviewRef.current = null;
+    setCloudRepairPreview(null);
+    releaseCloudRepairPreviewPause();
+
+    const issue = syncIssueRef.current;
+    if (issue) {
+      setSyncStatus("error");
+      setSyncMessage(issue.userMessage);
+      return;
+    }
+    if (user && readHandoffDecision(user.id) === "keep_local") {
+      setSyncStatus("idle");
+      setSyncMessage("Datos en modo local para esta cuenta.");
+      return;
+    }
+    if (!isBrowserOnline()) {
+      setSyncStatus("offline");
+      setSyncMessage(
+        "Sin conexión. Los cambios se subirán cuando vuelva internet.",
+      );
+      return;
+    }
+
+    const current = dataRef.current;
+    const hasPending =
+      hasPendingSyncChanges(current) ||
+      hasUnsyncedChanges(current) ||
+      isSyncPendingFlag();
+    setSyncStatus(hasPending ? "pending" : "synced");
+    setSyncMessage(hasPending ? "Cambios pendientes de subir a la nube" : null);
+  }, [releaseCloudRepairPreviewPause, user]);
+
   const keepLocalDataOnDevice = useCallback(() => {
     if (!user) return;
     pauseAutomaticCloud("Tus datos seguirán solo en este navegador.");
@@ -1178,9 +1303,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     return true;
   }, [pauseAutomaticCloud, user]);
 
-  const forceDownloadFromCloud = useCallback(async () => {
+  const prepareCloudRepairPreview = useCallback(async () => {
+    cloudRepairPreviewRef.current = null;
+    setCloudRepairPreview(null);
     if (demoMode) {
-      setSyncMessage("Sal de la demo para descargar datos reales de la nube.");
+      setSyncMessage("Sal de la demo para comparar datos reales con la nube.");
       return;
     }
     if (!user) return;
@@ -1189,193 +1316,392 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
       return;
     }
-    const repairAuthOperation = captureCloudAuthOperation(
-      authIdentityRef.current,
-    );
-    if (!repairAuthOperation || repairAuthOperation.userId !== user.id) {
-      setSyncStatus("error");
-      setSyncMessage("La sesión cambió antes de iniciar la reparación.");
-      return;
-    }
-    const repairOperationIsCurrent = () =>
-      isCloudAuthOperationCurrent(
-        authIdentityRef.current,
-        repairAuthOperation,
-      );
     if (syncing.current) {
       setSyncMessage(
-        "Ya hay una sincronización en marcha. Espera a que termine y vuelve a reparar.",
+        "Ya hay una sincronización en marcha. Espera a que termine y vuelve a comparar.",
       );
       return;
     }
 
-    pauseCloudOperationsForRepair(
-      "Preparando una copia de seguridad antes de reparar este dispositivo…",
+    const authOperation = captureCloudAuthOperation(authIdentityRef.current);
+    const reviewOperation = captureCloudSyncReviewOperation(
+      syncReviewGenerationRef.current,
     );
+    if (
+      !authOperation ||
+      !reviewOperation ||
+      authOperation.userId !== user.id ||
+      reviewOperation.userId !== user.id
+    ) {
+      setSyncStatus("error");
+      setSyncMessage("La sesión cambió antes de preparar la comparación.");
+      return;
+    }
+    const operationIsCurrent = () =>
+      isCloudAuthOperationCurrent(authIdentityRef.current, authOperation) &&
+      isCloudSyncReviewOperationCurrent(
+        syncReviewGenerationRef.current,
+        reviewOperation,
+      );
 
-    if (!repairOperationIsCurrent()) return;
-    if (!(await ensureCloudReadyForCurrentDevice())) return;
-    if (!repairOperationIsCurrent()) return;
-
+    pauseCloudOperationsForRepair(
+      "Comparando este dispositivo con la copia de la nube…",
+    );
+    if (!(await ensureCloudReadyForCurrentDevice())) {
+      releaseCloudRepairPreviewPause();
+      return;
+    }
+    if (!operationIsCurrent()) {
+      releaseCloudRepairPreviewPause();
+      return;
+    }
     if (!isBrowserOnline()) {
+      releaseCloudRepairPreviewPause();
       setSyncStatus("offline");
-      setSyncMessage("Sin conexión. No se puede descargar la nube ahora.");
+      setSyncMessage("Sin conexión. No se puede comparar con la nube ahora.");
       return;
     }
 
+    const expectedLocal = getCurrentData();
     const operation = await runExclusiveSyncOperation(syncing, async () => {
       setSyncStatus("syncing");
-
       try {
-        const repair = await runCloudDeviceRepair<CloudRepairRemoteDetails>({
-          getCurrent: getCurrentData,
-          downloadCurrent: (current) =>
-            downloadProtectedBackup(current, {
-              purpose: "pre_restore",
-              requireEncryption: true,
-          }),
-          loadRemote: async () => {
-            const remoteChanges = await pullSyncChanges(user.id);
-            if (!repairOperationIsCurrent()) return null;
-            if (remoteChanges.length > 0) {
-              dispatchDataAccessEvent({
-                type: "cloud_pull",
-                itemCount: remoteChanges.length,
-              });
-              const { data: normalized } = rebuildCloudSnapshot(remoteChanges);
-              return {
-                data: markFullySynced(normalized),
-                details: {
-                  source: "entities" as const,
-                },
-              };
-            }
-
-            if (!repairOperationIsCurrent()) return null;
-            const legacy = await fetchLegacyCloudBackup(user.id);
-            if (!legacy) return null;
-            dispatchDataAccessEvent({
-              type: "cloud_pull",
-              itemCount: appDataRecordCount(legacy.data),
-            });
-            return {
-              data: markFullySynced(legacy.data, legacy.updated_at),
-              details: {
-                source: "legacy" as const,
-              },
-            };
-          },
-          replace: replaceCloudSnapshotDurably,
-          isOperationCurrent: repairOperationIsCurrent,
-        });
-
-        if (!repairOperationIsCurrent()) return;
-        if (repair.status === "operation_invalidated") return;
-
-        if (repair.status === "backup_failed") {
-          setSyncStatus("error");
-          setSyncMessage(
-            `No se reparó el dispositivo: ${repair.error} Los datos locales se conservan y la sincronización queda en pausa.`,
-          );
-          return;
-        }
-        if (repair.status === "stale_precondition") {
-          setSyncStatus("error");
-          setSyncMessage(
-            `Los datos cambiaron durante la reparación. No se reemplazó nada; se solicitó la copia ${repair.safetyCopyFilename} y la sincronización queda en pausa.`,
-          );
-          return;
-        }
-        if (repair.status === "cloud_empty") {
+        const remote = await loadCloudRepairRemoteSnapshot(user.id);
+        if (!operationIsCurrent()) return;
+        if (!remote) {
+          releaseCloudRepairPreviewPause();
           setSyncStatus("idle");
           setSyncMessage(
-            "No hay datos guardados en la nube. Los datos de este dispositivo se conservan y quedan sin subir.",
+            "No hay datos guardados en la nube. No se ha reemplazado nada.",
           );
           return;
         }
-
-        const durable = repair.result;
-        if (durable.status === "indeterminate") {
+        const persistedLocal = readPersistedDataSnapshot();
+        const expectedLocalFingerprint =
+          cloudRepairSnapshotFingerprint(expectedLocal);
+        if (
+          getCurrentData() !== expectedLocal ||
+          !snapshotMatchesCloudRepairFingerprint(
+            persistedLocal,
+            expectedLocalFingerprint,
+          )
+        ) {
+          releaseCloudRepairPreviewPause();
           setSyncStatus("error");
           setSyncMessage(
-            "El navegador no pudo confirmar el guardado de la copia de la nube. No se publicó el reemplazo; exporta lo visible, recarga y vuelve a intentarlo.",
+            "Los datos de este dispositivo cambiaron durante la comparación. Vuelve a comparar antes de reparar.",
           );
           return;
         }
-        if (durable.status === "blocked") {
+
+        const plan: CloudRepairPreviewPlan = buildCloudRepairPreviewPlan({
+          local: expectedLocal,
+          cloud: remote.data,
+          localRecordedAt: persistedLocal?.meta?.lastModified ?? null,
+          cloudRecordedAt: remote.details.recordedAt,
+          cloudSource: remote.details.source,
+          generatedAt: new Date().toISOString(),
+          expectedFiscalOwnerScope: fiscalNotificationsOwnerScopeForUserIdV1(
+            user.id,
+          ),
+        });
+        if (plan.status !== "ready") {
+          releaseCloudRepairPreviewPause();
           setSyncStatus("error");
           setSyncMessage(
-            "No se pudo guardar y verificar la copia de la nube. Los datos locales anteriores se conservan y la sincronización queda en pausa.",
+            "No se pudo clasificar la comparación de forma segura. No se ha reemplazado nada.",
           );
           return;
         }
 
-        dataRef.current = durable.data;
-        clearSyncPending();
-        clearActiveCloudSyncReviewIssue();
-        automaticCloudPaused.current = false;
-        rememberHandoffDecision(user.id, "synced");
-        setLocalDataHandoffStatus("none");
-
-        let legacyMigrationFailed = false;
-        if (repair.remote.source === "legacy") {
-          try {
-            await migrateLegacyBackupToEntities(user.id, durable.data);
-          } catch (error) {
-            legacyMigrationFailed = true;
-            void reportAppError({
-              severity: "warning",
-              area: "sync",
-              code: "legacy_repair_migration_failed",
-              message:
-                error instanceof Error
-                  ? error.message
-                  : "No se pudo actualizar la copia antigua en la nube",
-            });
-          }
-        }
-
-        setSyncStatus("synced");
-        rememberSuccessfulDeviceSync();
+        cloudRepairPreviewRef.current = {
+          userId: user.id,
+          preview: plan.preview,
+          localFingerprint: plan.localFingerprint,
+          cloudFingerprint: plan.cloudFingerprint,
+          authOperation,
+          reviewOperation,
+        };
+        setCloudRepairPreview(plan.preview);
+        setSyncStatus("idle");
         setSyncMessage(
-          legacyMigrationFailed
-            ? `Dispositivo reparado desde ${repair.safetyCopyFilename}. La copia antigua sigue pendiente de actualizar en la nube.`
-            : `Dispositivo reparado y verificado. Copia previa: ${repair.safetyCopyFilename}.`,
+          "Comparación preparada. Revisa las cantidades y las fechas antes de conservar la nube.",
         );
       } catch (error) {
-        if (!repairOperationIsCurrent()) return;
+        if (!operationIsCurrent()) return;
+        releaseCloudRepairPreviewPause();
         void reportAppError({
           severity: "error",
           area: "sync",
-          code: "force_download_failed",
+          code: "cloud_repair_preview_failed",
           message:
             error instanceof Error
               ? error.message
-              : "Error al descargar todos los datos de la nube",
+              : "No se pudo preparar la comparación de reparación",
         });
         setSyncStatus("error");
         setSyncMessage(
-          error instanceof Error
-            ? `${error.message}. No se reemplazaron los datos locales y la sincronización queda en pausa.`
-            : "Error al descargar todos los datos de la nube. No se reemplazaron los datos locales y la sincronización queda en pausa.",
+          "No se pudo comparar este dispositivo con la nube. No se ha reemplazado nada.",
         );
       }
     });
 
     if (!operation.started) {
-      setSyncMessage("Ya hay una sincronización en marcha.");
+      releaseCloudRepairPreviewPause();
+      setSyncMessage(
+        "Ya hay una sincronización en marcha. Espera a que termine y vuelve a comparar.",
+      );
     }
   }, [
     demoMode,
-    clearActiveCloudSyncReviewIssue,
     ensureCloudReadyForCurrentDevice,
     getCurrentData,
     pauseCloudOperationsForRepair,
-    rememberSuccessfulDeviceSync,
-    replaceCloudSnapshotDurably,
+    releaseCloudRepairPreviewPause,
     requiresEmailConfirmation,
     user,
   ]);
+
+  const forceDownloadFromCloud = useCallback(
+    async (confirmation: CloudRepairConfirmation) => {
+      if (demoMode) {
+        setSyncMessage(
+          "Sal de la demo para descargar datos reales de la nube.",
+        );
+        return;
+      }
+      if (!user) return;
+      if (requiresEmailConfirmation) {
+        setSyncStatus("idle");
+        setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+        return;
+      }
+      const activePreview = cloudRepairPreviewRef.current;
+      if (
+        !activePreview ||
+        activePreview.userId !== user.id ||
+      cloudRepairPreview?.id !== activePreview.preview.id ||
+      confirmation.previewId !== activePreview.preview.id ||
+      !cloudRepairPreviewAllowsConfirmation(
+        activePreview.preview,
+        confirmation.reductionsAcknowledged,
+      )
+      ) {
+        setSyncStatus("error");
+        setSyncMessage(
+          "Compara de nuevo este dispositivo con la nube antes de reparar.",
+        );
+        return;
+      }
+      const repairAuthOperation = activePreview.authOperation;
+      const repairReviewOperation = activePreview.reviewOperation;
+      const repairOperationIsCurrent = () =>
+        isCloudAuthOperationCurrent(
+          authIdentityRef.current,
+          repairAuthOperation,
+        ) &&
+        isCloudSyncReviewOperationCurrent(
+          syncReviewGenerationRef.current,
+          repairReviewOperation,
+        );
+      if (!repairOperationIsCurrent()) {
+        cloudRepairPreviewRef.current = null;
+        setCloudRepairPreview(null);
+        releaseCloudRepairPreviewPause();
+        setSyncStatus("error");
+        setSyncMessage(
+          "La sesión o el conflicto cambiaron desde la comparación. Vuelve a comparar antes de reparar.",
+        );
+        return;
+      }
+      if (syncing.current) {
+        setSyncMessage(
+          "Ya hay una sincronización en marcha. Espera a que termine y vuelve a reparar.",
+        );
+        return;
+      }
+
+      pauseCloudOperationsForRepair(
+        "Preparando una copia de seguridad antes de reparar este dispositivo…",
+      );
+
+      if (!repairOperationIsCurrent()) return;
+      if (!(await ensureCloudReadyForCurrentDevice())) {
+        cloudRepairPreviewRef.current = null;
+        setCloudRepairPreview(null);
+        releaseCloudRepairPreviewPause();
+        return;
+      }
+      if (!repairOperationIsCurrent()) return;
+
+      if (!isBrowserOnline()) {
+        cloudRepairPreviewRef.current = null;
+        setCloudRepairPreview(null);
+        releaseCloudRepairPreviewPause();
+        setSyncStatus("offline");
+        setSyncMessage(
+          "Sin conexión. Vuelve a comparar cuando puedas consultar la nube.",
+        );
+        return;
+      }
+
+      const operation = await runExclusiveSyncOperation(syncing, async () => {
+        setSyncStatus("syncing");
+
+        try {
+          const repair = await runCloudDeviceRepair<CloudRepairRemoteDetails>({
+            getCurrent: getCurrentData,
+            downloadCurrent: (current) =>
+              downloadProtectedBackup(current, {
+                purpose: "pre_restore",
+                requireEncryption: true,
+              }),
+            loadRemote: () => loadCloudRepairRemoteSnapshot(user.id),
+            validateExpected: (expected) =>
+              snapshotMatchesCloudRepairFingerprint(
+                expected,
+                activePreview.localFingerprint,
+              ) &&
+              snapshotMatchesCloudRepairFingerprint(
+                readPersistedDataSnapshot(),
+                activePreview.localFingerprint,
+              ),
+            validateRemote: (remote) =>
+              remote.details.fingerprint === activePreview.cloudFingerprint &&
+              snapshotMatchesCloudRepairFingerprint(
+                remote.data,
+                activePreview.cloudFingerprint,
+              ),
+            replace: replaceCloudSnapshotDurably,
+            isOperationCurrent: repairOperationIsCurrent,
+          });
+
+          if (!repairOperationIsCurrent()) return;
+          if (repair.status === "operation_invalidated") return;
+
+          if (repair.status === "preview_stale") {
+            cloudRepairPreviewRef.current = null;
+            setCloudRepairPreview(null);
+            releaseCloudRepairPreviewPause();
+            setSyncStatus("error");
+            setSyncMessage(
+              repair.safetyCopyFilename
+                ? `La copia local o la nube cambiaron después de compararlas. No se reemplazó nada; se solicitó ${repair.safetyCopyFilename}. Vuelve a comparar.`
+                : "La copia local cambió después de compararla. No se reemplazó nada; vuelve a comparar.",
+            );
+            return;
+          }
+
+          if (repair.status === "backup_failed") {
+            setSyncStatus("error");
+            setSyncMessage(
+              `No se reparó el dispositivo: ${repair.error} Los datos locales se conservan y la sincronización queda en pausa.`,
+            );
+            return;
+          }
+          if (repair.status === "stale_precondition") {
+            setSyncStatus("error");
+            setSyncMessage(
+              `Los datos cambiaron durante la reparación. No se reemplazó nada; se solicitó la copia ${repair.safetyCopyFilename} y la sincronización queda en pausa.`,
+            );
+            return;
+          }
+          if (repair.status === "cloud_empty") {
+            setSyncStatus("idle");
+            setSyncMessage(
+              "No hay datos guardados en la nube. Los datos de este dispositivo se conservan y quedan sin subir.",
+            );
+            return;
+          }
+
+          const durable = repair.result;
+          if (durable.status === "indeterminate") {
+            setSyncStatus("error");
+            setSyncMessage(
+              "El navegador no pudo confirmar el guardado de la copia de la nube. No se publicó el reemplazo; exporta lo visible, recarga y vuelve a intentarlo.",
+            );
+            return;
+          }
+          if (durable.status === "blocked") {
+            setSyncStatus("error");
+            setSyncMessage(
+              "No se pudo guardar y verificar la copia de la nube. Los datos locales anteriores se conservan y la sincronización queda en pausa.",
+            );
+            return;
+          }
+
+          dataRef.current = durable.data;
+          clearSyncPending();
+          clearActiveCloudSyncReviewIssue();
+          cloudRepairPreviewRef.current = null;
+          setCloudRepairPreview(null);
+          automaticCloudPaused.current = false;
+          rememberHandoffDecision(user.id, "synced");
+          setLocalDataHandoffStatus("none");
+
+          let legacyMigrationFailed = false;
+          if (repair.remote.source === "legacy") {
+            try {
+              await migrateLegacyBackupToEntities(user.id, durable.data);
+            } catch (error) {
+              legacyMigrationFailed = true;
+              void reportAppError({
+                severity: "warning",
+                area: "sync",
+                code: "legacy_repair_migration_failed",
+                message:
+                  error instanceof Error
+                    ? error.message
+                    : "No se pudo actualizar la copia antigua en la nube",
+              });
+            }
+          }
+
+          setSyncStatus("synced");
+          rememberSuccessfulDeviceSync();
+          setSyncMessage(
+            legacyMigrationFailed
+              ? `Dispositivo reparado desde la nube. Se solicitó la copia local ${repair.safetyCopyFilename}; búscala en Descargas o en la carpeta configurada en tu navegador. La copia antigua sigue pendiente de actualizar en la nube.`
+              : `Dispositivo reparado y verificado con las cantidades revisadas. Se solicitó la copia local ${repair.safetyCopyFilename}; búscala en Descargas o en la carpeta configurada en tu navegador.`,
+          );
+        } catch (error) {
+          if (!repairOperationIsCurrent()) return;
+          void reportAppError({
+            severity: "error",
+            area: "sync",
+            code: "force_download_failed",
+            message:
+              error instanceof Error
+                ? error.message
+                : "Error al descargar todos los datos de la nube",
+          });
+          setSyncStatus("error");
+          setSyncMessage(
+            error instanceof Error
+              ? `${error.message}. No se reemplazaron los datos locales y la sincronización queda en pausa.`
+              : "Error al descargar todos los datos de la nube. No se reemplazaron los datos locales y la sincronización queda en pausa.",
+          );
+        }
+      });
+
+      if (!operation.started) {
+        setSyncMessage("Ya hay una sincronización en marcha.");
+      }
+    },
+    [
+      demoMode,
+      cloudRepairPreview,
+      clearActiveCloudSyncReviewIssue,
+      ensureCloudReadyForCurrentDevice,
+      getCurrentData,
+      pauseCloudOperationsForRepair,
+      releaseCloudRepairPreviewPause,
+      rememberSuccessfulDeviceSync,
+      replaceCloudSnapshotDurably,
+      requiresEmailConfirmation,
+      user,
+    ],
+  );
 
   const schedulePush = useCallback(() => {
     if (demoMode) return;
@@ -2002,6 +2328,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       syncStatus,
       syncMessage,
       syncIssue,
+      cloudRepairPreview,
       pendingUpload,
       pendingChangeCount,
       localDataHandoffStatus,
@@ -2018,6 +2345,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       saveLocalDataToAccount,
       keepLocalDataOnDevice,
       pauseCloudForLocalRestore,
+      prepareCloudRepairPreview,
+      cancelCloudRepairPreview,
       forceDownloadFromCloud,
       exportBackup,
       importBackup,
@@ -2031,6 +2360,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       syncStatus,
       syncMessage,
       syncIssue,
+      cloudRepairPreview,
       pendingUpload,
       pendingChangeCount,
       localDataHandoffStatus,
@@ -2046,6 +2376,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       saveLocalDataToAccount,
       keepLocalDataOnDevice,
       pauseCloudForLocalRestore,
+      prepareCloudRepairPreview,
+      cancelCloudRepairPreview,
       forceDownloadFromCloud,
       exportBackup,
       authReady,

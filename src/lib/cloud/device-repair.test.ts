@@ -98,6 +98,25 @@ describe("durable cloud snapshot replacement", () => {
 });
 
 describe("safe cloud device repair", () => {
+  it("no solicita copia ni pull cuando el estado local ya no coincide con la vista previa", async () => {
+    const downloadCurrent = vi.fn();
+    const loadRemote = vi.fn();
+    const replace = vi.fn();
+
+    const result = await runCloudDeviceRepair({
+      getCurrent: () => withCustomer("changed-local"),
+      downloadCurrent,
+      loadRemote,
+      replace,
+      validateExpected: () => false,
+    });
+
+    expect(result).toEqual({ status: "preview_stale" });
+    expect(downloadCurrent).not.toHaveBeenCalled();
+    expect(loadRemote).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it("hace copia, pull y reemplazo durable en ese orden", async () => {
     const current = withCustomer("local");
     const remote = withCustomer("cloud");
@@ -177,6 +196,27 @@ describe("safe cloud device repair", () => {
 
     expect(result).toEqual({
       status: "stale_precondition",
+      safetyCopyFilename: "safety.json",
+    });
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("no reemplaza cuando la nube cambió desde la vista previa", async () => {
+    const replace = vi.fn();
+
+    const result = await runCloudDeviceRepair({
+      getCurrent: () => EMPTY_DATA,
+      downloadCurrent: async () => ({ ok: true, filename: "safety.json" }),
+      loadRemote: async () => ({
+        data: withCustomer("new-cloud"),
+        details: { fingerprint: "new" },
+      }),
+      validateRemote: (remote) => remote.details.fingerprint === "previewed",
+      replace,
+    });
+
+    expect(result).toEqual({
+      status: "preview_stale",
       safetyCopyFilename: "safety.json",
     });
     expect(replace).not.toHaveBeenCalled();

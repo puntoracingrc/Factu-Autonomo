@@ -105,8 +105,13 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
   `finally`; un fallo transitorio conserva la cola local y permite reintentar.
 - Una divergencia fiscal determinista conserva cola y marcador, pausa los
   reintentos automáticos y exige revisión explícita. Solo reparar desde la nube
-  puede resolverla en V9, con copia cifrada previa y readback durable; nunca se
+  puede resolverla en V10, con copia cifrada previa y readback durable; nunca se
   fuerza el estado local ni se combinan historiales sin transición versionada.
+- La reparación V10 compara primero fechas y recuentos como pistas no
+  autoritativas, destaca toda reducción y exige aceptación adicional para
+  conservar una nube con menos elementos. La vista queda ligada a huellas
+  exactas local/cloud: una versión distinta, un `ownerScope` ajeno o un estado
+  no clasificable abortan sin reemplazar ni limpiar el conflicto.
 - El bloqueo se propaga entre pestañas de la misma cuenta. La reparación queda
   ligada a una generación de sesión y se invalida al cerrar, cambiar o renovar
   la sesión; una generación separada de revisión evita carreras ABA al resolver
@@ -142,7 +147,8 @@ Contrato: [ADR-0005](ADR-0005-cloud-and-drive-sync-reliability.md).
 
 Regresiones mínimas: `cloud-drive-sync-reliability-contract.test.ts`,
 `sync-operation.test.ts`, `auth-operation-guard.test.ts`,
-`device-repair.test.ts`, `sync-errors.test.ts`, `sync-queue.test.ts`,
+`device-repair.test.ts`, `device-repair-preview.test.ts`,
+`CloudRepairPreviewModal.test.tsx`, `sync-errors.test.ts`, `sync-queue.test.ts`,
 `sync-review-storage.test.ts`, `sync-review-operation-guard.test.ts`,
 `persisted-snapshot-adoption.test.ts`,
 `repository.test.ts`,

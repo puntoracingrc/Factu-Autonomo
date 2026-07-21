@@ -1,7 +1,7 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 9
+- Versión: 10
 - Fecha: 2026-07-21
 
 ## Contexto
@@ -55,7 +55,7 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
     ninguna de las dos cabezas fiscales ha sido sobrescrita y sustituye el
     reintento inútil por un acceso a la resolución en Cuenta. Un timeout,
     desconexión u otro fallo transitorio mantiene el reintento ordinario.
-11. La única resolución disponible en V9 es conservar la nube mediante
+11. La única resolución disponible en V10 es conservar la nube mediante
     **Reparar con la copia de la nube**: solicita una copia cifrada local, hace
     pull completo sin push previo y solo limpia el conflicto después del commit
     durable y readback exacto. Conservar el dispositivo o combinar historiales
@@ -83,6 +83,26 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
     referencia vigente y su último baseline durable en la pestaña; nunca
     reescribe el almacenamiento. Una edición concurrente o aún no persistida
     mantiene el conflicto en pausa.
+15. Antes de ofrecer el reemplazo, la reparación hace una lectura completa y
+    solo informativa de ambos estados. Muestra fecha y hora registradas,
+    revisión del expediente fiscal y recuentos separados de clientes,
+    documentos, gastos, maestros y Notificaciones. Fechas y cantidades son
+    pistas para el usuario: nunca prueban equivalencia, deduplican, confirman
+    relaciones ni autorizan por sí solas una reducción.
+16. Toda categoría con menos elementos en la nube queda destacada y exige una
+    aceptación explícita adicional; las reducciones documentales o fiscales se
+    identifican como protegidas. Un snapshot que no se pueda clasificar de
+    forma cerrada, una cuenta fiscal no verificable o un `ownerScope` distinto
+    bloquean la reparación sin reemplazo.
+17. La vista previa queda ligada a huellas exactas de negocio local y cloud y a
+    las generaciones vigentes de sesión y revisión. Al confirmar se revalida el
+    estado local durable, se solicita la copia cifrada y se vuelve a leer la
+    nube completa. Si cualquiera de las dos huellas cambió, no se reemplaza,
+    no se limpia cola ni conflicto y el usuario debe comparar de nuevo.
+18. La descarga web acredita el JSON exacto y que el navegador recibió la
+    solicitud, no que el sistema operativo terminara de escribirlo. La UI
+    muestra el nombre `factu-autonomo-backup-antes-restaurar-…json` y aclara que
+    debe buscarse en Descargas o en la carpeta configurada en el navegador.
 
 ### Planes y dispositivos de nube
 
@@ -193,6 +213,9 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 - Un dispositivo puede seguir trabajando offline sin perder su cola.
 - Una reparación no puede sobrescribir la nube con el estado atascado que
   pretende sustituir ni declarar éxito antes del guardado local verificado.
+- El usuario ve qué categorías aumentan o disminuyen y las fechas registradas
+  antes de conservar la nube; una vista previa antigua no puede autorizar un
+  snapshot distinto, aunque sus recuentos coincidan.
 - Una restauración histórica queda local hasta una decisión explícita, evitando
   que un temporizador anterior la publique como estado vigente de la cuenta.
 - Una divergencia fiscal no genera reintentos periódicos ni aparenta ser un
@@ -232,6 +255,8 @@ deben superar:
 - `src/lib/cloud/sync-operation.test.ts`
 - `src/lib/cloud/auth-operation-guard.test.ts`
 - `src/lib/cloud/device-repair.test.ts`
+- `src/lib/cloud/device-repair-preview.test.ts`
+- `src/components/cloud/CloudRepairPreviewModal.test.tsx`
 - `src/lib/cloud/sync-errors.test.ts`
 - `src/lib/cloud/sync-queue.test.ts`
 - `src/lib/cloud/sync-review-storage.test.ts`

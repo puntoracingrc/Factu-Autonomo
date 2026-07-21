@@ -15,7 +15,7 @@ describe("cloud and Drive reliability contract", () => {
     const operation = source("src/lib/cloud/sync-operation.ts");
 
     expect(context.match(/runExclusiveSyncOperation\(syncing/g)).toHaveLength(
-      3,
+      4,
     );
     expect(context).toContain("await pushToCloud(workingData, true, options)");
     expect(context).not.toContain("syncing.current = true");
@@ -33,6 +33,10 @@ describe("cloud and Drive reliability contract", () => {
       context.indexOf("const forceDownloadFromCloud"),
       context.indexOf("const schedulePush"),
     );
+    const previewRepair = context.slice(
+      context.indexOf("const prepareCloudRepairPreview"),
+      context.indexOf("const forceDownloadFromCloud"),
+    );
 
     expect(forceRepair).toContain("pauseCloudOperationsForRepair(");
     expect(forceRepair.indexOf("pauseCloudOperationsForRepair(")).toBeLessThan(
@@ -42,6 +46,19 @@ describe("cloud and Drive reliability contract", () => {
     expect(forceRepair).toContain("downloadProtectedBackup(current");
     expect(forceRepair).toContain("requireEncryption: true");
     expect(forceRepair).not.toContain("pushToCloud(");
+    expect(previewRepair).toContain("loadCloudRepairRemoteSnapshot(user.id)");
+    expect(previewRepair).toContain("buildCloudRepairPreviewPlan({");
+    expect(previewRepair).not.toContain("replaceCloudSnapshotDurably");
+    expect(previewRepair).not.toContain("clearSyncPending()");
+    expect(forceRepair).toContain("validateExpected:");
+    expect(forceRepair).toContain("validateRemote:");
+    expect(forceRepair).toContain("activePreview.localFingerprint");
+    expect(forceRepair).toContain("activePreview.cloudFingerprint");
+    expect(forceRepair).toContain(
+      "confirmation.previewId !== activePreview.preview.id",
+    );
+    expect(forceRepair).toContain("cloudRepairPreviewAllowsConfirmation(");
+    expect(forceRepair).toContain("confirmation.reductionsAcknowledged");
     expect(forceRepair.indexOf("replaceCloudSnapshotDurably")).toBeLessThan(
       forceRepair.indexOf("clearSyncPending()"),
     );
@@ -49,28 +66,20 @@ describe("cloud and Drive reliability contract", () => {
     expect(repair).toContain("input.persist(");
     expect(repair).not.toContain("trackDataDiff");
     expect(ownership).toContain("pauseCloudForLocalRestore()");
-    expect(account).toContain(
-      "sin subir antes los cambios de este dispositivo",
-    );
+    expect(account).toContain("Comparar antes de reparar");
   });
 
   it("pausa una divergencia fiscal y dirige a una reparacion explicita", () => {
     const context = source("src/context/CloudSyncContext.tsx");
     const appStore = source("src/context/AppStore.tsx");
-    const indicator = source(
-      "src/components/cloud/CloudSyncIndicator.tsx",
-    );
+    const indicator = source("src/components/cloud/CloudSyncIndicator.tsx");
     const account = source("src/components/cloud/CloudAccountCard.tsx");
     const queue = source("src/lib/cloud/sync-queue.ts");
     const errors = source("src/lib/cloud/sync-errors.ts");
     const reviewStorage = source("src/lib/cloud/sync-review-storage.ts");
     const authGuard = source("src/lib/cloud/auth-operation-guard.ts");
-    const reviewGuard = source(
-      "src/lib/cloud/sync-review-operation-guard.ts",
-    );
-    const adoption = source(
-      "src/lib/cloud/persisted-snapshot-adoption.ts",
-    );
+    const reviewGuard = source("src/lib/cloud/sync-review-operation-guard.ts");
+    const adoption = source("src/lib/cloud/persisted-snapshot-adoption.ts");
     const repair = source("src/lib/cloud/device-repair.ts");
     const adr = source(
       "docs/architecture/ADR-0005-cloud-and-drive-sync-reliability.md",
@@ -78,6 +87,10 @@ describe("cloud and Drive reliability contract", () => {
     const forceRepair = context.slice(
       context.indexOf("const forceDownloadFromCloud"),
       context.indexOf("const schedulePush"),
+    );
+    const previewRepair = context.slice(
+      context.indexOf("const prepareCloudRepairPreview"),
+      context.indexOf("const forceDownloadFromCloud"),
     );
 
     expect(context).toContain("activateCloudSyncReviewIssue(reviewIssue)");
@@ -101,16 +114,18 @@ describe("cloud and Drive reliability contract", () => {
     expect(forceRepair).toContain("pauseCloudOperationsForRepair(");
     expect(forceRepair).not.toContain("pauseAutomaticCloud(");
     expect(forceRepair).toContain("clearActiveCloudSyncReviewIssue()");
-    expect(forceRepair).toContain("captureCloudAuthOperation(");
+    expect(previewRepair).toContain("captureCloudAuthOperation(");
+    expect(previewRepair).toContain("captureCloudSyncReviewOperation(");
     expect(forceRepair).toContain("isCloudAuthOperationCurrent(");
+    expect(forceRepair).toContain("isCloudSyncReviewOperationCurrent(");
     expect(forceRepair).toContain(
       "isOperationCurrent: repairOperationIsCurrent",
     );
-    expect(forceRepair.indexOf('repair.status === "operation_invalidated"')).toBeLessThan(
-      forceRepair.indexOf("clearSyncPending()"),
-    );
-    expect(forceRepair.indexOf("captureCloudAuthOperation(")).toBeLessThan(
-      forceRepair.indexOf("await ensureCloudReadyForCurrentDevice"),
+    expect(
+      forceRepair.indexOf('repair.status === "operation_invalidated"'),
+    ).toBeLessThan(forceRepair.indexOf("clearSyncPending()"));
+    expect(previewRepair.indexOf("captureCloudAuthOperation(")).toBeLessThan(
+      previewRepair.indexOf("await ensureCloudReadyForCurrentDevice"),
     );
     expect(indicator).toContain("Resolver conflicto");
     expect(indicator).toContain('href="/cuenta"');
@@ -299,6 +314,9 @@ describe("cloud and Drive reliability contract", () => {
     expect(agents).toContain("Pro+ admite 5");
     expect(codeowners).toContain("/src/context/CloudSyncContext.tsx");
     expect(codeowners).toContain("/src/lib/cloud/**");
+    expect(codeowners).toContain(
+      "/src/components/cloud/CloudRepairPreviewModal*",
+    );
     expect(codeowners).toContain("/src/lib/google-drive/**");
     expect(adr).toContain("drive.file");
     expect(adr).toContain("coincide exactamente");
