@@ -214,6 +214,42 @@ describe("cloud device repair preview", () => {
     ).toEqual({ status: "blocked", reason: "unclassifiable_snapshot" });
   });
 
+  it.each([
+    ["local absent", "local", undefined],
+    ["local empty", "local", ""],
+    ["cloud absent", "cloud", undefined],
+    ["cloud empty", "cloud", ""],
+  ] as const)(
+    "abstains when the fiscal owner scope is %s",
+    (_label, target, ownerScope) => {
+      const local = snapshot({
+        fiscalDocuments: 0,
+        lastModified: "2026-07-21T10:00:00.000Z",
+      });
+      const cloud = snapshot({
+        fiscalDocuments: 0,
+        lastModified: "2026-07-21T10:00:00.000Z",
+      });
+      const workspace =
+        target === "local"
+          ? local.fiscalNotificationsWorkspace!
+          : cloud.fiscalNotificationsWorkspace!;
+      workspace.ownerScope = ownerScope as string;
+
+      expect(
+        buildCloudRepairPreviewPlan({
+          local,
+          cloud,
+          localRecordedAt: local.meta!.lastModified,
+          cloudRecordedAt: cloud.meta!.lastModified,
+          cloudSource: "entities",
+          generatedAt: "2026-07-21T10:05:00.000Z",
+          expectedFiscalOwnerScope: OWNER_SCOPE,
+        }),
+      ).toEqual({ status: "blocked", reason: "unclassifiable_snapshot" });
+    },
+  );
+
   it("abstains when a document category cannot be counted closed", () => {
     const local = snapshot({
       lastModified: "2026-07-21T10:00:00.000Z",

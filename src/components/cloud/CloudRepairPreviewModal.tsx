@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from "react";
 import { AlertTriangle, CloudDownload } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
+import { CloudRepairPreviewModalTable } from "./CloudRepairPreviewModalTable";
 import {
   cloudRepairPreviewAllowsConfirmation,
   type CloudRepairConfirmation,
@@ -105,38 +106,7 @@ export function CloudRepairPreviewModal(props: {
         />
       </div>
 
-      <div className="mt-4" aria-label="Comparación de cantidades">
-        <div className="grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem] gap-2 border-b border-slate-200 px-2 pb-2 text-xs font-semibold text-slate-500">
-          <span>Contenido</span>
-          <span className="text-right">Dispositivo</span>
-          <span className="text-right">Nube</span>
-        </div>
-        <div className="divide-y divide-slate-100">
-          {preview.counts.map((entry) => (
-            <div
-              key={entry.key}
-              className={`grid grid-cols-[minmax(0,1fr)_4.5rem_4.5rem] gap-2 px-2 py-2.5 text-sm ${
-                entry.reduction ? "bg-red-50 text-red-950" : "text-slate-700"
-              }`}
-            >
-              <div className="min-w-0">
-                <span className="font-medium">{entry.label}</span>
-                {entry.delta !== 0 ? (
-                  <span className="block text-xs">
-                    {entry.delta < 0
-                      ? `${Math.abs(entry.delta)} menos en la nube`
-                      : `${entry.delta} más en la nube`}
-                  </span>
-                ) : null}
-              </div>
-              <span className="text-right tabular-nums">{entry.local}</span>
-              <span className="text-right font-semibold tabular-nums">
-                {entry.cloud}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <CloudRepairPreviewModalTable counts={preview.counts} />
 
       {preview.hasReductions ? (
         <div className="mt-4 border-l-4 border-red-500 bg-red-50 px-4 py-3 text-sm leading-6 text-red-950">
@@ -160,7 +130,8 @@ export function CloudRepairPreviewModal(props: {
             />
             <span>
               He revisado las reducciones y quiero conservar esta versión de la
-              nube. La versión local se solicitará como copia cifrada.
+              nube. La versión local se solicitará al navegador como copia
+              cifrada.
             </span>
           </label>
         </div>
@@ -180,9 +151,10 @@ export function CloudRepairPreviewModal(props: {
 
       <p className="mt-4 text-xs leading-5 text-slate-600">
         Antes de reemplazar, Factu volverá a comprobar que ambas versiones son
-        exactamente las comparadas. También solicitará una copia cifrada con
-        nombre <strong>factu-autonomo-backup-antes-restaurar-…json</strong>, que
-        encontrarás en Descargas o en la carpeta configurada en tu navegador.
+        exactamente las comparadas. También solicitará al navegador una copia
+        cifrada con nombre
+        <strong> factu-autonomo-backup-antes-restaurar-…json</strong>. Comprueba
+        Descargas o la carpeta configurada en tu navegador.
       </p>
 
       <div className="mt-5 grid gap-3 sm:grid-cols-2">

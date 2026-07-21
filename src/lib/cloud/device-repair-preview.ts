@@ -200,16 +200,19 @@ export function buildCloudRepairPreviewPlan(input: {
   generatedAt: string;
   expectedFiscalOwnerScope: string | null;
 }): CloudRepairPreviewPlan {
-  const fiscalOwnerScopes = [
-    input.local.fiscalNotificationsWorkspace?.ownerScope,
-    input.cloud.fiscalNotificationsWorkspace?.ownerScope,
-  ].filter((ownerScope): ownerScope is string => Boolean(ownerScope));
+  const expectedFiscalOwnerScope = input.expectedFiscalOwnerScope;
+  const fiscalWorkspaceOwnerMatches = (
+    workspace: AppData["fiscalNotificationsWorkspace"],
+  ) =>
+    !workspace ||
+    (typeof expectedFiscalOwnerScope === "string" &&
+      expectedFiscalOwnerScope.trim().length > 0 &&
+      typeof workspace.ownerScope === "string" &&
+      workspace.ownerScope.trim().length > 0 &&
+      workspace.ownerScope === expectedFiscalOwnerScope);
   if (
-    fiscalOwnerScopes.length > 0 &&
-    (!input.expectedFiscalOwnerScope ||
-      fiscalOwnerScopes.some(
-        (ownerScope) => ownerScope !== input.expectedFiscalOwnerScope,
-      ))
+    !fiscalWorkspaceOwnerMatches(input.local.fiscalNotificationsWorkspace) ||
+    !fiscalWorkspaceOwnerMatches(input.cloud.fiscalNotificationsWorkspace)
   ) {
     return { status: "blocked", reason: "unclassifiable_snapshot" };
   }
