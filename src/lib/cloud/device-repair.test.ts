@@ -182,6 +182,52 @@ describe("safe cloud device repair", () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
+  it("no consulta ni reemplaza si la sesión cambia durante la copia", async () => {
+    let currentSession = true;
+    const loadRemote = vi.fn();
+    const replace = vi.fn();
+
+    const result = await runCloudDeviceRepair({
+      getCurrent: () => EMPTY_DATA,
+      downloadCurrent: async () => {
+        currentSession = false;
+        return { ok: true, filename: "safety.json" };
+      },
+      loadRemote,
+      replace,
+      isOperationCurrent: () => currentSession,
+    });
+
+    expect(result).toEqual({
+      status: "operation_invalidated",
+      safetyCopyFilename: "safety.json",
+    });
+    expect(loadRemote).not.toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("no reemplaza si la sesión cambia durante el pull", async () => {
+    let currentSession = true;
+    const replace = vi.fn();
+
+    const result = await runCloudDeviceRepair({
+      getCurrent: () => EMPTY_DATA,
+      downloadCurrent: async () => ({ ok: true, filename: "safety.json" }),
+      loadRemote: async () => {
+        currentSession = false;
+        return { data: withCustomer("cloud"), details: null };
+      },
+      replace,
+      isOperationCurrent: () => currentSession,
+    });
+
+    expect(result).toEqual({
+      status: "operation_invalidated",
+      safetyCopyFilename: "safety.json",
+    });
+    expect(replace).not.toHaveBeenCalled();
+  });
+
   it("conserva el estado local cuando la cuenta no tiene copia cloud", async () => {
     const replace = vi.fn();
 

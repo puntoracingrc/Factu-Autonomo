@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildCloudReplacementChanges,
   buildCloudUploadChanges,
+  buildCloudUploadPlan,
   clearSyncPending,
   hasUnsyncedChanges,
   isSyncPendingFlag,
@@ -15,6 +16,7 @@ import {
   testDocumentRetirementExportableDataFingerprint,
 } from "../document-integrity/test-document-retirement";
 import { testDocumentRetirementTenantFingerprintForUserId } from "../test-document-retirement-persistence";
+import type { FiscalNotificationsWorkspace } from "../fiscal-notifications/types";
 
 const NOW = "2026-06-28T06:55:00.000Z";
 
@@ -205,6 +207,113 @@ describe("sync queue", () => {
       "workspace_metadata",
     ]);
     expect(changes.every((change) => change.updatedAt === NOW)).toBe(true);
+  });
+
+  it("distingue una reconstruccion completa de la cola explicita", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(NOW));
+    const data = {
+      ...EMPTY_DATA,
+      documents: [invoice],
+      meta: {
+        lastModified: "2026-06-28T06:49:00.000Z",
+        lastSyncedAt: "2026-06-27T10:00:00.000Z",
+      },
+    };
+
+    expect(buildCloudUploadPlan(data)).toMatchObject({
+      queueDepth: 0,
+      uploadChangeCount: 4,
+      uploadMode: "full_snapshot_rebuild",
+      containsFiscalWorkspace: false,
+      entityTypeCounts: {
+        document: 1,
+        profile: 1,
+        counters: 1,
+        workspace_metadata: 1,
+      },
+      lastModifiedAfterLastSynced: true,
+    });
+  });
+
+  it("describe una cola incremental sin exponer identificadores", () => {
+    const pending = [
+      {
+        entityType: "document" as const,
+        entityId: invoice.id,
+        deleted: false,
+        payload: invoice,
+        updatedAt: NOW,
+      },
+    ];
+    const plan = buildCloudUploadPlan({
+      ...EMPTY_DATA,
+      documents: [invoice],
+      meta: {
+        lastModified: NOW,
+        lastSyncedAt: "2026-06-27T10:00:00.000Z",
+        pendingChanges: pending,
+      },
+    });
+
+    expect(plan).toMatchObject({
+      queueDepth: 1,
+      uploadChangeCount: 1,
+      uploadMode: "queued",
+      entityTypeCounts: { document: 1 },
+    });
+    expect(JSON.stringify({ ...plan, changes: undefined })).not.toContain(
+      invoice.id,
+    );
+  });
+
+  it("indica si la subida contiene la cabeza fiscal sin registrar su payload", () => {
+    const fiscalWorkspace: FiscalNotificationsWorkspace = {
+      schemaVersion: 1,
+      workspaceId: "fiscal-notifications-workspace-v1",
+      ownerScope: "user:00000000-0000-4000-8000-000000000001",
+      revision: 0,
+      createdAt: NOW,
+      updatedAt: NOW,
+      packages: [],
+      files: [],
+      documents: [],
+      parts: [],
+      authorities: [],
+      references: [],
+      evidence: [],
+      debts: [],
+      debtObservations: [],
+      cases: [],
+      relations: [],
+      analysisSnapshots: [],
+      paymentOptions: [],
+      paymentPlans: [],
+      installments: [],
+      interestCalculations: [],
+      deadlineRules: [],
+      obligations: [],
+      timeline: [],
+      accountingDrafts: [],
+      auditEvents: [],
+    };
+    const plan = buildCloudUploadPlan({
+      ...EMPTY_DATA,
+      fiscalNotificationsWorkspace: fiscalWorkspace,
+      meta: {
+        lastModified: NOW,
+        lastSyncedAt: "2026-06-27T10:00:00.000Z",
+      },
+    });
+
+    expect(plan).toMatchObject({
+      queueDepth: 0,
+      uploadChangeCount: 4,
+      uploadMode: "full_snapshot_rebuild",
+      containsFiscalWorkspace: true,
+      entityTypeCounts: { fiscal_notifications_workspace: 1 },
+    });
+    expect(plan.entityTypeCounts).not.toHaveProperty("entityId");
   });
 
   it("refecha solo los sobres de una restauración completa", () => {

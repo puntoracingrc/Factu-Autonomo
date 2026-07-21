@@ -244,7 +244,12 @@ La decisión obligatoria y versionada está en
 - Cualquier cambio en `CloudSyncContext`, `src/lib/cloud/**`, Google Drive,
   almacenamiento, AppStore, Supabase o restauraciones debe ejecutar
   `cloud-drive-sync-reliability-contract.test.ts`, `sync-operation.test.ts`,
-  `sync-queue.test.ts`, `repository.test.ts`, `google-drive/operation.test.ts`
+  `auth-operation-guard.test.ts`, `device-repair.test.ts`,
+  `sync-errors.test.ts`, `sync-queue.test.ts`,
+  `sync-review-storage.test.ts`, `sync-review-operation-guard.test.ts`,
+  `persisted-snapshot-adoption.test.ts`,
+  `repository.test.ts`,
+  `google-drive/operation.test.ts`,
   `google-drive/backup.test.ts` y las regresiones
   `fiscal-notification-original-archive.v1.test.ts` y
   `fiscal-notification-original-delete.v1.test.ts` y

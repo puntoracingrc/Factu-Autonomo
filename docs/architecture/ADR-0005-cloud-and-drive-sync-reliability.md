@@ -1,7 +1,7 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 8
+- Versión: 9
 - Fecha: 2026-07-21
 
 ## Contexto
@@ -47,6 +47,42 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 8. Restaurar una copia JSON con sesión iniciada pausa la sincronización antes
    del commit local. El contenido restaurado no se sube automáticamente: el
    usuario debe revisarlo y elegir expresamente guardarlo en su cuenta.
+9. Una divergencia determinista entre las cabezas fiscales local y remota es un
+   estado terminal revisable, no un fallo transitorio. Conserva la cola y el
+   marcador local, persiste únicamente su código saneado y detiene los
+   reintentos automáticos de esa cuenta en ese navegador.
+10. La UI identifica ese estado como `fiscal_workspace_diverged`, explica que
+    ninguna de las dos cabezas fiscales ha sido sobrescrita y sustituye el
+    reintento inútil por un acceso a la resolución en Cuenta. Un timeout,
+    desconexión u otro fallo transitorio mantiene el reintento ordinario.
+11. La única resolución disponible en V9 es conservar la nube mediante
+    **Reparar con la copia de la nube**: solicita una copia cifrada local, hace
+    pull completo sin push previo y solo limpia el conflicto después del commit
+    durable y readback exacto. Conservar el dispositivo o combinar historiales
+    requieren una transición fiscal versionada, CAS remoto, copias de ambas
+    cabezas y confirmación explícita; no se simulan con un upsert forzado.
+12. La observabilidad distingue profundidad de cola, cantidad y modo de subida,
+    presencia de expediente fiscal, conteos por tipo de entidad y comparación
+    de marcas temporales. Nunca incluye IDs, payloads ni contenido fiscal.
+13. Una reparación fija la identidad y generación de autenticación que la
+    inició. Cerrar sesión, cambiar de cuenta, renovar a otra sesión o desmontar
+    el proveedor invalida la operación; se revalida después de la copia, tras
+    cada lectura remota y justo antes del reemplazo durable. Una operación
+    invalidada no reemplaza datos ni limpia cola o conflicto.
+    El preflight de plan/dispositivo y las subidas o descargas ordinarias usan
+    la misma generación y no publican ni limpian resultados de una sesión
+    obsoleta.
+14. El código de revisión se coordina entre pestañas del mismo navegador por un
+    evento de almacenamiento filtrado por cuenta. La recepción del bloqueo
+    corta también los timers de la otra pestaña e incrementa una generación que
+    invalida operaciones anteriores incluso si el issue vuelve después a
+    `null`. La retirada solo ocurre tras una reparación durable o un borrado
+    explícito del dispositivo; antes de desbloquear, la otra pestaña exige un
+    snapshot compartido sin cola, flag ni timestamp pendiente. La adopción es
+    solo en memoria y vuelve a comparar tanto el estado durable como la
+    referencia vigente y su último baseline durable en la pestaña; nunca
+    reescribe el almacenamiento. Una edición concurrente o aún no persistida
+    mantiene el conflicto en pausa.
 
 ### Planes y dispositivos de nube
 
@@ -159,6 +195,12 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
   pretende sustituir ni declarar éxito antes del guardado local verificado.
 - Una restauración histórica queda local hasta una decisión explícita, evitando
   que un temporizador anterior la publique como estado vigente de la cuenta.
+- Una divergencia fiscal no genera reintentos periódicos ni aparenta ser un
+  error reparable con el mismo botón; ambos historiales quedan intactos hasta
+  una resolución explícita y verificable.
+- Cerrar sesión o cambiar de cuenta durante una reparación no puede publicar el
+  snapshot de la sesión anterior, y una segunda pestaña no puede continuar
+  reintentando un conflicto ya detectado en el mismo navegador.
 - Gratis no depende de la nube de Factu y Pro/Pro+ aplican sus límites de 2/5
   dispositivos también en las policies de almacenamiento.
 - Perder un dispositivo no bloquea la cuenta: el usuario puede revocarlo desde
@@ -188,7 +230,13 @@ deben superar:
 - `src/lib/fiscal-notifications/structured-review-save-command.v1.test.ts`
 - `src/components/fiscal-notifications/FiscalNotificationIntakeView.test.tsx`
 - `src/lib/cloud/sync-operation.test.ts`
+- `src/lib/cloud/auth-operation-guard.test.ts`
+- `src/lib/cloud/device-repair.test.ts`
+- `src/lib/cloud/sync-errors.test.ts`
 - `src/lib/cloud/sync-queue.test.ts`
+- `src/lib/cloud/sync-review-storage.test.ts`
+- `src/lib/cloud/sync-review-operation-guard.test.ts`
+- `src/lib/cloud/persisted-snapshot-adoption.test.ts`
 - `src/lib/cloud/repository.test.ts`
 - `src/lib/cloud/devices.test.ts`
 - `src/lib/cloud/device-client.test.ts`

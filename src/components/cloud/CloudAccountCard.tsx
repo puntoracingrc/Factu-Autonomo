@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { Turnstile, type TurnstileInstance } from "@marsidev/react-turnstile";
 import {
   Cloud,
+  CircleAlert,
   Download,
   Eye,
   EyeOff,
@@ -111,6 +112,7 @@ export function CloudAccountCard({
     keepLocalDataOnDevice,
     syncStatus,
     syncMessage,
+    syncIssue,
     pendingUpload,
     pendingChangeCount,
   } = useCloudSync();
@@ -503,6 +505,7 @@ export function CloudAccountCard({
           ) : null}
           {!requiresEmailConfirmation &&
           limits.cloudSync &&
+          !syncIssue &&
           localDataHandoffStatus !== "none" ? (
             <div className="space-y-3 rounded-xl border border-sky-200 bg-white p-4">
               <div>
@@ -559,11 +562,25 @@ export function CloudAccountCard({
           ) : null}
           {limits.cloudSync ? (
             <p className="text-sm text-slate-500">
-              Estado: {STATUS_LABELS[syncStatus]}
+              Estado:{" "}
+              {syncIssue ? "Revisión necesaria" : STATUS_LABELS[syncStatus]}
               {syncMessage ? ` — ${syncMessage}` : ""}
             </p>
           ) : null}
-          {limits.cloudSync && pendingUpload && syncStatus !== "syncing" && (
+          {limits.cloudSync && syncIssue ? (
+            <div className="flex items-start gap-2 border-y border-red-200 bg-red-50 px-3 py-3 text-sm text-red-950">
+              <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+              <p>
+                Los reintentos automáticos están en pausa. Los datos de este
+                dispositivo y de la nube siguen intactos hasta que elijas una
+                recuperación segura.
+              </p>
+            </div>
+          ) : null}
+          {limits.cloudSync &&
+          !syncIssue &&
+          pendingUpload &&
+          syncStatus !== "syncing" && (
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
               {syncStatus === "offline" ? (
                 <>
@@ -587,7 +604,7 @@ export function CloudAccountCard({
             </p>
           )}
           <div className="flex flex-wrap gap-3">
-            {limits.cloudSync ? (
+            {limits.cloudSync && !syncIssue ? (
               <Button
                 variant="secondary"
                 onClick={() => void syncNow()}
@@ -597,30 +614,40 @@ export function CloudAccountCard({
                 Sincronizar ahora
               </Button>
             ) : null}
-            <Button variant="ghost" onClick={() => void signOut()}>
+            <Button
+              variant="ghost"
+              onClick={() => void signOut()}
+              disabled={busy}
+            >
               Cerrar sesión
             </Button>
             <Button
               variant="danger"
               onClick={() => void handleSecureSignOut()}
-              disabled={busy}
+              disabled={busy || Boolean(syncIssue)}
+              title={
+                syncIssue
+                  ? "Resuelve primero el conflicto sin borrar datos locales"
+                  : undefined
+              }
             >
               <LogOut className="h-4 w-4" />
               Cerrar y borrar este dispositivo
             </Button>
           </div>
           {limits.cloudSync ? (
-            <details className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+            <details
+              open={syncIssue ? true : undefined}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600"
+            >
               <summary className="cursor-pointer font-semibold text-slate-700">
                 Problemas de sincronización
               </summary>
               <div className="mt-3 space-y-3">
                 <p>
-                  Si este dispositivo no muestra los datos que sí aparecen en
-                  otro, puedes repararlo descargando otra vez la copia completa
-                  de la nube. Factu conserva primero una copia cifrada y solo
-                  confirma la reparación cuando el navegador verifica el
-                  guardado local.
+                  {syncIssue
+                    ? "Ahora solo está disponible conservar la copia de la nube. Factu descarga primero una copia cifrada de este dispositivo y no reemplaza nada hasta verificar el guardado local."
+                    : "Si este dispositivo no muestra los datos que sí aparecen en otro, puedes repararlo descargando otra vez la copia completa de la nube. Factu conserva primero una copia cifrada y solo confirma la reparación cuando el navegador verifica el guardado local."}
                 </p>
                 <Button
                   variant="secondary"
