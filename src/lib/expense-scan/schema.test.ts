@@ -1,10 +1,122 @@
 import { describe, expect, it } from "vitest";
 import {
+  EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION,
   detectNonExpenseDocumentReason,
+  normalizeExpenseScanAiOutputV1,
   normalizeExpenseScanPayload,
 } from "./schema";
+import { EXPENSE_LEARNING_HINTS_SCHEMA_VERSION } from "../expense-engine/contracts";
+
+function validExpensePayload() {
+  return {
+    document: {
+      kind: "expense_invoice",
+      isExpenseDocument: true,
+    },
+    supplier: { name: "Proveedor Sintético", nif: "B00000000" },
+    expense: {
+      date: "2026-07-21",
+      description: "Material sintético",
+      amount: 100,
+      ivaPercent: 21,
+      category: "Material",
+      paymentMethod: "Transferencia",
+    },
+    confidence: 0.9,
+    warnings: [],
+  };
+}
+
+function validLearningHints() {
+  return {
+    schemaVersion: EXPENSE_LEARNING_HINTS_SCHEMA_VERSION,
+    layout: {
+      pageMode: "SINGLE",
+      readingOrder: "ROW_MAJOR",
+      regionOrder: ["HEADER", "LINE_ITEMS", "TAX_SUMMARY", "TOTALS"],
+      tableCount: "ONE",
+    },
+    columns: [
+      {
+        tableRole: "LINE_ITEMS",
+        index: 0,
+        role: "DESCRIPTION",
+        normalizedLabel: "DESCRIPTION",
+        unit: "TEXT",
+        sign: "UNSIGNED",
+        confidence: "HIGH",
+      },
+      {
+        tableRole: "TOTALS",
+        index: 1,
+        role: "LINE_TOTAL",
+        normalizedLabel: "LINE_TOTAL",
+        unit: "EUR",
+        sign: "SIGNED",
+        confidence: "HIGH",
+      },
+    ],
+    labels: [{ role: "TOTAL", region: "TOTALS", confidence: "HIGH" }],
+    formulas: [
+      {
+        scope: "DOCUMENT",
+        kind: "BASE_PLUS_TAX_PLUS_SURCHARGE",
+        rounding: { mode: "HALF_UP", scale: 2 },
+        sign: "SIGNED",
+        confidence: "MEDIUM",
+      },
+    ],
+  };
+}
 
 describe("expense scan schema", () => {
+  it("normaliza el envelope v1 sin alterar el gasto visible", () => {
+    const result = normalizeExpenseScanAiOutputV1({
+      schemaVersion: EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION,
+      expense: validExpensePayload(),
+      learningHints: validLearningHints(),
+    });
+
+    expect(result?.expense.supplier.name).toBe("Proveedor Sintético");
+    expect(result?.expense.expense.amount).toBe(100);
+    expect(result?.learningHints?.formulas[0]?.kind).toBe(
+      "BASE_PLUS_TAX_PLUS_SURCHARGE",
+    );
+  });
+
+  it("mantiene dual-read del payload legado sin fabricar hints", () => {
+    const result = normalizeExpenseScanAiOutputV1(validExpensePayload());
+
+    expect(result?.expense.expense.description).toBe("Material sintético");
+    expect(result?.learningHints).toBeNull();
+  });
+
+  it("descarta hints inválidos completos sin romper un gasto válido", () => {
+    const result = normalizeExpenseScanAiOutputV1({
+      schemaVersion: EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION,
+      expense: validExpensePayload(),
+      learningHints: {
+        ...validLearningHints(),
+        supplierName: "Identidad que no debe entrar en aprendizaje",
+      },
+    });
+
+    expect(result?.expense.expense.amount).toBe(100);
+    expect(result?.learningHints).toBeNull();
+  });
+
+  it("anula los hints ante propiedades extra en el envelope", () => {
+    const result = normalizeExpenseScanAiOutputV1({
+      schemaVersion: EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION,
+      expense: validExpensePayload(),
+      learningHints: validLearningHints(),
+      userId: "identificador-prohibido",
+    });
+
+    expect(result?.expense.supplier.name).toBe("Proveedor Sintético");
+    expect(result?.learningHints).toBeNull();
+  });
+
   it("normaliza un payload válido", () => {
     const result = normalizeExpenseScanPayload({
       supplier: { name: "Leroy Merlin", nif: "B12345678" },

@@ -15,6 +15,10 @@ import {
   validateScanFile,
 } from "@/lib/expense-scan/file-validation";
 import { checkRateLimit } from "@/lib/server/rate-limit";
+import {
+  EXPENSE_LEARNING_HINTS_SCHEMA_VERSION,
+  type ExpenseLearningHintsV1,
+} from "@/lib/expense-engine/contracts";
 
 vi.mock("@/lib/admin/access", () => ({
   isAdminEmail: vi.fn(),
@@ -82,6 +86,21 @@ function mockSuccessfulScan() {
     allowed: true,
     quota: { remaining: 9, remainingUnits: 90 },
   } as Awaited<ReturnType<typeof consumeExpenseScan>>);
+}
+
+function learningHintsFixture(): ExpenseLearningHintsV1 {
+  return {
+    schemaVersion: EXPENSE_LEARNING_HINTS_SCHEMA_VERSION,
+    layout: {
+      pageMode: "SINGLE",
+      readingOrder: "ROW_MAJOR",
+      regionOrder: ["HEADER", "TOTALS"],
+      tableCount: "NONE",
+    },
+    columns: [],
+    labels: [{ role: "TOTAL", region: "TOTALS", confidence: "HIGH" }],
+    formulas: [],
+  };
 }
 
 describe("GET /api/expenses/scan", () => {
@@ -165,6 +184,30 @@ describe("POST /api/expenses/scan", () => {
         windowMs: 600_000,
       },
       "user-1",
+    );
+  });
+
+  it("no expone learningHints en la respuesta pública", async () => {
+    vi.stubEnv("NEXT_PUBLIC_BILLING_ENABLED", "true");
+    mockSuccessfulScan();
+    vi.mocked(getUserFromBearer).mockResolvedValue({
+      id: "user-1",
+      email: "cliente@example.com",
+    } as Awaited<ReturnType<typeof getUserFromBearer>>);
+    vi.mocked(isAdminUser).mockReturnValue(false);
+    vi.mocked(extractExpenseFromImage).mockResolvedValue({
+      data: { expense: { description: "Factura proveedor" } },
+      learningHints: learningHintsFixture(),
+    } as Awaited<ReturnType<typeof extractExpenseFromImage>>);
+
+    const response = await POST(scanPostRequest("token"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data.expense.description).toBe("Factura proveedor");
+    expect(body).not.toHaveProperty("learningHints");
+    expect(JSON.stringify(body)).not.toContain(
+      EXPENSE_LEARNING_HINTS_SCHEMA_VERSION,
     );
   });
 

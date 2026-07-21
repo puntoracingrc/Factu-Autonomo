@@ -1,12 +1,79 @@
-import { EXPENSE_SCAN_JSON_SCHEMA } from "./schema";
+import { EXPENSE_LEARNING_HINTS_PROMPT_SCHEMA_V1 } from "../expense-engine/contracts";
+import {
+  EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION,
+  EXPENSE_SCAN_JSON_SCHEMA,
+} from "./schema";
+
+function enumOptions(values: readonly string[]): string {
+  return values.join(" | ");
+}
+
+function buildLearningHintsPromptSchema() {
+  const hints = EXPENSE_LEARNING_HINTS_PROMPT_SCHEMA_V1;
+  return {
+    schemaVersion: hints.schemaVersion,
+    layout: {
+      pageMode: enumOptions(hints.layout.pageMode),
+      readingOrder: enumOptions(hints.layout.readingOrder),
+      regionOrder: `array de hasta ${hints.layout.regionOrder.maxItems}: ${enumOptions(hints.layout.regionOrder.values)}`,
+      tableCount: enumOptions(hints.layout.tableCount),
+    },
+    columns: [
+      {
+        tableRole: enumOptions(hints.columns.tableRole),
+        index: `entero ${hints.columns.index.minimum}-${hints.columns.index.maximum}`,
+        role: enumOptions(hints.columns.role),
+        normalizedLabel: enumOptions(hints.columns.normalizedLabel),
+        unit: enumOptions(hints.columns.unit),
+        sign: enumOptions(hints.columns.sign),
+        confidence: enumOptions(hints.columns.confidence),
+      },
+    ],
+    labels: [
+      {
+        role: enumOptions(hints.labels.role),
+        region: enumOptions(hints.labels.region),
+        confidence: enumOptions(hints.labels.confidence),
+      },
+    ],
+    formulas: [
+      {
+        scope: enumOptions(hints.formulas.scope),
+        kind: enumOptions(hints.formulas.kind),
+        rounding: {
+          mode: enumOptions(hints.formulas.rounding.mode),
+          scale: `entero ${hints.formulas.rounding.scale.minimum}-${hints.formulas.rounding.scale.maximum}`,
+        },
+        sign: enumOptions(hints.formulas.sign),
+        confidence: enumOptions(hints.formulas.confidence),
+      },
+    ],
+  } as const;
+}
 
 export function buildExpenseScanPrompt(): string {
   return `Eres un asistente que extrae datos de facturas y tickets de gasto de autónomos en España.
 
 Analiza la imagen y devuelve ÚNICAMENTE un JSON válido (sin markdown) con esta estructura:
-${JSON.stringify(EXPENSE_SCAN_JSON_SCHEMA, null, 2)}
+${JSON.stringify(
+  {
+    schemaVersion: EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION,
+    expense: EXPENSE_SCAN_JSON_SCHEMA,
+    learningHints: buildLearningHintsPromptSchema(),
+  },
+  null,
+  2,
+)}
 
 Reglas:
+- Devuelve siempre schemaVersion = "${EXPENSE_SCAN_AI_OUTPUT_SCHEMA_VERSION}".
+- Coloca la propuesta visible completa dentro de expense.
+- learningHints es metadato técnico opcional. Si no puedes describirlo completo con seguridad, devuelve learningHints = null.
+- learningHints solo admite los enums y límites de la estructura indicada. No añadas campos ni texto libre.
+- En learningHints, regionOrder admite hasta ${EXPENSE_LEARNING_HINTS_PROMPT_SCHEMA_V1.layout.regionOrder.maxItems} valores, columns hasta ${EXPENSE_LEARNING_HINTS_PROMPT_SCHEMA_V1.columns.maxItems}, labels hasta ${EXPENSE_LEARNING_HINTS_PROMPT_SCHEMA_V1.labels.maxItems} y formulas hasta ${EXPENSE_LEARNING_HINTS_PROMPT_SCHEMA_V1.formulas.maxItems}.
+- En learningHints no incluyas PDF, imagen, OCR o texto bruto, cabeceras originales, nombres de archivo, proveedor, usuario, email, NIF, dirección, cuenta bancaria, número de factura, IDs, hashes, importes ni porcentajes exactos.
+- normalizedLabel es únicamente un enum canónico; nunca copies la cabecera original del documento.
+- Añade una fórmula solo si la relación y todos sus operandos aparecen explícitos. Si falta un operando, omite esa fórmula: nunca interpretes una ausencia como cero.
 - Solo puede guardarse como gasto una factura recibida, ticket, recibo o cargo de un gasto ya realizado.
 - Puede llegar como PDF, foto de móvil, imagen escaneada o captura. Interpreta el documento completo, no solo el nombre del archivo.
 - Clasifica el documento en una de estas opciones de la app:
