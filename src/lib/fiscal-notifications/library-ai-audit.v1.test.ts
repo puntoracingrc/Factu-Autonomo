@@ -233,6 +233,7 @@ function readyLibrary(): FiscalNotificationDocumentLibraryViewModelV1 {
     explanation: "Coincidencia por el expediente EXP-PRIVADA-001.",
     matches: [
       {
+        referenceType: "EXPEDIENT_NUMBER",
         label: "Número de expediente",
         value: "EXP-PRIVADA-001",
         issuer: "AEAT",
@@ -327,7 +328,7 @@ describe("library AI audit v1", () => {
           value: "REF-001",
           page: 1,
         }),
-        expect.objectContaining({ kind: "DATE", value: "10/01/2026" }),
+        expect.objectContaining({ kind: "DATE", value: "2026-01-10" }),
       ]),
     );
     expect(result.documents[0]?.amounts[0]).toMatchObject({
@@ -445,6 +446,8 @@ describe("library AI audit v1", () => {
         matches: [
           expect.objectContaining({
             referenceAlias: "REF-001",
+            matchMode: "EXACT_PRINTED",
+            strength: "STRONG_IDENTIFIER",
             sourcePages: [1],
             targetPages: [1],
           }),
@@ -458,6 +461,127 @@ describe("library AI audit v1", () => {
       result,
     );
   });
+
+  it("normaliza fechas antes de seudonimizar y omite fechas corruptas", () => {
+    const library = readyLibrary() as Extract<
+      FiscalNotificationDocumentLibraryViewModelV1,
+      { readonly status: "READY" }
+    >;
+    const first = library.documents[0] as unknown as {
+      references: { label: string; value: string }[];
+      orderedFacts: { semantic: string; label: string; value: string }[];
+    };
+    first.references.push({ label: "Ejercicio fiscal", value: "2026" });
+    first.orderedFacts.push({
+      semantic: "DATE",
+      label: "Fecha inválida",
+      value: "REF-011-11-09",
+    });
+
+    const result = projectFiscalNotificationLibraryAiAuditInputV1(library);
+
+    expect(result.documents[0]?.facts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: "DATE", value: "2026-01-10" }),
+      ]),
+    );
+    expect(result.documents[0]?.facts).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ value: "REF-011-11-09" }),
+      ]),
+    );
+    expect(JSON.stringify(result)).not.toContain("REF-011-11-09");
+  });
+
+  it("conserva coincidencias protegidas como alias fuertes con páginas", () => {
+    const library = readyLibrary() as Extract<
+      FiscalNotificationDocumentLibraryViewModelV1,
+      { readonly status: "READY" }
+    >;
+    const link = library.groups[0]?.links[0] as unknown as {
+      matches: { value: string }[];
+    };
+    link.matches[0]!.value = "Referencia protegida";
+
+    const result = projectFiscalNotificationLibraryAiAuditInputV1(library);
+
+    expect(result.relations[0]).toMatchObject({
+      status: "SYSTEM_CONFIRMED_EXACT",
+      matches: [
+        {
+          label: "Número de expediente",
+          referenceAlias: "REF-002",
+          matchMode: "EXACT_PRINTED",
+          strength: "STRONG_IDENTIFIER",
+          sourcePages: [1],
+          targetPages: [1],
+        },
+      ],
+    });
+    expect(JSON.stringify(result)).not.toContain("Referencia protegida");
+    expect(parseFiscalNotificationLibraryAiAuditInputV1(result)).toEqual(
+      result,
+    );
+  });
+
+  it("rebaja una confirmación sin coincidencia fuerte a sugerencia", () => {
+    const library = readyLibrary() as Extract<
+      FiscalNotificationDocumentLibraryViewModelV1,
+      { readonly status: "READY" }
+    >;
+    const link = library.groups[0]?.links[0] as unknown as {
+      matches: {
+        referenceType: string;
+        label: string;
+        value: string;
+      }[];
+    };
+    link.matches[0]!.referenceType = "TAX_EXERCISE";
+    link.matches[0]!.label = "Ejercicio fiscal";
+    link.matches[0]!.value = "2026";
+
+    const result = projectFiscalNotificationLibraryAiAuditInputV1(library);
+
+    expect(result.relations[0]).toMatchObject({
+      status: "SUGGESTED",
+      matches: [],
+    });
+    expect(parseFiscalNotificationLibraryAiAuditInputV1(result)).toEqual(
+      result,
+    );
+  });
+
+  it.each([
+    ["VTO_RAW", "Código de vencimiento"],
+    ["ISSUING_BODY_CODE", "Código del organismo emisor"],
+    ["DEBT_ORIGIN", "Origen de la deuda"],
+    ["OTHER", "Referencia adicional"],
+  ] as const)(
+    "no certifica %s como identificador fuerte para la IA",
+    (referenceType, label) => {
+      const library = readyLibrary() as Extract<
+        FiscalNotificationDocumentLibraryViewModelV1,
+        { readonly status: "READY" }
+      >;
+      const link = library.groups[0]?.links[0] as unknown as {
+        matches: {
+          referenceType: string;
+          label: string;
+          value: string;
+        }[];
+      };
+      link.matches[0]!.referenceType = referenceType;
+      link.matches[0]!.label = label;
+      link.matches[0]!.value = "SYNTHETIC-SHARED-VALUE";
+
+      const result = projectFiscalNotificationLibraryAiAuditInputV1(library);
+
+      expect(result.relations[0]).toMatchObject({
+        status: "SUGGESTED",
+        matches: [],
+      });
+    },
+  );
 
   it("rechaza tokens internos y relaciones con alias de documentos inexistentes", () => {
     const projected =

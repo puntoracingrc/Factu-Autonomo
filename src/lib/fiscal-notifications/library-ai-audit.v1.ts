@@ -4,9 +4,10 @@ import type {
   FiscalNotificationDocumentLibraryLinkV1,
   FiscalNotificationDocumentLibraryViewModelV1,
 } from "./structured-review-document-library.v1";
+import { isStrongStructuredReviewRelationReferenceTypeV1 } from "./structured-review-relations-view-model.v1";
 
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_SCHEMA_VERSION_V1 =
-  "fiscal-notification-library-ai-audit.v3";
+  "fiscal-notification-library-ai-audit.v4";
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MODEL_V1 = "gpt-4o";
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_MAX_DOCUMENTS_V1 = 100;
 
@@ -95,7 +96,8 @@ export interface FiscalNotificationLibraryAiAuditInputV1 {
       readonly requiresStrongIdentifier: true;
       readonly permitsAmountOnlyRelations: false;
       readonly checks: readonly {
-        readonly kind: "ARITHMETIC" | "TEMPORAL" | "STRUCTURAL" | "RELATION_SUPPORT";
+        readonly kind:
+          "ARITHMETIC" | "TEMPORAL" | "STRUCTURAL" | "RELATION_SUPPORT";
         readonly status:
           | "VALIDATED_EXACT"
           | "VALIDATED_WITH_ROUNDING"
@@ -119,18 +121,14 @@ export interface FiscalNotificationLibraryAiAuditInputV1 {
             | "AMOUNT_CHAIN"
             | "COUNT_EQUALITY";
           readonly expression: string | null;
-          readonly operator:
-            | "EQUALS"
-            | "LTE"
-            | "GTE"
-            | "CHAIN_LTE"
-            | null;
+          readonly operator: "EQUALS" | "LTE" | "GTE" | "CHAIN_LTE" | null;
           readonly rateBasisPoints: number | null;
         };
         readonly pages: readonly number[];
         readonly sourceParts: readonly string[];
         readonly evidence: readonly {
-          readonly semantic: "MONEY" | "DATE" | "REFERENCE" | "STATUS" | "COUNT" | "OTHER";
+          readonly semantic:
+            "MONEY" | "DATE" | "REFERENCE" | "STATUS" | "COUNT" | "OTHER";
           readonly canonicalType: string;
           readonly amountCents: number | null;
           readonly dateValue: string | null;
@@ -163,6 +161,8 @@ export interface FiscalNotificationLibraryAiAuditInputV1 {
     readonly matches: readonly {
       readonly label: string;
       readonly referenceAlias: string;
+      readonly matchMode: "EXACT_PRINTED" | "NORMALIZED_FORMAT";
+      readonly strength: "STRONG_IDENTIFIER";
       readonly sourcePages: readonly number[];
       readonly targetPages: readonly number[];
     }[];
@@ -225,6 +225,9 @@ const PROTECTED_REFERENCE_VALUES = new Set([
   "no indicada",
   "no identificado",
 ]);
+const PROTECTED_RELATION_REFERENCE_VALUE = "referencia protegida";
+const WEAK_RELATION_MATCH_LABEL =
+  /\b(?:importe|total|principal|recargo|interes|interés|cuota|fecha|nombre|razon social|razón social|ejercicio|modelo|periodo|período)\b/iu;
 const ARITHMETIC_EQUATION_DESCRIPTIONS: Readonly<
   Record<FiscalNotificationAmountEquationFormulaV1, string>
 > = Object.freeze({
@@ -232,8 +235,7 @@ const ARITHMETIC_EQUATION_DESCRIPTIONS: Readonly<
     "Principal más recargo, intereses y costas, menos pagos, igual al total.",
   TOTAL_BEFORE_OFFSET_MINUS_OFFSET_EQUALS_REMAINING:
     "Total anterior menos compensación igual al importe pendiente.",
-  QUOTA_PLUS_INTEREST_EQUALS_TOTAL:
-    "Cuota más intereses igual al total.",
+  QUOTA_PLUS_INTEREST_EQUALS_TOTAL: "Cuota más intereses igual al total.",
   INITIAL_PENALTY_MINUS_REDUCTION_EQUALS_REDUCED_PENALTY:
     "Sanción inicial menos reducción igual a sanción reducida.",
   INSTALLMENT_COMPONENTS_EQUAL_INSTALLMENT_TOTAL:
@@ -336,6 +338,10 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
     ),
   );
   const referenceAliases = createReferenceAliases(viewModel);
+  const protectedRelationMatchAliases = createProtectedRelationMatchAliases(
+    viewModel,
+    referenceAliases,
+  );
   const partyAliases = createPartyAliases(viewModel);
   const aliasReplacements = createAuditAliasReplacements(
     viewModel,
@@ -368,6 +374,19 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
           !isSafeAuditText(fact.label)
         ) {
           return [];
+        }
+        if (fact.semantic === "DATE") {
+          const value = normalizeAuditDateValue(fact.value);
+          return value
+            ? [
+                Object.freeze({
+                  kind: "DATE" as const,
+                  label: fact.label,
+                  value,
+                  page: fact.pageNumber,
+                }),
+              ]
+            : [];
         }
         if (fact.semantic === "REFERENCE") {
           const alias = referenceAliases.get(referenceIdentity(fact.value));
@@ -477,9 +496,7 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
                             Object.freeze({
                               label,
                               amountCents: component.amountCents,
-                              pages: Object.freeze([
-                                ...component.pageNumbers,
-                              ]),
+                              pages: Object.freeze([...component.pageNumbers]),
                             }),
                           ]
                         : [];
@@ -501,9 +518,7 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
             equations: Object.freeze(
               document.amountReconciliation.equations.map((equation) =>
                 Object.freeze({
-                  description: arithmeticEquationDescription(
-                    equation.formula,
-                  ),
+                  description: arithmeticEquationDescription(equation.formula),
                   status: equation.status,
                   leftCents: equation.leftCents,
                   rightCents: equation.rightCents,
@@ -564,11 +579,14 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
                     document.mathematicalIntegrity?.normalizedEvidence ?? [],
                   ),
                   pages: Object.freeze(
-                    [...new Set(evidence.flatMap((item) => item.pageNumbers))]
-                      .sort((a, b) => a - b),
+                    [
+                      ...new Set(evidence.flatMap((item) => item.pageNumbers)),
+                    ].sort((a, b) => a - b),
                   ),
                   sourceParts: Object.freeze(
-                    [...new Set(evidence.map((item) => item.sourcePart))].sort(),
+                    [
+                      ...new Set(evidence.map((item) => item.sourcePart)),
+                    ].sort(),
                   ),
                   evidence: Object.freeze(
                     evidence.map((item) =>
@@ -636,6 +654,36 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
     const sourceDocumentAlias = documentAliases.get(link.fromDocumentId);
     const targetDocumentAlias = documentAliases.get(link.toDocumentId);
     if (!sourceDocumentAlias || !targetDocumentAlias) return [];
+    const matches = link.matches.flatMap((match, matchIndex) => {
+      if (
+        !isStrongAuditRelationMatch(match) ||
+        match.sourcePageNumbers.length === 0 ||
+        match.targetPageNumbers.length === 0
+      ) {
+        return [];
+      }
+      const referenceAlias =
+        referenceAliases.get(referenceIdentity(match.value)) ??
+        protectedRelationMatchAliases.get(
+          protectedRelationMatchAliasKey(link.key, matchIndex),
+        );
+      return referenceAlias
+        ? [
+            Object.freeze({
+              label: match.label,
+              referenceAlias,
+              matchMode: match.matchMode,
+              strength: "STRONG_IDENTIFIER" as const,
+              sourcePages: Object.freeze([...match.sourcePageNumbers]),
+              targetPages: Object.freeze([...match.targetPageNumbers]),
+            }),
+          ]
+        : [];
+    });
+    const status =
+      link.relationStatus === "SYSTEM_CONFIRMED_EXACT" && matches.length === 0
+        ? ("SUGGESTED" as const)
+        : link.relationStatus;
     return [
       Object.freeze({
         alias: `REL-${String(index + 1).padStart(3, "0")}`,
@@ -649,24 +697,8 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
           700,
           aliasReplacements,
         ),
-        status: link.relationStatus,
-        matches: Object.freeze(
-          link.matches.flatMap((match) => {
-            const referenceAlias = referenceAliases.get(
-              referenceIdentity(match.value),
-            );
-            return referenceAlias
-              ? [
-                  Object.freeze({
-                    label: match.label,
-                    referenceAlias,
-                    sourcePages: Object.freeze([...match.sourcePageNumbers]),
-                    targetPages: Object.freeze([...match.targetPageNumbers]),
-                  }),
-                ]
-              : [];
-          }),
-        ),
+        status,
+        matches: Object.freeze(matches),
       }),
     ];
   });
@@ -791,6 +823,42 @@ function createReferenceAliases(
         `REF-${String(index + 1).padStart(3, "0")}`,
       ]),
   );
+}
+
+function createProtectedRelationMatchAliases(
+  viewModel: Extract<
+    FiscalNotificationDocumentLibraryViewModelV1,
+    { readonly status: "READY" }
+  >,
+  referenceAliases: ReadonlyMap<string, string>,
+): ReadonlyMap<string, string> {
+  const aliases = new Map<string, string>();
+  let nextAlias = referenceAliases.size + 1;
+  for (const link of uniqueLinks(viewModel)) {
+    link.matches.forEach((match, matchIndex) => {
+      if (
+        nextAlias > 999 ||
+        referenceAliases.has(referenceIdentity(match.value)) ||
+        referenceIdentity(match.value) !== PROTECTED_RELATION_REFERENCE_VALUE ||
+        !isStrongAuditRelationMatch(match)
+      ) {
+        return;
+      }
+      aliases.set(
+        protectedRelationMatchAliasKey(link.key, matchIndex),
+        `REF-${String(nextAlias).padStart(3, "0")}`,
+      );
+      nextAlias += 1;
+    });
+  }
+  return aliases;
+}
+
+function protectedRelationMatchAliasKey(
+  linkKey: string,
+  matchIndex: number,
+): string {
+  return `${linkKey}:${matchIndex}`;
 }
 
 function createPartyAliases(
@@ -953,6 +1021,54 @@ function isSupportedFactKind(
   );
 }
 
+function isStrongAuditRelationMatch(
+  match: FiscalNotificationDocumentLibraryLinkV1["matches"][number],
+): boolean {
+  return (
+    isStrongStructuredReviewRelationReferenceTypeV1(match.referenceType) &&
+    isSafeAuditText(match.label) &&
+    !WEAK_RELATION_MATCH_LABEL.test(match.label)
+  );
+}
+
+function normalizeAuditDateValue(value: string): string | null {
+  const trimmed = value.trim();
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/u.exec(trimmed);
+  if (iso) {
+    return validAuditCalendarDate(
+      Number(iso[1]),
+      Number(iso[2]),
+      Number(iso[3]),
+    );
+  }
+  const printed = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/u.exec(trimmed);
+  return printed
+    ? validAuditCalendarDate(
+        Number(printed[3]),
+        Number(printed[2]),
+        Number(printed[1]),
+      )
+    : null;
+}
+
+function validAuditCalendarDate(
+  year: number,
+  month: number,
+  day: number,
+): string | null {
+  if (year < 1900 || year > 2100) return null;
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+    ? `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+    : null;
+}
+
+function isValidAuditIsoDate(value: string): boolean {
+  return normalizeAuditDateValue(value) === value;
+}
+
 function isSafeAuditText(value: string): boolean {
   return (
     cleanAuditText(value, 600) !== null &&
@@ -1112,7 +1228,7 @@ function parseAuditDocument(
     !isSafeAuditText(authority) ||
     (value.documentDate !== null &&
       (typeof value.documentDate !== "string" ||
-        !/^\d{4}-\d{2}-\d{2}$/u.test(value.documentDate))) ||
+        !isValidAuditIsoDate(value.documentDate))) ||
     (value.documentDateBasis !== null &&
       (typeof value.documentDateBasis !== "string" ||
         !cleanAuditText(value.documentDateBasis, 80) ||
@@ -1251,10 +1367,9 @@ function parseAuditIntegrityReview(
       expectedCents === undefined ||
       observedCents === undefined ||
       deltaCents === undefined ||
-      ((expectedCents === null || observedCents === null) !==
-        (deltaCents === null)) ||
-      (deltaCents !== null &&
-        deltaCents !== observedCents! - expectedCents!) ||
+      (expectedCents === null || observedCents === null) !==
+        (deltaCents === null) ||
+      (deltaCents !== null && deltaCents !== observedCents! - expectedCents!) ||
       !calculation ||
       !Number.isSafeInteger(check.toleranceCents) ||
       (check.toleranceCents as number) < 0 ||
@@ -1304,9 +1419,7 @@ function parseAuditIntegrityReview(
     existingRelationsOnly: true,
     requiresStrongIdentifier: true,
     permitsAmountOnlyRelations: false,
-    checks: Object.freeze(
-      checks as NonNullable<(typeof checks)[number]>[],
-    ),
+    checks: Object.freeze(checks as NonNullable<(typeof checks)[number]>[]),
   });
 }
 
@@ -1377,9 +1490,11 @@ function parseAuditIntegrityCalculation(
   evidence: NonNullable<
     FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
   >["checks"][number]["evidence"],
-): NonNullable<
-  FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
->["checks"][number]["calculation"] | null {
+):
+  | NonNullable<
+      FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+    >["checks"][number]["calculation"]
+  | null {
   if (!isRecord(value)) return null;
   const kinds = new Set([
     "NONE",
@@ -1409,8 +1524,7 @@ function parseAuditIntegrityCalculation(
       (!Number.isSafeInteger(value.rateBasisPoints) ||
         Number(value.rateBasisPoints) <= 0 ||
         Number(value.rateBasisPoints) > 100_000)) ||
-    ((value.kind === "PERCENTAGE_EQUALITY") !==
-      (value.rateBasisPoints !== null))
+    (value.kind === "PERCENTAGE_EQUALITY") !== (value.rateBasisPoints !== null)
   ) {
     return null;
   }
@@ -1439,9 +1553,13 @@ function optionalAuditInteger(value: unknown): number | null | undefined {
       : undefined;
 }
 
-function parseAuditIntegrityEvidence(value: unknown): NonNullable<
-  FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
->["checks"][number]["evidence"][number] | null {
+function parseAuditIntegrityEvidence(
+  value: unknown,
+):
+  | NonNullable<
+      FiscalNotificationLibraryAiAuditInputV1["documents"][number]["integrityReview"]
+    >["checks"][number]["evidence"][number]
+  | null {
   if (!isRecord(value)) return null;
   const pages = parsePages(value.pages, 256);
   const amountCents = optionalAuditInteger(value.amountCents);
@@ -1455,7 +1573,7 @@ function parseAuditIntegrityEvidence(value: unknown): NonNullable<
     countValue === undefined ||
     (value.dateValue !== null &&
       (typeof value.dateValue !== "string" ||
-        !/^\d{4}-\d{2}-\d{2}$/u.test(value.dateValue))) ||
+        !isValidAuditIsoDate(value.dateValue))) ||
     !pages ||
     typeof value.sourcePart !== "string" ||
     !INTEGRITY_SOURCE_PARTS.has(value.sourcePart)
@@ -1515,7 +1633,9 @@ function parseAuditFact(
       ? !isAlias(factValue, "REF")
       : value.kind === "PARTY"
         ? !isAlias(factValue, "PARTY")
-        : !isSafeAuditContentOutput(factValue)) ||
+        : value.kind === "DATE"
+          ? !isValidAuditIsoDate(factValue)
+          : !isSafeAuditContentOutput(factValue)) ||
     !Number.isSafeInteger(value.page) ||
     (value.page as number) < 1
   ) {
@@ -1768,19 +1888,31 @@ function parseAuditRelation(
       !matchLabel ||
       !isSafeAuditText(matchLabel) ||
       !isAlias(match.referenceAlias, "REF") ||
+      (match.matchMode !== "EXACT_PRINTED" &&
+        match.matchMode !== "NORMALIZED_FORMAT") ||
+      match.strength !== "STRONG_IDENTIFIER" ||
       !sourcePages ||
-      !targetPages
+      sourcePages.length === 0 ||
+      !targetPages ||
+      targetPages.length === 0
     ) {
       return null;
     }
     return Object.freeze({
       label: matchLabel,
       referenceAlias: match.referenceAlias,
+      matchMode: match.matchMode,
+      strength: "STRONG_IDENTIFIER" as const,
       sourcePages,
       targetPages,
     });
   });
-  if (matches.some((match) => match === null)) return null;
+  if (
+    matches.some((match) => match === null) ||
+    (value.status === "SYSTEM_CONFIRMED_EXACT" && matches.length === 0)
+  ) {
+    return null;
+  }
   return Object.freeze({
     alias: value.alias,
     sourceDocumentAlias: value.sourceDocumentAlias,

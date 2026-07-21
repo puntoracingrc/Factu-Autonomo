@@ -37,6 +37,7 @@ export interface StructuredReviewRelationDocumentV1 {
 }
 
 export interface StructuredReviewRelationMatchV1 {
+  readonly referenceType?: ExternalReferenceType;
   readonly label: string;
   readonly value: string;
   readonly issuer: string;
@@ -50,14 +51,11 @@ export interface StructuredReviewRelationEntryV1 {
   readonly chainId?: FiscalNotificationDocumentChainIdV2 | null;
   readonly algorithmVersion?: string;
   readonly relationStatus?:
-    | "SUGGESTED"
-    | "USER_CONFIRMED"
-    | "SYSTEM_CONFIRMED_EXACT";
+    "SUGGESTED" | "USER_CONFIRMED" | "SYSTEM_CONFIRMED_EXACT";
   readonly relationType: DocumentRelationType;
   readonly title: string;
   readonly statusLabel:
-    | "Relación detectada · revisar"
-    | "Referencia exacta · revisar efectos";
+    "Relación detectada · revisar" | "Referencia exacta · revisar efectos";
   readonly documents: readonly [
     StructuredReviewRelationDocumentV1,
     StructuredReviewRelationDocumentV1,
@@ -103,7 +101,9 @@ export type StructuredReviewRelationsViewModelV1 =
       readonly timelines: readonly [];
     };
 
-const REFERENCE_LABELS: Readonly<Partial<Record<ExternalReferenceType, string>>> = {
+const REFERENCE_LABELS: Readonly<
+  Partial<Record<ExternalReferenceType, string>>
+> = {
   DOCUMENT_REFERENCE: "Referencia del documento",
   EXPEDIENT_NUMBER: "Número de expediente",
   LIQUIDATION_KEY: "Clave de liquidación",
@@ -112,15 +112,46 @@ const REFERENCE_LABELS: Readonly<Partial<Record<ExternalReferenceType, string>>>
   PAYMENT_JUSTIFICANTE: "Número de justificante",
   CSV: "Código Seguro de Verificación (CSV)",
   NRC: "Número de Referencia Completo (NRC)",
+  TAX_MODEL: "Modelo fiscal",
+  TAX_EXERCISE: "Ejercicio fiscal",
+  TAX_PERIOD: "Periodo fiscal",
+  PAYMENT_MODEL: "Modelo de pago",
+  VTO_RAW: "Vencimiento impreso",
   NOTIFICATION_ID: "Identificador de notificación",
+  DISTRIBUTION_BARCODE: "Código de distribución",
+  PAYMENT_BARCODE: "Código de pago",
+  ISSUING_BODY_CODE: "Código del organismo emisor",
+  DEBT_ORIGIN: "Origen de la deuda",
   REQUEST_NUMBER: "Número de requerimiento",
   REFUND_REFERENCE: "Referencia de devolución",
   OFFICIAL_REGISTRY_NUMBER: "Número de registro oficial",
+  VEHICLE_OR_FINE_REFERENCE: "Referencia de vehículo o sanción",
+  SOCIAL_SECURITY_REFERENCE: "Referencia de Seguridad Social",
+  MUNICIPAL_REFERENCE: "Referencia municipal",
 };
 const PROTECTED_REFERENCE_TYPES = new Set<ExternalReferenceType>([
   "CSV",
   "NRC",
   "VEHICLE_OR_FINE_REFERENCE",
+]);
+const STRONG_RELATION_REFERENCE_TYPES = new Set<ExternalReferenceType>([
+  "DOCUMENT_REFERENCE",
+  "EXPEDIENT_NUMBER",
+  "LIQUIDATION_KEY",
+  "DEBT_KEY",
+  "PROCEDURE_NUMBER",
+  "PAYMENT_JUSTIFICANTE",
+  "CSV",
+  "NRC",
+  "NOTIFICATION_ID",
+  "DISTRIBUTION_BARCODE",
+  "PAYMENT_BARCODE",
+  "REQUEST_NUMBER",
+  "REFUND_REFERENCE",
+  "OFFICIAL_REGISTRY_NUMBER",
+  "VEHICLE_OR_FINE_REFERENCE",
+  "SOCIAL_SECURITY_REFERENCE",
+  "MUNICIPAL_REFERENCE",
 ]);
 const PROTECTED_REFERENCE_FINGERPRINT = /^[0-9a-f]{64}$/u;
 
@@ -161,17 +192,15 @@ export function projectStructuredReviewRelationsV1(
   const entries: StructuredReviewRelationEntryV1[] = [];
   for (const relation of workspace.relations) {
     if (
-      (
-        relation.algorithmVersion !==
-          STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1 &&
+      (relation.algorithmVersion !==
+        STRUCTURED_REVIEW_RELATION_ALGORITHM_VERSION_V1 &&
         relation.algorithmVersion !==
           STRUCTURED_REVIEW_TYPED_RELATION_ALGORITHM_VERSION_V1 &&
         relation.algorithmVersion !==
           STRUCTURED_REVIEW_DOCUMENT_CHAIN_ALGORITHM_VERSION_V2 &&
         relation.algorithmVersion !== GLOBAL_RECONCILIATION_RULE_VERSION_V8 &&
         relation.algorithmVersion !==
-          FISCAL_NOTIFICATIONS_PROJECTED_RELATION_ALGORITHM_VERSION_V2
-      ) ||
+          FISCAL_NOTIFICATIONS_PROJECTED_RELATION_ALGORITHM_VERSION_V2) ||
       relation.status === "USER_REJECTED"
     ) {
       continue;
@@ -186,9 +215,21 @@ export function projectStructuredReviewRelationsV1(
       evidenceById,
     );
     if (matches.length === 0) continue;
+    const strongMatches = commonReferenceMatches(
+      referencesByDocument.get(source.id) ?? [],
+      referencesByDocument.get(target.id) ?? [],
+      relation.evidence.matchingReferenceTypes.filter(
+        isStrongStructuredReviewRelationReferenceTypeV1,
+      ),
+      evidenceById,
+    );
+    const relationStatus =
+      relation.status === "SYSTEM_CONFIRMED_EXACT" && strongMatches.length === 0
+        ? ("SUGGESTED" as const)
+        : relation.status;
     const presentation = relationPresentation({
       relationType: relation.relationType,
-      status: relation.status,
+      status: relationStatus,
       algorithmVersion: relation.algorithmVersion,
       chainId: relation.evidence.chainId ?? null,
       globalRelationType:
@@ -200,7 +241,7 @@ export function projectStructuredReviewRelationsV1(
         key: relation.id,
         chainId: relation.evidence.chainId ?? null,
         algorithmVersion: relation.algorithmVersion,
-        relationStatus: relation.status,
+        relationStatus,
         relationType: relation.relationType,
         title: presentation.title,
         statusLabel: presentation.statusLabel,
@@ -220,7 +261,9 @@ export function projectStructuredReviewRelationsV1(
   entries.sort((left, right) => {
     const leftDate = left.documents[1].chronologyDate ?? "";
     const rightDate = right.documents[1].chronologyDate ?? "";
-    return rightDate.localeCompare(leftDate) || left.key.localeCompare(right.key);
+    return (
+      rightDate.localeCompare(leftDate) || left.key.localeCompare(right.key)
+    );
   });
   const timelines = buildCaseTimelines(entries);
   if (!timelines) {
@@ -373,6 +416,12 @@ function isExactTimelineRelation(
   entry: StructuredReviewRelationEntryV1,
 ): boolean {
   if (
+    entry.relationStatus !== "SYSTEM_CONFIRMED_EXACT" &&
+    entry.relationStatus !== "USER_CONFIRMED"
+  ) {
+    return false;
+  }
+  if (
     entry.algorithmVersion === GLOBAL_RECONCILIATION_RULE_VERSION_V8 &&
     entry.relationStatus === "SYSTEM_CONFIRMED_EXACT"
   ) {
@@ -435,9 +484,7 @@ function compareTimelineDocuments(
   const left = documents.get(leftId);
   const right = documents.get(rightId);
   return (
-    (left?.chronologyDate ?? "").localeCompare(
-      right?.chronologyDate ?? "",
-    ) ||
+    (left?.chronologyDate ?? "").localeCompare(right?.chronologyDate ?? "") ||
     leftId.localeCompare(rightId)
   );
 }
@@ -481,40 +528,42 @@ function union(
   rank.set(root, leftRank + 1);
 }
 
-function relationPresentation(input: Readonly<{
-  relationType: DocumentRelationType;
-  status: "SUGGESTED" | "USER_CONFIRMED" | "SYSTEM_CONFIRMED_EXACT";
-  algorithmVersion: string;
-  chainId: FiscalNotificationDocumentChainIdV2 | null;
-  globalRelationType: GlobalReconciliationRelationTypeV8 | null;
-  globalExplanation: string | null;
-}>): Readonly<{
+function relationPresentation(
+  input: Readonly<{
+    relationType: DocumentRelationType;
+    status: "SUGGESTED" | "USER_CONFIRMED" | "SYSTEM_CONFIRMED_EXACT";
+    algorithmVersion: string;
+    chainId: FiscalNotificationDocumentChainIdV2 | null;
+    globalRelationType: GlobalReconciliationRelationTypeV8 | null;
+    globalExplanation: string | null;
+  }>,
+): Readonly<{
   title: string;
   statusLabel:
-    | "Relación detectada · revisar"
-    | "Referencia exacta · revisar efectos";
+    "Relación detectada · revisar" | "Referencia exacta · revisar efectos";
   explanation: string;
 }> {
   if (
     input.algorithmVersion === GLOBAL_RECONCILIATION_RULE_VERSION_V8 &&
     input.globalRelationType
   ) {
-    const titles: Readonly<Record<GlobalReconciliationRelationTypeV8, string>> = {
-      RESOLUTION_ENFORCED: "Liquidación y providencia relacionadas",
-      ENFORCES_REMAINING_PLAN_PRINCIPAL:
-        "Plan y cobro del principal restante relacionados",
-      ENFORCES: "Providencia y embargo relacionados",
-      CITED_AS_EXISTING_EXECUTIVE_DEBT:
-        "Deuda ejecutiva citada en la denegación",
-      OFFSET_APPLIES_TO_MODIFIED_PAYMENT_PLAN:
-        "Compensación aplicada al plan modificado",
-      RELEASES_SEIZURE: "Embargo y levantamiento relacionados",
-      RELEASED_ASSET_LATER_RESEIZED:
-        "Bien liberado y embargado de nuevo",
-      POSSIBLY_PRECEDES_ASSESSMENT:
-        "Posible antecedente informativo de la comprobación",
-      NOTIFICATION_EVIDENCE_FOR: "Acto y justificante de notificación relacionados",
-    };
+    const titles: Readonly<Record<GlobalReconciliationRelationTypeV8, string>> =
+      {
+        RESOLUTION_ENFORCED: "Liquidación y providencia relacionadas",
+        ENFORCES_REMAINING_PLAN_PRINCIPAL:
+          "Plan y cobro del principal restante relacionados",
+        ENFORCES: "Providencia y embargo relacionados",
+        CITED_AS_EXISTING_EXECUTIVE_DEBT:
+          "Deuda ejecutiva citada en la denegación",
+        OFFSET_APPLIES_TO_MODIFIED_PAYMENT_PLAN:
+          "Compensación aplicada al plan modificado",
+        RELEASES_SEIZURE: "Embargo y levantamiento relacionados",
+        RELEASED_ASSET_LATER_RESEIZED: "Bien liberado y embargado de nuevo",
+        POSSIBLY_PRECEDES_ASSESSMENT:
+          "Posible antecedente informativo de la comprobación",
+        NOTIFICATION_EVIDENCE_FOR:
+          "Acto y justificante de notificación relacionados",
+      };
     return Object.freeze({
       title: titles[input.globalRelationType],
       statusLabel:
@@ -558,30 +607,50 @@ function relationPresentation(input: Readonly<{
     case "ENFORCES":
       return Object.freeze({
         title: "Embargo vinculado a providencia de apremio",
-        statusLabel: "Referencia exacta · revisar efectos",
+        statusLabel:
+          input.status === "SUGGESTED"
+            ? "Relación detectada · revisar"
+            : "Referencia exacta · revisar efectos",
         explanation:
-          "La diligencia de embargo y la providencia comparten una referencia administrativa exacta. Esto confirma el vínculo entre los documentos, pero no demuestra por sí solo que la deuda siga pendiente ni modifica ningún saldo.",
+          input.status === "SUGGESTED"
+            ? FISCAL_NOTIFICATION_SUGGESTED_RELATION_PHRASE_V2
+            : "La diligencia de embargo y la providencia comparten una referencia administrativa exacta. Esto confirma el vínculo entre los documentos, pero no demuestra por sí solo que la deuda siga pendiente ni modifica ningún saldo.",
       });
     case "RESPONDS_TO_SEIZURE":
       return Object.freeze({
         title: "Contestación vinculada a diligencia de embargo",
-        statusLabel: "Referencia exacta · revisar efectos",
+        statusLabel:
+          input.status === "SUGGESTED"
+            ? "Relación detectada · revisar"
+            : "Referencia exacta · revisar efectos",
         explanation:
-          "La contestación del tercero cita la misma diligencia de embargo. Se conserva como respuesta documental; no convierte al tercero en deudor ni altera el estado del embargo.",
+          input.status === "SUGGESTED"
+            ? FISCAL_NOTIFICATION_SUGGESTED_RELATION_PHRASE_V2
+            : "La contestación del tercero cita la misma diligencia de embargo. Se conserva como respuesta documental; no convierte al tercero en deudor ni altera el estado del embargo.",
       });
     case "TRANSFERS_SEIZED_FUNDS":
       return Object.freeze({
         title: "Ingreso de tercero vinculado a diligencia de embargo",
-        statusLabel: "Referencia exacta · revisar efectos",
+        statusLabel:
+          input.status === "SUGGESTED"
+            ? "Relación detectada · revisar"
+            : "Referencia exacta · revisar efectos",
         explanation:
-          "El justificante de ingreso cita la misma diligencia. Registra un ingreso de tercero relacionado, pero no marca automáticamente la deuda como pagada ni recalcula el saldo pendiente.",
+          input.status === "SUGGESTED"
+            ? FISCAL_NOTIFICATION_SUGGESTED_RELATION_PHRASE_V2
+            : "El justificante de ingreso cita la misma diligencia. Registra un ingreso de tercero relacionado, pero no marca automáticamente la deuda como pagada ni recalcula el saldo pendiente.",
       });
     case "RELEASES_SEIZURE":
       return Object.freeze({
         title: "Levantamiento vinculado a diligencia de embargo",
-        statusLabel: "Referencia exacta · revisar efectos",
+        statusLabel:
+          input.status === "SUGGESTED"
+            ? "Relación detectada · revisar"
+            : "Referencia exacta · revisar efectos",
         explanation:
-          "El levantamiento cita la misma diligencia de embargo. El documento histórico se conserva y no se infiere automáticamente si el levantamiento es total, parcial o el estado vigente fuera de lo impreso.",
+          input.status === "SUGGESTED"
+            ? FISCAL_NOTIFICATION_SUGGESTED_RELATION_PHRASE_V2
+            : "El levantamiento cita la misma diligencia de embargo. El documento histórico se conserva y no se infiere automáticamente si el levantamiento es total, parcial o el estado vigente fuera de lo impreso.",
       });
     default:
       return Object.freeze({
@@ -602,7 +671,10 @@ function commonReferenceMatches(
   source: readonly ExternalReference[],
   target: readonly ExternalReference[],
   allowedTypes: readonly ExternalReferenceType[],
-  evidenceById: ReadonlyMap<string, FiscalNotificationsWorkspace["evidence"][number]>,
+  evidenceById: ReadonlyMap<
+    string,
+    FiscalNotificationsWorkspace["evidence"][number]
+  >,
 ): StructuredReviewRelationMatchV1[] {
   const allowed = new Set(allowedTypes);
   const targetByKey = new Map<string, ExternalReference>();
@@ -627,16 +699,18 @@ function commonReferenceMatches(
         label:
           protectedValue && reference.referenceType === "PAYMENT_JUSTIFICANTE"
             ? "Referencia bancaria"
-            : REFERENCE_LABELS[reference.referenceType] ?? "Referencia",
+            : (REFERENCE_LABELS[reference.referenceType] ?? "Referencia"),
+        referenceType: reference.referenceType,
         value: protectedValue
           ? "Referencia protegida"
           : exactPrinted
             ? reference.rawValue
             : reference.normalizedValue,
         issuer: reference.issuer,
-        matchMode: exactPrinted && !protectedValue
-          ? ("EXACT_PRINTED" as const)
-          : ("NORMALIZED_FORMAT" as const),
+        matchMode:
+          exactPrinted && !protectedValue
+            ? ("EXACT_PRINTED" as const)
+            : ("NORMALIZED_FORMAT" as const),
         sourcePageNumbers: referencePages(reference, evidenceById),
         targetPageNumbers: referencePages(other, evidenceById),
       }),
@@ -644,21 +718,33 @@ function commonReferenceMatches(
   }
   return matches.sort(
     (left, right) =>
-      left.label.localeCompare(right.label) || left.value.localeCompare(right.value),
+      left.label.localeCompare(right.label) ||
+      left.value.localeCompare(right.value),
   );
+}
+
+export function isStrongStructuredReviewRelationReferenceTypeV1(
+  value: ExternalReferenceType | undefined,
+): boolean {
+  return value !== undefined && STRONG_RELATION_REFERENCE_TYPES.has(value);
 }
 
 function referencePages(
   reference: ExternalReference,
-  evidenceById: ReadonlyMap<string, FiscalNotificationsWorkspace["evidence"][number]>,
+  evidenceById: ReadonlyMap<
+    string,
+    FiscalNotificationsWorkspace["evidence"][number]
+  >,
 ): readonly number[] {
   return Object.freeze(
-    [...new Set(
-      reference.occurrenceIds.flatMap((id) => {
-        const evidence = evidenceById.get(id);
-        return evidence ? [evidence.pageNumber] : [];
-      }),
-    )].sort((left, right) => left - right),
+    [
+      ...new Set(
+        reference.occurrenceIds.flatMap((id) => {
+          const evidence = evidenceById.get(id);
+          return evidence ? [evidence.pageNumber] : [];
+        }),
+      ),
+    ].sort((left, right) => left - right),
   );
 }
 
@@ -708,6 +794,7 @@ function projectDocument(
       })
     : [];
   const selectedDate = selectExplicitDocumentDate({
+    documentFamilyId: document.documentSubtype,
     documentIssueDate: document.issueDate,
     documentSignatureDate: document.signatureDate,
     documentEffectiveNotificationDate:

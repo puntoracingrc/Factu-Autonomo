@@ -33,6 +33,7 @@ import {
 } from "@/components/fiscal-notifications/FiscalNotificationDocumentLibrary";
 import { FiscalNotificationPartyFactsReview } from "@/components/fiscal-notifications/FiscalNotificationPartyFactsReview";
 import { FiscalNotificationReviewSteps } from "@/components/fiscal-notifications/FiscalNotificationReviewSteps";
+import { waitForSavingIndicatorPaint } from "@/components/fiscal-notifications/save-indicator-paint";
 import { FiscalNotificationVerticalSliceReview } from "@/components/fiscal-notifications/FiscalNotificationVerticalSliceReview";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useAppStore } from "@/context/AppStore";
@@ -928,7 +929,7 @@ function FiscalNotificationReviewWorkspace({
     }
   }
 
-  function saveAllStructuredReviews(): void {
+  async function saveAllStructuredReviews(): Promise<void> {
     if (
       saveOperationRef.current ||
       processingRef.current ||
@@ -960,6 +961,9 @@ function FiscalNotificationReviewWorkspace({
     setPersistenceState("saving");
 
     try {
+      await waitForSavingIndicatorPaint();
+      if (saveOperationRef.current !== operation) return;
+
       const batchWrite = runFiscalNotificationBatchReviewSaveV1({
         ownerScope,
         items,
@@ -1569,7 +1573,6 @@ function FiscalNotificationReviewWorkspace({
           focusDocumentId={recentlySavedDocumentId}
           sessionFileInventory={sessionFileInventory}
           onLibraryCleared={() => setSessionFileInventory([])}
-          onOpenScanner={() => setScannerOpen(true)}
         />
       </div>
     </>
@@ -1661,6 +1664,7 @@ function ReviewPersistencePanel({
                 type="button"
                 variant="secondary"
                 disabled={state === "saving"}
+                aria-busy={savingAll}
                 onClick={() => void onSaveAll()}
               >
                 {savingAll ? (

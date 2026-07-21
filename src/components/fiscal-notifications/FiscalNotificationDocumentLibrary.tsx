@@ -60,14 +60,12 @@ export function FiscalNotificationDocumentLibrary({
   focusDocumentId,
   sessionFileInventory = [],
   onLibraryCleared,
-  onOpenScanner,
 }: {
   viewModel: FiscalNotificationDocumentLibraryViewModelV1;
   ownerScope: string;
   focusDocumentId?: string | null;
   sessionFileInventory?: readonly FiscalNotificationSessionFileInventoryItem[];
   onLibraryCleared?: () => void;
-  onOpenScanner?: () => void;
 }) {
   const [filters, setFilters] =
     useState<FiscalNotificationDocumentLibraryFiltersV1>(
@@ -225,7 +223,7 @@ export function FiscalNotificationDocumentLibrary({
       ) : null}
 
       {viewModel.documents.length === 0 ? (
-        <EmptyLibrary onOpenScanner={onOpenScanner} />
+        <EmptyLibrary />
       ) : groups.length === 0 ? (
         <EmptyFilteredLibrary
           onReset={() =>
@@ -968,11 +966,7 @@ function RelationDetailRow({
   );
 }
 
-function EmptyLibrary({
-  onOpenScanner,
-}: {
-  readonly onOpenScanner?: () => void;
-}) {
+function EmptyLibrary() {
   return (
     <div className="flex flex-col items-center border-b border-slate-200 bg-slate-50 px-5 py-12 text-center">
       <span className="flex h-12 w-12 items-center justify-center rounded-md bg-blue-50 text-blue-700">
@@ -981,15 +975,6 @@ function EmptyLibrary({
       <h3 className="mt-4 text-base font-bold text-slate-950">
         Todavía no hay documentos guardados
       </h3>
-      {onOpenScanner ? (
-        <button
-          type="button"
-          onClick={onOpenScanner}
-          className="mt-4 inline-flex min-h-11 items-center rounded-md bg-blue-700 px-4 text-sm font-bold text-white hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-        >
-          Escanear documentos
-        </button>
-      ) : null}
     </div>
   );
 }

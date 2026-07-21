@@ -156,6 +156,7 @@ describe("fiscal notification library AI audit provider v1", () => {
       "Revisa todos los documentos y todas las relaciones suministradas, uno por uno.",
     );
     expect(prompt).toContain("identificadores fuertes compartidos");
+    expect(prompt).toContain("la fuerza STRONG_IDENTIFIER");
     expect(prompt).toContain(
       "Importes, nombres, proximidad temporal, organismo o parecido textual no son identificadores fuertes",
     );

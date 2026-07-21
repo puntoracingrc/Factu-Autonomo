@@ -3,23 +3,24 @@ import {
   resolveFiscalNotificationAuditReferenceDateIsoV1,
   validateFiscalNotificationLibraryAiAuditTemporalClaimsV1,
 } from "./library-ai-audit-temporal-validation.v1";
-import type {
-  FiscalNotificationLibraryAiAuditInputV1,
-  FiscalNotificationLibraryAiAuditResultV1,
+import {
+  FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_SCHEMA_VERSION_V1,
+  type FiscalNotificationLibraryAiAuditInputV1,
+  type FiscalNotificationLibraryAiAuditResultV1,
 } from "./library-ai-audit.v1";
 
 const audit = {
-  schemaVersion: "fiscal-notification-library-ai-audit.v3",
+  schemaVersion: FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_SCHEMA_VERSION_V1,
   documents: [],
   relations: [],
-} as unknown as FiscalNotificationLibraryAiAuditInputV1;
+} satisfies FiscalNotificationLibraryAiAuditInputV1;
 
 function result(
   detail: string,
   evidenceValue: string,
 ): FiscalNotificationLibraryAiAuditResultV1 {
   return {
-    schemaVersion: "fiscal-notification-library-ai-audit.v3",
+    schemaVersion: FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_SCHEMA_VERSION_V1,
     summary: "Revisión completada.",
     documentsReviewed: 1,
     relationsReviewed: 0,

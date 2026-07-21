@@ -10,6 +10,7 @@ function compact(value: string): string {
 }
 
 const componentSource = readSource("./FiscalNotificationIntakeView.tsx");
+const saveIndicatorPaintSource = readSource("./save-indicator-paint.ts");
 const documentLibraryComponentSource = readSource(
   "./FiscalNotificationDocumentLibrary.tsx",
 );
@@ -1050,6 +1051,12 @@ describe("contrato de interfaz de Notificaciones y expedientes", () => {
     );
     expect(componentSource).not.toContain("Código: ${write.safeCode}");
     expect(componentSource).not.toContain("Guardar todo lo listo");
+    expect(componentSource).toContain("await waitForSavingIndicatorPaint()");
+    expect(componentSource).toContain("aria-busy={savingAll}");
+    expect(saveIndicatorPaintSource).toContain("document.visibilityState");
+    expect(saveIndicatorPaintSource).toContain("window.setTimeout(");
+    expect(saveIndicatorPaintSource).toContain("visibilitychange");
+    expect(saveIndicatorPaintSource).toContain("window.requestAnimationFrame(");
     expect(componentSource).not.toContain(
       'for (const item of items) updateStoredReview(item.itemId, "saving", false)',
     );

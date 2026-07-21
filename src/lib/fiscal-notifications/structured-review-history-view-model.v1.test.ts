@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { FiscalNotificationsWorkspace } from "./types";
-import { projectFiscalNotificationStructuredHistoryV1 } from "./structured-review-history-view-model.v1";
+import {
+  projectFiscalNotificationStructuredHistoryV1,
+  selectExplicitDocumentDate,
+} from "./structured-review-history-view-model.v1";
 
 const OWNER = "user:00000000-0000-4000-8000-000000000081";
 const CREATED_AT = "2026-07-14T10:30:00.000Z";
@@ -255,7 +258,11 @@ function workspace(): FiscalNotificationsWorkspace {
 
 function addExplicitEvidence(
   value: FiscalNotificationsWorkspace,
-  input: { readonly id: string; readonly page: number; readonly rawValue: string },
+  input: {
+    readonly id: string;
+    readonly page: number;
+    readonly rawValue: string;
+  },
 ): string {
   value.evidence.push({
     id: input.id,
@@ -299,9 +306,7 @@ describe("structured fiscal notification history view model v1", () => {
             value: "Referencia protegida",
           },
         ],
-        printedDates: [
-          { label: "Fecha de emisión", value: "05/02/2026" },
-        ],
+        printedDates: [{ label: "Fecha de emisión", value: "05/02/2026" }],
         orderedFacts: [
           {
             key: "reference:liquidation",
@@ -439,7 +444,8 @@ describe("structured fiscal notification history view model v1", () => {
     document.titleRaw = "Resolución sancionadora";
     document.titleNormalized = "RESOLUCION SANCIONADORA";
     document.issueDate = undefined;
-    value.analysisSnapshots[0]!.structuredData.documentFields.issueDate = undefined;
+    value.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
+      undefined;
     value.analysisSnapshots[0]!.structuredData.unknownFields = [
       {
         labelRaw:
@@ -470,7 +476,9 @@ describe("structured fiscal notification history view model v1", () => {
         ruleId: "profile.sanction.resolution.explanation.v2",
         deadline: { status: "DOCUMENT_STATED" },
         keyFacts: expect.arrayContaining([
-          expect.objectContaining({ value: expect.stringContaining("1.234,56") }),
+          expect.objectContaining({
+            value: expect.stringContaining("1.234,56"),
+          }),
         ]),
       },
     });
@@ -491,8 +499,7 @@ describe("structured fiscal notification history view model v1", () => {
     expect(result.status).toBe("READY");
     if (result.status !== "READY") return;
     expect(result.entries[0]?.explanation).toMatchObject({
-      ruleId:
-        "profile.procedure.deadline_extension_request.explanation.v2",
+      ruleId: "profile.procedure.deadline_extension_request.explanation.v2",
       whatItIs: expect.stringContaining("ampliar el tiempo"),
       officialSources: expect.arrayContaining([
         expect.objectContaining({ authority: "AEAT" }),
@@ -579,7 +586,8 @@ describe("structured fiscal notification history view model v1", () => {
     document.documentType = "GENERIC_ADMINISTRATIVE_NOTICE";
     document.documentSubtype = "collection.interest_assessment";
     document.titleRaw = "Liquidación independiente de intereses de demora";
-    document.titleNormalized = "LIQUIDACION INDEPENDIENTE DE INTERESES DE DEMORA";
+    document.titleNormalized =
+      "LIQUIDACION INDEPENDIENTE DE INTERESES DE DEMORA";
     value.evidence.push({
       id: "evidence:recognition-intrinsic",
       ownerScope: OWNER,
@@ -631,8 +639,9 @@ describe("structured fiscal notification history view model v1", () => {
         confidence: "EXACT",
       },
     ];
-    const moneyFact = value.analysisSnapshots[0]!.structuredData
-      .administrativeDomain!.moneyFacts[0]!;
+    const moneyFact =
+      value.analysisSnapshots[0]!.structuredData.administrativeDomain!
+        .moneyFacts[0]!;
     Object.assign(moneyFact as { sourceActRefId?: string }, {
       sourceActRefId: "reference:liquidation",
     });
@@ -821,6 +830,70 @@ describe("structured fiscal notification history view model v1", () => {
           documentDateBasis: "Fecha de notificacion",
         },
       ],
+    });
+  });
+
+  it.each([
+    ["SEIZURE_DATE", "Fecha de la diligencia", "seizure.movable_asset"],
+    ["RELEASE_DATE", "Fecha del levantamiento", "seizure.release"],
+  ] as const)(
+    "usa %s como fecha del acto cuando consta con evidencia exacta",
+    (canonicalType, label, documentSubtype) => {
+      const value = workspace();
+      value.documents[0]!.documentSubtype = documentSubtype;
+      value.documents[0]!.issueDate = undefined;
+      value.documents[0]!.signatureDate = undefined;
+      value.documents[0]!.notificationDates.effectiveAt = undefined;
+      value.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
+        undefined;
+      const evidenceId = addExplicitEvidence(value, {
+        id: `evidence:${canonicalType.toLocaleLowerCase("es")}`,
+        page: 1,
+        rawValue: "2026-02-07",
+      });
+      value.analysisSnapshots[0]!.structuredData.unknownFields = [
+        {
+          labelRaw: `VSR1|DATE|${canonicalType}|${label}`,
+          valueRaw: "2026-02-07",
+          page: 1,
+          evidenceId,
+          confidence: "EXACT",
+        },
+      ];
+
+      expect(
+        projectFiscalNotificationStructuredHistoryV1(value, OWNER),
+      ).toMatchObject({
+        status: "READY",
+        entries: [
+          { documentDate: "2026-02-07", documentDateBasis: "Fecha del acto" },
+        ],
+      });
+    },
+  );
+
+  it("fecha un levantamiento por su propia fecha y no por el embargo citado", () => {
+    expect(
+      selectExplicitDocumentDate({
+        documentFamilyId: "seizure.release",
+        unknownFields: [
+          {
+            labelRaw:
+              "VSR2|profile:date:SEIZURE_DATE:0|DATE|SEIZURE_DATE|Fecha del embargo citado",
+            valueRaw: "2020-01-01",
+            confidence: "EXACT",
+          },
+          {
+            labelRaw:
+              "VSR2|profile:date:RELEASE_DATE:1|DATE|RELEASE_DATE|Fecha del levantamiento",
+            valueRaw: "2026-07-19",
+            confidence: "EXACT",
+          },
+        ],
+      }),
+    ).toEqual({
+      value: "2026-07-19",
+      basis: "Fecha del acto",
     });
   });
 
@@ -1031,8 +1104,7 @@ describe("structured fiscal notification history view model v1", () => {
         confidence: "EXACT",
       },
       {
-        labelRaw:
-          "SPECIALIZED|ENFORCEMENT|DATE|PRINTED_ISSUE_DATE",
+        labelRaw: "SPECIALIZED|ENFORCEMENT|DATE|PRINTED_ISSUE_DATE",
         valueRaw: "05/02/2026",
         page: 3,
         evidenceId: specializedDateEvidenceId,
@@ -1055,9 +1127,9 @@ describe("structured fiscal notification history view model v1", () => {
         (fact) => fact.label === "Fecha de emisión",
       ),
     ).toHaveLength(1);
-    expect(result.entries[0]?.orderedFacts.map((fact) => fact.label)).not.toContain(
-      "Dato",
-    );
+    expect(
+      result.entries[0]?.orderedFacts.map((fact) => fact.label),
+    ).not.toContain("Dato");
   });
 
   it("traduce cuotas históricas y nunca presenta el token interno", () => {

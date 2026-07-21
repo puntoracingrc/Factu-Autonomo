@@ -18,7 +18,7 @@ import {
 assertServerOnlyModule();
 
 export const FISCAL_NOTIFICATION_LIBRARY_AI_AUDIT_PROMPT_VERSION_V1 =
-  "fiscal-notification-library-audit-prompt.v5";
+  "fiscal-notification-library-audit-prompt.v6";
 
 export interface FiscalNotificationLibraryAiAuditProviderResultV1 {
   readonly data: FiscalNotificationLibraryAiAuditResultV1;
@@ -71,6 +71,7 @@ export function buildFiscalNotificationLibraryAiAuditSystemPromptV1(
     "Busca contradicciones internas, fechas o referencias incoherentes, fichas vacías o incompletas, duplicados y metadatos internos presentados como hechos.",
     `La fecha de referencia de esta revisión es ${referenceDateIso} en Europe/Madrid. No llames futura a una fecha igual o anterior, ni pasada a una fecha igual o posterior. Cita siempre la fecha exacta que justifica una comparación con hoy.`,
     "Comprueba la explicación y las coincidencias de cada relación; debe estar justificada por identificadores fuertes compartidos con páginas en ambos documentos.",
+    "Cada coincidencia de relación incluye un alias REF, el modo de coincidencia, la fuerza STRONG_IDENTIFIER y las páginas de ambos documentos. Usa esos campos para comprobar la evidencia sin pedir el identificador real.",
     "Los alias PARTY permiten comparar sujetos sin revelar su identidad y los alias FILE indican qué fichas proceden del mismo archivo de esta sesión.",
     "Importes, nombres, proximidad temporal, organismo o parecido textual no son identificadores fuertes y no bastan para relacionar documentos.",
     "Una relación sugerida no debe presentarse como confirmada. Una confirmada sin coincidencia fuerte debe marcarse como hallazgo.",
