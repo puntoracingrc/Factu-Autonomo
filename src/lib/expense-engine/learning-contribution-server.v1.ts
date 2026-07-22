@@ -5,11 +5,11 @@ import {
   EXPENSE_ENGINE_PRIVACY_POLICY_VERSION,
   EXPENSE_ENGINE_VERSION,
 } from "./contracts";
+import { EXPENSE_LEARNING_CLAIM_HEADER_V1 } from "./learning-contribution-protocol.v1";
 
 assertServerOnlyModule();
 
-export const EXPENSE_LEARNING_CLAIM_HEADER_V1 =
-  "X-Expense-Learning-Claim-V1" as const;
+export { EXPENSE_LEARNING_CLAIM_HEADER_V1 };
 export const EXPENSE_LEARNING_WEEK_BOUNDARY_GUARD_MS_V1 = 5 * 60 * 1_000;
 export const EXPENSE_LEARNING_RPC_TIMEOUT_MS_V1 = 10_000;
 
