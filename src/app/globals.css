@@ -57,6 +57,32 @@ button:disabled {
   bottom: calc(9.5rem + env(safe-area-inset-bottom, 0px));
 }
 
+.app-navigation-progress {
+  background: rgb(219 234 254 / 0.9);
+  height: 3px;
+  inset: 0 0 auto;
+  overflow: hidden;
+  pointer-events: none;
+  position: fixed;
+  z-index: 100;
+}
+
+.app-navigation-progress::after {
+  animation: app-navigation-progress 1.1s ease-in-out infinite;
+  background: #2563eb;
+  content: "";
+  display: block;
+  height: 100%;
+  transform: translateX(-120%);
+  width: 42%;
+}
+
+@keyframes app-navigation-progress {
+  to {
+    transform: translateX(340%);
+  }
+}
+
 .action-scroll {
   scrollbar-width: none;
   -ms-overflow-style: none;
@@ -123,6 +149,12 @@ button:disabled {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .app-navigation-progress::after {
+    animation: none;
+    transform: none;
+    width: 68%;
+  }
+
   .scan-progress-thinking,
   .scan-progress-dot {
     animation: none;
@@ -253,8 +285,14 @@ html[data-app-theme="dark"] .scan-progress-thinking {
 }
 
 html[data-reduce-motion="true"] .scan-progress-thinking,
-html[data-reduce-motion="true"] .scan-progress-dot {
+html[data-reduce-motion="true"] .scan-progress-dot,
+html[data-reduce-motion="true"] .app-navigation-progress::after {
   animation: none !important;
+}
+
+html[data-reduce-motion="true"] .app-navigation-progress::after {
+  transform: none;
+  width: 68%;
 }
 
 html[data-reduce-motion="true"] .scan-progress-thinking {

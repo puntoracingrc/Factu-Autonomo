@@ -3,8 +3,15 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowLeft, Building2, Check, Crown, LogIn } from "lucide-react";
-import { usePathname } from "next/navigation";
+import {
+  ArrowLeft,
+  Building2,
+  Check,
+  Crown,
+  LoaderCircle,
+  LogIn,
+} from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   CloudSyncHeaderIndicator,
   CloudSyncNavBadge,
@@ -37,17 +44,24 @@ import {
   APP_NAV_ITEMS,
   isAppNavItemActive,
 } from "@/components/layout/app-navigation";
+import { AppNavigationFeedback } from "@/components/layout/AppNavigationFeedback";
+import type { PendingAppNavigation } from "@/components/layout/app-navigation-feedback";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { data, ready } = useAppStore();
   const { user } = useCloudSync();
   const { isPro, billingEnabled, plan } = useBilling();
   const demoMode = useDemoWorkspaceMode();
   const [factuDismissed, setFactuDismissed] = useState(false);
+  const [pendingNavigation, setPendingNavigation] =
+    useState<PendingAppNavigation | null>(null);
   const mobileNavRef = useRef<HTMLDivElement>(null);
+  const previousPathnameRef = useRef(pathname);
   const [systemTheme, setSystemTheme] = useState<"light" | "dark">("light");
   const appNavItems = APP_NAV_ITEMS;
+  const selectedPathname = pendingNavigation?.href ?? pathname;
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const resolvedTheme =
     appPreferences.theme === "system" ? systemTheme : appPreferences.theme;
@@ -58,6 +72,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     ? appStartPageHref(appPreferences.startPage)
     : "/inicio";
   const brandAriaLabel = user ? "Ir a la pantalla inicial" : "Ir al inicio";
+
+  function startNavigation(href: string, label: string) {
+    if (pathname === href) {
+      setPendingNavigation(null);
+      return;
+    }
+    setPendingNavigation({ href, label });
+  }
+
+  function retryNavigation() {
+    if (!pendingNavigation) return;
+    setPendingNavigation({ ...pendingNavigation });
+    router.push(pendingNavigation.href);
+  }
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
@@ -95,8 +123,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (previousPathnameRef.current === pathname) return;
+    previousPathnameRef.current = pathname;
+    setPendingNavigation(null);
+  }, [pathname]);
+
+  useEffect(() => {
     const nav = mobileNavRef.current;
-    const activeLink = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    const activeLink = nav?.querySelector<HTMLElement>(
+      '[data-navigation-selected="true"]',
+    );
     if (!nav || !activeLink) return;
 
     const frame = window.requestAnimationFrame(() => {
@@ -111,7 +147,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => {
       window.cancelAnimationFrame(frame);
     };
-  }, [appPreferences.reduceMotion, pathname]);
+  }, [appPreferences.reduceMotion, selectedPathname]);
 
   return (
     <div
@@ -123,6 +159,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <ReferralRedeemOnLogin />
       <GoogleDriveAutoBackup />
       <DataAccessEventReporter />
+      <AppNavigationFeedback
+        navigation={pendingNavigation}
+        onRetry={retryNavigation}
+      />
 
       <aside className="app-sidebar hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-72 lg:shrink-0 lg:flex-col lg:border-r lg:border-slate-200 lg:bg-white">
         <div className="border-b border-slate-200 px-5 py-4">
@@ -187,20 +227,34 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="space-y-1">
             {appNavItems.map(({ href, activeBase, label, icon: Icon }) => {
               const active = isAppNavItemActive(pathname, href, activeBase);
+              const selected = isAppNavItemActive(
+                selectedPathname,
+                href,
+                activeBase,
+              );
+              const pending = pendingNavigation?.href === href;
               return (
                 <Link
                   key={href}
                   href={href}
                   aria-current={active ? "page" : undefined}
+                  aria-busy={pending || undefined}
+                  data-navigation-selected={selected ? "true" : undefined}
+                  onNavigate={() => startNavigation(href, label)}
                   className={`relative flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                    active
+                    selected
                       ? "bg-blue-600 text-white shadow-sm shadow-blue-600/20"
                       : "text-slate-700 hover:bg-slate-100 hover:text-slate-950"
                   }`}
                 >
-                  <Icon className="h-5 w-5" strokeWidth={active ? 2.5 : 2} />
+                  <Icon className="h-5 w-5" strokeWidth={selected ? 2.5 : 2} />
                   <span className="truncate">{label}</span>
-                  {active ? (
+                  {pending ? (
+                    <LoaderCircle
+                      className="ml-auto h-4 w-4 shrink-0 motion-safe:animate-spin"
+                      aria-hidden="true"
+                    />
+                  ) : selected ? (
                     <Check
                       className="ml-auto h-4 w-4 shrink-0"
                       aria-hidden="true"
@@ -432,25 +486,43 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           >
             <div className="flex w-max min-w-full items-stretch gap-1">
               {appNavItems.map(
-                ({ href, activeBase, shortLabel, icon: Icon }) => {
-                  const active = isAppNavItemActive(pathname, href, activeBase);
+                ({ href, activeBase, label, shortLabel, icon: Icon }) => {
+                  const active = isAppNavItemActive(
+                    pathname,
+                    href,
+                    activeBase,
+                  );
+                  const selected = isAppNavItemActive(
+                    selectedPathname,
+                    href,
+                    activeBase,
+                  );
+                  const pending = pendingNavigation?.href === href;
                   return (
                     <Link
                       key={href}
                       href={href}
                       aria-current={active ? "page" : undefined}
+                      aria-busy={pending || undefined}
+                      data-navigation-selected={selected ? "true" : undefined}
+                      onNavigate={() => startNavigation(href, label)}
                       className={`relative flex h-16 w-[4.75rem] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-1.5 py-2 text-center transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                        active
+                        selected
                           ? "bg-blue-600 text-white shadow-md shadow-blue-600/25"
                           : "text-slate-600 hover:bg-slate-100"
                       }`}
                     >
                       <Icon
                         className="h-5 w-5 shrink-0"
-                        strokeWidth={active ? 2.5 : 2}
+                        strokeWidth={selected ? 2.5 : 2}
                         aria-hidden="true"
                       />
-                      {active ? (
+                      {pending ? (
+                        <LoaderCircle
+                          className="absolute right-1 top-1 h-3.5 w-3.5 motion-safe:animate-spin"
+                          aria-hidden="true"
+                        />
+                      ) : selected ? (
                         <Check
                           className="absolute right-1 top-1 h-3.5 w-3.5"
                           aria-hidden="true"
