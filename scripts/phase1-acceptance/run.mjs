@@ -34,6 +34,11 @@ const sqlFiles = {
     "supabase/rollbacks/20260624000100_phase1_hardening.down.sql",
   ],
 };
+const expenseLearningSql = {
+  up: "supabase/migrations/20260721223000_expense_learning_storage_p1b.sql",
+  down:
+    "supabase/rollbacks/20260721223000_expense_learning_storage_p1b.down.sql",
+};
 
 const requiredEnv = [
   "PHASE1_ACCEPTANCE_ALLOW_DESTRUCTIVE",
@@ -128,6 +133,39 @@ function applyInlineSql(sql) {
     "-c",
     sql,
   ]);
+}
+
+function querySql(sql) {
+  return run("psql", [
+    env("PHASE1_ACCEPTANCE_DATABASE_URL"),
+    "-X",
+    "-A",
+    "-t",
+    "-v",
+    "ON_ERROR_STOP=1",
+    "-c",
+    sql,
+  ]);
+}
+
+function expectInlineSqlFailure(sql, expectedMessage) {
+  const result = spawnSync(
+    "psql",
+    [
+      env("PHASE1_ACCEPTANCE_DATABASE_URL"),
+      "-X",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-c",
+      sql,
+    ],
+    { cwd: root, encoding: "utf8", stdio: "pipe" },
+  );
+  const output = `${result.stdout ?? ""}\n${result.stderr ?? ""}`;
+  expect(
+    result.status !== 0 && output.includes(expectedMessage),
+    `Expected inline SQL to fail with ${expectedMessage}`,
+  );
 }
 
 function expectSqlFileFailure(file, expectedMessage) {
@@ -276,6 +314,528 @@ function opAllowed(result) {
 
 function expect(condition, message) {
   if (!condition) fail(message);
+}
+
+function expenseLearningRuntimeRowCount() {
+  return Number(
+    querySql(`
+      select
+        (select count(*) from expense_learning_private.contribution_claims)
+        + (select count(*) from expense_learning_private.contributor_week_limits)
+        + (select count(*) from expense_learning_private.accumulator_memberships)
+        + (select count(*) from expense_learning_private.protected_accumulators)
+        + (select count(*) from expense_learning_private.closed_week_supported_metrics);
+    `),
+  );
+}
+
+function expenseLearningSchemaExists() {
+  return (
+    querySql(
+      "select pg_catalog.to_regnamespace('expense_learning_private') is not null;",
+    ) === "t"
+  );
+}
+
+function expenseLearningCatalogSnapshot() {
+  return querySql(`
+    with catalog_rows as (
+      select
+        'role|' || rolname || '|' || rolcanlogin || '|' || rolinherit || '|'
+          || rolsuper || '|' || rolbypassrls as value
+      from pg_catalog.pg_roles
+      where rolname = 'expense_learning_storage_owner'
+      union all
+      select
+        'membership|' || granted.rolname || '|' || member.rolname || '|'
+          || grantor.rolname || '|' || membership.admin_option || '|'
+          || membership.inherit_option || '|' || membership.set_option
+      from pg_catalog.pg_auth_members membership
+      join pg_catalog.pg_roles granted on granted.oid = membership.roleid
+      join pg_catalog.pg_roles member on member.oid = membership.member
+      join pg_catalog.pg_roles grantor on grantor.oid = membership.grantor
+      where granted.rolname = 'expense_learning_storage_owner'
+      union all
+      select
+        'schema|' || n.nspname || '|' || pg_catalog.pg_get_userbyid(n.nspowner)
+          || '|' || coalesce(n.nspacl::text, '')
+      from pg_catalog.pg_namespace n
+      where n.nspname = 'expense_learning_private'
+      union all
+      select
+        'table|' || c.relname || '|' || pg_catalog.pg_get_userbyid(c.relowner)
+          || '|' || c.relrowsecurity || '|' || c.relforcerowsecurity || '|'
+          || coalesce(c.relacl::text, '')
+      from pg_catalog.pg_class c
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'expense_learning_private'
+        and c.relkind = 'r'
+      union all
+      select
+        'constraint|' || c.relname || '|' || con.conname || '|'
+          || pg_catalog.pg_get_constraintdef(con.oid, true)
+      from pg_catalog.pg_constraint con
+      join pg_catalog.pg_class c on c.oid = con.conrelid
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'expense_learning_private'
+      union all
+      select
+        'function|' || n.nspname || '.' || p.proname || '('
+          || pg_catalog.pg_get_function_identity_arguments(p.oid) || ')|'
+          || pg_catalog.pg_get_userbyid(p.proowner) || '|' || p.prosecdef || '|'
+          || coalesce(p.proconfig::text, '') || '|' || coalesce(p.proacl::text, '')
+          || '|' || pg_catalog.md5(p.prosrc)
+      from pg_catalog.pg_proc p
+      join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+      where (
+        n.nspname = 'expense_learning_private'
+        or (
+          n.nspname = 'public'
+          and p.proname in (
+            'submit_expense_learning_contribution_v1',
+            'promote_expense_learning_closed_weeks_v1',
+            'purge_expense_learning_retention_v1'
+          )
+        )
+      )
+    )
+    select value from catalog_rows order by value;
+  `);
+}
+
+function testExpenseLearningDatabaseBoundary() {
+  expect(
+    querySql(`
+      select rolcanlogin = false
+        and rolinherit = false
+        and rolsuper = false
+        and rolbypassrls = false
+      from pg_catalog.pg_roles
+      where rolname = 'expense_learning_storage_owner';
+    `) === "t",
+    "expense learning owner is not a constrained NOLOGIN role",
+  );
+  expect(
+    querySql(`
+      select count(*) >= 1
+        and pg_catalog.bool_and(member.rolname = 'postgres')
+        and pg_catalog.bool_or(membership.set_option)
+      from pg_catalog.pg_auth_members membership
+      join pg_catalog.pg_roles granted on granted.oid = membership.roleid
+      join pg_catalog.pg_roles member on member.oid = membership.member
+      where granted.rolname = 'expense_learning_storage_owner';
+    `) === "t",
+    "expense learning owner lacks an exclusive SET-capable postgres membership",
+  );
+  expect(
+    querySql(`
+      select not pg_catalog.has_schema_privilege(
+        'expense_learning_storage_owner',
+        'public',
+        'CREATE'
+      );
+    `) === "t",
+    "expense learning owner retained CREATE on public schema",
+  );
+  expect(
+    querySql(`
+      select not pg_catalog.has_schema_privilege(
+        'expense_learning_storage_owner',
+        'auth',
+        'USAGE'
+      )
+      and not pg_catalog.has_table_privilege(
+        'expense_learning_storage_owner',
+        'auth.users',
+        'SELECT,INSERT,UPDATE,DELETE'
+      );
+    `) === "t",
+    "expense learning owner unexpectedly reached auth schema or tables",
+  );
+  const rowsBeforeClaimChecks = expenseLearningRuntimeRowCount();
+  expectInlineSqlFailure(
+    "select public.promote_expense_learning_closed_weeks_v1();",
+    "expense_learning_rpc_forbidden",
+  );
+  expectInlineSqlFailure(
+    `set request.jwt.claims = '{';
+     select public.promote_expense_learning_closed_weeks_v1();`,
+    "expense_learning_rpc_forbidden",
+  );
+  expect(
+    expenseLearningRuntimeRowCount() === rowsBeforeClaimChecks,
+    "missing or malformed role claims changed expense learning rows",
+  );
+  expect(
+    querySql(`
+      select rolbypassrls
+      from pg_catalog.pg_roles
+      where rolname = 'service_role';
+    `) === "t",
+    "service_role is not BYPASSRLS; the ACL test would be meaningless",
+  );
+  expect(
+    querySql(`
+      select count(*) = 5
+      from pg_catalog.pg_class c
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'expense_learning_private'
+        and c.relkind = 'r'
+        and c.relrowsecurity
+        and c.relforcerowsecurity;
+    `) === "t",
+    "expense learning tables do not all have ENABLE + FORCE RLS",
+  );
+  expect(
+    querySql(`
+      select count(*) = 0
+      from pg_catalog.pg_policy p
+      join pg_catalog.pg_class c on c.oid = p.polrelid
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'expense_learning_private';
+    `) === "t",
+    "expense learning private tables unexpectedly have RLS policies",
+  );
+  expect(
+    querySql(`
+      select not pg_catalog.has_schema_privilege(
+        'service_role',
+        'expense_learning_private',
+        'USAGE'
+      );
+    `) === "t",
+    "service_role unexpectedly has USAGE on expense learning private schema",
+  );
+
+  expectInlineSqlFailure(
+    `set role service_role;
+     select count(*) from expense_learning_private.protected_accumulators;`,
+    "permission denied for schema expense_learning_private",
+  );
+  expectInlineSqlFailure(
+    `set role service_role;
+     insert into expense_learning_private.contribution_claims (
+       claim_token_digest,
+       expires_at
+     ) values (
+       pg_catalog.decode(pg_catalog.repeat('00', 32), 'hex'),
+       pg_catalog.statement_timestamp() + interval '1 hour'
+     );`,
+    "permission denied for schema expense_learning_private",
+  );
+}
+
+function testExpenseLearningConstraints() {
+  expectInlineSqlFailure(
+    `insert into expense_learning_private.contribution_claims (
+       claim_token_digest,
+       claimed_at,
+       expires_at
+     ) values (
+       pg_catalog.decode('00', 'hex'),
+       timestamptz '2099-01-01 00:00:00+00',
+       timestamptz '2099-01-01 01:00:00+00'
+     );`,
+    "contribution_claims_digest_length_v1",
+  );
+  expectInlineSqlFailure(
+    `insert into expense_learning_private.contribution_claims (
+       claim_token_digest,
+       claimed_at,
+       expires_at
+     ) values (
+       pg_catalog.decode(pg_catalog.repeat('01', 32), 'hex'),
+       timestamptz '2099-01-01 00:00:00+00',
+       timestamptz '2099-01-02 00:00:01+00'
+     );`,
+    "contribution_claims_ttl_v1",
+  );
+  expectInlineSqlFailure(
+    `insert into expense_learning_private.contributor_week_limits (
+       week_start,
+       contributor_week_hmac,
+       accepted_learning_contributions,
+       first_accepted_at,
+       expires_at
+     ) values (
+       date '2098-12-29',
+       pg_catalog.decode(pg_catalog.repeat('02', 32), 'hex'),
+       21,
+       timestamptz '2099-01-01 00:00:00+00',
+       timestamptz '2099-01-02 00:00:00+00'
+     );`,
+    "contributor_week_limits_learning_only_cap_v1",
+  );
+  expectInlineSqlFailure(
+    `insert into expense_learning_private.closed_week_supported_metrics (
+       contribution_schema_version,
+       observation_schema_version,
+       engine_version,
+       privacy_policy_version,
+       week_start,
+       structural_archetype_group,
+       metric_family,
+       comparison_scope,
+       metric_key,
+       bucket_kind,
+       bucket_value,
+       supporting_contributors,
+       promoted_at,
+       expires_at
+     ) values (
+       'expense-engine-aggregate-contribution.v1',
+       'expense-engine-observation.v1',
+       'expense-local-engine.v1',
+       '2026-07-21',
+       date '2098-12-29',
+       'TABLE',
+       'SOURCE_QUALITY',
+       'NONE',
+       'VALUE',
+       'EXACT',
+       'HIGH',
+       9,
+       timestamptz '2099-01-08 00:00:00+00',
+       timestamptz '2099-02-08 00:00:00+00'
+     );`,
+    "closed_week_supported_metrics_support_v1",
+  );
+  expect(
+    querySql(`
+      select
+        expense_learning_private.is_canonical_metric_bucket_v1(
+          'CRITICAL_FLAG',
+          'NONE',
+          'CREDIT_SIGN_CORRECTED',
+          'EXACT',
+          'NOT_OBSERVED'
+        )
+        and not expense_learning_private.is_canonical_metric_bucket_v1(
+          'CRITICAL_FLAG',
+          'NONE',
+          'CREDIT_SIGN_CORRECTED',
+          'EXACT',
+          'PRESENT'
+        )
+        and not expense_learning_private.is_canonical_metric_bucket_v1(
+          'CRITICAL_FLAG',
+          'NONE',
+          'CREDIT_SIGN_CORRECTED',
+          'COARSENED_OTHER',
+          'OTHER'
+        );
+    `) === "t",
+    "reserved credit-sign metric accepted a non-aggregable bucket",
+  );
+  expectInlineSqlFailure(
+    `insert into expense_learning_private.closed_week_supported_metrics (
+       contribution_schema_version,
+       observation_schema_version,
+       engine_version,
+       privacy_policy_version,
+       week_start,
+       structural_archetype_group,
+       metric_family,
+       comparison_scope,
+       metric_key,
+       bucket_kind,
+       bucket_value,
+       supporting_contributors,
+       promoted_at,
+       expires_at
+     ) values (
+       'expense-engine-aggregate-contribution.v1',
+       'expense-engine-observation.v1',
+       'expense-local-engine.v1',
+       '2026-07-21',
+       date '2098-12-29',
+       'TABLE',
+       'CRITICAL_FLAG',
+       'NONE',
+       'CREDIT_SIGN_CORRECTED',
+       'EXACT',
+       'PRESENT',
+       10,
+       timestamptz '2099-01-08 00:00:00+00',
+       timestamptz '2099-02-08 00:00:00+00'
+     );`,
+    "closed_week_supported_metrics_bucket_v1",
+  );
+  expectInlineSqlFailure(
+    `insert into expense_learning_private.closed_week_supported_metrics (
+       contribution_schema_version,
+       observation_schema_version,
+       engine_version,
+       privacy_policy_version,
+       week_start,
+       structural_archetype_group,
+       metric_family,
+       comparison_scope,
+       metric_key,
+       bucket_kind,
+       bucket_value,
+       supporting_contributors,
+       promoted_at,
+       expires_at
+     ) values (
+       'expense-engine-aggregate-contribution.v1',
+       'expense-engine-observation.v1',
+       'expense-local-engine.v1',
+       '2026-07-21',
+       date '2098-12-29',
+       'TABLE',
+       'CRITICAL_FLAG',
+       'NONE',
+       'CREDIT_SIGN_CORRECTED',
+       'COARSENED_OTHER',
+       'OTHER',
+       10,
+       timestamptz '2099-01-08 00:00:00+00',
+       timestamptz '2099-02-08 00:00:00+00'
+     );`,
+    "closed_week_supported_metrics_bucket_v1",
+  );
+  expect(
+    expenseLearningRuntimeRowCount() === 0,
+    "failed expense learning constraints left runtime rows",
+  );
+}
+
+async function waitForExpenseLearningRpc(admin) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const result = await admin.rpc(
+      "promote_expense_learning_closed_weeks_v1",
+    );
+    if (!result.error) return result;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  fail("expense learning RPC did not enter the PostgREST schema cache");
+}
+
+async function testExpenseLearningDataApi(admin, userA) {
+  for (const [role, client] of [
+    ["anon", anon()],
+    ["authenticated", userA.client],
+    ["service_role", admin],
+  ]) {
+    const result = await client
+      .schema("expense_learning_private")
+      .from("protected_accumulators")
+      .select("*");
+    expect(
+      !opAllowed(result),
+      `${role} unexpectedly reached expense_learning_private over Data API`,
+    );
+  }
+
+  const submitArgs = {
+    p_contribution: {},
+    p_claim_token_digest: "a".repeat(64),
+    p_contributor_week_hmac: "b".repeat(64),
+  };
+  const anonSubmit = await anon().rpc(
+    "submit_expense_learning_contribution_v1",
+    submitArgs,
+  );
+  expect(!opAllowed(anonSubmit), "anon executed expense learning submit RPC");
+  const authSubmit = await userA.client.rpc(
+    "submit_expense_learning_contribution_v1",
+    submitArgs,
+  );
+  expect(
+    !opAllowed(authSubmit),
+    "authenticated executed expense learning submit RPC",
+  );
+
+  const promote = await waitForExpenseLearningRpc(admin);
+  expect(
+    promote.data === "DISABLED",
+    "expense learning promotion stub did not return DISABLED",
+  );
+  const submit = await admin.rpc(
+    "submit_expense_learning_contribution_v1",
+    submitArgs,
+  );
+  expect(
+    opAllowed(submit) && submit.data === "DISABLED",
+    "expense learning submit stub was not safely disabled",
+  );
+  const purge = await admin.rpc("purge_expense_learning_retention_v1");
+  expect(
+    opAllowed(purge) && purge.data === "DISABLED",
+    "expense learning purge stub was not safely disabled",
+  );
+  expect(
+    expenseLearningRuntimeRowCount() === 0,
+    "disabled expense learning RPC wrote runtime rows",
+  );
+  expect(
+    querySql(`
+      select pg_catalog.string_agg(p.proname, ',' order by p.proname)
+      from pg_catalog.pg_proc p
+      join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.proname like '%expense_learning%';
+    `) ===
+      [
+        "promote_expense_learning_closed_weeks_v1",
+        "purge_expense_learning_retention_v1",
+        "submit_expense_learning_contribution_v1",
+      ].join(","),
+    "unexpected public expense learning read or mutation RPC exists",
+  );
+}
+
+function testExpenseLearningRollback(initialCatalogSnapshot) {
+  applyInlineSql(`
+    insert into expense_learning_private.contribution_claims (
+      claim_token_digest,
+      claimed_at,
+      expires_at
+    ) values (
+      pg_catalog.decode(pg_catalog.repeat('ab', 32), 'hex'),
+      timestamptz '2099-01-01 00:00:00+00',
+      timestamptz '2099-01-01 01:00:00+00'
+    );
+  `);
+  try {
+    expectSqlFileFailure(
+      expenseLearningSql.down,
+      "Expense learning runtime storage is not empty; rollback is unsafe",
+    );
+    expect(
+      querySql(
+        "select pg_catalog.to_regnamespace('expense_learning_private') is not null;",
+      ) === "t",
+      "failed rollback partially removed expense learning schema",
+    );
+  } finally {
+    applyInlineSql(
+      "delete from expense_learning_private.contribution_claims;",
+    );
+  }
+
+  applySql(expenseLearningSql.down);
+  expect(
+    querySql(
+      "select pg_catalog.to_regnamespace('expense_learning_private') is null;",
+    ) === "t",
+    "clean rollback did not remove expense learning schema",
+  );
+  expect(
+    querySql(`
+      select not exists (
+        select 1 from pg_catalog.pg_roles
+        where rolname = 'expense_learning_storage_owner'
+      );
+    `) === "t",
+    "clean rollback did not remove expense learning owner role",
+  );
+  applySql(expenseLearningSql.up);
+  expect(
+    expenseLearningCatalogSnapshot() === initialCatalogSnapshot,
+    "expense learning up/down/up changed normalized catalog semantics",
+  );
 }
 
 async function matrixSelect(client, table, filters) {
@@ -1214,6 +1774,22 @@ async function main() {
   `);
   applySql(sqlFiles.up[2]);
 
+  console.log("Validating expense learning P1B up -> down -> up...");
+  if (expenseLearningSchemaExists()) {
+    console.log("Resetting auto-applied empty expense learning P1B storage...");
+    applySql(expenseLearningSql.down);
+  }
+  applySql(expenseLearningSql.up);
+  const expenseLearningCatalog = expenseLearningCatalogSnapshot();
+  applySql(expenseLearningSql.down);
+  applySql(expenseLearningSql.up);
+  expect(
+    expenseLearningCatalogSnapshot() === expenseLearningCatalog,
+    "expense learning initial up/down/up changed catalog semantics",
+  );
+  testExpenseLearningDatabaseBoundary();
+  testExpenseLearningConstraints();
+
   const admin = service();
   const userA = await createUser(admin, "a");
   const userB = await createUser(admin, "b");
@@ -1223,6 +1799,7 @@ async function main() {
     await seedRows(admin, userA, userB);
     await testTableMatrix(admin, userA, userB);
     await testRpcPermissionsAndConcurrency(admin, userA);
+    await testExpenseLearningDataApi(admin, userA);
     await testLegacyStripeCutover(admin);
     await testStripeLeaseAndPackRpcs(admin, userA, userB);
     await testStripe(admin, userA);
@@ -1230,6 +1807,7 @@ async function main() {
       sqlFiles.down[0],
       "Stripe webhook ledger is not empty; rollback is unsafe",
     );
+    testExpenseLearningRollback(expenseLearningCatalog);
   } finally {
     await cleanup(admin, users).catch((error) => {
       console.error("Cleanup failed:", error.message);
