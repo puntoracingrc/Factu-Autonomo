@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: P3A con core privado desconectado; ingesta pública, transporte, promoción y lectura apagados
+- Estado: P3B con API dormida y core privado desconectado; ingesta, promoción y lectura apagadas
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -254,6 +254,60 @@ Antes de habilitar P4 debe existir además una ruta operativa fail-closed que
 haga efectiva la retirada de inmediato incluso si detecta corrupción, y permita
 purgar o reparar lo todavía separable sin reabrir la ingesta. La purga
 programada por sí sola no satisface ese gate y P3A permanece desconectado.
+
+### Alcance actual P3B
+
+P3B añade únicamente un endpoint `POST` autenticado y su protocolo servidor.
+La ruta solo existe cuando `EXPENSE_LEARNING_INGESTION_ENABLED` tiene el valor
+exacto `true`; el valor por defecto y cualquier variante distinta responden
+`404` antes de autenticación, rate-limit, lectura de body, cabecera, secretos o
+base de datos. Aunque el flag se configure por error, el wrapper P3A continúa
+respondiendo `DISABLED` y P3B transforma cualquier resultado del RPC, incluido
+un éxito prematuro o desconocido, en el mismo `503` genérico. No hay respuesta
+de aceptación, UI, shadow wiring, envío cliente ni DML alcanzable.
+
+El body está limitado a 16 KiB y debe normalizar exactamente la contribución
+P1A completa de 67 coordenadas, incluida la clave `learningHints: null`. No
+acepta envelope, usuario, semana, tiempo, token, digest o HMAC. La identidad se
+obtiene exclusivamente del bearer confirmado y el rate-limit distribuido
+`expense_learning_contribution_submit` permite como máximo 30 intentos por
+usuario cada 10 minutos. Este límite afecta solo al transporte de aprendizaje;
+nunca bloquea, ralentiza ni consume escaneo, IA, guardado, gasto o cuota.
+
+Cada intento lleva un token opaco de un solo uso en
+`X-Expense-Learning-Claim-V1`. Es base64url canónico sin padding, exactamente
+43 caracteres y 32 bytes después de decodificar; no entra en el body, RPC,
+logs ni respuesta. El digest global del claim usa HMAC-SHA-256 con el dominio
+versionado `expense-learning-claim-token-hmac.v1` sobre esos bytes y no incluye
+cuenta ni semana, preservando la detección cross-account demostrada por P3A.
+
+El pseudónimo semanal usa otra clave independiente y el dominio versionado
+`expense-learning-contributor-week-hmac.v1`. Su mensaje incluye las versiones
+cerradas P1A, el UUID autenticado canónico y el lunes UTC `YYYY-MM-DD`; no
+incluye token, email, documento o body. Los outputs son hex minúsculos de 64
+caracteres. Las variables servidor son
+`EXPENSE_LEARNING_CLAIM_HMAC_SECRET_V1` y
+`EXPENSE_LEARNING_CONTRIBUTOR_HMAC_SECRET_V1`: base64url canónico sin padding,
+entre 32 y 64 bytes reales, sin default, fallback ni lectura al importar el
+módulo. Las dos variables deben contener claves distintas. Una ausencia,
+reutilización de clave, alias, padding o material corto falla cerrado.
+
+Las dos claves tienen rotación separada. La clave de claim no puede retirarse
+mientras existan claims con TTL de 24 horas que todavía deban deduplicarse; la
+clave del aportante no puede rotar dentro de una semana UTC. P3B aplica una
+mitigación temporal: rechaza los cinco minutos anteriores y posteriores al
+lunes 00:00 UTC, calcula el contexto justo antes del RPC, lo vuelve a comprobar
+después de preparar los HMAC y aborta el RPC a los 10 segundos. Esta guardia no
+convierte el reloj de API en autoridad. P4 permanece bloqueado hasta que el RPC
+compare una semana esperada con la semana UTC de base de datos o derive allí el
+vínculo temporal, y hasta que exista un protocolo de rotación compatible con
+los TTL.
+
+P3B no incorpora un `GET` de elegibilidad. El core seguirá revalidando el
+consentimiento bajo lock cuando se habilite en una fase posterior. Secretos,
+token, body, digests, errores del RPC y detalles de base de datos no se
+registran ni se reflejan; todas las respuestas son privadas y `no-store`.
+P3C y P4 continúan siendo gates separados y apagados.
 
 ### Incentivo futuro separado
 

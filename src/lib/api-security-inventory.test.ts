@@ -54,6 +54,7 @@ const expectedMethods: Record<string, string[]> = {
   "email/welcome/route.ts": ["POST"],
   "expense-inbox/inbound/route.ts": ["POST"],
   "expense-inbox/route.ts": ["GET", "PATCH"],
+  "expenses/learning-contribution/route.ts": ["POST"],
   "expenses/learning-consent/route.ts": ["GET", "PUT"],
   "expenses/scan/route.ts": ["GET", "POST"],
   "google-auth/token/route.ts": ["POST"],
@@ -122,6 +123,7 @@ const bearerRoutes = [
   "email/welcome/route.ts",
   "expense-inbox/[id]/original/route.ts",
   "expense-inbox/route.ts",
+  "expenses/learning-contribution/route.ts",
   "expenses/learning-consent/route.ts",
   "expenses/scan/route.ts",
   "fiscal-notifications/audit/route.ts",
@@ -187,6 +189,7 @@ const boundedBodyRoutes = [
   "expense-deductibility/evaluate/route.ts",
   "expense-inbox/inbound/route.ts",
   "expense-inbox/route.ts",
+  "expenses/learning-contribution/route.ts",
   "expenses/learning-consent/route.ts",
   "expenses/scan/route.ts",
   "fiscal-notifications/audit/route.ts",
@@ -317,6 +320,27 @@ describe("API security inventory", () => {
     expect(putHandler.indexOf("routeIsEnabled()")).toBeLessThan(
       putHandler.indexOf("readJsonBody("),
     );
+  });
+
+  it("keeps expense learning contribution hidden before any capability", () => {
+    const source = sourceFor("expenses/learning-contribution/route.ts");
+    expect(source).toContain(
+      'process.env.EXPENSE_LEARNING_INGESTION_ENABLED === "true"',
+    );
+
+    const post = source.slice(source.indexOf("export async function POST"));
+    const featureGate = post.indexOf("routeIsEnabled()");
+    expect(featureGate).toBeGreaterThanOrEqual(0);
+    for (const capability of [
+      "getUserFromBearer(",
+      "checkRateLimit(",
+      "EXPENSE_LEARNING_CLAIM_HEADER_V1",
+      "readJsonBody(",
+      "EXPENSE_LEARNING_CLAIM_HMAC_SECRET_V1",
+      "getSupabaseAdmin(",
+    ]) {
+      expect(featureGate, capability).toBeLessThan(post.indexOf(capability));
+    }
   });
 
   it("keeps webhooks signature-checked and bounded", () => {
