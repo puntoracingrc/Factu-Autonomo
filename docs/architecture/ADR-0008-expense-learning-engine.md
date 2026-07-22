@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: P1B con almacenamiento vacío y RPC desactivadas; transporte, consentimiento, promoción y lectura pendientes
+- Estado: P2A con consentimiento durable desconectado; API, UI, transporte, promoción y lectura pendientes
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -61,10 +61,16 @@ llamadas, constructores ni mutaciones al importarse.
 La secuencia posterior queda bloqueada en este orden:
 
 1. P1B: store, migración y RPC con la feature apagada;
-2. P2: consentimiento durable, UI y endpoints, todavía sin contribuciones;
-3. P3: ingesta, staging, deduplicación y wiring con kill switch apagado;
-4. P4: batch, promoción y retención;
-5. P5: Admin, propiedad de su módulo y limitado a métricas promovidas.
+2. P2A: ledger durable y wrappers `service_role`, sin API, UI ni feature flag;
+3. P2B: API `GET`/`PUT` autenticada e inventariada, protegida por
+   `EXPENSE_LEARNING_CONSENT_ENABLED`, que solo activa con el valor exacto
+   `true` y permanece apagada por defecto, todavía sin contribuciones;
+4. P2C: UI de consentimiento y separación del copy operativo bajo el mismo
+   flag; un `404` la oculta y sigue sin existir envío de contribuciones;
+5. P3: ingesta, staging, deduplicación y wiring con un kill switch
+   independiente apagado por defecto;
+6. P4: batch, promoción y retención;
+7. P5: Admin, propiedad de su módulo y limitado a métricas promovidas.
 
 ### Alcance actual P1B
 
@@ -128,6 +134,50 @@ El rollback P1B es manual y transaccional. Aborta antes de retirar objetos si
 cualquiera de las cinco tablas runtime contiene filas, elimina solo wrappers,
 tablas, validadores, esquema y rol propios y finaliza con `DROP SCHEMA ...
 RESTRICT`. Nunca se ejecuta automáticamente en producción.
+
+### Alcance actual P2A
+
+P2A añade exclusivamente el ledger durable de consentimiento y dos wrappers
+internos. No abre API, interfaz, feature flag, ingesta, lectura de métricas,
+contribuciones, shadow wiring, Admin, job o workflow. Por tanto, desplegar P2A
+no permite todavía decidir ni enviar aprendizaje desde la aplicación y no
+modifica el escaneo, la IA ni el guardado de gastos.
+
+El consentimiento es una decisión **vinculada a identidad y autenticada**; no
+se denomina anónima ni desidentificada. El ledger privado conserva solo el
+usuario, una identidad monotónica interna, la decisión afirmativa o negativa,
+la hora asignada por el servidor y la tupla cerrada de versión de schema,
+aviso, finalidad y política de privacidad. No almacena IP, user-agent, sesión,
+tenant, documento, OCR, proveedor, importes, porcentajes, observaciones ni
+payloads. Un grant de otra tupla nunca autoriza la vigente.
+
+La tabla `learning_consent_decisions` reutiliza el esquema y el propietario
+dedicado de P1B. Mantiene `ENABLE` y `FORCE RLS`, con exactamente dos policies
+limitadas a `expense_learning_storage_owner`: `SELECT` e `INSERT`. No existen
+policies `ALL`, `UPDATE` o `DELETE`. La ACL sigue siendo la barrera principal:
+`PUBLIC`, `anon`, `authenticated` y `service_role` carecen de acceso al esquema,
+tabla y secuencia. `service_role` solo puede ejecutar los wrappers públicos
+`SECURITY DEFINER`, que validan también los claims PostgREST de forma
+fail-closed y nunca devuelven el identificador de usuario.
+
+Las decisiones normales son append-only. El setter toma un advisory lock
+transaccional con dominio separado por usuario, valida exactamente las cinco
+claves del contrato, consulta la última decisión por `decision_id DESC` e
+inserta la hora del servidor después del lock. Repetir la misma decisión para
+la misma tupla es idempotente; grant y retirada distintos conservan ambas
+decisiones en orden. El getter devuelve `UNDECIDED`, `GRANTED` o `REVOKED` solo
+para la tupla vigente.
+
+Hay una excepción explícita al append-only normal: eliminar la cuenta en
+`auth.users` purga todo su ledger mediante `ON DELETE CASCADE`, por
+minimización. La retención mínima de evidencia, su base jurídica y el efecto
+de esa purga requieren decisión y revisión jurídica antes de activar cualquier
+feature. Hasta entonces no se promete retención indefinida y toda superficie
+de producto permanece apagada.
+
+El rollback P2A es manual y transaccional, aborta si existe una sola decisión,
+retira únicamente sus dos wrappers, dos policies y tabla, y conserva intactos
+el esquema, rol, tablas y RPC desactivadas de P1B.
 
 ### Separación de dominios
 

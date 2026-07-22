@@ -72,6 +72,13 @@ const expenseLearningStorageMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const expenseLearningConsentMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260722050000_expense_learning_consent_p2a.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -193,6 +200,49 @@ describe("Supabase table-by-table RLS audit hardening", () => {
       );
       expect(expenseLearningStorageMigrationSource).toContain(
         `alter table expense_learning_private.${table}\n  owner to expense_learning_storage_owner`,
+      );
+    }
+  });
+
+  it("keeps the identity-linked consent ledger private and owner-policy minimal", () => {
+    const table = "expense_learning_private.learning_consent_decisions";
+    expect(expenseLearningConsentMigrationSource).toContain(
+      `create table ${table}`,
+    );
+    expect(expenseLearningConsentMigrationSource).toContain(
+      `alter table ${table}\n  owner to expense_learning_storage_owner`,
+    );
+    expect(expenseLearningConsentMigrationSource).toContain(
+      `alter table ${table}\n  enable row level security`,
+    );
+    expect(expenseLearningConsentMigrationSource).toContain(
+      `alter table ${table}\n  force row level security`,
+    );
+    expect(expenseLearningConsentMigrationSource.match(/create policy/giu)).toHaveLength(2);
+    expect(expenseLearningConsentMigrationSource).toContain(
+      `create policy expense_learning_consent_owner_select_v1\n  on ${table}\n  for select\n  to expense_learning_storage_owner\n  using (true)`,
+    );
+    expect(expenseLearningConsentMigrationSource).toContain(
+      `create policy expense_learning_consent_owner_insert_v1\n  on ${table}\n  for insert\n  to expense_learning_storage_owner\n  with check (true)`,
+    );
+    expect(expenseLearningConsentMigrationSource).not.toMatch(
+      /create policy[\s\S]*?for\s+(?:all|update|delete)/iu,
+    );
+    expect(expenseLearningConsentMigrationSource).toContain(
+      `revoke all on table ${table}\n  from public, anon, authenticated, service_role`,
+    );
+    expect(expenseLearningConsentMigrationSource).not.toMatch(
+      /grant\s+(?:all|usage|select|insert|update|delete)[^;]*expense_learning_private/iu,
+    );
+    for (const signature of [
+      "get_expense_learning_consent_v1(uuid)",
+      "set_expense_learning_consent_v1(uuid, jsonb)",
+    ]) {
+      expect(expenseLearningConsentMigrationSource).toContain(
+        `revoke all on function public.${signature}\n  from public, anon, authenticated, service_role`,
+      );
+      expect(expenseLearningConsentMigrationSource).toContain(
+        `grant execute on function public.${signature}\n  to service_role`,
       );
     }
   });

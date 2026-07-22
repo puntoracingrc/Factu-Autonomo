@@ -39,6 +39,11 @@ const expenseLearningSql = {
   down:
     "supabase/rollbacks/20260721223000_expense_learning_storage_p1b.down.sql",
 };
+const expenseLearningConsentSql = {
+  up: "supabase/migrations/20260722050000_expense_learning_consent_p2a.sql",
+  down:
+    "supabase/rollbacks/20260722050000_expense_learning_consent_p2a.down.sql",
+};
 
 const requiredEnv = [
   "PHASE1_ACCEPTANCE_ALLOW_DESTRUCTIVE",
@@ -329,6 +334,19 @@ function expenseLearningRuntimeRowCount() {
   );
 }
 
+function expenseLearningConsentRowCount(userId = null) {
+  const filter = userId
+    ? `where user_id = '${userId.replaceAll("'", "''")}'::uuid`
+    : "";
+  return Number(
+    querySql(`
+      select count(*)
+      from expense_learning_private.learning_consent_decisions
+      ${filter};
+    `),
+  );
+}
+
 function expenseLearningSchemaExists() {
   return (
     querySql(
@@ -398,6 +416,76 @@ function expenseLearningCatalogSnapshot() {
           )
         )
       )
+    )
+    select value from catalog_rows order by value;
+  `);
+}
+
+function expenseLearningConsentCatalogSnapshot() {
+  return querySql(`
+    with catalog_rows as (
+      select
+        'table|' || c.relname || '|' || pg_catalog.pg_get_userbyid(c.relowner)
+          || '|' || c.relrowsecurity || '|' || c.relforcerowsecurity || '|'
+          || coalesce(c.relacl::text, '') as value
+      from pg_catalog.pg_class c
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'expense_learning_private'
+        and c.relname in (
+          'learning_consent_decisions',
+          'learning_consent_decisions_decision_id_seq'
+        )
+      union all
+      select
+        'constraint|' || c.relname || '|' || con.conname || '|'
+          || pg_catalog.pg_get_constraintdef(con.oid, true)
+      from pg_catalog.pg_constraint con
+      join pg_catalog.pg_class c on c.oid = con.conrelid
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'expense_learning_private'
+        and c.relname = 'learning_consent_decisions'
+      union all
+      select
+        'index|' || index_class.relname || '|'
+          || pg_catalog.pg_get_indexdef(index_class.oid)
+      from pg_catalog.pg_index index_record
+      join pg_catalog.pg_class table_class
+        on table_class.oid = index_record.indrelid
+      join pg_catalog.pg_class index_class
+        on index_class.oid = index_record.indexrelid
+      join pg_catalog.pg_namespace n on n.oid = table_class.relnamespace
+      where n.nspname = 'expense_learning_private'
+        and table_class.relname = 'learning_consent_decisions'
+      union all
+      select
+        'policy|' || policy.polname || '|' || policy.polcmd::text || '|'
+          || (
+            select pg_catalog.string_agg(role.rolname, ',' order by role.rolname)
+            from pg_catalog.pg_roles role
+            where role.oid = any (policy.polroles)
+          ) || '|'
+          || coalesce(pg_catalog.pg_get_expr(policy.polqual, policy.polrelid), '')
+          || '|'
+          || coalesce(pg_catalog.pg_get_expr(policy.polwithcheck, policy.polrelid), '')
+      from pg_catalog.pg_policy policy
+      join pg_catalog.pg_class c on c.oid = policy.polrelid
+      join pg_catalog.pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'expense_learning_private'
+        and c.relname = 'learning_consent_decisions'
+      union all
+      select
+        'function|' || p.proname || '(' ||
+          pg_catalog.pg_get_function_identity_arguments(p.oid) || ')|'
+          || pg_catalog.pg_get_userbyid(p.proowner) || '|' || p.prosecdef || '|'
+          || coalesce(p.proconfig::text, '') || '|' || coalesce(p.proacl::text, '')
+          || '|' || pg_catalog.md5(p.prosrc)
+      from pg_catalog.pg_proc p
+      join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.proname in (
+          'get_expense_learning_consent_v1',
+          'set_expense_learning_consent_v1'
+        )
     )
     select value from catalog_rows order by value;
   `);
@@ -481,6 +569,13 @@ function testExpenseLearningDatabaseBoundary() {
       join pg_catalog.pg_namespace n on n.oid = c.relnamespace
       where n.nspname = 'expense_learning_private'
         and c.relkind = 'r'
+        and c.relname in (
+          'contribution_claims',
+          'contributor_week_limits',
+          'accumulator_memberships',
+          'protected_accumulators',
+          'closed_week_supported_metrics'
+        )
         and c.relrowsecurity
         and c.relforcerowsecurity;
     `) === "t",
@@ -492,7 +587,14 @@ function testExpenseLearningDatabaseBoundary() {
       from pg_catalog.pg_policy p
       join pg_catalog.pg_class c on c.oid = p.polrelid
       join pg_catalog.pg_namespace n on n.oid = c.relnamespace
-      where n.nspname = 'expense_learning_private';
+      where n.nspname = 'expense_learning_private'
+        and c.relname in (
+          'contribution_claims',
+          'contributor_week_limits',
+          'accumulator_memberships',
+          'protected_accumulators',
+          'closed_week_supported_metrics'
+        );
     `) === "t",
     "expense learning private tables unexpectedly have RLS policies",
   );
@@ -718,14 +820,19 @@ async function testExpenseLearningDataApi(admin, userA) {
     ["authenticated", userA.client],
     ["service_role", admin],
   ]) {
-    const result = await client
-      .schema("expense_learning_private")
-      .from("protected_accumulators")
-      .select("*");
-    expect(
-      !opAllowed(result),
-      `${role} unexpectedly reached expense_learning_private over Data API`,
-    );
+    for (const table of [
+      "protected_accumulators",
+      "learning_consent_decisions",
+    ]) {
+      const result = await client
+        .schema("expense_learning_private")
+        .from(table)
+        .select("*");
+      expect(
+        !opAllowed(result),
+        `${role} unexpectedly reached expense_learning_private.${table} over Data API`,
+      );
+    }
   }
 
   const submitArgs = {
@@ -778,15 +885,379 @@ async function testExpenseLearningDataApi(admin, userA) {
         and p.proname like '%expense_learning%';
     `) ===
       [
+        "get_expense_learning_consent_v1",
         "promote_expense_learning_closed_weeks_v1",
         "purge_expense_learning_retention_v1",
+        "set_expense_learning_consent_v1",
         "submit_expense_learning_contribution_v1",
       ].join(","),
-    "unexpected public expense learning read or mutation RPC exists",
+    "unexpected public expense learning RPC exists",
   );
 }
 
-function testExpenseLearningRollback(initialCatalogSnapshot) {
+const consentDecision = (granted) => ({
+  schemaVersion: "expense-engine-learning-consent.v1",
+  noticeVersion: "expense-learning-notice.v1",
+  purpose: "IMPROVE_LOCAL_EXPENSE_READER",
+  privacyPolicyVersion: "2026-07-21",
+  granted,
+});
+
+function expectConsentState(result, state, message) {
+  expect(opAllowed(result), `${message}: ${result.error?.message ?? "unknown"}`);
+  expect(result.data?.state === state, `${message}: expected ${state}`);
+  expect(
+    JSON.stringify(Object.keys(result.data ?? {}).sort()) ===
+      JSON.stringify(
+        [
+          "decidedAt",
+          "noticeVersion",
+          "privacyPolicyVersion",
+          "purpose",
+          "schemaVersion",
+          "state",
+        ].sort(),
+      ),
+    `${message}: response exposed unexpected fields`,
+  );
+}
+
+async function waitForExpenseLearningConsentRpc(admin, userId) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const result = await admin.rpc("get_expense_learning_consent_v1", {
+      p_user_id: userId,
+    });
+    if (!result.error) return result;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  fail("expense learning consent RPC did not enter the PostgREST schema cache");
+}
+
+function testExpenseLearningConsentDatabaseBoundary(userId) {
+  expect(
+    querySql(`
+      select count(*) = 2
+        and count(*) filter (where policy.polcmd = 'r') = 1
+        and count(*) filter (where policy.polcmd = 'a') = 1
+        and count(*) filter (where policy.polcmd in ('w', 'd', '*')) = 0
+        and pg_catalog.bool_and(
+          policy.polroles = array[owner.oid]::oid[]
+        )
+      from pg_catalog.pg_policy policy
+      join pg_catalog.pg_class relation on relation.oid = policy.polrelid
+      join pg_catalog.pg_namespace namespace
+        on namespace.oid = relation.relnamespace
+      cross join pg_catalog.pg_roles owner
+      where namespace.nspname = 'expense_learning_private'
+        and relation.relname = 'learning_consent_decisions'
+        and owner.rolname = 'expense_learning_storage_owner';
+    `) === "t",
+    "consent ledger does not have exactly owner-only SELECT and INSERT policies",
+  );
+  expect(
+    querySql(`
+      select pg_catalog.bool_and(
+        not pg_catalog.has_table_privilege(
+          role_name,
+          'expense_learning_private.learning_consent_decisions',
+          'SELECT,INSERT,UPDATE,DELETE'
+        )
+      )
+      from (values
+        ('anon'),
+        ('authenticated'),
+        ('service_role')
+      ) as roles(role_name);
+    `) === "t",
+    "browser or service roles gained direct consent table privileges",
+  );
+  expect(
+    querySql(`
+      select pg_catalog.bool_and(
+        not pg_catalog.has_sequence_privilege(
+          role_name,
+          'expense_learning_private.learning_consent_decisions_decision_id_seq',
+          'USAGE,SELECT,UPDATE'
+        )
+      )
+      from (values
+        ('anon'),
+        ('authenticated'),
+        ('service_role')
+      ) as roles(role_name);
+    `) === "t",
+    "browser or service roles gained direct consent sequence privileges",
+  );
+  expect(
+    querySql(`
+      select count(*) = 2
+        and pg_catalog.bool_and(p.prosecdef)
+        and pg_catalog.bool_and(
+          pg_catalog.pg_get_userbyid(p.proowner) =
+            'expense_learning_storage_owner'
+        )
+        and pg_catalog.bool_and(
+          p.proconfig @> array['search_path=""']::text[]
+        )
+      from pg_catalog.pg_proc p
+      join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public'
+        and p.proname in (
+          'get_expense_learning_consent_v1',
+          'set_expense_learning_consent_v1'
+        );
+    `) === "t",
+    "consent wrappers are not owner-bound SECURITY DEFINER functions",
+  );
+
+  const rowsBefore = expenseLearningConsentRowCount();
+  expectInlineSqlFailure(
+    `select public.get_expense_learning_consent_v1('${userId}'::uuid);`,
+    "expense_learning_consent_rpc_forbidden",
+  );
+  expectInlineSqlFailure(
+    `set request.jwt.claims = '{';
+     select public.get_expense_learning_consent_v1('${userId}'::uuid);`,
+    "expense_learning_consent_rpc_forbidden",
+  );
+  expectInlineSqlFailure(
+    `set role service_role;
+     select count(*)
+     from expense_learning_private.learning_consent_decisions;`,
+    "permission denied for schema expense_learning_private",
+  );
+  expect(
+    expenseLearningConsentRowCount() === rowsBefore,
+    "failed consent boundary checks changed the ledger",
+  );
+}
+
+async function testExpenseLearningConsentBehavior(admin, users) {
+  const sequential = await createUser(admin, "consent_sequential");
+  const duplicate = await createUser(admin, "consent_duplicate");
+  const race = await createUser(admin, "consent_race");
+  const cascade = await createUser(admin, "consent_cascade");
+  users.push(sequential, duplicate, race, cascade);
+
+  const undecided = await waitForExpenseLearningConsentRpc(
+    admin,
+    sequential.id,
+  );
+  expectConsentState(undecided, "UNDECIDED", "fresh consent state");
+  expect(undecided.data.decidedAt === null, "UNDECIDED had a decision time");
+
+  const anonGet = await anon().rpc("get_expense_learning_consent_v1", {
+    p_user_id: sequential.id,
+  });
+  expect(!opAllowed(anonGet), "anon executed consent getter");
+  const authGet = await sequential.client.rpc(
+    "get_expense_learning_consent_v1",
+    { p_user_id: sequential.id },
+  );
+  expect(!opAllowed(authGet), "authenticated executed consent getter");
+
+  const granted = await admin.rpc("set_expense_learning_consent_v1", {
+    p_user_id: sequential.id,
+    p_decision: consentDecision(true),
+  });
+  expectConsentState(granted, "GRANTED", "grant consent");
+  expect(
+    expenseLearningConsentRowCount(sequential.id) === 1,
+    "grant did not append exactly one decision",
+  );
+  const duplicateGrant = await admin.rpc("set_expense_learning_consent_v1", {
+    p_user_id: sequential.id,
+    p_decision: consentDecision(true),
+  });
+  expectConsentState(duplicateGrant, "GRANTED", "idempotent grant");
+  expect(
+    duplicateGrant.data.decidedAt === granted.data.decidedAt &&
+      expenseLearningConsentRowCount(sequential.id) === 1,
+    "idempotent grant appended or changed its server time",
+  );
+
+  const invalid = await admin.rpc("set_expense_learning_consent_v1", {
+    p_user_id: sequential.id,
+    p_decision: { ...consentDecision(true), accountLabel: "forbidden" },
+  });
+  expect(!opAllowed(invalid), "consent setter accepted an unknown key");
+  const stale = await admin.rpc("set_expense_learning_consent_v1", {
+    p_user_id: sequential.id,
+    p_decision: {
+      ...consentDecision(true),
+      noticeVersion: "expense-learning-notice.v0",
+    },
+  });
+  expect(!opAllowed(stale), "consent setter accepted a stale notice version");
+  expect(
+    expenseLearningConsentRowCount(sequential.id) === 1,
+    "invalid consent bodies changed the ledger",
+  );
+
+  const revoked = await admin.rpc("set_expense_learning_consent_v1", {
+    p_user_id: sequential.id,
+    p_decision: consentDecision(false),
+  });
+  expectConsentState(revoked, "REVOKED", "revoke consent");
+  expect(
+    expenseLearningConsentRowCount(sequential.id) === 2,
+    "revocation did not preserve both decisions",
+  );
+  const currentRevoked = await admin.rpc("get_expense_learning_consent_v1", {
+    p_user_id: sequential.id,
+  });
+  expectConsentState(currentRevoked, "REVOKED", "latest consent after revoke");
+
+  applyInlineSql(`
+    set role expense_learning_storage_owner;
+    update expense_learning_private.learning_consent_decisions
+    set granted = true
+    where user_id = '${sequential.id}'::uuid;
+    delete from expense_learning_private.learning_consent_decisions
+    where user_id = '${sequential.id}'::uuid;
+    reset role;
+  `);
+  expect(
+    expenseLearningConsentRowCount(sequential.id) === 2 &&
+      querySql(`
+        select granted = false
+        from expense_learning_private.learning_consent_decisions
+        where user_id = '${sequential.id}'::uuid
+        order by decision_id desc
+        limit 1;
+      `) === "t",
+    "owner-only UPDATE or DELETE bypassed the append-only policies",
+  );
+
+  const duplicateResults = await Promise.all([
+    admin.rpc("set_expense_learning_consent_v1", {
+      p_user_id: duplicate.id,
+      p_decision: consentDecision(true),
+    }),
+    admin.rpc("set_expense_learning_consent_v1", {
+      p_user_id: duplicate.id,
+      p_decision: consentDecision(true),
+    }),
+  ]);
+  for (const result of duplicateResults) {
+    expectConsentState(result, "GRANTED", "concurrent duplicate grant");
+  }
+  expect(
+    expenseLearningConsentRowCount(duplicate.id) === 1,
+    "concurrent identical grants were duplicated",
+  );
+
+  const raceResults = await Promise.all([
+    admin.rpc("set_expense_learning_consent_v1", {
+      p_user_id: race.id,
+      p_decision: consentDecision(true),
+    }),
+    admin.rpc("set_expense_learning_consent_v1", {
+      p_user_id: race.id,
+      p_decision: consentDecision(false),
+    }),
+  ]);
+  expect(
+    raceResults.every(opAllowed),
+    "concurrent grant/revoke did not serialize successfully",
+  );
+  expect(
+    expenseLearningConsentRowCount(race.id) === 2,
+    "concurrent grant/revoke lost a decision",
+  );
+  const latestRaceState = querySql(`
+    select case when granted then 'GRANTED' else 'REVOKED' end
+    from expense_learning_private.learning_consent_decisions
+    where user_id = '${race.id}'::uuid
+    order by decision_id desc
+    limit 1;
+  `);
+  const raceGet = await admin.rpc("get_expense_learning_consent_v1", {
+    p_user_id: race.id,
+  });
+  expectConsentState(raceGet, latestRaceState, "serialized race latest state");
+
+  const cascadeGrant = await admin.rpc("set_expense_learning_consent_v1", {
+    p_user_id: cascade.id,
+    p_decision: consentDecision(true),
+  });
+  expectConsentState(cascadeGrant, "GRANTED", "cascade seed grant");
+  const { error: cascadeDeleteError } = await admin.auth.admin.deleteUser(
+    cascade.id,
+  );
+  expect(!cascadeDeleteError, "could not delete synthetic cascade user");
+  expect(
+    expenseLearningConsentRowCount(cascade.id) === 0,
+    "account deletion did not purge its consent ledger",
+  );
+
+  for (const user of [sequential, duplicate, race]) {
+    const { error } = await admin.auth.admin.deleteUser(user.id);
+    expect(!error, `could not delete synthetic consent user ${user.id}`);
+  }
+  expect(
+    expenseLearningConsentRowCount() === 0,
+    "synthetic consent behavior left ledger rows",
+  );
+  expect(
+    expenseLearningRuntimeRowCount() === 0,
+    "consent behavior changed P1B runtime storage",
+  );
+}
+
+async function testExpenseLearningConsentRollback(
+  admin,
+  users,
+  initialCatalogSnapshot,
+) {
+  const rollbackUser = await createUser(admin, "consent_rollback");
+  users.push(rollbackUser);
+  const grant = await admin.rpc("set_expense_learning_consent_v1", {
+    p_user_id: rollbackUser.id,
+    p_decision: consentDecision(true),
+  });
+  expectConsentState(grant, "GRANTED", "rollback guard seed");
+
+  expectSqlFileFailure(
+    expenseLearningConsentSql.down,
+    "Expense learning consent ledger is not empty; rollback is unsafe",
+  );
+  expect(
+    expenseLearningConsentRowCount(rollbackUser.id) === 1,
+    "failed consent rollback partially removed its ledger",
+  );
+
+  const { error } = await admin.auth.admin.deleteUser(rollbackUser.id);
+  expect(!error, "could not purge synthetic rollback consent user");
+  expect(
+    expenseLearningConsentRowCount() === 0,
+    "account cascade did not unblock controlled local rollback",
+  );
+
+  applySql(expenseLearningConsentSql.down);
+  expect(
+    querySql(`
+      select pg_catalog.to_regclass(
+        'expense_learning_private.learning_consent_decisions'
+      ) is null
+        and pg_catalog.to_regclass(
+          'expense_learning_private.protected_accumulators'
+        ) is not null;
+    `) === "t",
+    "consent rollback removed or damaged P1B storage",
+  );
+  applySql(expenseLearningConsentSql.up);
+  expect(
+    expenseLearningConsentCatalogSnapshot() === initialCatalogSnapshot,
+    "consent up/down/up changed normalized catalog semantics",
+  );
+}
+
+function testExpenseLearningRollback(
+  initialCatalogSnapshot,
+  consentCatalogSnapshot,
+) {
+  applySql(expenseLearningConsentSql.down);
   applyInlineSql(`
     insert into expense_learning_private.contribution_claims (
       claim_token_digest,
@@ -835,6 +1306,11 @@ function testExpenseLearningRollback(initialCatalogSnapshot) {
   expect(
     expenseLearningCatalogSnapshot() === initialCatalogSnapshot,
     "expense learning up/down/up changed normalized catalog semantics",
+  );
+  applySql(expenseLearningConsentSql.up);
+  expect(
+    expenseLearningConsentCatalogSnapshot() === consentCatalogSnapshot,
+    "P1B rollback cycle changed consent P2A catalog semantics",
   );
 }
 
@@ -1776,6 +2252,16 @@ async function main() {
 
   console.log("Validating expense learning P1B up -> down -> up...");
   if (expenseLearningSchemaExists()) {
+    if (
+      querySql(`
+        select pg_catalog.to_regclass(
+          'expense_learning_private.learning_consent_decisions'
+        ) is not null;
+      `) === "t"
+    ) {
+      console.log("Resetting auto-applied empty expense learning P2A consent...");
+      applySql(expenseLearningConsentSql.down);
+    }
     console.log("Resetting auto-applied empty expense learning P1B storage...");
     applySql(expenseLearningSql.down);
   }
@@ -1790,6 +2276,17 @@ async function main() {
   testExpenseLearningDatabaseBoundary();
   testExpenseLearningConstraints();
 
+  console.log("Validating expense learning consent P2A up -> down -> up...");
+  applySql(expenseLearningConsentSql.up);
+  const expenseLearningConsentCatalog =
+    expenseLearningConsentCatalogSnapshot();
+  applySql(expenseLearningConsentSql.down);
+  applySql(expenseLearningConsentSql.up);
+  expect(
+    expenseLearningConsentCatalogSnapshot() === expenseLearningConsentCatalog,
+    "expense learning consent initial up/down/up changed catalog semantics",
+  );
+
   const admin = service();
   const userA = await createUser(admin, "a");
   const userB = await createUser(admin, "b");
@@ -1800,6 +2297,8 @@ async function main() {
     await testTableMatrix(admin, userA, userB);
     await testRpcPermissionsAndConcurrency(admin, userA);
     await testExpenseLearningDataApi(admin, userA);
+    testExpenseLearningConsentDatabaseBoundary(userA.id);
+    await testExpenseLearningConsentBehavior(admin, users);
     await testLegacyStripeCutover(admin);
     await testStripeLeaseAndPackRpcs(admin, userA, userB);
     await testStripe(admin, userA);
@@ -1807,7 +2306,15 @@ async function main() {
       sqlFiles.down[0],
       "Stripe webhook ledger is not empty; rollback is unsafe",
     );
-    testExpenseLearningRollback(expenseLearningCatalog);
+    await testExpenseLearningConsentRollback(
+      admin,
+      users,
+      expenseLearningConsentCatalog,
+    );
+    testExpenseLearningRollback(
+      expenseLearningCatalog,
+      expenseLearningConsentCatalog,
+    );
   } finally {
     await cleanup(admin, users).catch((error) => {
       console.error("Cleanup failed:", error.message);
