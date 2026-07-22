@@ -35,6 +35,8 @@ export const productosSection: ManualSection = {
       paragraphs: [
         "Esta base te ayuda a ver qué compras más, a qué proveedor se lo compras y si los precios o descuentos empiezan a moverse.",
         "Al crear presupuestos, facturas y recibos, escribe el producto en una línea y elige una sugerencia para insertarlo. La app prioriza el PVP proveedor; si no existe, avisa de que solo está usando el coste como referencia.",
+        "La plantilla de cantidad es independiente de la unidad: puedes escribir una cantidad directa o calcularla por largo, superficie o volumen. Al elegir el producto, Factu pide las medidas necesarias y lleva al documento la cantidad calculada.",
+        "Peso, capacidad, tiempo, servicios y unidades se introducen normalmente como cantidad directa. La equivalencia entre una unidad de compra y varias unidades de venta es un dato distinto y no cambia estas fórmulas.",
         "También puedes seleccionar varios productos desde **Productos** y abrir una factura, presupuesto o recibo con esas líneas ya preparadas. Todo queda editable: cantidad, unidad, precio, IVA e incremento.",
       ],
       tip: "Si un producto aparece raro, revisa la línea original en el gasto: esta pantalla se alimenta de esos textos.",

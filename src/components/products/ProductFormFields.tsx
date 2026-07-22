@@ -19,6 +19,7 @@ import {
   productAttributesFromText,
 } from "@/lib/product-attributes";
 import {
+  productCalculationLabel,
   productDuplicateReasonLabel,
   type ProductDuplicateCandidate,
   type ProductFormDraft,
@@ -51,19 +52,19 @@ const NUMERIC_FIELD_LABELS: Record<ProductNumericField, string> = {
 function hasPurchaseDetails(draft: ProductFormDraft): boolean {
   return Boolean(
     draft.supplierName.trim() ||
-      draft.supplierReference.trim() ||
-      draft.purchaseDescription.trim() ||
-      draft.purchaseListPrice.trim() ||
-      draft.purchaseDiscountPercent.trim() ||
-      draft.purchaseNetUnitCost.trim(),
+    draft.supplierReference.trim() ||
+    draft.purchaseDescription.trim() ||
+    draft.purchaseListPrice.trim() ||
+    draft.purchaseDiscountPercent.trim() ||
+    draft.purchaseNetUnitCost.trim(),
   );
 }
 
 function hasAdvancedDetails(draft: ProductFormDraft): boolean {
   return Boolean(
-    draft.calculationKind === "area" ||
-      draft.attributesText.trim() ||
-      draft.notes.trim(),
+    draft.calculationKind !== "none" ||
+    draft.attributesText.trim() ||
+    draft.notes.trim(),
   );
 }
 
@@ -227,9 +228,7 @@ export function ProductFormFields({
             <Input
               list={`${idPrefix}-supplier-options`}
               value={draft.supplierName}
-              onChange={(event) =>
-                onChange("supplierName", event.target.value)
-              }
+              onChange={(event) => onChange("supplierName", event.target.value)}
               placeholder="Sin proveedor"
               autoComplete="off"
             />
@@ -290,8 +289,8 @@ export function ProductFormFields({
       <ProgressiveSection
         title="Cálculo y atributos"
         summary={
-          draft.calculationKind === "area"
-            ? "Alto x ancho"
+          draft.calculationKind !== "none"
+            ? productCalculationLabel(draft.calculationKind)
             : draft.attributesText.trim()
               ? "Con atributos"
               : "Cantidad directa"
@@ -309,7 +308,9 @@ export function ProductFormFields({
               className="h-12 w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             >
               <option value="none">Cantidad directa</option>
-              <option value="area">Alto x ancho = m²</option>
+              <option value="linear">Piezas x largo = m / ml</option>
+              <option value="area">Piezas x ancho x alto = m²</option>
+              <option value="volume">Piezas x largo x ancho x alto = m³</option>
             </select>
           </Field>
           <Field label="Atributos" hint="Uno por línea">
@@ -447,7 +448,9 @@ function ProgressiveSection({
         className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-2 text-left transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
       >
         <span className="min-w-0">
-          <span className="block text-sm font-bold text-slate-950">{title}</span>
+          <span className="block text-sm font-bold text-slate-950">
+            {title}
+          </span>
           <span className="block truncate text-xs font-semibold text-slate-500">
             {summary}
           </span>

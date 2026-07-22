@@ -1,4 +1,9 @@
-import type { Document, DocumentType, LineItem } from "./types";
+import type {
+  Document,
+  DocumentType,
+  LineItem,
+  ProductCalculationTemplate,
+} from "./types";
 import type { LineMeasurementDraft } from "./area-calculation";
 import { normalizeDocumentUnitId } from "./document-units";
 import type { PurchaseProductSummary } from "./purchase-products";
@@ -21,6 +26,7 @@ export interface ProductDocumentDraftLine {
   priceSource: DocumentProductSalePriceSource;
   costUnitPrice?: number;
   costIvaPercent?: number;
+  calculation?: ProductCalculationTemplate;
   line: Omit<LineItem, "id">;
 }
 
@@ -84,6 +90,21 @@ export interface DocumentProductPickRequest {
     unit?: string;
     unitPrice?: number;
     ivaPercent?: number;
+    calculation?: ProductCalculationTemplate;
+  };
+}
+
+export function mergeProductCalculationIntoMeasurementDraft(
+  draft: LineMeasurementDraft | undefined,
+  calculation: ProductCalculationTemplate,
+): LineMeasurementDraft {
+  const roundingDecimals = Number.isFinite(calculation.roundingDecimals)
+    ? Math.min(Math.max(Math.trunc(calculation.roundingDecimals ?? 2), 0), 4)
+    : 2;
+  return {
+    ...draft,
+    kind: calculation.kind,
+    roundingDecimals,
   };
 }
 
@@ -108,6 +129,12 @@ export function productSummaryToDocumentDraftLine(
   defaultIva = 21,
 ): ProductDocumentDraftLine {
   const price = documentProductSaleUnitPriceInfo(product);
+  const unit =
+    normalizeDocumentUnitId(product.saleUnit) ??
+    normalizeDocumentUnitId(product.unit) ??
+    product.saleUnit ??
+    product.unit ??
+    "ud";
   return {
     productKey: product.key,
     productId: product.productId,
@@ -120,15 +147,13 @@ export function productSummaryToDocumentDraftLine(
       product.averageUnitPrice,
     ),
     costIvaPercent: product.ivaPercent ?? product.saleIvaPercent ?? defaultIva,
+    calculation: product.calculation
+      ? { ...product.calculation, unit }
+      : { kind: "none", unit },
     line: {
       description: product.saleDescription || product.name,
       quantity: 1,
-      unit:
-        normalizeDocumentUnitId(product.saleUnit) ??
-        normalizeDocumentUnitId(product.unit) ??
-        product.saleUnit ??
-        product.unit ??
-        "ud",
+      unit,
       unitPrice: price.unitPrice,
       ivaPercent: product.saleIvaPercent ?? product.ivaPercent ?? defaultIva,
     },

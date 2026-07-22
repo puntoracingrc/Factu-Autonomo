@@ -10,6 +10,7 @@ import type {
   ExpensePurchaseLine,
   Product,
   ProductAttribute,
+  ProductCalculationKind,
 } from "./types";
 
 export interface PurchaseProductSupplierSummary {
@@ -228,12 +229,23 @@ export function normalizeProductCatalogItem(product: Product): Product {
       purchaseDiscountPercent ||
       supplierName,
     );
-  const calculationKind = product.calculation?.kind ?? "none";
+  const calculationKind: ProductCalculationKind =
+    product.calculation?.kind === "linear" ||
+    product.calculation?.kind === "area" ||
+    product.calculation?.kind === "volume"
+      ? product.calculation.kind
+      : "none";
   const calculation =
-    calculationKind === "area"
+    calculationKind !== "none"
       ? {
-          kind: "area" as const,
-          unit: cleanOptionalUnit(product.calculation?.unit) ?? "m2",
+          kind: calculationKind,
+          unit:
+            cleanOptionalUnit(product.calculation?.unit) ??
+            (calculationKind === "linear"
+              ? "m"
+              : calculationKind === "area"
+                ? "m2"
+                : "m3"),
           roundingDecimals:
             typeof product.calculation?.roundingDecimals === "number" &&
             Number.isFinite(product.calculation.roundingDecimals)
@@ -362,9 +374,7 @@ function normalizedDiscountPercent(line: PurchaseCatalogPriceLine): number {
   return Number.isFinite(discount) ? Math.min(Math.max(discount, 0), 100) : 0;
 }
 
-function purchaseLineNetUnitCost(
-  line: PurchaseCatalogPriceLine,
-): number {
+function purchaseLineNetUnitCost(line: PurchaseCatalogPriceLine): number {
   const discount = normalizedDiscountPercent(line);
   if (Number.isFinite(line.unitPrice) && line.unitPrice > 0) {
     return roundMoney(line.unitPrice * (1 - discount / 100));

@@ -14,6 +14,7 @@ export const DOCUMENT_UNIT_CATALOG: DocumentUnitDefinition[] = [
   { id: "km", label: "Kilómetro", shortLabel: "km" },
   { id: "m2", label: "Metro cuadrado", shortLabel: "m²" },
   { id: "cm2", label: "Centímetro cuadrado", shortLabel: "cm²" },
+  { id: "m3", label: "Metro cúbico", shortLabel: "m³" },
   { id: "h", label: "Hora", shortLabel: "h" },
   { id: "dia", label: "Día", shortLabel: "día" },
   { id: "mes", label: "Mes", shortLabel: "mes" },
@@ -83,6 +84,19 @@ export function normalizeDocumentUnitId(
     return "ml";
   }
   if (["cm2", "cm²", "cm^2"].includes(normalized)) return "cm2";
+  if (
+    [
+      "m3",
+      "m³",
+      "m^3",
+      "metro3",
+      "metros3",
+      "metrocubico",
+      "metroscubicos",
+    ].includes(normalized)
+  ) {
+    return "m3";
+  }
   if (["hora", "horas"].includes(normalized)) return "h";
   if (["dia", "dias", "día", "días"].includes(normalized)) return "dia";
   if (CATALOG_IDS.has(normalized)) return normalized;
@@ -196,7 +210,7 @@ export function formatQuantityWithUnit(
   const qty = Number.isInteger(quantity)
     ? String(quantity)
     : quantity
-        .toFixed(2)
+        .toFixed(4)
         .replace(/(\.\d*[1-9])0+$/, "$1")
         .replace(/\.0+$/, "");
   return `${qty} ${unitShortLabel(unitId)}`;

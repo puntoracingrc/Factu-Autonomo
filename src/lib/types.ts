@@ -568,7 +568,7 @@ export interface ProductPurchaseFacet {
   purchaseToSaleFactor?: number;
 }
 
-export type ProductCalculationKind = "none" | "area";
+export type ProductCalculationKind = "none" | "linear" | "area" | "volume";
 
 export interface ProductCalculationTemplate {
   kind: ProductCalculationKind;

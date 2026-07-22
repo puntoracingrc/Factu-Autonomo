@@ -1,9 +1,9 @@
 import { documentTotals, lineMoneyAmounts } from "./calculations";
 import {
-  isAreaDocumentUnit,
-  isLinearDocumentUnit,
+  isMeasuredCalculationKind,
   lineMeasurementDescriptionSuffix,
   measurementQuantityForUnit,
+  resolveLineMeasurementKind,
   type LineMeasurementDraft,
 } from "./area-calculation";
 import type { LineItem } from "./types";
@@ -102,11 +102,13 @@ export function applyLineMeasurementDraft(
   item: LineItem,
   draft?: LineMeasurementDraft,
 ): LineItem {
-  if (draft && (isAreaDocumentUnit(item.unit) || isLinearDocumentUnit(item.unit))) {
-    return { ...item, quantity: measurementQuantityForUnit(item.unit, draft) };
+  if (!draft) return item;
+  if (
+    !isMeasuredCalculationKind(resolveLineMeasurementKind(item.unit, draft))
+  ) {
+    return item;
   }
   const quantity = measurementQuantityForUnit(item.unit, draft);
-  if (quantity <= 0) return item;
   return { ...item, quantity };
 }
 

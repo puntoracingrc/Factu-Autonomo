@@ -1,4 +1,7 @@
 import type { PurchaseProductSummary } from "./purchase-products";
+import type { DocumentProductPickRequest } from "./product-document-draft";
+import { normalizeDocumentUnitId } from "./document-units";
+import type { ProductCalculationKind } from "./types";
 
 export interface ProductFormDraft {
   sku: string;
@@ -16,17 +19,14 @@ export interface ProductFormDraft {
   purchaseListPrice: string;
   purchaseDiscountPercent: string;
   purchaseNetUnitCost: string;
-  calculationKind: "none" | "area";
+  calculationKind: ProductCalculationKind;
+  calculationRoundingDecimals: number;
   attributesText: string;
   notes: string;
 }
 
 export type ProductDuplicateReason =
-  | "name"
-  | "catalog_key"
-  | "alias"
-  | "sku"
-  | "supplier_reference";
+  "name" | "catalog_key" | "alias" | "sku" | "supplier_reference";
 
 export interface ProductDuplicateCandidate {
   key: string;
@@ -54,9 +54,47 @@ export const EMPTY_PRODUCT_FORM_DRAFT: ProductFormDraft = {
   purchaseDiscountPercent: "",
   purchaseNetUnitCost: "",
   calculationKind: "none",
+  calculationRoundingDecimals: 2,
   attributesText: "",
   notes: "",
 };
+
+export function normalizeProductCalculationKind(
+  value: unknown,
+): ProductCalculationKind {
+  return value === "linear" || value === "area" || value === "volume"
+    ? value
+    : "none";
+}
+
+export function productCalculationUnit(
+  kind: ProductCalculationKind,
+  requestedUnit?: string,
+): string {
+  if (kind === "linear") {
+    return requestedUnit === "ml" || requestedUnit === "m"
+      ? requestedUnit
+      : "m";
+  }
+  if (kind === "area") return "m2";
+  if (kind === "volume") return "m3";
+  return requestedUnit || "ud";
+}
+
+export function productCalculationLabel(kind: ProductCalculationKind): string {
+  if (kind === "linear") return "Piezas x largo";
+  if (kind === "area") return "Piezas x ancho x alto";
+  if (kind === "volume") return "Piezas x largo x ancho x alto";
+  return "Cantidad directa";
+}
+
+export function normalizeProductCalculationRoundingDecimals(
+  value: unknown,
+): number {
+  return typeof value === "number" && Number.isFinite(value)
+    ? Math.min(Math.max(Math.trunc(value), 0), 4)
+    : 2;
+}
 
 function numberInput(value: number | undefined): string {
   return value === undefined || !Number.isFinite(value) ? "" : String(value);
@@ -87,9 +125,7 @@ export function productFormDraftFromSummary(
     saleDescription: product.saleDescription ?? "",
     saleUnit: product.saleUnit ?? product.unit ?? "ud",
     salePrice: numberInput(product.saleUnitPrice),
-    saleIvaPercent: numberInput(
-      product.saleIvaPercent ?? product.ivaPercent,
-    ),
+    saleIvaPercent: numberInput(product.saleIvaPercent ?? product.ivaPercent),
     supplierName: product.usualSupplier?.supplierName ?? "",
     supplierReference: product.purchaseSupplierReference ?? "",
     purchaseDescription: product.purchaseDescription ?? "",
@@ -104,10 +140,45 @@ export function productFormDraftFromSummary(
     purchaseNetUnitCost: numberInput(
       (product.purchaseNetUnitCost ?? product.lastUnitPrice) || undefined,
     ),
-    calculationKind:
-      product.calculation?.kind === "area" ? "area" : "none",
+    calculationKind: normalizeProductCalculationKind(product.calculation?.kind),
+    calculationRoundingDecimals: normalizeProductCalculationRoundingDecimals(
+      product.calculation?.roundingDecimals,
+    ),
     attributesText,
     notes: product.notes ?? "",
+  };
+}
+
+export function productFormDraftFromDocumentPrefill(
+  prefill: NonNullable<DocumentProductPickRequest["prefill"]>,
+): ProductFormDraft {
+  const calculationKind = normalizeProductCalculationKind(
+    prefill.calculation?.kind,
+  );
+  const requestedUnit =
+    normalizeDocumentUnitId(prefill.calculation?.unit ?? prefill.unit) ??
+    prefill.calculation?.unit ??
+    prefill.unit ??
+    EMPTY_PRODUCT_FORM_DRAFT.saleUnit;
+  const saleUnit = productCalculationUnit(calculationKind, requestedUnit);
+  return {
+    ...EMPTY_PRODUCT_FORM_DRAFT,
+    name: prefill.name || "",
+    saleDescription: prefill.description || prefill.name || "",
+    saleUnit,
+    purchaseUnit: saleUnit,
+    salePrice:
+      prefill.unitPrice !== undefined && prefill.unitPrice > 0
+        ? String(prefill.unitPrice)
+        : EMPTY_PRODUCT_FORM_DRAFT.salePrice,
+    saleIvaPercent:
+      prefill.ivaPercent !== undefined
+        ? String(prefill.ivaPercent)
+        : EMPTY_PRODUCT_FORM_DRAFT.saleIvaPercent,
+    calculationKind,
+    calculationRoundingDecimals: normalizeProductCalculationRoundingDecimals(
+      prefill.calculation?.roundingDecimals,
+    ),
   };
 }
 
