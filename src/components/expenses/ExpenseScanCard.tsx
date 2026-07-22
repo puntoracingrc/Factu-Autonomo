@@ -29,6 +29,7 @@ import {
 } from "@/components/legal/AiProcessingConsentNotice";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
+import { ExpenseLearningConsentControl } from "./ExpenseLearningConsentControl";
 import { useBilling } from "@/context/BillingContext";
 import { useCloudSync } from "@/context/CloudSyncContext";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
@@ -555,6 +556,13 @@ export function ExpenseScanCard({
               setError(null);
             }}
           />
+
+          {user ? (
+            <ExpenseLearningConsentControl
+              key={user.id}
+              sessionSubject={user.id}
+            />
+          ) : null}
 
           {(usageLabel || loadingQuota) && (
             <p className="text-sm text-slate-600">
