@@ -26,15 +26,16 @@ describe("product expenses/providers polish wiring", () => {
 
   it("bloquea importes de producto inválidos y conserva el foco del campo", () => {
     const newProductPage = source("../app/productos/nuevo/page.tsx");
+    const productFormFields = source(
+      "../components/products/ProductFormFields.tsx",
+    );
 
     expect(newProductPage).toContain("validateProductNumericInputs({");
     expect(newProductPage).toContain("setFieldErrors(numericValidation.errors)");
-    expect(newProductPage).toContain(
-      "numericInputRefs.current[firstInvalidField]?.focus()",
-    );
-    expect(newProductPage).toContain(
-      "aria-invalid={Boolean(fieldErrors.salePrice)}",
-    );
+    expect(newProductPage).toContain("`new-product-${numericValidation.firstInvalidField}`");
+    expect(newProductPage).toContain("?.focus()");
+    expect(productFormFields).toContain("aria-invalid={Boolean(error)}");
+    expect(productFormFields).toContain("id={inputId}");
   });
 
   it("renombra familia y margen mediante una única transición de datos", () => {

@@ -29,22 +29,37 @@ import {
   ProductCatalogStructureManager,
   type ProductCatalogStructureEntry,
 } from "@/components/products/ProductCatalogStructureManager";
+import { ProductFormFields } from "@/components/products/ProductFormFields";
+import { ProductUnsavedChangesDialog } from "@/components/products/ProductUnsavedChangesDialog";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
 import {
-  DOCUMENT_UNIT_CATALOG,
   normalizeDocumentUnitId,
   unitShortLabel,
 } from "@/lib/document-units";
 import {
-  PRODUCT_ATTRIBUTE_SUGGESTIONS,
-  addProductAttributeLine,
   productAttributesFromText,
   productAttributesToText,
 } from "@/lib/product-attributes";
+import {
+  productFormDraftFromSummary,
+  productFormHasChanges,
+  type ProductFormDraft,
+} from "@/lib/product-form";
+import {
+  clearProductCatalogEditRequest,
+  getProductCatalogEditRequest,
+} from "@/lib/product-form-navigation";
+import {
+  parseOptionalProductNumber,
+  PRODUCT_NUMERIC_FIELD_ORDER,
+  validateProductNumericInputs,
+  type ProductNumericErrors,
+  type ProductNumericField,
+} from "@/lib/product-form-validation";
 import {
   buildPurchaseProductSummaries,
   purchaseProductKey,
@@ -172,17 +187,6 @@ function productHasCustomDisplayName(product: PurchaseProductSummary): boolean {
     product.saleDescription?.trim() &&
       product.saleDescription.trim() !== product.name.trim(),
   );
-}
-
-function parseOptionalNumber(value: string): number | undefined {
-  const normalized = value.replace(",", ".").trim();
-  if (!normalized) return undefined;
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : undefined;
-}
-
-function numberToInput(value: number | undefined): string {
-  return value === undefined || !Number.isFinite(value) ? "" : String(value);
 }
 
 function productMatchesDocumentPickRequest(
@@ -616,6 +620,20 @@ export default function ProductosPage() {
   useEffect(() => {
     setDocumentPickRequest(getDocumentProductPickRequest());
   }, []);
+
+  useEffect(() => {
+    const requestedKey = getProductCatalogEditRequest();
+    if (!requestedKey) return;
+    if (!products.some((product) => product.key === requestedKey)) return;
+    clearProductCatalogEditRequest();
+    setQuery("");
+    setCatalogView("all");
+    setFamily(ALL);
+    setSubfamily(ALL);
+    setSupplier(ALL);
+    setSort("name");
+    setEditingProductKey(requestedKey);
+  }, [products]);
 
   useEffect(() => {
     if (!documentPickRequest) return;
@@ -1813,6 +1831,7 @@ export default function ProductosPage() {
                         allProducts={products}
                         familyOptions={families}
                         subfamilyEntries={subfamilyEntries}
+                        supplierOptions={data.suppliers}
                         selected={selectedProductKeys.includes(product.key)}
                         selectionMode={selectionMode}
                         pickMode={Boolean(documentPickRequest)}
@@ -2010,6 +2029,7 @@ function ProductCard({
   allProducts,
   familyOptions,
   subfamilyEntries,
+  supplierOptions,
   selected,
   selectionMode,
   pickMode,
@@ -2029,6 +2049,7 @@ function ProductCard({
   allProducts: PurchaseProductSummary[];
   familyOptions: string[];
   subfamilyEntries: SubfamilyEntry[];
+  supplierOptions: Array<{ id: string; name: string }>;
   selected: boolean;
   selectionMode: boolean;
   pickMode: boolean;
@@ -2046,58 +2067,23 @@ function ProductCard({
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [actionsOpen, setActionsOpen] = useState(false);
-  const [sku, setSku] = useState(product.sku ?? "");
-  const [name, setName] = useState(product.name);
-  const [family, setFamily] = useState(product.family);
-  const [productSubfamily, setProductSubfamily] = useState(
-    product.subfamily ?? "",
-  );
-  const [saleDescription, setSaleDescription] = useState(
-    product.saleDescription ?? "",
-  );
-  const [saleUnit, setSaleUnit] = useState(
-    product.saleUnit ?? product.unit ?? "",
-  );
-  const [salePrice, setSalePrice] = useState(
-    numberToInput(product.saleUnitPrice),
-  );
-  const [saleIvaPercent, setSaleIvaPercent] = useState(
-    numberToInput(product.saleIvaPercent ?? product.ivaPercent),
-  );
-  const [purchaseDescription, setPurchaseDescription] = useState(
-    product.purchaseDescription ?? "",
-  );
-  const [purchaseUnit, setPurchaseUnit] = useState(
-    product.purchaseUnit ?? product.unit ?? "",
-  );
-  const [purchaseListPrice, setPurchaseListPrice] = useState(
-    numberToInput((product.purchaseListPrice ?? product.lastPvp) || undefined),
-  );
-  const [purchaseDiscountPercent, setPurchaseDiscountPercent] = useState(
-    numberToInput(
-      (product.purchaseDiscountPercent ?? product.lastDiscountPercent) ||
-        undefined,
-    ),
-  );
-  const [purchaseNetUnitCost, setPurchaseNetUnitCost] = useState(
-    numberToInput(
-      (product.purchaseNetUnitCost ?? product.lastUnitPrice) || undefined,
-    ),
-  );
+  const initialProductDraft = () =>
+    productFormDraftFromSummary(
+      product,
+      productAttributesToText(product.attributes),
+    );
+  const [draft, setDraft] = useState<ProductFormDraft>(initialProductDraft);
+  const [initialDraft, setInitialDraft] =
+    useState<ProductFormDraft>(initialProductDraft);
   const [purchaseCostManual, setPurchaseCostManual] = useState(false);
-  const [supplierReference, setSupplierReference] = useState(
-    product.purchaseSupplierReference ?? "",
-  );
-  const [calculationKind, setCalculationKind] = useState(
-    product.calculation?.kind ?? "none",
-  );
-  const [attributesText, setAttributesText] = useState(
-    productAttributesToText(product.attributes),
-  );
-  const [notes, setNotes] = useState(product.notes ?? "");
+  const [fieldErrors, setFieldErrors] = useState<ProductNumericErrors>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
   const [mergeKey, setMergeKey] = useState("");
   const [mergeSearch, setMergeSearch] = useState("");
   const actionsRef = useRef<HTMLDivElement | null>(null);
+  const savingRef = useRef(false);
   const lastDiscount =
     product.lastPvp > 0
       ? ((product.lastPvp - product.lastUnitPrice) / product.lastPvp) * 100
@@ -2125,10 +2111,15 @@ function ProductCard({
   const productSubfamilyOptions = useMemo(
     () =>
       subfamilyEntries
-        .filter((entry) => entry.family === family)
+        .filter((entry) => entry.family === draft.family)
         .map((entry) => entry.name),
-    [family, subfamilyEntries],
+    [draft.family, subfamilyEntries],
   );
+  const supplierNames = useMemo(
+    () => supplierOptions.map((supplier) => supplier.name).sort(),
+    [supplierOptions],
+  );
+  const dirty = productFormHasChanges(initialDraft, draft);
 
   const normalizedDisplayUnit = normalizeDocumentUnitId(
     product.saleUnit ?? product.unit,
@@ -2156,41 +2147,23 @@ function ProductCard({
     product.purchaseCount > 0
       ? formatShortDate(product.lastPurchaseDate)
       : "Sin compras registradas";
+  const formIdPrefix = `edit-product-${(product.productId ?? product.key).replace(
+    /[^a-zA-Z0-9_-]/g,
+    "-",
+  )}`;
 
   const resetPanelForm = useCallback(() => {
-    setSku(product.sku ?? "");
-    setName(product.name);
-    setFamily(product.family);
-    setProductSubfamily(product.subfamily ?? "");
-    setSaleDescription(product.saleDescription ?? "");
-    setSaleUnit(product.saleUnit ?? product.unit ?? "");
-    setSalePrice(numberToInput(product.saleUnitPrice));
-    setSaleIvaPercent(
-      numberToInput(product.saleIvaPercent ?? product.ivaPercent),
+    const next = productFormDraftFromSummary(
+      product,
+      productAttributesToText(product.attributes),
     );
-    setPurchaseDescription(product.purchaseDescription ?? "");
-    setPurchaseUnit(product.purchaseUnit ?? product.unit ?? "");
-    setPurchaseListPrice(
-      numberToInput(
-        (product.purchaseListPrice ?? product.lastPvp) || undefined,
-      ),
-    );
-    setPurchaseDiscountPercent(
-      numberToInput(
-        (product.purchaseDiscountPercent ?? product.lastDiscountPercent) ||
-          undefined,
-      ),
-    );
-    setPurchaseNetUnitCost(
-      numberToInput(
-        (product.purchaseNetUnitCost ?? product.lastUnitPrice) || undefined,
-      ),
-    );
+    setDraft(next);
+    setInitialDraft(next);
     setPurchaseCostManual(false);
-    setSupplierReference(product.purchaseSupplierReference ?? "");
-    setAttributesText(productAttributesToText(product.attributes));
-    setNotes(product.notes ?? "");
-    setCalculationKind(product.calculation?.kind ?? "none");
+    setFieldErrors({});
+    setFormError(null);
+    savingRef.current = false;
+    setSaving(false);
     setMergeKey("");
     setMergeSearch("");
   }, [product]);
@@ -2201,44 +2174,66 @@ function ProductCard({
     setPanelOpen(true);
   }
 
-  function handlePurchaseListPriceChange(value: string) {
-    setPurchaseListPrice(value);
-    if (!purchaseCostManual) {
-      setPurchaseNetUnitCost(
-        purchaseNetUnitCostInputFromFields(
-          value,
-          purchaseDiscountPercent,
-          parseOptionalNumber,
-        ),
-      );
+  function updateDraftField(field: keyof ProductFormDraft, value: string) {
+    setDraft((current) => {
+      const next = {
+        ...current,
+        [field]: value,
+        ...(field === "family" ? { subfamily: "" } : {}),
+        ...(field === "calculationKind" && value === "area"
+          ? { saleUnit: "m2" }
+          : {}),
+      } as ProductFormDraft;
+
+      if (field === "purchaseNetUnitCost") {
+        const manual = value.trim().length > 0;
+        setPurchaseCostManual(manual);
+        if (!manual) {
+          next.purchaseNetUnitCost = purchaseNetUnitCostInputFromFields(
+            next.purchaseListPrice,
+            next.purchaseDiscountPercent,
+            parseOptionalProductNumber,
+          );
+        }
+        return next;
+      }
+
+      if (
+        !purchaseCostManual &&
+        (field === "purchaseListPrice" ||
+          field === "purchaseDiscountPercent")
+      ) {
+        next.purchaseNetUnitCost = purchaseNetUnitCostInputFromFields(
+          next.purchaseListPrice,
+          next.purchaseDiscountPercent,
+          parseOptionalProductNumber,
+        );
+      }
+      return next;
+    });
+    if (PRODUCT_NUMERIC_FIELD_ORDER.includes(field as ProductNumericField)) {
+      setFieldErrors((current) => {
+        if (!current[field as ProductNumericField]) return current;
+        const next = { ...current };
+        delete next[field as ProductNumericField];
+        return next;
+      });
     }
+    setFormError(null);
   }
 
-  function handlePurchaseDiscountChange(value: string) {
-    setPurchaseDiscountPercent(value);
-    if (!purchaseCostManual) {
-      setPurchaseNetUnitCost(
-        purchaseNetUnitCostInputFromFields(
-          purchaseListPrice,
-          value,
-          parseOptionalNumber,
-        ),
-      );
+  function requestPanelClose() {
+    if (dirty) {
+      setDiscardOpen(true);
+      return;
     }
+    setPanelOpen(false);
   }
 
-  function handlePurchaseNetCostChange(value: string) {
-    const manual = value.trim().length > 0;
-    setPurchaseCostManual(manual);
-    setPurchaseNetUnitCost(
-      manual
-        ? value
-        : purchaseNetUnitCostInputFromFields(
-            purchaseListPrice,
-            purchaseDiscountPercent,
-            parseOptionalNumber,
-          ),
-    );
+  function discardPanelChanges() {
+    setDiscardOpen(false);
+    resetPanelForm();
+    setPanelOpen(false);
   }
 
   useEffect(() => {
@@ -2279,66 +2274,141 @@ function ProductCard({
     };
   }, [actionsOpen]);
 
+  useEffect(() => {
+    if (!panelOpen || !dirty) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [dirty, panelOpen]);
+
   function saveEdits() {
-    const parsedSalePrice = parseOptionalNumber(salePrice);
-    const parsedSaleIva = parseOptionalNumber(saleIvaPercent);
-    const parsedPurchaseListPrice = parseOptionalNumber(purchaseListPrice);
-    const parsedPurchaseDiscount = parseOptionalNumber(purchaseDiscountPercent);
+    if (savingRef.current) return;
+    if (product.source === "manual" && !draft.name.trim()) {
+      setFormError("Escribe el nombre del producto.");
+      return;
+    }
+    const numericValidation = validateProductNumericInputs({
+      salePrice: draft.salePrice,
+      saleIvaPercent: draft.saleIvaPercent,
+      purchaseListPrice: draft.purchaseListPrice,
+      purchaseDiscountPercent: draft.purchaseDiscountPercent,
+      purchaseNetUnitCost: draft.purchaseNetUnitCost,
+    });
+    if (!numericValidation.ok) {
+      setFieldErrors(numericValidation.errors);
+      setFormError("Revisa los importes indicados antes de guardar.");
+      requestAnimationFrame(() => {
+        if (numericValidation.firstInvalidField) {
+          document
+            .getElementById(
+              `${formIdPrefix}-${numericValidation.firstInvalidField}`,
+            )
+            ?.focus();
+        }
+      });
+      return;
+    }
+    setFieldErrors({});
+    savingRef.current = true;
+    setSaving(true);
+
+    const parsedSalePrice = numericValidation.values.salePrice;
+    const parsedSaleIva = numericValidation.values.saleIvaPercent;
+    const parsedPurchaseListPrice =
+      numericValidation.values.purchaseListPrice;
+    const parsedPurchaseDiscount =
+      numericValidation.values.purchaseDiscountPercent;
     const parsedPurchaseCost =
-      parseOptionalNumber(purchaseNetUnitCost) ??
+      numericValidation.values.purchaseNetUnitCost ??
       calculatePurchaseNetUnitCost(
         parsedPurchaseListPrice,
         parsedPurchaseDiscount,
       );
-    const manualSaleUnit = normalizeDocumentUnitId(saleUnit) ?? saleUnit.trim();
+    const manualSaleUnit =
+      normalizeDocumentUnitId(draft.saleUnit) ?? draft.saleUnit.trim();
     const normalizedSaleUnit =
-      calculationKind === "area"
+      draft.calculationKind === "area"
         ? "m2"
         : manualSaleUnit || product.unit || "ud";
     const manualPurchaseUnit =
-      normalizeDocumentUnitId(purchaseUnit) ?? purchaseUnit.trim();
+      normalizeDocumentUnitId(draft.purchaseUnit) ?? draft.purchaseUnit.trim();
     const normalizedPurchaseUnit = manualPurchaseUnit || normalizedSaleUnit;
-    const savedProduct = onSave({
-      sku: sku.trim() || undefined,
-      name: name.trim() || product.name,
-      family: family.trim() || "Sin familia",
-      subfamily: productSubfamily.trim() || undefined,
-      unit: normalizedSaleUnit,
-      pvp: parsedPurchaseListPrice,
-      cost: parsedPurchaseCost,
-      ivaPercent: parsedSaleIva ?? product.ivaPercent,
-      sales: {
-        enabled: true,
-        description: saleDescription.trim() || undefined,
+    const supplierName = draft.supplierName.trim();
+    const matchedSupplier = supplierOptions.find(
+      (supplier) =>
+        supplier.name.toLocaleLowerCase("es") ===
+        supplierName.toLocaleLowerCase("es"),
+    );
+    const existingSupplierMatches =
+      product.usualSupplier?.supplierName.toLocaleLowerCase("es") ===
+      supplierName.toLocaleLowerCase("es");
+    const savedSupplierId =
+      matchedSupplier?.id ??
+      (existingSupplierMatches
+        ? product.usualSupplier?.supplierId
+        : undefined);
+    const savedSupplierName =
+      matchedSupplier?.name ?? (supplierName || undefined);
+
+    let savedProduct: Product | null;
+    try {
+      savedProduct = onSave({
+        sku: draft.sku.trim() || undefined,
+        name:
+          product.source === "detected"
+            ? product.name
+            : draft.name.trim() || product.name,
+        family: draft.family.trim() || "Sin familia",
+        subfamily: draft.subfamily.trim() || undefined,
         unit: normalizedSaleUnit,
-        unitPrice: parsedSalePrice,
-        ivaPercent: parsedSaleIva,
-      },
-      purchase: {
-        enabled: true,
-        description: purchaseDescription.trim() || undefined,
-        unit: normalizedPurchaseUnit,
-        listPrice: parsedPurchaseListPrice,
-        discountPercent: parsedPurchaseDiscount,
-        netUnitCost: parsedPurchaseCost,
-        ivaPercent: product.ivaPercent,
-        supplierId: product.usualSupplier?.supplierId,
-        supplierName: product.usualSupplier?.supplierName,
-        supplierReference: supplierReference.trim() || undefined,
-      },
-      calculation:
-        calculationKind === "area"
-          ? {
-              kind: "area",
-              unit: normalizedSaleUnit,
-              roundingDecimals: product.calculation?.roundingDecimals ?? 2,
-            }
-          : undefined,
-      attributes: productAttributesFromText(attributesText),
-      notes: notes.trim() || undefined,
-      source: product.source,
-    });
-    if (!savedProduct) return;
+        supplierId: savedSupplierId,
+        supplierName: savedSupplierName,
+        pvp: parsedPurchaseListPrice,
+        cost: parsedPurchaseCost,
+        ivaPercent: parsedSaleIva ?? product.ivaPercent,
+        sales: {
+          enabled: true,
+          description: draft.saleDescription.trim() || undefined,
+          unit: normalizedSaleUnit,
+          unitPrice: parsedSalePrice,
+          ivaPercent: parsedSaleIva,
+        },
+        purchase: {
+          enabled: true,
+          description: draft.purchaseDescription.trim() || undefined,
+          unit: normalizedPurchaseUnit,
+          listPrice: parsedPurchaseListPrice,
+          discountPercent: parsedPurchaseDiscount,
+          netUnitCost: parsedPurchaseCost,
+          ivaPercent: product.ivaPercent,
+          supplierId: savedSupplierId,
+          supplierName: savedSupplierName,
+          supplierReference: draft.supplierReference.trim() || undefined,
+        },
+        calculation:
+          draft.calculationKind === "area"
+            ? {
+                kind: "area",
+                unit: normalizedSaleUnit,
+                roundingDecimals: product.calculation?.roundingDecimals ?? 2,
+              }
+            : undefined,
+        attributes: productAttributesFromText(draft.attributesText),
+        notes: draft.notes.trim() || undefined,
+        source: product.source,
+      });
+    } catch {
+      savedProduct = null;
+    }
+    if (!savedProduct) {
+      savingRef.current = false;
+      setSaving(false);
+      setFormError("No se ha podido guardar el producto. Inténtalo de nuevo.");
+      return;
+    }
+    setInitialDraft(draft);
     setPanelOpen(false);
     if (pickMode) {
       onPickSavedProduct?.(savedProduct);
@@ -2352,11 +2422,6 @@ function ProductCard({
     setMergeSearch("");
   }
 
-  const addedAttributeLabels = new Set(
-    productAttributesFromText(attributesText).map((attribute) =>
-      attribute.label.trim().toLocaleLowerCase("es"),
-    ),
-  );
   return (
     <>
       <Card
@@ -2521,7 +2586,7 @@ function ProductCard({
             : "Detalle, reglas de cálculo y aprendizaje de este producto."
         }
         icon={PackageSearch}
-        onClose={() => setPanelOpen(false)}
+        onClose={requestPanelClose}
       >
         <div className="space-y-5">
           <div className="flex flex-wrap gap-2">
@@ -2549,205 +2614,53 @@ function ProductCard({
               </span>
             ) : null}
           </div>
-          <EditorSection title="Datos básicos">
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,0.45fr)_minmax(0,1fr)]">
-              <EditInput label="Código" value={sku} onChange={setSku} />
-              <EditInput
-                label="Producto detectado / proveedor"
-                value={name}
-                onChange={setName}
-              />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.75fr)]">
-              <ProductFamilySelect
-                label="Familia"
-                value={family}
-                onChange={(value) => {
-                  setFamily(value);
-                  const nextFamilySubfamilies = subfamilyEntries
-                    .filter((entry) => entry.family === value)
-                    .map((entry) => entry.name);
-                  if (
-                    productSubfamily &&
-                    !nextFamilySubfamilies.includes(productSubfamily)
-                  ) {
-                    setProductSubfamily("");
-                  }
-                }}
-                options={familyOptions}
-              />
-              <ProductFamilySelect
-                label="Subfamilia"
-                value={productSubfamily}
-                onChange={setProductSubfamily}
-                options={productSubfamilyOptions}
-                emptyLabel="Sin subfamilia"
-                customLabel="Otra subfamilia..."
-                customPlaceholder="Escribe la subfamilia"
-              />
-              <label className="space-y-1.5">
-                <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-                  Cálculo
-                </span>
-                <select
-                  value={calculationKind}
-                  onChange={(event) =>
-                    setCalculationKind(() => {
-                      const value = event.target.value as "none" | "area";
-                      if (value === "area") setSaleUnit("m2");
-                      return value;
-                    })
-                  }
-                  className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
+            {formError ? (
+              <div className="px-4 pt-4">
+                <div
+                  role="alert"
+                  className="rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm font-semibold text-red-700"
                 >
-                  <option value="none">Cantidad directa</option>
-                  <option value="area">Alto x ancho</option>
-                </select>
-                {calculationKind === "area" ? (
-                  <span className="mt-1 block text-xs font-semibold text-blue-800">
-                    Venta en m² con calculadora alto x ancho en documentos.
-                  </span>
-                ) : null}
-              </label>
-            </div>
-          </EditorSection>
-
-          <EditorSection title="Venta">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <EditInput
-                label="Nombre visible / venta"
-                value={saleDescription}
-                onChange={setSaleDescription}
-                placeholder={product.name}
-                className="sm:col-span-2"
-              />
-              <ProductUnitSelect
-                label="Unidad venta"
-                value={saleUnit}
-                onChange={setSaleUnit}
-              />
-              <EditInput
-                label="Precio venta"
-                value={salePrice}
-                onChange={setSalePrice}
-                inputMode="decimal"
-              />
-              <EditInput
-                label="IVA %"
-                value={saleIvaPercent}
-                onChange={setSaleIvaPercent}
-                inputMode="decimal"
+                  {formError}
+                </div>
+              </div>
+            ) : null}
+            <div className="px-4 pt-4">
+              <ProductFormFields
+                idPrefix={formIdPrefix}
+                draft={draft}
+                source={product.source}
+                fieldErrors={fieldErrors}
+                familyOptions={familyOptions}
+                subfamilyOptions={productSubfamilyOptions}
+                supplierOptions={supplierNames}
+                onChange={updateDraftField}
               />
             </div>
-          </EditorSection>
-
-          <EditorSection title="Compra">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <EditInput
-                label="Compra: descripción"
-                value={purchaseDescription}
-                onChange={setPurchaseDescription}
-                className="sm:col-span-2"
-              />
-              <EditInput
-                label="Ref. proveedor"
-                value={supplierReference}
-                onChange={setSupplierReference}
-              />
-              <ProductUnitSelect
-                label="Unidad compra"
-                value={purchaseUnit}
-                onChange={setPurchaseUnit}
-              />
-              <EditInput
-                label="Tarifa proveedor"
-                value={purchaseListPrice}
-                onChange={handlePurchaseListPriceChange}
-                inputMode="decimal"
-              />
-              <EditInput
-                label="Dto. %"
-                value={purchaseDiscountPercent}
-                onChange={handlePurchaseDiscountChange}
-                inputMode="decimal"
-              />
-              <EditInput
-                label="Coste real"
-                value={purchaseNetUnitCost}
-                onChange={handlePurchaseNetCostChange}
-                inputMode="decimal"
-              />
-            </div>
-          </EditorSection>
-
-          <EditorSection title="Aprendizaje del producto">
-            <label className="block space-y-1.5">
-              <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-                Atributos
-              </span>
-              <textarea
-                value={attributesText}
-                onChange={(event) => setAttributesText(event.target.value)}
-                placeholder={
-                  "Talla: L\nColor: Blanco\nMaterial: aluminio\nMetro lineal: barras de 6 m"
-                }
-                className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-              <span className="mt-2 flex flex-wrap gap-2">
-                {PRODUCT_ATTRIBUTE_SUGGESTIONS.map((label) => {
-                  const added = addedAttributeLabels.has(
-                    label.toLocaleLowerCase("es"),
-                  );
-                  return (
-                    <button
-                      key={label}
-                      type="button"
-                      onClick={() =>
-                        setAttributesText((current) =>
-                          addProductAttributeLine(current, label),
-                        )
-                      }
-                      className={`rounded-full px-3 py-1 text-xs font-bold ring-1 transition-colors ${
-                        added
-                          ? "bg-blue-50 text-blue-700 ring-blue-200"
-                          : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"
-                      }`}
-                      aria-pressed={added}
-                    >
-                      {added ? <Check className="mr-1 inline h-3 w-3" /> : null}
-                      {label}
-                    </button>
-                  );
-                })}
-              </span>
-            </label>
-
-            <label className="block space-y-1.5">
-              <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-                Regla interna / notas
-              </span>
-              <textarea
-                value={notes}
-                onChange={(event) => setNotes(event.target.value)}
-                placeholder="Ej: Medir alto x ancho en metros. Revisar color, lama y cajón antes de enviar."
-                className="min-h-24 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </label>
-
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-2 border-t border-slate-200 bg-slate-50 px-4 py-4 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={requestPanelClose}
+                disabled={saving}
+                className="inline-flex h-11 items-center justify-center rounded-lg border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              >
+                Cancelar
+              </button>
               <button
                 type="button"
                 onClick={saveEdits}
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:w-auto"
+                disabled={saving}
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50"
               >
                 <Save className="h-4 w-4" />
-                {pickMode ? "Guardar y volver" : "Guardar y cerrar"}
+                {saving
+                  ? "Guardando..."
+                  : pickMode
+                    ? "Guardar y volver"
+                    : "Guardar cambios"}
               </button>
-              <p className="text-sm font-semibold text-blue-900">
-                Se recordará para próximos escaneos.
-              </p>
             </div>
-          </EditorSection>
+          </div>
 
           {product.attributes && product.attributes.length > 0 ? (
             <div className="flex flex-wrap gap-2">
@@ -2879,22 +2792,12 @@ function ProductCard({
           ) : null}
         </div>
       </ResponsiveEntityPanel>
+      <ProductUnsavedChangesDialog
+        open={discardOpen}
+        onContinue={() => setDiscardOpen(false)}
+        onDiscard={discardPanelChanges}
+      />
     </>
-  );
-}
-
-function EditorSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/50 p-3 sm:p-4">
-      <h3 className="text-sm font-black text-slate-950">{title}</h3>
-      {children}
-    </section>
   );
 }
 
@@ -2969,90 +2872,6 @@ function ProductFamilySelect({
         </label>
       ) : null}
     </div>
-  );
-}
-
-function ProductUnitSelect({
-  label,
-  value,
-  onChange,
-  className = "",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  className?: string;
-}) {
-  const trimmedValue = value.trim();
-  const currentUnitId = normalizeDocumentUnitId(trimmedValue) ?? trimmedValue;
-  const currentIsCatalog = DOCUMENT_UNIT_CATALOG.some(
-    (unit) => unit.id === currentUnitId,
-  );
-  const options =
-    currentUnitId && !currentIsCatalog
-      ? [
-          {
-            id: currentUnitId,
-            label: `${trimmedValue} (detectada)`,
-            shortLabel: trimmedValue,
-          },
-          ...DOCUMENT_UNIT_CATALOG,
-        ]
-      : DOCUMENT_UNIT_CATALOG;
-
-  return (
-    <label className={`space-y-1.5 ${className}`.trim()}>
-      <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-        {label}
-      </span>
-      <select
-        value={currentUnitId}
-        onChange={(event) =>
-          onChange(
-            normalizeDocumentUnitId(event.target.value) ?? event.target.value,
-          )
-        }
-        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-      >
-        <option value="">Sin unidad</option>
-        {options.map((unit) => (
-          <option key={unit.id} value={unit.id}>
-            {unit.shortLabel} - {unit.label}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function EditInput({
-  label,
-  value,
-  onChange,
-  placeholder,
-  inputMode,
-  className = "",
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  placeholder?: string;
-  inputMode?: "decimal";
-  className?: string;
-}) {
-  return (
-    <label className={`space-y-1.5 ${className}`.trim()}>
-      <span className="text-xs font-black uppercase tracking-wide text-slate-600">
-        {label}
-      </span>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        inputMode={inputMode}
-        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-      />
-    </label>
   );
 }
 
