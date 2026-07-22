@@ -7,6 +7,12 @@ const apiRoot = fileURLToPath(new URL("../app/api/", import.meta.url));
 const securityScheduler = fileURLToPath(
   new URL("../../.github/workflows/security-health-alert.yml", import.meta.url),
 );
+const expenseLearningScheduler = fileURLToPath(
+  new URL(
+    "../../.github/workflows/expense-learning-maintenance.yml",
+    import.meta.url,
+  ),
+);
 
 const expectedMethods: Record<string, string[]> = {
   "admin/ai-learning/correct/route.ts": ["POST"],
@@ -56,6 +62,7 @@ const expectedMethods: Record<string, string[]> = {
   "expense-inbox/route.ts": ["GET", "PATCH"],
   "expenses/learning-contribution/route.ts": ["POST"],
   "expenses/learning-consent/route.ts": ["GET", "PUT"],
+  "expenses/learning-maintenance/route.ts": ["POST"],
   "expenses/scan/route.ts": ["GET", "POST"],
   "google-auth/token/route.ts": ["POST"],
   "fiscal-notifications/audit/route.ts": ["POST"],
@@ -161,7 +168,10 @@ const flagControlledRoutes = [
   "server-documents/ingest/route.ts",
 ] as const;
 
-const scheduledRoutes = ["security/health-alert/route.ts"] as const;
+const scheduledRoutes = [
+  "expenses/learning-maintenance/route.ts",
+  "security/health-alert/route.ts",
+] as const;
 
 const distributedRateLimitedRoutes = [
   ...adminRoutes,
@@ -282,6 +292,15 @@ describe("API security inventory", () => {
     expect(workflow).toContain("workflow_dispatch:");
     expect(workflow).toContain("SECURITY_HEALTH_CRON_SECRET");
     expect(workflow).toContain("/api/security/health-alert");
+    expect(workflow).toContain("Authorization: Bearer");
+  });
+
+  it("keeps expense learning maintenance hourly and protected", () => {
+    const workflow = readFileSync(expenseLearningScheduler, "utf8");
+    expect(workflow).toContain('cron: "17 * * * *"');
+    expect(workflow).toContain("workflow_dispatch:");
+    expect(workflow).toContain("SECURITY_HEALTH_CRON_SECRET");
+    expect(workflow).toContain("/api/expenses/learning-maintenance");
     expect(workflow).toContain("Authorization: Bearer");
   });
 

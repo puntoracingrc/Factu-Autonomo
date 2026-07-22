@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: P4C1 con primitivos operativos; flags, scheduler, lectura y activación periódica apagados
+- Estado: P4C2 con mantenimiento programado; flags, lectura e ingesta real apagados
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -512,6 +512,30 @@ después de aceptar retrasos y fallos reales podrá considerarse P4C3. El
 rollback de P4C1 es no destructivo: vuelve a `DISABLED`, restaura el reloj P4A
 sin margen y conserva cualquier dato protegido ya existente para que la purga
 service-only siga disponible.
+
+### Alcance actual P4C2
+
+P4C2 añade un único endpoint programado sin body y protegido por el mismo
+`CRON_SECRET` que ya usa el scheduler de seguridad. El workflow versionado lo
+invoca cada hora, por debajo del margen fijo de cuatro horas de P4C1, y permite
+tres intentos acotados de transporte. Primero ejecuta la promoción one-shot de
+semanas cerradas y después la purga con lookahead, de modo que una incidencia
+de promoción no impide intentar la retención en esa misma pasada.
+
+La ruta solo considera sanos `PROMOTED` o `NOTHING` para promoción y `PURGED`
+para retención. `RETRY_REQUIRED`, resultados desconocidos, errores y timeouts
+convergen en un `503` con `{ ok: false }`; el workflow falla y queda visible en
+GitHub Actions. El éxito contiene únicamente `{ ok: true }`. No se imprimen ni
+devuelven usuarios, semanas, celdas, recuentos, resultados internos o contenido
+de contribuciones. El job tampoco vuelca el body de error en logs.
+
+P4C2 no cambia ninguno de los dos kill switches, no configura secretos, no
+activa tráfico de ingesta y no añade reader, UI o Admin. La cadencia horaria,
+el margen y los reintentos reducen el riesgo de superar los TTL, pero una
+demora externa de GitHub Actions todavía puede ocurrir. Antes de P4C3 deben
+observarse ejecuciones reales verdes, comprobarse el secreto en producción y
+aceptarse el comportamiento ante fallos; hasta entonces la contribución sigue
+totalmente apagada.
 
 ### Incentivo futuro separado
 
