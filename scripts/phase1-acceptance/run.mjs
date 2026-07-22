@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -36,13 +36,15 @@ const sqlFiles = {
 };
 const expenseLearningSql = {
   up: "supabase/migrations/20260721223000_expense_learning_storage_p1b.sql",
-  down:
-    "supabase/rollbacks/20260721223000_expense_learning_storage_p1b.down.sql",
+  down: "supabase/rollbacks/20260721223000_expense_learning_storage_p1b.down.sql",
 };
 const expenseLearningConsentSql = {
   up: "supabase/migrations/20260722050000_expense_learning_consent_p2a.sql",
-  down:
-    "supabase/rollbacks/20260722050000_expense_learning_consent_p2a.down.sql",
+  down: "supabase/rollbacks/20260722050000_expense_learning_consent_p2a.down.sql",
+};
+const expenseLearningIngestionSql = {
+  up: "supabase/migrations/20260722110000_expense_learning_ingestion_p3a.sql",
+  down: "supabase/rollbacks/20260722110000_expense_learning_ingestion_p3a.down.sql",
 };
 
 const requiredEnv = [
@@ -151,6 +153,66 @@ function querySql(sql) {
     "-c",
     sql,
   ]);
+}
+
+function querySqlAsLearningOwner(sql) {
+  const result = spawnSync(
+    "psql",
+    [
+      env("PHASE1_ACCEPTANCE_DATABASE_URL"),
+      "-X",
+      "-q",
+      "-A",
+      "-t",
+      "-v",
+      "ON_ERROR_STOP=1",
+      "-c",
+      `begin; set local role expense_learning_storage_owner; ${sql}; commit;`,
+    ],
+    { cwd: root, encoding: "utf8", stdio: "pipe" },
+  );
+  if (result.error) fail(`Learning owner SQL failed: ${result.error.message}`);
+  if (result.status !== 0) {
+    fail(`Learning owner SQL failed: ${result.stderr.trim()}`);
+  }
+  return result.stdout.trim();
+}
+
+function querySqlAsync(sql, { learningOwner = false } = {}) {
+  const statement = learningOwner
+    ? `begin; set local role expense_learning_storage_owner; ${sql}; commit;`
+    : sql;
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      "psql",
+      [
+        env("PHASE1_ACCEPTANCE_DATABASE_URL"),
+        "-X",
+        "-q",
+        "-A",
+        "-t",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-c",
+        statement,
+      ],
+      { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code === 0) resolve(stdout.trim());
+      else reject(new Error(`${stdout}\n${stderr}`.trim()));
+    });
+  });
 }
 
 function expectInlineSqlFailure(sql, expectedMessage) {
@@ -334,6 +396,89 @@ function expenseLearningRuntimeRowCount() {
   );
 }
 
+function expenseLearningP3RuntimeRowCount() {
+  return Number(
+    querySql(`
+      select
+        (select count(*) from expense_learning_private.contribution_claims)
+        + (select count(*) from expense_learning_private.contributor_week_limits)
+        + (select count(*) from expense_learning_private.accumulator_memberships)
+        + (select count(*) from expense_learning_private.protected_accumulators)
+        + (select count(*) from expense_learning_private.closed_week_supported_metrics)
+        + (select count(*) from expense_learning_private.contributor_revocation_links);
+    `),
+  );
+}
+
+function expenseLearningP3TableCounts() {
+  return querySql(`
+    select pg_catalog.concat_ws(
+      ',',
+      (select count(*) from expense_learning_private.contribution_claims),
+      (select count(*) from expense_learning_private.contributor_week_limits),
+      (select count(*) from expense_learning_private.accumulator_memberships),
+      (select count(*) from expense_learning_private.protected_accumulators),
+      (select count(*) from expense_learning_private.closed_week_supported_metrics),
+      (select count(*) from expense_learning_private.contributor_revocation_links)
+    );
+  `);
+}
+
+function expectExpenseLearningP3Integrity(message) {
+  expect(
+    querySql(`
+      with membership_support as (
+        select
+          contribution_schema_version,
+          observation_schema_version,
+          engine_version,
+          privacy_policy_version,
+          week_start,
+          structural_archetype_group,
+          metric_family,
+          comparison_scope,
+          metric_key,
+          bucket_kind,
+          bucket_value,
+          pg_catalog.count(*)::integer as supporting_contributors
+        from expense_learning_private.accumulator_memberships
+        group by
+          contribution_schema_version,
+          observation_schema_version,
+          engine_version,
+          privacy_policy_version,
+          week_start,
+          structural_archetype_group,
+          metric_family,
+          comparison_scope,
+          metric_key,
+          bucket_kind,
+          bucket_value
+      )
+      select not exists (
+        select 1
+        from expense_learning_private.protected_accumulators as accumulator
+        full join membership_support as membership using (
+          contribution_schema_version,
+          observation_schema_version,
+          engine_version,
+          privacy_policy_version,
+          week_start,
+          structural_archetype_group,
+          metric_family,
+          comparison_scope,
+          metric_key,
+          bucket_kind,
+          bucket_value
+        )
+        where accumulator.supporting_contributors is distinct from
+          membership.supporting_contributors
+      );
+    `) === "t",
+    message,
+  );
+}
+
 function expenseLearningConsentRowCount(userId = null) {
   const filter = userId
     ? `where user_id = '${userId.replaceAll("'", "''")}'::uuid`
@@ -489,6 +634,25 @@ function expenseLearningConsentCatalogSnapshot() {
     )
     select value from catalog_rows order by value;
   `);
+}
+
+function expenseLearningP3CatalogSnapshot() {
+  const extensionsPrivileges = querySql(`
+    select pg_catalog.concat_ws(
+      '|',
+      pg_catalog.has_schema_privilege(
+        'expense_learning_storage_owner',
+        'extensions',
+        'USAGE'
+      ),
+      pg_catalog.has_schema_privilege(
+        'expense_learning_storage_owner',
+        'extensions',
+        'CREATE'
+      )
+    );
+  `);
+  return `${expenseLearningCatalogSnapshot()}\n---consent---\n${expenseLearningConsentCatalogSnapshot()}\n---extensions---\n${extensionsPrivileges}`;
 }
 
 function testExpenseLearningDatabaseBoundary() {
@@ -805,9 +969,7 @@ function testExpenseLearningConstraints() {
 
 async function waitForExpenseLearningRpc(admin) {
   for (let attempt = 0; attempt < 30; attempt += 1) {
-    const result = await admin.rpc(
-      "promote_expense_learning_closed_weeks_v1",
-    );
+    const result = await admin.rpc("promote_expense_learning_closed_weeks_v1");
     if (!result.error) return result;
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
@@ -823,6 +985,7 @@ async function testExpenseLearningDataApi(admin, userA) {
     for (const table of [
       "protected_accumulators",
       "learning_consent_decisions",
+      "contributor_revocation_links",
     ]) {
       const result = await client
         .schema("expense_learning_private")
@@ -836,6 +999,7 @@ async function testExpenseLearningDataApi(admin, userA) {
   }
 
   const submitArgs = {
+    p_user_id: userA.id,
     p_contribution: {},
     p_claim_token_digest: "a".repeat(64),
     p_contributor_week_hmac: "b".repeat(64),
@@ -903,8 +1067,700 @@ const consentDecision = (granted) => ({
   granted,
 });
 
+const expenseLearningFieldKeys = [
+  "DOCUMENT_KIND",
+  "EXPENSE_DATE",
+  "SUPPLIER_IDENTITY_PRESENT",
+  "CATEGORY",
+  "TAX_RATE",
+  "TAX_BASE",
+  "TAX_AMOUNT",
+  "SURCHARGE_AMOUNT",
+  "WITHHOLDING_AMOUNT",
+  "TOTAL_AMOUNT",
+  "PAYMENT_METHOD",
+  "LINE_COUNT",
+  "LINE_UNITS",
+  "LINE_TOTALS",
+];
+const expenseLearningMathKeys = [
+  "LINE_EXTENSIONS",
+  "LINES_TO_BASE",
+  "TAX_FROM_BASE",
+  "SURCHARGE_FROM_BASE",
+  "DOCUMENT_TOTAL",
+  "SIGN_CONSISTENCY",
+];
+
+function expenseLearningCanonicalContribution() {
+  const metrics = [
+    ["SOURCE_QUALITY", "NONE", "VALUE", "HIGH"],
+    ["ROUTE_MODE", "NONE", "VALUE", "SHADOW_AI"],
+    ["LOCAL_OUTCOME", "NONE", "VALUE", "CANDIDATE"],
+    ["LOCAL_CONFIDENCE", "NONE", "VALUE", "HIGH"],
+    ["ABSTENTION_REASON", "NONE", "VALUE", "NONE"],
+    ["AI_FALLBACK_REASON", "NONE", "VALUE", "NONE"],
+    ["AI_USAGE", "NONE", "VALUE", "ONE"],
+    ["LOCAL_DURATION", "NONE", "VALUE", "LT_1_S"],
+    ["HUMAN_REVIEW", "NONE", "VALUE", "CONFIRMED"],
+  ].map(([family, comparisonScope, key, value]) => ({
+    family,
+    comparisonScope,
+    key,
+    value,
+  }));
+
+  for (const comparisonScope of [
+    "LOCAL_VS_HUMAN",
+    "AI_VS_HUMAN",
+    "LOCAL_VS_AI",
+  ]) {
+    for (const key of expenseLearningFieldKeys) {
+      metrics.push({
+        family: "FIELD_VERDICT",
+        comparisonScope,
+        key,
+        value: "MATCH",
+      });
+    }
+  }
+  for (const key of expenseLearningMathKeys) {
+    metrics.push({
+      family: "MATH_VERDICT",
+      comparisonScope: "NONE",
+      key,
+      value: "MATCH",
+    });
+    metrics.push({
+      family: "MATH_RESIDUAL",
+      comparisonScope: "NONE",
+      key,
+      value: "EXACT",
+    });
+  }
+  for (const key of [
+    "EXPENSE_ACCEPTED_THEN_REJECTED",
+    "TAX_TREATMENT_CORRECTED",
+    "CREDIT_SIGN_CORRECTED",
+    "DUPLICATE_ACCEPTED",
+  ]) {
+    metrics.push({
+      family: "CRITICAL_FLAG",
+      comparisonScope: "NONE",
+      key,
+      value: "NOT_OBSERVED",
+    });
+  }
+
+  expect(metrics.length === 67, "P3A fixture did not contain 67 metrics");
+  return {
+    schemaVersion: "expense-engine-aggregate-contribution.v1",
+    observationSchemaVersion: "expense-engine-observation.v1",
+    engineVersion: "expense-local-engine.v1",
+    privacyPolicyVersion: "2026-07-21",
+    structuralArchetypeGroup: "TABLE",
+    metrics,
+    learningHints: null,
+  };
+}
+
+function sqlJson(value) {
+  return JSON.stringify(value).replaceAll("'", "''");
+}
+
+function stageExpenseLearningContributionSql(
+  userId,
+  claimHex,
+  weekHmacHex,
+  contribution,
+  suffix = "",
+) {
+  return `select expense_learning_private.stage_expense_learning_contribution_v1(
+    '${userId}'::uuid,
+    '${sqlJson(contribution)}'::jsonb,
+    pg_catalog.decode('${claimHex}', 'hex'),
+    pg_catalog.decode('${weekHmacHex}', 'hex')
+  )${suffix}`;
+}
+
+function stageExpenseLearningSql(userId, claimHex, weekHmacHex, suffix = "") {
+  return stageExpenseLearningContributionSql(
+    userId,
+    claimHex,
+    weekHmacHex,
+    expenseLearningCanonicalContribution(),
+    suffix,
+  );
+}
+
+function stageExpenseLearning(userId, claimHex, weekHmacHex) {
+  return querySqlAsLearningOwner(
+    stageExpenseLearningSql(userId, claimHex, weekHmacHex),
+  );
+}
+
+function randomExpenseLearningHex() {
+  return `${randomUUID().replaceAll("-", "")}${randomUUID().replaceAll("-", "")}`;
+}
+
+function mutateExpenseLearningMetric(
+  contribution,
+  family,
+  comparisonScope,
+  key,
+  value,
+) {
+  return {
+    ...contribution,
+    metrics: contribution.metrics.map((metric) =>
+      metric.family === family &&
+      metric.comparisonScope === comparisonScope &&
+      metric.key === key
+        ? { ...metric, value }
+        : { ...metric },
+    ),
+  };
+}
+
+function delay(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+async function setExpenseLearningConsent(admin, userId, granted, message) {
+  const result = await admin.rpc("set_expense_learning_consent_v1", {
+    p_user_id: userId,
+    p_decision: consentDecision(granted),
+  });
+  expectConsentState(result, granted ? "GRANTED" : "REVOKED", message);
+  return result;
+}
+
+function testExpenseLearningP3DatabaseBoundary() {
+  expect(
+    querySql(`
+      select pg_catalog.has_schema_privilege(
+        'expense_learning_storage_owner',
+        'extensions',
+        'USAGE'
+      )
+      and not pg_catalog.has_schema_privilege(
+        'expense_learning_storage_owner',
+        'extensions',
+        'CREATE'
+      );
+    `) === "t",
+    "P3A owner does not have the exact extensions schema privilege",
+  );
+  expect(
+    querySql(`
+      select count(*) = 3
+        and count(*) filter (where policy.polcmd = 'r') = 1
+        and count(*) filter (where policy.polcmd = 'a') = 1
+        and count(*) filter (where policy.polcmd = 'd') = 1
+        and count(*) filter (where policy.polcmd in ('w', '*')) = 0
+        and pg_catalog.bool_and(
+          policy.polroles = array[owner.oid]::oid[]
+        )
+      from pg_catalog.pg_policy policy
+      join pg_catalog.pg_class relation on relation.oid = policy.polrelid
+      join pg_catalog.pg_namespace namespace
+        on namespace.oid = relation.relnamespace
+      cross join pg_catalog.pg_roles owner
+      where namespace.nspname = 'expense_learning_private'
+        and relation.relname = 'contributor_revocation_links'
+        and owner.rolname = 'expense_learning_storage_owner';
+    `) === "t",
+    "P3A revocation links do not have exactly owner-only SELECT/INSERT/DELETE policies",
+  );
+  expect(
+    querySql(`
+      select pg_catalog.bool_and(
+        not pg_catalog.has_function_privilege(
+          role.rolname,
+          function.oid,
+          'EXECUTE'
+        )
+      )
+      from pg_catalog.pg_roles role
+      cross join pg_catalog.pg_proc function
+      join pg_catalog.pg_namespace namespace
+        on namespace.oid = function.pronamespace
+      where role.rolname = any (array[
+        'anon',
+        'authenticated',
+        'service_role'
+      ]::name[])
+        and namespace.nspname = 'expense_learning_private'
+        and function.proname in (
+          'stage_expense_learning_contribution_v1',
+          'purge_expense_learning_link_v1',
+          'lock_expense_learning_cells_v1'
+        );
+    `) === "t",
+    "P3A private mutation functions are executable by an API role",
+  );
+  expectInlineSqlFailure(
+    `begin;
+     set local role service_role;
+     select count(*)
+     from expense_learning_private.contributor_revocation_links;
+     rollback;`,
+    "permission denied for schema expense_learning_private",
+  );
+  expect(
+    expenseLearningP3RuntimeRowCount() === 0,
+    "P3A boundary checks changed runtime storage",
+  );
+}
+
+async function testExpenseLearningP3SemanticRejection(admin, users) {
+  const user = await createUser(admin, "learning_p3_semantic_rejection");
+  users.push(user);
+  await setExpenseLearningConsent(
+    admin,
+    user.id,
+    true,
+    "P3A semantic rejection grant",
+  );
+  const canonical = expenseLearningCanonicalContribution();
+  const invalidContributions = [
+    ["null schema version", { ...canonical, schemaVersion: null }],
+    ["null structural group", { ...canonical, structuralArchetypeGroup: null }],
+    [
+      "null non-cross metric bucket",
+      mutateExpenseLearningMetric(
+        canonical,
+        "LOCAL_DURATION",
+        "NONE",
+        "VALUE",
+        null,
+      ),
+    ],
+    [
+      "candidate with abstention",
+      mutateExpenseLearningMetric(
+        canonical,
+        "ABSTENTION_REASON",
+        "NONE",
+        "VALUE",
+        "LOW_CONFIDENCE",
+      ),
+    ],
+    [
+      "local route with AI usage",
+      mutateExpenseLearningMetric(
+        canonical,
+        "ROUTE_MODE",
+        "NONE",
+        "VALUE",
+        "LOCAL_ONLY",
+      ),
+    ],
+    [
+      "unreadable candidate",
+      mutateExpenseLearningMetric(
+        canonical,
+        "SOURCE_QUALITY",
+        "NONE",
+        "VALUE",
+        "UNREADABLE",
+      ),
+    ],
+    [
+      "impossible field triple",
+      mutateExpenseLearningMetric(
+        canonical,
+        "FIELD_VERDICT",
+        "LOCAL_VS_HUMAN",
+        "TOTAL_AMOUNT",
+        "MISSING",
+      ),
+    ],
+    [
+      "corrected review without correction",
+      mutateExpenseLearningMetric(
+        canonical,
+        "HUMAN_REVIEW",
+        "NONE",
+        "VALUE",
+        "CORRECTED",
+      ),
+    ],
+    [
+      "incoherent math pair",
+      mutateExpenseLearningMetric(
+        canonical,
+        "MATH_VERDICT",
+        "NONE",
+        "DOCUMENT_TOTAL",
+        "MISMATCH",
+      ),
+    ],
+    [
+      "fabricated critical flag",
+      mutateExpenseLearningMetric(
+        canonical,
+        "CRITICAL_FLAG",
+        "NONE",
+        "EXPENSE_ACCEPTED_THEN_REJECTED",
+        "PRESENT",
+      ),
+    ],
+  ];
+
+  expect(
+    querySqlAsLearningOwner(`
+      select expense_learning_private.is_canonical_contribution_v1(
+        '${sqlJson(canonical)}'::jsonb
+      )
+    `) === "t",
+    "P3A SQL rejected the canonical semantic fixture",
+  );
+
+  for (const [label, contribution] of invalidContributions) {
+    expect(
+      querySqlAsLearningOwner(`
+        select expense_learning_private.is_canonical_contribution_v1(
+          '${sqlJson(contribution)}'::jsonb
+        )
+      `) === "f",
+      `P3A SQL accepted ${label}`,
+    );
+    let stageRejected = false;
+    try {
+      querySqlAsLearningOwner(
+        stageExpenseLearningContributionSql(
+          user.id,
+          randomExpenseLearningHex(),
+          randomExpenseLearningHex(),
+          contribution,
+        ),
+      );
+    } catch (error) {
+      stageRejected = error.message.includes(
+        "expense_learning_ingestion_invalid_argument",
+      );
+    }
+    expect(stageRejected, `P3A stage did not reject ${label}`);
+    expect(
+      expenseLearningP3RuntimeRowCount() === 0,
+      `P3A semantic rejection left rows for ${label}`,
+    );
+  }
+
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  expect(!error, "could not delete P3A semantic rejection user");
+}
+
+async function testExpenseLearningP3Behavior(admin, users) {
+  const userA = await createUser(admin, "learning_p3_behavior_a");
+  const userB = await createUser(admin, "learning_p3_behavior_b");
+  const conflictUser = await createUser(admin, "learning_p3_conflict");
+  users.push(userA, userB, conflictUser);
+  await Promise.all([
+    setExpenseLearningConsent(admin, userA.id, true, "P3A grant A"),
+    setExpenseLearningConsent(admin, userB.id, true, "P3A grant B"),
+    setExpenseLearningConsent(
+      admin,
+      conflictUser.id,
+      true,
+      "P3A conflict grant",
+    ),
+  ]);
+
+  const claimA = randomExpenseLearningHex();
+  const claimB = randomExpenseLearningHex();
+  const weekHmacA = randomExpenseLearningHex();
+  const weekHmacB = randomExpenseLearningHex();
+  const weekHmacConflict = randomExpenseLearningHex();
+  expect(userA.id !== userB.id, "P3A synthetic users were not distinct");
+  expect(weekHmacA !== weekHmacB, "P3A synthetic HMACs were not distinct");
+  const accepted = await Promise.all([
+    querySqlAsync(stageExpenseLearningSql(userA.id, claimA, weekHmacA), {
+      learningOwner: true,
+    }),
+    querySqlAsync(stageExpenseLearningSql(userB.id, claimB, weekHmacB), {
+      learningOwner: true,
+    }),
+  ]);
+  expect(
+    accepted.every((result) => result === "ACCEPTED"),
+    "concurrent P3A submissions were not accepted",
+  );
+  console.log("  P3A behavior: initial contributors accepted");
+  expect(
+    expenseLearningP3TableCounts() === "2,2,134,67,0,2",
+    "two contributors did not produce bounded per-coordinate support",
+  );
+  expectExpenseLearningP3Integrity(
+    "concurrent submissions desynchronized accumulators and memberships",
+  );
+
+  const beforeReplay = expenseLearningP3TableCounts();
+  expect(
+    stageExpenseLearning(userA.id, claimA, weekHmacA) === "REPLAYED",
+    "same-link replay was not idempotent",
+  );
+  console.log("  P3A behavior: same-link replay confirmed");
+  expect(
+    expenseLearningP3TableCounts() === beforeReplay,
+    "same-link replay changed P3A storage",
+  );
+
+  let conflictRejected = false;
+  try {
+    stageExpenseLearning(conflictUser.id, claimA, weekHmacConflict);
+  } catch (error) {
+    conflictRejected = error.message.includes(
+      "expense_learning_ingestion_claim_conflict",
+    );
+  }
+  expect(conflictRejected, "cross-link claim conflict did not fail closed");
+  console.log("  P3A behavior: cross-link claim rejected");
+  expect(
+    expenseLearningP3TableCounts() === beforeReplay &&
+      querySql(`
+        select count(*) = 0
+        from expense_learning_private.contributor_revocation_links
+        where user_id = '${conflictUser.id}'::uuid;
+      `) === "t",
+    "cross-link claim conflict left a link or raw mutation",
+  );
+
+  const revokeAndSubmit = await Promise.all([
+    setExpenseLearningConsent(admin, userA.id, false, "P3A revoke A"),
+    querySqlAsync(
+      stageExpenseLearningSql(userB.id, randomExpenseLearningHex(), weekHmacB),
+      { learningOwner: true },
+    ),
+  ]);
+  expect(
+    revokeAndSubmit[1] === "ACCEPTED",
+    "concurrent revoke and unrelated submit did not serialize",
+  );
+  console.log("  P3A behavior: revoke/submit race serialized");
+  expect(
+    expenseLearningP3TableCounts() === "2,1,67,67,0,1",
+    "revoke did not purge only the revoked contributor",
+  );
+  expectExpenseLearningP3Integrity(
+    "revoke/submit race desynchronized accumulators and memberships",
+  );
+
+  await setExpenseLearningConsent(admin, userA.id, true, "P3A regrant A");
+  console.log("  P3A behavior: contributor regranted for cooldown check");
+  expect(
+    stageExpenseLearning(
+      userA.id,
+      randomExpenseLearningHex(),
+      randomExpenseLearningHex(),
+    ) === "WITHDRAWAL_COOLDOWN",
+    "same-week regrant bypassed withdrawal cooldown",
+  );
+  expect(
+    expenseLearningP3TableCounts() === "2,1,67,67,0,1",
+    "withdrawal cooldown changed P3A storage",
+  );
+
+  const { error: deleteBError } = await admin.auth.admin.deleteUser(userB.id);
+  expect(!deleteBError, "could not delete P3A behavior user B");
+  expect(
+    expenseLearningP3RuntimeRowCount() === 0,
+    "account deletion did not purge all separable P3A rows",
+  );
+  expectExpenseLearningP3Integrity(
+    "account deletion desynchronized accumulators and memberships",
+  );
+  for (const user of [userA, conflictUser]) {
+    const { error } = await admin.auth.admin.deleteUser(user.id);
+    expect(!error, `could not delete P3A behavior user ${user.id}`);
+  }
+}
+
+async function testExpenseLearningP3ClaimRace(admin, users) {
+  const userA = await createUser(admin, "learning_p3_claim_race_a");
+  const userB = await createUser(admin, "learning_p3_claim_race_b");
+  users.push(userA, userB);
+  await Promise.all([
+    setExpenseLearningConsent(admin, userA.id, true, "P3A race grant A"),
+    setExpenseLearningConsent(admin, userB.id, true, "P3A race grant B"),
+  ]);
+
+  const sharedClaim = randomExpenseLearningHex();
+  const results = await Promise.allSettled([
+    querySqlAsync(
+      stageExpenseLearningSql(
+        userA.id,
+        sharedClaim,
+        randomExpenseLearningHex(),
+      ),
+      { learningOwner: true },
+    ),
+    querySqlAsync(
+      stageExpenseLearningSql(
+        userB.id,
+        sharedClaim,
+        randomExpenseLearningHex(),
+      ),
+      { learningOwner: true },
+    ),
+  ]);
+  expect(
+    results.filter(
+      (result) => result.status === "fulfilled" && result.value === "ACCEPTED",
+    ).length === 1 &&
+      results.filter(
+        (result) =>
+          result.status === "rejected" &&
+          result.reason.message.includes(
+            "expense_learning_ingestion_claim_conflict",
+          ),
+      ).length === 1,
+    "same-token cross-account race did not accept exactly one contributor",
+  );
+  expect(
+    expenseLearningP3TableCounts() === "1,1,67,67,0,1",
+    "same-token race left a losing link or partial raw rows",
+  );
+  expectExpenseLearningP3Integrity(
+    "same-token race desynchronized accumulators and memberships",
+  );
+
+  const deletions = await Promise.all(
+    [userA, userB].map((user) => admin.auth.admin.deleteUser(user.id)),
+  );
+  expect(
+    deletions.every(({ error }) => !error),
+    "parallel P3A account purges failed",
+  );
+  expect(
+    expenseLearningP3RuntimeRowCount() === 0,
+    "parallel P3A account purges left separable rows",
+  );
+}
+
+async function runExpenseLearningDeleteRace(
+  admin,
+  users,
+  { existingLink, submitFirst },
+) {
+  const label = `learning_p3_delete_${existingLink ? "existing" : "new"}_${submitFirst ? "submit" : "delete"}`;
+  const user = await createUser(admin, label);
+  users.push(user);
+  await setExpenseLearningConsent(admin, user.id, true, `${label} grant`);
+  const weekHmac = randomExpenseLearningHex();
+  if (existingLink) {
+    expect(
+      stageExpenseLearning(user.id, randomExpenseLearningHex(), weekHmac) ===
+        "ACCEPTED",
+      `${label} could not seed the existing link`,
+    );
+  }
+
+  if (submitFirst) {
+    const submit = querySqlAsync(
+      stageExpenseLearningSql(
+        user.id,
+        randomExpenseLearningHex(),
+        weekHmac,
+        "; select pg_catalog.pg_sleep(0.25)",
+      ),
+      { learningOwner: true },
+    );
+    await delay(50);
+    const deletion = admin.auth.admin.deleteUser(user.id);
+    const [submitResult, deleteResult] = await Promise.all([submit, deletion]);
+    expect(submitResult === "ACCEPTED", `${label} submit did not complete`);
+    expect(!deleteResult.error, `${label} account deletion failed`);
+  } else {
+    const deletion = querySqlAsync(`
+      begin;
+      delete from auth.users where id = '${user.id}'::uuid;
+      select pg_catalog.pg_sleep(0.25);
+      commit;
+    `);
+    await delay(50);
+    const submit = querySqlAsync(
+      stageExpenseLearningSql(user.id, randomExpenseLearningHex(), weekHmac),
+      { learningOwner: true },
+    );
+    const [deleteResult, submitResult] = await Promise.allSettled([
+      deletion,
+      submit,
+    ]);
+    expect(deleteResult.status === "fulfilled", `${label} delete deadlocked`);
+    expect(
+      submitResult.status === "rejected" ||
+        submitResult.value === "NOT_CONSENTED",
+      `${label} submit survived an account deletion`,
+    );
+  }
+
+  expect(
+    expenseLearningP3RuntimeRowCount() === 0 &&
+      expenseLearningConsentRowCount(user.id) === 0,
+    `${label} left identity-linked or separable rows`,
+  );
+  expectExpenseLearningP3Integrity(
+    `${label} desynchronized accumulators and memberships`,
+  );
+}
+
+async function testExpenseLearningP3AccountDeleteRaces(admin, users) {
+  for (const existingLink of [false, true]) {
+    for (const submitFirst of [true, false]) {
+      await runExpenseLearningDeleteRace(admin, users, {
+        existingLink,
+        submitFirst,
+      });
+    }
+  }
+}
+
+async function testExpenseLearningP3CorruptionRollback(admin, users) {
+  const user = await createUser(admin, "learning_p3_corruption");
+  users.push(user);
+  await setExpenseLearningConsent(admin, user.id, true, "P3A corruption grant");
+  const weekHmac = randomExpenseLearningHex();
+  expect(
+    stageExpenseLearning(user.id, randomExpenseLearningHex(), weekHmac) ===
+      "ACCEPTED",
+    "P3A corruption fixture was not accepted",
+  );
+  applyInlineSql(`
+    update expense_learning_private.protected_accumulators
+    set supporting_contributors = 2;
+  `);
+  const failedRevoke = await admin.rpc("set_expense_learning_consent_v1", {
+    p_user_id: user.id,
+    p_decision: consentDecision(false),
+  });
+  expect(
+    !opAllowed(failedRevoke),
+    "corrupt P3A accumulator did not abort revocation",
+  );
+  expect(
+    expenseLearningP3TableCounts() === "1,1,67,67,0,1",
+    "failed corrupt revocation left partial mutations",
+  );
+  applyInlineSql(`
+    update expense_learning_private.protected_accumulators
+    set supporting_contributors = 1;
+  `);
+  await setExpenseLearningConsent(admin, user.id, false, "P3A repaired revoke");
+  expect(
+    expenseLearningP3RuntimeRowCount() === 0,
+    "repaired P3A revoke did not purge raw rows",
+  );
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  expect(!error, "could not delete P3A corruption user");
+}
+
 function expectConsentState(result, state, message) {
-  expect(opAllowed(result), `${message}: ${result.error?.message ?? "unknown"}`);
+  expect(
+    opAllowed(result),
+    `${message}: ${result.error?.message ?? "unknown"}`,
+  );
   expect(result.data?.state === state, `${message}: expected ${state}`);
   expect(
     JSON.stringify(Object.keys(result.data ?? {}).sort()) ===
@@ -1253,6 +2109,91 @@ async function testExpenseLearningConsentRollback(
   );
 }
 
+async function testExpenseLearningP3Rollback(
+  admin,
+  users,
+  initialCatalogSnapshot,
+) {
+  const rollbackUser = await createUser(admin, "learning_p3_rollback");
+  users.push(rollbackUser);
+  await setExpenseLearningConsent(
+    admin,
+    rollbackUser.id,
+    true,
+    "P3A rollback grant",
+  );
+  expect(
+    stageExpenseLearning(
+      rollbackUser.id,
+      randomExpenseLearningHex(),
+      randomExpenseLearningHex(),
+    ) === "ACCEPTED",
+    "P3A rollback guard fixture was not accepted",
+  );
+
+  expectSqlFileFailure(
+    expenseLearningIngestionSql.down,
+    "Expense learning P3A storage is not empty; rollback is unsafe",
+  );
+  expect(
+    expenseLearningP3TableCounts() === "1,1,67,67,0,1",
+    "failed P3A rollback partially changed protected storage",
+  );
+
+  await setExpenseLearningConsent(
+    admin,
+    rollbackUser.id,
+    false,
+    "P3A rollback revoke",
+  );
+  expect(
+    expenseLearningP3RuntimeRowCount() === 0,
+    "P3A revoke did not unblock controlled rollback",
+  );
+  applySql(expenseLearningIngestionSql.down);
+  expect(
+    querySql(`
+      select pg_catalog.to_regclass(
+        'expense_learning_private.contributor_revocation_links'
+      ) is null
+        and pg_catalog.to_regclass(
+          'expense_learning_private.learning_consent_decisions'
+        ) is not null
+        and pg_catalog.to_regclass(
+          'expense_learning_private.protected_accumulators'
+        ) is not null;
+    `) === "t",
+    "P3A rollback removed or damaged P2A/P1B storage",
+  );
+  expect(
+    querySql(`
+      select not pg_catalog.has_schema_privilege(
+        'expense_learning_storage_owner',
+        'extensions',
+        'USAGE'
+      );
+    `) === "t",
+    "P3A rollback retained extensions schema USAGE",
+  );
+  applySql(expenseLearningIngestionSql.up);
+  expect(
+    expenseLearningP3CatalogSnapshot() === initialCatalogSnapshot,
+    "P3A up/down/up changed normalized catalog semantics",
+  );
+  applySql(expenseLearningIngestionSql.down);
+  expect(
+    querySql(`
+      select pg_catalog.to_regclass(
+        'expense_learning_private.contributor_revocation_links'
+      ) is null;
+    `) === "t",
+    "P3A rollback did not leave P2A ready for its own rollback gate",
+  );
+
+  const { error } = await admin.auth.admin.deleteUser(rollbackUser.id);
+  expect(!error, "could not delete P3A rollback user");
+}
+
 function testExpenseLearningRollback(
   initialCatalogSnapshot,
   consentCatalogSnapshot,
@@ -1281,9 +2222,7 @@ function testExpenseLearningRollback(
       "failed rollback partially removed expense learning schema",
     );
   } finally {
-    applyInlineSql(
-      "delete from expense_learning_private.contribution_claims;",
-    );
+    applyInlineSql("delete from expense_learning_private.contribution_claims;");
   }
 
   applySql(expenseLearningSql.down);
@@ -2255,11 +3194,25 @@ async function main() {
     if (
       querySql(`
         select pg_catalog.to_regclass(
+          'expense_learning_private.contributor_revocation_links'
+        ) is not null;
+      `) === "t"
+    ) {
+      console.log(
+        "Resetting auto-applied empty expense learning P3A ingestion...",
+      );
+      applySql(expenseLearningIngestionSql.down);
+    }
+    if (
+      querySql(`
+        select pg_catalog.to_regclass(
           'expense_learning_private.learning_consent_decisions'
         ) is not null;
       `) === "t"
     ) {
-      console.log("Resetting auto-applied empty expense learning P2A consent...");
+      console.log(
+        "Resetting auto-applied empty expense learning P2A consent...",
+      );
       applySql(expenseLearningConsentSql.down);
     }
     console.log("Resetting auto-applied empty expense learning P1B storage...");
@@ -2278,13 +3231,22 @@ async function main() {
 
   console.log("Validating expense learning consent P2A up -> down -> up...");
   applySql(expenseLearningConsentSql.up);
-  const expenseLearningConsentCatalog =
-    expenseLearningConsentCatalogSnapshot();
+  const expenseLearningConsentCatalog = expenseLearningConsentCatalogSnapshot();
   applySql(expenseLearningConsentSql.down);
   applySql(expenseLearningConsentSql.up);
   expect(
     expenseLearningConsentCatalogSnapshot() === expenseLearningConsentCatalog,
     "expense learning consent initial up/down/up changed catalog semantics",
+  );
+
+  console.log("Validating expense learning ingestion P3A up -> down -> up...");
+  applySql(expenseLearningIngestionSql.up);
+  const expenseLearningP3Catalog = expenseLearningP3CatalogSnapshot();
+  applySql(expenseLearningIngestionSql.down);
+  applySql(expenseLearningIngestionSql.up);
+  expect(
+    expenseLearningP3CatalogSnapshot() === expenseLearningP3Catalog,
+    "expense learning ingestion initial up/down/up changed catalog semantics",
   );
 
   const admin = service();
@@ -2297,7 +3259,18 @@ async function main() {
     await testTableMatrix(admin, userA, userB);
     await testRpcPermissionsAndConcurrency(admin, userA);
     await testExpenseLearningDataApi(admin, userA);
+    testExpenseLearningP3DatabaseBoundary();
     testExpenseLearningConsentDatabaseBoundary(userA.id);
+    console.log("Testing expense learning P3A semantic rejection...");
+    await testExpenseLearningP3SemanticRejection(admin, users);
+    console.log("Testing expense learning P3A behavior and revocation...");
+    await testExpenseLearningP3Behavior(admin, users);
+    console.log("Testing expense learning P3A one-shot claim race...");
+    await testExpenseLearningP3ClaimRace(admin, users);
+    console.log("Testing expense learning P3A account deletion races...");
+    await testExpenseLearningP3AccountDeleteRaces(admin, users);
+    console.log("Testing expense learning P3A corrupt-state rollback...");
+    await testExpenseLearningP3CorruptionRollback(admin, users);
     await testExpenseLearningConsentBehavior(admin, users);
     await testLegacyStripeCutover(admin);
     await testStripeLeaseAndPackRpcs(admin, userA, userB);
@@ -2306,6 +3279,7 @@ async function main() {
       sqlFiles.down[0],
       "Stripe webhook ledger is not empty; rollback is unsafe",
     );
+    await testExpenseLearningP3Rollback(admin, users, expenseLearningP3Catalog);
     await testExpenseLearningConsentRollback(
       admin,
       users,
