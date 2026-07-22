@@ -180,6 +180,33 @@ describe("purchase products", () => {
     });
   });
 
+  it("normaliza plantillas lineales y de volumen sin alterar el aprendizaje", () => {
+    const [linear, volume] = buildPurchaseProductSummaries(
+      [],
+      [
+        product("Perfil lineal", {
+          aliases: ["perfil detectado"],
+          calculation: { kind: "linear", unit: "ml", roundingDecimals: 9 },
+        }),
+        product("Bloque", {
+          calculation: { kind: "volume", unit: "m³", roundingDecimals: 3 },
+        }),
+      ],
+    );
+
+    expect(linear.aliases).toContain("perfil detectado");
+    expect(linear.calculation).toEqual({
+      kind: "linear",
+      unit: "ml",
+      roundingDecimals: 4,
+    });
+    expect(volume.calculation).toEqual({
+      kind: "volume",
+      unit: "m3",
+      roundingDecimals: 3,
+    });
+  });
+
   it("hereda la referencia del proveedor desde la línea de compra escaneada", () => {
     const [summary] = buildPurchaseProductSummaries([
       expense("e-ref", "2026-06-09", "Metalurgica Arandes", [

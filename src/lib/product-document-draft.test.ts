@@ -3,6 +3,7 @@ import {
   consumeDocumentProductPickedLine,
   consumeDocumentProductReturnDraft,
   getDocumentProductPickRequest,
+  mergeProductCalculationIntoMeasurementDraft,
   productSummaryToDocumentDraftLine,
   productSummaryToPickedLine,
   saveDocumentProductPickedLine,
@@ -44,6 +45,11 @@ describe("product document draft", () => {
         saleUnit: "m2",
         saleUnitPrice: 45,
         saleIvaPercent: 10,
+        calculation: {
+          kind: "area" as const,
+          unit: "m2",
+          roundingDecimals: 3,
+        },
         lastPvp: 30,
         averagePvp: 28,
         lastUnitPrice: 18,
@@ -61,6 +67,7 @@ describe("product document draft", () => {
       priceSource: "sale",
       costUnitPrice: 18,
       costIvaPercent: 21,
+      calculation: { kind: "area", unit: "m2", roundingDecimals: 3 },
       line: {
         description: "Panel blanco vendido",
         quantity: 1,
@@ -84,6 +91,7 @@ describe("product document draft", () => {
     expect(line.priceSource).toBe("cost");
     expect(line.basePrice).toBe(42);
     expect(line.line.unitPrice).toBe(42);
+    expect(line.calculation).toEqual({ kind: "none", unit: "ud" });
   });
 
   it("guarda y consume el borrador de vuelta a una línea de documento", () => {
@@ -131,7 +139,14 @@ describe("product document draft", () => {
       mode: "edit" as const,
       productKey: "panel blanco",
       productId: "product-panel",
-      prefill: { name: "Panel" },
+      prefill: {
+        name: "Panel",
+        calculation: {
+          kind: "area" as const,
+          unit: "m2",
+          roundingDecimals: 3,
+        },
+      },
     };
 
     expect(saveDocumentProductPickRequest(request)).toBe(true);
@@ -140,7 +155,10 @@ describe("product document draft", () => {
       mode: "edit",
       productKey: "panel blanco",
       productId: "product-panel",
-      prefill: { name: "Panel" },
+      prefill: {
+        name: "Panel",
+        calculation: { kind: "area", unit: "m2", roundingDecimals: 3 },
+      },
     });
 
     const picked = productSummaryToPickedLine(
@@ -159,6 +177,83 @@ describe("product document draft", () => {
       },
     });
     expect(consumeDocumentProductPickedLine("factura")).toBeNull();
+  });
+
+  it("conserva plantilla, redondeo y dimensiones en la vuelta completa", () => {
+    const item = lineItem({
+      id: "line-volume",
+      description: "Bloque a medida",
+      unit: "m3",
+      quantity: 0.1234,
+    });
+    const measurement = {
+      kind: "volume" as const,
+      pieces: 2,
+      length: 1.2345,
+      width: 0.5,
+      height: 0.1,
+      roundingDecimals: 4,
+    };
+    const calculation = {
+      kind: "volume" as const,
+      unit: "m3",
+      roundingDecimals: 4,
+    };
+
+    expect(
+      saveDocumentProductReturnDraft({
+        source: "document",
+        documentType: "factura",
+        returnPath: "/facturas/nuevo",
+        targetLineId: item.id,
+        createdAt: "2026-07-22T00:00:00.000Z",
+        form: {
+          clientForm: {},
+          selectedCustomerId: null,
+          date: "2026-07-22",
+          dueDate: "",
+          notes: "",
+          salesTerms: "",
+          paymentTerms: "",
+          status: "borrador",
+          documentIvaPercent: 21,
+          items: [item],
+          lineProductPricing: {},
+          lineAreaDrafts: { [item.id]: measurement },
+        },
+      }),
+    ).toBe(true);
+    expect(
+      saveDocumentProductPickRequest({
+        source: "document",
+        documentType: "factura",
+        returnPath: "/facturas/nuevo",
+        targetLineId: item.id,
+        createdAt: "2026-07-22T00:00:00.000Z",
+        prefill: { name: item.description, unit: item.unit, calculation },
+      }),
+    ).toBe(true);
+
+    const restored = consumeDocumentProductReturnDraft("factura");
+    const request = getDocumentProductPickRequest();
+    const picked = productSummaryToPickedLine(
+      summary("Bloque a medida", {
+        saleUnit: "m3",
+        calculation,
+      }),
+      request!,
+    );
+    expect(saveDocumentProductPickedLine(picked)).toBe(true);
+    const selected = consumeDocumentProductPickedLine("factura");
+    expect(restored?.form.lineAreaDrafts[item.id]).toEqual(measurement);
+    expect(request?.prefill?.calculation).toEqual(calculation);
+    expect(selected?.draftLine.calculation).toEqual(calculation);
+    expect(
+      mergeProductCalculationIntoMeasurementDraft(
+        restored?.form.lineAreaDrafts[item.id],
+        selected?.draftLine.calculation ?? { kind: "none" },
+      ),
+    ).toEqual(measurement);
   });
 });
 

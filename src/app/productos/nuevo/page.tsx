@@ -24,6 +24,9 @@ import { productAttributesFromText } from "@/lib/product-attributes";
 import {
   EMPTY_PRODUCT_FORM_DRAFT,
   findProductDuplicateCandidates,
+  normalizeProductCalculationKind,
+  productCalculationUnit,
+  productFormDraftFromDocumentPrefill,
   productFormHasChanges,
   type ProductDuplicateCandidate,
   type ProductFormDraft,
@@ -49,9 +52,7 @@ export default function NuevoProductoPage() {
   const router = useRouter();
   const { data, addProduct } = useAppStore();
   const { checkCanAddProduct } = useBilling();
-  const [form, setForm] = useState<ProductFormDraft>(
-    EMPTY_PRODUCT_FORM_DRAFT,
-  );
+  const [form, setForm] = useState<ProductFormDraft>(EMPTY_PRODUCT_FORM_DRAFT);
   const [initialForm, setInitialForm] = useState<ProductFormDraft>(
     EMPTY_PRODUCT_FORM_DRAFT,
   );
@@ -75,21 +76,7 @@ export default function NuevoProductoPage() {
     setDocumentPickRequest(request);
     const prefill = request?.prefill;
     if (!prefill) return;
-    const next: ProductFormDraft = {
-      ...EMPTY_PRODUCT_FORM_DRAFT,
-      name: prefill.name || "",
-      saleDescription: prefill.description || prefill.name || "",
-      saleUnit: prefill.unit || EMPTY_PRODUCT_FORM_DRAFT.saleUnit,
-      purchaseUnit: prefill.unit || EMPTY_PRODUCT_FORM_DRAFT.purchaseUnit,
-      salePrice:
-        prefill.unitPrice !== undefined && prefill.unitPrice > 0
-          ? String(prefill.unitPrice)
-          : EMPTY_PRODUCT_FORM_DRAFT.salePrice,
-      saleIvaPercent:
-        prefill.ivaPercent !== undefined
-          ? String(prefill.ivaPercent)
-          : EMPTY_PRODUCT_FORM_DRAFT.saleIvaPercent,
-    };
+    const next = productFormDraftFromDocumentPrefill(prefill);
     setForm(next);
     setInitialForm(next);
   }, []);
@@ -161,8 +148,13 @@ export default function NuevoProductoPage() {
         ...current,
         [field]: value,
         ...(field === "family" ? { subfamily: "" } : {}),
-        ...(field === "calculationKind" && value === "area"
-          ? { saleUnit: "m2" }
+        ...(field === "calculationKind"
+          ? {
+              saleUnit: productCalculationUnit(
+                normalizeProductCalculationKind(value),
+                current.saleUnit,
+              ),
+            }
           : {}),
       } as ProductFormDraft;
 
@@ -181,8 +173,7 @@ export default function NuevoProductoPage() {
 
       if (
         !purchaseCostManual &&
-        (field === "purchaseListPrice" ||
-          field === "purchaseDiscountPercent")
+        (field === "purchaseListPrice" || field === "purchaseDiscountPercent")
       ) {
         next.purchaseNetUnitCost = purchaseNetUnitCostInputFromFields(
           next.purchaseListPrice,
@@ -270,14 +261,15 @@ export default function NuevoProductoPage() {
     const purchaseNetUnitCost =
       numericValidation.values.purchaseNetUnitCost ??
       calculatePurchaseNetUnitCost(purchaseListPrice, purchaseDiscountPercent);
-    const calculationKind = form.calculationKind === "area" ? "area" : "none";
-    const saleUnit =
-      calculationKind === "area"
-        ? "m2"
-        : (normalizeDocumentUnitId(form.saleUnit) ?? form.saleUnit.trim()) ||
-          "ud";
+    const calculationKind = normalizeProductCalculationKind(
+      form.calculationKind,
+    );
+    const manualSaleUnit =
+      (normalizeDocumentUnitId(form.saleUnit) ?? form.saleUnit.trim()) || "ud";
+    const saleUnit = productCalculationUnit(calculationKind, manualSaleUnit);
     const purchaseUnit =
-      (normalizeDocumentUnitId(form.purchaseUnit) ?? form.purchaseUnit.trim()) ||
+      (normalizeDocumentUnitId(form.purchaseUnit) ??
+        form.purchaseUnit.trim()) ||
       saleUnit;
 
     let created: ReturnType<typeof addProduct>;
@@ -305,11 +297,11 @@ export default function NuevoProductoPage() {
         purchase: {
           enabled: Boolean(
             supplierName ||
-              form.purchaseDescription.trim() ||
-              form.supplierReference.trim() ||
-              purchaseListPrice ||
-              purchaseDiscountPercent ||
-              purchaseNetUnitCost,
+            form.purchaseDescription.trim() ||
+            form.supplierReference.trim() ||
+            purchaseListPrice ||
+            purchaseDiscountPercent ||
+            purchaseNetUnitCost,
           ),
           description: form.purchaseDescription.trim() || undefined,
           unit: purchaseUnit,
@@ -322,8 +314,12 @@ export default function NuevoProductoPage() {
           supplierReference: form.supplierReference.trim() || undefined,
         },
         calculation:
-          calculationKind === "area"
-            ? { kind: "area", unit: saleUnit, roundingDecimals: 2 }
+          calculationKind !== "none"
+            ? {
+                kind: calculationKind,
+                unit: saleUnit,
+                roundingDecimals: form.calculationRoundingDecimals,
+              }
             : undefined,
         attributes: productAttributesFromText(form.attributesText),
         notes: form.notes.trim() || undefined,

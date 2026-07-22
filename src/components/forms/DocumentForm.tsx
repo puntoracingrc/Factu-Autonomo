@@ -54,9 +54,10 @@ import {
   lineItemFormTotal,
 } from "@/lib/document-form-flow";
 import {
-  isAreaDocumentUnit,
-  isLinearDocumentUnit,
+  inferredMeasurementKindForUnit,
+  isMeasuredCalculationKind,
   lineMeasurementDescriptionSuffix,
+  resolveLineMeasurementKind,
   type LineMeasurementDraft,
 } from "@/lib/area-calculation";
 import { DocumentPaymentPicker } from "@/components/documents/DocumentPaymentPicker";
@@ -110,6 +111,7 @@ import {
   consumeDocumentProductPickedLine,
   consumeDocumentProductReturnDraft,
   consumeProductDocumentDraft,
+  mergeProductCalculationIntoMeasurementDraft,
   type ProductDocumentDraftLine,
   saveDocumentProductPickRequest,
   saveDocumentProductReturnDraft,
@@ -122,7 +124,13 @@ import {
 } from "@/lib/document-session-draft";
 import { productFamilyMarkupPercent } from "@/lib/product-family-markups";
 import type { WhatsappDocumentPrefill } from "@/lib/whatsapp-document-prefill";
-import type { Document, DocumentType, LineItem, Customer } from "@/lib/types";
+import type {
+  Customer,
+  Document,
+  DocumentType,
+  LineItem,
+  ProductCalculationTemplate,
+} from "@/lib/types";
 import type { PurchaseProductSummary } from "@/lib/purchase-products";
 
 function emptyLine(defaultIva: number, defaultUnit: string): LineItem {
@@ -270,7 +278,9 @@ function estimateLineMargin(
   const saleBase = roundMoney(item.unitPrice * quantity);
   const costUnitPrice = pricing ? resolveLineCostUnitPrice(pricing) : 0;
   const missingCost = Boolean(pricing && costUnitPrice === undefined);
-  const costBase = missingCost ? 0 : roundMoney((costUnitPrice ?? 0) * quantity);
+  const costBase = missingCost
+    ? 0
+    : roundMoney((costUnitPrice ?? 0) * quantity);
   const costIva =
     vatExempt || missingCost || !pricing
       ? 0
@@ -305,7 +315,12 @@ function lineMarginSummary(
   tooltip: string;
 } {
   if (!pricing) {
-    const estimate = estimateLineMargin(item, undefined, irpfPercent, vatExempt);
+    const estimate = estimateLineMargin(
+      item,
+      undefined,
+      irpfPercent,
+      vatExempt,
+    );
     if (estimate.saleBase <= 0) {
       return {
         text: "Línea libre: sin coste de material vinculado",
@@ -319,8 +334,7 @@ function lineMarginSummary(
         estimate.grossMargin,
       )} · Neto estimado ${formatMoney(estimate.netMargin)}`,
       tone: estimate.grossMargin < 0 ? "text-red-700" : "text-emerald-700",
-      tooltip:
-        `Sin producto vinculado: ingreso sin IVA y coste de material 0 €. El IVA no es beneficio; el neto descuenta el IRPF orientativo del ${irpfPercent}%.`,
+      tooltip: `Sin producto vinculado: ingreso sin IVA y coste de material 0 €. El IVA no es beneficio; el neto descuenta el IRPF orientativo del ${irpfPercent}%.`,
     };
   }
 
@@ -347,8 +361,7 @@ function lineMarginSummary(
       estimate.netMargin,
     )}${manualText}`,
     tone: estimate.grossMargin < 0 ? "text-red-700" : "text-emerald-700",
-    tooltip:
-      `Margen estimado: venta sin IVA menos coste del material sin IVA. El IVA va aparte; el neto descuenta el IRPF orientativo del ${irpfPercent}%.`,
+    tooltip: `Margen estimado: venta sin IVA menos coste del material sin IVA. El IVA va aparte; el neto descuenta el IRPF orientativo del ${irpfPercent}%.`,
   };
 }
 
@@ -364,26 +377,50 @@ function productPriceSourceWarning(
   return null;
 }
 
+type NormalizedLineMeasurementDraft = LineMeasurementDraft & {
+  pieces: number;
+  width: number;
+  height: number;
+  length: number;
+  roundingDecimals: number;
+};
+
 function normalizedMeasureDraft(
   draft?: LineMeasurementDraft,
-): Required<LineMeasurementDraft> {
+  calculation?: ProductCalculationTemplate,
+): NormalizedLineMeasurementDraft {
   return {
+    kind: calculation?.kind ?? draft?.kind,
     pieces:
       Number.isFinite(draft?.pieces) && (draft?.pieces ?? 0) > 0
-        ? draft?.pieces ?? 1
+        ? (draft?.pieces ?? 1)
         : 1,
     width:
       Number.isFinite(draft?.width) && (draft?.width ?? 0) > 0
-        ? draft?.width ?? 0
+        ? (draft?.width ?? 0)
         : 0,
     height:
       Number.isFinite(draft?.height) && (draft?.height ?? 0) > 0
-        ? draft?.height ?? 0
+        ? (draft?.height ?? 0)
         : 0,
     length:
       Number.isFinite(draft?.length) && (draft?.length ?? 0) > 0
-        ? draft?.length ?? 0
+        ? (draft?.length ?? 0)
         : 0,
+    roundingDecimals:
+      typeof (calculation?.roundingDecimals ?? draft?.roundingDecimals) ===
+        "number" &&
+      Number.isFinite(calculation?.roundingDecimals ?? draft?.roundingDecimals)
+        ? Math.min(
+            Math.max(
+              Math.trunc(
+                calculation?.roundingDecimals ?? draft?.roundingDecimals ?? 2,
+              ),
+              0,
+            ),
+            4,
+          )
+        : 2,
   };
 }
 
@@ -394,7 +431,7 @@ function ensureMeasureDraftsForMeasuredLines(
   const next = { ...drafts };
   for (const item of sourceItems) {
     if (
-      (isAreaDocumentUnit(item.unit) || isLinearDocumentUnit(item.unit)) &&
+      isMeasuredCalculationKind(inferredMeasurementKindForUnit(item.unit)) &&
       !next[item.id]
     ) {
       next[item.id] = normalizedMeasureDraft();
@@ -643,6 +680,7 @@ export function DocumentForm({
       : [emptyLine(effectiveDocumentIva, defaultUnit)];
     let restoredItems = draftItems;
     let restoredPricing = returnDraft.form.lineProductPricing ?? {};
+    let restoredMeasurements = returnDraft.form.lineAreaDrafts ?? {};
 
     if (pickedLine) {
       const targetLineId = pickedLine.targetLineId || returnDraft.targetLineId;
@@ -690,6 +728,17 @@ export function DocumentForm({
           costIvaPercent: pickedLine.draftLine.costIvaPercent,
         },
       };
+      if (pickedLine.draftLine.calculation) {
+        restoredMeasurements = {
+          ...restoredMeasurements,
+          [nextLine.id]: normalizedMeasureDraft(
+            mergeProductCalculationIntoMeasurementDraft(
+              restoredMeasurements[nextLine.id],
+              pickedLine.draftLine.calculation,
+            ),
+          ),
+        };
+      }
     }
 
     setClientForm({
@@ -714,7 +763,7 @@ export function DocumentForm({
     setLineAreaDrafts(
       ensureMeasureDraftsForMeasuredLines(
         normalizedRestoredItems,
-        returnDraft.form.lineAreaDrafts ?? {},
+        restoredMeasurements,
       ),
     );
     setFocusedProductLineId(null);
@@ -793,7 +842,23 @@ export function DocumentForm({
         ]),
       ),
     );
-    setLineAreaDrafts(ensureMeasureDraftsForMeasuredLines(normalizedDraftItems));
+    setLineAreaDrafts(
+      ensureMeasureDraftsForMeasuredLines(
+        normalizedDraftItems,
+        Object.fromEntries(
+          restoredDraftLines.flatMap(({ item, draftLine }) =>
+            draftLine.calculation
+              ? [
+                  [
+                    item.id,
+                    normalizedMeasureDraft(undefined, draftLine.calculation),
+                  ],
+                ]
+              : [],
+          ),
+        ),
+      ),
+    );
   }, [
     defaultMarkupForProductLine,
     effectiveDocumentIva,
@@ -1023,9 +1088,7 @@ export function DocumentForm({
           saleBase: roundMoney(summary.saleBase + estimate.saleBase),
           costBase: roundMoney(summary.costBase + estimate.costBase),
           costIva: roundMoney(summary.costIva + estimate.costIva),
-          grossMargin: roundMoney(
-            summary.grossMargin + estimate.grossMargin,
-          ),
+          grossMargin: roundMoney(summary.grossMargin + estimate.grossMargin),
           irpfEstimate: roundMoney(
             summary.irpfEstimate + estimate.irpfEstimate,
           ),
@@ -1065,14 +1128,15 @@ export function DocumentForm({
         : "Emitir y descargar PDF"
       : `Guardar ${label} y descargar PDF`;
 
-  const shareDoc: Document | null = existing && !rectificationProfileBlocked
-    ? {
-        ...previewDoc,
-        id: existing.id,
-        number: existing.number,
-        createdAt: existing.createdAt,
-      }
-    : null;
+  const shareDoc: Document | null =
+    existing && !rectificationProfileBlocked
+      ? {
+          ...previewDoc,
+          id: existing.id,
+          number: existing.number,
+          createdAt: existing.createdAt,
+        }
+      : null;
 
   const requiresConcept = type !== "presupuesto";
   const requiresInvoiceClientFields = type === "factura";
@@ -1142,9 +1206,7 @@ export function DocumentForm({
   function handleApplyDocumentIva() {
     const currentItems = itemsRef.current;
     if (
-      !currentItems.some(
-        (item) => item.ivaPercent !== effectiveDocumentIva,
-      )
+      !currentItems.some((item) => item.ivaPercent !== effectiveDocumentIva)
     ) {
       return;
     }
@@ -1180,10 +1242,13 @@ export function DocumentForm({
     const selectedDescription =
       applied.line.description ?? product.saleDescription ?? product.name;
     const nextUnit = applied.line.unit;
-    const nextMeasureDraft =
-      isAreaDocumentUnit(nextUnit) || isLinearDocumentUnit(nextUnit)
-        ? normalizedMeasureDraft(lineAreaDrafts[item.id])
-        : undefined;
+    const nextCalculation: ProductCalculationTemplate = product.calculation
+      ? { ...product.calculation, unit: nextUnit }
+      : { kind: "none", unit: nextUnit };
+    const nextMeasureDraft = normalizedMeasureDraft(
+      lineAreaDrafts[item.id],
+      nextCalculation,
+    );
     const nextLine = applyLineMeasurementDraft(
       {
         ...item,
@@ -1206,15 +1271,7 @@ export function DocumentForm({
       unitPrice: nextLine.unitPrice,
       quantity: nextLine.quantity,
     });
-    if (nextMeasureDraft) {
-      setLineAreaDrafts((prev) => ({ ...prev, [item.id]: nextMeasureDraft }));
-    } else {
-      setLineAreaDrafts((prev) => {
-        const next = { ...prev };
-        delete next[item.id];
-        return next;
-      });
-    }
+    setLineAreaDrafts((prev) => ({ ...prev, [item.id]: nextMeasureDraft }));
     setLineProductPricing((prev) => ({
       ...prev,
       [item.id]: {
@@ -1247,6 +1304,17 @@ export function DocumentForm({
     const returnPath = documentFormReturnPath(type, existing);
     const createdAt = new Date().toISOString();
     const description = currentItem.description.trim();
+    const currentMeasurement = normalizedMeasureDraft(
+      lineAreaDrafts[currentItem.id],
+      {
+        kind: resolveLineMeasurementKind(
+          currentItem.unit,
+          lineAreaDrafts[currentItem.id],
+        ),
+        unit: currentItem.unit,
+        roundingDecimals: lineAreaDrafts[currentItem.id]?.roundingDecimals ?? 2,
+      },
+    );
     const savedReturnDraft = saveDocumentProductReturnDraft({
       source: "document",
       documentType: type,
@@ -1284,6 +1352,11 @@ export function DocumentForm({
         unitPrice:
           currentItem.unitPrice > 0 ? currentItem.unitPrice : undefined,
         ivaPercent: currentItem.ivaPercent,
+        calculation: {
+          kind: currentMeasurement.kind ?? "none",
+          unit: currentItem.unit,
+          roundingDecimals: currentMeasurement.roundingDecimals,
+        },
       },
     });
 
@@ -1329,27 +1402,19 @@ export function DocumentForm({
 
   function handleLineUnitChange(id: string, unit: string) {
     const current = itemsRef.current.find((item) => item.id === id);
-    const isMeasuredUnit =
-      isAreaDocumentUnit(unit) || isLinearDocumentUnit(unit);
-
-    if (!isMeasuredUnit) {
-      setLineAreaDrafts((prev) => {
-        const next = { ...prev };
-        delete next[id];
-        return next;
-      });
-      updateItem(id, { unit });
-      return;
-    }
-
-    const nextDraft = normalizedMeasureDraft(lineAreaDrafts[id]);
+    const kind = inferredMeasurementKindForUnit(unit);
+    const nextDraft = normalizedMeasureDraft(lineAreaDrafts[id], {
+      kind,
+      unit,
+      roundingDecimals: lineAreaDrafts[id]?.roundingDecimals ?? 2,
+    });
     setLineAreaDrafts((prev) => ({ ...prev, [id]: nextDraft }));
     const measured = current
       ? applyLineMeasurementDraft({ ...current, unit }, nextDraft)
       : null;
     updateItem(id, {
       unit,
-      quantity: measured ? measured.quantity : 0,
+      quantity: measured ? measured.quantity : (current?.quantity ?? 0),
     });
   }
 
@@ -1365,7 +1430,11 @@ export function DocumentForm({
     });
     const measured = applyLineMeasurementDraft(currentItem, nextDraft);
     setLineAreaDrafts((prev) => ({ ...prev, [id]: nextDraft }));
-    if (isAreaDocumentUnit(currentItem.unit) || isLinearDocumentUnit(currentItem.unit)) {
+    if (
+      isMeasuredCalculationKind(
+        resolveLineMeasurementKind(currentItem.unit, nextDraft),
+      )
+    ) {
       updateItem(id, { quantity: measured.quantity });
     }
   }
@@ -1613,9 +1682,10 @@ export function DocumentForm({
       number: saved.number,
       router,
       notice: verifactuNotice,
-      download: download && !verifactuSafetyBlocked
-        ? { doc: saved, profile: effectiveDocumentProfile, pdfOptions }
-        : undefined,
+      download:
+        download && !verifactuSafetyBlocked
+          ? { doc: saved, profile: effectiveDocumentProfile, pdfOptions }
+          : undefined,
     });
   }
 
@@ -1815,9 +1885,14 @@ export function DocumentForm({
                 lineAreaDrafts[item.id],
               );
               const hasMeasureDraft = Boolean(lineAreaDrafts[item.id]);
-              const isAreaLine = isAreaDocumentUnit(item.unit);
-              const isLinearLine = isLinearDocumentUnit(item.unit);
-              const isMeasuredLine = isAreaLine || isLinearLine;
+              const measurementKind = resolveLineMeasurementKind(
+                item.unit,
+                lineAreaDrafts[item.id],
+              );
+              const isAreaLine = measurementKind === "area";
+              const isLinearLine = measurementKind === "linear";
+              const isVolumeLine = measurementKind === "volume";
+              const isMeasuredLine = isMeasuredCalculationKind(measurementKind);
               const displayedItem =
                 isMeasuredLine && hasMeasureDraft
                   ? applyLineMeasurementDraft(item, measureDraft)
@@ -2083,6 +2158,48 @@ export function DocumentForm({
                           className={compactInputClass}
                         />
                       </label>
+                    ) : isVolumeLine ? (
+                      <div className="grid grid-cols-3 gap-2">
+                        <label className="min-w-0">
+                          <span className="mb-1 block text-[0.65rem] font-bold uppercase text-slate-500">
+                            Largo
+                          </span>
+                          <NumericFieldInput
+                            value={hasMeasureDraft ? measureDraft.length : 0}
+                            onChange={(length) =>
+                              handleLineMeasureDraftChange(item.id, { length })
+                            }
+                            placeholder="0"
+                            className={compactInputClass}
+                          />
+                        </label>
+                        <label className="min-w-0">
+                          <span className="mb-1 block text-[0.65rem] font-bold uppercase text-slate-500">
+                            Ancho
+                          </span>
+                          <NumericFieldInput
+                            value={hasMeasureDraft ? measureDraft.width : 0}
+                            onChange={(width) =>
+                              handleLineMeasureDraftChange(item.id, { width })
+                            }
+                            placeholder="0"
+                            className={compactInputClass}
+                          />
+                        </label>
+                        <label className="min-w-0">
+                          <span className="mb-1 block text-[0.65rem] font-bold uppercase text-slate-500">
+                            Alto
+                          </span>
+                          <NumericFieldInput
+                            value={hasMeasureDraft ? measureDraft.height : 0}
+                            onChange={(height) =>
+                              handleLineMeasureDraftChange(item.id, { height })
+                            }
+                            placeholder="0"
+                            className={compactInputClass}
+                          />
+                        </label>
+                      </div>
                     ) : (
                       <p className="hidden h-10 items-center rounded-lg bg-slate-50 px-3 text-sm font-semibold text-slate-400 ring-1 ring-slate-100 lg:flex">
                         --
@@ -2450,9 +2567,7 @@ export function DocumentForm({
               variant="secondary"
               fullWidth
               onClick={() => void handleSave(false, "borrador")}
-              disabled={
-                saving || previewLoading || rectificationProfileBlocked
-              }
+              disabled={saving || previewLoading || rectificationProfileBlocked}
             >
               {saveAction === "save" ? "Guardando…" : "Guardar borrador"}
             </Button>

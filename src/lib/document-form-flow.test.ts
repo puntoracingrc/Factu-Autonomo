@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyConfirmedDocumentIvaToItems,
+  applyLineMeasurementDraft,
   applyDocumentIvaToItems,
   documentFormAmounts,
   documentFormItemsForEditing,
@@ -63,9 +64,7 @@ describe("document form totals flow", () => {
     ];
 
     expect(
-      documentFormItemsForEditing(mixedItems).map(
-        (line) => line.ivaPercent,
-      ),
+      documentFormItemsForEditing(mixedItems).map((line) => line.ivaPercent),
     ).toEqual([21, 10]);
     expect(
       applyDocumentIvaToItems(mixedItems, 4).map((line) => line.ivaPercent),
@@ -209,7 +208,30 @@ describe("document form totals flow", () => {
     expect(saved[0]).toMatchObject({
       quantity: 5.52,
       unit: "m2",
-      description: "Persiana aluminio (2 uds x 1,2 x 2,3 m = 5,52 m²)",
+      description: "Persiana aluminio (2 uds x 1,2 x 2,3 m ≈ 5,52 m²)",
+    });
+  });
+
+  it("persiste una ecuación aproximada coherente con medidas precisas", () => {
+    const [saved] = documentFormItemsForSave(
+      [item({ description: "Panel preciso", unit: "m2", quantity: 0 })],
+      false,
+      {
+        lineMeasurementDrafts: {
+          "line-1": {
+            kind: "area",
+            pieces: 2,
+            width: 1.234,
+            height: 2.345,
+            roundingDecimals: 2,
+          },
+        },
+      },
+    );
+
+    expect(saved).toMatchObject({
+      quantity: 5.79,
+      description: "Panel preciso (2 uds x 1,234 x 2,345 m ≈ 5,79 m²)",
     });
   });
 
@@ -227,11 +249,50 @@ describe("document form totals flow", () => {
     expect(saved[0]).toMatchObject({
       quantity: 5.1,
       unit: "ml",
-      description: "Guía lateral (2 uds x 2,55 m = 5,1 ml)",
+      description: "Guía lateral (2 uds x 2,55 m ≈ 5,1 ml)",
     });
+  });
+
+  it("guarda una línea de volumen con cantidad y medidas calculadas", () => {
+    const saved = documentFormItemsForSave(
+      [item({ description: "Bloque aislante", unit: "m3", quantity: 0 })],
+      false,
+      {
+        lineMeasurementDrafts: {
+          "line-1": {
+            kind: "volume",
+            pieces: 2,
+            length: 1.5,
+            width: 0.5,
+            height: 0.4,
+            roundingDecimals: 3,
+          },
+        },
+      },
+    );
+
+    expect(saved[0]).toMatchObject({
+      quantity: 0.6,
+      unit: "m3",
+      description: "Bloque aislante (2 uds x 1,5 x 0,5 x 0,4 m ≈ 0,6 m³)",
+    });
+  });
+
+  it("respeta una cantidad directa aunque la unidad sea m2", () => {
+    expect(
+      applyLineMeasurementDraft(item({ unit: "m2", quantity: 7 }), {
+        kind: "none",
+        pieces: 2,
+        width: 1.2,
+        height: 2.3,
+      }).quantity,
+    ).toBe(7);
   });
 
   it("calcula el total de línea para mostrarlo en el formulario", () => {
     expect(lineItemFormTotal(item({ quantity: 2, unitPrice: 50 }))).toBe(121);
+    expect(
+      lineItemFormTotal(item({ quantity: 0.1234, unit: "m3", unitPrice: 100 })),
+    ).toBe(14.93);
   });
 });

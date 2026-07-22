@@ -36,10 +36,7 @@ import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { formatMoney, formatShortDate } from "@/lib/calculations";
-import {
-  normalizeDocumentUnitId,
-  unitShortLabel,
-} from "@/lib/document-units";
+import { normalizeDocumentUnitId, unitShortLabel } from "@/lib/document-units";
 import {
   productAttributesFromText,
   productAttributesToText,
@@ -47,6 +44,9 @@ import {
 import {
   productFormDraftFromSummary,
   productFormHasChanges,
+  normalizeProductCalculationKind,
+  productCalculationLabel,
+  productCalculationUnit,
   type ProductFormDraft,
 } from "@/lib/product-form";
 import {
@@ -101,10 +101,7 @@ type ProductSort =
   | "amountAsc"
   | "name";
 type ProductCatalogView =
-  | "all"
-  | "unclassified"
-  | "missing-sale-price"
-  | "hidden";
+  "all" | "unclassified" | "missing-sale-price" | "hidden";
 
 const PRODUCT_CATALOG_VIEWS: Array<{
   value: ProductCatalogView;
@@ -126,7 +123,8 @@ const PRODUCT_SORT_OPTIONS: Array<{ value: ProductSort; label: string }> = [
 ];
 
 function productQuantityUnit(product: PurchaseProductSummary): string {
-  const rawUnit = product.purchaseUnit ?? product.unit ?? product.saleUnit ?? "";
+  const rawUnit =
+    product.purchaseUnit ?? product.unit ?? product.saleUnit ?? "";
   return unitShortLabel(normalizeDocumentUnitId(rawUnit) ?? rawUnit);
 }
 
@@ -147,9 +145,7 @@ function productHasSalePrice(product: PurchaseProductSummary): boolean {
   return Boolean(product.saleUnitPrice && product.saleUnitPrice > 0);
 }
 
-function productCostValue(
-  product: PurchaseProductSummary,
-): number | undefined {
+function productCostValue(product: PurchaseProductSummary): number | undefined {
   if (product.purchaseNetUnitCost && product.purchaseNetUnitCost > 0) {
     return product.purchaseNetUnitCost;
   }
@@ -185,7 +181,7 @@ function isSubfamilyMarker(product: Product): boolean {
 function productHasCustomDisplayName(product: PurchaseProductSummary): boolean {
   return Boolean(
     product.saleDescription?.trim() &&
-      product.saleDescription.trim() !== product.name.trim(),
+    product.saleDescription.trim() !== product.name.trim(),
   );
 }
 
@@ -229,7 +225,9 @@ export default function ProductosPage() {
   const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
   const [documentPickRequest, setDocumentPickRequest] =
     useState<DocumentProductPickRequest | null>(null);
-  const [editingProductKey, setEditingProductKey] = useState<string | null>(null);
+  const [editingProductKey, setEditingProductKey] = useState<string | null>(
+    null,
+  );
 
   const products = useMemo(
     () => buildPurchaseProductSummaries(data.expenses, data.products),
@@ -261,39 +259,36 @@ export default function ProductosPage() {
     [data.products, products],
   );
 
-  const subfamilyEntries = useMemo<SubfamilyEntry[]>(
-    () => {
-      const entries = [
-        ...products.map((product) => ({
-          family: product.family,
-          name: product.subfamily,
-        })),
-        ...data.products.map((product) => ({
-          family: product.family,
-          name: product.subfamily,
-        })),
-      ];
-      const unique = new Map<string, SubfamilyEntry>();
-      for (const entry of entries) {
-        const familyName = entry.family.trim() || "Sin familia";
-        const subfamilyName = entry.name?.trim();
-        if (!subfamilyName) continue;
-        unique.set(
-          `${familyName.toLocaleLowerCase("es")}:::${subfamilyName.toLocaleLowerCase("es")}`,
-          {
-            family: familyName,
-            name: subfamilyName,
-          },
-        );
-      }
-      return [...unique.values()].sort(
-        (a, b) =>
-          a.family.localeCompare(b.family, "es") ||
-          a.name.localeCompare(b.name, "es"),
+  const subfamilyEntries = useMemo<SubfamilyEntry[]>(() => {
+    const entries = [
+      ...products.map((product) => ({
+        family: product.family,
+        name: product.subfamily,
+      })),
+      ...data.products.map((product) => ({
+        family: product.family,
+        name: product.subfamily,
+      })),
+    ];
+    const unique = new Map<string, SubfamilyEntry>();
+    for (const entry of entries) {
+      const familyName = entry.family.trim() || "Sin familia";
+      const subfamilyName = entry.name?.trim();
+      if (!subfamilyName) continue;
+      unique.set(
+        `${familyName.toLocaleLowerCase("es")}:::${subfamilyName.toLocaleLowerCase("es")}`,
+        {
+          family: familyName,
+          name: subfamilyName,
+        },
       );
-    },
-    [data.products, products],
-  );
+    }
+    return [...unique.values()].sort(
+      (a, b) =>
+        a.family.localeCompare(b.family, "es") ||
+        a.name.localeCompare(b.name, "es"),
+    );
+  }, [data.products, products]);
 
   const selectedFamilySubfamilies = useMemo(
     () =>
@@ -366,15 +361,12 @@ export default function ProductosPage() {
       [
         ...new Set(
           [
-            ...products.map(
-              (product) => product.usualSupplier?.supplierName,
-            ),
+            ...products.map((product) => product.usualSupplier?.supplierName),
             ...hiddenProducts.map(
               (product) =>
                 product.purchase?.supplierName ?? product.supplierName,
             ),
-          ]
-            .filter((value): value is string => Boolean(value)),
+          ].filter((value): value is string => Boolean(value)),
         ),
       ].sort((a, b) => a.localeCompare(b, "es")),
     [hiddenProducts, products],
@@ -498,13 +490,9 @@ export default function ProductosPage() {
           (subfamily === NO_SUBFAMILY
             ? !product.subfamily
             : product.subfamily === subfamily);
-        const matchesSupplier =
-          supplier === ALL || hiddenSupplier === supplier;
+        const matchesSupplier = supplier === ALL || hiddenSupplier === supplier;
         return (
-          matchesQuery &&
-          matchesFamily &&
-          matchesSubfamily &&
-          matchesSupplier
+          matchesQuery && matchesFamily && matchesSubfamily && matchesSupplier
         );
       })
       .sort((a, b) =>
@@ -512,15 +500,7 @@ export default function ProductosPage() {
           ? a.name.localeCompare(b.name, "es")
           : b.updatedAt.localeCompare(a.updatedAt),
       );
-  }, [
-    catalogView,
-    family,
-    hiddenProducts,
-    query,
-    sort,
-    subfamily,
-    supplier,
-  ]);
+  }, [catalogView, family, hiddenProducts, query, sort, subfamily, supplier]);
 
   const totals = useMemo(
     () => ({
@@ -943,10 +923,7 @@ export default function ProductosPage() {
     return true;
   }
 
-  function createSubfamily(
-    familyValue: string,
-    nameValue: string,
-  ): boolean {
+  function createSubfamily(familyValue: string, nameValue: string): boolean {
     const familyScope = familyValue.trim();
     const name = nameValue.trim();
     if (!familyScope || familyScope === UNCATEGORIZED_FAMILY) {
@@ -985,10 +962,7 @@ export default function ProductosPage() {
     return true;
   }
 
-  function renameFamily(
-    sourceValue: string,
-    targetValue: string,
-  ): boolean {
+  function renameFamily(sourceValue: string, targetValue: string): boolean {
     const sourceFamily = sourceValue.trim();
     const targetFamily = targetValue.trim();
     if (!targetFamily) {
@@ -1258,9 +1232,7 @@ export default function ProductosPage() {
     setQuery("");
     setFamily(targetFamily);
     setSubfamily(
-      targetSubfamily === undefined
-        ? ALL
-        : targetSubfamily || NO_SUBFAMILY,
+      targetSubfamily === undefined ? ALL : targetSubfamily || NO_SUBFAMILY,
     );
     setSupplier(ALL);
     setFamilyStructureOpen(false);
@@ -1334,9 +1306,7 @@ export default function ProductosPage() {
         <Card className="space-y-4 border-blue-100 bg-white">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-xl font-black text-slate-950">
-                Proveedores
-              </h2>
+              <h2 className="text-xl font-black text-slate-950">Proveedores</h2>
               <p className="text-sm font-semibold text-slate-500">
                 Pulsa un proveedor para ver sus productos.
               </p>
@@ -1442,7 +1412,10 @@ export default function ProductosPage() {
 
           <Card className="overflow-hidden p-0">
             <div className="flex gap-px overflow-x-auto border-b border-slate-100 bg-slate-100">
-              <CatalogMetric label="Productos" value={totals.products.toString()} />
+              <CatalogMetric
+                label="Productos"
+                value={totals.products.toString()}
+              />
               <CatalogMetric
                 label="Familias"
                 value={totals.families.toString()}
@@ -1543,7 +1516,10 @@ export default function ProductosPage() {
               </div>
 
               {activeFilterCount > 0 ? (
-                <div className="flex flex-wrap items-center gap-2" aria-label="Filtros activos">
+                <div
+                  className="flex flex-wrap items-center gap-2"
+                  aria-label="Filtros activos"
+                >
                   {family !== ALL ? (
                     <ActiveFilterChip
                       label={productFamilyDisplayName(family)}
@@ -1864,9 +1840,11 @@ export default function ProductosPage() {
               ))}
             </div>
           )}
-          {(catalogView === "hidden"
-            ? visibleHiddenProducts.length < filteredHiddenProducts.length
-            : visibleProducts.length < filteredProducts.length) ? (
+          {(
+            catalogView === "hidden"
+              ? visibleHiddenProducts.length < filteredHiddenProducts.length
+              : visibleProducts.length < filteredProducts.length
+          ) ? (
             <div className="flex justify-center">
               <button
                 type="button"
@@ -1913,9 +1891,7 @@ function CatalogMetric({
     );
   }
 
-  return (
-    <div className="min-w-32 flex-1 bg-white p-4">{content}</div>
-  );
+  return <div className="min-w-32 flex-1 bg-white p-4">{content}</div>;
 }
 
 function ActiveFilterChip({
@@ -1945,8 +1921,7 @@ function HiddenProductRow({
   product: Product;
   onRestore: () => void;
 }) {
-  const supplierName =
-    product.purchase?.supplierName ?? product.supplierName;
+  const supplierName = product.purchase?.supplierName ?? product.supplierName;
   return (
     <Card className="p-0">
       <div className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
@@ -2133,9 +2108,7 @@ function ProductCard({
     ? formatMoney(product.saleUnitPrice ?? 0)
     : "Sin precio de venta";
   const costValue = productCostValue(product);
-  const costLabel = costValue
-    ? formatMoney(costValue)
-    : "Sin coste informado";
+  const costLabel = costValue ? formatMoney(costValue) : "Sin coste informado";
   const supplierLabel = product.usualSupplier?.supplierName ?? "Sin proveedor";
   const volumeLabel =
     product.purchaseCount > 0
@@ -2147,10 +2120,9 @@ function ProductCard({
     product.purchaseCount > 0
       ? formatShortDate(product.lastPurchaseDate)
       : "Sin compras registradas";
-  const formIdPrefix = `edit-product-${(product.productId ?? product.key).replace(
-    /[^a-zA-Z0-9_-]/g,
-    "-",
-  )}`;
+  const formIdPrefix = `edit-product-${(
+    product.productId ?? product.key
+  ).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
   const resetPanelForm = useCallback(() => {
     const next = productFormDraftFromSummary(
@@ -2180,8 +2152,13 @@ function ProductCard({
         ...current,
         [field]: value,
         ...(field === "family" ? { subfamily: "" } : {}),
-        ...(field === "calculationKind" && value === "area"
-          ? { saleUnit: "m2" }
+        ...(field === "calculationKind"
+          ? {
+              saleUnit: productCalculationUnit(
+                normalizeProductCalculationKind(value),
+                current.saleUnit,
+              ),
+            }
           : {}),
       } as ProductFormDraft;
 
@@ -2200,8 +2177,7 @@ function ProductCard({
 
       if (
         !purchaseCostManual &&
-        (field === "purchaseListPrice" ||
-          field === "purchaseDiscountPercent")
+        (field === "purchaseListPrice" || field === "purchaseDiscountPercent")
       ) {
         next.purchaseNetUnitCost = purchaseNetUnitCostInputFromFields(
           next.purchaseListPrice,
@@ -2316,8 +2292,7 @@ function ProductCard({
 
     const parsedSalePrice = numericValidation.values.salePrice;
     const parsedSaleIva = numericValidation.values.saleIvaPercent;
-    const parsedPurchaseListPrice =
-      numericValidation.values.purchaseListPrice;
+    const parsedPurchaseListPrice = numericValidation.values.purchaseListPrice;
     const parsedPurchaseDiscount =
       numericValidation.values.purchaseDiscountPercent;
     const parsedPurchaseCost =
@@ -2328,10 +2303,13 @@ function ProductCard({
       );
     const manualSaleUnit =
       normalizeDocumentUnitId(draft.saleUnit) ?? draft.saleUnit.trim();
-    const normalizedSaleUnit =
-      draft.calculationKind === "area"
-        ? "m2"
-        : manualSaleUnit || product.unit || "ud";
+    const calculationKind = normalizeProductCalculationKind(
+      draft.calculationKind,
+    );
+    const normalizedSaleUnit = productCalculationUnit(
+      calculationKind,
+      manualSaleUnit || product.unit || "ud",
+    );
     const manualPurchaseUnit =
       normalizeDocumentUnitId(draft.purchaseUnit) ?? draft.purchaseUnit.trim();
     const normalizedPurchaseUnit = manualPurchaseUnit || normalizedSaleUnit;
@@ -2346,9 +2324,7 @@ function ProductCard({
       supplierName.toLocaleLowerCase("es");
     const savedSupplierId =
       matchedSupplier?.id ??
-      (existingSupplierMatches
-        ? product.usualSupplier?.supplierId
-        : undefined);
+      (existingSupplierMatches ? product.usualSupplier?.supplierId : undefined);
     const savedSupplierName =
       matchedSupplier?.name ?? (supplierName || undefined);
 
@@ -2388,11 +2364,11 @@ function ProductCard({
           supplierReference: draft.supplierReference.trim() || undefined,
         },
         calculation:
-          draft.calculationKind === "area"
+          calculationKind !== "none"
             ? {
-                kind: "area",
+                kind: calculationKind,
                 unit: normalizedSaleUnit,
-                roundingDecimals: product.calculation?.roundingDecimals ?? 2,
+                roundingDecimals: draft.calculationRoundingDecimals,
               }
             : undefined,
         attributes: productAttributesFromText(draft.attributesText),
@@ -2457,9 +2433,10 @@ function ProductCard({
                     {displayUnit}
                   </span>
                 ) : null}
-                {product.calculation?.kind === "area" ? (
+                {product.calculation?.kind &&
+                product.calculation.kind !== "none" ? (
                   <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
-                    alto x ancho
+                    {productCalculationLabel(product.calculation.kind)}
                   </span>
                 ) : null}
                 {selected ? (
@@ -2608,9 +2585,10 @@ function ProductCard({
                 {displayUnit}
               </span>
             ) : null}
-            {product.calculation?.kind === "area" ? (
+            {product.calculation?.kind &&
+            product.calculation.kind !== "none" ? (
               <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700">
-                alto x ancho
+                {productCalculationLabel(product.calculation.kind)}
               </span>
             ) : null}
           </div>

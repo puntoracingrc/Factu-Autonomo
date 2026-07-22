@@ -29,6 +29,8 @@ describe("document-units", () => {
 
   it("formatea cantidad con unidad en PDF", () => {
     expect(formatQuantityWithUnit(5, "m2")).toBe("5 m²");
+    expect(formatQuantityWithUnit(1.25, "m3")).toBe("1.25 m³");
+    expect(formatQuantityWithUnit(0.1234, "m3")).toBe("0.1234 m³");
     expect(formatQuantityWithUnit(2.5, "m")).toBe("2.5 m");
     expect(formatQuantityWithUnit(3, "und")).toBe("3 ud");
     expect(formatQuantityWithUnit(250, "ml")).toBe("250 ml");
@@ -38,6 +40,9 @@ describe("document-units", () => {
   it("normaliza unidades habituales de negocio real", () => {
     expect(normalizeDocumentUnitId("M2")).toBe("m2");
     expect(normalizeDocumentUnitId("m²")).toBe("m2");
+    expect(normalizeDocumentUnitId("M3")).toBe("m3");
+    expect(normalizeDocumentUnitId("m³")).toBe("m3");
+    expect(normalizeDocumentUnitId("metros cúbicos")).toBe("m3");
     expect(normalizeDocumentUnitId("metro lineal")).toBe("ml");
     expect(normalizeDocumentUnitId("m.l.")).toBe("ml");
     expect(normalizeDocumentUnitId("JG")).toBe("ud");
