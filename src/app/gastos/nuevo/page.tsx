@@ -25,6 +25,7 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Field";
 import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { FormSection } from "@/components/ui/FormSection";
 import { useAppStore } from "@/context/AppStore";
+import { useCloudSync } from "@/context/CloudSyncContext";
 import { inspectFixedExpenseBundle } from "@/lib/app-data-durability";
 import { formatDate, formatMoney, todayISO } from "@/lib/calculations";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
@@ -41,6 +42,10 @@ import {
   completeExpenseLocalSemanticShadowV1,
   type ExpenseLocalSemanticShadowHandleV1,
 } from "@/lib/expense-scan/local-semantic-shadow.v1";
+import {
+  createExpenseLearningContributionAttemptV1,
+  type ExpenseLearningContributionAttemptV1,
+} from "@/lib/expense-scan/learning-contribution-client.v1";
 import {
   buildSupplierMatchHint,
   ensureSupplierForExpense,
@@ -129,6 +134,7 @@ interface PendingExpenseScan {
   payload: ExpenseScanPayload;
   fileName?: string;
   localShadow?: ExpenseLocalSemanticShadowHandleV1;
+  learningContributionAttempt?: ExpenseLearningContributionAttemptV1;
 }
 
 interface ExpenseInboxItemResponse {
@@ -139,6 +145,8 @@ interface ExpenseInboxItemResponse {
 type ScanReviewStatus = "ready" | "review" | "blocked";
 type FixedDueKind = RecurringDueTiming["kind"];
 type ScanProgress = { current: number; total: number; fileName?: string };
+
+const LOCAL_SEMANTIC_COMPLETION_HANDOFF_TIMEOUT_MS_V1 = 15_000;
 
 const FIXED_MONTHS = [
   "Enero",
@@ -166,6 +174,7 @@ async function currentAuthHeaders(): Promise<HeadersInit> {
 
 export default function NuevoGastoPage() {
   const router = useRouter();
+  const { user } = useCloudSync();
   const {
     data,
     getCurrentData,
@@ -526,6 +535,9 @@ export default function NuevoGastoPage() {
       payload,
       fileName: options?.fileName,
       localShadow: options?.localShadow,
+      learningContributionAttempt: options?.localShadow
+        ? (createExpenseLearningContributionAttemptV1(user?.id) ?? undefined)
+        : undefined,
     };
     if (review.localShadow) {
       localShadowHandlesRef.current.add(review.localShadow);
@@ -1221,12 +1233,29 @@ export default function NuevoGastoPage() {
       return;
     }
     const handle = review.localShadow;
-    void completeExpenseLocalSemanticShadowV1({
+    localShadowHandlesRef.current.delete(handle);
+    let timeout: ReturnType<typeof setTimeout> | null = null;
+    const completion = completeExpenseLocalSemanticShadowV1({
       handle: review.localShadow,
       ai: review.payload,
       human,
       replayed: false,
-    }).finally(() => localShadowHandlesRef.current.delete(handle));
+    });
+    const boundedCompletion = new Promise<null>((resolve) => {
+      timeout = setTimeout(() => {
+        handle.dispose();
+        resolve(null);
+      }, LOCAL_SEMANTIC_COMPLETION_HANDOFF_TIMEOUT_MS_V1);
+    });
+    void Promise.race([completion, boundedCompletion])
+      .then((observation) => {
+        if (!observation) return;
+        review.learningContributionAttempt?.submit(observation);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (timeout) clearTimeout(timeout);
+      });
   }
 
   function disposeLocalSemanticShadow(review: PendingExpenseScan | null) {

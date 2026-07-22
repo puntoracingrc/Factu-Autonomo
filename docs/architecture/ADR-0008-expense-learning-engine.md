@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: P3B con API dormida y core privado desconectado; ingesta, promoción y lectura apagadas
+- Estado: P3C con wiring cliente dormido y core privado desconectado; ingesta, promoción y lectura apagadas
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -307,7 +307,45 @@ P3B no incorpora un `GET` de elegibilidad. El core seguirá revalidando el
 consentimiento bajo lock cuando se habilite en una fase posterior. Secretos,
 token, body, digests, errores del RPC y detalles de base de datos no se
 registran ni se reflejan; todas las respuestas son privadas y `no-store`.
-P3C y P4 continúan siendo gates separados y apagados.
+P4 continúa siendo un gate separado y apagado.
+
+### Alcance actual P3C
+
+P3C conecta la observación sombra con el transporte P3B únicamente después de
+que `saveScannedExpenseDurably` confirme `status: applied`, el resultado no sea
+un replay y la completion local produzca una observación válida. El shadow
+continúa ejecutándose aunque el wiring esté apagado. Solo la proyección P1A y
+el POST quedan detrás de
+`NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED === "true"`, cuyo valor por
+defecto es apagado. El flag servidor P3B y el wrapper SQL P3A permanecen también
+apagados, por lo que P3C no habilita ingesta ni DML.
+
+La cuenta que inició el escaneo queda capturada en un handle opaco, efímero,
+single-use y no serializable. No entra en `PendingExpenseScan` como string, en
+el body, en el token ni en persistencia. El intento instala una suscripción de
+autenticación antes de leer la sesión y exige el mismo UUID capturado en la
+sesión inicial, justo antes del POST y después de resolverlo. Un sign-out o un
+cambio A→B invalida y aborta best-effort el intento. La navegación normal de
+`/gastos/nuevo` a `/gastos` con el mismo sujeto no lo cancela: el listener, el
+timeout y el `AbortController` pertenecen al intento y se liberan en su
+`finally`, no al desmontaje visual.
+
+El handle del lector local se transfiere fuera del set de cleanup justo antes
+de completar una observación aplicada y no repetida. Ese handoff tiene un
+límite local de 15 segundos; al agotarse, dispone el reader y no contribuye.
+Replay, descarte, fallo durable, observación nula o contribución P1A inválida no
+crean ningún POST. La página no espera el transporte para guardar, cerrar inbox
+o navegar.
+
+Cada intento válido genera exactamente una vez 32 bytes con WebCrypto y los
+codifica como base64url canónico de 43 caracteres. El body es exclusivamente
+`ExpenseAggregateContributionV1`, se mide en bytes UTF-8 y no puede superar 16
+KiB. El único `fetch` usa bearer, la cabecera de claim compartida,
+`keepalive`, `credentials: omit`, `cache: no-store`, redirección bloqueada y un
+timeout de ocho segundos. No hay retry, beacon, cola, persistencia, lectura de
+respuesta, logs ni cambios de UI. Un aborto cliente posterior al envío no
+garantiza rollback servidor: la autoridad sigue siendo el bearer y la
+revalidación transaccional de consentimiento y sujeto en el core.
 
 ### Incentivo futuro separado
 
