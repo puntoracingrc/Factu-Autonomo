@@ -54,6 +54,7 @@ const expectedMethods: Record<string, string[]> = {
   "email/welcome/route.ts": ["POST"],
   "expense-inbox/inbound/route.ts": ["POST"],
   "expense-inbox/route.ts": ["GET", "PATCH"],
+  "expenses/learning-consent/route.ts": ["GET", "PUT"],
   "expenses/scan/route.ts": ["GET", "POST"],
   "google-auth/token/route.ts": ["POST"],
   "fiscal-notifications/audit/route.ts": ["POST"],
@@ -121,6 +122,7 @@ const bearerRoutes = [
   "email/welcome/route.ts",
   "expense-inbox/[id]/original/route.ts",
   "expense-inbox/route.ts",
+  "expenses/learning-consent/route.ts",
   "expenses/scan/route.ts",
   "fiscal-notifications/audit/route.ts",
   "fiscal-notifications/support/route.ts",
@@ -184,6 +186,7 @@ const boundedBodyRoutes = [
   "expense-deductibility/evaluate/route.ts",
   "expense-inbox/inbound/route.ts",
   "expense-inbox/route.ts",
+  "expenses/learning-consent/route.ts",
   "expenses/scan/route.ts",
   "fiscal-notifications/audit/route.ts",
   "fiscal-notifications/support/route.ts",
@@ -292,6 +295,29 @@ describe("API security inventory", () => {
         /readJsonBody|readTextBody|rejectOversizedContentLength|validateRequestBodySize/,
       );
     }
+  });
+
+  it("keeps expense learning consent hidden before any capability", () => {
+    const source = sourceFor("expenses/learning-consent/route.ts");
+    expect(source).toContain(
+      'process.env.EXPENSE_LEARNING_CONSENT_ENABLED === "true"',
+    );
+
+    const getStart = source.indexOf("export async function GET");
+    const putStart = source.indexOf("export async function PUT");
+    const getHandler = source.slice(getStart, putStart);
+    const putHandler = source.slice(putStart);
+
+    for (const handler of [getHandler, putHandler]) {
+      const featureGate = handler.indexOf("routeIsEnabled()");
+      expect(featureGate).toBeGreaterThanOrEqual(0);
+      expect(featureGate).toBeLessThan(handler.indexOf("authenticatedUser("));
+      expect(featureGate).toBeLessThan(handler.indexOf("checkRateLimit("));
+      expect(featureGate).toBeLessThan(handler.indexOf("getSupabaseAdmin("));
+    }
+    expect(putHandler.indexOf("routeIsEnabled()")).toBeLessThan(
+      putHandler.indexOf("readJsonBody("),
+    );
   });
 
   it("keeps webhooks signature-checked and bounded", () => {
