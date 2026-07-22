@@ -8,6 +8,10 @@ import { AppStoreProvider } from "@/context/AppStore";
 import { BillingProvider } from "@/context/BillingContext";
 import { CloudSyncProvider } from "@/context/CloudSyncContext";
 import { APP_BRAND_NAME } from "@/lib/brand";
+import {
+  APP_THEME_BOOTSTRAP_SCRIPT,
+  APP_THEME_COLORS,
+} from "@/lib/app-theme-bootstrap";
 import "./globals.css";
 
 const geist = Geist({
@@ -70,7 +74,10 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#2563eb",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: APP_THEME_COLORS.light },
+    { media: "(prefers-color-scheme: dark)", color: APP_THEME_COLORS.dark },
+  ],
   width: "device-width",
   initialScale: 1,
   userScalable: true,
@@ -82,7 +89,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${geist.variable} h-full`}>
+    <html
+      lang="es"
+      className={`${geist.variable} h-full`}
+      suppressHydrationWarning
+    >
+      <head>
+        <script
+          id="app-theme-bootstrap"
+          dangerouslySetInnerHTML={{ __html: APP_THEME_BOOTSTRAP_SCRIPT }}
+        />
+      </head>
       <body className="min-h-full bg-slate-100 font-sans text-slate-900 antialiased">
         <AppStoreProvider>
           <CloudSyncProvider>
