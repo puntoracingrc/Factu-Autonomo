@@ -124,7 +124,7 @@ function request(
   );
 }
 
-function rpcBuilder(result: unknown = { data: "DISABLED", error: null }) {
+function rpcBuilder(result: unknown = { data: "ACCEPTED", error: null }) {
   return {
     abortSignal: vi.fn(async () => result),
   };
@@ -367,7 +367,8 @@ describe("POST /api/expenses/learning-contribution", () => {
     });
     const response = await POST(request(contribution));
 
-    expect(response.status).toBe(503);
+    expect(response.status).toBe(202);
+    expect(await response.text()).toBe("");
     expectPrivate(response);
     expect(rpc).toHaveBeenCalledWith(
       "submit_expense_learning_contribution_v1",
@@ -384,12 +385,30 @@ describe("POST /api/expenses/learning-contribution", () => {
     expect(serializedArguments).not.toContain(CONTRIBUTOR_SECRET);
   });
 
-  it("trata DISABLED, éxito prematuro, null, error y excepción igual", async () => {
+  it("oculta por igual todos los resultados terminales", async () => {
+    const outcomes = [
+      "ACCEPTED",
+      "REPLAYED",
+      "NOT_CONSENTED",
+      "WITHDRAWAL_COOLDOWN",
+      "CAP_REACHED",
+    ];
+    for (const outcome of outcomes) {
+      rpc.mockImplementationOnce(() =>
+        rpcBuilder({ data: outcome, error: null }),
+      );
+      const response = await POST(request());
+      expect(response.status).toBe(202);
+      expect(await response.text()).toBe("");
+      expectPrivate(response);
+    }
+  });
+
+  it("trata DISABLED, null, desconocido, error y excepción igual", async () => {
     const outcomes = [
       { data: "DISABLED", error: null },
-      { data: "ACCEPTED", error: null },
-      { data: "REPLAYED", error: null },
       { data: null, error: null },
+      { data: "PRIVATE_UNKNOWN", error: null },
       {
         data: null,
         error: { message: "private database detail", code: "PGRST500" },
