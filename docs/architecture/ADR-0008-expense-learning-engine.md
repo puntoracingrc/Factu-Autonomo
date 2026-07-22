@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: P2A con consentimiento durable desconectado; API, UI, transporte, promoción y lectura pendientes
+- Estado: P3A con core privado desconectado; ingesta pública, transporte, promoción y lectura apagados
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -67,10 +67,16 @@ La secuencia posterior queda bloqueada en este orden:
    `true` y permanece apagada por defecto, todavía sin contribuciones;
 4. P2C: UI de consentimiento y separación del copy operativo bajo el mismo
    flag; un `404` la oculta y sigue sin existir envío de contribuciones;
-5. P3: ingesta, staging, deduplicación y wiring con un kill switch
-   independiente apagado por defecto;
-6. P4: batch, promoción y retención;
-7. P5: Admin, propiedad de su módulo y limitado a métricas promovidas.
+5. P3A: core privado, staging, deduplicación, retirada y contratos de
+   concurrencia; el wrapper público sigue devolviendo `DISABLED`;
+6. P3B: API de contribuciones con un kill switch servidor independiente,
+   apagado por defecto y sin capacidad de escribir mientras el wrapper SQL
+   permanezca deshabilitado;
+7. P3C: wiring best-effort después del guardado durable, también dormido y sin
+   modificar escaneo, IA, cola, gasto o interfaz;
+8. P4: purga programada, batch, promoción y retención; solo esta fase podrá
+   sustituir el stub de ingesta y abrir una activación gradual;
+9. P5: Admin, propiedad de su módulo y limitado a métricas promovidas.
 
 ### Alcance actual P1B
 
@@ -127,8 +133,11 @@ Los digests futuros serán HMAC-SHA-256 de un token aleatorio de un solo uso o
 de un pseudónimo semanal, con secreto rotado y separación de dominio. Nunca
 serán hashes del documento, contenido, payload, usuario, email, proveedor o
 importe. El HMAC semanal solo limitará aprendizaje; el HMAC por coordenada
-impedirá que una cuenta cuente varias veces en una misma celda sin conservar un
-vector enlazable entre coordenadas.
+impedirá que una cuenta cuente varias veces en una misma celda. P3A reconoce
+expresamente que el staging temporal sigue siendo seudonimizado y enlazable
+mediante un índice privado de retirada. No se presenta como anónimo y solo
+podrá perder esa relación al purgar lo separable o al promover resultados que
+hayan superado la evaluación de reidentificación.
 
 El rollback P1B es manual y transaccional. Aborta antes de retirar objetos si
 cualquiera de las cinco tablas runtime contiene filas, elimina solo wrappers,
@@ -178,6 +187,83 @@ de producto permanece apagada.
 El rollback P2A es manual y transaccional, aborta si existe una sola decisión,
 retira únicamente sus dos wrappers, dos policies y tabla, y conserva intactos
 el esquema, rol, tablas y RPC desactivadas de P1B.
+
+### Alcance actual P3A
+
+P3A instala un core privado ejecutable solo por el propietario dedicado para
+aceptación local. El wrapper público de submit continúa devolviendo
+`DISABLED`, promoción, lectura y purga programada siguen apagadas y no existe
+API ni wiring cliente. P3A no puede producir filas desde la aplicación aunque
+una variable de entorno se configure por error. P3B y P3C deberán conservar la
+ingesta apagada hasta que P4 demuestre borrado operativo de claims en 24 horas
+y de staging en 35 días.
+
+La contribución mantiene exactamente las 67 coordenadas P1A y la frontera SQL
+reproduce también su coherencia cruzada: outcome y abstención, ruta y uso IA,
+calidad y confianza, triples de los 14 campos, revisión humana, pares matemáticos
+y flags derivados. Una matriz con vocabulario válido pero relaciones imposibles
+se rechaza antes de cualquier DML. Los valores JSON `null` también se rechazan
+explícitamente; la lógica ternaria de SQL nunca convierte una ausencia en una
+validación positiva. Esta validación duplicada es deliberada: P3B deberá
+normalizar con P1A, pero el core persistente no confía en el caller.
+
+La semana UTC se asigna en servidor y el JSON no acepta usuario, semana, tiempo,
+HMAC, digest o identidad. `p_user_id`, el digest de claim y el HMAC semanal son
+argumentos internos separados. Un claim nace una sola vez por contribución;
+el replay del mismo vínculo es idempotente y un digest ligado a otro vínculo
+aborta toda la transacción.
+
+`contributor_revocation_links` es un índice temporal protegido y vinculado a
+identidad. Solo contiene usuario, lunes UTC, pseudónimo semanal y expiración
+fija; carece de ACL, Data API, RPC de lectura, logs y acceso Admin. Claims y
+límites dependen por FK de ese vínculo. Las memberships conservan solo un HMAC
+por coordenada derivado con separación de dominio. El core crea o verifica la
+fila semanal y registra el claim con FK al vínculo antes de cualquier DML de
+memberships o acumuladores; esa FK mantiene el vínculo frente al cascade. Al
+retirar el consentimiento, el setter toma el mismo advisory lock por usuario,
+registra `REVOKED` y elimina
+los vínculos en la misma transacción. El trigger purga claims, memberships y
+límites, recalcula los acumuladores exactos y aborta ante ausencia, underflow o
+desajuste. El borrado de `auth.users` usa los locks de FK/fila y el mismo
+trigger; este no toma el advisory de usuario para evitar un ciclo con el row
+lock de `auth.users`.
+
+Toda mutación de memberships y acumuladores toma primero un mutex advisory
+global y después locks por celda completa en orden canónico. Es una
+serialización deliberadamente conservadora que evita lost updates y deadlocks
+en cascadas con varias semanas. Una futura reducción del mutex deberá conservar
+los locks por celda y demostrar concurrencia equivalente antes de cambiar este
+contrato.
+
+Los tiempos exactos se eliminan de vínculos, límites, memberships y
+acumuladores: todos usan solo semana UTC y expiración determinista a 35 días.
+Solo el claim conserva hora exacta por su TTL máximo de 24 horas. Revocar purga
+todo el raw separable, incluido el contador semanal. Para impedir que revocar y
+volver a aceptar reinicie el cap de 20, el core consulta bajo lock el ledger ya
+existente y aplica `WITHDRAWAL_COOLDOWN` hasta la siguiente semana UTC. Esta
+limitación solo afecta a aportaciones de aprendizaje; nunca al escaneo, IA,
+guardado, gasto o cuota.
+
+La purga por expiración futura deberá tomar el advisory de usuario antes de
+eliminar vínculos. Hasta que P4 implemente y pruebe esa purga programada, el
+wrapper público no puede dejar de responder `DISABLED`. Admin/P5 no podrá leer
+links, claims, memberships ni acumuladores protegidos: solo métricas de semana
+cerrada que hayan superado soporte y evaluación de reidentificación.
+
+Antes de habilitar P4 debe existir además una ruta operativa fail-closed que
+haga efectiva la retirada de inmediato incluso si detecta corrupción, y permita
+purgar o reparar lo todavía separable sin reabrir la ingesta. La purga
+programada por sí sola no satisface ese gate y P3A permanece desconectado.
+
+### Incentivo futuro separado
+
+Después de P4 se evaluará un bloque de producto independiente para cuentas que
+mantengan activa la colaboración: al agotarse su cuota normal, podrán recibir
+un único relleno mensual del 100 % de la cuota de IA. Deberá reutilizar la
+misma semántica de reinicio mensual que Admin, con ledger idempotente de una
+concesión máxima por mes y sin crear un saldo paralelo ni tocar créditos extra.
+No forma parte de P3, no está activo y requiere revisión específica de copy,
+consentimiento, elegibilidad, revocación y billing antes de publicarse.
 
 ### Separación de dominios
 

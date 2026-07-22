@@ -79,6 +79,13 @@ const expenseLearningConsentMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const expenseLearningIngestionMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260722110000_expense_learning_ingestion_p3a.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -218,7 +225,9 @@ describe("Supabase table-by-table RLS audit hardening", () => {
     expect(expenseLearningConsentMigrationSource).toContain(
       `alter table ${table}\n  force row level security`,
     );
-    expect(expenseLearningConsentMigrationSource.match(/create policy/giu)).toHaveLength(2);
+    expect(
+      expenseLearningConsentMigrationSource.match(/create policy/giu),
+    ).toHaveLength(2);
     expect(expenseLearningConsentMigrationSource).toContain(
       `create policy expense_learning_consent_owner_select_v1\n  on ${table}\n  for select\n  to expense_learning_storage_owner\n  using (true)`,
     );
@@ -247,23 +256,74 @@ describe("Supabase table-by-table RLS audit hardening", () => {
     }
   });
 
+  it("keeps P3A raw ingestion owner-only behind the private schema ACL", () => {
+    const rawTables = [
+      "contribution_claims",
+      "contributor_week_limits",
+      "accumulator_memberships",
+      "protected_accumulators",
+      "contributor_revocation_links",
+    ] as const;
+
+    expect(expenseLearningIngestionMigrationSource).toContain(
+      "create table expense_learning_private.contributor_revocation_links",
+    );
+    expect(expenseLearningIngestionMigrationSource).toContain(
+      "alter table expense_learning_private.contributor_revocation_links\n  enable row level security",
+    );
+    expect(expenseLearningIngestionMigrationSource).toContain(
+      "alter table expense_learning_private.contributor_revocation_links\n  force row level security",
+    );
+    expect(expenseLearningIngestionMigrationSource).toContain(
+      "revoke all on table\n  expense_learning_private.contributor_revocation_links\n  from public, anon, authenticated, service_role",
+    );
+    expect(expenseLearningIngestionMigrationSource).toContain(
+      "revoke all on all functions in schema expense_learning_private\n  from public, anon, authenticated, service_role",
+    );
+    expect(expenseLearningIngestionMigrationSource).not.toMatch(
+      /grant\s+(?:all|usage|select|insert|update|delete|execute)[^;]*expense_learning_private/iu,
+    );
+
+    for (const table of rawTables) {
+      const policies = Array.from(
+        expenseLearningIngestionMigrationSource.matchAll(
+          new RegExp(
+            `create policy [a-z0-9_]+\\n  on expense_learning_private\\.${table}\\n  for (select|insert|update|delete) to expense_learning_storage_owner`,
+            "giu",
+          ),
+        ),
+        (match) => match[1],
+      );
+
+      expect(policies.length, table).toBeGreaterThan(0);
+      expect(new Set(policies).size, table).toBe(policies.length);
+    }
+
+    expect(expenseLearningIngestionMigrationSource).not.toMatch(
+      /create policy[\s\S]*?\n\s+for\s+all/iu,
+    );
+    expect(expenseLearningIngestionMigrationSource).not.toMatch(
+      /create policy[^;]*?to\s+(?:public|anon|authenticated|service_role)[^;]*;/iu,
+    );
+  });
+
   it("keeps internal tables unavailable to browser roles", () => {
     for (const table of serviceOnlyTables) {
       const source =
         table === "user_devices"
           ? userDevicesMigrationSource
           : table === "affiliate_reward_entries"
-          ? affiliateRewardMigrationSource
-          : table.startsWith("promo_")
-          ? promotionMigrationSource
-          : table.startsWith("partner_")
-          ? partnerProgramMigrationSource
-          : table === "admin_mfa_recovery_challenges"
-          ? adminMfaRecoveryMigrationSource
-          : table === "tax_product_events" ||
-              table === "tax_product_weekly_reports"
-            ? taxProductInsightsMigrationSource
-          : migrationSource;
+            ? affiliateRewardMigrationSource
+            : table.startsWith("promo_")
+              ? promotionMigrationSource
+              : table.startsWith("partner_")
+                ? partnerProgramMigrationSource
+                : table === "admin_mfa_recovery_challenges"
+                  ? adminMfaRecoveryMigrationSource
+                  : table === "tax_product_events" ||
+                      table === "tax_product_weekly_reports"
+                    ? taxProductInsightsMigrationSource
+                    : migrationSource;
       expect(source).toContain(
         `revoke all on table public.${table} from public, anon, authenticated`,
       );
@@ -366,7 +426,8 @@ describe("Supabase table-by-table RLS audit hardening", () => {
         `revoke all on table public.${table} from public`,
       );
     }
-    expect(migrationSource.match(/using \(\(select auth\.uid\(\)\) = user_id\)/g))
-      .toHaveLength(14);
+    expect(
+      migrationSource.match(/using \(\(select auth\.uid\(\)\) = user_id\)/g),
+    ).toHaveLength(14);
   });
 });
