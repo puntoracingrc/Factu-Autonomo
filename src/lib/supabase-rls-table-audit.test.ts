@@ -65,6 +65,13 @@ const userDevicesMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const expenseLearningStorageMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260721223000_expense_learning_storage_p1b.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -108,6 +115,13 @@ const serverDocumentTables = [
   "fiscal_transport_attempts",
 ];
 const rateLimitTables = ["server_rate_limit_buckets"];
+const privateExpenseLearningTables = [
+  "contribution_claims",
+  "contributor_week_limits",
+  "accumulator_memberships",
+  "protected_accumulators",
+  "closed_week_supported_metrics",
+] as const;
 const classifiedTables = new Set([
   ...serviceOnlyTables,
   ...browserSyncTables,
@@ -145,6 +159,42 @@ describe("Supabase table-by-table RLS audit hardening", () => {
     );
 
     expect(unclassified).toEqual([]);
+  });
+
+  it("keeps expense learning storage in a separately denied private schema", () => {
+    expect(expenseLearningStorageMigrationSource).toContain(
+      "create schema expense_learning_private",
+    );
+    expect(expenseLearningStorageMigrationSource).toContain(
+      "revoke all on schema expense_learning_private\n  from public, anon, authenticated, service_role",
+    );
+    expect(expenseLearningStorageMigrationSource).toContain(
+      "revoke all on all tables in schema expense_learning_private\n  from public, anon, authenticated, service_role",
+    );
+    expect(expenseLearningStorageMigrationSource).toContain(
+      "revoke all on all functions in schema expense_learning_private\n  from public, anon, authenticated, service_role",
+    );
+    expect(expenseLearningStorageMigrationSource).not.toMatch(
+      /grant\s+(?:all|usage|create|select|insert|update|delete|execute)[^;]*expense_learning_private/iu,
+    );
+    expect(expenseLearningStorageMigrationSource).not.toMatch(
+      /create\s+policy/iu,
+    );
+
+    for (const table of privateExpenseLearningTables) {
+      expect(expenseLearningStorageMigrationSource).toContain(
+        `create table expense_learning_private.${table}`,
+      );
+      expect(expenseLearningStorageMigrationSource).toContain(
+        `alter table expense_learning_private.${table}\n  enable row level security`,
+      );
+      expect(expenseLearningStorageMigrationSource).toContain(
+        `alter table expense_learning_private.${table}\n  force row level security`,
+      );
+      expect(expenseLearningStorageMigrationSource).toContain(
+        `alter table expense_learning_private.${table}\n  owner to expense_learning_storage_owner`,
+      );
+    }
   });
 
   it("keeps internal tables unavailable to browser roles", () => {

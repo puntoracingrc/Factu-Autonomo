@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: P1A aceptado; transporte, persistencia, promoción y lectura pendientes
+- Estado: P1B con almacenamiento vacío y RPC desactivadas; transporte, consentimiento, promoción y lectura pendientes
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -65,6 +65,69 @@ La secuencia posterior queda bloqueada en este orden:
 3. P3: ingesta, staging, deduplicación y wiring con kill switch apagado;
 4. P4: batch, promoción y retención;
 5. P5: Admin, propiedad de su módulo y limitado a métricas promovidas.
+
+### Alcance actual P1B
+
+P1B crea exclusivamente la bóveda vacía y sus contratos de acceso. No genera
+HMAC, secretos o tokens; no ejecuta DML de aprendizaje; no ingiere observaciones
+y no conecta API, consentimiento, interfaz, shadow, Admin, jobs o workflows. El
+registro SQL de coordenadas y buckets se expresa mediante validadores inmutables
+sin filas de aprendizaje y se contrasta con las 67 coordenadas canónicas de
+P1A.
+
+Todo el estado futuro vive en el esquema no expuesto
+`expense_learning_private`, propiedad de un rol dedicado `NOLOGIN`, sin acceso
+directo para `PUBLIC`, `anon`, `authenticated` o `service_role`. Sus cinco
+tablas runtime nacen vacías, con `ENABLE ROW LEVEL SECURITY`, `FORCE ROW LEVEL
+SECURITY` y cero policies. Como `service_role` tiene `BYPASSRLS`, la barrera
+efectiva frente a acceso directo es la ausencia de `USAGE` y privilegios de
+tabla; RLS es defensa adicional, no la garantía principal.
+
+La superficie pública queda congelada en tres wrappers `SECURITY DEFINER`:
+
+- `submit_expense_learning_contribution_v1(jsonb, text, text)`;
+- `promote_expense_learning_closed_weeks_v1()`;
+- `purge_expense_learning_retention_v1()`.
+
+Tienen propietario dedicado no-login, `search_path` vacío, referencias
+totalmente cualificadas y `EXECUTE` exclusivo de `service_role`. La ACL es la
+frontera primaria. Como defensa adicional, reproducen la semántica de rol de
+PostgREST/Supabase leyendo solo `request.jwt.claim.role` y el fallback
+`request.jwt.claims` con `pg_catalog.current_setting`. Esos claims ya han sido
+validados por PostgREST; rol ausente, vacío, distinto o JSON malformado falla
+cerrado. El propietario no recibe acceso al esquema `auth`. En P1B los wrappers
+solo devuelven la categoría `DISABLED`, no reflejan argumentos, no registran
+contenido y no contienen DML ni referencias a las tablas privadas. No existe
+RPC de lectura.
+
+Las tablas fijan únicamente límites estructurales para fases posteriores:
+
+- digest de claim de 32 bytes y TTL máximo de 24 horas;
+- HMAC semanal y HMAC por coordenada de 32 bytes;
+- límite futuro de 20 contribuciones de aprendizaje por cuenta y semana;
+- memberships y acumuladores protegidos con TTL máximo de 35 días;
+- métricas de semana cerrada con soporte declarado mínimo de 10 aportantes y
+  TTL máximo de 13 meses.
+
+El límite de 20 se aplica únicamente a futuras contribuciones de aprendizaje.
+Nunca bloquea, retrasa ni modifica el escaneo, la llamada de IA, el guardado
+durable o el gasto. P1B no calcula todavía diversidad, `k`, `OTHER`, promoción
+o retención: esos valores son constraints y obligaciones de diseño para P3/P4,
+no garantías operativas ya alcanzadas. La tabla
+`closed_week_supported_metrics` no se denomina segura ni anónima y permanece
+vacía e ilegible.
+
+Los digests futuros serán HMAC-SHA-256 de un token aleatorio de un solo uso o
+de un pseudónimo semanal, con secreto rotado y separación de dominio. Nunca
+serán hashes del documento, contenido, payload, usuario, email, proveedor o
+importe. El HMAC semanal solo limitará aprendizaje; el HMAC por coordenada
+impedirá que una cuenta cuente varias veces en una misma celda sin conservar un
+vector enlazable entre coordenadas.
+
+El rollback P1B es manual y transaccional. Aborta antes de retirar objetos si
+cualquiera de las cinco tablas runtime contiene filas, elimina solo wrappers,
+tablas, validadores, esquema y rol propios y finaliza con `DROP SCHEMA ...
+RESTRICT`. Nunca se ejecuta automáticamente en producción.
 
 ### Separación de dominios
 
