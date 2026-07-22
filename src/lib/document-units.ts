@@ -8,7 +8,6 @@ export interface DocumentUnitDefinition {
 
 export const DOCUMENT_UNIT_CATALOG: DocumentUnitDefinition[] = [
   { id: "ud", label: "Unidad", shortLabel: "ud" },
-  { id: "und", label: "Unidad (und)", shortLabel: "und" },
   { id: "m", label: "Metro", shortLabel: "m" },
   { id: "cm", label: "Centímetro", shortLabel: "cm" },
   { id: "mm", label: "Milímetro", shortLabel: "mm" },
@@ -41,9 +40,20 @@ export function normalizeDocumentUnitId(
 
   if (!normalized) return undefined;
   if (
-    ["u", "uds", "unidad", "unidades", "jg", "jgo", "juego", "juegos"].includes(
-      normalized,
-    )
+    [
+      "u",
+      "un",
+      "und",
+      "unid",
+      "unid.",
+      "uds",
+      "unidad",
+      "unidades",
+      "jg",
+      "jgo",
+      "juego",
+      "juegos",
+    ].includes(normalized)
   ) {
     return "ud";
   }
@@ -87,13 +97,14 @@ export const EMPTY_DOCUMENT_UNITS: DocumentUnitsSettings = {
 export function normalizeDocumentUnits(
   settings?: Partial<DocumentUnitsSettings> | null,
 ): DocumentUnitsSettings {
-  const enabledUnitIds = (settings?.enabledUnitIds ?? [DEFAULT_UNIT_ID]).filter(
-    (id) => CATALOG_IDS.has(id),
-  );
+  const enabledUnitIds = (settings?.enabledUnitIds ?? [DEFAULT_UNIT_ID])
+    .map((id) => normalizeDocumentUnitId(id))
+    .filter((id): id is string => Boolean(id && CATALOG_IDS.has(id)));
   const uniqueEnabled = [...new Set(enabledUnitIds)];
   const enabled = uniqueEnabled.length > 0 ? uniqueEnabled : [DEFAULT_UNIT_ID];
 
-  const requestedDefault = settings?.defaultUnitId ?? DEFAULT_UNIT_ID;
+  const requestedDefault =
+    normalizeDocumentUnitId(settings?.defaultUnitId) ?? DEFAULT_UNIT_ID;
   const defaultUnitId = enabled.includes(requestedDefault)
     ? requestedDefault
     : enabled[0];
@@ -104,7 +115,8 @@ export function normalizeDocumentUnits(
 export function getDocumentUnitDefinition(
   unitId: string,
 ): DocumentUnitDefinition | undefined {
-  return DOCUMENT_UNIT_CATALOG.find((unit) => unit.id === unitId);
+  const normalizedUnitId = normalizeDocumentUnitId(unitId) ?? unitId;
+  return DOCUMENT_UNIT_CATALOG.find((unit) => unit.id === normalizedUnitId);
 }
 
 export function unitShortLabel(unitId: string): string {

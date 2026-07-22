@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  DOCUMENT_UNIT_CATALOG,
   formatQuantityWithUnit,
   normalizeDocumentUnitId,
   normalizeDocumentUnits,
@@ -9,6 +10,13 @@ import {
 import type { LineItem } from "./types";
 
 describe("document-units", () => {
+  it("expone una sola opción canónica para unidades", () => {
+    expect(
+      DOCUMENT_UNIT_CATALOG.filter((unit) => unit.id === "ud"),
+    ).toHaveLength(1);
+    expect(DOCUMENT_UNIT_CATALOG.some((unit) => unit.id === "und")).toBe(false);
+  });
+
   it("mantiene al menos una unidad activa", () => {
     const settings = normalizeDocumentUnits({
       enabledUnitIds: ["ud", "m2"],
@@ -22,7 +30,7 @@ describe("document-units", () => {
   it("formatea cantidad con unidad en PDF", () => {
     expect(formatQuantityWithUnit(5, "m2")).toBe("5 m²");
     expect(formatQuantityWithUnit(2.5, "m")).toBe("2.5 m");
-    expect(formatQuantityWithUnit(3, "und")).toBe("3 und");
+    expect(formatQuantityWithUnit(3, "und")).toBe("3 ud");
     expect(formatQuantityWithUnit(250, "ml")).toBe("250 ml");
     expect(formatQuantityWithUnit(12, "km")).toBe("12 km");
   });
@@ -34,6 +42,20 @@ describe("document-units", () => {
     expect(normalizeDocumentUnitId("m.l.")).toBe("ml");
     expect(normalizeDocumentUnitId("JG")).toBe("ud");
     expect(normalizeDocumentUnitId("juego")).toBe("ud");
+    expect(normalizeDocumentUnitId("und")).toBe("ud");
+    expect(normalizeDocumentUnitId("UND")).toBe("ud");
+  });
+
+  it("conserva ajustes antiguos de und bajo la unidad canónica ud", () => {
+    expect(
+      normalizeDocumentUnits({
+        enabledUnitIds: ["und", "m2", "ud"],
+        defaultUnitId: "und",
+      }),
+    ).toEqual({
+      enabledUnitIds: ["ud", "m2"],
+      defaultUnitId: "ud",
+    });
   });
 
   it("normaliza líneas antiguas sin unidad", () => {
@@ -54,5 +76,28 @@ describe("document-units", () => {
       }),
     );
     expect(normalized[0].unit).toBe("m2");
+  });
+
+  it("normaliza líneas operativas antiguas de und a ud", () => {
+    const items: LineItem[] = [
+      {
+        id: "legacy-unit",
+        description: "Producto por unidad",
+        quantity: 3,
+        unit: "und",
+        unitPrice: 10,
+        ivaPercent: 21,
+      },
+    ];
+
+    const normalized = normalizeLineItemUnits(
+      items,
+      normalizeDocumentUnits({
+        enabledUnitIds: ["und"],
+        defaultUnitId: "und",
+      }),
+    );
+
+    expect(normalized[0].unit).toBe("ud");
   });
 });
