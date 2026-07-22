@@ -1,4 +1,9 @@
 export type AdminErrorSeverity = "info" | "warning" | "error";
+export type AdminErrorResolutionSource =
+  | "admin_manual_legacy"
+  | "sync_push_verified"
+  | "sync_cycle_verified"
+  | "cloud_repair_verified";
 
 export interface AdminErrorActor {
   key: string;
@@ -16,6 +21,8 @@ export interface AdminErrorRow {
   route: string | null;
   created_at: string;
   resolved_at: string | null;
+  resolution_source: AdminErrorResolutionSource | null;
+  archived_at: string | null;
 }
 
 export interface AdminErrorGroup {
@@ -31,11 +38,11 @@ export interface AdminErrorGroup {
 
 export interface AdminErrorResolutionReceipt {
   id: string;
-  resolved_at: string;
+  archived_at: string;
 }
 
 export interface AdminErrorArchiveState {
-  errors: AdminErrorRow[];
+  solvedErrors: AdminErrorRow[];
   archivedErrors: AdminErrorRow[];
 }
 
@@ -51,48 +58,52 @@ function actorLabel(actor: AdminErrorActor): string {
 }
 
 export function applyAdminErrorArchive(
-  errors: AdminErrorRow[],
+  solvedErrors: AdminErrorRow[],
   archivedErrors: AdminErrorRow[],
   expectedEventIds: string[],
-  resolved: AdminErrorResolutionReceipt[],
+  archived: AdminErrorResolutionReceipt[],
 ): AdminErrorArchiveState | null {
   const expectedIds = new Set(expectedEventIds);
   if (expectedIds.size === 0 || expectedIds.size !== expectedEventIds.length) {
     return null;
   }
 
-  const resolvedAtById = new Map<string, string>();
-  for (const item of resolved) {
-    if (typeof item.id !== "string" || typeof item.resolved_at !== "string") {
+  const archivedAtById = new Map<string, string>();
+  for (const item of archived) {
+    if (typeof item.id !== "string" || typeof item.archived_at !== "string") {
       return null;
     }
-    const parsed = Date.parse(item.resolved_at);
+    const parsed = Date.parse(item.archived_at);
     if (
       !expectedIds.has(item.id) ||
-      item.resolved_at.length > 64 ||
+      item.archived_at.length > 64 ||
       !Number.isFinite(parsed) ||
-      resolvedAtById.has(item.id)
+      archivedAtById.has(item.id)
     ) {
       return null;
     }
-    resolvedAtById.set(item.id, new Date(parsed).toISOString());
+    archivedAtById.set(item.id, new Date(parsed).toISOString());
   }
-  if (resolvedAtById.size !== expectedIds.size) return null;
+  if (archivedAtById.size !== expectedIds.size) return null;
 
-  const movedErrors = errors
+  const movedErrors = solvedErrors
     .filter((item) => expectedIds.has(item.id))
     .map((item) => ({
       ...item,
-      resolved_at: resolvedAtById.get(item.id) ?? null,
+      archived_at: archivedAtById.get(item.id) ?? null,
     }));
   if (
     movedErrors.length !== expectedIds.size ||
-    movedErrors.some((item) => item.resolved_at === null)
+    movedErrors.some(
+      (item) => item.resolved_at === null || item.archived_at === null,
+    )
   ) {
     return null;
   }
 
-  const nextErrors = errors.filter((item) => !expectedIds.has(item.id));
+  const nextSolvedErrors = solvedErrors.filter(
+    (item) => !expectedIds.has(item.id),
+  );
   const nextArchivedErrors = [...movedErrors, ...archivedErrors]
     .filter(
       (item, index, items) =>
@@ -101,7 +112,7 @@ export function applyAdminErrorArchive(
     .sort((left, right) => right.created_at.localeCompare(left.created_at));
 
   return {
-    errors: nextErrors,
+    solvedErrors: nextSolvedErrors,
     archivedErrors: nextArchivedErrors,
   };
 }

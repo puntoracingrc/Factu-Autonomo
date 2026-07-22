@@ -23,6 +23,53 @@ describe("cloud and Drive reliability contract", () => {
     expect(operation).toContain("lock.current = false");
   });
 
+  it("confirma recuperacion solo tras el exito que corresponde", () => {
+    const context = source("src/context/CloudSyncContext.tsx");
+    const recovery = source("src/lib/monitoring/recovery-events.ts");
+    const adr = source(
+      "docs/architecture/ADR-0005-cloud-and-drive-sync-reliability.md",
+    );
+    const push = context.slice(
+      context.indexOf("const pushToCloud"),
+      context.indexOf("const flushPendingUpload"),
+    );
+    const pull = context.slice(
+      context.indexOf("const pullFromCloud"),
+      context.indexOf("const pullFromCloudRef"),
+    );
+    const repair = context.slice(
+      context.indexOf("const forceDownloadFromCloud"),
+      context.indexOf("const schedulePush"),
+    );
+    const noChanges = push.slice(
+      push.indexOf("if (changes.length === 0)"),
+      push.indexOf("if (!silent) setSyncStatus"),
+    );
+
+    expect(noChanges).not.toContain("reportAppRecovery");
+    expect(push.indexOf("await pushSyncChanges")).toBeLessThan(
+      push.indexOf('reportAppRecovery(authOperation.userId, "sync_push_verified")'),
+    );
+    expect(pull.indexOf("finalizeSyncState(workingData)")).toBeLessThan(
+      pull.indexOf('reportAppRecovery(authOperation.userId, "sync_cycle_verified")'),
+    );
+    expect(repair.indexOf("const durable = repair.result")).toBeLessThan(
+      repair.indexOf('reportAppRecovery(user.id, "cloud_repair_verified")'),
+    );
+    expect(recovery).not.toMatch(
+      /sync_cycle_verified:[\s\S]*?fiscal_workspace_diverged[\s\S]*?cloud_repair_verified:/u,
+    );
+    expect(adr).toContain(
+      "El estado operativo de una incidencia y su archivo administrativo son",
+    );
+    expect(adr).toContain(
+      "`fiscal_workspace_diverged` solo se confirma",
+    );
+    expect(source("src/lib/monitoring/client.ts")).toContain(
+      "await Promise.all([...pendingErrorReports])",
+    );
+  });
+
   it("repara un dispositivo y restaura JSON sin subir primero datos locales", () => {
     const context = source("src/context/CloudSyncContext.tsx");
     const store = source("src/context/AppStore.tsx");

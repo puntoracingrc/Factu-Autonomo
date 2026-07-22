@@ -22,6 +22,8 @@ function errorRow(
     message: "La sincronizacion requiere revision",
     route: "/clientes",
     resolved_at: null,
+    resolution_source: null,
+    archived_at: null,
     ...overrides,
   };
 }
@@ -113,27 +115,31 @@ describe("groupAdminErrorsByActor", () => {
     const first = errorRow({
       id: "first",
       created_at: "2026-07-21T21:00:00.000Z",
+      resolved_at: "2026-07-22T07:00:00.000Z",
+      resolution_source: "sync_cycle_verified",
     });
     const second = errorRow({
       id: "second",
       created_at: "2026-07-21T20:00:00.000Z",
+      resolved_at: "2026-07-22T07:00:00.000Z",
+      resolution_source: "sync_cycle_verified",
     });
-    const resolvedAt = "2026-07-22T08:00:00.000Z";
+    const archivedAt = "2026-07-22T08:00:00.000Z";
 
     const archived = applyAdminErrorArchive(
       [first, second],
       [],
       [first.id, second.id],
       [
-        { id: first.id, resolved_at: resolvedAt },
-        { id: second.id, resolved_at: resolvedAt },
+        { id: first.id, archived_at: archivedAt },
+        { id: second.id, archived_at: archivedAt },
       ],
     );
 
-    expect(archived?.errors).toEqual([]);
+    expect(archived?.solvedErrors).toEqual([]);
     expect(archived?.archivedErrors).toEqual([
-      { ...first, resolved_at: resolvedAt },
-      { ...second, resolved_at: resolvedAt },
+      { ...first, archived_at: archivedAt },
+      { ...second, archived_at: archivedAt },
     ]);
   });
 
@@ -141,10 +147,14 @@ describe("groupAdminErrorsByActor", () => {
     const first = errorRow({
       id: "first",
       created_at: "2026-07-21T21:00:00.000Z",
+      resolved_at: "2026-07-22T07:00:00.000Z",
+      resolution_source: "sync_cycle_verified",
     });
     const second = errorRow({
       id: "second",
       created_at: "2026-07-21T20:00:00.000Z",
+      resolved_at: "2026-07-22T07:00:00.000Z",
+      resolution_source: "sync_cycle_verified",
     });
 
     expect(
@@ -152,15 +162,41 @@ describe("groupAdminErrorsByActor", () => {
         [first, second],
         [],
         [first.id, second.id],
-        [{ id: first.id, resolved_at: "2026-07-22T08:00:00.000Z" }],
+        [{ id: first.id, archived_at: "2026-07-22T08:00:00.000Z" }],
+      ),
+    ).toBeNull();
+  });
+
+  it("no permite archivar un evento sin recuperacion confirmada", () => {
+    const pending = errorRow({
+      id: "pending",
+      created_at: "2026-07-21T21:00:00.000Z",
+    });
+
+    expect(
+      applyAdminErrorArchive(
+        [pending],
+        [],
+        [pending.id],
+        [
+          {
+            id: pending.id,
+            archived_at: "2026-07-22T08:00:00.000Z",
+          },
+        ],
       ),
     ).toBeNull();
   });
 
   it("integra vistas separadas y archiva mediante la API Admin", () => {
     expect(adminPageSource).toContain("Pendientes ({errors.length})");
+    expect(adminPageSource).toContain("Solucionados ({solvedErrors.length})");
     expect(adminPageSource).toContain("Archivados ({archivedErrors.length})");
-    expect(adminPageSource).toContain("Resolver y archivar");
+    expect(adminPageSource).toContain("Archivar solucionados");
+    expect(adminPageSource).not.toContain("Resolver y archivar");
+    expect(adminPageSource).toContain(
+      "La aplicación todavía no ha confirmado que la incidencia haya desaparecido.",
+    );
     expect(adminPageSource).toContain(
       'fetchAdminResponse("/api/admin/errors", {',
     );
@@ -168,5 +204,6 @@ describe("groupAdminErrorsByActor", () => {
     expect(adminPageSource).toContain("applyAdminErrorArchive(");
     expect(adminPageSource).toContain("status=pending");
     expect(adminPageSource).toContain("status=resolved");
+    expect(adminPageSource).toContain("status=archived");
   });
 });

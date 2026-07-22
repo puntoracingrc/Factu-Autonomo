@@ -1,8 +1,8 @@
 # ADR-0005: Fiabilidad de la nube y Google Drive
 
 - Estado: aceptado
-- Versión: 10
-- Fecha: 2026-07-21
+- Versión: 11
+- Fecha: 2026-07-22
 
 ## Contexto
 
@@ -55,7 +55,7 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
     ninguna de las dos cabezas fiscales ha sido sobrescrita y sustituye el
     reintento inútil por un acceso a la resolución en Cuenta. Un timeout,
     desconexión u otro fallo transitorio mantiene el reintento ordinario.
-11. La única resolución disponible en V10 es conservar la nube mediante
+11. La única resolución disponible en V11 es conservar la nube mediante
     **Reparar con la copia de la nube**: solicita una copia cifrada local, hace
     pull completo sin push previo y solo limpia el conflicto después del commit
     durable y readback exacto. Conservar el dispositivo o combinar historiales
@@ -103,6 +103,21 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
     solicitud, no que el sistema operativo terminara de escribirlo. La UI
     muestra el nombre `factu-autonomo-backup-antes-restaurar-…json` y aclara que
     debe buscarse en Descargas o en la carpeta configurada en el navegador.
+19. El estado operativo de una incidencia y su archivo administrativo son
+    transiciones distintas. Una acción genérica sin error, una cola vacía o la
+    ausencia de un evento nuevo nunca confirman recuperación. Una subida solo
+    confirma fallos transitorios de subida después de escritura remota,
+    aplicación local y limpieza de cola; un ciclo completo puede confirmar
+    fallos transitorios de pull. `fiscal_workspace_diverged` solo se confirma
+    después de **Reparar con la copia de la nube** con commit durable, readback
+    exacto y retirada real del bloqueo. La señal se liga a la cuenta autenticada
+    capturada y al mismo dispositivo mediante el hash server-side de su token de
+    nube; el token nunca se persiste ni se devuelve. Los eventos anteriores a
+    V11, que no tienen esa huella, mantienen una compatibilidad acotada a la
+    cuenta. La señal solo contiene un código cerrado; no incluye IDs de evento,
+    documentos, payloads, identidad ni contenido fiscal. Admin conserva la
+    fecha y el origen de esa confirmación y permite archivarla después sin
+    borrar el historial.
 
 ### Planes y dispositivos de nube
 
@@ -213,6 +228,9 @@ Un estado visual «sincronizado» no es suficiente para confirmar durabilidad.
 - Un dispositivo puede seguir trabajando offline sin perder su cola.
 - Una reparación no puede sobrescribir la nube con el estado atascado que
   pretende sustituir ni declarar éxito antes del guardado local verificado.
+- El panel Admin no obliga a interpretar una acción correcta como prueba de
+  recuperación: primero muestra la confirmación técnica y después permite
+  archivar el evento conservado.
 - El usuario ve qué categorías aumentan o disminuyen y las fechas registradas
   antes de conservar la nube; una vista previa antigua no puede autorizar un
   snapshot distinto, aunque sus recuentos coincidan.
