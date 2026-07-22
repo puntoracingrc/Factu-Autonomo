@@ -10,6 +10,7 @@ import {
   Eye,
   GripVertical,
   History,
+  Info,
   PackageCheck,
   PackagePlus,
   PackageSearch,
@@ -582,6 +583,7 @@ export function DocumentForm({
   const [openMarginInfoLineId, setOpenMarginInfoLineId] = useState<
     string | null
   >(null);
+  const [showInternalMarginInfo, setShowInternalMarginInfo] = useState(false);
   const [draggingLineId, setDraggingLineId] = useState<string | null>(null);
   const [lineProductPricing, setLineProductPricing] = useState<
     Record<string, LineProductPricingState>
@@ -2336,7 +2338,18 @@ export function DocumentForm({
             </p>
           )}
           {documentMargin.hasLines && (
-            <div className="ml-auto mt-3 max-w-xl rounded-2xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700">
+            <div className="relative ml-auto mt-3 max-w-xl rounded-2xl bg-slate-50 px-4 py-3 pr-12 text-sm font-semibold text-slate-700">
+              <button
+                type="button"
+                onClick={() => setShowInternalMarginInfo((current) => !current)}
+                aria-label="Información sobre el control de rendimiento"
+                aria-expanded={showInternalMarginInfo}
+                aria-controls={`document-margin-internal-info-${type}`}
+                title="Información del control interno"
+                className="absolute right-2 top-2 inline-flex h-8 w-8 items-center justify-center rounded-full text-slate-500 transition-colors hover:bg-white hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                <Info className="h-4 w-4" />
+              </button>
               <p>
                 Coste materiales: {formatMoney(documentMargin.costBase)}
                 {!vatExempt
@@ -2360,6 +2373,17 @@ export function DocumentForm({
                 <p className="text-xs text-amber-700">
                   {documentMargin.missingCostLines} línea(s) con coste de
                   producto pendiente.
+                </p>
+              )}
+              {showInternalMarginInfo && (
+                <p
+                  id={`document-margin-internal-info-${type}`}
+                  className="mt-2 rounded-lg bg-white px-3 py-2 text-left text-xs font-medium leading-relaxed text-slate-600"
+                >
+                  Control interno: no aparece en el PDF ni en el documento
+                  final. Se calcula automáticamente a partir de los costes de
+                  compra asociados a las líneas para ayudarte a revisar el
+                  rendimiento.
                 </p>
               )}
             </div>
