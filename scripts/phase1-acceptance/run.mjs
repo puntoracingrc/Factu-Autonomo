@@ -46,6 +46,11 @@ const expenseLearningIngestionSql = {
   up: "supabase/migrations/20260722110000_expense_learning_ingestion_p3a.sql",
   down: "supabase/rollbacks/20260722110000_expense_learning_ingestion_p3a.down.sql",
 };
+const expenseLearningRetentionSql = {
+  up: "supabase/migrations/20260722190000_expense_learning_retention_p4a.sql",
+  down:
+    "supabase/rollbacks/20260722190000_expense_learning_retention_p4a.down.sql",
+};
 
 const requiredEnv = [
   "PHASE1_ACCEPTANCE_ALLOW_DESTRUCTIVE",
@@ -655,6 +660,10 @@ function expenseLearningP3CatalogSnapshot() {
   return `${expenseLearningCatalogSnapshot()}\n---consent---\n${expenseLearningConsentCatalogSnapshot()}\n---extensions---\n${extensionsPrivileges}`;
 }
 
+function expenseLearningP4CatalogSnapshot() {
+  return expenseLearningP3CatalogSnapshot();
+}
+
 function testExpenseLearningDatabaseBoundary() {
   expect(
     querySql(`
@@ -1033,8 +1042,8 @@ async function testExpenseLearningDataApi(admin, userA) {
   );
   const purge = await admin.rpc("purge_expense_learning_retention_v1");
   expect(
-    opAllowed(purge) && purge.data === "DISABLED",
-    "expense learning purge stub was not safely disabled",
+    opAllowed(purge) && purge.data === "PURGED",
+    "expense learning P4A purge did not complete the empty maintenance pass",
   );
   expect(
     expenseLearningRuntimeRowCount() === 0,
@@ -1092,7 +1101,9 @@ const expenseLearningMathKeys = [
   "SIGN_CONSISTENCY",
 ];
 
-function expenseLearningCanonicalContribution() {
+function expenseLearningCanonicalContribution(
+  structuralArchetypeGroup = "TABLE",
+) {
   const metrics = [
     ["SOURCE_QUALITY", "NONE", "VALUE", "HIGH"],
     ["ROUTE_MODE", "NONE", "VALUE", "SHADOW_AI"],
@@ -1158,7 +1169,7 @@ function expenseLearningCanonicalContribution() {
     observationSchemaVersion: "expense-engine-observation.v1",
     engineVersion: "expense-local-engine.v1",
     privacyPolicyVersion: "2026-07-21",
-    structuralArchetypeGroup: "TABLE",
+    structuralArchetypeGroup,
     metrics,
     learningHints: null,
   };
@@ -1226,6 +1237,25 @@ function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+async function waitForSqlSessionSleep(applicationName, message) {
+  let sleeping = false;
+  for (let attempt = 0; attempt < 80; attempt += 1) {
+    sleeping =
+      querySql(`
+        select exists (
+          select 1
+          from pg_catalog.pg_stat_activity
+          where application_name = '${applicationName}'
+            and wait_event_type = 'Timeout'
+            and wait_event = 'PgSleep'
+        );
+      `) === "t";
+    if (sleeping) break;
+    await delay(25);
+  }
+  expect(sleeping, message);
+}
+
 async function setExpenseLearningConsent(admin, userId, granted, message) {
   const result = await admin.rpc("set_expense_learning_consent_v1", {
     p_user_id: userId,
@@ -1253,11 +1283,24 @@ function testExpenseLearningP3DatabaseBoundary() {
   );
   expect(
     querySql(`
-      select count(*) = 3
+      select count(*) = 4
         and count(*) filter (where policy.polcmd = 'r') = 1
         and count(*) filter (where policy.polcmd = 'a') = 1
         and count(*) filter (where policy.polcmd = 'd') = 1
-        and count(*) filter (where policy.polcmd in ('w', '*')) = 0
+        and count(*) filter (where policy.polcmd = 'w') = 1
+        and count(*) filter (where policy.polcmd = '*') = 0
+        and count(*) filter (
+          where policy.polname =
+              'expense_learning_revocation_links_owner_lock_v1'
+            and pg_catalog.pg_get_expr(
+              policy.polqual,
+              policy.polrelid
+            ) = 'true'
+            and pg_catalog.pg_get_expr(
+              policy.polwithcheck,
+              policy.polrelid
+            ) = 'false'
+        ) = 1
         and pg_catalog.bool_and(
           policy.polroles = array[owner.oid]::oid[]
         )
@@ -1270,7 +1313,7 @@ function testExpenseLearningP3DatabaseBoundary() {
         and relation.relname = 'contributor_revocation_links'
         and owner.rolname = 'expense_learning_storage_owner';
     `) === "t",
-    "P3A revocation links do not have exactly owner-only SELECT/INSERT/DELETE policies",
+    "P4A revocation links do not have owner-only CRUD-denied row locking",
   );
   expect(
     querySql(`
@@ -1310,6 +1353,67 @@ function testExpenseLearningP3DatabaseBoundary() {
   expect(
     expenseLearningP3RuntimeRowCount() === 0,
     "P3A boundary checks changed runtime storage",
+  );
+}
+
+function testExpenseLearningP4DatabaseBoundary() {
+  expect(
+    querySql(`
+      select count(*) = 2
+        and count(*) filter (where policy.polcmd = 'r') = 1
+        and count(*) filter (where policy.polcmd = 'd') = 1
+        and count(*) filter (where policy.polcmd in ('a', 'w', '*')) = 0
+        and pg_catalog.bool_and(
+          policy.polroles = array[owner.oid]::oid[]
+        )
+      from pg_catalog.pg_policy policy
+      join pg_catalog.pg_class relation on relation.oid = policy.polrelid
+      join pg_catalog.pg_namespace namespace
+        on namespace.oid = relation.relnamespace
+      cross join pg_catalog.pg_roles owner
+      where namespace.nspname = 'expense_learning_private'
+        and relation.relname = 'closed_week_supported_metrics'
+        and owner.rolname = 'expense_learning_storage_owner';
+    `) === "t",
+    "P4A closed metrics do not have exactly owner-only SELECT/DELETE policies",
+  );
+  expect(
+    querySql(`
+      select pg_catalog.bool_and(
+        not pg_catalog.has_function_privilege(
+          role.rolname,
+          function.oid,
+          'EXECUTE'
+        )
+      )
+      from pg_catalog.pg_roles role
+      cross join pg_catalog.pg_proc function
+      join pg_catalog.pg_namespace namespace
+        on namespace.oid = function.pronamespace
+      where role.rolname = any (array[
+        'anon',
+        'authenticated',
+        'service_role'
+      ]::name[])
+        and namespace.nspname = 'expense_learning_private'
+        and function.proname in (
+          'is_expense_learning_week_source_canonical_v1',
+          'is_expense_learning_week_accumulator_consistent_v1',
+          'reconcile_expense_learning_week_v1',
+          'attempt_expense_learning_link_cleanup_v1',
+          'run_expense_learning_retention_v1'
+        );
+    `) === "t",
+    "P4A private maintenance functions are executable by an API role",
+  );
+  expectInlineSqlFailure(
+    "select public.purge_expense_learning_retention_v1();",
+    "expense_learning_rpc_forbidden",
+  );
+  expectInlineSqlFailure(
+    `set request.jwt.claims = '{}';
+     select public.purge_expense_learning_retention_v1();`,
+    "expense_learning_rpc_forbidden",
   );
 }
 
@@ -1658,28 +1762,40 @@ async function runExpenseLearningDeleteRace(
   }
 
   if (submitFirst) {
+    const applicationName = `${label}_submit`;
     const submit = querySqlAsync(
-      stageExpenseLearningSql(
-        user.id,
-        randomExpenseLearningHex(),
-        weekHmac,
-        "; select pg_catalog.pg_sleep(0.25)",
-      ),
+      `
+        set local application_name = '${applicationName}';
+        ${stageExpenseLearningSql(
+          user.id,
+          randomExpenseLearningHex(),
+          weekHmac,
+          "; select pg_catalog.pg_sleep(0.4)",
+        )}
+      `,
       { learningOwner: true },
     );
-    await delay(50);
+    await waitForSqlSessionSleep(
+      applicationName,
+      `${label} submit did not reach the lock barrier`,
+    );
     const deletion = admin.auth.admin.deleteUser(user.id);
     const [submitResult, deleteResult] = await Promise.all([submit, deletion]);
     expect(submitResult === "ACCEPTED", `${label} submit did not complete`);
     expect(!deleteResult.error, `${label} account deletion failed`);
   } else {
+    const applicationName = `${label}_delete`;
     const deletion = querySqlAsync(`
       begin;
+      set local application_name = '${applicationName}';
       delete from auth.users where id = '${user.id}'::uuid;
-      select pg_catalog.pg_sleep(0.25);
+      select pg_catalog.pg_sleep(0.4);
       commit;
     `);
-    await delay(50);
+    await waitForSqlSessionSleep(
+      applicationName,
+      `${label} delete did not reach the lock barrier`,
+    );
     const submit = querySqlAsync(
       stageExpenseLearningSql(user.id, randomExpenseLearningHex(), weekHmac),
       { learningOwner: true },
@@ -1717,43 +1833,1118 @@ async function testExpenseLearningP3AccountDeleteRaces(admin, users) {
   }
 }
 
-async function testExpenseLearningP3CorruptionRollback(admin, users) {
-  const user = await createUser(admin, "learning_p3_corruption");
+async function testExpenseLearningP4HistoricalDebtBoundary(admin, users) {
+  const user = await createUser(admin, "learning_p4_history_boundary");
   users.push(user);
-  await setExpenseLearningConsent(admin, user.id, true, "P3A corruption grant");
+  const previousWeekHmac = randomExpenseLearningHex();
+  const nextWeekHmac = randomExpenseLearningHex();
+
+  applyInlineSql(`
+    begin;
+    set local role expense_learning_storage_owner;
+
+    insert into expense_learning_private.learning_consent_decisions (
+      user_id,
+      schema_version,
+      notice_version,
+      purpose,
+      privacy_policy_version,
+      granted,
+      decided_at
+    ) values
+      (
+        '${user.id}'::uuid,
+        'expense-engine-learning-consent.v1',
+        'expense-learning-notice.v1',
+        'IMPROVE_LOCAL_EXPENSE_READER',
+        '2026-07-21',
+        false,
+        timestamptz '2026-07-19 23:59:59+00'
+      ),
+      (
+        '${user.id}'::uuid,
+        'expense-engine-learning-consent.v1',
+        'expense-learning-notice.v1',
+        'IMPROVE_LOCAL_EXPENSE_READER',
+        '2026-07-21',
+        true,
+        timestamptz '2026-07-20 00:00:01+00'
+      );
+
+    insert into expense_learning_private.contributor_revocation_links (
+      user_id,
+      week_start,
+      contributor_week_hmac,
+      expires_at
+    ) values
+      (
+        '${user.id}'::uuid,
+        date '2026-07-13',
+        pg_catalog.decode('${previousWeekHmac}', 'hex'),
+        timestamptz '2026-08-17 00:00:00+00'
+      ),
+      (
+        '${user.id}'::uuid,
+        date '2026-07-20',
+        pg_catalog.decode('${nextWeekHmac}', 'hex'),
+        timestamptz '2026-08-24 00:00:00+00'
+      );
+
+    do $p4_history$
+    begin
+      if expense_learning_private.is_expense_learning_link_cleanup_eligible_v1(
+        '${user.id}'::uuid,
+        date '2026-07-13',
+        timestamptz '2026-07-20 12:00:00+00'
+      ) is distinct from true then
+        raise exception 'expense_learning_history_previous_week_hidden';
+      end if;
+
+      if expense_learning_private.is_expense_learning_link_cleanup_eligible_v1(
+        '${user.id}'::uuid,
+        date '2026-07-20',
+        timestamptz '2026-07-20 12:00:00+00'
+      ) is distinct from false then
+        raise exception 'expense_learning_history_next_week_captured';
+      end if;
+    end;
+    $p4_history$;
+
+    rollback;
+  `);
+
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  expect(!error, "could not delete P4A historical boundary user");
+}
+
+async function testExpenseLearningP4MultiArchetype(admin, users) {
+  const user = await createUser(admin, "learning_p4_multi_archetype");
+  users.push(user);
   const weekHmac = randomExpenseLearningHex();
+  await setExpenseLearningConsent(admin, user.id, true, "P4A multi grant");
   expect(
     stageExpenseLearning(user.id, randomExpenseLearningHex(), weekHmac) ===
       "ACCEPTED",
-    "P3A corruption fixture was not accepted",
+    "P4A TABLE contribution was not accepted",
+  );
+  expect(
+    querySqlAsLearningOwner(
+      stageExpenseLearningContributionSql(
+        user.id,
+        randomExpenseLearningHex(),
+        weekHmac,
+        expenseLearningCanonicalContribution("SUMMARY"),
+      ),
+    ) === "ACCEPTED",
+    "P4A SUMMARY contribution was not accepted",
+  );
+  expect(
+    expenseLearningP3TableCounts() === "2,1,134,134,0,1",
+    "P4A did not retain two complete structural groups",
+  );
+  expect(
+    querySqlAsLearningOwner(`
+      select count(*) = 1
+      from (
+        select link.user_id
+        from expense_learning_private.contributor_revocation_links as link
+        where link.user_id = '${user.id}'::uuid
+        for update skip locked
+      ) as locked_link;
+    `) === "t",
+    "P4A owner could not acquire the revocation-link row lock",
+  );
+  expectInlineSqlFailure(
+    `begin;
+     set local role expense_learning_storage_owner;
+     update expense_learning_private.contributor_revocation_links
+     set expires_at = expires_at
+     where user_id = '${user.id}'::uuid;
+     rollback;`,
+    "new row violates row-level security policy",
+  );
+
+  await setExpenseLearningConsent(admin, user.id, false, "P4A multi revoke");
+  expect(
+    expenseLearningP3RuntimeRowCount() === 0,
+    "P4A treated a complete multi-archetype source as corruption",
+  );
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  expect(!error, "could not delete P4A multi-archetype user");
+
+  const ttlUser = await createUser(admin, "learning_p4_multi_ttl");
+  users.push(ttlUser);
+  const ttlWeekHmac = randomExpenseLearningHex();
+  await setExpenseLearningConsent(admin, ttlUser.id, true, "P4A multi TTL grant");
+  expect(
+    stageExpenseLearning(
+      ttlUser.id,
+      randomExpenseLearningHex(),
+      ttlWeekHmac,
+    ) === "ACCEPTED" &&
+      querySqlAsLearningOwner(
+        stageExpenseLearningContributionSql(
+          ttlUser.id,
+          randomExpenseLearningHex(),
+          ttlWeekHmac,
+          expenseLearningCanonicalContribution("SUMMARY"),
+        ),
+      ) === "ACCEPTED",
+    "P4A multi-archetype TTL fixture was not accepted",
+  );
+  expect(
+    querySqlAsLearningOwner(`
+      select expense_learning_private.run_expense_learning_retention_v1(
+        pg_catalog.clock_timestamp() + interval '36 days'
+      );
+    `) === "PURGED" && expenseLearningP3RuntimeRowCount() === 0,
+    "P4A multi-archetype TTL purge failed",
+  );
+  const { error: ttlDeleteError } = await admin.auth.admin.deleteUser(ttlUser.id);
+  expect(!ttlDeleteError, "could not delete P4A multi-archetype TTL user");
+
+  const cascadeUser = await createUser(admin, "learning_p4_multi_cascade");
+  users.push(cascadeUser);
+  const cascadeWeekHmac = randomExpenseLearningHex();
+  await setExpenseLearningConsent(
+    admin,
+    cascadeUser.id,
+    true,
+    "P4A multi cascade grant",
+  );
+  expect(
+    stageExpenseLearning(
+      cascadeUser.id,
+      randomExpenseLearningHex(),
+      cascadeWeekHmac,
+    ) === "ACCEPTED" &&
+      querySqlAsLearningOwner(
+        stageExpenseLearningContributionSql(
+          cascadeUser.id,
+          randomExpenseLearningHex(),
+          cascadeWeekHmac,
+          expenseLearningCanonicalContribution("SUMMARY"),
+        ),
+      ) === "ACCEPTED",
+    "P4A multi-archetype cascade fixture was not accepted",
+  );
+  const { error: cascadeDeleteError } =
+    await admin.auth.admin.deleteUser(cascadeUser.id);
+  expect(
+    !cascadeDeleteError && expenseLearningP3RuntimeRowCount() === 0,
+    "P4A multi-archetype account deletion left separable raw",
+  );
+}
+
+async function testExpenseLearningP4SemanticSourceGate(admin, users) {
+  const user = await createUser(admin, "learning_p4_semantic_source");
+  users.push(user);
+  const weekHmac = randomExpenseLearningHex();
+  await setExpenseLearningConsent(admin, user.id, true, "P4A semantic grant");
+  expect(
+    stageExpenseLearning(user.id, randomExpenseLearningHex(), weekHmac) ===
+      "ACCEPTED",
+    "P4A semantic fixture was not accepted",
+  );
+  applyInlineSql(`
+    update expense_learning_private.accumulator_memberships
+    set bucket_value = 'FAILED'
+    where metric_family = 'LOCAL_OUTCOME'
+      and comparison_scope = 'NONE'
+      and metric_key = 'VALUE';
+    update expense_learning_private.protected_accumulators
+    set bucket_value = 'FAILED'
+    where metric_family = 'LOCAL_OUTCOME'
+      and comparison_scope = 'NONE'
+      and metric_key = 'VALUE';
+  `);
+
+  await setExpenseLearningConsent(
+    admin,
+    user.id,
+    false,
+    "P4A semantic revoke",
+  );
+  const rejected = await admin.rpc("purge_expense_learning_retention_v1");
+  expect(
+    opAllowed(rejected) && rejected.data === "RETRY_REQUIRED" &&
+      querySql(`
+        select count(*) = 1
+        from expense_learning_private.contributor_revocation_links
+        where user_id = '${user.id}'::uuid;
+      `) === "t",
+    "P4A repaired a vocabulary-valid but semantically impossible source",
+  );
+
+  applyInlineSql(`
+    update expense_learning_private.accumulator_memberships
+    set bucket_value = 'CANDIDATE'
+    where metric_family = 'LOCAL_OUTCOME'
+      and comparison_scope = 'NONE'
+      and metric_key = 'VALUE';
+    update expense_learning_private.protected_accumulators
+    set bucket_value = 'CANDIDATE'
+    where metric_family = 'LOCAL_OUTCOME'
+      and comparison_scope = 'NONE'
+      and metric_key = 'VALUE';
+  `);
+  const repaired = await admin.rpc("purge_expense_learning_retention_v1");
+  expect(
+    opAllowed(repaired),
+    "P4A semantic source retry RPC failed",
+  );
+  expect(
+    repaired.data === "PURGED",
+    `P4A semantic source retry returned ${String(repaired.data)}`,
+  );
+  expect(
+    expenseLearningP3RuntimeRowCount() === 0,
+    "P4A semantic source retry left separable raw",
+  );
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  expect(!error, "could not delete P4A semantic source user");
+
+  const splitUser = await createUser(admin, "learning_p4_split_group");
+  users.push(splitUser);
+  const splitWeekHmac = randomExpenseLearningHex();
+  await setExpenseLearningConsent(
+    admin,
+    splitUser.id,
+    true,
+    "P4A split-group grant",
+  );
+  expect(
+    stageExpenseLearning(
+      splitUser.id,
+      randomExpenseLearningHex(),
+      splitWeekHmac,
+    ) === "ACCEPTED",
+    "P4A split-group fixture was not accepted",
+  );
+  applyInlineSql(`
+    update expense_learning_private.accumulator_memberships as membership
+    set
+      structural_archetype_group = 'SUMMARY',
+      contributor_coordinate_hmac =
+        expense_learning_private.expense_learning_coordinate_hmac_v1(
+          pg_catalog.decode('${splitWeekHmac}', 'hex'),
+          membership.contribution_schema_version,
+          membership.observation_schema_version,
+          membership.engine_version,
+          membership.privacy_policy_version,
+          membership.week_start,
+          'SUMMARY',
+          membership.metric_family,
+          membership.comparison_scope,
+          membership.metric_key
+        )
+    where membership.metric_family = 'LOCAL_DURATION'
+      and membership.comparison_scope = 'NONE'
+      and membership.metric_key = 'VALUE';
+    update expense_learning_private.protected_accumulators
+    set structural_archetype_group = 'SUMMARY'
+    where metric_family = 'LOCAL_DURATION'
+      and comparison_scope = 'NONE'
+      and metric_key = 'VALUE';
+  `);
+  await setExpenseLearningConsent(
+    admin,
+    splitUser.id,
+    false,
+    "P4A split-group revoke",
+  );
+  const splitRejected = await admin.rpc("purge_expense_learning_retention_v1");
+  expect(
+    opAllowed(splitRejected) && splitRejected.data === "RETRY_REQUIRED" &&
+      querySql(`
+        select count(*) = 1
+        from expense_learning_private.contributor_revocation_links
+        where user_id = '${splitUser.id}'::uuid;
+      `) === "t",
+    "P4A repaired a source split across structural groups",
+  );
+  applyInlineSql(`
+    update expense_learning_private.accumulator_memberships as membership
+    set
+      structural_archetype_group = 'TABLE',
+      contributor_coordinate_hmac =
+        expense_learning_private.expense_learning_coordinate_hmac_v1(
+          pg_catalog.decode('${splitWeekHmac}', 'hex'),
+          membership.contribution_schema_version,
+          membership.observation_schema_version,
+          membership.engine_version,
+          membership.privacy_policy_version,
+          membership.week_start,
+          'TABLE',
+          membership.metric_family,
+          membership.comparison_scope,
+          membership.metric_key
+        )
+    where membership.structural_archetype_group = 'SUMMARY';
+    update expense_learning_private.protected_accumulators
+    set structural_archetype_group = 'TABLE'
+    where structural_archetype_group = 'SUMMARY';
+  `);
+  const splitRepaired = await admin.rpc("purge_expense_learning_retention_v1");
+  expect(
+    opAllowed(splitRepaired) && splitRepaired.data === "PURGED" &&
+      expenseLearningP3RuntimeRowCount() === 0,
+    "P4A split-group source did not recover after exact repair",
+  );
+  const { error: splitDeleteError } =
+    await admin.auth.admin.deleteUser(splitUser.id);
+  expect(!splitDeleteError, "could not delete P4A split-group user");
+}
+
+async function testExpenseLearningP4LateCandidateSnapshot(admin, users) {
+  const firstUser = await createUser(admin, "learning_p4_snapshot_first");
+  const lateUser = await createUser(admin, "learning_p4_snapshot_late");
+  users.push(firstUser, lateUser);
+  await Promise.all([
+    setExpenseLearningConsent(admin, firstUser.id, true, "P4A snapshot A"),
+    setExpenseLearningConsent(admin, lateUser.id, true, "P4A snapshot B"),
+  ]);
+  expect(
+    stageExpenseLearning(
+      firstUser.id,
+      randomExpenseLearningHex(),
+      randomExpenseLearningHex(),
+    ) === "ACCEPTED" &&
+      stageExpenseLearning(
+        lateUser.id,
+        randomExpenseLearningHex(),
+        randomExpenseLearningHex(),
+      ) === "ACCEPTED",
+    "P4A late-candidate fixtures were not accepted",
+  );
+  applyInlineSql(`
+    update expense_learning_private.protected_accumulators
+    set supporting_contributors = 3;
+  `);
+  await setExpenseLearningConsent(
+    admin,
+    firstUser.id,
+    false,
+    "P4A snapshot first revoke",
+  );
+
+  const blocker = querySqlAsync(
+    `
+      select pg_catalog.pg_advisory_xact_lock(
+        pg_catalog.hashtextextended(
+          'expense-learning-consent-v1:${firstUser.id}',
+          0
+        )
+      );
+      select pg_catalog.pg_sleep(0.4);
+    `,
+    { learningOwner: true },
+  );
+  await delay(50);
+  const firstPass = querySqlAsync(
+    `
+      set local application_name = 'phase1_p4_late_candidate';
+      select expense_learning_private.run_expense_learning_retention_v1(
+        pg_catalog.clock_timestamp()
+      );
+    `,
+    { learningOwner: true },
+  );
+
+  let waitingOnFrozenCandidate = false;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    waitingOnFrozenCandidate =
+      querySql(`
+        select exists (
+          select 1
+          from pg_catalog.pg_stat_activity
+          where application_name = 'phase1_p4_late_candidate'
+            and wait_event_type = 'Lock'
+            and wait_event = 'advisory'
+        );
+      `) === "t";
+    if (waitingOnFrozenCandidate) break;
+    await delay(25);
+  }
+  expect(
+    waitingOnFrozenCandidate,
+    "P4A late-candidate barrier did not freeze the initial snapshot",
+  );
+  await setExpenseLearningConsent(
+    admin,
+    lateUser.id,
+    false,
+    "P4A snapshot late revoke",
+  );
+  await blocker;
+  expect(
+    (await firstPass) === "RETRY_REQUIRED",
+    "P4A first snapshot did not report the newly visible debt",
+  );
+  expect(
+    querySql(`
+      select
+        count(*) filter (where user_id = '${firstUser.id}'::uuid) = 0
+        and count(*) filter (where user_id = '${lateUser.id}'::uuid) = 1
+      from expense_learning_private.contributor_revocation_links;
+    `) === "t",
+    "P4A processed a late candidate without its advisory lock",
+  );
+  const secondPass = await admin.rpc("purge_expense_learning_retention_v1");
+  expect(
+    opAllowed(secondPass) && secondPass.data === "PURGED" &&
+      expenseLearningP3RuntimeRowCount() === 0,
+    "P4A second snapshot did not clear the late candidate",
+  );
+
+  for (const user of [firstUser, lateUser]) {
+    const { error } = await admin.auth.admin.deleteUser(user.id);
+    expect(!error, "could not delete P4A snapshot user");
+  }
+}
+
+async function runExpenseLearningP4PurgeStageRace(
+  admin,
+  users,
+  purgeFirst,
+) {
+  const label = `learning_p4_purge_stage_${purgeFirst ? "purge" : "stage"}`;
+  const user = await createUser(admin, label);
+  users.push(user);
+  const weekHmac = randomExpenseLearningHex();
+  await setExpenseLearningConsent(admin, user.id, true, `${label} grant`);
+  expect(
+    stageExpenseLearning(user.id, randomExpenseLearningHex(), weekHmac) ===
+      "ACCEPTED",
+    `${label} could not seed raw`,
   );
   applyInlineSql(`
     update expense_learning_private.protected_accumulators
     set supporting_contributors = 2;
   `);
-  const failedRevoke = await admin.rpc("set_expense_learning_consent_v1", {
-    p_user_id: user.id,
-    p_decision: consentDecision(false),
+  await setExpenseLearningConsent(admin, user.id, false, `${label} revoke`);
+  await setExpenseLearningConsent(admin, user.id, true, `${label} regrant`);
+
+  const userLockAndPause = `
+    select pg_catalog.pg_advisory_xact_lock(
+      pg_catalog.hashtextextended(
+        'expense-learning-consent-v1:${user.id}',
+        0
+      )
+    );
+    select pg_catalog.pg_sleep(0.2);
+  `;
+  const purgeSql = `
+    ${purgeFirst ? userLockAndPause : ""}
+    select expense_learning_private.run_expense_learning_retention_v1(
+      pg_catalog.clock_timestamp()
+    );
+  `;
+  const stageSql = `
+    ${purgeFirst ? "" : userLockAndPause}
+    ${stageExpenseLearningSql(
+      user.id,
+      randomExpenseLearningHex(),
+      weekHmac,
+    )}
+  `;
+
+  const first = querySqlAsync(purgeFirst ? purgeSql : stageSql, {
+    learningOwner: true,
   });
+  await delay(50);
+  const second = querySqlAsync(purgeFirst ? stageSql : purgeSql, {
+    learningOwner: true,
+  });
+  const [firstResult, secondResult] = await Promise.all([first, second]);
+  const purgeResult = purgeFirst ? firstResult : secondResult;
+  const stageResult = purgeFirst ? secondResult : firstResult;
   expect(
-    !opAllowed(failedRevoke),
-    "corrupt P3A accumulator did not abort revocation",
+    purgeResult === "PURGED" && stageResult === "WITHDRAWAL_COOLDOWN",
+    `${label} did not serialize purge and stage`,
   );
   expect(
-    expenseLearningP3TableCounts() === "1,1,67,67,0,1",
-    "failed corrupt revocation left partial mutations",
+    expenseLearningP3RuntimeRowCount() === 0,
+    `${label} left separable raw`,
+  );
+  expectExpenseLearningP3Integrity(
+    `${label} desynchronized accumulators and memberships`,
+  );
+
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  expect(!error, `could not delete ${label} user`);
+}
+
+async function testExpenseLearningP4PurgeStageRaces(admin, users) {
+  await runExpenseLearningP4PurgeStageRace(admin, users, true);
+  await runExpenseLearningP4PurgeStageRace(admin, users, false);
+}
+
+async function runExpenseLearningP4PurgeDeleteRace(
+  admin,
+  users,
+  purgeFirst,
+) {
+  const label = `learning_p4_purge_delete_${purgeFirst ? "purge" : "delete"}`;
+  const user = await createUser(admin, label);
+  users.push(user);
+  await setExpenseLearningConsent(admin, user.id, true, `${label} grant`);
+  const currentWeekHmac = randomExpenseLearningHex();
+  expect(
+    stageExpenseLearning(
+      user.id,
+      randomExpenseLearningHex(),
+      currentWeekHmac,
+    ) === "ACCEPTED",
+    `${label} could not seed raw`,
+  );
+  const previousWeekHmac = randomExpenseLearningHex();
+  applyInlineSql(`
+    with current_link as (
+      select link.week_start
+      from expense_learning_private.contributor_revocation_links as link
+      where link.user_id = '${user.id}'::uuid
+    )
+    insert into expense_learning_private.contributor_revocation_links (
+      user_id,
+      week_start,
+      contributor_week_hmac,
+      expires_at
+    )
+    select
+      '${user.id}'::uuid,
+      current_link.week_start - 7,
+      pg_catalog.decode('${previousWeekHmac}', 'hex'),
+      ((current_link.week_start - 7)::timestamp at time zone 'UTC') +
+        interval '35 days'
+    from current_link;
+
+    with current_link as (
+      select link.week_start
+      from expense_learning_private.contributor_revocation_links as link
+      where link.user_id = '${user.id}'::uuid
+      order by link.week_start desc
+      limit 1
+    )
+    insert into expense_learning_private.accumulator_memberships (
+      contribution_schema_version,
+      observation_schema_version,
+      engine_version,
+      privacy_policy_version,
+      week_start,
+      structural_archetype_group,
+      metric_family,
+      comparison_scope,
+      metric_key,
+      bucket_kind,
+      bucket_value,
+      contributor_coordinate_hmac,
+      expires_at
+    )
+    select
+      membership.contribution_schema_version,
+      membership.observation_schema_version,
+      membership.engine_version,
+      membership.privacy_policy_version,
+      current_link.week_start - 7,
+      membership.structural_archetype_group,
+      membership.metric_family,
+      membership.comparison_scope,
+      membership.metric_key,
+      membership.bucket_kind,
+      membership.bucket_value,
+      expense_learning_private.expense_learning_coordinate_hmac_v1(
+        pg_catalog.decode('${previousWeekHmac}', 'hex'),
+        membership.contribution_schema_version,
+        membership.observation_schema_version,
+        membership.engine_version,
+        membership.privacy_policy_version,
+        current_link.week_start - 7,
+        membership.structural_archetype_group,
+        membership.metric_family,
+        membership.comparison_scope,
+        membership.metric_key
+      ),
+      ((current_link.week_start - 7)::timestamp at time zone 'UTC') +
+        interval '35 days'
+    from expense_learning_private.accumulator_memberships as membership
+    cross join current_link
+    where membership.week_start = current_link.week_start;
+
+    with current_link as (
+      select link.week_start
+      from expense_learning_private.contributor_revocation_links as link
+      where link.user_id = '${user.id}'::uuid
+      order by link.week_start desc
+      limit 1
+    )
+    insert into expense_learning_private.protected_accumulators (
+      contribution_schema_version,
+      observation_schema_version,
+      engine_version,
+      privacy_policy_version,
+      week_start,
+      structural_archetype_group,
+      metric_family,
+      comparison_scope,
+      metric_key,
+      bucket_kind,
+      bucket_value,
+      supporting_contributors,
+      expires_at
+    )
+    select
+      accumulator.contribution_schema_version,
+      accumulator.observation_schema_version,
+      accumulator.engine_version,
+      accumulator.privacy_policy_version,
+      current_link.week_start - 7,
+      accumulator.structural_archetype_group,
+      accumulator.metric_family,
+      accumulator.comparison_scope,
+      accumulator.metric_key,
+      accumulator.bucket_kind,
+      accumulator.bucket_value,
+      accumulator.supporting_contributors,
+      ((current_link.week_start - 7)::timestamp at time zone 'UTC') +
+        interval '35 days'
+    from expense_learning_private.protected_accumulators as accumulator
+    cross join current_link
+    where accumulator.week_start = current_link.week_start;
+  `);
+  expect(
+    querySql(`
+      select
+        (select count(*)
+         from expense_learning_private.contributor_revocation_links
+         where user_id = '${user.id}'::uuid) = 2
+        and (select count(*)
+             from expense_learning_private.accumulator_memberships) = 134
+        and (select count(*)
+             from expense_learning_private.protected_accumulators) = 134;
+    `) === "t",
+    `${label} did not create two complete canonical weeks`,
+  );
+
+  const blocker = querySqlAsync(
+    `
+      select pg_catalog.pg_advisory_xact_lock(
+        pg_catalog.hashtextextended(
+          'expense-learning-accumulator-mutation-v1',
+          0
+        )
+      );
+      select pg_catalog.pg_sleep(0.4);
+    `,
+    { learningOwner: true },
+  );
+  await delay(50);
+
+  const purge = () => querySqlAsync(
+    `
+      set local application_name = '${label}_purge';
+      select expense_learning_private.run_expense_learning_retention_v1(
+        pg_catalog.clock_timestamp() + interval '36 days'
+      );
+    `,
+    { learningOwner: true },
+  );
+  const deletion = () => querySqlAsync(`
+    begin;
+    set local application_name = '${label}_delete';
+    delete from auth.users where id = '${user.id}'::uuid;
+    commit;
+  `);
+
+  const first = purgeFirst ? purge() : deletion();
+  await delay(75);
+  const second = purgeFirst ? deletion() : purge();
+  const [firstResult, secondResult] = await Promise.all([first, second]);
+  await blocker;
+  const purgeResult = purgeFirst ? firstResult : secondResult;
+  expect(
+    ["PURGED", "RETRY_REQUIRED"].includes(purgeResult),
+    `${label} returned an invalid retention state`,
+  );
+  if (purgeResult === "RETRY_REQUIRED") {
+    const retry = await admin.rpc("purge_expense_learning_retention_v1");
+    expect(
+      opAllowed(retry) && retry.data === "PURGED",
+      `${label} did not converge on the retry pass`,
+    );
+  }
+  expect(
+    expenseLearningP3RuntimeRowCount() === 0 &&
+      querySql(`select count(*) = 0 from auth.users where id = '${user.id}'::uuid;`) ===
+        "t",
+    `${label} deadlocked or left identity-linked raw`,
+  );
+}
+
+async function testExpenseLearningP4PurgeDeleteRaces(admin, users) {
+  await runExpenseLearningP4PurgeDeleteRace(admin, users, true);
+  await runExpenseLearningP4PurgeDeleteRace(admin, users, false);
+}
+
+async function testExpenseLearningP4RepairAndRetention(admin, users) {
+  await testExpenseLearningP4HistoricalDebtBoundary(admin, users);
+  await testExpenseLearningP4MultiArchetype(admin, users);
+  await testExpenseLearningP4SemanticSourceGate(admin, users);
+  await testExpenseLearningP4LateCandidateSnapshot(admin, users);
+  await testExpenseLearningP4PurgeStageRaces(admin, users);
+  await testExpenseLearningP4PurgeDeleteRaces(admin, users);
+  const repairUser = await createUser(admin, "learning_p4_repair");
+  users.push(repairUser);
+  await setExpenseLearningConsent(
+    admin,
+    repairUser.id,
+    true,
+    "P4A repair grant",
+  );
+  const repairWeekHmac = randomExpenseLearningHex();
+  expect(
+    stageExpenseLearning(
+      repairUser.id,
+      randomExpenseLearningHex(),
+      repairWeekHmac,
+    ) === "ACCEPTED",
+    "P4A repair fixture was not accepted",
   );
   applyInlineSql(`
     update expense_learning_private.protected_accumulators
-    set supporting_contributors = 1;
+    set supporting_contributors = 2;
   `);
-  await setExpenseLearningConsent(admin, user.id, false, "P3A repaired revoke");
+
+  await setExpenseLearningConsent(
+    admin,
+    repairUser.id,
+    false,
+    "P4A repairable revoke",
+  );
+  expect(
+    expenseLearningP3TableCounts() === "1,1,67,67,0,1",
+    "P4A repairable revoke did not preserve raw for maintenance retry",
+  );
+  expect(
+    stageExpenseLearning(
+      repairUser.id,
+      randomExpenseLearningHex(),
+      repairWeekHmac,
+    ) === "NOT_CONSENTED",
+    "P4A REVOKED ledger did not block a future contribution",
+  );
+  const repaired = await admin.rpc("purge_expense_learning_retention_v1");
+  expect(
+    opAllowed(repaired) && repaired.data === "PURGED",
+    "P4A did not repair and purge a derived accumulator",
+  );
   expect(
     expenseLearningP3RuntimeRowCount() === 0,
-    "repaired P3A revoke did not purge raw rows",
+    "P4A repaired purge left separable raw",
   );
-  const { error } = await admin.auth.admin.deleteUser(user.id);
-  expect(!error, "could not delete P3A corruption user");
+  const idempotent = await admin.rpc("purge_expense_learning_retention_v1");
+  expect(
+    opAllowed(idempotent) && idempotent.data === "PURGED",
+    "P4A empty retry was not idempotent",
+  );
+  const { error: repairDeleteError } =
+    await admin.auth.admin.deleteUser(repairUser.id);
+  expect(!repairDeleteError, "could not delete P4A repair user");
+
+  const corruptUser = await createUser(admin, "learning_p4_corrupt");
+  const healthyUser = await createUser(admin, "learning_p4_healthy");
+  users.push(corruptUser, healthyUser);
+  await Promise.all([
+    setExpenseLearningConsent(
+      admin,
+      corruptUser.id,
+      true,
+      "P4A corrupt grant",
+    ),
+    setExpenseLearningConsent(
+      admin,
+      healthyUser.id,
+      true,
+      "P4A healthy grant",
+    ),
+  ]);
+  const corruptWeekHmac = randomExpenseLearningHex();
+  const healthyWeekHmac = randomExpenseLearningHex();
+  expect(
+    stageExpenseLearning(
+      corruptUser.id,
+      randomExpenseLearningHex(),
+      corruptWeekHmac,
+    ) === "ACCEPTED" &&
+      stageExpenseLearning(
+        healthyUser.id,
+        randomExpenseLearningHex(),
+        healthyWeekHmac,
+      ) === "ACCEPTED",
+    "P4A mixed corruption fixtures were not accepted",
+  );
+
+  const corruptMembershipHmac = randomExpenseLearningHex();
+  const corruptedMembership = querySql(`
+    with target as (
+      select membership.ctid,
+        pg_catalog.encode(
+          membership.contributor_coordinate_hmac,
+          'hex'
+        ) as original_hmac
+      from expense_learning_private.accumulator_memberships as membership
+      join expense_learning_private.contributor_revocation_links as link
+        on link.user_id = '${corruptUser.id}'::uuid
+       and link.week_start = membership.week_start
+      where membership.contributor_coordinate_hmac =
+        expense_learning_private.expense_learning_coordinate_hmac_v1(
+          link.contributor_week_hmac,
+          membership.contribution_schema_version,
+          membership.observation_schema_version,
+          membership.engine_version,
+          membership.privacy_policy_version,
+          membership.week_start,
+          membership.structural_archetype_group,
+          membership.metric_family,
+          membership.comparison_scope,
+          membership.metric_key
+        )
+      order by membership.metric_family,
+        membership.comparison_scope,
+        membership.metric_key
+      limit 1
+    ), changed as (
+      update expense_learning_private.accumulator_memberships as membership
+      set contributor_coordinate_hmac =
+        pg_catalog.decode('${corruptMembershipHmac}', 'hex')
+      from target
+      where membership.ctid = target.ctid
+      returning target.original_hmac
+    )
+    select original_hmac from changed;
+  `);
+  expect(
+    corruptedMembership.length === 64,
+    "P4A did not corrupt exactly one synthetic membership",
+  );
+
+  await Promise.all([
+    setExpenseLearningConsent(
+      admin,
+      corruptUser.id,
+      false,
+      "P4A irreparable revoke",
+    ),
+    setExpenseLearningConsent(
+      admin,
+      healthyUser.id,
+      false,
+      "P4A healthy revoke",
+    ),
+  ]);
+  expect(
+    querySql(`
+      select count(*) = 1
+      from expense_learning_private.contributor_revocation_links
+      where user_id = '${corruptUser.id}'::uuid;
+    `) === "t" &&
+      querySql(`
+        select count(*) = 0
+        from expense_learning_private.contributor_revocation_links
+        where user_id = '${healthyUser.id}'::uuid;
+      `) === "t",
+    "P4A corrupt unit reverted or blocked a healthy purge",
+  );
+  const retryRequired = await admin.rpc(
+    "purge_expense_learning_retention_v1",
+  );
+  expect(
+    opAllowed(retryRequired) && retryRequired.data === "RETRY_REQUIRED",
+    "P4A irreparable source did not report a generic retry state",
+  );
+  expect(
+    querySqlAsLearningOwner(`
+      select expense_learning_private.run_expense_learning_retention_v1(
+        pg_catalog.clock_timestamp() + interval '36 days'
+      );
+    `) === "RETRY_REQUIRED" &&
+      querySqlAsLearningOwner(`
+        select expense_learning_private.run_expense_learning_retention_v1(
+          pg_catalog.clock_timestamp() + interval '36 days'
+        );
+      `) === "RETRY_REQUIRED" &&
+      querySql(`
+        select
+          (select count(*)
+           from expense_learning_private.contributor_revocation_links
+           where user_id = '${corruptUser.id}'::uuid) = 1
+          and (select count(*)
+               from expense_learning_private.accumulator_memberships) = 67
+          and (select count(*)
+               from expense_learning_private.protected_accumulators) = 67;
+      `) === "t",
+    "P4A expiry destroyed irreparable source evidence",
+  );
+
+  const failedDelete = await admin.auth.admin.deleteUser(corruptUser.id);
+  expect(
+    Boolean(failedDelete.error),
+    "P4A irreparable account deletion did not fail closed",
+  );
+  expect(
+    querySql(`select count(*) = 1 from auth.users where id = '${corruptUser.id}'::uuid;`) ===
+      "t",
+    "P4A failed account deletion removed the identity but kept raw",
+  );
+
+  applyInlineSql(`
+    with target as (
+      select membership.ctid
+      from expense_learning_private.accumulator_memberships as membership
+      join expense_learning_private.contributor_revocation_links as link
+        on link.user_id = '${corruptUser.id}'::uuid
+       and link.week_start = membership.week_start
+      where not exists (
+        select 1
+        from expense_learning_private.contributor_revocation_links as candidate
+        where candidate.week_start = membership.week_start
+          and membership.contributor_coordinate_hmac =
+            expense_learning_private.expense_learning_coordinate_hmac_v1(
+              candidate.contributor_week_hmac,
+              membership.contribution_schema_version,
+              membership.observation_schema_version,
+              membership.engine_version,
+              membership.privacy_policy_version,
+              membership.week_start,
+              membership.structural_archetype_group,
+              membership.metric_family,
+              membership.comparison_scope,
+              membership.metric_key
+            )
+      )
+      limit 1
+    )
+    update expense_learning_private.accumulator_memberships as membership
+    set contributor_coordinate_hmac =
+      pg_catalog.decode('${corruptedMembership}', 'hex')
+    from target
+    where membership.ctid = target.ctid;
+  `);
+  const repairedRetry = await admin.rpc(
+    "purge_expense_learning_retention_v1",
+  );
+  expect(
+    opAllowed(repairedRetry) && repairedRetry.data === "PURGED",
+    "P4A repaired source did not clear its retry debt",
+  );
+  const { error: corruptDeleteError } =
+    await admin.auth.admin.deleteUser(corruptUser.id);
+  expect(!corruptDeleteError, "could not delete repaired P4A user");
+  const { error: healthyDeleteError } =
+    await admin.auth.admin.deleteUser(healthyUser.id);
+  expect(!healthyDeleteError, "could not delete P4A healthy user");
+
+  const ttlUser = await createUser(admin, "learning_p4_ttl");
+  users.push(ttlUser);
+  await setExpenseLearningConsent(admin, ttlUser.id, true, "P4A TTL grant");
+  const ttlWeekHmac = randomExpenseLearningHex();
+  expect(
+    stageExpenseLearning(
+      ttlUser.id,
+      randomExpenseLearningHex(),
+      ttlWeekHmac,
+    ) === "ACCEPTED",
+    "P4A TTL fixture was not accepted",
+  );
+  expect(
+    querySqlAsLearningOwner(`
+      select expense_learning_private.run_expense_learning_retention_v1(
+        pg_catalog.clock_timestamp() + interval '25 hours'
+      )
+    `) === "PURGED",
+    "P4A did not purge an expired 24-hour claim",
+  );
+  expect(
+    querySql(`
+      select
+        (select count(*) from expense_learning_private.contribution_claims) = 0
+        and (select count(*) from expense_learning_private.contributor_revocation_links) = 1;
+    `) === "t",
+    "P4A claim TTL purge removed or retained the wrong protected rows",
+  );
+  expect(
+    querySqlAsLearningOwner(`
+      select expense_learning_private.run_expense_learning_retention_v1(
+        pg_catalog.clock_timestamp() + interval '36 days'
+      )
+    `) === "PURGED" && expenseLearningP3RuntimeRowCount() === 0,
+    "P4A did not purge 35-day link/raw retention",
+  );
+
+  applyInlineSql(`
+    insert into expense_learning_private.closed_week_supported_metrics (
+      contribution_schema_version,
+      observation_schema_version,
+      engine_version,
+      privacy_policy_version,
+      week_start,
+      structural_archetype_group,
+      metric_family,
+      comparison_scope,
+      metric_key,
+      bucket_kind,
+      bucket_value,
+      supporting_contributors,
+      promoted_at,
+      expires_at
+    ) values (
+      'expense-engine-aggregate-contribution.v1',
+      'expense-engine-observation.v1',
+      'expense-local-engine.v1',
+      '2026-07-21',
+      date '2025-01-06',
+      'TABLE',
+      'SOURCE_QUALITY',
+      'NONE',
+      'VALUE',
+      'EXACT',
+      'HIGH',
+      10,
+      timestamptz '2025-01-13 00:00:00+00',
+      timestamptz '2026-02-13 00:00:00+00'
+    );
+  `);
+  const promotedBefore = querySql(
+    "select count(*) from expense_learning_private.closed_week_supported_metrics;",
+  );
+  expect(promotedBefore === "1", "P4A promoted TTL fixture was not inserted");
+  const promotedPurge = await admin.rpc(
+    "purge_expense_learning_retention_v1",
+  );
+  expect(
+    opAllowed(promotedPurge) && promotedPurge.data === "PURGED" &&
+      querySql(
+        "select count(*) from expense_learning_private.closed_week_supported_metrics;",
+      ) === "0",
+    "P4A did not purge an expired promoted metric",
+  );
+  expect(
+    (await admin.rpc("promote_expense_learning_closed_weeks_v1")).data ===
+      "DISABLED" &&
+      (
+        await admin.rpc("submit_expense_learning_contribution_v1", {
+          p_user_id: ttlUser.id,
+          p_contribution: {},
+          p_claim_token_digest: "a".repeat(64),
+          p_contributor_week_hmac: "b".repeat(64),
+        })
+      ).data === "DISABLED",
+    "P4A changed the dormant submit or promotion stubs",
+  );
+  const { error: ttlDeleteError } = await admin.auth.admin.deleteUser(
+    ttlUser.id,
+  );
+  expect(!ttlDeleteError, "could not delete P4A TTL user");
 }
 
 function expectConsentState(result, state, message) {
@@ -2107,6 +3298,86 @@ async function testExpenseLearningConsentRollback(
     expenseLearningConsentCatalogSnapshot() === initialCatalogSnapshot,
     "consent up/down/up changed normalized catalog semantics",
   );
+}
+
+async function testExpenseLearningP4Rollback(
+  admin,
+  users,
+  initialCatalogSnapshot,
+) {
+  const rollbackUser = await createUser(admin, "learning_p4_rollback");
+  users.push(rollbackUser);
+  await setExpenseLearningConsent(
+    admin,
+    rollbackUser.id,
+    true,
+    "P4A rollback grant",
+  );
+  expect(
+    stageExpenseLearning(
+      rollbackUser.id,
+      randomExpenseLearningHex(),
+      randomExpenseLearningHex(),
+    ) === "ACCEPTED",
+    "P4A rollback guard fixture was not accepted",
+  );
+
+  expectSqlFileFailure(
+    expenseLearningRetentionSql.down,
+    "Expense learning P4A storage is not empty; rollback is unsafe",
+  );
+  expect(
+    expenseLearningP3TableCounts() === "1,1,67,67,0,1",
+    "failed P4A rollback partially changed protected storage",
+  );
+
+  await setExpenseLearningConsent(
+    admin,
+    rollbackUser.id,
+    false,
+    "P4A rollback revoke",
+  );
+  expect(
+    expenseLearningP3RuntimeRowCount() === 0,
+    "P4A revoke did not unblock controlled rollback",
+  );
+  applySql(expenseLearningRetentionSql.down);
+  expect(
+    querySql(`
+      with claims as materialized (
+        select pg_catalog.set_config(
+          'request.jwt.claim.role',
+          'service_role',
+          true
+        )
+      )
+      select public.purge_expense_learning_retention_v1()
+      from claims;
+    `) === "DISABLED",
+    "P4A rollback did not restore the disabled purge stub",
+  );
+  expect(
+    querySql(`
+      select pg_catalog.to_regprocedure(
+        'expense_learning_private.run_expense_learning_retention_v1(timestamp with time zone)'
+      ) is null;
+    `) === "t",
+    "P4A rollback retained private maintenance functions",
+  );
+
+  applySql(expenseLearningRetentionSql.up);
+  expect(
+    expenseLearningP4CatalogSnapshot() === initialCatalogSnapshot,
+    "P4A up/down/up changed normalized catalog semantics",
+  );
+  applySql(expenseLearningRetentionSql.down);
+  expect(
+    expenseLearningP3CatalogSnapshot() !== initialCatalogSnapshot,
+    "P4A rollback did not restore the P3A catalog",
+  );
+
+  const { error } = await admin.auth.admin.deleteUser(rollbackUser.id);
+  expect(!error, "could not delete P4A rollback user");
 }
 
 async function testExpenseLearningP3Rollback(
@@ -3193,6 +4464,18 @@ async function main() {
   if (expenseLearningSchemaExists()) {
     if (
       querySql(`
+        select pg_catalog.to_regprocedure(
+          'expense_learning_private.run_expense_learning_retention_v1(timestamp with time zone)'
+        ) is not null;
+      `) === "t"
+    ) {
+      console.log(
+        "Resetting auto-applied empty expense learning P4A retention...",
+      );
+      applySql(expenseLearningRetentionSql.down);
+    }
+    if (
+      querySql(`
         select pg_catalog.to_regclass(
           'expense_learning_private.contributor_revocation_links'
         ) is not null;
@@ -3249,6 +4532,16 @@ async function main() {
     "expense learning ingestion initial up/down/up changed catalog semantics",
   );
 
+  console.log("Validating expense learning retention P4A up -> down -> up...");
+  applySql(expenseLearningRetentionSql.up);
+  const expenseLearningP4Catalog = expenseLearningP4CatalogSnapshot();
+  applySql(expenseLearningRetentionSql.down);
+  applySql(expenseLearningRetentionSql.up);
+  expect(
+    expenseLearningP4CatalogSnapshot() === expenseLearningP4Catalog,
+    "expense learning retention initial up/down/up changed catalog semantics",
+  );
+
   const admin = service();
   const userA = await createUser(admin, "a");
   const userB = await createUser(admin, "b");
@@ -3260,6 +4553,7 @@ async function main() {
     await testRpcPermissionsAndConcurrency(admin, userA);
     await testExpenseLearningDataApi(admin, userA);
     testExpenseLearningP3DatabaseBoundary();
+    testExpenseLearningP4DatabaseBoundary();
     testExpenseLearningConsentDatabaseBoundary(userA.id);
     console.log("Testing expense learning P3A semantic rejection...");
     await testExpenseLearningP3SemanticRejection(admin, users);
@@ -3269,8 +4563,8 @@ async function main() {
     await testExpenseLearningP3ClaimRace(admin, users);
     console.log("Testing expense learning P3A account deletion races...");
     await testExpenseLearningP3AccountDeleteRaces(admin, users);
-    console.log("Testing expense learning P3A corrupt-state rollback...");
-    await testExpenseLearningP3CorruptionRollback(admin, users);
+    console.log("Testing expense learning P4A repair and retention...");
+    await testExpenseLearningP4RepairAndRetention(admin, users);
     await testExpenseLearningConsentBehavior(admin, users);
     await testLegacyStripeCutover(admin);
     await testStripeLeaseAndPackRpcs(admin, userA, userB);
@@ -3279,6 +4573,7 @@ async function main() {
       sqlFiles.down[0],
       "Stripe webhook ledger is not empty; rollback is unsafe",
     );
+    await testExpenseLearningP4Rollback(admin, users, expenseLearningP4Catalog);
     await testExpenseLearningP3Rollback(admin, users, expenseLearningP3Catalog);
     await testExpenseLearningConsentRollback(
       admin,

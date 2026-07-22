@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: P3C con wiring cliente dormido y core privado desconectado; ingesta, promoción y lectura apagadas
+- Estado: P4A con retirada reparable y primitivo de retención; ingesta, promoción, scheduler y lectura apagados
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -74,9 +74,13 @@ La secuencia posterior queda bloqueada en este orden:
    permanezca deshabilitado;
 7. P3C: wiring best-effort después del guardado durable, también dormido y sin
    modificar escaneo, IA, cola, gasto o interfaz;
-8. P4: purga programada, batch, promoción y retención; solo esta fase podrá
-   sustituir el stub de ingesta y abrir una activación gradual;
-9. P5: Admin, propiedad de su módulo y limitado a métricas promovidas.
+8. P4A: retirada reparable y primitivo de purga/retención invocable; sin
+   scheduler, promoción, lectura ni activación;
+9. P4B: evaluación de reidentificación, batch de semana cerrada, `OTHER`,
+   soporte diverso y promoción;
+10. P4C: scheduler, reintentos, observabilidad genérica y activación gradual
+    bajo los dos kill switches;
+11. P5: Admin, propiedad de su módulo y limitado a métricas promovidas.
 
 ### Alcance actual P1B
 
@@ -346,6 +350,66 @@ timeout de ocho segundos. No hay retry, beacon, cola, persistencia, lectura de
 respuesta, logs ni cambios de UI. Un aborto cliente posterior al envío no
 garantiza rollback servidor: la autoridad sigue siendo el bearer y la
 revalidación transaccional de consentimiento y sujeto en el core.
+
+### Alcance actual P4A
+
+P4A separa la retirada y la retención de la promoción. No crea `OTHER`, no
+calcula `k`, no cierra semanas, no escribe métricas promovidas, no expone
+lectura y no modifica los stubs públicos de submit o promoción. Ambos siguen
+devolviendo `DISABLED`; los flags P3B/P3C permanecen apagados. Admin, workflow,
+cron y scheduler quedan fuera.
+
+El setter de consentimiento registra una decisión `REVOKED` en la transacción
+exterior, bajo el mismo advisory de usuario que usa el core. La limpieza de raw
+se ejecuta después en un bloque contenido. Si el acumulador derivado no coincide
+con sus memberships, P4A lo reconstruye exclusivamente desde memberships
+canónicas y atribuibles de forma inequívoca, bajo el mutex global y locks de
+celda ordenados. Nunca fabrica, corrige o elimina memberships para hacer
+cuadrar un acumulador. Si la fuente sigue siendo irreparable, conserva la
+decisión `REVOKED`, el link y el raw protegidos; no refleja el fallo, no reabre
+ingesta y una aportación posterior sigue bloqueada por el ledger.
+
+Los links pendientes no requieren una cola de identidad adicional. Son
+elegibles para reintento si han vencido o si existe una decisión `REVOKED` de
+la tupla V1 exacta con `decided_at` igual o posterior al lunes UTC del link. La
+decisión no tiene que seguir siendo la última: un regrant posterior no oculta
+raw histórico. A la vez, una revocación anterior al lunes de un link futuro no
+lo selecciona. El cooldown semanal P3A sigue impidiendo crear raw después de
+retirar y volver a aceptar dentro de la misma semana.
+
+El mantenimiento sin argumentos congela primero la foto de usuarios candidatos
+y adquiere todos sus advisory en orden UUID. Después toma una vez el mutex
+global y, bajo él, bloquea con `FOR UPDATE SKIP LOCKED`, también en orden
+canónico, únicamente los links de esa foto que siguen siendo elegibles. Este
+orden es compartido con el trigger del cascade: si una baja de cuenta ya ocupa
+un link, mantenimiento lo salta sin esperar mientras conserva el mutex; si el
+trigger obtuvo antes el mutex, mantenimiento aún no retiene ningún row lock.
+Links ocupados o candidatos nuevos quedan para la siguiente ejecución. Después
+se adquieren los locks de celda ordenados. Como `FORCE RLS` también se aplica al
+owner, P4A añade una policy `UPDATE` exclusiva para ver y bloquear esas filas,
+pero con
+`WITH CHECK (false)`: habilita el row lock sin permitir ninguna actualización.
+El rollback la retira y restaura las tres policies P3A originales. Cada unidad
+se aísla para que una fuente irreparable no revierta purgas ya completadas. La
+respuesta es solo `PURGED` o `RETRY_REQUIRED`, sin usuarios, celdas, recuentos
+ni contenido. Una retirada individual nunca toca métricas promovidas; el
+mantenimiento solo puede borrar de esa tabla filas cuyo `expires_at` ya venció.
+
+El trigger de borrado permanece estricto respecto a la fuente. Puede reparar
+un `protected_accumulator` derivado y permitir la baja de cuenta, pero una
+membership no atribuible, ambigua o incompleta aborta el cascade para no dejar
+raw huérfano. Esa baja debe reintentarse después de reparación service-only;
+P4A no promete un borrado de cuenta exitoso ante corrupción irreparable ni crea
+una cuarentena paralela.
+
+P4A elimina, al invocarse, claims con `expires_at` vencido, links/raw elegibles
+y métricas promovidas ya expiradas. Esto no demuestra todavía borrado físico
+continuo dentro de 24 horas, 35 días o 13 meses: sin scheduler no existe
+garantía de cadencia. P4C deberá fijar margen antes del TTL máximo, reintentos,
+monitorización de `RETRY_REQUIRED` y aceptación de fallos antes de activar
+cualquier flag. P4B permanece separado y bloqueado hasta evaluar
+singling-out, linkability e inference; por tanto P4A no autoriza promoción ni
+uso del agregado.
 
 ### Incentivo futuro separado
 
