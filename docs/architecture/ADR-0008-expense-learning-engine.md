@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: P4A con retirada reparable y primitivo de retención; ingesta, promoción, scheduler y lectura apagados
+- Estado: P4B con promoción privada one-shot; ingesta, scheduler, lectura y activación periódica apagados
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -76,8 +76,9 @@ La secuencia posterior queda bloqueada en este orden:
    modificar escaneo, IA, cola, gasto o interfaz;
 8. P4A: retirada reparable y primitivo de purga/retención invocable; sin
    scheduler, promoción, lectura ni activación;
-9. P4B: evaluación de reidentificación, batch de semana cerrada, `OTHER`,
-   soporte diverso y promoción;
+9. P4B: promoción privada y one-shot de una única marginal allowlisted de
+   revisión humana, con coarsening completo y soporte por bandas; sin lectura,
+   scheduler ni afirmación de anonimización;
 10. P4C: scheduler, reintentos, observabilidad genérica y activación gradual
     bajo los dos kill switches;
 11. P5: Admin, propiedad de su módulo y limitado a métricas promovidas.
@@ -407,9 +408,69 @@ y métricas promovidas ya expiradas. Esto no demuestra todavía borrado físico
 continuo dentro de 24 horas, 35 días o 13 meses: sin scheduler no existe
 garantía de cadencia. P4C deberá fijar margen antes del TTL máximo, reintentos,
 monitorización de `RETRY_REQUIRED` y aceptación de fallos antes de activar
-cualquier flag. P4B permanece separado y bloqueado hasta evaluar
-singling-out, linkability e inference; por tanto P4A no autoriza promoción ni
-uso del agregado.
+cualquier flag. P4A por sí solo no autoriza promoción ni uso del agregado; P4B
+añade después el primitivo privado y la evaluación V1 descritos a continuación,
+sin scheduler, lectura ni activación.
+
+### Alcance actual P4B
+
+P4B elige para V1 batch semanal y coarsening determinista. No usa privacidad
+diferencial ni añade ruido ad hoc. La fuente completa de 67 coordenadas debe
+seguir siendo canónica y coherente, pero la única marginal que puede cruzar a
+la tabla promovida es exactamente `HUMAN_REVIEW / NONE / VALUE`. Las otras 66,
+incluido `CREDIT_SIGN_CORRECTED`, quedan fuera. Esta reducción evita componer
+en la salida las implicaciones deterministas entre outcome, ruta, IA, campos,
+matemática y flags.
+
+La cohorte se calcula con aportantes distintos enlazados inequívocamente para
+versiones, semana y grupo estructural. Los cuatro buckets exhaustivos de
+revisión (`CONFIRMED`, `CORRECTED`, `REJECTED`, `NOT_REVIEWED`) deben formar
+una partición disjunta y completa. Con menos de 10 aportantes se cierra el batch
+como `DISCARDED` y no nace ninguna métrica. Si todos los buckets no vacíos
+tienen soporte mínimo 10, se publican todos los buckets exactos. Si cualquiera
+tiene soporte entre 1 y 9, no se combina una celda rara con exactos visibles:
+la coordenada completa se sustituye por una única fila cerrada
+`COARSENED_OTHER / OTHER`.
+
+P4B elimina físicamente el recuento exacto de la tabla promovida. Solo conserva
+la banda de la cohorte `K10_19`, `K20_49`, `K50_99` o `K100_PLUS`; no guarda N
+en métricas, marker, retorno o logs. La forma candidata se evalúa dentro de la
+misma transacción antes del primer INSERT. Esta evaluación versionada comprueba
+la fuente completa, la partición, la ausencia de residuo visible y la allowlist;
+no es una autoafirmación literal. Aun así, P4B no denomina el resultado anónimo
+ni seguro, no acredita humanidad o independencia y no habilita lectura P5.
+
+Cada identidad irreversible de batch (versiones, lunes UTC y grupo) admite un
+único tombstone `PROMOTED` o `DISCARDED`. La versión de evaluación es un
+atributo allowlisted, nunca parte de la clave: cambiarla no reabre una semana.
+El marker no tiene UPDATE ni TTL autónomo. P4B no lo elimina; P4C solo podrá
+definir su retirada cuando no queden métricas, raw ni deuda de toda la semana y
+sea imposible reintroducir fuente histórica. Reparar raw después de cerrar un
+batch no crea un segundo snapshot.
+
+El fence de ingesta conserva el orden anti-deadlock P3A: advisory de usuario,
+link y claim, mutex global y locks de celda. Ya bajo el mutex, recalcula la
+semana UTC de base de datos y comprueba que no exista marker antes de mutar
+limits, memberships o accumulators. Un cambio de semana o batch cerrado lanza
+una excepción y revierte también link y claim; nunca retorna dejando DML
+parcial. La promoción adquiere todos los advisories de usuario en orden,
+después el mutex global, bloquea links con `FOR UPDATE SKIP LOCKED` y exige que
+el conjunto esperado coincida con el bloqueado. Stage, retirada, baja de cuenta,
+deuda o corrupción concurrente producen `RETRY_REQUIRED` sin marker ni métrica.
+Una semana cerrada sin marker que conserve memberships o accumulators pero no
+pueda formar candidatos enlazables también devuelve `RETRY_REQUIRED`;
+`NOTHING` queda reservado a la ausencia real de fuente pendiente.
+Los batches sanos pueden progresar atómicamente en la misma invocación, pero
+la presencia residual de cualquier fuente marker-less mantiene el resultado
+global en `RETRY_REQUIRED` hasta que esa deuda se repare o purgue.
+
+Marker y todas las filas promovidas de un batch nacen atómicamente. Las
+métricas no admiten UPDATE y usan tiempos deterministas de cierre semanal y
+retención de 13 meses. Solo existe un wrapper de promoción `service_role` con
+respuesta genérica `PROMOTED`, `NOTHING` o `RETRY_REQUIRED`; no hay reader,
+Data API, Admin, endpoint, workflow, cron ni scheduler. Submit y los flags
+P3B/P3C continúan dormidos. Por tanto P4B instala capacidad privada, pero no
+activa ingesta, promoción periódica ni uso del resultado.
 
 ### Incentivo futuro separado
 
