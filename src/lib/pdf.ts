@@ -815,9 +815,10 @@ export async function openDocumentPdfPreview(
   doc: Document,
   profile: BusinessProfile,
   options: DocumentPdfOptions = {},
+  reservedWindow?: Window,
 ): Promise<void> {
   const filename = documentPdfFilename(doc);
-  const opened = openPdfWindow(filename);
+  const opened = reservedWindow ?? openPdfWindow(filename);
 
   try {
     const blob = await buildDocumentPdfBlob(doc, profile, options);
@@ -846,8 +847,10 @@ export async function printDocumentPdf(
   doc: Document,
   profile: BusinessProfile,
   options: DocumentPdfOptions = {},
+  reservedWindow?: Window,
 ): Promise<void> {
-  const opened = openPdfWindow(`Imprimir ${documentPdfFilename(doc)}`);
+  const opened =
+    reservedWindow ?? openPdfWindow(`Imprimir ${documentPdfFilename(doc)}`);
 
   try {
     const blob = await buildDocumentPdfBlob(doc, profile, options);

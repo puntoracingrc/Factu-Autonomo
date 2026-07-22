@@ -112,6 +112,8 @@ describe("shareDocumentByWhatsApp", () => {
       canShare,
     });
     vi.stubGlobal("window", {
+      atob: globalThis.atob,
+      btoa: globalThis.btoa,
       open,
     });
 
@@ -173,6 +175,10 @@ describe("document email native sharing", () => {
       canShare: vi.fn(() => true),
     });
     vi.stubGlobal("window", { open });
+    Object.assign(window, {
+      atob: globalThis.atob,
+      btoa: globalThis.btoa,
+    });
 
     await expect(
       shareDocumentByEmail(sampleDoc, profile, undefined, "native"),
