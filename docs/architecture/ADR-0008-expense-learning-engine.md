@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: P4C2 con mantenimiento programado; flags, lectura e ingesta real apagados
+- Estado: P5 con lectura Admin promoted-only; flags e ingesta real apagados
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -82,9 +82,10 @@ La secuencia posterior queda bloqueada en este orden:
 10. P4C1: wrappers operativos de ingesta y purga con margen, pero ambos kill
     switches apagados y sin tráfico real;
 11. P4C2: scheduler, reintentos y observabilidad operativa genérica;
-12. P4C3: activación gradual bajo los dos kill switches, únicamente después de
-    cerrar secretos, retención, copy y gates de producción;
-13. P5: Admin, propiedad de su módulo y limitado a métricas promovidas.
+12. P5: lector y Admin limitados a métricas promovidas, desplegables en vacío
+    sin activar ingesta ni wiring;
+13. P4C3: activación gradual bajo los dos kill switches, únicamente después de
+    cerrar secretos, retención, copy y gates de producción.
 
 ### Alcance actual P1B
 
@@ -537,6 +538,39 @@ observarse ejecuciones reales verdes, comprobarse el secreto en producción y
 aceptarse el comportamiento ante fallos; hasta entonces la contribución sigue
 totalmente apagada.
 
+### Alcance actual P5
+
+P5 añade una única RPC `SECURITY DEFINER` sin argumentos y ejecutable solo por
+`service_role`. Su propietario dedicado conserva `NOLOGIN`, `NOBYPASSRLS` y
+`search_path` vacío. La RPC selecciona exclusivamente
+`expense_learning_private.closed_week_supported_metrics` y usa el tombstone
+`PROMOTED` correspondiente solo como prueba de cierre atómico. No devuelve
+campos del marker ni consulta consentimiento, links, claims, límites,
+memberships o accumulators. Tampoco concede `USAGE` sobre el esquema privado o
+privilegios directos de tabla a `service_role`, `anon` o `authenticated`.
+
+La salida se limita a la marginal promovida
+`HUMAN_REVIEW / NONE / VALUE`, semanas UTC ya cerradas y filas aún vigentes.
+Incluye versiones, grupo estructural, bucket exacto o `OTHER`, banda de soporte
+y tiempos deterministas de promoción/expiración. No contiene recuentos exactos,
+identidad, HMAC, proveedor, documento, campo extraído, importe o contenido. La
+API vuelve a validar forma, allowlist y exclusividad entre partición exacta y
+coarsening antes de responder; cualquier fila inesperada hace fallar la lectura
+completa con un error genérico.
+
+La superficie HTTP requiere sesión Admin y rate-limit distribuido. Reconstruye
+una respuesta cerrada y privada sin seleccionar la tabla mediante Data API. La
+vista separada de Admin muestra únicamente semana, grupo, revisión humana y
+banda de cohorte. No presenta estas señales como reglas activas, precisión del
+motor ni anonimización. Un estado vacío es válido mientras ingesta y wiring
+permanezcan apagados.
+
+P5 no modifica los kill switches, el consentimiento, el transporte, la
+promoción, el scheduler ni el resultado visible del escáner. Puede desplegarse
+antes de P4C3 porque no crea datos ni abre la captación. La activación gradual
+continúa bloqueada hasta cerrar revisión jurídica/copy, secretos, ejecución real
+verde de mantenimiento y autorización expresa de producción.
+
 ### Incentivo futuro separado
 
 Después de P4 se evaluará un bloque de producto independiente para cuentas que
@@ -680,12 +714,13 @@ diversidad de cuentas es una señal de soporte, no sustituto de estos controles.
 
 ### Admin
 
-Admin solo podrá leer métricas semanales promovidas que hayan superado la
-frontera anterior. Nunca leerá el acumulador protegido ni la semana abierta.
-Mostrará métricas agregadas por versión, grupo estructural y periodo: cobertura
-local, exactitud por campo, reconciliación matemática, fallback IA,
-abstenciones, falsos positivos críticos y evolución. No habrá vistas por
-proveedor, usuario o documento.
+Admin solo lee métricas semanales promovidas que hayan superado la frontera
+anterior. Nunca lee el acumulador protegido ni la semana abierta. La V1 muestra
+exclusivamente la marginal allowlisted de revisión humana por grupo estructural,
+semana y banda de soporte; las otras 66 coordenadas permanecen privadas. No hay
+vistas por proveedor, usuario o documento. Ampliar el panel a cobertura local,
+campos, matemática, fallback o flags requerirá una nueva evaluación de
+composición, migración y versión de contrato; no se deriva de P5.
 
 ## Consecuencias
 
