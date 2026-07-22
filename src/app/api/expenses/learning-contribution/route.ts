@@ -52,6 +52,20 @@ function unavailableResponse(): NextResponse {
   return privateJson({ error: "Aprendizaje no disponible" }, { status: 503 });
 }
 
+function receivedResponse(): Response {
+  return withPrivateHeaders(new Response(null, { status: 202 }));
+}
+
+function isTerminalSubmissionResult(value: unknown): boolean {
+  return (
+    value === "ACCEPTED" ||
+    value === "REPLAYED" ||
+    value === "NOT_CONSENTED" ||
+    value === "WITHDRAWAL_COOLDOWN" ||
+    value === "CAP_REACHED"
+  );
+}
+
 export async function POST(request: Request) {
   if (!routeIsEnabled()) return hiddenRouteResponse();
 
@@ -126,8 +140,10 @@ async function handleEnabledPost(request: Request) {
       })
       .abortSignal(controller.signal);
 
-    if (error || data !== "DISABLED") return unavailableResponse();
-    return unavailableResponse();
+    if (error || !isTerminalSubmissionResult(data)) {
+      return unavailableResponse();
+    }
+    return receivedResponse();
   } finally {
     clearTimeout(timeout);
   }

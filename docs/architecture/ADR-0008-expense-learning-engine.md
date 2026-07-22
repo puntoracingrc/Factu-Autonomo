@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: P4B con promoción privada one-shot; ingesta, scheduler, lectura y activación periódica apagados
+- Estado: P4C1 con primitivos operativos; flags, scheduler, lectura y activación periódica apagados
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -79,9 +79,12 @@ La secuencia posterior queda bloqueada en este orden:
 9. P4B: promoción privada y one-shot de una única marginal allowlisted de
    revisión humana, con coarsening completo y soporte por bandas; sin lectura,
    scheduler ni afirmación de anonimización;
-10. P4C: scheduler, reintentos, observabilidad genérica y activación gradual
-    bajo los dos kill switches;
-11. P5: Admin, propiedad de su módulo y limitado a métricas promovidas.
+10. P4C1: wrappers operativos de ingesta y purga con margen, pero ambos kill
+    switches apagados y sin tráfico real;
+11. P4C2: scheduler, reintentos y observabilidad operativa genérica;
+12. P4C3: activación gradual bajo los dos kill switches, únicamente después de
+    cerrar secretos, retención, copy y gates de producción;
+13. P5: Admin, propiedad de su módulo y limitado a métricas promovidas.
 
 ### Alcance actual P1B
 
@@ -471,6 +474,44 @@ respuesta genérica `PROMOTED`, `NOTHING` o `RETRY_REQUIRED`; no hay reader,
 Data API, Admin, endpoint, workflow, cron ni scheduler. Submit y los flags
 P3B/P3C continúan dormidos. Por tanto P4B instala capacidad privada, pero no
 activa ingesta, promoción periódica ni uso del resultado.
+
+### Alcance actual P4C1
+
+P4C1 vuelve operativos dos wrappers `service_role` sin activar todavía ningún
+flujo real. `submit_expense_learning_contribution_v1` conserva los límites y
+claims fail-closed, decodifica únicamente los dos HMAC hexadecimales canónicos
+de 32 bytes y delega en el core privado P3A/P4B. Solo admite los estados
+terminales cerrados `ACCEPTED`, `REPLAYED`, `NOT_CONSENTED`,
+`WITHDRAWAL_COOLDOWN` y `CAP_REACHED`; cualquier valor distinto aborta. No
+añade una RPC de lectura ni concede acceso directo al esquema privado.
+
+La API sigue oculta salvo que `EXPENSE_LEARNING_INGESTION_ENABLED` sea
+exactamente `true`. Cuando una petición habilitada alcanza un estado terminal,
+responde siempre `202` sin body: esa respuesta solo confirma que el intento
+terminó y no revela si se persistió, se deduplicó, faltaba consentimiento o se
+alcanzó un límite. `DISABLED`, un resultado desconocido o un error convergen en
+el mismo `503` genérico. El cliente no lee la respuesta, no reintenta y el flag
+público `NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED` permanece también
+apagado. P4C1 no modifica ninguna variable de entorno ni habilita tráfico en
+producción.
+
+La purga pública continúa sin argumentos y exclusiva de `service_role`, pero
+invoca el core P4A con un horizonte fijo de cuatro horas por delante del reloj
+de base de datos. Esto elimina antes del máximo contractual los claims, raw y
+métricas ya próximos a vencer, dejando margen para reintentos del scheduler.
+El margen es privado, inmutable y no configurable desde la petición. No cambia
+la elegibilidad fail-closed de links corruptos ni permite borrar markers con
+fuente o deuda.
+
+P4C1 todavía no instala cron, workflow, endpoint de mantenimiento ni alerta.
+Por tanto no demuestra cadencia continua ni garantiza por sí solo el borrado
+físico dentro de 24 horas, 35 días o 13 meses. P4C2 deberá ejecutar el
+mantenimiento con frecuencia menor que el margen, tratar `RETRY_REQUIRED` como
+fallo operativo, reintentar y alertar sin IDs, recuentos ni contenido. Solo
+después de aceptar retrasos y fallos reales podrá considerarse P4C3. El
+rollback de P4C1 es no destructivo: vuelve a `DISABLED`, restaura el reloj P4A
+sin margen y conserva cualquier dato protegido ya existente para que la purga
+service-only siga disponible.
 
 ### Incentivo futuro separado
 

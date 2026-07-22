@@ -56,6 +56,11 @@ const expenseLearningPromotionSql = {
   down:
     "supabase/rollbacks/20260722230000_expense_learning_promotion_p4b.down.sql",
 };
+const expenseLearningOperationsSql = {
+  up: "supabase/migrations/20260723010000_expense_learning_operations_p4c.sql",
+  down:
+    "supabase/rollbacks/20260723010000_expense_learning_operations_p4c.down.sql",
+};
 
 const requiredEnv = [
   "PHASE1_ACCEPTANCE_ALLOW_DESTRUCTIVE",
@@ -1067,8 +1072,8 @@ async function testExpenseLearningDataApi(admin, userA) {
     submitArgs,
   );
   expect(
-    opAllowed(submit) && submit.data === "DISABLED",
-    "expense learning submit stub was not safely disabled",
+    !opAllowed(submit),
+    "expense learning submit accepted a non-canonical contribution",
   );
   const purge = await admin.rpc("purge_expense_learning_retention_v1");
   expect(
@@ -1383,6 +1388,119 @@ async function setExpenseLearningConsent(admin, userId, granted, message) {
   return result;
 }
 
+async function testExpenseLearningP4cOperations(admin, users) {
+  expect(
+    expenseLearningP3RuntimeRowCount() === 0,
+    "P4C operational fixture did not start from empty protected storage",
+  );
+
+  const user = await createUser(admin, "learning_p4c_operations");
+  const userWithoutConsent = await createUser(
+    admin,
+    "learning_p4c_not_consented",
+  );
+  users.push(user, userWithoutConsent);
+  await setExpenseLearningConsent(
+    admin,
+    user.id,
+    true,
+    "P4C operational grant",
+  );
+
+  const claimHex = randomExpenseLearningHex();
+  const weekHmacHex = randomExpenseLearningHex();
+  const args = {
+    p_user_id: user.id,
+    p_contribution: expenseLearningCanonicalContribution(),
+    p_claim_token_digest: claimHex,
+    p_contributor_week_hmac: weekHmacHex,
+  };
+  const accepted = await admin.rpc(
+    "submit_expense_learning_contribution_v1",
+    args,
+  );
+  expect(
+    opAllowed(accepted) && accepted.data === "ACCEPTED",
+    "P4C public submit did not stage the canonical contribution",
+  );
+  expect(
+    expenseLearningP3TableCounts() === "1,1,67,67,0,1",
+    "P4C public submit wrote an unexpected protected row shape",
+  );
+  expectExpenseLearningP3Integrity(
+    "P4C public submit broke accumulator support integrity",
+  );
+
+  const replayed = await admin.rpc(
+    "submit_expense_learning_contribution_v1",
+    args,
+  );
+  expect(
+    opAllowed(replayed) && replayed.data === "REPLAYED",
+    "P4C public submit did not preserve one-shot replay semantics",
+  );
+  expect(
+    expenseLearningP3TableCounts() === "1,1,67,67,0,1",
+    "P4C replay duplicated protected storage",
+  );
+
+  const notConsented = await admin.rpc(
+    "submit_expense_learning_contribution_v1",
+    {
+      ...args,
+      p_user_id: userWithoutConsent.id,
+      p_claim_token_digest: randomExpenseLearningHex(),
+      p_contributor_week_hmac: randomExpenseLearningHex(),
+    },
+  );
+  expect(
+    opAllowed(notConsented) && notConsented.data === "NOT_CONSENTED",
+    "P4C public submit did not fail closed without consent",
+  );
+  expect(
+    expenseLearningP3TableCounts() === "1,1,67,67,0,1",
+    "P4C non-consented attempt wrote protected storage",
+  );
+
+  applyInlineSql(`
+    update expense_learning_private.contribution_claims
+    set expires_at = pg_catalog.clock_timestamp() + interval '3 hours'
+    where claim_token_digest = pg_catalog.decode('${claimHex}', 'hex');
+  `);
+  const purge = await admin.rpc("purge_expense_learning_retention_v1");
+  expect(
+    opAllowed(purge) && purge.data === "PURGED",
+    "P4C lookahead purge did not complete",
+  );
+  expect(
+    expenseLearningP3TableCounts() === "0,1,67,67,0,1",
+    "P4C four-hour lookahead did not remove only the near-expiry claim",
+  );
+
+  await setExpenseLearningConsent(
+    admin,
+    user.id,
+    false,
+    "P4C operational revoke",
+  );
+  expect(
+    expenseLearningP3RuntimeRowCount() === 0,
+    "P4C revoke did not clear all separable protected storage",
+  );
+
+  for (const syntheticUser of [user, userWithoutConsent]) {
+    const { error } = await admin.auth.admin.deleteUser(syntheticUser.id);
+    expect(
+      !error,
+      `could not delete P4C synthetic user ${syntheticUser.id}`,
+    );
+  }
+  expect(
+    expenseLearningConsentRowCount() === 0,
+    "P4C operational fixture left consent ledger rows",
+  );
+}
+
 function testExpenseLearningP3DatabaseBoundary() {
   expect(
     querySql(`
@@ -1589,6 +1707,7 @@ function testExpenseLearningP4DatabaseBoundary() {
           'reconcile_expense_learning_week_v1',
           'attempt_expense_learning_link_cleanup_v1',
           'run_expense_learning_retention_v1',
+          'expense_learning_retention_lookahead_v1',
           'expense_learning_support_band_v1',
           'is_expense_learning_promotion_source_safe_v1',
           'run_expense_learning_promotion_v1'
@@ -3118,18 +3237,19 @@ async function testExpenseLearningP4RepairAndRetention(admin, users) {
       ) === "0",
     "P4A did not purge an expired promoted metric",
   );
+  const invalidSubmit = await admin.rpc(
+    "submit_expense_learning_contribution_v1",
+    {
+      p_user_id: ttlUser.id,
+      p_contribution: {},
+      p_claim_token_digest: "a".repeat(64),
+      p_contributor_week_hmac: "b".repeat(64),
+    },
+  );
   expect(
     (await admin.rpc("promote_expense_learning_closed_weeks_v1")).data ===
-      "NOTHING" &&
-      (
-        await admin.rpc("submit_expense_learning_contribution_v1", {
-          p_user_id: ttlUser.id,
-          p_contribution: {},
-          p_claim_token_digest: "a".repeat(64),
-          p_contributor_week_hmac: "b".repeat(64),
-        })
-      ).data === "DISABLED",
-    "P4B changed the dormant submit or empty promotion behavior",
+      "NOTHING" && !opAllowed(invalidSubmit),
+    "P4C accepted an invalid submit or changed empty promotion behavior",
   );
   const { error: ttlDeleteError } = await admin.auth.admin.deleteUser(
     ttlUser.id,
@@ -4625,6 +4745,45 @@ async function testExpenseLearningP4Rollback(
   expect(!error, "could not delete P4A rollback user");
 }
 
+async function testExpenseLearningP4cRollback(
+  admin,
+  user,
+  initialP4bCatalogSnapshot,
+) {
+  applySql(expenseLearningOperationsSql.down);
+  expect(
+    expenseLearningP4CatalogSnapshot() === initialP4bCatalogSnapshot,
+    "P4C rollback did not restore the P4B catalog",
+  );
+  expect(
+    querySql(`
+      select pg_catalog.to_regprocedure(
+        'expense_learning_private.expense_learning_retention_lookahead_v1()'
+      ) is null;
+    `) === "t",
+    "P4C rollback retained the private retention lookahead",
+  );
+
+  const disabled = await admin.rpc(
+    "submit_expense_learning_contribution_v1",
+    {
+      p_user_id: user.id,
+      p_contribution: {},
+      p_claim_token_digest: "a".repeat(64),
+      p_contributor_week_hmac: "b".repeat(64),
+    },
+  );
+  expect(
+    opAllowed(disabled) && disabled.data === "DISABLED",
+    "P4C rollback did not restore the disabled submit wrapper",
+  );
+  const purge = await admin.rpc("purge_expense_learning_retention_v1");
+  expect(
+    opAllowed(purge) && purge.data === "PURGED",
+    "P4C rollback did not restore the P4A purge wrapper",
+  );
+}
+
 function testExpenseLearningP4bRollback(initialP4aCatalogSnapshot) {
   expectSqlFileFailure(
     expenseLearningPromotionSql.down,
@@ -5748,6 +5907,18 @@ async function main() {
   if (expenseLearningSchemaExists()) {
     if (
       querySql(`
+        select pg_catalog.to_regprocedure(
+          'expense_learning_private.expense_learning_retention_lookahead_v1()'
+        ) is not null;
+      `) === "t"
+    ) {
+      console.log(
+        "Resetting auto-applied empty expense learning P4C operations...",
+      );
+      applySql(expenseLearningOperationsSql.down);
+    }
+    if (
+      querySql(`
         select pg_catalog.to_regclass(
           'expense_learning_private.closed_week_promotion_batches'
         ) is not null;
@@ -5852,6 +6023,20 @@ async function main() {
     "expense learning promotion initial up/down/up changed catalog semantics",
   );
 
+  console.log("Validating expense learning operations P4C up -> down -> up...");
+  applySql(expenseLearningOperationsSql.up);
+  const expenseLearningP4cCatalog = expenseLearningP4CatalogSnapshot();
+  applySql(expenseLearningOperationsSql.down);
+  expect(
+    expenseLearningP4CatalogSnapshot() === expenseLearningP4bCatalog,
+    "expense learning operations rollback did not restore P4B",
+  );
+  applySql(expenseLearningOperationsSql.up);
+  expect(
+    expenseLearningP4CatalogSnapshot() === expenseLearningP4cCatalog,
+    "expense learning operations initial up/down/up changed catalog semantics",
+  );
+
   const admin = service();
   const userA = await createUser(admin, "a");
   const userB = await createUser(admin, "b");
@@ -5873,6 +6058,8 @@ async function main() {
     await testExpenseLearningP3ClaimRace(admin, users);
     console.log("Testing expense learning P3A account deletion races...");
     await testExpenseLearningP3AccountDeleteRaces(admin, users);
+    console.log("Testing expense learning P4C operational wrappers...");
+    await testExpenseLearningP4cOperations(admin, users);
     console.log("Testing expense learning P4A repair and retention...");
     await testExpenseLearningP4RepairAndRetention(admin, users);
     console.log("Testing expense learning P4B closed-week promotion...");
@@ -5884,6 +6071,11 @@ async function main() {
     expectSqlFileFailure(
       sqlFiles.down[0],
       "Stripe webhook ledger is not empty; rollback is unsafe",
+    );
+    await testExpenseLearningP4cRollback(
+      admin,
+      userA,
+      expenseLearningP4bCatalog,
     );
     testExpenseLearningP4bRollback(expenseLearningP4Catalog);
     await testExpenseLearningP4Rollback(admin, users, expenseLearningP4Catalog);
