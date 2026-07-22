@@ -6,6 +6,16 @@ import {
 } from "@/lib/server/rate-limit";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
+interface ErrorEventRow extends Record<string, unknown> {
+  user_id: string | null;
+}
+
+interface AdminErrorActor {
+  key: string;
+  kind: "user" | "system";
+  email: string | null;
+}
+
 function isMissingErrorEventsTable(error: { code?: string; message?: string }) {
   return (
     error.code === "42P01" ||
@@ -59,5 +69,48 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  return NextResponse.json({ errors: data ?? [], monitoringAvailable: true });
+  const rows = (data ?? []) as ErrorEventRow[];
+  const userIds = Array.from(
+    new Set(
+      rows
+        .map((row) => row.user_id)
+        .filter((userId): userId is string => Boolean(userId)),
+    ),
+  );
+  const actorsByUserId = new Map<string, AdminErrorActor>();
+
+  await Promise.all(
+    userIds.map(async (userId, index) => {
+      let email: string | null = null;
+      try {
+        const { data: userData, error: userError } =
+          await admin.auth.admin.getUserById(userId);
+        if (!userError) email = userData.user?.email ?? null;
+      } catch {
+        // Keep the event visible even if the account no longer resolves.
+      }
+      actorsByUserId.set(userId, {
+        key: `account-${index + 1}`,
+        kind: "user",
+        email,
+      });
+    }),
+  );
+
+  const errors = rows.map(({ user_id: userId, ...row }) => ({
+    ...row,
+    actor: userId
+      ? (actorsByUserId.get(userId) ?? {
+          key: "account-unavailable",
+          kind: "user" as const,
+          email: null,
+        })
+      : {
+          key: "system",
+          kind: "system" as const,
+          email: null,
+        },
+  }));
+
+  return NextResponse.json({ errors, monitoringAvailable: true });
 }
