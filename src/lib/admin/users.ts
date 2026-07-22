@@ -45,9 +45,38 @@ export interface AdminBanSnapshot {
 
 export interface AdminErrorSnapshot {
   count: number;
+  pendingCount: number;
+  resolvedCount: number;
+  archivedCount: number;
   latestAt: string | null;
   latestArea: string | null;
   latestMessage: string | null;
+}
+
+export function buildAdminErrorSnapshot(
+  rows: Array<Record<string, unknown>>,
+): AdminErrorSnapshot {
+  const orderedRows = [...rows].sort((left, right) =>
+    String(right.created_at ?? "").localeCompare(String(left.created_at ?? "")),
+  );
+  const pendingRows = orderedRows.filter(
+    (row) => !row.resolved_at && !row.archived_at,
+  );
+  const resolvedRows = orderedRows.filter(
+    (row) => Boolean(row.resolved_at) && !row.archived_at,
+  );
+  const archivedRows = orderedRows.filter((row) => Boolean(row.archived_at));
+  const latest = pendingRows[0] ?? resolvedRows[0] ?? archivedRows[0];
+
+  return {
+    count: orderedRows.length,
+    pendingCount: pendingRows.length,
+    resolvedCount: resolvedRows.length,
+    archivedCount: archivedRows.length,
+    latestAt: (latest?.created_at as string | null | undefined) ?? null,
+    latestArea: (latest?.area as string | null | undefined) ?? null,
+    latestMessage: (latest?.message as string | null | undefined) ?? null,
+  };
 }
 
 export interface AdminAiUsageSnapshot {

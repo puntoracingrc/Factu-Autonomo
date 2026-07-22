@@ -4,6 +4,7 @@ import {
   ageDaysFromIso,
   aiUnitsToScanCredits,
   buildAdminAiUsageSnapshot,
+  buildAdminErrorSnapshot,
   coerceAdminPlan,
   coerceAdminStatus,
   coerceNonNegativeInteger,
@@ -103,5 +104,32 @@ describe("admin users helpers", () => {
     expect(snapshot.extraUnits).toBe(Number.MAX_SAFE_INTEGER);
     expect(snapshot.totalRemainingUnits).toBe(Number.MAX_SAFE_INTEGER);
     expect(snapshot.percentRemaining).toBe(100);
+  });
+
+  it("separa incidencias pendientes, solucionadas y archivadas", () => {
+    expect(
+      buildAdminErrorSnapshot([
+        { created_at: "2026-07-22T09:00:00Z", area: "sync", message: "pending" },
+        {
+          created_at: "2026-07-22T08:00:00Z",
+          area: "sync",
+          message: "resolved",
+          resolved_at: "2026-07-22T10:00:00Z",
+        },
+        {
+          created_at: "2026-07-22T07:00:00Z",
+          area: "sync",
+          message: "archived",
+          resolved_at: "2026-07-22T08:00:00Z",
+          archived_at: "2026-07-22T11:00:00Z",
+        },
+      ]),
+    ).toMatchObject({
+      count: 3,
+      pendingCount: 1,
+      resolvedCount: 1,
+      archivedCount: 1,
+      latestMessage: "pending",
+    });
   });
 });

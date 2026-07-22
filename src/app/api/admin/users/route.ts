@@ -3,12 +3,12 @@ import { getAdminAccessFromRequest } from "@/lib/admin/server-access";
 import type { User } from "@supabase/supabase-js";
 import {
   ageDaysFromIso,
+  buildAdminErrorSnapshot,
   buildAdminAiUsageSnapshot,
   emptySubscription,
   normalizeAdminAiCreditUnits,
   providerLabel,
   type AdminBanSnapshot,
-  type AdminErrorSnapshot,
   type AdminPaymentSnapshot,
   type AdminSubscriptionSnapshot,
   type AdminUserRow,
@@ -82,23 +82,6 @@ function banFromRow(
         ? user.app_metadata.admin_ban_reason
         : null),
   };
-}
-
-function errorsFromRows(rows: Array<Record<string, unknown>>): AdminErrorSnapshot {
-  return rows.reduce<AdminErrorSnapshot>(
-    (acc, row) => ({
-      count: acc.count + 1,
-      latestAt: acc.latestAt ?? ((row.created_at as string | null) ?? null),
-      latestArea: acc.latestArea ?? ((row.area as string | null) ?? null),
-      latestMessage: acc.latestMessage ?? ((row.message as string | null) ?? null),
-    }),
-    {
-      count: 0,
-      latestAt: null,
-      latestArea: null,
-      latestMessage: null,
-    },
-  );
 }
 
 interface DatabaseErrorLike {
@@ -213,7 +196,7 @@ export async function GET(request: Request) {
       userIds.length
         ? admin
             .from("app_error_events")
-            .select("user_id,area,message,created_at")
+            .select("user_id,area,message,created_at,resolved_at,archived_at")
             .in("user_id", userIds)
             .order("created_at", { ascending: false })
         : Promise.resolve({ data: [] }),
@@ -277,7 +260,7 @@ export async function GET(request: Request) {
       ),
       payments: paymentFromRows(paymentsByUser.get(user.id) ?? []),
       ban: banFromRow(user, controlsByUser.get(user.id)),
-      errors: errorsFromRows(errorsByUser.get(user.id) ?? []),
+      errors: buildAdminErrorSnapshot(errorsByUser.get(user.id) ?? []),
     };
   });
 
