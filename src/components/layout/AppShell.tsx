@@ -46,6 +46,10 @@ import {
 } from "@/components/layout/app-navigation";
 import { AppNavigationFeedback } from "@/components/layout/AppNavigationFeedback";
 import type { PendingAppNavigation } from "@/components/layout/app-navigation-feedback";
+import {
+  applyResolvedAppTheme,
+  cacheAppThemePreference,
+} from "@/lib/app-theme-bootstrap";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -99,17 +103,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!ready) return;
+
     const root = document.documentElement;
+    cacheAppThemePreference(appPreferences.theme);
     root.dataset.appTheme = resolvedTheme;
+    applyResolvedAppTheme(resolvedTheme);
     root.dataset.appDensity = appPreferences.density;
     root.dataset.reduceMotion = appPreferences.reduceMotion ? "true" : "false";
+  }, [
+    appPreferences.density,
+    appPreferences.reduceMotion,
+    appPreferences.theme,
+    ready,
+    resolvedTheme,
+  ]);
 
-    return () => {
-      delete root.dataset.appTheme;
+  useEffect(
+    () => () => {
+      const root = document.documentElement;
       delete root.dataset.appDensity;
       delete root.dataset.reduceMotion;
-    };
-  }, [appPreferences.density, appPreferences.reduceMotion, resolvedTheme]);
+    },
+    [],
+  );
 
   useEffect(() => {
     setFactuDismissed(isFactuWidgetDismissed());
