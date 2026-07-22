@@ -1,0 +1,61 @@
+name: Expense Learning Maintenance
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: expense-learning-maintenance
+  cancel-in-progress: false
+
+jobs:
+  maintain:
+    name: Maintain protected learning storage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Run protected expense learning maintenance
+        env:
+          EXPENSE_LEARNING_MAINTENANCE_CRON_SECRET: ${{ secrets.SECURITY_HEALTH_CRON_SECRET }}
+          EXPENSE_LEARNING_MAINTENANCE_URL: https://facturacion-autonomos.app/api/expenses/learning-maintenance
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${EXPENSE_LEARNING_MAINTENANCE_CRON_SECRET}" ]]; then
+            echo "::error::Expense learning maintenance secret is not configured."
+            exit 1
+          fi
+
+          response_file="$(mktemp)"
+          trap 'rm -f "${response_file}"' EXIT
+
+          for attempt in 1 2 3; do
+            http_code="$(curl \
+              --silent \
+              --show-error \
+              --output "${response_file}" \
+              --write-out "%{http_code}" \
+              --max-time 70 \
+              --request POST \
+              --header "Authorization: Bearer ${EXPENSE_LEARNING_MAINTENANCE_CRON_SECRET}" \
+              "${EXPENSE_LEARNING_MAINTENANCE_URL}" || true)"
+
+            if [[ "${http_code}" == "200" ]] && \
+              jq -e 'type == "object" and keys == ["ok"] and .ok == true' \
+                "${response_file}" >/dev/null; then
+              echo "Expense learning maintenance completed."
+              exit 0
+            fi
+
+            if [[ "${attempt}" != "3" ]]; then
+              sleep 20
+            fi
+          done
+
+          echo "::error::Expense learning maintenance requires attention."
+          exit 1
