@@ -1189,6 +1189,13 @@ describe("MVP usability polish", () => {
       new URL("../app/productos/page.tsx", import.meta.url),
       "utf8",
     );
+    const structureManagerSource = readFileSync(
+      new URL(
+        "../components/products/ProductCatalogStructureManager.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
     const newProductPageSource = readFileSync(
       new URL("../app/productos/nuevo/page.tsx", import.meta.url),
       "utf8",
@@ -1202,31 +1209,27 @@ describe("MVP usability polish", () => {
     expect(typesSource).toContain("subfamily?: string");
     expect(purchaseProductsSource).toContain("subfamily: catalogProduct?.subfamily");
     expect(purchaseProductsSource).toContain("subfamily: product.subfamily");
-    expect(productsPageSource).toContain("Nuevo");
-    expect(productsPageSource).toContain("Renombrar");
-    expect(productsPageSource).toContain("actionMenuOpen");
-    expect(productsPageSource).toContain("closeMenuOnOutsideClick");
-    expect(productsPageSource).toContain("closeMenuOnEscape");
-    expect(productsPageSource).toContain(
-      'aria-expanded={actionMenuOpen === "new"}',
+    expect(productsPageSource).toContain("ProductCatalogStructureManager");
+    expect(productsPageSource).toContain("Organizar catálogo");
+    expect(structureManagerSource).toContain("Nueva familia");
+    expect(structureManagerSource).toContain("Nueva subfamilia");
+    expect(structureManagerSource).toContain('kind: "rename_family"');
+    expect(structureManagerSource).toContain('kind: "merge_family"');
+    expect(structureManagerSource).toContain('kind: "rename_subfamily"');
+    expect(structureManagerSource).toContain('kind: "merge_subfamily"');
+    expect(structureManagerSource).toContain(
+      "Ningún producto ni compra se borrará",
     );
-    expect(productsPageSource).toContain("saveProductSubfamily");
     expect(productsPageSource).toContain("SubfamilyEntry");
     expect(productsPageSource).toContain("selectedFamilySubfamilies");
-    expect(productsPageSource).toContain("Elige familia primero");
     expect(productsPageSource).toContain("NO_SUBFAMILY");
     expect(productsPageSource).toContain("Sin subfamilia");
     expect(productsPageSource).toContain("defaultSubfamilyForFamily");
-    expect(productsPageSource).toContain("Ver estructura");
-    expect(productsPageSource).toContain("Familias y subfamilias");
+    expect(productsPageSource).toContain("applyProductCatalogStructure");
     expect(productsPageSource).toContain("applyFamilyStructureFilter");
-    expect(productsPageSource).toContain("deleteFamilyFromStructure");
-    expect(productsPageSource).toContain("deleteSubfamilyFromStructure");
-    expect(productsPageSource).toContain("No se borrará ningún producto.");
-    expect(productsPageSource).toContain("pasarán a Sin familia");
     expect(productsPageSource).toContain("supplierStructureOpen");
     expect(productsPageSource).toContain("applySupplierStructureFilter");
-    expect(productsPageSource).toContain("Dentro de la familia");
+    expect(productsPageSource).toContain("Mover productos");
     expect(productsPageSource).toContain("bulkSubfamilyDraft");
     expect(productsPageSource).toContain('label="Subfamilia"');
     expect(newProductPageSource).toContain("new-product-subfamily-options");

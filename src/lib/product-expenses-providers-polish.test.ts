@@ -43,7 +43,11 @@ describe("product expenses/providers polish wiring", () => {
 
     expect(productsPage).toContain("renameProductFamilyInStore(");
     expect(productsPage).toContain("La regla de margen se ha conservado");
+    expect(productsPage).toContain("runCatalogStructureOperation(");
+    expect(productsPage).toContain("applyProductCatalogStructure(");
+    expect(productsPage).toContain("moveSelectedProducts");
     expect(store).toContain("renameProductFamilyInAppData(");
+    expect(store).toContain("applyProductCatalogStructureOperation(");
     expect(store).toContain("if (result.ok) setAppData(result.data)");
   });
 
