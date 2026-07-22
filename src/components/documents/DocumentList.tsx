@@ -1,8 +1,16 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Download, FileWarning, Pencil, Search, Send } from "lucide-react";
+import {
+  Download,
+  FileWarning,
+  LoaderCircle,
+  Pencil,
+  Search,
+  Send,
+} from "lucide-react";
 import { IconActionLink } from "@/components/ui/IconAction";
 import { FactuEmptyState } from "@/components/factu/FactuEmptyState";
 import { DeleteDocumentButton } from "@/components/documents/DeleteDocumentButton";
@@ -10,7 +18,6 @@ import { ConvertQuoteToInvoiceButton } from "@/components/documents/ConvertQuote
 import { DocumentLinkManagerButton } from "@/components/documents/DocumentLinkManagerButton";
 import { DocumentRelationshipFlow } from "@/components/documents/DocumentRelationshipFlow";
 import { selectDocumentRelationshipPresentationItems } from "@/components/documents/document-relationship-presentation";
-import { InvoiceRelationshipWorkspace } from "@/components/documents/InvoiceRelationshipWorkspace";
 import { DocumentPdfShareActions } from "@/components/documents/DocumentPdfShareActions";
 import { SendMethodChooserModal } from "@/components/documents/SendMethodChooserModal";
 import { DuplicateDocumentButton } from "@/components/documents/DuplicateDocumentButton";
@@ -50,15 +57,14 @@ import {
   sortDocumentsByNumberDesc,
   sortInvoicesByPeriodAndNumberDesc,
 } from "@/lib/documents";
+import type {
+  InvoicePdfDocumentSelection,
+} from "@/lib/billing/export-invoice-pdf-archive";
 import {
-  downloadInvoicePdfPeriodArchive,
-  downloadInvoicePdfSelectionArchive,
   invoicePdfExportPackagePeriodLabel,
   invoicePdfExportPeriodFromQuarter,
-  InvoicePdfPeriodExportError,
-  type InvoicePdfDocumentSelection,
   type InvoicePdfExportPeriod,
-} from "@/lib/billing/export-invoice-pdf-archive";
+} from "@/lib/billing/invoice-pdf-export-period";
 import { buildInvoiceCustomerEmail } from "@/lib/billing/invoice-customer-email";
 import { selectCanonicalFiscalDocumentsForExport } from "@/lib/billing/fiscal-export-documents";
 import {
@@ -120,6 +126,28 @@ import type {
   DocumentEmailSendPreference,
   DocumentType,
 } from "@/lib/types";
+
+const InvoiceRelationshipWorkspace = dynamic(
+  () =>
+    import("@/components/documents/InvoiceRelationshipWorkspace").then(
+      (module) => module.InvoiceRelationshipWorkspace,
+    ),
+  {
+    loading: () => (
+      <div
+        role="status"
+        aria-live="polite"
+        className="flex min-h-28 items-center justify-center gap-2 border-t border-slate-200 px-4 py-6 text-sm font-semibold text-slate-600 dark:border-slate-700 dark:text-slate-300"
+      >
+        <LoaderCircle
+          aria-hidden="true"
+          className="h-5 w-5 animate-spin text-blue-600 dark:text-blue-300"
+        />
+        <span>Abriendo relaciones...</span>
+      </div>
+    ),
+  },
+);
 
 const SEARCH_PLACEHOLDERS: Record<DocumentType, string> = {
   factura: "Número, cliente, NIF, dirección o importe...",
@@ -532,14 +560,19 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
       : null;
     setInvoicePdfExportFeedback(null);
     setInvoicePdfExportBusy(emailTarget ?? "download");
+    let invoicePdfArchive: typeof import("@/lib/billing/export-invoice-pdf-archive") | null =
+      null;
     try {
+      invoicePdfArchive = await import(
+        "@/lib/billing/export-invoice-pdf-archive"
+      );
       const result = invoiceExportScope.selection
-        ? await downloadInvoicePdfSelectionArchive(
+        ? await invoicePdfArchive.downloadInvoicePdfSelectionArchive(
             data.documents,
             data.profile,
             invoiceExportScope.selection,
           )
-        : await downloadInvoicePdfPeriodArchive(
+        : await invoicePdfArchive.downloadInvoicePdfPeriodArchive(
             data.documents,
             data.profile,
             invoicePdfExportPeriod!,
@@ -596,16 +629,21 @@ export function DocumentList({ type, basePath }: DocumentListProps) {
       }
       const nativeShareUnavailable =
         error instanceof NativeDocumentShareUnavailableError;
+      const periodExportError =
+        invoicePdfArchive !== null &&
+        error instanceof invoicePdfArchive.InvoicePdfPeriodExportError
+          ? error
+          : null;
       if (nativeShareUnavailable) {
         setRememberInvoiceEmailMethod(true);
         if (emailTarget) setInvoiceEmailTarget(emailTarget);
       }
       const message = nativeShareUnavailable
         ? "El ZIP se ha descargado, pero Compartir no pudo abrirse. Elige Gmail o Correo del dispositivo."
-        : error instanceof InvoicePdfPeriodExportError
-          ? error.documentReferences.length > 0
-            ? `${error.message} Documentos: ${error.documentReferences.join(", ")}.`
-            : error.message
+        : periodExportError
+          ? periodExportError.documentReferences.length > 0
+            ? `${periodExportError.message} Documentos: ${periodExportError.documentReferences.join(", ")}.`
+            : periodExportError.message
           : "No se pudo preparar el paquete de facturas. No se ha descargado un archivo incompleto.";
       setInvoicePdfExportFeedback({ kind: "error", message });
     } finally {

@@ -1,15 +1,10 @@
 "use client";
 
-import { Download, Eye, Printer } from "lucide-react";
+import { Download, Eye, LoaderCircle, Printer } from "lucide-react";
 import { useState } from "react";
 import { DocumentShareActions } from "@/components/documents/DocumentShareActions";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { useBilling } from "@/context/BillingContext";
-import {
-  downloadDocumentPdf,
-  openDocumentPdfPreview,
-  printDocumentPdf,
-} from "@/lib/pdf";
 import { canShareDocumentFromList } from "@/lib/document-integrity/share-flow";
 import { isUsableLegacyImportedDocument } from "@/lib/document-integrity/legacy-import-attestation";
 import type { BusinessProfile, Document } from "@/lib/types";
@@ -21,6 +16,15 @@ interface DocumentPdfShareActionsProps {
   showPreview?: boolean;
 }
 
+function reservePdfActionWindow(title: string): Window {
+  const opened = window.open("", "_blank");
+  if (!opened) throw new Error("popup_blocked");
+
+  opened.document.title = title;
+  opened.document.body.textContent = "Generando PDF...";
+  return opened;
+}
+
 export function DocumentPdfShareActions({
   doc,
   profile,
@@ -29,6 +33,7 @@ export function DocumentPdfShareActions({
 }: DocumentPdfShareActionsProps) {
   const { billingEnabled, isPro } = useBilling();
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [downloadLoading, setDownloadLoading] = useState(false);
   const [printLoading, setPrintLoading] = useState(false);
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const canShare = canShareDocumentFromList(doc);
@@ -51,9 +56,13 @@ export function DocumentPdfShareActions({
 
   async function handlePdfPreview() {
     setPreviewLoading(true);
+    let opened: Window | null = null;
     try {
-      await openDocumentPdfPreview(doc, profile, pdfOptions);
+      opened = reservePdfActionWindow(`Vista previa ${doc.number}`);
+      const { openDocumentPdfPreview } = await import("@/lib/pdf");
+      await openDocumentPdfPreview(doc, profile, pdfOptions, opened);
     } catch {
+      opened?.close();
       alert(
         "No se pudo abrir el PDF. Permite ventanas emergentes o descárgalo.",
       );
@@ -62,11 +71,25 @@ export function DocumentPdfShareActions({
     }
   }
 
+  async function handlePdfDownload() {
+    setDownloadLoading(true);
+    try {
+      const { downloadDocumentPdf } = await import("@/lib/pdf");
+      await downloadDocumentPdf(doc, profile, pdfOptions);
+    } finally {
+      setDownloadLoading(false);
+    }
+  }
+
   async function handlePrint() {
     setPrintLoading(true);
+    let opened: Window | null = null;
     try {
-      await printDocumentPdf(doc, profile, pdfOptions);
+      opened = reservePdfActionWindow(`Imprimir ${doc.number}`);
+      const { printDocumentPdf } = await import("@/lib/pdf");
+      await printDocumentPdf(doc, profile, pdfOptions, opened);
     } catch {
+      opened?.close();
       alert(
         "No se pudo preparar la impresión del PDF. Permite ventanas emergentes o descárgalo.",
       );
@@ -85,16 +108,25 @@ export function DocumentPdfShareActions({
           disabled={previewLoading}
           className="bg-slate-100 text-slate-700 hover:bg-slate-200"
         >
-          <Eye className="h-5 w-5" />
+          {previewLoading ? (
+            <LoaderCircle className="h-5 w-5 animate-spin" />
+          ) : (
+            <Eye className="h-5 w-5" />
+          )}
         </IconActionButton>
       )}
       <IconActionButton
-        label="PDF"
+        label={downloadLoading ? "Preparando PDF" : "PDF"}
         tooltip="Descargar PDF"
-        onClick={() => void downloadDocumentPdf(doc, profile, pdfOptions)}
+        onClick={() => void handlePdfDownload()}
+        disabled={downloadLoading}
         className="bg-blue-50 text-blue-700 hover:bg-blue-100"
       >
-        <Download className="h-5 w-5" />
+        {downloadLoading ? (
+          <LoaderCircle className="h-5 w-5 animate-spin" />
+        ) : (
+          <Download className="h-5 w-5" />
+        )}
       </IconActionButton>
       <IconActionButton
         label="Imprimir"
@@ -103,7 +135,11 @@ export function DocumentPdfShareActions({
         disabled={printLoading}
         className="bg-slate-100 text-slate-700 hover:bg-slate-200"
       >
-        <Printer className="h-5 w-5" />
+        {printLoading ? (
+          <LoaderCircle className="h-5 w-5 animate-spin" />
+        ) : (
+          <Printer className="h-5 w-5" />
+        )}
       </IconActionButton>
       {canShare && (
         <DocumentShareActions

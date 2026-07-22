@@ -13,7 +13,6 @@ import { isValidCustomerEmail } from "./customers";
 import { isCollectedDocument } from "./income";
 import { issuerDisplayName } from "./issuer-snapshot";
 import { isRectificativa } from "./rectificativas";
-import { buildDocumentPdfBlob, downloadDocumentPdf } from "./pdf";
 import type { DocumentPdfOptions } from "./pdf";
 
 function documentTypeLabel(doc: Document): string {
@@ -154,6 +153,7 @@ async function pdfFile(
   profile: BusinessProfile,
   pdfOptions?: DocumentPdfOptions,
 ): Promise<File> {
+  const { buildDocumentPdfBlob } = await import("./pdf");
   const blob = await buildDocumentPdfBlob(doc, profile, pdfOptions);
   return new File([blob], `${doc.number}.pdf`, { type: "application/pdf" });
 }
@@ -249,6 +249,7 @@ async function downloadPdfBeforeExternalClient(
   profile: BusinessProfile,
   pdfOptions?: DocumentPdfOptions,
 ): Promise<void> {
+  const { downloadDocumentPdf } = await import("./pdf");
   await downloadDocumentPdf(doc, profile, pdfOptions);
 }
 

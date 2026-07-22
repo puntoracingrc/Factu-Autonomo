@@ -17,7 +17,6 @@ import {
 import { documentWithCurrentCustomerContact } from "@/lib/document-client-contact";
 import { shareDocumentWithIntegrity } from "@/lib/document-integrity/share-flow";
 import { showFactuToast } from "@/lib/factu/occasional";
-import { downloadDocumentPdf } from "@/lib/pdf";
 import {
   canShareDocumentPdfNatively,
   hasClientEmail,
@@ -193,6 +192,7 @@ export function DocumentShareActions({
               externalWindow,
             );
             if (!opened) throw new Error("email_open_failed");
+            const { downloadDocumentPdf } = await import("@/lib/pdf");
             await downloadDocumentPdf(current, profile, pdfOptions);
             return;
           }
@@ -245,6 +245,7 @@ export function DocumentShareActions({
               externalWindow,
             );
             if (!opened) throw new Error("whatsapp_open_failed");
+            const { downloadDocumentPdf } = await import("@/lib/pdf");
             await downloadDocumentPdf(current, profile, pdfOptions);
             return;
           }
