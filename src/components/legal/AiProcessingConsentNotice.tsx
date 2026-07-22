@@ -72,10 +72,6 @@ export function AiProcessingConsentNotice({
           {contextNote ? (
             <p className="text-sm leading-relaxed">{contextNote}</p>
           ) : null}
-          <p className="text-sm leading-relaxed">
-            En cuentas autorizadas de aprendizaje, las correcciones pueden
-            guardar solo patrones técnicos limpios para mejorar lecturas futuras.
-          </p>
           <p className="text-xs">
             Más detalle en{" "}
             <Link href="/legal/privacidad" className="font-semibold underline">
