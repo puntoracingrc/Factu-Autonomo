@@ -1,6 +1,6 @@
 # ADR-0008: Motor local de lectura y aprendizaje de gastos
 
-- Estado: aceptado para implementación incremental
+- Estado: P1A aceptado; transporte, persistencia, promoción y lectura pendientes
 - Fecha: 2026-07-21
 - Ámbito: lectura de facturas y tickets recibidos, modo sombra, aprendizaje estructural y métricas agregadas
 
@@ -17,6 +17,54 @@ Ese 100 % no demuestra precisión universal: el corpus es generado y puede compa
 El aprendizaje anterior de Admin (`ai_learning_events`) está limitado a cuentas concretas y conserva identidad de cuenta y rasgos de negocio. No cumple la frontera de privacidad de este motor y no se reutilizará.
 
 ## Decisión
+
+### Alcance actual P1A
+
+P1A congela únicamente dos contratos puros: la decisión versionada de
+consentimiento y la proyección de una observación del motor a categorías
+acotadas. No crea API, almacenamiento, migración, lectura, promoción, interfaz
+ni conexión con el modo sombra. Los contratos no importan readers, proveedores,
+red o persistencia y cualquier `learningHints` distinto de `null` bloquea la
+contribución.
+
+La proyección sustituye `structuralArchetypeId` por
+`structuralArchetypeGroup`, con cuatro valores de baja cardinalidad:
+`TABLE`, `SUMMARY`, `OTHER` y `UNKNOWN`. No conserva tipo de documento,
+valores de campos ni identificadores. Las versiones de schema, motor y política
+son constantes cerradas; el servidor futuro asignará periodo, recuentos y
+tiempos. Cada categoría aceptada solo podrá producir un incremento unitario
+asignado por el servidor; el body no podrá declarar ni multiplicar
+`sampleCount`.
+
+La contribución V1 tiene una matriz canónica versionada de 67 coordenadas: nueve
+estados singleton, catorce veredictos de campo para cada una de las tres parejas,
+seis checks matemáticos con veredicto y residual, y cuatro flags críticos con
+presencia o `NOT_OBSERVED` explícitos. El parser exige exactamente esa matriz,
+rechaza coordenadas ausentes, añadidas, duplicadas o contradictorias y reconstruye
+un orden determinista. Una observación parcial se proyecta como `ABSTAINED` o
+`INSUFFICIENT`/`UNKNOWN`; la ausencia nunca se interpreta como acierto ni como
+cero.
+
+`EXTRA` significa que el candidato contiene un campo que la referencia no
+contiene. Es una corrección explícita, nunca un `MATCH`, y solo se acepta en
+triples relacionales compatibles entre local, IA y revisión humana. Los flags
+críticos derivables se reconstruyen desde esos veredictos y la matemática
+canónica; el builder no depende de que el productor repita correctamente una
+señal redundante. `CREDIT_SIGN_CORRECTED` queda reservado y no agregable en
+P1A: el builder siempre emite `NOT_OBSERVED` y el parser rechaza `PRESENT`. Una
+fase futura necesitará una coordenada categórica probatoria dedicada que
+demuestre la corrección del signo de un abono antes de habilitar esa métrica;
+ni el tipo documental ni un check matemático genérico bastan. La matriz y sus
+cardinalidades se declaran como datos inertes: los módulos P1A no ejecutan
+llamadas, constructores ni mutaciones al importarse.
+
+La secuencia posterior queda bloqueada en este orden:
+
+1. P1B: store, migración y RPC con la feature apagada;
+2. P2: consentimiento durable, UI y endpoints, todavía sin contribuciones;
+3. P3: ingesta, staging, deduplicación y wiring con kill switch apagado;
+4. P4: batch, promoción y retención;
+5. P5: Admin, propiedad de su módulo y limitado a métricas promovidas.
 
 ### Separación de dominios
 
@@ -47,6 +95,11 @@ La misma llamada que hoy extrae el gasto podrá devolver un envelope interno con
 
 No se hará una segunda llamada para aprendizaje. Los hints inválidos se descartan completos sin invalidar un gasto legible. El navegador, la API pública y el buzón siguen recibiendo solo el gasto.
 
+Los hints no forman parte del contrato P1A de contribución. Aunque el envelope
+interno de IA los valide, su futuro emparejamiento con una revisión humana exige
+otro diseño. P1A solo admite `learningHints: null` para demostrar que esa vía
+permanece desactivada.
+
 ### Aprendizaje permitido
 
 El motor puede acumular únicamente señales categóricas y agregables:
@@ -59,11 +112,69 @@ El motor puede acumular únicamente señales categóricas y agregables:
 - conciliación matemática por estado y bucket de diferencia;
 - abstenciones, fallback IA y flags críticos.
 
-Se prohíben PDF, imagen, OCR o texto bruto, cabeceras libres, nombre de archivo, proveedor, usuario, email, NIF, dirección, cuenta bancaria, número de factura, IDs opacos, hashes del documento e importes o porcentajes exactos.
+Se prohíben PDF, imagen, OCR o texto bruto, cabeceras libres, nombre de archivo, proveedor, usuario, email, NIF, dirección, cuenta bancaria, número de factura, IDs opacos, hashes del documento e importes o porcentajes exactos. También se prohíbe que el futuro body acepte `owner`, `tenant`, periodo, semana, `sampleCount`, timestamps o versiones libres. Una clave desconocida, getter, array sobredimensionado o valor fuera del enum invalida el contrato completo.
 
-La autenticación puede autorizar y limitar la aportación, pero la identidad no se almacena en la observación. La persistencia será agregada por periodo, versión y arquetipo; no habrá historial por documento o persona. Las celdas con soporte insuficiente permanecerán ocultas y nunca activarán reglas.
+P1A no persiste ni envía la proyección. La autenticación futura podrá autorizar y limitar una aportación, pero la identidad no formará parte de la contribución ni del agregado. Que una estructura carezca de identificadores directos no permite denominarla anónima: la sesión, la hora, los logs operativos, las celdas raras y el análisis por diferencias pueden seguir permitiendo aislamiento o correlación.
+
+El navegador es un **cliente no confiable**. Puede alterar la observación,
+automatizar envíos o coordinar cuentas antes de que el servidor la reciba. Por
+tanto, el contrato categórico limita forma y cardinalidad, pero no acredita la
+procedencia, la honestidad ni la independencia de una contribución. P1A no abre
+un endpoint y ninguna fase posterior podrá tratar un body validado como verdad
+del motor sin controles server-side separados.
 
 El consentimiento para enviar un documento a IA y la contribución para mejorar el motor son finalidades distintas. La contribución requerirá información específica y una decisión separada antes de persistir cualquier observación.
+
+### Frontera de privacidad futura
+
+El diseño distingue tres estados y mantiene su semántica separada:
+
+1. **ingesta autenticada minimizada y desidentificada**: sigue siendo un
+   tratamiento protegido y no se denomina anónimo;
+2. **acumulador protegido y exclusivo de servicio**: no es legible por Admin ni
+   por el navegador, conserva solo lo imprescindible para deduplicar, limitar y
+   retirar aportaciones todavía separables;
+3. **métrica semanal cerrada con soporte mínimo**: solo puede nacer en batch,
+   después de superar los controles versionados de diversidad y
+   reidentificación.
+
+El acumulador y cualquier deduplicación seudonimizada tendrán un TTL máximo de
+35 días. Las métricas promovidas tendrán un TTL máximo de 13 meses, decisión
+provisional de producto para cubrir un ciclo anual y un mes de solape; no es
+una conclusión jurídica. La semana abierta nunca será publicable.
+
+La promoción exige al menos 10 aportantes distintos. Diez documentos no son
+suficientes y una cuenta no puede alcanzar el umbral aportando muchos gastos.
+El mecanismo futuro debe aplicar contribution bounding. Las celdas raras se
+fusionarán únicamente en categorías cerradas `OTHER`; si el grupo resultante
+sigue por debajo de 10 aportantes distintos, se descarta. Este umbral no
+demuestra por sí solo anonimización ni autoriza una regla del motor.
+
+10 aportantes distintos no demuestra humanidad ni independencia: ataques de
+**poisoning**, **Sybil**, múltiples cuentas y **collusion** pueden sesgar una
+celda aun superando `k=10`. El diseño posterior debe limitar por cuenta, semana
+y celda; aplicar deduplicación temporal y rate-limit; detectar automatización,
+replay y abuso; y separar las señales de diversidad de las de confianza. Estas
+medidas son mitigaciones y no una prueba de anonimato, independencia o calidad.
+
+No habrá lectura incremental, `updated_at` por celda visible ni snapshots que
+permitan reconstruir una aportación mediante differencing. Antes de cualquier
+lectura o promoción se evaluarán expresamente **singling-out**, **linkability**
+e **inference**. También deberá decidirse de forma versionada entre mayor
+coarsening/batch o privacidad diferencial; no se añadirá ruido ad hoc.
+
+La deduplicación futura usará un token aleatorio o HMAC separado, de un solo uso
+y TTL corto, reclamado transaccionalmente. Ese token nunca entra en la
+observación ni en el agregado y, mientras sea separable, se trata como dato
+seudonimizado. Retirar el consentimiento detiene aportaciones futuras y purga
+lo todavía separable. Solo una métrica ya promovida tras una prueba real de
+anonimización puede quedar no separable; este límite se informará antes del
+opt-in. El historial mínimo necesario para demostrar el consentimiento se
+decidirá por separado y no se resuelve borrando sin más toda evidencia.
+
+Ante replay, abuso, incoherencia, procedencia dudosa o fallo de cualquier gate,
+la observación **no contribuye ni promueve**. El token de un solo uso solo evita
+una repetición concreta; no resuelve Sybil, collusion ni poisoning.
 
 ### Matemática
 
@@ -81,9 +192,19 @@ Datos ausentes producen `INSUFFICIENT`, nunca cero. Se reutiliza la tolerancia m
 
 Una regla nueva empieza como candidata y permanece en sombra. Solo puede activarse mediante una política versionada que exija soporte diverso, holdout no usado para crear la regla, ausencia de regresiones críticas y posibilidad de rollback. La IA y una sola confirmación humana no pueden promoverla por sí solas.
 
+Ninguna métrica agregada modifica por sí sola reglas, extractores o modelos. La
+promoción exige revisión separada, holdout independiente, gates de precisión y
+falsos positivos, regresiones críticas verdes y un kill switch operativo. La
+diversidad de cuentas es una señal de soporte, no sustituto de estos controles.
+
 ### Admin
 
-Admin mostrará métricas agregadas por versión, arquetipo y periodo: cobertura local, exactitud por campo, reconciliación matemática, fallback IA, coste evitado, abstenciones, falsos positivos críticos y evolución. No habrá vistas por proveedor, usuario o documento.
+Admin solo podrá leer métricas semanales promovidas que hayan superado la
+frontera anterior. Nunca leerá el acumulador protegido ni la semana abierta.
+Mostrará métricas agregadas por versión, grupo estructural y periodo: cobertura
+local, exactitud por campo, reconciliación matemática, fallback IA,
+abstenciones, falsos positivos críticos y evolución. No habrá vistas por
+proveedor, usuario o documento.
 
 ## Consecuencias
 
@@ -92,7 +213,19 @@ Admin mostrará métricas agregadas por versión, arquetipo y periodo: cobertura
 - PDF digital aportará valor antes que imágenes; el OCR neutral se incorpora después de demostrar que Notificaciones conserva paridad.
 - El corpus sintético existente se divide en desarrollo, validación y holdout para evitar medir con los mismos ejemplos que moldean las reglas.
 - Cualquier fallo de límites, OCR, estructura, matemática o política termina en abstención y revisión humana.
+- P1A no reduce coste ni recopila aprendizaje: solo impide que fases posteriores
+  inventen un body más amplio o confundan desidentificación con anonimización.
 
 ## Sistemas fuera de alcance
 
 Este ADR no modifica documentos emitidos, VeriFactu, snapshots, sellos, fiscal notifications, Drive, sincronización cloud, billing, asientos, declaraciones ni deducibilidad automática.
+
+## Referencias de diseño
+
+- [RGPD, artículos 5, 7 y 25 (BOE)](https://www.boe.es/buscar/doc.php?id=DOUE-L-2016-80807).
+- [AEPD: protección de datos desde el diseño](https://www.aepd.es/derechos-y-deberes/cumple-tus-deberes/medidas-de-cumplimiento/proteccion-de-datos-desde-el-diseno).
+- [AEPD: guía básica de anonimización](https://www.aepd.es/documento/guia-basica-anonimizacion.pdf).
+- [EDPB Guidelines 02/2026 on Anonymisation, versión sometida a consulta](https://www.edpb.europa.eu/public-consultations/guidelines-022026-on-anonymisation_en).
+
+Estas referencias orientan el threat model. El ADR no declara por sí mismo
+cumplimiento jurídico ni anonimización consumada.
