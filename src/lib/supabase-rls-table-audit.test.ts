@@ -86,6 +86,13 @@ const expenseLearningIngestionMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const expenseLearningRetentionMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260722190000_expense_learning_retention_p4a.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -304,6 +311,38 @@ describe("Supabase table-by-table RLS audit hardening", () => {
     );
     expect(expenseLearningIngestionMigrationSource).not.toMatch(
       /create policy[^;]*?to\s+(?:public|anon|authenticated|service_role)[^;]*;/iu,
+    );
+  });
+
+  it("keeps P4A retention owner-only and promotion write-disabled", () => {
+    const table =
+      "expense_learning_private.closed_week_supported_metrics";
+    expect(expenseLearningRetentionMigrationSource).toContain(
+      `create policy expense_learning_closed_metrics_owner_select_v1\n  on ${table}\n  for select to expense_learning_storage_owner using (true)`,
+    );
+    expect(expenseLearningRetentionMigrationSource).toContain(
+      `create policy expense_learning_closed_metrics_owner_delete_v1\n  on ${table}\n  for delete to expense_learning_storage_owner using (true)`,
+    );
+    expect(expenseLearningRetentionMigrationSource).toContain(
+      "create policy expense_learning_revocation_links_owner_lock_v1\n  on expense_learning_private.contributor_revocation_links\n  for update to expense_learning_storage_owner\n  using (true)\n  with check (false)",
+    );
+    expect(expenseLearningRetentionMigrationSource).not.toContain(
+      "expense_learning_closed_metrics_owner_insert_v1",
+    );
+    expect(expenseLearningRetentionMigrationSource).not.toContain(
+      "expense_learning_closed_metrics_owner_update_v1",
+    );
+    expect(expenseLearningRetentionMigrationSource).not.toMatch(
+      /grant\s+(?:all|usage|create|select|insert|update|delete|execute)[^;]*expense_learning_private/iu,
+    );
+    expect(expenseLearningRetentionMigrationSource).toContain(
+      "revoke all on all functions in schema expense_learning_private\n  from public, anon, authenticated, service_role",
+    );
+    expect(expenseLearningRetentionMigrationSource).toContain(
+      "grant execute on function public.purge_expense_learning_retention_v1()\n  to service_role",
+    );
+    expect(expenseLearningRetentionMigrationSource).not.toMatch(
+      /insert\s+into\s+expense_learning_private\.closed_week_supported_metrics/iu,
     );
   });
 
