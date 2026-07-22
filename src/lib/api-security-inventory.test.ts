@@ -19,6 +19,7 @@ const expectedMethods: Record<string, string[]> = {
   "admin/ai-learning/feedback/route.ts": ["POST"],
   "admin/capabilities/route.ts": ["GET"],
   "admin/errors/route.ts": ["GET", "PATCH"],
+  "admin/expense-learning-insights/route.ts": ["GET"],
   "admin/fiscal-calendar-health/route.ts": ["GET"],
   "admin/fiscal-watch/route.ts": ["GET", "POST"],
   "admin/health/route.ts": ["GET"],
@@ -90,6 +91,7 @@ const expectedMethods: Record<string, string[]> = {
 
 const adminRoutes = [
   "admin/errors/route.ts",
+  "admin/expense-learning-insights/route.ts",
   "admin/fiscal-calendar-health/route.ts",
   "admin/fiscal-watch/route.ts",
   "admin/health/route.ts",
@@ -360,6 +362,17 @@ describe("API security inventory", () => {
     ]) {
       expect(featureGate, capability).toBeLessThan(post.indexOf(capability));
     }
+  });
+
+  it("keeps expense learning insights admin-only and promoted-only", () => {
+    const source = sourceFor("admin/expense-learning-insights/route.ts");
+    expect(source).toContain("getAdminAccessFromRequest(request)");
+    expect(source).toContain("checkRateLimit(");
+    expect(source).toContain(
+      '"read_expense_learning_closed_week_metrics_v1"',
+    );
+    expect(source).not.toContain(".from(");
+    expect(source).not.toContain("supporting_contributors");
   });
 
   it("keeps webhooks signature-checked and bounded", () => {

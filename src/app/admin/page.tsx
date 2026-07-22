@@ -4517,9 +4517,20 @@ export default function AdminPage() {
         action={
           <div className="flex flex-wrap items-center gap-2">
             {capabilities?.fullAdmin && (
-              <ButtonLink href="/admin/tax-diagnostic-insights" variant="secondary">
-                <BarChart3 className="h-4 w-4" /> Uso del diagnóstico
-              </ButtonLink>
+              <>
+                <ButtonLink
+                  href="/admin/expense-learning-insights"
+                  variant="secondary"
+                >
+                  <Brain className="h-4 w-4" /> Aprendizaje agregado
+                </ButtonLink>
+                <ButtonLink
+                  href="/admin/tax-diagnostic-insights"
+                  variant="secondary"
+                >
+                  <BarChart3 className="h-4 w-4" /> Uso del diagnóstico
+                </ButtonLink>
+              </>
             )}
             <span className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-bold text-white">
               <ShieldCheck className="h-4 w-4" />

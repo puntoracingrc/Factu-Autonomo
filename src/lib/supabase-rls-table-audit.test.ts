@@ -100,6 +100,13 @@ const expenseLearningPromotionMigrationSource = readFileSync(
   ),
   "utf8",
 );
+const expenseLearningAdminReaderMigrationSource = readFileSync(
+  new URL(
+    "../../supabase/migrations/20260723070000_expense_learning_admin_reader_p5.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 const serviceOnlyTables = [
   "payment_receipts",
@@ -394,6 +401,28 @@ describe("Supabase table-by-table RLS audit hardening", () => {
     );
     expect(expenseLearningPromotionMigrationSource).toContain(
       "grant execute on function public.promote_expense_learning_closed_weeks_v1()\n  to service_role",
+    );
+  });
+
+  it("exposes P5 through one promoted-only service-role reader", () => {
+    const signature = "read_expense_learning_closed_week_metrics_v1()";
+    expect(expenseLearningAdminReaderMigrationSource).toContain(
+      "from expense_learning_private.closed_week_supported_metrics as metric",
+    );
+    expect(expenseLearningAdminReaderMigrationSource).not.toContain(
+      "supporting_contributors",
+    );
+    expect(expenseLearningAdminReaderMigrationSource).not.toMatch(
+      /grant\s+(?:all|usage|create|select|insert|update|delete)[^;]*expense_learning_private/iu,
+    );
+    expect(expenseLearningAdminReaderMigrationSource).toContain(
+      `revoke all on function public.${signature}\n  from public, anon, authenticated, service_role`,
+    );
+    expect(expenseLearningAdminReaderMigrationSource).toContain(
+      `grant execute on function public.${signature}\n  to service_role`,
+    );
+    expect(expenseLearningAdminReaderMigrationSource).not.toMatch(
+      /grant\s+execute[^;]*to\s+(?:public|anon|authenticated)/iu,
     );
   });
 

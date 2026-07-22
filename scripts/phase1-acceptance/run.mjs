@@ -61,6 +61,11 @@ const expenseLearningOperationsSql = {
   down:
     "supabase/rollbacks/20260723010000_expense_learning_operations_p4c.down.sql",
 };
+const expenseLearningAdminReaderSql = {
+  up: "supabase/migrations/20260723070000_expense_learning_admin_reader_p5.sql",
+  down:
+    "supabase/rollbacks/20260723070000_expense_learning_admin_reader_p5.down.sql",
+};
 
 const requiredEnv = [
   "PHASE1_ACCEPTANCE_ALLOW_DESTRUCTIVE",
@@ -595,7 +600,8 @@ function expenseLearningCatalogSnapshot() {
           and p.proname in (
             'submit_expense_learning_contribution_v1',
             'promote_expense_learning_closed_weeks_v1',
-            'purge_expense_learning_retention_v1'
+            'purge_expense_learning_retention_v1',
+            'read_expense_learning_closed_week_metrics_v1'
           )
         )
       )
@@ -1096,10 +1102,282 @@ async function testExpenseLearningDataApi(admin, userA) {
         "get_expense_learning_consent_v1",
         "promote_expense_learning_closed_weeks_v1",
         "purge_expense_learning_retention_v1",
+        "read_expense_learning_closed_week_metrics_v1",
         "set_expense_learning_consent_v1",
         "submit_expense_learning_contribution_v1",
       ].join(","),
     "unexpected public expense learning RPC exists",
+  );
+}
+
+async function waitForExpenseLearningReaderRpc(admin) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
+    const result = await admin.rpc(
+      "read_expense_learning_closed_week_metrics_v1",
+    );
+    if (!result.error) return result;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  fail("expense learning reader RPC did not enter the PostgREST schema cache");
+}
+
+async function testExpenseLearningP5Reader(admin, userA) {
+  expect(
+    querySql(`
+      select function.prosecdef
+        and pg_catalog.pg_get_userbyid(function.proowner) =
+          'expense_learning_storage_owner'
+        and function.proconfig @> array['search_path=""']::text[]
+      from pg_catalog.pg_proc as function
+      join pg_catalog.pg_namespace as namespace
+        on namespace.oid = function.pronamespace
+      where namespace.nspname = 'public'
+        and function.proname =
+          'read_expense_learning_closed_week_metrics_v1';
+    `) === "t",
+    "P5 reader is not an owner-bound SECURITY DEFINER function",
+  );
+  expect(
+    querySql(`
+      select not pg_catalog.has_function_privilege(
+          'anon',
+          'public.read_expense_learning_closed_week_metrics_v1()',
+          'EXECUTE'
+        )
+        and not pg_catalog.has_function_privilege(
+          'authenticated',
+          'public.read_expense_learning_closed_week_metrics_v1()',
+          'EXECUTE'
+        )
+        and pg_catalog.has_function_privilege(
+          'service_role',
+          'public.read_expense_learning_closed_week_metrics_v1()',
+          'EXECUTE'
+        )
+        and not pg_catalog.has_schema_privilege(
+          'service_role',
+          'expense_learning_private',
+          'USAGE'
+        );
+    `) === "t",
+    "P5 reader widened browser or direct private-schema access",
+  );
+
+  expectInlineSqlFailure(
+    "select * from public.read_expense_learning_closed_week_metrics_v1();",
+    "expense_learning_rpc_forbidden",
+  );
+  expectInlineSqlFailure(
+    `set request.jwt.claims = '{}';
+     select * from public.read_expense_learning_closed_week_metrics_v1();`,
+    "expense_learning_rpc_forbidden",
+  );
+
+  const anonRead = await anon().rpc(
+    "read_expense_learning_closed_week_metrics_v1",
+  );
+  expect(!opAllowed(anonRead), "anon executed the P5 reader");
+  const authenticatedRead = await userA.client.rpc(
+    "read_expense_learning_closed_week_metrics_v1",
+  );
+  expect(!opAllowed(authenticatedRead), "authenticated executed the P5 reader");
+
+  const initiallyEmpty = await waitForExpenseLearningReaderRpc(admin);
+  expect(
+    opAllowed(initiallyEmpty) && initiallyEmpty.data?.length === 0,
+    "P5 reader did not start empty",
+  );
+
+  querySqlAsLearningOwner(`
+    do $fixture$
+    declare
+      v_current_week date := pg_catalog.date_trunc(
+        'week',
+        pg_catalog.clock_timestamp() at time zone 'UTC'
+      )::date;
+      v_visible_week date := v_current_week - 14;
+      v_expired_week date := v_current_week - 560;
+    begin
+      insert into expense_learning_private.closed_week_promotion_batches (
+        contribution_schema_version,
+        observation_schema_version,
+        engine_version,
+        privacy_policy_version,
+        week_start,
+        structural_archetype_group,
+        privacy_evaluation_version,
+        batch_state
+      ) values
+        (
+          'expense-engine-aggregate-contribution.v1',
+          'expense-engine-observation.v1',
+          'expense-local-engine.v1',
+          '2026-07-21',
+          v_visible_week,
+          'TABLE',
+          'expense-learning-human-review-coarsening.v1',
+          'PROMOTED'
+        ),
+        (
+          'expense-engine-aggregate-contribution.v1',
+          'expense-engine-observation.v1',
+          'expense-local-engine.v1',
+          '2026-07-21',
+          v_expired_week,
+          'SUMMARY',
+          'expense-learning-human-review-coarsening.v1',
+          'PROMOTED'
+        ),
+        (
+          'expense-engine-aggregate-contribution.v1',
+          'expense-engine-observation.v1',
+          'expense-local-engine.v1',
+          '2026-07-21',
+          v_current_week,
+          'UNKNOWN',
+          'expense-learning-human-review-coarsening.v1',
+          'PROMOTED'
+        );
+
+      insert into expense_learning_private.closed_week_supported_metrics (
+        contribution_schema_version,
+        observation_schema_version,
+        engine_version,
+        privacy_policy_version,
+        week_start,
+        structural_archetype_group,
+        metric_family,
+        comparison_scope,
+        metric_key,
+        bucket_kind,
+        bucket_value,
+        promoted_at,
+        expires_at,
+        support_band
+      ) values
+        (
+          'expense-engine-aggregate-contribution.v1',
+          'expense-engine-observation.v1',
+          'expense-local-engine.v1',
+          '2026-07-21',
+          v_visible_week,
+          'TABLE',
+          'HUMAN_REVIEW',
+          'NONE',
+          'VALUE',
+          'EXACT',
+          'CONFIRMED',
+          (v_visible_week::timestamp at time zone 'UTC') + interval '7 days',
+          (v_visible_week::timestamp at time zone 'UTC')
+            + interval '7 days' + interval '13 months',
+          'K10_19'
+        ),
+        (
+          'expense-engine-aggregate-contribution.v1',
+          'expense-engine-observation.v1',
+          'expense-local-engine.v1',
+          '2026-07-21',
+          v_expired_week,
+          'SUMMARY',
+          'HUMAN_REVIEW',
+          'NONE',
+          'VALUE',
+          'COARSENED_OTHER',
+          'OTHER',
+          (v_expired_week::timestamp at time zone 'UTC') + interval '7 days',
+          (v_expired_week::timestamp at time zone 'UTC')
+            + interval '7 days' + interval '13 months',
+          'K20_49'
+        ),
+        (
+          'expense-engine-aggregate-contribution.v1',
+          'expense-engine-observation.v1',
+          'expense-local-engine.v1',
+          '2026-07-21',
+          v_current_week,
+          'UNKNOWN',
+          'HUMAN_REVIEW',
+          'NONE',
+          'VALUE',
+          'EXACT',
+          'NOT_REVIEWED',
+          (v_current_week::timestamp at time zone 'UTC') + interval '7 days',
+          (v_current_week::timestamp at time zone 'UTC')
+            + interval '7 days' + interval '13 months',
+          'K10_19'
+        ),
+        (
+          'expense-engine-aggregate-contribution.v1',
+          'expense-engine-observation.v1',
+          'expense-local-engine.v1',
+          '2026-07-21',
+          v_visible_week,
+          'OTHER',
+          'HUMAN_REVIEW',
+          'NONE',
+          'VALUE',
+          'EXACT',
+          'CORRECTED',
+          (v_visible_week::timestamp at time zone 'UTC') + interval '7 days',
+          (v_visible_week::timestamp at time zone 'UTC')
+            + interval '7 days' + interval '13 months',
+          'K10_19'
+        );
+    end
+    $fixture$
+  `);
+
+  const reader = await admin.rpc(
+    "read_expense_learning_closed_week_metrics_v1",
+  );
+  expect(opAllowed(reader), "service_role could not execute the P5 reader");
+  expect(reader.data?.length === 1, "P5 reader exposed open, expired, or orphan rows");
+  const row = reader.data?.[0] ?? {};
+  expect(
+    JSON.stringify(Object.keys(row).sort()) ===
+      JSON.stringify(
+        [
+          "bucket_kind",
+          "bucket_value",
+          "comparison_scope",
+          "contribution_schema_version",
+          "engine_version",
+          "expires_at",
+          "metric_family",
+          "metric_key",
+          "observation_schema_version",
+          "privacy_policy_version",
+          "promoted_at",
+          "structural_archetype_group",
+          "support_band",
+          "week_start",
+        ].sort(),
+      ),
+    "P5 reader exposed unexpected columns",
+  );
+  expect(
+    row.metric_family === "HUMAN_REVIEW" &&
+      row.comparison_scope === "NONE" &&
+      row.metric_key === "VALUE" &&
+      row.bucket_value === "CONFIRMED" &&
+      row.support_band === "K10_19",
+    "P5 reader changed the promoted marginal",
+  );
+  expect(
+    !JSON.stringify(reader.data).includes("supporting_contributors"),
+    "P5 reader exposed an exact support count",
+  );
+
+  querySqlAsLearningOwner(`
+    delete from expense_learning_private.closed_week_supported_metrics;
+    delete from expense_learning_private.closed_week_promotion_batches
+  `);
+  const emptyAgain = await admin.rpc(
+    "read_expense_learning_closed_week_metrics_v1",
+  );
+  expect(
+    opAllowed(emptyAgain) && emptyAgain.data?.length === 0,
+    "P5 reader fixture cleanup did not restore an empty view",
   );
 }
 
@@ -4784,6 +5062,36 @@ async function testExpenseLearningP4cRollback(
   );
 }
 
+function testExpenseLearningP5Rollback(
+  initialP4cCatalogSnapshot,
+  initialP5CatalogSnapshot,
+) {
+  applySql(expenseLearningAdminReaderSql.down);
+  expect(
+    expenseLearningP4CatalogSnapshot() === initialP4cCatalogSnapshot,
+    "P5 rollback did not restore the P4C catalog",
+  );
+  expect(
+    querySql(`
+      select pg_catalog.to_regprocedure(
+        'public.read_expense_learning_closed_week_metrics_v1()'
+      ) is null;
+    `) === "t",
+    "P5 rollback retained the public reader",
+  );
+
+  applySql(expenseLearningAdminReaderSql.up);
+  expect(
+    expenseLearningP4CatalogSnapshot() === initialP5CatalogSnapshot,
+    "P5 rollback cycle changed normalized catalog semantics",
+  );
+  applySql(expenseLearningAdminReaderSql.down);
+  expect(
+    expenseLearningP4CatalogSnapshot() === initialP4cCatalogSnapshot,
+    "P5 final rollback did not leave P4C ready for rollback",
+  );
+}
+
 function testExpenseLearningP4bRollback(initialP4aCatalogSnapshot) {
   expectSqlFileFailure(
     expenseLearningPromotionSql.down,
@@ -5908,6 +6216,18 @@ async function main() {
     if (
       querySql(`
         select pg_catalog.to_regprocedure(
+          'public.read_expense_learning_closed_week_metrics_v1()'
+        ) is not null;
+      `) === "t"
+    ) {
+      console.log(
+        "Resetting auto-applied empty expense learning P5 reader...",
+      );
+      applySql(expenseLearningAdminReaderSql.down);
+    }
+    if (
+      querySql(`
+        select pg_catalog.to_regprocedure(
           'expense_learning_private.expense_learning_retention_lookahead_v1()'
         ) is not null;
       `) === "t"
@@ -6037,6 +6357,20 @@ async function main() {
     "expense learning operations initial up/down/up changed catalog semantics",
   );
 
+  console.log("Validating expense learning Admin reader P5 up -> down -> up...");
+  applySql(expenseLearningAdminReaderSql.up);
+  const expenseLearningP5Catalog = expenseLearningP4CatalogSnapshot();
+  applySql(expenseLearningAdminReaderSql.down);
+  expect(
+    expenseLearningP4CatalogSnapshot() === expenseLearningP4cCatalog,
+    "expense learning Admin reader rollback did not restore P4C",
+  );
+  applySql(expenseLearningAdminReaderSql.up);
+  expect(
+    expenseLearningP4CatalogSnapshot() === expenseLearningP5Catalog,
+    "expense learning Admin reader initial up/down/up changed catalog semantics",
+  );
+
   const admin = service();
   const userA = await createUser(admin, "a");
   const userB = await createUser(admin, "b");
@@ -6047,6 +6381,8 @@ async function main() {
     await testTableMatrix(admin, userA, userB);
     await testRpcPermissionsAndConcurrency(admin, userA);
     await testExpenseLearningDataApi(admin, userA);
+    console.log("Testing expense learning P5 promoted-only reader...");
+    await testExpenseLearningP5Reader(admin, userA);
     testExpenseLearningP3DatabaseBoundary();
     testExpenseLearningP4DatabaseBoundary();
     testExpenseLearningConsentDatabaseBoundary(userA.id);
@@ -6071,6 +6407,10 @@ async function main() {
     expectSqlFileFailure(
       sqlFiles.down[0],
       "Stripe webhook ledger is not empty; rollback is unsafe",
+    );
+    testExpenseLearningP5Rollback(
+      expenseLearningP4cCatalog,
+      expenseLearningP5Catalog,
     );
     await testExpenseLearningP4cRollback(
       admin,
