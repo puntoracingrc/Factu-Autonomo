@@ -12,7 +12,7 @@ const expectedMethods: Record<string, string[]> = {
   "admin/ai-learning/correct/route.ts": ["POST"],
   "admin/ai-learning/feedback/route.ts": ["POST"],
   "admin/capabilities/route.ts": ["GET"],
-  "admin/errors/route.ts": ["GET"],
+  "admin/errors/route.ts": ["GET", "PATCH"],
   "admin/fiscal-calendar-health/route.ts": ["GET"],
   "admin/fiscal-watch/route.ts": ["GET", "POST"],
   "admin/health/route.ts": ["GET"],
@@ -171,6 +171,7 @@ const distributedRateLimitedRoutes = [
 const boundedBodyRoutes = [
   "admin/ai-learning/correct/route.ts",
   "admin/ai-learning/feedback/route.ts",
+  "admin/errors/route.ts",
   "admin/partners/[userId]/route.ts",
   "admin/partners/route.ts",
   "admin/promotions/[campaignId]/route.ts",
@@ -258,9 +259,7 @@ describe("API security inventory", () => {
       expect(sourceFor(route), route).toContain("getAdminAccessFromRequest");
     }
     for (const route of bearerRoutes) {
-      expect(sourceFor(route), route).toMatch(
-        /getUser(?:Session)?FromBearer/,
-      );
+      expect(sourceFor(route), route).toMatch(/getUser(?:Session)?FromBearer/);
     }
     for (const route of partnerRoutes) {
       expect(sourceFor(route), route).toContain("getPartnerAccessFromRequest");

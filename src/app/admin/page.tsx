@@ -8,6 +8,7 @@ import {
   Ban,
   BarChart3,
   Brain,
+  CheckCircle2,
   ChevronDown,
   Clipboard,
   Cloud,
@@ -51,6 +52,7 @@ import type {
 } from "@/lib/admin/health";
 import type { AdminOperationsStatus } from "@/lib/admin/operations-status";
 import {
+  applyAdminErrorArchive,
   groupAdminErrorsByActor,
   type AdminErrorRow,
 } from "@/lib/admin/error-groups";
@@ -155,6 +157,11 @@ interface AdminErrorsResponse {
   error?: string;
   message?: string;
   monitoringAvailable?: boolean;
+}
+
+interface AdminErrorsResolutionResponse {
+  resolved?: Array<{ id: string; resolved_at: string }>;
+  error?: string;
 }
 
 interface AdminHealthResponse {
@@ -604,6 +611,16 @@ function severityClasses(severity: AdminErrorRow["severity"]) {
   if (severity === "warning") return "bg-amber-100 text-amber-800";
   if (severity === "info") return "bg-blue-100 text-blue-800";
   return "bg-red-100 text-red-800";
+}
+
+function errorResolutionPresentation(status: "pending" | "partial" | "resolved") {
+  if (status === "resolved") {
+    return { label: "Solucionado", className: "bg-emerald-100 text-emerald-800" };
+  }
+  if (status === "partial") {
+    return { label: "Parcial", className: "bg-amber-100 text-amber-800" };
+  }
+  return { label: "Pendiente", className: "bg-red-100 text-red-800" };
 }
 
 function healthToneClasses(level: AdminHealthLevel) {
@@ -3116,74 +3133,166 @@ function VercelUsageDashboard({
   );
 }
 
-function ErrorsListDashboard({ errors }: { errors: AdminErrorRow[] }) {
-  const errorsLog = buildAdminErrorsLog(errors);
-  const groups = groupAdminErrorsByActor(errors);
+function ErrorsListDashboard({
+  errors,
+  archivedErrors,
+  onResolveErrors,
+}: {
+  errors: AdminErrorRow[];
+  archivedErrors: AdminErrorRow[];
+  onResolveErrors: (eventIds: string[]) => Promise<{ ok: boolean; message: string }>;
+}) {
+  const [view, setView] = useState<"pending" | "archived">("pending");
+  const [resolvingGroupKey, setResolvingGroupKey] = useState<string | null>(null);
+  const [resolutionNotice, setResolutionNotice] = useState<{
+    ok: boolean;
+    message: string;
+  } | null>(null);
+  const visibleErrors = view === "pending" ? errors : archivedErrors;
+  const groups = groupAdminErrorsByActor(visibleErrors);
+
+  const confirmGroupResolved = useCallback(async (groupKey: string, eventIds: string[]) => {
+    if (!window.confirm(
+      "Confirma que estos eventos ya no representan una incidencia activa. Se archivarán sin borrar el historial.",
+    )) return;
+
+    setResolvingGroupKey(groupKey);
+    setResolutionNotice(null);
+    const result = await onResolveErrors(eventIds);
+    setResolutionNotice(result);
+    setResolvingGroupKey(null);
+  }, [onResolveErrors]);
 
   return (
     <div className="space-y-4">
+      <div
+        className="inline-flex rounded-lg border border-slate-200 bg-white p-1"
+        role="group"
+        aria-label="Estado de errores"
+      >
+        <button
+          type="button"
+          aria-pressed={view === "pending"}
+          className={`rounded-md px-3 py-2 text-sm font-bold ${view === "pending" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+          onClick={() => setView("pending")}
+        >
+          Pendientes ({errors.length})
+        </button>
+        <button
+          type="button"
+          aria-pressed={view === "archived"}
+          className={`rounded-md px-3 py-2 text-sm font-bold ${view === "archived" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+          onClick={() => setView("archived")}
+        >
+          Archivados ({archivedErrors.length})
+        </button>
+      </div>
+
+      {resolutionNotice && (
+        <p
+          className={`text-sm font-semibold ${resolutionNotice.ok ? "text-emerald-700" : "text-red-700"}`}
+          role="status"
+        >
+          {resolutionNotice.message}
+        </p>
+      )}
+
       <CopyableLogPanel
-        title="Log de errores para Codex"
+        title={view === "pending" ? "Log de errores pendientes para Codex" : "Log de errores archivados para Codex"}
         description="Lista eventos recientes saneados y contexto de actuación para diagnosticar sin ver secretos."
-        log={errorsLog}
+        log={buildAdminErrorsLog(visibleErrors)}
       />
 
-      {errors.length === 0 && (
-        <Card className="text-slate-600">Sin errores registrados.</Card>
+      {visibleErrors.length === 0 && (
+        <Card className="text-slate-600">
+          {view === "pending" ? "No hay errores pendientes." : "No hay errores archivados."}
+        </Card>
       )}
-      {groups.map((group) => (
-        <details
-          key={group.key}
-          className="group overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
-        >
-          <summary className="flex cursor-pointer list-none items-center gap-3 p-5 marker:content-none">
-            <div className="min-w-0 flex-1">
-              <p className="break-all font-bold text-slate-900">{group.label}</p>
-              <p className="mt-1 text-sm text-slate-500">
-                {group.errors.length} evento(s) · {group.unresolvedCount} pendiente(s) · último {formatDateTime(group.latestAt)}
-              </p>
-            </div>
-            <span
-              className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${severityClasses(group.severity)}`}
-            >
-              {group.severity}
-            </span>
-            <ChevronDown
-              aria-hidden="true"
-              className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-open:rotate-180"
-            />
-          </summary>
+      {groups.map((group) => {
+        const resolution = errorResolutionPresentation(group.resolutionStatus);
+        const unresolvedIds = group.errors.filter((item) => !item.resolved_at).map((item) => item.id);
+        const resolving = resolvingGroupKey === group.key;
 
-          <div className="border-t border-slate-100 px-5">
-            {group.errors.map((item) => (
-              <div key={item.id} className="border-b border-slate-100 py-4 last:border-b-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-bold ${severityClasses(item.severity)}`}
+        return (
+          <details
+            key={group.key}
+            className="group overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-sm"
+          >
+            <summary className="flex cursor-pointer list-none items-center gap-3 p-5 marker:content-none">
+              <div className="min-w-0 flex-1">
+                <p className="break-all font-bold text-slate-900">{group.label}</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {group.errors.length} evento(s) · {group.unresolvedCount} pendiente(s) · {group.resolvedCount} solucionado(s) · último {formatDateTime(group.latestAt)}
+                </p>
+              </div>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${resolution.className}`}>
+                {resolution.label}
+              </span>
+              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${severityClasses(group.severity)}`}>
+                {group.severity}
+              </span>
+              <ChevronDown
+                aria-hidden="true"
+                className="h-5 w-5 shrink-0 text-slate-500 transition-transform group-open:rotate-180"
+              />
+            </summary>
+
+            <div className="border-t border-slate-100 px-5">
+              {group.unresolvedCount > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 py-4">
+                  <p className="text-sm font-semibold text-slate-600">
+                    Estado sin confirmar por el sistema.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={resolving}
+                    onClick={() => void confirmGroupResolved(group.key, unresolvedIds)}
                   >
-                    {item.severity}
-                  </span>
-                  <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
-                    {item.area}
-                  </span>
-                  {item.code && (
-                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
-                      {item.code}
+                    {resolving ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    {resolving ? "Archivando…" : "Resolver y archivar"}
+                  </Button>
+                </div>
+              )}
+
+              {group.errors.map((item) => (
+                <div key={item.id} className="border-b border-slate-100 py-4 last:border-b-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${severityClasses(item.severity)}`}>
+                      {item.severity}
                     </span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                      {item.area}
+                    </span>
+                    {item.code && (
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                        {item.code}
+                      </span>
+                    )}
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${item.resolved_at ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
+                      {item.resolved_at ? "Solucionado" : "Pendiente"}
+                    </span>
+                  </div>
+                  <p className="mt-2 font-bold text-slate-900">{item.message}</p>
+                  <p className="mt-1 text-sm text-slate-600">{formatDateTime(item.created_at)}</p>
+                  {item.route && (
+                    <p className="mt-1 break-all text-sm text-slate-500">{item.route}</p>
+                  )}
+                  {item.resolved_at && (
+                    <p className="mt-1 text-sm font-semibold text-emerald-700">
+                      Confirmado el {formatDateTime(item.resolved_at)}
+                    </p>
                   )}
                 </div>
-                <p className="mt-2 font-bold text-slate-900">{item.message}</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  {formatDateTime(item.created_at)}
-                </p>
-                {item.route && (
-                  <p className="mt-1 break-all text-sm text-slate-500">{item.route}</p>
-                )}
-              </div>
-            ))}
-          </div>
-        </details>
-      ))}
+              ))}
+            </div>
+          </details>
+        );
+      })}
     </div>
   );
 }
@@ -3196,6 +3305,7 @@ function OperationsPanel({
   onSignalsLoaded?: (signals: AdminSectionSignals) => void;
 }) {
   const [errors, setErrors] = useState<AdminErrorRow[]>([]);
+  const [archivedErrors, setArchivedErrors] = useState<AdminErrorRow[]>([]);
   const [health, setHealth] = useState<AdminHealthSnapshot | null>(null);
   const [calendarHealth, setCalendarHealth] =
     useState<FiscalCalendarAdminHealth | null>(null);
@@ -3243,6 +3353,7 @@ function OperationsPanel({
   const loadOperations = useCallback(async () => {
     setLoading(true);
     setErrors([]);
+    setArchivedErrors([]);
     setHealth(null);
     setCalendarHealth(null);
     setFiscalWatch(null);
@@ -3266,13 +3377,15 @@ function OperationsPanel({
     const headers = { Authorization: `Bearer ${token}` };
     const [
       errorsResponse,
+      archivedErrorsResponse,
       healthResponse,
       vercelResponse,
       operationsResponse,
       calendarHealthResponse,
       fiscalWatchResponse,
     ] = await Promise.all([
-      fetchAdminResponse("/api/admin/errors?limit=80", { headers }),
+      fetchAdminResponse("/api/admin/errors?limit=80&status=pending", { headers }),
+      fetchAdminResponse("/api/admin/errors?limit=80&status=resolved", { headers }),
       fetchAdminResponse("/api/admin/health", { headers }),
       fetchAdminResponse("/api/admin/vercel-usage", { headers }),
       fetchAdminResponse("/api/admin/operations-status", { headers }),
@@ -3335,9 +3448,13 @@ function OperationsPanel({
     const errorsBody = errorsResponse
       ? await readAdminJsonResponse<AdminErrorsResponse>(errorsResponse)
       : {};
-    if (!errorsResponse?.ok) {
+    const archivedErrorsBody = archivedErrorsResponse
+      ? await readAdminJsonResponse<AdminErrorsResponse>(archivedErrorsResponse)
+      : {};
+    if (!errorsResponse?.ok || !archivedErrorsResponse?.ok) {
       setError(
         errorsBody.error ??
+          archivedErrorsBody.error ??
           "No se pudieron cargar todos los datos de administración.",
       );
       onSignalsLoaded?.(
@@ -3362,7 +3479,9 @@ function OperationsPanel({
       ? await readAdminJsonResponse<AdminHealthResponse>(healthResponse)
       : {};
     const nextErrors = errorsBody.errors ?? [];
+    const nextArchivedErrors = archivedErrorsBody.errors ?? [];
     setErrors(nextErrors);
+    setArchivedErrors(nextArchivedErrors);
     setNotice(
       errorsBody.monitoringAvailable === false ? errorsBody.message ?? null : null,
     );
@@ -3431,6 +3550,80 @@ function OperationsPanel({
   useEffect(() => {
     void loadOperations();
   }, [loadOperations]);
+
+  const resolveAdminErrors = useCallback(
+    async (eventIds: string[]): Promise<{ ok: boolean; message: string }> => {
+      const token = await getAccessToken();
+      if (!token) {
+        return {
+          ok: false,
+          message: "La sesión administradora ya no está disponible.",
+        };
+      }
+
+      const response = await fetchAdminResponse("/api/admin/errors", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+        body: JSON.stringify({ eventIds }),
+      });
+      const body = response
+        ? await readAdminJsonResponse<AdminErrorsResolutionResponse>(response)
+        : {};
+      if (!response?.ok || !Array.isArray(body.resolved)) {
+        return {
+          ok: false,
+          message: body.error ?? "No se pudieron archivar los errores.",
+        };
+      }
+
+      const next = applyAdminErrorArchive(
+        errors,
+        archivedErrors,
+        eventIds,
+        body.resolved,
+      );
+      if (!next) {
+        return {
+          ok: false,
+          message: "Actualiza el panel para comprobar el archivo.",
+        };
+      }
+
+      setErrors(next.errors);
+      setArchivedErrors(next.archivedErrors);
+      onSignalsLoaded?.(
+        buildAdminSectionSignals({
+          health,
+          calendarHealth,
+          calendarHealthProbeFailed: !calendarHealth,
+          fiscalWatch,
+          fiscalWatchProbeFailed: !fiscalWatch,
+          operations,
+          vercel,
+          errors: next.errors,
+        }),
+      );
+
+      return {
+        ok: true,
+        message: "Incidencia resuelta y archivada sin borrar su historial.",
+      };
+    },
+    [
+      archivedErrors,
+      calendarHealth,
+      errors,
+      fiscalWatch,
+      health,
+      onSignalsLoaded,
+      operations,
+      vercel,
+    ],
+  );
 
   const reviewFiscalWatchIssue = useCallback(
     async (issue: { number: number; kind: "change" | "baseline" }) => {
@@ -3608,7 +3801,11 @@ function OperationsPanel({
         <SecurityDashboard health={health} operations={operations} />
       )}
       {!loading && !error && section === "errores" && (
-        <ErrorsListDashboard errors={errors} />
+        <ErrorsListDashboard
+          errors={errors}
+          archivedErrors={archivedErrors}
+          onResolveErrors={resolveAdminErrors}
+        />
       )}
       {!loading && !error && healthNotice && (
         <Card className="border-blue-100 bg-blue-50 text-blue-900">
