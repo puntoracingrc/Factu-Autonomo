@@ -2,6 +2,10 @@ import { NextResponse } from "next/server";
 import { normalizeErrorEventInput, type AppErrorEventInput } from "@/lib/monitoring/error-events";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import {
+  hashCloudDeviceToken,
+  normalizeCloudDeviceToken,
+} from "@/lib/cloud/devices";
+import {
   checkRateLimit,
   rateLimitExceededResponse,
 } from "@/lib/server/rate-limit";
@@ -56,6 +60,12 @@ export async function POST(request: Request) {
   }
 
   const input = normalizeErrorEventInput(parsed as unknown as AppErrorEventInput);
+  const deviceToken = normalizeCloudDeviceToken(
+    request.headers.get("x-factu-device-token"),
+  );
+  if (input.area === "sync" && !deviceToken) {
+    return NextResponse.json({ error: "Evento no válido" }, { status: 400 });
+  }
   const { error } = await admin.from("app_error_events").insert({
     user_id: user.id,
     severity: input.severity,
@@ -65,6 +75,10 @@ export async function POST(request: Request) {
     route: input.route,
     user_agent: input.userAgent,
     metadata: input.metadata,
+    device_scope_hash:
+      input.area === "sync" && deviceToken
+        ? hashCloudDeviceToken(deviceToken)
+        : null,
   });
 
   if (error) {

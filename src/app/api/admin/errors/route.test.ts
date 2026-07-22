@@ -15,7 +15,7 @@ vi.mock("@/lib/supabase/admin", () => ({
 function request(
   method: "GET" | "PATCH" = "GET",
   body?: Record<string, unknown>,
-  status?: "pending" | "resolved",
+  status?: "pending" | "resolved" | "archived",
 ) {
   const url = new URL("http://localhost/api/admin/errors");
   url.searchParams.set("limit", "80");
@@ -36,9 +36,12 @@ function adminClient(
 ) {
   const limit = vi.fn(async () => ({ data: rows, error: null }));
   const order = vi.fn(() => ({ limit }));
-  const statusFilter = vi.fn(() => ({ order }));
-  const neq = vi.fn(() => ({ is: statusFilter, not: statusFilter }));
-  const select = vi.fn(() => ({ neq }));
+  const builder: Record<string, unknown> = {};
+  const neq = vi.fn(() => builder);
+  const is = vi.fn(() => builder);
+  const not = vi.fn(() => builder);
+  Object.assign(builder, { neq, is, not, order });
+  const select = vi.fn(() => builder);
   const getUserById = vi.fn(async (userId: string) => {
     if (options.identityLookupFails) throw new Error("identity unavailable");
     return {
@@ -58,43 +61,23 @@ function adminClient(
       auth: { admin: { getUserById } },
     },
     getUserById,
-    statusFilter,
+    is,
+    not,
   };
 }
 
-function resolutionAdminClient(
-  rows: Array<{ id: string; resolved_at: string | null }>,
-  options: {
-    updateError?: { message: string } | null;
-    readbackError?: { message: string } | null;
-  } = {},
+function archiveAdminClient(
+  rows: unknown[],
+  error: { message: string } | null = null,
 ) {
-  const updateIs = vi.fn(async () => ({
-    data: null,
-    error: options.updateError ?? null,
-  }));
-  const updateNeq = vi.fn(() => ({ is: updateIs }));
-  const updateIn = vi.fn(() => ({ neq: updateNeq }));
-  const update = vi.fn(() => ({ in: updateIn }));
-
-  const readbackNeq = vi.fn(async () => ({
+  const rpc = vi.fn(async () => ({
     data: rows,
-    error: options.readbackError ?? null,
+    error,
   }));
-  const readbackIn = vi.fn(() => ({ neq: readbackNeq }));
-  const select = vi.fn(() => ({ in: readbackIn }));
 
   return {
-    client: {
-      from: vi.fn(() => ({ update, select })),
-    },
-    update,
-    updateIn,
-    updateNeq,
-    updateIs,
-    select,
-    readbackIn,
-    readbackNeq,
+    client: { rpc },
+    rpc,
   };
 }
 
@@ -129,7 +112,7 @@ describe("GET /api/admin/errors", () => {
   });
 
   it("devuelve una identidad admin opaca sin exponer el user_id", async () => {
-    const { client, getUserById, statusFilter } = adminClient([
+    const { client, getUserById, is } = adminClient([
       {
         id: "event-1",
         user_id: "user-1",
@@ -140,6 +123,8 @@ describe("GET /api/admin/errors", () => {
         route: "/clientes",
         created_at: "2026-07-21T21:15:00.000Z",
         resolved_at: null,
+        resolution_source: null,
+        archived_at: null,
       },
     ]);
     vi.mocked(getSupabaseAdmin).mockReturnValue(client as never);
@@ -148,7 +133,8 @@ describe("GET /api/admin/errors", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(statusFilter).toHaveBeenCalledWith("resolved_at", null);
+    expect(is).toHaveBeenCalledWith("resolved_at", null);
+    expect(is).toHaveBeenCalledWith("archived_at", null);
     expect(getUserById).toHaveBeenCalledOnce();
     expect(body.errors[0].actor).toEqual({
       key: "account-1",
@@ -159,8 +145,8 @@ describe("GET /api/admin/errors", () => {
     expect(JSON.stringify(body)).not.toContain("user-1");
   });
 
-  it("separa el archivo resuelto de la lista pendiente", async () => {
-    const { client, statusFilter } = adminClient([
+  it("separa solucionados y archivados de la lista pendiente", async () => {
+    const { client, is, not } = adminClient([
       {
         id: "event-resolved",
         user_id: null,
@@ -171,6 +157,8 @@ describe("GET /api/admin/errors", () => {
         route: null,
         created_at: "2026-07-21T21:15:00.000Z",
         resolved_at: "2026-07-22T08:00:00.000Z",
+        resolution_source: "sync_cycle_verified",
+        archived_at: null,
       },
     ]);
     vi.mocked(getSupabaseAdmin).mockReturnValue(client as never);
@@ -178,7 +166,14 @@ describe("GET /api/admin/errors", () => {
     const response = await GET(request("GET", undefined, "resolved"));
 
     expect(response.status).toBe(200);
-    expect(statusFilter).toHaveBeenCalledWith("resolved_at", "is", null);
+    expect(not).toHaveBeenCalledWith("resolved_at", "is", null);
+    expect(is).toHaveBeenCalledWith("archived_at", null);
+
+    const archivedResponse = await GET(
+      request("GET", undefined, "archived"),
+    );
+    expect(archivedResponse.status).toBe(200);
+    expect(not).toHaveBeenCalledWith("archived_at", "is", null);
   });
 
   it("agrupa con actor de sistema los eventos sin usuario", async () => {
@@ -277,13 +272,19 @@ describe("GET /api/admin/errors", () => {
     expect(getSupabaseAdmin).not.toHaveBeenCalled();
   });
 
-  it("confirma eventos de forma monotona y solo responde tras readback completo", async () => {
+  it("archiva solo eventos solucionados y responde tras readback completo", async () => {
     const firstId = "11111111-1111-4111-8111-111111111111";
     const secondId = "22222222-2222-4222-8222-222222222222";
-    const resolvedAt = "2026-07-22T08:00:00.000Z";
-    const mock = resolutionAdminClient([
-      { id: firstId, resolved_at: resolvedAt },
-      { id: secondId, resolved_at: resolvedAt },
+    const resolvedAt = "2026-07-22T07:00:00.000Z";
+    const archivedAt = "2026-07-22T08:00:00.000Z";
+    const mock = archiveAdminClient([
+      {
+        id: firstId,
+        resolved_at: resolvedAt,
+        archived_at: archivedAt,
+        user_id: "must-not-leak",
+      },
+      { id: secondId, resolved_at: resolvedAt, archived_at: archivedAt },
     ]);
     vi.mocked(getSupabaseAdmin).mockReturnValue(mock.client as never);
 
@@ -294,27 +295,26 @@ describe("GET /api/admin/errors", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toContain("no-store");
-    expect(mock.update).toHaveBeenCalledWith({
-      resolved_at: expect.any(String),
-    });
-    expect(mock.updateIn).toHaveBeenCalledWith("id", [firstId, secondId]);
-    expect(mock.updateNeq).toHaveBeenCalledWith("area", "fiscal_watch_review");
-    expect(mock.updateIs).toHaveBeenCalledWith("resolved_at", null);
-    expect(mock.select).toHaveBeenCalledWith("id,resolved_at");
-    expect(body.resolved).toEqual([
-      { id: firstId, resolved_at: resolvedAt },
-      { id: secondId, resolved_at: resolvedAt },
+    expect(mock.rpc).toHaveBeenCalledWith(
+      "archive_resolved_app_error_events_v1",
+      { p_event_ids: [firstId, secondId] },
+    );
+    expect(body.archived).toEqual([
+      { id: firstId, resolved_at: resolvedAt, archived_at: archivedAt },
+      { id: secondId, resolved_at: resolvedAt, archived_at: archivedAt },
     ]);
     expect(JSON.stringify(body)).not.toContain("user_id");
+    expect(JSON.stringify(body)).not.toContain("must-not-leak");
   });
 
   it("falla cerrado si el readback no confirma todos los eventos", async () => {
     const firstId = "11111111-1111-4111-8111-111111111111";
     const missingId = "22222222-2222-4222-8222-222222222222";
-    const mock = resolutionAdminClient([
+    const mock = archiveAdminClient([
       {
         id: firstId,
-        resolved_at: "2026-07-22T08:00:00.000Z",
+        resolved_at: "2026-07-22T07:00:00.000Z",
+        archived_at: "2026-07-22T08:00:00.000Z",
       },
     ]);
     vi.mocked(getSupabaseAdmin).mockReturnValue(mock.client as never);
@@ -325,7 +325,7 @@ describe("GET /api/admin/errors", () => {
 
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({
-      error: "No se pudieron confirmar todos los errores.",
+      error: "Solo se pueden archivar errores solucionados.",
     });
   });
 });

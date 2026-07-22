@@ -5,10 +5,10 @@ import Image from "next/image";
 import {
   Activity,
   AlertTriangle,
+  Archive,
   Ban,
   BarChart3,
   Brain,
-  CheckCircle2,
   ChevronDown,
   Clipboard,
   Cloud,
@@ -159,8 +159,8 @@ interface AdminErrorsResponse {
   monitoringAvailable?: boolean;
 }
 
-interface AdminErrorsResolutionResponse {
-  resolved?: Array<{ id: string; resolved_at: string }>;
+interface AdminErrorsArchiveResponse {
+  archived?: Array<{ id: string; archived_at: string }>;
   error?: string;
 }
 
@@ -621,6 +621,16 @@ function errorResolutionPresentation(status: "pending" | "partial" | "resolved")
     return { label: "Parcial", className: "bg-amber-100 text-amber-800" };
   }
   return { label: "Pendiente", className: "bg-red-100 text-red-800" };
+}
+
+function errorRecoverySourceLabel(
+  source: AdminErrorRow["resolution_source"],
+): string {
+  if (source === "sync_push_verified") return "Subida verificada";
+  if (source === "sync_cycle_verified") return "Sincronización completa verificada";
+  if (source === "cloud_repair_verified") return "Reparación desde la nube verificada";
+  if (source === "admin_manual_legacy") return "Confirmación manual anterior";
+  return "Recuperación confirmada";
 }
 
 function healthToneClasses(level: AdminHealthLevel) {
@@ -2170,6 +2180,8 @@ function buildAdminErrorsLog(errors: AdminErrorRow[]) {
             `route=${item.route ?? "none"}`,
             `createdAt=${item.created_at}`,
             `resolved=${item.resolved_at ? "yes" : "no"}`,
+            `resolutionSource=${item.resolution_source ?? "none"}`,
+            `archived=${item.archived_at ? "yes" : "no"}`,
             `message=${item.message.slice(0, 240).replace(/\s+/g, " ")}`,
           ].join("|"),
         )
@@ -3135,83 +3147,115 @@ function VercelUsageDashboard({
 
 function ErrorsListDashboard({
   errors,
+  solvedErrors,
   archivedErrors,
-  onResolveErrors,
+  onArchiveErrors,
 }: {
   errors: AdminErrorRow[];
+  solvedErrors: AdminErrorRow[];
   archivedErrors: AdminErrorRow[];
-  onResolveErrors: (eventIds: string[]) => Promise<{ ok: boolean; message: string }>;
+  onArchiveErrors: (eventIds: string[]) => Promise<{ ok: boolean; message: string }>;
 }) {
-  const [view, setView] = useState<"pending" | "archived">("pending");
-  const [resolvingGroupKey, setResolvingGroupKey] = useState<string | null>(null);
-  const [resolutionNotice, setResolutionNotice] = useState<{
+  const [view, setView] = useState<"pending" | "resolved" | "archived">(
+    "pending",
+  );
+  const [archivingGroupKey, setArchivingGroupKey] = useState<string | null>(null);
+  const [archiveNotice, setArchiveNotice] = useState<{
     ok: boolean;
     message: string;
   } | null>(null);
-  const visibleErrors = view === "pending" ? errors : archivedErrors;
+  const visibleErrors =
+    view === "pending"
+      ? errors
+      : view === "resolved"
+        ? solvedErrors
+        : archivedErrors;
   const groups = groupAdminErrorsByActor(visibleErrors);
 
-  const confirmGroupResolved = useCallback(async (groupKey: string, eventIds: string[]) => {
+  const confirmGroupArchive = useCallback(async (groupKey: string, eventIds: string[]) => {
     if (!window.confirm(
-      "Confirma que estos eventos ya no representan una incidencia activa. Se archivarán sin borrar el historial.",
+      "Estos eventos ya constan como solucionados. ¿Quieres archivarlos sin borrar el historial?",
     )) return;
 
-    setResolvingGroupKey(groupKey);
-    setResolutionNotice(null);
-    const result = await onResolveErrors(eventIds);
-    setResolutionNotice(result);
-    setResolvingGroupKey(null);
-  }, [onResolveErrors]);
+    setArchivingGroupKey(groupKey);
+    setArchiveNotice(null);
+    const result = await onArchiveErrors(eventIds);
+    setArchiveNotice(result);
+    setArchivingGroupKey(null);
+  }, [onArchiveErrors]);
 
   return (
     <div className="space-y-4">
       <div
-        className="inline-flex rounded-lg border border-slate-200 bg-white p-1"
+        className="grid w-full grid-cols-3 rounded-lg border border-slate-200 bg-white p-1 sm:inline-grid sm:w-auto"
         role="group"
         aria-label="Estado de errores"
       >
         <button
           type="button"
           aria-pressed={view === "pending"}
-          className={`rounded-md px-3 py-2 text-sm font-bold ${view === "pending" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+          className={`min-w-0 rounded-md px-2 py-2 text-xs font-bold sm:px-3 sm:text-sm ${view === "pending" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"}`}
           onClick={() => setView("pending")}
         >
           Pendientes ({errors.length})
         </button>
         <button
           type="button"
+          aria-pressed={view === "resolved"}
+          className={`min-w-0 rounded-md px-2 py-2 text-xs font-bold sm:px-3 sm:text-sm ${view === "resolved" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+          onClick={() => setView("resolved")}
+        >
+          Solucionados ({solvedErrors.length})
+        </button>
+        <button
+          type="button"
           aria-pressed={view === "archived"}
-          className={`rounded-md px-3 py-2 text-sm font-bold ${view === "archived" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"}`}
+          className={`min-w-0 rounded-md px-2 py-2 text-xs font-bold sm:px-3 sm:text-sm ${view === "archived" ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-50"}`}
           onClick={() => setView("archived")}
         >
           Archivados ({archivedErrors.length})
         </button>
       </div>
 
-      {resolutionNotice && (
+      {archiveNotice && (
         <p
-          className={`text-sm font-semibold ${resolutionNotice.ok ? "text-emerald-700" : "text-red-700"}`}
+          className={`text-sm font-semibold ${archiveNotice.ok ? "text-emerald-700" : "text-red-700"}`}
           role="status"
         >
-          {resolutionNotice.message}
+          {archiveNotice.message}
         </p>
       )}
 
       <CopyableLogPanel
-        title={view === "pending" ? "Log de errores pendientes para Codex" : "Log de errores archivados para Codex"}
+        title={
+          view === "pending"
+            ? "Log de errores pendientes para Codex"
+            : view === "resolved"
+              ? "Log de errores solucionados para Codex"
+              : "Log de errores archivados para Codex"
+        }
         description="Lista eventos recientes saneados y contexto de actuación para diagnosticar sin ver secretos."
         log={buildAdminErrorsLog(visibleErrors)}
       />
 
       {visibleErrors.length === 0 && (
         <Card className="text-slate-600">
-          {view === "pending" ? "No hay errores pendientes." : "No hay errores archivados."}
+          {view === "pending"
+            ? "No hay errores pendientes."
+            : view === "resolved"
+              ? "No hay errores solucionados pendientes de archivar."
+              : "No hay errores archivados."}
         </Card>
       )}
       {groups.map((group) => {
-        const resolution = errorResolutionPresentation(group.resolutionStatus);
-        const unresolvedIds = group.errors.filter((item) => !item.resolved_at).map((item) => item.id);
-        const resolving = resolvingGroupKey === group.key;
+        const resolution =
+          view === "archived"
+            ? { label: "Archivado", className: "bg-slate-200 text-slate-700" }
+            : errorResolutionPresentation(group.resolutionStatus);
+        const solvedIds = group.errors
+          .filter((item) => item.resolved_at && !item.archived_at)
+          .map((item) => item.id);
+        const archiving = archivingGroupKey === group.key;
 
         return (
           <details
@@ -3238,23 +3282,30 @@ function ErrorsListDashboard({
             </summary>
 
             <div className="border-t border-slate-100 px-5">
-              {group.unresolvedCount > 0 && (
+              {view === "pending" && (
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 py-4">
                   <p className="text-sm font-semibold text-slate-600">
-                    Estado sin confirmar por el sistema.
+                    La aplicación todavía no ha confirmado que la incidencia haya desaparecido.
+                  </p>
+                </div>
+              )}
+              {view === "resolved" && solvedIds.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 py-4">
+                  <p className="text-sm font-semibold text-emerald-700">
+                    Recuperación confirmada por la aplicación.
                   </p>
                   <Button
                     type="button"
                     variant="secondary"
-                    disabled={resolving}
-                    onClick={() => void confirmGroupResolved(group.key, unresolvedIds)}
+                    disabled={archiving}
+                    onClick={() => void confirmGroupArchive(group.key, solvedIds)}
                   >
-                    {resolving ? (
+                    {archiving ? (
                       <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
                     ) : (
-                      <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                      <Archive className="h-4 w-4" aria-hidden="true" />
                     )}
-                    {resolving ? "Archivando…" : "Resolver y archivar"}
+                    {archiving ? "Archivando…" : "Archivar solucionados"}
                   </Button>
                 </div>
               )}
@@ -3273,8 +3324,15 @@ function ErrorsListDashboard({
                         {item.code}
                       </span>
                     )}
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${item.resolved_at ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
-                      {item.resolved_at ? "Solucionado" : "Pendiente"}
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${item.archived_at ? "bg-slate-200 text-slate-700" : item.resolved_at ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"}`}>
+                      {item.archived_at
+                        ? "Archivado"
+                        : item.resolved_at
+                          ? item.resolution_source === "admin_manual_legacy" ||
+                            item.resolution_source === null
+                            ? "Solucionado"
+                            : "Solucionado automáticamente"
+                          : "Pendiente"}
                     </span>
                   </div>
                   <p className="mt-2 font-bold text-slate-900">{item.message}</p>
@@ -3284,7 +3342,12 @@ function ErrorsListDashboard({
                   )}
                   {item.resolved_at && (
                     <p className="mt-1 text-sm font-semibold text-emerald-700">
-                      Confirmado el {formatDateTime(item.resolved_at)}
+                      {errorRecoverySourceLabel(item.resolution_source)} el {formatDateTime(item.resolved_at)}
+                    </p>
+                  )}
+                  {item.archived_at && (
+                    <p className="mt-1 text-sm font-semibold text-slate-600">
+                      Archivado el {formatDateTime(item.archived_at)}
                     </p>
                   )}
                 </div>
@@ -3305,6 +3368,7 @@ function OperationsPanel({
   onSignalsLoaded?: (signals: AdminSectionSignals) => void;
 }) {
   const [errors, setErrors] = useState<AdminErrorRow[]>([]);
+  const [solvedErrors, setSolvedErrors] = useState<AdminErrorRow[]>([]);
   const [archivedErrors, setArchivedErrors] = useState<AdminErrorRow[]>([]);
   const [health, setHealth] = useState<AdminHealthSnapshot | null>(null);
   const [calendarHealth, setCalendarHealth] =
@@ -3353,6 +3417,7 @@ function OperationsPanel({
   const loadOperations = useCallback(async () => {
     setLoading(true);
     setErrors([]);
+    setSolvedErrors([]);
     setArchivedErrors([]);
     setHealth(null);
     setCalendarHealth(null);
@@ -3377,6 +3442,7 @@ function OperationsPanel({
     const headers = { Authorization: `Bearer ${token}` };
     const [
       errorsResponse,
+      solvedErrorsResponse,
       archivedErrorsResponse,
       healthResponse,
       vercelResponse,
@@ -3386,6 +3452,7 @@ function OperationsPanel({
     ] = await Promise.all([
       fetchAdminResponse("/api/admin/errors?limit=80&status=pending", { headers }),
       fetchAdminResponse("/api/admin/errors?limit=80&status=resolved", { headers }),
+      fetchAdminResponse("/api/admin/errors?limit=80&status=archived", { headers }),
       fetchAdminResponse("/api/admin/health", { headers }),
       fetchAdminResponse("/api/admin/vercel-usage", { headers }),
       fetchAdminResponse("/api/admin/operations-status", { headers }),
@@ -3448,12 +3515,20 @@ function OperationsPanel({
     const errorsBody = errorsResponse
       ? await readAdminJsonResponse<AdminErrorsResponse>(errorsResponse)
       : {};
+    const solvedErrorsBody = solvedErrorsResponse
+      ? await readAdminJsonResponse<AdminErrorsResponse>(solvedErrorsResponse)
+      : {};
     const archivedErrorsBody = archivedErrorsResponse
       ? await readAdminJsonResponse<AdminErrorsResponse>(archivedErrorsResponse)
       : {};
-    if (!errorsResponse?.ok || !archivedErrorsResponse?.ok) {
+    if (
+      !errorsResponse?.ok ||
+      !solvedErrorsResponse?.ok ||
+      !archivedErrorsResponse?.ok
+    ) {
       setError(
         errorsBody.error ??
+          solvedErrorsBody.error ??
           archivedErrorsBody.error ??
           "No se pudieron cargar todos los datos de administración.",
       );
@@ -3479,8 +3554,10 @@ function OperationsPanel({
       ? await readAdminJsonResponse<AdminHealthResponse>(healthResponse)
       : {};
     const nextErrors = errorsBody.errors ?? [];
+    const nextSolvedErrors = solvedErrorsBody.errors ?? [];
     const nextArchivedErrors = archivedErrorsBody.errors ?? [];
     setErrors(nextErrors);
+    setSolvedErrors(nextSolvedErrors);
     setArchivedErrors(nextArchivedErrors);
     setNotice(
       errorsBody.monitoringAvailable === false ? errorsBody.message ?? null : null,
@@ -3551,7 +3628,7 @@ function OperationsPanel({
     void loadOperations();
   }, [loadOperations]);
 
-  const resolveAdminErrors = useCallback(
+  const archiveAdminErrors = useCallback(
     async (eventIds: string[]): Promise<{ ok: boolean; message: string }> => {
       const token = await getAccessToken();
       if (!token) {
@@ -3571,9 +3648,9 @@ function OperationsPanel({
         body: JSON.stringify({ eventIds }),
       });
       const body = response
-        ? await readAdminJsonResponse<AdminErrorsResolutionResponse>(response)
+        ? await readAdminJsonResponse<AdminErrorsArchiveResponse>(response)
         : {};
-      if (!response?.ok || !Array.isArray(body.resolved)) {
+      if (!response?.ok || !Array.isArray(body.archived)) {
         return {
           ok: false,
           message: body.error ?? "No se pudieron archivar los errores.",
@@ -3581,10 +3658,10 @@ function OperationsPanel({
       }
 
       const next = applyAdminErrorArchive(
-        errors,
+        solvedErrors,
         archivedErrors,
         eventIds,
-        body.resolved,
+        body.archived,
       );
       if (!next) {
         return {
@@ -3593,35 +3670,17 @@ function OperationsPanel({
         };
       }
 
-      setErrors(next.errors);
+      setSolvedErrors(next.solvedErrors);
       setArchivedErrors(next.archivedErrors);
-      onSignalsLoaded?.(
-        buildAdminSectionSignals({
-          health,
-          calendarHealth,
-          calendarHealthProbeFailed: !calendarHealth,
-          fiscalWatch,
-          fiscalWatchProbeFailed: !fiscalWatch,
-          operations,
-          vercel,
-          errors: next.errors,
-        }),
-      );
 
       return {
         ok: true,
-        message: "Incidencia resuelta y archivada sin borrar su historial.",
+        message: "Eventos solucionados archivados sin borrar su historial.",
       };
     },
     [
       archivedErrors,
-      calendarHealth,
-      errors,
-      fiscalWatch,
-      health,
-      onSignalsLoaded,
-      operations,
-      vercel,
+      solvedErrors,
     ],
   );
 
@@ -3803,8 +3862,9 @@ function OperationsPanel({
       {!loading && !error && section === "errores" && (
         <ErrorsListDashboard
           errors={errors}
+          solvedErrors={solvedErrors}
           archivedErrors={archivedErrors}
-          onResolveErrors={resolveAdminErrors}
+          onArchiveErrors={archiveAdminErrors}
         />
       )}
       {!loading && !error && healthNotice && (

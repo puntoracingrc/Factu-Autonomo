@@ -7,8 +7,8 @@ import {
 import { readJsonBody } from "@/lib/server/request-body";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
-const MAX_RESOLUTION_BODY_BYTES = 4 * 1024;
-const MAX_RESOLUTION_EVENTS = 100;
+const MAX_ARCHIVE_BODY_BYTES = 4 * 1024;
+const MAX_ARCHIVE_EVENTS = 100;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -41,7 +41,7 @@ function privateJson(body: unknown, init?: ResponseInit): NextResponse {
   return withPrivateHeaders(NextResponse.json(body, init));
 }
 
-function normalizeResolutionEventIds(value: unknown): string[] | null {
+function normalizeArchiveEventIds(value: unknown): string[] | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const keys = Object.keys(value);
   if (keys.length !== 1 || keys[0] !== "eventIds") return null;
@@ -50,7 +50,7 @@ function normalizeResolutionEventIds(value: unknown): string[] | null {
   if (
     !Array.isArray(eventIds) ||
     eventIds.length === 0 ||
-    eventIds.length > MAX_RESOLUTION_EVENTS ||
+    eventIds.length > MAX_ARCHIVE_EVENTS ||
     eventIds.some(
       (eventId) => typeof eventId !== "string" || !UUID_PATTERN.test(eventId),
     )
@@ -59,6 +59,18 @@ function normalizeResolutionEventIds(value: unknown): string[] | null {
   }
 
   return Array.from(new Set(eventIds));
+}
+
+function isArchiveReceipt(
+  value: unknown,
+): value is { id: string; resolved_at: string; archived_at: string } {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.id === "string" &&
+    typeof row.resolved_at === "string" &&
+    typeof row.archived_at === "string"
+  );
 }
 
 function isMissingErrorEventsTable(error: { code?: string; message?: string }) {
@@ -99,19 +111,23 @@ export async function GET(request: Request) {
     100,
     Math.max(10, Number(searchParams.get("limit") ?? 50)),
   );
+  const requestedStatus = searchParams.get("status");
   const status =
-    searchParams.get("status") === "resolved" ? "resolved" : "pending";
+    requestedStatus === "resolved" || requestedStatus === "archived"
+      ? requestedStatus
+      : "pending";
 
   const query = admin
     .from("app_error_events")
     .select(
-      "id,user_id,severity,area,code,message,route,created_at,resolved_at",
+      "id,user_id,severity,area,code,message,route,created_at,resolved_at,resolution_source,archived_at",
     )
     .neq("area", "fiscal_watch_review");
-  const filteredQuery =
-    status === "resolved"
-      ? query.not("resolved_at", "is", null)
-      : query.is("resolved_at", null);
+  const filteredQuery = status === "archived"
+    ? query.not("archived_at", "is", null)
+    : status === "resolved"
+      ? query.not("resolved_at", "is", null).is("archived_at", null)
+      : query.is("resolved_at", null).is("archived_at", null);
   const { data, error } = await filteredQuery
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -195,16 +211,16 @@ export async function PATCH(request: Request) {
   }
 
   const body = await readJsonBody(request, {
-    maxBytes: MAX_RESOLUTION_BODY_BYTES,
-    invalidMessage: "Confirmación de errores no válida.",
-    tooLargeMessage: "La confirmación contiene demasiados datos.",
+    maxBytes: MAX_ARCHIVE_BODY_BYTES,
+    invalidMessage: "Archivo de errores no válido.",
+    tooLargeMessage: "El archivo contiene demasiados datos.",
   });
   if (!body.ok) return withPrivateHeaders(body.response);
 
-  const eventIds = normalizeResolutionEventIds(body.data);
+  const eventIds = normalizeArchiveEventIds(body.data);
   if (!eventIds) {
     return privateJson(
-      { error: "Confirmación de errores no válida." },
+      { error: "Archivo de errores no válido." },
       { status: 400 },
     );
   }
@@ -217,48 +233,34 @@ export async function PATCH(request: Request) {
     );
   }
 
-  const resolvedAt = new Date().toISOString();
-  const update = await admin
-    .from("app_error_events")
-    .update({ resolved_at: resolvedAt })
-    .in("id", eventIds)
-    .neq("area", "fiscal_watch_review")
-    .is("resolved_at", null);
+  const archive = await admin.rpc("archive_resolved_app_error_events_v1", {
+    p_event_ids: eventIds,
+  });
 
-  if (update.error) {
+  if (archive.error) {
     return privateJson(
-      { error: "No se pudieron confirmar los errores." },
+      { error: "No se pudieron archivar los errores solucionados." },
       { status: 500 },
     );
   }
 
-  const readback = await admin
-    .from("app_error_events")
-    .select("id,resolved_at")
-    .in("id", eventIds)
-    .neq("area", "fiscal_watch_review");
-
-  if (readback.error) {
-    return privateJson(
-      { error: "No se pudo comprobar la confirmación." },
-      { status: 503 },
-    );
-  }
-
-  const resolved = (readback.data ?? []).filter(
-    (row): row is { id: string; resolved_at: string } =>
-      typeof row.id === "string" && typeof row.resolved_at === "string",
-  );
-  const resolvedIds = new Set(resolved.map((row) => row.id));
+  const archived = Array.isArray(archive.data)
+    ? archive.data.filter(isArchiveReceipt).map((row) => ({
+        id: row.id,
+        resolved_at: row.resolved_at,
+        archived_at: row.archived_at,
+      }))
+    : [];
+  const archivedIds = new Set(archived.map((row) => row.id));
   if (
-    resolved.length !== eventIds.length ||
-    eventIds.some((eventId) => !resolvedIds.has(eventId))
+    archived.length !== eventIds.length ||
+    eventIds.some((eventId) => !archivedIds.has(eventId))
   ) {
     return privateJson(
-      { error: "No se pudieron confirmar todos los errores." },
+      { error: "Solo se pueden archivar errores solucionados." },
       { status: 409 },
     );
   }
 
-  return privateJson({ resolved });
+  return privateJson({ archived });
 }

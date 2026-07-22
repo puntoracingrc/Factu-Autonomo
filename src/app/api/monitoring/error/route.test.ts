@@ -3,6 +3,7 @@ import { POST } from "./route";
 import { getUserFromBearer } from "@/lib/billing/server-auth";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { resetRateLimitBucketsForTests } from "@/lib/server/rate-limit";
+import { hashCloudDeviceToken } from "@/lib/cloud/devices";
 
 vi.mock("@/lib/billing/server-auth", () => ({
   getUserFromBearer: vi.fn(),
@@ -18,6 +19,7 @@ function request(body: unknown, init?: RequestInit) {
     headers: {
       Authorization: "Bearer token",
       "Content-Type": "application/json",
+      "X-Factu-Device-Token": "synthetic-device-token-000000000001",
       ...(init?.headers ?? {}),
     },
     body: typeof body === "string" ? body : JSON.stringify(body),
@@ -82,8 +84,49 @@ describe("POST /api/monitoring/error", () => {
         code: "render",
         message: "Mensaje oculto por seguridad",
         metadata: { count: 2 },
+        device_scope_hash: null,
       }),
     );
+  });
+
+  it("correlaciona errores sync solo con el hash del dispositivo", async () => {
+    const response = await POST(
+      request({
+        area: "sync",
+        code: "push_failed",
+        message: "Fallo sintético",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        user_id: "user-1",
+        area: "sync",
+        device_scope_hash: hashCloudDeviceToken(
+          "synthetic-device-token-000000000001",
+        ),
+      }),
+    );
+    expect(JSON.stringify(insert.mock.calls[0][0])).not.toContain(
+      "synthetic-device-token",
+    );
+  });
+
+  it("rechaza nuevos errores sync sin un token de dispositivo válido", async () => {
+    const response = await POST(
+      request(
+        {
+          area: "sync",
+          code: "push_failed",
+          message: "Fallo sintético",
+        },
+        { headers: { "X-Factu-Device-Token": "short" } },
+      ),
+    );
+
+    expect(response.status).toBe(400);
+    expect(insert).not.toHaveBeenCalled();
   });
 
   it("aplica rate limit por usuario", async () => {

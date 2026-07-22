@@ -105,7 +105,10 @@ import {
 import { EMPTY_DATA, type AppData } from "@/lib/types";
 import { pickNewerAppData } from "@/lib/cloud/sync";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
-import { reportAppError } from "@/lib/monitoring/client";
+import {
+  reportAppError,
+  reportAppRecovery,
+} from "@/lib/monitoring/client";
 import {
   appDataRecordCount,
   dispatchDataAccessEvent,
@@ -738,6 +741,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         ) {
           return false;
         }
+        void reportAppRecovery(authOperation.userId, "sync_push_verified");
         return true;
       } catch (error) {
         if (!reviewOperationIsCurrent()) return false;
@@ -1100,6 +1104,13 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             }
           }
           rememberSuccessfulDeviceSync();
+          if (
+            !hasPendingSyncChanges(workingData) &&
+            !hasUnsyncedChanges(workingData) &&
+            !isSyncPendingFlag()
+          ) {
+            void reportAppRecovery(authOperation.userId, "sync_cycle_verified");
+          }
           return true;
         } catch (error) {
           if (!reviewOperationIsCurrent()) return false;
@@ -1659,6 +1670,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
           setSyncStatus("synced");
           rememberSuccessfulDeviceSync();
+          void reportAppRecovery(user.id, "cloud_repair_verified");
           setSyncMessage(
             legacyMigrationFailed
               ? `Dispositivo reparado desde la nube. Se solicitó la copia local ${repair.safetyCopyFilename}; búscala en Descargas o en la carpeta configurada en tu navegador. La copia antigua sigue pendiente de actualizar en la nube.`
