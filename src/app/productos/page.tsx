@@ -4,23 +4,27 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
+  ArchiveRestore,
   Boxes,
   CalendarDays,
   Check,
+  CheckSquare2,
   Copy,
   Edit3,
-  Euro,
   Factory,
   FileText,
   GitMerge,
+  MoreHorizontal,
   PackageSearch,
   Plus,
   Save,
   Search,
   ShoppingCart,
+  SlidersHorizontal,
   Tag,
   Trash2,
   TrendingUp,
+  X,
 } from "lucide-react";
 import { Card, PageHeader } from "@/components/ui/Card";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
@@ -76,6 +80,21 @@ type ProductSort =
   | "amountDesc"
   | "amountAsc"
   | "name";
+type ProductCatalogView =
+  | "all"
+  | "unclassified"
+  | "missing-sale-price"
+  | "hidden";
+
+const PRODUCT_CATALOG_VIEWS: Array<{
+  value: ProductCatalogView;
+  label: string;
+}> = [
+  { value: "all", label: "Todos" },
+  { value: "unclassified", label: "Por clasificar" },
+  { value: "missing-sale-price", label: "Sin precio" },
+  { value: "hidden", label: "Ocultos" },
+];
 
 const PRODUCT_SORT_OPTIONS: Array<{ value: ProductSort; label: string }> = [
   { value: "newest", label: "Última compra" },
@@ -98,6 +117,37 @@ function productQuantityLabel(product: PurchaseProductSummary): string {
 
 function productDisplayName(product: PurchaseProductSummary): string {
   return product.saleDescription?.trim() || product.name;
+}
+
+function productFamilyDisplayName(family: string): string {
+  return family.trim() === UNCATEGORIZED_FAMILY ? "Por clasificar" : family;
+}
+
+function productHasSalePrice(product: PurchaseProductSummary): boolean {
+  return Boolean(product.saleUnitPrice && product.saleUnitPrice > 0);
+}
+
+function productCostValue(
+  product: PurchaseProductSummary,
+): number | undefined {
+  if (product.purchaseNetUnitCost && product.purchaseNetUnitCost > 0) {
+    return product.purchaseNetUnitCost;
+  }
+  if (product.purchaseCount > 0 && product.lastUnitPrice > 0) {
+    return product.lastUnitPrice;
+  }
+  return undefined;
+}
+
+function productMatchesCatalogView(
+  product: PurchaseProductSummary,
+  view: ProductCatalogView,
+): boolean {
+  if (view === "unclassified") {
+    return !product.family.trim() || product.family === UNCATEGORIZED_FAMILY;
+  }
+  if (view === "missing-sale-price") return !productHasSalePrice(product);
+  return view !== "hidden";
 }
 
 function defaultSubfamilyForFamily(): string {
@@ -159,6 +209,9 @@ export default function ProductosPage() {
   const [subfamily, setSubfamily] = useState(ALL);
   const [supplier, setSupplier] = useState(ALL);
   const [sort, setSort] = useState<ProductSort>("newest");
+  const [catalogView, setCatalogView] = useState<ProductCatalogView>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [visibleCount, setVisibleCount] = useState(30);
   const [familyFormOpen, setFamilyFormOpen] = useState(false);
   const [familyDraft, setFamilyDraft] = useState("");
@@ -174,9 +227,9 @@ export default function ProductosPage() {
   const [bulkSubfamilyDraft, setBulkSubfamilyDraft] = useState("");
   const [familyStructureOpen, setFamilyStructureOpen] = useState(false);
   const [supplierStructureOpen, setSupplierStructureOpen] = useState(false);
-  const [actionMenuOpen, setActionMenuOpen] = useState<"new" | "rename" | null>(
-    null,
-  );
+  const [actionMenuOpen, setActionMenuOpen] = useState<
+    "new" | "rename" | "mobile" | null
+  >(null);
   const [familyNotice, setFamilyNotice] = useState<string | null>(null);
   const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
   const [documentPickRequest, setDocumentPickRequest] =
@@ -187,6 +240,16 @@ export default function ProductosPage() {
   const products = useMemo(
     () => buildPurchaseProductSummaries(data.expenses, data.products),
     [data.expenses, data.products],
+  );
+  const hiddenProducts = useMemo(
+    () =>
+      data.products.filter(
+        (product) =>
+          product.hidden &&
+          !isFamilyMarker(product) &&
+          !isSubfamilyMarker(product),
+      ),
+    [data.products],
   );
 
   const families = useMemo(
@@ -199,21 +262,6 @@ export default function ProductosPage() {
           ]
             .map((familyName) => familyName.trim())
             .filter(Boolean),
-        ),
-      ].sort((a, b) => a.localeCompare(b, "es")),
-    [data.products, products],
-  );
-
-  const subfamilies = useMemo(
-    () =>
-      [
-        ...new Set(
-          [
-            ...products.map((product) => product.subfamily),
-            ...data.products.map((product) => product.subfamily),
-          ]
-            .map((subfamilyName) => subfamilyName?.trim())
-            .filter((value): value is string => Boolean(value)),
         ),
       ].sort((a, b) => a.localeCompare(b, "es")),
     [data.products, products],
@@ -323,12 +371,19 @@ export default function ProductosPage() {
     () =>
       [
         ...new Set(
-          products
-            .map((product) => product.usualSupplier?.supplierName)
+          [
+            ...products.map(
+              (product) => product.usualSupplier?.supplierName,
+            ),
+            ...hiddenProducts.map(
+              (product) =>
+                product.purchase?.supplierName ?? product.supplierName,
+            ),
+          ]
             .filter((value): value is string => Boolean(value)),
         ),
       ].sort((a, b) => a.localeCompare(b, "es")),
-    [products],
+    [hiddenProducts, products],
   );
 
   const supplierStructure = useMemo(
@@ -381,8 +436,15 @@ export default function ProductosPage() {
           : product.subfamily === subfamily);
       const matchesSupplier =
         supplier === ALL || product.usualSupplier?.supplierName === supplier;
+      const matchesView = productMatchesCatalogView(product, catalogView);
 
-      return matchesQuery && matchesFamily && matchesSubfamily && matchesSupplier;
+      return (
+        matchesView &&
+        matchesQuery &&
+        matchesFamily &&
+        matchesSubfamily &&
+        matchesSupplier
+      );
     });
 
     return [...filtered].sort((a, b) => {
@@ -402,22 +464,96 @@ export default function ProductosPage() {
           );
         case "newest":
         default:
+          if (a.purchaseCount === 0 && b.purchaseCount > 0) return 1;
+          if (b.purchaseCount === 0 && a.purchaseCount > 0) return -1;
+          if (a.purchaseCount === 0 && b.purchaseCount === 0) {
+            return productDisplayName(a).localeCompare(
+              productDisplayName(b),
+              "es",
+            );
+          }
           return b.lastPurchaseDate.localeCompare(a.lastPurchaseDate);
       }
     });
-  }, [family, products, query, sort, subfamily, supplier]);
+  }, [catalogView, family, products, query, sort, subfamily, supplier]);
+
+  const filteredHiddenProducts = useMemo(() => {
+    if (catalogView !== "hidden") return [];
+    const normalizedQuery = query.trim().toLocaleLowerCase("es");
+    return hiddenProducts
+      .filter((product) => {
+        const hiddenSupplier =
+          product.purchase?.supplierName ?? product.supplierName;
+        const matchesQuery =
+          !normalizedQuery ||
+          [
+            product.sales?.description,
+            product.name,
+            product.family,
+            product.subfamily,
+            hiddenSupplier,
+            product.sku,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLocaleLowerCase("es")
+            .includes(normalizedQuery);
+        const matchesFamily = family === ALL || product.family === family;
+        const matchesSubfamily =
+          subfamily === ALL ||
+          (subfamily === NO_SUBFAMILY
+            ? !product.subfamily
+            : product.subfamily === subfamily);
+        const matchesSupplier =
+          supplier === ALL || hiddenSupplier === supplier;
+        return (
+          matchesQuery &&
+          matchesFamily &&
+          matchesSubfamily &&
+          matchesSupplier
+        );
+      })
+      .sort((a, b) =>
+        sort === "name"
+          ? a.name.localeCompare(b.name, "es")
+          : b.updatedAt.localeCompare(a.updatedAt),
+      );
+  }, [
+    catalogView,
+    family,
+    hiddenProducts,
+    query,
+    sort,
+    subfamily,
+    supplier,
+  ]);
 
   const totals = useMemo(
     () => ({
       products: products.length,
-      families: families.length,
-      subfamilies: subfamilies.length,
+      families: families.filter(
+        (familyName) => familyName !== UNCATEGORIZED_FAMILY,
+      ).length,
       suppliers: suppliers.length,
       totalBase: products.reduce((sum, product) => sum + product.totalBase, 0),
     }),
-    [families.length, products, subfamilies.length, suppliers.length],
+    [families, products, suppliers.length],
+  );
+  const catalogViewCounts = useMemo(
+    () => ({
+      all: products.length,
+      unclassified: products.filter((product) =>
+        productMatchesCatalogView(product, "unclassified"),
+      ).length,
+      "missing-sale-price": products.filter((product) =>
+        productMatchesCatalogView(product, "missing-sale-price"),
+      ).length,
+      hidden: hiddenProducts.length,
+    }),
+    [hiddenProducts.length, products],
   );
   const visibleProducts = filteredProducts.slice(0, visibleCount);
+  const visibleHiddenProducts = filteredHiddenProducts.slice(0, visibleCount);
   const visibleProductGroups = useMemo(() => {
     if (sort !== "mostPurchases" && sort !== "leastPurchases") {
       return [{ key: "all", title: null, products: visibleProducts }];
@@ -451,6 +587,15 @@ export default function ProductosPage() {
         ),
     [products, selectedProductKeys],
   );
+  const activeFilterCount =
+    Number(family !== ALL) +
+    Number(subfamily !== ALL) +
+    Number(supplier !== ALL) +
+    Number(sort !== "newest");
+  const currentResultCount =
+    catalogView === "hidden"
+      ? filteredHiddenProducts.length
+      : filteredProducts.length;
 
   const bulkSubfamilyOptions = useMemo(() => {
     const selectedFamilies = [
@@ -466,7 +611,12 @@ export default function ProductosPage() {
 
   useEffect(() => {
     setVisibleCount(30);
-  }, [family, query, sort, subfamily, supplier]);
+  }, [catalogView, family, query, sort, subfamily, supplier]);
+
+  useEffect(() => {
+    setSelectedProductKeys([]);
+    setSelectionMode(false);
+  }, [catalogView]);
 
   useEffect(() => {
     if (family === ALL) {
@@ -523,6 +673,7 @@ export default function ProductosPage() {
       documentPickRequest.prefill?.name?.trim();
     if (!searchTerm) return;
     setQuery(searchTerm);
+    setCatalogView("all");
     setFamily(ALL);
     setSubfamily(ALL);
     setSupplier(ALL);
@@ -535,6 +686,22 @@ export default function ProductosPage() {
         ? current.filter((key) => key !== product.key)
         : [...current, product.key],
     );
+  }
+
+  function applyCatalogView(view: ProductCatalogView) {
+    setCatalogView(view);
+    setVisibleCount(30);
+  }
+
+  function clearCatalogFilters() {
+    setFamily(ALL);
+    setSubfamily(ALL);
+    setSupplier(ALL);
+    setSort("newest");
+  }
+
+  function restoreHiddenProduct(product: Product) {
+    updateProduct({ ...product, hidden: false });
   }
 
   function selectVisibleProducts() {
@@ -1267,9 +1434,108 @@ export default function ProductosPage() {
     <div className="space-y-5">
       <PageHeader
         title="Productos"
-        subtitle="Materiales y servicios detectados en tus compras escaneadas."
+        subtitle="Catálogo aprendido de tus compras y productos habituales."
         action={
-          <div ref={productActionsRef} className="flex flex-col gap-2 sm:flex-row">
+          <div
+            ref={productActionsRef}
+            className="grid grid-cols-2 gap-2 sm:flex sm:flex-row"
+          >
+            <div className="relative sm:hidden">
+              <button
+                type="button"
+                onClick={() =>
+                  setActionMenuOpen((current) =>
+                    current === "mobile" ? null : "mobile",
+                  )
+                }
+                aria-expanded={actionMenuOpen === "mobile"}
+                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                Organizar
+              </button>
+              {actionMenuOpen === "mobile" ? (
+                <div className="absolute left-0 z-30 mt-2 grid min-w-60 gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFamilyStructureOpen((current) => !current);
+                      setSupplierStructureOpen(false);
+                      setActionMenuOpen(null);
+                      setFamilyFormOpen(false);
+                      setFamilyRenameOpen(false);
+                      setSubfamilyFormOpen(false);
+                      setSubfamilyRenameOpen(false);
+                      setFamilyNotice(null);
+                    }}
+                    className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    <Boxes className="h-4 w-4" />
+                    {familyStructureOpen ? "Ocultar estructura" : "Ver estructura"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(null);
+                      setFamilyFormOpen((current) => !current);
+                      setFamilyRenameOpen(false);
+                      setSubfamilyFormOpen(false);
+                      setSubfamilyRenameOpen(false);
+                      setFamilyNotice(null);
+                    }}
+                    className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Nueva familia
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(null);
+                      setSubfamilyFormOpen((current) => !current);
+                      setFamilyFormOpen(false);
+                      setFamilyRenameOpen(false);
+                      setSubfamilyRenameOpen(false);
+                      setFamilyNotice(null);
+                    }}
+                    className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Nueva subfamilia
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(null);
+                      setFamilyRenameOpen((current) => !current);
+                      setFamilyFormOpen(false);
+                      setSubfamilyFormOpen(false);
+                      setSubfamilyRenameOpen(false);
+                      setFamilyNotice(null);
+                    }}
+                    className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    Renombrar familia
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActionMenuOpen(null);
+                      setSubfamilyRenameOpen((current) => !current);
+                      setFamilyFormOpen(false);
+                      setFamilyRenameOpen(false);
+                      setSubfamilyFormOpen(false);
+                      setFamilyNotice(null);
+                    }}
+                    className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                    Renombrar subfamilia
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
               onClick={() => {
@@ -1282,12 +1548,12 @@ export default function ProductosPage() {
                 setSubfamilyRenameOpen(false);
                 setFamilyNotice(null);
               }}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              className="hidden min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:inline-flex"
             >
               <Boxes className="h-5 w-5" />
               {familyStructureOpen ? "Ocultar estructura" : "Ver estructura"}
             </button>
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <button
                 type="button"
                 onClick={() =>
@@ -1334,7 +1600,7 @@ export default function ProductosPage() {
                 </div>
               ) : null}
             </div>
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <button
                 type="button"
                 onClick={() =>
@@ -1383,7 +1649,7 @@ export default function ProductosPage() {
             </div>
             <Link
               href="/productos/nuevo"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 text-base font-semibold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-black text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:rounded-2xl sm:px-5 sm:text-base sm:font-semibold"
             >
               <Plus className="h-5 w-5" />
               {documentPickRequest ? "Crear producto" : "Nuevo producto"}
@@ -1789,7 +2055,7 @@ export default function ProductosPage() {
         </Card>
       ) : null}
 
-      {products.length === 0 ? (
+      {products.length === 0 && hiddenProducts.length === 0 ? (
         <Card className="space-y-4">
           <div className="flex items-start gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-blue-600">
@@ -1858,128 +2124,253 @@ export default function ProductosPage() {
             </Card>
           ) : null}
 
-          <Card className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-              <SummaryTile
-                label="Productos"
-                value={totals.products.toString()}
-                icon={Boxes}
-              />
-              <SummaryTile
+          <Card className="overflow-hidden p-0">
+            <div className="flex gap-px overflow-x-auto border-b border-slate-100 bg-slate-100">
+              <CatalogMetric label="Productos" value={totals.products.toString()} />
+              <CatalogMetric
                 label="Familias"
                 value={totals.families.toString()}
-                icon={Tag}
                 onClick={() => {
                   setFamilyStructureOpen(true);
                   setSupplierStructureOpen(false);
                 }}
               />
-              <SummaryTile
-                label="Subfamilias"
-                value={totals.subfamilies.toString()}
-                icon={Tag}
-                onClick={() => {
-                  setFamilyStructureOpen(true);
-                  setSupplierStructureOpen(false);
-                }}
-              />
-              <SummaryTile
+              <CatalogMetric
                 label="Proveedores"
                 value={totals.suppliers.toString()}
-                icon={Factory}
                 onClick={() => {
                   setSupplierStructureOpen(true);
                   setFamilyStructureOpen(false);
                 }}
               />
-              <SummaryTile
+              <CatalogMetric
                 label="Comprado"
                 value={formatMoney(totals.totalBase)}
-                icon={Euro}
               />
             </div>
-            <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr_1fr]">
-              <label className="space-y-1.5">
-                <span className="text-sm font-bold text-slate-700">Buscar</span>
-                <span className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2.5">
-                  <Search className="h-5 w-5 text-slate-400" />
+
+            {!documentPickRequest ? (
+              <div
+                role="tablist"
+                aria-label="Vistas del catálogo"
+                className="flex gap-1 overflow-x-auto border-b border-slate-100 px-3 pt-2"
+              >
+                {PRODUCT_CATALOG_VIEWS.map((view) => (
+                  <button
+                    key={view.value}
+                    type="button"
+                    role="tab"
+                    aria-selected={catalogView === view.value}
+                    onClick={() => applyCatalogView(view.value)}
+                    className={`inline-flex min-h-11 shrink-0 items-center gap-2 border-b-2 px-3 text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                      catalogView === view.value
+                        ? "border-blue-600 text-blue-700"
+                        : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-800"
+                    }`}
+                  >
+                    {view.label}
+                    <span
+                      className={`min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs ${
+                        catalogView === view.value
+                          ? "bg-blue-50 text-blue-700"
+                          : "bg-slate-100 text-slate-600"
+                      }`}
+                    >
+                      {catalogViewCounts[view.value]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            <div className="space-y-3 p-4">
+              <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <label className="flex min-h-12 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-100">
+                  <span className="sr-only">Buscar productos</span>
+                  <Search className="h-5 w-5 shrink-0 text-slate-400" />
                   <input
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Producto, familia o proveedor..."
-                    className="w-full bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+                    placeholder="Buscar producto, familia o proveedor"
+                    className="min-w-0 flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
                   />
-                </span>
-              </label>
-              <FilterSelect
-                label="Familia"
-                value={family}
-                onChange={(value) => {
-                  setFamily(value);
-                  setSubfamily(defaultSubfamilyForFamily());
-                }}
-                options={families}
-                allLabel="Todas"
-              />
-              <FilterSelect
-                label="Subfamilia"
-                value={subfamily}
-                onChange={setSubfamily}
-                options={selectedFamilySubfamilies}
-                allLabel={
-                  family === ALL ? "Elige familia primero" : "Todas"
-                }
-              />
-              <FilterSelect
-                label="Proveedor"
-                value={supplier}
-                onChange={setSupplier}
-                options={suppliers}
-                allLabel="Todos"
-              />
-              <label className="space-y-1.5">
-                <span className="text-sm font-bold text-slate-700">
-                  Ordenar
-                </span>
-                <select
-                  value={sort}
-                  onChange={(event) =>
-                    setSort(event.target.value as ProductSort)
-                  }
-                  className="h-[3.125rem] w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  {query ? (
+                    <button
+                      type="button"
+                      onClick={() => setQuery("")}
+                      aria-label="Borrar búsqueda"
+                      title="Borrar búsqueda"
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : null}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setFiltersOpen((current) => !current)}
+                  aria-expanded={filtersOpen}
+                  className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                    filtersOpen || activeFilterCount > 0
+                      ? "border-blue-200 bg-blue-50 text-blue-700"
+                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
                 >
-                  {PRODUCT_SORT_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <SlidersHorizontal className="h-4 w-4" />
+                  Filtros
+                  {activeFilterCount > 0 ? (
+                    <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-blue-600 px-1 text-xs text-white">
+                      {activeFilterCount}
+                    </span>
+                  ) : null}
+                </button>
+              </div>
+
+              {activeFilterCount > 0 ? (
+                <div className="flex flex-wrap items-center gap-2" aria-label="Filtros activos">
+                  {family !== ALL ? (
+                    <ActiveFilterChip
+                      label={productFamilyDisplayName(family)}
+                      onRemove={() => {
+                        setFamily(ALL);
+                        setSubfamily(ALL);
+                      }}
+                    />
+                  ) : null}
+                  {subfamily !== ALL ? (
+                    <ActiveFilterChip
+                      label={
+                        subfamily === NO_SUBFAMILY
+                          ? "Sin subfamilia"
+                          : subfamily
+                      }
+                      onRemove={() => setSubfamily(ALL)}
+                    />
+                  ) : null}
+                  {supplier !== ALL ? (
+                    <ActiveFilterChip
+                      label={supplier}
+                      onRemove={() => setSupplier(ALL)}
+                    />
+                  ) : null}
+                  {sort !== "newest" ? (
+                    <ActiveFilterChip
+                      label={`Orden: ${
+                        PRODUCT_SORT_OPTIONS.find(
+                          (option) => option.value === sort,
+                        )?.label ?? sort
+                      }`}
+                      onRemove={() => setSort("newest")}
+                    />
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={clearCatalogFilters}
+                    className="inline-flex min-h-9 items-center gap-1.5 px-2 text-xs font-black text-slate-500 hover:text-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    Limpiar
+                  </button>
+                </div>
+              ) : null}
+
+              {filtersOpen ? (
+                <div className="grid gap-3 border-t border-slate-100 pt-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <FilterSelect
+                    label="Familia"
+                    value={family}
+                    onChange={(value) => {
+                      setFamily(value);
+                      setSubfamily(defaultSubfamilyForFamily());
+                    }}
+                    options={families}
+                    allLabel="Todas"
+                    optionLabel={productFamilyDisplayName}
+                  />
+                  <FilterSelect
+                    label="Subfamilia"
+                    value={subfamily}
+                    onChange={setSubfamily}
+                    options={selectedFamilySubfamilies}
+                    allLabel={
+                      family === ALL ? "Elige familia primero" : "Todas"
+                    }
+                  />
+                  <FilterSelect
+                    label="Proveedor"
+                    value={supplier}
+                    onChange={setSupplier}
+                    options={suppliers}
+                    allLabel="Todos"
+                  />
+                  <label className="space-y-1.5">
+                    <span className="text-sm font-bold text-slate-700">
+                      Ordenar
+                    </span>
+                    <select
+                      value={sort}
+                      onChange={(event) =>
+                        setSort(event.target.value as ProductSort)
+                      }
+                      className="h-[3.125rem] w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                      {PRODUCT_SORT_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              ) : null}
             </div>
           </Card>
 
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm font-semibold text-slate-500">
-              {filteredProducts.length} de {products.length} producto(s)
+              {currentResultCount} producto(s)
             </p>
-            {!documentPickRequest && visibleProducts.length > 0 ? (
+            {!documentPickRequest &&
+            catalogView !== "hidden" &&
+            visibleProducts.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={selectVisibleProducts}
-                  className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                >
-                  Seleccionar visibles
-                </button>
-                {selectedProducts.length > 0 ? (
+                {selectionMode ? (
+                  <button
+                    type="button"
+                    onClick={selectVisibleProducts}
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  >
+                    Seleccionar visibles
+                  </button>
+                ) : null}
+                {selectionMode && selectedProducts.length > 0 ? (
                   <button
                     type="button"
                     onClick={clearSelectedProducts}
-                    className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                   >
                     Quitar selección
                   </button>
                 ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectionMode) clearSelectedProducts();
+                    setSelectionMode(!selectionMode);
+                  }}
+                  className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border px-4 text-sm font-black transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
+                    selectionMode
+                      ? "border-slate-200 bg-slate-100 text-slate-700"
+                      : "border-blue-200 bg-white text-blue-700 hover:bg-blue-50"
+                  }`}
+                >
+                  {selectionMode ? (
+                    <X className="h-4 w-4" />
+                  ) : (
+                    <CheckSquare2 className="h-4 w-4" />
+                  )}
+                  {selectionMode ? "Salir" : "Seleccionar"}
+                </button>
               </div>
             ) : null}
           </div>
@@ -2077,60 +2468,105 @@ export default function ProductosPage() {
             </Card>
           ) : null}
 
-          <div className="grid gap-4">
-            {visibleProductGroups.map((group) => (
-              <div key={group.key} className="grid gap-3">
-                {group.title ? (
-                  <TimelineMonthDivider label={group.title} />
-                ) : null}
-                {group.products.map((product) => {
-                  const targetFromDocument = productMatchesDocumentPickRequest(
-                    product,
-                    documentPickRequest,
-                  );
-                  return (
-                    <ProductCard
-                      key={product.key}
-                      product={product}
-                      allProducts={products}
-                      familyOptions={families}
-                      subfamilyEntries={subfamilyEntries}
-                      selected={selectedProductKeys.includes(product.key)}
-                      pickMode={Boolean(documentPickRequest)}
-                      editMode={
-                        documentPickRequest?.mode === "edit" &&
-                        targetFromDocument
-                      }
-                      startOpen={
-                        (documentPickRequest?.mode === "edit" &&
-                          targetFromDocument) ||
-                        editingProductKey === product.key
-                      }
-                      autoEdit={editingProductKey === product.key}
-                      onToggleSelected={() => toggleProductForDraft(product)}
-                      onPickForDocument={() =>
-                        handlePickProductForDocument(product)
-                      }
-                      onPickSavedProduct={handlePickSavedProductForDocument}
-                      onSave={(patch) => saveProductPatch(product, patch)}
-                      onDuplicate={() => duplicateProduct(product)}
-                      onRemove={() => removeProduct(product)}
-                      onAutoEditConsumed={() => setEditingProductKey(null)}
-                      onMerge={(removeKey) =>
-                        handleMergeProducts(product, removeKey)
-                      }
-                    />
-                  );
-                })}
+          {currentResultCount === 0 ? (
+            <Card className="flex flex-col items-start gap-3 border-dashed border-slate-200 bg-slate-50/70">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white text-slate-500 shadow-sm">
+                <PackageSearch className="h-5 w-5" />
               </div>
-            ))}
-          </div>
-          {visibleProducts.length < filteredProducts.length ? (
+              <div>
+                <h2 className="text-base font-black text-slate-900">
+                  {catalogView === "hidden"
+                    ? "No hay productos ocultos"
+                    : "No hay productos en esta vista"}
+                </h2>
+                <p className="mt-1 text-sm font-semibold text-slate-500">
+                  {query || activeFilterCount > 0
+                    ? "Prueba a quitar la búsqueda o alguno de los filtros."
+                    : "Los productos aparecerán aquí cuando cumplan este estado."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setQuery("");
+                  clearCatalogFilters();
+                  if (catalogView !== "all") applyCatalogView("all");
+                }}
+                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-black text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+              >
+                Ver todos
+              </button>
+            </Card>
+          ) : catalogView === "hidden" ? (
+            <div className="grid gap-3">
+              {visibleHiddenProducts.map((product) => (
+                <HiddenProductRow
+                  key={product.id}
+                  product={product}
+                  onRestore={() => restoreHiddenProduct(product)}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {visibleProductGroups.map((group) => (
+                <div key={group.key} className="grid gap-3">
+                  {group.title ? (
+                    <TimelineMonthDivider label={group.title} />
+                  ) : null}
+                  {group.products.map((product) => {
+                    const targetFromDocument =
+                      productMatchesDocumentPickRequest(
+                        product,
+                        documentPickRequest,
+                      );
+                    return (
+                      <ProductCard
+                        key={product.key}
+                        product={product}
+                        allProducts={products}
+                        familyOptions={families}
+                        subfamilyEntries={subfamilyEntries}
+                        selected={selectedProductKeys.includes(product.key)}
+                        selectionMode={selectionMode}
+                        pickMode={Boolean(documentPickRequest)}
+                        editMode={
+                          documentPickRequest?.mode === "edit" &&
+                          targetFromDocument
+                        }
+                        startOpen={
+                          (documentPickRequest?.mode === "edit" &&
+                            targetFromDocument) ||
+                          editingProductKey === product.key
+                        }
+                        autoEdit={editingProductKey === product.key}
+                        onToggleSelected={() => toggleProductForDraft(product)}
+                        onPickForDocument={() =>
+                          handlePickProductForDocument(product)
+                        }
+                        onPickSavedProduct={handlePickSavedProductForDocument}
+                        onSave={(patch) => saveProductPatch(product, patch)}
+                        onDuplicate={() => duplicateProduct(product)}
+                        onRemove={() => removeProduct(product)}
+                        onAutoEditConsumed={() => setEditingProductKey(null)}
+                        onMerge={(removeKey) =>
+                          handleMergeProducts(product, removeKey)
+                        }
+                      />
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          )}
+          {(catalogView === "hidden"
+            ? visibleHiddenProducts.length < filteredHiddenProducts.length
+            : visibleProducts.length < filteredProducts.length) ? (
             <div className="flex justify-center">
               <button
                 type="button"
                 onClick={() => setVisibleCount((current) => current + 30)}
-                className="inline-flex min-h-12 items-center justify-center rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                className="inline-flex min-h-12 items-center justify-center rounded-lg border border-blue-200 bg-white px-5 text-base font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
               >
                 Cargar 30 más
               </button>
@@ -2142,26 +2578,21 @@ export default function ProductosPage() {
   );
 }
 
-function SummaryTile({
+function CatalogMetric({
   label,
   value,
-  icon: Icon,
   onClick,
 }: {
   label: string;
   value: string;
-  icon: typeof Boxes;
   onClick?: () => void;
 }) {
   const content = (
     <>
-      <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-xl bg-white text-blue-600">
-        <Icon className="h-5 w-5" />
-      </div>
-      <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-        {label}
-      </p>
-      <p className="mt-1 truncate text-xl font-black text-slate-950">{value}</p>
+      <span className="block text-xs font-bold text-slate-500">{label}</span>
+      <span className="mt-1 block truncate text-lg font-black text-slate-950">
+        {value}
+      </span>
     </>
   );
 
@@ -2170,7 +2601,7 @@ function SummaryTile({
       <button
         type="button"
         onClick={onClick}
-        className="rounded-2xl bg-slate-50 p-3 text-left transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+        className="min-w-32 flex-1 bg-white p-4 text-left transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-blue-500"
       >
         {content}
       </button>
@@ -2178,9 +2609,72 @@ function SummaryTile({
   }
 
   return (
-    <div className="rounded-2xl bg-slate-50 p-3">
-      {content}
-    </div>
+    <div className="min-w-32 flex-1 bg-white p-4">{content}</div>
+  );
+}
+
+function ActiveFilterChip({
+  label,
+  onRemove,
+}: {
+  label: string;
+  onRemove: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onRemove}
+      className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-full border border-blue-100 bg-blue-50 px-3 text-xs font-black text-blue-700 transition-colors hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+      title={`Quitar filtro ${label}`}
+    >
+      <span className="truncate">{label}</span>
+      <X className="h-3.5 w-3.5 shrink-0" />
+    </button>
+  );
+}
+
+function HiddenProductRow({
+  product,
+  onRestore,
+}: {
+  product: Product;
+  onRestore: () => void;
+}) {
+  const supplierName =
+    product.purchase?.supplierName ?? product.supplierName;
+  return (
+    <Card className="p-0">
+      <div className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="max-w-full truncate text-xs font-black text-blue-700">
+              {productFamilyDisplayName(product.family)}
+              {product.subfamily ? ` / ${product.subfamily}` : ""}
+            </span>
+            <span className="text-xs font-bold text-slate-400">
+              {product.source === "manual" ? "Alta manual" : "Detectado"}
+            </span>
+          </div>
+          <p className="mt-1 truncate text-base font-black text-slate-950">
+            {product.sales?.description?.trim() || product.name}
+          </p>
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-slate-500">
+            {supplierName ? <span>Proveedor: {supplierName}</span> : null}
+            <span>
+              Actualizado {formatShortDate(product.updatedAt.slice(0, 10))}
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onRestore}
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+        >
+          <ArchiveRestore className="h-4 w-4" />
+          Restaurar
+        </button>
+      </div>
+    </Card>
   );
 }
 
@@ -2191,6 +2685,7 @@ function FilterSelect({
   options,
   allLabel,
   extraOptions = [],
+  optionLabel = (option) => option,
 }: {
   label: string;
   value: string;
@@ -2198,6 +2693,7 @@ function FilterSelect({
   options: string[];
   allLabel: string;
   extraOptions?: Array<{ value: string; label: string }>;
+  optionLabel?: (option: string) => string;
 }) {
   return (
     <label className="space-y-1.5">
@@ -2205,7 +2701,7 @@ function FilterSelect({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="h-[3.125rem] w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        className="h-[3.125rem] w-full rounded-lg border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
       >
         <option value={ALL}>{allLabel}</option>
         {extraOptions.map((option) => (
@@ -2215,7 +2711,7 @@ function FilterSelect({
         ))}
         {options.map((option) => (
           <option key={option} value={option}>
-            {option}
+            {optionLabel(option)}
           </option>
         ))}
       </select>
@@ -2229,6 +2725,7 @@ function ProductCard({
   familyOptions,
   subfamilyEntries,
   selected,
+  selectionMode,
   pickMode,
   editMode,
   startOpen,
@@ -2247,6 +2744,7 @@ function ProductCard({
   familyOptions: string[];
   subfamilyEntries: SubfamilyEntry[];
   selected: boolean;
+  selectionMode: boolean;
   pickMode: boolean;
   editMode: boolean;
   startOpen: boolean;
@@ -2261,6 +2759,7 @@ function ProductCard({
   onMerge: (removeKey: string) => void;
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
+  const [actionsOpen, setActionsOpen] = useState(false);
   const [sku, setSku] = useState(product.sku ?? "");
   const [name, setName] = useState(product.name);
   const [family, setFamily] = useState(product.family);
@@ -2312,6 +2811,7 @@ function ProductCard({
   const [notes, setNotes] = useState(product.notes ?? "");
   const [mergeKey, setMergeKey] = useState("");
   const [mergeSearch, setMergeSearch] = useState("");
+  const actionsRef = useRef<HTMLDivElement | null>(null);
   const lastDiscount =
     product.lastPvp > 0
       ? ((product.lastPvp - product.lastUnitPrice) / product.lastPvp) * 100
@@ -2352,11 +2852,24 @@ function ProductCard({
   );
   const displayName = productDisplayName(product);
   const hasCustomDisplayName = productHasCustomDisplayName(product);
-  const salePriceLabel = product.saleUnitPrice
-    ? formatMoney(product.saleUnitPrice)
-    : "Sin PVP";
+  const salePriceLabel = productHasSalePrice(product)
+    ? formatMoney(product.saleUnitPrice ?? 0)
+    : "Sin precio de venta";
+  const costValue = productCostValue(product);
+  const costLabel = costValue
+    ? formatMoney(costValue)
+    : "Sin coste informado";
   const supplierLabel = product.usualSupplier?.supplierName ?? "Sin proveedor";
-  const volumeLabel = productQuantityLabel(product);
+  const volumeLabel =
+    product.purchaseCount > 0
+      ? productQuantityLabel(product)
+      : product.source === "manual"
+        ? "Alta manual"
+        : "Detectado";
+  const purchaseDateLabel =
+    product.purchaseCount > 0
+      ? formatShortDate(product.lastPurchaseDate)
+      : "Sin compras registradas";
 
   const resetPanelForm = useCallback(() => {
     setSku(product.sku ?? "");
@@ -2398,6 +2911,7 @@ function ProductCard({
 
   function openPanel() {
     resetPanelForm();
+    setActionsOpen(false);
     setPanelOpen(true);
   }
 
@@ -2452,6 +2966,32 @@ function ProductCard({
     setPanelOpen(true);
     onAutoEditConsumed();
   }, [autoEdit, onAutoEditConsumed, resetPanelForm]);
+
+  useEffect(() => {
+    if (!actionsOpen) return;
+
+    function closeActionsOnOutsideClick(event: PointerEvent) {
+      if (
+        actionsRef.current &&
+        event.target instanceof Node &&
+        actionsRef.current.contains(event.target)
+      ) {
+        return;
+      }
+      setActionsOpen(false);
+    }
+
+    function closeActionsOnEscape(event: KeyboardEvent) {
+      if (event.key === "Escape") setActionsOpen(false);
+    }
+
+    document.addEventListener("pointerdown", closeActionsOnOutsideClick);
+    document.addEventListener("keydown", closeActionsOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeActionsOnOutsideClick);
+      document.removeEventListener("keydown", closeActionsOnEscape);
+    };
+  }, [actionsOpen]);
 
   function saveEdits() {
     const parsedSalePrice = parseOptionalNumber(salePrice);
@@ -2549,7 +3089,7 @@ function ProductCard({
             <div className="flex min-w-0 flex-col gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <span className="max-w-full truncate rounded-full bg-blue-50 px-2.5 py-1 text-xs font-black uppercase tracking-wide text-blue-700 lg:max-w-44">
-                  {product.family}
+                  {productFamilyDisplayName(product.family)}
                 </span>
                 {product.subfamily ? (
                   <span className="max-w-full truncate rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-black uppercase tracking-wide text-indigo-700 lg:max-w-44">
@@ -2587,24 +3127,21 @@ function ProductCard({
               ) : null}
               <p className="flex items-center gap-1.5 text-xs font-semibold text-slate-500">
                 <CalendarDays className="h-3.5 w-3.5" />
-                <span>{formatShortDate(product.lastPurchaseDate)}</span>
+                <span>{purchaseDateLabel}</span>
               </p>
             </div>
           </button>
 
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1">
-            <CompactValue
-              label="Último coste"
-              value={formatMoney(product.lastUnitPrice)}
-            />
-            <CompactValue label="Precio venta" value={salePriceLabel} />
+            <CompactValue label="Coste neto" value={costLabel} />
+            <CompactValue label="Precio de venta" value={salePriceLabel} />
           </div>
           <div className="flex flex-wrap items-start justify-start gap-2 lg:justify-end">
             <span className="rounded-xl bg-slate-50 px-3 py-2 text-sm font-black text-slate-800">
               {volumeLabel}
             </span>
-            <div className="grid grid-cols-2 gap-2">
-              {!editMode ? (
+            <div className="flex gap-2">
+              {!editMode && (pickMode || selectionMode) ? (
                 <button
                   type="button"
                   onClick={pickMode ? onPickForDocument : onToggleSelected}
@@ -2646,32 +3183,44 @@ function ProductCard({
               >
                 <Edit3 className="h-4 w-4" />
               </button>
-              <button
-                type="button"
-                onClick={onDuplicate}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-blue-200 bg-white text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-                aria-label="Duplicar producto"
-                title="Duplicar producto"
-              >
-                <Copy className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={onRemove}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-sm font-black text-red-700 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
-                aria-label={
-                  product.purchaseCount > 0
-                    ? "Ocultar producto"
-                    : "Eliminar producto"
-                }
-                title={
-                  product.purchaseCount > 0
-                    ? "Ocultar producto"
-                    : "Eliminar producto"
-                }
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div ref={actionsRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setActionsOpen((current) => !current)}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  aria-label="Más acciones del producto"
+                  title="Más acciones"
+                  aria-expanded={actionsOpen}
+                >
+                  <MoreHorizontal className="h-4 w-4" />
+                </button>
+                {actionsOpen ? (
+                  <div className="absolute right-0 z-30 mt-2 grid min-w-48 gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionsOpen(false);
+                        onDuplicate();
+                      }}
+                      className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-500"
+                    >
+                      <Copy className="h-4 w-4" />
+                      Duplicar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionsOpen(false);
+                        onRemove();
+                      }}
+                      className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-red-700 transition-colors hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                      {product.purchaseCount > 0 ? "Ocultar" : "Eliminar"}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
         </div>
@@ -2691,7 +3240,7 @@ function ProductCard({
         <div className="space-y-5">
           <div className="flex flex-wrap gap-2">
             <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-blue-700">
-              {product.family}
+              {productFamilyDisplayName(product.family)}
             </span>
             {product.subfamily ? (
               <span className="rounded-full bg-indigo-50 px-3 py-1 text-xs font-black uppercase tracking-wide text-indigo-700">
