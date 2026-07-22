@@ -51,6 +51,11 @@ const expenseLearningRetentionSql = {
   down:
     "supabase/rollbacks/20260722190000_expense_learning_retention_p4a.down.sql",
 };
+const expenseLearningPromotionSql = {
+  up: "supabase/migrations/20260722230000_expense_learning_promotion_p4b.sql",
+  down:
+    "supabase/rollbacks/20260722230000_expense_learning_promotion_p4b.down.sql",
+};
 
 const requiredEnv = [
   "PHASE1_ACCEPTANCE_ALLOW_DESTRUCTIVE",
@@ -415,6 +420,19 @@ function expenseLearningP3RuntimeRowCount() {
   );
 }
 
+function expenseLearningProtectedSourceRowCount() {
+  return Number(
+    querySql(`
+      select
+        (select count(*) from expense_learning_private.contribution_claims)
+        + (select count(*) from expense_learning_private.contributor_week_limits)
+        + (select count(*) from expense_learning_private.accumulator_memberships)
+        + (select count(*) from expense_learning_private.protected_accumulators)
+        + (select count(*) from expense_learning_private.contributor_revocation_links);
+    `),
+  );
+}
+
 function expenseLearningP3TableCounts() {
   return querySql(`
     select pg_catalog.concat_ws(
@@ -425,6 +443,16 @@ function expenseLearningP3TableCounts() {
       (select count(*) from expense_learning_private.protected_accumulators),
       (select count(*) from expense_learning_private.closed_week_supported_metrics),
       (select count(*) from expense_learning_private.contributor_revocation_links)
+    );
+  `);
+}
+
+function expenseLearningP4bTableCounts() {
+  return querySql(`
+    select pg_catalog.concat_ws(
+      ',',
+      (select count(*) from expense_learning_private.closed_week_promotion_batches),
+      (select count(*) from expense_learning_private.closed_week_supported_metrics)
     );
   `);
 }
@@ -995,6 +1023,8 @@ async function testExpenseLearningDataApi(admin, userA) {
       "protected_accumulators",
       "learning_consent_decisions",
       "contributor_revocation_links",
+      "closed_week_supported_metrics",
+      "closed_week_promotion_batches",
     ]) {
       const result = await client
         .schema("expense_learning_private")
@@ -1029,8 +1059,8 @@ async function testExpenseLearningDataApi(admin, userA) {
 
   const promote = await waitForExpenseLearningRpc(admin);
   expect(
-    promote.data === "DISABLED",
-    "expense learning promotion stub did not return DISABLED",
+    promote.data === "NOTHING",
+    "expense learning P4B promotion did not return an empty generic result",
   );
   const submit = await admin.rpc(
     "submit_expense_learning_contribution_v1",
@@ -1233,13 +1263,64 @@ function mutateExpenseLearningMetric(
   };
 }
 
+function expenseLearningContributionForReview(
+  structuralArchetypeGroup,
+  humanReview,
+) {
+  let contribution = expenseLearningCanonicalContribution(
+    structuralArchetypeGroup,
+  );
+  if (humanReview === "CONFIRMED") return contribution;
+  if (humanReview === "REJECTED") {
+    contribution = mutateExpenseLearningMetric(
+      contribution,
+      "HUMAN_REVIEW",
+      "NONE",
+      "VALUE",
+      "REJECTED",
+    );
+    return mutateExpenseLearningMetric(
+      contribution,
+      "CRITICAL_FLAG",
+      "NONE",
+      "EXPENSE_ACCEPTED_THEN_REJECTED",
+      "PRESENT",
+    );
+  }
+  expect(
+    humanReview === "CORRECTED",
+    `unsupported expense learning review fixture: ${humanReview}`,
+  );
+  contribution = mutateExpenseLearningMetric(
+    contribution,
+    "HUMAN_REVIEW",
+    "NONE",
+    "VALUE",
+    "CORRECTED",
+  );
+  contribution = mutateExpenseLearningMetric(
+    contribution,
+    "FIELD_VERDICT",
+    "AI_VS_HUMAN",
+    "TOTAL_AMOUNT",
+    "CORRECTED",
+  );
+  return mutateExpenseLearningMetric(
+    contribution,
+    "FIELD_VERDICT",
+    "LOCAL_VS_AI",
+    "TOTAL_AMOUNT",
+    "CORRECTED",
+  );
+}
+
 function delay(milliseconds) {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function waitForSqlSessionSleep(applicationName, message) {
   let sleeping = false;
-  for (let attempt = 0; attempt < 80; attempt += 1) {
+  for (let attempt = 0; attempt < 400; attempt += 1) {
     sleeping =
       querySql(`
         select exists (
@@ -1254,6 +1335,43 @@ async function waitForSqlSessionSleep(applicationName, message) {
     await delay(25);
   }
   expect(sleeping, message);
+}
+
+async function waitForSqlSessionAdvisoryLock(applicationName, message) {
+  let waiting = false;
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    waiting =
+      querySql(`
+        select exists (
+          select 1
+          from pg_catalog.pg_stat_activity
+          where application_name = '${applicationName}'
+            and wait_event_type = 'Lock'
+            and pg_catalog.lower(wait_event) = 'advisory'
+        );
+      `) === "t";
+    if (waiting) break;
+    await delay(25);
+  }
+  expect(waiting, message);
+}
+
+async function waitForSqlSessionLock(applicationName, message) {
+  let waiting = false;
+  for (let attempt = 0; attempt < 400; attempt += 1) {
+    waiting =
+      querySql(`
+        select exists (
+          select 1
+          from pg_catalog.pg_stat_activity
+          where application_name = '${applicationName}'
+            and wait_event_type = 'Lock'
+        );
+      `) === "t";
+    if (waiting) break;
+    await delay(25);
+  }
+  expect(waiting, message);
 }
 
 async function setExpenseLearningConsent(admin, userId, granted, message) {
@@ -1359,10 +1477,11 @@ function testExpenseLearningP3DatabaseBoundary() {
 function testExpenseLearningP4DatabaseBoundary() {
   expect(
     querySql(`
-      select count(*) = 2
+      select count(*) = 3
         and count(*) filter (where policy.polcmd = 'r') = 1
+        and count(*) filter (where policy.polcmd = 'a') = 1
         and count(*) filter (where policy.polcmd = 'd') = 1
-        and count(*) filter (where policy.polcmd in ('a', 'w', '*')) = 0
+        and count(*) filter (where policy.polcmd in ('w', '*')) = 0
         and pg_catalog.bool_and(
           policy.polroles = array[owner.oid]::oid[]
         )
@@ -1375,7 +1494,75 @@ function testExpenseLearningP4DatabaseBoundary() {
         and relation.relname = 'closed_week_supported_metrics'
         and owner.rolname = 'expense_learning_storage_owner';
     `) === "t",
-    "P4A closed metrics do not have exactly owner-only SELECT/DELETE policies",
+    "P4B closed metrics do not have exactly owner-only SELECT/INSERT/DELETE policies",
+  );
+  expect(
+    querySql(`
+      select count(*) = 3
+        and count(*) filter (where policy.polcmd = 'r') = 1
+        and count(*) filter (where policy.polcmd = 'a') = 1
+        and count(*) filter (where policy.polcmd = 'd') = 1
+        and count(*) filter (where policy.polcmd in ('w', '*')) = 0
+        and pg_catalog.bool_and(
+          policy.polroles = array[owner.oid]::oid[]
+        )
+      from pg_catalog.pg_policy policy
+      join pg_catalog.pg_class relation on relation.oid = policy.polrelid
+      join pg_catalog.pg_namespace namespace
+        on namespace.oid = relation.relnamespace
+      cross join pg_catalog.pg_roles owner
+      where namespace.nspname = 'expense_learning_private'
+        and relation.relname = 'closed_week_promotion_batches'
+        and owner.rolname = 'expense_learning_storage_owner';
+    `) === "t",
+    "P4B markers do not have exactly owner-only SELECT/INSERT/DELETE policies",
+  );
+  expect(
+    querySql(`
+      select relation.relrowsecurity
+        and relation.relforcerowsecurity
+        and not pg_catalog.has_table_privilege(
+          'service_role',
+          relation.oid,
+          'SELECT,INSERT,UPDATE,DELETE'
+        )
+      from pg_catalog.pg_class relation
+      join pg_catalog.pg_namespace namespace
+        on namespace.oid = relation.relnamespace
+      where namespace.nspname = 'expense_learning_private'
+        and relation.relname = 'closed_week_promotion_batches';
+    `) === "t",
+    "P4B marker storage is not FORCE RLS and ACL protected",
+  );
+  expect(
+    querySql(`
+      select not exists (
+        select 1
+        from pg_catalog.pg_attribute attribute
+        join pg_catalog.pg_class relation
+          on relation.oid = attribute.attrelid
+        join pg_catalog.pg_namespace namespace
+          on namespace.oid = relation.relnamespace
+        where namespace.nspname = 'expense_learning_private'
+          and relation.relname = 'closed_week_supported_metrics'
+          and attribute.attname = 'supporting_contributors'
+          and attribute.attnum > 0
+          and not attribute.attisdropped
+      ) and exists (
+        select 1
+        from pg_catalog.pg_attribute attribute
+        join pg_catalog.pg_class relation
+          on relation.oid = attribute.attrelid
+        join pg_catalog.pg_namespace namespace
+          on namespace.oid = relation.relnamespace
+        where namespace.nspname = 'expense_learning_private'
+          and relation.relname = 'closed_week_supported_metrics'
+          and attribute.attname = 'support_band'
+          and attribute.attnum > 0
+          and not attribute.attisdropped
+      );
+    `) === "t",
+    "P4B retained an exact promoted support count",
   );
   expect(
     querySql(`
@@ -1401,7 +1588,10 @@ function testExpenseLearningP4DatabaseBoundary() {
           'is_expense_learning_week_accumulator_consistent_v1',
           'reconcile_expense_learning_week_v1',
           'attempt_expense_learning_link_cleanup_v1',
-          'run_expense_learning_retention_v1'
+          'run_expense_learning_retention_v1',
+          'expense_learning_support_band_v1',
+          'is_expense_learning_promotion_source_safe_v1',
+          'run_expense_learning_promotion_v1'
         );
     `) === "t",
     "P4A private maintenance functions are executable by an API role",
@@ -2894,7 +3084,7 @@ async function testExpenseLearningP4RepairAndRetention(admin, users) {
       metric_key,
       bucket_kind,
       bucket_value,
-      supporting_contributors,
+      support_band,
       promoted_at,
       expires_at
     ) values (
@@ -2904,12 +3094,12 @@ async function testExpenseLearningP4RepairAndRetention(admin, users) {
       '2026-07-21',
       date '2025-01-06',
       'TABLE',
-      'SOURCE_QUALITY',
+      'HUMAN_REVIEW',
       'NONE',
       'VALUE',
       'EXACT',
-      'HIGH',
-      10,
+      'CONFIRMED',
+      'K10_19',
       timestamptz '2025-01-13 00:00:00+00',
       timestamptz '2026-02-13 00:00:00+00'
     );
@@ -2930,7 +3120,7 @@ async function testExpenseLearningP4RepairAndRetention(admin, users) {
   );
   expect(
     (await admin.rpc("promote_expense_learning_closed_weeks_v1")).data ===
-      "DISABLED" &&
+      "NOTHING" &&
       (
         await admin.rpc("submit_expense_learning_contribution_v1", {
           p_user_id: ttlUser.id,
@@ -2939,12 +3129,1060 @@ async function testExpenseLearningP4RepairAndRetention(admin, users) {
           p_contributor_week_hmac: "b".repeat(64),
         })
       ).data === "DISABLED",
-    "P4A changed the dormant submit or promotion stubs",
+    "P4B changed the dormant submit or empty promotion behavior",
   );
   const { error: ttlDeleteError } = await admin.auth.admin.deleteUser(
     ttlUser.id,
   );
   expect(!ttlDeleteError, "could not delete P4A TTL user");
+}
+
+function clearExpenseLearningP4bOutputs() {
+  const remaining = querySqlAsLearningOwner(`
+    delete from expense_learning_private.closed_week_supported_metrics;
+    delete from expense_learning_private.closed_week_promotion_batches;
+    select pg_catalog.concat_ws(
+      ',',
+      (select count(*) from expense_learning_private.closed_week_promotion_batches),
+      (select count(*) from expense_learning_private.closed_week_supported_metrics)
+    )
+  `);
+  expect(remaining === "0,0", "P4B synthetic output cleanup did not converge");
+}
+
+async function testExpenseLearningP4bWeekFenceRollback(admin, users) {
+  const user = await createUser(admin, "learning_p4b_week_fence");
+  users.push(user);
+  await setExpenseLearningConsent(admin, user.id, true, "P4B week fence grant");
+  const claimHex = randomExpenseLearningHex();
+  const weekHmacHex = randomExpenseLearningHex();
+  const contribution = expenseLearningCanonicalContribution("TABLE");
+  const previousWeek = querySql(`
+    select (
+      pg_catalog.date_trunc(
+        'week',
+        pg_catalog.clock_timestamp() at time zone 'UTC'
+      )::date - 7
+    )::text
+  `);
+
+  const obsoleteWeek = await Promise.allSettled([
+    querySqlAsync(
+      `
+        insert into expense_learning_private.contributor_revocation_links (
+          user_id,
+          week_start,
+          contributor_week_hmac,
+          expires_at
+        ) values (
+          '${user.id}'::uuid,
+          date '${previousWeek}',
+          pg_catalog.decode('${weekHmacHex}', 'hex'),
+          (date '${previousWeek}'::timestamp at time zone 'UTC') + interval '35 days'
+        );
+        insert into expense_learning_private.contribution_claims (
+          claim_token_digest,
+          claimed_at,
+          expires_at,
+          week_start,
+          contributor_week_hmac
+        ) values (
+          pg_catalog.decode('${claimHex}', 'hex'),
+          pg_catalog.clock_timestamp(),
+          pg_catalog.clock_timestamp() + interval '24 hours',
+          date '${previousWeek}',
+          pg_catalog.decode('${weekHmacHex}', 'hex')
+        );
+        insert into expense_learning_private.contributor_week_limits (
+          week_start,
+          contributor_week_hmac,
+          accepted_learning_contributions,
+          expires_at
+        ) values (
+          date '${previousWeek}',
+          pg_catalog.decode('${weekHmacHex}', 'hex'),
+          1,
+          (date '${previousWeek}'::timestamp at time zone 'UTC') + interval '35 days'
+        );
+        select expense_learning_private.lock_expense_learning_cells_v1(
+          '${sqlJson(contribution)}'::jsonb,
+          date '${previousWeek}'
+        )
+      `,
+      { learningOwner: true },
+    ),
+  ]);
+  expect(
+    obsoleteWeek[0].status === "rejected" &&
+      obsoleteWeek[0].reason.message.includes(
+        "expense_learning_ingestion_week_changed",
+      ),
+    "P4B obsolete-week fence did not execute in PostgreSQL",
+  );
+  expect(
+    querySql(`
+      select
+        not exists (
+          select 1
+          from expense_learning_private.contributor_revocation_links
+          where user_id = '${user.id}'::uuid
+        )
+        and not exists (
+          select 1
+          from expense_learning_private.contribution_claims
+          where claim_token_digest = pg_catalog.decode('${claimHex}', 'hex')
+        )
+        and not exists (
+          select 1
+          from expense_learning_private.contributor_week_limits
+          where contributor_week_hmac = pg_catalog.decode('${weekHmacHex}', 'hex')
+        )
+        and not exists (
+          select 1
+          from expense_learning_private.accumulator_memberships
+          where week_start = date '${previousWeek}'
+        )
+    `) === "t",
+    "P4B obsolete-week fence did not roll back provisional link/claim/cap DML",
+  );
+  expect(
+    querySqlAsLearningOwner(`
+      select expense_learning_private.lock_expense_learning_cells_v1(
+        '${sqlJson(contribution)}'::jsonb,
+        pg_catalog.date_trunc(
+          'week',
+          pg_catalog.clock_timestamp() at time zone 'UTC'
+        )::date
+      );
+      select 'CURRENT_WEEK_OK'
+    `) === "CURRENT_WEEK_OK",
+    "P4B current-week fence rejected an open marker-less batch",
+  );
+
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  expect(!error, "could not delete P4B week-fence user");
+}
+
+async function testExpenseLearningP4bMarkerlessDebt(admin, users) {
+  const user = await createUser(admin, "learning_p4b_markerless_debt");
+  users.push(user);
+  const weekHmacHex = randomExpenseLearningHex();
+  await setExpenseLearningConsent(
+    admin,
+    user.id,
+    true,
+    "P4B marker-less debt grant",
+  );
+  expect(
+    stageExpenseLearning(
+      user.id,
+      randomExpenseLearningHex(),
+      weekHmacHex,
+    ) === "ACCEPTED",
+    "P4B marker-less debt fixture was not accepted",
+  );
+
+  querySqlAsLearningOwner(`
+    delete from expense_learning_private.accumulator_memberships
+    where metric_family = 'HUMAN_REVIEW'
+      and comparison_scope = 'NONE'
+      and metric_key = 'VALUE'
+  `);
+  expect(
+    querySqlAsLearningOwner(`
+      select expense_learning_private.run_expense_learning_promotion_v1(
+        pg_catalog.clock_timestamp() + interval '8 days'
+      )
+    `) === "RETRY_REQUIRED" && expenseLearningP4bTableCounts() === "0,0",
+    "P4B missing HUMAN_REVIEW source was silenced or produced output",
+  );
+
+  querySqlAsLearningOwner(`
+    insert into expense_learning_private.accumulator_memberships (
+      contribution_schema_version,
+      observation_schema_version,
+      engine_version,
+      privacy_policy_version,
+      week_start,
+      structural_archetype_group,
+      metric_family,
+      comparison_scope,
+      metric_key,
+      bucket_kind,
+      bucket_value,
+      contributor_coordinate_hmac,
+      expires_at
+    )
+    select
+      accumulator.contribution_schema_version,
+      accumulator.observation_schema_version,
+      accumulator.engine_version,
+      accumulator.privacy_policy_version,
+      accumulator.week_start,
+      accumulator.structural_archetype_group,
+      accumulator.metric_family,
+      accumulator.comparison_scope,
+      accumulator.metric_key,
+      accumulator.bucket_kind,
+      accumulator.bucket_value,
+      expense_learning_private.expense_learning_coordinate_hmac_v1(
+        link.contributor_week_hmac,
+        accumulator.contribution_schema_version,
+        accumulator.observation_schema_version,
+        accumulator.engine_version,
+        accumulator.privacy_policy_version,
+        accumulator.week_start,
+        accumulator.structural_archetype_group,
+        accumulator.metric_family,
+        accumulator.comparison_scope,
+        accumulator.metric_key
+      ),
+      accumulator.expires_at
+    from expense_learning_private.protected_accumulators as accumulator
+    join expense_learning_private.contributor_revocation_links as link
+      on link.user_id = '${user.id}'::uuid
+     and link.week_start = accumulator.week_start
+    where accumulator.metric_family = 'HUMAN_REVIEW'
+      and accumulator.comparison_scope = 'NONE'
+      and accumulator.metric_key = 'VALUE'
+  `);
+  querySqlAsLearningOwner(`
+    delete from expense_learning_private.accumulator_memberships
+  `);
+  expect(
+    querySqlAsLearningOwner(`
+      select expense_learning_private.run_expense_learning_promotion_v1(
+        pg_catalog.clock_timestamp() + interval '8 days'
+      )
+    `) === "RETRY_REQUIRED" && expenseLearningP4bTableCounts() === "0,0",
+    "P4B accumulator-only marker-less debt was silenced or produced output",
+  );
+
+  querySqlAsLearningOwner(`
+    delete from expense_learning_private.protected_accumulators
+  `);
+  expect(
+    stageExpenseLearning(
+      user.id,
+      randomExpenseLearningHex(),
+      weekHmacHex,
+    ) === "ACCEPTED",
+    "P4B marker-less debt fixture could not be restored",
+  );
+  await setExpenseLearningConsent(
+    admin,
+    user.id,
+    false,
+    "P4B marker-less debt revoke",
+  );
+  expect(
+    expenseLearningProtectedSourceRowCount() === 0,
+    "P4B marker-less debt cleanup left protected source",
+  );
+  const { error } = await admin.auth.admin.deleteUser(user.id);
+  expect(!error, "could not delete P4B marker-less debt user");
+}
+
+async function testExpenseLearningP4bLockFences(admin, users) {
+  const cohort = [];
+  for (let index = 0; index < 11; index += 1) {
+    const user = await createUser(admin, `learning_p4b_lock_${index}`);
+    users.push(user);
+    cohort.push(user);
+    await setExpenseLearningConsent(
+      admin,
+      user.id,
+      true,
+      `P4B lock cohort grant ${index}`,
+    );
+  }
+  for (let index = 0; index < 10; index += 1) {
+    expect(
+      stageExpenseLearning(
+        cohort[index].id,
+        randomExpenseLearningHex(),
+        randomExpenseLearningHex(),
+      ) === "ACCEPTED",
+      `P4B lock cohort contribution ${index} was not accepted`,
+    );
+  }
+
+  const stageApplication = `learning_p4b_stage_first_${randomUUID()}`;
+  const promotionApplication = `learning_p4b_stage_wait_${randomUUID()}`;
+  const stageFirst = querySqlAsync(
+    `
+      set local application_name = '${stageApplication}';
+      ${stageExpenseLearningSql(
+        cohort[10].id,
+        randomExpenseLearningHex(),
+        randomExpenseLearningHex(),
+        "; select pg_catalog.pg_sleep(1.2)",
+      )}
+    `,
+    { learningOwner: true },
+  );
+  await waitForSqlSessionSleep(
+    stageApplication,
+    "P4B stage-first fixture did not hold the global mutex",
+  );
+  const promotionBehindStage = querySqlAsync(
+    `
+      set local application_name = '${promotionApplication}';
+      select expense_learning_private.run_expense_learning_promotion_v1(
+        pg_catalog.clock_timestamp() + interval '8 days'
+      )
+    `,
+    { learningOwner: true },
+  );
+  await waitForSqlSessionAdvisoryLock(
+    promotionApplication,
+    "P4B promotion did not wait behind the stage-first mutex",
+  );
+  const [stageResult, stageFirstPromotion] = await Promise.all([
+    stageFirst,
+    promotionBehindStage,
+  ]);
+  expect(
+    stageResult === "ACCEPTED" &&
+      stageFirstPromotion === "RETRY_REQUIRED" &&
+      expenseLearningP4bTableCounts() === "0,0",
+    "P4B stage-first race did not defer the late candidate atomically",
+  );
+
+  const rowLockApplication = `learning_p4b_row_lock_${randomUUID()}`;
+  const rowBlocker = querySqlAsync(
+    `
+      set local application_name = '${rowLockApplication}';
+      select link.user_id
+      from expense_learning_private.contributor_revocation_links as link
+      where link.user_id = '${cohort[0].id}'::uuid
+      for update;
+      select pg_catalog.pg_sleep(1.2)
+    `,
+    { learningOwner: true },
+  );
+  await waitForSqlSessionSleep(
+    rowLockApplication,
+    "P4B row-lock fixture did not hold the candidate link",
+  );
+  expect(
+    querySqlAsLearningOwner(`
+      select expense_learning_private.run_expense_learning_promotion_v1(
+        pg_catalog.clock_timestamp() + interval '8 days'
+      )
+    `) === "RETRY_REQUIRED" && expenseLearningP4bTableCounts() === "0,0",
+    "P4B expected-links fence did not reject a SKIP LOCKED candidate",
+  );
+  await rowBlocker;
+  expect(
+    querySqlAsLearningOwner(`
+      select expense_learning_private.run_expense_learning_promotion_v1(
+        pg_catalog.clock_timestamp() + interval '8 days'
+      )
+    `) === "PROMOTED" && expenseLearningP4bTableCounts() === "1,1" &&
+      querySqlAsLearningOwner(`
+        select expense_learning_private.run_expense_learning_promotion_v1(
+          pg_catalog.clock_timestamp() + interval '8 days'
+        )
+      `) === "NOTHING",
+    "P4B clean retry did not produce exactly one closed batch",
+  );
+
+  for (const [index, user] of cohort.entries()) {
+    await setExpenseLearningConsent(
+      admin,
+      user.id,
+      false,
+      `P4B lock cohort revoke ${index}`,
+    );
+    const { error } = await admin.auth.admin.deleteUser(user.id);
+    expect(!error, `could not delete P4B lock cohort user ${index}`);
+  }
+  expect(
+    expenseLearningProtectedSourceRowCount() === 0,
+    "P4B lock cohort cleanup left protected source",
+  );
+  clearExpenseLearningP4bOutputs();
+}
+
+async function testExpenseLearningP4bConsentDeleteRaces(admin, users) {
+  const cohort = [];
+  for (let index = 0; index < 12; index += 1) {
+    const user = await createUser(admin, `learning_p4b_mutation_${index}`);
+    users.push(user);
+    cohort.push(user);
+    await setExpenseLearningConsent(
+      admin,
+      user.id,
+      true,
+      `P4B mutation cohort grant ${index}`,
+    );
+    expect(
+      querySqlAsLearningOwner(
+        stageExpenseLearningContributionSql(
+          user.id,
+          randomExpenseLearningHex(),
+          randomExpenseLearningHex(),
+          expenseLearningCanonicalContribution("SUMMARY"),
+        ),
+      ) === "ACCEPTED",
+      `P4B mutation cohort contribution ${index} was not accepted`,
+    );
+  }
+
+  const promotionFirstRevokeApp = `p4b_pfr_${randomUUID()}`;
+  const waitingRevokeApp = `p4b_wr_${randomUUID()}`;
+  const promotionFirstRevoke = querySqlAsync(
+    `
+      set local application_name = '${promotionFirstRevokeApp}';
+      do $p4b_lock_users$
+      declare
+        v_user_id uuid;
+      begin
+        for v_user_id in
+          select distinct link.user_id
+          from expense_learning_private.contributor_revocation_links as link
+          order by link.user_id
+        loop
+          perform pg_catalog.pg_advisory_xact_lock(
+            pg_catalog.hashtextextended(
+              'expense-learning-consent-v1:' || v_user_id::text,
+              0
+            )
+          );
+        end loop;
+
+      end;
+      $p4b_lock_users$;
+      select pg_catalog.pg_advisory_xact_lock(
+        pg_catalog.hashtextextended(
+          'expense-learning-accumulator-mutation-v1',
+          0
+        )
+      );
+      do $p4b_lock_rows$
+      declare
+        v_user_id uuid;
+      begin
+        for v_user_id in
+          select link.user_id
+          from expense_learning_private.contributor_revocation_links as link
+          order by link.user_id
+          for update
+        loop
+          null;
+        end loop;
+      end;
+      $p4b_lock_rows$;
+      select pg_catalog.pg_sleep(1.2);
+      select expense_learning_private.run_expense_learning_promotion_v1(
+        pg_catalog.clock_timestamp() + interval '8 days'
+      )
+    `,
+    { learningOwner: true },
+  );
+  await waitForSqlSessionSleep(
+    promotionFirstRevokeApp,
+    "P4B promotion-first revoke fixture did not hold its locks",
+  );
+  const waitingRevoke = querySqlAsync(`
+    begin;
+    set local application_name = '${waitingRevokeApp}';
+    select pg_catalog.set_config(
+      'request.jwt.claims',
+      '{"role":"service_role"}',
+      true
+    );
+    select public.set_expense_learning_consent_v1(
+      '${cohort[0].id}'::uuid,
+      '${sqlJson(consentDecision(false))}'::jsonb
+    );
+    commit;
+  `);
+  await waitForSqlSessionAdvisoryLock(
+    waitingRevokeApp,
+    "P4B revoke did not wait behind promotion user locks",
+  );
+  const [promotionBeforeRevoke, revokeAfterPromotion] = await Promise.all([
+    promotionFirstRevoke,
+    waitingRevoke,
+  ]);
+  expect(
+    promotionBeforeRevoke === "PROMOTED" &&
+      revokeAfterPromotion.includes("REVOKED") &&
+      expenseLearningP4bTableCounts() === "1,1",
+    "P4B promotion-first revoke race deadlocked or left partial output",
+  );
+  clearExpenseLearningP4bOutputs();
+
+  const revokeFirstApp = `p4b_rf_${randomUUID()}`;
+  const promotionAfterRevokeApp = `p4b_par_${randomUUID()}`;
+  const revokeFirst = querySqlAsync(`
+    begin;
+    set local application_name = '${revokeFirstApp}';
+    select pg_catalog.set_config(
+      'request.jwt.claims',
+      '{"role":"service_role"}',
+      true
+    );
+    select public.set_expense_learning_consent_v1(
+      '${cohort[1].id}'::uuid,
+      '${sqlJson(consentDecision(false))}'::jsonb
+    );
+    select pg_catalog.pg_sleep(1.2);
+    commit;
+  `);
+  await waitForSqlSessionSleep(
+    revokeFirstApp,
+    "P4B revoke-first fixture did not hold its locks",
+  );
+  const promotionAfterRevoke = querySqlAsync(
+    `
+      set local application_name = '${promotionAfterRevokeApp}';
+      select expense_learning_private.run_expense_learning_promotion_v1(
+        pg_catalog.clock_timestamp() + interval '8 days'
+      )
+    `,
+    { learningOwner: true },
+  );
+  await waitForSqlSessionAdvisoryLock(
+    promotionAfterRevokeApp,
+    "P4B promotion did not wait behind a revoke-first advisory",
+  );
+  const [, promotionAfterRevokeResult] = await Promise.all([
+    revokeFirst,
+    promotionAfterRevoke,
+  ]);
+  expect(
+    promotionAfterRevokeResult === "PROMOTED" &&
+      expenseLearningP4bTableCounts() === "1,1",
+    "P4B revoke-first promotion did not converge atomically",
+  );
+  clearExpenseLearningP4bOutputs();
+
+  const deleteFirstApp = `p4b_df_${randomUUID()}`;
+  const promotionAfterDeleteApp = `p4b_pad_${randomUUID()}`;
+  const deleteFirst = querySqlAsync(`
+    begin;
+    set local application_name = '${deleteFirstApp}';
+    delete from auth.users where id = '${cohort[2].id}'::uuid;
+    select pg_catalog.pg_sleep(1.2);
+    commit;
+  `);
+  await waitForSqlSessionSleep(
+    deleteFirstApp,
+    "P4B delete-first fixture did not hold its locks",
+  );
+  const promotionAfterDelete = querySqlAsync(
+    `
+      set local application_name = '${promotionAfterDeleteApp}';
+      select expense_learning_private.run_expense_learning_promotion_v1(
+        pg_catalog.clock_timestamp() + interval '8 days'
+      )
+    `,
+    { learningOwner: true },
+  );
+  await waitForSqlSessionAdvisoryLock(
+    promotionAfterDeleteApp,
+    "P4B promotion did not wait behind delete-first cleanup",
+  );
+  const [, promotionAfterDeleteResult] = await Promise.all([
+    deleteFirst,
+    promotionAfterDelete,
+  ]);
+  expect(
+    promotionAfterDeleteResult === "NOTHING" &&
+      expenseLearningP4bTableCounts() === "1,0",
+    "P4B delete-first promotion did not close the reduced batch atomically",
+  );
+  clearExpenseLearningP4bOutputs();
+
+  const promotionFirstDeleteApp = `p4b_pfd_${randomUUID()}`;
+  const waitingDeleteApp = `p4b_wd_${randomUUID()}`;
+  const promotionFirstDelete = querySqlAsync(
+    `
+      set local application_name = '${promotionFirstDeleteApp}';
+      do $p4b_lock_users$
+      declare
+        v_user_id uuid;
+      begin
+        for v_user_id in
+          select distinct link.user_id
+          from expense_learning_private.contributor_revocation_links as link
+          order by link.user_id
+        loop
+          perform pg_catalog.pg_advisory_xact_lock(
+            pg_catalog.hashtextextended(
+              'expense-learning-consent-v1:' || v_user_id::text,
+              0
+            )
+          );
+        end loop;
+
+      end;
+      $p4b_lock_users$;
+      select pg_catalog.pg_advisory_xact_lock(
+        pg_catalog.hashtextextended(
+          'expense-learning-accumulator-mutation-v1',
+          0
+        )
+      );
+      do $p4b_lock_rows$
+      declare
+        v_user_id uuid;
+      begin
+        for v_user_id in
+          select link.user_id
+          from expense_learning_private.contributor_revocation_links as link
+          order by link.user_id
+          for update
+        loop
+          null;
+        end loop;
+      end;
+      $p4b_lock_rows$;
+      select pg_catalog.pg_sleep(1.2);
+      select expense_learning_private.run_expense_learning_promotion_v1(
+        pg_catalog.clock_timestamp() + interval '8 days'
+      )
+    `,
+    { learningOwner: true },
+  );
+  await waitForSqlSessionSleep(
+    promotionFirstDeleteApp,
+    "P4B promotion-first delete fixture did not hold its locks",
+  );
+  const waitingDelete = querySqlAsync(`
+    begin;
+    set local application_name = '${waitingDeleteApp}';
+    delete from auth.users where id = '${cohort[3].id}'::uuid;
+    commit;
+  `);
+  await waitForSqlSessionLock(
+    waitingDeleteApp,
+    "P4B account deletion did not wait behind promotion",
+  );
+  const [promotionBeforeDelete, deleteAfterPromotion] = await Promise.all([
+    promotionFirstDelete,
+    waitingDelete,
+  ]);
+  expect(
+    promotionBeforeDelete === "NOTHING" &&
+      deleteAfterPromotion === "" &&
+      expenseLearningP4bTableCounts() === "1,0",
+    "P4B promotion-first account deletion deadlocked or left partial output",
+  );
+
+  const remainingIndexes = [
+    0,
+    1,
+    ...Array.from({ length: 8 }, (_, index) => index + 4),
+  ];
+  for (const index of remainingIndexes) {
+    const { error } = await admin.auth.admin.deleteUser(cohort[index].id);
+    expect(!error, `could not delete P4B mutation cohort user ${index}`);
+  }
+  expect(
+    expenseLearningProtectedSourceRowCount() === 0,
+    "P4B mutation races left protected source",
+  );
+  clearExpenseLearningP4bOutputs();
+}
+
+async function testExpenseLearningP4bPromotion(admin, users) {
+  await testExpenseLearningP4bWeekFenceRollback(admin, users);
+  await testExpenseLearningP4bMarkerlessDebt(admin, users);
+  await testExpenseLearningP4bLockFences(admin, users);
+  await testExpenseLearningP4bConsentDeleteRaces(admin, users);
+
+  const cohort = [];
+  for (let index = 0; index < 20; index += 1) {
+    const user = await createUser(admin, `learning_p4b_${index}`);
+    users.push(user);
+    cohort.push(user);
+  }
+  await Promise.all(
+    cohort.map((user, index) =>
+      setExpenseLearningConsent(
+        admin,
+        user.id,
+        true,
+        `P4B cohort grant ${index}`,
+      ),
+    ),
+  );
+
+  for (const [index, user] of cohort.entries()) {
+    const weekHmac = randomExpenseLearningHex();
+    if (index < 11) {
+      expect(
+        querySqlAsLearningOwner(
+          stageExpenseLearningContributionSql(
+            user.id,
+            randomExpenseLearningHex(),
+            weekHmac,
+            expenseLearningContributionForReview(
+              "TABLE",
+              index < 10 ? "CONFIRMED" : "CORRECTED",
+            ),
+          ),
+        ) === "ACCEPTED",
+        `P4B TABLE contribution ${index} was not accepted`,
+      );
+    }
+    expect(
+      querySqlAsLearningOwner(
+        stageExpenseLearningContributionSql(
+          user.id,
+          randomExpenseLearningHex(),
+          weekHmac,
+          expenseLearningContributionForReview(
+            "SUMMARY",
+            index < 10 ? "CONFIRMED" : "CORRECTED",
+          ),
+        ),
+      ) === "ACCEPTED",
+      `P4B SUMMARY contribution ${index} was not accepted`,
+    );
+    if (index < 9) {
+      expect(
+        querySqlAsLearningOwner(
+          stageExpenseLearningContributionSql(
+            user.id,
+            randomExpenseLearningHex(),
+            weekHmac,
+            expenseLearningContributionForReview("OTHER", "CONFIRMED"),
+          ),
+        ) === "ACCEPTED",
+        `P4B OTHER contribution ${index} was not accepted`,
+      );
+    }
+    if (index < 19) {
+      const review =
+        index < 10 ? "CONFIRMED" : index < 14 ? "CORRECTED" : "REJECTED";
+      expect(
+        querySqlAsLearningOwner(
+          stageExpenseLearningContributionSql(
+            user.id,
+            randomExpenseLearningHex(),
+            weekHmac,
+            expenseLearningContributionForReview("UNKNOWN", review),
+          ),
+        ) === "ACCEPTED",
+        `P4B UNKNOWN contribution ${index} was not accepted`,
+      );
+    }
+  }
+
+  const promotionWeek = querySql(`
+    select min(week_start)::text
+    from expense_learning_private.contributor_revocation_links
+    where user_id = any(array[${cohort
+      .map((user) => `'${user.id}'::uuid`)
+      .join(",")}]);
+  `);
+  const sourceState = querySqlAsLearningOwner(`
+    select pg_catalog.concat_ws(
+      ',',
+      expense_learning_private.is_expense_learning_week_source_canonical_v1(
+        date '${promotionWeek}'
+      ),
+      expense_learning_private.is_expense_learning_week_accumulator_consistent_v1(
+        date '${promotionWeek}'
+      ),
+      expense_learning_private.is_expense_learning_promotion_source_safe_v1(
+        'expense-engine-aggregate-contribution.v1',
+        'expense-engine-observation.v1',
+        'expense-local-engine.v1',
+        '2026-07-21',
+        date '${promotionWeek}',
+        'TABLE'
+      ),
+      expense_learning_private.is_expense_learning_promotion_source_safe_v1(
+        'expense-engine-aggregate-contribution.v1',
+        'expense-engine-observation.v1',
+        'expense-local-engine.v1',
+        '2026-07-21',
+        date '${promotionWeek}',
+        'SUMMARY'
+      ),
+      expense_learning_private.is_expense_learning_promotion_source_safe_v1(
+        'expense-engine-aggregate-contribution.v1',
+        'expense-engine-observation.v1',
+        'expense-local-engine.v1',
+        '2026-07-21',
+        date '${promotionWeek}',
+        'OTHER'
+      ),
+      expense_learning_private.is_expense_learning_promotion_source_safe_v1(
+        'expense-engine-aggregate-contribution.v1',
+        'expense-engine-observation.v1',
+        'expense-local-engine.v1',
+        '2026-07-21',
+        date '${promotionWeek}',
+        'UNKNOWN'
+      )
+    )
+  `);
+  expect(
+    sourceState === "t,t,t,t,t,t",
+    `P4B source gate rejected a canonical cohort: ${sourceState}`,
+  );
+  const cleanupDebt = querySqlAsLearningOwner(`
+    select pg_catalog.bool_or(
+      expense_learning_private.is_expense_learning_link_cleanup_eligible_v1(
+        link.user_id,
+        link.week_start,
+        pg_catalog.clock_timestamp() + interval '8 days'
+      )
+    )
+    from expense_learning_private.contributor_revocation_links as link
+    where link.user_id = any(array[${cohort
+      .map((user) => `'${user.id}'::uuid`)
+      .join(",")}])
+  `);
+  expect(
+    cleanupDebt === "f",
+    `P4B canonical cohort was unexpectedly purge-eligible: ${cleanupDebt}`,
+  );
+  expect(
+    querySqlAsLearningOwner(`
+      with inserted as (
+        insert into expense_learning_private.protected_accumulators (
+          contribution_schema_version,
+          observation_schema_version,
+          engine_version,
+          privacy_policy_version,
+          week_start,
+          structural_archetype_group,
+          metric_family,
+          comparison_scope,
+          metric_key,
+          bucket_kind,
+          bucket_value,
+          supporting_contributors,
+          expires_at
+        )
+        select
+          accumulator.contribution_schema_version,
+          accumulator.observation_schema_version,
+          accumulator.engine_version,
+          accumulator.privacy_policy_version,
+          accumulator.week_start - 7,
+          accumulator.structural_archetype_group,
+          accumulator.metric_family,
+          accumulator.comparison_scope,
+          accumulator.metric_key,
+          accumulator.bucket_kind,
+          accumulator.bucket_value,
+          accumulator.supporting_contributors,
+          accumulator.expires_at - interval '7 days'
+        from expense_learning_private.protected_accumulators as accumulator
+        where accumulator.week_start = date '${promotionWeek}'
+          and accumulator.structural_archetype_group = 'OTHER'
+          and accumulator.metric_family = 'HUMAN_REVIEW'
+          and accumulator.comparison_scope = 'NONE'
+          and accumulator.metric_key = 'VALUE'
+        returning 1
+      )
+      select count(*) from inserted
+    `) === "1",
+    "P4B mixed-debt fixture did not create one accumulator-only batch",
+  );
+
+  const fenceUser = await createUser(admin, "learning_p4b_marker_fence");
+  users.push(fenceUser);
+  await setExpenseLearningConsent(
+    admin,
+    fenceUser.id,
+    true,
+    "P4B marker fence grant",
+  );
+  const promotionApplication = `learning_p4b_promotion_${randomUUID()}`;
+  const stageApplication = `learning_p4b_late_stage_${randomUUID()}`;
+  const promotion = querySqlAsync(
+    `
+      set local application_name = '${promotionApplication}';
+      select pg_catalog.pg_advisory_xact_lock(
+        pg_catalog.hashtextextended(
+          'expense-learning-accumulator-mutation-v1',
+          0
+        )
+      );
+      select pg_catalog.pg_sleep(1.2);
+      select expense_learning_private.run_expense_learning_promotion_v1(
+        pg_catalog.clock_timestamp() + interval '8 days'
+      )
+    `,
+    { learningOwner: true },
+  );
+  await waitForSqlSessionSleep(
+    promotionApplication,
+    "P4B promotion did not hold the global mutex before the late stage",
+  );
+  const lateStage = querySqlAsync(
+    `
+      set local application_name = '${stageApplication}';
+      ${stageExpenseLearningContributionSql(
+        fenceUser.id,
+        randomExpenseLearningHex(),
+        randomExpenseLearningHex(),
+        expenseLearningCanonicalContribution("TABLE"),
+      )}
+    `,
+    { learningOwner: true },
+  );
+  await waitForSqlSessionAdvisoryLock(
+    stageApplication,
+    "P4B late stage did not wait behind the promotion mutex",
+  );
+  const [promotionResult, lateStageResult] = await Promise.allSettled([
+    promotion,
+    lateStage,
+  ]);
+  expect(
+    promotionResult.status === "fulfilled" &&
+      promotionResult.value === "RETRY_REQUIRED" &&
+      expenseLearningP4bTableCounts() === "4,4",
+    `P4B mixed marker-less debt was hidden after healthy progress: ${
+      promotionResult.status === "fulfilled"
+        ? promotionResult.value
+        : promotionResult.reason.message
+    }`,
+  );
+  expect(
+    lateStageResult.status === "rejected" &&
+      lateStageResult.reason.message.includes(
+        "expense_learning_ingestion_batch_closed",
+    ),
+    "P4B promotion race did not reject the late stage at the marker fence",
+  );
+  expect(
+    querySqlAsLearningOwner(`
+      with removed as (
+        delete from expense_learning_private.protected_accumulators
+        where week_start = date '${promotionWeek}' - 7
+          and structural_archetype_group = 'OTHER'
+          and metric_family = 'HUMAN_REVIEW'
+          and comparison_scope = 'NONE'
+          and metric_key = 'VALUE'
+        returning 1
+      )
+      select count(*) from removed
+    `) === "1" &&
+      querySqlAsLearningOwner(`
+        select expense_learning_private.run_expense_learning_promotion_v1(
+          pg_catalog.clock_timestamp() + interval '8 days'
+        )
+      `) === "NOTHING" && expenseLearningP4bTableCounts() === "4,4",
+    "P4B mixed accumulator debt did not clear without reopening healthy batches",
+  );
+  expect(
+    querySql(`
+      select pg_catalog.string_agg(
+        structural_archetype_group || ':' || batch_state,
+        ',' order by structural_archetype_group
+      )
+      from expense_learning_private.closed_week_promotion_batches;
+    `) ===
+      "OTHER:DISCARDED,SUMMARY:PROMOTED,TABLE:PROMOTED,UNKNOWN:PROMOTED",
+    "P4B did not persist the four mutually exclusive marker outcomes",
+  );
+  expect(
+    querySql(`
+      select pg_catalog.string_agg(
+        structural_archetype_group || ':' || bucket_kind || ':'
+          || bucket_value || ':' || support_band,
+        ',' order by structural_archetype_group, bucket_value
+      )
+      from expense_learning_private.closed_week_supported_metrics;
+    `) ===
+      "SUMMARY:EXACT:CONFIRMED:K20_49,SUMMARY:EXACT:CORRECTED:K20_49,TABLE:COARSENED_OTHER:OTHER:K10_19,UNKNOWN:COARSENED_OTHER:OTHER:K10_19",
+    "P4B output shape exposed a rare residual or an incomplete partition",
+  );
+  expect(
+    querySql(`
+      select pg_catalog.bool_and(
+        metric_family = 'HUMAN_REVIEW'
+        and comparison_scope = 'NONE'
+        and metric_key = 'VALUE'
+      )
+      from expense_learning_private.closed_week_supported_metrics;
+    `) === "t",
+    "P4B promoted a coordinate outside HUMAN_REVIEW/NONE/VALUE",
+  );
+  expect(
+    querySqlAsLearningOwner(`
+      select expense_learning_private.run_expense_learning_promotion_v1(
+        pg_catalog.clock_timestamp() + interval '8 days'
+      )
+    `) === "NOTHING" && expenseLearningP4bTableCounts() === "4,4",
+    "P4B reran a closed batch or changed its one-shot snapshot",
+  );
+  expect(
+    querySqlAsLearningOwner(`
+      with marker_update as (
+        update expense_learning_private.closed_week_promotion_batches
+        set privacy_evaluation_version = privacy_evaluation_version
+        returning 1
+      ), metric_update as (
+        update expense_learning_private.closed_week_supported_metrics
+        set support_band = support_band
+        returning 1
+      )
+      select (select count(*) from marker_update) = 0
+        and (select count(*) from metric_update) = 0
+    `) === "t",
+    "P4B owner could UPDATE an immutable marker or promoted metric",
+  );
+
+  expect(
+    querySql(`
+      select not exists (
+        select 1
+        from expense_learning_private.contributor_revocation_links
+        where user_id = '${fenceUser.id}'::uuid
+      ) and not exists (
+        select 1
+        from expense_learning_private.contribution_claims as claim
+        join expense_learning_private.contributor_revocation_links as link
+          on link.week_start = claim.week_start
+         and link.contributor_week_hmac = claim.contributor_week_hmac
+        where link.user_id = '${fenceUser.id}'::uuid
+      );
+    `) === "t",
+    "P4B marker fence left link or claim DML from a rejected stage",
+  );
+
+  for (const [index, user] of cohort.entries()) {
+    await setExpenseLearningConsent(
+      admin,
+      user.id,
+      false,
+      `P4B cohort revoke ${index}`,
+    );
+  }
+  expect(
+    querySql(`
+      select
+        (select count(*) from expense_learning_private.contribution_claims) = 0
+        and (select count(*) from expense_learning_private.contributor_week_limits) = 0
+        and (select count(*) from expense_learning_private.accumulator_memberships) = 0
+        and (select count(*) from expense_learning_private.protected_accumulators) = 0
+        and (select count(*) from expense_learning_private.contributor_revocation_links) = 0;
+    `) === "t" && expenseLearningP4bTableCounts() === "4,4",
+    "P4B withdrawal changed promoted output or left separable cohort raw",
+  );
+  const cohortDeletes = await Promise.all(
+    cohort.map((user) => admin.auth.admin.deleteUser(user.id)),
+  );
+  expect(
+    cohortDeletes.every(({ error }) => !error),
+    "could not delete the synthetic P4B contributor cohort",
+  );
+  const { error: fenceDeleteError } =
+    await admin.auth.admin.deleteUser(fenceUser.id);
+  expect(!fenceDeleteError, "could not delete P4B marker fence user");
 }
 
 function expectConsentState(result, state, message) {
@@ -3247,8 +4485,15 @@ async function testExpenseLearningConsentBehavior(admin, users) {
     "synthetic consent behavior left ledger rows",
   );
   expect(
-    expenseLearningRuntimeRowCount() === 0,
-    "consent behavior changed P1B runtime storage",
+    querySql(`
+      select
+        (select count(*) from expense_learning_private.contribution_claims) = 0
+        and (select count(*) from expense_learning_private.contributor_week_limits) = 0
+        and (select count(*) from expense_learning_private.accumulator_memberships) = 0
+        and (select count(*) from expense_learning_private.protected_accumulators) = 0
+        and (select count(*) from expense_learning_private.contributor_revocation_links) = 0;
+    `) === "t" && expenseLearningP4bTableCounts() === "4,4",
+    "consent behavior changed raw or promoted expense learning storage",
   );
 }
 
@@ -3378,6 +4623,45 @@ async function testExpenseLearningP4Rollback(
 
   const { error } = await admin.auth.admin.deleteUser(rollbackUser.id);
   expect(!error, "could not delete P4A rollback user");
+}
+
+function testExpenseLearningP4bRollback(initialP4aCatalogSnapshot) {
+  expectSqlFileFailure(
+    expenseLearningPromotionSql.down,
+    "Expense learning P4B storage is not empty; rollback is unsafe",
+  );
+  expect(
+    expenseLearningP4bTableCounts() === "4,4",
+    "failed P4B rollback partially changed promoted storage",
+  );
+
+  querySqlAsLearningOwner(`
+    delete from expense_learning_private.closed_week_supported_metrics;
+    delete from expense_learning_private.closed_week_promotion_batches
+  `);
+  expect(
+    expenseLearningP4bTableCounts() === "0,0",
+    "controlled P4B rollback cleanup did not empty promoted storage",
+  );
+  applySql(expenseLearningPromotionSql.down);
+  expect(
+    expenseLearningP4CatalogSnapshot() === initialP4aCatalogSnapshot,
+    "P4B rollback did not restore the P4A catalog",
+  );
+  expect(
+    querySql(`
+      with claims as materialized (
+        select pg_catalog.set_config(
+          'request.jwt.claim.role',
+          'service_role',
+          true
+        )
+      )
+      select public.promote_expense_learning_closed_weeks_v1()
+      from claims;
+    `) === "DISABLED",
+    "P4B rollback did not restore the disabled promotion stub",
+  );
 }
 
 async function testExpenseLearningP3Rollback(
@@ -4464,6 +5748,18 @@ async function main() {
   if (expenseLearningSchemaExists()) {
     if (
       querySql(`
+        select pg_catalog.to_regclass(
+          'expense_learning_private.closed_week_promotion_batches'
+        ) is not null;
+      `) === "t"
+    ) {
+      console.log(
+        "Resetting auto-applied empty expense learning P4B promotion...",
+      );
+      applySql(expenseLearningPromotionSql.down);
+    }
+    if (
+      querySql(`
         select pg_catalog.to_regprocedure(
           'expense_learning_private.run_expense_learning_retention_v1(timestamp with time zone)'
         ) is not null;
@@ -4542,6 +5838,20 @@ async function main() {
     "expense learning retention initial up/down/up changed catalog semantics",
   );
 
+  console.log("Validating expense learning promotion P4B up -> down -> up...");
+  applySql(expenseLearningPromotionSql.up);
+  const expenseLearningP4bCatalog = expenseLearningP4CatalogSnapshot();
+  applySql(expenseLearningPromotionSql.down);
+  expect(
+    expenseLearningP4CatalogSnapshot() === expenseLearningP4Catalog,
+    "expense learning promotion rollback did not restore P4A",
+  );
+  applySql(expenseLearningPromotionSql.up);
+  expect(
+    expenseLearningP4CatalogSnapshot() === expenseLearningP4bCatalog,
+    "expense learning promotion initial up/down/up changed catalog semantics",
+  );
+
   const admin = service();
   const userA = await createUser(admin, "a");
   const userB = await createUser(admin, "b");
@@ -4565,6 +5875,8 @@ async function main() {
     await testExpenseLearningP3AccountDeleteRaces(admin, users);
     console.log("Testing expense learning P4A repair and retention...");
     await testExpenseLearningP4RepairAndRetention(admin, users);
+    console.log("Testing expense learning P4B closed-week promotion...");
+    await testExpenseLearningP4bPromotion(admin, users);
     await testExpenseLearningConsentBehavior(admin, users);
     await testLegacyStripeCutover(admin);
     await testStripeLeaseAndPackRpcs(admin, userA, userB);
@@ -4573,6 +5885,7 @@ async function main() {
       sqlFiles.down[0],
       "Stripe webhook ledger is not empty; rollback is unsafe",
     );
+    testExpenseLearningP4bRollback(expenseLearningP4Catalog);
     await testExpenseLearningP4Rollback(admin, users, expenseLearningP4Catalog);
     await testExpenseLearningP3Rollback(admin, users, expenseLearningP3Catalog);
     await testExpenseLearningConsentRollback(
