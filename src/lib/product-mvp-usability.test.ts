@@ -1165,6 +1165,13 @@ describe("MVP usability polish", () => {
       new URL("../app/productos/page.tsx", import.meta.url),
       "utf8",
     );
+    const productFormFieldsSource = readFileSync(
+      new URL(
+        "../components/products/ProductFormFields.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
 
     expect(productsPageSource).toContain("function productDisplayName");
     expect(productsPageSource).toContain("TimelineMonthDivider");
@@ -1175,10 +1182,13 @@ describe("MVP usability polish", () => {
     expect(productsPageSource).toContain("Proveedor: {supplierLabel}");
     expect(productsPageSource).toContain("product.usualSupplier?.supplierName");
     expect(productsPageSource).toContain("Detectado como: ${product.name}");
+    expect(productsPageSource).toContain('source={product.source}');
     expect(productsPageSource).toContain(
-      'label="Producto detectado / proveedor"',
+      'product.source === "detected"',
     );
-    expect(productsPageSource).toContain('label="Nombre visible / venta"');
+    expect(productFormFieldsSource).toContain("Detectado en compras");
+    expect(productFormFieldsSource).toContain('label="Nombre visible"');
+    expect(productFormFieldsSource).toContain('onChange("saleDescription"');
     expect(productsPageSource).toContain(
       "documentPickRequest.prefill?.description?.trim()",
     );
@@ -1198,6 +1208,13 @@ describe("MVP usability polish", () => {
     );
     const newProductPageSource = readFileSync(
       new URL("../app/productos/nuevo/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const productFormFieldsSource = readFileSync(
+      new URL(
+        "../components/products/ProductFormFields.tsx",
+        import.meta.url,
+      ),
       "utf8",
     );
     const purchaseProductsSource = readFileSync(
@@ -1231,8 +1248,9 @@ describe("MVP usability polish", () => {
     expect(productsPageSource).toContain("applySupplierStructureFilter");
     expect(productsPageSource).toContain("Mover productos");
     expect(productsPageSource).toContain("bulkSubfamilyDraft");
-    expect(productsPageSource).toContain('label="Subfamilia"');
-    expect(newProductPageSource).toContain("new-product-subfamily-options");
+    expect(productFormFieldsSource).toContain('label="Subfamilia"');
+    expect(productFormFieldsSource).toContain("-subfamily-options");
+    expect(newProductPageSource).toContain("ProductFormFields");
     expect(newProductPageSource).toContain("product.family === form.family.trim()");
     expect(newProductPageSource).toContain(
       "subfamily: form.subfamily.trim() || undefined",
@@ -1287,9 +1305,10 @@ describe("MVP usability polish", () => {
 
     expect(newProductPageSource).toContain("purchaseCostManual");
     expect(newProductPageSource).toContain("purchaseNetUnitCostInputFromFields");
-    expect(productsPageSource).toContain("handlePurchaseListPriceChange");
-    expect(productsPageSource).toContain("handlePurchaseDiscountChange");
-    expect(productsPageSource).toContain("handlePurchaseNetCostChange");
+    expect(productsPageSource).toContain("updateDraftField");
+    expect(productsPageSource).toContain('field === "purchaseListPrice"');
+    expect(productsPageSource).toContain('field === "purchaseDiscountPercent"');
+    expect(productsPageSource).toContain('field === "purchaseNetUnitCost"');
     expect(productsPageSource).toContain("calculatePurchaseNetUnitCost");
   });
 

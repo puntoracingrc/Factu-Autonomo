@@ -1,11 +1,15 @@
 "use client";
 
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, Save } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
+import {
+  ProductDuplicateNotice,
+  ProductFormFields,
+} from "@/components/products/ProductFormFields";
+import { ProductUnsavedChangesDialog } from "@/components/products/ProductUnsavedChangesDialog";
 import { Button } from "@/components/ui/Button";
 import { Card, PageHeader } from "@/components/ui/Card";
-import { Field, Input, Textarea } from "@/components/ui/Field";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
 import { normalizeDocumentUnitId } from "@/lib/document-units";
@@ -16,11 +20,15 @@ import {
   saveDocumentProductPickedLine,
   type DocumentProductPickRequest,
 } from "@/lib/product-document-draft";
+import { productAttributesFromText } from "@/lib/product-attributes";
 import {
-  PRODUCT_ATTRIBUTE_SUGGESTIONS,
-  addProductAttributeLine,
-  productAttributesFromText,
-} from "@/lib/product-attributes";
+  EMPTY_PRODUCT_FORM_DRAFT,
+  findProductDuplicateCandidates,
+  productFormHasChanges,
+  type ProductDuplicateCandidate,
+  type ProductFormDraft,
+} from "@/lib/product-form";
+import { saveProductCatalogEditRequest } from "@/lib/product-form-navigation";
 import {
   buildPurchaseProductSummaries,
   purchaseProductKey,
@@ -37,44 +45,23 @@ import {
   type ProductNumericField,
 } from "@/lib/product-form-validation";
 
-const EMPTY_FORM = {
-  sku: "",
-  name: "",
-  family: "",
-  subfamily: "",
-  saleDescription: "",
-  saleUnit: "ud",
-  salePrice: "",
-  saleIvaPercent: "21",
-  supplierName: "",
-  supplierReference: "",
-  purchaseDescription: "",
-  purchaseUnit: "ud",
-  purchaseListPrice: "",
-  purchaseDiscountPercent: "",
-  purchaseNetUnitCost: "",
-  calculationKind: "none",
-  attributesText: "",
-  notes: "",
-};
-
 export default function NuevoProductoPage() {
   const router = useRouter();
   const { data, addProduct } = useAppStore();
   const { checkCanAddProduct } = useBilling();
-  const [form, setForm] = useState(EMPTY_FORM);
+  const [form, setForm] = useState<ProductFormDraft>(
+    EMPTY_PRODUCT_FORM_DRAFT,
+  );
+  const [initialForm, setInitialForm] = useState<ProductFormDraft>(
+    EMPTY_PRODUCT_FORM_DRAFT,
+  );
   const [purchaseCostManual, setPurchaseCostManual] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<ProductNumericErrors>({});
-  const numericInputRefs = useRef<
-    Record<ProductNumericField, HTMLInputElement | null>
-  >({
-    salePrice: null,
-    saleIvaPercent: null,
-    purchaseListPrice: null,
-    purchaseDiscountPercent: null,
-    purchaseNetUnitCost: null,
-  });
+  const [saving, setSaving] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
+  const savingRef = useRef(false);
+  const pendingExitRef = useRef<(() => void) | null>(null);
   const [documentPickRequest, setDocumentPickRequest] =
     useState<DocumentProductPickRequest | null>(null);
 
@@ -88,23 +75,35 @@ export default function NuevoProductoPage() {
     setDocumentPickRequest(request);
     const prefill = request?.prefill;
     if (!prefill) return;
-    setForm((current) => ({
-      ...current,
-      name: prefill.name || current.name,
-      saleDescription:
-        prefill.description || prefill.name || current.saleDescription,
-      saleUnit: prefill.unit || current.saleUnit,
-      purchaseUnit: prefill.unit || current.purchaseUnit,
+    const next: ProductFormDraft = {
+      ...EMPTY_PRODUCT_FORM_DRAFT,
+      name: prefill.name || "",
+      saleDescription: prefill.description || prefill.name || "",
+      saleUnit: prefill.unit || EMPTY_PRODUCT_FORM_DRAFT.saleUnit,
+      purchaseUnit: prefill.unit || EMPTY_PRODUCT_FORM_DRAFT.purchaseUnit,
       salePrice:
         prefill.unitPrice !== undefined && prefill.unitPrice > 0
           ? String(prefill.unitPrice)
-          : current.salePrice,
+          : EMPTY_PRODUCT_FORM_DRAFT.salePrice,
       saleIvaPercent:
         prefill.ivaPercent !== undefined
           ? String(prefill.ivaPercent)
-          : current.saleIvaPercent,
-    }));
+          : EMPTY_PRODUCT_FORM_DRAFT.saleIvaPercent,
+    };
+    setForm(next);
+    setInitialForm(next);
   }, []);
+
+  const dirty = productFormHasChanges(initialForm, form);
+
+  useEffect(() => {
+    if (!dirty) return;
+    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+    window.addEventListener("beforeunload", warnBeforeUnload);
+    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
+  }, [dirty]);
 
   const familyOptions = useMemo(
     () =>
@@ -115,7 +114,7 @@ export default function NuevoProductoPage() {
             ...data.products.map((product) => product.family),
           ]
             .map((family) => family.trim())
-            .filter((family) => family.trim().length > 0),
+            .filter(Boolean),
         ),
       ].sort((a, b) => a.localeCompare(b, "es")),
     [data.products, productSummaries],
@@ -151,7 +150,12 @@ export default function NuevoProductoPage() {
     [data.suppliers],
   );
 
-  function updateField(field: keyof typeof EMPTY_FORM, value: string) {
+  const duplicateCandidates = useMemo(
+    () => findProductDuplicateCandidates(form, productSummaries),
+    [form, productSummaries],
+  );
+
+  function updateField(field: keyof ProductFormDraft, value: string) {
     setForm((current) => {
       const next = {
         ...current,
@@ -160,7 +164,7 @@ export default function NuevoProductoPage() {
         ...(field === "calculationKind" && value === "area"
           ? { saleUnit: "m2" }
           : {}),
-      };
+      } as ProductFormDraft;
 
       if (field === "purchaseNetUnitCost") {
         const manual = value.trim().length > 0;
@@ -189,9 +193,7 @@ export default function NuevoProductoPage() {
 
       return next;
     });
-    if (
-      PRODUCT_NUMERIC_FIELD_ORDER.includes(field as ProductNumericField)
-    ) {
+    if (PRODUCT_NUMERIC_FIELD_ORDER.includes(field as ProductNumericField)) {
       setFieldErrors((current) => {
         if (!current[field as ProductNumericField]) return current;
         const next = { ...current };
@@ -203,6 +205,7 @@ export default function NuevoProductoPage() {
   }
 
   function handleSave() {
+    if (savingRef.current) return;
     const name = form.name.trim();
     if (!name) {
       setError("Escribe el nombre del producto.");
@@ -219,10 +222,13 @@ export default function NuevoProductoPage() {
     if (!numericValidation.ok) {
       setFieldErrors(numericValidation.errors);
       setError("Revisa los importes indicados antes de guardar el producto.");
-      const firstInvalidField = numericValidation.firstInvalidField;
       requestAnimationFrame(() => {
-        if (firstInvalidField) {
-          numericInputRefs.current[firstInvalidField]?.focus();
+        if (numericValidation.firstInvalidField) {
+          document
+            .getElementById(
+              `new-product-${numericValidation.firstInvalidField}`,
+            )
+            ?.focus();
         }
       });
       return;
@@ -232,7 +238,7 @@ export default function NuevoProductoPage() {
     const key = purchaseProductKey(name);
     if (data.products.some((product) => product.key === key)) {
       setError(
-        "Ya existe un producto muy parecido. Edítalo desde la lista o unifícalo.",
+        "Ya existe un producto muy parecido. Ábrelo desde la coincidencia indicada.",
       );
       return;
     }
@@ -241,9 +247,15 @@ export default function NuevoProductoPage() {
       data.products.filter((product) => !product.hidden).length,
     );
     if (!productLimit.allowed) {
-      setError(productLimit.reason ?? "No puedes añadir más productos con tu plan actual.");
+      setError(
+        productLimit.reason ??
+          "No puedes añadir más productos con tu plan actual.",
+      );
       return;
     }
+
+    savingRef.current = true;
+    setSaving(true);
 
     const supplierName = form.supplierName.trim();
     const supplier = data.suppliers.find(
@@ -265,57 +277,64 @@ export default function NuevoProductoPage() {
         : (normalizeDocumentUnitId(form.saleUnit) ?? form.saleUnit.trim()) ||
           "ud";
     const purchaseUnit =
-      (normalizeDocumentUnitId(form.purchaseUnit) ??
-        form.purchaseUnit.trim()) ||
+      (normalizeDocumentUnitId(form.purchaseUnit) ?? form.purchaseUnit.trim()) ||
       saleUnit;
 
-    const created = addProduct({
-      key,
-      aliases: [],
-      sku: form.sku.trim() || undefined,
-      name,
-      family: form.family.trim() || "Sin familia",
-      subfamily: form.subfamily.trim() || undefined,
-      unit: saleUnit,
-      supplierId: supplier?.id,
-      supplierName: supplier?.name ?? (supplierName || undefined),
-      pvp: purchaseListPrice,
-      cost: purchaseNetUnitCost,
-      ivaPercent: saleIvaPercent,
-      sales: {
-        enabled: true,
-        description: form.saleDescription.trim() || undefined,
+    let created: ReturnType<typeof addProduct>;
+    try {
+      created = addProduct({
+        key,
+        aliases: [],
+        sku: form.sku.trim() || undefined,
+        name,
+        family: form.family.trim() || "Sin familia",
+        subfamily: form.subfamily.trim() || undefined,
         unit: saleUnit,
-        unitPrice: salePrice,
-        ivaPercent: saleIvaPercent,
-      },
-      purchase: {
-        enabled: Boolean(
-          supplierName ||
-          form.purchaseDescription.trim() ||
-          form.supplierReference.trim() ||
-          purchaseListPrice ||
-          purchaseDiscountPercent ||
-          purchaseNetUnitCost,
-        ),
-        description: form.purchaseDescription.trim() || undefined,
-        unit: purchaseUnit,
-        listPrice: purchaseListPrice,
-        discountPercent: purchaseDiscountPercent,
-        netUnitCost: purchaseNetUnitCost,
-        ivaPercent: saleIvaPercent,
         supplierId: supplier?.id,
         supplierName: supplier?.name ?? (supplierName || undefined),
-        supplierReference: form.supplierReference.trim() || undefined,
-      },
-      calculation:
-        calculationKind === "area"
-          ? { kind: "area", unit: saleUnit, roundingDecimals: 2 }
-          : undefined,
-      attributes: productAttributesFromText(form.attributesText),
-      notes: form.notes.trim() || undefined,
-      source: "manual",
-    });
+        pvp: purchaseListPrice,
+        cost: purchaseNetUnitCost,
+        ivaPercent: saleIvaPercent,
+        sales: {
+          enabled: true,
+          description: form.saleDescription.trim() || undefined,
+          unit: saleUnit,
+          unitPrice: salePrice,
+          ivaPercent: saleIvaPercent,
+        },
+        purchase: {
+          enabled: Boolean(
+            supplierName ||
+              form.purchaseDescription.trim() ||
+              form.supplierReference.trim() ||
+              purchaseListPrice ||
+              purchaseDiscountPercent ||
+              purchaseNetUnitCost,
+          ),
+          description: form.purchaseDescription.trim() || undefined,
+          unit: purchaseUnit,
+          listPrice: purchaseListPrice,
+          discountPercent: purchaseDiscountPercent,
+          netUnitCost: purchaseNetUnitCost,
+          ivaPercent: saleIvaPercent,
+          supplierId: supplier?.id,
+          supplierName: supplier?.name ?? (supplierName || undefined),
+          supplierReference: form.supplierReference.trim() || undefined,
+        },
+        calculation:
+          calculationKind === "area"
+            ? { kind: "area", unit: saleUnit, roundingDecimals: 2 }
+            : undefined,
+        attributes: productAttributesFromText(form.attributesText),
+        notes: form.notes.trim() || undefined,
+        source: "manual",
+      });
+    } catch {
+      savingRef.current = false;
+      setSaving(false);
+      setError("No se ha podido guardar el producto. Inténtalo de nuevo.");
+      return;
+    }
 
     if (documentPickRequest) {
       const createdSummary = buildPurchaseProductSummaries([], [created])[0];
@@ -341,13 +360,36 @@ export default function NuevoProductoPage() {
     router.push("/productos");
   }
 
-  function handleCancel() {
+  function leaveForm() {
     if (documentPickRequest) {
       clearDocumentProductPickRequest();
       router.push(documentPickRequest.returnPath);
       return;
     }
     router.push("/productos");
+  }
+
+  function requestExit(action: () => void) {
+    if (!dirty) {
+      action();
+      return;
+    }
+    pendingExitRef.current = action;
+    setDiscardOpen(true);
+  }
+
+  function handleOpenCandidate(candidate: ProductDuplicateCandidate) {
+    requestExit(() => {
+      saveProductCatalogEditRequest(candidate.key);
+      router.push("/productos");
+    });
+  }
+
+  function discardAndExit() {
+    const action = pendingExitRef.current;
+    pendingExitRef.current = null;
+    setDiscardOpen(false);
+    action?.();
   }
 
   return (
@@ -357,387 +399,85 @@ export default function NuevoProductoPage() {
         subtitle={
           documentPickRequest
             ? "Se guardará en Productos y volverá al documento."
-            : "Crea un material o servicio habitual para tenerlo controlado."
+            : "Crea un material o servicio habitual para reutilizarlo."
         }
         action={
-          <Button type="button" variant="secondary" onClick={handleCancel}>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => requestExit(leaveForm)}
+          >
             <ArrowLeft className="h-5 w-5" />
             {documentPickRequest ? "Volver al documento" : "Volver"}
           </Button>
         }
       />
 
-      <Card className="space-y-5">
-        {error ? (
-          <div
-            role="alert"
-            className="rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700 dark:border-red-900 dark:bg-red-950/50 dark:text-red-200"
-          >
-            {error}
-          </div>
-        ) : null}
-
-        <div className="grid gap-4 lg:grid-cols-[0.55fr_1.4fr_1fr_1fr]">
-          <Field label="Código / SKU">
-            <Input
-              value={form.sku}
-              onChange={(event) => updateField("sku", event.target.value)}
-              placeholder="Ej: MB490"
-            />
-          </Field>
-          <Field label="Producto o servicio">
-            <Input
-              value={form.name}
-              onChange={(event) => updateField("name", event.target.value)}
-              placeholder="Ej: Persiana ALU PC43 Panel Blanco"
-            />
-          </Field>
-          <Field label="Familia">
-            <Input
-              list="new-product-family-options"
-              value={form.family}
-              onChange={(event) => updateField("family", event.target.value)}
-              placeholder="Ej: Persianas y accesorios"
-            />
-          </Field>
-          <Field label="Subfamilia">
-            <Input
-              list="new-product-subfamily-options"
-              value={form.subfamily}
-              onChange={(event) => updateField("subfamily", event.target.value)}
-              placeholder={
-                form.family.trim()
-                  ? "Ej: Motores, ejes, guías..."
-                  : "Elige familia primero"
-              }
-            />
-          </Field>
-        </div>
-
-        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-          <h2 className="text-base font-black text-slate-950">Venta</h2>
-          <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-[1.3fr_0.45fr_0.65fr_0.45fr]">
-            <Field label="Descripción para documentos">
-              <Input
-                value={form.saleDescription}
-                onChange={(event) =>
-                  updateField("saleDescription", event.target.value)
-                }
-                placeholder="Si se deja vacío, se usa el nombre"
-              />
-            </Field>
-            <Field label="Unidad venta">
-              <Input
-                value={form.saleUnit}
-                onChange={(event) =>
-                  updateField("saleUnit", event.target.value)
-                }
-                placeholder="ud"
-              />
-            </Field>
-            <Field label="Precio venta" hint="Sin IVA.">
-              <Input
-                ref={(node) => {
-                  numericInputRefs.current.salePrice = node;
-                }}
-                inputMode="decimal"
-                value={form.salePrice}
-                onChange={(event) =>
-                  updateField("salePrice", event.target.value)
-                }
-                placeholder="0,00"
-                aria-invalid={Boolean(fieldErrors.salePrice)}
-                aria-describedby={
-                  fieldErrors.salePrice ? "sale-price-error" : undefined
-                }
-                className={
-                  fieldErrors.salePrice
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                    : ""
-                }
-              />
-              <ProductFieldError
-                id="sale-price-error"
-                error={fieldErrors.salePrice}
-              />
-            </Field>
-            <Field label="IVA %">
-              <Input
-                ref={(node) => {
-                  numericInputRefs.current.saleIvaPercent = node;
-                }}
-                inputMode="decimal"
-                value={form.saleIvaPercent}
-                onChange={(event) =>
-                  updateField("saleIvaPercent", event.target.value)
-                }
-                placeholder="21"
-                aria-invalid={Boolean(fieldErrors.saleIvaPercent)}
-                aria-describedby={
-                  fieldErrors.saleIvaPercent ? "sale-iva-error" : undefined
-                }
-                className={
-                  fieldErrors.saleIvaPercent
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                    : ""
-                }
-              />
-              <ProductFieldError
-                id="sale-iva-error"
-                error={fieldErrors.saleIvaPercent}
-              />
-            </Field>
-          </div>
-        </div>
-
-        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-          <h2 className="text-base font-black text-slate-950">Compra</h2>
-          <div className="mt-3 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Field label="Proveedor habitual">
-              <Input
-                list="new-product-supplier-options"
-                value={form.supplierName}
-                onChange={(event) =>
-                  updateField("supplierName", event.target.value)
-                }
-                placeholder="Proveedor"
-              />
-            </Field>
-            <Field label="Referencia proveedor">
-              <Input
-                value={form.supplierReference}
-                onChange={(event) =>
-                  updateField("supplierReference", event.target.value)
-                }
-                placeholder="Código del proveedor"
-              />
-            </Field>
-            <Field label="Unidad compra">
-              <Input
-                value={form.purchaseUnit}
-                onChange={(event) =>
-                  updateField("purchaseUnit", event.target.value)
-                }
-                placeholder="ud"
-              />
-            </Field>
-          </div>
-          <div className="mt-4 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Field label="Descripción de compra">
-              <Input
-                value={form.purchaseDescription}
-                onChange={(event) =>
-                  updateField("purchaseDescription", event.target.value)
-                }
-                placeholder="Texto habitual de la factura del proveedor"
-              />
-            </Field>
-            <Field label="Tarifa proveedor" hint="Antes de descuento, sin IVA.">
-              <Input
-                ref={(node) => {
-                  numericInputRefs.current.purchaseListPrice = node;
-                }}
-                inputMode="decimal"
-                value={form.purchaseListPrice}
-                onChange={(event) =>
-                  updateField("purchaseListPrice", event.target.value)
-                }
-                placeholder="0,00"
-                aria-invalid={Boolean(fieldErrors.purchaseListPrice)}
-                aria-describedby={
-                  fieldErrors.purchaseListPrice
-                    ? "purchase-list-price-error"
-                    : undefined
-                }
-                className={
-                  fieldErrors.purchaseListPrice
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                    : ""
-                }
-              />
-              <ProductFieldError
-                id="purchase-list-price-error"
-                error={fieldErrors.purchaseListPrice}
-              />
-            </Field>
-            <Field label="Descuento %">
-              <Input
-                ref={(node) => {
-                  numericInputRefs.current.purchaseDiscountPercent = node;
-                }}
-                inputMode="decimal"
-                value={form.purchaseDiscountPercent}
-                onChange={(event) =>
-                  updateField("purchaseDiscountPercent", event.target.value)
-                }
-                placeholder="0"
-                aria-invalid={Boolean(fieldErrors.purchaseDiscountPercent)}
-                aria-describedby={
-                  fieldErrors.purchaseDiscountPercent
-                    ? "purchase-discount-error"
-                    : undefined
-                }
-                className={
-                  fieldErrors.purchaseDiscountPercent
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                    : ""
-                }
-              />
-              <ProductFieldError
-                id="purchase-discount-error"
-                error={fieldErrors.purchaseDiscountPercent}
-              />
-            </Field>
-            <Field label="Coste real" hint="Después de descuento, sin IVA.">
-              <Input
-                ref={(node) => {
-                  numericInputRefs.current.purchaseNetUnitCost = node;
-                }}
-                inputMode="decimal"
-                value={form.purchaseNetUnitCost}
-                onChange={(event) =>
-                  updateField("purchaseNetUnitCost", event.target.value)
-                }
-                placeholder="0,00"
-                aria-invalid={Boolean(fieldErrors.purchaseNetUnitCost)}
-                aria-describedby={
-                  fieldErrors.purchaseNetUnitCost
-                    ? "purchase-net-cost-error"
-                    : undefined
-                }
-                className={
-                  fieldErrors.purchaseNetUnitCost
-                    ? "border-red-400 focus:border-red-500 focus:ring-red-100"
-                    : ""
-                }
-              />
-              <ProductFieldError
-                id="purchase-net-cost-error"
-                error={fieldErrors.purchaseNetUnitCost}
-              />
-            </Field>
-          </div>
-        </div>
-
-        <Field label="Cálculo de cantidad">
-          <select
-            value={form.calculationKind}
-            onChange={(event) =>
-              updateField("calculationKind", event.target.value)
-            }
-            className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-4 text-base font-semibold text-slate-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-          >
-            <option value="none">Cantidad directa</option>
-            <option value="area">Área: alto x ancho = m²</option>
-          </select>
-          {form.calculationKind === "area" ? (
-            <p className="mt-2 text-sm font-semibold text-blue-800">
-              Se venderá en m². En facturas y presupuestos podrás calcular la
-              cantidad introduciendo alto y ancho.
-            </p>
-          ) : null}
-        </Field>
-
-        <Field
-          label="Atributos"
-          hint="Uno por línea. Ej: Talla: L, Color: Blanco, Material: aluminio."
-        >
-          <Textarea
-            value={form.attributesText}
-            onChange={(event) =>
-              updateField("attributesText", event.target.value)
-            }
-            placeholder={"Talla: L\nColor: Blanco\nMetro lineal: barras de 6 m"}
-          />
-          <div className="mt-2 flex flex-wrap gap-2">
-            {PRODUCT_ATTRIBUTE_SUGGESTIONS.map((label) => (
-              <button
-                key={label}
-                type="button"
-                onClick={() =>
-                  updateField(
-                    "attributesText",
-                    addProductAttributeLine(form.attributesText, label),
-                  )
-                }
-                className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-200"
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          handleSave();
+        }}
+      >
+        <Card className="overflow-hidden !rounded-lg !p-0">
+          {error ? (
+            <div className="px-4 pt-4 sm:px-5">
+              <div
+                role="alert"
+                className="rounded-lg border border-red-200 bg-red-50 px-3 py-3 text-sm font-semibold text-red-700"
               >
-                {label}
-              </button>
-            ))}
-          </div>
-        </Field>
+                {error}
+              </div>
+            </div>
+          ) : null}
 
-        <Field label="Regla interna / notas">
-          <Textarea
-            value={form.notes}
-            onChange={(event) => updateField("notes", event.target.value)}
-            placeholder="Ej: Persianas: alto x ancho en metros. Revisar color y lama antes de enviar."
+          <div className="px-4 pt-5 sm:px-5">
+            <ProductFormFields
+              idPrefix="new-product"
+              draft={form}
+              source="manual"
+              fieldErrors={fieldErrors}
+              familyOptions={familyOptions}
+              subfamilyOptions={subfamilyOptions}
+              supplierOptions={supplierOptions}
+              onChange={updateField}
+            />
+          </div>
+
+          <ProductDuplicateNotice
+            candidates={duplicateCandidates}
+            onOpen={handleOpenCandidate}
           />
-        </Field>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-          <Button type="button" variant="secondary" onClick={handleCancel}>
-            Cancelar
-          </Button>
-          <Button type="button" onClick={handleSave}>
-            <Save className="h-5 w-5" />
-            {documentPickRequest ? "Guardar y volver" : "Guardar producto"}
-          </Button>
-        </div>
-      </Card>
-
-      <Card className="border-blue-100 bg-blue-50/70">
-        <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-white text-blue-600">
-            <Plus className="h-5 w-5" />
+          <div className="flex flex-col gap-2 border-t border-slate-200 bg-slate-50 px-4 py-4 sm:flex-row sm:justify-end sm:px-5">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => requestExit(leaveForm)}
+              disabled={saving}
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={saving}>
+              <Save className="h-5 w-5" />
+              {saving
+                ? "Guardando..."
+                : documentPickRequest
+                  ? "Guardar y volver"
+                  : "Guardar producto"}
+            </Button>
           </div>
-          <div>
-            <h2 className="text-lg font-black text-slate-950">
-              También se completará solo
-            </h2>
-            <p className="mt-1 text-sm font-semibold text-slate-600">
-              Los productos detectados en facturas de proveedor seguirán
-              apareciendo automáticamente. Si editas una familia aquí o en la
-              lista, Factu la recordará para futuros escaneos parecidos.
-            </p>
-          </div>
-        </div>
-      </Card>
+        </Card>
+      </form>
 
-      <datalist id="new-product-family-options">
-        {familyOptions.map((family) => (
-          <option key={family} value={family} />
-        ))}
-      </datalist>
-      <datalist id="new-product-subfamily-options">
-        {subfamilyOptions.map((subfamily) => (
-          <option key={subfamily} value={subfamily} />
-        ))}
-      </datalist>
-      <datalist id="new-product-supplier-options">
-        {supplierOptions.map((supplier) => (
-          <option key={supplier} value={supplier} />
-        ))}
-      </datalist>
+      <ProductUnsavedChangesDialog
+        open={discardOpen}
+        onContinue={() => {
+          pendingExitRef.current = null;
+          setDiscardOpen(false);
+        }}
+        onDiscard={discardAndExit}
+      />
     </div>
-  );
-}
-
-function ProductFieldError({
-  id,
-  error,
-}: {
-  id: string;
-  error?: string;
-}) {
-  if (!error) return null;
-  return (
-    <span
-      id={id}
-      className="text-sm font-semibold text-red-700 dark:text-red-300"
-    >
-      {error}
-    </span>
   );
 }
