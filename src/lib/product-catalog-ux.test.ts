@@ -10,6 +10,13 @@ const productsPageSource = readFileSync(
   new URL("../app/productos/page.tsx", import.meta.url),
   "utf8",
 );
+const structureManagerSource = readFileSync(
+  new URL(
+    "../components/products/ProductCatalogStructureManager.tsx",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 describe("product catalog UX compatibility", () => {
   it("separa vistas y ausencia de datos sin tocar el motor de catalogo", () => {
@@ -35,13 +42,21 @@ describe("product catalog UX compatibility", () => {
     expect(productsPageSource).toContain("activeFilterCount");
     expect(productsPageSource).toContain("filtersOpen");
     expect(productsPageSource).toContain("selectionMode");
-    expect(productsPageSource).toContain('current === "mobile" ? null : "mobile"');
-    expect(productsPageSource).toContain("Organizar");
+    expect(productsPageSource).toContain("ProductCatalogStructureManager");
+    expect(productsPageSource).toContain("Organizar catálogo");
+    expect(productsPageSource).toContain("moveSelectedProducts");
+    expect(productsPageSource).not.toContain(
+      'current === "mobile" ? null : "mobile"',
+    );
     expect(productsPageSource).toContain("overflow-x-auto");
     expect(productsPageSource).toContain('aria-label="Más acciones del producto"');
     expect(productsPageSource).toContain("closeActionsOnOutsideClick");
     expect(productsPageSource).toContain("closeActionsOnEscape");
     expect(productsPageSource).toContain("Seleccionar visibles");
+    expect(structureManagerSource).toContain("Buscar familia o subfamilia");
+    expect(structureManagerSource).toContain('kind: "merge_family"');
+    expect(structureManagerSource).toContain('kind: "merge_subfamily"');
+    expect(structureManagerSource).toContain("Ningún producto ni compra se borrará");
   });
 
   it("restaura una ficha oculta sin perder identidad ni aprendizaje", () => {

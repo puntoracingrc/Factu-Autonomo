@@ -179,6 +179,11 @@ import {
   type ProductFamilyRenameResult,
 } from "@/lib/product-family-markups";
 import {
+  applyProductCatalogStructureOperation,
+  type ProductCatalogStructureOperation,
+  type ProductCatalogStructureResult,
+} from "@/lib/product-catalog-structure";
+import {
   deleteCustomerMasterFromData,
   deleteSupplierMasterFromData,
 } from "@/lib/master-record-deletion";
@@ -404,6 +409,9 @@ interface AppStoreValue {
     sourceFamily: string,
     targetFamily: string,
   ) => ProductFamilyRenameResult;
+  applyProductCatalogStructure: (
+    operation: ProductCatalogStructureOperation,
+  ) => ProductCatalogStructureResult;
   deleteProduct: (id: string) => void;
   mergeProducts: (keepId: string, removeIds: string[]) => void;
   addRecurringExpense: (
@@ -1951,6 +1959,20 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [setAppData],
   );
 
+  const applyProductCatalogStructure = useCallback(
+    (
+      operation: ProductCatalogStructureOperation,
+    ): ProductCatalogStructureResult => {
+      const result = applyProductCatalogStructureOperation(
+        dataRef.current,
+        operation,
+      );
+      if (result.ok) setAppData(result.data);
+      return result;
+    },
+    [setAppData],
+  );
+
   const deleteProduct = useCallback(
     (id: string) => {
       setAppData((prev) => ({
@@ -2599,6 +2621,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addProduct,
       updateProduct,
       renameProductFamily,
+      applyProductCatalogStructure,
       deleteProduct,
       mergeProducts,
       addRecurringExpense,
@@ -2667,6 +2690,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       addProduct,
       updateProduct,
       renameProductFamily,
+      applyProductCatalogStructure,
       deleteProduct,
       mergeProducts,
       addRecurringExpense,

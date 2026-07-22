@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArchiveRestore,
-  Boxes,
   CalendarDays,
   Check,
   CheckSquare2,
@@ -21,12 +20,15 @@ import {
   Search,
   ShoppingCart,
   SlidersHorizontal,
-  Tag,
   Trash2,
   TrendingUp,
   X,
 } from "lucide-react";
 import { Card, PageHeader } from "@/components/ui/Card";
+import {
+  ProductCatalogStructureManager,
+  type ProductCatalogStructureEntry,
+} from "@/components/products/ProductCatalogStructureManager";
 import { ResponsiveEntityPanel } from "@/components/ui/ResponsiveEntityPanel";
 import { TimelineMonthDivider } from "@/components/ui/TimelineMonthDivider";
 import { useAppStore } from "@/context/AppStore";
@@ -53,6 +55,11 @@ import {
   purchaseNetUnitCostInputFromFields,
 } from "@/lib/product-costs";
 import {
+  isProductFamilyMarker,
+  isProductSubfamilyMarker,
+  type ProductCatalogStructureOperation,
+} from "@/lib/product-catalog-structure";
+import {
   clearDocumentProductPickRequest,
   getDocumentProductPickRequest,
   productSummaryToPickedLine,
@@ -67,8 +74,6 @@ const ALL = "__all__";
 const NO_SUBFAMILY = "__no_subfamily__";
 const CUSTOM_FAMILY = "__custom_family__";
 const UNCATEGORIZED_FAMILY = "Sin familia";
-const FAMILY_MARKER_KEY_PREFIX = "__family__-";
-const SUBFAMILY_MARKER_KEY_PREFIX = "__subfamily__-";
 type SubfamilyEntry = {
   family: string;
   name: string;
@@ -155,13 +160,11 @@ function defaultSubfamilyForFamily(): string {
 }
 
 function isFamilyMarker(product: Product): boolean {
-  return product.hidden === true && product.key.startsWith(FAMILY_MARKER_KEY_PREFIX);
+  return isProductFamilyMarker(product);
 }
 
 function isSubfamilyMarker(product: Product): boolean {
-  return (
-    product.hidden === true && product.key.startsWith(SUBFAMILY_MARKER_KEY_PREFIX)
-  );
+  return isProductSubfamilyMarker(product);
 }
 
 function productHasCustomDisplayName(product: PurchaseProductSummary): boolean {
@@ -200,6 +203,7 @@ export default function ProductosPage() {
     addProduct,
     updateProduct,
     renameProductFamily: renameProductFamilyInStore,
+    applyProductCatalogStructure,
     deleteProduct,
     mergeProducts,
   } = useAppStore();
@@ -213,29 +217,15 @@ export default function ProductosPage() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [selectionMode, setSelectionMode] = useState(false);
   const [visibleCount, setVisibleCount] = useState(30);
-  const [familyFormOpen, setFamilyFormOpen] = useState(false);
-  const [familyDraft, setFamilyDraft] = useState("");
-  const [familyRenameOpen, setFamilyRenameOpen] = useState(false);
-  const [familyRenameFrom, setFamilyRenameFrom] = useState("");
-  const [familyRenameTo, setFamilyRenameTo] = useState("");
-  const [subfamilyFormOpen, setSubfamilyFormOpen] = useState(false);
-  const [subfamilyDraft, setSubfamilyDraft] = useState("");
-  const [subfamilyRenameOpen, setSubfamilyRenameOpen] = useState(false);
-  const [subfamilyRenameFrom, setSubfamilyRenameFrom] = useState("");
-  const [subfamilyRenameTo, setSubfamilyRenameTo] = useState("");
   const [bulkFamilyDraft, setBulkFamilyDraft] = useState("");
   const [bulkSubfamilyDraft, setBulkSubfamilyDraft] = useState("");
   const [familyStructureOpen, setFamilyStructureOpen] = useState(false);
   const [supplierStructureOpen, setSupplierStructureOpen] = useState(false);
-  const [actionMenuOpen, setActionMenuOpen] = useState<
-    "new" | "rename" | "mobile" | null
-  >(null);
   const [familyNotice, setFamilyNotice] = useState<string | null>(null);
   const [selectedProductKeys, setSelectedProductKeys] = useState<string[]>([]);
   const [documentPickRequest, setDocumentPickRequest] =
     useState<DocumentProductPickRequest | null>(null);
   const [editingProductKey, setEditingProductKey] = useState<string | null>(null);
-  const productActionsRef = useRef<HTMLDivElement | null>(null);
 
   const products = useMemo(
     () => buildPurchaseProductSummaries(data.expenses, data.products),
@@ -311,7 +301,7 @@ export default function ProductosPage() {
     [family, subfamilyEntries],
   );
 
-  const familyStructure = useMemo(() => {
+  const familyStructure = useMemo<ProductCatalogStructureEntry[]>(() => {
     const byFamily = new Map<
       string,
       {
@@ -598,16 +588,11 @@ export default function ProductosPage() {
       : filteredProducts.length;
 
   const bulkSubfamilyOptions = useMemo(() => {
-    const selectedFamilies = [
-      ...new Set(selectedProducts.map((product) => product.family)),
-    ];
-    if (selectedFamilies.length === 1) {
-      return subfamilyEntries
-        .filter((entry) => entry.family === selectedFamilies[0])
-        .map((entry) => entry.name);
-    }
-    return [];
-  }, [selectedProducts, subfamilyEntries]);
+    if (!bulkFamilyDraft.trim()) return [];
+    return subfamilyEntries
+      .filter((entry) => entry.family === bulkFamilyDraft.trim())
+      .map((entry) => entry.name);
+  }, [bulkFamilyDraft, subfamilyEntries]);
 
   useEffect(() => {
     setVisibleCount(30);
@@ -631,32 +616,6 @@ export default function ProductosPage() {
   useEffect(() => {
     setDocumentPickRequest(getDocumentProductPickRequest());
   }, []);
-
-  useEffect(() => {
-    if (!actionMenuOpen) return;
-
-    function closeMenuOnOutsideClick(event: PointerEvent) {
-      if (
-        productActionsRef.current &&
-        event.target instanceof Node &&
-        productActionsRef.current.contains(event.target)
-      ) {
-        return;
-      }
-      setActionMenuOpen(null);
-    }
-
-    function closeMenuOnEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") setActionMenuOpen(null);
-    }
-
-    document.addEventListener("pointerdown", closeMenuOnOutsideClick);
-    document.addEventListener("keydown", closeMenuOnEscape);
-    return () => {
-      document.removeEventListener("pointerdown", closeMenuOnOutsideClick);
-      document.removeEventListener("keydown", closeMenuOnEscape);
-    };
-  }, [actionMenuOpen]);
 
   useEffect(() => {
     if (!documentPickRequest) return;
@@ -861,21 +820,6 @@ export default function ProductosPage() {
     return addProduct({ ...productFromSummary(product), ...patch });
   }
 
-  function saveProductStructurePatch(
-    product: PurchaseProductSummary,
-    patch: Partial<Product>,
-  ): Product {
-    const existing = product.productId
-      ? data.products.find((entry) => entry.id === product.productId)
-      : data.products.find((entry) => entry.key === product.key);
-    if (existing) {
-      const updated = { ...existing, ...patch };
-      updateProduct(updated);
-      return updated;
-    }
-    return addProduct({ ...productFromSummary(product), ...patch });
-  }
-
   function catalogProductForSummary(
     product: PurchaseProductSummary,
   ): Product | undefined {
@@ -885,55 +829,39 @@ export default function ProductosPage() {
     return data.products.find((entry) => entry.key === product.key);
   }
 
-  function saveProductFamily(
-    product: PurchaseProductSummary,
-    targetFamily: string,
-  ): Product | null {
-    const normalizedFamily = targetFamily.trim() || "Sin familia";
-    const existing = catalogProductForSummary(product);
-    if (existing) {
-      const updated = {
-        ...existing,
-        family: normalizedFamily,
-        source: "manual" as const,
-        hidden: false,
-      };
-      updateProduct(updated);
-      return updated;
-    }
-    if (!canAddCatalogProduct()) return null;
-    return addProduct({
-      ...productFromSummary(product),
-      family: normalizedFamily,
-      source: "manual",
-    });
+  function canMaterializeStructureProducts(
+    affectedProducts: PurchaseProductSummary[],
+  ): boolean {
+    const newCatalogProducts = affectedProducts.filter(
+      (product) => !catalogProductForSummary(product),
+    ).length;
+    if (newCatalogProducts === 0) return true;
+
+    const limit = checkCanAddProduct(
+      catalogProductCount() + newCatalogProducts - 1,
+    );
+    if (limit.allowed) return true;
+    setFamilyNotice(
+      limit.reason ??
+        "No puedes guardar el aprendizaje de todos los productos afectados con tu plan actual.",
+    );
+    return false;
   }
 
-  function saveProductSubfamily(
-    product: PurchaseProductSummary,
-    targetSubfamily: string,
-  ): Product | null {
-    const normalizedSubfamily = targetSubfamily.trim() || undefined;
-    const existing = catalogProductForSummary(product);
-    if (existing) {
-      const updated = {
-        ...existing,
-        subfamily: normalizedSubfamily,
-        source: "manual" as const,
-        hidden: false,
-      };
-      updateProduct(updated);
-      return updated;
+  function runCatalogStructureOperation(
+    operation: ProductCatalogStructureOperation,
+    affectedProducts: PurchaseProductSummary[],
+  ) {
+    if (!canMaterializeStructureProducts(affectedProducts)) return null;
+    const result = applyProductCatalogStructure(operation);
+    if (!result.ok) {
+      setFamilyNotice(result.error);
+      return null;
     }
-    if (!canAddCatalogProduct()) return null;
-    return addProduct({
-      ...productFromSummary(product),
-      subfamily: normalizedSubfamily,
-      source: "manual",
-    });
+    return result;
   }
 
-  function assignSelectedFamily() {
+  function moveSelectedProducts() {
     const targetFamily = bulkFamilyDraft.trim();
     if (!targetFamily) {
       setFamilyNotice("Elige o escribe la familia de destino.");
@@ -941,97 +869,127 @@ export default function ProductosPage() {
     }
     if (selectedProducts.length === 0) return;
 
-    let savedCount = 0;
-    for (const product of selectedProducts) {
-      if (saveProductFamily(product, targetFamily)) savedCount += 1;
-    }
-    if (savedCount === 0) return;
+    const targetSubfamily =
+      targetFamily === UNCATEGORIZED_FAMILY
+        ? undefined
+        : bulkSubfamilyDraft.trim() || undefined;
+    const result = runCatalogStructureOperation(
+      {
+        type: "move_products",
+        productKeys: selectedProducts.map((product) => product.key),
+        targetFamily,
+        targetSubfamily,
+      },
+      selectedProducts,
+    );
+    if (!result) return;
 
     setFamily(targetFamily);
+    setSubfamily(targetSubfamily ?? ALL);
     setSupplier(ALL);
     setSelectedProductKeys([]);
     setBulkFamilyDraft("");
-    setFamilyNotice(
-      `${savedCount} producto(s) movido(s) a "${targetFamily}". La próxima lectura del mismo producto recordará esta familia.`,
-    );
-  }
-
-  function assignSelectedSubfamily() {
-    const selectedFamilies = [
-      ...new Set(selectedProducts.map((product) => product.family)),
-    ];
-    if (selectedFamilies.length !== 1) {
-      setFamilyNotice(
-        "Selecciona productos de una sola familia para moverlos a una subfamilia.",
-      );
-      return;
-    }
-    const targetSubfamily = bulkSubfamilyDraft.trim();
-    if (!targetSubfamily) {
-      setFamilyNotice("Elige o escribe la subfamilia de destino.");
-      return;
-    }
-    if (selectedProducts.length === 0) return;
-
-    let savedCount = 0;
-    for (const product of selectedProducts) {
-      if (saveProductSubfamily(product, targetSubfamily)) savedCount += 1;
-    }
-    if (savedCount === 0) return;
-
-    setSubfamily(targetSubfamily);
-    setSupplier(ALL);
-    setSelectedProductKeys([]);
     setBulkSubfamilyDraft("");
     setFamilyNotice(
-      `${savedCount} producto(s) movido(s) a "${selectedFamilies[0]} / ${targetSubfamily}". La próxima lectura del mismo producto recordará esta subfamilia.`,
+      `${result.productCount} producto(s) movido(s) a "${targetFamily}"${
+        targetSubfamily ? ` / ${targetSubfamily}` : ""
+      }. La próxima lectura recordará esta clasificación.`,
     );
   }
 
-  function renameFamily() {
-    const sourceFamily = familyRenameFrom.trim();
-    const targetFamily = familyRenameTo.trim();
-    if (!sourceFamily) {
-      setFamilyNotice("Elige la familia que quieres renombrar.");
-      return;
+  function createFamily(nameValue: string): boolean {
+    const name = nameValue.trim();
+    if (!name) {
+      setFamilyNotice("Escribe el nombre de la familia.");
+      return false;
     }
-    if (!targetFamily) {
-      setFamilyNotice("Escribe el nuevo nombre de la familia.");
-      return;
-    }
-    if (sourceFamily === targetFamily) {
-      setFamilyRenameOpen(false);
-      setFamilyNotice("La familia ya tenía ese nombre.");
-      return;
+    const existing = families.find(
+      (item) => item.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"),
+    );
+    if (existing) {
+      setFamilyNotice(`La familia "${existing}" ya existía.`);
+      return true;
     }
 
-    const newCatalogProducts = products.filter(
-      (product) =>
-        product.family === sourceFamily && !catalogProductForSummary(product),
-    ).length;
-    if (newCatalogProducts > 0) {
-      const limit = checkCanAddProduct(
-        catalogProductCount() + newCatalogProducts - 1,
-      );
-      if (!limit.allowed) {
-        setFamilyNotice(
-          limit.reason ??
-            "No puedes guardar el aprendizaje de todos los productos de esta familia con tu plan actual.",
-        );
-        return;
-      }
+    addProduct({
+      key: `__family__-${purchaseProductKey(name)}`,
+      aliases: [],
+      name: `Familia: ${name}`,
+      family: name,
+      unit: "ud",
+      hidden: true,
+      source: "manual",
+      notes: "Marcador interno para recordar una familia creada a mano.",
+    });
+    setFamilyNotice(`Familia "${name}" creada.`);
+    return true;
+  }
+
+  function createSubfamily(
+    familyValue: string,
+    nameValue: string,
+  ): boolean {
+    const familyScope = familyValue.trim();
+    const name = nameValue.trim();
+    if (!familyScope || familyScope === UNCATEGORIZED_FAMILY) {
+      setFamilyNotice("Elige la familia donde irá esta subfamilia.");
+      return false;
     }
+    if (!name) {
+      setFamilyNotice("Escribe el nombre de la subfamilia.");
+      return false;
+    }
+    const existing = subfamilyEntries.find(
+      (item) =>
+        item.family.toLocaleLowerCase("es") ===
+          familyScope.toLocaleLowerCase("es") &&
+        item.name.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"),
+    );
+    if (existing) {
+      setFamilyNotice(
+        `La subfamilia "${existing.name}" ya existía dentro de "${existing.family}".`,
+      );
+      return true;
+    }
+
+    addProduct({
+      key: `__subfamily__-${purchaseProductKey(`${familyScope} ${name}`)}`,
+      aliases: [],
+      name: `Subfamilia: ${name}`,
+      family: familyScope,
+      subfamily: name,
+      unit: "ud",
+      hidden: true,
+      source: "manual",
+      notes: "Marcador interno para recordar una subfamilia creada a mano.",
+    });
+    setFamilyNotice(`Subfamilia "${name}" creada dentro de "${familyScope}".`);
+    return true;
+  }
+
+  function renameFamily(
+    sourceValue: string,
+    targetValue: string,
+  ): boolean {
+    const sourceFamily = sourceValue.trim();
+    const targetFamily = targetValue.trim();
+    if (!targetFamily) {
+      setFamilyNotice("Escribe el nuevo nombre de la familia.");
+      return false;
+    }
+
+    const affectedProducts = products.filter(
+      (product) => product.family === sourceFamily,
+    );
+    if (!canMaterializeStructureProducts(affectedProducts)) return false;
 
     const result = renameProductFamilyInStore(sourceFamily, targetFamily);
     if (!result.ok) {
       setFamilyNotice(result.error);
-      return;
+      return false;
     }
 
     if (family === sourceFamily) setFamily(targetFamily);
-    setFamilyRenameFrom("");
-    setFamilyRenameTo("");
-    setFamilyRenameOpen(false);
     setFamilyNotice(
       `Familia "${sourceFamily}" renombrada a "${targetFamily}" en ${result.productCount} producto(s).${
         result.ruleMigrated
@@ -1039,120 +997,103 @@ export default function ProductosPage() {
           : ""
       }`,
     );
+    return true;
   }
 
-  function renameSubfamily() {
-    if (family === ALL) {
-      setFamilyNotice("Elige primero una familia para renombrar su subfamilia.");
-      return;
-    }
-    const sourceSubfamily = subfamilyRenameFrom.trim();
-    const targetSubfamily = subfamilyRenameTo.trim();
-    if (!sourceSubfamily) {
-      setFamilyNotice("Elige la subfamilia que quieres renombrar.");
-      return;
-    }
+  function mergeFamily(sourceFamily: string, targetFamily: string): boolean {
+    const affectedProducts = products.filter(
+      (product) => product.family === sourceFamily,
+    );
+    const result = runCatalogStructureOperation(
+      { type: "merge_families", sourceFamily, targetFamily },
+      affectedProducts,
+    );
+    if (!result) return false;
+
+    if (family === sourceFamily) setFamily(targetFamily);
+    setSelectedProductKeys([]);
+    setFamilyNotice(
+      `Familia "${sourceFamily}" fusionada con "${targetFamily}" en ${result.productCount} producto(s).${
+        result.ruleMigrated
+          ? " La regla de margen se ha conservado en la familia de destino."
+          : ""
+      }`,
+    );
+    return true;
+  }
+
+  function renameSubfamily(
+    familyName: string,
+    sourceSubfamily: string,
+    targetValue: string,
+  ): boolean {
+    const targetSubfamily = targetValue.trim();
     if (!targetSubfamily) {
       setFamilyNotice("Escribe el nuevo nombre de la subfamilia.");
-      return;
+      return false;
     }
-    if (sourceSubfamily === targetSubfamily) {
-      setSubfamilyRenameOpen(false);
-      setFamilyNotice("La subfamilia ya tenía ese nombre.");
-      return;
-    }
-
     const affectedProducts = products.filter(
       (product) =>
-        product.family === family && product.subfamily === sourceSubfamily,
+        product.family === familyName && product.subfamily === sourceSubfamily,
     );
-    let savedCount = 0;
-    for (const product of affectedProducts) {
-      if (saveProductSubfamily(product, targetSubfamily)) savedCount += 1;
-    }
+    const result = runCatalogStructureOperation(
+      {
+        type: "rename_subfamily",
+        family: familyName,
+        sourceSubfamily,
+        targetSubfamily,
+      },
+      affectedProducts,
+    );
+    if (!result) return false;
 
-    for (const product of data.products) {
-      if (
-        product.family !== family ||
-        product.subfamily !== sourceSubfamily ||
-        !product.hidden
-      ) {
-        continue;
-      }
-      updateProduct({
-        ...product,
-        subfamily: targetSubfamily,
-        name: product.name.startsWith("Subfamilia:")
-          ? `Subfamilia: ${targetSubfamily}`
-          : product.name,
-      });
+    if (family === familyName && subfamily === sourceSubfamily) {
+      setSubfamily(targetSubfamily);
     }
-
-    if (subfamily === sourceSubfamily) setSubfamily(targetSubfamily);
-    setSubfamilyRenameFrom("");
-    setSubfamilyRenameTo("");
-    setSubfamilyRenameOpen(false);
     setFamilyNotice(
-      `Subfamilia "${sourceSubfamily}" renombrada a "${targetSubfamily}" en ${savedCount} producto(s).`,
+      `Subfamilia "${sourceSubfamily}" renombrada a "${targetSubfamily}" en ${result.productCount} producto(s).`,
     );
+    return true;
   }
 
-  function deleteFamilyFromStructure(sourceFamily: string) {
-    if (!sourceFamily || sourceFamily === UNCATEGORIZED_FAMILY) return;
-
-    const structureEntry = familyStructure.find(
-      (entry) => entry.family === sourceFamily,
+  function mergeSubfamily(
+    familyName: string,
+    sourceSubfamily: string,
+    targetSubfamily: string,
+  ): boolean {
+    const affectedProducts = products.filter(
+      (product) =>
+        product.family === familyName && product.subfamily === sourceSubfamily,
     );
-    const productCount = structureEntry?.totalCount ?? 0;
-    const subfamilyCount = structureEntry?.subfamilies.length ?? 0;
-    const productCopy =
-      productCount === 1
-        ? "El producto incluido pasará a Sin familia."
-        : productCount > 1
-          ? `Los ${productCount} productos incluidos pasarán a Sin familia.`
-          : "La familia se quitará de la estructura.";
-    const subfamilyCopy =
-      subfamilyCount > 0
-        ? " También se quitarán sus subfamilias."
-        : "";
+    const result = runCatalogStructureOperation(
+      {
+        type: "merge_subfamilies",
+        family: familyName,
+        sourceSubfamily,
+        targetSubfamily,
+      },
+      affectedProducts,
+    );
+    if (!result) return false;
 
-    if (
-      !confirm(
-        `¿Borrar la familia "${sourceFamily}"?\n\n${productCopy}${subfamilyCopy}\n\nNo se borrará ningún producto.`,
-      )
-    ) {
-      return;
+    if (family === familyName && subfamily === sourceSubfamily) {
+      setSubfamily(targetSubfamily);
     }
+    setFamilyNotice(
+      `Subfamilia "${sourceSubfamily}" fusionada con "${targetSubfamily}" en ${result.productCount} producto(s).`,
+    );
+    return true;
+  }
 
-    const handledProductIds = new Set<string>();
-    let movedCount = 0;
-    for (const product of products) {
-      if (product.family !== sourceFamily) continue;
-      const updated = saveProductStructurePatch(product, {
-        family: UNCATEGORIZED_FAMILY,
-        subfamily: undefined,
-        source: "manual",
-      });
-      handledProductIds.add(updated.id);
-      movedCount += 1;
-    }
-
-    for (const product of data.products) {
-      if (handledProductIds.has(product.id) || product.family !== sourceFamily) {
-        continue;
-      }
-      if (isFamilyMarker(product) || isSubfamilyMarker(product)) {
-        deleteProduct(product.id);
-        continue;
-      }
-      updateProduct({
-        ...product,
-        family: UNCATEGORIZED_FAMILY,
-        subfamily: undefined,
-        source: "manual",
-      });
-      movedCount += 1;
-    }
+  function removeFamily(sourceFamily: string): boolean {
+    const affectedProducts = products.filter(
+      (product) => product.family === sourceFamily,
+    );
+    const result = runCatalogStructureOperation(
+      { type: "remove_family", family: sourceFamily },
+      affectedProducts,
+    );
+    if (!result) return false;
 
     if (family === sourceFamily) {
       setFamily(ALL);
@@ -1160,81 +1101,38 @@ export default function ProductosPage() {
     }
     setSelectedProductKeys([]);
     setFamilyNotice(
-      `Familia "${sourceFamily}" borrada. ${movedCount} producto(s) quedan ahora sin familia.`,
+      `Familia "${sourceFamily}" retirada. ${result.productCount} producto(s) quedan ahora por clasificar.`,
     );
+    return true;
   }
 
-  function deleteSubfamilyFromStructure(
+  function removeSubfamily(
     sourceFamily: string,
     sourceSubfamily: string,
-  ) {
-    if (!sourceFamily || !sourceSubfamily) return;
-
-    const structureEntry = familyStructure.find(
-      (entry) => entry.family === sourceFamily,
+  ): boolean {
+    const affectedProducts = products.filter(
+      (product) =>
+        product.family === sourceFamily &&
+        product.subfamily === sourceSubfamily,
     );
-    const productCount =
-      structureEntry?.subfamilies.find((entry) => entry.name === sourceSubfamily)
-        ?.count ?? 0;
-    const productCopy =
-      productCount === 1
-        ? `El producto incluido seguirá en "${sourceFamily}", sin subfamilia.`
-        : productCount > 1
-          ? `Los ${productCount} productos incluidos seguirán en "${sourceFamily}", sin subfamilia.`
-          : "La subfamilia se quitará de la estructura.";
-
-    if (
-      !confirm(
-        `¿Borrar la subfamilia "${sourceSubfamily}"?\n\n${productCopy}\n\nNo se borrará ningún producto.`,
-      )
-    ) {
-      return;
-    }
-
-    const handledProductIds = new Set<string>();
-    let movedCount = 0;
-    for (const product of products) {
-      if (
-        product.family !== sourceFamily ||
-        product.subfamily !== sourceSubfamily
-      ) {
-        continue;
-      }
-      const updated = saveProductStructurePatch(product, {
-        subfamily: undefined,
-        source: "manual",
-      });
-      handledProductIds.add(updated.id);
-      movedCount += 1;
-    }
-
-    for (const product of data.products) {
-      if (
-        handledProductIds.has(product.id) ||
-        product.family !== sourceFamily ||
-        product.subfamily !== sourceSubfamily
-      ) {
-        continue;
-      }
-      if (isSubfamilyMarker(product)) {
-        deleteProduct(product.id);
-        continue;
-      }
-      updateProduct({
-        ...product,
-        subfamily: undefined,
-        source: "manual",
-      });
-      movedCount += 1;
-    }
+    const result = runCatalogStructureOperation(
+      {
+        type: "remove_subfamily",
+        family: sourceFamily,
+        subfamily: sourceSubfamily,
+      },
+      affectedProducts,
+    );
+    if (!result) return false;
 
     if (family === sourceFamily && subfamily === sourceSubfamily) {
       setSubfamily(ALL);
     }
     setSelectedProductKeys([]);
     setFamilyNotice(
-      `Subfamilia "${sourceSubfamily}" borrada. ${movedCount} producto(s) quedan en "${sourceFamily}", sin subfamilia.`,
+      `Subfamilia "${sourceSubfamily}" retirada. ${result.productCount} producto(s) quedan en "${sourceFamily}", sin subfamilia.`,
     );
+    return true;
   }
 
   function handleMergeProducts(
@@ -1335,92 +1233,19 @@ export default function ProductosPage() {
     );
   }
 
-  function createFamily() {
-    const name = familyDraft.trim();
-    if (!name) {
-      setFamilyNotice("Escribe el nombre de la familia.");
-      return;
-    }
-    const existing = families.find(
-      (item) => item.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"),
-    );
-    if (existing) {
-      setFamilyDraft("");
-      setFamily(ALL);
-      setFamilyFormOpen(false);
-      setFamilyNotice(`La familia "${existing}" ya existía.`);
-      return;
-    }
-
-    addProduct({
-      key: `__family__-${purchaseProductKey(name)}`,
-      aliases: [],
-      name: `Familia: ${name}`,
-      family: name,
-      unit: "ud",
-      hidden: true,
-      source: "manual",
-      notes: "Marcador interno para recordar una familia creada a mano.",
-    });
-    setFamilyDraft("");
-    setFamily(ALL);
-    setFamilyFormOpen(false);
-    setFamilyNotice(`Familia "${name}" creada. Ya puedes usarla en productos.`);
-  }
-
-  function createSubfamily() {
-    if (family === ALL) {
-      setFamilyNotice("Elige primero la familia donde irá esta subfamilia.");
-      return;
-    }
-    const name = subfamilyDraft.trim();
-    if (!name) {
-      setFamilyNotice("Escribe el nombre de la subfamilia.");
-      return;
-    }
-    const existing = subfamilyEntries.find(
-      (item) =>
-        item.family === family &&
-        item.name.toLocaleLowerCase("es") === name.toLocaleLowerCase("es"),
-    );
-    if (existing) {
-      setSubfamilyDraft("");
-      setSubfamily(existing.name);
-      setSubfamilyFormOpen(false);
-      setFamilyNotice(
-        `La subfamilia "${existing.name}" ya existía dentro de "${family}".`,
-      );
-      return;
-    }
-
-    const familyScope = family;
-    addProduct({
-      key: `__subfamily__-${purchaseProductKey(`${familyScope} ${name}`)}`,
-      aliases: [],
-      name: `Subfamilia: ${name}`,
-      family: familyScope,
-      subfamily: name,
-      unit: "ud",
-      hidden: true,
-      source: "manual",
-      notes: "Marcador interno para recordar una subfamilia creada a mano.",
-    });
-    setSubfamilyDraft("");
-    setSubfamily(name);
-    setSubfamilyFormOpen(false);
-    setFamilyNotice(
-      `Subfamilia "${name}" creada dentro de "${familyScope}". Ya puedes usarla en productos.`,
-    );
-  }
-
   function applyFamilyStructureFilter(
     targetFamily: string,
-    targetSubfamily: string,
+    targetSubfamily?: string,
   ) {
     setQuery("");
     setFamily(targetFamily);
-    setSubfamily(targetSubfamily);
+    setSubfamily(
+      targetSubfamily === undefined
+        ? ALL
+        : targetSubfamily || NO_SUBFAMILY,
+    );
     setSupplier(ALL);
+    setFamilyStructureOpen(false);
   }
 
   function applySupplierStructureFilter(targetSupplier: string) {
@@ -1436,220 +1261,22 @@ export default function ProductosPage() {
         title="Productos"
         subtitle="Catálogo aprendido de tus compras y productos habituales."
         action={
-          <div
-            ref={productActionsRef}
-            className="grid grid-cols-2 gap-2 sm:flex sm:flex-row"
-          >
-            <div className="relative sm:hidden">
-              <button
-                type="button"
-                onClick={() =>
-                  setActionMenuOpen((current) =>
-                    current === "mobile" ? null : "mobile",
-                  )
-                }
-                aria-expanded={actionMenuOpen === "mobile"}
-                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-              >
-                <SlidersHorizontal className="h-4 w-4" />
-                Organizar
-              </button>
-              {actionMenuOpen === "mobile" ? (
-                <div className="absolute left-0 z-30 mt-2 grid min-w-60 gap-1 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFamilyStructureOpen((current) => !current);
-                      setSupplierStructureOpen(false);
-                      setActionMenuOpen(null);
-                      setFamilyFormOpen(false);
-                      setFamilyRenameOpen(false);
-                      setSubfamilyFormOpen(false);
-                      setSubfamilyRenameOpen(false);
-                      setFamilyNotice(null);
-                    }}
-                    className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
-                  >
-                    <Boxes className="h-4 w-4" />
-                    {familyStructureOpen ? "Ocultar estructura" : "Ver estructura"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(null);
-                      setFamilyFormOpen((current) => !current);
-                      setFamilyRenameOpen(false);
-                      setSubfamilyFormOpen(false);
-                      setSubfamilyRenameOpen(false);
-                      setFamilyNotice(null);
-                    }}
-                    className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Nueva familia
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(null);
-                      setSubfamilyFormOpen((current) => !current);
-                      setFamilyFormOpen(false);
-                      setFamilyRenameOpen(false);
-                      setSubfamilyRenameOpen(false);
-                      setFamilyNotice(null);
-                    }}
-                    className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Nueva subfamilia
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(null);
-                      setFamilyRenameOpen((current) => !current);
-                      setFamilyFormOpen(false);
-                      setSubfamilyFormOpen(false);
-                      setSubfamilyRenameOpen(false);
-                      setFamilyNotice(null);
-                    }}
-                    className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
-                  >
-                    <Edit3 className="h-4 w-4" />
-                    Renombrar familia
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(null);
-                      setSubfamilyRenameOpen((current) => !current);
-                      setFamilyFormOpen(false);
-                      setFamilyRenameOpen(false);
-                      setSubfamilyFormOpen(false);
-                      setFamilyNotice(null);
-                    }}
-                    className="flex min-h-10 items-center gap-2 rounded-md px-3 text-left text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
-                  >
-                    <Edit3 className="h-4 w-4" />
-                    Renombrar subfamilia
-                  </button>
-                </div>
-              ) : null}
-            </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-row">
             <button
               type="button"
               onClick={() => {
-                setFamilyStructureOpen((current) => !current);
+                setFamilyStructureOpen(true);
                 setSupplierStructureOpen(false);
-                setActionMenuOpen(null);
-                setFamilyFormOpen(false);
-                setFamilyRenameOpen(false);
-                setSubfamilyFormOpen(false);
-                setSubfamilyRenameOpen(false);
                 setFamilyNotice(null);
               }}
-              className="hidden min-h-12 items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:inline-flex"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 text-sm font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:px-5 sm:text-base"
             >
-              <Boxes className="h-5 w-5" />
-              {familyStructureOpen ? "Ocultar estructura" : "Ver estructura"}
+              <SlidersHorizontal className="h-5 w-5" />
+              Organizar catálogo
             </button>
-            <div className="relative hidden sm:block">
-              <button
-                type="button"
-                onClick={() =>
-                  setActionMenuOpen((current) =>
-                    current === "new" ? null : "new",
-                  )
-                }
-                aria-expanded={actionMenuOpen === "new"}
-                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-              >
-                <Tag className="h-5 w-5" />
-                Nuevo
-              </button>
-              {actionMenuOpen === "new" ? (
-                <div className="absolute right-0 z-30 mt-2 grid min-w-56 gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(null);
-                      setFamilyFormOpen((current) => !current);
-                      setFamilyRenameOpen(false);
-                      setSubfamilyFormOpen(false);
-                      setSubfamilyRenameOpen(false);
-                      setFamilyNotice(null);
-                    }}
-                    className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
-                  >
-                    Familia
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(null);
-                      setSubfamilyFormOpen((current) => !current);
-                      setFamilyFormOpen(false);
-                      setFamilyRenameOpen(false);
-                      setSubfamilyRenameOpen(false);
-                      setFamilyNotice(null);
-                    }}
-                    className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
-                  >
-                    Subfamilia
-                  </button>
-                </div>
-              ) : null}
-            </div>
-            <div className="relative hidden sm:block">
-              <button
-                type="button"
-                onClick={() =>
-                  setActionMenuOpen((current) =>
-                    current === "rename" ? null : "rename",
-                  )
-                }
-                aria-expanded={actionMenuOpen === "rename"}
-                className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-5 text-base font-semibold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-              >
-                <Edit3 className="h-5 w-5" />
-                Renombrar
-              </button>
-              {actionMenuOpen === "rename" ? (
-                <div className="absolute right-0 z-30 mt-2 grid min-w-56 gap-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(null);
-                      setFamilyRenameOpen((current) => !current);
-                      setFamilyFormOpen(false);
-                      setSubfamilyFormOpen(false);
-                      setSubfamilyRenameOpen(false);
-                      setFamilyNotice(null);
-                    }}
-                    className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
-                  >
-                    Familia
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMenuOpen(null);
-                      setSubfamilyRenameOpen((current) => !current);
-                      setFamilyFormOpen(false);
-                      setFamilyRenameOpen(false);
-                      setSubfamilyFormOpen(false);
-                      setFamilyNotice(null);
-                    }}
-                    className="rounded-xl px-3 py-2 text-left text-sm font-black text-slate-800 transition-colors hover:bg-blue-50"
-                  >
-                    Subfamilia
-                  </button>
-                </div>
-              ) : null}
-            </div>
             <Link
               href="/productos/nuevo"
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-black text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:rounded-2xl sm:px-5 sm:text-base sm:font-semibold"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:px-5 sm:text-base"
             >
               <Plus className="h-5 w-5" />
               {documentPickRequest ? "Crear producto" : "Nuevo producto"}
@@ -1662,120 +1289,28 @@ export default function ProductosPage() {
         <div
           role="status"
           aria-live="polite"
-          className="rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800"
+          className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-bold text-blue-800"
         >
           {familyNotice}
         </div>
       ) : null}
 
-      {familyStructureOpen ? (
-        <Card className="space-y-3 border-blue-100 bg-white">
-          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-xl font-black text-slate-950">
-                Familias y subfamilias
-              </h2>
-              <p className="text-sm font-semibold text-slate-500">
-                Pulsa una familia para verla completa o una subfamilia para afinar.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setFamily(ALL);
-                setSubfamily(ALL);
-                setQuery("");
-                setSupplier(ALL);
-              }}
-              className="inline-flex min-h-10 items-center justify-center rounded-2xl border border-blue-200 bg-white px-4 text-sm font-black text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              Ver todo
-            </button>
-          </div>
-          <div className="max-h-[56vh] overflow-y-auto rounded-2xl border border-slate-200 bg-slate-50/60">
-            {familyStructure.map((entry) => (
-              <section
-                key={entry.family}
-                className="grid gap-2 border-b border-slate-200 px-3 py-3 last:border-b-0 sm:grid-cols-[minmax(180px,240px)_1fr]"
-              >
-                <div className="flex items-start gap-2">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      applyFamilyStructureFilter(entry.family, ALL)
-                    }
-                    className={`min-w-0 flex-1 rounded-xl px-2 py-1 text-left transition-colors hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
-                      family === entry.family && subfamily === ALL
-                        ? "bg-blue-50 text-blue-800"
-                        : "text-slate-950"
-                    }`}
-                  >
-                    <span className="block truncate text-base font-black">
-                      {entry.family}
-                    </span>
-                    <span className="mt-0.5 block text-xs font-bold text-slate-500">
-                      {entry.totalCount} productos ·{" "}
-                      {entry.subfamilies.length} subfamilias
-                    </span>
-                  </button>
-                  {entry.family !== UNCATEGORIZED_FAMILY ? (
-                    <button
-                      type="button"
-                      onClick={() => deleteFamilyFromStructure(entry.family)}
-                      aria-label={`Borrar familia ${entry.family}`}
-                      title="Borrar familia"
-                      className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-50 text-red-600 transition-colors hover:bg-red-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  ) : null}
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  {entry.subfamilies.map((item) => (
-                    <span
-                      key={`${entry.family}-${item.name}`}
-                      className={`inline-flex min-h-8 items-center justify-center rounded-full px-3 text-xs font-black transition-colors ${
-                        family === entry.family && subfamily === item.name
-                          ? "bg-emerald-600 text-white"
-                          : "bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
-                      }`}
-                    >
-                      <button
-                        type="button"
-                        onClick={() =>
-                          applyFamilyStructureFilter(entry.family, item.name)
-                        }
-                        className="min-h-8 rounded-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
-                      >
-                        {item.name}
-                        <span className="ml-1 text-current opacity-80">
-                          {item.count}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          deleteSubfamilyFromStructure(entry.family, item.name)
-                        }
-                        aria-label={`Borrar subfamilia ${item.name}`}
-                        title="Borrar subfamilia"
-                        className="ml-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-current opacity-70 transition-opacity hover:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </span>
-                  ))}
-                  {entry.totalCount === 0 && entry.subfamilies.length === 0 ? (
-                    <span className="inline-flex min-h-8 items-center rounded-full bg-white px-3 text-xs font-black text-slate-400">
-                      Sin productos
-                    </span>
-                  ) : null}
-                </div>
-              </section>
-            ))}
-          </div>
-        </Card>
-      ) : null}
+      <ProductCatalogStructureManager
+        open={familyStructureOpen}
+        entries={familyStructure}
+        uncategorizedFamily={UNCATEGORIZED_FAMILY}
+        notice={familyNotice}
+        onClose={() => setFamilyStructureOpen(false)}
+        onFilter={applyFamilyStructureFilter}
+        onCreateFamily={createFamily}
+        onCreateSubfamily={createSubfamily}
+        onRenameFamily={renameFamily}
+        onMergeFamily={mergeFamily}
+        onRemoveFamily={removeFamily}
+        onRenameSubfamily={renameSubfamily}
+        onMergeSubfamily={mergeSubfamily}
+        onRemoveSubfamily={removeSubfamily}
+      />
 
       {supplierStructureOpen ? (
         <Card className="space-y-4 border-blue-100 bg-white">
@@ -1819,242 +1354,6 @@ export default function ProductosPage() {
         </Card>
       ) : null}
 
-      {familyFormOpen ? (
-        <Card className="border-blue-100 bg-blue-50/70">
-          <form
-            className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-end"
-            onSubmit={(event) => {
-              event.preventDefault();
-              createFamily();
-            }}
-          >
-            <label className="space-y-1.5">
-              <span className="text-sm font-black text-slate-800">
-                Nombre de la familia
-              </span>
-              <input
-                value={familyDraft}
-                onChange={(event) => {
-                  setFamilyDraft(event.target.value);
-                  setFamilyNotice(null);
-                }}
-                placeholder="Ej: Motores y electrónica"
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </label>
-            <button
-              type="submit"
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-5 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              Crear familia
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setFamilyFormOpen(false);
-                setFamilyDraft("");
-                setFamilyNotice(null);
-              }}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              Cancelar
-            </button>
-          </form>
-        </Card>
-      ) : null}
-
-      {familyRenameOpen ? (
-        <Card className="border-blue-100 bg-blue-50/70">
-          <form
-            className="grid gap-3 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1fr)_auto_auto] lg:items-end"
-            onSubmit={(event) => {
-              event.preventDefault();
-              renameFamily();
-            }}
-          >
-            <FilterSelect
-              label="Familia actual"
-              value={familyRenameFrom || ALL}
-              onChange={(value) => {
-                const nextValue = value === ALL ? "" : value;
-                setFamilyRenameFrom(nextValue);
-                setFamilyRenameTo(nextValue);
-                setFamilyNotice(null);
-              }}
-              options={families}
-              allLabel="Elige familia"
-            />
-            <label className="space-y-1.5">
-              <span className="text-sm font-black text-slate-800">
-                Nuevo nombre
-              </span>
-              <input
-                value={familyRenameTo}
-                onChange={(event) => {
-                  setFamilyRenameTo(event.target.value);
-                  setFamilyNotice(null);
-                }}
-                placeholder="Ej: Accesorios de persiana"
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </label>
-            <button
-              type="submit"
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-5 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              Guardar nombre
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setFamilyRenameOpen(false);
-                setFamilyRenameFrom("");
-                setFamilyRenameTo("");
-                setFamilyNotice(null);
-              }}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              Cancelar
-            </button>
-          </form>
-          <p className="mt-3 text-sm font-semibold text-blue-900">
-            Al renombrar, el catálogo recordará el nuevo nombre para productos ya
-            detectados con esa familia.
-          </p>
-        </Card>
-      ) : null}
-
-      {subfamilyFormOpen ? (
-        <Card className="border-blue-100 bg-blue-50/70">
-          <form
-            className="grid gap-3 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_auto_auto] lg:items-end"
-            onSubmit={(event) => {
-              event.preventDefault();
-              createSubfamily();
-            }}
-          >
-            <FilterSelect
-              label="Dentro de la familia"
-              value={family}
-              onChange={(value) => {
-                setFamily(value);
-                setSubfamily(defaultSubfamilyForFamily());
-                setFamilyNotice(null);
-              }}
-              options={families}
-              allLabel="Elige familia"
-            />
-            <label className="space-y-1.5">
-              <span className="text-sm font-black text-slate-800">
-                Nombre de la subfamilia
-              </span>
-              <input
-                value={subfamilyDraft}
-                onChange={(event) => {
-                  setSubfamilyDraft(event.target.value);
-                  setFamilyNotice(null);
-                }}
-                placeholder="Ej: Ejes, motores, lamas..."
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </label>
-            <button
-              type="submit"
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-5 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              Crear subfamilia
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSubfamilyFormOpen(false);
-                setSubfamilyDraft("");
-                setFamilyNotice(null);
-              }}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              Cancelar
-            </button>
-          </form>
-          <p className="mt-3 text-sm font-semibold text-blue-900">
-            Una subfamilia siempre vive dentro de una familia, como una carpeta
-            dentro de otra.
-          </p>
-        </Card>
-      ) : null}
-
-      {subfamilyRenameOpen ? (
-        <Card className="border-blue-100 bg-blue-50/70">
-          <form
-            className="grid gap-3 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,0.9fr)_minmax(0,1fr)_auto_auto] lg:items-end"
-            onSubmit={(event) => {
-              event.preventDefault();
-              renameSubfamily();
-            }}
-          >
-            <FilterSelect
-              label="Familia"
-              value={family}
-              onChange={(value) => {
-                setFamily(value);
-                setSubfamily(defaultSubfamilyForFamily());
-                setSubfamilyRenameFrom("");
-                setSubfamilyRenameTo("");
-                setFamilyNotice(null);
-              }}
-              options={families}
-              allLabel="Elige familia"
-            />
-            <FilterSelect
-              label="Subfamilia actual"
-              value={subfamilyRenameFrom || ALL}
-              onChange={(value) => {
-                const nextValue = value === ALL ? "" : value;
-                setSubfamilyRenameFrom(nextValue);
-                setSubfamilyRenameTo(nextValue);
-                setFamilyNotice(null);
-              }}
-              options={selectedFamilySubfamilies}
-              allLabel={
-                family === ALL ? "Elige familia primero" : "Elige subfamilia"
-              }
-            />
-            <label className="space-y-1.5">
-              <span className="text-sm font-black text-slate-800">
-                Nuevo nombre
-              </span>
-              <input
-                value={subfamilyRenameTo}
-                onChange={(event) => {
-                  setSubfamilyRenameTo(event.target.value);
-                  setFamilyNotice(null);
-                }}
-                placeholder="Ej: Accesorios de persiana"
-                className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-            </label>
-            <button
-              type="submit"
-              className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-5 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              Guardar nombre
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setSubfamilyRenameOpen(false);
-                setSubfamilyRenameFrom("");
-                setSubfamilyRenameTo("");
-                setFamilyNotice(null);
-              }}
-              className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 text-sm font-black text-slate-600 transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
-            >
-              Cancelar
-            </button>
-          </form>
-        </Card>
-      ) : null}
-
       {products.length === 0 && hiddenProducts.length === 0 ? (
         <Card className="space-y-4">
           <div className="flex items-start gap-3">
@@ -2075,14 +1374,13 @@ export default function ProductosPage() {
             <button
               type="button"
               onClick={() => {
-                setFamilyFormOpen(true);
-                setSubfamilyFormOpen(false);
+                setFamilyStructureOpen(true);
                 setFamilyNotice(null);
               }}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-blue-200 bg-white px-4 py-3 text-base font-bold text-blue-700 transition-colors hover:bg-blue-50 sm:w-auto"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-blue-200 bg-white px-4 py-3 text-base font-bold text-blue-700 transition-colors hover:bg-blue-50 sm:w-auto"
             >
-              <Tag className="h-5 w-5" />
-              Nueva familia
+              <SlidersHorizontal className="h-5 w-5" />
+              Organizar catálogo
             </button>
             <Link
               href="/productos/nuevo"
@@ -2386,31 +1684,19 @@ export default function ProductosPage() {
                     Muévelos de familia o úsalos en un documento.
                   </p>
                 </div>
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] xl:col-span-2">
                   <ProductFamilySelect
-                    label="Mover a familia"
+                    label="Familia de destino"
                     value={bulkFamilyDraft}
                     onChange={(value) => {
                       setBulkFamilyDraft(value);
+                      setBulkSubfamilyDraft("");
                       setFamilyNotice(null);
                     }}
                     options={families}
                   />
-                  <button
-                    type="button"
-                    onClick={assignSelectedFamily}
-                    className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:self-end"
-                  >
-                    Aplicar
-                  </button>
-                  <p className="text-xs font-semibold text-blue-900 sm:col-span-2">
-                    Esto enseña al catálogo para próximos escaneos del mismo
-                    producto. No cambia la factura de proveedor original.
-                  </p>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto] xl:col-span-2">
                   <ProductFamilySelect
-                    label="Mover a subfamilia"
+                    label="Subfamilia (opcional)"
                     value={bulkSubfamilyDraft}
                     onChange={(value) => {
                       setBulkSubfamilyDraft(value);
@@ -2423,14 +1709,14 @@ export default function ProductosPage() {
                   />
                   <button
                     type="button"
-                    onClick={assignSelectedSubfamily}
-                    className="inline-flex h-12 items-center justify-center rounded-2xl bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:self-end"
+                    onClick={moveSelectedProducts}
+                    className="inline-flex h-12 items-center justify-center rounded-lg bg-blue-600 px-4 text-sm font-black text-white transition-colors hover:bg-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:self-end"
                   >
-                    Aplicar subfamilia
+                    Mover productos
                   </button>
-                  <p className="text-xs font-semibold text-blue-900 sm:col-span-2">
-                    La subfamilia ayuda a separar un nivel más: por ejemplo,
-                    motores, ejes, guías o lamas dentro de una familia.
+                  <p className="text-xs font-semibold text-blue-900 sm:col-span-3">
+                    La clasificación se recordará en próximos escaneos. La
+                    factura de proveedor original no cambia.
                   </p>
                 </div>
                 <div className="grid gap-2 sm:grid-cols-4 xl:col-span-2">
