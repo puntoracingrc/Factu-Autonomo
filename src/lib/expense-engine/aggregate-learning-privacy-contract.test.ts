@@ -38,6 +38,13 @@ const adr = readFileSync(
   ),
   "utf8",
 );
+const approvalPacket = readFileSync(
+  new URL(
+    "../../../docs/architecture/ADR-0008-expense-learning-activation-approval.md",
+    import.meta.url,
+  ),
+  "utf8",
+);
 
 function observation() {
   return {
@@ -250,6 +257,30 @@ describe("expense aggregate learning privacy contract", () => {
     expect(adr).toMatch(/no contribuye ni promueve/iu);
     expect(adr).toMatch(/no\s+demuestra por sí solo anonimización/iu);
     expect(adr).not.toMatch(/cumple (?:con )?el RGPD|garantiza anonimato/iu);
+  });
+
+  it("mantiene preparado el paquete legal sin activar aprendizaje ni sobreprometer", () => {
+    expect(adr).toContain(
+      "ADR-0008-expense-learning-activation-approval.md",
+    );
+    expect(approvalPacket).toContain("preparado para aprobacion explicita");
+    expect(approvalPacket).toContain("no activa flags");
+    expect(approvalPacket).toContain(
+      "Compartir senales tecnicas de futuras correcciones",
+    );
+    expect(approvalPacket).toContain("`privacyPolicyVersion`: `2026-07-21`");
+    expect(approvalPacket).toContain("un unico relleno mensual del 100 %");
+    expect(approvalPacket).toContain("24 horas");
+    expect(approvalPacket).toContain("35 dias");
+    expect(approvalPacket).toContain("13 meses");
+    expect(approvalPacket).toContain("RETRY_REQUIRED");
+    expect(approvalPacket).toContain("EXPENSE_LEARNING_CONSENT_ENABLED");
+    expect(approvalPacket).toContain("EXPENSE_LEARNING_INGESTION_ENABLED");
+    expect(approvalPacket).toContain(
+      "NEXT_PUBLIC_EXPENSE_LEARNING_WIRING_ENABLED",
+    );
+    expect(approvalPacket).toContain("no debe usar casillas premarcadas");
+    expect(approvalPacket).not.toMatch(/garantiza anonimato|cumple (?:con )?el RGPD/iu);
   });
 });
 

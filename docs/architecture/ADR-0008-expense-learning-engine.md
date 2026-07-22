@@ -568,8 +568,9 @@ permanezcan apagados.
 P5 no modifica los kill switches, el consentimiento, el transporte, la
 promoción, el scheduler ni el resultado visible del escáner. Puede desplegarse
 antes de P4C3 porque no crea datos ni abre la captación. La activación gradual
-continúa bloqueada hasta cerrar revisión jurídica/copy, secretos, ejecución real
-verde de mantenimiento y autorización expresa de producción.
+continúa bloqueada hasta cerrar secretos, ejecución real verde de mantenimiento,
+autorización expresa de producción y el paquete de consentimiento y retención
+[`ADR-0008 - Paquete de aprobación de consentimiento y retención`](ADR-0008-expense-learning-activation-approval.md).
 
 ### Incentivo futuro separado
 
@@ -579,7 +580,9 @@ un único relleno mensual del 100 % de la cuota de IA. Deberá reutilizar la
 misma semántica de reinicio mensual que Admin, con ledger idempotente de una
 concesión máxima por mes y sin crear un saldo paralelo ni tocar créditos extra.
 No forma parte de P3, no está activo y requiere revisión específica de copy,
-consentimiento, elegibilidad, revocación y billing antes de publicarse.
+consentimiento, elegibilidad, revocación y billing antes de publicarse. El
+paquete de aprobación de consentimiento y retención fija la semántica de
+producto aceptable para ese incentivo, pero no implementa la concesión.
 
 ### Separación de dominios
 
