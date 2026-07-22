@@ -1499,6 +1499,7 @@ function UserAdminCard({
     : aiUnitsToScanCredits(manualAiCreditUnits);
   const monthlyUsage = user.aiUsage;
   const monthlyPercent = monthlyUsage.percentRemaining;
+  const hasPendingErrors = user.errors.pendingCount > 0;
 
   useEffect(() => {
     const nextUnlimitedAi = isUnlimitedAiCreditUnits(
@@ -1650,14 +1651,37 @@ function UserAdminCard({
       </div>
 
       {user.errors.count > 0 && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        <div
+          className={`rounded-2xl border px-4 py-3 text-sm ${
+            hasPendingErrors
+              ? "border-amber-200 bg-amber-50 text-amber-900"
+              : "border-emerald-200 bg-emerald-50 text-emerald-900"
+          }`}
+        >
           <p className="font-bold">
-            {user.errors.count} error(es) registrados
+            {hasPendingErrors
+              ? `${user.errors.pendingCount} ${
+                  user.errors.pendingCount === 1
+                    ? "incidencia pendiente"
+                    : "incidencias pendientes"
+                }`
+              : "Sin incidencias pendientes"}
           </p>
           <p>
-            Último: {formatDate(user.errors.latestAt)} · {user.errors.latestArea}
+            {user.errors.resolvedCount}{" "}
+            {user.errors.resolvedCount === 1 ? "solucionada" : "solucionadas"} ·{" "}
+            {user.errors.archivedCount}{" "}
+            {user.errors.archivedCount === 1 ? "archivada" : "archivadas"}
           </p>
-          <p className="mt-1">{user.errors.latestMessage}</p>
+          {hasPendingErrors ? (
+            <>
+              <p>
+                Última pendiente: {formatDate(user.errors.latestAt)} ·{" "}
+                {user.errors.latestArea}
+              </p>
+              <p className="mt-1">{user.errors.latestMessage}</p>
+            </>
+          ) : null}
         </div>
       )}
 
