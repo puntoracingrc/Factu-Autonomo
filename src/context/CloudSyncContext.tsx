@@ -420,11 +420,15 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         user.id,
         lastSyncedAt,
       );
-      if (!hasRemoteChanges) return "fresh";
 
       if (!lastSyncedAt && !hasWorkspaceContent(payload)) {
-        return "needs_pull";
+        return hasRemoteChanges ? "needs_pull" : "fresh";
       }
+      const remoteDocumentCount = await countSyncEntities(user.id, {
+        entityType: "document",
+      });
+      if (remoteDocumentCount > payload.documents.length) return "stale";
+      if (!hasRemoteChanges) return "fresh";
       return "stale";
     },
     [

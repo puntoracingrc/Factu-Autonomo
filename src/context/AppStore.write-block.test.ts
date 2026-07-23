@@ -58,6 +58,7 @@ describe("stale cloud snapshot write block", () => {
 
   it("checks cloud freshness before writes can reach upload", () => {
     expect(cloudSyncSource).toContain("hasRemoteSyncChangesAfter");
+    expect(cloudSyncSource).toContain("remoteDocumentCount > payload.documents.length");
     expect(cloudSyncSource).toContain("checkCloudWriteFreshness");
     expect(cloudSyncSource).toContain("enforceFreshCloudBeforeWrites");
     expect(cloudSyncSource).toContain(
