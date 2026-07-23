@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "central-invoice-authority-production-baseline-v1",
+  "capturedAt": "2026-07-23T22:05:00+02:00",
+  "source": "supabase-dashboard-read-only",
+  "project": {
+    "ref": "rnbmkkzptxbvtchluqrx",
+    "branch": "main",
+    "environment": "production",
+    "status": "healthy",
+    "region": "eu-central-1",
+    "compute": "micro"
+  },
+  "migrationHistory": {
+    "visibleVersions": ["20260720133000", "20260721190000", "20260721190100"],
+    "baselineReconciledWithGit": false
+  },
+  "currentSync": {
+    "table": "sync_entities",
+    "exists": true,
+    "estimatedRows": 5846,
+    "estimatedSize": "24 MB",
+    "realtimeEnabled": false
+  },
+  "centralAuthority": {
+    "tablesPresent": false,
+    "requiredTablesAbsent": [
+      "central_invoice_documents",
+      "central_invoice_document_versions",
+      "central_invoice_series_state",
+      "central_invoice_identities",
+      "central_invoice_commands",
+      "central_invoice_outbox"
+    ],
+    "issueRpcPresent": false
+  },
+  "recovery": {
+    "pitrEnabled": false,
+    "pitrRequiredByArchitecture": false,
+    "verifiedRestorableBackup": false,
+    "note": "Dashboard signals about scheduled backups must be reconciled before rollout."
+  },
+  "decision": "no-go-for-production-schema"
+}
