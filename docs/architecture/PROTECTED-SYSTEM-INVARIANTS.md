@@ -197,6 +197,28 @@ Regresiones mínimas: `affiliate-reward-protection.test.ts`,
 `paid-referral-rewards.test.ts`, `referrals.test.ts`, el webhook de Stripe y los
 contratos UI de Afiliados y promociones.
 
+### 8. Autoridad central para la emisión de facturas
+
+Contrato: [ADR-0010](ADR-0010-central-invoice-authority.md).
+
+- Borradores pueden seguir siendo locales, pero la identidad definitiva de una
+  factura o rectificativa emitida la asigna exclusivamente el servidor.
+- Número, identidad, documento congelado, versión, auditoría y evento de salida
+  se confirman en una transacción PostgreSQL protegida por idempotencia,
+  bloqueo de serie y unicidad fiscal.
+- Realtime es una señal de actualización, no la fuente de verdad. Polling puede
+  recuperar una señal perdida sin cambiar la autoridad.
+- Una serie activada en modo central nunca vuelve a numeración local. El kill
+  switch pausa nuevas emisiones y conserva lectura.
+- Retiros, reparaciones y restauraciones usan ID técnico, versión y huella.
+  Compartir número no autoriza borrar, sustituir ni ocultar otra factura.
+- PITR es opcional. Antes de la apertura general sí se exige una copia
+  recuperable y una restauración ensayada.
+
+Regresiones mínimas: `central-invoice-authority/activation.test.ts`,
+`protected-system-invariants-contract.test.ts` y
+`validate:central-invoice-authority-phase1`.
+
 ## Prohibido sin autorización expresa
 
 - Debilitar el fail-closed de documentos nuevos emitidos por la app.
@@ -214,6 +236,9 @@ contratos UI de Afiliados y promociones.
   mezclar Afiliados con Partners o procesar dos veces el mismo pago de Stripe.
 - Borrar, renumerar o alterar evidencia fiscal existente para hacer pasar una
   validación.
+- Permitir que un navegador asigne una identidad fiscal definitiva después de
+  activar la autoridad central para esa serie o usar un fallback local tras un
+  fallo del servidor.
 
 ## Procedimiento para cualquier task nuevo
 

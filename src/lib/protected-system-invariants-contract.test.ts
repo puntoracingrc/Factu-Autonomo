@@ -17,6 +17,7 @@ const protectedAdrs = [
   "ADR-0005-cloud-and-drive-sync-reliability.md",
   "ADR-0006-customer-master-reliability.md",
   "ADR-0007-paid-affiliate-rewards.md",
+  "ADR-0010-central-invoice-authority.md",
 ] as const;
 
 describe("mandatory protected-system registry", () => {
@@ -42,8 +43,15 @@ describe("mandatory protected-system registry", () => {
     expect(registry).toContain("cloud-drive-sync-reliability-contract.test.ts");
     expect(registry).toContain("customer-master-reliability-contract.test.ts");
     expect(registry).toContain("no añade fricción");
-    expect(registry).toContain("Introducir un código o registrar una cuenta solo atribuye");
+    expect(registry).toContain(
+      "Introducir un código o registrar una cuenta solo atribuye",
+    );
     expect(registry).toContain("affiliate-reward-protection.test.ts");
+    expect(registry).toContain("la asigna exclusivamente el servidor");
+    expect(registry).toContain(
+      "Una serie activada en modo central nunca vuelve a numeración local",
+    );
+    expect(registry).toContain("PITR es opcional");
   });
 
   it("protege las instrucciones y el registro con CODEOWNERS", () => {
