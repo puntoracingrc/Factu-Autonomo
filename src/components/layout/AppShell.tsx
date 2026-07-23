@@ -55,7 +55,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { data, ready } = useAppStore();
-  const { user } = useCloudSync();
+  const { authReady, user } = useCloudSync();
   const { isPro, billingEnabled, plan } = useBilling();
   const demoMode = useDemoWorkspaceMode();
   const [factuDismissed, setFactuDismissed] = useState(false);
@@ -71,11 +71,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     appPreferences.theme === "system" ? systemTheme : appPreferences.theme;
   const showFactu =
     !demoMode && !factuDismissed && shouldShowFactuWidget(pathname);
-  const accountLabel = data.profile.name.trim() || user?.email || "Cuenta";
-  const brandHref = user
+  const workspaceLoading = !ready || !authReady;
+  const accountLabel = workspaceLoading
+    ? "Comprobando sesión"
+    : data.profile.name.trim() || user?.email || "Cuenta";
+  const hasAppSessionContext = Boolean(user) || workspaceLoading;
+  const brandHref = hasAppSessionContext
     ? appStartPageHref(appPreferences.startPage)
     : "/inicio";
-  const brandAriaLabel = user ? "Ir a la pantalla inicial" : "Ir al inicio";
+  const brandAriaLabel = hasAppSessionContext
+    ? "Ir a la pantalla inicial"
+    : "Ir al inicio";
 
   function startNavigation(href: string, label: string) {
     if (pathname === href) {
@@ -208,7 +214,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="border-b border-slate-100 px-4 py-3">
-          {user ? (
+          {hasAppSessionContext ? (
             <Link
               href="/cuenta"
               className="flex min-w-0 items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100"
@@ -339,7 +345,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </Link>
             <div className="flex shrink-0 items-center gap-2">
               <FactuHelpButton />
-              {!user ? (
+              {!hasAppSessionContext ? (
                 <Link
                   href="/inicio"
                   className="hidden min-h-11 items-center gap-1 rounded-xl border border-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 sm:flex"
@@ -348,7 +354,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   Inicio
                 </Link>
               ) : null}
-              {user ? (
+              {hasAppSessionContext ? (
                 <Link
                   href="/cuenta"
                   className="flex min-h-11 min-w-11 items-center justify-center gap-1 rounded-xl bg-emerald-50 px-0 text-xs font-bold text-emerald-800 hover:bg-emerald-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 min-[430px]:w-auto min-[430px]:max-w-[9rem] min-[430px]:justify-start min-[430px]:px-2.5 min-[430px]:py-1.5 sm:max-w-[13rem]"
@@ -406,7 +412,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         <header className="app-topbar sticky top-0 z-20 hidden border-b border-slate-200/80 bg-white/95 shadow-sm backdrop-blur lg:block">
           <div className="flex min-h-16 items-center justify-end gap-3 px-6 py-3 xl:px-8 2xl:px-10">
-            {!user ? (
+            {!hasAppSessionContext ? (
               <Link
                 href="/inicio"
                 className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50"
@@ -415,7 +421,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 Volver al inicio
               </Link>
             ) : null}
-            {user ? (
+            {hasAppSessionContext ? (
               <Link
                 href="/cuenta"
                 className="flex max-w-xs items-center gap-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-bold text-emerald-800 hover:bg-emerald-100"
@@ -478,10 +484,21 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               : "pb-[calc(8rem+env(safe-area-inset-bottom))] lg:pb-8"
           }`}
         >
-          {!ready ? (
-            <p className="py-16 text-center text-slate-500">
-              Cargando tus datos…
-            </p>
+          {workspaceLoading ? (
+            <div
+              role="status"
+              aria-live="polite"
+              className="mb-4 flex items-center gap-2 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800 shadow-sm"
+            >
+              <LoaderCircle
+                className="h-4 w-4 shrink-0 motion-safe:animate-spin"
+                aria-hidden="true"
+              />
+              Preparando tus datos. Puedes seguir navegando.
+            </div>
+          ) : null}
+          {workspaceLoading ? (
+            <AppStartupMainContent pathname={pathname} />
           ) : (
             children
           )}
@@ -556,6 +573,104 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </nav>
+    </div>
+  );
+}
+
+function AppStartupMainContent({ pathname }: { pathname: string }) {
+  const currentSection =
+    APP_NAV_ITEMS.find(({ href, activeBase }) =>
+      isAppNavItemActive(pathname, href, activeBase),
+    ) ??
+    (pathname === "/"
+      ? { label: "Panel principal" }
+      : { label: "Esta sección" });
+  const isHome = pathname === "/";
+
+  return (
+    <div aria-busy="true" className="space-y-4">
+      <section
+        className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+        aria-labelledby="startup-section-title"
+      >
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h1
+              id="startup-section-title"
+              className="text-lg font-bold text-slate-900"
+            >
+              {currentSection.label}
+            </h1>
+            <p className="mt-1 text-sm text-slate-500">
+              Estamos preparando esta vista con los datos guardados.
+            </p>
+          </div>
+          <div
+            role="status"
+            aria-live="polite"
+            className="inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700"
+          >
+            <span className="h-2 w-2 rounded-full bg-blue-500 motion-safe:animate-pulse" />
+            Actualizando
+          </div>
+        </div>
+      </section>
+
+      {isHome ? <HomeStartupSummaryPlaceholder /> : <SectionStartupPlaceholder />}
+    </div>
+  );
+}
+
+function HomeStartupSummaryPlaceholder() {
+  return (
+    <section className="space-y-4" aria-labelledby="startup-summary-title">
+      <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="h-11 w-11 shrink-0 rounded-2xl bg-slate-100" />
+          <div className="min-w-0 flex-1">
+            <h2
+              id="startup-summary-title"
+              className="text-lg font-bold text-slate-900"
+            >
+              Resumen del negocio
+            </h2>
+            <div className="mt-3 h-3 w-36 rounded-full bg-slate-100 motion-safe:animate-pulse" />
+          </div>
+        </div>
+      </div>
+
+      <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+        {["Últimos documentos", "Últimos gastos", "Pendiente de cobro"].map(
+          (title) => (
+            <StartupPlaceholderCard key={title} title={title} />
+          ),
+        )}
+      </div>
+    </section>
+  );
+}
+
+function SectionStartupPlaceholder() {
+  return (
+    <div className="grid min-w-0 gap-4 lg:grid-cols-3">
+      {["Datos principales", "Actividad reciente", "Estado de la sección"].map(
+        (title) => (
+          <StartupPlaceholderCard key={title} title={title} />
+        ),
+      )}
+    </div>
+  );
+}
+
+function StartupPlaceholderCard({ title }: { title: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <p className="text-sm font-bold text-slate-900">{title}</p>
+      <div className="mt-4 space-y-3">
+        <div className="h-3 rounded-full bg-slate-100 motion-safe:animate-pulse" />
+        <div className="h-3 w-4/5 rounded-full bg-slate-100 motion-safe:animate-pulse" />
+        <div className="h-3 w-2/3 rounded-full bg-slate-100 motion-safe:animate-pulse" />
+      </div>
     </div>
   );
 }

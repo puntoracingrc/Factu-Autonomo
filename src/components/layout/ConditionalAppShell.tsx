@@ -20,7 +20,10 @@ export function ConditionalAppShell({ children }: { children: React.ReactNode })
   const isPublicHome =
     pathname === "/" &&
     !demoMode &&
-    (!ready || !authReady || (!user && !hasWorkspaceContent(data)));
+    ready &&
+    authReady &&
+    !user &&
+    !hasWorkspaceContent(data);
 
   if (isAuthRoute || isPartnerAccessRoute) {
     return (
