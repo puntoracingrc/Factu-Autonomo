@@ -248,7 +248,7 @@ export const CLOUD_SNAPSHOT_INCOMPLETE_WRITE_BLOCK_REASON =
   "cloud_snapshot_incomplete";
 
 export interface AppWriteBlock {
-  source: "cloud_sync_review";
+  source: "cloud_sync_preflight" | "cloud_sync_review";
   message: string;
   recoveryHref: string;
   recoveryLabel: string;

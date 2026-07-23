@@ -47,11 +47,21 @@ describe("stale cloud snapshot write block", () => {
 
   it("lets cloud sync place stale devices in read-only mode", () => {
     expect(cloudSyncSource).toContain("setExternalWriteBlock({");
+    expect(cloudSyncSource).toContain('source: "cloud_sync_preflight"');
     expect(cloudSyncSource).toContain('source: "cloud_sync_review"');
     expect(cloudSyncSource).toContain('recoveryHref: "/cuenta"');
     expect(cloudSyncSource).toContain("clearExternalWriteBlock");
     expect(cloudSyncSource).toContain(
       "no se pueden crear, editar ni borrar datos de negocio",
+    );
+  });
+
+  it("checks cloud freshness before writes can reach upload", () => {
+    expect(cloudSyncSource).toContain("hasRemoteSyncChangesAfter");
+    expect(cloudSyncSource).toContain("checkCloudWriteFreshness");
+    expect(cloudSyncSource).toContain("enforceFreshCloudBeforeWrites");
+    expect(cloudSyncSource).toContain(
+      "if (!(await enforceFreshCloudBeforeWrites(payload))) return false",
     );
   });
 

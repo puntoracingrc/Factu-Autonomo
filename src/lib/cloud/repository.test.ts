@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { pullSyncChanges, pushSyncChanges } from "./repository";
+import {
+  hasRemoteSyncChangesAfter,
+  pullSyncChanges,
+  pushSyncChanges,
+} from "./repository";
 import type { SyncChange } from "./diff";
 import { buildCloudReplacementChanges } from "./sync-queue";
 import {
@@ -86,6 +90,10 @@ function installPullMock(
         return builder;
       }),
       order: vi.fn(() => builder),
+      limit: vi.fn((count: number) => {
+        builder.limitCount = count;
+        return builder;
+      }),
       range: vi.fn((from: number, to: number) => {
         ranges.push([from, to]);
         builder.currentRange = [from, to] as [number, number];
@@ -97,6 +105,7 @@ function installPullMock(
         return builder;
       }),
       currentRange: [0, 499] as [number, number],
+      limitCount: undefined as number | undefined,
       since: undefined as string | undefined,
       entityType: undefined as string | undefined,
       operation: "select" as "select" | "insert" | "update",
@@ -152,7 +161,14 @@ function installPullMock(
             (!builder.since || row.updated_at > builder.since) &&
             (!builder.entityType || row.entity_type === builder.entityType),
         );
-        resolve({ data: filtered.slice(from, to + 1), error: null });
+        const ranged = filtered.slice(from, to + 1);
+        resolve({
+          data:
+            typeof builder.limitCount === "number"
+              ? ranged.slice(0, builder.limitCount)
+              : ranged,
+          error: null,
+        });
       },
       upsert,
     };
@@ -367,6 +383,20 @@ function fiscalWorkspaceChange(
 describe("cloud repository", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("detecta cambios remotos posteriores al watermark local sin descargar la cuenta", async () => {
+    const rows = makeRows(2);
+    const { gtValues } = installPullMock(rows);
+
+    await expect(
+      hasRemoteSyncChangesAfter("user-1", rows[0]!.updated_at),
+    ).resolves.toBe(true);
+    expect(gtValues).toContain(rows[0]!.updated_at);
+
+    await expect(
+      hasRemoteSyncChangesAfter("user-1", rows[1]!.updated_at),
+    ).resolves.toBe(false);
   });
 
   it("recupera siempre la cabeza fiscal anterior al watermark", async () => {
