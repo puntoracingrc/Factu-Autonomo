@@ -870,6 +870,29 @@ export async function pullSyncChanges(
   );
 }
 
+export async function hasRemoteSyncChangesAfter(
+  userId: string,
+  since?: string | null,
+): Promise<boolean> {
+  const supabase = await getSupabaseClientAsync();
+  if (!supabase) return false;
+
+  let query = supabase
+    .from(ENTITIES_TABLE)
+    .select("updated_at")
+    .eq("user_id", userId)
+    .order("updated_at", { ascending: true })
+    .limit(1);
+
+  if (since) {
+    query = query.gt("updated_at", since);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []).length > 0;
+}
+
 /** Migra una copia completa antigua a entidades incrementales */
 export async function migrateLegacyBackupToEntities(
   userId: string,

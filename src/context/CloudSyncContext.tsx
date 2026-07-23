@@ -22,6 +22,7 @@ import {
 import {
   countSyncEntities,
   fetchLegacyCloudBackup,
+  hasRemoteSyncChangesAfter,
   migrateLegacyBackupToEntities,
   pullSyncChanges,
   pushSyncChanges,
@@ -135,6 +136,8 @@ export type SignUpResult =
 
 export type LocalDataHandoffStatus =
   "none" | "pending" | "kept_local" | "syncing";
+
+type CloudWriteFreshnessStatus = "fresh" | "needs_pull" | "stale";
 
 interface CloudSyncValue {
   cloudEnabled: boolean;
@@ -343,6 +346,22 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     dataRef.current = data;
   }, [data]);
 
+  const setCloudSyncPreflightWriteBlock = useCallback(
+    (message = "Comprobando que este dispositivo está al día con la nube antes de permitir cambios…") => {
+      setExternalWriteBlock({
+        source: "cloud_sync_preflight",
+        message,
+        recoveryHref: "/cuenta",
+        recoveryLabel: "Abrir Cuenta",
+      });
+    },
+    [setExternalWriteBlock],
+  );
+
+  const clearCloudSyncPreflightWriteBlock = useCallback(() => {
+    clearExternalWriteBlock("cloud_sync_preflight");
+  }, [clearExternalWriteBlock]);
+
   useEffect(() => {
     if (!syncIssue) {
       clearExternalWriteBlock("cloud_sync_review");
@@ -390,6 +409,33 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       isSyncPendingFlag() ||
       hasUnsyncedChanges(data));
 
+  const checkCloudWriteFreshness = useCallback(
+    async (payload: AppData): Promise<CloudWriteFreshnessStatus> => {
+      if (demoMode) return "fresh";
+      if (!user || !cloudEnabled) return "fresh";
+      if (requiresEmailConfirmation || handoffPausesCloud) return "fresh";
+
+      const lastSyncedAt = payload.meta?.lastSyncedAt ?? null;
+      const hasRemoteChanges = await hasRemoteSyncChangesAfter(
+        user.id,
+        lastSyncedAt,
+      );
+      if (!hasRemoteChanges) return "fresh";
+
+      if (!lastSyncedAt && !hasWorkspaceContent(payload)) {
+        return "needs_pull";
+      }
+      return "stale";
+    },
+    [
+      cloudEnabled,
+      demoMode,
+      handoffPausesCloud,
+      requiresEmailConfirmation,
+      user,
+    ],
+  );
+
   const stopPendingCloudTimers = useCallback(() => {
     if (pushTimer.current) clearTimeout(pushTimer.current);
     if (retryTimer.current) clearInterval(retryTimer.current);
@@ -427,6 +473,50 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (activeUserId) rememberCloudSyncReviewIssue(activeUserId, issue);
     },
     [activeUserId, applyCloudSyncReviewIssue],
+  );
+
+  const enforceFreshCloudBeforeWrites = useCallback(
+    async (payload: AppData): Promise<boolean> => {
+      try {
+        const freshness = await checkCloudWriteFreshness(payload);
+        if (freshness === "fresh") {
+          clearCloudSyncPreflightWriteBlock();
+          return true;
+        }
+        if (freshness === "needs_pull") {
+          setCloudSyncPreflightWriteBlock(
+            "Descargando la copia activa de la nube antes de permitir cambios en este dispositivo…",
+          );
+          setSyncStatus("syncing");
+          setSyncMessage(
+            "Hay datos en la nube pendientes de descargar. Espera a que termine la sincronización inicial.",
+          );
+          return false;
+        }
+
+        activateCloudSyncReviewIssue(CLOUD_SNAPSHOT_INCOMPLETE_SYNC_ISSUE);
+        return false;
+      } catch (error) {
+        setCloudSyncPreflightWriteBlock(
+          isBrowserOnline()
+            ? "No se pudo confirmar si este dispositivo está al día con la nube. Los cambios quedan pausados para evitar pisar datos."
+            : "Sin conexión. No se puede confirmar la copia activa de la nube; los cambios quedan pausados.",
+        );
+        setSyncStatus(isBrowserOnline() ? "error" : "offline");
+        setSyncMessage(
+          error instanceof Error
+            ? error.message
+            : "No se pudo comprobar la nube antes de escribir.",
+        );
+        return false;
+      }
+    },
+    [
+      activateCloudSyncReviewIssue,
+      checkCloudWriteFreshness,
+      clearCloudSyncPreflightWriteBlock,
+      setCloudSyncPreflightWriteBlock,
+    ],
   );
 
   const clearActiveCloudSyncReviewIssue = useCallback(() => {
@@ -510,9 +600,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         } finally {
           skipPush.current = false;
         }
+        clearCloudSyncPreflightWriteBlock();
       }
     },
-    [replaceData],
+    [clearCloudSyncPreflightWriteBlock, replaceData],
   );
 
   const replaceLocalDataFromCloud = useCallback(
@@ -682,6 +773,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         setSyncMessage(syncIssueRef.current.userMessage);
         return false;
       }
+      if (!(await enforceFreshCloudBeforeWrites(payload))) return false;
       const reviewOperation = captureCloudSyncReviewOperation(
         syncReviewGenerationRef.current,
       );
@@ -747,6 +839,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
               skipPush.current = false;
             }
             clearSyncPending();
+            clearCloudSyncPreflightWriteBlock();
             setSyncStatus("synced");
             rememberSuccessfulDeviceSync();
             setSyncMessage(
@@ -800,8 +893,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     },
     [
       activateCloudSyncReviewIssue,
+      clearCloudSyncPreflightWriteBlock,
       data,
       demoMode,
+      enforceFreshCloudBeforeWrites,
       ensureCloudReadyForCurrentDevice,
       handoffPausesCloud,
       localDataHandoffStatus,
@@ -1203,6 +1298,94 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   const pullFromCloudRef = useRef(pullFromCloud);
   pullFromCloudRef.current = pullFromCloud;
+
+  useEffect(() => {
+    if (!cloudEnabled || demoMode) {
+      clearCloudSyncPreflightWriteBlock();
+      return;
+    }
+    if (!authReady) {
+      setCloudSyncPreflightWriteBlock(
+        "Comprobando la sesión y la copia activa de la nube antes de permitir cambios…",
+      );
+      return;
+    }
+    if (!ready || !user) {
+      clearCloudSyncPreflightWriteBlock();
+      return;
+    }
+    if (
+      requiresEmailConfirmation ||
+      handoffPausesCloud ||
+      localDataHandoffStatus === "syncing"
+    ) {
+      clearCloudSyncPreflightWriteBlock();
+      return;
+    }
+
+    let cancelled = false;
+    const hadReviewIssue = Boolean(syncIssueRef.current?.automaticRetryBlocked);
+    if (!hadReviewIssue) {
+      setCloudSyncPreflightWriteBlock();
+    }
+    void checkCloudWriteFreshness(dataRef.current)
+      .then((freshness) => {
+        if (cancelled) return;
+        if (freshness === "fresh") {
+          if (hadReviewIssue) {
+            clearActiveCloudSyncReviewIssue();
+            setSyncStatus("synced");
+            setSyncMessage(
+              "Copia de la nube comprobada. Este dispositivo está al día.",
+            );
+          }
+          clearCloudSyncPreflightWriteBlock();
+          return;
+        }
+        if (freshness === "stale") {
+          activateCloudSyncReviewIssue(CLOUD_SNAPSHOT_INCOMPLETE_SYNC_ISSUE);
+          return;
+        }
+        setSyncStatus("syncing");
+        setSyncMessage(
+          "Descargando la copia activa de la nube antes de permitir cambios.",
+        );
+        void pullFromCloudRef.current({ automatic: true });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setCloudSyncPreflightWriteBlock(
+          isBrowserOnline()
+            ? "No se pudo confirmar si este dispositivo está al día con la nube. Los cambios quedan pausados para evitar pisar datos."
+            : "Sin conexión. No se puede confirmar la copia activa de la nube; los cambios quedan pausados.",
+        );
+        setSyncStatus(isBrowserOnline() ? "error" : "offline");
+        setSyncMessage(
+          error instanceof Error
+            ? error.message
+            : "No se pudo comprobar la nube antes de escribir.",
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    activateCloudSyncReviewIssue,
+    authReady,
+    checkCloudWriteFreshness,
+    clearActiveCloudSyncReviewIssue,
+    clearCloudSyncPreflightWriteBlock,
+    cloudEnabled,
+    demoMode,
+    handoffPausesCloud,
+    localDataHandoffStatus,
+    ready,
+    requiresEmailConfirmation,
+    setCloudSyncPreflightWriteBlock,
+    syncIssue,
+    user,
+  ]);
 
   /** Referencia estable: evita bucles si un efecto depende de syncNow tras cada pull. */
   const syncNow = useCallback(
