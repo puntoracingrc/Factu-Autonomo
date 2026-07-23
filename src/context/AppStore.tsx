@@ -239,6 +239,7 @@ import {
   type DurableFiscalNotificationEmptyHistoryRepairResultV1,
 } from "@/lib/fiscal-notifications/empty-history-repair.v1";
 import { reportAppError } from "@/lib/monitoring/client";
+import { isCloudEnabled } from "@/lib/supabase/config";
 
 interface ReplaceDataOptions {
   fromRemote?: boolean;
@@ -252,6 +253,18 @@ export interface AppWriteBlock {
   message: string;
   recoveryHref: string;
   recoveryLabel: string;
+}
+
+const CLOUD_SYNC_PREFLIGHT_WRITE_BLOCK: AppWriteBlock = {
+  source: "cloud_sync_preflight",
+  message:
+    "Comprobando que este dispositivo está al día con la nube antes de permitir cambios…",
+  recoveryHref: "/cuenta",
+  recoveryLabel: "Abrir Cuenta",
+};
+
+function initialCloudSyncWriteBlock(): AppWriteBlock | null {
+  return isCloudEnabled() ? CLOUD_SYNC_PREFLIGHT_WRITE_BLOCK : null;
 }
 
 type RecurringExpenseChangeBlockedReason = Extract<
@@ -643,10 +656,17 @@ function assertDocumentEmissionValid(
 }
 
 export function AppStoreProvider({ children }: { children: React.ReactNode }) {
+  const initialWriteBlock = useRef<AppWriteBlock | null>(
+    initialCloudSyncWriteBlock(),
+  );
   const [data, setData] = useState<AppData>(EMPTY_DATA);
   const dataRef = useRef<AppData>(EMPTY_DATA);
-  const [writeBlock, setWriteBlock] = useState<AppWriteBlock | null>(null);
-  const writeBlockRef = useRef<AppWriteBlock | null>(null);
+  const [writeBlock, setWriteBlock] = useState<AppWriteBlock | null>(
+    initialWriteBlock.current,
+  );
+  const writeBlockRef = useRef<AppWriteBlock | null>(
+    initialWriteBlock.current,
+  );
   const [ready, setReady] = useState(false);
   const skipNextSave = useRef(true);
   const durablyPersistedDataRef = useRef<AppData | null>(null);

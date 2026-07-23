@@ -139,6 +139,10 @@ export type LocalDataHandoffStatus =
 
 type CloudWriteFreshnessStatus = "fresh" | "needs_pull" | "stale";
 
+function activeLocalSyncEntityCount(data: AppData): number {
+  return appDataToSyncChanges(data).filter((change) => !change.deleted).length;
+}
+
 interface CloudSyncValue {
   cloudEnabled: boolean;
   authReady: boolean;
@@ -424,12 +428,25 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (!lastSyncedAt && !hasWorkspaceContent(payload)) {
         return hasRemoteChanges ? "needs_pull" : "fresh";
       }
+      const remoteEntityCount = await countSyncEntities(user.id);
       const remoteDocumentCount = await countSyncEntities(user.id, {
         entityType: "document",
       });
-      if (remoteDocumentCount > payload.documents.length) return "stale";
-      if (!hasRemoteChanges) return "fresh";
-      return "stale";
+      const needsSnapshotVerification =
+        remoteEntityCount > activeLocalSyncEntityCount(payload) ||
+        remoteDocumentCount > payload.documents.length;
+      if (hasRemoteChanges) return "needs_pull";
+      if (needsSnapshotVerification) {
+        const remote = await loadCloudRepairRemoteSnapshot(user.id);
+        if (!remote) return "fresh";
+        return snapshotMatchesCloudRepairFingerprint(
+          payload,
+          remote.details.fingerprint,
+        )
+          ? "fresh"
+          : "stale";
+      }
+      return "fresh";
     },
     [
       cloudEnabled,
@@ -1224,10 +1241,27 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
               return false;
             }
             if (remoteDocumentCount > workingData.documents.length) {
-              activateCloudSyncReviewIssue(
-                CLOUD_SNAPSHOT_INCOMPLETE_SYNC_ISSUE,
+              const remote = await loadCloudRepairRemoteSnapshot(
+                authOperation.userId,
               );
-              return false;
+              if (
+                !authOperationIsCurrent() ||
+                !reviewOperationIsCurrent()
+              ) {
+                return false;
+              }
+              if (
+                remote &&
+                !snapshotMatchesCloudRepairFingerprint(
+                  workingData,
+                  remote.details.fingerprint,
+                )
+              ) {
+                activateCloudSyncReviewIssue(
+                  CLOUD_SNAPSHOT_INCOMPLETE_SYNC_ISSUE,
+                );
+                return false;
+              }
             }
           }
 

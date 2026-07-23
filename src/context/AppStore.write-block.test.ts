@@ -21,6 +21,8 @@ const storageSource = readFileSync(
 describe("stale cloud snapshot write block", () => {
   it("exposes a global write block from AppStore", () => {
     expect(appStoreSource).toContain("export interface AppWriteBlock");
+    expect(appStoreSource).toContain("initialCloudSyncWriteBlock");
+    expect(appStoreSource).toContain("isCloudEnabled()");
     expect(appStoreSource).toContain("writeBlock: AppWriteBlock | null");
     expect(appStoreSource).toContain("setExternalWriteBlock");
     expect(appStoreSource).toContain("clearExternalWriteBlock");
