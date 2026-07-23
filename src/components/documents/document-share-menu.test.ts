@@ -30,6 +30,8 @@ describe("document share menu", () => {
   it("mantiene vista previa separada y posiciona el menu fuera del scroll horizontal", () => {
     expect(pdfActionsSource).toContain('label="Vista previa"');
     expect(pdfActionsSource).toContain("shareMenuPositionFor(trigger)");
+    expect(pdfActionsSource).toContain("window.innerHeight");
+    expect(pdfActionsSource).toContain("aboveTop");
     expect(pdfActionsSource).toContain('className="fixed z-50 w-72');
     expect(iconActionSource).toContain("forwardRef");
   });

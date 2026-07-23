@@ -33,12 +33,18 @@ interface ShareMenuPosition {
 function shareMenuPositionFor(trigger: HTMLElement): ShareMenuPosition {
   const rect = trigger.getBoundingClientRect();
   const width = 288;
+  const height = 236;
   const gap = 8;
   const left = Math.min(
     Math.max(8, rect.left + rect.width / 2 - width / 2),
     window.innerWidth - width - 8,
   );
-  const top = rect.bottom + gap;
+  const belowTop = rect.bottom + gap;
+  const aboveTop = rect.top - height - gap;
+  const top =
+    belowTop + height > window.innerHeight - 8
+      ? Math.max(8, aboveTop)
+      : belowTop;
   return { top, left };
 }
 
