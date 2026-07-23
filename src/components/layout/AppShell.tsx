@@ -84,8 +84,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const brandAriaLabel = hasAppSessionContext
     ? "Ir a la pantalla inicial"
     : "Ir al inicio";
+  const writeBlockRecoveryPathAllowed =
+    !writeBlock ||
+    pathname.startsWith(writeBlock.recoveryHref) ||
+    pathname.startsWith("/cuenta") ||
+    pathname.startsWith("/configuracion");
   const businessContentBlocked = Boolean(
-    writeBlock && !pathname.startsWith(writeBlock.recoveryHref),
+    writeBlock && !writeBlockRecoveryPathAllowed,
   );
 
   function startNavigation(href: string, label: string) {
