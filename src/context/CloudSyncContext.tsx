@@ -1101,16 +1101,14 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             !hasUnsyncedChanges(workingData) &&
             !isSyncPendingFlag()
           ) {
-            const remoteEntityCount = await countSyncEntities(
+            const remoteDocumentCount = await countSyncEntities(
               authOperation.userId,
+              { entityType: "document" },
             );
             if (!authOperationIsCurrent() || !reviewOperationIsCurrent()) {
               return false;
             }
-            const localEntityCount = appDataToSyncChanges(workingData).filter(
-              (change) => !change.deleted,
-            ).length;
-            if (remoteEntityCount > localEntityCount) {
+            if (remoteDocumentCount > workingData.documents.length) {
               activateCloudSyncReviewIssue(
                 CLOUD_SNAPSHOT_INCOMPLETE_SYNC_ISSUE,
               );
