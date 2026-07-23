@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "central-invoice-authority-production-readiness-v1",
+  "marker": "CENTRAL_INVOICE_AUTHORITY_PHASE2_READINESS_GATES_V1",
+  "capturedAt": "2026-07-23T22:45:00+02:00",
+  "basedOn": {
+    "mainCommit": "8f8658d6ef0039c0f50db1cc57bb2fb60887165b",
+    "productionBaselineFile": "docs/architecture/central-invoice-authority-production-baseline-2026-07-23.json"
+  },
+  "project": {
+    "ref": "rnbmkkzptxbvtchluqrx",
+    "branch": "main",
+    "environment": "production"
+  },
+  "migrationReconciliation": {
+    "productionVisibleVersions": [
+      "20260720133000",
+      "20260721190000",
+      "20260721190100"
+    ],
+    "baselineReconciledWithGit": false,
+    "productionVisibleVersionsMissingFromGit": [],
+    "note": "El repositorio contiene mas migraciones que las visibles en produccion; no se debe aplicar una migracion central hasta clasificar cada gap como baseline aceptado, staging-only o pendiente real."
+  },
+  "recoveryEvidence": {
+    "pitrEnabled": false,
+    "pitrRequiredByArchitecture": false,
+    "restorableBackupVerified": false,
+    "isolatedRestoreDrillPassed": false,
+    "restoreTarget": "not-yet-created",
+    "latestSuccessfulRestoreAt": null,
+    "evidenceArtifactSha256": null
+  },
+  "activation": {
+    "centralInvoiceAuthorityMode": "off",
+    "productionMigrationApproved": false
+  },
+  "centralAuthority": {
+    "tablesPresent": false,
+    "issueRpcPresent": false
+  },
+  "decision": "blocked-before-additive-central-schema",
+  "nextAllowedStep": "read-only migration inventory and isolated restore drill"
+}
