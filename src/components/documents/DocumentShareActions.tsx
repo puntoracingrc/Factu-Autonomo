@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Mail, MessageCircle } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { LoaderCircle, Mail, MessageCircle } from "lucide-react";
 import { IconActionButton } from "@/components/ui/IconAction";
 import { SendMethodChooserModal } from "@/components/documents/SendMethodChooserModal";
 import { useAppStore } from "@/context/AppStore";
@@ -45,6 +45,8 @@ interface DocumentShareActionsProps {
   profile: BusinessProfile;
   markSentOnShare?: boolean;
   pdfOptions?: DocumentPdfOptions;
+  variant?: "icons" | "menu";
+  onActionInvoked?: () => void;
 }
 
 function methodLabel(
@@ -84,6 +86,8 @@ export function DocumentShareActions({
   profile,
   markSentOnShare = true,
   pdfOptions,
+  variant = "icons",
+  onActionInvoked,
 }: DocumentShareActionsProps) {
   const { data, issueDocument, markDocumentSent, updateProfile } =
     useAppStore();
@@ -268,22 +272,32 @@ export function DocumentShareActions({
   }
 
   function handleEmail() {
-    if (!canEmail || busy || showBlockedMessage("email")) return;
+    if (!canEmail || busy) return;
+    if (showBlockedMessage("email")) {
+      onActionInvoked?.();
+      return;
+    }
     if (appPreferences.documentEmailMethod === "ask") {
       setRememberMethod(true);
       setChooser("email");
       return;
     }
+    onActionInvoked?.();
     void runEmail(appPreferences.documentEmailMethod);
   }
 
   function handleWhatsApp() {
-    if (!canWhatsApp || busy || showBlockedMessage("whatsapp")) return;
+    if (!canWhatsApp || busy) return;
+    if (showBlockedMessage("whatsapp")) {
+      onActionInvoked?.();
+      return;
+    }
     if (appPreferences.documentWhatsAppMethod === "ask") {
       setRememberMethod(true);
       setChooser("whatsapp");
       return;
     }
+    onActionInvoked?.();
     void runWhatsApp(appPreferences.documentWhatsAppMethod);
   }
 
@@ -295,12 +309,14 @@ export function DocumentShareActions({
   async function chooseEmailMethod(method: ConcreteEmailMethod) {
     if (rememberMethod) saveEmailMethod(method);
     setChooser(null);
+    onActionInvoked?.();
     await runEmail(method);
   }
 
   async function chooseWhatsAppMethod(method: ConcreteWhatsAppMethod) {
     if (rememberMethod) saveWhatsAppMethod(method);
     setChooser(null);
+    onActionInvoked?.();
     await runWhatsApp(method);
   }
 
@@ -321,7 +337,106 @@ export function DocumentShareActions({
         ? "Confirma tu email para compartir documentos"
         : canWhatsApp
           ? `Enviar por ${methodLabel("whatsapp", appPreferences.documentWhatsAppMethod)} a ${contactDoc.client.phone}`
-          : "Añade el teléfono del cliente para enviar";
+        : "Añade el teléfono del cliente para enviar";
+
+  const emailDisabled = !canEmail || busy !== null || demoMode || !accountCanShare;
+  const whatsappDisabled =
+    !canWhatsApp || busy !== null || demoMode || !accountCanShare;
+
+  function MenuActionButton({
+    title,
+    description,
+    icon,
+    disabled,
+    onClick,
+    tone,
+  }: {
+    title: string;
+    description: string;
+    icon: ReactNode;
+    disabled: boolean;
+    onClick: () => void;
+    tone: "violet" | "green";
+  }) {
+    const activeClass =
+      tone === "green"
+        ? "text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-950/30"
+        : "text-violet-700 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-950/30";
+
+    return (
+      <button
+        type="button"
+        role={variant === "menu" ? "menuitem" : undefined}
+        onClick={onClick}
+        disabled={disabled}
+        className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors ${
+          disabled
+            ? "cursor-not-allowed text-slate-300 dark:text-slate-600"
+            : activeClass
+        }`}
+      >
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800">
+          {icon}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-bold">{title}</span>
+          <span className="block truncate text-xs font-medium text-slate-500 dark:text-slate-400">
+            {description}
+          </span>
+        </span>
+        {busy === "email" && title === "Email" ? (
+          <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+        ) : busy === "whatsapp" && title === "WhatsApp" ? (
+          <LoaderCircle className="h-4 w-4 shrink-0 animate-spin" />
+        ) : null}
+      </button>
+    );
+  }
+
+  if (variant === "menu") {
+    return (
+      <>
+        <MenuActionButton
+          title="Email"
+          description={emailTooltip}
+          icon={<Mail className="h-5 w-5" />}
+          disabled={emailDisabled}
+          onClick={handleEmail}
+          tone="violet"
+        />
+        <MenuActionButton
+          title="WhatsApp"
+          description={whatsappTooltip}
+          icon={<MessageCircle className="h-5 w-5" />}
+          disabled={whatsappDisabled}
+          onClick={handleWhatsApp}
+          tone="green"
+        />
+        <SendMethodChooserModal
+          open={chooser !== null}
+          title={
+            chooser === "email" ? "Enviar por email" : "Enviar por WhatsApp"
+          }
+          description={`${contactDoc.number} · ${contactDoc.client.name}`}
+          options={
+            chooser === "email"
+              ? DOCUMENT_EMAIL_CONCRETE_METHOD_OPTIONS
+              : DOCUMENT_WHATSAPP_CONCRETE_METHOD_OPTIONS
+          }
+          rememberMethod={rememberMethod}
+          onRememberMethodChange={setRememberMethod}
+          onChoose={(method) =>
+            chooser === "email"
+              ? void chooseEmailMethod(method as ConcreteEmailMethod)
+              : void chooseWhatsAppMethod(method as ConcreteWhatsAppMethod)
+          }
+          onClose={closeChooser}
+          busy={busy !== null}
+          testId="document-send-method-modal"
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -329,7 +444,7 @@ export function DocumentShareActions({
         label="Email"
         tooltip={emailTooltip}
         onClick={handleEmail}
-        disabled={!canEmail || busy !== null || demoMode || !accountCanShare}
+        disabled={emailDisabled}
         className={
           canEmail && !demoMode && accountCanShare
             ? "bg-violet-50 text-violet-700 hover:bg-violet-100"
@@ -344,7 +459,7 @@ export function DocumentShareActions({
         label="WhatsApp"
         tooltip={whatsappTooltip}
         onClick={handleWhatsApp}
-        disabled={!canWhatsApp || busy !== null || demoMode || !accountCanShare}
+        disabled={whatsappDisabled}
         className={
           canWhatsApp && !demoMode && accountCanShare
             ? "bg-green-50 text-green-700 hover:bg-green-100"
