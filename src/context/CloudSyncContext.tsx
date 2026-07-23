@@ -1663,7 +1663,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         const expectedLocalFingerprint =
           cloudRepairSnapshotFingerprint(expectedLocal);
         if (
-          getCurrentData() !== expectedLocal ||
+          !snapshotMatchesCloudRepairFingerprint(
+            getCurrentData(),
+            expectedLocalFingerprint,
+          ) ||
           !snapshotMatchesCloudRepairFingerprint(
             persistedLocal,
             expectedLocalFingerprint,
