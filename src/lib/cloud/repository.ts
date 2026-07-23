@@ -31,7 +31,11 @@ import {
   testDocumentRetirementTenantFingerprintForUserId,
 } from "../test-document-retirement-persistence";
 import { stableStringifySnapshot } from "../document-integrity/snapshots";
-import { fiscalWorkspaceDivergedSyncError } from "./sync-errors";
+import { findDuplicateFiscalDocumentIdentityGroups } from "../document-integrity/relationships";
+import {
+  documentFiscalIdentityConflictSyncError,
+  fiscalWorkspaceDivergedSyncError,
+} from "./sync-errors";
 
 const ENTITIES_TABLE = "sync_entities";
 const LEGACY_TABLE = "user_backups";
@@ -308,13 +312,14 @@ export async function pushSyncChanges(
     }
     return true;
   });
+  await assertDocumentFiscalIdentitiesRemainUnique(userId, preparedChanges);
   const rows = preparedChanges.map((change) => ({
     user_id: userId,
     entity_type: change.entityType,
     entity_id: change.entityId,
     payload: change.deleted ? null : (change.payload ?? null),
     deleted: change.deleted,
-    updated_at: change.updatedAt || syncedAt,
+    updated_at: syncedAt,
   }));
 
   const bootstrap = await buildRetirementBootstrapPlan(
@@ -346,6 +351,61 @@ export async function pushSyncChanges(
   }
 
   return syncedAt;
+}
+
+function isDocumentPayload(value: unknown, expectedId: string): value is Document {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as Partial<Document>).id === expectedId
+  );
+}
+
+async function assertDocumentFiscalIdentitiesRemainUnique(
+  userId: string,
+  changes: readonly SyncChange[],
+): Promise<void> {
+  const documentChanges = changes.filter(
+    (change) => change.entityType === "document",
+  );
+  if (documentChanges.length === 0) return;
+
+  const incomingDocumentIds = new Set(
+    documentChanges.flatMap((change) =>
+      !change.deleted && isDocumentPayload(change.payload, change.entityId)
+        ? [change.entityId]
+        : [],
+    ),
+  );
+  if (incomingDocumentIds.size === 0) return;
+
+  const remoteRows = await pullRows(userId, { entityType: "document" });
+  const candidateById = new Map<string, Document>();
+  for (const row of remoteRows) {
+    if (!row.deleted && isDocumentPayload(row.payload, row.entity_id)) {
+      candidateById.set(row.entity_id, row.payload);
+    }
+  }
+  for (const change of documentChanges) {
+    if (change.deleted) {
+      candidateById.delete(change.entityId);
+      continue;
+    }
+    if (isDocumentPayload(change.payload, change.entityId)) {
+      candidateById.set(change.entityId, change.payload);
+    }
+  }
+
+  const duplicateGroups = findDuplicateFiscalDocumentIdentityGroups([
+    ...candidateById.values(),
+  ]);
+  if (
+    duplicateGroups.some((group) =>
+      group.documentIds.some((documentId) => incomingDocumentIds.has(documentId)),
+    )
+  ) {
+    throw documentFiscalIdentityConflictSyncError();
+  }
 }
 
 function validateFiscalNotificationsWorkspaceRows(
@@ -840,14 +900,23 @@ export async function fetchLegacyCloudBackup(
   };
 }
 
-export async function countSyncEntities(userId: string): Promise<number> {
+export async function countSyncEntities(
+  userId: string,
+  options: { includeDeleted?: boolean } = {},
+): Promise<number> {
   const supabase = await getSupabaseClientAsync();
   if (!supabase) return 0;
 
-  const { count, error } = await supabase
+  let query = supabase
     .from(ENTITIES_TABLE)
     .select("*", { count: "exact", head: true })
     .eq("user_id", userId);
+
+  if (options.includeDeleted !== true) {
+    query = query.eq("deleted", false);
+  }
+
+  const { count, error } = await query;
 
   if (error) throw error;
   return count ?? 0;

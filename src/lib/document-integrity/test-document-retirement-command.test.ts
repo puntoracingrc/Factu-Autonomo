@@ -231,9 +231,24 @@ describe("test document retirement safety copy boundary", () => {
     });
   });
 
-  it("bloquea si la descarga falla o cambia la referencia vigente", () => {
+  it("bloquea si la descarga falla o cambia el dominio de negocio vigente", () => {
     const expected = { ...EMPTY_DATA };
-    const changed = { ...EMPTY_DATA };
+    const changed = {
+      ...EMPTY_DATA,
+      documents: [
+        {
+          id: "changed-document",
+          type: "factura" as const,
+          number: "F-CHANGED",
+          date: "2026-07-23",
+          client: { name: "Cliente" },
+          items: [],
+          status: "borrador" as const,
+          createdAt: "2026-07-23T07:00:00.000Z",
+          updatedAt: "2026-07-23T07:00:00.000Z",
+        },
+      ],
+    };
     const apply = vi.fn();
     expect(
       runTestDocumentRetirementWithSafetyCopy({
@@ -287,6 +302,38 @@ describe("test document retirement safety copy boundary", () => {
       safetyCopyFilename: BACKUP.filename,
     });
     expect(apply).not.toHaveBeenCalled();
+  });
+
+  it("no bloquea si la misma data se reemite como otro objeto tras preparar la copia", () => {
+    const expected = { ...EMPTY_DATA };
+    let current: AppData = expected;
+    const apply = vi.fn(() => ({
+      status: "applied" as const,
+      data: expected,
+      value: { batchId: "synthetic-batch" },
+      replayed: false,
+    }));
+
+    const result = runTestDocumentRetirementWithSafetyCopy({
+      getCurrent: () => current,
+      downloadCurrent: () => {
+        current = { ...expected };
+        return {
+          ok: true,
+          filename: BACKUP.filename,
+          contentSha256: BACKUP.contentSha256,
+          byteLength: BACKUP.byteLength,
+          disposition: BACKUP.disposition,
+        };
+      },
+      preview,
+      tenantFingerprint: TENANT,
+      apply,
+      now: () => fixedDate,
+    });
+
+    expect(result).toMatchObject({ status: "action_attempted" });
+    expect(apply).toHaveBeenCalledTimes(1);
   });
 
   it("aplica la misma frontera a rollback y captura errores inesperados", () => {

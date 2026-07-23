@@ -392,6 +392,57 @@ function verifiedDocumentNumberIdentity(document: Document): string | null {
   ].join("|");
 }
 
+export interface DuplicateFiscalDocumentIdentityGroup {
+  readonly identity: string;
+  readonly documentIds: readonly string[];
+}
+
+export function findDuplicateFiscalDocumentIdentityGroups(
+  inputDocuments: readonly Document[],
+): DuplicateFiscalDocumentIdentityGroup[] {
+  const strongIdentities = new Map<string, Document[]>();
+  const numberIdentities = new Map<string, Document[]>();
+
+  for (const document of inputDocuments) {
+    const identity = verifiedDocumentIdentity(document);
+    if (identity) {
+      const matching = strongIdentities.get(identity);
+      if (matching) matching.push(document);
+      else strongIdentities.set(identity, [document]);
+    }
+    const numberIdentity = verifiedDocumentNumberIdentity(document);
+    if (numberIdentity) {
+      const matching = numberIdentities.get(numberIdentity);
+      if (matching) matching.push(document);
+      else numberIdentities.set(numberIdentity, [document]);
+    }
+  }
+
+  const groups = new Map<string, DuplicateFiscalDocumentIdentityGroup>();
+  for (const [identity, documents] of strongIdentities) {
+    if (documents.length <= 1) continue;
+    groups.set(identity, {
+      identity,
+      documentIds: documents.map((document) => document.id),
+    });
+  }
+
+  for (const [identity, documents] of numberIdentities) {
+    if (
+      documents.length <= 1 ||
+      documents.every((document) => verifiedDocumentIdentity(document))
+    ) {
+      continue;
+    }
+    groups.set(identity, {
+      identity,
+      documentIds: documents.map((document) => document.id),
+    });
+  }
+
+  return [...groups.values()];
+}
+
 /**
  * Valida el grafo operativo que no cabe dentro del snapshot individual.
  * Las relaciones solo producen efectos fiscales cuando ambos extremos están

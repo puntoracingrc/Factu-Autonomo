@@ -578,10 +578,14 @@ describe("explicit test document retirement", () => {
     const expenseBefore = clone(expenseData);
     expect(
       buildTestDocumentRetirementPreview(expenseData, request()).blockers,
-    ).toContainEqual({
-      reason: "external_reference",
-      documentId: "test-invoice-isolated",
-    });
+    ).toContainEqual(
+      expect.objectContaining({
+        reason: "external_reference",
+        documentId: "test-invoice-isolated",
+        relatedDocumentId: "expense-1",
+        source: "expense",
+      }),
+    );
     expect(expenseData).toEqual(expenseBefore);
 
     const reminderData = fixture();
@@ -596,10 +600,14 @@ describe("explicit test document retirement", () => {
     });
     expect(
       buildTestDocumentRetirementPreview(reminderData, request()).blockers,
-    ).toContainEqual({
-      reason: "external_reference",
-      documentId: "test-invoice-isolated",
-    });
+    ).toContainEqual(
+      expect.objectContaining({
+        reason: "external_reference",
+        documentId: "test-invoice-isolated",
+        relatedDocumentId: "reminder-1",
+        source: "reminder",
+      }),
+    );
   });
 
   it("ignores sync-only metadata but blocks any business-state or tenant change", () => {

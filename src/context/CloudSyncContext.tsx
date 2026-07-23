@@ -36,6 +36,7 @@ import {
   markSyncPending,
 } from "@/lib/cloud/sync-queue";
 import {
+  CLOUD_SNAPSHOT_INCOMPLETE_SYNC_ISSUE,
   classifyCloudSyncReviewIssue,
   type CloudSyncReviewIssue,
 } from "@/lib/cloud/sync-errors";
@@ -158,7 +159,7 @@ interface CloudSyncValue {
   resendConfirmationEmail: () => Promise<string | null>;
   signOut: () => Promise<void>;
   signOutAndClearDevice: () => Promise<string | null>;
-  syncNow: (freshLocalData?: AppData) => Promise<void>;
+  syncNow: (freshLocalData?: AppData) => Promise<boolean>;
   saveLocalDataToAccount: () => Promise<void>;
   keepLocalDataOnDevice: () => void;
   pauseCloudForLocalRestore: () => boolean;
@@ -753,7 +754,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
           area: "sync",
           code: reviewIssue?.code ?? "push_failed",
           message: reviewIssue
-            ? "La sincronizacion requiere revision por una divergencia fiscal"
+            ? "La sincronizacion requiere revision antes de continuar"
             : error instanceof Error
               ? error.message
               : "Error al subir cambios a la nube",
@@ -827,7 +828,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             area: "sync",
             code: reviewIssue?.code ?? "push_preflight_failed",
             message: reviewIssue
-              ? "La sincronizacion requiere revision por una divergencia fiscal"
+              ? "La sincronizacion requiere revision antes de continuar"
               : error instanceof Error
                 ? error.message
                 : "Error al preparar la subida a la nube",
@@ -1097,6 +1098,28 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
           if (
             !hasPendingSyncChanges(workingData) &&
+            !hasUnsyncedChanges(workingData) &&
+            !isSyncPendingFlag()
+          ) {
+            const remoteEntityCount = await countSyncEntities(
+              authOperation.userId,
+            );
+            if (!authOperationIsCurrent() || !reviewOperationIsCurrent()) {
+              return false;
+            }
+            const localEntityCount = appDataToSyncChanges(workingData).filter(
+              (change) => !change.deleted,
+            ).length;
+            if (remoteEntityCount > localEntityCount) {
+              activateCloudSyncReviewIssue(
+                CLOUD_SNAPSHOT_INCOMPLETE_SYNC_ISSUE,
+              );
+              return false;
+            }
+          }
+
+          if (
+            !hasPendingSyncChanges(workingData) &&
             !hasUnsyncedChanges(workingData)
           ) {
             if (!runReviewMutation(() => finalizeSyncState(workingData))) {
@@ -1122,7 +1145,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
             area: "sync",
             code: reviewIssue?.code ?? "pull_failed",
             message: reviewIssue
-              ? "La sincronizacion requiere revision por una divergencia fiscal"
+              ? "La sincronizacion requiere revision antes de continuar"
               : error instanceof Error
                 ? error.message
                 : "Error al descargar de la nube",
@@ -1169,17 +1192,18 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
   /** Referencia estable: evita bucles si un efecto depende de syncNow tras cada pull. */
   const syncNow = useCallback(
-    async (freshLocalData?: AppData) => {
+    async (freshLocalData?: AppData): Promise<boolean> => {
       if (syncIssueRef.current?.automaticRetryBlocked) {
         setSyncStatus("error");
         setSyncMessage(syncIssueRef.current.userMessage);
-        return;
+        return false;
       }
       if (freshLocalData) {
         dataRef.current = freshLocalData;
-        await flushPendingUpload(false, freshLocalData);
+        const uploaded = await flushPendingUpload(false, freshLocalData);
+        if (!uploaded) return false;
       }
-      await pullFromCloudRef.current();
+      return pullFromCloudRef.current();
     },
     [flushPendingUpload],
   );

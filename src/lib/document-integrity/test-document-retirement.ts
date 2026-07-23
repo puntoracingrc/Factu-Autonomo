@@ -43,6 +43,12 @@ export interface TestDocumentRetirementBlocker {
   reason: TestDocumentRetirementBlockReason;
   documentId?: string;
   relatedDocumentId?: string;
+  source?:
+    | "source_quote"
+    | "document_reference"
+    | "expense"
+    | "expense_allocation"
+    | "reminder";
 }
 
 export interface TestDocumentRetirementRequest {
@@ -284,11 +290,11 @@ function addBlocker(
   blockers: TestDocumentRetirementBlocker[],
   blocker: TestDocumentRetirementBlocker,
 ): void {
-  const key = `${blocker.reason}:${blocker.documentId ?? ""}:${blocker.relatedDocumentId ?? ""}`;
+  const key = `${blocker.reason}:${blocker.documentId ?? ""}:${blocker.relatedDocumentId ?? ""}:${blocker.source ?? ""}`;
   if (
     blockers.some(
       (existing) =>
-        `${existing.reason}:${existing.documentId ?? ""}:${existing.relatedDocumentId ?? ""}` ===
+        `${existing.reason}:${existing.documentId ?? ""}:${existing.relatedDocumentId ?? ""}:${existing.source ?? ""}` ===
         key,
     )
   ) {
@@ -364,6 +370,7 @@ function validateReceiptRelationships(
         reason: "external_reference",
         documentId: document.id,
         relatedDocumentId: document.sourceQuoteDocumentId,
+        source: "source_quote",
       });
     }
 
@@ -452,6 +459,7 @@ function validateReceiptRelationships(
           reason: "external_reference",
           documentId: referencedId,
           relatedDocumentId: document.id,
+          source: "document_reference",
         });
       }
     }
@@ -464,6 +472,7 @@ function validateReceiptRelationships(
         reason: "external_reference",
         documentId: document.sourceDocumentId,
         relatedDocumentId: document.id,
+        source: "document_reference",
       });
     }
     if (
@@ -474,6 +483,7 @@ function validateReceiptRelationships(
         reason: "external_reference",
         documentId: document.documentSnapshot.sourceDocumentId,
         relatedDocumentId: document.id,
+        source: "document_reference",
       });
     }
 
@@ -515,6 +525,11 @@ function validateExternalCollections(
         addBlocker(blockers, {
           reason: "external_reference",
           documentId: referencedId,
+          relatedDocumentId: expense.id,
+          source:
+            expense.workDocumentId === referencedId
+              ? "expense"
+              : "expense_allocation",
         });
       }
     }
@@ -528,6 +543,8 @@ function validateExternalCollections(
       addBlocker(blockers, {
         reason: "external_reference",
         documentId: reminder.link.entityId,
+        relatedDocumentId: reminder.id,
+        source: "reminder",
       });
     }
   }

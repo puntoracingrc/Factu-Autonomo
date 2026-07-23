@@ -2,10 +2,20 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { pullSyncChanges, pushSyncChanges } from "./repository";
 import type { SyncChange } from "./diff";
 import { buildCloudReplacementChanges } from "./sync-queue";
-import { FISCAL_WORKSPACE_DIVERGED_SYNC_ISSUE_CODE } from "./sync-errors";
+import {
+  DOCUMENT_FISCAL_IDENTITY_CONFLICT_SYNC_ISSUE_CODE,
+  FISCAL_WORKSPACE_DIVERGED_SYNC_ISSUE_CODE,
+} from "./sync-errors";
 import { rebuildCloudSnapshot } from "./incremental";
+import { issueDocument } from "../document-integrity";
 import { attestNewImportedDocument, inspectLegacyImportAttestation } from "../document-integrity/legacy-import-attestation";
-import { EMPTY_DATA, type AppData, type Document } from "../types";
+import {
+  DEFAULT_PROFILE,
+  EMPTY_DATA,
+  type AppData,
+  type BusinessProfile,
+  type Document,
+} from "../types";
 import { appDataToSyncChanges } from "./diff";
 import {
   applyTestDocumentRetirement,
@@ -252,6 +262,46 @@ function documentRows(data: AppData, updatedAt: string): Row[] {
 const FISCAL_USER_ID = "00000000-0000-4000-8000-000000000001";
 const FISCAL_OWNER = `user:${FISCAL_USER_ID}`;
 const FISCAL_CREATED_AT = "2026-07-14T09:00:00.000Z";
+const DOCUMENT_PROFILE: BusinessProfile = {
+  ...DEFAULT_PROFILE,
+  name: "Autonomo Sync",
+  nif: "12345678Z",
+  address: "Calle Sincronizacion 1",
+  postalCode: "28001",
+  city: "Madrid",
+};
+
+function issuedSyncInvoice(id: string, clientName: string): Document {
+  return issueDocument(
+    {
+      id,
+      type: "factura",
+      number: "F-2026-0007",
+      date: "2026-07-22",
+      client: {
+        name: clientName,
+        nif: clientName.endsWith("A") ? "B12345678" : "B87654321",
+        address: "Calle Cliente 1",
+        postalCode: "28002",
+        city: "Madrid",
+      },
+      items: [
+        {
+          id: `${id}-line`,
+          description: "Servicio",
+          quantity: 1,
+          unitPrice: 100,
+          ivaPercent: 21,
+        },
+      ],
+      status: "borrador",
+      createdAt: "2026-07-22T09:00:00.000Z",
+      updatedAt: "2026-07-22T09:00:00.000Z",
+    },
+    DOCUMENT_PROFILE,
+    "2026-07-22T09:01:00.000Z",
+  );
+}
 
 function fiscalWorkspace(revision = 0): FiscalNotificationsWorkspace {
   return {
@@ -441,6 +491,38 @@ describe("cloud repository", () => {
     await expect(pullSyncChanges(FISCAL_USER_ID)).rejects.toThrow(
       "expediente fiscal remoto no es verificable",
     );
+  });
+
+  it("bloquea subir una factura emitida con numero fiscal ya existente en la nube", async () => {
+    const remoteInvoice = issuedSyncInvoice("invoice-remote", "Cliente A");
+    const incomingInvoice = issuedSyncInvoice("invoice-local", "Cliente B");
+    const rows: Row[] = [
+      {
+        user_id: "user-1",
+        entity_type: "document",
+        entity_id: remoteInvoice.id,
+        payload: remoteInvoice,
+        deleted: false,
+        updated_at: remoteInvoice.updatedAt,
+      },
+    ];
+    const writes = installPullMock(rows);
+
+    await expect(
+      pushSyncChanges("user-1", [
+        {
+          entityType: "document",
+          entityId: incomingInvoice.id,
+          deleted: false,
+          payload: incomingInvoice,
+          updatedAt: incomingInvoice.updatedAt,
+        },
+      ]),
+    ).rejects.toMatchObject({
+      code: DOCUMENT_FISCAL_IDENTITY_CONFLICT_SYNC_ISSUE_CODE,
+    });
+    expect(writes.upsert).not.toHaveBeenCalled();
+    expect(rows).toHaveLength(1);
   });
 
   it("reemplaza por CAS una cabeza remota inválida solo con un reinicio vacío confirmado", async () => {
@@ -985,6 +1067,50 @@ describe("cloud repository", () => {
     expect(calls[0][0]).toHaveLength(500);
     expect(calls[1][0]).toHaveLength(500);
     expect(calls[2][0]).toHaveLength(201);
+  });
+
+  it("fecha las escrituras normales con la subida para que otros dispositivos no las salten", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-07-22T10:10:00.000Z"));
+      const rows: Row[] = [];
+      installPullMock(
+        rows,
+        vi.fn(async (rawRows: unknown[]) => {
+          rows.push(...(rawRows as Row[]));
+          return { error: null };
+        }),
+      );
+
+      await pushSyncChanges("user-1", [
+        {
+          entityType: "document",
+          entityId: "offline-invoice",
+          deleted: false,
+          payload: { id: "offline-invoice" },
+          updatedAt: "2026-07-22T10:00:00.000Z",
+        },
+      ]);
+
+      expect(rows).toEqual([
+        expect.objectContaining({
+          entity_type: "document",
+          entity_id: "offline-invoice",
+          updated_at: "2026-07-22T10:10:00.000Z",
+        }),
+      ]);
+      await expect(
+        pullSyncChanges("user-1", "2026-07-22T10:05:00.000Z"),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          entityType: "document",
+          entityId: "offline-invoice",
+          updatedAt: "2026-07-22T10:10:00.000Z",
+        }),
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("hace visible una atestación restaurada tras un watermark posterior", async () => {
