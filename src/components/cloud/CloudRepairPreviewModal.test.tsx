@@ -89,6 +89,14 @@ describe("CloudRepairPreviewModal contract", () => {
     expect(html).toContain("Nube");
   });
 
+  it("keeps the cloud comparison readable on mobile without horizontal layout dependence", () => {
+    expect(source).toContain("overflow-x-hidden");
+    expect(tableSource).toContain("md:hidden");
+    expect(tableSource).toContain("hidden overflow-x-auto md:block");
+    expect(tableSource).toContain("break-words");
+    expect(tableSource).toContain("Disp.");
+  });
+
   it("states that timestamps are clues and the exact snapshots are revalidated", () => {
     expect(source).toContain("fecha orienta, pero no decide qué versión");
     expect(source).toContain("es correcta");

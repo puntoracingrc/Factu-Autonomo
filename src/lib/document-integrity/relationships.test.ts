@@ -13,6 +13,7 @@ import {
   type Document,
 } from "../types";
 import { withDocumentRelationshipIntegritySignals } from "./relationships";
+import { findDuplicateFiscalDocumentIdentityGroups } from "./relationships";
 
 const NOW = "2026-07-11T10:00:00.000Z";
 const PROFILE: BusinessProfile = {
@@ -43,10 +44,11 @@ function issuedInvoice(
     postalCode: "28002",
     city: "Madrid",
   },
+  id = "original",
 ): Document {
   return issueDocument(
     {
-      id: "original",
+      id,
       type: "factura",
       number: "F-2026-0001",
       date,
@@ -942,6 +944,31 @@ describe("document relationship integrity", () => {
         ),
       ),
     ).toBe(true);
+  });
+
+  it("detecta dos facturas emitidas con el mismo numero aunque sean clientes distintos", () => {
+    const first = issuedInvoice(
+      PROFILE,
+      "2026-07-10",
+      undefined,
+      { name: "Cliente A", nif: "B12345678" },
+    );
+    const second = issuedInvoice(
+      PROFILE,
+      "2026-07-10",
+      undefined,
+      { name: "Cliente B", nif: "B87654321" },
+      "second-client-same-number",
+    );
+
+    expect(
+      findDuplicateFiscalDocumentIdentityGroups([first, second]),
+    ).toEqual([
+      {
+        identity: "factura|12345678Z|2026|F-2026-0001",
+        documentIds: ["original", "second-client-same-number"],
+      },
+    ]);
   });
 
   it.each([

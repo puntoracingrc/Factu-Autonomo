@@ -78,7 +78,7 @@ export function CloudRepairPreviewModal(props: {
       closeOnBackdrop={false}
       closeOnEscape={!props.busy}
       initialFocusSelector="[data-modal-initial-focus]"
-      panelClassName="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg border border-slate-200 bg-white p-5 shadow-xl supports-[height:100dvh]:max-h-[90dvh]"
+      panelClassName="max-h-[90vh] min-w-0 w-full max-w-2xl overflow-y-auto overflow-x-hidden rounded-lg border border-slate-200 bg-white p-4 shadow-xl supports-[height:100dvh]:max-h-[90dvh] sm:p-5"
       testId="cloud-repair-preview-modal"
     >
       <h2 id={titleId} className="text-lg font-bold text-slate-950">

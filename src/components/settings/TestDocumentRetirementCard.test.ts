@@ -48,7 +48,14 @@ describe("TestDocumentRetirementCard wiring", () => {
     expect(cardSource).toContain("buildTestDocumentRetirementPreview(data, {");
     expect(cardSource).toContain("resolution.unknownNumbers.length > 0");
     expect(cardSource).toContain("resolution.ambiguousNumbers.length > 0");
+    expect(cardSource).toContain("ambiguousDocumentCandidates(");
+    expect(cardSource).toContain("handlePrepareRetirementForDocument");
+    expect(cardSource).toContain("Preparar este documento");
+    expect(cardSource).toContain('ID {document.id}');
     expect(cardSource).toContain("resolution.duplicateNumbers.length > 0");
+    expect(cardSource).toContain("blockerDetail(blocker, data)");
+    expect(cardSource).toContain("Lo referencia el gasto");
+    expect(cardSource).toContain("Lo referencia el recordatorio");
     expect(cardSource).not.toContain("testDocumentRetirementConfirmationPhrase(");
     expect(cardSource).not.toContain("retirementPhrase");
     expect(cardSource).toContain("retiredDocuments.map(");

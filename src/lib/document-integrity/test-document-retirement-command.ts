@@ -8,6 +8,7 @@ import {
   applyTestDocumentRetirement,
   rollbackTestDocumentRetirement,
   testDocumentRetirementExportableDataFingerprint,
+  testDocumentRetirementWorkspaceFingerprint,
   type TestDocumentRetirementApplyResult,
   type TestDocumentRetirementBackupEvidenceV1,
   type TestDocumentRetirementPreview,
@@ -162,7 +163,10 @@ function runWithSafetyCopy<T>(input: {
         error: "No se pudo acreditar el JSON exacto solicitado al navegador.",
       };
     }
-    if (input.getCurrent() !== expected) {
+    if (
+      testDocumentRetirementWorkspaceFingerprint(input.getCurrent()) !==
+      testDocumentRetirementWorkspaceFingerprint(expected)
+    ) {
       return {
         status: "stale_precondition",
         safetyCopyFilename: safetyCopy.filename,

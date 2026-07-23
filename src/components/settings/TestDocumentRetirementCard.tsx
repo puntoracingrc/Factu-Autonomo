@@ -103,6 +103,46 @@ function actionFailureMessage(reason: string): string {
   return "No se pudo guardar la acción de forma segura. No se publicó ningún cambio.";
 }
 
+function blockerDetail(
+  blocker: TestDocumentRetirementBlocker,
+  data: AppData,
+): string | null {
+  if (blocker.reason !== "external_reference") return null;
+  if (blocker.source === "source_quote") {
+    const sourceQuote = blocker.relatedDocumentId
+      ? data.documents.find((document) => document.id === blocker.relatedDocumentId)
+      : null;
+    return sourceQuote
+      ? `Viene del presupuesto ${sourceQuote.number}.`
+      : "Viene de un presupuesto asociado.";
+  }
+  if (blocker.source === "document_reference") {
+    const related = blocker.relatedDocumentId
+      ? data.documents.find((document) => document.id === blocker.relatedDocumentId)
+      : null;
+    return related
+      ? `Lo referencia el documento ${related.number}.`
+      : "Lo referencia otro documento.";
+  }
+  if (blocker.source === "expense" || blocker.source === "expense_allocation") {
+    const expense = blocker.relatedDocumentId
+      ? data.expenses.find((entry) => entry.id === blocker.relatedDocumentId)
+      : null;
+    return expense
+      ? `Lo referencia el gasto "${expense.description}" de ${expense.supplierName}.`
+      : "Lo referencia un gasto o reparto de trabajo.";
+  }
+  if (blocker.source === "reminder") {
+    const reminder = blocker.relatedDocumentId
+      ? data.userReminders.find((entry) => entry.id === blocker.relatedDocumentId)
+      : null;
+    return reminder
+      ? `Lo referencia el recordatorio "${reminder.text}".`
+      : "Lo referencia un recordatorio.";
+  }
+  return null;
+}
+
 function formatAuditDate(value: string): string {
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "Fecha no disponible";
@@ -114,6 +154,15 @@ function formatAuditDate(value: string): string {
 
 function batchDocumentNumbers(batch: TestDocumentRetirementBatchV1): string[] {
   return batch.reservedIdentities.map((identity) => identity.number);
+}
+
+function ambiguousDocumentCandidates(
+  documents: readonly Document[],
+  numbers: readonly string[],
+): Document[] {
+  if (numbers.length === 0) return [];
+  const selectedNumbers = new Set(numbers);
+  return documents.filter((document) => selectedNumbers.has(document.number));
 }
 
 interface ArchivedAmountSource {
@@ -301,6 +350,33 @@ export function TestDocumentRetirementCard() {
       tenantFingerprint,
     });
     setPreparedRetirement({ resolution, preview });
+  }
+
+  function handlePrepareRetirementForDocument(documentId: string) {
+    setFeedback(null);
+    const document = data.documents.find((entry) => entry.id === documentId);
+    if (!document) {
+      setFeedback({
+        tone: "error",
+        message:
+          "Ese documento ya no existe en los datos actuales. Sincroniza y prepara otra vista previa.",
+      });
+      return;
+    }
+    const preview = buildTestDocumentRetirementPreview(data, {
+      selectedDocumentIds: [document.id],
+      tenantFingerprint,
+    });
+    setPreparedRetirement({
+      resolution: {
+        numbers: [document.number],
+        selectedDocumentIds: [document.id],
+        unknownNumbers: [],
+        ambiguousNumbers: [],
+        duplicateNumbers: [],
+      },
+      preview,
+    });
   }
 
   function handlePrepareRollback(batchId: string) {
@@ -529,6 +605,12 @@ export function TestDocumentRetirementCard() {
       preparedRollback.preview.blockers.length === 0 &&
       samePhrase(rollbackPhrase, expectedRollbackPhrase),
   );
+  const ambiguousCandidates = preparedRetirement
+    ? ambiguousDocumentCandidates(
+        data.documents,
+        preparedRetirement.resolution.ambiguousNumbers,
+      )
+    : [];
 
   return (
     <Card className="mb-6 min-w-0 space-y-5 overflow-hidden border-violet-200 bg-violet-50/70">
@@ -644,9 +726,50 @@ export function TestDocumentRetirementCard() {
               </p>
             )}
             {preparedRetirement.resolution.ambiguousNumbers.length > 0 && (
-              <p className="break-words text-sm text-red-700">
-                Números ambiguos: {preparedRetirement.resolution.ambiguousNumbers.join(", ")}
-              </p>
+              <div className="space-y-2">
+                <p className="break-words text-sm text-red-700">
+                  Números ambiguos: {preparedRetirement.resolution.ambiguousNumbers.join(", ")}
+                </p>
+                {ambiguousCandidates.length > 0 && (
+                  <ul className="grid gap-2 sm:grid-cols-2">
+                    {ambiguousCandidates.map((document) => {
+                      const amounts = archivedTestDocumentAmounts(document);
+                      return (
+                        <li
+                          key={document.id}
+                          className="min-w-0 rounded-lg border border-red-100 bg-white p-3 text-sm"
+                        >
+                          <p className="break-words font-semibold text-slate-900">
+                            {document.number}
+                          </p>
+                          <p className="mt-1 break-words text-slate-600">
+                            {document.client.name || "Cliente sin nombre"} ·{" "}
+                            {document.date} · estado {document.status}
+                          </p>
+                          <p className="mt-1 break-all text-xs text-slate-500">
+                            ID {document.id}
+                          </p>
+                          <p className="mt-2 text-xs leading-5 text-slate-600">
+                            Total {formatMoney(amounts.total)}
+                          </p>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            fullWidth
+                            className="mt-3"
+                            onClick={() =>
+                              handlePrepareRetirementForDocument(document.id)
+                            }
+                            disabled={busyAction !== null}
+                          >
+                            Preparar este documento
+                          </Button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
             )}
             {preparedRetirement.resolution.duplicateNumbers.length > 0 && (
               <p className="break-words text-sm text-red-700">
@@ -658,6 +781,9 @@ export function TestDocumentRetirementCard() {
                 {preparedRetirement.preview.blockers.map((blocker, index) => (
                   <li key={`${blocker.reason}-${index}`}>
                     • {BLOCKER_LABELS[blocker.reason]}
+                    {blockerDetail(blocker, data) ? (
+                      <span> {blockerDetail(blocker, data)}</span>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -857,6 +983,9 @@ export function TestDocumentRetirementCard() {
                   {preparedRollback.preview.blockers.map((blocker, index) => (
                     <li key={`${blocker.reason}-${index}`}>
                       • {BLOCKER_LABELS[blocker.reason]}
+                      {blockerDetail(blocker, data) ? (
+                        <span> {blockerDetail(blocker, data)}</span>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

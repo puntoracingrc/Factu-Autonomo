@@ -40,6 +40,7 @@ import {
   storePendingReferralCode,
 } from "@/lib/referrals/storage";
 import { REFERRAL_BONUS_SCANS } from "@/lib/billing/referral-codes";
+import { DOCUMENT_FISCAL_IDENTITY_CONFLICT_SYNC_ISSUE_CODE } from "@/lib/cloud/sync-errors";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
 import {
   describeTurnstileClientError,
@@ -138,6 +139,8 @@ export function CloudAccountCard({
   const [resendNotice, setResendNotice] = useState<string | null>(null);
   const [referralCode, setReferralCode] = useState("");
   const [legalAccepted, setLegalAccepted] = useState(false);
+  const hasDocumentFiscalIdentityConflict =
+    syncIssue?.code === DOCUMENT_FISCAL_IDENTITY_CONFLICT_SYNC_ISSUE_CODE;
   const [authMode, setAuthMode] = useState<AuthMode>("signin");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const searchParams = useSearchParams();
@@ -654,17 +657,27 @@ export function CloudAccountCard({
               <div className="mt-3 space-y-3">
                 <p>
                   {syncIssue
-                    ? "Ahora solo está disponible conservar la copia de la nube. Antes verás fechas, cantidades y cualquier reducción; Factu revalidará ambas versiones y solicitará una copia cifrada local antes de reemplazar."
+                    ? hasDocumentFiscalIdentityConflict
+                      ? syncIssue.userMessage
+                      : `${syncIssue.userMessage} Ahora solo está disponible conservar la copia de la nube. Antes verás fechas, cantidades y cualquier reducción; Factu revalidará ambas versiones y solicitará una copia cifrada local antes de reemplazar.`
                     : "Si este dispositivo no muestra los datos que sí aparecen en otro, compara primero ambas versiones. Las fechas orientan, pero las cantidades y reducciones deben revisarse antes de conservar la nube."}
                 </p>
-                <Button
-                  variant="secondary"
-                  onClick={() => void handlePrepareCloudRepair()}
-                  disabled={busy || requiresEmailConfirmation}
-                >
-                  <Download className="h-4 w-4" />
-                  Comparar antes de reparar
-                </Button>
+                {hasDocumentFiscalIdentityConflict ? (
+                  <p className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-950">
+                    Corrige la numeración en este dispositivo y vuelve a
+                    sincronizar. La nube no aceptará otra factura emitida con el
+                    mismo número fiscal.
+                  </p>
+                ) : (
+                  <Button
+                    variant="secondary"
+                    onClick={() => void handlePrepareCloudRepair()}
+                    disabled={busy || requiresEmailConfirmation}
+                  >
+                    <Download className="h-4 w-4" />
+                    Comparar antes de reparar
+                  </Button>
+                )}
               </div>
             </details>
           ) : null}

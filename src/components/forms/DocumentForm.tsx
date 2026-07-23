@@ -35,6 +35,7 @@ import { NumericFieldInput } from "@/components/ui/NumericFieldInput";
 import { UpgradeModal } from "@/components/billing/UpgradeModal";
 import { useAppStore } from "@/context/AppStore";
 import { useBilling } from "@/context/BillingContext";
+import { useCloudSync } from "@/context/CloudSyncContext";
 import {
   formatMoney,
   formatShortDate,
@@ -469,6 +470,12 @@ export function DocumentForm({
     isPro,
     recordDocumentCreated,
   } = useBilling();
+  const {
+    cloudEnabled,
+    user: cloudUser,
+    syncIssue: cloudSyncIssue,
+    syncNow,
+  } = useCloudSync();
   const pdfOptions = { freePlanBranding: billingEnabled && !isPro };
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [upgradeReason, setUpgradeReason] = useState<string | undefined>();
@@ -1558,6 +1565,27 @@ export function DocumentForm({
         setUpgradeReason(gate.reason);
         setUpgradeOpen(true);
         setSaveAction("idle");
+        return;
+      }
+    }
+
+    const requiresFreshCloudBeforeEmission =
+      resolvedStatus !== "borrador" &&
+      (type === "factura" || type === "recibo") &&
+      cloudEnabled &&
+      Boolean(cloudUser);
+    if (requiresFreshCloudBeforeEmission) {
+      if (cloudSyncIssue) {
+        setSaveAction("idle");
+        setFormError(cloudSyncIssue.userMessage);
+        return;
+      }
+      const synced = await syncNow();
+      if (!synced) {
+        setSaveAction("idle");
+        setFormError(
+          "No se pudo comprobar la nube antes de emitir. Abre Cuenta > Problemas de sincronización y compara la copia de la nube antes de continuar para evitar duplicar la numeración.",
+        );
         return;
       }
     }

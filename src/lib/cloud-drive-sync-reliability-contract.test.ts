@@ -18,6 +18,12 @@ describe("cloud and Drive reliability contract", () => {
       4,
     );
     expect(context).toContain("await pushToCloud(workingData, true, options)");
+    expect(context).toContain("Promise<boolean>");
+    expect(context).toContain("const remoteEntityCount = await countSyncEntities");
+    expect(context).toContain("remoteEntityCount > localEntityCount");
+    expect(context).toContain(
+      "CLOUD_SNAPSHOT_INCOMPLETE_SYNC_ISSUE",
+    );
     expect(context).not.toContain("syncing.current = true");
     expect(operation).toContain("finally");
     expect(operation).toContain("lock.current = false");
@@ -116,6 +122,20 @@ describe("cloud and Drive reliability contract", () => {
     expect(account).toContain("Comparar antes de reparar");
   });
 
+  it("sincroniza antes de emitir documentos con numeracion fiscal definitiva", () => {
+    const form = source("src/components/forms/DocumentForm.tsx");
+
+    expect(form).toContain("useCloudSync");
+    expect(form).toContain("requiresFreshCloudBeforeEmission");
+    expect(form).toContain("if (cloudSyncIssue)");
+    expect(form).toContain("const synced = await syncNow()");
+    expect(form).toContain("No se pudo comprobar la nube antes de emitir");
+    expect(form).toContain("Cuenta > Problemas de sincronización");
+    expect(form.indexOf("const synced = await syncNow()")).toBeLessThan(
+      form.indexOf("const shouldUpsertCustomer"),
+    );
+  });
+
   it("pausa una divergencia fiscal y dirige a una reparacion explicita", () => {
     const context = source("src/context/CloudSyncContext.tsx");
     const appStore = source("src/context/AppStore.tsx");
@@ -182,11 +202,18 @@ describe("cloud and Drive reliability contract", () => {
     expect(account).toContain(
       "Ahora solo está disponible conservar la copia de la nube",
     );
+    expect(account).toContain("hasDocumentFiscalIdentityConflict");
+    expect(account).toContain(
+      "Corrige la numeración en este dispositivo",
+    );
     expect(account).toMatch(
       /onClick=\{\(\) => void signOut\(\)\}[\s\S]*disabled=\{busy\}/,
     );
     expect(queue).toContain('"full_snapshot_rebuild"');
     expect(errors).toContain('"fiscal_workspace_diverged"');
+    expect(errors).toContain('"document_fiscal_identity_conflict"');
+    expect(errors).toContain('"cloud_snapshot_incomplete"');
+    expect(errors).toContain("para evitar pisar facturas");
     expect(reviewStorage).toContain('window.addEventListener("storage"');
     expect(authGuard).toContain("identity.generation === operation.generation");
     expect(reviewGuard).toContain(
