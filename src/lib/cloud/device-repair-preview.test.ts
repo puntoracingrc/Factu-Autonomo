@@ -4,6 +4,7 @@ import {
   buildCloudRepairPreviewPlan,
   cloudRepairPreviewAllowsConfirmation,
   cloudRepairSnapshotFingerprint,
+  cloudSyncedSurfaceFingerprint,
   newestCloudChangeTimestamp,
 } from "./device-repair-preview";
 
@@ -159,6 +160,34 @@ describe("cloud device repair preview", () => {
     );
     expect(cloudRepairSnapshotFingerprint(changed)).not.toBe(
       cloudRepairSnapshotFingerprint(original),
+    );
+  });
+
+  it("projects automatic sync checks onto the cloud-synced surface", () => {
+    const original = snapshot({
+      customers: 1,
+      lastModified: "2026-07-21T10:00:00.000Z",
+    });
+    const localOnlyState = {
+      ...original,
+      workspaceIntegrityQuarantine: [],
+    };
+    const changedSyncedState = {
+      ...original,
+      customers: [
+        ...original.customers,
+        { id: "customer-2" } as AppData["customers"][number],
+      ],
+    };
+
+    expect(cloudRepairSnapshotFingerprint(localOnlyState)).not.toBe(
+      cloudRepairSnapshotFingerprint(original),
+    );
+    expect(cloudSyncedSurfaceFingerprint(localOnlyState)).toBe(
+      cloudSyncedSurfaceFingerprint(original),
+    );
+    expect(cloudSyncedSurfaceFingerprint(changedSyncedState)).not.toBe(
+      cloudSyncedSurfaceFingerprint(original),
     );
   });
 

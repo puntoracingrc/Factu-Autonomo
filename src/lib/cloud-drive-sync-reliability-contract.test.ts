@@ -22,6 +22,8 @@ describe("cloud and Drive reliability contract", () => {
     expect(context).toContain("const remoteDocumentCount = await countSyncEntities");
     expect(context).toContain('entityType: "document"');
     expect(context).toContain("remoteDocumentCount > workingData.documents.length");
+    expect(context).toContain("syncedSurfaceMatchesCloudRepairFingerprint");
+    expect(context).toContain("cloudSyncedSurfaceFingerprint(data)");
     expect(context).not.toContain("remoteEntityCount > localEntityCount");
     expect(context).toContain(
       "CLOUD_SNAPSHOT_INCOMPLETE_SYNC_ISSUE",
