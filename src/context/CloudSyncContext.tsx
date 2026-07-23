@@ -352,7 +352,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     setExternalWriteBlock({
       source: "cloud_sync_review",
       message: `${syncIssue.userMessage} Este dispositivo queda en modo solo lectura hasta revisar la sincronización; no se pueden crear, editar ni borrar datos de negocio.`,
-      recoveryHref: "/configuracion",
+      recoveryHref: "/cuenta",
       recoveryLabel: "Abrir Cuenta",
     });
   }, [clearExternalWriteBlock, setExternalWriteBlock, syncIssue]);

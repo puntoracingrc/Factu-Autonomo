@@ -48,14 +48,18 @@ describe("stale cloud snapshot write block", () => {
   it("lets cloud sync place stale devices in read-only mode", () => {
     expect(cloudSyncSource).toContain("setExternalWriteBlock({");
     expect(cloudSyncSource).toContain('source: "cloud_sync_review"');
+    expect(cloudSyncSource).toContain('recoveryHref: "/cuenta"');
     expect(cloudSyncSource).toContain("clearExternalWriteBlock");
     expect(cloudSyncSource).toContain(
       "no se pueden crear, editar ni borrar datos de negocio",
     );
   });
 
-  it("shows a global read-only banner and disables business content", () => {
+  it("shows a global read-only banner and leaves repair routes usable", () => {
     expect(appShellSource).toContain("writeBlock");
+    expect(appShellSource).toContain("writeBlockRecoveryPathAllowed");
+    expect(appShellSource).toContain('pathname.startsWith("/cuenta")');
+    expect(appShellSource).toContain('pathname.startsWith("/configuracion")');
     expect(appShellSource).toContain("businessContentBlocked");
     expect(appShellSource).toContain('role="alert"');
     expect(appShellSource).toContain("pointer-events-none");
