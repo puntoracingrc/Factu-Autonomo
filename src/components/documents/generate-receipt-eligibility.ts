@@ -21,6 +21,8 @@ export function receiptGenerationBlockedMessage(
   reason: ReceiptGenerationFeedbackReason,
 ): string {
   switch (reason) {
+    case "cloud_snapshot_incomplete":
+      return "Este dispositivo está en modo solo lectura porque su copia de la nube necesita revisión. Abre Cuenta y sincroniza antes de generar el recibo.";
     case "invoice_not_found":
       return "No se encuentra una única factura de origen. Recarga y comprueba que el documento siga disponible.";
     case "invoice_not_collected":

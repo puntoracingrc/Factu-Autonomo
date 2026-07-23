@@ -1384,6 +1384,7 @@ function inMemoryDataIsEmpty(data: AppData): boolean {
 }
 
 export type SaveDataBlockedReason =
+  | "cloud_snapshot_incomplete"
   | "quota_exceeded"
   | "storage_unavailable"
   | "serialization_failed"

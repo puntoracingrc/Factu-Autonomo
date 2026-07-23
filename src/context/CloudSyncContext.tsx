@@ -279,6 +279,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     getCurrentData,
     replaceCloudSnapshotDurably,
     adoptPersistedCloudSnapshot,
+    setExternalWriteBlock,
+    clearExternalWriteBlock,
   } = useAppStore();
   const demoMode = useDemoWorkspaceMode();
   const cloudEnabled = isCloudEnabled();
@@ -340,6 +342,20 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
+
+  useEffect(() => {
+    if (!syncIssue) {
+      clearExternalWriteBlock("cloud_sync_review");
+      return;
+    }
+
+    setExternalWriteBlock({
+      source: "cloud_sync_review",
+      message: `${syncIssue.userMessage} Este dispositivo queda en modo solo lectura hasta revisar la sincronización; no se pueden crear, editar ni borrar datos de negocio.`,
+      recoveryHref: "/configuracion",
+      recoveryLabel: "Abrir Cuenta",
+    });
+  }, [clearExternalWriteBlock, setExternalWriteBlock, syncIssue]);
 
   useEffect(() => {
     automaticCloudPaused.current = Boolean(

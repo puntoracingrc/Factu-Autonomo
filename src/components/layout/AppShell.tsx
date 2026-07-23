@@ -10,6 +10,7 @@ import {
   Crown,
   LoaderCircle,
   LogIn,
+  ShieldAlert,
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -54,7 +55,7 @@ import {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data, ready } = useAppStore();
+  const { data, ready, writeBlock } = useAppStore();
   const { authReady, user } = useCloudSync();
   const { isPro, billingEnabled, plan } = useBilling();
   const demoMode = useDemoWorkspaceMode();
@@ -69,8 +70,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const appPreferences = normalizeAppPreferences(data.profile.appPreferences);
   const resolvedTheme =
     appPreferences.theme === "system" ? systemTheme : appPreferences.theme;
-  const showFactu =
+  const baseShowFactu =
     !demoMode && !factuDismissed && shouldShowFactuWidget(pathname);
+  const showFactu = baseShowFactu && !writeBlock;
   const workspaceLoading = !ready || !authReady;
   const accountLabel = workspaceLoading
     ? "Comprobando sesión"
@@ -82,6 +84,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const brandAriaLabel = hasAppSessionContext
     ? "Ir a la pantalla inicial"
     : "Ir al inicio";
+  const businessContentBlocked = Boolean(
+    writeBlock && !pathname.startsWith(writeBlock.recoveryHref),
+  );
 
   function startNavigation(href: string, label: string) {
     if (pathname === href) {
@@ -291,7 +296,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="space-y-3 border-t border-slate-200 px-4 py-4">
-          <QuickToolsLauncher />
+          {writeBlock ? null : <QuickToolsLauncher />}
           <div className="flex items-center justify-between gap-2">
             <FactuHelpButton />
             <CloudSyncHeaderIndicator />
@@ -405,7 +410,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="border-t border-slate-100 px-4 py-1.5">
-            <QuickToolsLauncher compact />
+            {writeBlock ? null : <QuickToolsLauncher compact />}
           </div>
           <CloudSyncPendingBanner />
         </header>
@@ -497,8 +502,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               Preparando tus datos. Puedes seguir navegando.
             </div>
           ) : null}
+          {writeBlock ? (
+            <div
+              role="alert"
+              className="mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950 shadow-sm sm:flex-row sm:items-center sm:justify-between"
+            >
+              <span className="flex items-start gap-2">
+                <ShieldAlert
+                  className="mt-0.5 h-4 w-4 shrink-0"
+                  aria-hidden="true"
+                />
+                <span>{writeBlock.message}</span>
+              </span>
+              <Link
+                href={writeBlock.recoveryHref}
+                className="inline-flex items-center justify-center rounded-xl border border-amber-300 bg-white px-3 py-2 text-sm font-bold text-amber-900 shadow-sm transition hover:bg-amber-100"
+              >
+                {writeBlock.recoveryLabel}
+              </Link>
+            </div>
+          ) : null}
           {workspaceLoading ? (
             <AppStartupMainContent pathname={pathname} />
+          ) : businessContentBlocked ? (
+            <div aria-disabled="true" className="pointer-events-none opacity-55">
+              {children}
+            </div>
           ) : (
             children
           )}
