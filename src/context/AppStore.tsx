@@ -244,6 +244,16 @@ interface ReplaceDataOptions {
   fromRemote?: boolean;
 }
 
+export const CLOUD_SNAPSHOT_INCOMPLETE_WRITE_BLOCK_REASON =
+  "cloud_snapshot_incomplete";
+
+export interface AppWriteBlock {
+  source: "cloud_sync_review";
+  message: string;
+  recoveryHref: string;
+  recoveryLabel: string;
+}
+
 type RecurringExpenseChangeBlockedReason = Extract<
   RecurringExpenseChangeApplyResult,
   { status: "blocked" }
@@ -279,6 +289,9 @@ function reportFiscalNotificationStructuredReviewSaveFailure(
 interface AppStoreValue {
   data: AppData;
   ready: boolean;
+  writeBlock: AppWriteBlock | null;
+  setExternalWriteBlock: (block: AppWriteBlock) => void;
+  clearExternalWriteBlock: (source: AppWriteBlock["source"]) => void;
   replaceData: (data: AppData, options?: ReplaceDataOptions) => void;
   replaceCloudSnapshotDurably: (
     data: AppData,
@@ -632,6 +645,8 @@ function assertDocumentEmissionValid(
 export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<AppData>(EMPTY_DATA);
   const dataRef = useRef<AppData>(EMPTY_DATA);
+  const [writeBlock, setWriteBlock] = useState<AppWriteBlock | null>(null);
+  const writeBlockRef = useRef<AppWriteBlock | null>(null);
   const [ready, setReady] = useState(false);
   const skipNextSave = useRef(true);
   const durablyPersistedDataRef = useRef<AppData | null>(null);
@@ -644,9 +659,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
   const setAppData = useCallback(
     (
       updater: AppData | ((prev: AppData) => AppData),
-      options?: { skipDirty?: boolean },
+      options?: { skipDirty?: boolean; bypassWriteBlock?: boolean },
     ) => {
       if (durableStorageBaselineRef.current.status === "indeterminate") {
+        return dataRef.current;
+      }
+      if (writeBlockRef.current && !options?.bypassWriteBlock) {
         return dataRef.current;
       }
       const prev = dataRef.current;
@@ -663,11 +681,43 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const blockedDurableResult = useCallback(
+    <T,>(): AppDataDurabilityResult<T> => ({
+      status: "blocked",
+      reason: CLOUD_SNAPSHOT_INCOMPLETE_WRITE_BLOCK_REASON,
+    }),
+    [],
+  );
+
+  const blockedSaveResult = useCallback(
+    () =>
+      ({
+        status: "blocked",
+        reason: CLOUD_SNAPSHOT_INCOMPLETE_WRITE_BLOCK_REASON,
+      }) as const,
+    [],
+  );
+
+  const setExternalWriteBlock = useCallback((block: AppWriteBlock) => {
+    writeBlockRef.current = block;
+    setWriteBlock(block);
+  }, []);
+
+  const clearExternalWriteBlock = useCallback(
+    (source: AppWriteBlock["source"]) => {
+      if (writeBlockRef.current?.source !== source) return;
+      writeBlockRef.current = null;
+      setWriteBlock(null);
+    },
+    [],
+  );
+
   const commitDurableAppData = useCallback(
     <T,>(
       expected: AppData,
       build: (previous: AppData) => { data: AppData; value: T },
     ): AppDataDurabilityResult<T> => {
+      if (writeBlockRef.current) return blockedDurableResult();
       const result = commitAppDataDurablyWithStorageRecovery({
         expected,
         storageBaseline: durableStorageBaselineRef.current,
@@ -694,7 +744,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       setData(result.data);
       return result;
     },
-    [],
+    [blockedDurableResult],
   );
 
   const commitLatestDurableAppData = useCallback(
@@ -702,6 +752,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       _expected: AppData,
       build: (previous: AppData) => { data: AppData; value: T },
     ): AppDataDurabilityResult<T> => {
+      if (writeBlockRef.current) return blockedDurableResult();
       const result = commitLatestAppDataDurably({
         storageBaseline: durableStorageBaselineRef.current,
         getCurrent: () => dataRef.current,
@@ -723,7 +774,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       setData(result.data);
       return result;
     },
-    [],
+    [blockedDurableResult],
   );
 
   useEffect(() => {
@@ -840,6 +891,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       if (durableStorageBaselineRef.current.status === "indeterminate") {
         return false;
       }
+      if (writeBlockRef.current) return false;
       if (dataRef.current !== expected) return false;
       setAppData(next, { skipDirty: false });
       return true;
@@ -951,10 +1003,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
             lastKnownPersisted: lastKnownDurableDataRef.current,
             readPersisted: readPersistedDataSnapshot,
             persist: (candidate, expected) =>
-              saveData(candidate, {
-                expected,
-                fiscalNotificationsBaseAwareProjection: true,
-              }),
+              writeBlockRef.current
+                ? blockedSaveResult()
+                : saveData(candidate, {
+                    expected,
+                    fiscalNotificationsBaseAwareProjection: true,
+                  }),
             blocked: (reason) => ({
               status: "blocked",
               stage: "COMMIT",
@@ -995,7 +1049,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       reportFiscalNotificationStructuredReviewSaveFailure(result);
       return result;
     },
-    [],
+    [blockedSaveResult],
   );
 
   const archiveFiscalNotificationOriginal = useCallback(
@@ -1027,10 +1081,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
             lastKnownPersisted: lastKnownDurableDataRef.current,
             readPersisted: readPersistedDataSnapshot,
             persist: (candidate, expected) =>
-              saveData(candidate, {
-                expected,
-                fiscalNotificationsBaseAwareProjection: true,
-              }),
+              writeBlockRef.current
+                ? blockedSaveResult()
+                : saveData(candidate, {
+                    expected,
+                    fiscalNotificationsBaseAwareProjection: true,
+                  }),
             blocked: (reason) =>
               reason === "storage_state_unknown"
                 ? { status: "indeterminate", reason }
@@ -1058,7 +1114,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       }
       return result;
     },
-    [],
+    [blockedSaveResult],
   );
 
   const deleteAllFiscalNotificationDocuments = useCallback(
@@ -1075,10 +1131,12 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
             lastKnownPersisted: lastKnownDurableDataRef.current,
             readPersisted: readPersistedDataSnapshot,
             persist: (candidate, expected) =>
-              saveData(candidate, {
-                expected,
-                fiscalNotificationsBaseAwareProjection: true,
-              }),
+              writeBlockRef.current
+                ? blockedSaveResult()
+                : saveData(candidate, {
+                    expected,
+                    fiscalNotificationsBaseAwareProjection: true,
+                  }),
             blocked: (reason) =>
               reason === "storage_state_unknown"
                 ? { status: "indeterminate", reason }
@@ -1106,7 +1164,7 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
       }
       return result;
     },
-    [],
+    [blockedSaveResult],
   );
 
   const repairFiscalNotificationEmptyHistory = useCallback(
@@ -2580,6 +2638,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     () => ({
       data,
       ready,
+      writeBlock,
+      setExternalWriteBlock,
+      clearExternalWriteBlock,
       replaceData,
       replaceCloudSnapshotDurably,
       adoptPersistedCloudSnapshot,
@@ -2649,6 +2710,9 @@ export function AppStoreProvider({ children }: { children: React.ReactNode }) {
     [
       data,
       ready,
+      writeBlock,
+      setExternalWriteBlock,
+      clearExternalWriteBlock,
       replaceData,
       replaceCloudSnapshotDurably,
       adoptPersistedCloudSnapshot,
