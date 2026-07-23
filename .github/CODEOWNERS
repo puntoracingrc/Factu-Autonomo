@@ -13,6 +13,8 @@
 /docs/architecture/ADR-0010-central-invoice-authority.md @puntoracingrc
 /docs/architecture/central-invoice-authority-schema-v1.md @puntoracingrc
 /docs/architecture/central-invoice-authority-production-baseline-*.json @puntoracingrc
+/docs/architecture/central-invoice-authority-phase2-readiness-gates.md @puntoracingrc
+/docs/architecture/central-invoice-authority-production-readiness-*.json @puntoracingrc
 /src/lib/storage.ts                                    @puntoracingrc
 /src/lib/document-integrity/**                         @puntoracingrc
 /src/lib/importers/**                                  @puntoracingrc
