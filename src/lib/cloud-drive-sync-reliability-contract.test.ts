@@ -19,8 +19,10 @@ describe("cloud and Drive reliability contract", () => {
     );
     expect(context).toContain("await pushToCloud(workingData, true, options)");
     expect(context).toContain("Promise<boolean>");
-    expect(context).toContain("const remoteEntityCount = await countSyncEntities");
-    expect(context).toContain("remoteEntityCount > localEntityCount");
+    expect(context).toContain("const remoteDocumentCount = await countSyncEntities");
+    expect(context).toContain('entityType: "document"');
+    expect(context).toContain("remoteDocumentCount > workingData.documents.length");
+    expect(context).not.toContain("remoteEntityCount > localEntityCount");
     expect(context).toContain(
       "CLOUD_SNAPSHOT_INCOMPLETE_SYNC_ISSUE",
     );

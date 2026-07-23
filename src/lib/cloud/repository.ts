@@ -902,7 +902,7 @@ export async function fetchLegacyCloudBackup(
 
 export async function countSyncEntities(
   userId: string,
-  options: { includeDeleted?: boolean } = {},
+  options: { includeDeleted?: boolean; entityType?: string } = {},
 ): Promise<number> {
   const supabase = await getSupabaseClientAsync();
   if (!supabase) return 0;
@@ -914,6 +914,9 @@ export async function countSyncEntities(
 
   if (options.includeDeleted !== true) {
     query = query.eq("deleted", false);
+  }
+  if (options.entityType) {
+    query = query.eq("entity_type", options.entityType);
   }
 
   const { count, error } = await query;
