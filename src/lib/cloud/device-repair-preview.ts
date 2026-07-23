@@ -1,6 +1,8 @@
 import { sha256Hex } from "@/lib/document-integrity/snapshot-hash";
 import { stableStringifySnapshot } from "@/lib/document-integrity/snapshots";
 import type { AppData, SyncChange } from "@/lib/types";
+import { appDataToSyncChanges } from "./diff";
+import { rebuildCloudSnapshot } from "./incremental";
 
 export type CloudRepairCountKey =
   | "customers"
@@ -175,6 +177,11 @@ export function cloudRepairSnapshotFingerprint(data: AppData): string {
   const { meta: _volatileSyncMetadata, ...businessState } = data;
   void _volatileSyncMetadata;
   return `sha256:${sha256Hex(stableStringifySnapshot(businessState))}`;
+}
+
+export function cloudSyncedSurfaceFingerprint(data: AppData): string {
+  const { data: syncedSurface } = rebuildCloudSnapshot(appDataToSyncChanges(data));
+  return cloudRepairSnapshotFingerprint(syncedSurface);
 }
 
 export function newestCloudChangeTimestamp(

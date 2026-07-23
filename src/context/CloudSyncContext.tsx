@@ -69,6 +69,7 @@ import {
   buildCloudRepairPreviewPlan,
   cloudRepairPreviewAllowsConfirmation,
   cloudRepairSnapshotFingerprint,
+  cloudSyncedSurfaceFingerprint,
   newestCloudChangeTimestamp,
   type CloudRepairConfirmation,
   type CloudRepairPreview,
@@ -141,6 +142,18 @@ type CloudWriteFreshnessStatus = "fresh" | "needs_pull" | "stale";
 
 function activeLocalSyncEntityCount(data: AppData): number {
   return appDataToSyncChanges(data).filter((change) => !change.deleted).length;
+}
+
+function syncedSurfaceMatchesCloudRepairFingerprint(
+  data: AppData | null,
+  expectedFingerprint: string,
+): boolean {
+  if (!data) return false;
+  try {
+    return cloudSyncedSurfaceFingerprint(data) === expectedFingerprint;
+  } catch {
+    return false;
+  }
 }
 
 interface CloudSyncValue {
@@ -439,7 +452,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (needsSnapshotVerification) {
         const remote = await loadCloudRepairRemoteSnapshot(user.id);
         if (!remote) return "fresh";
-        return snapshotMatchesCloudRepairFingerprint(
+        return syncedSurfaceMatchesCloudRepairFingerprint(
           payload,
           remote.details.fingerprint,
         )
@@ -1252,7 +1265,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
               }
               if (
                 remote &&
-                !snapshotMatchesCloudRepairFingerprint(
+                !syncedSurfaceMatchesCloudRepairFingerprint(
                   workingData,
                   remote.details.fingerprint,
                 )
