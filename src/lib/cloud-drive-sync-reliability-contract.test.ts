@@ -105,6 +105,10 @@ describe("cloud and Drive reliability contract", () => {
     expect(forceRepair).not.toContain("pushToCloud(");
     expect(previewRepair).toContain("loadCloudRepairRemoteSnapshot(user.id)");
     expect(previewRepair).toContain("buildCloudRepairPreviewPlan({");
+    expect(previewRepair).toContain(
+      "snapshotMatchesCloudRepairFingerprint(\n            getCurrentData(),",
+    );
+    expect(previewRepair).not.toContain("getCurrentData() !== expectedLocal");
     expect(previewRepair).not.toContain("replaceCloudSnapshotDurably");
     expect(previewRepair).not.toContain("clearSyncPending()");
     expect(forceRepair).toContain("validateExpected:");
