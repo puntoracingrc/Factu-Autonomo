@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { analyzeFiscalNotificationDocumentInput } from "./document-input-analysis";
+import { fiscalNotificationV11FieldEvidenceIdV1 } from "./canonical-money-projection.v1";
 import { projectFiscalNotificationScanReviewDocumentDetailV1 } from "./scan-review-document-detail.v1";
+import type { FiscalNotificationMathematicalIntegrityV11 } from "./mathematical-integrity-contract.v11";
 import type {
   FiscalNotificationVerticalSliceReviewDocumentV1,
   FiscalNotificationVerticalSliceReviewFieldV1,
@@ -74,6 +76,81 @@ function document(
     warnings: Object.freeze([]),
     requiresHumanReview: true,
     ...overrides,
+  });
+}
+
+function semanticConflictIntegrity(
+  fieldIds: readonly [string, string, string, string],
+): FiscalNotificationMathematicalIntegrityV11 {
+  const [quotaFieldId, falseInterestFieldId, interestFieldId, totalFieldId] =
+    fieldIds;
+  const evidence = (fieldId: string, canonicalType: string, amountCents: number) =>
+    Object.freeze({
+      evidenceId: fiscalNotificationV11FieldEvidenceIdV1(fieldId),
+      sourceFieldFingerprint: `sha256:${"b".repeat(64)}` as const,
+      semantic: "MONEY" as const,
+      canonicalType,
+      originalClassification:
+        canonicalType === "LATE_PAYMENT_INTEREST"
+          ? "LATE_INTEREST"
+          : canonicalType,
+      amountCents,
+      dateValue: null,
+      countValue: null,
+      sign: "POSITIVE" as const,
+      currency: "EUR" as const,
+      sourcePart: "MAIN_ADMINISTRATIVE_ACT" as const,
+      pageNumbers: Object.freeze([1]),
+      assertionType: "NORMALIZED" as const,
+      originalConfidence: 0.98,
+    });
+  return Object.freeze({
+    schemaVersion: 11,
+    integrityVersion: "11.1.0",
+    catalogReleaseId: "aeat-mathematical-integrity.2026-07-21.v11",
+    familyId: "assessment.final_provisional_assessment",
+    archetypeId: "ASSESSMENT_FINAL",
+    validationMode: "ARITHMETIC_AND_LOGICAL",
+    status: "SEMANTIC_LABEL_INCONSISTENT",
+    passCount: 2,
+    automaticPassLimit: 2,
+    normalizedEvidence: Object.freeze([
+      evidence(quotaFieldId, "FINAL_QUOTA", 22_800),
+      evidence(falseInterestFieldId, "LATE_PAYMENT_INTEREST", 22_800),
+      evidence(interestFieldId, "LATE_PAYMENT_INTEREST", 307),
+      evidence(totalFieldId, "DOCUMENT_TOTAL", 23_107),
+    ]),
+    checks: Object.freeze([
+      Object.freeze({
+        ruleId: "v11:assessment-final:semantic-labels:1",
+        checkKind: "STRUCTURAL" as const,
+        status: "SEMANTIC_LABEL_INCONSISTENT" as const,
+        operands: Object.freeze(
+          fieldIds.map((fieldId) =>
+            Object.freeze({
+              evidenceId: fiscalNotificationV11FieldEvidenceIdV1(fieldId),
+            }),
+          ),
+        ),
+        expectedCents: null,
+        observedCents: null,
+        deltaCents: null,
+        toleranceCents: 0,
+        calculation: Object.freeze({ kind: "NONE" as const }),
+        safeMessage:
+          "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+      }),
+    ]),
+    hardFailureCodes: Object.freeze([]),
+    persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    relationSupport: Object.freeze({
+      existingRelationsOnly: true,
+      requiresStrongIdentifier: true,
+      permitsAmountOnlyRelations: false,
+      validatedEvidenceIds: Object.freeze([]),
+    }),
+    originalExtractionMutationPolicy: "NEVER_MUTATE_OR_REPLACE",
+    retainedSourceContent: "NONE",
   });
 }
 
@@ -183,6 +260,66 @@ describe("scan review document detail v1", () => {
     ).not.toEqual(expect.arrayContaining(["false", "15"]));
   });
 
+  it("explica la compensación entre cónyuges desde datos observados sin instrucciones internas", () => {
+    const source = document({
+      reviewDocumentId: "review-document:spouse-refund-suspension",
+      familyId: "irpf.spouse_refund_suspension",
+      title: "Suspensión de deuda IRPF mediante devolución del cónyuge",
+      fields: Object.freeze([
+        field(
+          "profile:reference:FISCAL_YEAR:0",
+          "REFERENCE",
+          "FISCAL_YEAR",
+          "Ejercicio",
+          "2010",
+          1,
+          { normalizedValue: "2010" },
+        ),
+        field(
+          "profile:date:ISSUE_DATE:0",
+          "DATE",
+          "ISSUE_DATE",
+          "Fecha de emisión",
+          "21/09/2015",
+          1,
+          { normalizedValue: "2015-09-21" },
+        ),
+        field(
+          "profile:fact:OFFSET_EFFECT_MEANING:0",
+          "DETAIL",
+          "PAYMENT_RESULT",
+          "Efecto de la compensación",
+          "Detectado en el documento",
+          1,
+        ),
+      ]),
+    });
+
+    const result = projectFiscalNotificationScanReviewDocumentDetailV1({
+      document: source,
+      allDocuments: [source],
+    });
+
+    expect(result.explanation).toMatchObject({
+      documentSays:
+        "La AEAT comunica que la devolución del cónyuge se ha aplicado como compensación del ingreso suspendido.",
+      reviewDetail:
+        "No se propone una actuación inmediata con los datos extraídos; revisa la fecha del acuerdo y el ejercicio de IRPF.",
+      deadlineDetail:
+        "Este acuerdo no crea un plazo operativo inmediato en los datos extraídos.",
+    });
+    expect(result.header.primaryDateLabel).toBe("Fecha del acuerdo");
+    expect(result.header.primaryDateValue).toBe("21/09/2015");
+    expect(result.header.metadata).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Ejercicio", value: "2010" }),
+      ]),
+    );
+    expect(JSON.stringify(result)).not.toMatch(
+      /Puede extinguir|Comprueba ambos importes|Persiste solo roles|Fecha no identificada|Revisión matemática necesaria/u,
+    );
+  });
+
   it("muestra importes realmente observados y oculta la sección cuando no existen", () => {
     const withAmount = document({
       reviewDocumentId: "review-document:enforcement",
@@ -214,6 +351,89 @@ describe("scan review document detail v1", () => {
         pageNumbers: [2],
       }),
     ]);
+  });
+
+  it("aplica V11 en la revisión previa y no muestra un candidato conflictivo como importe válido", () => {
+    const source = document({
+      reviewDocumentId: "review-document:assessment-semantic-conflict",
+      familyId: "assessment.final_provisional_assessment",
+      title: "Resolución con liquidación provisional",
+      fields: Object.freeze([
+        field(
+          "amount:quota",
+          "MONEY",
+          "TAX_QUOTA",
+          "Cuota resultante",
+          "228,00 €",
+          1,
+          { amountCents: 22_800, currency: "EUR" },
+        ),
+        field(
+          "amount:false-interest",
+          "MONEY",
+          "LATE_INTEREST",
+          "Intereses de demora",
+          "228,00 €",
+          1,
+          { amountCents: 22_800, currency: "EUR" },
+        ),
+        field(
+          "amount:interest",
+          "MONEY",
+          "LATE_INTEREST",
+          "Intereses de demora",
+          "3,07 €",
+          1,
+          { amountCents: 307, currency: "EUR" },
+        ),
+        field(
+          "amount:total",
+          "MONEY",
+          "TOTAL_CLAIMED",
+          "Total a ingresar",
+          "231,07 €",
+          1,
+          { amountCents: 23_107, currency: "EUR" },
+        ),
+      ]),
+      mathematicalIntegrity: semanticConflictIntegrity([
+        "amount:quota",
+        "amount:false-interest",
+        "amount:interest",
+        "amount:total",
+      ]),
+    });
+
+    const result = projectFiscalNotificationScanReviewDocumentDetailV1({
+      document: source,
+      allDocuments: [source],
+    });
+
+    expect(result.economy?.rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Cuota resultante", value: "228,00 €" }),
+        expect.objectContaining({
+          label: "Intereses de demora",
+          value: "3,07 €",
+        }),
+        expect.objectContaining({ label: "Total a ingresar", value: "231,07 €" }),
+      ]),
+    );
+    expect(result.economy?.rows).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Intereses de demora",
+          value: "228,00 €",
+        }),
+      ]),
+    );
+    expect(result.integrity).toMatchObject({
+      status: "SEMANTIC_INCONSISTENT",
+      statusLabel: "Etiquetas incompatibles",
+      messages: [
+        "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+      ],
+    });
   });
 
   it("presenta el papel del obligado sin duplicarlo y oculta códigos cortos sin contexto", () => {

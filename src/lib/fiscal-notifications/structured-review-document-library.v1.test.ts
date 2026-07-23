@@ -13,7 +13,48 @@ import type {
   StructuredReviewRelationsViewModelV1,
 } from "./structured-review-relations-view-model.v1";
 import { explainFiscalNotificationDocumentV1 } from "./structured-document-explanation.v1";
+import type { FiscalNotificationMathematicalIntegrityV11 } from "./mathematical-integrity-contract.v11";
 import type { DocumentRelationType } from "./types";
+
+function semanticMoneyConflictIntegrity(): FiscalNotificationMathematicalIntegrityV11 {
+  return Object.freeze({
+    schemaVersion: 11,
+    integrityVersion: "11.1.0",
+    catalogReleaseId: "aeat-mathematical-integrity.2026-07-21.v11",
+    familyId: "assessment.final_provisional_assessment",
+    archetypeId: "ASSESSMENT_FINAL",
+    validationMode: "ARITHMETIC_AND_LOGICAL",
+    status: "SEMANTIC_LABEL_INCONSISTENT",
+    passCount: 2,
+    automaticPassLimit: 2,
+    normalizedEvidence: Object.freeze([]),
+    checks: Object.freeze([
+      Object.freeze({
+        ruleId: "v11:assessment-final:semantic-labels:1",
+        checkKind: "STRUCTURAL" as const,
+        status: "SEMANTIC_LABEL_INCONSISTENT" as const,
+        operands: Object.freeze([]),
+        expectedCents: null,
+        observedCents: null,
+        deltaCents: null,
+        toleranceCents: 0,
+        calculation: Object.freeze({ kind: "NONE" as const }),
+        safeMessage:
+          "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+      }),
+    ]),
+    hardFailureCodes: Object.freeze([]),
+    persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+    relationSupport: Object.freeze({
+      existingRelationsOnly: true,
+      requiresStrongIdentifier: true,
+      permitsAmountOnlyRelations: false,
+      validatedEvidenceIds: Object.freeze([]),
+    }),
+    originalExtractionMutationPolicy: "NEVER_MUTATE_OR_REPLACE",
+    retainedSourceContent: "NONE",
+  });
+}
 
 function document(
   id: string,
@@ -307,6 +348,75 @@ describe("structured review document library v1", () => {
         title: "Requerimiento de pago en vía ejecutiva",
       }),
     );
+  });
+
+  it("usa la misma economía canónica de la ficha para el resumen del listado", () => {
+    const assessment = document(
+      "document:assessment-final",
+      "Resolución con liquidación provisional",
+      "2025-05-21",
+      "2026-07-20T08:00:00.000Z",
+      {
+        documentSubtype: "assessment.final_provisional_assessment",
+        money: [
+          {
+            key: "money:quota",
+            label: "Cuota final",
+            kind: "FINAL_QUOTA",
+            amountCents: 22_800,
+            currency: "EUR",
+            sourceReference: null,
+            sourceReferenceType: null,
+            pageNumbers: [1],
+          },
+          {
+            key: "money:false-interest",
+            label: "Intereses de demora",
+            kind: "LATE_PAYMENT_INTEREST",
+            amountCents: 22_800,
+            currency: "EUR",
+            sourceReference: null,
+            sourceReferenceType: null,
+            pageNumbers: [1],
+          },
+          {
+            key: "money:interest",
+            label: "Intereses de demora",
+            kind: "LATE_PAYMENT_INTEREST",
+            amountCents: 307,
+            currency: "EUR",
+            sourceReference: null,
+            sourceReferenceType: null,
+            pageNumbers: [1],
+          },
+          {
+            key: "money:total",
+            label: "Total del documento",
+            kind: "DOCUMENT_TOTAL",
+            amountCents: 23_107,
+            currency: "EUR",
+            sourceReference: null,
+            sourceReferenceType: null,
+            pageNumbers: [1],
+          },
+        ],
+        mathematicalIntegrity: semanticMoneyConflictIntegrity(),
+      },
+    );
+
+    const result = ready([assessment]);
+    const summary = result.groups[0]?.summaries[0];
+
+    expect(summary?.amounts).toEqual([
+      { key: "money:quota", label: "Cuota resultante", value: "228,00 €" },
+      {
+        key: "money:interest",
+        label: "Intereses de demora",
+        value: "3,07 €",
+      },
+    ]);
+    expect(JSON.stringify(summary)).not.toContain("money:false-interest");
+    expect(JSON.stringify(summary)).not.toContain("Intereses de demora\",\"value\":\"228,00");
   });
 
   it("depura tokens internos de referencias, coincidencias y textos mostrables", () => {

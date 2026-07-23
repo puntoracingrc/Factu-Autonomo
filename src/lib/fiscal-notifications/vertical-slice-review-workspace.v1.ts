@@ -21,6 +21,10 @@ import type {
 } from "./types";
 import { isUsefulObservedFiscalNotificationField } from "./document-fact-observation.v1";
 import {
+  fiscalNotificationV11FieldEvidenceIdV1,
+  isRejectedFiscalNotificationSemanticMoneyCandidateV1,
+} from "./canonical-money-projection.v1";
+import {
   parseFiscalNotificationVerticalSliceReviewV1,
   type FiscalNotificationVerticalSliceReviewDocumentV1,
   type FiscalNotificationVerticalSliceReviewFieldV1,
@@ -314,6 +318,21 @@ function appendDocument(input: {
   >[number][] = [];
   const evidenceIds = new Set<string>();
   const evidenceIdsByFieldId = new Map<string, readonly string[]>();
+  const canonicalMoneyCandidates = document.fields.flatMap((field) =>
+    field.semantic === "MONEY" &&
+    field.amountCents !== null &&
+    field.currency === "EUR"
+      ? [
+          Object.freeze({
+            kind: moneyKind(field.canonicalType, document.familyId),
+            amountCents: field.amountCents,
+            evidenceIds: Object.freeze([
+              fiscalNotificationV11FieldEvidenceIdV1(field.fieldId),
+            ]),
+          }),
+        ]
+      : [],
+  );
 
   persistableObservedFields(document).forEach(({ field, fieldIndex }) => {
     const retainedValue = retainedTypedFieldValue(field);
@@ -378,11 +397,26 @@ function appendDocument(input: {
       if (field.amountCents === null || field.currency !== "EUR") {
         throw invalidInput();
       }
+      const kind = moneyKind(field.canonicalType, document.familyId);
+      if (
+        isRejectedFiscalNotificationSemanticMoneyCandidateV1({
+          familyId: document.familyId,
+          kind,
+          amountCents: field.amountCents,
+          evidenceIds: Object.freeze([
+            fiscalNotificationV11FieldEvidenceIdV1(field.fieldId),
+          ]),
+          allMoney: canonicalMoneyCandidates,
+          mathematicalIntegrity: document.mathematicalIntegrity ?? null,
+        })
+      ) {
+        return;
+      }
       moneyFacts.push({
         id: `money:${reviewUuid}:vertical:${persistenceKey}:${fieldIndex}`,
         ownerScope,
         documentId: id,
-        kind: moneyKind(field.canonicalType, document.familyId),
+        kind,
         amountCents: field.amountCents,
         currency: "EUR",
         assertionType: "EXPLICIT_IN_DOCUMENT",

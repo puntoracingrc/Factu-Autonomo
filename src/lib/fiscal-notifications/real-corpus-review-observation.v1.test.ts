@@ -18,6 +18,12 @@ describe("real corpus observed date projection", () => {
     expect(canonicalRealCorpusDateType("EFFECTIVE_NOTIFICATION_DATE")).toBe(
       "EFFECTIVE_NOTIFICATION_DATE",
     );
+    expect(canonicalRealCorpusDateType("PUBLICATION_DATE")).toBe(
+      "PUBLICATION_DATE",
+    );
+    expect(canonicalRealCorpusDateType("CERTIFICATE_ISSUE_DATE")).toBe(
+      "CERTIFICATE_ISSUE_DATE",
+    );
   });
 
   it("preserves a printed refund reference as its own strong type", () => {

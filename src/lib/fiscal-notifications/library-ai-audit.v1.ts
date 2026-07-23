@@ -1,5 +1,6 @@
 import { containsInternalFiscalNotificationToken } from "./document-fact-observation.v1";
 import type { FiscalNotificationAmountEquationFormulaV1 } from "./amount-reconciliation-contract.v1";
+import { selectCanonicalFiscalNotificationMoneyV1 } from "./canonical-money-projection.v1";
 import type {
   FiscalNotificationDocumentLibraryLinkV1,
   FiscalNotificationDocumentLibraryViewModelV1,
@@ -380,7 +381,10 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
       (fact): FiscalNotificationLibraryAiAuditFactV1[] => {
         if (fact.semantic === "PARTY") {
           const alias = partyAliases.get(partyIdentity(fact.value));
-          const label = cleanStructuralLabel(fact.label, 180);
+          const label = cleanStructuralLabel(
+            auditReferenceLabel(fact.label, document.documentSubtype),
+            180,
+          );
           return alias && label
             ? [
                 Object.freeze({
@@ -401,11 +405,15 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
         }
         if (fact.semantic === "DATE") {
           const value = normalizeAuditDateValue(fact.value);
+          const label = auditReferenceLabel(
+            fact.label,
+            document.documentSubtype,
+          );
           return value
             ? [
                 Object.freeze({
                   kind: "DATE" as const,
-                  label: fact.label,
+                  label,
                   value,
                   page: fact.pageNumber,
                 }),
@@ -414,11 +422,15 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
         }
         if (fact.semantic === "REFERENCE") {
           const alias = referenceAliases.get(referenceIdentity(fact.value));
+          const label = auditReferenceLabel(
+            fact.label,
+            document.documentSubtype,
+          );
           return alias
             ? [
                 Object.freeze({
                   kind: "REFERENCE" as const,
-                  label: fact.label,
+                  label,
                   value: alias,
                   page: fact.pageNumber,
                 }),
@@ -426,6 +438,9 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
             : [];
         }
         if (!isSupportedFactKind(fact.semantic)) {
+          return [];
+        }
+        if (isGenericObservedAuditFact(fact.label, fact.value)) {
           return [];
         }
         const value = safeAuditContentText(
@@ -437,7 +452,7 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
         return [
           Object.freeze({
             kind: fact.semantic,
-            label: fact.label,
+            label: auditReferenceLabel(fact.label, document.documentSubtype),
             value,
             page: fact.pageNumber,
           }),
@@ -464,7 +479,10 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
           const referenceAlias = referenceAliases.get(
             referenceIdentity(reference.value),
           );
-          const label = cleanStructuralLabel(reference.label, 180);
+          const label = cleanStructuralLabel(
+            auditReferenceLabel(reference.label, document.documentSubtype),
+            180,
+          );
           if (!referenceAlias || !label) return [];
           const pages = document.orderedFacts
             .filter(
@@ -485,11 +503,16 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
       ),
       facts: Object.freeze(facts),
       amounts: Object.freeze(
-        document.money.flatMap((money) =>
-          isSafeAuditText(money.label)
+        selectCanonicalFiscalNotificationMoneyV1({
+          familyId: document.documentSubtype,
+          money: document.money,
+          mathematicalIntegrity: document.mathematicalIntegrity ?? null,
+        }).flatMap((money) => {
+          const label = auditMoneyLabel(money.label, money.kind);
+          return isSafeAuditText(label)
             ? [
                 Object.freeze({
-                  label: money.label,
+                  label,
                   amountCents: money.amountCents,
                   currency: money.currency,
                   pages: Object.freeze([...money.pageNumbers]),
@@ -500,8 +523,8 @@ export function projectFiscalNotificationLibraryAiAuditInputV1(
                     : null,
                 }),
               ]
-            : [],
-        ),
+            : [];
+        }),
       ),
       installments: Object.freeze(
         document.installments.flatMap((installment) =>
@@ -1027,11 +1050,28 @@ function addReferenceIdentity(
   if (
     identity &&
     !PROTECTED_REFERENCE_VALUES.has(identity) &&
-    isSafeAuditText(value) &&
+    isAliasableAuditReferenceValue(value, label) &&
     (label === undefined || isSafeAuditText(label))
   ) {
     target.add(identity);
   }
+}
+
+function isAliasableAuditReferenceValue(value: string, label?: string): boolean {
+  const clean = cleanAuditText(value, 600);
+  if (!clean || containsInternalFiscalNotificationToken(clean)) return false;
+  if (label !== undefined) {
+    const cleanLabel = cleanStructuralLabel(label, 180);
+    if (!cleanLabel || SENSITIVE_LABEL.test(cleanLabel)) return false;
+  }
+  if (
+    SENSITIVE_VALUE.test(clean) ||
+    PHONE_VALUE.test(clean) ||
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/iu.test(clean)
+  ) {
+    return false;
+  }
+  return true;
 }
 
 function referenceIdentity(value: string): string {
@@ -1070,6 +1110,47 @@ function isSupportedFactKind(
     value === "DETAIL" ||
     value === "OBLIGATION"
   );
+}
+
+function isGenericObservedAuditFact(label: string, value: string): boolean {
+  const normalizedLabel = label
+    .trim()
+    .toLocaleLowerCase("es-ES")
+    .replace(/\s+/gu, " ");
+  const normalizedValue = value
+    .trim()
+    .toLocaleLowerCase("es-ES")
+    .replace(/\s+/gu, " ");
+  return (
+    normalizedLabel === "dato observado" &&
+    normalizedValue === "consta en el documento"
+  );
+}
+
+function auditReferenceLabel(label: string, familyId: string | null): string {
+  if (
+    familyId === "collection.enforcement_order" &&
+    normalizeAuditLabel(label) === "justificante de pago"
+  ) {
+    return "Número de la carta de pago";
+  }
+  return label;
+}
+
+function auditMoneyLabel(label: string, kind: string): string {
+  if (kind === "EXECUTIVE_SURCHARGE_20") {
+    return "Recargo de apremio ordinario del 20 %";
+  }
+  return label;
+}
+
+function normalizeAuditLabel(value: string): string {
+  return value
+    .normalize("NFKD")
+    .replace(/\p{M}+/gu, "")
+    .trim()
+    .toLocaleLowerCase("es-ES")
+    .replace(/\s+/gu, " ");
 }
 
 function isStrongAuditRelationMatch(

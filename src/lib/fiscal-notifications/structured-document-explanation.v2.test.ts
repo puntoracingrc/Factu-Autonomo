@@ -900,6 +900,61 @@ describe("structured document explanation v2", () => {
     ).toThrowError(FiscalNotificationDocumentExplanationErrorV2);
   });
 
+  it("prioriza la explicación observada de compensación entre cónyuges sobre el texto genérico del catálogo", () => {
+    const output = explain("irpf.spouse_refund_suspension", {
+      references: [{ referenceType: "FISCAL_YEAR", value: "2010" }],
+      dates: [{ dateType: "ISSUE_DATE", value: "2015-09-21" }],
+      factCodes: ["OFFSET_EFFECT_MEANING"],
+    });
+
+    expect(output.missingData).not.toContain("PRINTED_EFFECT");
+    expect(sectionText(output, "KEY_DATA")).toContain("Ejercicio IRPF: 2010.");
+    expect(sectionText(output, "KEY_DATA")).toContain(
+      "Fecha del acuerdo: 21/09/2015.",
+    );
+    expect(sectionText(output, "KEY_DATA")).toContain(
+      "Compensación realizada como resultado confirmado.",
+    );
+    expect(sectionText(output, "RESULT")).toBe(
+      "La AEAT comunica que la devolución del cónyuge se ha aplicado como compensación del ingreso suspendido.",
+    );
+    expect(sectionText(output, "NEXT_STEP")).toBe(
+      "No se propone una actuación inmediata con los datos extraídos; revisa la fecha del acuerdo y el ejercicio de IRPF.",
+    );
+    expect(sectionText(output, "DEADLINE")).toBe(
+      "Este acuerdo no crea un plazo operativo inmediato en los datos extraídos.",
+    );
+    expect(JSON.stringify(output)).not.toMatch(
+      /Puede extinguir|Comprueba ambos importes|persiste solo roles|Fecha no identificada|Revisión matemática necesaria/u,
+    );
+
+    const adapted = adaptFiscalNotificationDocumentExplanationV2ToV1(output);
+    expect(adapted).toMatchObject({
+      result:
+        "La AEAT comunica que la devolución del cónyuge se ha aplicado como compensación del ingreso suspendido.",
+      nextStep: {
+        detail:
+          "No se propone una actuación inmediata con los datos extraídos; revisa la fecha del acuerdo y el ejercicio de IRPF.",
+      },
+      deadline: {
+        detail:
+          "Este acuerdo no crea un plazo operativo inmediato en los datos extraídos.",
+      },
+    });
+    expect(adapted.keyFacts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Dato observado",
+          value: "Ejercicio IRPF: 2010.",
+        }),
+        expect.objectContaining({
+          label: "Dato observado",
+          value: "Fecha del acuerdo: 21/09/2015.",
+        }),
+      ]),
+    );
+  });
+
   it("renders observed enforcement fields in plain Spanish without canonical keys", () => {
     const output = explain("collection.enforcement_order", {
       references: [

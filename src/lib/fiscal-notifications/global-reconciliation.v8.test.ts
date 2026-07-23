@@ -135,6 +135,50 @@ describe("global reconciliation V8 synthetic regression pack", () => {
     );
   });
 
+  it("links a release to the cited seizure by exact order reference without copying a cited date", () => {
+    const orderId = "SYN-SEIZURE-ORDER-REL-1";
+    const seizure = document("doc-seizure", "seizure.bank_account", {
+      documentDate: "2025-04-04",
+      references: [
+        reference(
+          "ref-seizure-order",
+          orderId,
+          "SEIZURE_ORDER",
+          "SEIZURE_ORDER_ID",
+        ),
+      ],
+    });
+    const release = document("doc-release", "seizure.release", {
+      documentDate: null,
+      references: [
+        reference(
+          "ref-release-order",
+          orderId,
+          "SEIZURE_ORDER",
+          "SEIZURE_ORDER_ID",
+        ),
+      ],
+    });
+
+    const result = reconcileGlobalDocumentRelationsV8({
+      documents: [release, seizure],
+      reevaluatedAt: NOW,
+    });
+
+    expect(result.status).toBe("APPLIED");
+    if (result.status !== "APPLIED") return;
+    expect(result.directEdges).toEqual([
+      expect.objectContaining({
+        sourceDocumentId: seizure.documentId,
+        targetDocumentId: release.documentId,
+        relationType: "RELEASES_SEIZURE",
+        evidenceKinds: ["EXACT_SEIZURE_REFERENCE"],
+        matchingReferenceIds: ["ref-release-order", "ref-seizure-order"],
+      }),
+    ]);
+    expect(release.documentDate).toBeNull();
+  });
+
   it("GLOBAL-S03 keeps remittance unknown across credit and movable seizures", () => {
     const enforcement = document("doc-e3", "collection.enforcement_order", {
       documentDate: "2025-01-01",

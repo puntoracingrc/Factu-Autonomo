@@ -1112,15 +1112,28 @@ describe("AEAT real corpus extractor V2", () => {
     expect(text(result, "PUBLICATION_DATE")).toBe("2026-07-10");
     expect(text(result, "EFFECTIVE_NOTIFICATION_DATE")).toBe("2026-07-26");
     expect(text(result, "SIGNING_DATE")).toBe("2026-07-27");
+    expect(text(result, "APPEARANCE_PERIOD_START")).toBe("2026-07-11");
+    expect(text(result, "APPEARANCE_PERIOD_END")).toBe("2026-07-25");
+    expect(text(result, "PUBLICATION_NOTIFICATION_ARITHMETIC_STATUS")).toBe(
+      "VALIDATED_EXACT",
+    );
+    expect(
+      result.fields.find(
+        (field) => field.fieldCode === "APPEARANCE_PERIOD_START",
+      )?.evidence.assertionType,
+    ).toBe("CALCULATED_FROM_PRINTED_VALUES");
     const review = (
       await analyzeFiscalNotificationDocumentInput(source)
     ).verticalSliceReview;
     expect(review.documents[0]?.fields).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ semantic: "DATE", canonicalType: "ACTION_DATE" }),
+        expect.objectContaining({ semantic: "DATE", canonicalType: "PUBLICATION_DATE" }),
         expect.objectContaining({ semantic: "DATE", canonicalType: "EFFECTIVE_NOTIFICATION_DATE" }),
         expect.objectContaining({ semantic: "DATE", canonicalType: "SIGNING_DATE" }),
       ]),
+    );
+    expect(JSON.stringify(review)).not.toMatch(
+      /APPEARANCE_PERIOD_START|APPEARANCE_PERIOD_END|PUBLICATION_NOTIFICATION_ARITHMETIC_STATUS/u,
     );
   });
 

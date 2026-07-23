@@ -580,6 +580,85 @@ describe("structured fiscal notification history view model v1", () => {
     expect(JSON.stringify(result)).not.toContain("EFFECT:SUSPENSION_GRANTED");
   });
 
+  it("reabre la compensación entre cónyuges con fecha, ejercicio y explicación concreta", () => {
+    const value = workspace();
+    const document = value.documents[0]!;
+    document.documentType = "GENERIC_ADMINISTRATIVE_NOTICE";
+    document.documentSubtype = "irpf.spouse_refund_suspension";
+    document.titleRaw = "Suspensión de deuda IRPF mediante devolución del cónyuge";
+    document.titleNormalized =
+      "SUSPENSION DE DEUDA IRPF MEDIANTE DEVOLUCION DEL CONYUGE";
+    document.issueDate = undefined;
+    value.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
+      undefined;
+    addExplicitEvidence(value, {
+      id: "evidence:spouse-year",
+      page: 1,
+      rawValue: "2010",
+    });
+    addExplicitEvidence(value, {
+      id: "evidence:spouse-date",
+      page: 1,
+      rawValue: "21/09/2015",
+    });
+    addExplicitEvidence(value, {
+      id: "evidence:spouse-effect",
+      page: 1,
+      rawValue: "OFFSET_EFFECT_MEANING",
+    });
+    value.analysisSnapshots[0]!.structuredData.unknownFields = [
+      {
+        labelRaw:
+          "VSR2|profile:reference:FISCAL_YEAR:0|REFERENCE|FISCAL_YEAR|Ejercicio",
+        valueRaw: "2010",
+        page: 1,
+        evidenceId: "evidence:spouse-year",
+        confidence: "EXACT",
+      },
+      {
+        labelRaw:
+          "VSR2|profile:date:ISSUE_DATE:0|DATE|ISSUE_DATE|Fecha de emisión",
+        valueRaw: "2015-09-21",
+        page: 1,
+        evidenceId: "evidence:spouse-date",
+        confidence: "EXACT",
+      },
+      {
+        labelRaw:
+          "VSR2|profile:fact:OFFSET_EFFECT_MEANING:0|DETAIL|OFFSET_EFFECT_MEANING|Efecto de la compensación",
+        valueRaw: "OFFSET_EFFECT_MEANING",
+        page: 1,
+        evidenceId: "evidence:spouse-effect",
+        confidence: "EXACT",
+      },
+    ];
+
+    const result = projectFiscalNotificationStructuredHistoryV1(value, OWNER);
+
+    expect(result.status).toBe("READY");
+    if (result.status !== "READY") return;
+    expect(result.entries[0]).toMatchObject({
+      documentDate: "2015-09-21",
+      explanation: {
+        result:
+          "La AEAT comunica que la devolución del cónyuge se ha aplicado como compensación del ingreso suspendido.",
+        nextStep: {
+          detail:
+            "No se propone una actuación inmediata con los datos extraídos; revisa la fecha del acuerdo y el ejercicio de IRPF.",
+        },
+        deadline: {
+          detail:
+            "Este acuerdo no crea un plazo operativo inmediato en los datos extraídos.",
+        },
+      },
+    });
+    expect(JSON.stringify(result)).toContain("Fecha del acuerdo: 21/09/2015");
+    expect(JSON.stringify(result)).toContain("Ejercicio IRPF: 2010");
+    expect(JSON.stringify(result)).not.toMatch(
+      /Puede extinguir|Comprueba ambos importes|persiste solo roles|Fecha no identificada|Revisión matemática necesaria/u,
+    );
+  });
+
   it("reconstruye el efecto intrínseco desde el reconocimiento exacto guardado", () => {
     const value = workspace();
     const document = value.documents[0]!;
@@ -833,6 +912,78 @@ describe("structured fiscal notification history view model v1", () => {
     });
   });
 
+  it("conserva la fecha de publicación y la fecha de certificado como bases documentales propias", () => {
+    const publication = workspace();
+    publication.documents[0]!.issueDate = undefined;
+    publication.documents[0]!.signatureDate = undefined;
+    publication.documents[0]!.notificationDates.effectiveAt = undefined;
+    publication.documents[0]!.documentSubtype =
+      "notification.publication_or_appearance";
+    publication.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
+      undefined;
+    const publicationEvidenceId = addExplicitEvidence(publication, {
+      id: "evidence:publication-date",
+      page: 1,
+      rawValue: "21/09/2015",
+    });
+    publication.analysisSnapshots[0]!.structuredData.unknownFields = [
+      {
+        labelRaw: "VSR2|profile:date:PUBLICATION_DATE:1|DATE|PUBLICATION_DATE|Fecha de publicación",
+        valueRaw: "21/09/2015",
+        page: 1,
+        evidenceId: publicationEvidenceId,
+        confidence: "EXACT",
+      },
+    ];
+
+    expect(
+      projectFiscalNotificationStructuredHistoryV1(publication, OWNER),
+    ).toMatchObject({
+      status: "READY",
+      entries: [
+        {
+          documentDate: "2015-09-21",
+          documentDateBasis: "Fecha de publicacion",
+        },
+      ],
+    });
+
+    const certificate = workspace();
+    certificate.documents[0]!.issueDate = undefined;
+    certificate.documents[0]!.signatureDate = undefined;
+    certificate.documents[0]!.notificationDates.effectiveAt = undefined;
+    certificate.documents[0]!.documentSubtype =
+      "notification.publication_or_appearance";
+    certificate.analysisSnapshots[0]!.structuredData.documentFields.issueDate =
+      undefined;
+    const certificateEvidenceId = addExplicitEvidence(certificate, {
+      id: "evidence:certificate-date",
+      page: 1,
+      rawValue: "08/10/2015",
+    });
+    certificate.analysisSnapshots[0]!.structuredData.unknownFields = [
+      {
+        labelRaw: "VSR2|profile:date:CERTIFICATE_ISSUE_DATE:1|DATE|CERTIFICATE_ISSUE_DATE|Fecha del certificado",
+        valueRaw: "08/10/2015",
+        page: 1,
+        evidenceId: certificateEvidenceId,
+        confidence: "EXACT",
+      },
+    ];
+
+    expect(
+      projectFiscalNotificationStructuredHistoryV1(certificate, OWNER),
+    ).toMatchObject({
+      status: "READY",
+      entries: [
+        {
+          documentDate: "2015-10-08",
+          documentDateBasis: "Fecha del certificado",
+        },
+      ],
+    });
+  });
+
   it.each([
     ["SEIZURE_DATE", "Fecha de la diligencia", "seizure.movable_asset"],
     ["RELEASE_DATE", "Fecha del levantamiento", "seizure.release"],
@@ -1067,6 +1218,186 @@ describe("structured fiscal notification history view model v1", () => {
         pageNumber: 3,
       }),
     ]);
+  });
+
+  it("no proyecta una cuota duplicada como intereses cuando V11 marca conflicto semántico", () => {
+    const value = workspace();
+    value.documents[0]!.documentSubtype =
+      "assessment.final_provisional_assessment";
+    const administrativeDomain =
+      value.analysisSnapshots[0]!.structuredData.administrativeDomain!;
+    value.analysisSnapshots[0]!.structuredData.administrativeDomain = {
+      ...administrativeDomain,
+      moneyFacts: [
+        {
+          id: "money:quota",
+          ownerScope: OWNER,
+          documentId: "document:synthetic-history",
+          kind: "FINAL_QUOTA",
+          amountCents: 22_800,
+          currency: "EUR",
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+          evidenceIds: ["evidence:quota"],
+          lineageParentIds: [],
+          status: "PROPOSED",
+          createdAt: CREATED_AT,
+        },
+        {
+          id: "money:false-interest",
+          ownerScope: OWNER,
+          documentId: "document:synthetic-history",
+          kind: "LATE_PAYMENT_INTEREST",
+          amountCents: 22_800,
+          currency: "EUR",
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+          evidenceIds: ["evidence:false-interest"],
+          lineageParentIds: [],
+          status: "PROPOSED",
+          createdAt: CREATED_AT,
+        },
+        {
+          id: "money:interest",
+          ownerScope: OWNER,
+          documentId: "document:synthetic-history",
+          kind: "LATE_PAYMENT_INTEREST",
+          amountCents: 307,
+          currency: "EUR",
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+          evidenceIds: ["evidence:interest"],
+          lineageParentIds: [],
+          status: "PROPOSED",
+          createdAt: CREATED_AT,
+        },
+        {
+          id: "money:total",
+          ownerScope: OWNER,
+          documentId: "document:synthetic-history",
+          kind: "DOCUMENT_TOTAL",
+          amountCents: 23_107,
+          currency: "EUR",
+          assertionType: "EXPLICIT_IN_DOCUMENT",
+          evidenceIds: ["evidence:total"],
+          lineageParentIds: [],
+          status: "PROPOSED",
+          createdAt: CREATED_AT,
+        },
+      ],
+    };
+    for (const [id, rawValue] of [
+      ["evidence:quota", "228,00 €"],
+      ["evidence:false-interest", "228,00 €"],
+      ["evidence:interest", "3,07 €"],
+      ["evidence:total", "231,07 €"],
+    ] as const) {
+      value.evidence.push({
+        id,
+        ownerScope: OWNER,
+        documentId: "document:synthetic-history",
+        pageNumber: 1,
+        textSnippet: "Importe sintético impreso",
+        rawValue,
+        extractionMethod: "RULE",
+        confidence: "EXACT",
+        assertionType: "EXPLICIT_IN_DOCUMENT",
+      });
+      value.analysisSnapshots[0]!.evidenceIds.push(id);
+    }
+    value.analysisSnapshots[0]!.structuredData.unknownFields.push(
+      {
+        labelRaw: "VSR1|MONEY|TAX_QUOTA|Cuota resultante",
+        valueRaw: "228,00 €",
+        page: 1,
+        evidenceId: "evidence:quota",
+        confidence: "EXACT",
+      },
+      {
+        labelRaw: "VSR1|MONEY|LATE_INTEREST|Intereses de demora",
+        valueRaw: "228,00 €",
+        page: 1,
+        evidenceId: "evidence:false-interest",
+        confidence: "EXACT",
+      },
+      {
+        labelRaw: "VSR1|MONEY|LATE_INTEREST|Intereses de demora",
+        valueRaw: "3,07 €",
+        page: 1,
+        evidenceId: "evidence:interest",
+        confidence: "EXACT",
+      },
+      {
+        labelRaw: "VSR1|MONEY|TOTAL_CLAIMED|Total a ingresar",
+        valueRaw: "231,07 €",
+        page: 1,
+        evidenceId: "evidence:total",
+        confidence: "EXACT",
+      },
+    );
+    value.analysisSnapshots[0]!.structuredData.mathematicalIntegrity = {
+      schemaVersion: 11,
+      integrityVersion: "11.1.0",
+      catalogReleaseId: "aeat-mathematical-integrity.2026-07-21.v11",
+      familyId: "assessment.final_provisional_assessment",
+      archetypeId: "ASSESSMENT_FINAL",
+      validationMode: "ARITHMETIC_AND_LOGICAL",
+      status: "SEMANTIC_LABEL_INCONSISTENT",
+      passCount: 2,
+      automaticPassLimit: 2,
+      normalizedEvidence: [],
+      checks: [
+        {
+          ruleId: "v11:assessment-final:semantic-labels:1",
+          checkKind: "STRUCTURAL",
+          status: "SEMANTIC_LABEL_INCONSISTENT",
+          operands: [],
+          expectedCents: null,
+          observedCents: null,
+          deltaCents: null,
+          toleranceCents: 0,
+          calculation: { kind: "NONE" },
+          safeMessage:
+            "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+        },
+      ],
+      hardFailureCodes: [],
+      persistenceDecision: "ALLOW_CORE_WITH_WARNINGS",
+      relationSupport: {
+        existingRelationsOnly: true,
+        requiresStrongIdentifier: true,
+        permitsAmountOnlyRelations: false,
+        validatedEvidenceIds: [],
+      },
+      originalExtractionMutationPolicy: "NEVER_MUTATE_OR_REPLACE",
+      retainedSourceContent: "NONE",
+    };
+
+    const result = projectFiscalNotificationStructuredHistoryV1(value, OWNER);
+
+    expect(result.status).toBe("READY");
+    if (result.status !== "READY") return;
+    expect(result.entries[0]?.money).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Cuota resultante",
+          amountCents: 22_800,
+        }),
+        expect.objectContaining({
+          label: "Intereses de demora",
+          amountCents: 307,
+        }),
+        expect.objectContaining({
+          label: "Total a ingresar",
+          amountCents: 23_107,
+        }),
+      ]),
+    );
+    expect(result.entries[0]?.money).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Intereses de demora",
+          amountCents: 22_800,
+        }),
+      ]),
+    );
   });
 
   it("colapsa la misma observación económica de dos extractores y traduce la fecha especializada", () => {

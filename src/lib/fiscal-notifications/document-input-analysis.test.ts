@@ -784,6 +784,7 @@ describe("fiscal notification document input analysis", () => {
         }),
         expect.objectContaining({
           fieldId: expect.stringContaining("PUBLICATION_DATE"),
+          canonicalType: "PUBLICATION_DATE",
           normalizedValue: "2026-07-18",
         }),
         expect.objectContaining({

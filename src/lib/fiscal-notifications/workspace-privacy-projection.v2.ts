@@ -1330,6 +1330,9 @@ export function projectFiscalNotificationsWorkspacePrivacyV2(
         )?.value,
         actionDate: evidencedDates.find((entry) => entry.kind === "ACTION_DATE")
           ?.value,
+        publicationDate: evidencedDates.find(
+          (entry) => entry.kind === "PUBLICATION_DATE",
+        )?.value,
         effectiveNotificationDate: evidencedDates.find(
           (entry) => entry.kind === "EFFECTIVE_NOTIFICATION_DATE",
         )?.value,

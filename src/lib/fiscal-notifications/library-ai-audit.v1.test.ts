@@ -13,6 +13,7 @@ function readyLibrary(): FiscalNotificationDocumentLibraryViewModelV1 {
     authority: "Agencia Estatal de Administración Tributaria",
     documentDate: "2026-01-10",
     documentDateBasis: "Fecha de emisión",
+    documentSubtype: "collection.enforcement_order",
     pageCount: 2,
     reviewStatus: "PENDING",
     subjectName: "PERSONA PRIVADA",
@@ -524,6 +525,211 @@ describe("library AI audit v1", () => {
       ]),
     );
     expect(JSON.stringify(result)).not.toContain("REF-011-11-09");
+  });
+
+  it("omite hechos genéricos que solo indican constancia documental", () => {
+    const library = readyLibrary() as Extract<
+      FiscalNotificationDocumentLibraryViewModelV1,
+      { readonly status: "READY" }
+    >;
+    const first = library.documents[0] as unknown as {
+      orderedFacts: {
+        key: string;
+        semantic: string;
+        label: string;
+        value: string;
+        pageNumber: number;
+        sourceReference: null;
+      }[];
+    };
+    first.orderedFacts.push({
+      key: "fact:generic-observed",
+      semantic: "DETAIL",
+      label: "Dato observado",
+      value: "Consta en el documento",
+      pageNumber: 1,
+      sourceReference: null,
+    });
+
+    const result = projectFiscalNotificationLibraryAiAuditInputV1(library);
+
+    expect(JSON.stringify(result)).not.toContain("Dato observado");
+    expect(JSON.stringify(result)).not.toContain("Consta en el documento");
+    expect(parseFiscalNotificationLibraryAiAuditInputV1(result)).toEqual(
+      result,
+    );
+  });
+
+  it("envía a la IA etiquetas de carta de pago y recargo ordinario sin sugerir un pago confirmado", () => {
+    const library = readyLibrary() as Extract<
+      FiscalNotificationDocumentLibraryViewModelV1,
+      { readonly status: "READY" }
+    >;
+    const first = library.documents[0] as unknown as {
+      references: { label: string; value: string }[];
+      orderedFacts: {
+        key: string;
+        semantic: string;
+        label: string;
+        value: string;
+        pageNumber: number;
+        sourceReference: null;
+      }[];
+      money: { label: string; kind: string }[];
+    };
+    first.references.push({
+      label: "Justificante de pago",
+      value: "SYN-PAYMENT-FORM-001",
+    });
+    first.orderedFacts.push({
+      key: "fact:payment-form-reference",
+      semantic: "REFERENCE",
+      label: "Justificante de pago",
+      value: "SYN-PAYMENT-FORM-001",
+      pageNumber: 7,
+      sourceReference: null,
+    });
+    first.money[0]!.label = "Recargo ejecutivo del veinte por ciento";
+    first.money[0]!.kind = "EXECUTIVE_SURCHARGE_20";
+
+    const result = projectFiscalNotificationLibraryAiAuditInputV1(library);
+
+    expect(result.documents[0]?.references).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Número de la carta de pago" }),
+      ]),
+    );
+    expect(result.documents[0]?.facts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: "Número de la carta de pago" }),
+      ]),
+    );
+    expect(result.documents[0]?.amounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Recargo de apremio ordinario del 20 %",
+        }),
+      ]),
+    );
+    expect(JSON.stringify(result)).not.toContain("Justificante de pago");
+    expect(JSON.stringify(result)).not.toContain(
+      "Recargo ejecutivo del veinte por ciento",
+    );
+  });
+
+  it("no envía a la IA una cuota duplicada como intereses cuando V11 marca conflicto semántico", () => {
+    const library = readyLibrary() as Extract<
+      FiscalNotificationDocumentLibraryViewModelV1,
+      { readonly status: "READY" }
+    >;
+    const first = library.documents[0] as unknown as {
+      documentSubtype: string;
+      money: {
+        label: string;
+        kind: string;
+        amountCents: number;
+        currency: "EUR";
+        pageNumbers: number[];
+        sourceReference: null;
+      }[];
+      mathematicalIntegrity: NonNullable<
+        Extract<
+          FiscalNotificationDocumentLibraryViewModelV1,
+          { readonly status: "READY" }
+        >["documents"][number]["mathematicalIntegrity"]
+      >;
+    };
+    first.documentSubtype = "assessment.final_provisional_assessment";
+    first.money = [
+      {
+        label: "Cuota resultante",
+        kind: "FINAL_QUOTA",
+        amountCents: 22_800,
+        currency: "EUR",
+        pageNumbers: [1],
+        sourceReference: null,
+      },
+      {
+        label: "Intereses de demora",
+        kind: "LATE_PAYMENT_INTEREST",
+        amountCents: 22_800,
+        currency: "EUR",
+        pageNumbers: [1],
+        sourceReference: null,
+      },
+      {
+        label: "Intereses de demora",
+        kind: "LATE_PAYMENT_INTEREST",
+        amountCents: 307,
+        currency: "EUR",
+        pageNumbers: [1],
+        sourceReference: null,
+      },
+      {
+        label: "Total a ingresar",
+        kind: "DOCUMENT_TOTAL",
+        amountCents: 23_107,
+        currency: "EUR",
+        pageNumbers: [1],
+        sourceReference: null,
+      },
+    ];
+    first.mathematicalIntegrity = {
+      ...first.mathematicalIntegrity,
+      familyId: "assessment.final_provisional_assessment",
+      archetypeId: "ASSESSMENT_FINAL",
+      status: "SEMANTIC_LABEL_INCONSISTENT",
+      checks: [
+        {
+          ...first.mathematicalIntegrity.checks[0]!,
+          ruleId: "v11:assessment-final:semantic-labels:1",
+          checkKind: "STRUCTURAL",
+          status: "SEMANTIC_LABEL_INCONSISTENT",
+          operands: [],
+          expectedCents: null,
+          observedCents: null,
+          deltaCents: null,
+          calculation: { kind: "NONE" },
+          safeMessage:
+            "Validación de etiquetas: hay importes incompatibles clasificados como intereses de demora.",
+        },
+      ],
+    };
+
+    const result = projectFiscalNotificationLibraryAiAuditInputV1(library);
+
+    expect(result.documents[0]?.amounts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Cuota resultante",
+          amountCents: 22_800,
+        }),
+        expect.objectContaining({
+          label: "Intereses de demora",
+          amountCents: 307,
+        }),
+        expect.objectContaining({
+          label: "Total a ingresar",
+          amountCents: 23_107,
+        }),
+      ]),
+    );
+    expect(result.documents[0]?.amounts).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          label: "Intereses de demora",
+          amountCents: 22_800,
+        }),
+      ]),
+    );
+    expect(result.documents[0]?.integrityReview?.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ status: "SEMANTIC_LABEL_INCONSISTENT" }),
+      ]),
+    );
+    expect(parseFiscalNotificationLibraryAiAuditInputV1(result)).toEqual(
+      result,
+    );
   });
 
   it("conserva coincidencias protegidas como alias fuertes con páginas", () => {
