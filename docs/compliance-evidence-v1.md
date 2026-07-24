@@ -1,7 +1,7 @@
 # Factura Autónomo: evidencias técnicas y cumplimiento v1
 
 Fecha de creación: 2026-06-24
-Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U, unlock preparation 2B.7V-Z, base server-only de sync 2C.1-2C.6, adaptador in-memory local/staging 2C.7-2C.12, diseno de adaptador Supabase local/staging 2C.13-2C.18, schema local/staging compatible 2C.19-2C.24, servicio server-only 2C.25-2C.30, route shell deshabilitada 2C.31-2C.36, ejecucion local/fake endurecida 2C.37-2C.48, handler privado local/staging 2C.49-2C.56, private staging readiness gates 2C.57-2C.66, local data safety / backup restore 2D.1-2D.10, backup/import review flow 2D.11-2D.20, disabled UI shell 2D.21-2D.32, disabled UI wiring 2D.33-2D.44, routeless UI preview harness 2D.45-2D.56, local data safety regression corpus 2D.57-2D.68, import/restore wiring decision package 2D.69-2D.80, hidden/routeless UI shell 2D.81-2D.92, hidden UI enablement safety gates 2D.93-2D.104 y export de snapshots de auditoria AUDIT_EXPORT_V1 a 2026-06-27
+Estado del dossier: v1 vivo / actualizado con cierre local-staging 2B.4, cierre documental 2B.5A-M, descriptores sinteticos 2B.6A-C, bloqueo oficial 2B.7F-K, enforcement 2B.7L-P, readiness tooling 2B.7Q-U, unlock preparation 2B.7V-Z, base server-only de sync 2C.1-2C.6, adaptador in-memory local/staging 2C.7-2C.12, diseno de adaptador Supabase local/staging 2C.13-2C.18, schema local/staging compatible 2C.19-2C.24, servicio server-only 2C.25-2C.30, route shell deshabilitada 2C.31-2C.36, ejecucion local/fake endurecida 2C.37-2C.48, handler privado local/staging 2C.49-2C.56, private staging readiness gates 2C.57-2C.66, local data safety / backup restore 2D.1-2D.10, backup/import review flow 2D.11-2D.20, disabled UI shell 2D.21-2D.32, disabled UI wiring 2D.33-2D.44, routeless UI preview harness 2D.45-2D.56, local data safety regression corpus 2D.57-2D.68, import/restore wiring decision package 2D.69-2D.80, hidden/routeless UI shell 2D.81-2D.92, hidden UI enablement safety gates 2D.93-2D.104, local storage resilience foundation 2E.1-2E.12 y export de snapshots de auditoria AUDIT_EXPORT_V1 a 2026-06-27
 Producto: Factura Autónomo
 
 ## 1. Propósito del documento
@@ -105,6 +105,7 @@ Criterios técnicos resumidos, sin reproducir normativa extensa:
 | Fase 2D.69-2D.80 | Import/restore wiring decision package. | PR 2D import restore wiring decision package | Decision gate, corpus scenario decision matrix, UX/data-loss decision packet, corpus view-model catalog, review board packet, approval state machine, safe reviewer notes, in-memory decision report, acceptance y full corpus regression. | Validadores 2D.69-2D.80; tests unitarios de `src/lib/local-data-safety`; `test:phase2d77-import-restore-decision-package-acceptance`; `test:phase2d78-import-restore-full-corpus-decision-regression`; audit export verificado. | `PHASE2D_IMPORT_RESTORE_WIRING_DECISION_PACKAGE: READY FOR HUMAN PRODUCT_DECISION / NO WIRING / NO APPLY`; `PHASE2D69_80_IMPORT_RESTORE_WIRING_DECISION_PACKAGE_V1`; evidencia tecnica interna, decision package, no UI conectada, no ruta, no navegación, no localStorage read/write, no file picker real, no download, no import/restore apply, sin producción, sin Supabase y sin documentos reales. |
 | Fase 2D.81-2D.92 | Hidden/routeless UI shell para import/restore. | PR 2D hidden import restore UI shell | Hidden shell flag contract, routeless composition root, synthetic fixture selector, preview panel, risk panel, decision packet panel, disabled action bar, render harness, no-route acceptance, no-apply/no-storage acceptance y checkpoint. | Validadores 2D.81-2D.92; tests unitarios de `src/lib/local-data-safety`; tests de `src/components/local-data-safety`; `test:phase2d89-hidden-import-restore-ui-no-route-acceptance`; `test:phase2d90-hidden-import-restore-ui-no-apply-storage-acceptance`; audit export verificado. | `PHASE2D_HIDDEN_IMPORT_RESTORE_UI_WIRING_SHELL: READY FOR EXPLICIT HIDDEN_UI_ENABLEMENT_REVIEW / NO APPLY`; `PHASE2D81_92_HIDDEN_IMPORT_RESTORE_UI_WIRING_SHELL_V1`; evidencia tecnica interna, hidden/routeless UI shell, no ruta publica, no navegación, no localStorage read/write, no file picker real, no download, no import/restore apply, sin producción, sin Supabase y sin documentos reales. |
 | Fase 2D.93-2D.104 | Hidden UI enablement safety gates para import/restore. | PR 2D hidden UI enablement safety gates | Enablement gate bloqueado por defecto, environment contract inyectado, approval checklist all false, UX/legal/data-loss final review pack, no-go registry, hidden shell readiness report, owner decision packet, dry-run state machine, global no-route/no-storage regression, enablement blocked acceptance y checkpoint. | Validadores 2D.93-2D.104; tests unitarios de `src/lib/local-data-safety`; `test:phase2d101-import-restore-global-no-route-no-storage-regression`; `test:phase2d102-hidden-ui-enablement-blocked-acceptance`; audit export verificado. | `PHASE2D_HIDDEN_UI_ENABLEMENT_SAFETY_GATES: READY FOR OWNER_DECISION / BLOCKED BY DEFAULT / NO ENABLEMENT`; `PHASE2D93_104_HIDDEN_IMPORT_RESTORE_UI_ENABLEMENT_SAFETY_GATES_V1`; evidencia tecnica interna, UI routeless, no UI activa, no ruta, no navegación, no localStorage read/write, no import/restore apply, sin producción, sin Supabase y sin documentos reales. |
+| Fase 2E.1-2E.12 | Local storage resilience foundation. | PR 2E local storage resilience foundation | Auditoria de superficie, disabled storage adapter, fake/in-memory adapters, storage error taxonomy, operation dry-run planner, backup-before-write policy, corruption/parse recovery classifier, safe report, audit events in-memory, acceptance y checkpoint. | Validadores 2E.1-2E.12; tests unitarios de `src/lib/local-storage-resilience`; `test:phase2e10-storage-resilience-acceptance`; audit export verificado. | `PHASE2E_LOCAL_STORAGE_RESILIENCE_FOUNDATION: READY FOR STORAGE UI/ADAPTER DECISION / NO REAL STORAGE MUTATION`; `PHASE2E1_12_LOCAL_STORAGE_RESILIENCE_FOUNDATION_V1`; `PHASE2E11_COMPLIANCE_DOSSIER_STORAGE_RESILIENCE_UPDATE_V1`; evidencia tecnica interna de local storage resilience y storage safety, fake/in-memory adapters, no localStorage real, no data mutation, no UI, sin produccion, sin Supabase y sin documentos reales. |
 | AUDIT_EXPORT_V1 | Snapshot/export seguro del dossier vivo para auditoria. | PR audit export v1 | Metadata JSON; politica de snapshot; export HTML imprimible; guia PDF manual; validadores; dossier actualizado. | `export:compliance-dossier:html`; validadores audit export; validaciones generales del repo. | `COMPLIANCE_DOSSIER_EXPORT: HTML SNAPSHOT READY / PDF GUIDE READY / MD CANONICAL`; evidencia tecnica interna; sin cumplimiento productivo, sin certificacion, sin PDF binario commiteado. |
 
 Archivos internos relevantes:
@@ -198,6 +199,17 @@ Archivos internos relevantes:
 - `docs/phase2d65-composite-data-loss-risk-aggregator-v1.md`
 - `docs/phase2d66-local-data-safety-corpus-regression-acceptance-v1.md`
 - `docs/phase2d68-local-data-safety-regression-corpus-checkpoint-v1.md`
+- `docs/phase2e1-local-storage-surface-audit-v1.md`
+- `docs/phase2e2-storage-adapter-contract-disabled-v1.md`
+- `docs/phase2e3-in-memory-storage-adapter-v1.md`
+- `docs/phase2e4-storage-error-taxonomy-v1.md`
+- `docs/phase2e5-storage-operation-dry-run-planner-v1.md`
+- `docs/phase2e6-backup-before-write-policy-v1.md`
+- `docs/phase2e7-corruption-parse-recovery-classifier-v1.md`
+- `docs/phase2e8-storage-resilience-safe-report-v1.md`
+- `docs/phase2e9-storage-resilience-audit-events-v1.md`
+- `docs/phase2e10-storage-resilience-acceptance-v1.md`
+- `docs/phase2e12-local-storage-resilience-foundation-checkpoint-v1.md`
 
 ## 6. Seguridad de Supabase y permisos
 
@@ -358,6 +370,7 @@ Trabajo pendiente:
 - el import/restore wiring decision package 2D.69-2D.80 anade gate de decision, decision matrix del corpus, UX/data-loss packet, catalogo de view-models seguros, review board packet, approval state machine, reviewer notes seguras, decision report in-memory, acceptance y full corpus regression. `PHASE2D69_80_IMPORT_RESTORE_WIRING_DECISION_PACKAGE_V1`; no UI conectada, no ruta, no navegación, no localStorage read/write, no file picker real, no download, no import/restore apply, sin producción, sin Supabase y sin documentos reales.
 - el hidden/routeless UI shell 2D.81-2D.92 anade flag privada inyectada, composicion React no conectada, selector de fixtures sinteticos, paneles de preview/riesgo/decision/action bar deshabilitada, render harness sintetico y acceptance sin ruta ni storage/apply. `PHASE2D81_92_HIDDEN_IMPORT_RESTORE_UI_WIRING_SHELL_V1`; no ruta publica, no navegación, no localStorage read/write, no FileReader real, no Blob/download, no import/restore apply, sin producción, sin Supabase y sin documentos reales.
 - el hidden UI enablement safety gates 2D.93-2D.104 anade gate bloqueado por defecto, contrato de entorno inyectado sin `NEXT_PUBLIC`, checklist all false, final UX/legal/data-loss review pack, no-go registry, readiness report, owner decision packet, state machine dry-run y acceptance de bloqueo. `PHASE2D93_104_HIDDEN_IMPORT_RESTORE_UI_ENABLEMENT_SAFETY_GATES_V1`; UI routeless, no UI activa, no ruta, no navegación, no localStorage read/write, no FileReader real, no Blob/download, no import/restore apply, synthetic data only, sin producción, sin Supabase y sin documentos reales.
+- el local storage resilience foundation 2E.1-2E.12 anade una base pura de storage safety con auditoria de superficie, disabled storage adapter, fake/in-memory adapters, storage error taxonomy, operation dry-run planner, backup-before-write policy, corruption/parse recovery classifier, safe report, audit events in-memory, acceptance y checkpoint. `PHASE2E1_12_LOCAL_STORAGE_RESILIENCE_FOUNDATION_V1`; `PHASE2E11_COMPLIANCE_DOSSIER_STORAGE_RESILIENCE_UPDATE_V1`; no localStorage real, no data mutation, no UI, no ruta, no navegacion, no import/restore apply, synthetic data only, sin produccion, sin Supabase y sin documentos reales.
 - proximos pasos posibles: pausa de revision tecnica, security review externa, revision UX/legal/data-loss, owner decision explicita de hidden UI enablement o hardening adicional antes de ampliar superficie.
 
 Evidencia tecnica interna de sync 2C.37-2C.48:
@@ -508,6 +521,23 @@ Evidencia tecnica interna de hidden UI enablement safety gates 2D.93-2D.104:
 - dry-run state machine sin activar UI, sin escribir config y sin cambiar flags reales;
 - global no-route/no-storage regression 2D.101 y enablement blocked acceptance 2D.102;
 - UI routeless, no UI activa, no ruta, no navegación, no localStorage read/write, no FileReader real, no Blob/download real, no import/restore apply, synthetic data only, sin documentos reales, sin producción y sin Supabase.
+
+Evidencia tecnica interna de local storage resilience foundation 2E.1-2E.12:
+
+- `PHASE2E_LOCAL_STORAGE_RESILIENCE_FOUNDATION: READY FOR STORAGE UI/ADAPTER DECISION / NO REAL STORAGE MUTATION`;
+- `PHASE2E1_12_LOCAL_STORAGE_RESILIENCE_FOUNDATION_V1`;
+- `PHASE2E11_COMPLIANCE_DOSSIER_STORAGE_RESILIENCE_UPDATE_V1`;
+- auditoria de superficie local storage con riesgos de cuota, corrupcion JSON, sobrescritura, multi-tab, navegador/perfil y versiones;
+- disabled storage adapter bloqueado por defecto con reason `STORAGE_ADAPTER_DISABLED_PENDING_UI_AND_DATA_REVIEW`;
+- fake/in-memory adapters limitados a claves `SYNTHETIC_ONLY_*`, con clone de entradas/salidas y sin persistencia;
+- storage error taxonomy con redaccion de stack, payload y valores de storage;
+- operation dry-run planner con writes/deletes/replaces bloqueados y backup-before-write requerido;
+- backup-before-write policy con manifest, digest, recovery snapshot, human confirmation y dry-run report como requisitos futuros, todos sin autorizar escritura;
+- corruption/parse recovery classifier para JSON invalido, shape incorrecta, AppData parcial, manifest only, prototype pollution, arrays criticos ausentes y legacy shape;
+- storage safe report sin payload, con adapter status, planned operations, blockers, backup readiness, recovery status y next steps;
+- audit events in-memory sin persistencia, sin payload, sin valores y sin secretos;
+- acceptance local `PHASE2E10_STORAGE_RESILIENCE_ACCEPTANCE_V1` con datos sinteticos;
+- no localStorage real, no window storage, no IndexedDB real, no FileReader real, no Blob/download real, no data mutation, no import/restore apply, no UI, no ruta, no navegacion, sin produccion, sin Supabase y sin documentos reales.
 
 ## 9. VERI*FACTU
 
@@ -737,6 +767,7 @@ Controles existentes:
 - disabled UI shell 2D.21-2D.32 con view models seguros, React shell no conectada, disabled actions, preview list, safe error presenter y eventos UI in-memory.
 - disabled UI wiring 2D.33-2D.44 con UI wiring gates, adapter de seleccion de archivo bloqueado, local file preview harness sintetico, handlers no-op/blocked, props factory segura, checklist all false y route/navigation blocker.
 - routeless UI preview harness 2D.45-2D.56 con fixtures sinteticos, state machine de preview, review session model, data-loss warning model, recovery snapshot download placeholder disabled, UX/legal review packet y wiring final blockers.
+- local storage resilience 2E.1-2E.12 con storage safety, disabled storage adapter, fake/in-memory adapters, error taxonomy, dry-run planner, backup-before-write policy, corruption/parse recovery, safe report y audit events in-memory.
 
 Pendiente:
 
@@ -750,6 +781,7 @@ Pendiente:
 - decision explicita de UI wiring antes de cualquier pantalla visible, ruta, navegación, lectura/escritura real, import real o restore real.
 - decision explicita de routeless UI wiring antes de cualquier conexion visible, manteniendo no UI conectada, no ruta, no navegación, no file picker real, no localStorage write, no import/restore apply, sin producción, sin Supabase y sin documentos reales.
 - revision UX/legal/data-loss antes de cualquier wiring, descarga, lectura real, apply import o apply restore.
+- storage adapter review antes de conectar almacenamiento real: mantener no localStorage real, no data mutation, no UI, sin produccion, sin Supabase y sin documentos reales hasta decision separada.
 
 ## 12. IA y tratamiento externo
 
@@ -845,6 +877,7 @@ Declaraciones no permitidas todavía:
 | Fase 2D.69-2D.80 | Import/restore wiring decision package | `PHASE2D_IMPORT_RESTORE_WIRING_DECISION_PACKAGE: READY FOR HUMAN PRODUCT_DECISION / NO WIRING / NO APPLY`; evidencia tecnica interna; decision gate, matrix, UX/data-loss packet, catalogo de summaries, review board packet, approvals, reviewer notes, decision report, acceptance y regression; no UI conectada, no ruta, no navegación, no localStorage read/write, no file picker real, no download, no import/restore apply, sin producción, sin Supabase y sin documentos reales. |
 | Fase 2D.81-2D.92 | Hidden/routeless UI shell | `PHASE2D_HIDDEN_IMPORT_RESTORE_UI_WIRING_SHELL: READY FOR EXPLICIT HIDDEN_UI_ENABLEMENT_REVIEW / NO APPLY`; evidencia tecnica interna; hidden/routeless UI shell, flag privada, composicion no conectada, selector sintetico, paneles, action bar deshabilitada, render harness, no-route acceptance y no-apply/no-storage acceptance; no ruta publica, no navegación, no localStorage read/write, no FileReader real, no Blob/download, no import/restore apply, sin producción, sin Supabase y sin documentos reales. |
 | Fase 2D.93-2D.104 | Hidden UI enablement safety gates | `PHASE2D_HIDDEN_UI_ENABLEMENT_SAFETY_GATES: READY FOR OWNER_DECISION / BLOCKED BY DEFAULT / NO ENABLEMENT`; evidencia tecnica interna; gate bloqueado por defecto, environment contract inyectado, checklist all false, final review pack, no-go registry, readiness report, owner decision packet, dry-run state machine, global regression y blocked acceptance; UI routeless, no UI activa, no ruta, no navegación, no localStorage read/write, no import/restore apply, synthetic data only, sin producción, sin Supabase y sin documentos reales. |
+| Fase 2E.1-2E.12 | Local storage resilience foundation | `PHASE2E_LOCAL_STORAGE_RESILIENCE_FOUNDATION: READY FOR STORAGE UI/ADAPTER DECISION / NO REAL STORAGE MUTATION`; evidencia tecnica interna; storage safety, disabled storage adapter, fake/in-memory adapters, error taxonomy, operation dry-run, backup-before-write, corruption recovery, safe report, audit events y acceptance; no localStorage real, no data mutation, no UI, sin produccion, sin Supabase y sin documentos reales. |
 | AUDIT_EXPORT_V1 | Snapshot/export del dossier vivo | `COMPLIANCE_DOSSIER_EXPORT: HTML SNAPSHOT READY / PDF GUIDE READY / MD CANONICAL`; HTML/PDF son snapshots derivados; el Markdown sigue siendo canonico; no declaran cumplimiento productivo. |
 | Legal | Revisión legal/fiscal y declaración responsable | Pendiente de base técnica cerrada. |
 | Staging | Entorno previo a producción | Pendiente. |
@@ -885,6 +918,7 @@ Declaraciones no permitidas todavía:
 | 2026-06-27 | Import/restore wiring decision package 2D.69-2D.80 anadido con decision gate, corpus matrix, UX/data-loss packet, catalogo, review board packet, approval state machine, reviewer notes, decision report, acceptance y regression sin wiring ni apply. | Fase 2D.69-2D.80 | PR 2D import restore wiring decision package | Equipo Factura Autónomo / Codex |
 | 2026-06-27 | Hidden/routeless UI shell 2D.81-2D.92 anadido con flag privada, composicion no conectada, selector sintetico, preview/risk/decision/action panels, render harness, no-route acceptance y no-apply/no-storage acceptance sin ruta ni apply. | Fase 2D.81-2D.92 | PR 2D hidden import restore UI shell | Equipo Factura Autónomo / Codex |
 | 2026-06-27 | Hidden UI enablement safety gates 2D.93-2D.104 anadidos con gate bloqueado, environment contract, checklist all false, final review pack, no-go registry, readiness report, owner packet, dry-run state machine, global regression y blocked acceptance sin enablement. | Fase 2D.93-2D.104 | PR 2D hidden UI enablement safety gates | Equipo Factura Autónomo / Codex |
+| 2026-06-27 | Local storage resilience foundation 2E.1-2E.12 anadida con auditoria, disabled storage adapter, fake/in-memory adapters, error taxonomy, dry-run planner, backup-before-write, corruption recovery, safe report, audit events y acceptance sin storage real. | Fase 2E.1-2E.12 | PR 2E local storage resilience foundation | Equipo Factura Autónomo / Codex |
 
 ## Anexo A. Evidencias técnicas locales recientes
 
@@ -916,6 +950,35 @@ Para Fase 2A.5 constan expresamente:
 - `git diff --check`: OK;
 - `Quality` sobre `main`: SUCCESS;
 - `Supabase Acceptance` sobre `main`: SUCCESS.
+
+Para Fase 2E.1-2E.12 constan como referencias internas:
+
+- `docs/phase2e1-local-storage-surface-audit-v1.md`;
+- `docs/phase2e2-storage-adapter-contract-disabled-v1.md`;
+- `docs/phase2e3-in-memory-storage-adapter-v1.md`;
+- `docs/phase2e4-storage-error-taxonomy-v1.md`;
+- `docs/phase2e5-storage-operation-dry-run-planner-v1.md`;
+- `docs/phase2e6-backup-before-write-policy-v1.md`;
+- `docs/phase2e7-corruption-parse-recovery-classifier-v1.md`;
+- `docs/phase2e8-storage-resilience-safe-report-v1.md`;
+- `docs/phase2e9-storage-resilience-audit-events-v1.md`;
+- `docs/phase2e10-storage-resilience-acceptance-v1.md`;
+- `docs/phase2e12-local-storage-resilience-foundation-checkpoint-v1.md`;
+- `src/lib/local-storage-resilience/types.ts`;
+- `src/lib/local-storage-resilience/storage-adapter-contract.ts`;
+- `src/lib/local-storage-resilience/in-memory-storage-adapter.ts`;
+- `src/lib/local-storage-resilience/storage-errors.ts`;
+- `src/lib/local-storage-resilience/storage-operation-dry-run.ts`;
+- `src/lib/local-storage-resilience/backup-before-write-policy.ts`;
+- `src/lib/local-storage-resilience/storage-corruption-recovery.ts`;
+- `src/lib/local-storage-resilience/storage-safe-report.ts`;
+- `src/lib/local-storage-resilience/storage-audit-events.ts`;
+- `scripts/phase2e10-storage-resilience-acceptance.test.ts`;
+- `scripts/validate-phase2e1-12-local-storage-resilience-foundation.mjs`;
+- validadores `validate:phase2e1-*` a `validate:phase2e10-*`;
+- `test:phase2e10-storage-resilience-acceptance`;
+- estado documentado: `PHASE2E_LOCAL_STORAGE_RESILIENCE_FOUNDATION: READY FOR STORAGE UI/ADAPTER DECISION / NO REAL STORAGE MUTATION`;
+- limites: no localStorage real, no data mutation, no UI, sin produccion, sin Supabase, sin documentos reales y synthetic data only.
 
 Para el cierre 2B.4 y la frontera 2B.5 constan como referencias internas:
 

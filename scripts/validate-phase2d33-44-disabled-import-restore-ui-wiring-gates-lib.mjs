@@ -152,7 +152,11 @@ function validateNoRedLines() {
     /^scripts\/validate-phase2d(?:[1-9]|[1-9][0-9]|10[0-4]|1-10|11-20|21-32|33-44|45-56|57-68|69-80|81-92|93-104)-.*\.mjs$/,
     /^scripts\/validate-phase2[bc].*\.mjs$/,
     /^scripts\/validate-audit-export-v1-compliance-dossier-snapshot\.mjs$/,
+    /^src\/lib\/local-storage-resilience\//,
+    /^scripts\/phase2e10-storage-resilience-acceptance\.test\.ts$/,
+    /^scripts\/validate-phase2e(?:[1-9]|10|1-12)-.*\.mjs$/,
     /^docs\/phase2d(?:[1-9]|[1-9][0-9]|10[0-4])-.*$/,
+    /^docs\/phase2e(?:[1-9]|10|12)-.*$/,
     /^docs\/compliance-evidence-v1\.md$/,
     /^package\.json$/,
   ];
