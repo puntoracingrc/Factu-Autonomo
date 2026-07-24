@@ -48,12 +48,16 @@ Evidencia capturada:
 
 - `docs/architecture/supabase-production-schema-inventory-2026-07-24.json`
 - `docs/architecture/central-invoice-authority-supabase-reconciliation-2026-07-24.json`
+- `docs/architecture/supabase-production-migration-gap-classification-2026-07-24.json`
 
 La evidencia es de catalogo: esquema e historial de migraciones, sin leer filas
 de negocio. Confirma que produccion muestra tres versiones de migracion y que
 el repositorio contiene versiones adicionales que no aparecen en ese historial,
 por lo que la baseline sigue sin reconciliar y cualquier SQL productivo sigue
-bloqueado.
+bloqueado. La clasificacion derivada separa migraciones cubiertas por el
+catalogo visible, migraciones no presentes en `public`/`storage` y migraciones
+que requieren inventario privado adicional, especialmente
+`expense_learning_private`.
 
 ## Lo prohibido ahora
 
