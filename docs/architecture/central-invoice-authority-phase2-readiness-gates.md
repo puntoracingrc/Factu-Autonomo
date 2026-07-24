@@ -44,6 +44,17 @@ la sincronizacion actual por si solas.
 - Restaurar una copia en un entorno aislado.
 - Disenar la migracion aditiva central sin ejecutarla.
 
+Evidencia capturada:
+
+- `docs/architecture/supabase-production-schema-inventory-2026-07-24.json`
+- `docs/architecture/central-invoice-authority-supabase-reconciliation-2026-07-24.json`
+
+La evidencia es de catalogo: esquema e historial de migraciones, sin leer filas
+de negocio. Confirma que produccion muestra tres versiones de migracion y que
+el repositorio contiene versiones adicionales que no aparecen en ese historial,
+por lo que la baseline sigue sin reconciliar y cualquier SQL productivo sigue
+bloqueado.
+
 ## Lo prohibido ahora
 
 - Aplicar `central_invoice_*` en produccion.
