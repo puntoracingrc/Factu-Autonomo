@@ -30,6 +30,14 @@ assert.match(registry, /autoridad central/i);
 assert.match(codeowners, /ADR-0010-central-invoice-authority\.md/);
 assert.match(codeowners, /central-invoice-authority/);
 assert.match(activation, /CENTRAL_INVOICE_AUTHORITY_MODE/);
+assert.match(activation, /CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY/);
+assert.match(activation, /CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED/);
+assert.match(activation, /CENTRAL_INVOICE_AUTHORITY_RESTORABLE_BACKUP_VERIFIED/);
+assert.match(activation, /CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED/);
+assert.match(activation, /operational_sync_not_ready/);
+assert.match(activation, /baseline_not_reconciled/);
+assert.match(activation, /restorable_backup_missing/);
+assert.match(activation, /isolated_restore_drill_missing/);
 assert.match(activation, /fiscalWritesEnabled: false/);
 assert.doesNotMatch(activation, /NEXT_PUBLIC_/);
 

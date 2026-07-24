@@ -8,6 +8,14 @@ export const CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION_KEY =
   "CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION";
 export const CENTRAL_INVOICE_AUTHORITY_PRODUCTION_APPROVED_KEY =
   "CENTRAL_INVOICE_AUTHORITY_PRODUCTION_APPROVED";
+export const CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY_KEY =
+  "CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY";
+export const CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED_KEY =
+  "CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED";
+export const CENTRAL_INVOICE_AUTHORITY_RESTORABLE_BACKUP_VERIFIED_KEY =
+  "CENTRAL_INVOICE_AUTHORITY_RESTORABLE_BACKUP_VERIFIED";
+export const CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED_KEY =
+  "CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED";
 export const CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION =
   "central-invoice-authority-v1";
 
@@ -20,6 +28,10 @@ export type CentralInvoiceAuthorityActivationReason =
   | "shadow_only"
   | "user_not_allowlisted"
   | "schema_not_ready"
+  | "operational_sync_not_ready"
+  | "baseline_not_reconciled"
+  | "restorable_backup_missing"
+  | "isolated_restore_drill_missing"
   | "production_approval_missing"
   | "canary_enabled"
   | "required_enabled";
@@ -94,6 +106,40 @@ function canaryUsers(env: EnvLike): Set<string> {
   );
 }
 
+function envFlagEnabled(env: EnvLike, key: string): boolean {
+  return env[key] === "true";
+}
+
+function operationalGateReason(
+  env: EnvLike,
+): CentralInvoiceAuthorityActivationReason | null {
+  if (
+    !envFlagEnabled(env, CENTRAL_INVOICE_AUTHORITY_OPERATIONAL_SYNC_READY_KEY)
+  ) {
+    return "operational_sync_not_ready";
+  }
+  if (!envFlagEnabled(env, CENTRAL_INVOICE_AUTHORITY_BASELINE_RECONCILED_KEY)) {
+    return "baseline_not_reconciled";
+  }
+  if (
+    !envFlagEnabled(
+      env,
+      CENTRAL_INVOICE_AUTHORITY_RESTORABLE_BACKUP_VERIFIED_KEY,
+    )
+  ) {
+    return "restorable_backup_missing";
+  }
+  if (
+    !envFlagEnabled(
+      env,
+      CENTRAL_INVOICE_AUTHORITY_ISOLATED_RESTORE_DRILL_PASSED_KEY,
+    )
+  ) {
+    return "isolated_restore_drill_missing";
+  }
+  return null;
+}
+
 export function evaluateCentralInvoiceAuthorityActivation(
   input: {
     env?: EnvLike;
@@ -134,6 +180,11 @@ export function evaluateCentralInvoiceAuthorityActivation(
     CENTRAL_INVOICE_AUTHORITY_SCHEMA_VERSION
   ) {
     return disabled(parsedMode, production, "schema_not_ready", true);
+  }
+
+  const gateReason = operationalGateReason(env);
+  if (gateReason) {
+    return disabled(parsedMode, production, gateReason, true);
   }
 
   if (
