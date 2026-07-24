@@ -1,0 +1,350 @@
+{
+  "schemaVersion": "central-invoice-authority-supabase-reconciliation-v1",
+  "capturedAt": "2026-07-24T04:01:14+00",
+  "source": "supabase-dashboard-sql-editor-read-only-catalog-query",
+  "basedOn": {
+    "productionInventoryFile": "docs/architecture/supabase-production-schema-inventory-2026-07-24.json",
+    "repoMainCommit": "c6cbc9b509ecbe00a2d602c828751c2cb6ed3acb"
+  },
+  "project": {
+    "ref": "rnbmkkzptxbvtchluqrx",
+    "environment": "production"
+  },
+  "queryMode": "read-only-catalog-only-no-business-rows",
+  "schemaSurfaceSummary": {
+    "schemas": [
+      "public",
+      "storage"
+    ],
+    "tables": 29,
+    "columns": 278,
+    "functions": 41,
+    "indexes": 74,
+    "policies": 9,
+    "triggers": 7,
+    "realtimePublications": 0
+  },
+  "migrationReconciliation": {
+    "baselineReconciledWithGit": false,
+    "productionVisibleVersions": [
+      "20260720133000",
+      "20260721190000",
+      "20260721190100"
+    ],
+    "repositoryMigrationVersions": [
+      "20260623000000",
+      "20260624000100",
+      "20260624000200",
+      "20260624220000",
+      "20260625070000",
+      "20260625093000",
+      "20260625133500",
+      "20260625142000",
+      "20260625153000",
+      "20260626212000",
+      "20260628223000",
+      "20260701060000",
+      "20260701070000",
+      "20260703190000",
+      "20260704092000",
+      "20260704133000",
+      "20260704170000",
+      "20260709060000",
+      "20260709080000",
+      "20260709090000",
+      "20260709093000",
+      "20260709100000",
+      "20260709113000",
+      "20260709123000",
+      "20260709222000",
+      "20260713001000",
+      "20260715131500",
+      "20260716160000",
+      "20260717090000",
+      "20260717104000",
+      "20260718120000",
+      "20260718143000",
+      "20260720084500",
+      "20260720133000",
+      "20260721190000",
+      "20260721190100",
+      "20260721223000",
+      "20260722050000",
+      "20260722110000",
+      "20260722190000",
+      "20260722230000",
+      "20260722234500",
+      "20260723010000",
+      "20260723070000"
+    ],
+    "productionVisibleVersionsMissingFromGit": [],
+    "repositoryVersionsNotVisibleInProduction": [
+      "20260623000000",
+      "20260624000100",
+      "20260624000200",
+      "20260624220000",
+      "20260625070000",
+      "20260625093000",
+      "20260625133500",
+      "20260625142000",
+      "20260625153000",
+      "20260626212000",
+      "20260628223000",
+      "20260701060000",
+      "20260701070000",
+      "20260703190000",
+      "20260704092000",
+      "20260704133000",
+      "20260704170000",
+      "20260709060000",
+      "20260709080000",
+      "20260709090000",
+      "20260709093000",
+      "20260709100000",
+      "20260709113000",
+      "20260709123000",
+      "20260709222000",
+      "20260713001000",
+      "20260715131500",
+      "20260716160000",
+      "20260717090000",
+      "20260717104000",
+      "20260718120000",
+      "20260718143000",
+      "20260720084500",
+      "20260721223000",
+      "20260722050000",
+      "20260722110000",
+      "20260722190000",
+      "20260722230000",
+      "20260722234500",
+      "20260723010000",
+      "20260723070000"
+    ],
+    "classification": [
+      {
+        "version": "20260623000000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260624000100",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260624000200",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260624220000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260625070000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260625093000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260625133500",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260625142000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260625153000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260626212000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260628223000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260701060000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260701070000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260703190000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260704092000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260704133000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260704170000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260709060000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260709080000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260709090000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260709093000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260709100000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260709113000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260709123000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260709222000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260713001000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260715131500",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260716160000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260717090000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260717104000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260718120000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260718143000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260720084500",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260721223000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260722050000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260722110000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260722190000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260722230000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260722234500",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260723010000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      },
+      {
+        "version": "20260723070000",
+        "status": "not_visible_in_production_migration_history",
+        "action": "do_not_replay_against_production_until_baseline_owner_classifies_as_applied_baseline_staging_only_or_pending_real"
+      }
+    ]
+  },
+  "centralAuthority": {
+    "tablesPresent": false,
+    "issueRpcPresent": false,
+    "requiredTablesPresent": []
+  },
+  "recoveryEvidence": {
+    "pitrEnabled": false,
+    "pitrRequiredBeforeThisReadOnlyPhase": false,
+    "restorableBackupVerified": false,
+    "isolatedRestoreDrillPassed": false
+  },
+  "decision": "blocked-before-additive-central-schema",
+  "nextAllowedStep": "classify-repository-migration-history-gap-and-produce-restorable-backup-evidence-before-any-production-sql",
+  "notes": [
+    "The inventory query only reads PostgreSQL catalog tables and migration history; it does not read business rows.",
+    "No central invoice authority tables or issuing RPC are present in production.",
+    "The production migration table shows only three versions, so Git history cannot yet be treated as a replayable production baseline."
+  ]
+}

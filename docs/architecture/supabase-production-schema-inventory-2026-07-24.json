@@ -1,0 +1,4096 @@
+{
+  "tables": [
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "admin_mfa_recovery_challenges",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 32768,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "admin_user_restore_events",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 49152,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "admin_user_restore_points",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 2473984,
+      "estimatedRows": 1
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "affiliate_reward_entries",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 49152,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "app_error_events",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 1204224,
+      "estimatedRows": 1736
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "partner_accounts",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 65536,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "partner_commission_entries",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 40960,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "partner_payouts",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 24576,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "payment_receipts",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 24576,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "promo_campaigns",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 32768,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "promo_module_entitlements",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 32768,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "promo_redemptions",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 32768,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "referral_codes",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 49152,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "referral_redemptions",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 40960,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "server_rate_limit_buckets",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 65536,
+      "estimatedRows": 18
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "stripe_events",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 40960,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "sync_entities",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 25149440,
+      "estimatedRows": 5836
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "user_backups",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 16384,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "user_devices",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 98304,
+      "estimatedRows": 5
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "user_subscriptions",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 32768,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "user_usage",
+      "schema": "public",
+      "forceRls": false,
+      "sizeBytes": 65536,
+      "estimatedRows": 3
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "buckets",
+      "schema": "storage",
+      "forceRls": false,
+      "sizeBytes": 24576,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "buckets_analytics",
+      "schema": "storage",
+      "forceRls": false,
+      "sizeBytes": 24576,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "buckets_vectors",
+      "schema": "storage",
+      "forceRls": false,
+      "sizeBytes": 16384,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "migrations",
+      "schema": "storage",
+      "forceRls": false,
+      "sizeBytes": 40960,
+      "estimatedRows": 61
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "objects",
+      "schema": "storage",
+      "forceRls": false,
+      "sizeBytes": 49152,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "s3_multipart_uploads",
+      "schema": "storage",
+      "forceRls": false,
+      "sizeBytes": 24576,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "s3_multipart_uploads_parts",
+      "schema": "storage",
+      "forceRls": false,
+      "sizeBytes": 16384,
+      "estimatedRows": 0
+    },
+    {
+      "rls": true,
+      "kind": "table",
+      "name": "vector_indexes",
+      "schema": "storage",
+      "forceRls": false,
+      "sizeBytes": 24576,
+      "estimatedRows": 0
+    }
+  ],
+  "columns": [
+    {
+      "table": "admin_mfa_recovery_challenges",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "admin_mfa_recovery_challenges",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_mfa_recovery_challenges",
+      "column": "created_by",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_mfa_recovery_challenges",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "admin_mfa_recovery_challenges",
+      "column": "expires_at",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_mfa_recovery_challenges",
+      "column": "used_at",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_mfa_recovery_challenges",
+      "column": "code_hash",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_mfa_recovery_challenges",
+      "column": "attempts",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "admin_mfa_recovery_challenges",
+      "column": "email",
+      "schema": "public",
+      "ordinal": 9,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_user_restore_events",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "admin_user_restore_events",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_user_restore_events",
+      "column": "restore_point_id",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_user_restore_events",
+      "column": "safety_restore_point_id",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_user_restore_events",
+      "column": "restored_by",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_user_restore_events",
+      "column": "restored_at",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "admin_user_restore_events",
+      "column": "diff_summary",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "jsonb",
+      "dataType": "jsonb",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "admin_user_restore_events",
+      "column": "note",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_user_restore_points",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "admin_user_restore_points",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_user_restore_points",
+      "column": "created_by",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_user_restore_points",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "admin_user_restore_points",
+      "column": "label",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_user_restore_points",
+      "column": "reason",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_user_restore_points",
+      "column": "source",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "admin_user_restore_points",
+      "column": "data",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "jsonb",
+      "dataType": "jsonb",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "admin_user_restore_points",
+      "column": "summary",
+      "schema": "public",
+      "ordinal": 9,
+      "udtName": "jsonb",
+      "dataType": "jsonb",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "referral_redemption_id",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "referrer_user_id",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "referee_user_id",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "stripe_event_id",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "stripe_invoice_id",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "stripe_subscription_id",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "stripe_customer_id",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "source_plan",
+      "schema": "public",
+      "ordinal": 9,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "source_amount_cents",
+      "schema": "public",
+      "ordinal": 10,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "currency",
+      "schema": "public",
+      "ordinal": 11,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "billing_reason",
+      "schema": "public",
+      "ordinal": 12,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "scan_credits_per_user",
+      "schema": "public",
+      "ordinal": 13,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "paid_at",
+      "schema": "public",
+      "ordinal": 14,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "affiliate_reward_entries",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 15,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "app_error_events",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "app_error_events",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "app_error_events",
+      "column": "severity",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "app_error_events",
+      "column": "area",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "app_error_events",
+      "column": "code",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "app_error_events",
+      "column": "message",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "app_error_events",
+      "column": "route",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "app_error_events",
+      "column": "user_agent",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "app_error_events",
+      "column": "metadata",
+      "schema": "public",
+      "ordinal": 9,
+      "udtName": "jsonb",
+      "dataType": "jsonb",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "app_error_events",
+      "column": "resolved_at",
+      "schema": "public",
+      "ordinal": 10,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "app_error_events",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 11,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "app_error_events",
+      "column": "resolution_source",
+      "schema": "public",
+      "ordinal": 12,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "app_error_events",
+      "column": "archived_at",
+      "schema": "public",
+      "ordinal": 13,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "app_error_events",
+      "column": "device_scope_hash",
+      "schema": "public",
+      "ordinal": 14,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_accounts",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_accounts",
+      "column": "email",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_accounts",
+      "column": "status",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_accounts",
+      "column": "commission_bps",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_accounts",
+      "column": "payout_threshold_cents",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_accounts",
+      "column": "payout_holder_name",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_accounts",
+      "column": "payout_iban",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_accounts",
+      "column": "payout_details_updated_at",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_accounts",
+      "column": "created_by",
+      "schema": "public",
+      "ordinal": 9,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_accounts",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 10,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_accounts",
+      "column": "updated_at",
+      "schema": "public",
+      "ordinal": 11,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "partner_user_id",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "referred_user_id",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "source_payment_receipt_id",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "source_stripe_invoice_id",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "source_plan",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "source_amount_cents",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "commission_bps",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "commission_cents",
+      "schema": "public",
+      "ordinal": 9,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "currency",
+      "schema": "public",
+      "ordinal": 10,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "status",
+      "schema": "public",
+      "ordinal": 11,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "earned_at",
+      "schema": "public",
+      "ordinal": 12,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "available_at",
+      "schema": "public",
+      "ordinal": 13,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "paid_at",
+      "schema": "public",
+      "ordinal": 14,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 15,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_commission_entries",
+      "column": "updated_at",
+      "schema": "public",
+      "ordinal": 16,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_payouts",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_payouts",
+      "column": "partner_user_id",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_payouts",
+      "column": "amount_cents",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_payouts",
+      "column": "currency",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_payouts",
+      "column": "status",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_payouts",
+      "column": "period_start",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_payouts",
+      "column": "period_end",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_payouts",
+      "column": "external_reference",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_payouts",
+      "column": "created_by",
+      "schema": "public",
+      "ordinal": 9,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_payouts",
+      "column": "approved_by",
+      "schema": "public",
+      "ordinal": 10,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_payouts",
+      "column": "paid_at",
+      "schema": "public",
+      "ordinal": 11,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "partner_payouts",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 12,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "partner_payouts",
+      "column": "updated_at",
+      "schema": "public",
+      "ordinal": 13,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "payment_receipts",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "payment_receipts",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "payment_receipts",
+      "column": "stripe_event_id",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "payment_receipts",
+      "column": "stripe_invoice_id",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "payment_receipts",
+      "column": "stripe_checkout_session_id",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "payment_receipts",
+      "column": "amount_cents",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "payment_receipts",
+      "column": "currency",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "payment_receipts",
+      "column": "description",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "payment_receipts",
+      "column": "customer_email",
+      "schema": "public",
+      "ordinal": 9,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "payment_receipts",
+      "column": "emailed_at",
+      "schema": "public",
+      "ordinal": 10,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "payment_receipts",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 11,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "name",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "code_hash",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "code_masked",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "status",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "benefit_kind",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "benefit_plan",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "benefit_scan_credits",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "benefit_duration_days",
+      "schema": "public",
+      "ordinal": 9,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "benefit_module_key",
+      "schema": "public",
+      "ordinal": 10,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "starts_at",
+      "schema": "public",
+      "ordinal": 11,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "expires_at",
+      "schema": "public",
+      "ordinal": 12,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "max_redemptions",
+      "schema": "public",
+      "ordinal": 13,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "redeemed_count",
+      "schema": "public",
+      "ordinal": 14,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "created_by",
+      "schema": "public",
+      "ordinal": 15,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 16,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "promo_campaigns",
+      "column": "updated_at",
+      "schema": "public",
+      "ordinal": 17,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "promo_module_entitlements",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "promo_module_entitlements",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_module_entitlements",
+      "column": "module_key",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_module_entitlements",
+      "column": "valid_until",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_module_entitlements",
+      "column": "source_redemption_id",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_module_entitlements",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "promo_redemptions",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "promo_redemptions",
+      "column": "campaign_id",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_redemptions",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_redemptions",
+      "column": "benefit_snapshot",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "jsonb",
+      "dataType": "jsonb",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "promo_redemptions",
+      "column": "redeemed_at",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "referral_codes",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "referral_codes",
+      "column": "code",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "referral_codes",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "referral_redemptions",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "referral_redemptions",
+      "column": "referrer_user_id",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "referral_redemptions",
+      "column": "referee_user_id",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "referral_redemptions",
+      "column": "referral_code",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "referral_redemptions",
+      "column": "referrer_bonus_granted",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "bool",
+      "dataType": "boolean",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "referral_redemptions",
+      "column": "referee_bonus_granted",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "bool",
+      "dataType": "boolean",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "referral_redemptions",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "referral_redemptions",
+      "column": "program",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "server_rate_limit_buckets",
+      "column": "namespace",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "server_rate_limit_buckets",
+      "column": "identifier_hash",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "server_rate_limit_buckets",
+      "column": "window_start",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "server_rate_limit_buckets",
+      "column": "request_count",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "server_rate_limit_buckets",
+      "column": "expires_at",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "server_rate_limit_buckets",
+      "column": "updated_at",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "stripe_events",
+      "column": "stripe_event_id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "event_type",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "status",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "error_message",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "processed_at",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "stripe_events",
+      "column": "updated_at",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "stripe_events",
+      "column": "attempt_token",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "lease_expires_at",
+      "schema": "public",
+      "ordinal": 9,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "attempt_count",
+      "schema": "public",
+      "ordinal": 10,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "stripe_events",
+      "column": "legacy_review_required",
+      "schema": "public",
+      "ordinal": 11,
+      "udtName": "bool",
+      "dataType": "boolean",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "stripe_events",
+      "column": "effect_key",
+      "schema": "public",
+      "ordinal": 12,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "effect_kind",
+      "schema": "public",
+      "ordinal": 13,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "effect_fulfillment_contract",
+      "schema": "public",
+      "ordinal": 14,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "effect_user_id",
+      "schema": "public",
+      "ordinal": 15,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "effect_scan_credits",
+      "schema": "public",
+      "ordinal": 16,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "effect_ai_credit_units",
+      "schema": "public",
+      "ordinal": 17,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "effect_payment_status",
+      "schema": "public",
+      "ordinal": 18,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "stripe_events",
+      "column": "effect_applied_at",
+      "schema": "public",
+      "ordinal": 19,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "sync_entities",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "sync_entities",
+      "column": "entity_type",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "sync_entities",
+      "column": "entity_id",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "sync_entities",
+      "column": "payload",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "jsonb",
+      "dataType": "jsonb",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "sync_entities",
+      "column": "deleted",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "bool",
+      "dataType": "boolean",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "sync_entities",
+      "column": "updated_at",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_backups",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_backups",
+      "column": "data",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "jsonb",
+      "dataType": "jsonb",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_backups",
+      "column": "updated_at",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_devices",
+      "column": "id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_devices",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_devices",
+      "column": "token_hash",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_devices",
+      "column": "name",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_devices",
+      "column": "kind",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_devices",
+      "column": "status",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_devices",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_devices",
+      "column": "last_seen_at",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_devices",
+      "column": "last_sync_at",
+      "schema": "public",
+      "ordinal": 9,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_devices",
+      "column": "revoked_at",
+      "schema": "public",
+      "ordinal": 10,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_devices",
+      "column": "active_session_hash",
+      "schema": "public",
+      "ordinal": 11,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_devices",
+      "column": "session_lease_expires_at",
+      "schema": "public",
+      "ordinal": 12,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_devices",
+      "column": "session_binding_required_at",
+      "schema": "public",
+      "ordinal": 13,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "plan",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "status",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "stripe_customer_id",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "stripe_subscription_id",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "trial_ends_at",
+      "schema": "public",
+      "ordinal": 6,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "current_period_end",
+      "schema": "public",
+      "ordinal": 7,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "created_at",
+      "schema": "public",
+      "ordinal": 8,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "updated_at",
+      "schema": "public",
+      "ordinal": 9,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "scan_trial_remaining",
+      "schema": "public",
+      "ordinal": 10,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "scan_credits",
+      "schema": "public",
+      "ordinal": 11,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "ai_credit_units",
+      "schema": "public",
+      "ordinal": 12,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "promotional_plan",
+      "schema": "public",
+      "ordinal": 13,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_subscriptions",
+      "column": "promotional_plan_ends_at",
+      "schema": "public",
+      "ordinal": 14,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_usage",
+      "column": "user_id",
+      "schema": "public",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_usage",
+      "column": "month_key",
+      "schema": "public",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "user_usage",
+      "column": "documents_created",
+      "schema": "public",
+      "ordinal": 3,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_usage",
+      "column": "expense_scans_created",
+      "schema": "public",
+      "ordinal": 4,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "user_usage",
+      "column": "customer_ai_autofills_created",
+      "schema": "public",
+      "ordinal": 5,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets",
+      "column": "id",
+      "schema": "storage",
+      "ordinal": 1,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "buckets",
+      "column": "name",
+      "schema": "storage",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "buckets",
+      "column": "owner",
+      "schema": "storage",
+      "ordinal": 3,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "buckets",
+      "column": "created_at",
+      "schema": "storage",
+      "ordinal": 4,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets",
+      "column": "updated_at",
+      "schema": "storage",
+      "ordinal": 5,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets",
+      "column": "public",
+      "schema": "storage",
+      "ordinal": 6,
+      "udtName": "bool",
+      "dataType": "boolean",
+      "nullable": true,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets",
+      "column": "avif_autodetection",
+      "schema": "storage",
+      "ordinal": 7,
+      "udtName": "bool",
+      "dataType": "boolean",
+      "nullable": true,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets",
+      "column": "file_size_limit",
+      "schema": "storage",
+      "ordinal": 8,
+      "udtName": "int8",
+      "dataType": "bigint",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "buckets",
+      "column": "allowed_mime_types",
+      "schema": "storage",
+      "ordinal": 9,
+      "udtName": "_text",
+      "dataType": "ARRAY",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "buckets",
+      "column": "owner_id",
+      "schema": "storage",
+      "ordinal": 10,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "buckets",
+      "column": "type",
+      "schema": "storage",
+      "ordinal": 11,
+      "udtName": "buckettype",
+      "dataType": "USER-DEFINED",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets_analytics",
+      "column": "name",
+      "schema": "storage",
+      "ordinal": 1,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "buckets_analytics",
+      "column": "type",
+      "schema": "storage",
+      "ordinal": 2,
+      "udtName": "buckettype",
+      "dataType": "USER-DEFINED",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets_analytics",
+      "column": "format",
+      "schema": "storage",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets_analytics",
+      "column": "created_at",
+      "schema": "storage",
+      "ordinal": 4,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets_analytics",
+      "column": "updated_at",
+      "schema": "storage",
+      "ordinal": 5,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets_analytics",
+      "column": "id",
+      "schema": "storage",
+      "ordinal": 6,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets_analytics",
+      "column": "deleted_at",
+      "schema": "storage",
+      "ordinal": 7,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "buckets_vectors",
+      "column": "id",
+      "schema": "storage",
+      "ordinal": 1,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "buckets_vectors",
+      "column": "type",
+      "schema": "storage",
+      "ordinal": 2,
+      "udtName": "buckettype",
+      "dataType": "USER-DEFINED",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets_vectors",
+      "column": "created_at",
+      "schema": "storage",
+      "ordinal": 3,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "buckets_vectors",
+      "column": "updated_at",
+      "schema": "storage",
+      "ordinal": 4,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "migrations",
+      "column": "id",
+      "schema": "storage",
+      "ordinal": 1,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "migrations",
+      "column": "name",
+      "schema": "storage",
+      "ordinal": 2,
+      "udtName": "varchar",
+      "dataType": "character varying",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "migrations",
+      "column": "hash",
+      "schema": "storage",
+      "ordinal": 3,
+      "udtName": "varchar",
+      "dataType": "character varying",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "migrations",
+      "column": "executed_at",
+      "schema": "storage",
+      "ordinal": 4,
+      "udtName": "timestamp",
+      "dataType": "timestamp without time zone",
+      "nullable": true,
+      "defaultPresent": true
+    },
+    {
+      "table": "objects",
+      "column": "id",
+      "schema": "storage",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "objects",
+      "column": "bucket_id",
+      "schema": "storage",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "objects",
+      "column": "name",
+      "schema": "storage",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "objects",
+      "column": "owner",
+      "schema": "storage",
+      "ordinal": 4,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "objects",
+      "column": "created_at",
+      "schema": "storage",
+      "ordinal": 5,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": true
+    },
+    {
+      "table": "objects",
+      "column": "updated_at",
+      "schema": "storage",
+      "ordinal": 6,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": true
+    },
+    {
+      "table": "objects",
+      "column": "last_accessed_at",
+      "schema": "storage",
+      "ordinal": 7,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": true,
+      "defaultPresent": true
+    },
+    {
+      "table": "objects",
+      "column": "metadata",
+      "schema": "storage",
+      "ordinal": 8,
+      "udtName": "jsonb",
+      "dataType": "jsonb",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "objects",
+      "column": "path_tokens",
+      "schema": "storage",
+      "ordinal": 9,
+      "udtName": "_text",
+      "dataType": "ARRAY",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "objects",
+      "column": "version",
+      "schema": "storage",
+      "ordinal": 10,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "objects",
+      "column": "owner_id",
+      "schema": "storage",
+      "ordinal": 11,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "objects",
+      "column": "user_metadata",
+      "schema": "storage",
+      "ordinal": 12,
+      "udtName": "jsonb",
+      "dataType": "jsonb",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads",
+      "column": "id",
+      "schema": "storage",
+      "ordinal": 1,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads",
+      "column": "in_progress_size",
+      "schema": "storage",
+      "ordinal": 2,
+      "udtName": "int8",
+      "dataType": "bigint",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "s3_multipart_uploads",
+      "column": "upload_signature",
+      "schema": "storage",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads",
+      "column": "bucket_id",
+      "schema": "storage",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads",
+      "column": "key",
+      "schema": "storage",
+      "ordinal": 5,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads",
+      "column": "version",
+      "schema": "storage",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads",
+      "column": "owner_id",
+      "schema": "storage",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads",
+      "column": "created_at",
+      "schema": "storage",
+      "ordinal": 8,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "s3_multipart_uploads",
+      "column": "user_metadata",
+      "schema": "storage",
+      "ordinal": 9,
+      "udtName": "jsonb",
+      "dataType": "jsonb",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads",
+      "column": "metadata",
+      "schema": "storage",
+      "ordinal": 10,
+      "udtName": "jsonb",
+      "dataType": "jsonb",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads_parts",
+      "column": "id",
+      "schema": "storage",
+      "ordinal": 1,
+      "udtName": "uuid",
+      "dataType": "uuid",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "s3_multipart_uploads_parts",
+      "column": "upload_id",
+      "schema": "storage",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads_parts",
+      "column": "size",
+      "schema": "storage",
+      "ordinal": 3,
+      "udtName": "int8",
+      "dataType": "bigint",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "s3_multipart_uploads_parts",
+      "column": "part_number",
+      "schema": "storage",
+      "ordinal": 4,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads_parts",
+      "column": "bucket_id",
+      "schema": "storage",
+      "ordinal": 5,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads_parts",
+      "column": "key",
+      "schema": "storage",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads_parts",
+      "column": "etag",
+      "schema": "storage",
+      "ordinal": 7,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads_parts",
+      "column": "owner_id",
+      "schema": "storage",
+      "ordinal": 8,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads_parts",
+      "column": "version",
+      "schema": "storage",
+      "ordinal": 9,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "s3_multipart_uploads_parts",
+      "column": "created_at",
+      "schema": "storage",
+      "ordinal": 10,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "vector_indexes",
+      "column": "id",
+      "schema": "storage",
+      "ordinal": 1,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "vector_indexes",
+      "column": "name",
+      "schema": "storage",
+      "ordinal": 2,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "vector_indexes",
+      "column": "bucket_id",
+      "schema": "storage",
+      "ordinal": 3,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "vector_indexes",
+      "column": "data_type",
+      "schema": "storage",
+      "ordinal": 4,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "vector_indexes",
+      "column": "dimension",
+      "schema": "storage",
+      "ordinal": 5,
+      "udtName": "int4",
+      "dataType": "integer",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "vector_indexes",
+      "column": "distance_metric",
+      "schema": "storage",
+      "ordinal": 6,
+      "udtName": "text",
+      "dataType": "text",
+      "nullable": false,
+      "defaultPresent": false
+    },
+    {
+      "table": "vector_indexes",
+      "column": "metadata_configuration",
+      "schema": "storage",
+      "ordinal": 7,
+      "udtName": "jsonb",
+      "dataType": "jsonb",
+      "nullable": true,
+      "defaultPresent": false
+    },
+    {
+      "table": "vector_indexes",
+      "column": "created_at",
+      "schema": "storage",
+      "ordinal": 8,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    },
+    {
+      "table": "vector_indexes",
+      "column": "updated_at",
+      "schema": "storage",
+      "ordinal": 9,
+      "udtName": "timestamptz",
+      "dataType": "timestamp with time zone",
+      "nullable": false,
+      "defaultPresent": true
+    }
+  ],
+  "indexes": [
+    {
+      "name": "admin_mfa_recovery_challenges_active_idx",
+      "table": "admin_mfa_recovery_challenges",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "admin_mfa_recovery_challenges_pkey",
+      "table": "admin_mfa_recovery_challenges",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "admin_mfa_recovery_challenges_user_created_idx",
+      "table": "admin_mfa_recovery_challenges",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "admin_user_restore_events_pkey",
+      "table": "admin_user_restore_events",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "admin_user_restore_events_restore_point_idx",
+      "table": "admin_user_restore_events",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "admin_user_restore_events_restored_by_idx",
+      "table": "admin_user_restore_events",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "admin_user_restore_events_safety_restore_point_idx",
+      "table": "admin_user_restore_events",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "admin_user_restore_events_user_restored_idx",
+      "table": "admin_user_restore_events",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "admin_user_restore_points_created_by_idx",
+      "table": "admin_user_restore_points",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "admin_user_restore_points_pkey",
+      "table": "admin_user_restore_points",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "admin_user_restore_points_user_created_idx",
+      "table": "admin_user_restore_points",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "affiliate_reward_entries_pkey",
+      "table": "affiliate_reward_entries",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "affiliate_reward_entries_stripe_event_id_key",
+      "table": "affiliate_reward_entries",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "affiliate_reward_entries_stripe_invoice_id_key",
+      "table": "affiliate_reward_entries",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "affiliate_reward_referee_paid_idx",
+      "table": "affiliate_reward_entries",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "affiliate_reward_referrer_paid_idx",
+      "table": "affiliate_reward_entries",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "app_error_events_created_idx",
+      "table": "app_error_events",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "app_error_events_open_sync_idx",
+      "table": "app_error_events",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "app_error_events_pkey",
+      "table": "app_error_events",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "app_error_events_user_created_idx",
+      "table": "app_error_events",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "partner_accounts_email_lower_idx",
+      "table": "partner_accounts",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "partner_accounts_pkey",
+      "table": "partner_accounts",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "partner_accounts_status_idx",
+      "table": "partner_accounts",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "partner_commission_entries_pkey",
+      "table": "partner_commission_entries",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "partner_commission_invoice_unique_idx",
+      "table": "partner_commission_entries",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "partner_commission_partner_status_idx",
+      "table": "partner_commission_entries",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "partner_commission_receipt_unique_idx",
+      "table": "partner_commission_entries",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "partner_payouts_partner_created_idx",
+      "table": "partner_payouts",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "partner_payouts_pkey",
+      "table": "partner_payouts",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "payment_receipts_pkey",
+      "table": "payment_receipts",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "payment_receipts_stripe_event_id_key",
+      "table": "payment_receipts",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "promo_campaigns_code_hash_key",
+      "table": "promo_campaigns",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "promo_campaigns_pkey",
+      "table": "promo_campaigns",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "promo_campaigns_status_window_idx",
+      "table": "promo_campaigns",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "promo_module_entitlements_pkey",
+      "table": "promo_module_entitlements",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "promo_module_entitlements_source_redemption_id_key",
+      "table": "promo_module_entitlements",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "promo_module_entitlements_user_id_module_key_key",
+      "table": "promo_module_entitlements",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "promo_redemptions_campaign_id_user_id_key",
+      "table": "promo_redemptions",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "promo_redemptions_pkey",
+      "table": "promo_redemptions",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "promo_redemptions_user_idx",
+      "table": "promo_redemptions",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "referral_codes_code_lower_idx",
+      "table": "referral_codes",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "referral_codes_pkey",
+      "table": "referral_codes",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "referral_redemptions_pkey",
+      "table": "referral_redemptions",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "referral_redemptions_referee_unique",
+      "table": "referral_redemptions",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "referral_redemptions_referrer_idx",
+      "table": "referral_redemptions",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "referral_redemptions_referrer_program_idx",
+      "table": "referral_redemptions",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "server_rate_limit_buckets_pkey",
+      "table": "server_rate_limit_buckets",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "stripe_events_effect_key_unique_idx",
+      "table": "stripe_events",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "stripe_events_pkey",
+      "table": "stripe_events",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "sync_entities_pkey",
+      "table": "sync_entities",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "sync_entities_user_updated_idx",
+      "table": "sync_entities",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "user_backups_pkey",
+      "table": "user_backups",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "user_devices_pkey",
+      "table": "user_devices",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "user_devices_user_id_token_hash_key",
+      "table": "user_devices",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "user_devices_user_status_idx",
+      "table": "user_devices",
+      "schema": "public",
+      "unique": false
+    },
+    {
+      "name": "user_subscriptions_pkey",
+      "table": "user_subscriptions",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "user_usage_pkey",
+      "table": "user_usage",
+      "schema": "public",
+      "unique": true
+    },
+    {
+      "name": "bname",
+      "table": "buckets",
+      "schema": "storage",
+      "unique": true
+    },
+    {
+      "name": "buckets_pkey",
+      "table": "buckets",
+      "schema": "storage",
+      "unique": true
+    },
+    {
+      "name": "buckets_analytics_pkey",
+      "table": "buckets_analytics",
+      "schema": "storage",
+      "unique": true
+    },
+    {
+      "name": "buckets_analytics_unique_name_idx",
+      "table": "buckets_analytics",
+      "schema": "storage",
+      "unique": true
+    },
+    {
+      "name": "buckets_vectors_pkey",
+      "table": "buckets_vectors",
+      "schema": "storage",
+      "unique": true
+    },
+    {
+      "name": "migrations_name_key",
+      "table": "migrations",
+      "schema": "storage",
+      "unique": true
+    },
+    {
+      "name": "migrations_pkey",
+      "table": "migrations",
+      "schema": "storage",
+      "unique": true
+    },
+    {
+      "name": "bucketid_objname",
+      "table": "objects",
+      "schema": "storage",
+      "unique": true
+    },
+    {
+      "name": "idx_objects_bucket_id_name",
+      "table": "objects",
+      "schema": "storage",
+      "unique": false
+    },
+    {
+      "name": "idx_objects_bucket_id_name_lower",
+      "table": "objects",
+      "schema": "storage",
+      "unique": false
+    },
+    {
+      "name": "name_prefix_search",
+      "table": "objects",
+      "schema": "storage",
+      "unique": false
+    },
+    {
+      "name": "objects_pkey",
+      "table": "objects",
+      "schema": "storage",
+      "unique": true
+    },
+    {
+      "name": "idx_multipart_uploads_list",
+      "table": "s3_multipart_uploads",
+      "schema": "storage",
+      "unique": false
+    },
+    {
+      "name": "s3_multipart_uploads_pkey",
+      "table": "s3_multipart_uploads",
+      "schema": "storage",
+      "unique": true
+    },
+    {
+      "name": "s3_multipart_uploads_parts_pkey",
+      "table": "s3_multipart_uploads_parts",
+      "schema": "storage",
+      "unique": true
+    },
+    {
+      "name": "vector_indexes_name_bucket_id_idx",
+      "table": "vector_indexes",
+      "schema": "storage",
+      "unique": true
+    },
+    {
+      "name": "vector_indexes_pkey",
+      "table": "vector_indexes",
+      "schema": "storage",
+      "unique": true
+    }
+  ],
+  "schemas": [
+    "public",
+    "storage"
+  ],
+  "policies": [
+    {
+      "cmd": "SELECT",
+      "name": "Leer recibos propios",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "payment_receipts",
+      "schema": "public",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "UPDATE",
+      "name": "Actualizar entidades propias",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "sync_entities",
+      "schema": "public",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "INSERT",
+      "name": "Crear entidades propias",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "sync_entities",
+      "schema": "public",
+      "permissive": "PERMISSIVE",
+      "qualPresent": false,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "SELECT",
+      "name": "Leer entidades propias",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "sync_entities",
+      "schema": "public",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "UPDATE",
+      "name": "Actualizar copia propia",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "user_backups",
+      "schema": "public",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "INSERT",
+      "name": "Crear copia propia",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "user_backups",
+      "schema": "public",
+      "permissive": "PERMISSIVE",
+      "qualPresent": false,
+      "withCheckPresent": true
+    },
+    {
+      "cmd": "SELECT",
+      "name": "Leer copia propia",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "user_backups",
+      "schema": "public",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "SELECT",
+      "name": "Leer suscripcion propia",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "user_subscriptions",
+      "schema": "public",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    },
+    {
+      "cmd": "SELECT",
+      "name": "Leer uso propio",
+      "roles": [
+        "authenticated"
+      ],
+      "table": "user_usage",
+      "schema": "public",
+      "permissive": "PERMISSIVE",
+      "qualPresent": true,
+      "withCheckPresent": false
+    }
+  ],
+  "triggers": [
+    {
+      "name": "enforce_cloud_device_limit_trigger",
+      "event": "INSERT",
+      "table": "user_devices",
+      "schema": "public",
+      "timing": "BEFORE"
+    },
+    {
+      "name": "enforce_cloud_device_limit_trigger",
+      "event": "UPDATE",
+      "table": "user_devices",
+      "schema": "public",
+      "timing": "BEFORE"
+    },
+    {
+      "name": "enforce_bucket_name_length_trigger",
+      "event": "INSERT",
+      "table": "buckets",
+      "schema": "storage",
+      "timing": "BEFORE"
+    },
+    {
+      "name": "enforce_bucket_name_length_trigger",
+      "event": "UPDATE",
+      "table": "buckets",
+      "schema": "storage",
+      "timing": "BEFORE"
+    },
+    {
+      "name": "protect_buckets_delete",
+      "event": "DELETE",
+      "table": "buckets",
+      "schema": "storage",
+      "timing": "BEFORE"
+    },
+    {
+      "name": "protect_objects_delete",
+      "event": "DELETE",
+      "table": "objects",
+      "schema": "storage",
+      "timing": "BEFORE"
+    },
+    {
+      "name": "update_objects_updated_at",
+      "event": "UPDATE",
+      "table": "objects",
+      "schema": "storage",
+      "timing": "BEFORE"
+    }
+  ],
+  "functions": [
+    {
+      "name": "admin_health_snapshot",
+      "schema": "public",
+      "arguments": "",
+      "returnType": "jsonb",
+      "volatility": "s",
+      "securityDefiner": true
+    },
+    {
+      "name": "archive_resolved_app_error_events_v1",
+      "schema": "public",
+      "arguments": "p_event_ids uuid[]",
+      "returnType": "TABLE(id uuid, resolved_at timestamp with time zone, archived_at timestamp with time zone)",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "claim_cloud_device_session",
+      "schema": "public",
+      "arguments": "p_user_id uuid, p_token_hash text, p_session_hash text",
+      "returnType": "text",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "claim_rate_limit_bucket",
+      "schema": "public",
+      "arguments": "p_namespace text, p_identifier_hash text, p_limit integer, p_window_ms integer",
+      "returnType": "TABLE(allowed boolean, limit_count integer, remaining_count integer, reset_at timestamp with time zone, retry_after_seconds integer)",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "cloud_device_access_allowed",
+      "schema": "public",
+      "arguments": "",
+      "returnType": "boolean",
+      "volatility": "s",
+      "securityDefiner": true
+    },
+    {
+      "name": "cloud_device_limit_for_user",
+      "schema": "public",
+      "arguments": "p_user_id uuid, p_now timestamp with time zone",
+      "returnType": "integer",
+      "volatility": "s",
+      "securityDefiner": true
+    },
+    {
+      "name": "cloud_device_session_hash",
+      "schema": "public",
+      "arguments": "p_session_id text",
+      "returnType": "text",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "cloud_device_token_hash",
+      "schema": "public",
+      "arguments": "p_token text",
+      "returnType": "text",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "complete_stripe_event_attempt",
+      "schema": "public",
+      "arguments": "p_event_id text, p_attempt_token uuid, p_completed_at timestamp with time zone",
+      "returnType": "text",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "complete_stripe_scan_pack_event",
+      "schema": "public",
+      "arguments": "p_event_id text, p_attempt_token uuid, p_user_id uuid, p_checkout_session_id text, p_scan_credits integer, p_units_per_scan integer, p_payment_status text, p_fulfillment_contract text, p_completed_at timestamp with time zone",
+      "returnType": "TABLE(result_status text, credited_scan_credits integer)",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "consume_ai_units",
+      "schema": "public",
+      "arguments": "p_user_id uuid, p_month_key text, p_cost_units integer, p_expense_scans_increment integer, p_customer_ai_autofills_increment integer, p_pro_monthly_units integer, p_free_trial_decrement integer",
+      "returnType": "TABLE(allowed boolean, reason text)",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "enforce_cloud_device_limit",
+      "schema": "public",
+      "arguments": "",
+      "returnType": "trigger",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "fail_stripe_event_attempt",
+      "schema": "public",
+      "arguments": "p_event_id text, p_attempt_token uuid, p_error_code text, p_failed_at timestamp with time zone",
+      "returnType": "text",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "get_expense_learning_consent_v1",
+      "schema": "public",
+      "arguments": "p_user_id uuid",
+      "returnType": "jsonb",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "grant_ai_credit_units",
+      "schema": "public",
+      "arguments": "p_user_id uuid, p_scan_credits integer, p_units_per_scan integer",
+      "returnType": "boolean",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "grant_paid_affiliate_reward",
+      "schema": "public",
+      "arguments": "p_referee_user_id uuid, p_stripe_event_id text, p_stripe_invoice_id text, p_stripe_subscription_id text, p_stripe_customer_id text, p_source_plan text, p_source_amount_cents integer, p_currency text, p_billing_reason text, p_paid_at timestamp with time zone, p_scan_credits integer, p_units_per_scan integer",
+      "returnType": "text",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "promote_expense_learning_closed_weeks_v1",
+      "schema": "public",
+      "arguments": "",
+      "returnType": "text",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "purge_expense_learning_retention_v1",
+      "schema": "public",
+      "arguments": "",
+      "returnType": "text",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "read_expense_learning_closed_week_metrics_v1",
+      "schema": "public",
+      "arguments": "",
+      "returnType": "TABLE(contribution_schema_version text, observation_schema_version text, engine_version text, privacy_policy_version text, week_start date, structural_archetype_group text, metric_family text, comparison_scope text, metric_key text, bucket_kind text, bucket_value text, support_band text, promoted_at timestamp with time zone, expires_at timestamp with time zone)",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "redeem_promo_code",
+      "schema": "public",
+      "arguments": "p_user_id uuid, p_code_hash text, p_now timestamp with time zone",
+      "returnType": "TABLE(result_status text, campaign_name text, benefit_kind text, benefit_plan text, benefit_scan_credits integer, benefit_duration_days integer, benefit_module_key text, benefit_ends_at timestamp with time zone)",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "release_cloud_device_session",
+      "schema": "public",
+      "arguments": "p_user_id uuid, p_token_hash text, p_session_hash text",
+      "returnType": "boolean",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "reserve_stripe_event_attempt",
+      "schema": "public",
+      "arguments": "p_event_id text, p_event_type text, p_lease_seconds integer, p_claimed_at timestamp with time zone",
+      "returnType": "TABLE(result_status text, event_status text, lease_token uuid, attempt_number integer, lease_until timestamp with time zone)",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "set_expense_learning_consent_v1",
+      "schema": "public",
+      "arguments": "p_user_id uuid, p_decision jsonb",
+      "returnType": "jsonb",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "submit_expense_learning_contribution_v1",
+      "schema": "public",
+      "arguments": "p_user_id uuid, p_contribution jsonb, p_claim_token_digest text, p_contributor_week_hmac text",
+      "returnType": "text",
+      "volatility": "v",
+      "securityDefiner": true
+    },
+    {
+      "name": "allow_any_operation",
+      "schema": "storage",
+      "arguments": "expected_operations text[]",
+      "returnType": "boolean",
+      "volatility": "s",
+      "securityDefiner": false
+    },
+    {
+      "name": "allow_only_operation",
+      "schema": "storage",
+      "arguments": "expected_operation text",
+      "returnType": "boolean",
+      "volatility": "s",
+      "securityDefiner": false
+    },
+    {
+      "name": "can_insert_object",
+      "schema": "storage",
+      "arguments": "bucketid text, name text, owner uuid, metadata jsonb",
+      "returnType": "void",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "enforce_bucket_name_length",
+      "schema": "storage",
+      "arguments": "",
+      "returnType": "trigger",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "extension",
+      "schema": "storage",
+      "arguments": "name text",
+      "returnType": "text",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "filename",
+      "schema": "storage",
+      "arguments": "name text",
+      "returnType": "text",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "foldername",
+      "schema": "storage",
+      "arguments": "name text",
+      "returnType": "text[]",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "get_common_prefix",
+      "schema": "storage",
+      "arguments": "p_key text, p_prefix text, p_delimiter text",
+      "returnType": "text",
+      "volatility": "i",
+      "securityDefiner": false
+    },
+    {
+      "name": "get_size_by_bucket",
+      "schema": "storage",
+      "arguments": "",
+      "returnType": "TABLE(size bigint, bucket_id text)",
+      "volatility": "s",
+      "securityDefiner": false
+    },
+    {
+      "name": "list_multipart_uploads_with_delimiter",
+      "schema": "storage",
+      "arguments": "bucket_id text, prefix_param text, delimiter_param text, max_keys integer, next_key_token text, next_upload_token text",
+      "returnType": "TABLE(key text, id text, created_at timestamp with time zone)",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "list_objects_with_delimiter",
+      "schema": "storage",
+      "arguments": "_bucket_id text, prefix_param text, delimiter_param text, max_keys integer, start_after text, next_token text, sort_order text",
+      "returnType": "TABLE(name text, id uuid, metadata jsonb, updated_at timestamp with time zone, created_at timestamp with time zone, last_accessed_at timestamp with time zone)",
+      "volatility": "s",
+      "securityDefiner": false
+    },
+    {
+      "name": "operation",
+      "schema": "storage",
+      "arguments": "",
+      "returnType": "text",
+      "volatility": "s",
+      "securityDefiner": false
+    },
+    {
+      "name": "protect_delete",
+      "schema": "storage",
+      "arguments": "",
+      "returnType": "trigger",
+      "volatility": "v",
+      "securityDefiner": false
+    },
+    {
+      "name": "search",
+      "schema": "storage",
+      "arguments": "prefix text, bucketname text, limits integer, levels integer, offsets integer, search text, sortcolumn text, sortorder text",
+      "returnType": "TABLE(name text, id uuid, updated_at timestamp with time zone, created_at timestamp with time zone, last_accessed_at timestamp with time zone, metadata jsonb)",
+      "volatility": "s",
+      "securityDefiner": false
+    },
+    {
+      "name": "search_by_timestamp",
+      "schema": "storage",
+      "arguments": "p_prefix text, p_bucket_id text, p_limit integer, p_level integer, p_start_after text, p_sort_order text, p_sort_column text, p_sort_column_after text",
+      "returnType": "TABLE(key text, name text, id uuid, updated_at timestamp with time zone, created_at timestamp with time zone, last_accessed_at timestamp with time zone, metadata jsonb)",
+      "volatility": "s",
+      "securityDefiner": false
+    },
+    {
+      "name": "search_v2",
+      "schema": "storage",
+      "arguments": "prefix text, bucket_name text, limits integer, levels integer, start_after text, sort_order text, sort_column text, sort_column_after text",
+      "returnType": "TABLE(key text, name text, id uuid, updated_at timestamp with time zone, created_at timestamp with time zone, last_accessed_at timestamp with time zone, metadata jsonb)",
+      "volatility": "s",
+      "securityDefiner": false
+    },
+    {
+      "name": "update_updated_at_column",
+      "schema": "storage",
+      "arguments": "",
+      "returnType": "trigger",
+      "volatility": "v",
+      "securityDefiner": false
+    }
+  ],
+  "queryMode": "read-only-catalog-only-no-business-rows",
+  "capturedAt": "2026-07-24T04:01:14+00",
+  "projectRef": "rnbmkkzptxbvtchluqrx",
+  "environment": "production",
+  "schemaVersion": "factu-supabase-production-schema-inventory-v1",
+  "centralAuthority": {
+    "tablesPresent": false,
+    "issueRpcPresent": false,
+    "requiredTablesPresent": []
+  },
+  "migrationHistory": {
+    "liveVersions": [
+      "20260720133000",
+      "20260721190000",
+      "20260721190100"
+    ],
+    "liveMissingFromRepo": [],
+    "repoNotVisibleInLive": [
+      "20260623000000",
+      "20260624000100",
+      "20260624000200",
+      "20260624220000",
+      "20260625070000",
+      "20260625093000",
+      "20260625133500",
+      "20260625142000",
+      "20260625153000",
+      "20260626212000",
+      "20260628223000",
+      "20260701060000",
+      "20260701070000",
+      "20260703190000",
+      "20260704092000",
+      "20260704133000",
+      "20260704170000",
+      "20260709060000",
+      "20260709080000",
+      "20260709090000",
+      "20260709093000",
+      "20260709100000",
+      "20260709113000",
+      "20260709123000",
+      "20260709222000",
+      "20260713001000",
+      "20260715131500",
+      "20260716160000",
+      "20260717090000",
+      "20260717104000",
+      "20260718120000",
+      "20260718143000",
+      "20260720084500",
+      "20260721223000",
+      "20260722050000",
+      "20260722110000",
+      "20260722190000",
+      "20260722230000",
+      "20260722234500",
+      "20260723010000",
+      "20260723070000"
+    ],
+    "repoVersionsEmbeddedInQuery": [
+      "20260623000000",
+      "20260624000100",
+      "20260624000200",
+      "20260624220000",
+      "20260625070000",
+      "20260625093000",
+      "20260625133500",
+      "20260625142000",
+      "20260625153000",
+      "20260626212000",
+      "20260628223000",
+      "20260701060000",
+      "20260701070000",
+      "20260703190000",
+      "20260704092000",
+      "20260704133000",
+      "20260704170000",
+      "20260709060000",
+      "20260709080000",
+      "20260709090000",
+      "20260709093000",
+      "20260709100000",
+      "20260709113000",
+      "20260709123000",
+      "20260709222000",
+      "20260713001000",
+      "20260715131500",
+      "20260716160000",
+      "20260717090000",
+      "20260717104000",
+      "20260718120000",
+      "20260718143000",
+      "20260720084500",
+      "20260720133000",
+      "20260721190000",
+      "20260721190100",
+      "20260721223000",
+      "20260722050000",
+      "20260722110000",
+      "20260722190000",
+      "20260722230000",
+      "20260722234500",
+      "20260723010000",
+      "20260723070000"
+    ]
+  },
+  "realtimePublications": []
+}

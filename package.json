@@ -53,6 +53,7 @@
     "validate:phase2b2-server-schema": "node scripts/validate-phase2b2-server-schema.mjs",
     "validate:central-invoice-authority-phase1": "node scripts/validate-central-invoice-authority-phase1.mjs",
     "validate:central-invoice-authority-phase2": "node scripts/validate-central-invoice-authority-phase2.mjs",
+    "validate:central-invoice-authority-supabase-reconciliation": "node scripts/validate-central-invoice-authority-supabase-reconciliation.mjs",
     "validate:phase2b3e-ingest-route-safety": "node scripts/validate-phase2b3e-ingest-route-safety.mjs",
     "validate:phase2b3g-controlled-ingest-route": "node scripts/validate-phase2b3g-controlled-ingest-route.mjs",
     "validate:phase2b3i-ingest-operational-hardening": "node scripts/validate-phase2b3i-ingest-operational-hardening.mjs",
