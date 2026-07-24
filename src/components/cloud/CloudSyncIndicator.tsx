@@ -25,11 +25,7 @@ function shouldShowIndicator(
   syncStatus: SyncStatus,
 ): boolean {
   if (!cloudEnabled || !cloudAvailable || !user) return false;
-  if (
-    syncStatus === "synced" &&
-    pendingChangeCount === 0 &&
-    !pendingUpload
-  ) {
+  if (syncStatus === "synced" && pendingChangeCount === 0 && !pendingUpload) {
     return false;
   }
   return (
@@ -45,6 +41,7 @@ export function CloudSyncHeaderIndicator() {
   const cloudAvailable = useCloudIndicatorAvailability();
   const {
     cloudEnabled,
+    cloudSyncPaused,
     user,
     pendingChangeCount,
     pendingUpload,
@@ -55,6 +52,7 @@ export function CloudSyncHeaderIndicator() {
   } = useCloudSync();
 
   if (
+    cloudSyncPaused ||
     !shouldShowIndicator(
       cloudEnabled,
       cloudAvailable,
@@ -133,6 +131,7 @@ export function CloudSyncNavBadge() {
   const cloudAvailable = useCloudIndicatorAvailability();
   const {
     cloudEnabled,
+    cloudSyncPaused,
     user,
     pendingChangeCount,
     pendingUpload,
@@ -141,6 +140,7 @@ export function CloudSyncNavBadge() {
   } = useCloudSync();
 
   if (
+    cloudSyncPaused ||
     !shouldShowIndicator(
       cloudEnabled,
       cloudAvailable,
@@ -159,18 +159,14 @@ export function CloudSyncNavBadge() {
   return (
     <span
       className={`absolute -right-0.5 -top-0.5 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full px-1 text-[9px] font-bold leading-none text-white shadow-sm ${
-        syncIssue
-          ? "bg-red-600"
-          : isSyncing
-            ? "bg-sky-500"
-            : "bg-amber-500"
+        syncIssue ? "bg-red-600" : isSyncing ? "bg-sky-500" : "bg-amber-500"
       }`}
       aria-label={
         syncIssue
           ? "Conflicto de sincronización pendiente de resolver"
           : showCount
-          ? `${pendingChangeCount} cambios pendientes de subir`
-          : "Cambios pendientes de subir"
+            ? `${pendingChangeCount} cambios pendientes de subir`
+            : "Cambios pendientes de subir"
       }
     >
       {syncIssue ? (
@@ -178,7 +174,11 @@ export function CloudSyncNavBadge() {
       ) : isSyncing ? (
         <Loader2 className="h-2.5 w-2.5 animate-spin" />
       ) : showCount ? (
-        pendingChangeCount > 9 ? "9+" : pendingChangeCount
+        pendingChangeCount > 9 ? (
+          "9+"
+        ) : (
+          pendingChangeCount
+        )
       ) : (
         "!"
       )}
@@ -190,6 +190,7 @@ export function CloudSyncPendingBanner() {
   const cloudAvailable = useCloudIndicatorAvailability();
   const {
     cloudEnabled,
+    cloudSyncPaused,
     user,
     pendingChangeCount,
     syncStatus,
@@ -199,6 +200,16 @@ export function CloudSyncPendingBanner() {
 
   if (!cloudEnabled || !cloudAvailable || !user) {
     return null;
+  }
+  if (cloudSyncPaused) {
+    return (
+      <div className="border-b border-amber-200 bg-amber-50 px-4 py-2">
+        <div className="mx-auto max-w-3xl text-sm text-amber-950">
+          Sincronizacion pausada temporalmente. Los cambios quedan guardados en
+          este dispositivo y se subiran cuando reactivemos la nube.
+        </div>
+      </div>
+    );
   }
   if (syncIssue?.recovery === "review_account") {
     return (

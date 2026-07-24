@@ -92,7 +92,12 @@ import {
   retireCurrentCloudDevice,
 } from "@/lib/cloud/device-client";
 import { getSupabaseClientAsync } from "@/lib/supabase/client";
-import { isCloudEnabled, isGoogleAuthEnabled } from "@/lib/supabase/config";
+import {
+  isCloudEnabled,
+  isCloudSyncTemporarilyPaused,
+  isGoogleAuthEnabled,
+  TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE,
+} from "@/lib/supabase/config";
 import { useDemoWorkspaceMode } from "@/hooks/useDemoWorkspaceMode";
 import {
   EMAIL_CONFIRMATION_REQUIRED_MESSAGE,
@@ -108,10 +113,7 @@ import {
 import { EMPTY_DATA, type AppData } from "@/lib/types";
 import { pickNewerAppData } from "@/lib/cloud/sync";
 import { hasWorkspaceContent } from "@/lib/workspace-state";
-import {
-  reportAppError,
-  reportAppRecovery,
-} from "@/lib/monitoring/client";
+import { reportAppError, reportAppRecovery } from "@/lib/monitoring/client";
 import {
   appDataRecordCount,
   dispatchDataAccessEvent,
@@ -158,6 +160,7 @@ function syncedSurfaceMatchesCloudRepairFingerprint(
 
 interface CloudSyncValue {
   cloudEnabled: boolean;
+  cloudSyncPaused: boolean;
   authReady: boolean;
   user: User | null;
   emailConfirmed: boolean;
@@ -304,6 +307,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   } = useAppStore();
   const demoMode = useDemoWorkspaceMode();
   const cloudEnabled = isCloudEnabled();
+  const cloudSyncPaused = isCloudSyncTemporarilyPaused();
   const [authReady, setAuthReady] = useState(!cloudEnabled);
   const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState("");
@@ -364,7 +368,9 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [data]);
 
   const setCloudSyncPreflightWriteBlock = useCallback(
-    (message = "Comprobando que este dispositivo está al día con la nube antes de permitir cambios…") => {
+    (
+      message = "Comprobando que este dispositivo está al día con la nube antes de permitir cambios…",
+    ) => {
       setExternalWriteBlock({
         source: "cloud_sync_preflight",
         message,
@@ -380,6 +386,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [clearExternalWriteBlock]);
 
   useEffect(() => {
+    if (cloudSyncPaused) {
+      clearExternalWriteBlock("cloud_sync_review");
+      return;
+    }
     if (!syncIssue) {
       clearExternalWriteBlock("cloud_sync_review");
       return;
@@ -391,7 +401,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       recoveryHref: "/cuenta",
       recoveryLabel: "Abrir Cuenta",
     });
-  }, [clearExternalWriteBlock, setExternalWriteBlock, syncIssue]);
+  }, [
+    clearExternalWriteBlock,
+    cloudSyncPaused,
+    setExternalWriteBlock,
+    syncIssue,
+  ]);
 
   useEffect(() => {
     automaticCloudPaused.current = Boolean(
@@ -430,6 +445,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     async (payload: AppData): Promise<CloudWriteFreshnessStatus> => {
       if (demoMode) return "fresh";
       if (!user || !cloudEnabled) return "fresh";
+      if (cloudSyncPaused) return "fresh";
       if (requiresEmailConfirmation || handoffPausesCloud) return "fresh";
 
       const lastSyncedAt = payload.meta?.lastSyncedAt ?? null;
@@ -463,6 +479,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     },
     [
       cloudEnabled,
+      cloudSyncPaused,
       demoMode,
       handoffPausesCloud,
       requiresEmailConfirmation,
@@ -569,6 +586,16 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     if (!user || !cloudEnabled) return;
+    if (cloudSyncPaused) {
+      stopPendingCloudTimers();
+      const hasLocalChanges =
+        hasPendingSyncChanges(data) ||
+        hasUnsyncedChanges(data) ||
+        isSyncPendingFlag();
+      setSyncStatus(hasLocalChanges ? "pending" : "idle");
+      setSyncMessage(TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE);
+      return;
+    }
     if (syncIssueRef.current?.automaticRetryBlocked) {
       setSyncStatus("error");
       setSyncMessage(syncIssueRef.current.userMessage);
@@ -612,6 +639,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }
   }, [
     cloudEnabled,
+    cloudSyncPaused,
     data,
     demoMode,
     handoffPausesCloud,
@@ -619,6 +647,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     localDataHandoffStatus,
     pendingChangeCount,
     syncStatus,
+    stopPendingCloudTimers,
     user,
   ]);
 
@@ -660,6 +689,16 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       invalidateSyncReviewOperations(null);
       syncIssueRef.current = null;
       setSyncIssue(null);
+      return;
+    }
+
+    if (cloudSyncPaused) {
+      invalidateSyncReviewOperations(activeUserId);
+      syncIssueRef.current = null;
+      setSyncIssue(null);
+      clearExternalWriteBlock("cloud_sync_review");
+      setSyncStatus("idle");
+      setSyncMessage(TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE);
       return;
     }
 
@@ -715,6 +754,8 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     activeUserId,
     adoptPersistedCloudSnapshot,
     applyCloudSyncReviewIssue,
+    clearExternalWriteBlock,
+    cloudSyncPaused,
     getCurrentData,
     invalidateSyncReviewOperations,
   ]);
@@ -788,6 +829,15 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (requiresEmailConfirmation) {
         setSyncStatus("idle");
         setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+        return false;
+      }
+      if (cloudSyncPaused) {
+        if (hasPendingSyncChanges(payload) || hasUnsyncedChanges(payload)) {
+          markSyncPending();
+        }
+        stopPendingCloudTimers();
+        setSyncStatus("pending");
+        setSyncMessage(TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE);
         return false;
       }
       if (
@@ -928,6 +978,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     [
       activateCloudSyncReviewIssue,
       clearCloudSyncPreflightWriteBlock,
+      cloudSyncPaused,
       data,
       demoMode,
       enforceFreshCloudBeforeWrites,
@@ -937,6 +988,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       rememberSuccessfulDeviceSync,
       replaceData,
       requiresEmailConfirmation,
+      stopPendingCloudTimers,
       user,
     ],
   );
@@ -950,6 +1002,15 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (demoMode) return false;
       if (!user) return false;
       if (requiresEmailConfirmation) return false;
+      if (cloudSyncPaused) {
+        if (hasPendingSyncChanges(payload) || hasUnsyncedChanges(payload)) {
+          markSyncPending();
+        }
+        stopPendingCloudTimers();
+        setSyncStatus("pending");
+        setSyncMessage(TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE);
+        return false;
+      }
       if (
         (automaticCloudPaused.current || handoffPausesCloud) &&
         !options?.allowLocalDataUpload
@@ -1000,10 +1061,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     },
     [
       activateCloudSyncReviewIssue,
+      cloudSyncPaused,
       demoMode,
       handoffPausesCloud,
       pushToCloud,
       requiresEmailConfirmation,
+      stopPendingCloudTimers,
       user,
     ],
   );
@@ -1022,6 +1085,18 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (requiresEmailConfirmation) {
         setSyncStatus("idle");
         setSyncMessage(EMAIL_CONFIRMATION_REQUIRED_MESSAGE);
+        return false;
+      }
+      if (cloudSyncPaused) {
+        stopPendingCloudTimers();
+        setSyncStatus(
+          hasPendingSyncChanges(dataRef.current) ||
+            hasUnsyncedChanges(dataRef.current) ||
+            isSyncPendingFlag()
+            ? "pending"
+            : "idle",
+        );
+        setSyncMessage(TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE);
         return false;
       }
       if (
@@ -1257,10 +1332,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
               const remote = await loadCloudRepairRemoteSnapshot(
                 authOperation.userId,
               );
-              if (
-                !authOperationIsCurrent() ||
-                !reviewOperationIsCurrent()
-              ) {
+              if (!authOperationIsCurrent() || !reviewOperationIsCurrent()) {
                 return false;
               }
               if (
@@ -1334,6 +1406,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     },
     [
       activateCloudSyncReviewIssue,
+      cloudSyncPaused,
       demoMode,
       ensureCloudReadyForCurrentDevice,
       finalizeSyncState,
@@ -1343,6 +1416,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       rememberSuccessfulDeviceSync,
       replaceData,
       requiresEmailConfirmation,
+      stopPendingCloudTimers,
       user,
     ],
   );
@@ -1351,7 +1425,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   pullFromCloudRef.current = pullFromCloud;
 
   useEffect(() => {
-    if (!cloudEnabled || demoMode) {
+    if (!cloudEnabled || cloudSyncPaused || demoMode) {
       clearCloudSyncPreflightWriteBlock();
       return;
     }
@@ -1428,6 +1502,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     clearActiveCloudSyncReviewIssue,
     clearCloudSyncPreflightWriteBlock,
     cloudEnabled,
+    cloudSyncPaused,
     demoMode,
     handoffPausesCloud,
     localDataHandoffStatus,
@@ -1441,6 +1516,19 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   /** Referencia estable: evita bucles si un efecto depende de syncNow tras cada pull. */
   const syncNow = useCallback(
     async (freshLocalData?: AppData): Promise<boolean> => {
+      if (cloudSyncPaused) {
+        if (freshLocalData) dataRef.current = freshLocalData;
+        if (
+          hasPendingSyncChanges(dataRef.current) ||
+          hasUnsyncedChanges(dataRef.current)
+        ) {
+          markSyncPending();
+        }
+        stopPendingCloudTimers();
+        setSyncStatus("pending");
+        setSyncMessage(TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE);
+        return false;
+      }
       if (syncIssueRef.current?.automaticRetryBlocked) {
         setSyncStatus("error");
         setSyncMessage(syncIssueRef.current.userMessage);
@@ -1453,7 +1541,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       }
       return pullFromCloudRef.current();
     },
-    [flushPendingUpload],
+    [cloudSyncPaused, flushPendingUpload, stopPendingCloudTimers],
   );
 
   const saveLocalDataToAccount = useCallback(async () => {
@@ -1466,6 +1554,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     if (syncIssueRef.current?.automaticRetryBlocked) {
       setSyncStatus("error");
       setSyncMessage(syncIssueRef.current.userMessage);
+      return;
+    }
+    if (cloudSyncPaused) {
+      markSyncPending();
+      setSyncStatus("pending");
+      setSyncMessage(TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE);
       return;
     }
     const queuedAt = new Date().toISOString();
@@ -1506,7 +1600,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     } else {
       setLocalDataHandoffStatus("pending");
     }
-  }, [replaceData, requiresEmailConfirmation, user]);
+  }, [cloudSyncPaused, replaceData, requiresEmailConfirmation, user]);
 
   const pauseAutomaticCloud = useCallback(
     (message: string) => {
@@ -1591,6 +1685,11 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     setCloudRepairPreview(null);
     if (demoMode) {
       setSyncMessage("Sal de la demo para comparar datos reales con la nube.");
+      return;
+    }
+    if (cloudSyncPaused) {
+      setSyncStatus("idle");
+      setSyncMessage(TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE);
       return;
     }
     if (!user) return;
@@ -1739,6 +1838,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       );
     }
   }, [
+    cloudSyncPaused,
     demoMode,
     ensureCloudReadyForCurrentDevice,
     getCurrentData,
@@ -1756,6 +1856,13 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
         );
         return;
       }
+      if (cloudSyncPaused) {
+        cloudRepairPreviewRef.current = null;
+        setCloudRepairPreview(null);
+        setSyncStatus("idle");
+        setSyncMessage(TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE);
+        return;
+      }
       if (!user) return;
       if (requiresEmailConfirmation) {
         setSyncStatus("idle");
@@ -1766,12 +1873,12 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (
         !activePreview ||
         activePreview.userId !== user.id ||
-      cloudRepairPreview?.id !== activePreview.preview.id ||
-      confirmation.previewId !== activePreview.preview.id ||
-      !cloudRepairPreviewAllowsConfirmation(
-        activePreview.preview,
-        confirmation.reductionsAcknowledged,
-      )
+        cloudRepairPreview?.id !== activePreview.preview.id ||
+        confirmation.previewId !== activePreview.preview.id ||
+        !cloudRepairPreviewAllowsConfirmation(
+          activePreview.preview,
+          confirmation.reductionsAcknowledged,
+        )
       ) {
         setSyncStatus("error");
         setSyncMessage(
@@ -1978,6 +2085,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     [
       demoMode,
       cloudRepairPreview,
+      cloudSyncPaused,
       clearActiveCloudSyncReviewIssue,
       ensureCloudReadyForCurrentDevice,
       getCurrentData,
@@ -1999,12 +2107,14 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
 
     markSyncPending();
     updatePendingStatus();
+    if (cloudSyncPaused) return;
 
     if (pushTimer.current) clearTimeout(pushTimer.current);
     pushTimer.current = setTimeout(() => {
       void flushPendingUpload(true);
     }, 2000);
   }, [
+    cloudSyncPaused,
     demoMode,
     flushPendingUpload,
     handoffPausesCloud,
@@ -2019,6 +2129,10 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     function handleOnline() {
       setOnline(true);
       if (demoMode) return;
+      if (cloudSyncPaused) {
+        updatePendingStatus();
+        return;
+      }
       if (handoffPausesCloud) return;
       if (syncIssueRef.current?.automaticRetryBlocked) return;
       void flushPendingUpload(true);
@@ -2035,7 +2149,13 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
-  }, [demoMode, flushPendingUpload, handoffPausesCloud]);
+  }, [
+    cloudSyncPaused,
+    demoMode,
+    flushPendingUpload,
+    handoffPausesCloud,
+    updatePendingStatus,
+  ]);
 
   useEffect(() => {
     if (!cloudEnabled) {
@@ -2185,6 +2305,16 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (!user) setLocalDataHandoffStatus("none");
       return;
     }
+    if (cloudSyncPaused) {
+      const hasLocalChanges =
+        hasPendingSyncChanges(dataRef.current) ||
+        hasUnsyncedChanges(dataRef.current) ||
+        isSyncPendingFlag();
+      setLocalDataHandoffStatus("none");
+      setSyncStatus(hasLocalChanges ? "pending" : "idle");
+      setSyncMessage(TEMPORARY_CLOUD_SYNC_PAUSE_MESSAGE);
+      return;
+    }
     if (requiresEmailConfirmation) {
       setLocalDataHandoffStatus("none");
       setSyncStatus("idle");
@@ -2219,6 +2349,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     setLocalDataHandoffStatus("none");
   }, [
     data,
+    cloudSyncPaused,
     demoMode,
     localDataHandoffStatus,
     ready,
@@ -2236,13 +2367,14 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [demoMode, ready, replaceLocalDataFromCloud, user]);
 
   useEffect(() => {
-    if (demoMode || !ready || !user) return;
+    if (cloudSyncPaused || demoMode || !ready || !user) return;
     if (handoffPausesCloud || localDataHandoffStatus === "syncing") return;
     if (syncIssueRef.current?.automaticRetryBlocked) return;
     if (pulledForUser.current === user.id) return;
     pulledForUser.current = user.id;
     void pullFromCloud({ automatic: true });
   }, [
+    cloudSyncPaused,
     demoMode,
     handoffPausesCloud,
     localDataHandoffStatus,
@@ -2256,7 +2388,14 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    if (demoMode || handoffPausesCloud || !cloudEnabled || !user) return;
+    if (
+      demoMode ||
+      handoffPausesCloud ||
+      cloudSyncPaused ||
+      !cloudEnabled ||
+      !user
+    )
+      return;
 
     function handleVisible() {
       if (document.visibilityState === "visible" && isBrowserOnline()) {
@@ -2274,6 +2413,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener("visibilitychange", handleVisible);
   }, [
     cloudEnabled,
+    cloudSyncPaused,
     data,
     demoMode,
     flushPendingUpload,
@@ -2283,7 +2423,14 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   ]);
 
   useEffect(() => {
-    if (demoMode || handoffPausesCloud || !cloudEnabled || !user) return;
+    if (
+      demoMode ||
+      handoffPausesCloud ||
+      cloudSyncPaused ||
+      !cloudEnabled ||
+      !user
+    )
+      return;
 
     const pullTimer = setInterval(() => {
       if (document.visibilityState !== "visible" || !isBrowserOnline()) return;
@@ -2293,10 +2440,24 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }, PULL_INTERVAL_MS);
 
     return () => clearInterval(pullTimer);
-  }, [cloudEnabled, demoMode, handoffPausesCloud, pullFromCloud, user]);
+  }, [
+    cloudEnabled,
+    cloudSyncPaused,
+    demoMode,
+    handoffPausesCloud,
+    pullFromCloud,
+    user,
+  ]);
 
   useEffect(() => {
-    if (demoMode || handoffPausesCloud || !user || !pendingUpload || !online)
+    if (
+      demoMode ||
+      handoffPausesCloud ||
+      cloudSyncPaused ||
+      !user ||
+      !pendingUpload ||
+      !online
+    )
       return;
 
     if (retryTimer.current) clearInterval(retryTimer.current);
@@ -2309,6 +2470,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       if (retryTimer.current) clearInterval(retryTimer.current);
     };
   }, [
+    cloudSyncPaused,
     demoMode,
     flushPendingUpload,
     handoffPausesCloud,
@@ -2586,11 +2748,15 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
       }
       markSyncPending();
 
-      if (user && emailConfirmed) await pushToCloud(withQueue, false);
+      if (user && emailConfirmed && !cloudSyncPaused) {
+        await pushToCloud(withQueue, false);
+      } else if (user && emailConfirmed && cloudSyncPaused) {
+        markSyncPending();
+      }
       setSyncMessage("Copia importada correctamente");
       return null;
     },
-    [demoMode, emailConfirmed, pushToCloud, replaceData, user],
+    [cloudSyncPaused, demoMode, emailConfirmed, pushToCloud, replaceData, user],
   );
 
   const exportBackup = useCallback(async () => {
@@ -2607,6 +2773,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(
     () => ({
       cloudEnabled,
+      cloudSyncPaused,
       authReady,
       user,
       emailConfirmed,
@@ -2640,6 +2807,7 @@ export function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       cloudEnabled,
+      cloudSyncPaused,
       user,
       emailConfirmed,
       requiresEmailConfirmation,

@@ -95,6 +95,7 @@ export function CloudAccountCard({
 } = {}) {
   const {
     cloudEnabled,
+    cloudSyncPaused,
     user,
     requiresEmailConfirmation,
     email,
@@ -141,6 +142,10 @@ export function CloudAccountCard({
   const [legalAccepted, setLegalAccepted] = useState(false);
   const hasDocumentFiscalIdentityConflict =
     syncIssue?.code === DOCUMENT_FISCAL_IDENTITY_CONFLICT_SYNC_ISSUE_CODE;
+  function cloudSyncStatusLabel() {
+    return syncIssue ? "Revisión necesaria" : STATUS_LABELS[syncStatus];
+  }
+  const canShowSyncActions = limits.cloudSync && !syncIssue;
   const [authMode, setAuthMode] = useState<AuthMode>("signin");
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const searchParams = useSearchParams();
@@ -453,7 +458,10 @@ export function CloudAccountCard({
                 </div>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Nueva contraseña" hint={ACCOUNT_PASSWORD_POLICY_HINT}>
+                <Field
+                  label="Nueva contraseña"
+                  hint={ACCOUNT_PASSWORD_POLICY_HINT}
+                >
                   <Input
                     type="password"
                     value={newPassword}
@@ -514,8 +522,16 @@ export function CloudAccountCard({
               </Button>
             </div>
           ) : null}
+          {cloudSyncPaused && limits.cloudSync && !requiresEmailConfirmation ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm leading-6 text-amber-950">
+              Sincronizacion pausada temporalmente. Puedes trabajar y emitir en
+              este dispositivo; los cambios quedan en local hasta que
+              reactivemos la nube.
+            </p>
+          ) : null}
           {!requiresEmailConfirmation &&
           limits.cloudSync &&
+          !cloudSyncPaused &&
           !syncIssue &&
           localDataHandoffStatus !== "none" ? (
             <div className="space-y-3 rounded-xl border border-sky-200 bg-white p-4">
@@ -574,11 +590,13 @@ export function CloudAccountCard({
           {limits.cloudSync ? (
             <p className="text-sm text-slate-500">
               Estado:{" "}
-              {syncIssue ? "Revisión necesaria" : STATUS_LABELS[syncStatus]}
+              {cloudSyncPaused
+                ? "Pausada temporalmente"
+                : cloudSyncStatusLabel()}
               {syncMessage ? ` — ${syncMessage}` : ""}
             </p>
           ) : null}
-          {limits.cloudSync && syncIssue ? (
+          {limits.cloudSync && !cloudSyncPaused && syncIssue ? (
             <div className="flex items-start gap-2 border-y border-red-200 bg-red-50 px-3 py-3 text-sm text-red-950">
               <CircleAlert className="mt-0.5 h-4 w-4 shrink-0" />
               <p>
@@ -589,33 +607,40 @@ export function CloudAccountCard({
             </div>
           ) : null}
           {limits.cloudSync &&
-          !syncIssue &&
-          pendingUpload &&
-          syncStatus !== "syncing" && (
-            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              {syncStatus === "offline" ? (
-                <>
-                  {pendingChangeCount > 0
-                    ? `${pendingChangeCount} cambio(s) en cola.`
-                    : "Hay cambios guardados en este dispositivo."}{" "}
-                  Se subirán al recuperar internet.
-                </>
-              ) : pendingChangeCount > 0 ? (
-                <>
-                  {pendingChangeCount} cambio(s) pendiente(s) de subir (solo lo
-                  modificado). Se suben solos en unos segundos o pulsa
-                  Sincronizar ahora.
-                </>
-              ) : (
-                <>
-                  Quedan cambios locales por confirmar en la nube. Pulsa
-                  Sincronizar ahora.
-                </>
-              )}
-            </p>
-          )}
+            !syncIssue &&
+            pendingUpload &&
+            syncStatus !== "syncing" && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {cloudSyncPaused ? (
+                  <>
+                    {pendingChangeCount > 0
+                      ? `${pendingChangeCount} cambio(s) guardado(s) en este dispositivo.`
+                      : "Hay cambios guardados en este dispositivo."}{" "}
+                    Se subirán cuando reactivemos la nube.
+                  </>
+                ) : syncStatus === "offline" ? (
+                  <>
+                    {pendingChangeCount > 0
+                      ? `${pendingChangeCount} cambio(s) en cola.`
+                      : "Hay cambios guardados en este dispositivo."}{" "}
+                    Se subirán al recuperar internet.
+                  </>
+                ) : pendingChangeCount > 0 ? (
+                  <>
+                    {pendingChangeCount} cambio(s) pendiente(s) de subir (solo
+                    lo modificado). Se suben solos en unos segundos o pulsa
+                    Sincronizar ahora.
+                  </>
+                ) : (
+                  <>
+                    Quedan cambios locales por confirmar en la nube. Pulsa
+                    Sincronizar ahora.
+                  </>
+                )}
+              </p>
+            )}
           <div className="flex flex-wrap gap-3">
-            {limits.cloudSync && !syncIssue ? (
+            {canShowSyncActions && !cloudSyncPaused ? (
               <Button
                 variant="secondary"
                 onClick={() => void syncNow()}
@@ -635,18 +660,20 @@ export function CloudAccountCard({
             <Button
               variant="danger"
               onClick={() => void handleSecureSignOut()}
-              disabled={busy || Boolean(syncIssue)}
+              disabled={busy || cloudSyncPaused || Boolean(syncIssue)}
               title={
-                syncIssue
-                  ? "Resuelve primero el conflicto sin borrar datos locales"
-                  : undefined
+                cloudSyncPaused
+                  ? "La sincronización está pausada temporalmente"
+                  : syncIssue
+                    ? "Resuelve primero el conflicto sin borrar datos locales"
+                    : undefined
               }
             >
               <LogOut className="h-4 w-4" />
               Cerrar y borrar este dispositivo
             </Button>
           </div>
-          {limits.cloudSync ? (
+          {limits.cloudSync && !cloudSyncPaused ? (
             <details
               open={syncIssue ? true : undefined}
               className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600"
@@ -694,8 +721,8 @@ export function CloudAccountCard({
               </>
             ) : (
               <>
-                Puedes probar sin cuenta. En Gratis, lo que guardes seguirá
-                solo en este navegador incluso después de iniciar sesión.
+                Puedes probar sin cuenta. En Gratis, lo que guardes seguirá solo
+                en este navegador incluso después de iniciar sesión.
               </>
             )}
           </p>
@@ -804,38 +831,42 @@ export function CloudAccountCard({
             </Field>
             {authMode !== "reset" ? (
               <Field label="Contraseña" hint={ACCOUNT_PASSWORD_POLICY_HINT}>
-              <div className="relative">
-                <Input
-                  ref={passwordInputRef}
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pr-14"
-                  autoComplete={
-                    authMode === "signin" ? "current-password" : "new-password"
-                  }
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((value) => !value)}
-                  className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                  aria-label={
-                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
-                  }
-                  title={
-                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
-                  }
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
+                <div className="relative">
+                  <Input
+                    ref={passwordInputRef}
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pr-14"
+                    autoComplete={
+                      authMode === "signin"
+                        ? "current-password"
+                        : "new-password"
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((value) => !value)}
+                    className="absolute right-2 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                    aria-label={
+                      showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                    }
+                    title={
+                      showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                    }
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </Field>
             ) : null}
-            {surface !== "partner" && billingEnabled && authMode === "signup" ? (
+            {surface !== "partner" &&
+            billingEnabled &&
+            authMode === "signup" ? (
               <Field
                 label="Código de invitación"
                 hint={`Opcional — ${REFERRAL_BONUS_SCANS} créditos IA para ambos después de un pago válido`}
@@ -927,13 +958,13 @@ export function CloudAccountCard({
                 ? authMode === "reset"
                   ? "Enviando enlace…"
                   : authMode === "signup"
-                  ? "Creando cuenta…"
-                  : "Comprobando…"
+                    ? "Creando cuenta…"
+                    : "Comprobando…"
                 : authMode === "reset"
                   ? "Enviar enlace de recuperación"
                   : authMode === "signup"
-                  ? "Crear cuenta"
-                  : "Iniciar sesión"}
+                    ? "Crear cuenta"
+                    : "Iniciar sesión"}
             </Button>
             {authMode === "signin" ? (
               <button
