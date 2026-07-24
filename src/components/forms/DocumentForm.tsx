@@ -472,6 +472,7 @@ export function DocumentForm({
   } = useBilling();
   const {
     cloudEnabled,
+    cloudSyncPaused,
     user: cloudUser,
     syncIssue: cloudSyncIssue,
     syncNow,
@@ -1573,6 +1574,7 @@ export function DocumentForm({
       resolvedStatus !== "borrador" &&
       (type === "factura" || type === "recibo") &&
       cloudEnabled &&
+      !cloudSyncPaused &&
       Boolean(cloudUser);
     if (requiresFreshCloudBeforeEmission) {
       if (cloudSyncIssue) {

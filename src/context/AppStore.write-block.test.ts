@@ -23,6 +23,7 @@ describe("stale cloud snapshot write block", () => {
     expect(appStoreSource).toContain("export interface AppWriteBlock");
     expect(appStoreSource).toContain("initialCloudSyncWriteBlock");
     expect(appStoreSource).toContain("isCloudEnabled()");
+    expect(appStoreSource).toContain("isCloudSyncTemporarilyPaused()");
     expect(appStoreSource).toContain("writeBlock: AppWriteBlock | null");
     expect(appStoreSource).toContain("setExternalWriteBlock");
     expect(appStoreSource).toContain("clearExternalWriteBlock");
